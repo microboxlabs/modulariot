@@ -14,7 +14,9 @@ export async function testPostgrestConnection(
   authMethod: AuthMethod,
   dataSourceId?: string
 ): Promise<{ success: boolean; errorMessage?: string }> {
-  const specUrl = `${url}/`;
+  // Strip any trailing slash before appending one so a url that already ends
+  // in "/" doesn't produce a double slash (which breaks the upstream probe).
+  const specUrl = `${url.replace(/\/+$/, "")}/`;
 
   const urlCheck = await validateTargetUrl(specUrl);
   if (!urlCheck.valid) {

@@ -123,6 +123,18 @@ describe("POST /api/data-sources/test (stateless)", () => {
     expect(init.headers.Authorization).toBe("Bearer form-token");
   });
 
+  it("normalizes a trailing slash in the url so the probe URL has no double slash", async () => {
+    fetchMock.mockResolvedValue(makeResponse({ ok: true, status: 200, jsonData: {} }));
+    const { POST } = await loadRoute();
+
+    await POST(
+      makeRequest({ type: "POSTGREST", url: "https://db.example.com/", authMethod: "TOKEN", token: "t" })
+    );
+
+    const [calledUrl] = fetchMock.mock.calls[0];
+    expect(calledUrl).toBe("https://db.example.com/");
+  });
+
   it("reports success:false when the TOKEN probe gets a non-OK response", async () => {
     fetchMock.mockResolvedValue(makeResponse({ ok: false, status: 401, statusText: "Unauthorized" }));
     const { POST } = await loadRoute();

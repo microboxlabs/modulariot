@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveSiteForRequest } from "@/app/api/utils/org-resolver";
-import { validateTargetUrl } from "@/app/api/utils/url-validator";
 import {
   getDataSource,
   updateDataSource,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import type { AlfrescoDataSourceConfig } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { resolveBearerToken, buildAuthHeader } from "@/app/api/data-sources/resolve-credentials";
+import { resolveBearerToken } from "@/app/api/data-sources/resolve-credentials";
 import type { BearerResult } from "@/app/api/data-sources/resolve-credentials";
+import { testPostgrestConnection } from "@/app/api/data-sources/test-connection";
 import { logger } from "@/lib/logger";
 
 type RouteContext = { params: Promise<{ dataSourceId: string }> };
@@ -27,42 +27,6 @@ function buildBearerLogFields(dataSourceId: string, result: BearerResult) {
     return { dataSourceId, ok: true, authMethod: result.authMethod };
   }
   return { dataSourceId, ok: false, error: result.error };
-}
-
-async function testPostgrestConnection(
-  url: string,
-  token: string,
-  authMethod: "TOKEN" | "OAUTH",
-  dataSourceId: string
-): Promise<{ success: boolean; errorMessage?: string }> {
-  const specUrl = `${url}/`;
-
-  const urlCheck = await validateTargetUrl(specUrl);
-  if (!urlCheck.valid) {
-    return { success: false, errorMessage: urlCheck.reason };
-  }
-
-  try {
-    const res = await fetch(specUrl, {
-      headers: {
-        Accept: "application/openapi+json",
-        Authorization: buildAuthHeader(token, authMethod),
-      },
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (res.ok) {
-      await res.json();
-      return { success: true };
-    }
-    return { success: false, errorMessage: `HTTP ${res.status}: ${res.statusText}` };
-  } catch (err) {
-    logger.error({ err, dataSourceId }, "Data source connection test failed");
-    return {
-      success: false,
-      errorMessage: err instanceof Error ? err.message : "Connection test failed",
-    };
-  }
 }
 
 export async function POST(request: NextRequest, ctx: RouteContext) {

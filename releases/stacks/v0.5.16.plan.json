@@ -2,13 +2,75 @@
   "stack_version": "0.5.16",
   "stack_tag": "miot-stack@v0.5.16",
   "milestone": "MIOT-0.5.16",
-  "pull_requests": [],
-  "changed_files": [],
+  "pull_requests": [
+    {
+      "number": 690,
+      "title": "Based/fixing bentobox modal",
+      "source_issues": [
+        {
+          "number": 689,
+          "title": "fix(bento): consolidate task modals, fix viewer dropdown tooltip & full-width reject item"
+        }
+      ]
+    },
+    {
+      "number": 693,
+      "title": "feat(release): make train milestone driven",
+      "source_issues": [
+        {
+          "number": 692,
+          "title": "feat: make release train milestone-driven"
+        }
+      ]
+    },
+    {
+      "number": 695,
+      "title": "feat(release): align nightly stack assembly",
+      "source_issues": [
+        {
+          "number": 694,
+          "title": "feat: align nightly stack assembly"
+        }
+      ]
+    },
+    {
+      "number": 698,
+      "title": "fix(release): seed stack version from component tags",
+      "source_issues": [
+        {
+          "number": 697,
+          "title": "fix: seed stack release version from component tags"
+        }
+      ]
+    }
+  ],
+  "changed_files": [
+    ".github/scripts/resolve-stack-release-plan.js",
+    ".github/workflows/app-nightly.yml",
+    ".github/workflows/app-release-train.yml",
+    "turbo-repo/.claude/settings.json",
+    "turbo-repo/apps/app/src/features/dynamic-forms/components/live-form-field.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-actions/go-back-modal.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-actions/go-forward-modal.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-actions/review-items.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-actions/task-actions.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-actions/task-actions.types.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/bento-head.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/gallery/file-images.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/sidebar/sidebar-section.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/viewer-toolbar.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-confirm-modal/task-confirm-modal.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-confirm-modal/task-confirm-modal.types.ts",
+    "turbo-repo/apps/app/src/features/task-forms/services/form.service.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/package-lock.json"
+  ],
   "components": {
     "app": {
-      "changed": false,
-      "version": "0.5.15",
-      "tag": "app@v0.5.15"
+      "changed": true,
+      "version": "0.5.16",
+      "tag": "app@v0.5.16"
     },
     "modulith": {
       "changed": false,

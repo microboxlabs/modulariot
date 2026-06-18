@@ -1,0 +1,86 @@
+{
+  "stack_version": "0.5.17",
+  "stack_tag": "miot-stack@v0.5.17",
+  "milestone": "MIOT-0.5.17",
+  "pull_requests": [
+    {
+      "number": 634,
+      "title": "feat(auth): validate username/password against Auth0, env-driven conn…",
+      "source_issues": [
+        {
+          "number": 635,
+          "title": "feat: unify username/password sign-in through Auth0 and make Auth0 connection IDs configurable"
+        }
+      ]
+    },
+    {
+      "number": 701,
+      "title": "fix: keep stack dispatch payload under GitHub limit",
+      "source_issues": []
+    },
+    {
+      "number": 703,
+      "title": "feat(calendar): un-gate accredited-resource selection from clientRut (pass null)",
+      "source_issues": [
+        {
+          "number": 702,
+          "title": "feat: don't gate accredited-resource selection on clientRut (pass null)"
+        }
+      ]
+    },
+    {
+      "number": 705,
+      "title": "fix: keep stack dispatch compatible with deployments",
+      "source_issues": [
+        {
+          "number": 704,
+          "title": "bug: stack dispatch payload is incompatible with deployment workflow"
+        }
+      ]
+    },
+    {
+      "number": 707,
+      "title": "fix: resolve release components from milestone issues",
+      "source_issues": [
+        {
+          "number": 706,
+          "title": "bug: release planner misses app changes from milestone issues"
+        }
+      ]
+    }
+  ],
+  "changed_files": [
+    ".github/scripts/resolve-stack-release-plan.js",
+    ".github/workflows/app-nightly.yml",
+    ".github/workflows/app-release-train.yml",
+    "releases/stacks/v0.5.16.plan.json",
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/package.json",
+    "turbo-repo/apps/app/src/app/api/calendar/accredited-resources/route.ts",
+    "turbo-repo/apps/app/src/app/api/utils/pgrest-client.ts",
+    "turbo-repo/apps/app/src/auth.config.ts",
+    "turbo-repo/apps/app/src/features/auth/config/auth0-connections.test.ts",
+    "turbo-repo/apps/app/src/features/auth/config/auth0-connections.ts",
+    "turbo-repo/apps/app/src/features/auth/services/auth.service.ts",
+    "turbo-repo/apps/app/src/features/auth/services/auth0-password.test.ts",
+    "turbo-repo/apps/app/src/features/auth/services/auth0-password.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/accredited-resources.service.ts",
+    "turbo-repo/apps/app/src/releases/v1.31.15.mdx",
+    "turbo-repo/apps/app/src/test/server-only-stub.ts",
+    "turbo-repo/apps/app/src/types/next-auth.d.ts",
+    "turbo-repo/apps/app/vitest.config.ts",
+    "turbo-repo/package-lock.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.16",
+      "tag": "app@v0.5.16"
+    },
+    "modulith": {
+      "changed": false,
+      "version": "0.5.15",
+      "tag": "modulith@v0.5.15"
+    }
+  }
+}

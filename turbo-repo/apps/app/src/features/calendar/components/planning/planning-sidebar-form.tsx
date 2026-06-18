@@ -743,6 +743,8 @@ export function PlanningSidebarForm({
                 selectedService?.mintral_delegacionOrigen ??
                 selectedService?.origen
               }
+              originGeofenceName={selectedService?.origen}
+              destinationGeofenceName={selectedService?.destino}
             />
             {!isReadOnlyView && (
               <div className="flex gap-2 pt-2">

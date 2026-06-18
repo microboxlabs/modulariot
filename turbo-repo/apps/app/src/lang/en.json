@@ -399,6 +399,8 @@
           "hint": "Select a date and time in the calendar to reassign"
         },
         "assignment": {
+          "distanceToOrigin": "Distance to origin",
+          "etaTrip": "Trip ETA",
           "selectPlaceholder": "Select...",
           "carrier": "Carrier",
           "selectCarrier": "Select carrier...",

@@ -209,7 +209,9 @@ jobs:
       - name: Write release notes
         run: |
           release_file="releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx"
+          app_release_file="turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx"
           mkdir -p "$(dirname "$release_file")"
+          mkdir -p "$(dirname "$app_release_file")"
           node - "${{ steps.release_notes_ai.outputs['response-file'] }}" "$release_file" <<'NODE'
           const fs = require("fs");
           const [source, target] = process.argv.slice(2);
@@ -220,12 +222,13 @@ jobs:
           }
           fs.writeFileSync(target, `${content}\n`);
           NODE
+          cp "$release_file" "$app_release_file"
 
       - name: Commit release prep
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "${{ steps.plan.outputs.stack_plan_file }}" releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/package.json turbo-repo/package-lock.json quarkus-srv
+          git add "${{ steps.plan.outputs.stack_plan_file }}" releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/package.json turbo-repo/package-lock.json quarkus-srv
           git commit -m "chore(release): prepare MIOT stack v${{ steps.version.outputs.release_version }}"
           git push origin "${{ steps.branch.outputs.branch }}"
 
@@ -320,6 +323,7 @@ jobs:
       - name: Verify release prep landed on trunk
         run: |
           release_file="releases/notes/v${{ needs.prepare.outputs.release_notes_version }}.mdx"
+          app_release_file="turbo-repo/apps/app/src/releases/v${{ needs.prepare.outputs.release_notes_version }}.mdx"
           plan_file="${{ needs.prepare.outputs.stack_plan_file }}"
 
           if [[ "${{ needs.prepare.outputs.app_changed }}" == "true" ]]; then
@@ -348,6 +352,12 @@ jobs:
 
           if [[ ! -f "$release_file" ]]; then
             echo "Missing release notes file on trunk: $release_file" >&2
+            echo "Merge the release PR before approving/tagging." >&2
+            exit 1
+          fi
+
+          if [[ ! -f "$app_release_file" ]]; then
+            echo "Missing app release notes file on trunk: $app_release_file" >&2
             echo "Merge the release PR before approving/tagging." >&2
             exit 1
           fi
@@ -651,7 +661,7 @@ jobs:
       - name: Upload stack manifest to release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ needs.prepare.outputs.stack_tag }}" stack-manifest.json --clobber
+        run: gh release upload "${{ needs.prepare.outputs.stack_tag }}" stack-manifest.json --clobber --repo "$GITHUB_REPOSITORY"
 
   close-milestones:
     name: Close release milestones

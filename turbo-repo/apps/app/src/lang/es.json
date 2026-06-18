@@ -399,6 +399,8 @@
           "hint": "Seleccione una fecha y hora en el calendario para reasignar"
         },
         "assignment": {
+          "distanceToOrigin": "Distancia al origen",
+          "etaTrip": "ETA viaje",
           "selectPlaceholder": "Seleccionar...",
           "carrier": "Transportista",
           "selectCarrier": "Seleccionar transportista...",

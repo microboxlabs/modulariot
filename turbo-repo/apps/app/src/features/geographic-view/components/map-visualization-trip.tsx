@@ -314,12 +314,12 @@ export default function MapVisualizationTrip({
       (f) => (f.properties as { location_type?: number }).location_type === 1
     );
     const geometry = origin?.geometry as
-      | { type?: string; coordinates?: unknown }
+      | { type?: string; coordinates?: LngLat[][] }
       | undefined;
     // Only a Polygon's outer ring is a list of [lng,lat] tuples; a Point or
     // MultiPolygon (or malformed payload) would make ringCentroid throw.
     if (geometry?.type !== "Polygon") return null;
-    const ring = (geometry.coordinates as LngLat[][] | undefined)?.[0];
+    const ring = geometry.coordinates?.[0];
     if (!Array.isArray(ring)) return null;
     return ringCentroid(ring);
   }, [processedGeofence]);

@@ -638,9 +638,8 @@ function FilterManagerForm({
           const title = filter.label || t("newFilter");
 
           return (
-            <div
+            <li
               key={id}
-              role="listitem"
               draggable
               onDragStart={() => {
                 dragSrcRef.current = index;
@@ -835,7 +834,7 @@ function FilterManagerForm({
                   )}
                 </div>
               )}
-            </div>
+            </li>
           );
         })}
 

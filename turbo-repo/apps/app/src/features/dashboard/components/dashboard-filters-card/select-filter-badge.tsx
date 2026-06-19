@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { HiChevronDown, HiXMark } from "react-icons/hi2";
 import type { DashboardFilterParam } from "../../types/dashboard.types";
 import { useOutsideClick } from "./use-outside-click";
@@ -15,23 +15,33 @@ interface SelectFilterBadgeProps {
 
 export function SelectFilterBadge({ filter, values, onApply, onClear }: Readonly<SelectFilterBadgeProps>) {
   const [open, setOpen] = useState(false);
+  const [localValues, setLocalValues] = useState<string[]>(values);
   const containerRef = useRef<HTMLDivElement>(null);
-  const hasValue = values.length > 0;
+
+  useEffect(() => {
+    setLocalValues(values);
+  }, [values]);
 
   useOutsideClick(containerRef, () => setOpen(false), open);
 
+  const hasValue = localValues.length > 0;
+
   const displayLabel = hasValue
-    ? values.map((v) => filter.options?.find((o) => o.value === v)?.label ?? v).join(", ")
+    ? localValues.map((v) => filter.options?.find((o) => o.value === v)?.label ?? v).join(", ")
     : null;
 
   const toggleOption = (value: string) => {
-    if (values.includes(value)) {
-      const next = values.filter((v) => v !== value);
-      if (next.length === 0) onClear();
-      else onApply(next);
-    } else {
-      onApply([...values, value]);
-    }
+    const next = localValues.includes(value)
+      ? localValues.filter((v) => v !== value)
+      : [...localValues, value];
+    setLocalValues(next);
+    if (next.length === 0) onClear();
+    else onApply(next);
+  };
+
+  const handleClear = () => {
+    setLocalValues([]);
+    onClear();
   };
 
   return (
@@ -54,11 +64,11 @@ export function SelectFilterBadge({ filter, values, onApply, onClear }: Readonly
       {hasValue && (
         <button
           type="button"
-          onMouseDown={(e) => { e.stopPropagation(); onClear(); }}
+          onMouseDown={(e) => { e.stopPropagation(); handleClear(); }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onClear(); }
+            if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); handleClear(); }
           }}
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 shrink-0 cursor-pointer rounded-full p-0.5 hover:bg-blue-200 dark:hover:bg-blue-800"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 shrink-0 cursor-pointer rounded-full p-0.5 text-blue-700 hover:bg-blue-200 dark:text-blue-300 dark:hover:bg-blue-800"
         >
           <HiXMark className="h-3 w-3" />
         </button>
@@ -70,7 +80,7 @@ export function SelectFilterBadge({ filter, values, onApply, onClear }: Readonly
             type="button"
             onMouseDown={(e) => {
               e.preventDefault();
-              onClear();
+              handleClear();
               setOpen(false);
             }}
             className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs transition-colors hover:bg-gray-50 dark:hover:bg-gray-600 ${
@@ -83,7 +93,7 @@ export function SelectFilterBadge({ filter, values, onApply, onClear }: Readonly
           </button>
           <div className="my-0.5 border-t border-gray-100 dark:border-gray-600" />
           {(filter.options ?? []).map((opt) => {
-            const checked = values.includes(opt.value);
+            const checked = localValues.includes(opt.value);
             return (
               <button
                 key={opt.value}

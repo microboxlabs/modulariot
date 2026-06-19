@@ -46,6 +46,11 @@ export function TextFilterBadge({ filter, value, onApply, onClear }: Readonly<Te
     setDraft("");
   };
 
+  const handleClear = () => {
+    setChips([]);
+    onClear();
+  };
+
   const removeChip = (chip: string) => {
     const next = chips.filter((c) => c !== chip);
     setChips(next);
@@ -73,11 +78,11 @@ export function TextFilterBadge({ filter, value, onApply, onClear }: Readonly<Te
       {hasValue && (
         <button
           type="button"
-          onMouseDown={(e) => { e.stopPropagation(); onClear(); }}
+          onMouseDown={(e) => { e.stopPropagation(); handleClear(); }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onClear(); }
+            if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); handleClear(); }
           }}
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 shrink-0 cursor-pointer rounded-full p-0.5 hover:bg-blue-200 dark:hover:bg-blue-800"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 shrink-0 cursor-pointer rounded-full p-0.5 text-blue-700 hover:bg-blue-200 dark:text-blue-300 dark:hover:bg-blue-800"
         >
           <HiXMark className="h-3 w-3" />
         </button>

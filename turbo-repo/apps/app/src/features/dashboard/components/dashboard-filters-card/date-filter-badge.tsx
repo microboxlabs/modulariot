@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { HiCalendar, HiChevronDown, HiXMark } from "react-icons/hi2";
 import TimeRangePicker from "../dashboard-filter-bar/time-range-picker";
 import type { DashboardFilterParam } from "../../types/dashboard.types";
@@ -18,8 +18,28 @@ interface DateFilterBadgeProps {
 
 export function DateFilterBadge({ filter, from, to, onChange, onClear, dictionary }: Readonly<DateFilterBadgeProps>) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const hasValue = Boolean(from || to);
-  const displayText = hasValue ? [from, to].filter(Boolean).join(" – ") : null;
+  const [localFrom, setLocalFrom] = useState(from);
+  const [localTo, setLocalTo] = useState(to);
+
+  useEffect(() => {
+    setLocalFrom(from);
+    setLocalTo(to);
+  }, [from, to]);
+
+  const hasValue = Boolean(localFrom || localTo);
+  const displayText = hasValue ? [localFrom, localTo].filter(Boolean).join(" – ") : null;
+
+  const handleDateChange = (newFrom: string, newTo: string) => {
+    setLocalFrom(newFrom);
+    setLocalTo(newTo);
+    onChange(newFrom, newTo);
+  };
+
+  const handleClear = () => {
+    setLocalFrom(undefined);
+    setLocalTo(undefined);
+    onClear();
+  };
 
   return (
     <div className="relative inline-flex items-center">
@@ -51,9 +71,9 @@ export function DateFilterBadge({ filter, from, to, onChange, onClear, dictionar
           mode="date"
           ranges="date"
           fullWidth
-          from={from}
-          to={to}
-          onDateChange={onChange}
+          from={localFrom}
+          to={localTo}
+          onDateChange={handleDateChange}
           onOpenChange={setIsPickerOpen}
         />
       </div>
@@ -62,7 +82,7 @@ export function DateFilterBadge({ filter, from, to, onChange, onClear, dictionar
       {hasValue && (
         <button
           type="button"
-          onClick={onClear}
+          onClick={handleClear}
           className="absolute right-2 z-10 shrink-0 rounded-full p-0.5 text-blue-700 hover:bg-blue-200 dark:text-blue-300 dark:hover:bg-blue-800"
         >
           <HiXMark className="h-3 w-3" />

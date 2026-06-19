@@ -640,6 +640,7 @@ function FilterManagerForm({
           return (
             <div
               key={id}
+              role="listitem"
               draggable
               onDragStart={() => {
                 dragSrcRef.current = index;

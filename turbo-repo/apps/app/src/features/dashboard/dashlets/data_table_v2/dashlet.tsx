@@ -716,7 +716,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
     table.style.tableLayout = "auto";
     table.style.width = "max-content";
-    void table.offsetWidth; // force reflow in auto mode
+    table.getBoundingClientRect(); // force reflow in auto mode
 
     const cells = headerRow.children;
     // Measure ALL data columns including the last.
@@ -731,7 +731,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     const sum = raw.reduce<number>((a, w) => a + (w ?? 0), 0);
     // Scale proportionally if natural widths overflow the container.
     const snapshot = sum > available && available > 0
-      ? raw.map(w => w != null ? Math.max(40, Math.round(w * available / sum)) : null)
+      ? raw.map(w => w == null ? null : Math.max(40, Math.round(w * available / sum)))
       : raw;
 
     columnWidthsRef.current = snapshot;
@@ -773,7 +773,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           let sumOthers = actionsW;
           colRefs.current.forEach((c, i) => {
             if (i === lastIdx) return;
-            sumOthers += i === colIdx ? w : (parseFloat(c?.style.width ?? "0") || 0);
+            sumOthers += i === colIdx ? w : (Number.parseFloat(c?.style.width ?? "0") || 0);
           });
           const lastW = Math.max(40, containerW - sumOthers);
           const lastPx = `${lastW}px`;
@@ -799,7 +799,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           next[colIdx] = finalWidth;
           const lastIdx = columnsRef.current.length - 1;
           const lastThEl = thRefs.current[lastIdx];
-          if (lastThEl) next[lastIdx] = parseFloat(lastThEl.style.width) || next[lastIdx];
+          if (lastThEl) next[lastIdx] = Number.parseFloat(lastThEl.style.width) || next[lastIdx];
           return next;
         });
         document.removeEventListener("mousemove", onMouseMove);
@@ -831,7 +831,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     });
     table.style.tableLayout = "auto";
     table.style.width = "max-content";
-    void table.offsetWidth; // force reflow
+    table.getBoundingClientRect(); // force reflow
     const contentWidth = thEl.offsetWidth;
 
     // Restore other columns and clear inline override → Tailwind class kicks in.
@@ -843,7 +843,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     });
     table.style.tableLayout = "";
     table.style.width = "";
-    void table.offsetWidth;
+    table.getBoundingClientRect(); // force reflow
 
     colEl.style.width = `${contentWidth}px`;
 
@@ -853,7 +853,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         if (i === cols.length - 1) return null;
         if (i === colIdx) return contentWidth;
         const col = colRefs.current[i];
-        return col ? (parseFloat(col.style.width) || null) : null;
+        return col ? (Number.parseFloat(col.style.width) || null) : null;
       });
       columnWidthsRef.current = snapshot;
       setColumnWidths(snapshot);
@@ -917,7 +917,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                 <col
                   key={col.key}
                   ref={(el) => { colRefs.current[i] = el; }}
-                  style={columnWidths[i] != null ? { width: `${columnWidths[i]}px`, minWidth: `${columnWidths[i]}px`, maxWidth: `${columnWidths[i]}px` } : undefined}
+                  style={columnWidths[i] == null ? undefined : { width: `${columnWidths[i]}px`, minWidth: `${columnWidths[i]}px`, maxWidth: `${columnWidths[i]}px` }}
                 />
               ))}
               {hasActions && <col />}
@@ -930,8 +930,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                     ref={(el) => { thRefs.current[colIdx] = el; }}
                     className={buildStickyThClass(colIdx, lastStickyIdx, firstStickyRightIdx)}
                     style={{
-                      ...(columnWidths[colIdx] != null ? { width: `${columnWidths[colIdx]}px`, minWidth: `${columnWidths[colIdx]}px`, maxWidth: `${columnWidths[colIdx]}px` } : {}),
-                      ...(buildStickyStyle(colIdx, stickyLeftOffsets, stickyRightOffsets, lastStickyIdx, firstStickyRightIdx) ?? {}),
+                      ...(columnWidths[colIdx] == null ? undefined : { width: `${columnWidths[colIdx]}px`, minWidth: `${columnWidths[colIdx]}px`, maxWidth: `${columnWidths[colIdx]}px` }),
+                      ...buildStickyStyle(colIdx, stickyLeftOffsets, stickyRightOffsets, lastStickyIdx, firstStickyRightIdx),
                     }}
                   >
                     <div className="flex items-center gap-1 overflow-hidden">
@@ -1070,8 +1070,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
                             rowColor
                           )}
                           style={{
-                            ...(columnWidths[colIdx] != null ? { width: `${columnWidths[colIdx]}px`, minWidth: `${columnWidths[colIdx]}px`, maxWidth: `${columnWidths[colIdx]}px` } : {}),
-                            ...(buildStickyStyle(colIdx, stickyLeftOffsets, stickyRightOffsets, lastStickyIdx, firstStickyRightIdx) ?? {}),
+                            ...(columnWidths[colIdx] == null ? undefined : { width: `${columnWidths[colIdx]}px`, minWidth: `${columnWidths[colIdx]}px`, maxWidth: `${columnWidths[colIdx]}px` }),
+                            ...buildStickyStyle(colIdx, stickyLeftOffsets, stickyRightOffsets, lastStickyIdx, firstStickyRightIdx),
                           }}
                         >
                           {(() => {

@@ -16,7 +16,7 @@ interface DateFilterBadgeProps {
   dictionary: I18nRecord;
 }
 
-export function DateFilterBadge({ filter, from, to, onChange, onClear, dictionary }: DateFilterBadgeProps) {
+export function DateFilterBadge({ filter, from, to, onChange, onClear, dictionary }: Readonly<DateFilterBadgeProps>) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const hasValue = Boolean(from || to);
   const displayText = hasValue ? [from, to].filter(Boolean).join(" – ") : null;

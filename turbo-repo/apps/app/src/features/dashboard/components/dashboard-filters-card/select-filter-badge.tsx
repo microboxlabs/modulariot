@@ -13,7 +13,7 @@ interface SelectFilterBadgeProps {
   onClear: () => void;
 }
 
-export function SelectFilterBadge({ filter, values, onApply, onClear }: SelectFilterBadgeProps) {
+export function SelectFilterBadge({ filter, values, onApply, onClear }: Readonly<SelectFilterBadgeProps>) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const hasValue = values.length > 0;
@@ -45,22 +45,24 @@ export function SelectFilterBadge({ filter, values, onApply, onClear }: SelectFi
         {hasValue ? (
           <>
             <span className="max-w-28 truncate font-normal">{displayLabel}</span>
-            <span
-              role="button"
-              tabIndex={0}
-              onMouseDown={(e) => { e.stopPropagation(); onClear(); }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onClear(); }
-              }}
-              className="ml-0.5 shrink-0 cursor-pointer rounded-full p-0.5 hover:bg-blue-200 dark:hover:bg-blue-800"
-            >
-              <HiXMark className="h-3 w-3" />
-            </span>
+            <span className="w-3.5" aria-hidden />
           </>
         ) : (
           <HiChevronDown className={`h-3 w-3 opacity-50 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
         )}
       </button>
+      {hasValue && (
+        <button
+          type="button"
+          onMouseDown={(e) => { e.stopPropagation(); onClear(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onClear(); }
+          }}
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 shrink-0 cursor-pointer rounded-full p-0.5 hover:bg-blue-200 dark:hover:bg-blue-800"
+        >
+          <HiXMark className="h-3 w-3" />
+        </button>
+      )}
 
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1 min-w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700">
@@ -72,9 +74,9 @@ export function SelectFilterBadge({ filter, values, onApply, onClear }: SelectFi
               setOpen(false);
             }}
             className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs transition-colors hover:bg-gray-50 dark:hover:bg-gray-600 ${
-              !hasValue
-                ? "font-semibold text-blue-600 dark:text-blue-400"
-                : "text-gray-700 dark:text-gray-300"
+              hasValue
+                ? "text-gray-700 dark:text-gray-300"
+                : "font-semibold text-blue-600 dark:text-blue-400"
             }`}
           >
             All

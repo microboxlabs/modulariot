@@ -55,8 +55,8 @@ export default function SearchBar({
   );
 
   const segments = pathName.split("/").filter(Boolean);
-  const final_path = segments[segments.length - 1];
-  const parent_path = segments[segments.length - 2];
+  const final_path = segments.at(-1);
+  const parent_path = segments.at(-2);
   const navegation_params = getNavegationParams(dict, searchParams.size);
 
   // If the parent segment maps to null in navegation_params, inherit no-searchbar behavior

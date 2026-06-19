@@ -13,7 +13,7 @@ interface TextFilterBadgeProps {
   onClear: () => void;
 }
 
-export function TextFilterBadge({ filter, value, onApply, onClear }: TextFilterBadgeProps) {
+export function TextFilterBadge({ filter, value, onApply, onClear }: Readonly<TextFilterBadgeProps>) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [chips, setChips] = useState<string[]>(() =>
@@ -46,8 +46,8 @@ export function TextFilterBadge({ filter, value, onApply, onClear }: TextFilterB
     setDraft("");
   };
 
-  const removeChip = (i: number) => {
-    const next = chips.filter((_, idx) => idx !== i);
+  const removeChip = (chip: string) => {
+    const next = chips.filter((c) => c !== chip);
     setChips(next);
     if (next.length === 0) onClear();
     else onApply(next.join(","));
@@ -64,36 +64,38 @@ export function TextFilterBadge({ filter, value, onApply, onClear }: TextFilterB
         {hasValue ? (
           <>
             <span className="max-w-32 truncate font-normal">{chips.join(", ")}</span>
-            <span
-              role="button"
-              tabIndex={0}
-              onMouseDown={(e) => { e.stopPropagation(); onClear(); }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onClear(); }
-              }}
-              className="ml-0.5 shrink-0 cursor-pointer rounded-full p-0.5 hover:bg-blue-200 dark:hover:bg-blue-800"
-            >
-              <HiXMark className="h-3 w-3" />
-            </span>
+            <span className="w-3.5" aria-hidden />
           </>
         ) : (
           <HiChevronDown className={`h-3 w-3 opacity-50 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
         )}
       </button>
+      {hasValue && (
+        <button
+          type="button"
+          onMouseDown={(e) => { e.stopPropagation(); onClear(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onClear(); }
+          }}
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 shrink-0 cursor-pointer rounded-full p-0.5 hover:bg-blue-200 dark:hover:bg-blue-800"
+        >
+          <HiXMark className="h-3 w-3" />
+        </button>
+      )}
 
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-600 dark:bg-gray-700">
           {chips.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-1">
-              {chips.map((chip, i) => (
+              {chips.map((chip) => (
                 <span
-                  key={i}
+                  key={chip}
                   className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
                 >
                   {chip}
                   <button
                     type="button"
-                    onMouseDown={(e) => { e.preventDefault(); removeChip(i); }}
+                    onMouseDown={(e) => { e.preventDefault(); removeChip(chip); }}
                     className="shrink-0 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800"
                   >
                     <HiXMark className="h-3 w-3" />

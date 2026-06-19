@@ -7,7 +7,12 @@ from pydantic import BaseModel, ConfigDict
 
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.permissions import PermissionResult
+from miot_harness.runtime.permissions import (
+    PermissionDecision,
+    PermissionMode,
+    PermissionResult,
+    evaluate_rules,
+)
 from miot_harness.utils.truncation import truncate_for_trace
 
 InputT = TypeVar("InputT", bound=BaseModel)
@@ -51,46 +56,91 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
         parsed_input = self.input_model.model_validate(raw_input)
         input_dump = parsed_input.model_dump()
         input_keys = sorted(input_dump.keys())
-        permission = await self.check_permission(ctx, parsed_input)
-        if permission.decision == "deny":
+
+        # Steering Plan A: rules run before the tool's own check_permission.
+        policy = ctx.permission_policy
+        rule_decision = None
+        if policy is not None and policy.rules:
+            rule_decision = evaluate_rules(
+                policy.rules, tool_name=self.name, tool_input=input_dump
+            )
+        if rule_decision == PermissionDecision.DENY:
+            reason = f"rule denied tool {self.name}"
+            _emit_failed(progress, ctx, self.name, reason, "PermissionError")
+            raise PermissionError(reason)
+
+        if rule_decision == PermissionDecision.ALLOW:
+            permission = PermissionResult.allow("allowed by rule")
+        elif rule_decision == PermissionDecision.ASK:
+            # An explicit `ask` rule forces the human-pause decision,
+            # skipping check_permission. The mode handling below still
+            # applies (bypass/auto_safe can auto-approve), matching Claude
+            # Code where bypassPermissions overrides ask rules.
+            permission = PermissionResult.ask("approval required by rule")
+        else:
+            permission = await self.check_permission(ctx, parsed_input)
+
+        if permission.decision == PermissionDecision.DENY:
             _emit_failed(progress, ctx, self.name, permission.reason, "PermissionError")
             raise PermissionError(permission.reason)
-        if permission.decision == "ask":
-            approval_id = uuid4().hex
-            progress(
-                HarnessEvent(
-                    run_id=ctx.run_id,
-                    type="approval.requested",
-                    message=permission.reason,
-                    data={
-                        "tool": self.name,
-                        "input": input_dump,
-                        "approval_id": approval_id,
-                    },
-                )
+
+        if permission.decision == PermissionDecision.ASK:
+            # Mode-based auto-approval upgrades an "ask" without a human.
+            mode = policy.mode if policy is not None else None
+            auto_approve = mode is PermissionMode.BYPASS or (
+                mode is PermissionMode.AUTO_SAFE and not self.destructive
             )
-            registry = ctx.approval_registry
-            if registry is None:
-                # No human-in-the-loop wired (CLI / eval path). Refusing
-                # is safer than silently proceeding — the caller has no
-                # way to approve.
-                reason = "approval required but no approval_registry on context"
-                _emit_failed(progress, ctx, self.name, reason, "PermissionError")
-                raise PermissionError(reason)
-            event = registry.register(approval_id, ctx.run_id)
-            try:
-                await event.wait()
-                decision = registry.decision(approval_id)
-            finally:
-                # Always discard so a cancelled wait (e.g. POST
-                # /runs/{id}/cancel during an approval pause) doesn't
-                # leak the registry entry. Without this, _pending grows
-                # unbounded across the process lifetime.
-                registry.discard(approval_id)
-            if decision != "approve":
-                reason = f"approval {approval_id} denied"
-                _emit_failed(progress, ctx, self.name, reason, "PermissionError")
-                raise PermissionError(reason)
+            if auto_approve:
+                # auto_approve is only True when mode is BYPASS or AUTO_SAFE
+                assert mode is not None
+                progress(
+                    HarnessEvent(
+                        run_id=ctx.run_id,
+                        type="approval.auto",
+                        message=f"Auto-approved {self.name} ({mode.value})",
+                        data={
+                            "tool": self.name,
+                            "mode": mode.value,
+                            "input_keys": input_keys,
+                        },
+                    )
+                )
+            else:
+                approval_id = uuid4().hex
+                progress(
+                    HarnessEvent(
+                        run_id=ctx.run_id,
+                        type="approval.requested",
+                        message=permission.reason,
+                        data={
+                            "tool": self.name,
+                            "input": input_dump,
+                            "approval_id": approval_id,
+                        },
+                    )
+                )
+                registry = ctx.approval_registry
+                if registry is None:
+                    # No human-in-the-loop wired (CLI / eval path). Refusing
+                    # is safer than silently proceeding — the caller has no
+                    # way to approve.
+                    reason = "approval required but no approval_registry on context"
+                    _emit_failed(progress, ctx, self.name, reason, "PermissionError")
+                    raise PermissionError(reason)
+                event = registry.register(approval_id, ctx.run_id)
+                try:
+                    await event.wait()
+                    decision = registry.decision(approval_id)
+                finally:
+                    # Always discard so a cancelled wait (e.g. POST
+                    # /runs/{id}/cancel during an approval pause) doesn't
+                    # leak the registry entry. Without this, _pending grows
+                    # unbounded across the process lifetime.
+                    registry.discard(approval_id)
+                if decision != "approve":
+                    reason = f"approval {approval_id} denied"
+                    _emit_failed(progress, ctx, self.name, reason, "PermissionError")
+                    raise PermissionError(reason)
         started_data: dict[str, Any] = {
             "tool": self.name,
             "source": self.source,

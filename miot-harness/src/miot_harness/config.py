@@ -186,6 +186,27 @@ class HarnessSettings(BaseSettings):
         allowed = {t.strip() for t in raw.split(",") if t.strip()}
         return tenant_id in allowed
 
+    # Steering: which deployments may use permission_mode="bypass".
+    # - dev_only (default): only when env != "prod"; otherwise downgraded.
+    # - audited: any tenant, every auto-approval emits an audit event.
+    # - per_tenant: only tenants listed in steering_bypass_tenants.
+    steering_bypass_policy: Literal["dev_only", "audited", "per_tenant"] = (
+        "dev_only"
+    )
+    # Comma-separated tenant allowlist for steering_bypass_policy="per_tenant".
+    # e.g. MIOT_HARNESS_STEERING_BYPASS_TENANTS=acme,globex
+    steering_bypass_tenants: str | None = None
+
+    def bypass_tenant_allowed(self, tenant_id: str) -> bool:
+        """True when `tenant_id` appears in the comma-separated
+        steering_bypass_tenants allowlist (whitespace-trimmed)."""
+        if not self.steering_bypass_tenants:
+            return False
+        allowed = {
+            t.strip() for t in self.steering_bypass_tenants.split(",") if t.strip()
+        }
+        return tenant_id in allowed
+
     # Plan 07 gap 8: signed identity header. When `identity_signing_key`
     # is set, requests must carry a valid `X-MIOT-Identity` header
     # (HMAC-SHA256 of `{tenant_id, user_id, exp}`) and tenant_id/user_id

@@ -18,7 +18,7 @@ interface DataSourceModalProps {
   readonly show: boolean;
   readonly onClose: () => void;
   readonly onSubmit: (data: DataSourceFormData) => void;
-  readonly onTest?: (id: string) => void;
+  readonly onTest?: (data: DataSourceFormData) => void;
   readonly editingSource?: DataSourceListItem | null;
   readonly loading?: boolean;
   readonly dict: I18nRecord;
@@ -291,11 +291,12 @@ export function DataSourceModal({
           </>
         )}
 
-        {editingSource && onTest && (
+        {onTest && (
           <div>
             <Button
+              type="button"
               color="light"
-              onClick={() => onTest(editingSource.id)}
+              onClick={handleSubmit(onTest)}
               disabled={loading}
             >
               {tr("modal.testConnection", dict)}

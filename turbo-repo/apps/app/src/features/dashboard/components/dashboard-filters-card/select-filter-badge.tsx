@@ -5,15 +5,18 @@ import { HiChevronDown, HiXMark } from "react-icons/hi2";
 import type { DashboardFilterParam } from "../../types/dashboard.types";
 import { useOutsideClick } from "./use-outside-click";
 import { BADGE_ACTIVE, BADGE_IDLE, BADGE_BASE } from "./badge-styles";
+import { tr } from "@/features/i18n/tr.service";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 interface SelectFilterBadgeProps {
   filter: DashboardFilterParam;
   values: string[];
   onApply: (values: string[]) => void;
   onClear: () => void;
+  dictionary: I18nRecord;
 }
 
-export function SelectFilterBadge({ filter, values, onApply, onClear }: Readonly<SelectFilterBadgeProps>) {
+export function SelectFilterBadge({ filter, values, onApply, onClear, dictionary }: Readonly<SelectFilterBadgeProps>) {
   const [open, setOpen] = useState(false);
   const [localValues, setLocalValues] = useState<string[]>(values);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -89,7 +92,7 @@ export function SelectFilterBadge({ filter, values, onApply, onClear }: Readonly
                 : "font-semibold text-blue-600 dark:text-blue-400"
             }`}
           >
-            All
+            {tr("dashboard.settings.columnFilterAll", dictionary)}
           </button>
           <div className="my-0.5 border-t border-gray-100 dark:border-gray-600" />
           {(filter.options ?? []).map((opt) => {

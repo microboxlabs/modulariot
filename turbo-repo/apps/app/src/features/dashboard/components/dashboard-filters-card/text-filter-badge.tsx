@@ -5,15 +5,18 @@ import { HiChevronDown, HiXMark } from "react-icons/hi2";
 import type { DashboardFilterParam } from "../../types/dashboard.types";
 import { useOutsideClick } from "./use-outside-click";
 import { BADGE_ACTIVE, BADGE_IDLE, BADGE_BASE } from "./badge-styles";
+import { tr } from "@/features/i18n/tr.service";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 interface TextFilterBadgeProps {
   filter: DashboardFilterParam;
   value: string | undefined;
   onApply: (v: string) => void;
   onClear: () => void;
+  dictionary: I18nRecord;
 }
 
-export function TextFilterBadge({ filter, value, onApply, onClear }: Readonly<TextFilterBadgeProps>) {
+export function TextFilterBadge({ filter, value, onApply, onClear, dictionary }: Readonly<TextFilterBadgeProps>) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [chips, setChips] = useState<string[]>(() =>
@@ -128,11 +131,11 @@ export function TextFilterBadge({ filter, value, onApply, onClear }: Readonly<Te
                 setOpen(false);
               }
             }}
-            placeholder="Add value, press Enter…"
+            placeholder={tr("dashboard.settings.textFilterPlaceholder", dictionary)}
             className="h-7 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"
           />
           <p className="mt-1.5 text-[10px] text-gray-400 dark:text-gray-500">
-            Enter to add · Esc to close
+            {tr("dashboard.settings.textFilterHint", dictionary)}
           </p>
         </div>
       )}

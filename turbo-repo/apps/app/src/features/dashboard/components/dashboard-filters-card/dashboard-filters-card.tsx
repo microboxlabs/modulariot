@@ -7,6 +7,7 @@ import type { DashboardFilterParam } from "../../types/dashboard.types";
 import { TextFilterBadge } from "./text-filter-badge";
 import { SelectFilterBadge } from "./select-filter-badge";
 import { DateFilterBadge } from "./date-filter-badge";
+import { tr } from "@/features/i18n/tr.service";
 
 export function DashboardFilterBadges() {
   const { filters, dictionary } = useDashboard();
@@ -77,6 +78,7 @@ export function DashboardFilterBadges() {
           value={searchParams.get(f.key) ?? undefined}
           onApply={(v) => applyText(f.key, v)}
           onClear={() => clearFilter(f.key, f.type)}
+          dictionary={dictionary}
         />
       );
     }
@@ -90,6 +92,7 @@ export function DashboardFilterBadges() {
           values={values}
           onApply={(vals) => applySelect(f.key, vals)}
           onClear={() => clearFilter(f.key, f.type)}
+          dictionary={dictionary}
         />
       );
     }
@@ -114,7 +117,7 @@ export function DashboardFilterBadges() {
       {filters.map(renderFilter)}
       {!hasDateFilter && (
         <DateFilterBadge
-          filter={{ key: "date_range", label: "Date", type: "date_range" }}
+          filter={{ key: "date_range", label: tr("dashboard.settings.dateFilterLabel", dictionary), type: "date_range" }}
           from={searchParams.get("date_range_from") ?? undefined}
           to={searchParams.get("date_range_to") ?? undefined}
           onChange={(from, to) => applyDate("date_range", from, to)}

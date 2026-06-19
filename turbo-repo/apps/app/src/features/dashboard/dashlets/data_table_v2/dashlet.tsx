@@ -695,11 +695,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const hasActionsRef = useRef(hasActions);
   hasActionsRef.current = hasActions;
 
-  useEffect(() => {
-    setColumnWidths([]);
-    thRefs.current = [];
-  }, [columns.length]);
-
   // Measure natural content widths (auto layout) and commit them so the table
   // can stay in table-layout:fixed (via Tailwind class) for all user interaction.
   // Temporarily overrides the Tailwind class with an inline style for measurement,
@@ -708,9 +703,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     const table = tableRef.current;
     const headerRow = headerRowRef.current;
     if (!table || !headerRow) return;
-    if (!columnWidthsRef.current.every((w) => w === null)) return;
     const cols = columnsRef.current;
     if (!headerRow.children.length || !cols.length) return;
+
+    // Clear stale ref-widths synchronously when column count changes so
+    // measurement can proceed in this same layout pass without an extra render.
+    if (columnWidthsRef.current.length !== cols.length) {
+      columnWidthsRef.current = [];
+      thRefs.current = [];
+    }
+
+    if (!columnWidthsRef.current.every((w) => w === null)) return;
 
     const containerWidth = table.offsetWidth;
 
@@ -783,6 +786,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
             td.style.width = lastPx; td.style.minWidth = lastPx; td.style.maxWidth = lastPx;
           });
         }
+
+        if (columnsRef.current.some(c => c.sticky)) {
+          measureStickyOffsets();
+        }
       };
 
       const onMouseMove = (ev: MouseEvent) => {
@@ -809,7 +816,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       document.addEventListener("mousemove", onMouseMove);
       document.addEventListener("mouseup", onMouseUp);
     },
-    []
+    [measureStickyOffsets]
   );
 
 
@@ -827,7 +834,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     // Clear all col widths + temp-switch to auto to measure content width.
     columnsRef.current.forEach((_, i) => {
       const col = colRefs.current[i];
-      if (col) col.style.width = "";
+      if (col) { col.style.width = ""; col.style.minWidth = ""; col.style.maxWidth = ""; }
+      const th = thRefs.current[i];
+      if (th) { th.style.width = ""; th.style.minWidth = ""; th.style.maxWidth = ""; }
+      table.querySelectorAll<HTMLTableCellElement>(`tbody tr td:nth-child(${i + 1})`).forEach(td => {
+        td.style.width = ""; td.style.minWidth = ""; td.style.maxWidth = "";
+      });
     });
     table.style.tableLayout = "auto";
     table.style.width = "max-content";
@@ -922,7 +934,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
               ))}
               {hasActions && <col />}
             </colgroup>
-            <thead className="sticky top-0 z-20 bg-red-500!">
+            <thead className="sticky top-0 z-20">
               <tr ref={headerRowRef} className="bg-gray-50 dark:bg-gray-700">
                 {columns.map((col, colIdx) => (
                   <th

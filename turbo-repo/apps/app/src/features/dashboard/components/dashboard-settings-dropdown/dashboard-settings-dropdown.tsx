@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   Button,
@@ -463,7 +463,21 @@ function FilterManagerForm({
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const dragSrcRef = useRef<number | null>(null);
   const dragDstRef = useRef<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dragSrcIndex, setDragSrcIndex] = useState<number | null>(null);
+  const [insertionIndex, setInsertionIndex] = useState<number | null>(null);
+
+  const displayItems = useMemo(() => {
+    const items = localFilters.map((filter, i) => ({ filter, id: filterIds[i] }));
+    if (dragSrcIndex === null || insertionIndex === null) return items;
+    const next = [...items];
+    const [moved] = next.splice(dragSrcIndex, 1);
+    let target = insertionIndex;
+    if (dragSrcIndex < insertionIndex) target = insertionIndex - 1;
+    next.splice(target, 0, moved);
+    return next;
+  }, [localFilters, filterIds, dragSrcIndex, insertionIndex]);
+
+  const dragSrcId = dragSrcIndex !== null ? filterIds[dragSrcIndex] : null;
   const [optionIds, setOptionIds] = useState<Record<string, string[]>>(() => {
     const result: Record<string, string[]> = {};
     filters.forEach((f, i) => {
@@ -632,48 +646,65 @@ function FilterManagerForm({
           </p>
         )}
 
-        {localFilters.map((filter, index) => {
-          const id = filterIds[index];
+        {displayItems.map(({ filter, id }, index) => {
           const isOpen = expandedIds.has(id);
           const title = filter.label || t("newFilter");
 
           return (
-            <li
+            <div
               key={id}
               draggable
+              className={`relative transition-opacity ${id === dragSrcId ? "opacity-40" : ""}`}
               onDragStart={() => {
                 dragSrcRef.current = index;
-                dragDstRef.current = index;
+                dragDstRef.current = null;
+                setDragSrcIndex(index);
+              }}
+              onDragEnd={() => {
+                dragSrcRef.current = null;
+                dragDstRef.current = null;
+                setInsertionIndex(null);
+                setDragSrcIndex(null);
               }}
               onDragOver={(e) => {
                 e.preventDefault();
-                dragDstRef.current = index;
-                setDragOverIndex(index);
+                const rect = e.currentTarget.getBoundingClientRect();
+                const newInsert = e.clientY < rect.top + rect.height / 2 ? index : index + 1;
+                if (newInsert !== insertionIndex) setInsertionIndex(newInsert);
+                dragDstRef.current = newInsert;
               }}
-              onDragEnd={() => {
-                if (
-                  dragSrcRef.current !== null &&
-                  dragDstRef.current !== null &&
-                  dragSrcRef.current !== dragDstRef.current
-                ) {
-                  reorderFilter(dragSrcRef.current, dragDstRef.current);
+              onDrop={(e) => {
+                e.preventDefault();
+                const src = dragSrcRef.current;
+                const ins = dragDstRef.current;
+                if (src !== null && ins !== null) {
+                  let target = ins;
+                  if (src < ins) target = ins - 1;
+                  if (target !== src) reorderFilter(src, target);
                 }
                 dragSrcRef.current = null;
                 dragDstRef.current = null;
-                setDragOverIndex(null);
+                setInsertionIndex(null);
+                setDragSrcIndex(null);
               }}
-              className={`rounded-lg border bg-white dark:bg-gray-800 overflow-hidden transition-colors ${
-                dragOverIndex === index
-                  ? "border-blue-400 dark:border-blue-500"
-                  : "border-gray-200 dark:border-gray-600"
-              }`}
+            >
+            <li
+              className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden"
             >
               {/* Card header */}
               <div className="flex items-center gap-2">
                 {/* Drag handle */}
-                <div className="cursor-grab pl-2 text-gray-300 dark:text-gray-600 active:cursor-grabbing">
+                <button
+                  type="button"
+                  aria-label={t("reorderFilter")}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowUp" && index > 0) { e.preventDefault(); reorderFilter(index, index - 1); }
+                    if (e.key === "ArrowDown" && index < localFilters.length - 1) { e.preventDefault(); reorderFilter(index, index + 1); }
+                  }}
+                  className="cursor-grab pl-2 text-gray-300 dark:text-gray-600 active:cursor-grabbing"
+                >
                   <HiBars3 className="h-4 w-4" />
-                </div>
+                </button>
                 <button
                   type="button"
                   onClick={() => toggleExpanded(id)}
@@ -835,6 +866,7 @@ function FilterManagerForm({
                 </div>
               )}
             </li>
+            </div>
           );
         })}
 

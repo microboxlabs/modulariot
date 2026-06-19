@@ -14,8 +14,6 @@ import {
   HiArrowUturnRight,
   HiArrowsPointingOut,
   HiPencilSquare,
-  HiFunnel,
-  HiXMark,
 } from "react-icons/hi2";
 import {
   GridLayout,
@@ -25,7 +23,7 @@ import {
 } from "react-grid-layout";
 import { createScaledStrategy } from "react-grid-layout/core";
 import Link from "next/link";
-import { useSearchParams, usePathname, useParams, useRouter } from "next/navigation";
+import { useSearchParams, usePathname, useParams } from "next/navigation";
 import { KIOSK_PARAM } from "@/features/layout/hooks/use-kiosk-mode";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
@@ -73,8 +71,7 @@ import { fitLayoutToCols } from "../../utils/fit-layout-to-cols";
 
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
 import DashboardShareDropdown from "../dashboard-share-dropdown/dashboard-share-dropdown";
-import { DashboardNavbarPortal } from "../dashboard-navbar-portal";
-import { DashboardFiltersPanel } from "../dashboard-filters-card/dashboard-filters-card";
+import { DashboardFilterBadges } from "../dashboard-filters-card/dashboard-filters-card";
 
 /**
  * Main dashboard view component
@@ -97,7 +94,6 @@ export function DashboardView() {
     redo,
     canUndo,
     canRedo,
-    filters,
   } = useDashboard();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -123,41 +119,10 @@ export function DashboardView() {
   }, [searchParams, pathname]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const clipRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
-
-  const router = useRouter();
-
-  const activeFilters = useMemo((): Array<{ key: string; label: string; value: string; type: string }> => {
-    return filters.flatMap((f) => {
-      if (f.type === "date_range") {
-        const from = searchParams.get(`${f.key}_from`);
-        const to = searchParams.get(`${f.key}_to`);
-        if (!from && !to) return [];
-        return [{ key: f.key, label: f.label, value: [from, to].filter(Boolean).join(" → "), type: "date_range" }];
-      }
-      const value = searchParams.get(f.key);
-      if (!value) return [];
-      return [{ key: f.key, label: f.label, value, type: f.type }];
-    });
-  }, [filters, searchParams]);
-
-  const activeFilterCount = activeFilters.length;
-
-  const removeFilter = useCallback((key: string, type: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (type === "date_range") {
-      params.delete(`${key}_from`);
-      params.delete(`${key}_to`);
-    } else {
-      params.delete(key);
-    }
-    const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [searchParams, router, pathname]);
 
   const hasWidgets = isLoaded && widgets.length > 0;
 
@@ -317,10 +282,6 @@ export function DashboardView() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isFiltersOpen) {
-        setIsFiltersOpen(false);
-        return;
-      }
       if (!editMode) return;
       const mod = e.metaKey || e.ctrlKey;
       if (!mod || e.key.toLowerCase() !== "z") return;
@@ -338,7 +299,7 @@ export function DashboardView() {
     };
     globalThis.addEventListener("keydown", handleKeyDown);
     return () => globalThis.removeEventListener("keydown", handleKeyDown);
-  }, [editMode, undo, redo, isFiltersOpen]);
+  }, [editMode, undo, redo]);
 
 
   // Convert widgets to react-grid-layout format
@@ -401,9 +362,6 @@ export function DashboardView() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      {/* Portal: renders DashboardFilterBar into the navbar search slot */}
-      {!isKiosk && <DashboardNavbarPortal />}
-
       {/* Header (hidden in kiosk mode) */}
       {!isKiosk && (
         <div className="shrink-0 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
@@ -417,23 +375,6 @@ export function DashboardView() {
                 <div className="h-7 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
               )}
             </div>
-
-            {/* Filters trigger */}
-            {filters.length > 0 && (
-              <Button
-                size="sm"
-                color={isFiltersOpen || activeFilterCount > 0 ? "blue" : "light"}
-                onClick={() => setIsFiltersOpen((prev) => !prev)}
-              >
-                <HiFunnel className="mr-1.5 h-3.5 w-3.5" />
-                {tr("dashboard.filterBar.filtersTitle", dictionary)}
-                {activeFilterCount > 0 && (
-                  <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-white/30 text-[10px] font-bold">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </Button>
-            )}
 
             {/* Action buttons */}
             <div className="flex shrink-0 items-center gap-2">
@@ -487,48 +428,19 @@ export function DashboardView() {
             </div>
           </div>
 
-          {/* Row 2: active filter pills — only shown when filters are applied */}
-          {activeFilters.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 px-4 py-2 dark:border-gray-700">
-              {activeFilters.map((f) => (
-                <span
-                  key={f.key}
-                  className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                >
-                  <span className="font-medium">{f.label}:</span>
-                  <span className="max-w-35 truncate">{f.value}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeFilter(f.key, f.type)}
-                    className="ml-0.5 shrink-0 rounded-full p-0.5 hover:bg-blue-200 dark:hover:bg-blue-800"
-                  >
-                    <HiXMark className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
+        </div>
+      )}
+
+      {/* Filter badges row — transparent, sits between header and content */}
+      {!isKiosk && (
+        <div className="shrink-0 px-2 py-2 bg-white dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+          <DashboardFilterBadges />
         </div>
       )}
 
       {/* Content */}
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4">
         <div ref={containerRef} className="w-full min-h-full">
-
-          {/* Filter panel — inside the dashboard, scrolls with widgets */}
-          {!isKiosk && filters.length > 0 && (
-            <div
-              className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                isFiltersOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-              }`}
-            >
-              <div className="overflow-hidden">
-                <div className="mb-4 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                  <DashboardFiltersPanel onClose={() => setIsFiltersOpen(false)} />
-                </div>
-              </div>
-            </div>
-          )}
 
           {hasWidgets ? (
             <div ref={clipRef} style={{ width: "100%", overflow: "visible" }}>

@@ -32,6 +32,7 @@ interface TimeRangePickerProps {
   ranges?: "date" | "time";
   size?: "sm" | "md";
   fullWidth?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const T_PREFIX = "dashboard.filterBar";
@@ -70,6 +71,7 @@ export default function TimeRangePicker({
   ranges = "time",
   size = "md",
   fullWidth = false,
+  onOpenChange,
 }: Readonly<TimeRangePickerProps>) {
   const t = (key: string) => tr(`${T_PREFIX}.${key}`, dictionary);
   const storageKey = `${RECENT_RANGES_KEY}:${mode}`;
@@ -145,6 +147,7 @@ export default function TimeRangePicker({
       onDateChange(fromDate, toDate);
       saveRecentRange(fromDate, toDate);
       setIsOpen(false);
+      onOpenChange?.(false);
     }
   };
 
@@ -166,6 +169,7 @@ export default function TimeRangePicker({
     onDateChange(fromStr, toStr);
     saveRecentRange(fromStr, toStr, range.labelKey);
     setIsOpen(false);
+    onOpenChange?.(false);
   };
 
   const handleRecentRangeSelect = (range: {
@@ -179,6 +183,7 @@ export default function TimeRangePicker({
     setToDate(toFormatted);
     onDateChange(fromFormatted, toFormatted);
     setIsOpen(false);
+    onOpenChange?.(false);
   };
 
   useEffect(() => {
@@ -191,6 +196,7 @@ export default function TimeRangePicker({
         !buttonRef.current.contains(target)
       ) {
         setIsOpen(false);
+        onOpenChange?.(false);
       }
     };
 
@@ -230,7 +236,9 @@ export default function TimeRangePicker({
         left: leftPos,
       });
     }
-    setIsOpen(!isOpen);
+    const next = !isOpen;
+    setIsOpen(next);
+    onOpenChange?.(next);
   };
 
   const timezone = useMemo(() => {

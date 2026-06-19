@@ -1,246 +1,127 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Button } from "flowbite-react";
-import { HiAdjustmentsHorizontal } from "react-icons/hi2";
-import dayjs from "dayjs";
-import ExpandableSection from "@/features/fleet-management/components/vehicle-detail/expandable-section";
-import TimeRangePicker from "../dashboard-filter-bar/time-range-picker";
 import { useDashboard } from "../../context/dashboard-context";
-import { tr } from "@/features/i18n/tr.service";
+import type { DashboardFilterParam } from "../../types/dashboard.types";
+import { TextFilterBadge } from "./text-filter-badge";
+import { SelectFilterBadge } from "./select-filter-badge";
+import { DateFilterBadge } from "./date-filter-badge";
 
-const INPUT_CLS =
-  "h-7 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400";
-
-const SELECT_CLS =
-  "h-7 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white";
-
-function setOrDelete(params: URLSearchParams, key: string, value: string | undefined) {
-  if (value) params.set(key, value);
-  else params.delete(key);
-}
-
-function useDashboardFiltersState() {
+export function DashboardFilterBadges() {
   const { filters, dictionary } = useDashboard();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
-  const t = useCallback(
-    (key: string, vars?: Record<string, string>) =>
-      tr(`dashboard.filterBar.${key}`, dictionary, vars),
-    [dictionary]
+  const hasDateFilter = useMemo(() => filters.some((f) => f.type === "date_range"), [filters]);
+
+  const push = useCallback(
+    (params: URLSearchParams) => {
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname]
   );
 
-  const textFilters = useMemo(() => filters.filter((f) => f.type === "text"), [filters]);
-  const selectFilters = useMemo(() => filters.filter((f) => f.type === "select"), [filters]);
-  const dateFilters = useMemo(() => filters.filter((f) => f.type === "date_range"), [filters]);
-
-  const [draft, setDraft] = useState<Record<string, string>>(() => {
-    const init: Record<string, string> = {};
-    for (const f of textFilters) {
-      const v = searchParams.get(f.key);
-      if (v) init[f.key] = v;
-    }
-    for (const f of selectFilters) {
-      const v = searchParams.get(f.key);
-      if (v) init[f.key] = v;
-    }
-    for (const f of dateFilters) {
-      const from = searchParams.get(`${f.key}_from`);
-      const to = searchParams.get(`${f.key}_to`);
-      if (from) init[`${f.key}_from`] = from;
-      if (to) init[`${f.key}_to`] = to;
-    }
-    return init;
-  });
-
-  const set = useCallback((key: string, value: string) => {
-    setDraft((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
-  const unset = useCallback((key: string) => {
-    setDraft((prev) => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
-  }, []);
-
-  const handleApply = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    for (const f of textFilters) setOrDelete(params, f.key, draft[f.key]);
-    for (const f of selectFilters) setOrDelete(params, f.key, draft[f.key]);
-    for (const f of dateFilters) {
-      setOrDelete(params, `${f.key}_from`, draft[`${f.key}_from`]);
-      setOrDelete(params, `${f.key}_to`, draft[`${f.key}_to`]);
-    }
-    const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [draft, textFilters, selectFilters, dateFilters, searchParams, router, pathname]);
-
-  const handleClear = useCallback(() => {
-    const defaultDraft: Record<string, string> = {};
-    for (const f of dateFilters) {
-      defaultDraft[`${f.key}_from`] = dayjs().subtract(30, "day").startOf("day").format("YYYY-MM-DD");
-      defaultDraft[`${f.key}_to`] = dayjs().endOf("day").format("YYYY-MM-DD");
-    }
-    setDraft(defaultDraft);
-    const params = new URLSearchParams(searchParams.toString());
-    for (const f of textFilters) params.delete(f.key);
-    for (const f of selectFilters) params.delete(f.key);
-    for (const f of dateFilters) {
-      params.delete(`${f.key}_from`);
-      params.delete(`${f.key}_to`);
-    }
-    const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [dateFilters, selectFilters, textFilters, searchParams, router, pathname]);
-
-  const hasValues = Object.values(draft).some(Boolean);
-
-  return {
-    filters,
-    dictionary,
-    textFilters,
-    selectFilters,
-    dateFilters,
-    draft,
-    set,
-    unset,
-    handleApply,
-    handleClear,
-    hasValues,
-    t,
-  };
-}
-
-interface DashboardFiltersPanelProps {
-  onClose?: () => void;
-}
-
-/**
- * Raw filter form — used inside the header dropdown.
- * Calling onClose after apply/clear collapses the panel.
- */
-export function DashboardFiltersPanel({ onClose }: DashboardFiltersPanelProps = {}) {
-  const {
-    textFilters,
-    selectFilters,
-    dateFilters,
-    draft,
-    set,
-    unset,
-    handleApply: _handleApply,
-    handleClear: _handleClear,
-    hasValues,
-    t,
-    dictionary,
-  } = useDashboardFiltersState();
-
-  const handleApply = useCallback(() => {
-    _handleApply();
-  }, [_handleApply]);
-
-  const handleClear = useCallback(() => {
-    _handleClear();
-  }, [_handleClear]);
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-4 gap-x-3 gap-y-2">
-        {textFilters.map((filter) => (
-          <div key={filter.key} className="flex flex-col gap-0.5">
-            <label className="text-xs text-gray-400 dark:text-gray-500">
-              {filter.label}
-            </label>
-            <input
-              type="text"
-              placeholder={t("filterByPlaceholder", { label: filter.label.toLowerCase() })}
-              value={draft[filter.key] ?? ""}
-              onChange={(e) =>
-                e.target.value ? set(filter.key, e.target.value) : unset(filter.key)
-              }
-              className={INPUT_CLS}
-            />
-          </div>
-        ))}
-        {selectFilters.map((filter) => (
-          <div key={filter.key} className="flex flex-col gap-0.5">
-            <label className="text-xs text-gray-400 dark:text-gray-500">
-              {filter.label}
-            </label>
-            <select
-              value={draft[filter.key] ?? ""}
-              onChange={(e) =>
-                e.target.value ? set(filter.key, e.target.value) : unset(filter.key)
-              }
-              className={SELECT_CLS}
-            >
-              <option value="">—</option>
-              {(filter.options ?? []).map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        ))}
-        {dateFilters.map((filter) => (
-          <div key={filter.key} className="flex flex-col gap-0.5">
-            <label className="text-xs text-gray-400 dark:text-gray-500">
-              {filter.label}
-            </label>
-            <TimeRangePicker
-              dictionary={dictionary}
-              mode="date"
-              ranges="date"
-              fullWidth
-              from={draft[`${filter.key}_from`]}
-              to={draft[`${filter.key}_to`]}
-              onDateChange={(from, to) => {
-                if (from) set(`${filter.key}_from`, from); else unset(`${filter.key}_from`);
-                if (to) set(`${filter.key}_to`, to); else unset(`${filter.key}_to`);
-              }}
-            />
-          </div>
-        ))}
-      </div>
-
-      <div className="flex items-center justify-end gap-2">
-        <Button size="xs" color="light" onClick={handleClear} disabled={!hasValues}>
-          {t("clearFilters")}
-        </Button>
-        <Button size="xs" color="blue" onClick={handleApply}>
-          {t("applyFilters")}
-        </Button>
-      </div>
-    </div>
+  const applyText = useCallback(
+    (key: string, value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (value) params.set(key, value);
+      else params.delete(key);
+      push(params);
+    },
+    [searchParams, push]
   );
-}
 
-export function DashboardFiltersCard() {
-  const { filters, t } = useDashboardFiltersState();
+  const applySelect = useCallback(
+    (key: string, values: string[]) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (values.length) params.set(key, values.join(","));
+      else params.delete(key);
+      push(params);
+    },
+    [searchParams, push]
+  );
 
-  const totalCount = filters.length;
-  const description =
-    totalCount === 1
-      ? t("filtersDescriptionSingular", { count: "1" })
-      : t("filtersDescriptionPlural", { count: String(totalCount) });
+  const applyDate = useCallback(
+    (key: string, from: string, to: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (from) params.set(`${key}_from`, from); else params.delete(`${key}_from`);
+      if (to) params.set(`${key}_to`, to); else params.delete(`${key}_to`);
+      push(params);
+    },
+    [searchParams, push]
+  );
 
-  return (
-    <ExpandableSection
-      customIcon={
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
-          <HiAdjustmentsHorizontal className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-        </div>
+  const clearFilter = useCallback(
+    (key: string, type: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (type === "date_range") {
+        params.delete(`${key}_from`);
+        params.delete(`${key}_to`);
+      } else {
+        params.delete(key);
       }
-      title={t("filtersTitle")}
-      description={description}
-      defaultExpanded
-    >
-      <DashboardFiltersPanel />
-    </ExpandableSection>
+      push(params);
+    },
+    [searchParams, push]
+  );
+
+  const renderFilter = (f: DashboardFilterParam) => {
+    if (f.type === "text") {
+      return (
+        <TextFilterBadge
+          key={f.key}
+          filter={f}
+          value={searchParams.get(f.key) ?? undefined}
+          onApply={(v) => applyText(f.key, v)}
+          onClear={() => clearFilter(f.key, f.type)}
+        />
+      );
+    }
+    if (f.type === "select") {
+      const raw = searchParams.get(f.key);
+      const values = raw ? raw.split(",").filter(Boolean) : [];
+      return (
+        <SelectFilterBadge
+          key={f.key}
+          filter={f}
+          values={values}
+          onApply={(vals) => applySelect(f.key, vals)}
+          onClear={() => clearFilter(f.key, f.type)}
+        />
+      );
+    }
+    if (f.type === "date_range") {
+      return (
+        <DateFilterBadge
+          key={f.key}
+          filter={f}
+          from={searchParams.get(`${f.key}_from`) ?? undefined}
+          to={searchParams.get(`${f.key}_to`) ?? undefined}
+          onChange={(from, to) => applyDate(f.key, from, to)}
+          onClear={() => clearFilter(f.key, f.type)}
+          dictionary={dictionary}
+        />
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {filters.map(renderFilter)}
+      {!hasDateFilter && (
+        <DateFilterBadge
+          filter={{ key: "date_range", label: "Date", type: "date_range" }}
+          from={searchParams.get("date_range_from") ?? undefined}
+          to={searchParams.get("date_range_to") ?? undefined}
+          onChange={(from, to) => applyDate("date_range", from, to)}
+          onClear={() => clearFilter("date_range", "date_range")}
+          dictionary={dictionary}
+        />
+      )}
+    </div>
   );
 }

@@ -21,6 +21,7 @@ import {
   HiQuestionMarkCircle,
   HiPlus,
   HiTrash,
+  HiBars3,
 } from "react-icons/hi2";
 import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
@@ -460,6 +461,9 @@ function FilterManagerForm({
   const [localFilters, setLocalFilters] = useState<DashboardFilterParam[]>(filters);
   const [filterIds, setFilterIds] = useState(() => filters.map(() => crypto.randomUUID()));
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const dragSrcRef = useRef<number | null>(null);
+  const dragDstRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [optionIds, setOptionIds] = useState<Record<string, string[]>>(() => {
     const result: Record<string, string[]> = {};
     filters.forEach((f, i) => {
@@ -504,6 +508,22 @@ function FilterManagerForm({
 
   const updateFilter = (index: number, patch: Partial<DashboardFilterParam>) => {
     setLocalFilters((prev) => prev.map((f, i) => (i === index ? { ...f, ...patch } : f)));
+  };
+
+  const reorderFilter = (from: number, to: number) => {
+    if (from === to) return;
+    setLocalFilters((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+    setFilterIds((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
   };
 
   const removeFilter = (index: number) => {
@@ -620,14 +640,44 @@ function FilterManagerForm({
           return (
             <div
               key={id}
-              className="rounded-lg border border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800 overflow-hidden"
+              draggable
+              onDragStart={() => {
+                dragSrcRef.current = index;
+                dragDstRef.current = index;
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                dragDstRef.current = index;
+                setDragOverIndex(index);
+              }}
+              onDragEnd={() => {
+                if (
+                  dragSrcRef.current !== null &&
+                  dragDstRef.current !== null &&
+                  dragSrcRef.current !== dragDstRef.current
+                ) {
+                  reorderFilter(dragSrcRef.current, dragDstRef.current);
+                }
+                dragSrcRef.current = null;
+                dragDstRef.current = null;
+                setDragOverIndex(null);
+              }}
+              className={`rounded-lg border bg-white dark:bg-gray-800 overflow-hidden transition-colors ${
+                dragOverIndex === index
+                  ? "border-blue-400 dark:border-blue-500"
+                  : "border-gray-200 dark:border-gray-600"
+              }`}
             >
               {/* Card header */}
               <div className="flex items-center gap-2">
+                {/* Drag handle */}
+                <div className="cursor-grab pl-2 text-gray-300 dark:text-gray-600 active:cursor-grabbing">
+                  <HiBars3 className="h-4 w-4" />
+                </div>
                 <button
                   type="button"
                   onClick={() => toggleExpanded(id)}
-                  className="flex flex-1 items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                  className="flex flex-1 items-center gap-2 py-2.5 pr-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                 >
                   <HiChevronDown
                     className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}

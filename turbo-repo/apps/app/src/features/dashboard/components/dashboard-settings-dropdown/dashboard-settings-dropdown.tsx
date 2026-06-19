@@ -477,7 +477,7 @@ function FilterManagerForm({
     return next;
   }, [localFilters, filterIds, dragSrcIndex, insertionIndex]);
 
-  const dragSrcId = dragSrcIndex !== null ? filterIds[dragSrcIndex] : null;
+  const dragSrcId = dragSrcIndex === null ? null : filterIds[dragSrcIndex];
   const [optionIds, setOptionIds] = useState<Record<string, string[]>>(() => {
     const result: Record<string, string[]> = {};
     filters.forEach((f, i) => {

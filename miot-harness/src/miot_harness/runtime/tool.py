@@ -127,17 +127,17 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                     reason = "approval required but no approval_registry on context"
                     _emit_failed(progress, ctx, self.name, reason, "PermissionError")
                     raise PermissionError(reason)
-                event = registry.register(approval_id, ctx.run_id)
+                event = registry.register(approval_id, ctx.run_id, kind="tool_approval")
                 try:
                     await event.wait()
-                    decision = registry.decision(approval_id)
+                    resolution = registry.decision(approval_id)
                 finally:
                     # Always discard so a cancelled wait (e.g. POST
                     # /runs/{id}/cancel during an approval pause) doesn't
                     # leak the registry entry. Without this, _pending grows
                     # unbounded across the process lifetime.
                     registry.discard(approval_id)
-                if decision != "approve":
+                if resolution is None or resolution.action != "approve":
                     reason = f"approval {approval_id} denied"
                     _emit_failed(progress, ctx, self.name, reason, "PermissionError")
                     raise PermissionError(reason)

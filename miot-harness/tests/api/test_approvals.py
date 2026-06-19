@@ -99,7 +99,8 @@ def test_resolve_unblocks_pending_approval() -> None:
         assert resp.status_code == 204
         # The wait-event is now set; the decision is readable.
         assert event.is_set()
-        assert registry.decision(approval_id) == "approve"
+        decision = registry.decision(approval_id)
+        assert decision is not None and decision.action == "approve"
 
 
 def test_resolve_is_single_shot_first_writer_wins() -> None:
@@ -116,7 +117,8 @@ def test_resolve_is_single_shot_first_writer_wins() -> None:
     assert registry.resolve("aid_once", "approve", "run_x") is True
     # Second resolve sees the event already set → no-op, no overwrite.
     assert registry.resolve("aid_once", "deny", "run_x") is False
-    assert registry.decision("aid_once") == "approve"
+    decision = registry.decision("aid_once")
+    assert decision is not None and decision.action == "approve"
 
 
 def test_resolve_with_mismatched_run_id_returns_404() -> None:

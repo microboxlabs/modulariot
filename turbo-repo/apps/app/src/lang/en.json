@@ -2624,6 +2624,7 @@
     "no_data_found": "No data found",
     "distance_to_origin": "Distance to origin",
     "eta_to_origin": "ETA to origin",
+    "km": "km",
     "last_reported_speed": "Last reported speed",
     "last_reported_engine_status": "Last reported engine status",
     "on": "On",

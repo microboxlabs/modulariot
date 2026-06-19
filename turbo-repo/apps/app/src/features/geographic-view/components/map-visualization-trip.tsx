@@ -313,9 +313,15 @@ export default function MapVisualizationTrip({
     const origin = processedGeofence?.features.find(
       (f) => (f.properties as { location_type?: number }).location_type === 1
     );
-    const ring = (origin?.geometry as { coordinates?: LngLat[][] } | undefined)
-      ?.coordinates?.[0];
-    return ring ? ringCentroid(ring) : null;
+    const geometry = origin?.geometry as
+      | { type?: string; coordinates?: LngLat[][] }
+      | undefined;
+    // Only a Polygon's outer ring is a list of [lng,lat] tuples; a Point or
+    // MultiPolygon (or malformed payload) would make ringCentroid throw.
+    if (geometry?.type !== "Polygon") return null;
+    const ring = geometry.coordinates?.[0];
+    if (!Array.isArray(ring)) return null;
+    return ringCentroid(ring);
   }, [processedGeofence]);
 
   const vehicle =
@@ -588,7 +594,9 @@ export default function MapVisualizationTrip({
             <span className="font-semibold">
               {tr("geographic_view.distance_to_origin", dict)}:
             </span>
-            <span>{distanceToOriginKm.toFixed(1)} km</span>
+            <span>
+              {distanceToOriginKm.toFixed(1)} {tr("geographic_view.km", dict)}
+            </span>
           </span>
           <span className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
           <span className="flex items-center gap-1">

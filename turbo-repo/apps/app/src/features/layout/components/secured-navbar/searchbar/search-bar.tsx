@@ -64,7 +64,7 @@ export default function SearchBar({
     return null;
   }
 
-  if (!(final_path in navegation_params)) {
+  if (!final_path || !(final_path in navegation_params)) {
     return (
       <div className="flex items-center gap-2">
         <TextInput

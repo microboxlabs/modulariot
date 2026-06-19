@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import type { DashboardFilterParam } from "../../types/dashboard.types";
 import { useOutsideClick } from "./use-outside-click";
 import { FilterBadgeShell } from "./filter-badge-shell";
-import { HiXMark } from "react-icons/hi2";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 

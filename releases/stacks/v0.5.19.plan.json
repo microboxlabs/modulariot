@@ -1,0 +1,94 @@
+{
+  "stack_version": "0.5.19",
+  "stack_tag": "miot-stack@v0.5.19",
+  "milestone": "MIOT-0.5.19",
+  "pull_requests": [
+    {
+      "number": 711,
+      "title": "feat(map): show vehicle distance + ETA to origin on the trip map",
+      "source_issues": [
+        {
+          "number": 710,
+          "title": "feat: show vehicle distance + ETA to origin on the trip map"
+        }
+      ]
+    },
+    {
+      "number": 712,
+      "title": "fix(data-sources): test a source provider before saving it",
+      "source_issues": [
+        {
+          "number": 713,
+          "title": "Allow testing a data source provider connection before saving it"
+        }
+      ]
+    },
+    {
+      "number": 718,
+      "title": "feat(harness): permission modes & rules — Steering & HITL (Plan A)",
+      "source_issues": [
+        {
+          "number": 719,
+          "title": "feat(harness): permission modes & rules for human-in-the-loop tool approvals"
+        }
+      ]
+    },
+    {
+      "number": 726,
+      "title": "chore: address CodeRabbit review on trip-map ETA readout (post-#711)",
+      "source_issues": [
+        {
+          "number": 725,
+          "title": "chore: address CodeRabbit review on trip-map ETA readout (post-#711)"
+        }
+      ]
+    }
+  ],
+  "changed_files": [
+    "miot-harness/src/miot_harness/config.py",
+    "miot-harness/src/miot_harness/runtime/context.py",
+    "miot-harness/src/miot_harness/runtime/conversation_policy.py",
+    "miot-harness/src/miot_harness/runtime/event_types.json",
+    "miot-harness/src/miot_harness/runtime/events.py",
+    "miot-harness/src/miot_harness/runtime/factory.py",
+    "miot-harness/src/miot_harness/runtime/permissions.py",
+    "miot-harness/src/miot_harness/runtime/policy.py",
+    "miot-harness/src/miot_harness/runtime/supervisor.py",
+    "miot-harness/src/miot_harness/runtime/tool.py",
+    "miot-harness/tests/api/test_steering_modes.py",
+    "miot-harness/tests/runtime/test_context_permission_policy.py",
+    "miot-harness/tests/runtime/test_conversation_policy.py",
+    "miot-harness/tests/runtime/test_permissions.py",
+    "miot-harness/tests/runtime/test_policy.py",
+    "miot-harness/tests/runtime/test_supervisor_policy.py",
+    "miot-harness/tests/runtime/test_tool_permission_modes.py",
+    "miot-harness/tests/test_events.py",
+    "turbo-repo/apps/app/src/app/api/data-sources/[dataSourceId]/test/route.ts",
+    "turbo-repo/apps/app/src/app/api/data-sources/test-connection.ts",
+    "turbo-repo/apps/app/src/app/api/data-sources/test/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/data-sources/test/route.ts",
+    "turbo-repo/apps/app/src/features/data-sources/components/data-source-modal.tsx",
+    "turbo-repo/apps/app/src/features/data-sources/components/data-sources-page-content.tsx",
+    "turbo-repo/apps/app/src/features/data-sources/hooks/use-data-sources.ts",
+    "turbo-repo/apps/app/src/features/data-sources/test-decision.test.ts",
+    "turbo-repo/apps/app/src/features/data-sources/test-decision.ts",
+    "turbo-repo/apps/app/src/features/data-sources/types.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization-trip.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/vehicle-origin.test.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/vehicle-origin.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.19",
+      "tag": "app@v0.5.19"
+    },
+    "modulith": {
+      "changed": false,
+      "version": "0.5.15",
+      "tag": "modulith@v0.5.15"
+    }
+  }
+}

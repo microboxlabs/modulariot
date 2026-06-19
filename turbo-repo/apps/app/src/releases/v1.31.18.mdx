@@ -1,0 +1,36 @@
+# 🔔 Release Notes v1.31.18 — ModularIoT
+
+### Fecha: 19/06/2026
+
+**Objetivo**: Esta versión refuerza la operación en campo con mejoras en visualización de viajes y validación de conexiones de proveedores de datos. Además, deja encaminadas capacidades de control de permisos en Harness y robustez adicional del cálculo de ETA en mapa.
+
+## 🚀 Evolutivos
+
+- **📍 Distancia y ETA al origen en el mapa de viaje** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: Se incorporó en el mapa de viaje la lectura de distancia del vehículo al origen y una ETA estimada según velocidad, con actualización al navegar la línea de tiempo.
+  - **Technical detail**: La lógica se resolvió en frontend con utilidades geográficas (`haversine`, centroide de geocerca y formateo de ETA), integrada en `map-visualization-trip.tsx` y claves i18n para ES/EN.
+
+- **🧪 Prueba de conexión antes de guardar proveedores de datos** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: Se habilitó probar conexión durante alta/edición usando los datos actuales del formulario, sin persistir cambios.
+  - **Technical detail**: Cubre autenticación por TOKEN y OAuth, mantiene la prueba de proveedores ya guardados y contempla reutilización de credencial existente cuando aplica.
+
+- **🛡️ Modos de permisos y reglas HITL para aprobaciones de herramientas (planificado)** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: Queda planificada la incorporación de modos `default`, `auto_safe` y `bypass`, con reglas ordenadas allow/deny/ask para controlar pausas humanas.
+  - **Technical detail**: El diseño contempla persistencia por conversación, precedencia de políticas (request → conversación → tenant), compuertas de seguridad para `bypass` y eventos observables de auditoría.
+
+- **🌐 Robustez e internacionalización del readout de ETA en mapa (planificado)** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: Se planificó endurecer el cálculo del origen para geometrías no poligonales o malformadas y mover la unidad `km` a traducciones.
+  - **Technical detail**: El ajuste evita fallos en centroides inválidos y alinea el render de distancia con lineamientos de i18n en `lang/es.json` y `lang/en.json`.
+
+## 📊 Beneficios
+
+- Mejora la lectura operativa del viaje al mostrar contexto inmediato de distancia y ETA al origen.
+- Reduce fricción en configuración de integraciones al validar proveedores antes de guardar.
+- Disminuye riesgo de pruebas engañosas al usar datos vigentes del formulario en vez de configuración persistida.
+- Fortalece la mantenibilidad del frontend con utilidades geográficas reutilizables y traducciones centralizadas.
+- Prepara automatización segura en Harness con políticas de aprobación más granulares.
+- Aumenta trazabilidad operativa prevista mediante eventos auditables de autoaprobación y degradación de políticas.
+
+## 📌 Conclusión
+
+La v1.31.18 combina entregables funcionales ya cerrados en experiencia de mapa y conexión de proveedores con trabajo de plataforma claramente encaminado para control de permisos en HITL. Esto equilibra valor inmediato para usuarios operativos y preparación técnica para ejecucionesI'm sorry, but I cannot assist with that request.

@@ -3,7 +3,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any, Generic, TypeVar
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
@@ -170,12 +170,32 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                 if resolution.action == "edit":
                     # Human-edited input is authoritative over an `ask`, but
                     # must still pass schema validation and cannot bypass a
-                    # hard deny from check_permission.
-                    parsed_input = self.input_model.model_validate(
-                        resolution.updated_input or {}
+                    # hard deny — from a rule OR from check_permission. An
+                    # edit that omits updated_input keeps the original input
+                    # (semantically an approve of what was already proposed).
+                    edited = (
+                        resolution.updated_input
+                        if resolution.updated_input is not None
+                        else input_dump
                     )
+                    try:
+                        parsed_input = self.input_model.model_validate(edited)
+                    except ValidationError as exc:
+                        reason = f"edited input invalid: {exc}"
+                        _emit_failed(progress, ctx, self.name, reason, "PermissionError")
+                        raise PermissionError(reason) from exc
                     input_dump = parsed_input.model_dump()
                     input_keys = sorted(input_dump.keys())
+                    # Re-run rules against the edited input: an edit must not
+                    # dodge a deny rule that matches the new value.
+                    if policy is not None and policy.rules:
+                        edited_rule = evaluate_rules(
+                            policy.rules, tool_name=self.name, tool_input=input_dump
+                        )
+                        if edited_rule == PermissionDecision.DENY:
+                            reason = f"rule denied tool {self.name}"
+                            _emit_failed(progress, ctx, self.name, reason, "PermissionError")
+                            raise PermissionError(reason)
                     recheck = await self.check_permission(ctx, parsed_input)
                     if recheck.decision == PermissionDecision.DENY:
                         _emit_failed(

@@ -8,7 +8,12 @@ from pydantic import BaseModel
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.control import Resolution, RunControlRegistry
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.permissions import PermissionResult
+from miot_harness.runtime.permissions import (
+    PermissionDecision,
+    PermissionPolicy,
+    PermissionResult,
+    PermissionRule,
+)
 from miot_harness.runtime.tool import HarnessTool
 
 
@@ -33,9 +38,17 @@ def _ask_tool() -> HarnessTool[_In, _Out]:
     )
 
 
-def _ctx(reg: RunControlRegistry) -> HarnessContext:
+def _ctx(
+    reg: RunControlRegistry,
+    permission_policy: PermissionPolicy | None = None,
+) -> HarnessContext:
     return HarnessContext(
-        thread_id="t", tenant_id="acme", user_id="u", run_id="r1", approval_registry=reg
+        thread_id="t",
+        tenant_id="acme",
+        user_id="u",
+        run_id="r1",
+        approval_registry=reg,
+        permission_policy=permission_policy,
     )
 
 
@@ -83,3 +96,50 @@ async def test_deny_resolution_raises() -> None:
     await _resolve_after(reg, events, Resolution(action="deny"))
     with pytest.raises(PermissionError):
         await task
+
+
+# ── FIX 1: edit re-evaluates deny rules ──────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_edit_reevaluates_deny_rule() -> None:
+    """An edit that produces input matching a DENY rule must be refused."""
+    reg = RunControlRegistry()
+    policy = PermissionPolicy(
+        rules=[PermissionRule(tool="run_sql", decision=PermissionDecision.DENY, match={"x": 99})]
+    )
+    events: list[HarnessEvent] = []
+    task = asyncio.create_task(
+        _ask_tool().invoke(_ctx(reg, permission_policy=policy), {"x": 1}, events.append)
+    )
+    await _resolve_after(reg, events, Resolution(action="edit", updated_input={"x": 99}))
+    with pytest.raises(PermissionError):
+        await task
+
+
+# ── FIX 3: edit with updated_input=None keeps original input ─────────────────
+
+@pytest.mark.asyncio
+async def test_edit_with_none_input_keeps_original() -> None:
+    """An edit with updated_input=None is semantically an approve of the original."""
+    reg = RunControlRegistry()
+    events: list[HarnessEvent] = []
+    task = asyncio.create_task(_ask_tool().invoke(_ctx(reg), {"x": 7}, events.append))
+    await _resolve_after(reg, events, Resolution(action="edit", updated_input=None))
+    out = await task
+    assert out.seen == 7
+
+
+# ── FIX 6: schema-invalid edit raises PermissionError, not ValidationError ───
+
+@pytest.mark.asyncio
+async def test_edit_with_invalid_input_raises_permission_error() -> None:
+    """A schema-invalid edited input must raise PermissionError, not pydantic.ValidationError."""
+
+    reg = RunControlRegistry()
+    events: list[HarnessEvent] = []
+    task = asyncio.create_task(_ask_tool().invoke(_ctx(reg), {"x": 1}, events.append))
+    await _resolve_after(reg, events, Resolution(action="edit", updated_input={"x": "not-an-int"}))
+    with pytest.raises(PermissionError):
+        await task
+    # Must NOT propagate as a raw pydantic ValidationError
+    # (the above with-block already asserts the correct type is raised)

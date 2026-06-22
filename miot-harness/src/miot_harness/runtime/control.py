@@ -16,7 +16,7 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 DecisionKind = Literal["tool_approval", "choice"]
 ResolutionAction = Literal["approve", "deny", "edit", "choose"]
@@ -59,7 +59,10 @@ class RunControlRegistry:
         Returns False when the decision is unknown, already resolved
         (single-shot, first writer wins), or belongs to a different run."""
         if isinstance(resolution, str):
-            resolution = Resolution(action=resolution)  # type: ignore[arg-type]
+            try:
+                resolution = Resolution(action=resolution)  # type: ignore[arg-type]
+            except ValidationError:
+                return False
         entry = self._pending.get(decision_id)
         if entry is None or entry.run_id != run_id or entry.event.is_set():
             return False

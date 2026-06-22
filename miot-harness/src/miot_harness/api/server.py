@@ -31,6 +31,7 @@ from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
+from miot_harness.runtime.control import Resolution, ResolutionAction
 from miot_harness.runtime.data_graph import build_data_graph
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.factory import build_harness
@@ -55,7 +56,7 @@ class ApprovalDecision(BaseModel):
 class DecisionResolution(BaseModel):
     """Body for POST /runs/{run_id}/decisions/{decision_id}."""
 
-    resolution: Literal["approve", "deny", "edit", "choose"]
+    resolution: ResolutionAction
     updated_input: dict[str, Any] | None = None
     option_id: str | None = None
 
@@ -682,12 +683,22 @@ def create_app() -> FastAPI:
         body: DecisionResolution,
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> Response:
-        from miot_harness.runtime.control import Resolution
-
         caller = auth.get("tenant_id")
         if caller and app.state.in_flight_tenants.get(run_id) != caller:
             raise HTTPException(status_code=404, detail="Decision not pending")
         registry = app.state.harness.approval_registry
+        if registry is not None:
+            kind = registry.kind(decision_id)
+            if kind == "tool_approval" and body.resolution == "choose":
+                raise HTTPException(
+                    status_code=422,
+                    detail="'choose' is not valid for a tool_approval decision",
+                )
+            if kind == "choice" and body.resolution != "choose":
+                raise HTTPException(
+                    status_code=422,
+                    detail="only 'choose' is valid for a choice decision",
+                )
         resolution = Resolution(
             action=body.resolution,
             updated_input=body.updated_input,

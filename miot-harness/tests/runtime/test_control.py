@@ -74,3 +74,13 @@ async def test_register_event_unblocks_on_resolve() -> None:
     await asyncio.wait_for(event.wait(), timeout=1.0)
     res = reg.decision("d1")
     assert res is not None and res.action == "approve"
+
+
+# ── FIX 2: invalid string action returns False instead of raising ─────────────
+
+def test_resolve_invalid_string_returns_false() -> None:
+    """resolve() with a bogus action string must return False, not raise ValidationError."""
+    reg = RunControlRegistry()
+    reg.register("d1", run_id="r1")
+    assert reg.resolve("d1", "garbage", run_id="r1") is False  # type: ignore[arg-type]
+    assert reg.decision("d1") is None  # never resolved

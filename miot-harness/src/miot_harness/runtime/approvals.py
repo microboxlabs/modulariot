@@ -14,4 +14,6 @@ from miot_harness.runtime.control import RunControlRegistry
 ApprovalRegistry = RunControlRegistry
 ApprovalDecision = Literal["approve", "deny"]
 
-__all__ = ["ApprovalRegistry", "ApprovalDecision", "RunControlRegistry"]
+# New code should import RunControlRegistry from runtime.control directly;
+# this shim only re-exports the legacy names for back-compat.
+__all__ = ["ApprovalRegistry", "ApprovalDecision"]

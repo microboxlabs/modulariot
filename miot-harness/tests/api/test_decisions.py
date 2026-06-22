@@ -70,6 +70,47 @@ def test_cross_tenant_decision_returns_404() -> None:
     assert resp.status_code in (204, 404)
 
 
+# ── FIX 5: run-scoping: decision under one run_id must not be resolved by another ──
+
+def test_decision_for_other_run_returns_404() -> None:
+    """Registry run-scoping: registering under run_real then POSTing to run_other → 404."""
+    app = create_app()
+    with TestClient(app) as client:
+        reg: RunControlRegistry = app.state.harness.approval_registry
+        reg.register("d9", run_id="run_real", kind="tool_approval")
+        app.state.in_flight_tenants["run_real"] = "demo-tenant"
+        app.state.in_flight_tenants["run_other"] = "demo-tenant"
+        resp = client.post("/runs/run_other/decisions/d9", json={"resolution": "approve"})
+    assert resp.status_code == 404
+    assert reg.decision("d9") is None  # never resolved
+
+
+# ── FIX 4: kind/action mismatch returns 422 ───────────────────────────────────
+
+def test_choose_on_tool_approval_returns_422() -> None:
+    """POST 'choose' to a tool_approval decision → 422."""
+    app = create_app()
+    with TestClient(app) as client:
+        reg: RunControlRegistry = app.state.harness.approval_registry
+        reg.register("d4", run_id="run_x", kind="tool_approval")
+        app.state.in_flight_tenants["run_x"] = "demo-tenant"
+        resp = client.post(
+            "/runs/run_x/decisions/d4", json={"resolution": "choose", "option_id": "b"}
+        )
+    assert resp.status_code == 422
+
+
+def test_approve_on_choice_returns_422() -> None:
+    """POST 'approve' to a choice decision → 422."""
+    app = create_app()
+    with TestClient(app) as client:
+        reg: RunControlRegistry = app.state.harness.approval_registry
+        reg.register("d5", run_id="run_c", kind="choice")
+        app.state.in_flight_tenants["run_c"] = "demo-tenant"
+        resp = client.post("/runs/run_c/decisions/d5", json={"resolution": "approve"})
+    assert resp.status_code == 422
+
+
 def test_legacy_approvals_endpoint_still_resolves() -> None:
     app = create_app()
     with TestClient(app) as client:

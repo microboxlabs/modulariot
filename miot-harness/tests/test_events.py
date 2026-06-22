@@ -41,6 +41,8 @@ def test_event_type_full_set_is_pinned():
         "tool.failed",
         "approval.requested",
         "approval.auto",
+        "decision.requested",
+        "decision.resolved",
         "steering.mode_denied",
         "artifact.created",
         "plan.created",

@@ -12,6 +12,8 @@ HarnessEventType = Literal[
     "tool.failed",
     "approval.requested",
     "approval.auto",
+    "decision.requested",
+    "decision.resolved",
     "steering.mode_denied",
     "artifact.created",
     "plan.created",

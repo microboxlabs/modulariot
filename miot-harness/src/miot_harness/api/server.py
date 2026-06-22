@@ -31,6 +31,7 @@ from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
+from miot_harness.runtime.control import Resolution, ResolutionAction
 from miot_harness.runtime.data_graph import build_data_graph
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.factory import build_harness
@@ -50,6 +51,14 @@ class ApprovalDecision(BaseModel):
     """
 
     decision: Literal["approve", "deny"]
+
+
+class DecisionResolution(BaseModel):
+    """Body for POST /runs/{run_id}/decisions/{decision_id}."""
+
+    resolution: ResolutionAction
+    updated_input: dict[str, Any] | None = None
+    option_id: str | None = None
 
 
 def _make_lifespan(
@@ -665,6 +674,38 @@ def create_app() -> FastAPI:
             approval_id, body.decision, run_id
         ):
             raise HTTPException(status_code=404, detail="Approval not pending")
+        return Response(status_code=204)
+
+    @app.post("/runs/{run_id}/decisions/{decision_id}", status_code=204)
+    async def resolve_decision(
+        run_id: str,
+        decision_id: str,
+        body: DecisionResolution,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> Response:
+        caller = auth.get("tenant_id")
+        if caller and app.state.in_flight_tenants.get(run_id) != caller:
+            raise HTTPException(status_code=404, detail="Decision not pending")
+        registry = app.state.harness.approval_registry
+        if registry is not None:
+            kind = registry.kind(decision_id)
+            if kind == "tool_approval" and body.resolution == "choose":
+                raise HTTPException(
+                    status_code=422,
+                    detail="'choose' is not valid for a tool_approval decision",
+                )
+            if kind == "choice" and body.resolution != "choose":
+                raise HTTPException(
+                    status_code=422,
+                    detail="only 'choose' is valid for a choice decision",
+                )
+        resolution = Resolution(
+            action=body.resolution,
+            updated_input=body.updated_input,
+            option_id=body.option_id,
+        )
+        if registry is None or not registry.resolve(decision_id, resolution, run_id):
+            raise HTTPException(status_code=404, detail="Decision not pending")
         return Response(status_code=204)
 
     @app.post("/runs/{run_id}/cancel", status_code=204)

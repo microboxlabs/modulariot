@@ -104,8 +104,11 @@ const appChanged = true;
 const modulithChanged = pathStarts(["quarkus-srv/"]);
 
 const latestModulithVersion = latestVersion("modulith@v*", "modulith@v");
+const latestHarnessVersion = latestVersion("harness@v*", "harness@v");
+const harnessChanged = pathStarts(["miot-harness/"]) || !latestHarnessVersion;
 const appVersion = stackVersion;
 const modulithVersion = modulithChanged ? bumpPatch(latestModulithVersion) : latestModulithVersion;
+const harnessVersion = harnessChanged ? bumpPatch(latestHarnessVersion) : latestHarnessVersion;
 
 if (!appVersion) {
   throw new Error("No app@v* tag exists and the app did not change in this milestone.");
@@ -113,7 +116,6 @@ if (!appVersion) {
 if (!modulithVersion) {
   throw new Error("No modulith@v* tag exists and the modulith did not change in this milestone.");
 }
-
 const plan = {
   stack_version: stackVersion,
   stack_tag: `miot-stack@v${stackVersion}`,
@@ -131,6 +133,11 @@ const plan = {
       version: modulithVersion,
       tag: `modulith@v${modulithVersion}`,
     },
+    harness: {
+      changed: harnessChanged,
+      version: harnessVersion,
+      tag: `harness@v${harnessVersion}`,
+    },
   },
 };
 
@@ -145,6 +152,9 @@ const outputs = {
   modulith_changed: String(modulithChanged),
   modulith_version: modulithVersion,
   modulith_tag: plan.components.modulith.tag,
+  harness_changed: String(harnessChanged),
+  harness_version: harnessVersion,
+  harness_tag: plan.components.harness.tag,
   stack_tag: plan.stack_tag,
   stack_plan_file: planFile,
 };

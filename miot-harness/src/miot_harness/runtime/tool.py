@@ -106,7 +106,8 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                     )
                 )
             else:
-                approval_id = uuid4().hex
+                decision_id = uuid4().hex
+                # Legacy compat event (frontend not yet migrated off it).
                 progress(
                     HarnessEvent(
                         run_id=ctx.run_id,
@@ -115,7 +116,21 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                         data={
                             "tool": self.name,
                             "input": input_dump,
-                            "approval_id": approval_id,
+                            "approval_id": decision_id,
+                        },
+                    )
+                )
+                # Generalized decision event (kind=tool_approval).
+                progress(
+                    HarnessEvent(
+                        run_id=ctx.run_id,
+                        type="decision.requested",
+                        message=permission.reason,
+                        data={
+                            "tool": self.name,
+                            "input": input_dump,
+                            "decision_id": decision_id,
+                            "kind": "tool_approval",
                         },
                     )
                 )
@@ -127,20 +142,48 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                     reason = "approval required but no approval_registry on context"
                     _emit_failed(progress, ctx, self.name, reason, "PermissionError")
                     raise PermissionError(reason)
-                event = registry.register(approval_id, ctx.run_id, kind="tool_approval")
+                event = registry.register(decision_id, ctx.run_id, kind="tool_approval")
                 try:
                     await event.wait()
-                    resolution = registry.decision(approval_id)
+                    resolution = registry.decision(decision_id)
                 finally:
                     # Always discard so a cancelled wait (e.g. POST
                     # /runs/{id}/cancel during an approval pause) doesn't
                     # leak the registry entry. Without this, _pending grows
                     # unbounded across the process lifetime.
-                    registry.discard(approval_id)
-                if resolution is None or resolution.action != "approve":
-                    reason = f"approval {approval_id} denied"
+                    registry.discard(decision_id)
+                progress(
+                    HarnessEvent(
+                        run_id=ctx.run_id,
+                        type="decision.resolved",
+                        message=f"decision {decision_id} resolved",
+                        data={
+                            "decision_id": decision_id,
+                            "action": resolution.action if resolution else "deny",
+                        },
+                    )
+                )
+                if resolution is None or resolution.action in ("deny", "choose"):
+                    reason = f"decision {decision_id} denied"
                     _emit_failed(progress, ctx, self.name, reason, "PermissionError")
                     raise PermissionError(reason)
+                if resolution.action == "edit":
+                    # Human-edited input is authoritative over an `ask`, but
+                    # must still pass schema validation and cannot bypass a
+                    # hard deny from check_permission.
+                    parsed_input = self.input_model.model_validate(
+                        resolution.updated_input or {}
+                    )
+                    input_dump = parsed_input.model_dump()
+                    input_keys = sorted(input_dump.keys())
+                    recheck = await self.check_permission(ctx, parsed_input)
+                    if recheck.decision == PermissionDecision.DENY:
+                        _emit_failed(
+                            progress, ctx, self.name, recheck.reason, "PermissionError"
+                        )
+                        raise PermissionError(recheck.reason)
+                # action == "approve" or a re-validated "edit": fall through
+                # to tool execution with parsed_input/input_dump below.
         started_data: dict[str, Any] = {
             "tool": self.name,
             "source": self.source,

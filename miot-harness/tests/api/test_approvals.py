@@ -228,7 +228,15 @@ async def test_ask_with_approve_decision_proceeds_to_completion() -> None:
     assert output.ok is True
 
     types = [e.type for e in events]
-    assert types == ["approval.requested", "tool.started", "tool.completed"]
+    # Both legacy and new decision events are emitted during the compat window.
+    assert "approval.requested" in types
+    assert "decision.requested" in types
+    assert "decision.resolved" in types
+    assert "tool.started" in types
+    assert "tool.completed" in types
+    # Order: approval/decision events precede tool lifecycle events.
+    assert types.index("approval.requested") < types.index("tool.started")
+    assert types.index("decision.resolved") < types.index("tool.started")
 
 
 @pytest.mark.asyncio

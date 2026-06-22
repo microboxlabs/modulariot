@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
@@ -49,6 +50,56 @@ class HarnessContext(BaseModel):
     # approval_registry, it is excluded from model_dump (PermissionPolicy
     # is serializable, but it is run-control state, not run output).
     permission_policy: PermissionPolicy | None = Field(default=None, exclude=True)
+
+    async def request_choice(
+        self,
+        prompt: str,
+        *,
+        options: list[dict[str, Any]],
+        progress: Callable[[Any], None],
+    ) -> str | None:
+        """Surface an agent decision point and block until a human chooses.
+
+        Registers a `choice` decision on the run-control registry, emits
+        `decision.requested` (kind=choice) carrying the options, awaits the
+        resolution, emits `decision.resolved`, and returns the chosen
+        option_id. Returns None when no registry is wired (CLI/eval) so
+        callers can fall back to a default.
+        """
+        from miot_harness.runtime.events import HarnessEvent
+
+        registry = self.approval_registry
+        if registry is None:
+            return None
+        decision_id = uuid4().hex
+        progress(
+            HarnessEvent(
+                run_id=self.run_id,
+                type="decision.requested",
+                message=prompt,
+                data={"decision_id": decision_id, "kind": "choice", "options": options},
+            )
+        )
+        event = registry.register(decision_id, self.run_id, kind="choice")
+        try:
+            await event.wait()
+            resolution = registry.decision(decision_id)
+        finally:
+            registry.discard(decision_id)
+        progress(
+            HarnessEvent(
+                run_id=self.run_id,
+                type="decision.resolved",
+                message=f"decision {decision_id} resolved",
+                data={
+                    "decision_id": decision_id,
+                    "action": resolution.action if resolution else "deny",
+                },
+            )
+        )
+        if resolution is None or resolution.action != "choose":
+            return None
+        return resolution.option_id
 
 
 class UserRequest(BaseModel):

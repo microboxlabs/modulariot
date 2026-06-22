@@ -7,12 +7,13 @@ import React, {
   useRef,
   useEffect,
 } from "react";
-import { Button, ToggleSwitch } from "flowbite-react";
+import { Button } from "flowbite-react";
 import {
   HiPlus,
   HiArrowUturnLeft,
   HiArrowUturnRight,
   HiArrowsPointingOut,
+  HiPencilSquare,
 } from "react-icons/hi2";
 import {
   GridLayout,
@@ -70,8 +71,7 @@ import { fitLayoutToCols } from "../../utils/fit-layout-to-cols";
 
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
 import DashboardShareDropdown from "../dashboard-share-dropdown/dashboard-share-dropdown";
-import { DashboardNavbarPortal } from "../dashboard-navbar-portal";
-import { DashboardFiltersCard } from "../dashboard-filters-card/dashboard-filters-card";
+import { DashboardFilterBadges } from "../dashboard-filters-card/dashboard-filters-card";
 
 /**
  * Main dashboard view component
@@ -94,7 +94,6 @@ export function DashboardView() {
     redo,
     canUndo,
     canRedo,
-    filters,
   } = useDashboard();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -302,6 +301,7 @@ export function DashboardView() {
     return () => globalThis.removeEventListener("keydown", handleKeyDown);
   }, [editMode, undo, redo]);
 
+
   // Convert widgets to react-grid-layout format
   const layout: Layout = useMemo(() => {
     const items = widgets.map((widget, index) => {
@@ -362,23 +362,26 @@ export function DashboardView() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      {/* Portal: renders DashboardFilterBar into the navbar search slot */}
-      {!isKiosk && <DashboardNavbarPortal />}
-
       {/* Header (hidden in kiosk mode) */}
       {!isKiosk && (
         <div className="shrink-0 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-          <div className="flex items-center justify-between gap-4 p-4">
-            {isLoaded ? (
-              renderDashboardName()
-            ) : (
-              <div className="h-7 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
-            )}
-            <div className="flex shrink-0 items-center gap-4">
+          {/* Row 1: title + controls */}
+          <div className="flex items-center gap-2 p-4">
+            {/* Dashboard name */}
+            <div className="min-w-0 flex-1">
+              {isLoaded ? (
+                renderDashboardName()
+              ) : (
+                <div className="h-7 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex shrink-0 items-center gap-2">
               {editMode && (
                 <div className="flex items-center gap-1">
                   <Button
-                    size="xs"
+                    size="sm"
                     color="light"
                     onClick={undo}
                     disabled={!canUndo()}
@@ -387,7 +390,7 @@ export function DashboardView() {
                     <HiArrowUturnLeft className="h-4 w-4" />
                   </Button>
                   <Button
-                    size="xs"
+                    size="sm"
                     color="light"
                     onClick={redo}
                     disabled={!canRedo()}
@@ -398,11 +401,15 @@ export function DashboardView() {
                 </div>
               )}
               {hasWidgets && canEdit && (
-                <ToggleSwitch
-                  checked={editMode}
-                  onChange={toggleEditMode}
-                  label={tr("dashboard.editMode", dictionary)}
-                />
+                <Button
+                  color={editMode ? "blue" : "light"}
+                  onClick={toggleEditMode}
+                  size="sm"
+                  className="font-light flex flex-row gap-1"
+                >
+                  <HiPencilSquare className="h-4 w-4" />
+                  {tr("dashboard.editMode", dictionary)}
+                </Button>
               )}
               {canEdit && (
                 <DashboardSettingsDropdown
@@ -420,19 +427,21 @@ export function DashboardView() {
               </Link>
             </div>
           </div>
+
         </div>
       )}
 
-      {/* Filters card — only shown when at least one filter is configured */}
-      {!isKiosk && filters.length > 0 && (
-        <div className="shrink-0 px-4 pt-4">
-          <DashboardFiltersCard />
+      {/* Filter badges row — transparent, sits between header and content */}
+      {!isKiosk && (
+        <div className="shrink-0 px-2 py-2 bg-white dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+          <DashboardFilterBadges />
         </div>
       )}
 
       {/* Content */}
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4">
         <div ref={containerRef} className="w-full min-h-full">
+
           {hasWidgets ? (
             <div ref={clipRef} style={{ width: "100%", overflow: "visible" }}>
               <div

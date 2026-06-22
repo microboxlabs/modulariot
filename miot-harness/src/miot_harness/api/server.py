@@ -52,6 +52,14 @@ class ApprovalDecision(BaseModel):
     decision: Literal["approve", "deny"]
 
 
+class DecisionResolution(BaseModel):
+    """Body for POST /runs/{run_id}/decisions/{decision_id}."""
+
+    resolution: Literal["approve", "deny", "edit", "choose"]
+    updated_input: dict[str, Any] | None = None
+    option_id: str | None = None
+
+
 def _make_lifespan(
     harness: HarnessSupervisor, settings: HarnessSettings
 ) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
@@ -665,6 +673,28 @@ def create_app() -> FastAPI:
             approval_id, body.decision, run_id
         ):
             raise HTTPException(status_code=404, detail="Approval not pending")
+        return Response(status_code=204)
+
+    @app.post("/runs/{run_id}/decisions/{decision_id}", status_code=204)
+    async def resolve_decision(
+        run_id: str,
+        decision_id: str,
+        body: DecisionResolution,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> Response:
+        from miot_harness.runtime.control import Resolution
+
+        caller = auth.get("tenant_id")
+        if caller and app.state.in_flight_tenants.get(run_id) != caller:
+            raise HTTPException(status_code=404, detail="Decision not pending")
+        registry = app.state.harness.approval_registry
+        resolution = Resolution(
+            action=body.resolution,
+            updated_input=body.updated_input,
+            option_id=body.option_id,
+        )
+        if registry is None or not registry.resolve(decision_id, resolution, run_id):
+            raise HTTPException(status_code=404, detail="Decision not pending")
         return Response(status_code=204)
 
     @app.post("/runs/{run_id}/cancel", status_code=204)

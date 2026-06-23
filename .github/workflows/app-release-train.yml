@@ -132,6 +132,18 @@ jobs:
             echo "oss_milestone=MIOT-$version"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Create release branch
+        id: branch
+        run: |
+          branch="release/miot-v${{ steps.version.outputs.release_version }}"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            git fetch origin "$branch"
+            git switch -C "$branch" "origin/$branch"
+          else
+            git switch -c "$branch"
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
       - name: Collect release issues
         env:
           GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
@@ -149,18 +161,6 @@ jobs:
           STACK_VERSION: ${{ steps.version.outputs.release_version }}
           OSS_MILESTONE: ${{ steps.version.outputs.oss_milestone }}
         run: node .github/scripts/resolve-stack-release-plan.js
-
-      - name: Create release branch
-        id: branch
-        run: |
-          branch="release/miot-v${{ steps.version.outputs.release_version }}"
-          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
-            git fetch origin "$branch"
-            git switch -C "$branch" "origin/$branch"
-          else
-            git switch -c "$branch"
-          fi
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
       - name: Bump app package version
         if: steps.plan.outputs.app_changed == 'true'

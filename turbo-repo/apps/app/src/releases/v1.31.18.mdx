@@ -1,0 +1,57 @@
+# 🔔 Release Notes v1.31.18 — ModularIoT
+
+### Fecha: 23/06/2026
+
+**Objetivo**: Esta versión fortalece la operación diaria en UI, flujos de datos y mapa de viajes, mientras consolida la base técnica de `miot-harness` en el tren de release. También mejora la seguridad operativa en transiciones de tareas y prepara capacidades avanzadas de decisión humana en ejecución.
+
+## 🚀 Evolutivos
+
+- **📍 Mejoras del dashboard (filtros y Data Table v2)** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: Se refactorizó la barra de filtros, se corrigió el orden persistido de filtros, se estabilizó el drag-and-drop en configuración y se mejoró el cierre por Escape en filtros de texto.
+  - **Technical detail**: Se separaron componentes/hook reutilizables y se añadió tooltip en encabezados de columnas para mantener legibilidad en tablas con columnas estrechas.
+
+- **📍 Distancia y ETA al origen en mapa de viaje** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: El mapa de monitoreo ahora muestra distancia del vehículo al origen y ETA estimada en tiempo real.
+  - **Technical detail**: El cálculo se realiza en frontend con utilidades geográficas (distancia/centroide/ETA) e integración i18n en ES/EN.
+
+- **📍 Prueba de conexión antes de guardar proveedores de datos** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: Se habilita “Test Connection” durante creación/edición sin persistir primero.
+  - **Technical detail**: La validación usa los valores actuales del formulario y cubre autenticación por token y OAuth.
+
+- **📍 Modos de permisos y reglas para aprobaciones HITL en harness** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: Se incorporan posturas de ejecución (`default`, `auto_safe`, `bypass`) y reglas `allow/deny/ask` para aprobaciones de herramientas.
+  - **Technical detail**: La política se vuelve persistente por conversación con precedencia definida y eventos observables para autoaprobaciones/restricciones.
+
+- **📍 Decisiones enriquecidas en pausas de herramientas (planificado)** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: Queda definido el alcance para permitir edición de input pausado y selección entre opciones durante una decisión humana.
+  - **Technical detail**: Se plantea unificar resolución en endpoint/eventos de decisiones con compatibilidad del flujo legado de aprobaciones.
+
+## 🔧 Integraciones
+
+- **🔌 `miot-harness` incorporado al release train del stack** *(Integración OSS — MIOT-0.5.19)*
+  - **Scope**: `miot-harness` pasa a versionado/tagging/promoción de imágenes y despacho de despliegues (release y nightly) al mismo nivel que app y modulith.
+
+## 🐛 Correcciones
+
+- **🐛 Control de transición de tareas visible para usuarios sin grupo candidato** *(Integración OSS — MIOT-0.5.19)*
+  - **Impacto**: Usuarios no autorizados veían la acción de transición y recibían error 500 al ejecutarla.
+  - **Solución**: Se restringe la visibilidad del control según pertenencia a grupos candidatos de la tarea, preservando exclusiones existentes y comportamiento en tareas sin `candidateGroups`.
+
+- **🐛 Robustez del cálculo de origen en mapa e internacionalización de unidad** *(Integración OSS — MIOT-0.5.19)*
+  - **Impacto**: Geometrías no poligonales/malformadas podían romper el cálculo y la unidad de distancia estaba hardcodeada.
+  - **Solución**: Se validó tipo de geometría antes del centroide y se movió la unidad “km” a claves i18n.
+
+## 📊 Beneficios
+
+- Menor fricción operativa en dashboards gracias a filtros más predecibles y configurables.
+- Mejor visibilidad logística con distancia y ETA al origen en el flujo de monitoreo.
+- Menos errores de configuración al permitir pruebas de conectividad antes de guardar proveedores.
+- Mayor control de seguridad en ejecución de herramientas con políticas de permiso por conversación.
+- Pipeline de releases más consistente al integrar `miot-harness` al tren estándar del stack.
+- Reducción de errores de autorización en tareas al ocultar acciones a usuarios no candidatos.
+
+## 📌 Conclusión
+
+La release 1.31.18 combina mejoras visibles para operación diaria con una base técnica más sólida para gobernanza y despliegue del stack. El resultado es una plataforma más usable en UI crítica (dashboard, mapa, configuración de fuentes) y más segura en acciones sensibles.
+
+En paralelo, se consolida la madurez de `miot-harness` tanto en operación (políticas HITL) como en lifecycle de entrega (release train). Esto deja preparado el terreno para capacidades de decisión humana más avanzadas en próximas iteraciones sin romper compatibilidad de flujos actuales.

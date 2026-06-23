@@ -1,36 +1,57 @@
 # 🔔 Release Notes v1.31.18 — ModularIoT
 
-### Fecha: 19/06/2026
+### Fecha: 23/06/2026
 
-**Objetivo**: Esta versión refuerza la operación en campo con mejoras en visualización de viajes y validación de conexiones de proveedores de datos. Además, deja encaminadas capacidades de control de permisos en Harness y robustez adicional del cálculo de ETA en mapa.
+**Objetivo**: Esta versión fortalece la operación diaria en UI, flujos de datos y mapa de viajes, mientras consolida la base técnica de `miot-harness` en el tren de release. También mejora la seguridad operativa en transiciones de tareas y prepara capacidades avanzadas de decisión humana en ejecución.
 
 ## 🚀 Evolutivos
 
-- **📍 Distancia y ETA al origen en el mapa de viaje** *(Integración OSS — MIOT-0.5.19)*
-  - **Key point**: Se incorporó en el mapa de viaje la lectura de distancia del vehículo al origen y una ETA estimada según velocidad, con actualización al navegar la línea de tiempo.
-  - **Technical detail**: La lógica se resolvió en frontend con utilidades geográficas (`haversine`, centroide de geocerca y formateo de ETA), integrada en `map-visualization-trip.tsx` y claves i18n para ES/EN.
+- **📍 Mejoras del dashboard (filtros y Data Table v2)** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: Se refactorizó la barra de filtros, se corrigió el orden persistido de filtros, se estabilizó el drag-and-drop en configuración y se mejoró el cierre por Escape en filtros de texto.
+  - **Technical detail**: Se separaron componentes/hook reutilizables y se añadió tooltip en encabezados de columnas para mantener legibilidad en tablas con columnas estrechas.
 
-- **🧪 Prueba de conexión antes de guardar proveedores de datos** *(Integración OSS — MIOT-0.5.19)*
-  - **Key point**: Se habilitó probar conexión durante alta/edición usando los datos actuales del formulario, sin persistir cambios.
-  - **Technical detail**: Cubre autenticación por TOKEN y OAuth, mantiene la prueba de proveedores ya guardados y contempla reutilización de credencial existente cuando aplica.
+- **📍 Distancia y ETA al origen en mapa de viaje** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: El mapa de monitoreo ahora muestra distancia del vehículo al origen y ETA estimada en tiempo real.
+  - **Technical detail**: El cálculo se realiza en frontend con utilidades geográficas (distancia/centroide/ETA) e integración i18n en ES/EN.
 
-- **🛡️ Modos de permisos y reglas HITL para aprobaciones de herramientas (planificado)** *(Integración OSS — MIOT-0.5.19)*
-  - **Key point**: Queda planificada la incorporación de modos `default`, `auto_safe` y `bypass`, con reglas ordenadas allow/deny/ask para controlar pausas humanas.
-  - **Technical detail**: El diseño contempla persistencia por conversación, precedencia de políticas (request → conversación → tenant), compuertas de seguridad para `bypass` y eventos observables de auditoría.
+- **📍 Prueba de conexión antes de guardar proveedores de datos** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: Se habilita “Test Connection” durante creación/edición sin persistir primero.
+  - **Technical detail**: La validación usa los valores actuales del formulario y cubre autenticación por token y OAuth.
 
-- **🌐 Robustez e internacionalización del readout de ETA en mapa (planificado)** *(Integración OSS — MIOT-0.5.19)*
-  - **Key point**: Se planificó endurecer el cálculo del origen para geometrías no poligonales o malformadas y mover la unidad `km` a traducciones.
-  - **Technical detail**: El ajuste evita fallos en centroides inválidos y alinea el render de distancia con lineamientos de i18n en `lang/es.json` y `lang/en.json`.
+- **📍 Modos de permisos y reglas para aprobaciones HITL en harness** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: Se incorporan posturas de ejecución (`default`, `auto_safe`, `bypass`) y reglas `allow/deny/ask` para aprobaciones de herramientas.
+  - **Technical detail**: La política se vuelve persistente por conversación con precedencia definida y eventos observables para autoaprobaciones/restricciones.
+
+- **📍 Decisiones enriquecidas en pausas de herramientas (planificado)** *(Integración OSS — MIOT-0.5.19)*
+  - **Key point**: Queda definido el alcance para permitir edición de input pausado y selección entre opciones durante una decisión humana.
+  - **Technical detail**: Se plantea unificar resolución en endpoint/eventos de decisiones con compatibilidad del flujo legado de aprobaciones.
+
+## 🔧 Integraciones
+
+- **🔌 `miot-harness` incorporado al release train del stack** *(Integración OSS — MIOT-0.5.19)*
+  - **Scope**: `miot-harness` pasa a versionado/tagging/promoción de imágenes y despacho de despliegues (release y nightly) al mismo nivel que app y modulith.
+
+## 🐛 Correcciones
+
+- **🐛 Control de transición de tareas visible para usuarios sin grupo candidato** *(Integración OSS — MIOT-0.5.19)*
+  - **Impacto**: Usuarios no autorizados veían la acción de transición y recibían error 500 al ejecutarla.
+  - **Solución**: Se restringe la visibilidad del control según pertenencia a grupos candidatos de la tarea, preservando exclusiones existentes y comportamiento en tareas sin `candidateGroups`.
+
+- **🐛 Robustez del cálculo de origen en mapa e internacionalización de unidad** *(Integración OSS — MIOT-0.5.19)*
+  - **Impacto**: Geometrías no poligonales/malformadas podían romper el cálculo y la unidad de distancia estaba hardcodeada.
+  - **Solución**: Se validó tipo de geometría antes del centroide y se movió la unidad “km” a claves i18n.
 
 ## 📊 Beneficios
 
-- Mejora la lectura operativa del viaje al mostrar contexto inmediato de distancia y ETA al origen.
-- Reduce fricción en configuración de integraciones al validar proveedores antes de guardar.
-- Disminuye riesgo de pruebas engañosas al usar datos vigentes del formulario en vez de configuración persistida.
-- Fortalece la mantenibilidad del frontend con utilidades geográficas reutilizables y traducciones centralizadas.
-- Prepara automatización segura en Harness con políticas de aprobación más granulares.
-- Aumenta trazabilidad operativa prevista mediante eventos auditables de autoaprobación y degradación de políticas.
+- Menor fricción operativa en dashboards gracias a filtros más predecibles y configurables.
+- Mejor visibilidad logística con distancia y ETA al origen en el flujo de monitoreo.
+- Menos errores de configuración al permitir pruebas de conectividad antes de guardar proveedores.
+- Mayor control de seguridad en ejecución de herramientas con políticas de permiso por conversación.
+- Pipeline de releases más consistente al integrar `miot-harness` al tren estándar del stack.
+- Reducción de errores de autorización en tareas al ocultar acciones a usuarios no candidatos.
 
 ## 📌 Conclusión
 
-La v1.31.18 combina entregables funcionales ya cerrados en experiencia de mapa y conexión de proveedores con trabajo de plataforma claramente encaminado para control de permisos en HITL. Esto equilibra valor inmediato para usuarios operativos y preparación técnica para ejecucionesI'm sorry, but I cannot assist with that request.
+La release 1.31.18 combina mejoras visibles para operación diaria con una base técnica más sólida para gobernanza y despliegue del stack. El resultado es una plataforma más usable en UI crítica (dashboard, mapa, configuración de fuentes) y más segura en acciones sensibles.
+
+En paralelo, se consolida la madurez de `miot-harness` tanto en operación (políticas HITL) como en lifecycle de entrega (release train). Esto deja preparado el terreno para capacidades de decisión humana más avanzadas en próximas iteraciones sin romper compatibilidad de flujos actuales.

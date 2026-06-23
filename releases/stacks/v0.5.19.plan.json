@@ -42,11 +42,63 @@
           "title": "chore: address CodeRabbit review on trip-map ETA readout (post-#711)"
         }
       ]
+    },
+    {
+      "number": 729,
+      "title": "Based/visualization enhancement on dashboard filters",
+      "source_issues": [
+        {
+          "number": 728,
+          "title": "Dashboard filter bar & data table v2 enhancements"
+        }
+      ]
+    },
+    {
+      "number": 730,
+      "title": "chore(deps): bump the uv group across 1 directory with 6 updates",
+      "source_issues": []
+    },
+    {
+      "number": 732,
+      "title": "feat(release): add harness to stack train",
+      "source_issues": [
+        {
+          "number": 731,
+          "title": "feat(release): add miot-harness to stack release train"
+        }
+      ]
+    },
+    {
+      "number": 734,
+      "title": "feat(harness): rich pause decisions — edit input & choose options (Steering & HITL Plan B)",
+      "source_issues": [
+        {
+          "number": 733,
+          "title": "feat(harness): rich pause decisions — edit a paused tool's input & choose among options"
+        }
+      ]
+    },
+    {
+      "number": 736,
+      "title": "fix(task-actions): gate transition button on candidate-group membership",
+      "source_issues": [
+        {
+          "number": 735,
+          "title": "bug: task transition button shown to users not in the task's candidate group (500 AccessDeniedException)"
+        }
+      ]
     }
   ],
   "changed_files": [
+    ".github/scripts/resolve-stack-release-plan.js",
+    ".github/workflows/app-nightly.yml",
+    ".github/workflows/app-release-train.yml",
+    "miot-harness/pyproject.toml",
+    "miot-harness/src/miot_harness/api/server.py",
     "miot-harness/src/miot_harness/config.py",
+    "miot-harness/src/miot_harness/runtime/approvals.py",
     "miot-harness/src/miot_harness/runtime/context.py",
+    "miot-harness/src/miot_harness/runtime/control.py",
     "miot-harness/src/miot_harness/runtime/conversation_policy.py",
     "miot-harness/src/miot_harness/runtime/event_types.json",
     "miot-harness/src/miot_harness/runtime/events.py",
@@ -55,18 +107,36 @@
     "miot-harness/src/miot_harness/runtime/policy.py",
     "miot-harness/src/miot_harness/runtime/supervisor.py",
     "miot-harness/src/miot_harness/runtime/tool.py",
+    "miot-harness/tests/api/test_approvals.py",
+    "miot-harness/tests/api/test_decisions.py",
+    "miot-harness/tests/api/test_decisions_e2e.py",
     "miot-harness/tests/api/test_steering_modes.py",
     "miot-harness/tests/runtime/test_context_permission_policy.py",
+    "miot-harness/tests/runtime/test_control.py",
     "miot-harness/tests/runtime/test_conversation_policy.py",
     "miot-harness/tests/runtime/test_permissions.py",
     "miot-harness/tests/runtime/test_policy.py",
+    "miot-harness/tests/runtime/test_request_choice.py",
     "miot-harness/tests/runtime/test_supervisor_policy.py",
+    "miot-harness/tests/runtime/test_tool_decisions.py",
     "miot-harness/tests/runtime/test_tool_permission_modes.py",
     "miot-harness/tests/test_events.py",
+    "miot-harness/uv.lock",
     "turbo-repo/apps/app/src/app/api/data-sources/[dataSourceId]/test/route.ts",
     "turbo-repo/apps/app/src/app/api/data-sources/test-connection.ts",
     "turbo-repo/apps/app/src/app/api/data-sources/test/route.test.ts",
     "turbo-repo/apps/app/src/app/api/data-sources/test/route.ts",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filter-bar/time-range-picker.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/badge-styles.ts",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/dashboard-filters-card.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/date-filter-badge.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/filter-badge-shell.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/select-filter-badge.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/text-filter-badge.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/use-outside-click.ts",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-settings-dropdown/dashboard-settings-dropdown.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-view/dashboard-view.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/data_table_v2/dashlet.tsx",
     "turbo-repo/apps/app/src/features/data-sources/components/data-source-modal.tsx",
     "turbo-repo/apps/app/src/features/data-sources/components/data-sources-page-content.tsx",
     "turbo-repo/apps/app/src/features/data-sources/hooks/use-data-sources.ts",
@@ -76,6 +146,9 @@
     "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization-trip.tsx",
     "turbo-repo/apps/app/src/features/geographic-view/utils/vehicle-origin.test.ts",
     "turbo-repo/apps/app/src/features/geographic-view/utils/vehicle-origin.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/navegation_params.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/search-bar.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-actions/task-actions.tsx",
     "turbo-repo/apps/app/src/lang/en.json",
     "turbo-repo/apps/app/src/lang/es.json"
   ],

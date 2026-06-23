@@ -144,6 +144,14 @@ jobs:
           fi
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
+      - name: Restore release automation from workflow ref
+        run: |
+          git checkout "$GITHUB_SHA" -- \
+            .github/scripts/resolve-stack-release-plan.js \
+            .github/prompts/app-release-notes.prompt.yml \
+            turbo-repo/generative_ai/tools/sh/fetch-release-issues.sh \
+            turbo-repo/generative_ai/tools/sh/bump-app-version.sh
+
       - name: Collect release issues
         env:
           GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}

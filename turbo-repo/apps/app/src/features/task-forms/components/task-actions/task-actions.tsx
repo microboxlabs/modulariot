@@ -89,6 +89,20 @@ export default function TaskActions({
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
   const { data: userGroups } = useUserGroups();
   const bpmPackage = typeof extraData?.bpm_package === "string" ? extraData.bpm_package : undefined;
+  // Pooled tasks are offered to Alfresco candidate groups; a user who is not a
+  // member cannot complete the task (the backend rejects endTask with an
+  // AccessDeniedException). Hide the action when the current user is not a
+  // candidate. Stay backwards-compatible: only restrict once the user's groups
+  // are loaded and the task actually exposes candidate groups — otherwise defer
+  // to the backend check so non-pooled / unannotated tasks are unaffected.
+  const rawCandidateGroups = extraData?.candidateGroups;
+  const taskCandidateGroups = Array.isArray(rawCandidateGroups)
+    ? (rawCandidateGroups as string[])
+    : [];
+  const isTaskCandidate =
+    userGroups.length === 0 ||
+    taskCandidateGroups.length === 0 ||
+    taskCandidateGroups.some((group) => userGroups.includes(group));
   const {
     isValid: documentsValid,
     isLoading: documentsLoading,
@@ -245,6 +259,10 @@ export default function TaskActions({
       }))}
     />
   );
+
+  if (!isTaskCandidate) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">

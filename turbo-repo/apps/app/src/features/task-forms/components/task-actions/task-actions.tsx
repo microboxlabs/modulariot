@@ -87,20 +87,21 @@ export default function TaskActions({
     | undefined
   >();
   const [outcomeLabel, setOutcomeLabel] = useState<string | undefined>();
-  const { data: userGroups } = useUserGroups();
+  const { data: userGroups, isLoading: userGroupsLoading } = useUserGroups();
   const bpmPackage = typeof extraData?.bpm_package === "string" ? extraData.bpm_package : undefined;
   // Pooled tasks are offered to Alfresco candidate groups; a user who is not a
   // member cannot complete the task (the backend rejects endTask with an
   // AccessDeniedException). Hide the action when the current user is not a
-  // candidate. Stay backwards-compatible: only restrict once the user's groups
-  // are loaded and the task actually exposes candidate groups — otherwise defer
-  // to the backend check so non-pooled / unannotated tasks are unaffected.
+  // candidate. While the user's groups are still loading we defer (show) to
+  // avoid a flash; once loaded, an empty or failed group list fails closed
+  // (hidden) for pooled tasks. Tasks that expose no candidate groups are left
+  // unaffected so non-pooled / unannotated tasks behave exactly as before.
   const rawCandidateGroups = extraData?.candidateGroups;
   const taskCandidateGroups = Array.isArray(rawCandidateGroups)
     ? (rawCandidateGroups as string[])
     : [];
   const isTaskCandidate =
-    userGroups.length === 0 ||
+    userGroupsLoading ||
     taskCandidateGroups.length === 0 ||
     taskCandidateGroups.some((group) => userGroups.includes(group));
   const {

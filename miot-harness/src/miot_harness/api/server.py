@@ -753,6 +753,17 @@ def create_app() -> FastAPI:
         body: SteerRequest,
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> Response:
+        """Inject free-text operator guidance into a running agentic loop.
+
+        Advisory and non-blocking: the note is queued on the run's steering
+        channel and consumed at the next agentic *planner* boundary (the run
+        never waits for it). Returns 202 — acceptance, not application.
+
+        Scope: only the agentic route observes the channel. Single-shot
+        routes finish before a steer can be read, so their notes are dropped
+        at run end. Contract: 422 empty/whitespace body; 404 for an unknown,
+        finished, or cross-tenant run (collapsed — no ownership leak).
+        """
         # Tenant scoping: a steering channel only exists while its run is in
         # flight, so the in-flight tenant tracker is the authoritative owner
         # map. The tenant check runs BEFORE touching the registry, so a
@@ -772,6 +783,20 @@ def create_app() -> FastAPI:
         run_id: str,
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> Response:
+        """Request a cooperative, graceful stop of a running agentic run.
+
+        Distinct from ``POST /runs/{id}/cancel``: cancel hard-cancels the
+        asyncio task (terminal ``run.failed`` with ``reason=cancelled``, no
+        answer), whereas interrupt sets a flag that the next planner boundary
+        honors — emitting ``run.interrupted`` and then synthesizing a partial
+        answer from evidence gathered so far (or failing gracefully if none).
+        Returns 202.
+
+        The flag is polled at the planner boundary, so a run blocked on a
+        pending tool approval won't observe it until that decision is
+        resolved; use hard ``/cancel`` to abort a stuck run. Contract: 404
+        for an unknown, finished, or cross-tenant run (collapsed).
+        """
         # Same tenant 404-collapse as /steer: the check runs before the
         # registry, so a cross-tenant caller never sets the interrupt flag.
         caller = auth.get("tenant_id")

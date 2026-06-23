@@ -31,6 +31,11 @@ export const HARNESS_EVENT_TYPES = [
   "tool.completed",
   "tool.failed",
   "approval.requested",
+  "approval.auto",
+  "decision.requested",
+  "decision.resolved",
+  "steering.mode_denied",
+  "steering.injected",
   "artifact.created",
   "plan.created",
   /** @deprecated superseded by agent.started / agent.completed. */
@@ -44,6 +49,7 @@ export const HARNESS_EVENT_TYPES = [
   "answer.completed",
   "run.completed",
   "run.failed",
+  "run.interrupted",
 ] as const;
 
 export type HarnessEventType = (typeof HARNESS_EVENT_TYPES)[number];

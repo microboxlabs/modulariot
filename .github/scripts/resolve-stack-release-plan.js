@@ -116,6 +116,9 @@ if (!appVersion) {
 if (!modulithVersion) {
   throw new Error("No modulith@v* tag exists and the modulith did not change in this milestone.");
 }
+if (!harnessVersion) {
+  throw new Error("No harness@v* tag exists and the harness did not change in this milestone.");
+}
 const plan = {
   stack_version: stackVersion,
   stack_tag: `miot-stack@v${stackVersion}`,

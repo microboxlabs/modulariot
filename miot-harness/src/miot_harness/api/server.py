@@ -14,7 +14,7 @@ import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import get_chat_model
@@ -59,6 +59,25 @@ class DecisionResolution(BaseModel):
     resolution: ResolutionAction
     updated_input: dict[str, Any] | None = None
     option_id: str | None = None
+
+
+class SteerRequest(BaseModel):
+    """Body for POST /runs/{run_id}/steer.
+
+    `message` is free-text operator guidance pushed into a running agentic
+    loop. Empty / whitespace-only input is rejected at validation time, so
+    FastAPI returns 422 before the handler runs.
+    """
+
+    message: str
+
+    @field_validator("message")
+    @classmethod
+    def _non_empty(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("message must not be empty or whitespace-only")
+        return stripped
 
 
 def _make_lifespan(
@@ -727,6 +746,42 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="Run not in flight")
         task.cancel()
         return Response(status_code=204)
+
+    @app.post("/runs/{run_id}/steer", status_code=202)
+    async def steer_run(
+        run_id: str,
+        body: SteerRequest,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> Response:
+        # Tenant scoping: a steering channel only exists while its run is in
+        # flight, so the in-flight tenant tracker is the authoritative owner
+        # map. The tenant check runs BEFORE touching the registry, so a
+        # cross-tenant caller never pushes a note and gets the same 404 as an
+        # unknown run — no ownership leak.
+        caller = auth.get("tenant_id")
+        if caller and app.state.in_flight_tenants.get(run_id) != caller:
+            raise HTTPException(status_code=404, detail="Run not steerable")
+        registry = app.state.harness.steering_registry
+        if registry is None or not registry.push(run_id, body.message):
+            raise HTTPException(status_code=404, detail="Run not steerable")
+        # Advisory/accepted: the note is consumed at the next planner boundary.
+        return Response(status_code=202)
+
+    @app.post("/runs/{run_id}/interrupt", status_code=202)
+    async def interrupt_run(
+        run_id: str,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> Response:
+        # Same tenant 404-collapse as /steer: the check runs before the
+        # registry, so a cross-tenant caller never sets the interrupt flag.
+        caller = auth.get("tenant_id")
+        if caller and app.state.in_flight_tenants.get(run_id) != caller:
+            raise HTTPException(status_code=404, detail="Run not interruptible")
+        registry = app.state.harness.steering_registry
+        if registry is None or not registry.interrupt(run_id):
+            raise HTTPException(status_code=404, detail="Run not interruptible")
+        # Cooperative: the flag is polled at the next planner boundary.
+        return Response(status_code=202)
 
     @app.get("/runs/{run_id}/stream")
     async def stream_run(

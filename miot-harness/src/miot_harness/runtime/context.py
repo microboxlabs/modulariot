@@ -11,6 +11,7 @@ from miot_harness.runtime.permissions import (
     PermissionPolicy,
     PermissionRule,
 )
+from miot_harness.runtime.steering import SteeringRegistry
 
 # The four explicit dispatch surfaces a caller can request. "auto" is the
 # default (LLM intent router decides). The other three bypass the router
@@ -45,6 +46,12 @@ class HarnessContext(BaseModel):
     # The API layer injects this from app.state; CLI/eval paths leave it
     # None and the tool layer treats "ask" as deny when it's unset.
     approval_registry: ApprovalRegistry | None = Field(default=None, exclude=True)
+    # Steering Plan C: per-run handle to the in-process live-steering
+    # channel. The supervisor opens the channel at run start and injects
+    # this handle so the agentic planner boundary can drain operator notes
+    # and poll the cooperative interrupt flag. Excluded from model_dump
+    # (process-local, not run output), like approval_registry.
+    steering_registry: SteeringRegistry | None = Field(default=None, exclude=True)
     # Steering Plan A: the resolved permission posture for this run
     # (mode + rules), set by the supervisor after the bypass gate. Like
     # approval_registry, it is excluded from model_dump (PermissionPolicy

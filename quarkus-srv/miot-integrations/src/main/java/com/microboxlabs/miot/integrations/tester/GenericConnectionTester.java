@@ -7,6 +7,7 @@ import com.microboxlabs.miot.integrations.dto.ConnectionTestRequest;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestResponse;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 /**
  * Fallback tester for providers without a live probe. Validates the connection
@@ -26,7 +27,7 @@ public class GenericConnectionTester implements ConnectionTester {
             IntegrationConnection connection,
             CredentialProfile credential,
             ConnectionTestRequest request) {
-        return new ConnectionTestResponse(true, OffsetDateTime.now(), message(request));
+        return new ConnectionTestResponse(true, OffsetDateTime.now(ZoneOffset.UTC), message(request));
     }
 
     private String message(ConnectionTestRequest request) {

@@ -15,6 +15,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 
 /**
@@ -52,7 +53,7 @@ public class WhatsAppConnectionTester implements ConnectionTester {
             IntegrationConnection connection,
             CredentialProfile credential,
             ConnectionTestRequest request) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         if (connection.baseUrl() == null) {
             return fail(now, "Connection base URL is not set (expected https://graph.facebook.com/<version>)");

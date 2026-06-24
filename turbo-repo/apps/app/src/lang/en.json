@@ -3933,5 +3933,26 @@
     "expired": "This link has expired",
     "error": "Something went wrong. Please try again later.",
     "invalid": "This link is not valid"
+  },
+  "spotlight": {
+    "placeholder": "Ask, build or navigate",
+    "sections": {
+      "ask": "Ask",
+      "build": "Build",
+      "navigate": "Navigate"
+    },
+    "navigate": {
+      "heading": "Go to",
+      "triggers": "goto,go to,navigate,open"
+    },
+    "recent": "Recent",
+    "ask": {
+      "heading": "Ask",
+      "triggers": "ask,question,help"
+    },
+    "build": {
+      "heading": "Build",
+      "triggers": "build,create,scaffold"
+    }
   }
 }

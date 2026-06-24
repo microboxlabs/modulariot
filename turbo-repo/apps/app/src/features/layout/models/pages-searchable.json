@@ -1,0 +1,83 @@
+[
+  {
+    "label": "home",
+    "requiredGroups": ["GROUP_DASHBOARD"],
+    "blockedGroups": []
+  },
+  {
+    "label": "calendar",
+    "items": [
+      { "href": "/calendar", "label": "calendarOverview", "requiredGroups": [], "blockedGroups": [] }
+    ],
+    "requiredGroups": ["GROUP_ASSIGNMENT", "GROUP_PLANNING", "GROUP_CALENDAR_VIEWER"],
+    "blockedGroups": []
+  },
+  {
+    "label": "kanban",
+    "items": [
+      { "href": "/planning", "label": "planning", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/shipping", "label": "shipping", "requiredGroups": ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"], "blockedGroups": [] },
+      { "href": "/delivery", "label": "delivery", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/finished", "label": "finished", "requiredGroups": [], "blockedGroups": [] }
+    ],
+    "requiredGroups": ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"],
+    "blockedGroups": []
+  },
+  {
+    "label": "tasks",
+    "items": [
+      { "href": "/mytasks?status=finished", "label": "completed_tasks", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/mytasks?status=pending", "label": "pending_tasks", "requiredGroups": [], "blockedGroups": [] }
+    ],
+    "requiredGroups": ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"],
+    "blockedGroups": ["GROUP_MINTRAL_REVISOR"]
+  },
+  {
+    "label": "controlTower",
+    "href": "/reports",
+    "items": [
+      { "href": "/geographic-view", "label": "geographicView", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/symptoms", "label": "symptoms", "requiredGroups": [], "blockedGroups": ["GROUP_MINTRAL_REVISOR"] },
+      { "href": "/signal-history", "label": "signalHistory", "requiredGroups": [], "blockedGroups": [] }
+    ],
+    "requiredGroups": [],
+    "blockedGroups": []
+  },
+  {
+    "label": "liveStreams",
+    "items": [
+      { "href": "/live-streams/facility-scl", "label": "facilitySCL", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/live-streams/truck-beds", "label": "truckBeds", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/live-streams/devices", "label": "allDevices", "requiredGroups": [], "blockedGroups": [] }
+    ],
+    "requiredGroups": ["GROUP_ALFRESCO_ADMINISTRATORS"],
+    "blockedGroups": []
+  },
+  {
+    "label": "collaboratorsManagement",
+    "href": "/collaborators-management",
+    "requiredGroups": ["GROUP_COLLABORATORS_MANAGEMENT", "GROUP_COLABORATORS_MANAGEMENT"],
+    "blockedGroups": []
+  },
+  {
+    "label": "fleetManagement",
+    "href": "/fleet-management",
+    "requiredGroups": ["GROUP_FLEET_MANAGEMENT"],
+    "blockedGroups": []
+  },
+  {
+    "label": "whereIsMyLoad",
+    "href": "/where-is-my-load",
+    "requiredGroups": ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
+    "blockedGroups": []
+  },
+  {
+    "label": "settings",
+    "items": [
+      { "href": "/users/settings/organizations", "label": "organizations", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/users/settings/data-sources", "label": "dataSources", "requiredGroups": [], "blockedGroups": [] }
+    ],
+    "requiredGroups": [],
+    "blockedGroups": []
+  }
+]

@@ -9,6 +9,10 @@ const nextConfig = {
   // Required for npm workspace monorepo: trace dependencies from monorepo root
   outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
   basePath: "/app",
+  env: {
+    // Expose basePath so client code can build asset URLs (e.g. /app/pagefind/pagefind.js)
+    NEXT_PUBLIC_BASE_PATH: "/app",
+  },
   // Dev-only: redirect the bare root to the app's basePath so opening
   // http://localhost:3050/ lands on /app instead of a 404. In production the
   // front load balancer already handles this, so we skip it there.

@@ -84,7 +84,6 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
   const fleet = fleet_params(searchbarDict);
 
   return {
-    home: null,
     finished: getParamsFixed(kanban, dict),
     shipping: getParamsFixed(kanban, dict),
     delivery: getParamsFixed(kanban, dict),

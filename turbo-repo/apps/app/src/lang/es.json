@@ -3933,5 +3933,26 @@
     "expired": "Este enlace ha expirado",
     "error": "Algo salió mal. Por favor, intenta más tarde.",
     "invalid": "Este enlace no es válido"
+  },
+  "spotlight": {
+    "placeholder": "Pregunta, construye o navega",
+    "sections": {
+      "ask": "Preguntar",
+      "build": "Construir",
+      "navigate": "Navegar"
+    },
+    "navigate": {
+      "heading": "Ir a",
+      "triggers": "ir a,goto,navegar,abrir,go to"
+    },
+    "recent": "Reciente",
+    "ask": {
+      "heading": "Preguntar",
+      "triggers": "preguntar,pregunta,ayuda"
+    },
+    "build": {
+      "heading": "Construir",
+      "triggers": "construir,crear,generar"
+    }
   }
 }

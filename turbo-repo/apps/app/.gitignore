@@ -38,6 +38,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# pagefind — generated at build time by scripts/build-search-index.mjs
+/public/pagefind/
+
 # local clones (were broken gitlinks; .gitmodules only works at repo root)
 /mintral.wiki
 /rest-api

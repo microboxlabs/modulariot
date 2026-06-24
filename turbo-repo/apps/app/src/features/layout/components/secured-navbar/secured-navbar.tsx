@@ -1,7 +1,7 @@
 "use client";
 
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
-import { Label, Navbar, NavbarBrand } from "flowbite-react";
+import { Navbar, NavbarBrand } from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
 import { HiBell, HiMenuAlt1, HiX } from "react-icons/hi";
@@ -11,15 +11,13 @@ import { SecuredNavBarProps } from "./secured-navbar.types";
 import defaultLogoImage from "@assets/logo.svg";
 import { twMerge } from "tailwind-merge";
 /* import { useSearch } from "@/features/search/context/search-context"; */
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import React from "react";
+import { usePathname } from "next/navigation";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import { useLoadNotifications } from "@/features/notifications/hooks/use-load-notifications";
-import SearchBar from "./searchbar/search-bar";
+import SpotlightSearch from "./spotlight-search/spotlight-search";
 import OrgSwitcher from "./org-switcher/org-switcher";
 // import { Filter } from "flowbite-react-icons/outline";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { useDebouncedCallback } from "use-debounce";
 import { useUserSite } from "@/features/common/providers/client-api.provider";
 
 /**
@@ -138,8 +136,6 @@ export function SecuredNavbar({
 }: SecuredNavBarProps & { dict: I18nRecord }) {
   const sidebar = useSidebarContext();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
-  const searchParams = useSearchParams();
-  const router = useRouter();
   const pathname = usePathname();
   /* const { searchTerm, setSearchTerm } = useSearch(); */
 
@@ -156,21 +152,6 @@ export function SecuredNavbar({
       (notification: any) => !notification.is_read
     ).length;
   }
-
-  const _handleSearch = useDebouncedCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const term = event.target.value;
-      const params = new URLSearchParams(searchParams.toString());
-
-      if (term) {
-        params.set("search", term);
-      } else {
-        params.delete("search");
-      }
-      router.push(`${pathname}?${params.toString()}`);
-    },
-    300
-  );
 
   function handleToggleSidebar() {
     if (!isDesktop) {
@@ -204,16 +185,9 @@ export function SecuredNavbar({
               </button>
             )}
             {isSeachEnabled && (
-              <form className="hidden lg:block">
-                <Label htmlFor="search" className="sr-only">
-                  {messages.search}
-                </Label>
-                <SearchBar
-                  messages={messages}
-                  searchParams={searchParams}
-                  dict={dict}
-                />
-              </form>
+              <div className="hidden lg:block">
+                <SpotlightSearch dict={dict} />
+              </div>
             )}
           </div>
           <div className="items-center justify-center flex-1 hidden lg:flex">
@@ -227,14 +201,6 @@ export function SecuredNavbar({
             </NavbarBrand>
           </div>
           <div className="flex items-center justify-end gap-2 w-full">
-            <div className="block w-full lg:hidden">
-              <SearchBar
-                messages={messages}
-                searchParams={searchParams}
-                dict={dict}
-              />
-            </div>
-
             <OrgSwitcher dict={dict} />
             {!pathname.includes("/notifications") && (
               <Link

@@ -208,9 +208,10 @@ export const authConfig: NextAuthConfig = {
             expiresAt: account.expires_at,
           }, "Processing Auth0 authentication");
 
-          // Store Auth0 access token for backend API authorization
-          // With audience configured, access_token is a JWT meant for the API (ECM)
           token.rawJWT = account.id_token;
+          // When AUTH_AUTH0_AUDIENCE is set, access_token is a JWT scoped to the API audience
+          // (harness, ECM, etc.). Store it separately from rawJWT (id_token).
+          token.accessToken = account.access_token;
           token.accessTokenExpiresAt = account.expires_at;
           token.refreshToken = account.refresh_token;
 
@@ -248,6 +249,7 @@ export const authConfig: NextAuthConfig = {
             if (response.ok) {
               const tokens = await response.json();
               token.rawJWT = tokens.id_token;
+              if (tokens.access_token) token.accessToken = tokens.access_token;
               token.accessTokenExpiresAt = Math.floor(Date.now() / 1000) + tokens.expires_in;
               if (tokens.refresh_token) token.refreshToken = tokens.refresh_token;
               authAuth0Logger.debug({ expiresAt: token.accessTokenExpiresAt }, "Auth0 token refreshed");
@@ -313,7 +315,7 @@ export const authConfig: NextAuthConfig = {
             session.user.id = token.sub as string;
             // Make raw JWT available in session
             (session.user as any).rawJWT = (token as any).rawJWT;
-            // (session.user as any).accessToken = (token as any).accessToken;
+            (session.user as any).accessToken = (token as any).accessToken;
 
             authSessionLogger.debug( {
               sub: token.sub,

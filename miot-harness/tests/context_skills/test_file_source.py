@@ -123,3 +123,81 @@ def test_skill_source_tenant_scope_from_dir(tmp_path: Path) -> None:
     result = FileSkillSource(tmp_path).load()
     assert result.skills[0].skill.scope.kind == "tenant"
     assert result.skills[0].skill.scope.tenant_id == "mintral"
+
+
+def test_skill_source_loads_skill_md_directory_skill(tmp_path: Path) -> None:
+    # An Agent-Skills standard directory skill: a folder with a SKILL.md
+    # (YAML frontmatter + Markdown body) and arbitrary auxiliary files.
+    _write(
+        tmp_path / "skill-creator" / "SKILL.md",
+        "---\n"
+        "name: skill-creator\n"
+        "description: Create new skills. Use when authoring a skill.\n"
+        "---\n"
+        "# Skill Creator\n\nStep one: decide what the skill does.\n",
+    )
+    _write(tmp_path / "skill-creator" / "scripts" / "run.py", "print('hi')\n")
+
+    result = FileSkillSource(tmp_path).load()
+
+    assert result.diagnostics == ()
+    assert len(result.skills) == 1
+    loaded = result.skills[0]
+    assert isinstance(loaded.skill, PlaybookSkill)
+    assert loaded.skill.id == "skill-creator"
+    assert loaded.skill.name == "skill-creator"
+    # In the standard, description doubles as the trigger text.
+    assert loaded.skill.when_to_use == loaded.skill.description
+    assert loaded.skill.description.startswith("Create new skills")
+    assert loaded.skill.scope.kind == "global"
+    assert loaded.skill.tools == ()
+    assert loaded.playbook_body is not None
+    assert loaded.playbook_body.startswith("# Skill Creator")
+    # Auxiliary files are NOT ingested as their own skills.
+    assert [s.skill.id for s in result.skills] == ["skill-creator"]
+
+
+def test_skill_source_skill_md_name_falls_back_to_dir(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "my-skill" / "SKILL.md",
+        "---\ndescription: does a thing\n---\nbody\n",
+    )
+    result = FileSkillSource(tmp_path).load()
+    assert result.skills[0].skill.id == "my-skill"
+
+
+def test_skill_source_skill_md_tenant_scope_from_dir(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "tenants" / "mintral" / "greeter" / "SKILL.md",
+        "---\nname: greeter\ndescription: greet\n---\nhi\n",
+    )
+    result = FileSkillSource(tmp_path).load()
+    assert result.skills[0].skill.scope.kind == "tenant"
+    assert result.skills[0].skill.scope.tenant_id == "mintral"
+
+
+def test_skill_source_skill_md_malformed_frontmatter_isolated(tmp_path: Path) -> None:
+    # No closing fence -> diagnostic, skipped; the sibling still loads.
+    _write(tmp_path / "bad" / "SKILL.md", "---\nname: bad\nno closing fence\n")
+    _write(
+        tmp_path / "good" / "SKILL.md",
+        "---\nname: good\ndescription: ok\n---\nbody\n",
+    )
+    result = FileSkillSource(tmp_path).load()
+    assert [s.skill.id for s in result.skills] == ["good"]
+    assert any(
+        d.level == "error" and d.path.endswith("SKILL.md") for d in result.diagnostics
+    )
+
+
+def test_skill_source_skill_md_coexists_with_yaml(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "playbooks" / "p.yaml",
+        "kind: playbook\nid: p1\nname: P1\n",
+    )
+    _write(
+        tmp_path / "creator" / "SKILL.md",
+        "---\nname: creator\ndescription: d\n---\nbody\n",
+    )
+    result = FileSkillSource(tmp_path).load()
+    assert sorted(s.skill.id for s in result.skills) == ["creator", "p1"]

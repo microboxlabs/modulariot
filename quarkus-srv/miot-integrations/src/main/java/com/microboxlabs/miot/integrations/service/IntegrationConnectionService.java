@@ -15,6 +15,7 @@ import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepos
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
 import com.microboxlabs.miot.integrations.secret.IntegrationSecretCipher;
 import com.microboxlabs.miot.integrations.secret.IntegrationSecretEncryptionException;
+import com.microboxlabs.miot.integrations.tester.ConnectionTesterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
@@ -33,17 +34,20 @@ public class IntegrationConnectionService {
     private final IntegrationConnectionRepository connectionRepository;
     private final IntegrationOperationRepository operationRepository;
     private final IntegrationSecretCipher secretCipher;
+    private final ConnectionTesterRegistry testerRegistry;
 
     @Inject
     public IntegrationConnectionService(
             CredentialProfileRepository credentialProfileRepository,
             IntegrationConnectionRepository connectionRepository,
             IntegrationOperationRepository operationRepository,
-            IntegrationSecretCipher secretCipher) {
+            IntegrationSecretCipher secretCipher,
+            ConnectionTesterRegistry testerRegistry) {
         this.credentialProfileRepository = credentialProfileRepository;
         this.connectionRepository = connectionRepository;
         this.operationRepository = operationRepository;
         this.secretCipher = secretCipher;
+        this.testerRegistry = testerRegistry;
     }
 
     public List<CredentialProfileResponse> listCredentialProfiles(String tenantCode) {
@@ -137,17 +141,17 @@ public class IntegrationConnectionService {
             return new ConnectionTestResponse(false, OffsetDateTime.now(), "Connection not found");
         }
 
-        OffsetDateTime now = OffsetDateTime.now();
-        connectionRepository.updateTestResult(connection.tenantCode(), connection.id(), ConnectionStatus.ACTIVE, now, true);
-        return new ConnectionTestResponse(true, now, testMessage(req));
-    }
+        CredentialProfile credential = connection.credentialProfileId() == null
+                ? null
+                : credentialProfileRepository.findByTenantAndId(tenantCode, connection.credentialProfileId());
 
-    private String testMessage(ConnectionTestRequest req) {
-        if (req == null || req.path() == null || req.path().isBlank()) {
-            return "Connection contract is valid; runtime probe pending";
-        }
-        String method = req.method() == null || req.method().isBlank() ? "GET" : req.method();
-        return "Connection contract is valid for " + method + " " + req.path() + "; runtime probe pending";
+        ConnectionTestResponse response = testerRegistry.testerFor(connection.providerType())
+                .test(connection, credential, req);
+
+        ConnectionStatus status = response.success() ? ConnectionStatus.ACTIVE : ConnectionStatus.TEST_FAILED;
+        connectionRepository.updateTestResult(
+                connection.tenantCode(), connection.id(), status, response.testedAt(), response.success());
+        return response;
     }
 
     private CredentialProfileResponse toResponse(CredentialProfile profile) {

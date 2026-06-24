@@ -24,6 +24,13 @@ public class CredentialProfileRepository {
             ORDER BY display_name
             """;
 
+    private static final String SELECT_BY_ID = """
+            SELECT id, tenant_code, display_name, auth_type, public_config, encrypted_secret_json,
+                   secret_preview, secret_version, created_at, updated_at
+            FROM miot_integrations.credential_profiles
+            WHERE tenant_code = $1 AND id = $2 AND active
+            """;
+
     private static final String INSERT = """
             INSERT INTO miot_integrations.credential_profiles (
                 id, tenant_code, display_name, auth_type, public_config, encrypted_secret_json,
@@ -46,6 +53,23 @@ public class CredentialProfileRepository {
                 .stream()
                 .map(this::mapRow)
                 .toList();
+    }
+
+    public CredentialProfile findByTenantAndId(String tenantCode, String id) {
+        if (id == null || id.isBlank()) {
+            return null;
+        }
+        UUID profileId;
+        try {
+            profileId = UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+        var rows = client().preparedQuery(SELECT_BY_ID)
+                .execute(Tuple.of(tenantCode, profileId))
+                .await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
     }
 
     public CredentialProfile create(CredentialProfile profile) {

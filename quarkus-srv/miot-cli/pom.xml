@@ -34,6 +34,10 @@
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-conversational</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-driver</artifactId>
         </dependency>
         <dependency>

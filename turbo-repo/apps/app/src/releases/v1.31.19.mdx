@@ -2,18 +2,32 @@
 
 ### Fecha: 24/06/2026
 
-**Objetivo**: Formalizar el corte de la versión `1.31.19` y mantener alineados los hitos **Release 1.31.19** (privado) y **MIOT-0.5.20** (OSS), sin cambios funcionales registrados en el listado de issues provisto.
+**Objetivo**: incorporar almacenamiento persistente y escribible al Harness para administrar instrucciones personalizadas, skills y trazas de procedencia sin debilitar el filesystem de solo lectura del contenedor.
 
-## 📊 Beneficios
+## 🚀 Novedades
 
-- Se conserva la trazabilidad del versionado entre el ciclo privado y la integración OSS.
-- Se mantiene un punto de referencia claro para auditoría técnica y operativa del release.
-- Se reduce ambigüedad para equipos de producto, soporte y operaciones al documentar explícitamente el alcance.
-- Se facilita la planificación de los siguientes incrementos al dejar explícito que no hay ítems detallados en esta entrega.
-- Se sostiene la disciplina de publicación y comunicación de releases en el ecosistema ModularIoT.
+- El chart `miot-harness 0.4.0` incorpora directorios escribibles para contexto e instrucciones en `/app/.miot-workspace/context` y para skills en `/app/.miot-workspace/skills`.
+- Los contenidos predeterminados incluidos en la imagen se inicializan automáticamente sin sobrescribir archivos personalizados existentes.
+- El workspace puede respaldarse con un PVC, permitiendo que las personalizaciones sobrevivan reinicios y reemplazos del Pod.
+- Los despliegues administrados habilitan un PVC de `1 GiB` y ejecutan el Harness con los permisos del usuario no privilegiado `65534`.
+- Las trazas de procedencia quedan habilitadas y se almacenan en `/app/.miot-workspace/evals/provenance`, dentro del volumen persistente.
+- El umbrella chart `modulariot 0.3.0` integra el nuevo subchart y mantiene el comportamiento anterior por defecto para instalaciones que no habiliten contenido escribible.
+
+## 📦 Componentes publicados
+
+- Stack: `miot-stack@v0.5.20`
+- Aplicación: `app@v0.5.20`
+- Modulith: `modulith@v0.5.15` (sin cambios)
+- Harness: `harness@v0.1.0`
+- Helm: `modulariot 0.3.0` y `miot-harness 0.4.0`
+
+## ⚙️ Consideraciones operativas
+
+- El contexto y los skills se cargan al iniciar el proceso; después de modificarlos se debe reiniciar el Deployment del Harness.
+- El modo predeterminado `ReadWriteOnce` es adecuado para una réplica. Para varias réplicas distribuidas entre nodos se requiere almacenamiento `ReadWriteMany`.
+- El filesystem raíz del contenedor continúa siendo de solo lectura; únicamente el workspace persistente admite escritura.
 
 ## 📌 Conclusión
 
-La versión `1.31.19` queda documentada como un release de control y alineación, con foco en gobernanza de entrega más que en cambios funcionales reportados.
+Esta versión permite adaptar el comportamiento del Harness mediante instrucciones y skills administrados por cada entorno, conservando esas personalizaciones y sus registros operativos a través de los ciclos de vida de Kubernetes.
 
-Este registro aporta claridad para el seguimiento entre milestones privados y OSS, y prepara el terreno para que los próximos releases incorporen evolutivos, integraciones o correcciones con trazabilidad completa.

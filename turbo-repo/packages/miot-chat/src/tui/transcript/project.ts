@@ -32,10 +32,28 @@ export function applyHarnessEvent(
 
     case "run.completed":
     case "run.failed":
+    case "run.interrupted":
       // The session reducer's END_TURN orchestrates the final transition;
       // mid-stream we leave the transcript alone so callers don't have to
-      // race the projector against END_TURN.
+      // race the projector against END_TURN. run.interrupted (Plan C) is a
+      // graceful stop and terminates the run like the other two.
       return slice;
+
+    case "approval.auto":
+    case "decision.requested":
+    case "decision.resolved":
+    case "steering.mode_denied":
+    case "steering.injected":
+      // Plan A/B/C run-control + steering events. The transcript still
+      // renders the legacy approval.requested row (dual-emitted alongside
+      // decision.requested for tool approvals), and the decision/steering
+      // TUI migration is out of scope here — so these are intentionally not
+      // projected. They are handled explicitly (rather than via a default)
+      // to keep this switch exhaustive, so any future event type keeps
+      // tripping the type-checker until it is handled. Surfacing them in the
+      // TUI is a follow-up.
+      return slice;
+
 
     case "answer.completed":
       return upsertAssistantItem(slice, event, runId, ctx);

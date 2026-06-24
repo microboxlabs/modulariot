@@ -22,7 +22,11 @@ from dataclasses import dataclass
 
 from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.context_skills.models import SystemContext
-from miot_harness.context_skills.skill_models import LoadedSkill, PlaybookSkill
+from miot_harness.context_skills.skill_models import (
+    LoadedSkill,
+    PlaybookSkill,
+    SkillSummary,
+)
 
 
 @dataclass(frozen=True)
@@ -137,6 +141,55 @@ class ContextSkillsBundle:
             chosen[skill.id] = loaded
             chosen_tenant[skill.id] = tenant_scoped
         return list(chosen.values())
+
+    # ---- skill listing (autocomplete / picker) ----------------------------
+
+    def list_skills(self, tenant_id: str) -> list[SkillSummary]:
+        """Compact skill summaries for the requesting tenant — the data
+        behind a `/skills` listing / autocomplete.
+
+        Same set and layering as `playbooks_for` (Agent-Skills `SKILL.md`
+        directory skills included, since they load as playbooks), projected
+        to `SkillSummary` and sorted by name for a stable picker. `source`
+        is derived from the load path so the UI can badge a `SKILL.md`
+        directory skill distinctly from a YAML manifest.
+        """
+        summaries: list[SkillSummary] = []
+        for loaded in self.playbooks_for(tenant_id):
+            skill = loaded.skill
+            assert isinstance(skill, PlaybookSkill)  # playbooks_for guarantees
+            summaries.append(
+                SkillSummary(
+                    id=skill.id,
+                    name=skill.name,
+                    description=skill.description,
+                    when_to_use=skill.when_to_use,
+                    scope=skill.scope.kind,
+                    source=(
+                        "skill_md"
+                        if loaded.source_path.lower().endswith("skill.md")
+                        else "manifest"
+                    ),
+                )
+            )
+        return sorted(summaries, key=lambda s: s.name.lower())
+
+    def activate_skill(
+        self, tenant_id: str, skill_id: str
+    ) -> tuple[str, str] | None:
+        """Resolve a skill the tenant can see to ``(name, body)`` for
+        injection into a run, or ``None`` when unknown or bodyless.
+
+        This is the invocation half of skills: `list_skills` discovers
+        them, `activate_skill` hands back the SKILL.md body so the
+        supervisor can inject it as run guidance.
+        """
+        for loaded in self.playbooks_for(tenant_id):
+            skill = loaded.skill
+            assert isinstance(skill, PlaybookSkill)  # playbooks_for guarantees
+            if skill.id == skill_id and loaded.playbook_body:
+                return skill.name, loaded.playbook_body
+        return None
 
     # ---- helpers ----------------------------------------------------------
 

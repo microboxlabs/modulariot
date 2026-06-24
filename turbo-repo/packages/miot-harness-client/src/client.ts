@@ -1,5 +1,6 @@
 import { MiotHarnessApiError } from "./errors.js";
 import { createRunsApi } from "./resources/runs.js";
+import { createSkillsApi } from "./resources/skills.js";
 import type { ClientConfig, ErrorResponse } from "./types.js";
 
 export interface RequestOptions {
@@ -106,6 +107,7 @@ export function createMiotHarnessClient(config: ClientConfig) {
 
   return {
     runs: createRunsApi(ctx),
+    skills: createSkillsApi(ctx),
   };
 }
 

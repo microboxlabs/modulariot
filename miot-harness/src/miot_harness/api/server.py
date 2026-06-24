@@ -26,6 +26,7 @@ from miot_harness.api.identity import (
 )
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.context_skills.loader import boot_context_skills
+from miot_harness.context_skills.skill_models import SkillSummary
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
@@ -611,6 +612,26 @@ def create_app() -> FastAPI:
             ) from exc
         _enforce_tenant_owns_run(record, auth, run_id)
         return record
+
+    @app.get("/skills", response_model=list[SkillSummary])
+    async def get_skills(
+        tenant: str | None = Query(None),
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> list[SkillSummary]:
+        """List the skills available to the caller — the data behind a
+        `/skills` picker (chat) and `miot harness skills` (CLI).
+
+        Tenant precedence mirrors the runs endpoints: a verified header
+        tenant wins, else the `tenant` query param, else the configured
+        default. Returns ``[]`` when the Context/Skills subsystem failed to
+        boot (same degrade-don't-crash contract as the rest of the API).
+        """
+        harness: HarnessSupervisor = app.state.harness
+        bundle = harness.context_skills
+        if bundle is None:
+            return []
+        tenant_id = auth.get("tenant_id") or tenant or settings.default_tenant_id
+        return bundle.list_skills(tenant_id)
 
     @app.post("/runs:start", status_code=202)
     async def start_run(

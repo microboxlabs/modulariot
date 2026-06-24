@@ -1,6 +1,6 @@
 {
   "name": "@microboxlabs/miot-cli",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -17,7 +17,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -28,7 +30,7 @@
   "dependencies": {
     "@microboxlabs/miot-auth": "*",
     "@microboxlabs/miot-calendar-client": "*",
-    "@microboxlabs/miot-chat": "^0.1.1",
+    "@microboxlabs/miot-chat": "^0.2.0",
     "@microboxlabs/miot-connection-client": "*",
     "@microboxlabs/miot-harness-client": "*",
     "commander": "^14.0.0"

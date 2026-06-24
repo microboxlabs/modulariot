@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import type {
   HarnessEvent,
   HarnessRunRecord,
+  SkillSummary,
   UserRequest,
 } from "@microboxlabs/miot-harness-client";
 import { initialSession, reduce } from "./session/reducer.js";
@@ -54,6 +55,15 @@ export interface HarnessClientLike {
       opts?: { signal?: AbortSignal },
     ) => Promise<HarnessRunRecord>;
   };
+  // Optional: the harness skills listing. When present, the App registers
+  // each skill as a `/<id>` slash command in the palette. Optional so mocks
+  // and older clients without the resource still satisfy the type.
+  skills?: {
+    list: (opts?: {
+      tenant?: string;
+      signal?: AbortSignal;
+    }) => Promise<SkillSummary[]>;
+  };
 }
 
 export interface UseSessionOptions {
@@ -65,7 +75,7 @@ export interface UseSessionOptions {
 export interface UseSessionApi {
   state: SessionState;
   dispatch: (action: SessionAction) => void;
-  submit: (prompt: string) => Promise<void>;
+  submit: (prompt: string, opts?: { skillId?: string }) => Promise<void>;
   abort: () => void;
 }
 
@@ -84,7 +94,7 @@ export function useSession(opts: UseSessionOptions): UseSessionApi {
   const abortRef = useRef<AbortController | null>(null);
 
   const submit = useCallback(
-    async (prompt: string): Promise<void> => {
+    async (prompt: string, submitOpts?: { skillId?: string }): Promise<void> => {
       const meta = stateRef.current.meta;
       const trimmed = prompt.trim();
       if (trimmed.length === 0) return;
@@ -104,6 +114,7 @@ export function useSession(opts: UseSessionOptions): UseSessionApi {
             user_id: meta.userId,
             mode: meta.mode,
             conversation_id: meta.conversationId,
+            ...(submitOpts?.skillId ? { skill_id: submitOpts.skillId } : {}),
             ...(meta.debug ? { debug: true } : {}),
           },
           { signal: controller.signal },

@@ -1236,6 +1236,7 @@
         "whatsappChannel": {
           "title": "WhatsApp Channel",
           "description": "Configure and test the WhatsApp connection used to reach drivers.",
+          "loadError": "Couldn't load the WhatsApp connection.",
           "phoneLabel": "Phone number ID",
           "configureButton": "Configure",
           "testButton": "Test",
@@ -1248,6 +1249,7 @@
           "modal": {
             "addTitle": "Configure WhatsApp channel",
             "subtitle": "Stores the access token securely and creates the connection.",
+            "defaultName": "WhatsApp Channel",
             "name": "Connection name",
             "phoneNumberId": "Phone number ID",
             "wabaId": "WhatsApp Business Account ID",

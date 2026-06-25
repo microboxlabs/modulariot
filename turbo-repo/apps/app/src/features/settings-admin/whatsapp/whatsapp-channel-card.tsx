@@ -25,7 +25,7 @@ export default function WhatsAppChannelCard({
   dict,
 }: WhatsAppChannelCardProps) {
   const waDict = (dict?.whatsappChannel as I18nRecord) ?? {};
-  const { connection, isLoading, actionLoading, create, test } =
+  const { connection, isLoading, error, actionLoading, create, test } =
     useOrgWhatsApp(orgSlug);
   const [showModal, setShowModal] = useState(false);
   const [submitError, setSubmitError] = useState<Error | null>(null);
@@ -62,6 +62,13 @@ export default function WhatsAppChannelCard({
   function renderBody(): ReactNode {
     if (isLoading) {
       return <Spinner size="sm" />;
+    }
+    if (error) {
+      return (
+        <p className="text-sm text-red-600 dark:text-red-400">
+          {tr("loadError", waDict)}
+        </p>
+      );
     }
     if (connection) {
       return (

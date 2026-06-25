@@ -24,7 +24,7 @@ interface WhatsAppConnectionModalProps {
 }
 
 const DEFAULTS: WhatsAppFormData = {
-  name: "Canal WhatsApp",
+  name: "",
   phoneNumberId: "",
   wabaId: "",
   graphVersion: DEFAULT_GRAPH_VERSION,
@@ -52,9 +52,9 @@ export function WhatsAppConnectionModal({
 
   useEffect(() => {
     if (show) {
-      reset(DEFAULTS);
+      reset({ ...DEFAULTS, name: tr("modal.defaultName", dict) });
     }
-  }, [show, reset]);
+  }, [show, reset, dict]);
 
   const submitLabel = loading
     ? tr("modal.saving", dict)

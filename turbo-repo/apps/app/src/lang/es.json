@@ -1236,6 +1236,7 @@
         "whatsappChannel": {
           "title": "Canal WhatsApp",
           "description": "Configura y prueba la conexión de WhatsApp para contactar a los conductores.",
+          "loadError": "No se pudo cargar la conexión de WhatsApp.",
           "phoneLabel": "ID del número",
           "configureButton": "Configurar",
           "testButton": "Probar",
@@ -1248,6 +1249,7 @@
           "modal": {
             "addTitle": "Configurar canal WhatsApp",
             "subtitle": "Guarda el token de acceso de forma segura y crea la conexión.",
+            "defaultName": "Canal WhatsApp",
             "name": "Nombre de la conexión",
             "phoneNumberId": "ID del número (phone number id)",
             "wabaId": "ID de la cuenta de WhatsApp Business (WABA)",

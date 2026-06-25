@@ -3,9 +3,23 @@ import { render } from "ink-testing-library";
 import { Editor } from "../../input/Editor.js";
 import { mapKey, type KeyState } from "../../input/keymap.js";
 import { appendHistory, initialHistory } from "../../input/history.js";
+import { SlashRegistry, type SlashCommand } from "../../slash/registry.js";
 
 function key(partial: Partial<KeyState> = {}): KeyState {
   return { ...partial };
+}
+
+function slashRegistry(): SlashRegistry {
+  const mk = (name: string): SlashCommand => ({
+    name,
+    summary: name,
+    usage: `/${name}`,
+    handle: () => ({}),
+  });
+  return new SlashRegistry()
+    .register(mk("skills"))
+    .register(mk("clear"))
+    .register(mk("help"));
 }
 
 describe("mapKey", () => {
@@ -58,11 +72,14 @@ describe("mapKey", () => {
     expect(mapKey("c", key({ ctrl: true }))).toEqual({ kind: "CANCEL" });
   });
 
-  it("Escape / Tab / PageUp / PageDown are ignored (null)", () => {
+  it("Escape / PageUp / PageDown are ignored (null)", () => {
     expect(mapKey("", key({ escape: true }))).toBeNull();
-    expect(mapKey("", key({ tab: true }))).toBeNull();
     expect(mapKey("", key({ pageUp: true }))).toBeNull();
     expect(mapKey("", key({ pageDown: true }))).toBeNull();
+  });
+
+  it("Tab maps to COMPLETE (slash-autocomplete)", () => {
+    expect(mapKey("", key({ tab: true }))).toEqual({ kind: "COMPLETE" });
   });
 
   it("printable input with ctrl is not inserted", () => {
@@ -130,5 +147,59 @@ describe("<Editor /> component", () => {
     stdin.write("\x1b[A");
     await Promise.resolve();
     expect(lastFrame() ?? "").toContain("echo hello");
+  });
+});
+
+describe("<Editor /> slash autocomplete", () => {
+  it("opens the palette while composing a /command and reports state", async () => {
+    const onPaletteState = vi.fn();
+    const { stdin } = render(
+      <Editor
+        onSubmit={() => undefined}
+        registry={slashRegistry()}
+        onPaletteState={onPaletteState}
+      />,
+    );
+    stdin.write("/sk");
+    await Promise.resolve();
+    expect(onPaletteState.mock.calls.at(-1)?.[0]).toMatchObject({
+      active: true,
+      query: "sk",
+    });
+  });
+
+  it("Enter runs the highlighted command", async () => {
+    const onSubmit = vi.fn();
+    const { stdin } = render(
+      <Editor onSubmit={onSubmit} registry={slashRegistry()} />,
+    );
+    stdin.write("/sk");
+    await Promise.resolve();
+    stdin.write("\r");
+    await Promise.resolve();
+    expect(onSubmit).toHaveBeenCalledWith("/skills");
+  });
+
+  it("Tab completes the highlighted command into the buffer", async () => {
+    const onSubmit = vi.fn();
+    const { stdin, lastFrame } = render(
+      <Editor onSubmit={onSubmit} registry={slashRegistry()} />,
+    );
+    stdin.write("/sk");
+    await Promise.resolve();
+    stdin.write("\t");
+    await Promise.resolve();
+    expect(lastFrame() ?? "").toContain("/skills");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("without a registry, /text submits verbatim (no palette)", async () => {
+    const onSubmit = vi.fn();
+    const { stdin } = render(<Editor onSubmit={onSubmit} />);
+    stdin.write("/sk");
+    await Promise.resolve();
+    stdin.write("\r");
+    await Promise.resolve();
+    expect(onSubmit).toHaveBeenCalledWith("/sk");
   });
 });

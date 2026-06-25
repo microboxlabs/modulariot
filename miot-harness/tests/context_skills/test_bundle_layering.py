@@ -95,3 +95,57 @@ def test_skill_index_appended_to_facts() -> None:
     )
     names = {e.name for e in bundle.facts_for("acme")}
     assert "skill:pb1" in names
+
+
+def test_list_skills_projects_summaries_source_scope_and_sort() -> None:
+    bundle = ContextSkillsBundle(
+        playbook_skills=(
+            LoadedSkill(
+                skill=PlaybookSkill(
+                    kind="playbook",
+                    id="zeta",
+                    name="Zeta",
+                    description="z desc",
+                    when_to_use="when z",
+                ),
+                source_path="/x/zeta.yaml",
+            ),
+            LoadedSkill(
+                skill=PlaybookSkill(
+                    kind="playbook", id="alpha", name="Alpha", description="a desc"
+                ),
+                source_path="/x/alpha/SKILL.md",
+            ),
+            _playbook("mintral-only", "tenant", "mintral"),
+        )
+    )
+    skills = bundle.list_skills("mintral")
+    by_id = {s.id: s for s in skills}
+    # Global ∪ tenant, same layering as playbooks_for.
+    assert {"zeta", "alpha", "mintral-only"} <= set(by_id)
+    # source is derived from the load path: SKILL.md vs YAML manifest.
+    assert by_id["alpha"].source == "skill_md"
+    assert by_id["zeta"].source == "manifest"
+    assert by_id["zeta"].when_to_use == "when z"
+    # Stable, case-insensitive name sort for a deterministic picker.
+    names = [s.name for s in skills]
+    assert names == sorted(names, key=str.lower)
+    # A different tenant doesn't see the mintral-scoped skill.
+    assert "mintral-only" not in {s.id for s in bundle.list_skills("acme")}
+
+
+def test_activate_skill_returns_name_and_body() -> None:
+    bundle = ContextSkillsBundle(
+        playbook_skills=(
+            LoadedSkill(
+                skill=PlaybookSkill(kind="playbook", id="sc", name="Skill Creator"),
+                playbook_body="BODY TEXT",
+                source_path="/w/sc/SKILL.md",
+            ),
+            _playbook("nobody", "global", None),  # no playbook_body
+        )
+    )
+    assert bundle.activate_skill("acme", "sc") == ("Skill Creator", "BODY TEXT")
+    # Bodyless and unknown skills are not activatable.
+    assert bundle.activate_skill("acme", "nobody") is None
+    assert bundle.activate_skill("acme", "missing") is None

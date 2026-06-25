@@ -26,7 +26,7 @@ import logging
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, SystemMessage
 
 from miot_harness.agents.direct_agent import (
     FALLBACK_DIRECT_ANSWER,
@@ -216,6 +216,7 @@ class HarnessSupervisor:
         # actually carry context across `/runs` calls (plan 13 §E5). Empty
         # list when no store, no conversation_id, or no prior history.
         prior_messages = self._hydrate_history(request)
+        prior_messages = self._inject_skill(request, ctx, prior_messages)
 
         try:
             if route.route == HarnessRoute.DATA_QUERY:
@@ -334,6 +335,37 @@ class HarnessSupervisor:
 
         if self.event_bus is not None:
             self.event_bus.close(run_id)
+
+    def _inject_skill(
+        self,
+        request: UserRequest,
+        ctx: HarnessContext,
+        prior_messages: list[BaseMessage],
+    ) -> list[BaseMessage]:
+        """Prepend an activated skill's body as run guidance.
+
+        When ``request.skill_id`` resolves to a skill the tenant can see,
+        its SKILL.md body is injected as a ``SystemMessage`` at the front
+        of the conversation so every run path (direct/meta/data/agentic)
+        follows it — the invocation half of skills. Unknown or bodyless
+        ids are ignored and the run proceeds normally (never a hard fail).
+        """
+        if not request.skill_id or self.context_skills is None:
+            return prior_messages
+        activated = self.context_skills.activate_skill(
+            ctx.tenant_id, request.skill_id
+        )
+        if activated is None:
+            return prior_messages
+        name, body = activated
+        guidance = SystemMessage(
+            content=(
+                f"# Active skill: {name}\n\n"
+                f'The user invoked the "{name}" skill. Follow these '
+                f"instructions for this run:\n\n{body}"
+            )
+        )
+        return [guidance, *prior_messages]
 
     def _hydrate_history(self, request: UserRequest) -> list[BaseMessage]:
         """Read prior turns from `ConversationStore` and trim them to fit the

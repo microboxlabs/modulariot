@@ -78,6 +78,11 @@ class UserRequest(BaseModel):
     mode: RunMode = "auto"
     conversation_id: str | None = None
     debug: bool = False
+    # Optional skill to activate for this run. When set and resolvable,
+    # the supervisor injects that skill's SKILL.md body as run guidance so
+    # the agent follows it (the invocation half of skills). Unknown ids are
+    # ignored — the run proceeds normally.
+    skill_id: str | None = None
     # Steering Plan A: optional permission posture supplied by the caller.
     # When omitted, the supervisor falls back to the sticky conversation
     # policy, then the tenant default.

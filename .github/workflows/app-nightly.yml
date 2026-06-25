@@ -1,6 +1,9 @@
 name: MIOT Stack Nightly
 
 on:
+  # App/UI/DB changes have no separate image-build workflow — the app image is
+  # built in-line by this workflow's `build-app` job, so a plain `push` trigger
+  # is race-free for them.
   push:
     branches:
       - trunk
@@ -12,8 +15,21 @@ on:
       - 'turbo-repo/packages/typescript-config/**'
       - 'turbo-repo/package-lock.json'
       - 'turbo-repo/docker/**'
-      - 'quarkus-srv/**'
-      - 'miot-harness/**'
+  # The modulith and harness images are built by their OWN workflows (Quarkus CI
+  # / Harness CI) and only *retagged* here. Triggering on `push` for
+  # `quarkus-srv/**` / `miot-harness/**` raced those builds: the resolve step
+  # could check for `:sha-<short>` before the build pushed it and silently
+  # promote a stale `:latest` (#764). Instead, run AFTER the build workflow
+  # completes so the commit-pinned `sha-<short>` image is guaranteed to exist.
+  workflow_run:
+    workflows:
+      - Quarkus CI
+      - Harness CI
+    types:
+      - completed
+    branches:
+      - trunk
+      - main
   schedule:
     - cron: '0 7 * * *'
   workflow_dispatch:
@@ -37,16 +53,52 @@ jobs:
   metadata:
     name: Resolve nightly metadata
     runs-on: ubuntu-latest
+    # A failed/cancelled upstream build must never ship — only a green Quarkus CI
+    # / Harness CI run should fan out into a deploy. Skipping `metadata` skips
+    # every downstream job (they all `needs: metadata`).
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
       short_sha: ${{ steps.vars.outputs.short_sha }}
+      head_sha: ${{ steps.vars.outputs.head_sha }}
       nightly_date: ${{ steps.vars.outputs.nightly_date }}
+      expect_modulith_sha: ${{ steps.vars.outputs.expect_modulith_sha }}
+      expect_harness_sha: ${{ steps.vars.outputs.expect_harness_sha }}
     steps:
       - name: Resolve image metadata
         id: vars
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_SHA: ${{ github.sha }}
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_RUN_NAME: ${{ github.event.workflow_run.name }}
         run: |
+          # For `workflow_run`, build images for the commit the upstream build
+          # actually built (its head_sha), not the branch tip GITHUB_SHA points
+          # at — they can differ if trunk advanced while the build ran.
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            head_sha="$WORKFLOW_RUN_SHA"
+          else
+            head_sha="$PUSH_SHA"
+          fi
+
+          # Require a commit-pinned source image ONLY for the component whose
+          # build just completed. Everything else is resolved opportunistically
+          # and may legitimately fall back to :latest (unchanged this run).
+          expect_modulith_sha=false
+          expect_harness_sha=false
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            case "$WORKFLOW_RUN_NAME" in
+              "Quarkus CI") expect_modulith_sha=true ;;
+              "Harness CI") expect_harness_sha=true ;;
+            esac
+          fi
+
           {
-            echo "short_sha=${GITHUB_SHA::7}"
+            echo "short_sha=${head_sha:0:7}"
+            echo "head_sha=$head_sha"
             echo "nightly_date=$(date -u +'%Y%m%d')"
+            echo "expect_modulith_sha=$expect_modulith_sha"
+            echo "expect_harness_sha=$expect_harness_sha"
           } >> "$GITHUB_OUTPUT"
 
   build-app:
@@ -66,6 +118,11 @@ jobs:
       image: ${{ steps.image.outputs.image }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          # Build the exact commit we tag as `sha-<short>`. For `workflow_run`
+          # this is the upstream build's head_sha, which can differ from the
+          # branch tip checkout would grab by default.
+          ref: ${{ needs.metadata.outputs.head_sha }}
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
@@ -161,11 +218,42 @@ jobs:
         env:
           SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:sha-${{ needs.metadata.outputs.short_sha }}
           LATEST_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:latest
+          SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
+          EXPECT_SHA: ${{ needs.metadata.outputs.expect_modulith_sha }}
         run: |
-          if docker buildx imagetools inspect "$SHA_IMAGE" >/dev/null; then
-            source_image="$SHA_IMAGE"
-            source_tag="sha-${{ needs.metadata.outputs.short_sha }}"
-          else
+          # Prefer the commit-pinned image; only consider :latest as a fallback.
+          #
+          #   EXPECT_SHA=true  -> the matching build (Quarkus CI) just reported
+          #     success, so this image MUST exist. Poll to absorb registry
+          #     propagation lag, then FAIL rather than silently shipping a stale
+          #     :latest (#764 — the fallback used to read as success).
+          #   EXPECT_SHA=false -> the modulith may be unchanged for this commit
+          #     (app push / cron). A missing sha image is expected; fall back to
+          #     :latest immediately, no waiting.
+          max_attempts=30
+          delay=10
+
+          source_image=""
+          source_tag=""
+          for attempt in $(seq 1 "$max_attempts"); do
+            if docker buildx imagetools inspect "$SHA_IMAGE" >/dev/null 2>&1; then
+              source_image="$SHA_IMAGE"
+              source_tag="sha-${SHORT_SHA}"
+              break
+            fi
+            if [[ "$EXPECT_SHA" != "true" ]]; then
+              break
+            fi
+            echo "Attempt ${attempt}/${max_attempts}: ${SHA_IMAGE} not in registry yet; retrying in ${delay}s..."
+            sleep "$delay"
+          done
+
+          if [[ -z "$source_image" ]]; then
+            if [[ "$EXPECT_SHA" == "true" ]]; then
+              echo "::error::${SHA_IMAGE} never became available after ~$((max_attempts * delay))s even though its build reported success; refusing to promote a stale :latest." >&2
+              exit 1
+            fi
+            echo "::notice::${SHA_IMAGE} not found (modulith unchanged this commit); falling back to ${LATEST_IMAGE}."
             source_image="$LATEST_IMAGE"
             source_tag="latest"
           fi
@@ -232,11 +320,42 @@ jobs:
         env:
           SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:sha-${{ needs.metadata.outputs.short_sha }}
           LATEST_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:latest
+          SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
+          EXPECT_SHA: ${{ needs.metadata.outputs.expect_harness_sha }}
         run: |
-          if docker buildx imagetools inspect "$SHA_IMAGE" >/dev/null; then
-            source_image="$SHA_IMAGE"
-            source_tag="sha-${{ needs.metadata.outputs.short_sha }}"
-          else
+          # Prefer the commit-pinned image; only consider :latest as a fallback.
+          #
+          #   EXPECT_SHA=true  -> the matching build (Harness CI) just reported
+          #     success, so this image MUST exist. Poll to absorb registry
+          #     propagation lag, then FAIL rather than silently shipping a stale
+          #     :latest (#764 — the fallback used to read as success).
+          #   EXPECT_SHA=false -> the harness may be unchanged for this commit
+          #     (app push / cron). A missing sha image is expected; fall back to
+          #     :latest immediately, no waiting.
+          max_attempts=30
+          delay=10
+
+          source_image=""
+          source_tag=""
+          for attempt in $(seq 1 "$max_attempts"); do
+            if docker buildx imagetools inspect "$SHA_IMAGE" >/dev/null 2>&1; then
+              source_image="$SHA_IMAGE"
+              source_tag="sha-${SHORT_SHA}"
+              break
+            fi
+            if [[ "$EXPECT_SHA" != "true" ]]; then
+              break
+            fi
+            echo "Attempt ${attempt}/${max_attempts}: ${SHA_IMAGE} not in registry yet; retrying in ${delay}s..."
+            sleep "$delay"
+          done
+
+          if [[ -z "$source_image" ]]; then
+            if [[ "$EXPECT_SHA" == "true" ]]; then
+              echo "::error::${SHA_IMAGE} never became available after ~$((max_attempts * delay))s even though its build reported success; refusing to promote a stale :latest." >&2
+              exit 1
+            fi
+            echo "::notice::${SHA_IMAGE} not found (harness unchanged this commit); falling back to ${LATEST_IMAGE}."
             source_image="$LATEST_IMAGE"
             source_tag="latest"
           fi

@@ -1232,6 +1232,49 @@
       "subtitle": "The trip you are looking for does not exist or is not available."
     },
     "userSettings": {
+      "organizations": {
+        "whatsappChannel": {
+          "title": "WhatsApp Channel",
+          "description": "Configure and test the WhatsApp connection used to reach drivers.",
+          "phoneLabel": "Phone number ID",
+          "configureButton": "Configure",
+          "testButton": "Test",
+          "status": {
+            "active": "Active",
+            "draft": "Draft",
+            "inactive": "Inactive",
+            "failed": "Test failed"
+          },
+          "modal": {
+            "addTitle": "Configure WhatsApp channel",
+            "subtitle": "Stores the access token securely and creates the connection.",
+            "name": "Connection name",
+            "phoneNumberId": "Phone number ID",
+            "wabaId": "WhatsApp Business Account ID",
+            "graphVersion": "Graph API version",
+            "baseUrl": "Base URL",
+            "token": "Access token",
+            "tokenPlaceholder": "System-user access token",
+            "cancel": "Cancel",
+            "saving": "Saving...",
+            "createButton": "Create"
+          },
+          "toast": {
+            "created": "WhatsApp channel configured",
+            "testSuccess": "Connection test successful",
+            "testFailed": "Connection test failed",
+            "error": "Something went wrong"
+          },
+          "validation": {
+            "nameRequired": "Connection name is required",
+            "phoneNumberIdRequired": "Phone number ID is required",
+            "wabaIdRequired": "WhatsApp Business Account ID is required",
+            "graphVersionRequired": "Graph API version is required",
+            "baseUrlInvalid": "Enter a valid URL",
+            "tokenRequired": "Access token is required"
+          }
+        }
+      },
       "breadcrumb": {
         "user": "User",
         "settings": "Settings",

@@ -1,17 +1,20 @@
 package com.microboxlabs.miot.conversational;
 
-import com.microboxlabs.miot.core.config.IMiotComponent;
+import com.microboxlabs.miot.core.config.AbstractMiotComponent;
 import io.quarkus.arc.lookup.LookupIfProperty;
 import jakarta.enterprise.context.ApplicationScoped;
-import org.eclipse.microprofile.health.HealthCheck;
-import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.jboss.logging.Logger;
 
 @ApplicationScoped
 @LookupIfProperty(name = "miot.component.conversational.enabled", stringValue = "true")
-public class ConversationalComponent implements IMiotComponent {
+public class ConversationalComponent extends AbstractMiotComponent {
 
     private static final Logger LOG = Logger.getLogger(ConversationalComponent.class);
+
+    @Override
+    protected Logger log() {
+        return LOG;
+    }
 
     @Override
     public String name() {
@@ -21,20 +24,5 @@ public class ConversationalComponent implements IMiotComponent {
     @Override
     public int priority() {
         return 160;
-    }
-
-    @Override
-    public void onStart() {
-        LOG.info("Conversational component started");
-    }
-
-    @Override
-    public void onStop() {
-        LOG.info("Conversational component stopped");
-    }
-
-    @Override
-    public HealthCheck healthCheck() {
-        return () -> HealthCheckResponse.named("conversational").up().build();
     }
 }

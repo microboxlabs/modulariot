@@ -49,6 +49,7 @@ describe("/skills", () => {
   it("handles an empty skill set", async () => {
     const list = vi.fn().mockResolvedValue([]);
     const r = await skillsCommand.handle([], mkCtx({ skills: { list } }));
+    expect(r.output?.kind).toBe("system");
     if (r.output?.kind === "system") {
       expect(r.output.text).toBe("no skills available");
     }

@@ -166,8 +166,11 @@ class ContextSkillsBundle:
                     when_to_use=skill.when_to_use,
                     scope=skill.scope.kind,
                     source=(
+                        # Match the basename, not a suffix: a substring
+                        # check would misbadge e.g. `foo-skill.md`.
                         "skill_md"
-                        if loaded.source_path.lower().endswith("skill.md")
+                        if loaded.source_path.rsplit("/", 1)[-1].lower()
+                        == "skill.md"
                         else "manifest"
                     ),
                 )

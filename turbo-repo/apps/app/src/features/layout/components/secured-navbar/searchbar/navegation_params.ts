@@ -3,6 +3,13 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 
+export type NavParam = {
+  label: string;
+  param: { key: string; type: string };
+  unique: boolean;
+  options?: { value: string; label: string }[];
+};
+
 export type ParamType =
   | string
   | {

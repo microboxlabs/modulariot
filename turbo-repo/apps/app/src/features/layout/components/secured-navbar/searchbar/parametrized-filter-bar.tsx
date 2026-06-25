@@ -8,10 +8,11 @@ import { SelectFilterBadge } from "@/features/dashboard/components/dashboard-fil
 import { DateFilterBadge } from "@/features/dashboard/components/dashboard-filters-card/date-filter-badge";
 import { getCategories } from "./parametrized-searchbar";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { NavParam } from "./navegation_params";
 
 interface ParametrizedFilterBarProps {
   readonly dict: I18nRecord;
-  readonly navegation_params: any[];
+  readonly navegation_params: NavParam[];
   readonly className?: string;
 }
 
@@ -32,7 +33,7 @@ export default function ParametrizedFilterBar({
     [router, pathname]
   );
 
-  const filters: DashboardFilterParam[] = navegation_params.map((p: any) => ({
+  const filters: DashboardFilterParam[] = navegation_params.map((p) => ({
     key: p.param.key,
     label: p.label,
     type:

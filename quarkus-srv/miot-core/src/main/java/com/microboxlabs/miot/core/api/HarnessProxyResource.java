@@ -17,6 +17,7 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -27,7 +28,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 /**
- * Auth0-gated proxy for miot-harness's {@code /runs} endpoints.
+ * Auth0-gated proxy for miot-harness's {@code /runs} and {@code /skills}
+ * endpoints.
  *
  * <p>The {@code /api/v1/orgs/{slug}/...} prefix makes
  * {@code OrganizationRequestFilter} resolve the org membership before
@@ -103,6 +105,25 @@ public class HarnessProxyResource {
         String userEmail = organizationContext.getUserEmail();
         String authMode = userEmail != null ? "web" : "m2m";
         return passThrough(harness.getRun(runId, authorization, tenantClientId, userEmail, authMode));
+    }
+
+    /**
+     * Lists the skills the harness can run — the data behind the chat
+     * {@code /skills} picker and {@code miot harness skills}. Sits behind
+     * the same auth + org-membership chain as the run routes, and forwards
+     * the optional {@code tenant} query param plus the caller identity so
+     * the harness resolves the same tenant it would for a run.
+     */
+    @GET
+    @Path("/skills")
+    public Uni<Response> listSkills(@PathParam("slug") String slug,
+                                    @QueryParam("tenant") String tenant,
+                                    @HeaderParam("Authorization") String authorization) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        return passThrough(
+                harness.listSkills(tenant, authorization, tenantClientId, userEmail, authMode));
     }
 
     /**

@@ -8,6 +8,7 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Map;
@@ -53,6 +54,15 @@ public interface HarnessClient {
     @Path("/runs/{runId}")
     Uni<Response> getRun(
             @PathParam("runId") String runId,
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode);
+
+    @GET
+    @Path("/skills")
+    Uni<Response> listSkills(
+            @QueryParam("tenant") String tenant,
             @HeaderParam("Authorization") String authorization,
             @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
             @HeaderParam("X-Miot-User-Email") String userEmail,

@@ -1,9 +1,9 @@
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
-import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { FaVideo } from "react-icons/fa";
 import { AllDevicesView } from "@/features/live-streams/components/all-devices-view";
 import { StreamDevice } from "@/features/live-streams/types/device.types";
+import { SectionHeader } from "@/features/layout/components/section-header/section-header";
 
 const MOCK_DEVICES: StreamDevice[] = [
   { id: "cam-001", name: "Dock A - Entry", location: "facility-scl", status: "live" },
@@ -22,14 +22,13 @@ export default async function AllDevicesPage({ params }: ParamsWithLang) {
 
   return (
     <div className="h-full w-full flex flex-col">
-      <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 z-10">
-        <Breadcrumb
-          path={["liveStreams", "allDevices"]}
-          lang={lang}
-          rootIcon={<FaVideo className="mr-2 h-4 w-4" />}
-          dict={dict["layout"]?.["secured"]?.["sidebar"] ?? {}}
-        />
-      </div>
+      <SectionHeader
+        path={["liveStreams", "allDevices"]}
+        lang={lang}
+        rootIcon={<FaVideo className="mr-2 h-4 w-4" />}
+        breadcrumbDict={dict["layout"]?.["secured"]?.["sidebar"] ?? {}}
+        filterDict={dict}
+      />
       <div className="flex-1 p-5 pt-0 overflow-hidden max-w-screen-2xl mx-auto w-full">
         <AllDevicesView devices={MOCK_DEVICES} lang={lang} dict={dict.liveStreams} />
       </div>

@@ -28,6 +28,7 @@ import { KIOSK_PARAM } from "@/features/layout/hooks/use-kiosk-mode";
 import { useDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 import { useDashboardAccess } from "@/features/common/providers/client-api.provider";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { EmptyState } from "../empty-state";
 
 // ── Placeholder (skeleton or empty state) ──────────────────────────────
@@ -72,6 +73,7 @@ import { fitLayoutToCols } from "../../utils/fit-layout-to-cols";
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
 import DashboardShareDropdown from "../dashboard-share-dropdown/dashboard-share-dropdown";
 import { DashboardFilterBadges } from "../dashboard-filters-card/dashboard-filters-card";
+import { SectionHeader } from "@/features/layout/components/section-header/section-header";
 
 /**
  * Main dashboard view component
@@ -84,7 +86,6 @@ export function DashboardView() {
     isKiosk,
     isLoaded,
     dashboardName,
-    setDashboardName,
     dictionary,
     siteId,
     toggleEditMode,
@@ -97,7 +98,7 @@ export function DashboardView() {
   } = useDashboard();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const params = useParams<{ slug: string }>();
+  const params = useParams<{ lang: string; slug: string }>();
 
   const { canEdit, canManagePermissions } = useDashboardAccess(
     siteId,
@@ -150,84 +151,6 @@ export function DashboardView() {
 
   // Keeps drag/resize math correct under the CSS transform.
   const positionStrategy = useMemo(() => createScaledStrategy(scale), [scale]);
-
-  // Inline name editing
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [editedName, setEditedName] = useState(dashboardName);
-  const nameInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setEditedName(dashboardName);
-  }, [dashboardName]);
-
-  useEffect(() => {
-    if (isEditingName && nameInputRef.current) {
-      nameInputRef.current.focus();
-      nameInputRef.current.select();
-    }
-  }, [isEditingName]);
-
-  const handleNameClick = useCallback(() => {
-    if (editMode) {
-      setIsEditingName(true);
-    }
-  }, [editMode]);
-
-  const handleNameSave = useCallback(() => {
-    const trimmed = editedName.trim();
-    if (!trimmed) {
-      setEditedName(dashboardName);
-    } else if (trimmed !== dashboardName) {
-      setDashboardName(trimmed);
-    }
-    setIsEditingName(false);
-  }, [editedName, dashboardName, setDashboardName]);
-
-  const handleNameKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") {
-        handleNameSave();
-      } else if (e.key === "Escape") {
-        setEditedName(dashboardName);
-        setIsEditingName(false);
-      }
-    },
-    [handleNameSave, dashboardName]
-  );
-
-  const renderDashboardName = () => {
-    if (isEditingName) {
-      return (
-        <input
-          ref={nameInputRef}
-          type="text"
-          value={editedName}
-          onChange={(e) => setEditedName(e.target.value)}
-          onBlur={handleNameSave}
-          onKeyDown={handleNameKeyDown}
-          className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white bg-transparent border-0 border-b-2 border-blue-500 outline-none px-0 py-0 min-w-[120px]"
-        />
-      );
-    }
-
-    if (editMode) {
-      return (
-        <button
-          type="button"
-          className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white cursor-text border-b border-transparent hover:border-dashed hover:border-gray-400 dark:hover:border-gray-500 transition-colors bg-transparent p-0"
-          onClick={handleNameClick}
-        >
-          {dashboardName}
-        </button>
-      );
-    }
-
-    return (
-      <h1 className="shrink-0 text-xl font-semibold text-gray-900 dark:text-white">
-        {dashboardName}
-      </h1>
-    );
-  };
 
   // Measure the available container width; it drives the column count and scale.
   useEffect(() => {
@@ -364,19 +287,19 @@ export function DashboardView() {
     <div className="flex h-full w-full flex-col">
       {/* Header (hidden in kiosk mode) */}
       {!isKiosk && (
-        <div className="shrink-0 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-          {/* Row 1: title + controls */}
-          <div className="flex items-center gap-2 p-4">
-            {/* Dashboard name */}
-            <div className="min-w-0 flex-1">
-              {isLoaded ? (
-                renderDashboardName()
-              ) : (
-                <div className="h-7 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
-              )}
-            </div>
-
-            {/* Action buttons */}
+        <SectionHeader
+          path={["home", dashboardName]}
+          breadcrumbDict={
+            (((dictionary as I18nRecord)["layout"] as I18nRecord)["secured"] as I18nRecord)["sidebar"] as I18nRecord
+          }
+          lang={params.lang}
+          filterDict={dictionary}
+          leftContent={
+            !isLoaded ? (
+              <div className="h-7 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+            ) : undefined
+          }
+          rightContent={
             <div className="flex shrink-0 items-center gap-2">
               {editMode && (
                 <div className="flex items-center gap-1">
@@ -426,9 +349,8 @@ export function DashboardView() {
                 <HiArrowsPointingOut className="h-4 w-4" />
               </Link>
             </div>
-          </div>
-
-        </div>
+          }
+        />
       )}
 
       {/* Filter badges row — transparent, sits between header and content */}

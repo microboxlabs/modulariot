@@ -14,6 +14,7 @@ interface BreadcrumbProps {
   rootIcon?: React.ReactNode;
   rightContent?: React.ReactNode[];
   dict: I18nRecord;
+  disableLinks?: boolean;
 }
 
 export const Breadcrumb: React.FC<BreadcrumbProps> = ({
@@ -22,6 +23,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
   rootIcon = <HiHome className="mr-2 h-4 w-4" />,
   rightContent = [],
   dict,
+  disableLinks = false,
 }) => {
   const translatedPath = path.map((item) => trDynamic(item, dict));
 
@@ -33,14 +35,13 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
             <BreadcrumbItem
               icon={() => rootIcon}
               key={index}
-              // href={`/app/${lang}/${path.slice(0, index + 1).join("/")}`}
             >
               {item}
             </BreadcrumbItem>
           ) : (
             <BreadcrumbItem
               key={index}
-              href={`/app/${lang}/${path.slice(1, index + 1).join("/")}`}
+              href={disableLinks ? undefined : `/app/${lang}/${path.slice(1, index + 1).join("/")}`}
             >
               {item}
             </BreadcrumbItem>

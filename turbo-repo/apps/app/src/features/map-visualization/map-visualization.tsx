@@ -122,6 +122,7 @@ export default function MapVisualization({
   onFeatureHover,
   onFeatureClick,
   onLayerClick,
+  rounded = true,
 }: {
   mapStyle: keyof typeof mapStyles;
   layers: LayersList;
@@ -135,6 +136,7 @@ export default function MapVisualization({
   onFeatureClick?: (info: FeatureHoverInfo | null) => void;
   /** Raw pick callback for any layer click (used by custom layers passed via `layers`) */
   onLayerClick?: (info: PickingInfo) => void;
+  rounded?: boolean;
 }) {
   const runtimeConfig = useRuntimeConfig();
   const mapboxAccessToken = runtimeConfig?.MAPBOX_API_KEY ?? "";
@@ -322,7 +324,7 @@ export default function MapVisualization({
   return (
     <div
       ref={containerRef}
-      className="h-full w-full relative rounded-lg overflow-hidden"
+      className={`h-full w-full relative overflow-hidden ${rounded ? "rounded-lg" : ""}`}
     >
       {shouldRenderMap ? (
         <Map

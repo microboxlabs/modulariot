@@ -86,6 +86,8 @@ export default function SearchBar({
     return null;
   }
 
+  return null
+
   return (
     <ParametrizedSearchBar
       dict={dict}

@@ -97,6 +97,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
       true
     ),
     symptoms: getParamsFixed(symptoms_params, dict),
+    "geographic-view": getParamsFixed([setParam("licensePlate", "text")], dict),
     "fleet-management": getParamsFixed(fleet, dict),
     "collaborators-management": getParamsFixed(
       collaborators_management_params,

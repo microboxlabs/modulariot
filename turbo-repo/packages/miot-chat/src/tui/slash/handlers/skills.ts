@@ -17,12 +17,15 @@ interface SkillsCtx extends SlashContext {
 }
 
 function isSkillsCtx(ctx: SlashContext): ctx is SkillsCtx {
+  // Verify the bits the handler actually uses — that `skills.list` is
+  // callable and a tenant id is present — not just that the keys exist, so
+  // a partial/older client or context yields the clean "not bound" error
+  // instead of a thrown TypeError.
+  const client = ctx.client as { skills?: { list?: unknown } } | undefined;
+  const session = ctx.session as { meta?: { tenantId?: unknown } } | undefined;
   return (
-    typeof ctx.client === "object" &&
-    ctx.client !== null &&
-    "skills" in (ctx.client as object) &&
-    typeof ctx.session === "object" &&
-    ctx.session !== null &&
+    typeof client?.skills?.list === "function" &&
+    typeof session?.meta?.tenantId === "string" &&
     typeof ctx.now === "function" &&
     typeof ctx.uuid === "function"
   );

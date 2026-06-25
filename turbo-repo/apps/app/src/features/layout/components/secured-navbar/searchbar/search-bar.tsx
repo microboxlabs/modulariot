@@ -1,6 +1,5 @@
 import { TextInput } from "flowbite-react";
 import { HiSearch } from "react-icons/hi";
-import ParametrizedSearchBar from "./parametrized-searchbar";
 import { useDebouncedCallback } from "use-debounce";
 import { usePathname, useRouter } from "next/navigation";
 import { getNavegationParams } from "./navegation_params";
@@ -86,16 +85,5 @@ export default function SearchBar({
     return null;
   }
 
-  return null
-
-  return (
-    <ParametrizedSearchBar
-      dict={dict}
-      messages={messages}
-      searchParams={searchParams}
-      navegation_params={
-        navegation_params[final_path as keyof typeof navegation_params]
-      }
-    />
-  );
+  return null;
 }

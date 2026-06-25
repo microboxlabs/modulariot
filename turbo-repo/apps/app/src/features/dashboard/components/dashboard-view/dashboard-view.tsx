@@ -295,9 +295,9 @@ export function DashboardView() {
           lang={params.lang}
           filterDict={dictionary}
           leftContent={
-            !isLoaded ? (
+            isLoaded ? undefined : (
               <div className="h-7 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
-            ) : undefined
+            )
           }
           rightContent={
             <div className="flex shrink-0 items-center gap-2">

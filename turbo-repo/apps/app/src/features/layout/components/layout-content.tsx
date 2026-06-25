@@ -2,7 +2,6 @@
 
 import type { PropsWithChildren } from "react";
 import { twMerge } from "tailwind-merge";
-import { SectionFilterBar } from "./secured-navbar/section-filter-bar-controller";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export function LayoutContent({

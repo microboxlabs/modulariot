@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge, Button, Spinner } from "flowbite-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { FaWhatsapp } from "react-icons/fa";
 import { toast } from "sonner";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -59,6 +59,32 @@ export default function WhatsAppChannelCard({
     }
   }
 
+  function renderBody(): ReactNode {
+    if (isLoading) {
+      return <Spinner size="sm" />;
+    }
+    if (connection) {
+      return (
+        <ConfiguredRow
+          connection={connection}
+          dict={waDict}
+          testing={actionLoading}
+          onTest={handleTest}
+        />
+      );
+    }
+    return (
+      <Button
+        size="xs"
+        color="green"
+        onClick={() => setShowModal(true)}
+        disabled={!orgSlug}
+      >
+        {tr("configureButton", waDict)}
+      </Button>
+    );
+  }
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
       <div className="flex items-start justify-between">
@@ -75,27 +101,7 @@ export default function WhatsAppChannelCard({
         {tr("description", waDict)}
       </p>
 
-      <div className="mt-3">
-        {isLoading ? (
-          <Spinner size="sm" />
-        ) : connection ? (
-          <ConfiguredRow
-            connection={connection}
-            dict={waDict}
-            testing={actionLoading}
-            onTest={handleTest}
-          />
-        ) : (
-          <Button
-            size="xs"
-            color="green"
-            onClick={() => setShowModal(true)}
-            disabled={!orgSlug}
-          >
-            {tr("configureButton", waDict)}
-          </Button>
-        )}
-      </div>
+      <div className="mt-3">{renderBody()}</div>
 
       <WhatsAppConnectionModal
         show={showModal}
@@ -117,7 +123,8 @@ interface ConfiguredRowProps {
 }
 
 function ConfiguredRow({ connection, dict, testing, onTest }: ConfiguredRowProps) {
-  const phone = String(connection.metadata?.phone_number_id ?? "—");
+  const rawPhone = connection.metadata?.phone_number_id;
+  const phone = typeof rawPhone === "string" ? rawPhone : "—";
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="text-sm text-gray-700 dark:text-gray-300">

@@ -60,6 +60,15 @@ describe("transcript projector — meta events", () => {
     expect(next.transcript).toEqual([]);
   });
 
+  it("approval.auto and steering.mode_denied are no-op status markers", () => {
+    const ctx = mkCtx();
+    const seeded: TranscriptSlice = { ...emptySlice(), currentRunId: "r1" };
+    for (const type of ["approval.auto", "steering.mode_denied"] as const) {
+      const next = applyHarnessEvent(seeded, evt(type), "r1", ctx);
+      expect(next).toEqual(seeded);
+    }
+  });
+
   it("run.completed and run.failed are no-ops on the slice", () => {
     const ctx = mkCtx();
     const seeded: TranscriptSlice = {

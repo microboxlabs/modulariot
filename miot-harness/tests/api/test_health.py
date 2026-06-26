@@ -137,6 +137,10 @@ def test_health_ready_reflects_simulated_nexo_enabled_state(
             app.state.datasource_enabled = True
             app.state.datasource_registered = ["coordinador_centro_control"]
             app.state.datasource_snapshot_age_minutes = 7.5
+            # Readiness is connection-driven: flip the primary connection's
+            # booted state too (the back-compat datasource_enabled alias alone
+            # no longer drives readiness).
+            app.state.connections["nexo"]["enabled"] = True
             resp = client.get("/health/ready")
     assert resp.status_code == 200
     body = resp.json()

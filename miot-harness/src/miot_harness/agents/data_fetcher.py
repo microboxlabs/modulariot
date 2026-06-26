@@ -56,6 +56,7 @@ def _evidence_from_output(
     *,
     warn_minutes: int,
     source_label: str,
+    has_freshness_model: bool = True,
 ) -> DataEvidence:
     if hasattr(output, "model_dump"):
         dump = output.model_dump()
@@ -101,11 +102,18 @@ def _evidence_from_output(
     # looks unrefreshed" (the beta-review Gap 2 conflation).
     has_rows = sample_size > 0
     age_is_stale = False
-    if isinstance(refreshed_at, datetime):
+    if not has_freshness_model:
+        # Live datasources (generic pg) have no snapshot/refresh model: a
+        # missing refreshed_at is normal, NOT staleness. Current data is fresh;
+        # zero rows is just "no matching rows". Never emit a no_timestamp/stale
+        # warning the synthesizer would surface as "trust with caution".
+        status: FreshnessStatus = "fresh" if has_rows else "empty"
+        is_stale = False
+    elif isinstance(refreshed_at, datetime):
         age_minutes = (datetime.now(UTC) - refreshed_at).total_seconds() / 60
         age_is_stale = age_minutes > warn_minutes
         if has_rows:
-            status: FreshnessStatus = "stale" if age_is_stale else "fresh"
+            status = "stale" if age_is_stale else "fresh"
         else:
             status = "empty"
         is_stale = age_is_stale
@@ -176,6 +184,7 @@ async def invoke_step(
             else profile.freshness_warn_minutes
         ),
         source_label=profile.source_label,
+        has_freshness_model=profile.has_freshness_model,
     )
     return {"evidence": [evidence]}
 

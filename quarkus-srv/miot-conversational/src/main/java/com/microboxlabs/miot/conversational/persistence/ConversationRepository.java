@@ -7,22 +7,39 @@ import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
+import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
- * Persistence for {@link Conversation} (the WhatsApp message-pool head row). Thin
- * skeleton for the channel foundation; send/webhook flows extend it in later slices.
+ * Persistence for {@link Conversation} (the WhatsApp message-pool head row). Provides
+ * find-or-create lookups plus the outbound touch used when a message is sent.
  */
 @ApplicationScoped
 public class ConversationRepository {
 
-    private static final String SELECT_BY_TENANT_AND_PHONE = """
-            SELECT id, tenant_code, phone_e164, wa_contact_name, driver_id,
-                   context_service_code, context_process_instance_id, context_task_id,
-                   status, last_inbound_at, last_outbound_at, last_message_at,
-                   session_expires_at, last_message_preview, unread_count, created_at, updated_at
+    private static final String COLUMNS = """
+            id, tenant_code, phone_e164, wa_contact_name, driver_id,
+            context_service_code, context_process_instance_id, context_task_id,
+            status, last_inbound_at, last_outbound_at, last_message_at,
+            session_expires_at, last_message_preview, unread_count, created_at, updated_at
+            """;
+
+    private static final String SELECT_BY_TENANT_AND_PHONE = "SELECT " + COLUMNS + """
             FROM miot_conversational.wa_conversation
             WHERE tenant_code = $1 AND phone_e164 = $2
+            """;
+
+    private static final String SELECT_BY_TENANT_AND_ID = "SELECT " + COLUMNS + """
+            FROM miot_conversational.wa_conversation
+            WHERE tenant_code = $1 AND id = $2
+            """;
+
+    private static final String SELECT_BY_TENANT = "SELECT " + COLUMNS + """
+            FROM miot_conversational.wa_conversation
+            WHERE tenant_code = $1
+            ORDER BY last_message_at DESC NULLS LAST, created_at DESC
+            LIMIT $2
             """;
 
     private static final String INSERT = """
@@ -32,11 +49,22 @@ public class ConversationRepository {
                 status, last_inbound_at, last_outbound_at, last_message_at,
                 session_expires_at, last_message_preview, unread_count, created_at, updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-            RETURNING id, tenant_code, phone_e164, wa_contact_name, driver_id,
-                      context_service_code, context_process_instance_id, context_task_id,
-                      status, last_inbound_at, last_outbound_at, last_message_at,
-                      session_expires_at, last_message_preview, unread_count, created_at, updated_at
-            """;
+            RETURNING """ + COLUMNS;
+
+    // Outbound touch: bump activity timestamps + preview, and fill trip context only when
+    // the send carried it (COALESCE keeps prior context for ad-hoc sends).
+    private static final String UPDATE_OUTBOUND = """
+            UPDATE miot_conversational.wa_conversation
+            SET context_service_code = COALESCE($2, context_service_code),
+                context_process_instance_id = COALESCE($3, context_process_instance_id),
+                context_task_id = COALESCE($4, context_task_id),
+                driver_id = COALESCE($5, driver_id),
+                last_outbound_at = $6,
+                last_message_at = $6,
+                last_message_preview = $7,
+                updated_at = $6
+            WHERE id = $1
+            RETURNING """ + COLUMNS;
 
     private final Instance<Pool> clientInstance;
 
@@ -50,6 +78,23 @@ public class ConversationRepository {
                 .await().indefinitely();
         var iterator = rows.iterator();
         return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    public Conversation findByTenantAndId(String tenantCode, String conversationId) {
+        var rows = client().preparedQuery(SELECT_BY_TENANT_AND_ID)
+                .execute(Tuple.of(tenantCode, UUID.fromString(conversationId)))
+                .await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    public List<Conversation> listByTenant(String tenantCode, int limit) {
+        return client().preparedQuery(SELECT_BY_TENANT)
+                .execute(Tuple.of(tenantCode, limit))
+                .await().indefinitely()
+                .stream()
+                .map(this::mapRow)
+                .toList();
     }
 
     public Conversation create(Conversation conversation) {
@@ -72,6 +117,28 @@ public class ConversationRepository {
                 .addOffsetDateTime(conversation.createdAt())
                 .addOffsetDateTime(conversation.updatedAt());
         return mapRow(client().preparedQuery(INSERT)
+                .execute(params)
+                .await().indefinitely()
+                .iterator().next());
+    }
+
+    public Conversation updateOutbound(
+            String conversationId,
+            String contextServiceCode,
+            String contextProcessInstanceId,
+            String contextTaskId,
+            String driverId,
+            OffsetDateTime occurredAt,
+            String lastMessagePreview) {
+        Tuple params = Tuple.tuple()
+                .addUUID(UUID.fromString(conversationId))
+                .addString(contextServiceCode)
+                .addString(contextProcessInstanceId)
+                .addString(contextTaskId)
+                .addString(driverId)
+                .addOffsetDateTime(occurredAt)
+                .addString(lastMessagePreview);
+        return mapRow(client().preparedQuery(UPDATE_OUTBOUND)
                 .execute(params)
                 .await().indefinitely()
                 .iterator().next());

@@ -1,0 +1,53 @@
+package com.microboxlabs.miot.conversational.dto;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.microboxlabs.miot.conversational.domain.MessageRole;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+class SendWhatsAppMessageRequestTest {
+
+    @Test
+    void isTemplateIsCaseInsensitiveAndDefaultsToText() {
+        assertTrue(request("TEMPLATE").isTemplate());
+        assertTrue(request("template").isTemplate());
+        assertFalse(request("TEXT").isTemplate());
+        assertFalse(request(null).isTemplate());
+    }
+
+    @Test
+    void languageDefaultsToChileanSpanishWhenBlank() {
+        assertEquals("es_CL", template(null).languageOrDefault());
+        assertEquals("es_CL", template("  ").languageOrDefault());
+        assertEquals("en_US", template("en_US").languageOrDefault());
+    }
+
+    @Test
+    void roleDefaultsToAgent() {
+        assertEquals(MessageRole.AGENT, request("TEXT").roleOrDefault());
+        assertEquals(MessageRole.SYSTEM, new SendWhatsAppMessageRequest(
+                "+56900", "TEXT", "hi", null, null, null,
+                MessageRole.SYSTEM, null, null, null, null).roleOrDefault());
+    }
+
+    @Test
+    void paramsNeverNull() {
+        assertTrue(request("TEXT").paramsOrEmpty().isEmpty());
+        assertEquals(List.of("a"), new SendWhatsAppMessageRequest(
+                "+56900", "TEMPLATE", null, "t", "es_CL", List.of("a"),
+                null, null, null, null, null).paramsOrEmpty());
+    }
+
+    private static SendWhatsAppMessageRequest request(String type) {
+        return new SendWhatsAppMessageRequest(
+                "+56900", type, "hi", null, null, null, null, null, null, null, null);
+    }
+
+    private static SendWhatsAppMessageRequest template(String language) {
+        return new SendWhatsAppMessageRequest(
+                "+56900", "TEMPLATE", null, "trip_assigned", language, null, null, null, null, null, null);
+    }
+}

@@ -243,3 +243,77 @@ async def test_describe_returns_columns_and_fks(
     assert out.foreign_keys == [
         {"column": "execution_id_", "references": "acs.act_ru_execution.id_"}
     ]
+
+
+def _t3(name: str) -> dict:
+    return {
+        "table_schema": "acs",
+        "table_name": name,
+        "table_type": "BASE TABLE",
+        "row_estimate": 10,
+    }
+
+
+def _alfresco_responder(sql: str) -> list:
+    if "pg_catalog.pg_class" in sql:
+        # Include the alfresco-activiti fingerprint tables so the pack matches.
+        return [_t3("act_ru_task"), _t3("act_re_procdef"), _t3("act_hi_procinst")]
+    if "act_ge_property" in sql:  # the pack's version probe
+        return [{"value_": "6.0.0"}]
+    return []
+
+
+@pytest.mark.asyncio
+async def test_boot_detects_pack_and_registers_knowledge(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pool = RecordingPool(responder=_alfresco_responder)
+    monkeypatch.setattr(
+        "miot_harness.integrations.generic_pg.provider.create_pg_pool",
+        AsyncMock(return_value=pool),
+    )
+    registry = ToolRegistry()
+    result = await GenericPgProvider().boot(
+        registry,
+        HarnessSettings(
+            generic_query_enabled=True,
+            generic_schema_introspect_enabled=True,
+            generic_knowledge_packs_enabled=True,
+        ),
+        _conn(),
+    )
+    # The real shipped Alfresco/Activiti pack matched + version probed.
+    assert [dp.pack.id for dp in result.detected_packs] == ["alfresco-activiti"]
+    assert result.detected_packs[0].version == "6.0.0"
+    # The knowledge tool is registered and serves card bodies on demand.
+    assert "acs_knowledge" in registry.names()
+    tool = registry.get("acs_knowledge")
+    out = await tool.invoke(
+        HarnessContext(thread_id="t", tenant_id="demo", user_id="u"),
+        {"card": "workflow-business-data"},
+        lambda _e: None,
+    )
+    assert "act_ru_variable" in out.body
+
+
+@pytest.mark.asyncio
+async def test_no_pack_no_knowledge_tool(monkeypatch: pytest.MonkeyPatch) -> None:
+    # _responder returns act_ru_task + act_ru_execution only — not the full
+    # alfresco fingerprint — so no pack matches and no knowledge tool registers.
+    pool = RecordingPool(responder=_responder)
+    monkeypatch.setattr(
+        "miot_harness.integrations.generic_pg.provider.create_pg_pool",
+        AsyncMock(return_value=pool),
+    )
+    registry = ToolRegistry()
+    result = await GenericPgProvider().boot(
+        registry,
+        HarnessSettings(
+            generic_query_enabled=True,
+            generic_schema_introspect_enabled=True,
+            generic_knowledge_packs_enabled=True,
+        ),
+        _conn(),
+    )
+    assert result.detected_packs == ()
+    assert "acs_knowledge" not in registry.names()

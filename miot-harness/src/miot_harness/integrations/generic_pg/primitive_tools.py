@@ -13,6 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from miot_harness.datasource.knowledge.models import KnowledgeCard
 from miot_harness.datasource.safe_query import (
     safe_describe,
     safe_explain,
@@ -83,6 +84,21 @@ class _ExplainOutput(BaseModel):
     source: str = ""
 
 
+class _KnowledgeInput(BaseModel):
+    card: str = Field(
+        default="",
+        description="Knowledge card id to open. Empty → list available cards.",
+    )
+
+
+class _KnowledgeOutput(BaseModel):
+    card: str = ""
+    title: str = ""
+    body: str = ""
+    available: list[dict[str, str]] = Field(default_factory=list)
+    source: str = ""
+
+
 def build_generic_tools(
     *,
     pool: Any,
@@ -93,8 +109,14 @@ def build_generic_tools(
     max_rows: int,
     explain_cost_threshold: float,
     statement_timeout_ms: int,
+    knowledge_cards: list[KnowledgeCard] | None = None,
 ) -> list[HarnessTool[Any, Any]]:
-    """Build the five generic safe-query primitives as registrable HarnessTools."""
+    """Build the generic safe-query primitives as registrable HarnessTools.
+
+    When `knowledge_cards` is non-empty (a knowledge pack matched the schema), a
+    `<prefix>knowledge` tool is added so the agent can open card bodies on demand.
+    """
+    cards_by_id = {c.id: c for c in (knowledge_cards or [])}
 
     async def check_permission(
         ctx: HarnessContext, _input: BaseModel
@@ -205,6 +227,18 @@ def build_generic_tools(
             source=source_label,
         )
 
+    async def call_knowledge(
+        ctx: HarnessContext, parsed: _KnowledgeInput, progress: Progress
+    ) -> _KnowledgeOutput:
+        available = [{"card": c.id, "title": c.title} for c in cards_by_id.values()]
+        card = cards_by_id.get(parsed.card)
+        if card is None:
+            return _KnowledgeOutput(available=available, source=source_label)
+        return _KnowledgeOutput(
+            card=card.id, title=card.title, body=card.body,
+            available=available, source=source_label,
+        )
+
     common: dict[str, Any] = {
         "read_only": True,
         "destructive": False,
@@ -213,7 +247,7 @@ def build_generic_tools(
         "check_permission": check_permission,
     }
     scope = policy.describe()
-    return [
+    tools: list[HarnessTool[Any, Any]] = [
         HarnessTool(
             name=f"{tool_prefix}list_tables",
             description=(
@@ -288,3 +322,20 @@ def build_generic_tools(
             **common,
         ),
     ]
+    if cards_by_id:
+        titles = "; ".join(f"{c.id}: {c.title}" for c in cards_by_id.values())
+        tools.append(
+            HarnessTool(
+                name=f"{tool_prefix}knowledge",
+                description=(
+                    "Open a curated knowledge card for this connection's product "
+                    f"(call with a card id; empty lists them). Cards: {titles}. "
+                    "Read the relevant card before writing non-obvious queries."
+                ),
+                input_model=_KnowledgeInput,
+                output_model=_KnowledgeOutput,
+                call=call_knowledge,
+                **common,
+            )
+        )
+    return tools

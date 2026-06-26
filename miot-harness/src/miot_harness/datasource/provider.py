@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
     from miot_harness.config import HarnessSettings
     from miot_harness.connections.models import Connection
+    from miot_harness.datasource.knowledge.models import DetectedPack
     from miot_harness.datasource.schema_introspect import SchemaSummary
     from miot_harness.tools.registry import ToolRegistry
 
@@ -109,6 +110,8 @@ class BootResult:
     # generic connections. None for providers that don't introspect (e.g.
     # Nexo, which surfaces its function catalog instead).
     schema_summary: SchemaSummary | None = None
+    # Curated knowledge packs detected for this connection (Phase 2 slice 2).
+    detected_packs: tuple[DetectedPack, ...] = ()
 
 
 class DataSourceProvider(ABC):

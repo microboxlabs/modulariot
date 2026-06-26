@@ -55,3 +55,18 @@ def test_channel_survives_drain() -> None:
     assert reg.drain("r1") == ["first"]
     reg.push("r1", "second")
     assert reg.drain("r1") == ["second"]
+
+
+def test_backlog_is_bounded_fifo() -> None:
+    """An operator posting faster than the planner drains can't grow the
+    channel without bound; the oldest notes are evicted, newest retained."""
+    reg = SteeringRegistry()
+    reg.open("r1")
+    cap = SteeringRegistry._MAX_BACKLOG
+    for i in range(cap + 5):
+        assert reg.push("r1", f"note-{i}") is True
+    notes = reg.drain("r1")
+    assert len(notes) == cap
+    # Oldest 5 evicted; the most recent `cap` notes remain, in order.
+    assert notes[0] == "note-5"
+    assert notes[-1] == f"note-{cap + 4}"

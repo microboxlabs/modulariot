@@ -111,6 +111,26 @@ def test_approve_on_choice_returns_422() -> None:
     assert resp.status_code == 422
 
 
+def test_cross_run_kind_mismatch_returns_404_not_422() -> None:
+    """CodeRabbit #1: a kind/action mismatch on a decision_id owned by ANOTHER
+    run (same tenant) must collapse to 404 — the run-scoped kind lookup skips
+    the 422 so a caller can't probe another run's decision kind."""
+    app = create_app()
+    with TestClient(app) as client:
+        reg: RunControlRegistry = app.state.harness.approval_registry
+        reg.register("d8", run_id="run_real", kind="tool_approval")
+        app.state.in_flight_tenants["run_real"] = "demo-tenant"
+        app.state.in_flight_tenants["run_other"] = "demo-tenant"
+        # 'choose' mismatches the tool_approval kind, but d8 belongs to
+        # run_real — posting to run_other must 404, not leak a 422.
+        resp = client.post(
+            "/runs/run_other/decisions/d8",
+            json={"resolution": "choose", "option_id": "b"},
+        )
+    assert resp.status_code == 404
+    assert reg.decision("d8") is None  # never resolved
+
+
 def test_legacy_approvals_endpoint_still_resolves() -> None:
     app = create_app()
     with TestClient(app) as client:

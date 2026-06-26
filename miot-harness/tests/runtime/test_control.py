@@ -55,6 +55,23 @@ def test_single_shot_first_writer_wins() -> None:
     assert res is not None and res.action == "approve"
 
 
+def test_duplicate_register_rejected() -> None:
+    """A second register() on a live decision_id must fail loudly rather than
+    overwrite the entry and orphan the first waiter on an unsettable event."""
+    reg = RunControlRegistry()
+    reg.register("d1", run_id="r1", kind="tool_approval")
+    with pytest.raises(ValueError, match="already registered"):
+        reg.register("d1", run_id="r1", kind="tool_approval")
+
+
+def test_kind_for_run_is_run_scoped() -> None:
+    reg = RunControlRegistry()
+    reg.register("d1", run_id="r1", kind="choice")
+    assert reg.kind_for_run("d1", "r1") == "choice"
+    assert reg.kind_for_run("d1", "OTHER") is None  # cross-run → None (404 path)
+    assert reg.kind_for_run("missing", "r1") is None
+
+
 def test_unknown_decision_resolve_false_and_discard_safe() -> None:
     reg = RunControlRegistry()
     assert reg.resolve("missing", Resolution(action="approve"), run_id="r1") is False

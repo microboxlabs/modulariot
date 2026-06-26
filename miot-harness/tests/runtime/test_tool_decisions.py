@@ -58,9 +58,12 @@ async def _resolve_after(
     for _ in range(200):
         ids = [e.data["decision_id"] for e in events if e.type == "decision.requested"]
         if ids:
-            reg.resolve(ids[0], res, run_id="r1")
+            assert reg.resolve(ids[0], res, run_id="r1"), "resolve() returned False"
             return
         await asyncio.sleep(0.005)
+    # Don't return silently: a missing decision.requested would otherwise leave
+    # the awaiting tool blocked forever (test hang) instead of failing here.
+    raise AssertionError("no decision.requested event observed within timeout")
 
 
 @pytest.mark.asyncio

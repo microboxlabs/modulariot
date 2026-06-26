@@ -707,7 +707,10 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="Decision not pending")
         registry = app.state.harness.approval_registry
         if registry is not None:
-            kind = registry.kind(decision_id)
+            # Run-scoped: a decision_id owned by ANOTHER run (same tenant)
+            # returns None here, so the kind-mismatch 422 below is skipped and
+            # the request falls through to resolve()'s 404 — no ownership leak.
+            kind = registry.kind_for_run(decision_id, run_id)
             if kind == "tool_approval" and body.resolution == "choose":
                 raise HTTPException(
                     status_code=422,

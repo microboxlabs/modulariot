@@ -47,6 +47,13 @@ class RunControlRegistry:
     def register(
         self, decision_id: str, run_id: str, *, kind: DecisionKind = "tool_approval"
     ) -> asyncio.Event:
+        # decision_id is a fresh uuid4 hex at every call site, so a collision
+        # is not a reachable path. Guard anyway: silently overwriting an
+        # existing entry would orphan the first waiter on an event that
+        # resolve() — now pointing at the new entry — can never set. Fail
+        # loudly instead of hanging.
+        if decision_id in self._pending:
+            raise ValueError(f"decision_id already registered: {decision_id}")
         entry = _PendingDecision(run_id=run_id, kind=kind)
         self._pending[decision_id] = entry
         return entry.event
@@ -77,6 +84,16 @@ class RunControlRegistry:
     def kind(self, decision_id: str) -> DecisionKind | None:
         entry = self._pending.get(decision_id)
         return entry.kind if entry is not None else None
+
+    def kind_for_run(self, decision_id: str, run_id: str) -> DecisionKind | None:
+        """Run-scoped variant of `kind`: returns the kind only when the
+        decision exists AND belongs to `run_id`. The API layer uses this so a
+        decision_id from another run collapses to 404 (no kind/ownership leak)
+        instead of surfacing a 422 kind-mismatch."""
+        entry = self._pending.get(decision_id)
+        if entry is None or entry.run_id != run_id:
+            return None
+        return entry.kind
 
     def discard(self, decision_id: str) -> None:
         self._pending.pop(decision_id, None)

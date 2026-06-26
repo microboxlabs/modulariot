@@ -30,6 +30,12 @@ class SteeringRegistry:
     notes / set the interrupt flag, and the run drains / polls them when it
     reaches the agentic planner boundary."""
 
+    # Cap the pending backlog so an operator posting faster than the planner
+    # drains can't grow a channel without bound. Notes are advisory and the
+    # most recent guidance is the most relevant, so on overflow the oldest
+    # note is evicted (FIFO) rather than rejecting the new one.
+    _MAX_BACKLOG = 100
+
     def __init__(self) -> None:
         self._channels: dict[str, _RunChannel] = {}
 
@@ -48,6 +54,9 @@ class SteeringRegistry:
         if channel is None:
             return False
         channel.notes.append(note)
+        if len(channel.notes) > self._MAX_BACKLOG:
+            # Bounded FIFO: drop the oldest note(s) to keep memory in check.
+            del channel.notes[: len(channel.notes) - self._MAX_BACKLOG]
         return True
 
     def drain(self, run_id: str) -> list[str]:

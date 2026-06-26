@@ -1,13 +1,15 @@
 package com.microboxlabs.miot.conversational.dto;
 
 import com.microboxlabs.miot.conversational.domain.MessageRole;
-import java.util.List;
+import java.util.Map;
 
 /**
  * Request to send an outbound WhatsApp message. {@code type} selects {@code TEXT}
  * (free-form, only valid inside an open 24h session) or {@code TEMPLATE} (a pre-approved
- * template, valid to open a conversation). The trip-context fields are optional and, when
- * present, anchor the conversation to a service/process so its history stays attributable.
+ * template, valid to open a conversation). {@code templateParams} fills the template's
+ * NAMED body placeholders (e.g. {@code {"driver_name": "...", "trip_reference": "..."}}).
+ * The trip-context fields are optional and, when present, anchor the conversation to a
+ * service/process so its history stays attributable.
  */
 public record SendWhatsAppMessageRequest(
         String to,
@@ -15,7 +17,7 @@ public record SendWhatsAppMessageRequest(
         String body,
         String templateName,
         String language,
-        List<String> params,
+        Map<String, String> templateParams,
         MessageRole role,
         String driverId,
         String serviceCode,
@@ -37,7 +39,7 @@ public record SendWhatsAppMessageRequest(
         return role == null ? MessageRole.AGENT : role;
     }
 
-    public List<String> paramsOrEmpty() {
-        return params == null ? List.of() : params;
+    public Map<String, String> templateParamsOrEmpty() {
+        return templateParams == null ? Map.of() : templateParams;
     }
 }

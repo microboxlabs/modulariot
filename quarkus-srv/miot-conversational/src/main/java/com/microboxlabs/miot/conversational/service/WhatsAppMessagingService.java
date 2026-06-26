@@ -128,7 +128,7 @@ public class WhatsAppMessagingService {
         if (request.isTemplate()) {
             return metaClient.sendTemplate(
                     connection.baseUrl(), phoneNumberId, token, request.to(),
-                    request.templateName(), request.languageOrDefault(), request.paramsOrEmpty());
+                    request.templateName(), request.languageOrDefault(), request.templateParamsOrEmpty());
         }
         return metaClient.sendText(connection.baseUrl(), phoneNumberId, token, request.to(), request.body());
     }

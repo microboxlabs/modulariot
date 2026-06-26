@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.conversational.domain.MessageRole;
-import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SendWhatsAppMessageRequestTest {
@@ -34,11 +34,11 @@ class SendWhatsAppMessageRequestTest {
     }
 
     @Test
-    void paramsNeverNull() {
-        assertTrue(request("TEXT").paramsOrEmpty().isEmpty());
-        assertEquals(List.of("a"), new SendWhatsAppMessageRequest(
-                "+56900", "TEMPLATE", null, "t", "es_CL", List.of("a"),
-                null, null, null, null, null).paramsOrEmpty());
+    void templateParamsNeverNull() {
+        assertTrue(request("TEXT").templateParamsOrEmpty().isEmpty());
+        assertEquals(Map.of("driver_name", "Juan"), new SendWhatsAppMessageRequest(
+                "+56900", "TEMPLATE", null, "t", "es_CL", Map.of("driver_name", "Juan"),
+                null, null, null, null, null).templateParamsOrEmpty());
     }
 
     private static SendWhatsAppMessageRequest request(String type) {

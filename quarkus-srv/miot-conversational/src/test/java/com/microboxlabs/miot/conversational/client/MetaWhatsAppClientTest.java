@@ -11,7 +11,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -55,21 +56,26 @@ class MetaWhatsAppClientTest {
     }
 
     @Test
-    void sendTemplateBuildsTemplatePayloadWithOrderedBodyParams() throws IOException {
+    void sendTemplateBuildsTemplatePayloadWithNamedBodyParams() throws IOException {
         startServer(200, OK_RESPONSE);
+        Map<String, String> namedParams = new LinkedHashMap<>();
+        namedParams.put("driver_name", "Juan");
+        namedParams.put("trip_reference", "SRV-123");
 
         String id = client.sendTemplate(URI.create(baseUrl()), PHONE_NUMBER_ID, TOKEN, TO,
-                "trip_assigned", "es_CL", List.of("Juan", "SRV-123"));
+                "trip_detention_alert_v1", "es_CL", namedParams);
 
         assertEquals(WAMID, id);
         JsonObject body = new JsonObject(seenBody.get());
         assertEquals("template", body.getString("type"));
         JsonObject template = body.getJsonObject("template");
-        assertEquals("trip_assigned", template.getString("name"));
+        assertEquals("trip_detention_alert_v1", template.getString("name"));
         assertEquals("es_CL", template.getJsonObject("language").getString("code"));
         JsonArray params = template.getJsonArray("components").getJsonObject(0).getJsonArray("parameters");
         assertEquals(2, params.size());
+        assertEquals("driver_name", params.getJsonObject(0).getString("parameter_name"));
         assertEquals("Juan", params.getJsonObject(0).getString("text"));
+        assertEquals("trip_reference", params.getJsonObject(1).getString("parameter_name"));
         assertEquals("SRV-123", params.getJsonObject(1).getString("text"));
     }
 

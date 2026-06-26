@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.microboxlabs.miot.conversational.dto.SendWhatsAppMessageRequest;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -78,6 +78,6 @@ class WhatsAppMessagingServiceTest {
 
     private static SendWhatsAppMessageRequest request(String to, String type, String body, String templateName) {
         return new SendWhatsAppMessageRequest(
-                to, type, body, templateName, null, List.of(), null, null, null, null, null);
+                to, type, body, templateName, null, Map.of(), null, null, null, null, null);
     }
 }

@@ -166,23 +166,32 @@ async def introspect_schema(
     )
 
 
+# Positional mapping so composite (multi-column) FKs pair each local column with
+# the CORRECT referenced column. Joining KCU↔CCU on constraint name alone
+# Cartesian-products multi-column keys; instead go through referential_constraints
+# and match the referenced key_column_usage by
+# `kcu.position_in_unique_constraint = ref_kcu.ordinal_position`.
 _FK_QUERY = """
 SELECT kcu.column_name AS column,
-       ccu.table_schema AS ref_schema,
-       ccu.table_name AS ref_table,
-       ccu.column_name AS ref_column,
+       ref_kcu.table_schema AS ref_schema,
+       ref_kcu.table_name AS ref_table,
+       ref_kcu.column_name AS ref_column,
        tc.constraint_name AS constraint
 FROM information_schema.table_constraints tc
+JOIN information_schema.referential_constraints rc
+  ON rc.constraint_schema = tc.constraint_schema
+ AND rc.constraint_name = tc.constraint_name
 JOIN information_schema.key_column_usage kcu
-  ON tc.constraint_name = kcu.constraint_name
- AND tc.table_schema = kcu.table_schema
-JOIN information_schema.constraint_column_usage ccu
-  ON ccu.constraint_name = tc.constraint_name
- AND ccu.table_schema = tc.table_schema
+  ON kcu.constraint_schema = tc.constraint_schema
+ AND kcu.constraint_name = tc.constraint_name
+JOIN information_schema.key_column_usage ref_kcu
+  ON ref_kcu.constraint_schema = rc.unique_constraint_schema
+ AND ref_kcu.constraint_name = rc.unique_constraint_name
+ AND ref_kcu.ordinal_position = kcu.position_in_unique_constraint
 WHERE tc.constraint_type = 'FOREIGN KEY'
   AND tc.table_schema = $1
   AND tc.table_name = $2
-ORDER BY kcu.column_name
+ORDER BY tc.constraint_name, kcu.ordinal_position
 """
 
 

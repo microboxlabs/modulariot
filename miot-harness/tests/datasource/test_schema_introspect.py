@@ -128,3 +128,25 @@ async def test_introspect_foreign_keys() -> None:
     assert fks[0].render() == "execution_id_ → acs.act_ru_execution.id_"
     assert pool.conn.txn_readonly is True
     assert pool.conn.fetched[-1][1] == ("acs", "act_ru_task")
+
+
+@pytest.mark.asyncio
+async def test_composite_foreign_key_pairs_positionally() -> None:
+    # The positional-mapping query returns one row per (local, referenced) column
+    # pair, already correctly aligned — so a 2-column FK yields 2 ForeignKeys
+    # with the right pairing (not a Cartesian product).
+    def _fk(col: str, ref_col: str) -> dict:
+        return {
+            "column": col,
+            "ref_schema": "s",
+            "ref_table": "parent",
+            "ref_column": ref_col,
+            "constraint": "fk_ab",
+        }
+
+    pool = RecordingPool(fetch_return=[_fk("a_id", "x_id"), _fk("b_id", "y_id")])
+    fks = await introspect_foreign_keys(pool=pool, schema="s", table="child")
+    assert [fk.render() for fk in fks] == [
+        "a_id → s.parent.x_id",
+        "b_id → s.parent.y_id",
+    ]

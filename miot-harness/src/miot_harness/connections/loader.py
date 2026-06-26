@@ -65,6 +65,15 @@ def load_connections(
     if result.connections:
         return result
 
+    # Connection files WERE discovered but every one was rejected (error-level
+    # diagnostics). Do NOT silently boot the legacy synthesized datasource — that
+    # would mask a broken rollout and could keep the pod pointed at stale
+    # settings. Surface the failure instead; the fallback below is only for the
+    # genuine "no connection files present" transition case (where the source
+    # emits at most a 'dir does not exist' warning, never an error).
+    if any(d.level == "error" for d in result.diagnostics):
+        return ConnectionLoadResult((), tuple(result.diagnostics))
+
     # No connection files → transition fallback to the legacy single-datasource
     # env. Keep the source's diagnostics (e.g. "dir does not exist") so the
     # operator sees why we fell back.

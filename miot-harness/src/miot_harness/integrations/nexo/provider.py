@@ -83,6 +83,18 @@ class NexoProvider(DataSourceProvider):
         # default-file connection these resolve to exactly the legacy values,
         # so behaviour is unchanged.
         opts = dict(connection.options) if connection is not None else {}
+        conn_name = connection.name if connection is not None else "<legacy>"
+        # Validate raw option values BEFORE the fallback chain so a
+        # misconfiguration surfaces instead of silently falling back to the
+        # settings/profile default (mirrors the legacy settings validation). An
+        # empty `tenant_lock` would otherwise resolve to the profile lock via the
+        # `or` chain below, hiding the mistake.
+        if "tenant_lock" in opts and not str(opts.get("tenant_lock") or "").strip():
+            return BootResult(
+                enabled=False,
+                registered=(),
+                reason=f"connection {conn_name!r}: tenant_lock must be non-empty",
+            )
         dsn = connection.dsn if connection is not None else settings.datasource_dsn
         if dsn is None:
             reason = (
@@ -100,16 +112,27 @@ class NexoProvider(DataSourceProvider):
             or self.profile.tenant_lock
         )
         assert tenant_lock is not None  # NEXO_PROFILE.tenant_lock is "mintral"
-        refuse_minutes = _resolve_minutes(
-            opts.get("freshness_refuse_minutes"),
-            settings.datasource_freshness_refuse_minutes,
-            self.profile.freshness_refuse_minutes,
-        )
-        warn_minutes = _resolve_minutes(
-            opts.get("freshness_warn_minutes"),
-            settings.datasource_freshness_warn_minutes,
-            self.profile.freshness_warn_minutes,
-        )
+        # Non-numeric freshness options (e.g. `freshness_warn_minutes: "abc"`)
+        # would make `_resolve_minutes` raise `int(...)` out of boot(), violating
+        # the "boot must not raise" contract. Catch and degrade to disabled with
+        # a clear reason instead.
+        try:
+            refuse_minutes = _resolve_minutes(
+                opts.get("freshness_refuse_minutes"),
+                settings.datasource_freshness_refuse_minutes,
+                self.profile.freshness_refuse_minutes,
+            )
+            warn_minutes = _resolve_minutes(
+                opts.get("freshness_warn_minutes"),
+                settings.datasource_freshness_warn_minutes,
+                self.profile.freshness_warn_minutes,
+            )
+        except (TypeError, ValueError) as exc:
+            return BootResult(
+                enabled=False,
+                registered=(),
+                reason=f"connection {conn_name!r}: invalid freshness option ({exc})",
+            )
         application_name = (
             opts.get("application_name") or settings.datasource_application_name
         )

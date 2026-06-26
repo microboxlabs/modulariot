@@ -92,21 +92,27 @@ def _coerce_connection(
     # loaded connection can still be tenant-*locked* via options.tenant_lock —
     # that's a different concept, like Nexo being Mintral-only.)
     resolved_scope: ConnectionScope = scope
+    # Validate types rather than coercing them: the loader contract is that bad
+    # content becomes a diagnostic. Silently casting `required: "false"` to True
+    # or dropping a non-mapping `options` would change readiness/provider
+    # behaviour without surfacing the misconfiguration.
     options = front.get("options") or {}
+    if not isinstance(options, dict):
+        raise ValueError("frontmatter field 'options' must be a mapping")
     capabilities = front.get("capabilities") or {}
-    required = bool(front.get("required", True))
+    if not isinstance(capabilities, dict):
+        raise ValueError("frontmatter field 'capabilities' must be a mapping")
+    required = front.get("required", True)
+    if not isinstance(required, bool):
+        raise ValueError("frontmatter field 'required' must be a boolean")
     return Connection(
         name=name,
         backend=backend,
         dsn=dsn,
         scope=resolved_scope,
         tenant_id=tenant_id,
-        options=dict(options) if isinstance(options, dict) else {},
-        capabilities=(
-            {str(k): bool(v) for k, v in capabilities.items()}
-            if isinstance(capabilities, dict)
-            else {}
-        ),
+        options=dict(options),
+        capabilities={str(k): bool(v) for k, v in capabilities.items()},
         primer=body,
         required=required,
         source_path=rel_path,
@@ -133,6 +139,7 @@ class FileConnectionSource(ConnectionSource):
             )
             return ConnectionLoadResult((), tuple(diagnostics))
 
+        seen_names: dict[str, str] = {}
         for path in sorted(root.rglob(_CONNECTION_FILE)):
             scope, tenant_id, default_name = self._classify(path, root)
             rel = str(path)
@@ -151,6 +158,21 @@ class FileConnectionSource(ConnectionSource):
             except (ValueError, OSError) as exc:
                 diagnostics.append(ConnectionDiagnostic(rel, "error", str(exc)))
                 continue
+            # Duplicate names collide downstream: the lifespan keys boot state by
+            # `Connection.name` (app.state.connections[name]) and selects the
+            # primary by name match. Keep the first (deterministic, since we
+            # iterate sorted paths) and reject the rest with a diagnostic.
+            if conn.name in seen_names:
+                diagnostics.append(
+                    ConnectionDiagnostic(
+                        rel,
+                        "error",
+                        f"duplicate connection name {conn.name!r} "
+                        f"(already defined by {seen_names[conn.name]}); skipping",
+                    )
+                )
+                continue
+            seen_names[conn.name] = rel
             connections.append(conn)
 
         # Stable, deterministic order: by name (the lifespan picks the primary

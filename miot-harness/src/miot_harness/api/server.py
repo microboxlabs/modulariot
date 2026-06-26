@@ -28,7 +28,7 @@ from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.connections.loader import load_connections, select_primary
 from miot_harness.context_skills.loader import boot_context_skills
 from miot_harness.context_skills.skill_models import SkillSummary
-from miot_harness.datasource.provider import BootResult
+from miot_harness.datasource.provider import BootResult, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
@@ -189,6 +189,13 @@ def _make_lifespan(
         # (so app.state.datasource_provider is the one that booted); others get
         # their own provider instance. Provider.boot never raises per contract,
         # but guard anyway so one bad connection can't abort the lifespan.
+        # Every provider instance we allocate must be closed at shutdown, not
+        # just the primary — each non-primary connection gets its own provider
+        # (and, for backends like Nexo, its own pool). Seed with the primary
+        # provider (always resolved above); append non-primary providers as they
+        # resolve so a failed `resolve_datasource` (which allocates nothing)
+        # never lands in the close list.
+        providers_to_close: list[DataSourceProvider] = [provider]
         primary_result: BootResult | None = None
         for conn in conn_result.connections:
             is_primary = primary is not None and conn.name == primary.name
@@ -199,6 +206,8 @@ def _make_lifespan(
                 conn_provider = (
                     provider if is_primary else resolve_datasource(conn.backend)
                 )
+                if not is_primary:
+                    providers_to_close.append(conn_provider)
                 boot_res = await conn_provider.boot(harness.tools, settings, conn)
             except Exception as exc:  # noqa: BLE001 — a bad connection mustn't abort boot
                 logger.critical("Connection %s: boot failed (%s)", conn.name, exc)
@@ -410,9 +419,12 @@ def _make_lifespan(
         try:
             yield
         finally:
-            if provider is not None:
+            # Close every provider we booted (primary + each non-primary
+            # connection), reverse order. close() is idempotent, so the primary's
+            # earlier disabled-path close is a harmless no-op here.
+            for conn_provider in reversed(providers_to_close):
                 try:
-                    await provider.close()
+                    await conn_provider.close()
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("Datasource: provider close raised %s", exc)
             try:

@@ -111,6 +111,61 @@ ACS (Alfresco) connection — awaiting the generic provider.
 """
 
 
+class _CountingFakeProvider(FakeProvider):
+    """FakeProvider that counts close() calls, to prove the lifespan closes
+    non-primary providers (not just the primary)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.close_calls = 0
+
+    async def close(self) -> None:
+        self.close_calls += 1
+        await super().close()
+
+
+def test_lifespan_closes_every_booted_provider(monkeypatch, tmp_path):
+    get_settings.cache_clear()
+    counting = _CountingFakeProvider()
+    monkeypatch.setitem(ds_registry._REGISTRY, "fake", lambda: counting)
+
+    conn_dir = tmp_path / "connections"
+    _write(conn_dir, "nexo", NEXO_MD)  # primary
+    _write(conn_dir, "fake", FAKE_MD)  # non-primary
+
+    monkeypatch.setenv("MIOT_HARNESS_CONNECTIONS_DIR", str(conn_dir))
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@localhost:5432/d")
+    monkeypatch.setenv("FAKE_CONN_DSN", "fake://configured")
+    monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+
+    fake_pool = MagicMock()
+    fake_pool.close = AsyncMock()
+    with (
+        patch(
+            "miot_harness.integrations.nexo.provider.create_nexo_pool",
+            new=AsyncMock(return_value=fake_pool),
+        ),
+        patch(
+            "miot_harness.integrations.nexo.provider.load_nexo_tools",
+            new=AsyncMock(
+                return_value=NexoBootResult(
+                    enabled=True, registered=["coordinador_centro_control"]
+                )
+            ),
+        ),
+    ):
+        app = create_app()
+        with TestClient(app) as client:  # noqa: F841 — lifespan startup
+            # The non-primary fake connection booted on the counting provider.
+            assert app.state.connections["fake"]["enabled"] is True
+            assert counting.close_calls == 0  # not closed while serving
+        # Exiting the context ran lifespan shutdown.
+    assert counting.close_calls >= 1  # the non-primary provider WAS closed
+
+    get_settings.cache_clear()
+
+
 def test_unknown_backend_disables_connection_without_crashing(monkeypatch, tmp_path):
     get_settings.cache_clear()
     conn_dir = tmp_path / "connections"

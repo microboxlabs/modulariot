@@ -43,7 +43,7 @@ export default function MapVisualization({
   const [originalPositions, setOriginalPositions] = useState<MapPosition[]>([]);
   const [mapStyle, setMapStyle] = useState("satellite");
   const searchParams = useSearchParams();
-  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [search, setSearch] = useState(searchParams.get("licensePlate") || "");
 
   const [zoom, setZoom] = useState(2);
 
@@ -57,8 +57,8 @@ export default function MapVisualization({
   }, [mapPositions]);
 
   useEffect(() => {
-    setSearch(searchParams.get("search") || "");
-  }, [searchParams.get("search")]);
+    setSearch(searchParams.get("licensePlate") || "");
+  }, [searchParams.get("licensePlate")]);
 
   useEffect(() => {
     if (
@@ -129,6 +129,7 @@ export default function MapVisualization({
   return (
     <div className="h-full w-full relative overflow-hidden">
       <MapVisualizationGeneric
+        rounded={false}
         mapStyle={
           mapStyle as
             | "satellite"

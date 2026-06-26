@@ -1257,6 +1257,8 @@
             "baseUrl": "Base URL",
             "token": "Access token",
             "tokenPlaceholder": "System-user access token",
+            "phoneNumberIdPlaceholder": "e.g. 1234567890",
+            "wabaIdPlaceholder": "e.g. 1234567890",
             "cancel": "Cancel",
             "saving": "Saving...",
             "createButton": "Create"

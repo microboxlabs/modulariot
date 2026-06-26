@@ -94,7 +94,7 @@ export function WhatsAppConnectionModal({
         >
           <TextInput
             id="wa-phone"
-            placeholder="1188646904321987"
+            placeholder={tr("modal.phoneNumberIdPlaceholder", dict)}
             {...register("phoneNumberId")}
             color={errors.phoneNumberId ? "failure" : undefined}
           />
@@ -107,7 +107,7 @@ export function WhatsAppConnectionModal({
         >
           <TextInput
             id="wa-waba"
-            placeholder="1333560228881251"
+            placeholder={tr("modal.wabaIdPlaceholder", dict)}
             {...register("wabaId")}
             color={errors.wabaId ? "failure" : undefined}
           />

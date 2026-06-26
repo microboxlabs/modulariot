@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
     from miot_harness.config import HarnessSettings
     from miot_harness.connections.models import Connection
+    from miot_harness.datasource.schema_introspect import SchemaSummary
     from miot_harness.tools.registry import ToolRegistry
 
 
@@ -99,6 +100,10 @@ class BootResult:
     # Descriptor-derived meta-agent catalog (title/layer/body + freshness
     # suffix). Empty → the server falls back to generic entries.
     catalog_entries: tuple[MetaAgentCatalogEntry, ...] = ()
+    # Connection Knowledge Base (Phase 2): the boot-time schema index for
+    # generic connections. None for providers that don't introspect (e.g.
+    # Nexo, which surfaces its function catalog instead).
+    schema_summary: SchemaSummary | None = None
 
 
 class DataSourceProvider(ABC):

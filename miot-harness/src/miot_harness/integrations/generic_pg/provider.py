@@ -27,6 +27,7 @@ from miot_harness.datasource.provider import (
 )
 from miot_harness.datasource.safe_query import DEFAULT_STATEMENT_TIMEOUT_MS
 from miot_harness.datasource.safe_sql import HARD_LIMIT_CAP
+from miot_harness.datasource.schema_introspect import introspect_schema
 from miot_harness.datasource.sql_policy import SchemaAllowlistPolicy
 from miot_harness.integrations.generic_pg.primitive_tools import build_generic_tools
 from miot_harness.tools.registry import ToolRegistry
@@ -190,7 +191,30 @@ class GenericPgProvider(DataSourceProvider):
                 enabled=False, registered=(), reason=f"boot failed: {exc}"
             )
 
-        return BootResult(enabled=True, registered=tuple(registered))
+        # Connection Knowledge Base (Phase 2): boot-time schema index. A failure
+        # here must NOT disable the connection — the query tools already
+        # registered; the index is additive grounding.
+        schema_summary = None
+        if settings.generic_schema_introspect_enabled:
+            try:
+                schema_summary = await introspect_schema(
+                    pool=self._pool,
+                    policy=policy,
+                    connection=name,
+                    max_tables=settings.generic_schema_max_tables,
+                    primer=connection.primer,
+                    statement_timeout_ms=statement_timeout_ms,
+                )
+            except Exception as exc:  # noqa: BLE001 — index is best-effort
+                logger.error(
+                    "generic_pg %s: schema introspection failed (%s); continuing",
+                    name,
+                    exc,
+                )
+
+        return BootResult(
+            enabled=True, registered=tuple(registered), schema_summary=schema_summary
+        )
 
     async def close(self) -> None:
         if self._pool is not None:

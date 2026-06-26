@@ -20,6 +20,7 @@ from miot_harness.datasource.safe_query import (
     safe_list_tables,
     safe_select,
 )
+from miot_harness.datasource.schema_introspect import introspect_foreign_keys
 from miot_harness.datasource.sql_policy import TableAccessPolicy
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.permissions import PermissionResult
@@ -55,6 +56,12 @@ class _ExplainInput(BaseModel):
 
 class _RowsOutput(BaseModel):
     rows: list[dict[str, Any]] = Field(default_factory=list)
+    source: str = ""
+
+
+class _DescribeOutput(BaseModel):
+    columns: list[dict[str, Any]] = Field(default_factory=list)
+    foreign_keys: list[dict[str, Any]] = Field(default_factory=list)
     source: str = ""
 
 
@@ -98,14 +105,33 @@ def build_generic_tools(
 
     async def call_describe(
         ctx: HarnessContext, parsed: _DescribeInput, progress: Progress
-    ) -> _RowsOutput:
-        rows = await safe_describe(
+    ) -> _DescribeOutput:
+        columns = await safe_describe(
             pool=pool,
             policy=policy,
             table=parsed.table,
             statement_timeout_ms=statement_timeout_ms,
         )
-        return _RowsOutput(rows=rows, source=source_label)
+        # FK relationships (the "how does this table connect" body). The policy
+        # already validated the table in safe_describe; reuse its schema/name.
+        schema, _, name = parsed.table.partition(".")
+        fks = await introspect_foreign_keys(
+            pool=pool,
+            schema=schema,
+            table=name,
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        return _DescribeOutput(
+            columns=columns,
+            foreign_keys=[
+                {
+                    "column": fk.column,
+                    "references": f"{fk.ref_schema}.{fk.ref_table}.{fk.ref_column}",
+                }
+                for fk in fks
+            ],
+            source=source_label,
+        )
 
     async def call_select(
         ctx: HarnessContext, parsed: _SelectInput, progress: Progress
@@ -178,11 +204,12 @@ def build_generic_tools(
         HarnessTool(
             name=f"{tool_prefix}describe",
             description=(
-                f"Columns + types of a schema-qualified table {scope}. "
-                "Use to discover a table's shape before select."
+                f"Columns + types AND foreign-key relationships of a "
+                f"schema-qualified table {scope}. Use to discover a table's shape "
+                "and how it joins to others before select."
             ),
             input_model=_DescribeInput,
-            output_model=_RowsOutput,
+            output_model=_DescribeOutput,
             call=call_describe,
             **common,
         ),

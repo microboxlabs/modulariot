@@ -113,6 +113,14 @@ class HarnessSettings(BaseSettings):
     # declare `capabilities.generic_query: true` to light up. Off everywhere
     # today; only the dev/local `acs` connection opts in.
     generic_query_enabled: bool = False
+    # Connection Knowledge Base (Phase 2): boot-time schema index for generic
+    # `pg` connections (table list + types + row estimates, folded into the
+    # agent grounding). Kill switch (mirrors the freshness survey); only affects
+    # connections that are already generic-query-enabled. `max_tables` bounds the
+    # always-on index so a large schema can't bloat every prompt (explicit
+    # truncation note, never silent).
+    generic_schema_introspect_enabled: bool = True
+    generic_schema_max_tables: int = Field(default=80, ge=0)
     # Hard cap on connector tools registered from skill files — bounds the
     # blast radius of a misconfigured/oversized ConfigMap.
     max_connector_tools: int = Field(default=50, ge=0)

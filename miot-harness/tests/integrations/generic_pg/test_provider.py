@@ -9,7 +9,44 @@ import pytest
 from miot_harness.config import HarnessSettings
 from miot_harness.connections.models import Connection
 from miot_harness.integrations.generic_pg.provider import GenericPgProvider
+from miot_harness.runtime.context import HarnessContext
 from miot_harness.tools.registry import ToolRegistry
+from tests.fixtures.recording_pool import RecordingPool
+
+
+def _t(name: str, est: int) -> dict:
+    return {
+        "table_schema": "acs",
+        "table_name": name,
+        "table_type": "BASE TABLE",
+        "row_estimate": est,
+    }
+
+
+_TABLE_ROWS = [_t("act_ru_task", 1200), _t("act_ru_execution", 800)]
+_COL_ROWS = [
+    {"column_name": "id_", "data_type": "character varying"},
+    {"column_name": "execution_id_", "data_type": "character varying"},
+]
+_FK_ROWS = [
+    {
+        "column": "execution_id_",
+        "ref_schema": "acs",
+        "ref_table": "act_ru_execution",
+        "ref_column": "id_",
+        "constraint": "act_fk_task_exe",
+    }
+]
+
+
+def _responder(sql: str) -> list:
+    if "pg_catalog.pg_class" in sql:
+        return _TABLE_ROWS
+    if "information_schema.columns" in sql:
+        return _COL_ROWS
+    if "FOREIGN KEY" in sql:
+        return _FK_ROWS
+    return []
 
 
 def _conn(**overrides: object) -> Connection:
@@ -27,7 +64,12 @@ def _conn(**overrides: object) -> Connection:
 
 
 def _enabled() -> HarnessSettings:
-    return HarnessSettings(generic_query_enabled=True)
+    # Schema introspection off by default in these registration/gating tests
+    # (they use a bare MagicMock pool); the dedicated introspection test below
+    # exercises it with a recording pool.
+    return HarnessSettings(
+        generic_query_enabled=True, generic_schema_introspect_enabled=False
+    )
 
 
 @pytest.mark.asyncio
@@ -139,7 +181,6 @@ async def test_tenant_lock_denies_other_tenant(
         _conn(options={"search_path": "acs", "tenant_lock": "acme"}),
     )
     tool = registry.get("acs_select")
-    from miot_harness.runtime.context import HarnessContext
     from miot_harness.runtime.permissions import PermissionDecision
 
     def _ctx(tenant: str) -> HarnessContext:
@@ -149,3 +190,55 @@ async def test_tenant_lock_denies_other_tenant(
     allow = await tool.check_permission(_ctx("acme"), tool.input_model(table="acs.x"))
     assert deny.decision == PermissionDecision.DENY
     assert allow.decision == PermissionDecision.ALLOW
+
+
+@pytest.mark.asyncio
+async def test_boot_populates_schema_summary(monkeypatch: pytest.MonkeyPatch) -> None:
+    pool = RecordingPool(responder=_responder)
+    monkeypatch.setattr(
+        "miot_harness.integrations.generic_pg.provider.create_pg_pool",
+        AsyncMock(return_value=pool),
+    )
+    result = await GenericPgProvider().boot(
+        ToolRegistry(),
+        HarnessSettings(
+            generic_query_enabled=True, generic_schema_introspect_enabled=True
+        ),
+        _conn(),
+    )
+    assert result.enabled is True
+    assert result.schema_summary is not None
+    assert result.schema_summary.total_tables == 2
+    assert {t.name for t in result.schema_summary.tables} == {
+        "act_ru_task",
+        "act_ru_execution",
+    }
+
+
+@pytest.mark.asyncio
+async def test_describe_returns_columns_and_fks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pool = RecordingPool(responder=_responder)
+    monkeypatch.setattr(
+        "miot_harness.integrations.generic_pg.provider.create_pg_pool",
+        AsyncMock(return_value=pool),
+    )
+    registry = ToolRegistry()
+    await GenericPgProvider().boot(
+        registry,
+        HarnessSettings(
+            generic_query_enabled=True, generic_schema_introspect_enabled=False
+        ),
+        _conn(),
+    )
+    tool = registry.get("acs_describe")
+    out = await tool.invoke(
+        HarnessContext(thread_id="t", tenant_id="demo", user_id="u"),
+        {"table": "acs.act_ru_task"},
+        lambda _e: None,
+    )
+    assert any(c["column_name"] == "id_" for c in out.columns)
+    assert out.foreign_keys == [
+        {"column": "execution_id_", "references": "acs.act_ru_execution.id_"}
+    ]

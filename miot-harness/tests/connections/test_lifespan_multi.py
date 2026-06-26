@@ -18,6 +18,7 @@ from miot_harness.api.server import create_app
 from miot_harness.config import get_settings
 from miot_harness.integrations.nexo.boot import NexoBootResult
 from tests.fixtures.fake_provider import FakeProvider
+from tests.fixtures.recording_pool import RecordingPool
 
 NEXO_MD = """---
 name: nexo
@@ -243,8 +244,17 @@ def test_generic_pg_registers_tools_when_flag_enabled(monkeypatch, tmp_path):
 
     nexo_pool = MagicMock()
     nexo_pool.close = AsyncMock()
-    acs_pool = MagicMock()
-    acs_pool.close = AsyncMock()
+    # Recording pool so boot-time schema introspection actually runs (Phase 2).
+    acs_pool = RecordingPool(
+        fetch_return=[
+            {
+                "table_schema": "acs",
+                "table_name": "act_ru_task",
+                "table_type": "BASE TABLE",
+                "row_estimate": 1200,
+            }
+        ]
+    )
     p1, p2 = _nexo_patches(nexo_pool)
     with (
         p1,
@@ -259,6 +269,9 @@ def test_generic_pg_registers_tools_when_flag_enabled(monkeypatch, tmp_path):
             conns = app.state.connections
             assert conns["acs"]["enabled"] is True
             assert conns["acs"]["backend"] == "pg"
+            # Schema index introspected + recorded for /health.
+            assert conns["acs"]["schema"]["table_count"] == 1
+            assert conns["acs"]["schema"]["schemas"] == ["acs"]
             names = app.state.harness.tools.names()
             for t in ("acs_list_tables", "acs_describe", "acs_select", "acs_grep"):
                 assert t in names

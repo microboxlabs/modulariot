@@ -34,7 +34,7 @@ from miot_harness.datasource.sql_policy import TableAccessPolicy
 DEFAULT_STATEMENT_TIMEOUT_MS = 5000
 
 
-async def _fetch_readonly(
+async def fetch_readonly(
     pool: Any,
     sql: str,
     *args: Any,
@@ -84,7 +84,7 @@ async def safe_list_tables(
         "WHERE table_schema = ANY($1::text[]) "
         "ORDER BY table_schema, table_name"
     )
-    rows = await _fetch_readonly(
+    rows = await fetch_readonly(
         pool, sql, sorted(schemas), statement_timeout_ms=statement_timeout_ms
     )
     return [dict(row) for row in rows]
@@ -108,7 +108,7 @@ async def safe_describe(
         "SELECT column_name, data_type FROM information_schema.columns "
         "WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position"
     )
-    rows = await _fetch_readonly(
+    rows = await fetch_readonly(
         pool, sql, schema, name, statement_timeout_ms=statement_timeout_ms
     )
     return [dict(row) for row in rows]
@@ -145,7 +145,7 @@ async def safe_select(
 
     ast = validate_select_sql(sql, table_policy=policy)
     safe_sql = render_safe(ast)
-    rows = await _fetch_readonly(
+    rows = await fetch_readonly(
         pool, safe_sql, statement_timeout_ms=statement_timeout_ms
     )
     return [dict(row) for row in rows]
@@ -169,7 +169,7 @@ async def safe_grep(
     sql_for_gate = f"SELECT * FROM {table} WHERE {col} ILIKE $1 LIMIT {bounded_limit}"
     ast = validate_select_sql(sql_for_gate, table_policy=policy)
     safe_sql = render_safe(ast)
-    rows = await _fetch_readonly(
+    rows = await fetch_readonly(
         pool, safe_sql, pattern, statement_timeout_ms=statement_timeout_ms
     )
     return [dict(row) for row in rows]
@@ -187,7 +187,7 @@ async def safe_explain(
 
     ast = validate_select_sql(query, table_policy=policy)
     safe_inner = render_safe(ast)
-    rows = await _fetch_readonly(
+    rows = await fetch_readonly(
         pool,
         f"EXPLAIN (FORMAT JSON) {safe_inner}",
         statement_timeout_ms=statement_timeout_ms,

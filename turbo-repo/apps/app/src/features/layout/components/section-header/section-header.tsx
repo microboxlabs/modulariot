@@ -2,7 +2,6 @@
 
 import React from "react";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
-import { SectionFilterBar } from "@/features/layout/components/secured-navbar/section-filter-bar-controller";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 interface SectionHeaderProps {
@@ -19,7 +18,7 @@ export function SectionHeader({
   path,
   leftContent,
   breadcrumbDict,
-  filterDict,
+  filterDict: _filterDict,
   lang,
   rootIcon,
   rightContent,
@@ -42,7 +41,6 @@ export function SectionHeader({
           <div className="flex items-center gap-2">{rightContent}</div>
         )}
       </div>
-      <SectionFilterBar dict={filterDict} />
     </div>
   );
 }

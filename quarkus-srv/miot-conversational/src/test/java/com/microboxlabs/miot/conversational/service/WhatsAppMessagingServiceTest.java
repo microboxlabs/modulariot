@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.conversational.service;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -35,9 +36,11 @@ class WhatsAppMessagingServiceTest {
     }
 
     @Test
-    void validateAcceptsWellFormedTextAndTemplate() throws Exception {
-        invokeValidate(request("+56900", "TEXT", "hello", null));
-        invokeValidate(request("+56900", "TEMPLATE", null, "trip_assigned"));
+    void validateAcceptsWellFormedTextAndTemplate() {
+        assertDoesNotThrow(() -> {
+            invokeValidate(request("+56900", "TEXT", "hello", null));
+            invokeValidate(request("+56900", "TEMPLATE", null, "trip_assigned"));
+        });
     }
 
     @Test

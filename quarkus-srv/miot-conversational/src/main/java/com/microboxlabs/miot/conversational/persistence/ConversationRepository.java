@@ -25,18 +25,15 @@ public class ConversationRepository {
             session_expires_at, last_message_preview, unread_count, created_at, updated_at
             """;
 
-    private static final String SELECT_BY_TENANT_AND_PHONE = "SELECT " + COLUMNS + """
-            FROM miot_conversational.wa_conversation
-            WHERE tenant_code = $1 AND phone_e164 = $2
-            """;
+    private static final String SELECT_FROM = "SELECT " + COLUMNS + " FROM miot_conversational.wa_conversation ";
 
-    private static final String SELECT_BY_TENANT_AND_ID = "SELECT " + COLUMNS + """
-            FROM miot_conversational.wa_conversation
-            WHERE tenant_code = $1 AND id = $2
-            """;
+    private static final String SELECT_BY_TENANT_AND_PHONE =
+            SELECT_FROM + "WHERE tenant_code = $1 AND phone_e164 = $2";
 
-    private static final String SELECT_BY_TENANT = "SELECT " + COLUMNS + """
-            FROM miot_conversational.wa_conversation
+    private static final String SELECT_BY_TENANT_AND_ID =
+            SELECT_FROM + "WHERE tenant_code = $1 AND id = $2";
+
+    private static final String SELECT_BY_TENANT = SELECT_FROM + """
             WHERE tenant_code = $1
             ORDER BY last_message_at DESC NULLS LAST, created_at DESC
             LIMIT $2

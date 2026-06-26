@@ -76,9 +76,10 @@ class MetaWhatsAppClientTest {
     @Test
     void throwsWithHttpStatusAndMetaMessageWhenRejected() throws IOException {
         startServer(400, "{\"error\":{\"message\":\"Invalid parameter\",\"code\":100}}");
+        URI uri = URI.create(baseUrl());
 
         WhatsAppSendException ex = assertThrows(WhatsAppSendException.class,
-                () -> client.sendText(URI.create(baseUrl()), PHONE_NUMBER_ID, TOKEN, TO, "Hola"));
+                () -> client.sendText(uri, PHONE_NUMBER_ID, TOKEN, TO, "Hola"));
 
         assertEquals(400, ex.httpStatus());
         assertTrue(ex.getMessage().contains("Invalid parameter"));

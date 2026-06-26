@@ -36,8 +36,7 @@ public class MessageRepository {
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
             RETURNING """ + COLUMNS;
 
-    private static final String SELECT_BY_CONVERSATION = """
-            SELECT """ + COLUMNS + """
+    private static final String SELECT_BY_CONVERSATION = "SELECT " + COLUMNS + """
             FROM miot_conversational.wa_message
             WHERE conversation_id = $1
             ORDER BY created_at, id

@@ -10,7 +10,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.List;
+import java.util.Map;
 
 /**
  * Thin client over the Meta WhatsApp Cloud API send endpoint
@@ -47,8 +47,9 @@ public class MetaWhatsAppClient {
     }
 
     /**
-     * Sends a pre-approved template message. {@code bodyParams} fill the template's body
-     * placeholders ({{1}}, {{2}}, …) in order. Returns the Meta message id (wamid).
+     * Sends a pre-approved template message. {@code namedParams} fill the template's NAMED
+     * body placeholders by name (e.g. {@code driver_name}, {@code trip_reference}). Returns
+     * the Meta message id (wamid).
      */
     public String sendTemplate(
             URI baseUrl,
@@ -57,14 +58,17 @@ public class MetaWhatsAppClient {
             String toE164,
             String templateName,
             String languageCode,
-            List<String> bodyParams) {
+            Map<String, String> namedParams) {
         JsonObject template = new JsonObject()
                 .put("name", templateName)
                 .put("language", new JsonObject().put("code", languageCode));
-        if (bodyParams != null && !bodyParams.isEmpty()) {
+        if (namedParams != null && !namedParams.isEmpty()) {
             JsonArray parameters = new JsonArray();
-            for (String param : bodyParams) {
-                parameters.add(new JsonObject().put("type", "text").put("text", param));
+            for (Map.Entry<String, String> param : namedParams.entrySet()) {
+                parameters.add(new JsonObject()
+                        .put("type", "text")
+                        .put("parameter_name", param.getKey())
+                        .put("text", param.getValue()));
             }
             template.put("components", new JsonArray().add(
                     new JsonObject().put("type", "body").put("parameters", parameters)));

@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.microboxlabs.miot.conversational.dto.SendWhatsAppMessageRequest;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -36,10 +36,21 @@ class WhatsAppMessagingServiceTest {
     }
 
     @Test
+    void validateRejectsTemplateParamWithBlankName() {
+        assertIllegalArgument(template("trip_detention_alert_v1", Map.of(" ", "Juan")), "parameter name");
+    }
+
+    @Test
+    void validateRejectsTemplateParamWithBlankValue() {
+        assertIllegalArgument(template("trip_detention_alert_v1", Map.of("driver_name", "")), "driver_name");
+    }
+
+    @Test
     void validateAcceptsWellFormedTextAndTemplate() {
         assertDoesNotThrow(() -> {
             invokeValidate(request("+56900", "TEXT", "hello", null));
             invokeValidate(request("+56900", "TEMPLATE", null, "trip_assigned"));
+            invokeValidate(template("trip_detention_alert_v1", Map.of("driver_name", "Juan")));
         });
     }
 
@@ -78,6 +89,11 @@ class WhatsAppMessagingServiceTest {
 
     private static SendWhatsAppMessageRequest request(String to, String type, String body, String templateName) {
         return new SendWhatsAppMessageRequest(
-                to, type, body, templateName, null, List.of(), null, null, null, null, null);
+                to, type, body, templateName, null, Map.of(), null, null, null, null, null);
+    }
+
+    private static SendWhatsAppMessageRequest template(String templateName, Map<String, String> params) {
+        return new SendWhatsAppMessageRequest(
+                "+56900", "TEMPLATE", null, templateName, null, params, null, null, null, null, null);
     }
 }

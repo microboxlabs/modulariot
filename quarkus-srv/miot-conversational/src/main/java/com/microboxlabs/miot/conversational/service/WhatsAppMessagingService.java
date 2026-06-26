@@ -128,7 +128,7 @@ public class WhatsAppMessagingService {
         if (request.isTemplate()) {
             return metaClient.sendTemplate(
                     connection.baseUrl(), phoneNumberId, token, request.to(),
-                    request.templateName(), request.languageOrDefault(), request.paramsOrEmpty());
+                    request.templateName(), request.languageOrDefault(), request.templateParamsOrEmpty());
         }
         return metaClient.sendText(connection.baseUrl(), phoneNumberId, token, request.to(), request.body());
     }
@@ -167,8 +167,21 @@ public class WhatsAppMessagingService {
             if (request.templateName() == null || request.templateName().isBlank()) {
                 throw new IllegalArgumentException("'templateName' is required for a TEMPLATE message");
             }
+            validateTemplateParams(request.templateParamsOrEmpty());
         } else if (request.body() == null || request.body().isBlank()) {
             throw new IllegalArgumentException("'body' is required for a TEXT message");
+        }
+    }
+
+    private static void validateTemplateParams(Map<String, String> templateParams) {
+        for (Map.Entry<String, String> param : templateParams.entrySet()) {
+            if (param.getKey() == null || param.getKey().isBlank()) {
+                throw new IllegalArgumentException("templateParams contains a blank parameter name");
+            }
+            if (param.getValue() == null || param.getValue().isBlank()) {
+                throw new IllegalArgumentException(
+                        "templateParams['" + param.getKey() + "'] must have a non-blank value");
+            }
         }
     }
 

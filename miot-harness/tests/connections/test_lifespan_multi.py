@@ -98,16 +98,31 @@ def test_lifespan_boots_two_connections(monkeypatch, tmp_path):
     get_settings.cache_clear()
 
 
-# An experimental connection whose backend has no registered provider yet
-# (e.g. an `acs` connection pending the Phase 1 generic provider). It must NOT
-# crash the lifespan; marked required: false so it doesn't gate readiness.
-ACS_UNKNOWN_MD = """---
+# A connection whose backend has no registered provider (typo / future backend).
+# It must NOT crash the lifespan; marked required: false so it doesn't gate
+# readiness. (`pg` is now a real backend — use a genuinely unknown one.)
+UNKNOWN_BACKEND_MD = """---
+name: legacy_oracle
+backend: oracle
+dsn_env: MIOT_HARNESS_ORACLE_DSN
+required: false
+---
+A connection for a backend the harness has no provider for.
+"""
+
+# An `acs` connection on the generic `pg` backend (Phase 1). Capability declared;
+# the master flag decides whether it registers tools.
+ACS_PG_MD = """---
 name: acs
 backend: pg
 dsn_env: MIOT_HARNESS_ACS_DSN
 required: false
+options:
+  search_path: acs
+capabilities:
+  generic_query: true
 ---
-ACS (Alfresco) connection — awaiting the generic provider.
+ACS (Alfresco) connection — generic safe-query.
 """
 
 
@@ -166,21 +181,8 @@ def test_lifespan_closes_every_booted_provider(monkeypatch, tmp_path):
     get_settings.cache_clear()
 
 
-def test_unknown_backend_disables_connection_without_crashing(monkeypatch, tmp_path):
-    get_settings.cache_clear()
-    conn_dir = tmp_path / "connections"
-    _write(conn_dir, "nexo", NEXO_MD)
-    _write(conn_dir, "acs", ACS_UNKNOWN_MD)
-
-    monkeypatch.setenv("MIOT_HARNESS_CONNECTIONS_DIR", str(conn_dir))
-    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@localhost:5432/d")
-    monkeypatch.setenv("MIOT_HARNESS_ACS_DSN", "postgresql://citus:x@localhost:6433/db")
-    monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
-
-    fake_pool = MagicMock()
-    fake_pool.close = AsyncMock()
-    with (
+def _nexo_patches(fake_pool):
+    return (
         patch(
             "miot_harness.integrations.nexo.provider.create_nexo_pool",
             new=AsyncMock(return_value=fake_pool),
@@ -193,16 +195,103 @@ def test_unknown_backend_disables_connection_without_crashing(monkeypatch, tmp_p
                 )
             ),
         ),
-    ):
+    )
+
+
+def test_unknown_backend_disables_connection_without_crashing(monkeypatch, tmp_path):
+    get_settings.cache_clear()
+    conn_dir = tmp_path / "connections"
+    _write(conn_dir, "nexo", NEXO_MD)
+    _write(conn_dir, "legacy_oracle", UNKNOWN_BACKEND_MD)
+
+    monkeypatch.setenv("MIOT_HARNESS_CONNECTIONS_DIR", str(conn_dir))
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@localhost:5432/d")
+    monkeypatch.setenv("MIOT_HARNESS_ORACLE_DSN", "oracle://u:p@localhost:1521/db")
+    monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+
+    fake_pool = MagicMock()
+    fake_pool.close = AsyncMock()
+    p1, p2 = _nexo_patches(fake_pool)
+    with p1, p2:
         app = create_app()
         with TestClient(app) as client:  # lifespan must not raise
             conns = app.state.connections
-            assert set(conns) == {"nexo", "acs"}
-            # acs has an unknown backend → disabled with a reason, but loaded.
+            assert set(conns) == {"nexo", "legacy_oracle"}
+            # unknown backend → disabled with a reason, but loaded.
+            assert conns["legacy_oracle"]["enabled"] is False
+            assert "Unknown datasource kind" in (conns["legacy_oracle"]["reason"] or "")
+            # required: false → does not gate readiness; nexo (enabled) does.
+            assert conns["legacy_oracle"]["required"] is False
+            assert client.get("/health/ready").status_code == 200
+
+    get_settings.cache_clear()
+
+
+def test_generic_pg_registers_tools_when_flag_enabled(monkeypatch, tmp_path):
+    get_settings.cache_clear()
+    conn_dir = tmp_path / "connections"
+    _write(conn_dir, "nexo", NEXO_MD)
+    _write(conn_dir, "acs", ACS_PG_MD)
+
+    monkeypatch.setenv("MIOT_HARNESS_CONNECTIONS_DIR", str(conn_dir))
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@localhost:5432/d")
+    monkeypatch.setenv("MIOT_HARNESS_ACS_DSN", "postgresql://citus:x@localhost:6433/db")
+    monkeypatch.setenv("MIOT_HARNESS_GENERIC_QUERY_ENABLED", "true")
+    monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+
+    nexo_pool = MagicMock()
+    nexo_pool.close = AsyncMock()
+    acs_pool = MagicMock()
+    acs_pool.close = AsyncMock()
+    p1, p2 = _nexo_patches(nexo_pool)
+    with (
+        p1,
+        p2,
+        patch(
+            "miot_harness.integrations.generic_pg.provider.create_pg_pool",
+            new=AsyncMock(return_value=acs_pool),
+        ),
+    ):
+        app = create_app()
+        with TestClient(app) as client:
+            conns = app.state.connections
+            assert conns["acs"]["enabled"] is True
+            assert conns["acs"]["backend"] == "pg"
+            names = app.state.harness.tools.names()
+            for t in ("acs_list_tables", "acs_describe", "acs_select", "acs_grep"):
+                assert t in names
+            assert client.get("/health/ready").status_code == 200
+
+    get_settings.cache_clear()
+
+
+def test_generic_pg_disabled_when_flag_off(monkeypatch, tmp_path):
+    get_settings.cache_clear()
+    conn_dir = tmp_path / "connections"
+    _write(conn_dir, "nexo", NEXO_MD)
+    _write(conn_dir, "acs", ACS_PG_MD)
+
+    monkeypatch.setenv("MIOT_HARNESS_CONNECTIONS_DIR", str(conn_dir))
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@localhost:5432/d")
+    monkeypatch.setenv("MIOT_HARNESS_ACS_DSN", "postgresql://citus:x@localhost:6433/db")
+    monkeypatch.delenv("MIOT_HARNESS_GENERIC_QUERY_ENABLED", raising=False)
+    monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+
+    nexo_pool = MagicMock()
+    nexo_pool.close = AsyncMock()
+    p1, p2 = _nexo_patches(nexo_pool)
+    with p1, p2:
+        app = create_app()
+        with TestClient(app) as client:
+            conns = app.state.connections
+            # Loaded but disabled (flag off); no tools registered.
             assert conns["acs"]["enabled"] is False
-            assert "Unknown datasource kind" in (conns["acs"]["reason"] or "")
-            # required: false → acs does not gate readiness; nexo (enabled) does.
-            assert conns["acs"]["required"] is False
+            assert "disabled" in (conns["acs"]["reason"] or "")
+            assert "acs_select" not in app.state.harness.tools.names()
+            # required: false → still ready.
             assert client.get("/health/ready").status_code == 200
 
     get_settings.cache_clear()

@@ -16,17 +16,21 @@ from miot_harness.datasource.safe_query import (
     safe_explain,
     safe_grep,
     safe_list_tables,
+    safe_run_select,
     safe_select,
 )
 from miot_harness.datasource.safe_sql import (
     AllowlistViolation,
     CostGateViolation,
+    MutationRejected,
     UnsupportedConstruct,
+    validate_select_sql,
 )
 from miot_harness.datasource.sql_policy import (
     RegexTablePolicy,
     SchemaAllowlistPolicy,
 )
+from tests.fixtures.recording_pool import RecordingPool
 
 ACS = SchemaAllowlistPolicy(frozenset({"acs"}))
 
@@ -217,3 +221,110 @@ async def test_explain_refuses_over_budget() -> None:
         await safe_explain(
             pool=pool, policy=ACS, query="SELECT * FROM acs.act_ru_task", cost_threshold=100.0
         )
+
+
+# --------------------- run_safe_select (broad query) ---------------------
+
+_JOIN = (
+    "SELECT t.id_, v.text_ FROM acs.act_ru_task t "
+    "JOIN acs.act_ru_variable v ON v.task_id_ = t.id_"
+)
+
+
+@pytest.mark.asyncio
+async def test_run_select_allows_join_caps_and_is_read_only() -> None:
+    pool = _RecordingPool(fetch_return=[{"id_": "1", "text_": "x"}])
+    rows = await safe_run_select(pool=pool, policy=ACS, sql=_JOIN, max_rows=200)
+    assert rows == [{"id_": "1", "text_": "x"}]
+    sql = pool.conn.fetched[-1][0]
+    assert "_miot_q" in sql and "LIMIT 200" in sql  # harness-injected hard cap
+    assert pool.conn.txn_readonly is True
+    assert any("statement_timeout" in s for s in pool.conn.executed)
+
+
+@pytest.mark.asyncio
+async def test_run_select_rejects_cross_schema_join() -> None:
+    pool = _RecordingPool()
+    with pytest.raises(AllowlistViolation):
+        await safe_run_select(
+            pool=pool,
+            policy=ACS,
+            sql="SELECT * FROM acs.act_ru_task t JOIN public.users u ON u.id = t.id_",
+        )
+    assert pool.conn.fetched == []  # never reached the DB
+
+
+@pytest.mark.asyncio
+async def test_run_select_rejects_mutation() -> None:
+    pool = _RecordingPool()
+    with pytest.raises(MutationRejected):
+        await safe_run_select(pool=pool, policy=ACS, sql="DELETE FROM acs.act_ru_task")
+
+
+@pytest.mark.asyncio
+async def test_run_select_cost_gate_refuses_over_budget() -> None:
+    def _responder(sql: str) -> list:
+        if sql.startswith("EXPLAIN"):
+            return [{"QUERY PLAN": [{"Plan": {"Total Cost": 99_999.0}}]}]
+        return [{"id_": "1"}]
+
+    pool = RecordingPool(responder=_responder)
+    with pytest.raises(CostGateViolation):
+        await safe_run_select(
+            pool=pool, policy=ACS, sql=_JOIN, cost_threshold=100.0
+        )
+
+
+@pytest.mark.asyncio
+async def test_run_select_cost_gate_passes_under_budget() -> None:
+    def _responder(sql: str) -> list:
+        if sql.startswith("EXPLAIN"):
+            return [{"QUERY PLAN": [{"Plan": {"Total Cost": 12.0}}]}]
+        return [{"id_": "1"}]
+
+    pool = RecordingPool(responder=_responder)
+    rows = await safe_run_select(pool=pool, policy=ACS, sql=_JOIN, cost_threshold=10_000.0)
+    assert rows == [{"id_": "1"}]
+
+
+# --------------------- gate regression: boolean operators + EXPLAIN json ----
+
+def test_gate_accepts_boolean_operators_in_where() -> None:
+    # Regression: AND/OR/NOT are exp.Func subclasses in some sqlglot versions;
+    # they must NOT be rejected by the function allowlist (else any
+    # multi-condition WHERE fails).
+    validate_select_sql(
+        "SELECT t.id_ FROM acs.act_ru_task t "
+        "WHERE t.suspension_state_ = 1 AND (t.assignee_ IS NULL OR t.owner_ IS NULL)",
+        table_policy=ACS,
+    )  # raises on failure
+
+
+@pytest.mark.asyncio
+async def test_run_select_handles_join_with_and_or() -> None:
+    pool = _RecordingPool(fetch_return=[{"id_": "1"}])
+    rows = await safe_run_select(
+        pool=pool,
+        policy=ACS,
+        sql=(
+            "SELECT t.id_, v.text_ FROM acs.act_ru_task t "
+            "JOIN acs.act_ru_variable v ON v.proc_inst_id_ = t.proc_inst_id_ "
+            "WHERE v.name_ = 'mintral_serviceCode' AND t.suspension_state_ = 1"
+        ),
+    )
+    assert rows == [{"id_": "1"}]
+
+
+@pytest.mark.asyncio
+async def test_explain_parses_json_string_payload() -> None:
+    # asyncpg returns the QUERY PLAN as a JSON string, not a parsed list.
+    pool = _RecordingPool(
+        fetch_return=[
+            {"QUERY PLAN": '[{"Plan": {"Total Cost": 42.0, "Node Type": "Seq Scan"}}]'}
+        ]
+    )
+    result = await safe_explain(
+        pool=pool, policy=ACS, query="SELECT * FROM acs.act_ru_task", cost_threshold=1e9
+    )
+    assert result["total_cost"] == pytest.approx(42.0)
+    assert result["node_type"] == "Seq Scan"

@@ -18,6 +18,7 @@ from miot_harness.datasource.safe_query import (
     safe_explain,
     safe_grep,
     safe_list_tables,
+    safe_run_select,
     safe_select,
 )
 from miot_harness.datasource.schema_introspect import introspect_foreign_keys
@@ -48,6 +49,16 @@ class _GrepInput(BaseModel):
     column: str
     pattern: str = Field(description="ILIKE pattern, e.g. %assignee%")
     limit: int = 100
+
+
+class _QueryInput(BaseModel):
+    sql: str = Field(
+        description=(
+            "A full read-only SQL SELECT (JOINs, CTEs, GROUP BY, aggregates "
+            "allowed) over the connection's allowed schemas. Schema-qualify "
+            "every table, e.g. acs.act_ru_task."
+        )
+    )
 
 
 class _ExplainInput(BaseModel):
@@ -164,6 +175,19 @@ def build_generic_tools(
         )
         return _RowsOutput(rows=rows, source=source_label)
 
+    async def call_query(
+        ctx: HarnessContext, parsed: _QueryInput, progress: Progress
+    ) -> _RowsOutput:
+        rows = await safe_run_select(
+            pool=pool,
+            policy=policy,
+            sql=parsed.sql,
+            max_rows=max_rows,
+            cost_threshold=explain_cost_threshold,
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        return _RowsOutput(rows=rows, source=source_label)
+
     async def call_explain(
         ctx: HarnessContext, parsed: _ExplainInput, progress: Progress
     ) -> _ExplainOutput:
@@ -224,6 +248,20 @@ def build_generic_tools(
             input_model=_SelectInput,
             output_model=_RowsOutput,
             call=call_select,
+            **common,
+        ),
+        HarnessTool(
+            name=f"{tool_prefix}query",
+            description=(
+                f"Run a FULL read-only SQL SELECT {scope} — JOINs, CTEs, GROUP BY, "
+                "aggregates. Prefer this for anything spanning more than one table "
+                "(e.g. joining a task to its process variables). sqlglot-gated: "
+                "SELECT-only, allowlisted tables/functions; result is LIMIT-capped, "
+                "runs BEGIN READ ONLY with a statement timeout + EXPLAIN cost gate."
+            ),
+            input_model=_QueryInput,
+            output_model=_RowsOutput,
+            call=call_query,
             **common,
         ),
         HarnessTool(

@@ -66,6 +66,11 @@ class DataSourceProfile:
     tenant_refusal_template: str
     freshness_warn_minutes: int
     freshness_refuse_minutes: int
+    # Whether this datasource has a snapshot/refresh freshness model (Nexo's
+    # `fn_dx_*` snapshot tables do; a live operational DB does not). When False,
+    # the freshness judge is a no-op — a live source with no `refreshed_at` is
+    # not "stale", so the snapshot-age warning is suppressed.
+    has_freshness_model: bool = True
 
 
 @dataclass(frozen=True)

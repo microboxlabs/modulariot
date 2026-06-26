@@ -36,6 +36,12 @@ def freshness_judge_node(
     progress: Progress,
     profile: DataSourceProfile,
 ) -> dict[str, Any]:
+    # Live datasources (no snapshot/refresh model) are never "stale": skip the
+    # judge entirely so a missing `refreshed_at` doesn't emit a misleading
+    # snapshot-age warning. (Nexo keeps the model; generic pg connections don't.)
+    if not profile.has_freshness_model:
+        return {"next_action": "analyze", "freshness": FRESHNESS_FRESH}
+
     # Effective thresholds: env override wins (including an explicit 0),
     # else the profile default. This is the single resolution point that
     # data_fetcher mirrors when it stamps is_stale.

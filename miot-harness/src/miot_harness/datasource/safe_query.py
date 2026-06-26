@@ -17,6 +17,7 @@ hardening, layered on top — not a prerequisite).
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from miot_harness.datasource.safe_sql import (
@@ -175,6 +176,33 @@ async def safe_grep(
     return [dict(row) for row in rows]
 
 
+def _plan_from_explain(rows: list[Any]) -> dict[str, Any]:
+    """Extract the top Plan node from EXPLAIN (FORMAT JSON) rows.
+
+    asyncpg returns json/jsonb columns as STRINGS (no codec), so the
+    ``QUERY PLAN`` value may be a JSON string rather than a parsed list —
+    decode it before indexing.
+    """
+    if not rows:
+        raise UnsupportedConstruct("EXPLAIN returned no rows")
+    try:
+        payload = rows[0]["QUERY PLAN"]
+    except (KeyError, TypeError, IndexError) as exc:
+        raise UnsupportedConstruct("EXPLAIN output missing QUERY PLAN") from exc
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise UnsupportedConstruct("EXPLAIN output not valid JSON") from exc
+    if not payload:
+        raise UnsupportedConstruct("EXPLAIN output missing QUERY PLAN")
+    first = payload[0]
+    if not isinstance(first, dict):
+        raise UnsupportedConstruct("EXPLAIN output has unexpected shape")
+    plan = first.get("Plan", {})
+    return plan if isinstance(plan, dict) else {}
+
+
 async def safe_explain(
     *,
     pool: Any,
@@ -192,16 +220,7 @@ async def safe_explain(
         f"EXPLAIN (FORMAT JSON) {safe_inner}",
         statement_timeout_ms=statement_timeout_ms,
     )
-    if not rows:
-        raise UnsupportedConstruct("EXPLAIN returned no rows")
-    row = rows[0]
-    try:
-        payload = row["QUERY PLAN"]
-    except (KeyError, TypeError, IndexError) as exc:
-        raise UnsupportedConstruct("EXPLAIN output missing QUERY PLAN") from exc
-    if not payload:
-        raise UnsupportedConstruct("EXPLAIN output missing QUERY PLAN")
-    plan = payload[0].get("Plan", {})
+    plan = _plan_from_explain(rows)
     total_cost = float(plan.get("Total Cost", 0.0))
     if total_cost > cost_threshold:
         raise CostGateViolation(
@@ -212,3 +231,46 @@ async def safe_explain(
         "node_type": plan.get("Node Type"),
         "plan": plan,
     }
+
+
+async def safe_run_select(
+    *,
+    pool: Any,
+    policy: TableAccessPolicy,
+    sql: str,
+    max_rows: int = HARD_LIMIT_CAP,
+    cost_threshold: float | None = None,
+    statement_timeout_ms: int | None = DEFAULT_STATEMENT_TIMEOUT_MS,
+) -> list[dict[str, Any]]:
+    """Run an arbitrary read-only SELECT (the broad Tier-B query surface).
+
+    Unlike ``safe_select`` (a single-table builder), this accepts full SQL —
+    JOINs, CTEs, GROUP BY, aggregates — validated by the SAME sqlglot gate
+    (SELECT-only, allowlisted tables/functions). The harness enforces a hard
+    result cap by wrapping the validated query, runs it in the read-only
+    envelope, and optionally refuses over-budget plans via an EXPLAIN cost gate.
+
+    Note: the cap is applied by an outer ``SELECT * FROM (<query>) LIMIT n``;
+    Postgres preserves an inner ORDER BY through a single subquery in practice.
+    """
+    ast = validate_select_sql(sql, table_policy=policy)
+    inner = render_safe(ast)
+    cap = max(1, min(int(max_rows), HARD_LIMIT_CAP))
+    wrapped = f"SELECT * FROM ({inner}) AS _miot_q LIMIT {cap}"
+
+    async with pool.acquire() as conn:
+        async with conn.transaction(readonly=True):
+            if statement_timeout_ms:
+                await conn.execute(
+                    f"SET LOCAL statement_timeout = {int(statement_timeout_ms)}"
+                )
+            if cost_threshold is not None:
+                plan_rows = await conn.fetch(f"EXPLAIN (FORMAT JSON) {wrapped}")
+                total_cost = float(_plan_from_explain(plan_rows).get("Total Cost", 0.0))
+                if total_cost > cost_threshold:
+                    raise CostGateViolation(
+                        f"plan total_cost={total_cost:.1f} exceeds threshold "
+                        f"{cost_threshold:.1f}"
+                    )
+            rows = await conn.fetch(wrapped)
+            return [dict(r) for r in rows]

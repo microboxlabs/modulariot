@@ -51,6 +51,7 @@ _GENERIC_DEFAULT_PROFILE = DataSourceProfile(
     ),
     freshness_warn_minutes=0,
     freshness_refuse_minutes=0,
+    has_freshness_model=False,
 )
 
 
@@ -161,6 +162,7 @@ class GenericPgProvider(DataSourceProvider):
             ),
             freshness_warn_minutes=0,
             freshness_refuse_minutes=0,
+            has_freshness_model=False,
         )
 
         application_name = (

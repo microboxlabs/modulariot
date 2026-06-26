@@ -133,6 +133,7 @@ async def test_boot_registers_generic_tools(monkeypatch: pytest.MonkeyPatch) -> 
         "acs_list_tables",
         "acs_describe",
         "acs_select",
+        "acs_query",
         "acs_grep",
         "acs_explain",
     ):

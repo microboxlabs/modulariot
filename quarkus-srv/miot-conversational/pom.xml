@@ -20,6 +20,10 @@
             <artifactId>miot-core</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-integrations</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>

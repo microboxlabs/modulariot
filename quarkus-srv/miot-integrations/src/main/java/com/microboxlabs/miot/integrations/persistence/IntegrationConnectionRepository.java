@@ -34,6 +34,20 @@ public class IntegrationConnectionRepository {
             WHERE tenant_code = $1 AND id = $2 AND active
             """;
 
+    // Best connection of a provider for a tenant: prefer ACTIVE, then a passing test,
+    // then the most recently tested. Lets a caller send through whichever connection the
+    // operator most recently validated.
+    private static final String SELECT_ACTIVE_BY_PROVIDER = """
+            SELECT id, tenant_code, name, provider_type, base_url, credential_profile_id,
+                   status, last_tested_at, last_test_result, metadata
+            FROM miot_integrations.integration_connections
+            WHERE tenant_code = $1 AND provider_type = $2 AND active
+            ORDER BY (status = 'ACTIVE') DESC,
+                     last_test_result DESC NULLS LAST,
+                     last_tested_at DESC NULLS LAST
+            LIMIT 1
+            """;
+
     private static final String INSERT = """
             INSERT INTO miot_integrations.integration_connections (
                 id, tenant_code, name, provider_type, base_url, credential_profile_id,
@@ -89,6 +103,14 @@ public class IntegrationConnectionRepository {
                 .execute(Tuple.of(tenantCode, UUID.fromString(connectionId)))
                 .await().indefinitely();
         return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
+    }
+
+    public IntegrationConnection findActiveByProvider(String tenantCode, ProviderType providerType) {
+        var rows = client().preparedQuery(SELECT_ACTIVE_BY_PROVIDER)
+                .execute(Tuple.of(tenantCode, providerType.name()))
+                .await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
     }
 
     public IntegrationConnection updateTestResult(

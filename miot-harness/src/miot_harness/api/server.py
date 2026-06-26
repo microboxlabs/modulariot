@@ -153,7 +153,22 @@ def _make_lifespan(
         primary = select_primary(conn_result.connections, settings)
         primary_kind = primary.backend if primary is not None else settings.datasource_kind
         app.state.primary_connection_name = primary.name if primary is not None else None
-        provider = resolve_datasource(primary_kind)
+        # Profile/router/tenant-lock wiring needs a provider profile. If the
+        # primary connection's backend has no registered provider yet (e.g. an
+        # acs connection pending the generic provider), fall back to the
+        # configured datasource_kind so the harness still wires + serves; the
+        # connection itself then boot-fails in the loop below (disabled, not a
+        # crash).
+        try:
+            provider = resolve_datasource(primary_kind)
+        except ValueError:
+            logger.error(
+                "Primary connection backend %r has no provider; using %r for "
+                "profile wiring",
+                primary_kind,
+                settings.datasource_kind,
+            )
+            provider = resolve_datasource(settings.datasource_kind)
         app.state.datasource_provider = provider
         harness.profile = provider.profile
         harness.router = IntentRouter(
@@ -177,13 +192,18 @@ def _make_lifespan(
         primary_result: BootResult | None = None
         for conn in conn_result.connections:
             is_primary = primary is not None and conn.name == primary.name
-            conn_provider = provider if is_primary else resolve_datasource(conn.backend)
+            # Resolve + boot inside the guard: an unknown/typo'd backend
+            # (resolve_datasource raises ValueError) or a provider boot error
+            # must disable just that connection, never abort the lifespan.
             try:
+                conn_provider = (
+                    provider if is_primary else resolve_datasource(conn.backend)
+                )
                 boot_res = await conn_provider.boot(harness.tools, settings, conn)
-            except Exception as exc:  # noqa: BLE001 — one bad connection mustn't abort boot
-                logger.critical("Connection %s: boot raised (%s)", conn.name, exc)
+            except Exception as exc:  # noqa: BLE001 — a bad connection mustn't abort boot
+                logger.critical("Connection %s: boot failed (%s)", conn.name, exc)
                 boot_res = BootResult(
-                    enabled=False, registered=(), reason=f"boot raised: {exc}"
+                    enabled=False, registered=(), reason=f"boot failed: {exc}"
                 )
             app.state.connections[conn.name] = {
                 "backend": conn.backend,
@@ -603,26 +623,20 @@ def create_app() -> FastAPI:
         # the lifespan logs critical and continues serving, but the pod
         # should not receive traffic until tools register and the snapshot
         # passes the refuse-gate.
-        required = settings.datasource_dsn is not None
-        enabled = bool(app.state.datasource_enabled)
-        # The primary connection keeps the legacy contract, driven by the
-        # back-compat `datasource_enabled` alias: ready iff not required, or
-        # required-and-enabled. (For a single connection this is the whole
-        # contract.)
-        primary_ready = (not required) or enabled
-        # Any *non-primary* connection that gates readiness (required AND has a
-        # DSN) must also be enabled. A DSN-less connection never blocks — e.g.
-        # the dev no-datasource mode.
+        # Readiness is connection-driven: a connection gates readiness when its
+        # stored `required` flag is set (already = required-in-file AND has a
+        # DSN). The pod is ready iff every gating connection booted. For a
+        # single nexo connection with a DSN this equals the legacy "DSN
+        # configured -> must be enabled" contract; with no DSN, or with an
+        # explicit `required: false`, nothing gates and the pod is ready.
         conns = getattr(app.state, "connections", {})
         primary_name = getattr(app.state, "primary_connection_name", None)
-        secondary_gating = [
-            c
-            for name, c in conns.items()
-            if c.get("required") and name != primary_name
-        ]
-        ready = primary_ready and all(
-            c.get("enabled") for c in secondary_gating
-        )
+        gating = [c for c in conns.values() if c.get("required")]
+        ready = all(c.get("enabled") for c in gating)
+        # The top-level `datasource` block reports the primary connection.
+        primary_conn = conns.get(primary_name, {}) if primary_name else {}
+        required = bool(primary_conn.get("required"))
+        enabled = bool(app.state.datasource_enabled)
         # Strict mode: an ERROR-level context/skills diagnostic (malformed
         # manifest, unsafe connector) fails readiness so a bad ConfigMap is
         # caught before the pod takes traffic. Default off = log-and-serve.

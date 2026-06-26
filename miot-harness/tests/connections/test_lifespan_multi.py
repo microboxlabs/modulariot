@@ -96,3 +96,58 @@ def test_lifespan_boots_two_connections(monkeypatch, tmp_path):
             assert set(body["connections"]) == {"nexo", "fake"}
 
     get_settings.cache_clear()
+
+
+# An experimental connection whose backend has no registered provider yet
+# (e.g. an `acs` connection pending the Phase 1 generic provider). It must NOT
+# crash the lifespan; marked required: false so it doesn't gate readiness.
+ACS_UNKNOWN_MD = """---
+name: acs
+backend: pg
+dsn_env: MIOT_HARNESS_ACS_DSN
+required: false
+---
+ACS (Alfresco) connection — awaiting the generic provider.
+"""
+
+
+def test_unknown_backend_disables_connection_without_crashing(monkeypatch, tmp_path):
+    get_settings.cache_clear()
+    conn_dir = tmp_path / "connections"
+    _write(conn_dir, "nexo", NEXO_MD)
+    _write(conn_dir, "acs", ACS_UNKNOWN_MD)
+
+    monkeypatch.setenv("MIOT_HARNESS_CONNECTIONS_DIR", str(conn_dir))
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@localhost:5432/d")
+    monkeypatch.setenv("MIOT_HARNESS_ACS_DSN", "postgresql://citus:x@localhost:6433/db")
+    monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+
+    fake_pool = MagicMock()
+    fake_pool.close = AsyncMock()
+    with (
+        patch(
+            "miot_harness.integrations.nexo.provider.create_nexo_pool",
+            new=AsyncMock(return_value=fake_pool),
+        ),
+        patch(
+            "miot_harness.integrations.nexo.provider.load_nexo_tools",
+            new=AsyncMock(
+                return_value=NexoBootResult(
+                    enabled=True, registered=["coordinador_centro_control"]
+                )
+            ),
+        ),
+    ):
+        app = create_app()
+        with TestClient(app) as client:  # lifespan must not raise
+            conns = app.state.connections
+            assert set(conns) == {"nexo", "acs"}
+            # acs has an unknown backend → disabled with a reason, but loaded.
+            assert conns["acs"]["enabled"] is False
+            assert "Unknown datasource kind" in (conns["acs"]["reason"] or "")
+            # required: false → acs does not gate readiness; nexo (enabled) does.
+            assert conns["acs"]["required"] is False
+            assert client.get("/health/ready").status_code == 200
+
+    get_settings.cache_clear()

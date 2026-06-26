@@ -1257,6 +1257,8 @@
             "baseUrl": "URL base",
             "token": "Token de acceso",
             "tokenPlaceholder": "Token de acceso del usuario de sistema",
+            "phoneNumberIdPlaceholder": "ej. 1234567890",
+            "wabaIdPlaceholder": "ej. 1234567890",
             "cancel": "Cancelar",
             "saving": "Guardando...",
             "createButton": "Crear"

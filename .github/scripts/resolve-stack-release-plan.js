@@ -97,24 +97,18 @@ for (const pr of prs) {
 }
 
 const pathStarts = (prefixes) => [...changedFiles].some((file) => prefixes.some((prefix) => file.startsWith(prefix)));
-const pathEquals = (paths) => [...changedFiles].some((file) => paths.includes(file));
 
-const appChanged =
-  pathStarts([
-    "turbo-repo/apps/app/",
-    "turbo-repo/packages/ui/",
-    "turbo-repo/packages/db/",
-    "turbo-repo/packages/typescript-config/",
-    "turbo-repo/packages/eslint-config/",
-    "turbo-repo/docker/",
-  ]) || pathEquals(["turbo-repo/package-lock.json"]);
-
+// Stack release notes are bundled into the Next.js app, so the app package,
+// tag, and image intentionally stay in sync with the stack version.
+const appChanged = true;
 const modulithChanged = pathStarts(["quarkus-srv/"]);
 
-const latestAppVersion = latestVersion("app@v*", "app@v");
 const latestModulithVersion = latestVersion("modulith@v*", "modulith@v");
-const appVersion = appChanged ? bumpPatch(latestAppVersion) : latestAppVersion;
+const latestHarnessVersion = latestVersion("harness@v*", "harness@v");
+const harnessChanged = pathStarts(["miot-harness/"]) || !latestHarnessVersion;
+const appVersion = stackVersion;
 const modulithVersion = modulithChanged ? bumpPatch(latestModulithVersion) : latestModulithVersion;
+const harnessVersion = harnessChanged ? bumpPatch(latestHarnessVersion) : latestHarnessVersion;
 
 if (!appVersion) {
   throw new Error("No app@v* tag exists and the app did not change in this milestone.");
@@ -122,7 +116,9 @@ if (!appVersion) {
 if (!modulithVersion) {
   throw new Error("No modulith@v* tag exists and the modulith did not change in this milestone.");
 }
-
+if (!harnessVersion) {
+  throw new Error("No harness@v* tag exists and the harness did not change in this milestone.");
+}
 const plan = {
   stack_version: stackVersion,
   stack_tag: `miot-stack@v${stackVersion}`,
@@ -140,6 +136,11 @@ const plan = {
       version: modulithVersion,
       tag: `modulith@v${modulithVersion}`,
     },
+    harness: {
+      changed: harnessChanged,
+      version: harnessVersion,
+      tag: `harness@v${harnessVersion}`,
+    },
   },
 };
 
@@ -154,6 +155,9 @@ const outputs = {
   modulith_changed: String(modulithChanged),
   modulith_version: modulithVersion,
   modulith_tag: plan.components.modulith.tag,
+  harness_changed: String(harnessChanged),
+  harness_version: harnessVersion,
+  harness_tag: plan.components.harness.tag,
   stack_tag: plan.stack_tag,
   stack_plan_file: planFile,
 };

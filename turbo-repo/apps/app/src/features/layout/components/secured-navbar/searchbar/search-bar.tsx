@@ -1,6 +1,5 @@
 import { TextInput } from "flowbite-react";
 import { HiSearch } from "react-icons/hi";
-import ParametrizedSearchBar from "./parametrized-searchbar";
 import { useDebouncedCallback } from "use-debounce";
 import { usePathname, useRouter } from "next/navigation";
 import { getNavegationParams } from "./navegation_params";
@@ -54,16 +53,17 @@ export default function SearchBar({
     300
   );
 
-  const final_path = pathName.split("/")[pathName.split("/").length - 1];
+  const segments = pathName.split("/").filter(Boolean);
+  const final_path = segments.at(-1);
+  const parent_path = segments.at(-2);
   const navegation_params = getNavegationParams(dict, searchParams.size);
 
-  // Dashboard pages always render the portal slot, regardless of navegation_params
-  const isDashboardPage = /\/home\/[^/]+/.test(pathName);
-  if (isDashboardPage) {
-    return <div id="navbar-search-slot" className="flex items-center gap-2" />;
+  // If the parent segment maps to null in navegation_params, inherit no-searchbar behavior
+  if (parent_path && parent_path in navegation_params && !navegation_params[parent_path as keyof typeof navegation_params]) {
+    return null;
   }
 
-  if (!(final_path in navegation_params)) {
+  if (!final_path || !(final_path in navegation_params)) {
     return (
       <div className="flex items-center gap-2">
         <TextInput
@@ -85,14 +85,5 @@ export default function SearchBar({
     return null;
   }
 
-  return (
-    <ParametrizedSearchBar
-      dict={dict}
-      messages={messages}
-      searchParams={searchParams}
-      navegation_params={
-        navegation_params[final_path as keyof typeof navegation_params]
-      }
-    />
-  );
+  return null;
 }

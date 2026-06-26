@@ -1,6 +1,7 @@
 import { Box, Text, useInput } from "ink";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { randomUUID } from "node:crypto";
+import type { SkillSummary } from "@microboxlabs/miot-harness-client";
 import type { ResolvedConfig } from "../config.js";
 import { packageVersion } from "../version.js";
 import { Editor } from "./input/Editor.js";
@@ -38,6 +39,9 @@ import {
   type ModalSpec,
   type SlashContext,
 } from "./slash/registry.js";
+import { Palette } from "./slash/Palette.js";
+import { matchSkillRun } from "./slash/skillCommand.js";
+import type { PaletteState } from "./input/Editor.js";
 import { helpCommand } from "./slash/handlers/help.js";
 import { clearCommand } from "./slash/handlers/clear.js";
 import { resetCommand } from "./slash/handlers/reset.js";
@@ -53,6 +57,7 @@ import { resumeCommand } from "./slash/handlers/resume.js";
 import { exportCommand } from "./slash/handlers/export.js";
 import { runsCommand } from "./slash/handlers/runs.js";
 import { approveCommand } from "./slash/handlers/approve.js";
+import { skillsCommand } from "./slash/handlers/skills.js";
 import { readSession, listSessions } from "./persistence/store.js";
 import { defaultMiotChatHome } from "./persistence/paths.js";
 import type { TranscriptItem } from "./session/types.js";
@@ -107,8 +112,38 @@ function AppInner(
   const { setTheme } = useTheme();
   const [extraItems, setExtraItems] = useState<TranscriptItem[]>([]);
   const [modal, setModalState] = useState<ModalState>({ spec: null });
+  const [palette, setPalette] = useState<PaletteState>({
+    active: false,
+    query: "",
+    index: 0,
+  });
+  const [skills, setSkills] = useState<SkillSummary[]>([]);
 
-  const registry = useMemo(() => {
+  // Pull the harness skills so each becomes a `/<id>` command in the
+  // palette — discoverable and callable like Claude Code. Degrades
+  // silently: if the client has no skills resource or the harness is
+  // unreachable, the palette just shows the built-in commands.
+  const tenantId = session.state.meta.tenantId;
+  useEffect(() => {
+    const list = props.client.skills?.list;
+    if (!list) return;
+    let cancelled = false;
+    void list({ tenant: tenantId })
+      .then((loaded) => {
+        if (!cancelled) setSkills(loaded);
+      })
+      .catch(() => {
+        /* harness down / no skills — palette omits them */
+      });
+    return (): void => {
+      cancelled = true;
+    };
+  }, [props.client, tenantId]);
+
+  // Built-in commands plus one `/<id>` entry per harness skill, so `/`
+  // lists everything with descriptions. `skillIds` is the set of names
+  // that route to a skill run (vs a built-in command handler).
+  const { registry, skillIds } = useMemo(() => {
     const reg = new SlashRegistry();
     reg
       .register(helpCommand)
@@ -125,9 +160,24 @@ function AppInner(
       .register(resumeCommand)
       .register(exportCommand)
       .register(runsCommand)
-      .register(approveCommand);
-    return reg;
-  }, []);
+      .register(approveCommand)
+      .register(skillsCommand);
+    const builtinNames = new Set(reg.all().map((c) => c.name));
+    const ids = new Set<string>();
+    for (const skill of skills) {
+      if (builtinNames.has(skill.id)) continue; // never shadow a built-in
+      reg.register({
+        name: skill.id,
+        summary: skill.description || skill.when_to_use || skill.name,
+        usage: `/${skill.id}`,
+        // Execution happens in handleSubmit (a skill run, not a command
+        // handler); this entry exists for palette display + tab-complete.
+        handle: () => ({}),
+      });
+      ids.add(skill.id);
+    }
+    return { registry: reg, skillIds: ids };
+  }, [skills]);
 
   const appendSystem = useCallback(
     (text: string): void => {
@@ -205,13 +255,23 @@ function AppInner(
 
   const handleSubmit = useCallback(
     (text: string): void => {
+      // `/<skill-id> [args]` runs a turn with that skill activated — the
+      // harness injects its SKILL.md body as guidance. Args become the
+      // message; with no args we send a gentle kickoff and let the skill
+      // drive (e.g. ask its own clarifying questions).
+      const skillRun = matchSkillRun(text, skillIds);
+      if (skillRun) {
+        appendSystem(`↳ skill: ${skillRun.skillId}`);
+        void session.submit(skillRun.message, { skillId: skillRun.skillId });
+        return;
+      }
       if (text.trim().startsWith("/")) {
         void dispatchSlash(text);
         return;
       }
       void session.submit(text);
     },
-    [dispatchSlash, session],
+    [appendSystem, dispatchSlash, session, skillIds],
   );
 
   const closeModal = useCallback(
@@ -306,8 +366,22 @@ function AppInner(
         />
       ) : null}
       <TipLine tipIndex={turnCount(session.state)} />
+      {editorActive && palette.active ? (
+        <Box paddingX={1}>
+          <Palette
+            registry={registry}
+            query={palette.query}
+            selectedIndex={palette.index}
+          />
+        </Box>
+      ) : null}
       <InputFrame label={`miot · ${meta.mode}`} labelWarn={agenticWarn}>
-        <Editor onSubmit={handleSubmit} isFocused={editorActive} />
+        <Editor
+          onSubmit={handleSubmit}
+          isFocused={editorActive}
+          registry={registry}
+          onPaletteState={setPalette}
+        />
       </InputFrame>
       <FooterLine
         turns={turnCount(session.state)}

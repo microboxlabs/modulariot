@@ -11,6 +11,7 @@ import { DataSourceTable } from "./data-source-table";
 import { DataSourceModal } from "./data-source-modal";
 import { DataSourceDeleteDialog } from "./data-source-delete-dialog";
 import type { DataSourceListItem, DataSourceFormData } from "../types";
+import { shouldTestStoredCredential } from "../test-decision";
 import { toast } from "sonner";
 
 interface DataSourcesPageContentProps {
@@ -31,6 +32,7 @@ export default function DataSourcesPageContent({
     update,
     remove,
     testConnection,
+    testInline,
     toggleActive,
     refetch,
   } = useDataSources(siteId);
@@ -109,14 +111,33 @@ export default function DataSourcesPageContent({
     }
   };
 
+  const showTestResult = (result: { success: boolean; error?: string }) => {
+    if (result.success) {
+      toast.success(tr("toast.testSuccess", dsDict));
+    } else {
+      toast.error(result.error || tr("toast.testFailed", dsDict));
+    }
+  };
+
+  // Table rows test the persisted provider by id.
   const handleTest = async (id: string) => {
     try {
-      const result = await testConnection(id);
-      if (result.success) {
-        toast.success(tr("toast.testSuccess", dsDict));
-      } else {
-        toast.error(result.error || tr("toast.testFailed", dsDict));
-      }
+      showTestResult(await testConnection(id));
+    } catch {
+      toast.error(tr("toast.testFailed", dsDict));
+    }
+  };
+
+  // Modal tests the data currently in the form (validate-before-save). When
+  // editing with the credential left blank, fall back to testing the stored
+  // config by id.
+  const handleTestForm = async (data: DataSourceFormData) => {
+    try {
+      const result =
+        shouldTestStoredCredential(!!editingSource, data) && editingSource
+          ? await testConnection(editingSource.id)
+          : await testInline(data);
+      showTestResult(result);
     } catch {
       toast.error(tr("toast.testFailed", dsDict));
     }
@@ -187,7 +208,7 @@ export default function DataSourcesPageContent({
           setEditingSource(null);
         }}
         onSubmit={handleSubmit}
-        onTest={handleTest}
+        onTest={handleTestForm}
         editingSource={editingSource}
         loading={actionLoading}
         dict={dsDict}

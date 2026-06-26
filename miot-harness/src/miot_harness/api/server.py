@@ -25,7 +25,10 @@ from miot_harness.api.identity import (
     verify_signed_identity,
 )
 from miot_harness.config import HarnessSettings, get_settings
+from miot_harness.connections.loader import load_connections, select_primary
 from miot_harness.context_skills.loader import boot_context_skills
+from miot_harness.context_skills.skill_models import SkillSummary
+from miot_harness.datasource.provider import BootResult, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
@@ -89,6 +92,10 @@ def _make_lifespan(
         app.state.datasource_registered = []
         app.state.datasource_snapshot_age_minutes = None
         app.state.datasource_provider = None
+        # Per-connection boot state (Phase 0: connection abstraction). For a
+        # single connection this mirrors the datasource_* fields above.
+        app.state.connections = {}
+        app.state.connections_diagnostics = []
         # Context & Skills subsystem state (populated by its boot below).
         app.state.context_skills_registered = []
         app.state.context_skills_diagnostics = []
@@ -156,25 +163,104 @@ def _make_lifespan(
             )
         app.state.tracer_provider = tracer_provider
 
-        provider = resolve_datasource(settings.datasource_kind)
+        # Load the connections to boot (file-backed; falls back to a single
+        # connection synthesized from the legacy MIOT_HARNESS_DATASOURCE_* env).
+        conn_result = load_connections(settings)
+        app.state.connections_diagnostics = list(conn_result.diagnostics)
+        for conn_diag in conn_result.diagnostics:
+            (
+                logger.error
+                if conn_diag.level == "error"
+                else logger.warning
+            )("Connections: %s (%s)", conn_diag.message, conn_diag.path)
+
+        # The primary connection's provider drives profile/router/tenant-lock
+        # wiring. Resolve the provider even when nothing booted so the keyword
+        # router and tenant gate stay wired (matches the prior behaviour where
+        # a disabled datasource still routes its keywords to the data path).
+        primary = select_primary(conn_result.connections, settings)
+        primary_kind = primary.backend if primary is not None else settings.datasource_kind
+        app.state.primary_connection_name = primary.name if primary is not None else None
+        # Profile/router/tenant-lock wiring needs a provider profile. If the
+        # primary connection's backend has no registered provider yet (e.g. an
+        # acs connection pending the generic provider), fall back to the
+        # configured datasource_kind so the harness still wires + serves; the
+        # connection itself then boot-fails in the loop below (disabled, not a
+        # crash).
+        try:
+            provider = resolve_datasource(primary_kind)
+        except ValueError:
+            logger.error(
+                "Primary connection backend %r has no provider; using %r for "
+                "profile wiring",
+                primary_kind,
+                settings.datasource_kind,
+            )
+            provider = resolve_datasource(settings.datasource_kind)
         app.state.datasource_provider = provider
         harness.profile = provider.profile
-        # The base keyword router ships with no vocabulary; the profile
-        # supplies it. Wired BEFORE boot so that a disabled datasource
-        # still routes its keywords to the data path (where the
-        # "integration disabled" answer lives) instead of DIRECT/OTHER.
         harness.router = IntentRouter(
             data_keywords=provider.profile.router_keywords
         )
-        # Tenant lock likewise resolves regardless of boot outcome so
-        # mode gating (mode_resolver) keeps refusing off-lock tenants
-        # even while the datasource is disabled.
+        primary_lock = (
+            primary.options.get("tenant_lock") if primary is not None else None
+        )
         resolved_lock = (
-            settings.datasource_tenant_lock or provider.profile.tenant_lock
+            primary_lock
+            or settings.datasource_tenant_lock
+            or provider.profile.tenant_lock
         )
         if resolved_lock is not None:
             harness.tenant_lock = resolved_lock
-        result = await provider.boot(harness.tools, settings)
+
+        # Boot every connection. The primary reuses the provider resolved above
+        # (so app.state.datasource_provider is the one that booted); others get
+        # their own provider instance. Provider.boot never raises per contract,
+        # but guard anyway so one bad connection can't abort the lifespan.
+        # Every provider instance we allocate must be closed at shutdown, not
+        # just the primary — each non-primary connection gets its own provider
+        # (and, for backends like Nexo, its own pool). Seed with the primary
+        # provider (always resolved above); append non-primary providers as they
+        # resolve so a failed `resolve_datasource` (which allocates nothing)
+        # never lands in the close list.
+        providers_to_close: list[DataSourceProvider] = [provider]
+        primary_result: BootResult | None = None
+        for conn in conn_result.connections:
+            is_primary = primary is not None and conn.name == primary.name
+            # Resolve + boot inside the guard: an unknown/typo'd backend
+            # (resolve_datasource raises ValueError) or a provider boot error
+            # must disable just that connection, never abort the lifespan.
+            try:
+                conn_provider = (
+                    provider if is_primary else resolve_datasource(conn.backend)
+                )
+                if not is_primary:
+                    providers_to_close.append(conn_provider)
+                boot_res = await conn_provider.boot(harness.tools, settings, conn)
+            except Exception as exc:  # noqa: BLE001 — a bad connection mustn't abort boot
+                logger.critical("Connection %s: boot failed (%s)", conn.name, exc)
+                boot_res = BootResult(
+                    enabled=False, registered=(), reason=f"boot failed: {exc}"
+                )
+            app.state.connections[conn.name] = {
+                "backend": conn.backend,
+                "enabled": boot_res.enabled,
+                "configured": conn.configured,
+                # gates_readiness: required AND has a DSN — a DSN-less connection
+                # never blocks readiness (preserves the dev no-datasource mode).
+                "required": conn.gates_readiness,
+                "registered": list(boot_res.registered),
+                "reason": boot_res.reason,
+                "snapshot_age_minutes": boot_res.snapshot_age_minutes,
+            }
+            if is_primary:
+                primary_result = boot_res
+
+        # Back-compat single-valued datasource_* state, sourced from the primary
+        # connection (or a disabled placeholder when there is no connection).
+        result = primary_result or BootResult(
+            enabled=False, registered=(), reason="no datasource connection configured"
+        )
         app.state.datasource_enabled = result.enabled
         app.state.datasource_registered = list(result.registered)
         app.state.datasource_snapshot_age_minutes = result.snapshot_age_minutes
@@ -361,9 +447,12 @@ def _make_lifespan(
         try:
             yield
         finally:
-            if provider is not None:
+            # Close every provider we booted (primary + each non-primary
+            # connection), reverse order. close() is idempotent, so the primary's
+            # earlier disabled-path close is a harmless no-op here.
+            for conn_provider in reversed(providers_to_close):
                 try:
-                    await provider.close()
+                    await conn_provider.close()
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("Datasource: provider close raised %s", exc)
             try:
@@ -574,9 +663,20 @@ def create_app() -> FastAPI:
         # the lifespan logs critical and continues serving, but the pod
         # should not receive traffic until tools register and the snapshot
         # passes the refuse-gate.
-        required = settings.datasource_dsn is not None
+        # Readiness is connection-driven: a connection gates readiness when its
+        # stored `required` flag is set (already = required-in-file AND has a
+        # DSN). The pod is ready iff every gating connection booted. For a
+        # single nexo connection with a DSN this equals the legacy "DSN
+        # configured -> must be enabled" contract; with no DSN, or with an
+        # explicit `required: false`, nothing gates and the pod is ready.
+        conns = getattr(app.state, "connections", {})
+        primary_name = getattr(app.state, "primary_connection_name", None)
+        gating = [c for c in conns.values() if c.get("required")]
+        ready = all(c.get("enabled") for c in gating)
+        # The top-level `datasource` block reports the primary connection.
+        primary_conn = conns.get(primary_name, {}) if primary_name else {}
+        required = bool(primary_conn.get("required"))
         enabled = bool(app.state.datasource_enabled)
-        ready = (not required) or enabled
         # Strict mode: an ERROR-level context/skills diagnostic (malformed
         # manifest, unsafe connector) fails readiness so a bad ConfigMap is
         # caught before the pod takes traffic. Default off = log-and-serve.
@@ -604,6 +704,9 @@ def create_app() -> FastAPI:
                 "snapshot_age_minutes": app.state.datasource_snapshot_age_minutes,
                 "freshness": getattr(app.state, "datasource_freshness", {}),
             },
+            # Additive (Phase 0): per-connection boot state. Non-breaking — the
+            # `datasource` block above stays the single-connection contract.
+            "connections": conns,
         }
 
     @app.post("/runs", response_model=HarnessRunRecord)
@@ -639,6 +742,26 @@ def create_app() -> FastAPI:
             ) from exc
         _enforce_tenant_owns_run(record, auth, run_id)
         return record
+
+    @app.get("/skills", response_model=list[SkillSummary])
+    async def get_skills(
+        tenant: str | None = Query(None),
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> list[SkillSummary]:
+        """List the skills available to the caller — the data behind a
+        `/skills` picker (chat) and `miot harness skills` (CLI).
+
+        Tenant precedence mirrors the runs endpoints: a verified header
+        tenant wins, else the `tenant` query param, else the configured
+        default. Returns ``[]`` when the Context/Skills subsystem failed to
+        boot (same degrade-don't-crash contract as the rest of the API).
+        """
+        harness: HarnessSupervisor = app.state.harness
+        bundle = harness.context_skills
+        if bundle is None:
+            return []
+        tenant_id = auth.get("tenant_id") or tenant or settings.default_tenant_id
+        return bundle.list_skills(tenant_id)
 
     @app.post("/runs:start", status_code=202)
     async def start_run(

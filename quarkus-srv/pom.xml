@@ -17,6 +17,7 @@
         <module>miot-core</module>
         <module>miot-resource-core</module>
         <module>miot-integrations</module>
+        <module>miot-conversational</module>
         <module>miot-fleet</module>
         <module>miot-driver</module>
         <module>miot-tracking</module>
@@ -65,6 +66,11 @@
             <dependency>
                 <groupId>com.microboxlabs.miot</groupId>
                 <artifactId>miot-integrations</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microboxlabs.miot</groupId>
+                <artifactId>miot-conversational</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

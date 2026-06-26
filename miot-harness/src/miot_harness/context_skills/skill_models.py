@@ -84,3 +84,19 @@ class LoadedSkill(BaseModel):
     # when no playbook_ref was given).
     playbook_body: str | None = None
     source_path: str = ""
+
+
+class SkillSummary(BaseModel):
+    """Compact, API-facing projection of a skill for listing / autocomplete.
+
+    Mirrors the meta-catalog skill index: `description` / `when_to_use` are
+    the trigger text a `/skills`-style picker shows. `source` distinguishes
+    an Agent-Skills `SKILL.md` directory skill from a YAML manifest.
+    """
+
+    id: str
+    name: str
+    description: str = ""
+    when_to_use: str = ""
+    scope: Literal["global", "tenant"] = "global"
+    source: Literal["skill_md", "manifest"] = "manifest"

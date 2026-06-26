@@ -19,8 +19,8 @@ import {
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
   SHIPPING_FINISHED_COORDINATOR_PROCESS_TASKS,
 } from "@/features/task-forms/services/form.service";
-import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { ViewSwitcher } from "@/features/common/components/view-switcher/view-switcher";
+import { SectionHeader } from "@/features/layout/components/section-header/section-header";
 import { useViewPreference } from "../hooks/use-view-preference";
 import { useCompactViewPreference } from "../hooks/use-compact-view-preference";
 import { TableView } from "./views/table-view";
@@ -173,19 +173,17 @@ export default function PageContent({
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
-      <div className="inline-block align-middle relative">
-        <div className="h-[60px] px-6 flex items-center justify-between sticky top-0 z-10 bg-white dark:bg-gray-900 dark:text-white w-full border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <ClientBreadcrumb
-              path={[
-                "breadcrumb.tasks",
-                showFinishedTasks
-                  ? "breadcrumb.finished"
-                  : "breadcrumb.shipping",
-              ]}
-              rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-              dict={dictionary.base}
-            />
+      <SectionHeader
+        path={[
+          "breadcrumb.tasks",
+          showFinishedTasks ? "breadcrumb.finished" : "breadcrumb.shipping",
+        ]}
+        rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
+        breadcrumbDict={dictionary.base}
+        filterDict={dictionary.general}
+        lang={lang}
+        rightContent={
+          <div className="flex items-center gap-1">
             {activeView === "kanban" && (
               <span className="inline-flex shrink-0 items-center rounded-full bg-amber-100 px-2.5 py-[3px] text-[11px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                 {tr("taskCounter.activeCount", dictionary.base, {
@@ -193,8 +191,6 @@ export default function PageContent({
                 })}
               </span>
             )}
-          </div>
-          <div className="flex items-center gap-1">
             <CompactKanbanViewSwitcher
               kanbanView={activeView === "kanban"}
               activeView={compactKanbanView}
@@ -207,8 +203,8 @@ export default function PageContent({
               dict={dictionary.base}
             />
           </div>
-        </div>
-      </div>
+        }
+      />
       <div
         className={`isolate h-screen w-full overflow-auto ${
           activeView === "kanban" ? "bg-gray-50 dark:bg-gray-900" : ""

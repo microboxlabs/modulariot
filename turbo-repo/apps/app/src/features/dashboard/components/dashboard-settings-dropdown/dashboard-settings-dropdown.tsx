@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   Button,
@@ -21,6 +21,7 @@ import {
   HiQuestionMarkCircle,
   HiPlus,
   HiTrash,
+  HiBars3,
 } from "react-icons/hi2";
 import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
@@ -460,6 +461,23 @@ function FilterManagerForm({
   const [localFilters, setLocalFilters] = useState<DashboardFilterParam[]>(filters);
   const [filterIds, setFilterIds] = useState(() => filters.map(() => crypto.randomUUID()));
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const dragSrcRef = useRef<number | null>(null);
+  const dragDstRef = useRef<number | null>(null);
+  const [dragSrcIndex, setDragSrcIndex] = useState<number | null>(null);
+  const [insertionIndex, setInsertionIndex] = useState<number | null>(null);
+
+  const displayItems = useMemo(() => {
+    const items = localFilters.map((filter, i) => ({ filter, id: filterIds[i] }));
+    if (dragSrcIndex === null || insertionIndex === null) return items;
+    const next = [...items];
+    const [moved] = next.splice(dragSrcIndex, 1);
+    let target = insertionIndex;
+    if (dragSrcIndex < insertionIndex) target = insertionIndex - 1;
+    next.splice(target, 0, moved);
+    return next;
+  }, [localFilters, filterIds, dragSrcIndex, insertionIndex]);
+
+  const dragSrcId = dragSrcIndex === null ? null : filterIds[dragSrcIndex];
   const [optionIds, setOptionIds] = useState<Record<string, string[]>>(() => {
     const result: Record<string, string[]> = {};
     filters.forEach((f, i) => {
@@ -504,6 +522,22 @@ function FilterManagerForm({
 
   const updateFilter = (index: number, patch: Partial<DashboardFilterParam>) => {
     setLocalFilters((prev) => prev.map((f, i) => (i === index ? { ...f, ...patch } : f)));
+  };
+
+  const reorderFilter = (from: number, to: number) => {
+    if (from === to) return;
+    setLocalFilters((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+    setFilterIds((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
   };
 
   const removeFilter = (index: number) => {
@@ -612,22 +646,69 @@ function FilterManagerForm({
           </p>
         )}
 
-        {localFilters.map((filter, index) => {
-          const id = filterIds[index];
+        {displayItems.map(({ filter, id }, index) => {
           const isOpen = expandedIds.has(id);
           const title = filter.label || t("newFilter");
 
           return (
             <div
               key={id}
-              className="rounded-lg border border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800 overflow-hidden"
+              draggable
+              className={`relative transition-opacity ${id === dragSrcId ? "opacity-40" : ""}`}
+              onDragStart={() => {
+                dragSrcRef.current = index;
+                dragDstRef.current = null;
+                setDragSrcIndex(index);
+              }}
+              onDragEnd={() => {
+                dragSrcRef.current = null;
+                dragDstRef.current = null;
+                setInsertionIndex(null);
+                setDragSrcIndex(null);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                const rect = e.currentTarget.getBoundingClientRect();
+                const newInsert = e.clientY < rect.top + rect.height / 2 ? index : index + 1;
+                if (newInsert !== insertionIndex) setInsertionIndex(newInsert);
+                dragDstRef.current = newInsert;
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const src = dragSrcRef.current;
+                const ins = dragDstRef.current;
+                if (src !== null && ins !== null) {
+                  let target = ins;
+                  if (src < ins) target = ins - 1;
+                  if (target !== src) reorderFilter(src, target);
+                }
+                dragSrcRef.current = null;
+                dragDstRef.current = null;
+                setInsertionIndex(null);
+                setDragSrcIndex(null);
+              }}
+            >
+            <li
+              className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden"
             >
               {/* Card header */}
               <div className="flex items-center gap-2">
+                {/* Drag handle */}
+                <button
+                  type="button"
+                  aria-label={t("reorderFilter")}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowUp" && index > 0) { e.preventDefault(); reorderFilter(index, index - 1); }
+                    if (e.key === "ArrowDown" && index < localFilters.length - 1) { e.preventDefault(); reorderFilter(index, index + 1); }
+                  }}
+                  className="cursor-grab pl-2 text-gray-300 dark:text-gray-600 active:cursor-grabbing"
+                >
+                  <HiBars3 className="h-4 w-4" />
+                </button>
                 <button
                   type="button"
                   onClick={() => toggleExpanded(id)}
-                  className="flex flex-1 items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                  className="flex flex-1 items-center gap-2 py-2.5 pr-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                 >
                   <HiChevronDown
                     className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
@@ -784,6 +865,7 @@ function FilterManagerForm({
                   )}
                 </div>
               )}
+            </li>
             </div>
           );
         })}

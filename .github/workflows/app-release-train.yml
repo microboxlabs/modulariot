@@ -23,6 +23,7 @@ env:
   IMAGE_OWNER: microboxlabs
   APP_IMAGE_NAME: miot-app
   MODULITH_IMAGE_NAME: miot-srv
+  HARNESS_IMAGE_NAME: miot-harness
   JAVA_VERSION: "21"
   RELEASE_NOTES_MODEL: auto
   RELEASE_NOTES_CONTEXT: long_context
@@ -41,6 +42,9 @@ jobs:
       modulith_changed: ${{ steps.plan.outputs.modulith_changed }}
       modulith_version: ${{ steps.plan.outputs.modulith_version }}
       modulith_tag: ${{ steps.plan.outputs.modulith_tag }}
+      harness_changed: ${{ steps.plan.outputs.harness_changed }}
+      harness_version: ${{ steps.plan.outputs.harness_version }}
+      harness_tag: ${{ steps.plan.outputs.harness_tag }}
       release_notes_version: ${{ steps.version.outputs.release_notes_version }}
       private_milestone: ${{ steps.version.outputs.private_milestone }}
       oss_milestone: ${{ steps.version.outputs.oss_milestone }}
@@ -75,6 +79,7 @@ jobs:
                 {
                   git tag --list 'app@v*' | sed 's/^app@v//'
                   git tag --list 'modulith@v*' | sed 's/^modulith@v//'
+                  git tag --list 'harness@v*' | sed 's/^harness@v//'
                 } | sort -V | tail -1
               )"
             fi
@@ -127,6 +132,26 @@ jobs:
             echo "oss_milestone=MIOT-$version"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Create release branch
+        id: branch
+        run: |
+          branch="release/miot-v${{ steps.version.outputs.release_version }}"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            git fetch origin "$branch"
+            git switch -C "$branch" "origin/$branch"
+          else
+            git switch -c "$branch"
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Restore release automation from workflow ref
+        run: |
+          git checkout "$GITHUB_SHA" -- \
+            .github/scripts/resolve-stack-release-plan.js \
+            .github/prompts/app-release-notes.prompt.yml \
+            turbo-repo/generative_ai/tools/sh/fetch-release-issues.sh \
+            turbo-repo/generative_ai/tools/sh/bump-app-version.sh
+
       - name: Collect release issues
         env:
           GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
@@ -145,13 +170,6 @@ jobs:
           OSS_MILESTONE: ${{ steps.version.outputs.oss_milestone }}
         run: node .github/scripts/resolve-stack-release-plan.js
 
-      - name: Create release branch
-        id: branch
-        run: |
-          branch="release/miot-v${{ steps.version.outputs.release_version }}"
-          git switch -c "$branch"
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
-
       - name: Bump app package version
         if: steps.plan.outputs.app_changed == 'true'
         run: bash turbo-repo/generative_ai/tools/sh/bump-app-version.sh "${{ steps.plan.outputs.app_version }}"
@@ -160,6 +178,23 @@ jobs:
         if: steps.plan.outputs.modulith_changed == 'true'
         run: ./mvnw versions:set -DnewVersion="${{ steps.plan.outputs.modulith_version }}" -DgenerateBackupPoms=false -DprocessAllModules=true
         working-directory: quarkus-srv
+
+      - name: Bump harness package version
+        if: steps.plan.outputs.harness_changed == 'true'
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+          const path = "miot-harness/pyproject.toml";
+          const version = "${{ steps.plan.outputs.harness_version }}";
+          const content = fs.readFileSync(path, "utf8");
+          const match = content.match(/^version = "([^"]+)"$/m);
+          if (!match) {
+            throw new Error(`Could not update project.version in ${path}`);
+          }
+          if (match[1] !== version) {
+            fs.writeFileSync(path, content.replace(/^version = ".*"$/m, `version = "${version}"`));
+          }
+          NODE
 
       - name: Resolve release date
         id: release_date
@@ -209,7 +244,9 @@ jobs:
       - name: Write release notes
         run: |
           release_file="releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx"
+          app_release_file="turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx"
           mkdir -p "$(dirname "$release_file")"
+          mkdir -p "$(dirname "$app_release_file")"
           node - "${{ steps.release_notes_ai.outputs['response-file'] }}" "$release_file" <<'NODE'
           const fs = require("fs");
           const [source, target] = process.argv.slice(2);
@@ -220,14 +257,19 @@ jobs:
           }
           fs.writeFileSync(target, `${content}\n`);
           NODE
+          cp "$release_file" "$app_release_file"
 
       - name: Commit release prep
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "${{ steps.plan.outputs.stack_plan_file }}" releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/package.json turbo-repo/package-lock.json quarkus-srv
-          git commit -m "chore(release): prepare MIOT stack v${{ steps.version.outputs.release_version }}"
-          git push origin "${{ steps.branch.outputs.branch }}"
+          git add "${{ steps.plan.outputs.stack_plan_file }}" releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/package.json turbo-repo/package-lock.json quarkus-srv miot-harness/pyproject.toml
+          if git diff --cached --quiet; then
+            echo "No release prep changes to commit."
+          else
+            git commit -m "chore(release): prepare MIOT stack v${{ steps.version.outputs.release_version }}"
+            git push origin "${{ steps.branch.outputs.branch }}"
+          fi
 
       - name: Open release PR
         id: pr
@@ -240,17 +282,26 @@ jobs:
           Components:
           - App: ${{ steps.plan.outputs.app_tag }} (changed: ${{ steps.plan.outputs.app_changed }})
           - Modulith: ${{ steps.plan.outputs.modulith_tag }} (changed: ${{ steps.plan.outputs.modulith_changed }})
+          - Harness: ${{ steps.plan.outputs.harness_tag }} (changed: ${{ steps.plan.outputs.harness_changed }})
 
           Milestones: ${{ steps.version.outputs.private_milestone }}, ${{ steps.version.outputs.oss_milestone }}.
 
           Approve and merge this PR, then approve the protected release job to tag changed components, resolve component images, and deploy the stack manifest.
           EOF
 
-          url="$(gh pr create \
+          url="$(gh pr list \
             --base trunk \
             --head "${{ steps.branch.outputs.branch }}" \
-            --title "chore(release): prepare MIOT stack v${{ steps.version.outputs.release_version }}" \
-            --body-file release-pr-body.md)"
+            --state open \
+            --json url \
+            --jq '.[0].url // ""')"
+          if [[ -z "$url" ]]; then
+            url="$(gh pr create \
+              --base trunk \
+              --head "${{ steps.branch.outputs.branch }}" \
+              --title "chore(release): prepare MIOT stack v${{ steps.version.outputs.release_version }}" \
+              --body-file release-pr-body.md)"
+          fi
           number="${url##*/}"
           echo "number=$number" >> "$GITHUB_OUTPUT"
           echo "url=$url" >> "$GITHUB_OUTPUT"
@@ -320,6 +371,7 @@ jobs:
       - name: Verify release prep landed on trunk
         run: |
           release_file="releases/notes/v${{ needs.prepare.outputs.release_notes_version }}.mdx"
+          app_release_file="turbo-repo/apps/app/src/releases/v${{ needs.prepare.outputs.release_notes_version }}.mdx"
           plan_file="${{ needs.prepare.outputs.stack_plan_file }}"
 
           if [[ "${{ needs.prepare.outputs.app_changed }}" == "true" ]]; then
@@ -346,8 +398,23 @@ jobs:
             fi
           fi
 
+          if [[ "${{ needs.prepare.outputs.harness_changed }}" == "true" ]]; then
+            harness_version="$(node -p "require('fs').readFileSync('miot-harness/pyproject.toml', 'utf8').match(/^version = \\\"([^\\\"]+)\\\"$/m)?.[1] || process.exit(1)")"
+            if [[ "$harness_version" != "${{ needs.prepare.outputs.harness_version }}" ]]; then
+              echo "trunk harness version is $harness_version, expected ${{ needs.prepare.outputs.harness_version }}." >&2
+              echo "Merge the release PR before approving/tagging." >&2
+              exit 1
+            fi
+          fi
+
           if [[ ! -f "$release_file" ]]; then
             echo "Missing release notes file on trunk: $release_file" >&2
+            echo "Merge the release PR before approving/tagging." >&2
+            exit 1
+          fi
+
+          if [[ ! -f "$app_release_file" ]]; then
+            echo "Missing app release notes file on trunk: $app_release_file" >&2
             echo "Merge the release PR before approving/tagging." >&2
             exit 1
           fi
@@ -375,6 +442,11 @@ jobs:
             tags+=("${{ needs.prepare.outputs.modulith_tag }}")
           fi
 
+          if [[ "${{ needs.prepare.outputs.harness_changed }}" == "true" ]]; then
+            git tag -a "${{ needs.prepare.outputs.harness_tag }}" -m "${{ needs.prepare.outputs.harness_tag }}"
+            tags+=("${{ needs.prepare.outputs.harness_tag }}")
+          fi
+
           git push origin "${tags[@]}"
 
       - name: Create GitHub releases
@@ -393,6 +465,11 @@ jobs:
           if [[ "${{ needs.prepare.outputs.modulith_changed }}" == "true" ]]; then
             gh release create "${{ needs.prepare.outputs.modulith_tag }}" \
               --title "${{ needs.prepare.outputs.modulith_tag }}" \
+              --generate-notes
+          fi
+          if [[ "${{ needs.prepare.outputs.harness_changed }}" == "true" ]]; then
+            gh release create "${{ needs.prepare.outputs.harness_tag }}" \
+              --title "${{ needs.prepare.outputs.harness_tag }}" \
               --generate-notes
           fi
 
@@ -530,10 +607,61 @@ jobs:
           digest="$(docker buildx imagetools inspect "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:modulith-v${{ needs.prepare.outputs.modulith_version }}" | awk '/^Digest:/ { print $2; exit }')"
           echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}@${digest}" >> "$GITHUB_OUTPUT"
 
+  build-harness:
+    name: Resolve harness image
+    runs-on: ubuntu-latest
+    needs: [prepare, tag]
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wait for release harness image
+        if: needs.prepare.outputs.harness_changed == 'true'
+        env:
+          SOURCE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:sha-${{ needs.tag.outputs.short_sha }}
+        run: |
+          for attempt in {1..60}; do
+            if docker buildx imagetools inspect "$SOURCE_IMAGE" >/dev/null; then
+              echo "Promoting release harness image $SOURCE_IMAGE."
+              exit 0
+            fi
+
+            echo "Waiting for Harness CI to publish release image... ($attempt/60)"
+            sleep 60
+          done
+
+          echo "::error::Timed out waiting for Harness CI to publish release image."
+          exit 1
+
+      - name: Promote image tags
+        if: needs.prepare.outputs.harness_changed == 'true'
+        env:
+          SOURCE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:sha-${{ needs.tag.outputs.short_sha }}
+          RELEASE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:${{ needs.prepare.outputs.harness_version }}
+          COMPONENT_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:harness-v${{ needs.prepare.outputs.harness_version }}
+        run: |
+          docker buildx imagetools create \
+            --tag "$RELEASE_IMAGE" \
+            --tag "$COMPONENT_IMAGE" \
+            "$SOURCE_IMAGE"
+
+      - name: Export image ref
+        id: image
+        run: |
+          digest="$(docker buildx imagetools inspect "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:harness-v${{ needs.prepare.outputs.harness_version }}" | awk '/^Digest:/ { print $2; exit }')"
+          echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}@${digest}" >> "$GITHUB_OUTPUT"
+
   deploy:
     name: Dispatch configured environment deploys
     runs-on: ubuntu-latest
-    needs: [prepare, tag, build-app, build-modulith]
+    needs: [prepare, tag, build-app, build-modulith, build-harness]
     environment:
       name: app-deploy
     steps:
@@ -555,6 +683,12 @@ jobs:
           MODULITH_IMAGE_REF: ${{ needs.build-modulith.outputs.image }}
           MODULITH_CHANGED: ${{ needs.prepare.outputs.modulith_changed }}
           MODULITH_VERSION: ${{ needs.prepare.outputs.modulith_version }}
+          HARNESS_TAG: ${{ needs.prepare.outputs.harness_tag }}
+          HARNESS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}
+          HARNESS_IMAGE_TAG: harness-v${{ needs.prepare.outputs.harness_version }}
+          HARNESS_IMAGE_REF: ${{ needs.build-harness.outputs.image }}
+          HARNESS_CHANGED: ${{ needs.prepare.outputs.harness_changed }}
+          HARNESS_VERSION: ${{ needs.prepare.outputs.harness_version }}
         run: |
           DEPLOY_DISPATCH_REPO="${DEPLOY_DISPATCH_REPO:-microboxlabs/miot-deployments}"
 
@@ -578,18 +712,34 @@ jobs:
             --arg modulith_image_repository "$MODULITH_IMAGE_REPOSITORY" \
             --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
             --arg modulith_image_ref "$MODULITH_IMAGE_REF" \
+            --arg harness_tag "$HARNESS_TAG" \
+            --arg harness_image_repository "$HARNESS_IMAGE_REPOSITORY" \
+            --arg harness_image_tag "$HARNESS_IMAGE_TAG" \
+            --arg harness_image_ref "$HARNESS_IMAGE_REF" \
             '{
               event_type: "miot-stack-release",
               client_payload: {
                 release_version: $release_version,
-                app_tag: $app_tag,
-                modulith_tag: $modulith_tag,
-                app_image_repository: $app_image_repository,
-                app_image_tag: $app_image_tag,
-                app_image_ref: $app_image_ref,
-                modulith_image_repository: $modulith_image_repository,
-                modulith_image_tag: $modulith_image_tag,
-                modulith_image_ref: $modulith_image_ref
+                components: {
+                  app: {
+                    tag: $app_tag,
+                    image_repository: $app_image_repository,
+                    image_tag: $app_image_tag,
+                    image_ref: $app_image_ref
+                  },
+                  modulith: {
+                    tag: $modulith_tag,
+                    image_repository: $modulith_image_repository,
+                    image_tag: $modulith_image_tag,
+                    image_ref: $modulith_image_ref
+                  },
+                  harness: {
+                    tag: $harness_tag,
+                    image_repository: $harness_image_repository,
+                    image_tag: $harness_image_tag,
+                    image_ref: $harness_image_ref
+                  }
+                }
               }
             }' > stack-dispatch-payload.json
 
@@ -608,6 +758,12 @@ jobs:
             --arg modulith_image_repository "$MODULITH_IMAGE_REPOSITORY" \
             --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
             --arg modulith_image_ref "$MODULITH_IMAGE_REF" \
+            --arg harness_tag "$HARNESS_TAG" \
+            --arg harness_changed "$HARNESS_CHANGED" \
+            --arg harness_version "$HARNESS_VERSION" \
+            --arg harness_image_repository "$HARNESS_IMAGE_REPOSITORY" \
+            --arg harness_image_tag "$HARNESS_IMAGE_TAG" \
+            --arg harness_image_ref "$HARNESS_IMAGE_REF" \
             '{
               release_version: $release_version,
               stack_version: $release_version,
@@ -615,12 +771,16 @@ jobs:
               manifest_version: 1,
               app_tag: $app_tag,
               modulith_tag: $modulith_tag,
+              harness_tag: $harness_tag,
               app_image_repository: $app_image_repository,
               app_image_tag: $app_image_tag,
               app_image_ref: $app_image_ref,
               modulith_image_repository: $modulith_image_repository,
               modulith_image_tag: $modulith_image_tag,
               modulith_image_ref: $modulith_image_ref,
+              harness_image_repository: $harness_image_repository,
+              harness_image_tag: $harness_image_tag,
+              harness_image_ref: $harness_image_ref,
               components: {
                 app: {
                   changed: ($app_changed == "true"),
@@ -637,6 +797,14 @@ jobs:
                   image_repository: $modulith_image_repository,
                   image_tag: $modulith_image_tag,
                   image_ref: $modulith_image_ref
+                },
+                harness: {
+                  changed: ($harness_changed == "true"),
+                  version: $harness_version,
+                  tag: $harness_tag,
+                  image_repository: $harness_image_repository,
+                  image_tag: $harness_image_tag,
+                  image_ref: $harness_image_ref
                 }
               }
             }' > stack-manifest.json

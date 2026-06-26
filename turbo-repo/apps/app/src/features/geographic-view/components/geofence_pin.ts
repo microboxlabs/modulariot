@@ -1,7 +1,7 @@
 import { CompositeLayer, IconLayer, Layer } from "deck.gl";
 import pin_atlas from "@assets/icons/map/pin-atlas.png";
 
-const icon_definition = {
+export const icon_definition = {
   base_pin: {
     x: 0,
     y: 0,

@@ -53,7 +53,7 @@ export default async function SecuredLayout({
                   ?.sidebar as I18nRecord
               }
             />
-            <LayoutContent>{children}</LayoutContent>
+            <LayoutContent dict={dictionary as I18nRecord}>{children}</LayoutContent>
           </div>
           <FooterSecuredLayout messages={dict} />
         </KioskShell>

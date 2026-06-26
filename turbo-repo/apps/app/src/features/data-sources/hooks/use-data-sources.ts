@@ -98,6 +98,23 @@ export function useDataSources(siteId: string | undefined) {
     }
   }
 
+  async function testInline(input: DataSourceFormData) {
+    requireSiteId();
+    setActionLoading(true);
+    try {
+      return await fetcher<{ success: boolean; error?: string }>(
+        `/app/api/data-sources/test?siteId=${siteId}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        }
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   async function toggleActive(id: string, isActive: boolean) {
     requireSiteId();
     setActionLoading(true);
@@ -125,6 +142,7 @@ export function useDataSources(siteId: string | undefined) {
     update,
     remove,
     testConnection,
+    testInline,
     toggleActive,
     refetch: mutate,
   };

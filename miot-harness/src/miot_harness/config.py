@@ -97,6 +97,22 @@ class HarnessSettings(BaseSettings):
     # Source-kind seam for the future API/DB-backed source (Phase 2).
     context_source_kind: str = "file"
     skills_source_kind: str = "file"
+    # Connections subsystem (datasource connections authored as content,
+    # like skills/context). The packaged default dir ships NO connection
+    # definitions — no client/tenant config is baked into the image. Operators
+    # supply connections via a K8s volume (MIOT_HARNESS_CONNECTIONS_DIR). When
+    # the dir has no connection files (the default, or an empty operator dir),
+    # the loader falls back to synthesizing one connection from the legacy
+    # MIOT_HARNESS_DATASOURCE_* env, so existing deployments keep working.
+    # See connections/loader.py and connections/defaults/README.md.
+    connections_dir: Path = Path(__file__).parent / "connections" / "defaults"
+    connections_source_kind: str = "file"
+    # Master switch for the Tier-B generic safe-query surface (Phase 1). When
+    # False (default), `backend: pg` connections load but register NO query
+    # tools — the generic SELECT capability ships inert. A connection must ALSO
+    # declare `capabilities.generic_query: true` to light up. Off everywhere
+    # today; only the dev/local `acs` connection opts in.
+    generic_query_enabled: bool = False
     # Hard cap on connector tools registered from skill files — bounds the
     # blast radius of a misconfigured/oversized ConfigMap.
     max_connector_tools: int = Field(default=50, ge=0)

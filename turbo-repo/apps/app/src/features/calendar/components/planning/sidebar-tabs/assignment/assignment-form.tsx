@@ -28,6 +28,16 @@ import {
   TrailerSearchDropdown,
   type TrailerOption,
 } from "./trailer-search-dropdown";
+import { IconLayer } from "deck.gl";
+import type { Layer } from "@deck.gl/core";
+import pin_atlas from "@assets/icons/map/pin-atlas.png";
+import { icon_definition } from "@/features/geographic-view/components/geofence_pin";
+import { useGeofenceCoords } from "@/features/calendar/services/geofence-coords.service";
+import { haversineKm } from "@/features/calendar/utils/distance";
+import {
+  useLiveETA,
+  formatDuration,
+} from "@/features/common/providers/client-api.provider";
 
 export interface DriverOption {
   id: string;
@@ -57,65 +67,170 @@ const TRAILER_TIPO_FALLBACK = "REM" as const;
 
 interface TruckMapDisplayProps {
   readonly truck: TruckOption;
+  /** Origin geofence name (service `origen`) — places the origin flag. */
+  readonly originName?: string;
+  /** Destination geofence name (service `destino`) — places the end flag. */
+  readonly destinationName?: string;
+  readonly dict: I18nRecord;
 }
 
-function TruckMapDisplay({ truck }: TruckMapDisplayProps) {
+function TruckMapDisplay({
+  truck,
+  originName,
+  destinationName,
+  dict,
+}: TruckMapDisplayProps) {
   const mapRef = useRef<MapRef | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
 
-  // Create pin layer for truck location
+  // Resolve origin/destination geofence names to centroids (for the flags +
+  // distance) and the origin→destination route ETA.
+  const { originCoord, destinationCoord } = useGeofenceCoords(
+    originName,
+    destinationName
+  );
+  const { eta } = useLiveETA(
+    Boolean(originName && destinationName),
+    originName,
+    destinationName
+  );
+
+  const truckLng = truck.longitude;
+  const truckLat = truck.latitude;
+
+  // Truck pin + origin (start) / destination (finish) flags, reusing the trip
+  // map's pin atlas.
   const layers = useMemo(() => {
-    if (truck.latitude == null || truck.longitude == null) return [];
+    const result: Layer[] = [];
 
-    return [
-      new PinLayer({
-        id: "truck-pin-layer",
-        data: [
-          {
-            assetid: truck.id,
-            latitude: truck.latitude,
-            longitude: truck.longitude,
-            heading: truck.heading,
-            speed: 0,
-            location: truck.plate,
-            timestamp: new Date().toISOString(),
-          },
-        ],
-      }),
-    ];
-  }, [truck]);
-
-  // Center map on truck location when map is loaded or truck changes
-  useEffect(() => {
-    if (
-      isMapLoaded &&
-      mapRef.current &&
-      truck.latitude != null &&
-      truck.longitude != null
-    ) {
-      mapRef.current.flyTo({
-        center: [truck.longitude, truck.latitude],
-        zoom: 14,
-        duration: 500,
+    const flagData: Array<{ position: [number, number]; icon: string }> = [];
+    if (originCoord) {
+      flagData.push({
+        position: [originCoord.longitude, originCoord.latitude],
+        icon: "start_pin",
       });
     }
-  }, [truck, isMapLoaded]);
+    if (destinationCoord) {
+      flagData.push({
+        position: [destinationCoord.longitude, destinationCoord.latitude],
+        icon: "finish_pin",
+      });
+    }
+    if (flagData.length > 0) {
+      result.push(
+        new IconLayer({
+          id: "assignment-geofence-flags",
+          data: flagData,
+          getIcon: (d: { icon: string }) => d.icon,
+          getPosition: (d: { position: [number, number] }) => d.position,
+          iconAtlas: pin_atlas.src,
+          iconMapping: icon_definition,
+          getSize: () => 35,
+          sizeScale: 1,
+          parameters: { depthTest: false },
+        })
+      );
+    }
 
-  // Handle map load to trigger initial centering
-  const handleZoomChange = useCallback(() => {
-    // First zoom change means map is loaded
-    setIsMapLoaded(true);
-  }, []);
+    if (truckLat != null && truckLng != null) {
+      result.push(
+        new PinLayer({
+          id: "truck-pin-layer",
+          data: [
+            {
+              assetid: truck.id,
+              latitude: truckLat,
+              longitude: truckLng,
+              heading: truck.heading,
+              speed: 0,
+              location: truck.plate,
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        })
+      );
+    }
+
+    return result;
+  }, [truck, truckLat, truckLng, originCoord, destinationCoord]);
+
+  // Fit the viewport to every point we have (truck + origin + destination).
+  useEffect(() => {
+    if (!isMapLoaded || !mapRef.current) return;
+    const pts: [number, number][] = [];
+    if (truckLat != null && truckLng != null) pts.push([truckLng, truckLat]);
+    if (originCoord) pts.push([originCoord.longitude, originCoord.latitude]);
+    if (destinationCoord) {
+      pts.push([destinationCoord.longitude, destinationCoord.latitude]);
+    }
+    if (pts.length === 0) return;
+    if (pts.length === 1) {
+      mapRef.current.flyTo({ center: pts[0], zoom: 13, duration: 500 });
+      return;
+    }
+    let [minLng, minLat] = pts[0];
+    let [maxLng, maxLat] = pts[0];
+    for (const [lng, lat] of pts) {
+      minLng = Math.min(minLng, lng);
+      maxLng = Math.max(maxLng, lng);
+      minLat = Math.min(minLat, lat);
+      maxLat = Math.max(maxLat, lat);
+    }
+    mapRef.current.fitBounds(
+      [
+        [minLng, minLat],
+        [maxLng, maxLat],
+      ],
+      { padding: 48, duration: 500, maxZoom: 14 }
+    );
+  }, [isMapLoaded, truckLat, truckLng, originCoord, destinationCoord]);
+
+  const handleZoomChange = useCallback(() => setIsMapLoaded(true), []);
+
+  const distanceToOriginKm =
+    truckLat != null && truckLng != null && originCoord
+      ? haversineKm(
+          [truckLng, truckLat],
+          [originCoord.longitude, originCoord.latitude]
+        )
+      : null;
 
   return (
     <div className="mt-2 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div className="h-48 w-full">
+      <div className="relative h-48 w-full">
         <MapVisualization
           mapStyle="satellite"
           layers={layers}
           mapRef={mapRef}
           onZoomChange={handleZoomChange}
         />
+        {(distanceToOriginKm != null || eta != null) && (
+          <div className="pointer-events-none absolute left-1/2 top-2 z-[600] flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs shadow dark:border-gray-700 dark:bg-gray-800/90">
+            {distanceToOriginKm != null && (
+              <span className="flex items-center gap-1">
+                <span className="font-semibold">
+                  {tr(
+                    "pages.planning.sidebar.assignment.distanceToOrigin",
+                    dict
+                  )}
+                  :
+                </span>
+                <span>{distanceToOriginKm.toFixed(1)} km</span>
+              </span>
+            )}
+            {distanceToOriginKm != null && eta != null && (
+              <span className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
+            )}
+            {eta != null && (
+              <span className="flex items-center gap-1">
+                <span className="font-semibold">
+                  {tr("pages.planning.sidebar.assignment.etaTrip", dict)}:
+                </span>
+                <span>{formatDuration(eta)}</span>
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -147,6 +262,10 @@ interface AssignmentFormProps {
   readonly mintralClientRut?: string;
   /** Delegation/origin code — drives the `p_delegacion` filter. */
   readonly mintralDelegacionOrigen?: string;
+  /** Origin geofence name (service `origen`) — places the origin flag. */
+  readonly originGeofenceName?: string;
+  /** Destination geofence name (service `destino`) — places the end flag. */
+  readonly destinationGeofenceName?: string;
 }
 
 /**
@@ -296,6 +415,8 @@ export function AssignmentForm({
   dict,
   mintralClientRut,
   mintralDelegacionOrigen,
+  originGeofenceName,
+  destinationGeofenceName,
 }: AssignmentFormProps) {
   const [carrierQuery, setCarrierQuery] = useState("");
   const [driverQuery, setDriverQuery] = useState("");
@@ -534,7 +655,14 @@ export function AssignmentForm({
             </label>
           }
         />
-        {selectedCamion && <TruckMapDisplay truck={selectedCamion} />}
+        {selectedCamion && (
+          <TruckMapDisplay
+            truck={selectedCamion}
+            originName={originGeofenceName}
+            destinationName={destinationGeofenceName}
+            dict={dict}
+          />
+        )}
       </div>
 
       {/* Remolque Dropdown (conditional) */}

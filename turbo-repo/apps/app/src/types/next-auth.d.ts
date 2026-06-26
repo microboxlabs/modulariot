@@ -20,6 +20,11 @@ declare module "next-auth" {
     name: string;
     groups: string[];
     ticket?: string;
+    /** Auth0 id_token from the password-realm grant (credentials via Auth0). */
+    idToken?: string;
+    refreshToken?: string;
+    /** Epoch seconds when idToken expires. */
+    expiresAt?: number;
   }
 }
 

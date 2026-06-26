@@ -73,6 +73,44 @@ async def test_boot_registers_composable_primitives(
 
 
 @pytest.mark.asyncio
+async def test_boot_empty_tenant_lock_option_returns_disabled() -> None:
+    """An explicit empty `tenant_lock` is a misconfiguration: it must surface
+    as a disabled boot, not silently fall back to the profile lock."""
+    from miot_harness.connections.models import Connection
+
+    provider = NexoProvider()
+    conn = Connection(
+        name="nexo",
+        backend="nexo",
+        dsn="postgresql://u:p@h:5/db",
+        options={"tenant_lock": ""},
+    )
+    result = await provider.boot(ToolRegistry(), HarnessSettings(), conn)
+    assert result.enabled is False
+    assert "tenant_lock" in (result.reason or "")
+    await provider.close()
+
+
+@pytest.mark.asyncio
+async def test_boot_invalid_freshness_option_returns_disabled() -> None:
+    """A non-numeric freshness option must degrade to disabled (boot must not
+    raise) rather than letting int() escape the boot contract."""
+    from miot_harness.connections.models import Connection
+
+    provider = NexoProvider()
+    conn = Connection(
+        name="nexo",
+        backend="nexo",
+        dsn="postgresql://u:p@h:5/db",
+        options={"tenant_lock": "mintral", "freshness_warn_minutes": "abc"},
+    )
+    result = await provider.boot(ToolRegistry(), HarnessSettings(), conn)
+    assert result.enabled is False
+    assert "freshness" in (result.reason or "")
+    await provider.close()
+
+
+@pytest.mark.asyncio
 async def test_boot_pool_failure_returns_disabled_and_no_leak(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

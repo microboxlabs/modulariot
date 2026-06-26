@@ -1,0 +1,38 @@
+# 🔔 Release Notes v1.31.17 — ModularIoT
+
+### Fecha: 18/06/2026
+
+**Objetivo**: Mejorar la visibilidad operativa en mapas de viaje/asignación y consolidar la autenticación para reducir fricción entre flujos de acceso. Esta versión combina mejoras funcionales de monitoreo con una integración de identidad más consistente para despliegues multi-entorno.
+
+## 🚀 Evolutivos
+
+- **📍 Señalización de origen/destino y contexto operativo en mapa de asignación**
+  - **Key point**: En el paso `Asignar viaje` se incorporan bandera de origen, bandera de destino, distancia del vehículo al origen y ETA del trayecto en el mapa.
+  - **Technical detail**: Se resolvieron centroides desde `geofences` vía pgrest (nueva ruta BFF `/api/calendar/geofence-coords` y hook `useGeofenceCoords`), con cálculo de distancia por haversine y manejo robusto cuando un geofence no se resuelve. *(Integración OSS — MIOT-0.5.18)*
+
+- **📍 Distancia y ETA al origen en mapa de viaje (alcance preparado)**
+  - **Key point**: Se definió el trabajo para mostrar en el mapa de viaje la distancia del vehículo al origen y una ETA estimada al origen basada en velocidad reportada.
+  - **Technical detail**: El enfoque usa cálculo cliente (haversine + centroides de geocerca) y muestra `—` cuando no hay velocidad válida; este ítem permanece abierto dentro del alcance de la release. *(Integración OSS — MIOT-0.5.18)*
+
+## 🔧 Integraciones
+
+- **🔌 Autenticación unificada con Auth0 y conexiones configurables por entorno**
+  - **Scope**: El inicio de sesión con usuario/contraseña se unifica con Auth0 para obtener sesión tipo JWT como en OAuth, se mantiene fallback a Alfresco cuando Auth0 no está configurado y se eliminan IDs de conexiones hardcodeados en favor de variables de entorno con valores por defecto compatibles. *(Integración OSS — MIOT-0.5.18)*
+
+## 📊 Beneficios
+
+- Mayor contexto visual para planificación y asignación de viajes con origen/destino y distancia operativa en mapa.
+- Menor ambigüedad para operación al combinar posición del vehículo y ETA del recorrido en un mismo flujo.
+- Autenticación más homogénea entre login social y credenciales, simplificando consumo downstream de JWT.
+- Mejor postura de seguridad al centralizar políticas de Auth0 (cuando está configurado).
+- Despliegues más portables entre tenants gracias a IDs de conexión configurables por entorno.
+- Continuidad operativa preservada mediante fallback de autenticación contra Alfresco en entornos sin Auth0.
+- Comportamiento más resiliente ante datos incompletos (geocercas no resolubles o velocidad desconocida).
+
+## 📌 Conclusión
+
+La versión 1.31.17 refuerza dos ejes clave del producto: visibilidad operativa en mapas y consistencia de identidad. En conjunto, reduce fricción en decisiones de despacho y mejora la coherencia técnica de autenticación entre flujos.
+
+También deja encaminado trabajo de monitoreo en mapa de viaje que aún está abierto dentro del milestone OSS, manteniendo transparencia sobre estado de avance y alcance real de entrega.
+
+Con esta base, ModularIoT queda mejor preparado para escalar operación multi-cliente con configuraciones de autenticación más flexibles y una experiencia de planificación más informada.

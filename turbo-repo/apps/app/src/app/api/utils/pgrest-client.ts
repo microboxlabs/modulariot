@@ -15,6 +15,7 @@
  */
 
 import "server-only";
+import wkx from "wkx";
 import type { Tenant, Truck } from "@microboxlabs/miot-resource-client";
 import type { TruckMaintenanceDetail } from "@/features/fleet-management/types/truck-maintenance.types";
 import type {
@@ -344,6 +345,104 @@ export function decodeEwkbPoint(
   const latitude = littleEndian ? buf.readDoubleLE(17) : buf.readDoubleBE(17);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
   return { latitude, longitude };
+}
+
+/**
+ * Centroid of an EWKB-hex (Multi)Polygon — used to place the origin/destination
+ * flag for a geofence whose geometry comes from the `geofences` table. Mirrors
+ * `GeofencePinLayer.calculateAveragePosition`: averages the outer ring, so the
+ * flag lands on the same spot the trip map draws it. Returns null on malformed
+ * input instead of throwing.
+ */
+export function decodeEwkbPolygonCentroid(
+  hex: string | null | undefined
+): DecodedPoint | null {
+  if (!hex) return null;
+  const clean = hex.replace(/^(\\x|0x)/i, "");
+  if (clean.length === 0 || clean.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(clean))
+    return null;
+  try {
+    const geo = wkx.Geometry.parse(Buffer.from(clean, "hex")).toGeoJSON() as {
+      type: string;
+      coordinates: number[][][] | number[][][][];
+    };
+    // Polygon → coordinates[0] is the outer ring; MultiPolygon → first polygon.
+    const ring = (
+      geo.type === "MultiPolygon"
+        ? (geo.coordinates[0] as number[][][])[0]
+        : (geo.coordinates as number[][][])[0]
+    ) as number[][] | undefined;
+    if (!ring || ring.length === 0) return null;
+    let lng = 0;
+    let lat = 0;
+    for (const [x, y] of ring) {
+      lng += x;
+      lat += y;
+    }
+    const longitude = lng / ring.length;
+    const latitude = lat / ring.length;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    return { latitude, longitude };
+  } catch {
+    return null;
+  }
+}
+
+export interface GeofenceCentroid {
+  /** The geofence's client id — matches a service's origen/destino code. */
+  code: string;
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * Resolve geofence client-ids (the values a service carries as
+ * origin/destination — `mintral_originDelegateCode` etc., e.g. "SCL" / "ANF")
+ * to their polygon centroids via the streamhub `geofences` table.
+ *
+ * The match is on `client_geofence_id` (the upstream/client id), NOT
+ * `geofence_name`: e.g. `ANF` → "SITRANS ANTOFAGASTA", `SCL` → "SITRANS
+ * SANTIAGO". Codes not found (or with unparseable geometry) are omitted.
+ */
+export async function fetchGeofenceCentroids(
+  codes: string[]
+): Promise<GeofenceCentroid[]> {
+  const unique = [...new Set(codes.map((c) => c.trim()).filter(Boolean))];
+  if (unique.length === 0) return [];
+
+  const token = await bearerToken();
+  const inList = unique.map((c) => `"${c.replaceAll('"', '""')}"`).join(",");
+  const url = `${pgrestBaseUrl()}/geofences?select=client_geofence_id,coordinates&client_geofence_id=in.(${encodeURIComponent(
+    inList
+  )})`;
+  const response = await pgrestFetch(url, {
+    headers: {
+      accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(
+      `pgrest GET geofences failed: ${response.status} ${response.statusText}`
+    );
+  }
+  const rows = (await response.json()) as Array<{
+    client_geofence_id: string;
+    coordinates: string | null;
+  }>;
+  const out: GeofenceCentroid[] = [];
+  for (const row of rows) {
+    const c = decodeEwkbPolygonCentroid(row.coordinates);
+    if (c) {
+      out.push({
+        code: row.client_geofence_id,
+        latitude: c.latitude,
+        longitude: c.longitude,
+      });
+    }
+  }
+  return out;
 }
 
 /**

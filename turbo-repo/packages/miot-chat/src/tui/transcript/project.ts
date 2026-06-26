@@ -54,7 +54,6 @@ export function applyHarnessEvent(
       // TUI is a follow-up.
       return slice;
 
-
     case "answer.completed":
       return upsertAssistantItem(slice, event, runId, ctx);
 

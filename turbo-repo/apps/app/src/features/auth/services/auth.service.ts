@@ -1,77 +1,15 @@
 "use server";
 import "server-only";
 
-import { AuthError, CredentialsSignin } from "next-auth";
-import type { User } from "next-auth";
+import { AuthError } from "next-auth";
 import {
   AuthenticateActionState,
   formSchema,
-  SignInCredentials,
 } from "./auth.service.types";
-import { PeopleApi, AlfrescoApi } from "@alfresco/js-api";
+import { getAuth0Connection } from "@/features/auth/config/auth0-connections";
 import { auth, signIn } from "@/auth";
 import { redirectWithLang } from "./navigation.service";
 import { logger } from "@/lib/logger";
-
-export async function signInWithCredentials(
-  credentials: Record<keyof SignInCredentials, string>
-): Promise<User | null> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const alfrescoApi = new AlfrescoApi({
-      hostEcm: process.env.ECM_API_URL,
-      provider: process.env.AUTH_PROVIDER,
-      contextRoot: process.env.CONTEXT_ROOT,
-    });
-    const ticket: string = (await alfrescoApi.login(
-      credentials.email as string,
-      credentials.password as string
-    )) as string;
-
-    const peopleApi = new PeopleApi(alfrescoApi);
-    const person = await peopleApi.getPerson("-me-");
-
-    return {
-      id: person.entry.id,
-      name: person.entry.displayName || person.entry.email || "Unknown User",
-      email: person.entry.email,
-      groups: [],
-      ticket,
-    };
-  } catch (error) {
-    throw new CredentialsSignin("Invalid credentials");
-  }
-}
-
-/**
- * Sign in with Auth0 database connection (username/password).
- * Redirects to Auth0 with connection hint for the database.
- *
- * @param email - Optional email to pre-fill (login_hint)
- */
-export async function signInWithAuth0Credentials(
-  email?: string
-): Promise<void> {
-  await signIn(
-    "auth0",
-    { redirectTo: "/app" },
-    {
-      connection: "Username-Password-Authentication",
-      ...(email && { login_hint: email }),
-    }
-  );
-}
-
-/**
- * Maps UI provider IDs to Auth0 connection names.
- * All identity providers are routed through Auth0 as the single OIDC broker.
- */
-const AUTH0_CONNECTION_MAP: Record<string, string> = {
-  google: "google-oauth2",
-  github: "github",
-  "microsoft-entra-id": "Mintral-Entra-ID",
-  microsoft: "Mintral-Entra-ID",
-};
 
 /**
  * Resolves a post-sign-in redirect target from an optional callbackUrl.
@@ -102,7 +40,7 @@ export async function signInWithProvider(
   providerId: string,
   redirectTo?: string | null
 ): Promise<void> {
-  const auth0Connection = AUTH0_CONNECTION_MAP[providerId];
+  const auth0Connection = getAuth0Connection(providerId);
   const target = resolveRedirectTarget(redirectTo);
 
   // If Auth0 is configured and we have a connection mapping, use Auth0 as broker

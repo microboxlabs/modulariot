@@ -30,6 +30,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from pydantic import ValidationError
 
+from miot_harness.agents.chat_models import response_text
 from miot_harness.agents.domain_analyst import render_evidence
 from miot_harness.agents.filter_expert import _strip_fences, build_tool_catalog
 from miot_harness.datasource.provider import DataSourceProfile
@@ -44,9 +45,8 @@ logger = logging.getLogger(__name__)
 # profile.primer; {catalog} / {primitives_catalog} → rendered tool lists.
 _AGENTIC_PLANNER_SYSTEM_TEMPLATE = """\
 You are the {display_name} agentic planner ({tenant_display} fleet operations).
-Each turn you choose the SINGLE next action: run one more tool to gather
-evidence, or declare the investigation finished. You DO NOT answer the
-user yourself.
+You plan the tool calls that gather the evidence needed to answer the question,
+then declare the investigation finished. You DO NOT answer the user yourself.
 
 {primer}
 
@@ -57,16 +57,25 @@ Exploration primitives (read-only SQL helpers; use ONLY when no curated
 tool covers the question):
 {primitives_catalog}
 
-Output ONLY a JSON object in one of these two shapes:
+Output ONLY a JSON object in one of these shapes:
+{{"action": "plan", "steps": [<step>, <step>, ...]}}   (each <step> = the call_tool fields below)
 {{"action": "call_tool", "tool": "...", "args": {{}}, "intent": "...", "rationale": "..."}}
 {{"action": "final", "reasoning": "..."}}
+
+Prefer "plan": emit the COMPLETE ordered sequence of steps that fully answers
+the question (e.g. read the relevant knowledge card → discover the variable /
+column names → run the join/pivot that returns the rows with their attributes).
+The executor runs EVERY step before you are consulted again, carrying results
+forward. Use "call_tool" only for a genuine single step. Use "final" only when
+the executed evidence already answers the question.
 
 Rules:
 - Prefer curated tools; primitives are a fallback for questions the
   curated catalog cannot answer.
 - args is a JSON object of parameter overrides; {{}} uses the defaults.
 - Never repeat a tool call you already executed with identical args.
-- Read any knowledge card at most once, then ACT on what it says.
+- Read any knowledge card at most once, then ACT on what it says — do not
+  put repeat reads of the same card in your plan.
 
 Rigor — do not answer from incomplete or fuzzy evidence:
 - A grep / ILIKE result is a FUZZY sample, never an authoritative count or
@@ -108,6 +117,45 @@ def _parse_action(text: str) -> dict[str, Any] | None:
     return payload
 
 
+class _StepError(ValueError):
+    """A step the planner proposed is out-of-scope, unknown, or malformed."""
+
+
+def _build_step(
+    raw: dict[str, Any], *, registry: ToolRegistry, profile: DataSourceProfile
+) -> DataStep:
+    """Validate one proposed step and build a DataStep, or raise _StepError.
+
+    Scope rules mirror the single-step path: a tool must be either curated
+    (profile.tool_prefix) or a registered primitive; anything else (storytelling
+    tools, hallucinated names) is rejected so the executor never runs it."""
+    tool_name = str(raw.get("tool", ""))
+    in_registry = tool_name in registry.names()
+    is_curated = tool_name.startswith(profile.tool_prefix)
+    is_primitive = in_registry and registry.get(tool_name).kind == "primitive"
+    if not (is_curated or is_primitive):
+        raise _StepError(f"out-of-scope tool: {tool_name}")
+    if not in_registry:
+        raise _StepError(f"unknown tool: {tool_name}")
+    # Accept a missing/null args (→ defaults), but reject a non-object value
+    # (e.g. [], "", 0) rather than silently coercing it to {} — that would let a
+    # malformed plan step through with its args quietly dropped.
+    raw_args = raw.get("args")
+    if raw_args is None:
+        raw_args = {}
+    elif not isinstance(raw_args, dict):
+        raise _StepError("step args must be a JSON object")
+    try:
+        return DataStep(
+            intent=str(raw.get("intent", "")),
+            tool=tool_name,
+            args=raw_args,
+            rationale=str(raw.get("rationale", "")),
+        )
+    except ValidationError as exc:
+        raise _StepError("malformed step") from exc
+
+
 async def agentic_planner_node(
     state: dict[str, Any],
     *,
@@ -140,8 +188,19 @@ async def agentic_planner_node(
     )
     failed: list[str] = list(state.get("failed_steps", []))
     failed_lines = "\n".join(f"- {note}" for note in failed) or "(none)"
+    # On a re-plan the verifier left a gap note: the executed evidence did NOT
+    # answer the question. Surface it so the planner closes the gap instead of
+    # repeating the satisficing the verifier just rejected.
+    gap = str(state.get("verification_gap") or "").strip()
+    gap_block = (
+        f"A previous attempt was judged INCOMPLETE. Gap to close:\n{gap}\n"
+        "Plan the steps that close it; do not finalize until it is addressed.\n\n"
+        if gap
+        else ""
+    )
     human = (
         f"User question:\n{state.get('user_message', '')}\n\n"
+        f"{gap_block}"
         f"Evidence collected so far:\n{render_evidence(evidence)}\n\n"
         f"Tool calls already executed:\n{executed_lines}\n\n"
         f"Tool calls that FAILED (do not repeat them as-is; fix the args, "
@@ -154,13 +213,13 @@ async def agentic_planner_node(
     messages.extend(prior_messages)
     messages.append(HumanMessage(content=human))
     response = await model.ainvoke(messages)
-
-    text = response.content if hasattr(response, "content") else str(response)
-    if not isinstance(text, str):
-        text = str(text)
+    # response_text handles Opus adaptive-thinking responses, whose content is a
+    # list of blocks (thinking + text) — str(content) there yields a Python repr,
+    # not JSON, and silently fails the parse below.
+    text = response_text(response)
 
     payload = _parse_action(text)
-    if payload is None or payload.get("action") not in ("call_tool", "final"):
+    if payload is None or payload.get("action") not in ("plan", "call_tool", "final"):
         if evidence:
             # Degrade gracefully: a malformed verdict shouldn't discard
             # real evidence — synthesize with what we have.
@@ -182,37 +241,55 @@ async def agentic_planner_node(
             "next_action": "ready_to_synthesize",
             "current_step": None,
             "turn_count": turn_count + 1,
+            # Gap consumed: clear it so a later turn doesn't re-see a stale note.
+            "verification_gap": None,
         }
 
-    tool_name = str(payload.get("tool", ""))
-    in_registry = tool_name in registry.names()
-    is_curated = tool_name.startswith(profile.tool_prefix)
-    is_primitive = in_registry and registry.get(tool_name).kind == "primitive"
-    if not (is_curated or is_primitive):
-        logger.error("agentic planner: out-of-scope tool %r", tool_name)
+    if payload["action"] == "plan":
+        raw_steps = payload.get("steps")
+        if not isinstance(raw_steps, list) or not raw_steps:
+            return {
+                "failure": "agentic planner returned an empty or malformed plan",
+                "next_action": None,
+            }
+        steps: list[DataStep] = []
+        try:
+            for raw in raw_steps:
+                if not isinstance(raw, dict):
+                    raise _StepError("plan step is not an object")
+                steps.append(_build_step(raw, registry=registry, profile=profile))
+        except _StepError as exc:
+            logger.error("agentic planner: invalid plan step (%s)", exc)
+            return {
+                "failure": f"agentic planner proposed an invalid plan step: {exc}",
+                "next_action": None,
+            }
+        # The executor drains pending_steps to completion before the planner is
+        # consulted again; verify then judges whether the plan answered it.
         return {
-            "failure": f"agentic planner picked out-of-scope tool: {tool_name}",
-            "next_action": None,
-        }
-    if not in_registry:
-        logger.error("agentic planner: hallucinated tool %r (not in registry)", tool_name)
-        return {
-            "failure": f"agentic planner proposed unknown tool: {tool_name}",
-            "next_action": None,
+            "pending_steps": steps,
+            "current_step": None,
+            "turn_count": turn_count + 1,
+            "next_action": "execute_plan",
+            # Gap consumed by this re-plan: clear it so the post-execution
+            # "finish" turn doesn't re-see the stale note and over-query.
+            "verification_gap": None,
         }
 
+    # action == "call_tool": legacy single step.
     try:
-        step = DataStep(
-            intent=str(payload.get("intent", "")),
-            tool=tool_name,
-            args=payload.get("args", {}) or {},
-            rationale=str(payload.get("rationale", "")),
-        )
-    except ValidationError:
-        return {"failure": "agentic planner returned malformed step", "next_action": None}
+        step = _build_step(payload, registry=registry, profile=profile)
+    except _StepError as exc:
+        logger.error("agentic planner: %s", exc)
+        return {
+            "failure": f"agentic planner picked {exc}",
+            "next_action": None,
+        }
 
     return {
         "current_step": step,
         "turn_count": turn_count + 1,
         "next_action": None,
+        # Gap consumed: clear it so a later turn doesn't re-see a stale note.
+        "verification_gap": None,
     }

@@ -406,6 +406,18 @@ def _make_lifespan(
                             settings.agents_planner_model,
                             effort=settings.agents_planner_effort,
                         ),
+                        # Small "did we answer it?" judge for the Phase 3 verify
+                        # gate. Only build it when the gate is ON and a model is
+                        # set — otherwise a misconfigured verifier model name
+                        # would raise and disable the datasource at boot for a
+                        # model that wouldn't even be used. Empty model name (gate
+                        # on) → rules-only verification.
+                        **(
+                            {"verifier": get_chat_model(settings.agents_verifier_model)}
+                            if settings.agents_agentic_verify_enabled
+                            and settings.agents_verifier_model
+                            else {}
+                        ),
                     },
                     provenance_log=ProvenanceLog(
                         settings.provenance_log_dir,

@@ -49,6 +49,7 @@ export const HARNESS_EVENT_TYPES = [
   "thinking.completed",
   "usage.recorded",
   "freshness.warning",
+  "verification.completed",
   "answer.completed",
   "run.completed",
   "run.failed",

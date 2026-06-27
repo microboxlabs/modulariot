@@ -10,12 +10,38 @@ plain ANTHROPIC_API_KEY / OPENAI_API_KEY env vars).
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from langchain_core.language_models import BaseChatModel
 from pydantic import SecretStr
 
 from miot_harness.config import get_settings
+
+
+def response_text(response: Any) -> str:
+    """Extract plain text from a chat-model response.
+
+    Anthropic models with extended/adaptive thinking enabled (the Opus 4.7+
+    `effort` path) return ``message.content`` as a LIST of content blocks — a
+    ``thinking`` block plus a ``text`` block — not a plain string. A naive
+    ``str(content)`` then yields a Python-repr of the list (not the model's
+    text), which silently breaks any caller that JSON-parses the answer (e.g.
+    the agentic planner / verifier). This concatenates the ``text`` blocks and
+    drops thinking, handling the plain-string case too.
+    """
+    content = getattr(response, "content", response)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, dict):
+                if block.get("type") == "text" and isinstance(block.get("text"), str):
+                    parts.append(block["text"])
+            elif isinstance(block, str):
+                parts.append(block)
+        return "".join(parts)
+    return str(content)
 
 # Anthropic `output_config.effort` levels (Opus 4.7+). "high" is the model's
 # natural default (a no-op); "xhigh"/"max" actually deepen reasoning at a

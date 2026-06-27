@@ -40,6 +40,7 @@ from miot_harness.agents.data_fetcher import invoke_step
 from miot_harness.agents.filter_expert import build_capabilities_summary
 from miot_harness.agents.freshness_judge import freshness_judge_node
 from miot_harness.agents.synthesizer import synthesizer_node
+from miot_harness.agents.verifier import REPLAN, verify_node
 from miot_harness.config import HarnessSettings
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.provenance import ProvenanceEntry, ProvenanceLog
@@ -106,6 +107,10 @@ def build_agentic_graph(
 
     graph = StateGraph(DataState)
     max_turns = settings.agents_agentic_max_turns
+    # Phase 3 verify gate: intercept the planner's "finish" decision and check
+    # the executed evidence actually fulfils the request (rules + optional LLM
+    # judge), re-planning on a gap. When off, "finish" goes straight to synth.
+    verify_enabled = settings.agents_agentic_verify_enabled
     # Onboarding fallback for planning failures (Gap 4) — same curated
     # list canned mode shows; primitives stay out of user-facing copy.
     capabilities_hint = build_capabilities_summary(registry, profile=profile)
@@ -146,7 +151,14 @@ def build_agentic_graph(
 
     async def executor(state: DataState) -> dict[str, Any]:
         snapshot = cast(dict[str, Any], state)
-        step: DataStep | None = snapshot.get("current_step")
+        # Explicit-plan mode: drain pending_steps head-first; legacy single-step
+        # mode: run current_step. Either way we execute exactly one step per
+        # turn (per-step events/provenance), but a plan keeps control here
+        # (continue_plan) until the queue empties instead of round-tripping the
+        # planner between steps.
+        pending: list[DataStep] = list(snapshot.get("pending_steps") or [])
+        step: DataStep | None = pending[0] if pending else snapshot.get("current_step")
+        remaining = pending[1:] if pending else []
         if step is None:
             # Defensive: routing should never send us here without a step.
             return {"next_action": "ready_to_synthesize"}
@@ -163,14 +175,15 @@ def build_agentic_graph(
         if "failure" in delta:
             # A failed tool call is feedback, not a dead end: record the
             # note for the planner (which sees failed_steps in its prompt
-            # and adapts) and loop back instead of failing the whole run.
-            # The turn cap bounds repeated failures.
+            # and adapts). Keep draining a plan if steps remain; otherwise
+            # hand back to the planner. The turn cap bounds repeated failures.
             note = f"{step.tool}({json.dumps(step.args, default=str)}): {delta['failure']}"
             return _merge_events(
                 {
                     "failed_steps": [note],
                     "current_step": None,
-                    "next_action": None,
+                    "pending_steps": remaining,
+                    "next_action": "continue_plan" if remaining else None,
                 },
                 buf,
             )
@@ -189,10 +202,22 @@ def build_agentic_graph(
                 **delta,  # evidence appended by the operator.add reducer
                 "executed_steps": [step],
                 "current_step": None,
+                "pending_steps": remaining,
                 "next_action": "judge_freshness",
             },
             buf,
         )
+
+    async def verify(state: DataState) -> dict[str, Any]:
+        buf, progress = _make_event_buffer()
+        delta = await verify_node(
+            cast(dict[str, Any], state),
+            model=models.get("verifier"),
+            settings=settings,
+            profile=profile,
+            progress=progress,
+        )
+        return _merge_events(delta, buf)
 
     def freshness_judge(state: DataState) -> dict[str, Any]:
         buf, progress = _make_event_buffer()
@@ -250,6 +275,7 @@ def build_agentic_graph(
     )
     graph.add_node("planner", wrap_node_with_lifecycle("planner", planner, "agentic"))
     graph.add_node("executor", wrap_node_with_lifecycle("executor", executor, "agentic"))
+    graph.add_node("verify", wrap_node_with_lifecycle("verify", verify, "agentic"))
     graph.add_node(
         "freshness_judge",
         wrap_node_with_lifecycle("freshness_judge", freshness_judge, "agentic"),
@@ -265,12 +291,19 @@ def build_agentic_graph(
             return END
         return "planner"
 
+    # The planner's "finish" decision routes to verify when the gate is on,
+    # else straight to synthesis. Resolved once at build time.
+    _finish_target = "verify" if verify_enabled else "synthesizer"
+
     def route_from_planner(state: DataState) -> str:
         snapshot = cast(dict[str, Any], state)
         if snapshot.get("failure"):
             return "synthesizer"
         if snapshot.get("next_action") == "ready_to_synthesize":
-            return "synthesizer"
+            return _finish_target
+        # A plan (execute_plan) or a legacy single step both go to the executor.
+        if snapshot.get("next_action") == "execute_plan" or snapshot.get("pending_steps"):
+            return "executor"
         if snapshot.get("current_step") is not None:
             return "executor"
         # Defensive: a planner delta with neither step nor verdict still
@@ -281,25 +314,38 @@ def build_agentic_graph(
         snapshot = cast(dict[str, Any], state)
         if snapshot.get("failure"):
             return "synthesizer"
-        # Success sets next_action="judge_freshness"; a recorded tool
-        # failure leaves it None → straight back to the planner (there is
-        # no new evidence for the judge to look at).
-        if snapshot.get("next_action") == "judge_freshness":
+        na = snapshot.get("next_action")
+        # Success sets next_action="judge_freshness".
+        if na == "judge_freshness":
             return "freshness_judge"
+        # A failed step mid-plan (steps still queued) keeps draining the plan;
+        # a failed lone step (no evidence, none queued) goes back to the planner.
+        if na == "continue_plan":
+            return "executor"
         return "planner"
 
     def route_from_judge(state: DataState) -> str:
-        # REFUSE-zone verdicts set `failure`; fresh/warn loop back to the
-        # planner, which is the agentic analyst seat.
-        if cast(dict[str, Any], state).get("failure"):
+        # REFUSE-zone verdicts set `failure`; fresh/warn continue. While a plan
+        # is still draining, keep executing it; once drained, hand back to the
+        # planner (the agentic analyst seat) to plan more or finish.
+        snapshot = cast(dict[str, Any], state)
+        if snapshot.get("failure"):
             return "synthesizer"
+        if snapshot.get("pending_steps"):
+            return "executor"
         return "planner"
+
+    def route_from_verify(state: DataState) -> str:
+        # A gap re-plans (bounded by replan_count); otherwise synthesize.
+        if cast(dict[str, Any], state).get("next_action") == REPLAN:
+            return "planner"
+        return "synthesizer"
 
     graph.add_conditional_edges("tenancy_gate", route_from_gate, {"planner": "planner", END: END})
     graph.add_conditional_edges(
         "planner",
         route_from_planner,
-        {"synthesizer": "synthesizer", "executor": "executor"},
+        {"synthesizer": "synthesizer", "executor": "executor", "verify": "verify"},
     )
     graph.add_conditional_edges(
         "executor",
@@ -307,12 +353,18 @@ def build_agentic_graph(
         {
             "synthesizer": "synthesizer",
             "freshness_judge": "freshness_judge",
+            "executor": "executor",
             "planner": "planner",
         },
     )
     graph.add_conditional_edges(
         "freshness_judge",
         route_from_judge,
+        {"synthesizer": "synthesizer", "executor": "executor", "planner": "planner"},
+    )
+    graph.add_conditional_edges(
+        "verify",
+        route_from_verify,
         {"synthesizer": "synthesizer", "planner": "planner"},
     )
     graph.add_edge("synthesizer", "critic")

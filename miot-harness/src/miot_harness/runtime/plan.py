@@ -73,6 +73,18 @@ class DataState(TypedDict, total=False):
     # agentic mode is not bounded by the 4-step canned plan cap.
     current_step: DataStep | None
     executed_steps: Annotated[list[DataStep], operator.add]
+    # Phase 3 explicit-plan mode: the planner can emit an ordered multi-step
+    # plan at once; the executor drains this queue to completion (one step per
+    # executor turn, popping the head) before control returns to the planner.
+    # Plain key = replace semantics (the executor rewrites the remaining tail);
+    # NOT operator.add, which would re-append drained steps.
+    pending_steps: list[DataStep]
+    # Phase 3 verify gate: when the verifier judges the executed evidence does
+    # NOT yet fulfil the request, it records the gap here and routes back to the
+    # planner to re-plan. `replan_count` bounds those loops (separate from the
+    # planner's turn_count cap).
+    verification_gap: str | None
+    replan_count: int
     # Failed tool calls (one human-readable note each). The agentic
     # executor records failures here instead of dead-ending the run, so
     # the planner can adapt — try another tool or finalize.

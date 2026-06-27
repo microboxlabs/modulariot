@@ -247,7 +247,9 @@ def _make_lifespan(
                 parts: list[str] = []
                 if not is_primary and conn.primer:
                     parts.append(conn.primer)
-                if summary is not None and summary.tables:
+                # total_tables (not tables) so the header + truncation note still
+                # render when the index is capped to 0 (generic_schema_max_tables=0).
+                if summary is not None and summary.total_tables:
                     parts.append(summary.render())
                 if parts:
                     ckb_blocks.append(f"## {conn.name}\n" + "\n\n".join(parts))

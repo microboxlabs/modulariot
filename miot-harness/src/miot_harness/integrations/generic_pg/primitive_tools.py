@@ -132,6 +132,9 @@ def build_generic_tools(
             table=name,
             statement_timeout_ms=statement_timeout_ms,
         )
+        # Only surface FKs whose referenced table is itself within the
+        # allowlist — don't leak table/schema names the agent can't query
+        # (e.g. an FK into public.*).
         return _DescribeOutput(
             columns=columns,
             foreign_keys=[
@@ -140,6 +143,7 @@ def build_generic_tools(
                     "references": f"{fk.ref_schema}.{fk.ref_table}.{fk.ref_column}",
                 }
                 for fk in fks
+                if policy.is_allowed(schema=fk.ref_schema, table=fk.ref_table)
             ],
             source=source_label,
         )

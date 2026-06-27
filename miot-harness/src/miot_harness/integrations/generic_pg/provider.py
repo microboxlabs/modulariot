@@ -212,6 +212,7 @@ class GenericPgProvider(DataSourceProvider):
                     "generic_pg %s: schema introspection failed (%s); continuing",
                     name,
                     exc,
+                    exc_info=True,  # keep the traceback for catalog/permission diag
                 )
 
         return BootResult(

@@ -44,8 +44,13 @@ export async function sendWhatsAppMessage(
         error?: string;
         message?: string;
         errorMessage?: string;
+        details?: string;
       };
       message = parsed.message ?? parsed.error ?? parsed.errorMessage;
+      // The proxy adds `details` for upstream transport failures — keep it for context.
+      if (parsed.details) {
+        message = message ? `${message}: ${parsed.details}` : parsed.details;
+      }
     } catch {
       // non-JSON error body — fall back to the status-based message below
     }

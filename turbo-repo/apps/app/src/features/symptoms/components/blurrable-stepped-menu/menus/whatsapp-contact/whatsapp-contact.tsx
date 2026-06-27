@@ -74,12 +74,16 @@ export default function WhatsAppContact({
     if (!canSend || sending) return;
     setSending(true);
     try {
+      // Trim so the sent payload matches the (trimmed) live preview.
+      const trimmedParams = Object.fromEntries(
+        Object.entries(params).map(([key, value]) => [key, value.trim()]),
+      );
       await sendWhatsAppMessage({
         to: recipient.trim(),
         type: "TEMPLATE",
         templateName: template.name,
         language: template.language,
-        templateParams: params,
+        templateParams: trimmedParams,
         serviceCode: trip?.trip_id || undefined,
       });
       ShowNotification({ type: "success", message: t.whatsapp_success as string });

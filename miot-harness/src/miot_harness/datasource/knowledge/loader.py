@@ -110,10 +110,13 @@ def load_packs(packs_dir: Path) -> PackLoadResult:
     diagnostics: list[str] = []
     if not packs_dir.exists():
         return PackLoadResult((), (f"packs dir does not exist: {packs_dir}",))
-    for path in sorted(packs_dir.rglob(_PACK_FILE)):
+    # One level only (`<packs_dir>/<name>/pack.md`, the documented layout) — no
+    # deep subtree rescan. yaml.YAMLError is caught too: malformed frontmatter
+    # must become a diagnostic, not propagate (the loader "never raises").
+    for path in sorted(packs_dir.glob(f"*/{_PACK_FILE}")):
         try:
             pack = _parse_pack(path.read_text(encoding="utf-8"), default_id=path.parent.name)
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, yaml.YAMLError) as exc:
             diagnostics.append(f"{path}: {exc}")
             continue
         packs.append(pack)

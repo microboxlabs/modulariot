@@ -95,3 +95,16 @@ def test_real_alfresco_pack_loads() -> None:
     assert card is not None and "act_ru_variable" in card.body
     assert "mintral" not in pack.overview.lower()
     assert all("mintral" not in c.body.lower() for c in pack.cards)
+
+
+def test_load_packs_malformed_yaml_is_diagnostic_not_raise(tmp_path: Path) -> None:
+    # Malformed frontmatter raises yaml.YAMLError (not ValueError); load_packs
+    # must turn it into a diagnostic, never propagate (the "never raises" contract).
+    d = tmp_path / "broken"
+    d.mkdir()
+    (d / "pack.md").write_text(
+        "---\nid: x\nfingerprint: [a, b\n---\nbody", encoding="utf-8"
+    )
+    result = load_packs(tmp_path)  # must not raise
+    assert result.packs == ()
+    assert any("pack.md" in diag for diag in result.diagnostics)

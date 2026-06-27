@@ -40,6 +40,15 @@ public class CredentialProfileRepository {
                       secret_preview, secret_version, created_at, updated_at
             """;
 
+    private static final String UPDATE_SECRET = """
+            UPDATE miot_integrations.credential_profiles
+            SET encrypted_secret_json = $3, secret_preview = $4,
+                secret_version = secret_version + 1, updated_at = now()
+            WHERE tenant_code = $1 AND id = $2 AND active
+            RETURNING id, tenant_code, display_name, auth_type, public_config, encrypted_secret_json,
+                      secret_preview, secret_version, created_at, updated_at
+            """;
+
     private final Instance<Pool> clientInstance;
 
     CredentialProfileRepository(Instance<Pool> clientInstance) {
@@ -67,6 +76,24 @@ public class CredentialProfileRepository {
         }
         var rows = client().preparedQuery(SELECT_BY_ID)
                 .execute(Tuple.of(tenantCode, profileId))
+                .await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    public CredentialProfile updateSecret(
+            String tenantCode, String id, String encryptedSecretJson, String secretPreview) {
+        if (id == null || id.isBlank()) {
+            return null;
+        }
+        UUID profileId;
+        try {
+            profileId = UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+        var rows = client().preparedQuery(UPDATE_SECRET)
+                .execute(Tuple.of(tenantCode, profileId, encryptedSecretJson, secretPreview))
                 .await().indefinitely();
         var iterator = rows.iterator();
         return iterator.hasNext() ? mapRow(iterator.next()) : null;

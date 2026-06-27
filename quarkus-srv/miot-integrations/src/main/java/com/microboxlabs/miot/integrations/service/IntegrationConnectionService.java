@@ -10,6 +10,7 @@ import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationOperationRequest;
 import com.microboxlabs.miot.integrations.dto.CredentialProfileResponse;
+import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.persistence.CredentialProfileRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
@@ -103,6 +104,36 @@ public class IntegrationConnectionService {
 
     public IntegrationConnection getConnection(String tenantCode, String connectionId) {
         return connectionRepository.findByTenantAndId(tenantCode, connectionId);
+    }
+
+    /**
+     * Partial update of a connection. Returns {@code null} if the connection does not exist.
+     * A non-blank {@code token} rotates the secret on the linked credential profile.
+     */
+    public IntegrationConnection updateConnection(
+            String tenantCode, String connectionId, UpdateIntegrationConnectionRequest req) {
+        IntegrationConnection existing = connectionRepository.findByTenantAndId(tenantCode, connectionId);
+        if (existing == null) {
+            return null;
+        }
+        if (req.token() != null && !req.token().isBlank() && existing.credentialProfileId() != null) {
+            credentialProfileRepository.updateSecret(
+                    tenantCode,
+                    existing.credentialProfileId(),
+                    encryptToken(req.token()),
+                    maskSecret(Map.of("token", req.token())));
+        }
+        String baseUrl = req.baseUrl() == null ? null : req.baseUrl().toString();
+        return connectionRepository.update(tenantCode, connectionId, req.name(), baseUrl, req.metadata(), req.active());
+    }
+
+    private String encryptToken(String token) {
+        try {
+            return secretCipher.encrypt(Map.of("token", token));
+        } catch (IntegrationSecretEncryptionException e) {
+            LOG.errorf(e, "Failed to encrypt rotated token during connection update");
+            throw e;
+        }
     }
 
     public IntegrationOperation addOperation(

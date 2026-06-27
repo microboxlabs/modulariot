@@ -65,6 +65,20 @@ public class IntegrationConnectionRepository {
                       status, last_tested_at, last_test_result, metadata
             """;
 
+    // Partial update: a null parameter leaves the column unchanged (explicit ::casts so the
+    // NULL binds keep their type in the prepared statement). metadata is replaced wholesale.
+    private static final String UPDATE_CONNECTION = """
+            UPDATE miot_integrations.integration_connections
+            SET name = COALESCE($3::text, name),
+                base_url = COALESCE($4::text, base_url),
+                metadata = COALESCE($5::jsonb, metadata),
+                active = COALESCE($6::boolean, active),
+                updated_at = now()
+            WHERE tenant_code = $1 AND id = $2 AND active
+            RETURNING id, tenant_code, name, provider_type, base_url, credential_profile_id,
+                      status, last_tested_at, last_test_result, metadata
+            """;
+
     private final Instance<Pool> clientInstance;
 
     IntegrationConnectionRepository(Instance<Pool> clientInstance) {
@@ -111,6 +125,26 @@ public class IntegrationConnectionRepository {
                 .await().indefinitely();
         var iterator = rows.iterator();
         return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    public IntegrationConnection update(
+            String tenantCode,
+            String connectionId,
+            String name,
+            String baseUrl,
+            Map<String, Object> metadata,
+            Boolean active) {
+        Tuple params = Tuple.tuple()
+                .addString(tenantCode)
+                .addUUID(UUID.fromString(connectionId))
+                .addString(name)
+                .addString(baseUrl)
+                .addValue(metadata == null ? null : new JsonObject(metadata))
+                .addBoolean(active);
+        var rows = client().preparedQuery(UPDATE_CONNECTION)
+                .execute(params)
+                .await().indefinitely();
+        return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
     }
 
     public IntegrationConnection updateTestResult(

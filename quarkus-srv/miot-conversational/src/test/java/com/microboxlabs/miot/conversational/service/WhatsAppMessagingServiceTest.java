@@ -71,7 +71,7 @@ class WhatsAppMessagingServiceTest {
     void maskPhoneKeepsOnlyLastFourDigits() throws Exception {
         Method maskPhone = WhatsAppMessagingService.class.getDeclaredMethod("maskPhone", String.class);
         maskPhone.setAccessible(true);
-        assertEquals("****1587", maskPhone.invoke(null, "+56962311587"));
+        assertEquals("****0001", maskPhone.invoke(null, "+56900000001"));
         assertEquals("****", maskPhone.invoke(null, "123"));
         assertEquals("****", maskPhone.invoke(null, new Object[] {null}));
     }

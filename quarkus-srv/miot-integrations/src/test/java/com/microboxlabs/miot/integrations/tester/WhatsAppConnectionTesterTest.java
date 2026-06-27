@@ -50,7 +50,7 @@ class WhatsAppConnectionTesterTest {
 
     @Test
     void returnsSuccessWhenMetaReturns2xx() throws IOException {
-        startServer(200, "{\"id\":\"" + PHONE_NUMBER_ID + "\",\"display_phone_number\":\"+56 9 6231 1587\"}");
+        startServer(200, "{\"id\":\"" + PHONE_NUMBER_ID + "\",\"display_phone_number\":\"+56 9 0000 0001\"}");
         IntegrationConnection connection = connection(URI.create(baseUrl()), Map.of("phone_number_id", PHONE_NUMBER_ID));
 
         ConnectionTestResponse response = tester.test(connection, bearerCredential(TOKEN), new ConnectionTestRequest("GET", null));

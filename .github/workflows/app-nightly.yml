@@ -412,6 +412,10 @@ jobs:
           GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
           DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
           RELEASE_VERSION: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          BUILD_CHANNEL: nightly
+          GIT_SHA: ${{ needs.metadata.outputs.head_sha }}
+          SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
+          WORKFLOW_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           APP_TAG: app@nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           MODULITH_TAG: modulith@nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           HARNESS_TAG: harness@nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
@@ -433,9 +437,15 @@ jobs:
             echo "DEPLOY_DISPATCH_TOKEN is required to dispatch the private deployment repository." >&2
             exit 1
           fi
+          BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           jq -n \
             --arg release_version "$RELEASE_VERSION" \
+            --arg build_channel "$BUILD_CHANNEL" \
+            --arg git_sha "$GIT_SHA" \
+            --arg short_sha "$SHORT_SHA" \
+            --arg built_at "$BUILT_AT" \
+            --arg workflow_run_url "$WORKFLOW_RUN_URL" \
             --arg app_tag "$APP_TAG" \
             --arg modulith_tag "$MODULITH_TAG" \
             --arg harness_tag "$HARNESS_TAG" \
@@ -454,6 +464,12 @@ jobs:
               event_type: "miot-stack-nightly",
               client_payload: {
                 release_version: $release_version,
+                channel: $build_channel,
+                git_sha: $git_sha,
+                short_sha: $short_sha,
+                built_at: $built_at,
+                workflow_run_url: $workflow_run_url,
+                manifest_version: 1,
                 components: {
                   app: {
                     tag: $app_tag,
@@ -465,19 +481,31 @@ jobs:
                     tag: $modulith_tag,
                     image_repository: $modulith_image_repository,
                     image_tag: $modulith_image_tag,
-                    image_ref: $modulith_image_ref
+                    image_ref: $modulith_image_ref,
+                    source_tag: $modulith_source_tag
                   },
                   harness: {
                     tag: $harness_tag,
                     image_repository: $harness_image_repository,
                     image_tag: $harness_image_tag,
-                    image_ref: $harness_image_ref
+                    image_ref: $harness_image_ref,
+                    source_tag: $harness_source_tag
                   }
                 }
               }
-            }' |
+            }' > nightly-dispatch-payload.json
+
+          jq '.client_payload' nightly-dispatch-payload.json > nightly-manifest.json
+
+          cat nightly-dispatch-payload.json |
             gh api "repos/${DEPLOY_DISPATCH_REPO}/dispatches" \
               --method POST \
               --input -
 
           echo "Dispatched nightly stack deployment ${RELEASE_VERSION} to ${DEPLOY_DISPATCH_REPO}."
+
+      - name: Upload nightly manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-manifest-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          path: nightly-manifest.json

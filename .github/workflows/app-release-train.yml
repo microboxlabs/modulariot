@@ -213,8 +213,16 @@ jobs:
           const body = prompt
             .replaceAll("{{release_version}}", "${{ steps.version.outputs.release_notes_version }}")
             .replaceAll("{{release_date}}", "${{ steps.release_date.outputs.date }}")
+            .replaceAll("{{stack_version}}", "${{ steps.version.outputs.release_version }}")
             .replaceAll("{{private_milestone}}", "${{ steps.version.outputs.private_milestone }}")
             .replaceAll("{{oss_milestone}}", "${{ steps.version.outputs.oss_milestone }}")
+            .replaceAll("{{stack_tag}}", "${{ steps.plan.outputs.stack_tag }}")
+            .replaceAll("{{app_tag}}", "${{ steps.plan.outputs.app_tag }}")
+            .replaceAll("{{app_changed}}", "${{ steps.plan.outputs.app_changed }}")
+            .replaceAll("{{modulith_tag}}", "${{ steps.plan.outputs.modulith_tag }}")
+            .replaceAll("{{modulith_changed}}", "${{ steps.plan.outputs.modulith_changed }}")
+            .replaceAll("{{harness_tag}}", "${{ steps.plan.outputs.harness_tag }}")
+            .replaceAll("{{harness_changed}}", "${{ steps.plan.outputs.harness_changed }}")
             .replaceAll("{{release_issues}}", indentedIssues);
           fs.writeFileSync("release-notes.prompt.yml", body);
           NODE
@@ -670,7 +678,12 @@ jobs:
           GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
           DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
+          RELEASE_NOTES_VERSION: v${{ needs.prepare.outputs.release_notes_version }}
+          BUILD_CHANNEL: release
           STACK_TAG: ${{ needs.prepare.outputs.stack_tag }}
+          GIT_SHA: ${{ needs.tag.outputs.sha }}
+          SHORT_SHA: ${{ needs.tag.outputs.short_sha }}
+          WORKFLOW_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           APP_TAG: ${{ needs.prepare.outputs.app_tag }}
           MODULITH_TAG: ${{ needs.prepare.outputs.modulith_tag }}
           APP_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}
@@ -696,10 +709,17 @@ jobs:
             echo "DEPLOY_DISPATCH_TOKEN is required to dispatch the private deployment repository." >&2
             exit 1
           fi
+          BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           jq -n \
             --arg release_version "$RELEASE_VERSION" \
+            --arg release_notes_version "$RELEASE_NOTES_VERSION" \
+            --arg build_channel "$BUILD_CHANNEL" \
             --arg stack_tag "$STACK_TAG" \
+            --arg git_sha "$GIT_SHA" \
+            --arg short_sha "$SHORT_SHA" \
+            --arg built_at "$BUILT_AT" \
+            --arg workflow_run_url "$WORKFLOW_RUN_URL" \
             --arg app_tag "$APP_TAG" \
             --arg app_changed "$APP_CHANGED" \
             --arg app_version "$APP_VERSION" \
@@ -713,6 +733,8 @@ jobs:
             --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
             --arg modulith_image_ref "$MODULITH_IMAGE_REF" \
             --arg harness_tag "$HARNESS_TAG" \
+            --arg harness_changed "$HARNESS_CHANGED" \
+            --arg harness_version "$HARNESS_VERSION" \
             --arg harness_image_repository "$HARNESS_IMAGE_REPOSITORY" \
             --arg harness_image_tag "$HARNESS_IMAGE_TAG" \
             --arg harness_image_ref "$HARNESS_IMAGE_REF" \
@@ -720,20 +742,34 @@ jobs:
               event_type: "miot-stack-release",
               client_payload: {
                 release_version: $release_version,
+                release_notes_version: $release_notes_version,
+                channel: $build_channel,
+                stack_tag: $stack_tag,
+                git_sha: $git_sha,
+                short_sha: $short_sha,
+                built_at: $built_at,
+                workflow_run_url: $workflow_run_url,
+                manifest_version: 1,
                 components: {
                   app: {
+                    changed: ($app_changed == "true"),
+                    version: $app_version,
                     tag: $app_tag,
                     image_repository: $app_image_repository,
                     image_tag: $app_image_tag,
                     image_ref: $app_image_ref
                   },
                   modulith: {
+                    changed: ($modulith_changed == "true"),
+                    version: $modulith_version,
                     tag: $modulith_tag,
                     image_repository: $modulith_image_repository,
                     image_tag: $modulith_image_tag,
                     image_ref: $modulith_image_ref
                   },
                   harness: {
+                    changed: ($harness_changed == "true"),
+                    version: $harness_version,
                     tag: $harness_tag,
                     image_repository: $harness_image_repository,
                     image_tag: $harness_image_tag,
@@ -745,7 +781,13 @@ jobs:
 
           jq -n \
             --arg release_version "$RELEASE_VERSION" \
+            --arg release_notes_version "$RELEASE_NOTES_VERSION" \
+            --arg build_channel "$BUILD_CHANNEL" \
             --arg stack_tag "$STACK_TAG" \
+            --arg git_sha "$GIT_SHA" \
+            --arg short_sha "$SHORT_SHA" \
+            --arg built_at "$BUILT_AT" \
+            --arg workflow_run_url "$WORKFLOW_RUN_URL" \
             --arg app_tag "$APP_TAG" \
             --arg app_changed "$APP_CHANGED" \
             --arg app_version "$APP_VERSION" \
@@ -767,7 +809,13 @@ jobs:
             '{
               release_version: $release_version,
               stack_version: $release_version,
+              release_notes_version: $release_notes_version,
+              channel: $build_channel,
               stack_tag: $stack_tag,
+              git_sha: $git_sha,
+              short_sha: $short_sha,
+              built_at: $built_at,
+              workflow_run_url: $workflow_run_url,
               manifest_version: 1,
               app_tag: $app_tag,
               modulith_tag: $modulith_tag,

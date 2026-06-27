@@ -122,6 +122,13 @@ export function applyHarnessEvent(
       // node, not two).
       return slice;
 
+    case "verification.completed":
+      // Internal pipeline telemetry (the Phase 3 verify gate's "did we answer
+      // it?" verdict). Like agent.completed, it marks an internal node boundary
+      // and is intentionally not surfaced as a transcript row; the REPL
+      // renderer can show it inline. Keeps this switch exhaustive.
+      return slice;
+
     case "thinking.delta": {
       const delta =
         typeof event.data.delta === "string" ? event.data.delta : "";

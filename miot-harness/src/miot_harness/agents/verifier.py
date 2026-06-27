@@ -28,6 +28,7 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from miot_harness.agents.chat_models import response_text
 from miot_harness.agents.filter_expert import _strip_fences
 from miot_harness.config import HarnessSettings
 from miot_harness.datasource.provider import DataSourceProfile
@@ -162,10 +163,7 @@ async def verify_node(
         response = await model.ainvoke(
             [SystemMessage(content=system), HumanMessage(content=human)]
         )
-        text = response.content if hasattr(response, "content") else str(response)
-        if not isinstance(text, str):
-            text = str(text)
-        payload = json.loads(_strip_fences(text))
+        payload = json.loads(_strip_fences(response_text(response)))
     except Exception as exc:  # noqa: BLE001 — any judge error must not trap the run
         # A judge error must never trap the run — default to done so we
         # synthesize with the evidence in hand rather than loop.

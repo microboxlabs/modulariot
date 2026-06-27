@@ -30,6 +30,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from pydantic import ValidationError
 
+from miot_harness.agents.chat_models import response_text
 from miot_harness.agents.domain_analyst import render_evidence
 from miot_harness.agents.filter_expert import _strip_fences, build_tool_catalog
 from miot_harness.datasource.provider import DataSourceProfile
@@ -204,10 +205,10 @@ async def agentic_planner_node(
     messages.extend(prior_messages)
     messages.append(HumanMessage(content=human))
     response = await model.ainvoke(messages)
-
-    text = response.content if hasattr(response, "content") else str(response)
-    if not isinstance(text, str):
-        text = str(text)
+    # response_text handles Opus adaptive-thinking responses, whose content is a
+    # list of blocks (thinking + text) — str(content) there yields a Python repr,
+    # not JSON, and silently fails the parse below.
+    text = response_text(response)
 
     payload = _parse_action(text)
     if payload is None or payload.get("action") not in ("plan", "call_tool", "final"):

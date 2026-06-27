@@ -105,6 +105,38 @@ async def test_call_tool_action_produces_current_step() -> None:
     assert not delta.get("failure")
 
 
+class _ThinkingModel(FakeListChatModel):
+    """Mimics Opus 4.7+ under adaptive thinking: ainvoke returns an AIMessage
+    whose content is a LIST of blocks (thinking + text), not a plain string."""
+
+    async def ainvoke(self, input: Any, *args: Any, **kwargs: Any) -> Any:  # type: ignore[override]
+        return AIMessage(
+            content=[
+                {"type": "thinking", "thinking": "reasoning…", "signature": "sig"},
+                {"type": "text", "text": self.responses[0]},
+            ]
+        )
+
+
+@pytest.mark.asyncio
+async def test_planner_parses_opus_thinking_list_content() -> None:
+    # Regression: with adaptive thinking on, content is a list; the planner must
+    # extract the text block and parse it, not stringify the whole list.
+    response = json.dumps(
+        {"action": "call_tool", "tool": "coordinador_centro_control", "args": {}}
+    )
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=_ThinkingModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert delta.get("current_step") is not None
+    assert delta["current_step"].tool == "coordinador_centro_control"
+    assert not delta.get("failure")
+
+
 @pytest.mark.asyncio
 async def test_plan_action_produces_pending_steps() -> None:
     response = json.dumps(

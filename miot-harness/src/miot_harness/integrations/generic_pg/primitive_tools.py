@@ -18,8 +18,10 @@ from miot_harness.datasource.safe_query import (
     safe_explain,
     safe_grep,
     safe_list_tables,
+    safe_run_select,
     safe_select,
 )
+from miot_harness.datasource.schema_introspect import introspect_foreign_keys
 from miot_harness.datasource.sql_policy import TableAccessPolicy
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.permissions import PermissionResult
@@ -49,12 +51,28 @@ class _GrepInput(BaseModel):
     limit: int = 100
 
 
+class _QueryInput(BaseModel):
+    sql: str = Field(
+        description=(
+            "A full read-only SQL SELECT (JOINs, CTEs, GROUP BY, aggregates "
+            "allowed) over the connection's allowed schemas. Schema-qualify "
+            "every table, e.g. acs.act_ru_task."
+        )
+    )
+
+
 class _ExplainInput(BaseModel):
     query: str = Field(description="A single SELECT over allowed schema tables")
 
 
 class _RowsOutput(BaseModel):
     rows: list[dict[str, Any]] = Field(default_factory=list)
+    source: str = ""
+
+
+class _DescribeOutput(BaseModel):
+    columns: list[dict[str, Any]] = Field(default_factory=list)
+    foreign_keys: list[dict[str, Any]] = Field(default_factory=list)
     source: str = ""
 
 
@@ -98,14 +116,37 @@ def build_generic_tools(
 
     async def call_describe(
         ctx: HarnessContext, parsed: _DescribeInput, progress: Progress
-    ) -> _RowsOutput:
-        rows = await safe_describe(
+    ) -> _DescribeOutput:
+        columns = await safe_describe(
             pool=pool,
             policy=policy,
             table=parsed.table,
             statement_timeout_ms=statement_timeout_ms,
         )
-        return _RowsOutput(rows=rows, source=source_label)
+        # FK relationships (the "how does this table connect" body). The policy
+        # already validated the table in safe_describe; reuse its schema/name.
+        schema, _, name = parsed.table.partition(".")
+        fks = await introspect_foreign_keys(
+            pool=pool,
+            schema=schema,
+            table=name,
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        # Only surface FKs whose referenced table is itself within the
+        # allowlist — don't leak table/schema names the agent can't query
+        # (e.g. an FK into public.*).
+        return _DescribeOutput(
+            columns=columns,
+            foreign_keys=[
+                {
+                    "column": fk.column,
+                    "references": f"{fk.ref_schema}.{fk.ref_table}.{fk.ref_column}",
+                }
+                for fk in fks
+                if policy.is_allowed(schema=fk.ref_schema, table=fk.ref_table)
+            ],
+            source=source_label,
+        )
 
     async def call_select(
         ctx: HarnessContext, parsed: _SelectInput, progress: Progress
@@ -134,6 +175,19 @@ def build_generic_tools(
             pattern=parsed.pattern,
             limit=parsed.limit,
             max_rows=max_rows,
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        return _RowsOutput(rows=rows, source=source_label)
+
+    async def call_query(
+        ctx: HarnessContext, parsed: _QueryInput, progress: Progress
+    ) -> _RowsOutput:
+        rows = await safe_run_select(
+            pool=pool,
+            policy=policy,
+            sql=parsed.sql,
+            max_rows=max_rows,
+            cost_threshold=explain_cost_threshold,
             statement_timeout_ms=statement_timeout_ms,
         )
         return _RowsOutput(rows=rows, source=source_label)
@@ -178,11 +232,12 @@ def build_generic_tools(
         HarnessTool(
             name=f"{tool_prefix}describe",
             description=(
-                f"Columns + types of a schema-qualified table {scope}. "
-                "Use to discover a table's shape before select."
+                f"Columns + types AND foreign-key relationships of a "
+                f"schema-qualified table {scope}. Use to discover a table's shape "
+                "and how it joins to others before select."
             ),
             input_model=_DescribeInput,
-            output_model=_RowsOutput,
+            output_model=_DescribeOutput,
             call=call_describe,
             **common,
         ),
@@ -197,6 +252,20 @@ def build_generic_tools(
             input_model=_SelectInput,
             output_model=_RowsOutput,
             call=call_select,
+            **common,
+        ),
+        HarnessTool(
+            name=f"{tool_prefix}query",
+            description=(
+                f"Run a FULL read-only SQL SELECT {scope} — JOINs, CTEs, GROUP BY, "
+                "aggregates. Prefer this for anything spanning more than one table "
+                "(e.g. joining a task to its process variables). sqlglot-gated: "
+                "SELECT-only, allowlisted tables/functions; result is LIMIT-capped, "
+                "runs BEGIN READ ONLY with a statement timeout + EXPLAIN cost gate."
+            ),
+            input_model=_QueryInput,
+            output_model=_RowsOutput,
+            call=call_query,
             **common,
         ),
         HarnessTool(

@@ -265,7 +265,9 @@ async def test_fetcher_no_pending_step_is_noop():
     assert update.get("next_action") == "ready_to_synthesize"
 
 
-def _classify(payload: dict[str, Any]) -> DataEvidence:
+def _classify(
+    payload: dict[str, Any], *, has_freshness_model: bool = True
+) -> DataEvidence:
     from miot_harness.agents.data_fetcher import _evidence_from_output
 
     return _evidence_from_output(
@@ -274,7 +276,23 @@ def _classify(payload: dict[str, Any]) -> DataEvidence:
         payload,
         warn_minutes=30,
         source_label=NEXO_PROFILE.source_label,
+        has_freshness_model=has_freshness_model,
     )
+
+
+def test_live_source_no_timestamp_is_fresh_not_stale() -> None:
+    # A live datasource (has_freshness_model=False) with no refreshed_at must
+    # NOT be flagged no_timestamp/stale — that drove the misleading
+    # "trust with caution" note on a live operational schema.
+    ev = _classify({"rows": [{"a": 1}]}, has_freshness_model=False)
+    assert ev.freshness_status == "fresh"
+    assert ev.is_stale is False
+
+
+def test_live_source_empty_is_empty_not_no_timestamp() -> None:
+    ev = _classify({"rows": []}, has_freshness_model=False)
+    assert ev.freshness_status == "empty"
+    assert ev.is_stale is False
 
 
 def test_freshness_status_fresh_rows_and_fresh_timestamp() -> None:

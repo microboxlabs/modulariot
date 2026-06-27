@@ -17,6 +17,7 @@ hardening, layered on top — not a prerequisite).
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from miot_harness.datasource.safe_sql import (
@@ -34,7 +35,24 @@ from miot_harness.datasource.sql_policy import TableAccessPolicy
 DEFAULT_STATEMENT_TIMEOUT_MS = 5000
 
 
-async def _fetch_readonly(
+def _record_to_dict(record: Any) -> dict[str, Any]:
+    """Row → dict, disambiguating duplicate column labels (e.g. from SELECT *
+    over a JOIN) so no column is silently dropped. asyncpg Records and plain
+    dicts both expose keys()/values()."""
+    keys = list(record.keys())
+    values = list(record.values())
+    out: dict[str, Any] = {}
+    for key, value in zip(keys, values, strict=False):
+        name = key
+        i = 2
+        while name in out:
+            name = f"{key}_{i}"
+            i += 1
+        out[name] = value
+    return out
+
+
+async def fetch_readonly(
     pool: Any,
     sql: str,
     *args: Any,
@@ -84,7 +102,7 @@ async def safe_list_tables(
         "WHERE table_schema = ANY($1::text[]) "
         "ORDER BY table_schema, table_name"
     )
-    rows = await _fetch_readonly(
+    rows = await fetch_readonly(
         pool, sql, sorted(schemas), statement_timeout_ms=statement_timeout_ms
     )
     return [dict(row) for row in rows]
@@ -108,7 +126,7 @@ async def safe_describe(
         "SELECT column_name, data_type FROM information_schema.columns "
         "WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position"
     )
-    rows = await _fetch_readonly(
+    rows = await fetch_readonly(
         pool, sql, schema, name, statement_timeout_ms=statement_timeout_ms
     )
     return [dict(row) for row in rows]
@@ -145,7 +163,7 @@ async def safe_select(
 
     ast = validate_select_sql(sql, table_policy=policy)
     safe_sql = render_safe(ast)
-    rows = await _fetch_readonly(
+    rows = await fetch_readonly(
         pool, safe_sql, statement_timeout_ms=statement_timeout_ms
     )
     return [dict(row) for row in rows]
@@ -169,10 +187,37 @@ async def safe_grep(
     sql_for_gate = f"SELECT * FROM {table} WHERE {col} ILIKE $1 LIMIT {bounded_limit}"
     ast = validate_select_sql(sql_for_gate, table_policy=policy)
     safe_sql = render_safe(ast)
-    rows = await _fetch_readonly(
+    rows = await fetch_readonly(
         pool, safe_sql, pattern, statement_timeout_ms=statement_timeout_ms
     )
     return [dict(row) for row in rows]
+
+
+def _plan_from_explain(rows: list[Any]) -> dict[str, Any]:
+    """Extract the top Plan node from EXPLAIN (FORMAT JSON) rows.
+
+    asyncpg returns json/jsonb columns as STRINGS (no codec), so the
+    ``QUERY PLAN`` value may be a JSON string rather than a parsed list —
+    decode it before indexing.
+    """
+    if not rows:
+        raise UnsupportedConstruct("EXPLAIN returned no rows")
+    try:
+        payload = rows[0]["QUERY PLAN"]
+    except (KeyError, TypeError, IndexError) as exc:
+        raise UnsupportedConstruct("EXPLAIN output missing QUERY PLAN") from exc
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise UnsupportedConstruct("EXPLAIN output not valid JSON") from exc
+    if not payload:
+        raise UnsupportedConstruct("EXPLAIN output missing QUERY PLAN")
+    first = payload[0]
+    if not isinstance(first, dict):
+        raise UnsupportedConstruct("EXPLAIN output has unexpected shape")
+    plan = first.get("Plan", {})
+    return plan if isinstance(plan, dict) else {}
 
 
 async def safe_explain(
@@ -187,21 +232,12 @@ async def safe_explain(
 
     ast = validate_select_sql(query, table_policy=policy)
     safe_inner = render_safe(ast)
-    rows = await _fetch_readonly(
+    rows = await fetch_readonly(
         pool,
         f"EXPLAIN (FORMAT JSON) {safe_inner}",
         statement_timeout_ms=statement_timeout_ms,
     )
-    if not rows:
-        raise UnsupportedConstruct("EXPLAIN returned no rows")
-    row = rows[0]
-    try:
-        payload = row["QUERY PLAN"]
-    except (KeyError, TypeError, IndexError) as exc:
-        raise UnsupportedConstruct("EXPLAIN output missing QUERY PLAN") from exc
-    if not payload:
-        raise UnsupportedConstruct("EXPLAIN output missing QUERY PLAN")
-    plan = payload[0].get("Plan", {})
+    plan = _plan_from_explain(rows)
     total_cost = float(plan.get("Total Cost", 0.0))
     if total_cost > cost_threshold:
         raise CostGateViolation(
@@ -212,3 +248,49 @@ async def safe_explain(
         "node_type": plan.get("Node Type"),
         "plan": plan,
     }
+
+
+async def safe_run_select(
+    *,
+    pool: Any,
+    policy: TableAccessPolicy,
+    sql: str,
+    max_rows: int = HARD_LIMIT_CAP,
+    cost_threshold: float | None = None,
+    statement_timeout_ms: int | None = DEFAULT_STATEMENT_TIMEOUT_MS,
+) -> list[dict[str, Any]]:
+    """Run an arbitrary read-only SELECT (the broad Tier-B query surface).
+
+    Unlike ``safe_select`` (a single-table builder), this accepts full SQL —
+    JOINs, CTEs, GROUP BY, aggregates — validated by the SAME sqlglot gate
+    (SELECT-only, allowlisted tables/functions). The harness enforces a hard
+    result cap by wrapping the validated query, runs it in the read-only
+    envelope, and optionally refuses over-budget plans via an EXPLAIN cost gate.
+
+    Note: the cap is applied by an outer ``SELECT * FROM (<query>) LIMIT n``;
+    Postgres preserves an inner ORDER BY through a single subquery in practice.
+    """
+    ast = validate_select_sql(sql, table_policy=policy)
+    inner = render_safe(ast)
+    cap = max(1, min(int(max_rows), HARD_LIMIT_CAP))
+    wrapped = f"SELECT * FROM ({inner}) AS _miot_q LIMIT {cap}"
+
+    async with pool.acquire() as conn:
+        async with conn.transaction(readonly=True):
+            if statement_timeout_ms:
+                await conn.execute(
+                    f"SET LOCAL statement_timeout = {int(statement_timeout_ms)}"
+                )
+            if cost_threshold is not None:
+                plan_rows = await conn.fetch(f"EXPLAIN (FORMAT JSON) {wrapped}")
+                total_cost = float(_plan_from_explain(plan_rows).get("Total Cost", 0.0))
+                if total_cost > cost_threshold:
+                    raise CostGateViolation(
+                        f"plan total_cost={total_cost:.1f} exceeds threshold "
+                        f"{cost_threshold:.1f}"
+                    )
+            rows = await conn.fetch(wrapped)
+            # SELECT * over a JOIN can yield duplicate column labels; dict(r)
+            # would silently keep only the last. Preserve every column by
+            # suffixing collisions (id_, id__2, …) so no data is lost.
+            return [_record_to_dict(r) for r in rows]

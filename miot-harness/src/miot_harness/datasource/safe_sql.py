@@ -180,16 +180,20 @@ def validate_select_sql(sql: str, *, table_policy: TableAccessPolicy) -> exp.Exp
             f"(found at: {lat.sql(dialect='postgres')[:80]!r})"
         )
 
-    # 3. Every function call must be in the safe-builtin allowlist.
-    #    sqlglot emits dedicated AST classes for common builtins (`Sum`,
-    #    `Count`, `Cast`, `Coalesce`, `TimestampTrunc`, ...) and
-    #    `exp.Anonymous` for everything else. We accept if ANY candidate
-    #    name (sql_name, key, class name, Anonymous.this) is in the
-    #    allowlist — robust to sqlglot's per-builtin AST normalization.
-    for func in ast.find_all(exp.Func):
+    # 3. Arbitrary/unknown function NAMES must be allowlisted.
+    #    The escape-hatch threats — pg_read_file, dblink, pg_sleep, set_config,
+    #    lo_import, pg_terminate_backend, pg_advisory_lock, … — are all parsed by
+    #    sqlglot as `exp.Anonymous` (it has no dedicated class for them). Every
+    #    DEDICATED Func subclass (Sum/Count/Cast/Coalesce/Case/And/Or/Extract/
+    #    Interval/window fns/…) is a recognized, inherently read-only SQL
+    #    construct — gating those by name caused false rejects (AND/OR/CASE) and
+    #    blocked legitimate analytical SQL. So we gate ONLY Anonymous names
+    #    against the allowlist; that is exactly where the dangerous functions
+    #    live, and adding a new Postgres function name still requires a review.
+    for func in ast.find_all(exp.Anonymous):
         candidates = _function_name_candidates(func)
         if not candidates:
-            continue  # synthetic Func with no resolvable name — skip
+            continue  # unresolvable name — nothing to match
         if not candidates & _SAFE_FUNCTIONS:
             picked = next(iter(candidates))
             raise UnsupportedConstruct(

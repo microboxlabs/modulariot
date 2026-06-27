@@ -197,6 +197,9 @@ def _make_lifespan(
         # never lands in the close list.
         providers_to_close: list[DataSourceProvider] = [provider]
         primary_result: BootResult | None = None
+        # Connection Knowledge Base (Phase 2): per-connection grounding blocks
+        # (secondary primers + schema indexes), folded into the agent primer below.
+        ckb_blocks: list[str] = []
         for conn in conn_result.connections:
             is_primary = primary is not None and conn.name == primary.name
             # Resolve + boot inside the guard: an unknown/typo'd backend
@@ -214,6 +217,7 @@ def _make_lifespan(
                 boot_res = BootResult(
                     enabled=False, registered=(), reason=f"boot failed: {exc}"
                 )
+            summary = boot_res.schema_summary
             app.state.connections[conn.name] = {
                 "backend": conn.backend,
                 "enabled": boot_res.enabled,
@@ -224,7 +228,31 @@ def _make_lifespan(
                 "registered": list(boot_res.registered),
                 "reason": boot_res.reason,
                 "snapshot_age_minutes": boot_res.snapshot_age_minutes,
+                # Connection Knowledge Base (Phase 2): schema index summary.
+                "schema": (
+                    {
+                        "schemas": list(summary.schemas),
+                        "table_count": summary.total_tables,
+                        "indexed": len(summary.tables),
+                        "truncated": summary.truncated,
+                    }
+                    if summary is not None
+                    else None
+                ),
             }
+            # Accumulate the CKB grounding block for each enabled connection.
+            # The primary's primer is already in provider.profile.primer, so add
+            # it only for secondaries; the schema index is new for all.
+            if boot_res.enabled:
+                parts: list[str] = []
+                if not is_primary and conn.primer:
+                    parts.append(conn.primer)
+                # total_tables (not tables) so the header + truncation note still
+                # render when the index is capped to 0 (generic_schema_max_tables=0).
+                if summary is not None and summary.total_tables:
+                    parts.append(summary.render())
+                if parts:
+                    ckb_blocks.append(f"## {conn.name}\n" + "\n\n".join(parts))
             if is_primary:
                 primary_result = boot_res
 
@@ -259,7 +287,15 @@ def _make_lifespan(
         # so it reaches every agent path while staying byte-stable across
         # tenants — keeping the Anthropic cache prefix hot. The per-tenant
         # overlay is applied per request on the meta path (see supervisor).
-        effective_profile = provider.profile
+        # Assemble the agent primer: base profile primer + the CKB block
+        # (per-connection schema indexes / secondary primers) + the global
+        # system-context block. One replace() so it stays byte-stable for the
+        # process lifetime (cache prefix stays hot).
+        primer_sections: list[str] = [provider.profile.primer]
+        if ckb_blocks:
+            primer_sections.append(
+                "# Connected data sources\n" + "\n\n".join(ckb_blocks)
+            )
         try:
             cs = boot_context_skills(harness.tools, settings)
             harness.context_skills = cs.bundle
@@ -267,13 +303,7 @@ def _make_lifespan(
             app.state.context_skills_diagnostics = list(cs.diagnostics)
             global_block = cs.bundle.global_primer()
             if global_block:
-                effective_profile = replace(
-                    provider.profile,
-                    primer=(
-                        f"{provider.profile.primer}\n\n"
-                        f"# System context\n{global_block}"
-                    ),
-                )
+                primer_sections.append(f"# System context\n{global_block}")
             for diag in cs.diagnostics:
                 (logger.error if diag.level == "error" else logger.warning)(
                     "Context/Skills: %s (%s)", diag.message, diag.path
@@ -289,6 +319,12 @@ def _make_lifespan(
                 exc,
             )
             harness.context_skills = None
+
+        effective_profile = (
+            replace(provider.profile, primer="\n\n".join(primer_sections))
+            if len(primer_sections) > 1
+            else provider.profile
+        )
 
         if not result.enabled:
             logger.info(

@@ -555,6 +555,31 @@ interface Release {
   // Add other release properties as needed
 }
 
+export type BuildComponentInfo = {
+  changed?: boolean;
+  version?: string;
+  tag?: string;
+  imageRepository?: string;
+  imageTag?: string;
+  imageRef?: string;
+  sourceTag?: string;
+};
+
+export type BuildInfo = {
+  product: string;
+  channel: string;
+  releaseVersion: string;
+  releaseNotesVersion?: string;
+  stackTag?: string;
+  gitSha?: string;
+  shortSha?: string;
+  builtAt?: string;
+  deployedAt?: string;
+  workflowRunUrl?: string;
+  manifestVersion: number;
+  components: Record<string, BuildComponentInfo>;
+};
+
 export function useReleases() {
   const { data, error, isLoading } = useSWR<Release[], FetcherError>(
     `/app/api/releases`,
@@ -563,6 +588,19 @@ export function useReleases() {
 
   return {
     releases: data || [],
+    error,
+    isLoading,
+  };
+}
+
+export function useBuildInfo() {
+  const { data, error, isLoading } = useSWR<BuildInfo, FetcherError>(
+    `/app/api/build-info`,
+    fetcher
+  );
+
+  return {
+    buildInfo: data || null,
     error,
     isLoading,
   };

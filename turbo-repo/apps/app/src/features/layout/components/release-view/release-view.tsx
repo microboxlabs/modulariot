@@ -1,7 +1,11 @@
 "use client";
 
-import { useReleases } from "@/features/common/providers/client-api.provider";
-import Link from "next/link";
+import {
+  useBuildInfo,
+  useReleases,
+} from "@/features/common/providers/client-api.provider";
+import { useState } from "react";
+import BuildInfoModal from "./build-info-modal";
 
 interface Release {
   files: string[];
@@ -16,8 +20,14 @@ export default function ReleaseView({
   onClick?: () => void;
 }) {
   const { releases, error, isLoading } = useReleases();
+  const {
+    buildInfo,
+    error: buildInfoError,
+    isLoading: isBuildInfoLoading,
+  } = useBuildInfo();
+  const [isBuildInfoOpen, setIsBuildInfoOpen] = useState(false);
 
-  if (isLoading) {
+  if (isLoading || isBuildInfoLoading) {
     return (
       <div className="text-sm text-gray-300 dark:text-gray-700 bg-gray-300 dark:bg-gray-700 rounded-md sm:text-center animate-pulse">
         loading...
@@ -25,12 +35,13 @@ export default function ReleaseView({
     );
   }
 
-  if (error) {
+  if (error && !buildInfo) {
     return <div>Error: {error.message}</div>;
   }
 
-  // Check if releases exists and has files before proceeding
-  if (!releases || !(releases as unknown as Release)?.files) {
+  const releaseFiles = (releases as unknown as Release)?.files || [];
+
+  if (!buildInfo && releaseFiles.length === 0) {
     return (
       <div className="text-sm text-gray-300 dark:text-gray-700 bg-gray-300 dark:bg-gray-700 rounded-md sm:text-center animate-pulse">
         No releases available
@@ -53,18 +64,37 @@ export default function ReleaseView({
     return 0;
   };
 
-  const version = (releases as unknown as Release).files
+  const latestReleaseVersion = releaseFiles
     .map((file) => file.replace(".mdx", ""))
     .sort(compareVersions)[0];
+  const version =
+    buildInfo?.releaseNotesVersion ||
+    (buildInfo?.channel === "nightly"
+      ? buildInfo.releaseVersion
+      : latestReleaseVersion || buildInfo?.releaseVersion || "unknown");
 
   return (
-    <Link
-      href={`/release/${version}`}
-      className={`hover:underline text-sm text-gray-500 dark:text-gray-400 sm:text-center ${className}`}
-      target="_blank"
-      onClick={onClick}
-    >
-      {version}
-    </Link>
+    <>
+      <button
+        type="button"
+        className={`hover:underline text-sm text-gray-500 dark:text-gray-400 sm:text-center ${className}`}
+        onClick={() => {
+          onClick?.();
+          setIsBuildInfoOpen(true);
+        }}
+        title={
+          buildInfoError
+            ? "Build information is unavailable"
+            : "Show deployed build information"
+        }
+      >
+        {version}
+      </button>
+      <BuildInfoModal
+        buildInfo={buildInfo}
+        isOpen={isBuildInfoOpen}
+        onClose={() => setIsBuildInfoOpen(false)}
+      />
+    </>
   );
 }

@@ -19,6 +19,12 @@ import asyncpg
 
 from miot_harness.config import HarnessSettings
 from miot_harness.connections.models import Connection
+from miot_harness.datasource.knowledge.loader import (
+    detect_packs,
+    load_packs,
+    probe_version,
+)
+from miot_harness.datasource.knowledge.models import DetectedPack, KnowledgeCard
 from miot_harness.datasource.pool import create_pg_pool
 from miot_harness.datasource.provider import (
     BootResult,
@@ -27,7 +33,7 @@ from miot_harness.datasource.provider import (
 )
 from miot_harness.datasource.safe_query import DEFAULT_STATEMENT_TIMEOUT_MS
 from miot_harness.datasource.safe_sql import HARD_LIMIT_CAP
-from miot_harness.datasource.schema_introspect import introspect_schema
+from miot_harness.datasource.schema_introspect import SchemaSummary, introspect_schema
 from miot_harness.datasource.sql_policy import SchemaAllowlistPolicy
 from miot_harness.integrations.generic_pg.primitive_tools import build_generic_tools
 from miot_harness.tools.registry import ToolRegistry
@@ -168,10 +174,51 @@ class GenericPgProvider(DataSourceProvider):
         application_name = (
             str(opts["application_name"]) if opts.get("application_name") else None
         )
+        schema_summary = None
+        detected: tuple[DetectedPack, ...] = ()
         try:
             self._pool = await create_pg_pool(
                 connection.dsn, application_name=application_name
             )
+            # Introspect first (best-effort): the schema index AND knowledge-pack
+            # fingerprinting both need the table set. A failure here must not
+            # disable the connection — the query tools still register.
+            if settings.generic_schema_introspect_enabled:
+                try:
+                    schema_summary = await introspect_schema(
+                        pool=self._pool,
+                        policy=policy,
+                        connection=name,
+                        max_tables=settings.generic_schema_max_tables,
+                        primer=connection.primer,
+                        statement_timeout_ms=statement_timeout_ms,
+                    )
+                except Exception as exc:  # noqa: BLE001 — index is best-effort
+                    logger.error(
+                        "generic_pg %s: introspection failed (%s); continuing",
+                        name,
+                        exc,
+                        exc_info=True,  # keep the traceback for catalog/permission diag
+                    )
+            # Detect knowledge packs (best-effort) from the full table set.
+            knowledge_cards: list[KnowledgeCard] = []
+            if schema_summary is not None and settings.generic_knowledge_packs_enabled:
+                try:
+                    detected = await self._detect_packs(
+                        schema_summary,
+                        settings=settings,
+                        schemas=schema_summary.schemas,
+                        statement_timeout_ms=statement_timeout_ms,
+                    )
+                    knowledge_cards = [c for dp in detected for c in dp.pack.cards]
+                except Exception as exc:  # noqa: BLE001 — packs are best-effort
+                    logger.error(
+                        "generic_pg %s: pack detection failed (%s); continuing",
+                        name,
+                        exc,
+                        exc_info=True,  # keep the traceback for catalog/permission diag
+                    )
+
             tools = build_generic_tools(
                 pool=self._pool,
                 policy=policy,
@@ -181,6 +228,7 @@ class GenericPgProvider(DataSourceProvider):
                 max_rows=max_rows,
                 explain_cost_threshold=explain_cost_threshold,
                 statement_timeout_ms=statement_timeout_ms,
+                knowledge_cards=knowledge_cards,
             )
             registered: list[str] = []
             for tool in tools:
@@ -193,31 +241,42 @@ class GenericPgProvider(DataSourceProvider):
                 enabled=False, registered=(), reason=f"boot failed: {exc}"
             )
 
-        # Connection Knowledge Base (Phase 2): boot-time schema index. A failure
-        # here must NOT disable the connection — the query tools already
-        # registered; the index is additive grounding.
-        schema_summary = None
-        if settings.generic_schema_introspect_enabled:
-            try:
-                schema_summary = await introspect_schema(
-                    pool=self._pool,
-                    policy=policy,
-                    connection=name,
-                    max_tables=settings.generic_schema_max_tables,
-                    primer=connection.primer,
-                    statement_timeout_ms=statement_timeout_ms,
-                )
-            except Exception as exc:  # noqa: BLE001 — index is best-effort
-                logger.error(
-                    "generic_pg %s: schema introspection failed (%s); continuing",
-                    name,
-                    exc,
-                    exc_info=True,  # keep the traceback for catalog/permission diag
-                )
-
         return BootResult(
-            enabled=True, registered=tuple(registered), schema_summary=schema_summary
+            enabled=True,
+            registered=tuple(registered),
+            schema_summary=schema_summary,
+            detected_packs=detected,
         )
+
+    async def _detect_packs(
+        self,
+        summary: SchemaSummary,
+        *,
+        settings: HarnessSettings,
+        schemas: tuple[str, ...],
+        statement_timeout_ms: int,
+    ) -> tuple[DetectedPack, ...]:
+        result = load_packs(settings.knowledge_packs_dir)
+        for diag in result.diagnostics:
+            logger.warning("knowledge packs: %s", diag)
+        matched = detect_packs(summary.all_table_names, result.packs)
+        out: list[DetectedPack] = []
+        for pack in matched:
+            version = None
+            if pack.version_probe is not None and self._pool is not None:
+                try:
+                    version = await probe_version(
+                        pool=self._pool,
+                        probe=pack.version_probe,
+                        schemas=schemas,
+                        statement_timeout_ms=statement_timeout_ms,
+                    )
+                except Exception as exc:  # noqa: BLE001 — probe is best-effort
+                    logger.warning(
+                        "knowledge pack %s: version probe failed (%s)", pack.id, exc
+                    )
+            out.append(DetectedPack(pack=pack, version=version))
+        return tuple(out)
 
     async def close(self) -> None:
         if self._pool is not None:

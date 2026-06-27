@@ -44,6 +44,9 @@ class SchemaSummary:
     tables: tuple[TableInfo, ...]  # capped to max_tables, sorted by qualified name
     total_tables: int  # before the cap
     primer: str = ""  # the connection.md body (carried for the grounding fold)
+    # The FULL set of bare table names (uncapped) — for knowledge-pack
+    # fingerprinting, which must see every table, not just the displayed slice.
+    all_table_names: frozenset[str] = frozenset()
 
     @property
     def truncated(self) -> bool:
@@ -163,6 +166,7 @@ async def introspect_schema(
         tables=tuple(capped),
         total_tables=len(all_tables),
         primer=primer,
+        all_table_names=frozenset(t.name for t in all_tables),
     )
 
 

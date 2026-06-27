@@ -239,14 +239,38 @@ def _make_lifespan(
                     if summary is not None
                     else None
                 ),
+                # Detected curated knowledge packs (slice 2).
+                "packs": [
+                    {
+                        "id": dp.pack.id,
+                        "title": dp.pack.title,
+                        "version": dp.version,
+                        "cards": [c.id for c in dp.pack.cards],
+                    }
+                    for dp in boot_res.detected_packs
+                ],
             }
             # Accumulate the CKB grounding block for each enabled connection.
             # The primary's primer is already in provider.profile.primer, so add
-            # it only for secondaries; the schema index is new for all.
+            # it only for secondaries; the schema index + pack knowledge are new.
             if boot_res.enabled:
                 parts: list[str] = []
                 if not is_primary and conn.primer:
                     parts.append(conn.primer)
+                for dp in boot_res.detected_packs:
+                    ver = f" (v{dp.version})" if dp.version else ""
+                    card_titles = "; ".join(
+                        f"{c.id}: {c.title}" for c in dp.pack.cards
+                    )
+                    parts.append(
+                        f"**Knowledge pack: {dp.pack.title}{ver}**\n{dp.pack.overview}"
+                        + (
+                            f"\n\nKnowledge cards (open with `{conn.name}_knowledge`): "
+                            f"{card_titles}"
+                            if card_titles
+                            else ""
+                        )
+                    )
                 # total_tables (not tables) so the header + truncation note still
                 # render when the index is capped to 0 (generic_schema_max_tables=0).
                 if summary is not None and summary.total_tables:

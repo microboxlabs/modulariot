@@ -121,6 +121,15 @@ class HarnessSettings(BaseSettings):
     # truncation note, never silent).
     generic_schema_introspect_enabled: bool = True
     generic_schema_max_tables: int = Field(default=80, ge=0)
+    # Curated knowledge packs (Phase 2 slice 2): product-specific semantics
+    # attached to a generic connection when its schema matches a pack
+    # fingerprint (e.g. Alfresco/Activiti). Packs are content, shipped in the
+    # image; a K8s volume can add more via MIOT_HARNESS_KNOWLEDGE_PACKS_DIR.
+    # Gated on generic query being enabled, so inert by default.
+    generic_knowledge_packs_enabled: bool = True
+    knowledge_packs_dir: Path = (
+        Path(__file__).parent / "datasource" / "knowledge" / "packs"
+    )
     # Hard cap on connector tools registered from skill files — bounds the
     # blast radius of a misconfigured/oversized ConfigMap.
     max_connector_tools: int = Field(default=50, ge=0)

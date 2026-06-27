@@ -154,6 +154,7 @@ async def test_agentic_executor_collects_real_evidence() -> None:
         "executor",
         "freshness_judge",
         "planner",
+        "verify",  # Phase 3 gate: confirms the evidence answers before synth
         "synthesizer",
         "critic",
         "summarizer",
@@ -267,6 +268,85 @@ def test_provenance_entry_prefers_executed_sql() -> None:
     entry = _provenance_entry(ctx=_ctx(), user_message="cuántas?", step=step, evidence=ev)
     assert entry.sql == "SELECT count(*) AS n FROM acs.act_ru_task"
     assert entry.rows_returned == 1
+
+
+def _plan_response(tools: list[str]) -> str:
+    return json.dumps(
+        {
+            "action": "plan",
+            "steps": [
+                {"tool": t, "args": {}, "intent": "step", "rationale": "r"}
+                for t in tools
+            ],
+        }
+    )
+
+
+@pytest.mark.asyncio
+async def test_agentic_plan_executes_to_completion_then_verifies() -> None:
+    """A multi-step plan drains fully (executor↔freshness_judge) before the
+    planner is consulted again; then verify gates synthesis."""
+    models = _models(
+        [
+            _plan_response(["coordinador_centro_control", "coordinador_centro_control"]),
+            _FINAL_RESPONSE,
+        ],
+        synthesizer_text="done",
+    )
+    graph = _graph(models=models)
+    final = await graph.ainvoke(
+        {"user_message": "lista", "ctx": _ctx(), "evidence": [], "turn_count": 0}
+    )
+    assert final.get("answer") == "done"
+    # Both planned steps ran before any re-planning.
+    assert len(final.get("executed_steps", [])) == 2
+    assert len(final.get("evidence", [])) == 2
+    visited = _visited_agents(final)
+    assert visited.count("executor") == 2
+    assert "verify" in visited
+    # Planner consulted twice total: once to emit the plan, once to finish.
+    assert visited.count("planner") == 2
+
+
+@pytest.mark.asyncio
+async def test_agentic_verify_gap_loops_back_to_planner() -> None:
+    """The LLM judge says the evidence is incomplete → re-plan; the gap note is
+    threaded; the second verify accepts and synthesizes."""
+    models = _models(
+        [_call_tool_response(), _FINAL_RESPONSE, _FINAL_RESPONSE],
+        synthesizer_text="answer",
+    )
+    models["verifier"] = FakeListChatModel(
+        responses=[
+            json.dumps({"fulfilled": False, "gap": "necesitas el COUNT real"}),
+            json.dumps({"fulfilled": True, "gap": ""}),
+        ]
+    )
+    graph = _graph(models=models)
+    final = await graph.ainvoke(
+        {"user_message": "cuántos", "ctx": _ctx(), "evidence": [], "turn_count": 0}
+    )
+    assert final.get("answer") == "answer"
+    assert final.get("replan_count") == 1
+    visited = _visited_agents(final)
+    assert visited.count("verify") == 2
+    assert visited.count("planner") == 3  # plan/finish, then re-plan, then finish
+
+
+@pytest.mark.asyncio
+async def test_agentic_verify_disabled_skips_verify_node() -> None:
+    settings = HarnessSettings(
+        agents_synthesizer_stream=False, agents_agentic_verify_enabled=False
+    )
+    models = _models([_call_tool_response(), _FINAL_RESPONSE], synthesizer_text="ok")
+    # A verifier model is present but must NOT be consulted when the gate is off.
+    models["verifier"] = FakeListChatModel(responses=[])
+    graph = _graph(settings=settings, models=models)
+    final = await graph.ainvoke(
+        {"user_message": "x", "ctx": _ctx(), "evidence": [], "turn_count": 0}
+    )
+    assert final.get("answer") == "ok"
+    assert "verify" not in _visited_agents(final)
 
 
 @pytest.mark.asyncio

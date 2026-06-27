@@ -57,6 +57,21 @@ class HarnessSettings(BaseSettings):
     agents_agentic_max_turns: int = Field(default=12, gt=0)
     agents_critic_enabled: bool = False
 
+    # Phase 3 verify gate. When enabled, the agentic planner's decision to
+    # finish is intercepted by a verifier node (rule-based + a small LLM judge)
+    # that asks "do the EXECUTED results fulfil the request?"; on a gap it
+    # routes back to the planner to re-plan (bounded by max_replans). This makes
+    # completion structural — the planner can no longer satisfice (answer from a
+    # grep sample, or stop before running the join it already identified). When
+    # `agents_verifier_model` is unset, the gate degrades to rule-based checks
+    # only (no extra LLM call). Tests build the graph without a verifier model,
+    # so they exercise the rules-only path.
+    agents_agentic_verify_enabled: bool = True
+    agents_agentic_max_replans: int = Field(default=2, ge=0)
+    # Small "did we answer it?" judge. Held separate from the synthesizer so it
+    # can stay cheap. Empty string disables the LLM judge (rules-only verify).
+    agents_verifier_model: str = "claude-haiku-4-5"
+
     # Provenance log for agentic tool invocations (plan 13, E4). One JSONL
     # line per executed step under `<dir>/YYYY-MM-DD.jsonl`; the weekly
     # curation pass mines these for curated-function candidates.

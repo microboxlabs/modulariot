@@ -106,6 +106,94 @@ async def test_call_tool_action_produces_current_step() -> None:
 
 
 @pytest.mark.asyncio
+async def test_plan_action_produces_pending_steps() -> None:
+    response = json.dumps(
+        {
+            "action": "plan",
+            "steps": [
+                {"tool": "coordinador_centro_control", "args": {}, "intent": "kpis",
+                 "rationale": "overview"},
+                {"tool": "nexo_select", "args": {"table": "nexo.dx_servicios"},
+                 "intent": "rows", "rationale": "enumerate"},
+            ],
+        }
+    )
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    steps = delta["pending_steps"]
+    assert [s.tool for s in steps] == ["coordinador_centro_control", "nexo_select"]
+    assert delta["next_action"] == "execute_plan"
+    assert delta["turn_count"] == 1
+    assert delta["current_step"] is None
+    assert not delta.get("failure")
+
+
+@pytest.mark.asyncio
+async def test_plan_with_invalid_step_fails() -> None:
+    response = json.dumps(
+        {
+            "action": "plan",
+            "steps": [
+                {"tool": "coordinador_centro_control", "args": {}},
+                {"tool": "coordinador_inventada", "args": {}},  # unknown
+            ],
+        }
+    )
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert "unknown tool" in delta["failure"]
+    assert not delta.get("pending_steps")
+
+
+@pytest.mark.asyncio
+async def test_empty_plan_fails() -> None:
+    response = json.dumps({"action": "plan", "steps": []})
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert "empty or malformed plan" in delta["failure"]
+
+
+@pytest.mark.asyncio
+async def test_verification_gap_is_surfaced_to_planner() -> None:
+    captured: list[list[Any]] = []
+
+    class _Recording(FakeListChatModel):
+        async def ainvoke(self, input, *args, **kwargs):  # type: ignore[override]
+            captured.append(list(input))
+            return await super().ainvoke(input, *args, **kwargs)
+
+    response = json.dumps({"action": "final", "reasoning": "done"})
+    await agentic_planner_node(
+        _state(
+            evidence=[_evidence()],
+            verification_gap="solo corriste un grep; falta el COUNT real",
+        ),
+        registry=_registry(),
+        model=_Recording(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    human = [m for m in captured[0] if isinstance(m, HumanMessage)][-1]
+    assert "INCOMPLETE" in human.content
+    assert "falta el COUNT real" in human.content
+
+
+@pytest.mark.asyncio
 async def test_primitive_tool_is_in_scope() -> None:
     response = json.dumps(
         {

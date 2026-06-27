@@ -406,6 +406,13 @@ def _make_lifespan(
                             settings.agents_planner_model,
                             effort=settings.agents_planner_effort,
                         ),
+                        # Small "did we answer it?" judge for the Phase 3 verify
+                        # gate. Empty model name → rules-only verification.
+                        **(
+                            {"verifier": get_chat_model(settings.agents_verifier_model)}
+                            if settings.agents_verifier_model
+                            else {}
+                        ),
                     },
                     provenance_log=ProvenanceLog(
                         settings.provenance_log_dir,

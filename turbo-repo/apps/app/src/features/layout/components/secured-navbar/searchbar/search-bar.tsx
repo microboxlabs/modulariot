@@ -6,6 +6,7 @@ import { getNavegationParams } from "./navegation_params";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import React, { useEffect } from "react";
 import { KbdHint } from "./kbd-hint";
+import ParametrizedSearchBar from "./parametrized-searchbar";
 
 export default function SearchBar({
   messages,
@@ -85,5 +86,12 @@ export default function SearchBar({
     return null;
   }
 
-  return null;
+  return (
+    <ParametrizedSearchBar
+      messages={messages}
+      searchParams={searchParams}
+      dict={dict}
+      navegation_params={navegation_params[final_path as keyof typeof navegation_params]}
+    />
+  );
 }

@@ -5,13 +5,9 @@ import { getNavegationParams } from "./searchbar/navegation_params";
 import ParametrizedFilterBar from "./searchbar/parametrized-filter-bar";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-const ENABLED = process.env.NEXT_PUBLIC_ENABLE_SECTION_FILTER_BAR === "true";
-
 export function SectionFilterBar({ dict }: { readonly dict: I18nRecord }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-
-  if (!ENABLED) return null;
 
   const segments = pathname.split("/").filter(Boolean);
   const finalPath = segments.at(-1);

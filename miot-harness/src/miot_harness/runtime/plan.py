@@ -41,6 +41,13 @@ class DataEvidence(BaseModel):
     sample_size: int = 0
     is_stale: bool = False
     freshness_status: FreshnessStatus = "fresh"
+    # The rendered SQL that actually executed (when the tool ran one), so the
+    # synthesizer can cite it verbatim instead of confabulating a query.
+    executed_sql: str | None = None
+    # True for fuzzy/illustrative evidence (a grep/ILIKE sample): never a
+    # definitive count or complete list. The synthesizer must caveat it and
+    # never report its row count as a total.
+    is_sample: bool = False
 
 
 class DataState(TypedDict, total=False):

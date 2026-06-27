@@ -248,6 +248,27 @@ async def test_agentic_executor_writes_provenance(tmp_path: Path) -> None:
     assert entry["rows_returned"] == 1
 
 
+def test_provenance_entry_prefers_executed_sql() -> None:
+    # When a generic safe-query tool ran real SQL, provenance records THAT,
+    # not the synthetic `tool(args)` fallback used for curated tools.
+    from miot_harness.runtime.agentic_graph import _provenance_entry
+    from miot_harness.runtime.plan import DataEvidence, DataStep
+
+    step = DataStep(intent="i", tool="acs_query", args={"sql": "..."}, rationale="r")
+    ev = DataEvidence(
+        step_id=step.id,
+        tool="acs_query",
+        source="acs",
+        refreshed_at=None,
+        output={"rows": [{"n": 25}]},
+        sample_size=1,
+        executed_sql="SELECT count(*) AS n FROM acs.act_ru_task",
+    )
+    entry = _provenance_entry(ctx=_ctx(), user_message="cuántas?", step=step, evidence=ev)
+    assert entry.sql == "SELECT count(*) AS n FROM acs.act_ru_task"
+    assert entry.rows_returned == 1
+
+
 @pytest.mark.asyncio
 async def test_agentic_graph_caps_turns() -> None:
     """At the cap with no evidence the planner fails fast — never hangs,

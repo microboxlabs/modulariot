@@ -80,6 +80,14 @@ Rules:
 - If the evidence is empty or insufficient, say what you don't know.
 - Do not invent rows or numbers; quote what's in the evidence.
 - Do not mention internal pipeline (filter_expert, plan, etc.).
+- When asked what query you ran, quote the `executed_sql` of the relevant
+  evidence line verbatim. Never invent, guess, or paraphrase a query you did
+  not run; if no evidence line carries executed_sql, say you don't have it.
+- Evidence flagged SAMPLE is a fuzzy ILIKE/grep search — illustrative only.
+  Never report its row count as a total or present it as a complete list. Any
+  count or total MUST come from an aggregate/COUNT result, not from counting
+  sample rows.
+- Do not pad the answer with attributes or values that are not in the evidence.
 {freshness_rules}
 """
 
@@ -170,11 +178,18 @@ def _render_evidence_for_synth(evidence: list[DataEvidence]) -> str:
     for ev in evidence:
         refreshed = ev.refreshed_at.isoformat() if ev.refreshed_at else "unknown"
         stale = " STALE" if ev.is_stale else ""
+        # SAMPLE flags fuzzy grep/ILIKE evidence — illustrative, never a total.
+        sample = " SAMPLE" if ev.is_sample else ""
         snippet = json.dumps(ev.output, default=str)[:1200]
-        lines.append(
-            f"tool={ev.tool} source={ev.source} refreshed_at={refreshed}{stale} "
-            f"status={ev.freshness_status} rows={ev.sample_size}\n  {snippet}"
+        header = (
+            f"tool={ev.tool} source={ev.source} refreshed_at={refreshed}{stale}{sample} "
+            f"status={ev.freshness_status} rows={ev.sample_size}"
         )
+        # The exact SQL that ran (when the tool ran one): the synthesizer quotes
+        # this verbatim if asked what query produced the answer.
+        if ev.executed_sql:
+            header += f"\n  executed_sql: {ev.executed_sql[:600]}"
+        lines.append(f"{header}\n  {snippet}")
     return "\n".join(lines)
 
 

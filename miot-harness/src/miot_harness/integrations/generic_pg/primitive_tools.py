@@ -69,6 +69,10 @@ class _ExplainInput(BaseModel):
 class _RowsOutput(BaseModel):
     rows: list[dict[str, Any]] = Field(default_factory=list)
     source: str = ""
+    # The rendered SQL that actually executed (select/grep/query). Threaded into
+    # DataEvidence so the agent can cite what it ran. None for introspection
+    # tools (list_tables) that have no user-facing query to report.
+    executed_sql: str | None = None
 
 
 class _DescribeOutput(BaseModel):
@@ -173,7 +177,7 @@ def build_generic_tools(
     async def call_select(
         ctx: HarnessContext, parsed: _SelectInput, progress: Progress
     ) -> _RowsOutput:
-        rows = await safe_select(
+        run = await safe_select(
             pool=pool,
             policy=policy,
             table=parsed.table,
@@ -184,12 +188,12 @@ def build_generic_tools(
             max_rows=max_rows,
             statement_timeout_ms=statement_timeout_ms,
         )
-        return _RowsOutput(rows=rows, source=source_label)
+        return _RowsOutput(rows=run.rows, source=source_label, executed_sql=run.sql)
 
     async def call_grep(
         ctx: HarnessContext, parsed: _GrepInput, progress: Progress
     ) -> _RowsOutput:
-        rows = await safe_grep(
+        run = await safe_grep(
             pool=pool,
             policy=policy,
             table=parsed.table,
@@ -199,12 +203,12 @@ def build_generic_tools(
             max_rows=max_rows,
             statement_timeout_ms=statement_timeout_ms,
         )
-        return _RowsOutput(rows=rows, source=source_label)
+        return _RowsOutput(rows=run.rows, source=source_label, executed_sql=run.sql)
 
     async def call_query(
         ctx: HarnessContext, parsed: _QueryInput, progress: Progress
     ) -> _RowsOutput:
-        rows = await safe_run_select(
+        run = await safe_run_select(
             pool=pool,
             policy=policy,
             sql=parsed.sql,
@@ -212,7 +216,7 @@ def build_generic_tools(
             cost_threshold=explain_cost_threshold,
             statement_timeout_ms=statement_timeout_ms,
         )
-        return _RowsOutput(rows=rows, source=source_label)
+        return _RowsOutput(rows=run.rows, source=source_label, executed_sql=run.sql)
 
     async def call_explain(
         ctx: HarnessContext, parsed: _ExplainInput, progress: Progress

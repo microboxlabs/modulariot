@@ -39,9 +39,9 @@ export default function WhatsAppContact({
   treatmentData,
   setIsMenuOpen,
 }: {
-  dict: I18nRecord;
-  treatmentData: TreatmentsGeneralResponseItem | null;
-  setIsMenuOpen: (isMenuOpen: boolean) => void;
+  readonly dict: I18nRecord;
+  readonly treatmentData: TreatmentsGeneralResponseItem | null;
+  readonly setIsMenuOpen: (isMenuOpen: boolean) => void;
 }) {
   const t = dict.symptoms as I18nRecord;
   const trip = treatmentData?.trip_info;
@@ -166,7 +166,7 @@ export default function WhatsAppContact({
   );
 }
 
-function InfoLine({ label, value }: { label: string; value?: string }) {
+function InfoLine({ label, value }: { readonly label: string; readonly value?: string }) {
   return (
     <p className="text-xs font-light text-gray-900 dark:text-gray-200">
       {label}:{" "}

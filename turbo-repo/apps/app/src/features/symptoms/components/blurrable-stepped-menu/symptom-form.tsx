@@ -9,7 +9,8 @@ import { useSession } from "next-auth/react";
 import { SympthomTemplateResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import FormIcon from "./form-icon";
 import CallDriver from "./menus/call-driver/call-driver";
-import { FaPhoneAlt } from "react-icons/fa";
+import WhatsAppContact from "./menus/whatsapp-contact/whatsapp-contact";
+import { FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
 import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import IgnoreCondition from "./menus/ignore-condition/ignore-condition";
 import InvalidateSymptom from "./menus/invalidate-symptom/invalidate-symptom";
@@ -108,6 +109,19 @@ export default function SymptomForm({
         </div>
       ),
       icon: <FaPhoneAlt className="h-5 w-5" />,
+    },
+    contact_via_whatsapp: {
+      title: (dict.symptoms as I18nRecord).contact_via_whatsapp,
+      // No preaction: sending a WhatsApp doesn't pre-create a treatment record.
+      preactions: undefined,
+      component: (
+        <WhatsAppContact
+          dict={dict}
+          treatmentData={treatmentData}
+          setIsMenuOpen={setIsMenuOpen}
+        />
+      ),
+      icon: <FaWhatsapp className="h-6 w-6" />,
     },
     ignore_condition: {
       title: (dict.symptoms as I18nRecord).ignore_condition,

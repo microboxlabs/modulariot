@@ -59,7 +59,6 @@ export default function BlurrableDropdown({
       label: (dict.symptoms as I18nRecord).contact_via_whatsapp as string,
       icon: FaWhatsapp,
       option: "contact_via_whatsapp" as SelectedOption,
-      disabled: true,
     },
     {
       id: 3,

@@ -80,7 +80,7 @@ public class WhatsAppMessagingService {
             metaMessageId = dispatch(connection, phoneNumberId, token, request);
             status = MessageStatus.SENT;
         } catch (WhatsAppSendException e) {
-            LOG.warnf(e, "WhatsApp send failed for tenant %s to %s", tenantCode, request.to());
+            LOG.warnf(e, "WhatsApp send failed for tenant %s to %s", tenantCode, maskPhone(request.to()));
             status = MessageStatus.FAILED;
             errorMessage = e.getMessage();
         }
@@ -183,6 +183,14 @@ public class WhatsAppMessagingService {
                         "templateParams['" + param.getKey() + "'] must have a non-blank value");
             }
         }
+    }
+
+    /** Masks a phone number for logs, keeping only the last 4 digits (PII reduction). */
+    private static String maskPhone(String phone) {
+        if (phone == null || phone.length() <= 4) {
+            return "****";
+        }
+        return "****" + phone.substring(phone.length() - 4);
     }
 
     private static Map<String, Object> metadata(ResolvedConnection connection) {

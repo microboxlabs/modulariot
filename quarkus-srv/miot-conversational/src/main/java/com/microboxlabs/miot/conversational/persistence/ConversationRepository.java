@@ -78,11 +78,26 @@ public class ConversationRepository {
     }
 
     public Conversation findByTenantAndId(String tenantCode, String conversationId) {
+        UUID id = parseUuidOrNull(conversationId);
+        if (id == null) {
+            return null;
+        }
         var rows = client().preparedQuery(SELECT_BY_TENANT_AND_ID)
-                .execute(Tuple.of(tenantCode, UUID.fromString(conversationId)))
+                .execute(Tuple.of(tenantCode, id))
                 .await().indefinitely();
         var iterator = rows.iterator();
         return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    private static UUID parseUuidOrNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     public List<Conversation> listByTenant(String tenantCode, int limit) {

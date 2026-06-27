@@ -177,6 +177,17 @@ class HarnessSettings(BaseSettings):
     agents_critic_model: str = "claude-sonnet-4-6"
     agents_summarizer_model: str = "claude-haiku-4-5"
 
+    # Agentic plan-mode planner seat (Phase 3). Held separate from the canned
+    # analyst so the cheap canned path can stay on Sonnet while the agentic
+    # planner runs on a stronger tier. Opus 4.8 removed the Sonnet-4.6
+    # hallucination we saw side-by-side with Claude Code ("53 servicios" from a
+    # fuzzy grep, never running the real query). `effort` is the Opus 4.7+
+    # `output_config.effort` knob ("high" == the model's default/no-op;
+    # "xhigh"/"max" deepen reasoning at a latency+cost premium). None disables
+    # the effort/adaptive-thinking path entirely (plain Opus call).
+    agents_planner_model: str = "claude-opus-4-8"
+    agents_planner_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = "high"
+
     # Synthesizer streaming (plan: SSE rich events). When enabled, the
     # synthesizer's LLM call runs as a streaming `astream_events` loop
     # and emits `thinking.delta` / `thinking.completed` SSE events so

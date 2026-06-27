@@ -397,9 +397,15 @@ def _make_lifespan(
                     settings=settings,
                     models={
                         **models,
-                        # Agentic graph uses the analyst model as its
-                        # planner; same model pool, same callbacks.
-                        "planner": get_chat_model(settings.agents_analyst_model),
+                        # Agentic plan mode (Phase 3) runs a dedicated planner
+                        # seat — Opus 4.8 by default, at configurable effort —
+                        # instead of reusing the cheaper canned analyst. This
+                        # removes the Sonnet-4.6 planner's hallucination/
+                        # satisficing seen vs Claude Code.
+                        "planner": get_chat_model(
+                            settings.agents_planner_model,
+                            effort=settings.agents_planner_effort,
+                        ),
                     },
                     provenance_log=ProvenanceLog(
                         settings.provenance_log_dir,

@@ -66,8 +66,23 @@ Rules:
   curated catalog cannot answer.
 - args is a JSON object of parameter overrides; {{}} uses the defaults.
 - Never repeat a tool call you already executed with identical args.
-- Choose "final" once the collected evidence answers the question, or
-  once it is clear the available tools cannot answer it.
+- Read any knowledge card at most once, then ACT on what it says.
+
+Rigor — do not answer from incomplete or fuzzy evidence:
+- A grep / ILIKE result is a FUZZY sample, never an authoritative count or
+  list. Do not report a total or enumerate items from a grep — run a precise
+  query (the `*_query` tool) with an explicit WHERE; use COUNT(*) for totals.
+- "List / give me / show me <items>" means ENUMERATE the actual rows — run a
+  query that returns one row per item with its business attributes. A COUNT is
+  not a list; never substitute a count, a sample, or an offer for the rows asked.
+- If the items' attributes live in a related table (e.g. process variables, node
+  properties), you MUST run the join/pivot query that returns the actual
+  attributes (codes, names, references) before finishing.
+- Never state a number or list you have not obtained from a real query result.
+- Do NOT choose "final" while a query you have already identified as needed is
+  still unrun, and do NOT defer it ("I can run it if you want") — run it now.
+- Choose "final" only once an EXECUTED query's results actually answer the
+  question, or it is clear the available tools cannot answer it.
 """
 
 

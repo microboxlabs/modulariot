@@ -10,6 +10,7 @@ import com.microboxlabs.miot.conversational.dto.SendWhatsAppMessageRequest;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -74,6 +75,29 @@ class WhatsAppMessagingServiceTest {
         assertEquals("****1587", maskPhone.invoke(null, "+56962311587"));
         assertEquals("****", maskPhone.invoke(null, "123"));
         assertEquals("****", maskPhone.invoke(null, new Object[] {null}));
+    }
+
+    // Placeholder numbers only — never put real phone numbers in the codebase.
+    @Test
+    void testModeBlocksRecipientNotOnTheAllowlist() {
+        Set<String> allowed = WhatsAppMessagingService.parseRecipients("+56 9 0000 0001, +56900000002");
+        assertThrows(IllegalArgumentException.class,
+                () -> WhatsAppMessagingService.enforceTestMode(true, allowed, "+56900009999"));
+    }
+
+    @Test
+    void testModeAllowsAllowlistedRecipientIgnoringFormatting() {
+        Set<String> allowed = WhatsAppMessagingService.parseRecipients("+56 9 0000 0001");
+        assertDoesNotThrow(() -> {
+            WhatsAppMessagingService.enforceTestMode(true, allowed, "+56900000001");
+            WhatsAppMessagingService.enforceTestMode(true, allowed, "569 0000-0001");
+        });
+    }
+
+    @Test
+    void testModeDisabledAllowsAnyRecipient() {
+        assertDoesNotThrow(() ->
+                WhatsAppMessagingService.enforceTestMode(false, Set.of(), "+56900009999"));
     }
 
     private static void assertIllegalArgument(SendWhatsAppMessageRequest request, String field) {

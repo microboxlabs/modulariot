@@ -19,9 +19,13 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
@@ -42,21 +46,30 @@ public class WhatsAppMessagingService {
     private final MetaWhatsAppClient metaClient;
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
+    private final boolean testModeEnabled;
+    private final Set<String> testRecipientDigits;
 
     @Inject
     public WhatsAppMessagingService(
             IntegrationConnectionResolver connectionResolver,
             MetaWhatsAppClient metaClient,
             ConversationRepository conversationRepository,
-            MessageRepository messageRepository) {
+            MessageRepository messageRepository,
+            @ConfigProperty(name = "miot.conversational.test-mode.enabled", defaultValue = "false")
+            boolean testModeEnabled,
+            @ConfigProperty(name = "miot.conversational.test-mode.allowed-recipients", defaultValue = "")
+            String testModeAllowedRecipients) {
         this.connectionResolver = connectionResolver;
         this.metaClient = metaClient;
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
+        this.testModeEnabled = testModeEnabled;
+        this.testRecipientDigits = parseRecipients(testModeAllowedRecipients);
     }
 
     public Message send(String tenantCode, SendWhatsAppMessageRequest request, String sentByUserId) {
         validate(request);
+        enforceTestMode(testModeEnabled, testRecipientDigits, request.to());
 
         ResolvedConnection connection = connectionResolver.resolve(tenantCode, ProviderType.WHATSAPP);
         String phoneNumberId = connection.metadataString(PHONE_NUMBER_ID);
@@ -183,6 +196,38 @@ public class WhatsAppMessagingService {
                         "templateParams['" + param.getKey() + "'] must have a non-blank value");
             }
         }
+    }
+
+    /**
+     * Demo/dev safety: when test mode is on, only allow sends to the configured team
+     * recipients (compared by digits, so formatting is ignored). Any other recipient is
+     * rejected so a real driver is never messaged while testing. No-op when disabled.
+     */
+    static void enforceTestMode(boolean enabled, Set<String> allowedDigits, String to) {
+        if (!enabled) {
+            return;
+        }
+        if (!allowedDigits.contains(digitsOnly(to))) {
+            throw new IllegalArgumentException(
+                    "Test mode is active for this environment — the recipient is not on the "
+                            + "allowed test-recipient list");
+        }
+    }
+
+    /** Parses a comma-separated recipient list into a set of digit-only forms for matching. */
+    static Set<String> parseRecipients(String csv) {
+        if (csv == null || csv.isBlank()) {
+            return Set.of();
+        }
+        return Arrays.stream(csv.split(","))
+                .map(WhatsAppMessagingService::digitsOnly)
+                .filter(value -> !value.isBlank())
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /** Reduces a phone number to digits only, so formatting differences don't affect matching. */
+    static String digitsOnly(String phone) {
+        return phone == null ? "" : phone.replaceAll("\\D", "");
     }
 
     /** Masks a phone number for logs, keeping only the last 4 digits (PII reduction). */

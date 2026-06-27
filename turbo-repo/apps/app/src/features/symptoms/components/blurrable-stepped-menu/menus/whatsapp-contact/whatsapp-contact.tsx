@@ -68,7 +68,7 @@ export default function WhatsAppContact({
     (t[`whatsapp_param_${name}`] as string | undefined) ?? name;
 
   const canSend =
-    recipient.trim().length > 0 && template.params.every((p) => params[p]?.trim());
+    normalizePhone(recipient).length > 0 && template.params.every((p) => params[p]?.trim());
 
   const handleSend = async () => {
     if (!canSend || sending) return;
@@ -79,7 +79,7 @@ export default function WhatsAppContact({
         Object.entries(params).map(([key, value]) => [key, value.trim()]),
       );
       await sendWhatsAppMessage({
-        to: recipient.trim(),
+        to: normalizePhone(recipient),
         type: "TEMPLATE",
         templateName: template.name,
         language: template.language,
@@ -89,9 +89,10 @@ export default function WhatsAppContact({
       ShowNotification({ type: "success", message: t.whatsapp_success as string });
       setIsMenuOpen(false);
     } catch (err) {
+      const detail = err instanceof Error ? err.message.trim() : "";
       ShowNotification({
         type: "error",
-        message: err instanceof Error ? err.message : (t.whatsapp_error as string),
+        message: detail || (t.whatsapp_error as string),
       });
     } finally {
       setSending(false);
@@ -144,7 +145,9 @@ export default function WhatsAppContact({
             <TextInput
               id={`wa-param-${p}`}
               value={params[p] ?? ""}
-              onChange={(e) => setParams({ ...params, [p]: e.target.value })}
+              onChange={(e) =>
+                setParams((prev) => ({ ...prev, [p]: e.target.value }))
+              }
             />
           </div>
         ))}

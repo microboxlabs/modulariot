@@ -115,7 +115,9 @@ export default function SymptomForm({
       // No preaction: sending a WhatsApp doesn't pre-create a treatment record.
       preactions: undefined,
       component: (
+        // key by trip so the form re-seeds its defaults if the selected treatment changes.
         <WhatsAppContact
+          key={treatmentData?.trip_info?.trip_id ?? "no-trip"}
           dict={dict}
           treatmentData={treatmentData}
           setIsMenuOpen={setIsMenuOpen}

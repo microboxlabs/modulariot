@@ -14,7 +14,7 @@ import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import get_chat_model
@@ -34,6 +34,7 @@ from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
+from miot_harness.runtime.control import Resolution, ResolutionAction
 from miot_harness.runtime.data_graph import build_data_graph
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.factory import build_harness
@@ -53,6 +54,33 @@ class ApprovalDecision(BaseModel):
     """
 
     decision: Literal["approve", "deny"]
+
+
+class DecisionResolution(BaseModel):
+    """Body for POST /runs/{run_id}/decisions/{decision_id}."""
+
+    resolution: ResolutionAction
+    updated_input: dict[str, Any] | None = None
+    option_id: str | None = None
+
+
+class SteerRequest(BaseModel):
+    """Body for POST /runs/{run_id}/steer.
+
+    `message` is free-text operator guidance pushed into a running agentic
+    loop. Empty / whitespace-only input is rejected at validation time, so
+    FastAPI returns 422 before the handler runs.
+    """
+
+    message: str
+
+    @field_validator("message")
+    @classmethod
+    def _non_empty(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("message must not be empty or whitespace-only")
+        return stripped
 
 
 def _make_lifespan(
@@ -856,6 +884,41 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="Approval not pending")
         return Response(status_code=204)
 
+    @app.post("/runs/{run_id}/decisions/{decision_id}", status_code=204)
+    async def resolve_decision(
+        run_id: str,
+        decision_id: str,
+        body: DecisionResolution,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> Response:
+        caller = auth.get("tenant_id")
+        if caller and app.state.in_flight_tenants.get(run_id) != caller:
+            raise HTTPException(status_code=404, detail="Decision not pending")
+        registry = app.state.harness.approval_registry
+        if registry is not None:
+            # Run-scoped: a decision_id owned by ANOTHER run (same tenant)
+            # returns None here, so the kind-mismatch 422 below is skipped and
+            # the request falls through to resolve()'s 404 — no ownership leak.
+            kind = registry.kind_for_run(decision_id, run_id)
+            if kind == "tool_approval" and body.resolution == "choose":
+                raise HTTPException(
+                    status_code=422,
+                    detail="'choose' is not valid for a tool_approval decision",
+                )
+            if kind == "choice" and body.resolution != "choose":
+                raise HTTPException(
+                    status_code=422,
+                    detail="only 'choose' is valid for a choice decision",
+                )
+        resolution = Resolution(
+            action=body.resolution,
+            updated_input=body.updated_input,
+            option_id=body.option_id,
+        )
+        if registry is None or not registry.resolve(decision_id, resolution, run_id):
+            raise HTTPException(status_code=404, detail="Decision not pending")
+        return Response(status_code=204)
+
     @app.post("/runs/{run_id}/cancel", status_code=204)
     async def cancel_run(
         run_id: str,
@@ -875,6 +938,67 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="Run not in flight")
         task.cancel()
         return Response(status_code=204)
+
+    @app.post("/runs/{run_id}/steer", status_code=202)
+    async def steer_run(
+        run_id: str,
+        body: SteerRequest,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> Response:
+        """Inject free-text operator guidance into a running agentic loop.
+
+        Advisory and non-blocking: the note is queued on the run's steering
+        channel and consumed at the next agentic *planner* boundary (the run
+        never waits for it). Returns 202 — acceptance, not application.
+
+        Scope: only the agentic route observes the channel. Single-shot
+        routes finish before a steer can be read, so their notes are dropped
+        at run end. Contract: 422 empty/whitespace body; 404 for an unknown,
+        finished, or cross-tenant run (collapsed — no ownership leak).
+        """
+        # Tenant scoping: a steering channel only exists while its run is in
+        # flight, so the in-flight tenant tracker is the authoritative owner
+        # map. The tenant check runs BEFORE touching the registry, so a
+        # cross-tenant caller never pushes a note and gets the same 404 as an
+        # unknown run — no ownership leak.
+        caller = auth.get("tenant_id")
+        if caller and app.state.in_flight_tenants.get(run_id) != caller:
+            raise HTTPException(status_code=404, detail="Run not steerable")
+        registry = app.state.harness.steering_registry
+        if registry is None or not registry.push(run_id, body.message):
+            raise HTTPException(status_code=404, detail="Run not steerable")
+        # Advisory/accepted: the note is consumed at the next planner boundary.
+        return Response(status_code=202)
+
+    @app.post("/runs/{run_id}/interrupt", status_code=202)
+    async def interrupt_run(
+        run_id: str,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> Response:
+        """Request a cooperative, graceful stop of a running agentic run.
+
+        Distinct from ``POST /runs/{id}/cancel``: cancel hard-cancels the
+        asyncio task (terminal ``run.failed`` with ``reason=cancelled``, no
+        answer), whereas interrupt sets a flag that the next planner boundary
+        honors — emitting ``run.interrupted`` and then synthesizing a partial
+        answer from evidence gathered so far (or failing gracefully if none).
+        Returns 202.
+
+        The flag is polled at the planner boundary, so a run blocked on a
+        pending tool approval won't observe it until that decision is
+        resolved; use hard ``/cancel`` to abort a stuck run. Contract: 404
+        for an unknown, finished, or cross-tenant run (collapsed).
+        """
+        # Same tenant 404-collapse as /steer: the check runs before the
+        # registry, so a cross-tenant caller never sets the interrupt flag.
+        caller = auth.get("tenant_id")
+        if caller and app.state.in_flight_tenants.get(run_id) != caller:
+            raise HTTPException(status_code=404, detail="Run not interruptible")
+        registry = app.state.harness.steering_registry
+        if registry is None or not registry.interrupt(run_id):
+            raise HTTPException(status_code=404, detail="Run not interruptible")
+        # Cooperative: the flag is polled at the next planner boundary.
+        return Response(status_code=202)
 
     @app.get("/runs/{run_id}/stream")
     async def stream_run(

@@ -33,6 +33,8 @@ from pydantic import ValidationError
 from miot_harness.agents.domain_analyst import render_evidence
 from miot_harness.agents.filter_expert import _strip_fences, build_tool_catalog
 from miot_harness.datasource.provider import DataSourceProfile
+from miot_harness.runtime.context import HarnessContext
+from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.plan import DataEvidence, DataStep
 from miot_harness.tools.registry import ToolRegistry
 
@@ -116,8 +118,29 @@ async def agentic_planner_node(
     profile: DataSourceProfile,
     max_turns: int,
 ) -> dict[str, Any]:
+    ctx: HarnessContext = state["ctx"]
     evidence: list[DataEvidence] = list(state.get("evidence", []))
     turn_count = int(state.get("turn_count", 0) or 0)
+
+    registry_steer = ctx.steering_registry
+    if registry_steer is not None and registry_steer.is_interrupted(ctx.run_id):
+        interrupted_evt = HarnessEvent(
+            run_id=ctx.run_id,
+            type="run.interrupted",
+            message="Run interrupted by operator",
+            data={"reason": "interrupted", "had_evidence": bool(evidence)},
+        )
+        if evidence:
+            return {
+                "next_action": "ready_to_synthesize",
+                "current_step": None,
+                "_events": [interrupted_evt],
+            }
+        return {
+            "failure": "run interrupted",
+            "next_action": None,
+            "_events": [interrupted_evt],
+        }
 
     if turn_count >= max_turns:
         if evidence:
@@ -149,9 +172,33 @@ async def agentic_planner_node(
         "Decide the next action."
     )
 
+    guidance_msgs: list[BaseMessage] = []
+    steer_events: list[HarnessEvent] = []
+    if registry_steer is not None:
+        for note in registry_steer.drain(ctx.run_id):
+            guidance_msgs.append(HumanMessage(content=f"[Live operator guidance]: {note}"))
+            steer_events.append(
+                HarnessEvent(
+                    run_id=ctx.run_id,
+                    type="steering.injected",
+                    message=note,
+                    data={"note": note},
+                )
+            )
+
     prior_messages = state.get("prior_messages") or []
+
+    def _with_steer(delta: dict[str, Any]) -> dict[str, Any]:
+        out = dict(delta)
+        if steer_events:
+            out["_events"] = [*steer_events, *out.get("_events", [])]
+        if guidance_msgs:
+            out["prior_messages"] = [*prior_messages, *guidance_msgs]
+        return out
+
     messages: list[BaseMessage] = [SystemMessage(content=system)]
     messages.extend(prior_messages)
+    messages.extend(guidance_msgs)
     messages.append(HumanMessage(content=human))
     response = await model.ainvoke(messages)
 
@@ -169,20 +216,26 @@ async def agentic_planner_node(
                 "degrading to synthesis: %r",
                 text[:200],
             )
-            return {
+            return _with_steer(
+                {
+                    "next_action": "ready_to_synthesize",
+                    "current_step": None,
+                    "turn_count": turn_count + 1,
+                }
+            )
+        logger.error("agentic planner: model returned unparseable response: %r", text[:200])
+        return _with_steer(
+            {"failure": "agentic planner returned malformed step", "next_action": None}
+        )
+
+    if payload["action"] == "final":
+        return _with_steer(
+            {
                 "next_action": "ready_to_synthesize",
                 "current_step": None,
                 "turn_count": turn_count + 1,
             }
-        logger.error("agentic planner: model returned unparseable response: %r", text[:200])
-        return {"failure": "agentic planner returned malformed step", "next_action": None}
-
-    if payload["action"] == "final":
-        return {
-            "next_action": "ready_to_synthesize",
-            "current_step": None,
-            "turn_count": turn_count + 1,
-        }
+        )
 
     tool_name = str(payload.get("tool", ""))
     in_registry = tool_name in registry.names()
@@ -190,16 +243,20 @@ async def agentic_planner_node(
     is_primitive = in_registry and registry.get(tool_name).kind == "primitive"
     if not (is_curated or is_primitive):
         logger.error("agentic planner: out-of-scope tool %r", tool_name)
-        return {
-            "failure": f"agentic planner picked out-of-scope tool: {tool_name}",
-            "next_action": None,
-        }
+        return _with_steer(
+            {
+                "failure": f"agentic planner picked out-of-scope tool: {tool_name}",
+                "next_action": None,
+            }
+        )
     if not in_registry:
         logger.error("agentic planner: hallucinated tool %r (not in registry)", tool_name)
-        return {
-            "failure": f"agentic planner proposed unknown tool: {tool_name}",
-            "next_action": None,
-        }
+        return _with_steer(
+            {
+                "failure": f"agentic planner proposed unknown tool: {tool_name}",
+                "next_action": None,
+            }
+        )
 
     try:
         step = DataStep(
@@ -209,10 +266,14 @@ async def agentic_planner_node(
             rationale=str(payload.get("rationale", "")),
         )
     except ValidationError:
-        return {"failure": "agentic planner returned malformed step", "next_action": None}
+        return _with_steer(
+            {"failure": "agentic planner returned malformed step", "next_action": None}
+        )
 
-    return {
-        "current_step": step,
-        "turn_count": turn_count + 1,
-        "next_action": None,
-    }
+    return _with_steer(
+        {
+            "current_step": step,
+            "turn_count": turn_count + 1,
+            "next_action": None,
+        }
+    )

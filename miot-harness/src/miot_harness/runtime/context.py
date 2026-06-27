@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
@@ -10,6 +11,7 @@ from miot_harness.runtime.permissions import (
     PermissionPolicy,
     PermissionRule,
 )
+from miot_harness.runtime.steering import SteeringRegistry
 
 # The four explicit dispatch surfaces a caller can request. "auto" is the
 # default (LLM intent router decides). The other three bypass the router
@@ -44,11 +46,67 @@ class HarnessContext(BaseModel):
     # The API layer injects this from app.state; CLI/eval paths leave it
     # None and the tool layer treats "ask" as deny when it's unset.
     approval_registry: ApprovalRegistry | None = Field(default=None, exclude=True)
+    # Steering Plan C: per-run handle to the in-process live-steering
+    # channel. The supervisor opens the channel at run start and injects
+    # this handle so the agentic planner boundary can drain operator notes
+    # and poll the cooperative interrupt flag. Excluded from model_dump
+    # (process-local, not run output), like approval_registry.
+    steering_registry: SteeringRegistry | None = Field(default=None, exclude=True)
     # Steering Plan A: the resolved permission posture for this run
     # (mode + rules), set by the supervisor after the bypass gate. Like
     # approval_registry, it is excluded from model_dump (PermissionPolicy
     # is serializable, but it is run-control state, not run output).
     permission_policy: PermissionPolicy | None = Field(default=None, exclude=True)
+
+    async def request_choice(
+        self,
+        prompt: str,
+        *,
+        options: list[dict[str, Any]],
+        progress: Callable[[Any], None],
+    ) -> str | None:
+        """Surface an agent decision point and block until a human chooses.
+
+        Registers a `choice` decision on the run-control registry, emits
+        `decision.requested` (kind=choice) carrying the options, awaits the
+        resolution, emits `decision.resolved`, and returns the chosen
+        option_id. Returns None when no registry is wired (CLI/eval) so
+        callers can fall back to a default.
+        """
+        from miot_harness.runtime.events import HarnessEvent
+
+        registry = self.approval_registry
+        if registry is None:
+            return None
+        decision_id = uuid4().hex
+        progress(
+            HarnessEvent(
+                run_id=self.run_id,
+                type="decision.requested",
+                message=prompt,
+                data={"decision_id": decision_id, "kind": "choice", "options": options},
+            )
+        )
+        event = registry.register(decision_id, self.run_id, kind="choice")
+        try:
+            await event.wait()
+            resolution = registry.decision(decision_id)
+        finally:
+            registry.discard(decision_id)
+        progress(
+            HarnessEvent(
+                run_id=self.run_id,
+                type="decision.resolved",
+                message=f"decision {decision_id} resolved",
+                data={
+                    "decision_id": decision_id,
+                    "action": resolution.action if resolution else "deny",
+                },
+            )
+        )
+        if resolution is None or resolution.action != "choose":
+            return None
+        return resolution.option_id
 
 
 class UserRequest(BaseModel):

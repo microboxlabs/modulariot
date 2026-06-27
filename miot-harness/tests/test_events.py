@@ -41,7 +41,10 @@ def test_event_type_full_set_is_pinned():
         "tool.failed",
         "approval.requested",
         "approval.auto",
+        "decision.requested",
+        "decision.resolved",
         "steering.mode_denied",
+        "steering.injected",
         "artifact.created",
         "plan.created",
         "agent.turn",
@@ -54,6 +57,7 @@ def test_event_type_full_set_is_pinned():
         "answer.completed",
         "run.completed",
         "run.failed",
+        "run.interrupted",
     }
     assert members == expected
 

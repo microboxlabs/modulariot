@@ -12,7 +12,10 @@ HarnessEventType = Literal[
     "tool.failed",
     "approval.requested",
     "approval.auto",
+    "decision.requested",
+    "decision.resolved",
     "steering.mode_denied",
+    "steering.injected",
     "artifact.created",
     "plan.created",
     # Deprecated: superseded by agent.started / agent.completed. Kept in
@@ -28,6 +31,7 @@ HarnessEventType = Literal[
     "answer.completed",
     "run.completed",
     "run.failed",
+    "run.interrupted",
 ]
 
 

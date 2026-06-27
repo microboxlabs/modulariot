@@ -61,6 +61,7 @@ from miot_harness.runtime.permissions import (
 from miot_harness.runtime.policy import resolve_effective_mode
 from miot_harness.runtime.router import HarnessRoute, IntentRouter, RouteResult
 from miot_harness.runtime.run_store import HarnessRunRecord, JsonRunStore
+from miot_harness.runtime.steering import SteeringRegistry
 from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry
 
@@ -91,6 +92,7 @@ class HarnessSupervisor:
         event_bus: RunEventBus | None = None,
         checkpoint_every_n_events: int = 10,
         approval_registry: ApprovalRegistry | None = None,
+        steering_registry: SteeringRegistry | None = None,
         conversation_policy_store: ConversationPolicyStore | None = None,
     ) -> None:
         self.router = router
@@ -109,6 +111,7 @@ class HarnessSupervisor:
         self.event_bus = event_bus
         self.checkpoint_every_n_events = checkpoint_every_n_events
         self.approval_registry = approval_registry
+        self.steering_registry = steering_registry
         self.conversation_policy_store = conversation_policy_store
         # Set by the lifespan after boot; None = legacy defaults.
         self.profile: DataSourceProfile | None = None
@@ -157,145 +160,160 @@ class HarnessSupervisor:
         settings = get_settings()
         effective_policy, mode_denied = self._resolve_policy(request, settings=settings)
         ctx = ctx.model_copy(update={"permission_policy": effective_policy})
-        record = HarnessRunRecord(
-            run_id=ctx.run_id,
-            status="running",
-            conversation_id=request.conversation_id,
-            tenant_id=ctx.tenant_id,
-            user_id=ctx.user_id,
-        )
+        if self.steering_registry is not None:
+            # Plan C: open the per-run live-steering channel and plumb the
+            # handle into the context so the agentic planner boundary can
+            # drain operator notes / poll the interrupt flag. The `finally`
+            # below guarantees the channel is closed on EVERY exit path.
+            self.steering_registry.open(ctx.run_id)
+            ctx = ctx.model_copy(update={"steering_registry": self.steering_registry})
+        try:
+            record = HarnessRunRecord(
+                run_id=ctx.run_id,
+                status="running",
+                conversation_id=request.conversation_id,
+                tenant_id=ctx.tenant_id,
+                user_id=ctx.user_id,
+            )
 
-        def progress(event: HarnessEvent) -> None:
-            self._emit(record, event)
+            def progress(event: HarnessEvent) -> None:
+                self._emit(record, event)
 
-        progress(HarnessEvent(run_id=ctx.run_id, type="run.started", message="Run started"))
-        if mode_denied:
+            progress(HarnessEvent(run_id=ctx.run_id, type="run.started", message="Run started"))
+            if mode_denied:
+                progress(
+                    HarnessEvent(
+                        run_id=ctx.run_id,
+                        type="steering.mode_denied",
+                        message="bypass not permitted in this deployment; using default",
+                        data={"requested": "bypass", "effective": "default"},
+                    )
+                )
+
+            # Route via the LLM router when injected; else fall back to the
+            # keyword router (Plan 12 default; the "auto" mode confidence
+            # fallback also lands here under the hood).
+            try:
+                route = await self._resolve_route(request)
+            except ModeAccessDenied as exc:
+                record.answer = str(exc)
+                record.status = "completed"
+                progress(
+                    HarnessEvent(
+                        run_id=ctx.run_id,
+                        type="answer.completed",
+                        message=f"Mode refused: {exc}",
+                        data={
+                            "mode": request.mode,
+                            "tenant_id": request.tenant_id,
+                            "reason": "mode_access_denied",
+                        },
+                    )
+                )
+                self.run_store.save(record)
+                self._close_bus(ctx.run_id)
+                return record
+
             progress(
                 HarnessEvent(
                     run_id=ctx.run_id,
-                    type="steering.mode_denied",
-                    message="bypass not permitted in this deployment; using default",
-                    data={"requested": "bypass", "effective": "default"},
+                    type="route.selected",
+                    message=route.reason,
+                    data={"route": route.route},
                 )
             )
 
-        # Route via the LLM router when injected; else fall back to the
-        # keyword router (Plan 12 default; the "auto" mode confidence
-        # fallback also lands here under the hood).
-        try:
-            route = await self._resolve_route(request)
-        except ModeAccessDenied as exc:
-            record.answer = str(exc)
+            # Hydrate prior turns from `ConversationStore` so LLM-bearing agents
+            # actually carry context across `/runs` calls (plan 13 §E5). Empty
+            # list when no store, no conversation_id, or no prior history.
+            prior_messages = self._hydrate_history(request)
+            prior_messages = self._inject_skill(request, ctx, prior_messages)
+
+            try:
+                if route.route == HarnessRoute.DATA_QUERY:
+                    await self._run_data_query(
+                        request, ctx, record, progress, route.route, prior_messages
+                    )
+                elif route.route == HarnessRoute.DATA_META:
+                    await self._run_data_meta(
+                        request, ctx, record, progress, route.route, prior_messages
+                    )
+                elif route.route == HarnessRoute.DATA_AGENTIC:
+                    await self._run_data_agentic(
+                        request, ctx, record, progress, route.route, prior_messages
+                    )
+                elif route.route == HarnessRoute.STORYTELLING_RUN:
+                    await self._run_storytelling(ctx, record, progress)
+                else:
+                    # DIRECT / OTHER (and any future unrouted kind): the
+                    # harness composes the reply (#628). Leaving answer
+                    # null here surfaced as "(no answer recorded)" in every
+                    # client.
+                    await self._run_direct(
+                        request, ctx, record, progress, route.route, prior_messages
+                    )
+            except asyncio.CancelledError:
+                # POST /runs/{id}/cancel cancelled this task. Surface a
+                # terminal `run.failed` with `reason=cancelled` so SSE
+                # subscribers get an explicit terminator (not a silent close),
+                # persist the partial record, then re-raise so the asyncio
+                # task transitions to CANCELLED.
+                record.status = "failed"
+                progress(
+                    HarnessEvent(
+                        run_id=ctx.run_id,
+                        type="run.failed",
+                        message="Run cancelled",
+                        data={"error": "cancelled", "reason": "cancelled"},
+                    )
+                )
+                self.run_store.save(record)
+                self._close_bus(ctx.run_id)
+                raise
+            except Exception as exc:  # noqa: BLE001 — supervisor must not propagate
+                logger.exception("HarnessSupervisor.run failed")
+                record.status = "failed"
+                # Drain any agent-boundary events the lifecycle wrapper
+                # stashed on the exception (see runtime/node_lifecycle.py).
+                # These are emitted BEFORE run.failed so the SSE stream's
+                # ordering keeps agent.started / agent.completed inside the
+                # owning run's event sequence.
+                for ev in getattr(exc, "_harness_lifecycle_events", None) or []:
+                    progress(ev)
+                progress(
+                    HarnessEvent(
+                        run_id=ctx.run_id,
+                        type="run.failed",
+                        message=f"Run failed: {exc}",
+                        data={"error": str(exc)},
+                    )
+                )
+                self.run_store.save(record)
+                self._close_bus(ctx.run_id)
+                return record
+
+            # Persist the turn so the next call in this conversation sees it.
+            if self.conversation_store is not None and request.conversation_id and record.answer:
+                self.conversation_store.append(
+                    request.conversation_id,
+                    ConversationTurn(
+                        user_message=request.message,
+                        assistant_answer=record.answer,
+                    ),
+                )
+
             record.status = "completed"
             progress(
-                HarnessEvent(
-                    run_id=ctx.run_id,
-                    type="answer.completed",
-                    message=f"Mode refused: {exc}",
-                    data={
-                        "mode": request.mode,
-                        "tenant_id": request.tenant_id,
-                        "reason": "mode_access_denied",
-                    },
-                )
+                HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed")
             )
             self.run_store.save(record)
             self._close_bus(ctx.run_id)
             return record
-
-        progress(
-            HarnessEvent(
-                run_id=ctx.run_id,
-                type="route.selected",
-                message=route.reason,
-                data={"route": route.route},
-            )
-        )
-
-        # Hydrate prior turns from `ConversationStore` so LLM-bearing agents
-        # actually carry context across `/runs` calls (plan 13 §E5). Empty
-        # list when no store, no conversation_id, or no prior history.
-        prior_messages = self._hydrate_history(request)
-        prior_messages = self._inject_skill(request, ctx, prior_messages)
-
-        try:
-            if route.route == HarnessRoute.DATA_QUERY:
-                await self._run_data_query(
-                    request, ctx, record, progress, route.route, prior_messages
-                )
-            elif route.route == HarnessRoute.DATA_META:
-                await self._run_data_meta(
-                    request, ctx, record, progress, route.route, prior_messages
-                )
-            elif route.route == HarnessRoute.DATA_AGENTIC:
-                await self._run_data_agentic(
-                    request, ctx, record, progress, route.route, prior_messages
-                )
-            elif route.route == HarnessRoute.STORYTELLING_RUN:
-                await self._run_storytelling(ctx, record, progress)
-            else:
-                # DIRECT / OTHER (and any future unrouted kind): the
-                # harness composes the reply (#628). Leaving answer
-                # null here surfaced as "(no answer recorded)" in every
-                # client.
-                await self._run_direct(
-                    request, ctx, record, progress, route.route, prior_messages
-                )
-        except asyncio.CancelledError:
-            # POST /runs/{id}/cancel cancelled this task. Surface a
-            # terminal `run.failed` with `reason=cancelled` so SSE
-            # subscribers get an explicit terminator (not a silent close),
-            # persist the partial record, then re-raise so the asyncio
-            # task transitions to CANCELLED.
-            record.status = "failed"
-            progress(
-                HarnessEvent(
-                    run_id=ctx.run_id,
-                    type="run.failed",
-                    message="Run cancelled",
-                    data={"error": "cancelled", "reason": "cancelled"},
-                )
-            )
-            self.run_store.save(record)
-            self._close_bus(ctx.run_id)
-            raise
-        except Exception as exc:  # noqa: BLE001 — supervisor must not propagate
-            logger.exception("HarnessSupervisor.run failed")
-            record.status = "failed"
-            # Drain any agent-boundary events the lifecycle wrapper
-            # stashed on the exception (see runtime/node_lifecycle.py).
-            # These are emitted BEFORE run.failed so the SSE stream's
-            # ordering keeps agent.started / agent.completed inside the
-            # owning run's event sequence.
-            for ev in getattr(exc, "_harness_lifecycle_events", None) or []:
-                progress(ev)
-            progress(
-                HarnessEvent(
-                    run_id=ctx.run_id,
-                    type="run.failed",
-                    message=f"Run failed: {exc}",
-                    data={"error": str(exc)},
-                )
-            )
-            self.run_store.save(record)
-            self._close_bus(ctx.run_id)
-            return record
-
-        # Persist the turn so the next call in this conversation sees it.
-        if self.conversation_store is not None and request.conversation_id and record.answer:
-            self.conversation_store.append(
-                request.conversation_id,
-                ConversationTurn(
-                    user_message=request.message,
-                    assistant_answer=record.answer,
-                ),
-            )
-
-        record.status = "completed"
-        progress(HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed"))
-        self.run_store.save(record)
-        self._close_bus(ctx.run_id)
-        return record
+        finally:
+            # Plan C: ALWAYS close the per-run steering channel, covering
+            # every return above and the CancelledError re-raise.
+            if self.steering_registry is not None:
+                self.steering_registry.close(ctx.run_id)
 
     def _emit(self, record: HarnessRunRecord, event: HarnessEvent) -> None:
         """Single funnel for landing a `HarnessEvent` on a run record.

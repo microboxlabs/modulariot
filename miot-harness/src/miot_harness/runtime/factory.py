@@ -7,6 +7,7 @@ from miot_harness.runtime.conversation_policy import InMemoryConversationPolicyS
 from miot_harness.runtime.event_bus import RunEventBus
 from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import JsonRunStore
+from miot_harness.runtime.steering import SteeringRegistry
 from miot_harness.runtime.supervisor import HarnessSupervisor
 from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import build_default_registry
@@ -42,5 +43,10 @@ def build_harness(workspace_dir: Path) -> HarnessSupervisor:
         # human-in-the-loop approvals. The /runs/{id}/approvals/{aid}
         # endpoint resolves entries here to unblock awaiting tools.
         approval_registry=ApprovalRegistry(),
+        # Always-on steering channel: process-local, run-keyed map of
+        # operator guidance notes + a cooperative interrupt flag. The
+        # POST /runs/{id}/steer and /runs/{id}/interrupt endpoints resolve
+        # entries here to nudge an in-flight agentic run.
+        steering_registry=SteeringRegistry(),
         conversation_policy_store=InMemoryConversationPolicyStore(),
     )

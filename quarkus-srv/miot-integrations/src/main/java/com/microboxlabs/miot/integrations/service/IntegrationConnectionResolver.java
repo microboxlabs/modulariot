@@ -48,13 +48,16 @@ public class IntegrationConnectionResolver {
         if (connection.credentialProfileId() != null) {
             CredentialProfile credential =
                     credentialProfileRepository.findByTenantAndId(tenantCode, connection.credentialProfileId());
-            if (credential != null) {
-                try {
-                    secret = secretCipher.decrypt(credential.encryptedSecretJson());
-                } catch (RuntimeException e) {
-                    throw new ConnectionResolutionException(
-                            "Could not read the credential for the " + providerType + " connection", e);
-                }
+            if (credential == null) {
+                throw new ConnectionResolutionException(
+                        "The credential profile linked to the " + providerType
+                                + " connection could not be found");
+            }
+            try {
+                secret = secretCipher.decrypt(credential.encryptedSecretJson());
+            } catch (RuntimeException e) {
+                throw new ConnectionResolutionException(
+                        "Could not read the credential for the " + providerType + " connection", e);
             }
         }
         return new ResolvedConnection(connection.id(), connection.baseUrl(), connection.metadata(), secret);

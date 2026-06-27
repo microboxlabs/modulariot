@@ -67,6 +67,15 @@ class WhatsAppMessagingServiceTest {
         assertEquals("[template] trip_assigned", preview);
     }
 
+    @Test
+    void maskPhoneKeepsOnlyLastFourDigits() throws Exception {
+        Method maskPhone = WhatsAppMessagingService.class.getDeclaredMethod("maskPhone", String.class);
+        maskPhone.setAccessible(true);
+        assertEquals("****1587", maskPhone.invoke(null, "+56962311587"));
+        assertEquals("****", maskPhone.invoke(null, "123"));
+        assertEquals("****", maskPhone.invoke(null, new Object[] {null}));
+    }
+
     private static void assertIllegalArgument(SendWhatsAppMessageRequest request, String field) {
         InvocationTargetException wrapper = assertThrows(InvocationTargetException.class,
                 () -> invokeValidate(request));

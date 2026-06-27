@@ -35,6 +35,23 @@ from miot_harness.datasource.sql_policy import TableAccessPolicy
 DEFAULT_STATEMENT_TIMEOUT_MS = 5000
 
 
+def _record_to_dict(record: Any) -> dict[str, Any]:
+    """Row → dict, disambiguating duplicate column labels (e.g. from SELECT *
+    over a JOIN) so no column is silently dropped. asyncpg Records and plain
+    dicts both expose keys()/values()."""
+    keys = list(record.keys())
+    values = list(record.values())
+    out: dict[str, Any] = {}
+    for key, value in zip(keys, values, strict=False):
+        name = key
+        i = 2
+        while name in out:
+            name = f"{key}_{i}"
+            i += 1
+        out[name] = value
+    return out
+
+
 async def fetch_readonly(
     pool: Any,
     sql: str,
@@ -273,4 +290,7 @@ async def safe_run_select(
                         f"{cost_threshold:.1f}"
                     )
             rows = await conn.fetch(wrapped)
-            return [dict(r) for r in rows]
+            # SELECT * over a JOIN can yield duplicate column labels; dict(r)
+            # would silently keep only the last. Preserve every column by
+            # suffixing collisions (id_, id__2, …) so no data is lost.
+            return [_record_to_dict(r) for r in rows]

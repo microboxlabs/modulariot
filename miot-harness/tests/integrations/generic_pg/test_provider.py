@@ -263,6 +263,19 @@ def _alfresco_responder(sql: str) -> list:
     return []
 
 
+def _fk_leak_responder(sql: str) -> list:
+    if "information_schema.columns" in sql:
+        return [{"column_name": "id_", "data_type": "character varying"}]
+    if "FOREIGN KEY" in sql:
+        return [
+            {"column": "execution_id_", "ref_schema": "acs",
+             "ref_table": "act_ru_execution", "ref_column": "id_", "constraint": "fk1"},
+            {"column": "creator_", "ref_schema": "public",
+             "ref_table": "users", "ref_column": "id", "constraint": "fk2"},
+        ]
+    return []
+
+
 @pytest.mark.asyncio
 async def test_boot_detects_pack_and_registers_knowledge(
     monkeypatch: pytest.MonkeyPatch,
@@ -317,3 +330,29 @@ async def test_no_pack_no_knowledge_tool(monkeypatch: pytest.MonkeyPatch) -> Non
     )
     assert result.detected_packs == ()
     assert "acs_knowledge" not in registry.names()
+
+
+@pytest.mark.asyncio
+async def test_describe_filters_fk_references_outside_allowlist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pool = RecordingPool(responder=_fk_leak_responder)
+    monkeypatch.setattr(
+        "miot_harness.integrations.generic_pg.provider.create_pg_pool",
+        AsyncMock(return_value=pool),
+    )
+    registry = ToolRegistry()
+    await GenericPgProvider().boot(
+        registry,
+        HarnessSettings(
+            generic_query_enabled=True, generic_schema_introspect_enabled=False
+        ),
+        _conn(),
+    )
+    out = await registry.get("acs_describe").invoke(
+        HarnessContext(thread_id="t", tenant_id="demo", user_id="u"),
+        {"table": "acs.act_ru_task"},
+        lambda _e: None,
+    )
+    refs = [fk["references"] for fk in out.foreign_keys]
+    assert refs == ["acs.act_ru_execution.id_"]  # public.users.id filtered out

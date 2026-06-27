@@ -195,7 +195,10 @@ class GenericPgProvider(DataSourceProvider):
                     )
                 except Exception as exc:  # noqa: BLE001 — index is best-effort
                     logger.error(
-                        "generic_pg %s: introspection failed (%s); continuing", name, exc
+                        "generic_pg %s: introspection failed (%s); continuing",
+                        name,
+                        exc,
+                        exc_info=True,  # keep the traceback for catalog/permission diag
                     )
             # Detect knowledge packs (best-effort) from the full table set.
             knowledge_cards: list[KnowledgeCard] = []
@@ -210,7 +213,10 @@ class GenericPgProvider(DataSourceProvider):
                     knowledge_cards = [c for dp in detected for c in dp.pack.cards]
                 except Exception as exc:  # noqa: BLE001 — packs are best-effort
                     logger.error(
-                        "generic_pg %s: pack detection failed (%s); continuing", name, exc
+                        "generic_pg %s: pack detection failed (%s); continuing",
+                        name,
+                        exc,
+                        exc_info=True,  # keep the traceback for catalog/permission diag
                     )
 
             tools = build_generic_tools(

@@ -30,6 +30,7 @@ export default async function SecuredLayout({
     redirect(`/${lang}/sign-in`);
   }
   const initialOrgLogo = await getPublicOrgLogo();
+  const isSearchEnabled = process.env.ENABLE_SEARCHBAR === "true";
   return (
     <RuntimeConfigProvider>
       <SidebarProvider>
@@ -42,6 +43,7 @@ export default async function SecuredLayout({
             messages={navBarMessages}
             dict={dictionary as I18nRecord}
             initialOrgLogo={initialOrgLogo}
+            isSeachEnabled={isSearchEnabled}
           />
           <div
             data-testid="content-with-sidebar"

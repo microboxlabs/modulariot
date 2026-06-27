@@ -137,11 +137,19 @@ def _build_step(
         raise _StepError(f"out-of-scope tool: {tool_name}")
     if not in_registry:
         raise _StepError(f"unknown tool: {tool_name}")
+    # Accept a missing/null args (→ defaults), but reject a non-object value
+    # (e.g. [], "", 0) rather than silently coercing it to {} — that would let a
+    # malformed plan step through with its args quietly dropped.
+    raw_args = raw.get("args")
+    if raw_args is None:
+        raw_args = {}
+    elif not isinstance(raw_args, dict):
+        raise _StepError("step args must be a JSON object")
     try:
         return DataStep(
             intent=str(raw.get("intent", "")),
             tool=tool_name,
-            args=raw.get("args", {}) or {},
+            args=raw_args,
             rationale=str(raw.get("rationale", "")),
         )
     except ValidationError as exc:

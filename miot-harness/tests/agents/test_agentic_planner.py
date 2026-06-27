@@ -188,6 +188,36 @@ async def test_plan_with_invalid_step_fails() -> None:
 
 
 @pytest.mark.asyncio
+async def test_non_object_args_is_rejected() -> None:
+    # args=[] is falsey but NOT an object — must be rejected, not coerced to {}.
+    response = json.dumps(
+        {"action": "call_tool", "tool": "coordinador_centro_control", "args": []}
+    )
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert "args must be a JSON object" in delta["failure"]
+
+
+@pytest.mark.asyncio
+async def test_missing_args_defaults_to_empty_object() -> None:
+    response = json.dumps({"action": "call_tool", "tool": "coordinador_centro_control"})
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert delta["current_step"].args == {}
+    assert not delta.get("failure")
+
+
+@pytest.mark.asyncio
 async def test_empty_plan_fails() -> None:
     response = json.dumps({"action": "plan", "steps": []})
     delta = await agentic_planner_node(

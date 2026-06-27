@@ -170,7 +170,10 @@ async def verify_node(
         logger.warning("verifier: judge failed (%s); accepting evidence as-is", exc)
         return _done()
 
-    if not isinstance(payload, dict) or not payload.get("fulfilled", False):
+    # Only a literal JSON boolean true counts as fulfilled. A truthy non-bool
+    # (e.g. the string "false", or "yes") must NOT bypass re-planning — when in
+    # doubt, re-plan.
+    if not isinstance(payload, dict) or payload.get("fulfilled") is not True:
         gap = ""
         if isinstance(payload, dict):
             gap = str(payload.get("gap") or "")

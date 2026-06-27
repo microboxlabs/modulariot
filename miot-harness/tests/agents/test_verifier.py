@@ -85,6 +85,20 @@ async def test_judge_gap_replans_with_gap_note() -> None:
 
 
 @pytest.mark.asyncio
+async def test_judge_non_boolean_fulfilled_still_replans() -> None:
+    # A truthy non-bool (the string "true") must NOT count as fulfilled — only
+    # a literal JSON boolean true does. Otherwise a sloppy judge bypasses the gate.
+    judge = FakeListChatModel(
+        responses=[json.dumps({"fulfilled": "true", "gap": "ambiguous"})]
+    )
+    delta = await verify_node(
+        _state(evidence=[_ev()]),
+        model=judge, settings=_SETTINGS, profile=NEXO_PROFILE, progress=_noop,
+    )
+    assert delta["next_action"] == REPLAN
+
+
+@pytest.mark.asyncio
 async def test_judge_fulfilled_is_done() -> None:
     judge = FakeListChatModel(responses=[json.dumps({"fulfilled": True, "gap": ""})])
     delta = await verify_node(

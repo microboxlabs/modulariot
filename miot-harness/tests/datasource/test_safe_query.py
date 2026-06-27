@@ -84,10 +84,13 @@ class _RecordingPool:
 @pytest.mark.asyncio
 async def test_select_runs_read_only_with_timeout() -> None:
     pool = _RecordingPool(fetch_return=[{"id": 1}])
-    rows = await safe_select(
+    run = await safe_select(
         pool=pool, policy=ACS, table="acs.act_ru_task", limit=10
     )
-    assert rows == [{"id": 1}]
+    assert run.rows == [{"id": 1}]
+    # QueryRun.sql carries the exact rendered SQL that executed.
+    assert run.sql == pool.conn.fetched[-1][0]
+    assert "LIMIT 10" in run.sql
     assert pool.conn.txn_readonly is True  # BEGIN READ ONLY
     assert any("statement_timeout" in s for s in pool.conn.executed)
     assert "LIMIT 10" in pool.conn.fetched[-1][0]
@@ -144,12 +147,14 @@ async def test_select_can_disable_timeout() -> None:
 @pytest.mark.asyncio
 async def test_grep_builds_ilike_and_is_read_only() -> None:
     pool = _RecordingPool(fetch_return=[{"id": 1}])
-    await safe_grep(
+    run = await safe_grep(
         pool=pool, policy=ACS, table="acs.act_ru_task", column="assignee_", pattern="%x%"
     )
     sql, args = pool.conn.fetched[-1]
     assert "ILIKE" in sql.upper()
     assert args == ("%x%",)
+    # The pattern is bound as $1 (not inlined); QueryRun.sql is the executed SQL.
+    assert run.sql == sql
     assert pool.conn.txn_readonly is True
 
 
@@ -234,10 +239,12 @@ _JOIN = (
 @pytest.mark.asyncio
 async def test_run_select_allows_join_caps_and_is_read_only() -> None:
     pool = _RecordingPool(fetch_return=[{"id_": "1", "text_": "x"}])
-    rows = await safe_run_select(pool=pool, policy=ACS, sql=_JOIN, max_rows=200)
-    assert rows == [{"id_": "1", "text_": "x"}]
+    run = await safe_run_select(pool=pool, policy=ACS, sql=_JOIN, max_rows=200)
+    assert run.rows == [{"id_": "1", "text_": "x"}]
     sql = pool.conn.fetched[-1][0]
     assert "_miot_q" in sql and "LIMIT 200" in sql  # harness-injected hard cap
+    # QueryRun.sql is the exact executed string, including the hard-cap wrap.
+    assert run.sql == sql
     assert pool.conn.txn_readonly is True
     assert any("statement_timeout" in s for s in pool.conn.executed)
 
@@ -283,8 +290,8 @@ async def test_run_select_cost_gate_passes_under_budget() -> None:
         return [{"id_": "1"}]
 
     pool = RecordingPool(responder=_responder)
-    rows = await safe_run_select(pool=pool, policy=ACS, sql=_JOIN, cost_threshold=10_000.0)
-    assert rows == [{"id_": "1"}]
+    run = await safe_run_select(pool=pool, policy=ACS, sql=_JOIN, cost_threshold=10_000.0)
+    assert run.rows == [{"id_": "1"}]
 
 
 # --------------------- gate regression: boolean operators + EXPLAIN json ----
@@ -303,7 +310,7 @@ def test_gate_accepts_boolean_operators_in_where() -> None:
 @pytest.mark.asyncio
 async def test_run_select_handles_join_with_and_or() -> None:
     pool = _RecordingPool(fetch_return=[{"id_": "1"}])
-    rows = await safe_run_select(
+    run = await safe_run_select(
         pool=pool,
         policy=ACS,
         sql=(
@@ -312,7 +319,7 @@ async def test_run_select_handles_join_with_and_or() -> None:
             "WHERE v.name_ = 'mintral_serviceCode' AND t.suspension_state_ = 1"
         ),
     )
-    assert rows == [{"id_": "1"}]
+    assert run.rows == [{"id_": "1"}]
 
 
 @pytest.mark.asyncio

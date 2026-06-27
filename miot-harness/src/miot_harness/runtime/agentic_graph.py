@@ -69,10 +69,15 @@ def _provenance_entry(
     step: DataStep,
     evidence: DataEvidence,
 ) -> ProvenanceEntry:
-    # Curated tools don't expose their rendered SQL; the canonical
-    # `tool(args)` string keeps the (question, sql) tuple mineable by the
-    # weekly curation pass either way.
-    sql = evidence.output.get("sql") or f"{step.tool}({json.dumps(step.args, default=str)})"
+    # Generic safe-query tools surface the rendered SQL they ran
+    # (evidence.executed_sql); curated tools don't, so fall back to the
+    # canonical `tool(args)` string. Either keeps the (question, sql) tuple
+    # mineable by the weekly curation pass.
+    sql = (
+        evidence.executed_sql
+        or evidence.output.get("sql")
+        or f"{step.tool}({json.dumps(step.args, default=str)})"
+    )
     plan_cost = evidence.output.get("total_cost")
     return ProvenanceEntry(
         question=user_message,

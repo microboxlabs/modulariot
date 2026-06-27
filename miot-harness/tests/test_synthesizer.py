@@ -162,6 +162,48 @@ def test_rendered_evidence_includes_status_and_rows() -> None:
     assert "rows=0" in rendered
 
 
+def test_rendered_evidence_includes_executed_sql_and_sample_flag() -> None:
+    from miot_harness.agents.synthesizer import _render_evidence_for_synth
+
+    query_ev = DataEvidence(
+        step_id="s1",
+        tool="acs_query",
+        source="acs",
+        refreshed_at=None,
+        output={"rows": [{"n": 25}]},
+        sample_size=1,
+        freshness_status="fresh",
+        executed_sql="SELECT count(*) AS n FROM acs.act_ru_task",
+    )
+    grep_ev = DataEvidence(
+        step_id="s2",
+        tool="acs_grep",
+        source="acs",
+        refreshed_at=None,
+        output={"rows": [{"name_": "x"}]},
+        sample_size=1,
+        freshness_status="fresh",
+        executed_sql="SELECT * FROM acs.act_ru_variable WHERE name_ ILIKE $1 LIMIT 100",
+        is_sample=True,
+    )
+    rendered = _render_evidence_for_synth([query_ev, grep_ev])
+    # Executed SQL is surfaced verbatim so the synthesizer cites the real query.
+    assert "executed_sql: SELECT count(*) AS n FROM acs.act_ru_task" in rendered
+    # The grep line is flagged SAMPLE so the synthesizer never treats it as a total.
+    assert "SAMPLE" in rendered
+    grep_line = next(ln for ln in rendered.splitlines() if "tool=acs_grep" in ln)
+    assert "SAMPLE" in grep_line
+
+
+def test_system_prompt_carries_executed_sql_and_sample_grounding_rules() -> None:
+    from miot_harness.agents.synthesizer import _SYNTH_SYSTEM_TEMPLATE
+
+    rules = _SYNTH_SYSTEM_TEMPLATE.lower()
+    assert "executed_sql" in rules
+    assert "sample" in rules
+    assert "count" in rules
+
+
 @pytest.mark.asyncio
 async def test_system_prompt_carries_per_status_messaging_rules() -> None:
     """The synthesizer must be instructed how to phrase each freshness

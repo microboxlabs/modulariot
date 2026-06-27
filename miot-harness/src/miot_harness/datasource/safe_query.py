@@ -18,6 +18,7 @@ hardening, layered on top — not a prerequisite).
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import Any
 
 from miot_harness.datasource.safe_sql import (
@@ -33,6 +34,22 @@ from miot_harness.datasource.safe_sql import (
 from miot_harness.datasource.sql_policy import TableAccessPolicy
 
 DEFAULT_STATEMENT_TIMEOUT_MS = 5000
+
+
+@dataclass(frozen=True, slots=True)
+class QueryRun:
+    """Rows plus the rendered, gate-validated SQL that actually executed.
+
+    Returned by the row-producing primitives (``safe_select`` / ``safe_grep`` /
+    ``safe_run_select``) so the caller can surface *what it actually ran* as
+    evidence — the agent cites the real query instead of confabulating one when
+    asked. ``sql`` is the exact string handed to ``conn.fetch`` (including the
+    harness-injected hard-cap wrap on ``safe_run_select``); literal parameters
+    (e.g. an ILIKE pattern) are bound separately and appear as ``$1``.
+    """
+
+    rows: list[dict[str, Any]]
+    sql: str
 
 
 def _record_to_dict(record: Any) -> dict[str, Any]:
@@ -148,7 +165,7 @@ async def safe_select(
     columns: list[str] | None = None,
     max_rows: int = HARD_LIMIT_CAP,
     statement_timeout_ms: int | None = DEFAULT_STATEMENT_TIMEOUT_MS,
-) -> list[dict[str, Any]]:
+) -> QueryRun:
     """Bounded, gate-validated, read-only SELECT against a policy-allowed table."""
 
     bounded_limit = _bounded(limit, max_rows)
@@ -166,7 +183,7 @@ async def safe_select(
     rows = await fetch_readonly(
         pool, safe_sql, statement_timeout_ms=statement_timeout_ms
     )
-    return [dict(row) for row in rows]
+    return QueryRun(rows=[dict(row) for row in rows], sql=safe_sql)
 
 
 async def safe_grep(
@@ -179,7 +196,7 @@ async def safe_grep(
     limit: int = DEFAULT_LIMIT,
     max_rows: int = HARD_LIMIT_CAP,
     statement_timeout_ms: int | None = DEFAULT_STATEMENT_TIMEOUT_MS,
-) -> list[dict[str, Any]]:
+) -> QueryRun:
     """SELECT * WHERE col ILIKE pattern — sugar over ``safe_select``."""
 
     bounded_limit = _bounded(limit, max_rows)
@@ -190,7 +207,7 @@ async def safe_grep(
     rows = await fetch_readonly(
         pool, safe_sql, pattern, statement_timeout_ms=statement_timeout_ms
     )
-    return [dict(row) for row in rows]
+    return QueryRun(rows=[dict(row) for row in rows], sql=safe_sql)
 
 
 def _plan_from_explain(rows: list[Any]) -> dict[str, Any]:
@@ -258,7 +275,7 @@ async def safe_run_select(
     max_rows: int = HARD_LIMIT_CAP,
     cost_threshold: float | None = None,
     statement_timeout_ms: int | None = DEFAULT_STATEMENT_TIMEOUT_MS,
-) -> list[dict[str, Any]]:
+) -> QueryRun:
     """Run an arbitrary read-only SELECT (the broad Tier-B query surface).
 
     Unlike ``safe_select`` (a single-table builder), this accepts full SQL —
@@ -293,4 +310,4 @@ async def safe_run_select(
             # SELECT * over a JOIN can yield duplicate column labels; dict(r)
             # would silently keep only the last. Preserve every column by
             # suffixing collisions (id_, id__2, …) so no data is lost.
-            return [_record_to_dict(r) for r in rows]
+            return QueryRun(rows=[_record_to_dict(r) for r in rows], sql=wrapped)

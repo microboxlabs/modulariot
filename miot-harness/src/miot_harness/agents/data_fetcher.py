@@ -121,6 +121,10 @@ def _evidence_from_output(
         status = "no_timestamp" if has_rows else "empty_no_timestamp"
         is_stale = True
 
+    # Executed SQL (generic safe-query tools surface it as output.executed_sql)
+    # so the synthesizer cites what actually ran. A grep is a fuzzy ILIKE sample
+    # — flag it so the synthesizer never reports its row count as a total.
+    executed_sql = dump.get("executed_sql")
     return DataEvidence(
         step_id=step_id,
         tool=tool,
@@ -132,6 +136,8 @@ def _evidence_from_output(
         sample_size=sample_size,
         is_stale=is_stale,
         freshness_status=status,
+        executed_sql=str(executed_sql) if executed_sql else None,
+        is_sample=tool.endswith("_grep"),
     )
 
 

@@ -328,3 +328,23 @@ async def test_explain_parses_json_string_payload() -> None:
     )
     assert result["total_cost"] == pytest.approx(42.0)
     assert result["node_type"] == "Seq Scan"
+
+
+# --------------------- duplicate-column handling (run_safe_select) ---------
+
+class _DupRecord:
+    """Mimics an asyncpg Record with duplicate column labels (SELECT * JOIN)."""
+
+    def keys(self) -> list:
+        return ["id_", "name_", "id_", "rev_", "name_"]
+
+    def values(self) -> list:
+        return [1, "task", 2, 7, "var"]
+
+
+def test_record_to_dict_preserves_duplicate_columns() -> None:
+    from miot_harness.datasource.safe_query import _record_to_dict
+
+    out = _record_to_dict(_DupRecord())
+    # No data lost: collisions are suffixed, not overwritten.
+    assert out == {"id_": 1, "name_": "task", "id__2": 2, "rev_": 7, "name__2": "var"}

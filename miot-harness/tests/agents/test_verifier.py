@@ -108,6 +108,21 @@ async def test_replan_cap_forces_done_even_on_gap() -> None:
 
 
 @pytest.mark.asyncio
+async def test_budget_exhausted_reports_not_fulfilled_in_telemetry() -> None:
+    # Forced synthesis on a cap must NOT report fulfilled=true (misleading
+    # completion telemetry) — it stops the loop but tells the truth.
+    events: list[Any] = []
+    delta = await verify_node(
+        _state(evidence=[_ev()], replan_count=2),
+        model=None, settings=_SETTINGS, profile=NEXO_PROFILE, progress=events.append,
+    )
+    assert delta["next_action"] == VERIFIED_DONE
+    completed = [e for e in events if e.type == "verification.completed"]
+    assert completed and completed[-1].data["fulfilled"] is False
+    assert "budget" in completed[-1].message.lower()
+
+
+@pytest.mark.asyncio
 async def test_malformed_judge_response_defaults_to_done() -> None:
     judge = FakeListChatModel(responses=["not json at all"])
     delta = await verify_node(

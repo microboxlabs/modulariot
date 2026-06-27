@@ -178,7 +178,7 @@ async def test_verification_gap_is_surfaced_to_planner() -> None:
             return await super().ainvoke(input, *args, **kwargs)
 
     response = json.dumps({"action": "final", "reasoning": "done"})
-    await agentic_planner_node(
+    delta = await agentic_planner_node(
         _state(
             evidence=[_evidence()],
             verification_gap="solo corriste un grep; falta el COUNT real",
@@ -191,6 +191,36 @@ async def test_verification_gap_is_surfaced_to_planner() -> None:
     human = [m for m in captured[0] if isinstance(m, HumanMessage)][-1]
     assert "INCOMPLETE" in human.content
     assert "falta el COUNT real" in human.content
+    # The gap is consumed: cleared from the delta so a later turn (e.g. the
+    # post-execution finish turn) doesn't re-see a stale note.
+    assert delta["verification_gap"] is None
+
+
+@pytest.mark.asyncio
+async def test_plan_and_call_tool_clear_verification_gap() -> None:
+    plan = json.dumps(
+        {"action": "plan", "steps": [{"tool": "coordinador_centro_control", "args": {}}]}
+    )
+    plan_delta = await agentic_planner_node(
+        _state(verification_gap="gap"),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[plan]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert plan_delta["verification_gap"] is None
+
+    call = json.dumps(
+        {"action": "call_tool", "tool": "coordinador_centro_control", "args": {}}
+    )
+    call_delta = await agentic_planner_node(
+        _state(verification_gap="gap"),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[call]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert call_delta["verification_gap"] is None
 
 
 @pytest.mark.asyncio

@@ -74,12 +74,20 @@ def _summarize_evidence(evidence: list[DataEvidence]) -> str:
     return "\n".join(lines) if lines else "(no evidence)"
 
 
-def _emit(progress: Progress, run_id: str, *, fulfilled: bool, gap: str | None) -> None:
+def _emit(
+    progress: Progress,
+    run_id: str,
+    *,
+    fulfilled: bool,
+    gap: str | None,
+    message: str | None = None,
+) -> None:
     progress(
         HarnessEvent(
             run_id=run_id,
             type="verification.completed",
-            message="Verified completion" if fulfilled else "Re-planning (gap found)",
+            message=message
+            or ("Verified completion" if fulfilled else "Re-planning (gap found)"),
             data={"fulfilled": fulfilled, "gap": gap or ""},
         )
     )
@@ -103,6 +111,19 @@ async def verify_node(
         _emit(progress, ctx.run_id, fulfilled=True, gap=None)
         return {"next_action": VERIFIED_DONE}
 
+    def _budget_exhausted(reason: str) -> dict[str, Any]:
+        # Stop the loop (synthesize with what we have) but report the truth:
+        # this run was NOT verified-fulfilled, the budget ran out. Misreporting
+        # it as fulfilled=true would skew completion telemetry.
+        _emit(
+            progress,
+            ctx.run_id,
+            fulfilled=False,
+            gap=reason,
+            message=f"{reason}; synthesizing with available evidence",
+        )
+        return {"next_action": VERIFIED_DONE}
+
     def _gap(reason: str) -> dict[str, Any]:
         _emit(progress, ctx.run_id, fulfilled=False, gap=reason)
         return {
@@ -115,12 +136,13 @@ async def verify_node(
             "pending_steps": [],
         }
 
-    # Out of budget → accept what we have and synthesize. Never loop forever.
+    # Out of budget → accept what we have and synthesize. Never loop forever,
+    # but record that this was forced (not a genuine fulfilled verdict).
     if replan_count >= settings.agents_agentic_max_replans:
         logger.info("verifier: replan cap reached (%d); synthesizing", replan_count)
-        return _done()
+        return _budget_exhausted("Re-plan budget exhausted")
     if turn_count >= settings.agents_agentic_max_turns:
-        return _done()
+        return _budget_exhausted("Turn budget exhausted")
 
     # Rule: nothing ran → there is nothing to answer from; re-plan.
     if not evidence:

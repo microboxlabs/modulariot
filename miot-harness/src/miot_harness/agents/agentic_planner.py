@@ -232,6 +232,8 @@ async def agentic_planner_node(
             "next_action": "ready_to_synthesize",
             "current_step": None,
             "turn_count": turn_count + 1,
+            # Gap consumed: clear it so a later turn doesn't re-see a stale note.
+            "verification_gap": None,
         }
 
     if payload["action"] == "plan":
@@ -260,6 +262,9 @@ async def agentic_planner_node(
             "current_step": None,
             "turn_count": turn_count + 1,
             "next_action": "execute_plan",
+            # Gap consumed by this re-plan: clear it so the post-execution
+            # "finish" turn doesn't re-see the stale note and over-query.
+            "verification_gap": None,
         }
 
     # action == "call_tool": legacy single step.
@@ -276,4 +281,6 @@ async def agentic_planner_node(
         "current_step": step,
         "turn_count": turn_count + 1,
         "next_action": None,
+        # Gap consumed: clear it so a later turn doesn't re-see a stale note.
+        "verification_gap": None,
     }

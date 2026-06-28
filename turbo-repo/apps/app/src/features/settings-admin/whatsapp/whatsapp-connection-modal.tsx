@@ -1,7 +1,7 @@
 "use client";
 
 import { Label, Textarea, TextInput, ToggleSwitch } from "flowbite-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import FormModal from "@/features/common/components/form-modal/form-modal";
@@ -62,15 +62,20 @@ export function WhatsAppConnectionModal({
 
   const testModeEnabled = watch("testModeEnabled");
 
+  // Initialize the form only when the modal OPENS (false -> true). The card rebuilds
+  // `initial` as a fresh object on every render, so resetting on each `initial` change
+  // would re-run mid-save (setActionLoading triggers a re-render) and snap the form back
+  // to the stored values — wiping the operator's in-progress edits.
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!show) {
-      return;
+    if (show && !wasOpen.current) {
+      reset(
+        isEdit && initial
+          ? initial
+          : { ...DEFAULTS, name: tr("modal.defaultName", dict) },
+      );
     }
-    reset(
-      isEdit && initial
-        ? initial
-        : { ...DEFAULTS, name: tr("modal.defaultName", dict) },
-    );
+    wasOpen.current = show;
   }, [show, isEdit, initial, reset, dict]);
 
   let submitLabel: string;

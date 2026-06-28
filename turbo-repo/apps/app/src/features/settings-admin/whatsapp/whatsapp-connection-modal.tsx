@@ -11,6 +11,7 @@ import {
   DEFAULT_BASE_URL,
   DEFAULT_GRAPH_VERSION,
   WhatsAppConnectionSchema,
+  WhatsAppEditSchema,
   type WhatsAppFormData,
 } from "./whatsapp.types";
 
@@ -18,6 +19,8 @@ interface WhatsAppConnectionModalProps {
   readonly show: boolean;
   readonly onClose: () => void;
   readonly onSubmit: (data: WhatsAppFormData) => void;
+  readonly mode?: "create" | "edit";
+  readonly initial?: WhatsAppFormData | null;
   readonly loading?: boolean;
   readonly error?: Error | null;
   readonly dict: I18nRecord;
@@ -36,35 +39,50 @@ export function WhatsAppConnectionModal({
   show,
   onClose,
   onSubmit,
+  mode = "create",
+  initial = null,
   loading = false,
   error = null,
   dict,
 }: WhatsAppConnectionModalProps) {
+  const isEdit = mode === "edit";
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
   } = useForm<WhatsAppFormData>({
-    resolver: zodResolver(WhatsAppConnectionSchema),
+    resolver: zodResolver(isEdit ? WhatsAppEditSchema : WhatsAppConnectionSchema),
     defaultValues: DEFAULTS,
   });
 
   useEffect(() => {
-    if (show) {
-      reset({ ...DEFAULTS, name: tr("modal.defaultName", dict) });
+    if (!show) {
+      return;
     }
-  }, [show, reset, dict]);
+    reset(
+      isEdit && initial
+        ? initial
+        : { ...DEFAULTS, name: tr("modal.defaultName", dict) },
+    );
+  }, [show, isEdit, initial, reset, dict]);
 
-  const submitLabel = loading
-    ? tr("modal.saving", dict)
-    : tr("modal.createButton", dict);
+  let submitLabel: string;
+  if (loading) {
+    submitLabel = tr("modal.saving", dict);
+  } else if (isEdit) {
+    submitLabel = tr("modal.saveButton", dict);
+  } else {
+    submitLabel = tr("modal.createButton", dict);
+  }
 
   return (
     <FormModal
       isOpen={show}
       onClose={onClose}
-      title={tr("modal.addTitle", dict)}
+      title={
+        isEdit ? tr("modal.editTitle", dict) : tr("modal.addTitle", dict)
+      }
       subtitle={tr("modal.subtitle", dict)}
       submitLabel={submitLabel}
       isProcessing={loading}
@@ -147,7 +165,11 @@ export function WhatsAppConnectionModal({
           <TextInput
             id="wa-token"
             type="password"
-            placeholder={tr("modal.tokenPlaceholder", dict)}
+            placeholder={
+              isEdit
+                ? tr("modal.tokenEditPlaceholder", dict)
+                : tr("modal.tokenPlaceholder", dict)
+            }
             autoComplete="off"
             {...register("token")}
             color={errors.token ? "failure" : undefined}

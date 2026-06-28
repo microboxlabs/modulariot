@@ -6,6 +6,7 @@ import {
   createWhatsAppConnection,
   fetchWhatsAppConnection,
   testWhatsAppConnection,
+  updateWhatsAppConnection,
 } from "./whatsapp-data-service";
 import type {
   ConnectionTestResult,
@@ -50,6 +51,21 @@ export function useOrgWhatsApp(orgSlug: string | null) {
     }
   }
 
+  async function update(
+    connectionId: string,
+    form: WhatsAppFormData,
+  ): Promise<IntegrationConnection> {
+    const slug = requireSlug();
+    setActionLoading(true);
+    try {
+      const updated = await updateWhatsAppConnection(slug, connectionId, form);
+      await mutate();
+      return updated;
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   async function test(connectionId: string): Promise<ConnectionTestResult> {
     const slug = requireSlug();
     setActionLoading(true);
@@ -68,6 +84,7 @@ export function useOrgWhatsApp(orgSlug: string | null) {
     error: error ?? null,
     actionLoading,
     create,
+    update,
     test,
     refresh: mutate,
   };

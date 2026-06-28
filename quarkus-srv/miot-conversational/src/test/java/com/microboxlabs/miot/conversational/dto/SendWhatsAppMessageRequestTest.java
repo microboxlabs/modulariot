@@ -2,6 +2,7 @@ package com.microboxlabs.miot.conversational.dto;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.conversational.domain.MessageRole;
@@ -39,6 +40,14 @@ class SendWhatsAppMessageRequestTest {
         assertEquals(Map.of("driver_name", "Juan"), new SendWhatsAppMessageRequest(
                 "+56900", "TEMPLATE", null, "t", "es_CL", Map.of("driver_name", "Juan"),
                 null, null, null, null, null).templateParamsOrEmpty());
+    }
+
+    @Test
+    void actorDefaultsToNullViaLegacyConstructorAndIsCarriedByCanonical() {
+        assertNull(request("TEXT").actor());
+        assertEquals("ops@mintral.cl", new SendWhatsAppMessageRequest(
+                "+56900", "TEMPLATE", null, "pod_rejected_v1", "es_CL", Map.of(),
+                MessageRole.AGENT, null, "SVC-1", null, "task-1", "ops@mintral.cl").actor());
     }
 
     private static SendWhatsAppMessageRequest request(String type) {

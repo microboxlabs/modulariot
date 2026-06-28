@@ -10,6 +10,12 @@ import java.util.Map;
  * NAMED body placeholders (e.g. {@code {"driver_name": "...", "trip_reference": "..."}}).
  * The trip-context fields are optional and, when present, anchor the conversation to a
  * service/process so its history stays attributable.
+ *
+ * <p>{@code actor} names the human who triggered the send (e.g. the operator who
+ * approved/rejected a POD in an upstream process). It is honoured only on the
+ * service-to-service (M2M) send path, where the transport principal is a machine: the
+ * message is then attributed to {@code actor} rather than the M2M client. The user-facing
+ * send path ignores it and attributes to the authenticated user (no actor spoofing).
  */
 public record SendWhatsAppMessageRequest(
         String to,
@@ -22,7 +28,29 @@ public record SendWhatsAppMessageRequest(
         String driverId,
         String serviceCode,
         String processInstanceId,
-        String taskId) {
+        String taskId,
+        String actor) {
+
+    /**
+     * Backward-compatible constructor (pre-{@code actor}). Keeps existing positional callers
+     * working; {@code actor} defaults to {@code null} (the M2M path then attributes to the
+     * calling principal). Jackson always binds the canonical (all-component) constructor.
+     */
+    public SendWhatsAppMessageRequest(
+            String to,
+            String type,
+            String body,
+            String templateName,
+            String language,
+            Map<String, String> templateParams,
+            MessageRole role,
+            String driverId,
+            String serviceCode,
+            String processInstanceId,
+            String taskId) {
+        this(to, type, body, templateName, language, templateParams, role,
+                driverId, serviceCode, processInstanceId, taskId, null);
+    }
 
     private static final String TYPE_TEMPLATE = "TEMPLATE";
     private static final String DEFAULT_LANGUAGE = "es_CL";

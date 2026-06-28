@@ -116,15 +116,31 @@ public class IntegrationConnectionService {
         if (existing == null) {
             return null;
         }
-        if (req.token() != null && !req.token().isBlank() && existing.credentialProfileId() != null) {
-            credentialProfileRepository.updateSecret(
-                    tenantCode,
-                    existing.credentialProfileId(),
-                    encryptToken(req.token()),
-                    maskSecret(Map.of("token", req.token())));
-        }
+        rotateTokenIfPresent(tenantCode, existing, req.token());
         String baseUrl = req.baseUrl() == null ? null : req.baseUrl().toString();
-        return connectionRepository.update(tenantCode, connectionId, req.name(), baseUrl, req.metadata(), req.active());
+        return connectionRepository.update(tenantCode, connectionId, req.name(), baseUrl, req.metadata());
+    }
+
+    /**
+     * Rotates the linked credential profile's secret when a non-blank token is supplied.
+     * Fails (does not silently drop the token) when there is no resolvable credential
+     * profile, so the rotation is part of the update's success contract.
+     */
+    private void rotateTokenIfPresent(String tenantCode, IntegrationConnection existing, String token) {
+        if (token == null || token.isBlank()) {
+            return;
+        }
+        CredentialProfile rotated = existing.credentialProfileId() == null
+                ? null
+                : credentialProfileRepository.updateSecret(
+                        tenantCode,
+                        existing.credentialProfileId(),
+                        encryptToken(token),
+                        maskSecret(Map.of("token", token)));
+        if (rotated == null) {
+            throw new IllegalStateException(
+                    "Cannot rotate the access token: the connection has no resolvable credential profile");
+        }
     }
 
     private String encryptToken(String token) {

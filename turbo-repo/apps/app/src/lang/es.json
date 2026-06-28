@@ -1266,7 +1266,12 @@
             "createButton": "Crear",
             "editTitle": "Editar canal WhatsApp",
             "saveButton": "Guardar",
-            "tokenEditPlaceholder": "Déjalo en blanco para mantener el token actual"
+            "tokenEditPlaceholder": "Déjalo en blanco para mantener el token actual",
+            "testModeLabel": "Modo prueba",
+            "testModeHelp": "Cuando está activo, los mensajes solo se envían a los destinatarios de la lista de abajo — el resto queda bloqueado. Úsalo para demostrar de forma segura sin notificar a conductores reales.",
+            "testRecipientsLabel": "Destinatarios de prueba permitidos",
+            "testRecipientsPlaceholder": "+56 9 1234 5678\n+56 9 8765 4321",
+            "testRecipientsHelp": "Un número por línea (o separados por coma). Los espacios y símbolos se ignoran al comparar."
           },
           "toast": {
             "created": "Canal WhatsApp configurado",
@@ -1281,8 +1286,10 @@
             "wabaIdRequired": "El ID de la cuenta de WhatsApp Business es obligatorio",
             "graphVersionRequired": "La versión de la Graph API es obligatoria",
             "baseUrlInvalid": "Ingresa una URL válida",
-            "tokenRequired": "El token de acceso es obligatorio"
-          }
+            "tokenRequired": "El token de acceso es obligatorio",
+            "testRecipientsRequired": "Agrega al menos un destinatario, o desactiva el modo prueba"
+          },
+          "testModeBadge": "Modo prueba"
         }
       },
       "breadcrumb": {

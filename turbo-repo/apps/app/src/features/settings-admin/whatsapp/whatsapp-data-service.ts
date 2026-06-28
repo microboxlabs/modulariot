@@ -2,12 +2,24 @@
 
 import { ApiError } from "../data/settings-admin-data-service";
 import {
+  parseRecipientList,
   WHATSAPP_PROVIDER,
   type ConnectionTestResult,
   type CredentialProfileResponse,
   type IntegrationConnection,
   type WhatsAppFormData,
 } from "./whatsapp.types";
+
+/** Non-secret metadata derived from the form, shared by create and update. */
+function buildMetadata(form: WhatsAppFormData): Record<string, unknown> {
+  return {
+    phone_number_id: form.phoneNumberId,
+    waba_id: form.wabaId,
+    graph_version: form.graphVersion,
+    test_mode_enabled: form.testModeEnabled,
+    test_recipients: parseRecipientList(form.testRecipients),
+  };
+}
 
 /**
  * Thin client-side wrappers around the Next.js admin proxy routes for the
@@ -101,11 +113,7 @@ export async function createWhatsAppConnection(
       providerType: WHATSAPP_PROVIDER,
       baseUrl: form.baseUrl,
       credentialProfileId: credential.id,
-      metadata: {
-        phone_number_id: form.phoneNumberId,
-        waba_id: form.wabaId,
-        graph_version: form.graphVersion,
-      },
+      metadata: buildMetadata(form),
     },
   );
 }
@@ -123,11 +131,7 @@ export async function updateWhatsAppConnection(
   const body: Record<string, unknown> = {
     name: form.name,
     baseUrl: form.baseUrl,
-    metadata: {
-      phone_number_id: form.phoneNumberId,
-      waba_id: form.wabaId,
-      graph_version: form.graphVersion,
-    },
+    metadata: buildMetadata(form),
   };
   const token = form.token?.trim();
   if (token) {

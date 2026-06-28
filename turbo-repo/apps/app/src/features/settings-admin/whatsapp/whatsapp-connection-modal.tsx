@@ -1,8 +1,8 @@
 "use client";
 
-import { Label, TextInput } from "flowbite-react";
+import { Label, Textarea, TextInput, ToggleSwitch } from "flowbite-react";
 import { useEffect, type ReactNode } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -33,6 +33,8 @@ const DEFAULTS: WhatsAppFormData = {
   graphVersion: DEFAULT_GRAPH_VERSION,
   baseUrl: DEFAULT_BASE_URL,
   token: "",
+  testModeEnabled: false,
+  testRecipients: "",
 };
 
 export function WhatsAppConnectionModal({
@@ -50,11 +52,15 @@ export function WhatsAppConnectionModal({
     register,
     handleSubmit,
     reset,
+    control,
+    watch,
     formState: { errors },
   } = useForm<WhatsAppFormData>({
     resolver: zodResolver(isEdit ? WhatsAppEditSchema : WhatsAppConnectionSchema),
     defaultValues: DEFAULTS,
   });
+
+  const testModeEnabled = watch("testModeEnabled");
 
   useEffect(() => {
     if (!show) {
@@ -177,6 +183,43 @@ export function WhatsAppConnectionModal({
             color={errors.token ? "failure" : undefined}
           />
         </Field>
+
+        <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+          <Controller
+            control={control}
+            name="testModeEnabled"
+            render={({ field }) => (
+              <ToggleSwitch
+                checked={field.value}
+                label={tr("modal.testModeLabel", dict)}
+                onChange={field.onChange}
+              />
+            )}
+          />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {tr("modal.testModeHelp", dict)}
+          </p>
+
+          <div className="mt-3">
+            <Field
+              id="wa-test-recipients"
+              label={tr("modal.testRecipientsLabel", dict)}
+              error={trDynamic(errors.testRecipients?.message ?? "", dict)}
+            >
+              <Textarea
+                id="wa-test-recipients"
+                rows={3}
+                placeholder={tr("modal.testRecipientsPlaceholder", dict)}
+                disabled={!testModeEnabled}
+                {...register("testRecipients")}
+                color={errors.testRecipients ? "failure" : undefined}
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {tr("modal.testRecipientsHelp", dict)}
+              </p>
+            </Field>
+          </div>
+        </div>
       </div>
     </FormModal>
   );

@@ -27,6 +27,10 @@ dependencies = [
   "opentelemetry-instrumentation-fastapi>=0.48b0",
   "pydantic>=2.10",
   "pydantic-settings>=2.14.2",
+  # Present transitively via pydantic-settings (env_file support); declared
+  # directly because config.load_dotenv_into_environ uses dotenv_values to
+  # bridge .env into os.environ for local file-connection DSN resolution.
+  "python-dotenv>=1.0",
   "pyjwt[crypto]>=2.8",
   # Context & Skills manifests are YAML. pyyaml is present transitively
   # via langchain-core; declared directly so a future bump can't drop it.

@@ -1266,7 +1266,12 @@
             "createButton": "Create",
             "editTitle": "Edit WhatsApp channel",
             "saveButton": "Save",
-            "tokenEditPlaceholder": "Leave blank to keep the current token"
+            "tokenEditPlaceholder": "Leave blank to keep the current token",
+            "testModeLabel": "Test mode",
+            "testModeHelp": "When on, messages are only delivered to the recipients listed below — everyone else is blocked. Use this to demo safely without notifying real drivers.",
+            "testRecipientsLabel": "Allowed test recipients",
+            "testRecipientsPlaceholder": "+56 9 1234 5678\n+56 9 8765 4321",
+            "testRecipientsHelp": "One phone number per line (or comma-separated). Spaces and symbols are ignored when matching."
           },
           "toast": {
             "created": "WhatsApp channel configured",
@@ -1281,8 +1286,10 @@
             "wabaIdRequired": "WhatsApp Business Account ID is required",
             "graphVersionRequired": "Graph API version is required",
             "baseUrlInvalid": "Enter a valid URL",
-            "tokenRequired": "Access token is required"
-          }
+            "tokenRequired": "Access token is required",
+            "testRecipientsRequired": "Add at least one recipient, or turn test mode off"
+          },
+          "testModeBadge": "Test mode"
         }
       },
       "breadcrumb": {

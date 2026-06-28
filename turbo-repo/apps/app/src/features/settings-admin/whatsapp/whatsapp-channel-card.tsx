@@ -8,7 +8,11 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { useOrgWhatsApp } from "./use-org-whatsapp";
 import { WhatsAppConnectionModal } from "./whatsapp-connection-modal";
-import { DEFAULT_GRAPH_VERSION } from "./whatsapp.types";
+import {
+  DEFAULT_GRAPH_VERSION,
+  formatRecipientList,
+  isTruthyFlag,
+} from "./whatsapp.types";
 import type { IntegrationConnection, WhatsAppFormData } from "./whatsapp.types";
 
 interface WhatsAppChannelCardProps {
@@ -122,7 +126,17 @@ export default function WhatsAppChannelCard({
             {tr("title", waDict)}
           </h3>
         </div>
-        {connection && <StatusBadge status={connection.status} dict={waDict} />}
+        {connection && (
+          <div className="flex items-center gap-2">
+            {isTruthyFlag(connection.metadata?.test_mode_enabled) && (
+              <TestModeBadge
+                dict={waDict}
+                count={recipientCount(connection.metadata?.test_recipients)}
+              />
+            )}
+            <StatusBadge status={connection.status} dict={waDict} />
+          </div>
+        )}
       </div>
 
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -191,7 +205,27 @@ function connectionToForm(connection: IntegrationConnection): WhatsAppFormData {
     graphVersion: str(meta.graph_version, DEFAULT_GRAPH_VERSION),
     baseUrl: connection.baseUrl,
     token: "",
+    testModeEnabled: isTruthyFlag(meta.test_mode_enabled),
+    testRecipients: formatRecipientList(meta.test_recipients),
   };
+}
+
+/** Count of configured test recipients, from either a JSON array or a delimited string. */
+function recipientCount(value: unknown): number {
+  return formatRecipientList(value).split("\n").filter(Boolean).length;
+}
+
+interface TestModeBadgeProps {
+  readonly dict: I18nRecord;
+  readonly count: number;
+}
+
+function TestModeBadge({ dict, count }: TestModeBadgeProps) {
+  return (
+    <Badge color="warning">
+      {tr("testModeBadge", dict)} · {count}
+    </Badge>
+  );
 }
 
 interface StatusBadgeProps {

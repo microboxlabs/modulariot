@@ -12,6 +12,7 @@ const ENV_KEYS = [
   "STACK_TAG",
   "GIT_SHA",
   "SHORT_SHA",
+  "BUILD_CREDITS_JSON",
   "APP_VERSION",
   "APP_TAG",
   "APP_IMAGE_REF",
@@ -33,6 +34,14 @@ describe("build info route", () => {
       git_sha: "abc1234def",
       short_sha: "abc1234",
       manifest_version: 1,
+      credits: [
+        {
+          name: "Ada Lovelace",
+          username: "ada",
+          url: "https://github.com/ada",
+          role: "Contributor",
+        },
+      ],
       components: {
         app: {
           tag: "app@nightly-20260627-abc1234",
@@ -51,6 +60,14 @@ describe("build info route", () => {
       channel: "nightly",
       releaseVersion: "nightly-20260627-abc1234",
       gitSha: "abc1234def",
+      credits: [
+        {
+          name: "Ada Lovelace",
+          username: "ada",
+          url: "https://github.com/ada",
+          role: "Contributor",
+        },
+      ],
       components: {
         app: {
           imageRepository: "ghcr.io/microboxlabs/miot-app",
@@ -71,6 +88,13 @@ describe("build info route", () => {
     process.env.BUILD_CHANNEL = "release";
     process.env.STACK_TAG = "miot-stack@v0.5.21";
     process.env.GIT_SHA = "1234567890";
+    process.env.BUILD_CREDITS_JSON = JSON.stringify([
+      {
+        name: "Grace Hopper",
+        email: "grace@example.com",
+        role: "Contributor",
+      },
+    ]);
     process.env.APP_VERSION = "0.5.21";
     process.env.APP_TAG = "app@v0.5.21";
     process.env.APP_IMAGE_REF = "ghcr.io/microboxlabs/miot-app@sha256:def";
@@ -84,6 +108,13 @@ describe("build info route", () => {
       releaseNotesVersion: "v1.31.20",
       stackTag: "miot-stack@v0.5.21",
       shortSha: "1234567",
+      credits: [
+        {
+          name: "Grace Hopper",
+          email: "grace@example.com",
+          role: "Contributor",
+        },
+      ],
       components: {
         app: {
           version: "0.5.21",
@@ -109,6 +140,7 @@ describe("build info route", () => {
         channel: "nightly",
         git_sha: "def5678901",
         short_sha: "def5678",
+        credits: ["Release Pilot"],
         components: {
           app: {
             tag: "app@nightly-20260628-def5678",
@@ -126,6 +158,11 @@ describe("build info route", () => {
       channel: "nightly",
       releaseVersion: "nightly-20260628-def5678",
       gitSha: "def5678901",
+      credits: [
+        {
+          name: "Release Pilot",
+        },
+      ],
       components: {
         app: {
           tag: "app@nightly-20260628-def5678",

@@ -123,12 +123,51 @@ jobs:
           # this is the upstream build's head_sha, which can differ from the
           # branch tip checkout would grab by default.
           ref: ${{ needs.metadata.outputs.head_sha }}
+          fetch-depth: 0
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: turbo-repo/package-lock.json
+
+      - name: Resolve build credits
+        id: credits
+        env:
+          GIT_SHA: ${{ needs.metadata.outputs.head_sha }}
+        run: |
+          credit_rows="$(git log -1 --format='%aN%x09%aE' "$GIT_SHA")"
+          credits_json="$(
+            GIT_CREDIT_ROWS="$credit_rows" node <<'NODE'
+          const rows = (process.env.GIT_CREDIT_ROWS ?? "").trim().split("\n").filter(Boolean);
+          const allCredits = [];
+          const seen = new Set();
+          for (const row of rows) {
+            const [name, email] = row.split("\t");
+            const username = email?.match(/^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/)?.[1];
+            const key = (email || username || name).toLowerCase();
+            if (!name || seen.has(key)) {
+              continue;
+            }
+            seen.add(key);
+            allCredits.push({
+              name,
+              ...(email ? { email } : {}),
+              ...(username ? { username, url: `https://github.com/${username}` } : {}),
+              role: "Contributor",
+            });
+          }
+          const humanCredits = allCredits.filter(
+            (credit) => !credit.name.endsWith("[bot]") && credit.username !== "github-actions"
+          );
+          console.log(JSON.stringify(humanCredits.length > 0 ? humanCredits : allCredits));
+          NODE
+          )"
+          {
+            echo "json<<EOF"
+            echo "$credits_json"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: npm ci
@@ -147,6 +186,7 @@ jobs:
           MODULITH_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}
           HARNESS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}
           HARNESS_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}
+          BUILD_CREDITS_JSON: ${{ steps.credits.outputs.json }}
         run: |
           mkdir -p turbo-repo/apps/app/public
           jq -n \
@@ -162,6 +202,7 @@ jobs:
             --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
             --arg harness_image_repository "$HARNESS_IMAGE_REPOSITORY" \
             --arg harness_image_tag "$HARNESS_IMAGE_TAG" \
+            --argjson credits "$BUILD_CREDITS_JSON" \
             '{
               product: "ModularIoT",
               release_version: $release_version,
@@ -172,6 +213,7 @@ jobs:
               built_at: $built_at,
               workflow_run_url: $workflow_run_url,
               manifest_version: 1,
+              credits: $credits,
               components: {
                 app: {
                   version: $release_version,

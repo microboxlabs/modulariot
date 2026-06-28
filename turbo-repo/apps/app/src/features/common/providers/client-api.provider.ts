@@ -565,6 +565,14 @@ export type BuildComponentInfo = {
   sourceTag?: string;
 };
 
+export type BuildCredit = {
+  name: string;
+  email?: string;
+  username?: string;
+  url?: string;
+  role?: string;
+};
+
 export type BuildInfo = {
   product: string;
   channel: string;
@@ -577,6 +585,7 @@ export type BuildInfo = {
   deployedAt?: string;
   workflowRunUrl?: string;
   manifestVersion: number;
+  credits: BuildCredit[];
   components: Record<string, BuildComponentInfo>;
 };
 

@@ -39,7 +39,14 @@ describe("build info route", () => {
           name: "Ada Lovelace",
           username: "ada",
           url: "https://github.com/ada",
+          avatarUrl: "https://github.com/ada.png?size=96",
           role: "Contributor",
+          commitCount: 3,
+          filesChanged: 8,
+          additions: 120,
+          deletions: 14,
+          impactScore: 82,
+          rank: 1,
         },
       ],
       components: {
@@ -65,7 +72,14 @@ describe("build info route", () => {
           name: "Ada Lovelace",
           username: "ada",
           url: "https://github.com/ada",
+          avatarUrl: "https://github.com/ada.png?size=96",
           role: "Contributor",
+          commitCount: 3,
+          filesChanged: 8,
+          additions: 120,
+          deletions: 14,
+          impactScore: 82,
+          rank: 1,
         },
       ],
       components: {
@@ -92,7 +106,15 @@ describe("build info route", () => {
       {
         name: "Grace Hopper",
         email: "grace@example.com",
+        avatarUrl:
+          "https://www.gravatar.com/avatar/abc123?d=identicon&s=96",
         role: "Contributor",
+        commitCount: 2,
+        filesChanged: 5,
+        additions: 30,
+        deletions: 7,
+        impactScore: 66,
+        rank: 2,
       },
     ]);
     process.env.APP_VERSION = "0.5.21";
@@ -112,7 +134,15 @@ describe("build info route", () => {
         {
           name: "Grace Hopper",
           email: "grace@example.com",
+          avatarUrl:
+            "https://www.gravatar.com/avatar/abc123?d=identicon&s=96",
           role: "Contributor",
+          commitCount: 2,
+          filesChanged: 5,
+          additions: 30,
+          deletions: 7,
+          impactScore: 66,
+          rank: 2,
         },
       ],
       components: {

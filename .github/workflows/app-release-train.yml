@@ -518,35 +518,85 @@ jobs:
             range="${previous_stack_tag}..${GIT_SHA}"
           fi
 
-          credit_rows="$(git log --format='%aN%x09%aE' "$range")"
-          if [[ -z "$credit_rows" ]]; then
-            credit_rows="$(git log -1 --format='%aN%x09%aE' "$GIT_SHA")"
+          credit_log="$(git log --format='%H%x09%aN%x09%aE' --numstat "$range")"
+          if [[ -z "$credit_log" ]]; then
+            credit_log="$(git log -1 --format='%H%x09%aN%x09%aE' --numstat "$GIT_SHA")"
           fi
 
           credits_json="$(
-            GIT_CREDIT_ROWS="$credit_rows" node <<'NODE'
-          const rows = (process.env.GIT_CREDIT_ROWS ?? "").trim().split("\n").filter(Boolean);
-          const allCredits = [];
-          const seen = new Set();
-          for (const row of rows) {
-            const [name, email] = row.split("\t");
-            const username = email?.match(/^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/)?.[1];
-            const key = (email || username || name).toLowerCase();
-            if (!name || seen.has(key)) {
+            GIT_CREDIT_LOG="$credit_log" node <<'NODE'
+          const crypto = require("crypto");
+          const lines = (process.env.GIT_CREDIT_LOG ?? "").split("\n");
+          const contributors = new Map();
+          let currentKey = null;
+
+          function githubUsername(email) {
+            return email?.match(/^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/)?.[1];
+          }
+
+          function avatarUrl(email, username) {
+            if (username) {
+              return `https://github.com/${username}.png?size=96`;
+            }
+            if (!email) {
+              return undefined;
+            }
+            const hash = crypto.createHash("md5").update(email.trim().toLowerCase()).digest("hex");
+            return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=96`;
+          }
+
+          for (const line of lines) {
+            if (!line.trim()) {
               continue;
             }
-            seen.add(key);
-            allCredits.push({
-              name,
-              ...(email ? { email } : {}),
-              ...(username ? { username, url: `https://github.com/${username}` } : {}),
-              role: "Contributor",
-            });
+
+            const parts = line.split("\t");
+            if (parts.length === 3 && /^[0-9a-f]{40}$/.test(parts[0])) {
+              const [, name, email] = parts;
+              const username = githubUsername(email);
+              currentKey = (email || username || name).toLowerCase();
+              if (!contributors.has(currentKey)) {
+                contributors.set(currentKey, {
+                  name,
+                  ...(email ? { email } : {}),
+                  ...(username ? { username, url: `https://github.com/${username}` } : {}),
+                  avatarUrl: avatarUrl(email, username),
+                  commitCount: 0,
+                  filesChanged: 0,
+                  additions: 0,
+                  deletions: 0,
+                });
+              }
+              contributors.get(currentKey).commitCount += 1;
+              continue;
+            }
+
+            if (!currentKey || parts.length < 3) {
+              continue;
+            }
+
+            const [added, deleted] = parts;
+            const credit = contributors.get(currentKey);
+            credit.filesChanged += 1;
+            credit.additions += /^\d+$/.test(added) ? Number(added) : 0;
+            credit.deletions += /^\d+$/.test(deleted) ? Number(deleted) : 0;
           }
+
+          const allCredits = [...contributors.values()].map((credit) => ({
+            ...credit,
+            impactScore: credit.commitCount * 25 + credit.filesChanged * 3 + Math.ceil((credit.additions + credit.deletions) / 50),
+          }));
           const humanCredits = allCredits.filter(
             (credit) => !credit.name.endsWith("[bot]") && credit.username !== "github-actions"
           );
-          console.log(JSON.stringify(humanCredits.length > 0 ? humanCredits : allCredits));
+          const credits = (humanCredits.length > 0 ? humanCredits : allCredits)
+            .sort((left, right) => right.commitCount - left.commitCount || right.impactScore - left.impactScore || left.name.localeCompare(right.name))
+            .map((credit, index) => ({
+              ...credit,
+              rank: index + 1,
+              role: index === 0 ? "Top contributor" : "Contributor",
+            }));
+          console.log(JSON.stringify(credits));
           NODE
           )"
           {

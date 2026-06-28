@@ -59,6 +59,10 @@ export default function BlurrableDropdown({
       label: (dict.symptoms as I18nRecord).contact_via_whatsapp as string,
       icon: FaWhatsapp,
       option: "contact_via_whatsapp" as SelectedOption,
+      // Disabled until the Control Tower symptom→WhatsApp flow is finalized (single
+      // symptom template + missing-data guard, no random picker). Matches the other
+      // not-yet-ready options above; flip to re-enable.
+      disabled: true,
     },
     {
       id: 3,

@@ -24,7 +24,11 @@ from miot_harness.api.identity import (
     IdentityVerificationError,
     verify_signed_identity,
 )
-from miot_harness.config import HarnessSettings, get_settings
+from miot_harness.config import (
+    HarnessSettings,
+    get_settings,
+    load_dotenv_into_environ,
+)
 from miot_harness.connections.loader import load_connections, select_primary
 from miot_harness.context_skills.loader import (
     ActiveConnections,
@@ -137,6 +141,18 @@ def _make_lifespan(
                 settings.otel_endpoint,
             )
         app.state.tracer_provider = tracer_provider
+
+        # Local dev: bridge `.env` into os.environ so file-based connections can
+        # resolve their `dsn_env` (which they read from the process environment,
+        # like k8s injects each DSN). Real env vars always win; no-op in prod.
+        # Must run BEFORE load_connections, which reads os.environ for each DSN.
+        loaded_env = load_dotenv_into_environ(settings)
+        if loaded_env:
+            logger.info(
+                "Local: bridged %d var(s) from .env into the environment for "
+                "connection DSN resolution",
+                len(loaded_env),
+            )
 
         # Load the connections to boot (file-backed; falls back to a single
         # connection synthesized from the legacy MIOT_HARNESS_DATASOURCE_* env).

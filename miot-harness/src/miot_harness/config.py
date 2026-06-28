@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import logging
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from dotenv import dotenv_values
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class HarnessSettings(BaseSettings):
@@ -348,3 +353,41 @@ class HarnessSettings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> HarnessSettings:
     return HarnessSettings()
+
+
+def load_dotenv_into_environ(settings: HarnessSettings) -> list[str]:
+    """Populate ``os.environ`` from the settings' ``.env`` file (local only).
+
+    File-based connections resolve their ``dsn_env`` from the *process*
+    environment (``os.environ``), exactly as k8s injects each DSN as a real env
+    var. Locally those DSNs live in ``.env``, which pydantic reads for its own
+    fields but never exports — so without this, file connections boot disabled
+    ("no DSN unset"). This bridges that gap by copying ``.env`` keys into
+    ``os.environ``.
+
+    Contract: real environment variables ALWAYS win (never overridden), so prod
+    behaviour is unchanged. No-op in ``production`` or when no ``.env`` exists
+    (the prod case). Returns the names newly set, for logging.
+    """
+    if settings.env == "production":
+        return []
+    env_file = settings.model_config.get("env_file") or ".env"
+    # env_file may be a single path or a sequence of paths (pydantic-settings
+    # supports both); later files take precedence, matching pydantic's own merge.
+    candidates = (
+        env_file if isinstance(env_file, list | tuple) else (env_file,)
+    )
+    merged: dict[str, str] = {}
+    for candidate in candidates:
+        path = Path(str(candidate))
+        if not path.is_file():
+            continue
+        for key, value in dotenv_values(path).items():
+            if value is not None:
+                merged[key] = value  # later file wins
+    newly: list[str] = []
+    for key, value in merged.items():
+        if key not in os.environ:  # a real env var always wins
+            os.environ[key] = value
+            newly.append(key)
+    return newly

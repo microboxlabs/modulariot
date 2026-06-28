@@ -83,7 +83,9 @@ export function WhatsAppConnectionModal({
       title={
         isEdit ? tr("modal.editTitle", dict) : tr("modal.addTitle", dict)
       }
-      subtitle={tr("modal.subtitle", dict)}
+      subtitle={
+        isEdit ? tr("modal.editSubtitle", dict) : tr("modal.subtitle", dict)
+      }
       submitLabel={submitLabel}
       isProcessing={loading}
       error={error}

@@ -44,7 +44,8 @@ export function useOrgWhatsApp(orgSlug: string | null) {
     setActionLoading(true);
     try {
       const created = await createWhatsAppConnection(slug, form);
-      await mutate();
+      // Seed the cache from the response so the card updates instantly (no refetch flicker).
+      await mutate(created, { revalidate: false });
       return created;
     } finally {
       setActionLoading(false);
@@ -59,7 +60,9 @@ export function useOrgWhatsApp(orgSlug: string | null) {
     setActionLoading(true);
     try {
       const updated = await updateWhatsAppConnection(slug, connectionId, form);
-      await mutate();
+      // Seed the cache from the response so the card reflects the edit immediately,
+      // instead of briefly showing the previous values during a revalidation refetch.
+      await mutate(updated, { revalidate: false });
       return updated;
     } finally {
       setActionLoading(false);

@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import { FaWhatsapp } from "react-icons/fa";
 import { toast } from "sonner";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { useOrgWhatsApp } from "./use-org-whatsapp";
 import { WhatsAppConnectionModal } from "./whatsapp-connection-modal";
 import { DEFAULT_GRAPH_VERSION } from "./whatsapp.types";
@@ -161,7 +161,12 @@ function ConfiguredRow({ connection, dict, busy, onTest, onEdit }: ConfiguredRow
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="text-sm text-gray-700 dark:text-gray-300">
-        <span className="font-medium">{tr("phoneLabel", dict)}:</span> {phone}
+        <div className="font-medium text-gray-900 dark:text-gray-100">
+          {connection.name}
+        </div>
+        <div>
+          <span className="font-medium">{tr("phoneLabel", dict)}:</span> {phone}
+        </div>
       </div>
       <div className="flex items-center gap-2">
         <Button size="xs" color="light" disabled={busy} onClick={onEdit}>
@@ -205,5 +210,5 @@ function StatusBadge({ status, dict }: StatusBadgeProps) {
     TEST_FAILED: { color: "failure", key: "status.failed" },
   };
   const entry = map[status] ?? map.DRAFT;
-  return <Badge color={entry.color}>{tr(entry.key, dict)}</Badge>;
+  return <Badge color={entry.color}>{trDynamic(entry.key, dict)}</Badge>;
 }

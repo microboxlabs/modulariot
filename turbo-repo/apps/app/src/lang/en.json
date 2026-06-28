@@ -1250,6 +1250,7 @@
           "modal": {
             "addTitle": "Configure WhatsApp channel",
             "subtitle": "Stores the access token securely and creates the connection.",
+            "editSubtitle": "Update the connection details. Leave the token blank to keep the current one.",
             "defaultName": "WhatsApp Channel",
             "name": "Connection name",
             "phoneNumberId": "Phone number ID",

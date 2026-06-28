@@ -518,6 +518,14 @@ jobs:
           APP_TAG: ${{ needs.prepare.outputs.app_tag }}
           APP_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}
           APP_IMAGE_TAG: app-v${{ needs.prepare.outputs.app_version }}
+          MODULITH_VERSION: ${{ needs.prepare.outputs.modulith_version }}
+          MODULITH_TAG: ${{ needs.prepare.outputs.modulith_tag }}
+          MODULITH_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}
+          MODULITH_IMAGE_TAG: modulith-v${{ needs.prepare.outputs.modulith_version }}
+          HARNESS_VERSION: ${{ needs.prepare.outputs.harness_version }}
+          HARNESS_TAG: ${{ needs.prepare.outputs.harness_tag }}
+          HARNESS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}
+          HARNESS_IMAGE_TAG: harness-v${{ needs.prepare.outputs.harness_version }}
         run: |
           mkdir -p turbo-repo/apps/app/public
           jq -n \
@@ -532,6 +540,14 @@ jobs:
             --arg app_tag "$APP_TAG" \
             --arg app_image_repository "$APP_IMAGE_REPOSITORY" \
             --arg app_image_tag "$APP_IMAGE_TAG" \
+            --arg modulith_version "$MODULITH_VERSION" \
+            --arg modulith_tag "$MODULITH_TAG" \
+            --arg modulith_image_repository "$MODULITH_IMAGE_REPOSITORY" \
+            --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
+            --arg harness_version "$HARNESS_VERSION" \
+            --arg harness_tag "$HARNESS_TAG" \
+            --arg harness_image_repository "$HARNESS_IMAGE_REPOSITORY" \
+            --arg harness_image_tag "$HARNESS_IMAGE_TAG" \
             '{
               product: "ModularIoT",
               release_version: $release_version,
@@ -549,6 +565,18 @@ jobs:
                   tag: $app_tag,
                   image_repository: $app_image_repository,
                   image_tag: $app_image_tag
+                },
+                modulith: {
+                  version: $modulith_version,
+                  tag: $modulith_tag,
+                  image_repository: $modulith_image_repository,
+                  image_tag: $modulith_image_tag
+                },
+                harness: {
+                  version: $harness_version,
+                  tag: $harness_tag,
+                  image_repository: $harness_image_repository,
+                  image_tag: $harness_image_tag
                 }
               }
             }' > turbo-repo/apps/app/public/build-info.json

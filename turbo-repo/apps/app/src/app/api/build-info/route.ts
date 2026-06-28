@@ -1,8 +1,8 @@
 "use server";
 
-import fs from "fs";
+import fs from "node:fs";
 import { NextResponse } from "next/server";
-import path from "path";
+import path from "node:path";
 
 type BuildComponentInfo = {
   changed?: boolean;

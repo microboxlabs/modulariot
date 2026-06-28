@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { GET } from "./route";
+import fs from "fs";
+import os from "os";
+import path from "path";
 
 const ENV_KEYS = [
   "MIOT_BUILD_INFO_JSON",
@@ -16,9 +19,11 @@ const ENV_KEYS = [
 
 describe("build info route", () => {
   const originalEnv = { ...process.env };
+  const originalCwd = process.cwd();
 
   afterEach(() => {
     process.env = { ...originalEnv };
+    process.chdir(originalCwd);
   });
 
   it("normalizes manifest JSON from deployment payloads", async () => {
@@ -84,6 +89,47 @@ describe("build info route", () => {
           version: "0.5.21",
           tag: "app@v0.5.21",
           imageRef: "ghcr.io/microboxlabs/miot-app@sha256:def",
+        },
+      },
+    });
+  });
+
+  it("uses packaged build info when runtime env vars are absent", async () => {
+    for (const key of ENV_KEYS) {
+      delete process.env[key];
+    }
+
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "miot-build-info-"));
+    const publicDir = path.join(tempDir, "public");
+    fs.mkdirSync(publicDir);
+    fs.writeFileSync(
+      path.join(publicDir, "build-info.json"),
+      JSON.stringify({
+        release_version: "nightly-20260628-def5678",
+        channel: "nightly",
+        git_sha: "def5678901",
+        short_sha: "def5678",
+        components: {
+          app: {
+            tag: "app@nightly-20260628-def5678",
+            image_tag: "sha-def5678",
+          },
+        },
+      })
+    );
+    process.chdir(tempDir);
+
+    const response = await GET();
+    const data = await response.json();
+
+    expect(data).toMatchObject({
+      channel: "nightly",
+      releaseVersion: "nightly-20260628-def5678",
+      gitSha: "def5678901",
+      components: {
+        app: {
+          tag: "app@nightly-20260628-def5678",
+          imageTag: "sha-def5678",
         },
       },
     });

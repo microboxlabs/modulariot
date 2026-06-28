@@ -505,6 +505,54 @@ jobs:
         run: npm ci
         working-directory: turbo-repo
 
+      - name: Write packaged build info
+        if: needs.prepare.outputs.app_changed == 'true'
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
+          RELEASE_NOTES_VERSION: v${{ needs.prepare.outputs.release_notes_version }}
+          STACK_TAG: ${{ needs.prepare.outputs.stack_tag }}
+          GIT_SHA: ${{ needs.tag.outputs.sha }}
+          SHORT_SHA: ${{ needs.tag.outputs.short_sha }}
+          WORKFLOW_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          APP_VERSION: ${{ needs.prepare.outputs.app_version }}
+          APP_TAG: ${{ needs.prepare.outputs.app_tag }}
+          APP_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}
+          APP_IMAGE_TAG: app-v${{ needs.prepare.outputs.app_version }}
+        run: |
+          mkdir -p turbo-repo/apps/app/public
+          jq -n \
+            --arg release_version "$RELEASE_VERSION" \
+            --arg release_notes_version "$RELEASE_NOTES_VERSION" \
+            --arg stack_tag "$STACK_TAG" \
+            --arg git_sha "$GIT_SHA" \
+            --arg short_sha "$SHORT_SHA" \
+            --arg built_at "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --arg workflow_run_url "$WORKFLOW_RUN_URL" \
+            --arg app_version "$APP_VERSION" \
+            --arg app_tag "$APP_TAG" \
+            --arg app_image_repository "$APP_IMAGE_REPOSITORY" \
+            --arg app_image_tag "$APP_IMAGE_TAG" \
+            '{
+              product: "ModularIoT",
+              release_version: $release_version,
+              release_notes_version: $release_notes_version,
+              channel: "release",
+              stack_tag: $stack_tag,
+              git_sha: $git_sha,
+              short_sha: $short_sha,
+              built_at: $built_at,
+              workflow_run_url: $workflow_run_url,
+              manifest_version: 1,
+              components: {
+                app: {
+                  version: $app_version,
+                  tag: $app_tag,
+                  image_repository: $app_image_repository,
+                  image_tag: $app_image_tag
+                }
+              }
+            }' > turbo-repo/apps/app/public/build-info.json
+
       - name: Build app
         if: needs.prepare.outputs.app_changed == 'true'
         run: npx turbo run build --filter=@modulariot/app

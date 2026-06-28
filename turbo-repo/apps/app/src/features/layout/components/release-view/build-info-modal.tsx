@@ -10,6 +10,7 @@ import {
 } from "flowbite-react";
 import type {
   BuildInfo,
+  BuildCredit,
   BuildComponentInfo,
 } from "@/features/common/providers/client-api.provider";
 import AppLogo from "@/features/common/components/app-logo/app-logo";
@@ -85,6 +86,55 @@ function ComponentFields({
   );
 }
 
+function Credits({
+  credits,
+}: Readonly<{
+  credits: BuildCredit[];
+}>) {
+  if (credits.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="border-t border-gray-200 pt-3 dark:border-gray-700">
+      <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
+        Credits
+      </h3>
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {credits.map((credit) => {
+          const label = credit.username ? `@${credit.username}` : credit.name;
+          const secondary =
+            credit.role ?? (credit.username ? credit.name : credit.email);
+
+          return (
+            <li key={`${credit.name}-${credit.email ?? credit.username ?? ""}`}>
+              {credit.url ? (
+                <Link
+                  className="text-sm font-medium text-gray-900 hover:underline dark:text-gray-100"
+                  href={credit.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {label}
+                </Link>
+              ) : (
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {label}
+                </span>
+              )}
+              {secondary && (
+                <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                  {secondary}
+                </p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 export default function BuildInfoModal({
   buildInfo,
   isOpen,
@@ -130,6 +180,8 @@ export default function BuildInfoModal({
             {Object.entries(buildInfo.components).map(([name, component]) => (
               <ComponentFields key={name} name={name} component={component} />
             ))}
+
+            <Credits credits={buildInfo.credits} />
           </div>
         ) : (
           <p className="text-sm text-gray-600 dark:text-gray-400">

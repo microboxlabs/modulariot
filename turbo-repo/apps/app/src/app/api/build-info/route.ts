@@ -14,6 +14,14 @@ type BuildComponentInfo = {
   sourceTag?: string;
 };
 
+type BuildCredit = {
+  name: string;
+  email?: string;
+  username?: string;
+  url?: string;
+  role?: string;
+};
+
 type BuildInfo = {
   product: string;
   channel: string;
@@ -26,6 +34,7 @@ type BuildInfo = {
   deployedAt?: string;
   workflowRunUrl?: string;
   manifestVersion: number;
+  credits: BuildCredit[];
   components: Record<string, BuildComponentInfo>;
 };
 
@@ -66,6 +75,39 @@ function normalizeComponent(info: RawBuildComponentInfo): BuildComponentInfo {
   };
 }
 
+function normalizeCredits(credits: unknown): BuildCredit[] {
+  if (!Array.isArray(credits)) {
+    return [];
+  }
+
+  return credits.flatMap((credit) => {
+    if (typeof credit === "string") {
+      const name = credit.trim();
+      return name ? [{ name }] : [];
+    }
+
+    if (!credit || typeof credit !== "object") {
+      return [];
+    }
+
+    const candidate = credit as Partial<BuildCredit>;
+    const name = candidate.name?.trim();
+    if (!name) {
+      return [];
+    }
+
+    return [
+      {
+        name,
+        email: candidate.email?.trim() || undefined,
+        username: candidate.username?.trim() || undefined,
+        url: candidate.url?.trim() || undefined,
+        role: candidate.role?.trim() || undefined,
+      },
+    ];
+  });
+}
+
 function normalizeBuildInfo(raw: RawBuildInfo): BuildInfo {
   return {
     product: raw.product ?? "ModularIoT",
@@ -79,6 +121,7 @@ function normalizeBuildInfo(raw: RawBuildInfo): BuildInfo {
     deployedAt: raw.deployedAt ?? raw.deployed_at,
     workflowRunUrl: raw.workflowRunUrl ?? raw.workflow_run_url,
     manifestVersion: raw.manifestVersion ?? raw.manifest_version ?? 1,
+    credits: normalizeCredits(raw.credits),
     components: Object.fromEntries(
       Object.entries(raw.components ?? {}).map(([name, info]) => [
         name,
@@ -157,6 +200,20 @@ function stripEmptyComponentValues(
   );
 }
 
+function parseCreditsEnv(): BuildCredit[] {
+  const raw = optionalEnv("BUILD_CREDITS_JSON");
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    return normalizeCredits(JSON.parse(raw));
+  } catch (error) {
+    console.error("Invalid BUILD_CREDITS_JSON:", error);
+    return [];
+  }
+}
+
 function buildInfoFromEnv(): BuildInfo {
   const releaseVersion =
     optionalEnv("RELEASE_VERSION") ?? optionalEnv("APP_VERSION") ?? "local";
@@ -178,6 +235,7 @@ function buildInfoFromEnv(): BuildInfo {
     deployedAt: optionalEnv("DEPLOYED_AT"),
     workflowRunUrl: optionalEnv("WORKFLOW_RUN_URL"),
     manifestVersion: 1,
+    credits: parseCreditsEnv(),
     components: stripEmptyComponentValues({
       app: component("APP"),
       modulith: component("MODULITH"),

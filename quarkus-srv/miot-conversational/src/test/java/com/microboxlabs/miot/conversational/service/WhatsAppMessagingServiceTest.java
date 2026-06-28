@@ -7,9 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.conversational.dto.SendWhatsAppMessageRequest;
+import com.microboxlabs.miot.integrations.service.ResolvedConnection;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -74,6 +79,43 @@ class WhatsAppMessagingServiceTest {
         assertEquals("****0001", maskPhone.invoke(null, "+56900000001"));
         assertEquals("****", maskPhone.invoke(null, "123"));
         assertEquals("****", maskPhone.invoke(null, new Object[] {null}));
+    }
+
+    // Placeholder numbers only — never put real phone numbers in the codebase.
+    @Test
+    void testModeBlocksRecipientNotOnTheAllowlist() {
+        ResolvedConnection connection = testConnection(true, List.of("+56 9 0000 0001", "+56900000002"));
+        assertThrows(IllegalArgumentException.class,
+                () -> WhatsAppMessagingService.enforceTestMode(connection, "+56900009999"));
+    }
+
+    @Test
+    void testModeAllowsAllowlistedRecipientIgnoringFormatting() {
+        ResolvedConnection connection = testConnection(true, List.of("+56 9 0000 0001"));
+        assertDoesNotThrow(() -> WhatsAppMessagingService.enforceTestMode(connection, "569 0000-0001"));
+    }
+
+    @Test
+    void testModeDisabledAllowsAnyRecipient() {
+        ResolvedConnection connection = testConnection(false, List.of("+56900000001"));
+        assertDoesNotThrow(() -> WhatsAppMessagingService.enforceTestMode(connection, "+56900009999"));
+    }
+
+    @Test
+    void parseRecipientsAcceptsListOrCommaSeparatedString() {
+        Set<String> expected = Set.of("56900000001", "56900000002");
+        assertEquals(expected,
+                WhatsAppMessagingService.parseRecipients(List.of("+56 9 0000 0001", "+56900000002")));
+        assertEquals(expected,
+                WhatsAppMessagingService.parseRecipients("+56900000001, +56 9 0000 0002"));
+    }
+
+    private static ResolvedConnection testConnection(boolean enabled, List<String> recipients) {
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("test_mode_enabled", enabled);
+        metadata.put("test_recipients", recipients);
+        return new ResolvedConnection(
+                "conn-1", URI.create("https://graph.facebook.com/v25.0"), metadata, Map.of());
     }
 
     private static void assertIllegalArgument(SendWhatsAppMessageRequest request, String field) {

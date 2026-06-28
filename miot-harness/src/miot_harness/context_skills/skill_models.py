@@ -24,7 +24,25 @@ from miot_harness.context_skills.models import ContextScope
 HttpMethod = Literal["GET", "POST", "PUT", "PATCH", "DELETE"]
 
 
-class PlaybookSkill(BaseModel):
+class _ConnectionBinding(BaseModel):
+    """Optional binding of a skill to a live connection / capability (Phase 4).
+
+    - `connection`: a connection NAME. The skill is eligible only when an
+      enabled connection with that name booted (so its tools resolve).
+    - `requires_capability`: a capability flag. Eligible only when some
+      enabled connection declares that capability True.
+
+    Both may be set (AND semantics). A skill that sets neither is always
+    eligible — unchanged behaviour. Binding composes with `scope`: a skill
+    may be both tenant-scoped and connection-bound. The loader gates
+    eligibility against the active connection set at boot.
+    """
+
+    connection: str | None = None
+    requires_capability: str | None = None
+
+
+class PlaybookSkill(_ConnectionBinding):
     """Guidance over existing tools. No new executable capability."""
 
     kind: Literal["playbook"]
@@ -44,7 +62,7 @@ class PlaybookSkill(BaseModel):
     scope: ContextScope = ContextScope()
 
 
-class HttpConnectorSkill(BaseModel):
+class HttpConnectorSkill(_ConnectionBinding):
     """A declarative HTTP tool definition → a callable `HarnessTool`."""
 
     kind: Literal["http"]

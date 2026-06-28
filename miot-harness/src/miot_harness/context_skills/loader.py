@@ -47,6 +47,46 @@ class ContextSkillsBootResult:
     diagnostics: tuple[LoadDiagnostic, ...]
 
 
+@dataclass(frozen=True)
+class ActiveConnections:
+    """The connection landscape at boot, used to gate connection-bound skills.
+
+    - `enabled`: names of connections that booted enabled (their tools are
+      registered, so a bound playbook's tool refs resolve).
+    - `capabilities`: the union of capability flags that are True across the
+      enabled connections (a skill's `requires_capability` matches this set).
+    - `known`: every configured connection name, enabled or not. Used only to
+      tell a likely typo (a binding to a name no connection declares) apart
+      from a connection that merely failed to boot / has no DSN.
+    """
+
+    enabled: frozenset[str] = frozenset()
+    capabilities: frozenset[str] = frozenset()
+    known: frozenset[str] = frozenset()
+
+    def eligibility(
+        self, *, connection: str | None, requires_capability: str | None
+    ) -> tuple[bool, str | None]:
+        """Decide whether a skill with this binding is eligible.
+
+        Returns `(eligible, warning)`. `warning` is set only for a binding that
+        names a connection no configured connection declares — a likely typo
+        worth surfacing. A binding to a known-but-disabled connection, or to an
+        unavailable capability, is an expected miss (eligible False, no warning)
+        and stays silent.
+        """
+        if connection is not None and connection not in self.known:
+            return False, f"bound to unknown connection {connection!r}"
+        if connection is not None and connection not in self.enabled:
+            return False, None
+        if (
+            requires_capability is not None
+            and requires_capability not in self.capabilities
+        ):
+            return False, None
+        return True, None
+
+
 def _slug(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
 
@@ -64,6 +104,7 @@ def boot_context_skills(
     *,
     context_source: ContextSource | None = None,
     skill_source: SkillSource | None = None,
+    active_connections: ActiveConnections | None = None,
 ) -> ContextSkillsBootResult:
     diagnostics: list[LoadDiagnostic] = []
 
@@ -79,9 +120,13 @@ def boot_context_skills(
     diagnostics.extend(context_result.diagnostics)
     diagnostics.extend(skill_result.diagnostics)
 
+    eligible = _filter_bound_skills(
+        skill_result.skills, active_connections, diagnostics
+    )
+
     playbooks: list[LoadedSkill] = []
     connectors: list[LoadedSkill] = []
-    for loaded in skill_result.skills:
+    for loaded in eligible:
         (playbooks if isinstance(loaded.skill, PlaybookSkill) else connectors).append(
             loaded
         )
@@ -100,6 +145,42 @@ def boot_context_skills(
         registered_tools=tuple(registered),
         diagnostics=tuple(diagnostics),
     )
+
+
+def _filter_bound_skills(
+    skills: tuple[LoadedSkill, ...],
+    active: ActiveConnections | None,
+    diagnostics: list[LoadDiagnostic],
+) -> list[LoadedSkill]:
+    """Drop connection-bound skills whose connection/capability isn't active.
+
+    When `active` is None the connection landscape is unknown (e.g. a unit
+    test not exercising binding) — gate nothing, preserving prior behaviour.
+    An unbound skill (no connection / capability) is always kept.
+    """
+    if active is None:
+        return list(skills)
+    kept: list[LoadedSkill] = []
+    for loaded in skills:
+        skill = loaded.skill
+        if skill.connection is None and skill.requires_capability is None:
+            kept.append(loaded)
+            continue
+        ok, warning = active.eligibility(
+            connection=skill.connection,
+            requires_capability=skill.requires_capability,
+        )
+        if warning:
+            diagnostics.append(
+                LoadDiagnostic(
+                    loaded.source_path,
+                    "warning",
+                    f"skill {skill.id!r} {warning}; not loaded",
+                )
+            )
+        if ok:
+            kept.append(loaded)
+    return kept
 
 
 def _register_connectors(

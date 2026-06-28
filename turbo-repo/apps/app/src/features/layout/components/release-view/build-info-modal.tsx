@@ -177,10 +177,6 @@ function Credits({
         {credits.map((credit) => {
           const label = credit.username ? `@${credit.username}` : credit.name;
           const profileInfo = compactProfileInfo(credit);
-          const title =
-            credit.rank === 1 && credits.length > 1
-              ? "Top contributor"
-              : credit.role;
 
           return (
             <li
@@ -218,11 +214,6 @@ function Credits({
                       </span>
                     )}
                   </div>
-                  {title && (
-                    <p className="mt-2 text-xs font-medium text-gray-600 dark:text-gray-300">
-                      {title}
-                    </p>
-                  )}
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <CreditStat label="commits" value={credit.commitCount} />
                     <CreditStat label="files" value={credit.filesChanged} />

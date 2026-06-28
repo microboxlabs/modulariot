@@ -57,12 +57,15 @@ class ActiveConnections:
       enabled connections (a skill's `requires_capability` matches this set).
     - `known`: every configured connection name, enabled or not. Used only to
       tell a likely typo (a binding to a name no connection declares) apart
-      from a connection that merely failed to boot / has no DSN.
+      from a connection that merely failed to boot / has no DSN. `None` means
+      "the configured set is not known here" — callers that populate only
+      `enabled` get silent misses for disabled bindings instead of false typo
+      warnings (an empty frozenset, by contrast, asserts "no connections").
     """
 
     enabled: frozenset[str] = frozenset()
     capabilities: frozenset[str] = frozenset()
-    known: frozenset[str] = frozenset()
+    known: frozenset[str] | None = None
 
     def eligibility(
         self, *, connection: str | None, requires_capability: str | None
@@ -78,9 +81,11 @@ class ActiveConnections:
         expected miss (eligible False, no warning) and stays silent.
         """
         if connection is not None and connection not in self.enabled:
-            # Not live. Distinguish a likely typo (no connection declares this
-            # name) from a connection that merely failed to boot / has no DSN.
-            if connection not in self.known:
+            # Not live. Warn only when the configured set IS known and this name
+            # is absent from it (a likely typo). When `known` is None the set
+            # isn't knowable here, and a known-but-disabled connection is an
+            # expected miss — stay silent rather than cry typo.
+            if self.known is not None and connection not in self.known:
                 return False, f"bound to unknown connection {connection!r}"
             return False, None
         if (

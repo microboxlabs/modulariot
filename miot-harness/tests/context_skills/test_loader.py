@@ -196,6 +196,20 @@ def test_enabled_is_authoritative_when_known_unset() -> None:
     assert [s.skill.id for s in result.bundle.playbooks_for("any")] == ["acs-pb"]
 
 
+def test_known_none_disabled_binding_is_silent_not_typo() -> None:
+    # CodeRabbit: an omitted `known` (None) must not be conflated with "no
+    # configured connections". A binding to a non-enabled connection is then a
+    # silent miss, NOT a false "unknown connection" warning.
+    active = ActiveConnections(enabled=frozenset({"other"}))  # known defaults None
+    assert active.eligibility(connection="acs", requires_capability=None) == (
+        False,
+        None,
+    )
+    result = _boot(_bound_playbook("acs-pb", connection="acs"), active=active)
+    assert result.bundle.playbooks_for("any") == []
+    assert not any(d.level == "warning" for d in result.diagnostics)
+
+
 def test_empty_string_binding_rejected() -> None:
     import pytest
     from pydantic import ValidationError

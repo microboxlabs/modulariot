@@ -12,6 +12,7 @@ import type {
   BuildInfo,
   BuildComponentInfo,
 } from "@/features/common/providers/client-api.provider";
+import AppLogo from "@/features/common/components/app-logo/app-logo";
 
 function Field({
   label,
@@ -82,23 +83,26 @@ export default function BuildInfoModal({
   buildInfo,
   isOpen,
   onClose,
+  releaseNotesVersion,
 }: Readonly<{
   buildInfo: BuildInfo | null;
   isOpen: boolean;
   onClose: () => void;
+  releaseNotesVersion?: string;
 }>) {
-  const releaseNotesVersion = buildInfo?.releaseNotesVersion;
-
   return (
     <Modal dismissible show={isOpen} onClose={onClose} size="3xl">
       <ModalHeader className="border-none">
-        <div>
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            ModularIoT
-          </h2>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Build deployed
-          </p>
+        <div className="flex items-center gap-4">
+          <AppLogo width={150} height={32} className="shrink-0" priority />
+          <div>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+              ModularIoT
+            </h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Build deployed
+            </p>
+          </div>
         </div>
       </ModalHeader>
       <ModalBody>

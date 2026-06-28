@@ -67,11 +67,12 @@ export default function ReleaseView({
   const latestReleaseVersion = releaseFiles
     .map((file) => file.replace(".mdx", ""))
     .sort(compareVersions)[0];
+  const releaseNotesVersion =
+    buildInfo?.releaseNotesVersion || latestReleaseVersion;
   const version =
-    buildInfo?.releaseNotesVersion ||
-    (buildInfo?.channel === "nightly"
+    buildInfo?.channel === "nightly"
       ? buildInfo.releaseVersion
-      : latestReleaseVersion || buildInfo?.releaseVersion || "unknown");
+      : releaseNotesVersion || buildInfo?.releaseVersion || "unknown";
 
   return (
     <>
@@ -94,6 +95,7 @@ export default function ReleaseView({
         buildInfo={buildInfo}
         isOpen={isBuildInfoOpen}
         onClose={() => setIsBuildInfoOpen(false)}
+        releaseNotesVersion={releaseNotesVersion}
       />
     </>
   );

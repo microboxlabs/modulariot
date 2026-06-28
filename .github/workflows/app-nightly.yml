@@ -136,7 +136,20 @@ jobs:
         env:
           GIT_SHA: ${{ needs.metadata.outputs.head_sha }}
         run: |
-          credit_rows="$(git log -1 --format='%aN%x09%aE' "$GIT_SHA")"
+          previous_stack_tag="$(
+            git tag --list 'miot-stack@v*' --merged "$GIT_SHA" --sort=-v:refname |
+              head -1 || true
+          )"
+          range="$GIT_SHA"
+          if [[ -n "$previous_stack_tag" ]]; then
+            range="${previous_stack_tag}..${GIT_SHA}"
+          fi
+
+          credit_rows="$(git log --format='%aN%x09%aE' "$range")"
+          if [[ -z "$credit_rows" ]]; then
+            credit_rows="$(git log -1 --format='%aN%x09%aE' "$GIT_SHA")"
+          fi
+
           credits_json="$(
             GIT_CREDIT_ROWS="$credit_rows" node <<'NODE'
           const rows = (process.env.GIT_CREDIT_ROWS ?? "").trim().split("\n").filter(Boolean);

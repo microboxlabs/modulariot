@@ -266,3 +266,22 @@ def test_load_dotenv_noop_when_file_absent(tmp_path, monkeypatch):
         HarnessSettings.model_config, "env_file", str(tmp_path / "nope.env")
     )
     assert load_dotenv_into_environ(HarnessSettings()) == []
+
+
+def test_load_dotenv_multi_file_later_wins(tmp_path, monkeypatch):
+    # env_file may be a sequence; later files take precedence (mirrors pydantic),
+    # while a real env var still beats all of them.
+    base = tmp_path / "base.env"
+    over = tmp_path / "over.env"
+    base.write_text("MIOT_HARNESS_A_T=base\nMIOT_HARNESS_B_T=base\n")
+    over.write_text("MIOT_HARNESS_A_T=over\n")
+    monkeypatch.setitem(
+        HarnessSettings.model_config, "env_file", [str(base), str(over)]
+    )
+    monkeypatch.delenv("MIOT_HARNESS_A_T", raising=False)
+    monkeypatch.delenv("MIOT_HARNESS_B_T", raising=False)
+
+    load_dotenv_into_environ(HarnessSettings())
+
+    assert os.environ["MIOT_HARNESS_A_T"] == "over"  # later file wins
+    assert os.environ["MIOT_HARNESS_B_T"] == "base"

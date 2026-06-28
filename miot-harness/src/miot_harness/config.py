@@ -372,12 +372,22 @@ def load_dotenv_into_environ(settings: HarnessSettings) -> list[str]:
     if settings.env == "production":
         return []
     env_file = settings.model_config.get("env_file") or ".env"
-    path = Path(str(env_file))
-    if not path.is_file():
-        return []
+    # env_file may be a single path or a sequence of paths (pydantic-settings
+    # supports both); later files take precedence, matching pydantic's own merge.
+    candidates = (
+        env_file if isinstance(env_file, list | tuple) else (env_file,)
+    )
+    merged: dict[str, str] = {}
+    for candidate in candidates:
+        path = Path(str(candidate))
+        if not path.is_file():
+            continue
+        for key, value in dotenv_values(path).items():
+            if value is not None:
+                merged[key] = value  # later file wins
     newly: list[str] = []
-    for key, value in dotenv_values(path).items():
-        if value is not None and key not in os.environ:
+    for key, value in merged.items():
+        if key not in os.environ:  # a real env var always wins
             os.environ[key] = value
             newly.append(key)
     return newly

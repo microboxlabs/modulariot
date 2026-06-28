@@ -135,6 +135,7 @@ jobs:
         id: credits
         env:
           GIT_SHA: ${{ needs.metadata.outputs.head_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           previous_stack_tag="$(
             git tag --list 'miot-stack@v*' --merged "$GIT_SHA" --sort=-v:refname |
@@ -151,7 +152,7 @@ jobs:
           fi
 
           credits_json="$(
-            GIT_CREDIT_LOG="$credit_log" node <<'NODE'
+            GIT_CREDIT_LOG="$credit_log" GITHUB_TOKEN="$GITHUB_TOKEN" node <<'NODE'
           const crypto = require("crypto");
           const lines = (process.env.GIT_CREDIT_LOG ?? "").split("\n");
           const contributors = new Map();
@@ -170,6 +171,31 @@ jobs:
             }
             const hash = crypto.createHash("md5").update(email.trim().toLowerCase()).digest("hex");
             return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=96`;
+          }
+
+          async function githubProfile(username) {
+            if (!username) {
+              return {};
+            }
+            const response = await fetch(`https://api.github.com/users/${username}`, {
+              headers: {
+                Accept: "application/vnd.github+json",
+                Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                "X-GitHub-Api-Version": "2022-11-28",
+              },
+            });
+            if (!response.ok) {
+              return {};
+            }
+            const profile = await response.json();
+            return {
+              profileName: profile.name || undefined,
+              bio: profile.bio || undefined,
+              company: profile.company || undefined,
+              location: profile.location || undefined,
+              followers: Number.isFinite(profile.followers) ? profile.followers : undefined,
+              publicRepos: Number.isFinite(profile.public_repos) ? profile.public_repos : undefined,
+            };
           }
 
           for (const line of lines) {
@@ -213,17 +239,29 @@ jobs:
             ...credit,
             impactScore: credit.commitCount * 25 + credit.filesChanged * 3 + Math.ceil((credit.additions + credit.deletions) / 50),
           }));
-          const humanCredits = allCredits.filter(
-            (credit) => !credit.name.endsWith("[bot]") && credit.username !== "github-actions"
-          );
-          const credits = (humanCredits.length > 0 ? humanCredits : allCredits)
-            .sort((left, right) => right.commitCount - left.commitCount || right.impactScore - left.impactScore || left.name.localeCompare(right.name))
-            .map((credit, index) => ({
+          Promise.all(
+            allCredits.map(async (credit) => ({
               ...credit,
-              rank: index + 1,
-              role: index === 0 ? "Top contributor" : "Contributor",
-            }));
-          console.log(JSON.stringify(credits));
+              ...(await githubProfile(credit.username)),
+            }))
+          )
+            .then((enrichedCredits) => {
+              const humanCredits = enrichedCredits.filter(
+                (credit) => !credit.name.endsWith("[bot]") && credit.username !== "github-actions"
+              );
+              const credits = (humanCredits.length > 0 ? humanCredits : enrichedCredits)
+                .sort((left, right) => right.commitCount - left.commitCount || right.impactScore - left.impactScore || left.name.localeCompare(right.name))
+                .map((credit, index) => ({
+                  ...credit,
+                  rank: index + 1,
+                  role: index === 0 ? "Top contributor" : "Contributor",
+                }));
+              console.log(JSON.stringify(credits));
+            })
+            .catch((error) => {
+              console.error(error);
+              process.exit(1);
+            });
           NODE
           )"
           {

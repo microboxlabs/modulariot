@@ -20,6 +20,12 @@ type BuildCredit = {
   username?: string;
   url?: string;
   avatarUrl?: string;
+  profileName?: string;
+  bio?: string;
+  company?: string;
+  location?: string;
+  followers?: number;
+  publicRepos?: number;
   role?: string;
   commitCount?: number;
   filesChanged?: number;
@@ -118,6 +124,12 @@ function normalizeCredits(credits: unknown): BuildCredit[] {
         username: candidate.username?.trim() || undefined,
         url: candidate.url?.trim() || undefined,
         avatarUrl: candidate.avatarUrl?.trim() || undefined,
+        profileName: candidate.profileName?.trim() || undefined,
+        bio: candidate.bio?.trim() || undefined,
+        company: candidate.company?.trim() || undefined,
+        location: candidate.location?.trim() || undefined,
+        followers: normalizeNumber(candidate.followers),
+        publicRepos: normalizeNumber(candidate.publicRepos),
         role: candidate.role?.trim() || undefined,
         commitCount: normalizeNumber(candidate.commitCount),
         filesChanged: normalizeNumber(candidate.filesChanged),

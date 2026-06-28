@@ -26,7 +26,10 @@ from miot_harness.api.identity import (
 )
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.connections.loader import load_connections, select_primary
-from miot_harness.context_skills.loader import boot_context_skills
+from miot_harness.context_skills.loader import (
+    ActiveConnections,
+    boot_context_skills,
+)
 from miot_harness.context_skills.skill_models import SkillSummary
 from miot_harness.datasource.provider import BootResult, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
@@ -320,8 +323,31 @@ def _make_lifespan(
             primer_sections.append(
                 "# Connected data sources\n" + "\n\n".join(ckb_blocks)
             )
+        # Active connection landscape for connection-bound skills (Phase 4): a
+        # skill bound to a connection name / capability surfaces only when a
+        # matching connection booted enabled. `known` spans every configured
+        # connection so the loader can flag a typo'd binding distinctly from a
+        # connection that merely failed to boot.
+        enabled_names = {
+            name
+            for name, conn_state in app.state.connections.items()
+            if conn_state.get("enabled")
+        }
+        active_connections = ActiveConnections(
+            enabled=frozenset(enabled_names),
+            capabilities=frozenset(
+                cap
+                for conn in conn_result.connections
+                if conn.name in enabled_names
+                for cap, on in conn.capabilities.items()
+                if on
+            ),
+            known=frozenset(conn.name for conn in conn_result.connections),
+        )
         try:
-            cs = boot_context_skills(harness.tools, settings)
+            cs = boot_context_skills(
+                harness.tools, settings, active_connections=active_connections
+            )
             harness.context_skills = cs.bundle
             app.state.context_skills_registered = list(cs.registered_tools)
             app.state.context_skills_diagnostics = list(cs.diagnostics)

@@ -137,25 +137,36 @@ jobs:
       - name: Write packaged build info
         env:
           RELEASE_VERSION: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          STACK_TAG: miot-stack@nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           GIT_SHA: ${{ needs.metadata.outputs.head_sha }}
           SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
           WORKFLOW_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           APP_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}
           APP_IMAGE_TAG: sha-${{ needs.metadata.outputs.short_sha }}
+          MODULITH_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}
+          MODULITH_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}
+          HARNESS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}
+          HARNESS_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}
         run: |
           mkdir -p turbo-repo/apps/app/public
           jq -n \
             --arg release_version "$RELEASE_VERSION" \
+            --arg stack_tag "$STACK_TAG" \
             --arg git_sha "$GIT_SHA" \
             --arg short_sha "$SHORT_SHA" \
             --arg built_at "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
             --arg workflow_run_url "$WORKFLOW_RUN_URL" \
             --arg app_image_repository "$APP_IMAGE_REPOSITORY" \
             --arg app_image_tag "$APP_IMAGE_TAG" \
+            --arg modulith_image_repository "$MODULITH_IMAGE_REPOSITORY" \
+            --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
+            --arg harness_image_repository "$HARNESS_IMAGE_REPOSITORY" \
+            --arg harness_image_tag "$HARNESS_IMAGE_TAG" \
             '{
               product: "ModularIoT",
               release_version: $release_version,
               channel: "nightly",
+              stack_tag: $stack_tag,
               git_sha: $git_sha,
               short_sha: $short_sha,
               built_at: $built_at,
@@ -163,9 +174,22 @@ jobs:
               manifest_version: 1,
               components: {
                 app: {
+                  version: $release_version,
                   tag: ("app@" + $release_version),
                   image_repository: $app_image_repository,
                   image_tag: $app_image_tag
+                },
+                modulith: {
+                  version: $release_version,
+                  tag: ("modulith@" + $release_version),
+                  image_repository: $modulith_image_repository,
+                  image_tag: $modulith_image_tag
+                },
+                harness: {
+                  version: $release_version,
+                  tag: ("harness@" + $release_version),
+                  image_repository: $harness_image_repository,
+                  image_tag: $harness_image_tag
                 }
               }
             }' > turbo-repo/apps/app/public/build-info.json

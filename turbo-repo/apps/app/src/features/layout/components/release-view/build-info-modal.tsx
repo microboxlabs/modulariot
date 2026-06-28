@@ -54,6 +54,7 @@ function ComponentFields({
   const visibleValues = [
     component.version,
     component.tag,
+    component.imageRepository,
     component.imageTag,
     component.sourceTag,
     component.imageRef,
@@ -71,6 +72,11 @@ function ComponentFields({
       <dl className="space-y-1">
         <Field label="Version" value={component.version} />
         <Field label="Tag" value={component.tag} monospace />
+        <Field
+          label="Image repo"
+          value={component.imageRepository}
+          monospace
+        />
         <Field label="Image tag" value={component.imageTag} monospace />
         <Field label="Source tag" value={component.sourceTag} monospace />
         <Field label="Image ref" value={component.imageRef} monospace />
@@ -95,14 +101,9 @@ export default function BuildInfoModal({
       <ModalHeader className="border-none">
         <div className="flex items-center gap-4">
           <AppLogo width={150} height={32} className="shrink-0" priority />
-          <div>
-            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              ModularIoT
-            </h2>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Build deployed
-            </p>
-          </div>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            Build deployed
+          </p>
         </div>
       </ModalHeader>
       <ModalBody>

@@ -184,6 +184,28 @@ def test_eligibility_decisions() -> None:
     )
 
 
+def test_enabled_is_authoritative_when_known_unset() -> None:
+    # Copilot footgun: a caller that populates only `enabled` (leaving `known`
+    # at its empty default) must NOT see enabled connections treated as unknown.
+    active = ActiveConnections(enabled=frozenset({"acs"}))
+    assert active.eligibility(connection="acs", requires_capability=None) == (
+        True,
+        None,
+    )
+    result = _boot(_bound_playbook("acs-pb", connection="acs"), active=active)
+    assert [s.skill.id for s in result.bundle.playbooks_for("any")] == ["acs-pb"]
+
+
+def test_empty_string_binding_rejected() -> None:
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        PlaybookSkill(kind="playbook", id="x", name="X", connection="")
+    with pytest.raises(ValidationError):
+        PlaybookSkill(kind="playbook", id="x", name="X", requires_capability="")
+
+
 def test_bound_playbook_loaded_only_when_connection_enabled() -> None:
     active = ActiveConnections(enabled=frozenset({"acs"}), known=frozenset({"acs"}))
     result = _boot(_bound_playbook("acs-pb", connection="acs"), active=active)

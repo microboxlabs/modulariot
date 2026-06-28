@@ -69,15 +69,19 @@ class ActiveConnections:
     ) -> tuple[bool, str | None]:
         """Decide whether a skill with this binding is eligible.
 
-        Returns `(eligible, warning)`. `warning` is set only for a binding that
-        names a connection no configured connection declares — a likely typo
-        worth surfacing. A binding to a known-but-disabled connection, or to an
-        unavailable capability, is an expected miss (eligible False, no warning)
-        and stays silent.
+        Returns `(eligible, warning)`. `enabled` is authoritative: a binding to
+        an enabled connection is eligible regardless of `known` (so a caller that
+        only populates `enabled` never spuriously drops live skills). `warning` is
+        set only when the connection is NOT enabled AND no configured connection
+        declares its name — a likely typo worth surfacing. A binding to a
+        known-but-disabled connection, or to an unavailable capability, is an
+        expected miss (eligible False, no warning) and stays silent.
         """
-        if connection is not None and connection not in self.known:
-            return False, f"bound to unknown connection {connection!r}"
         if connection is not None and connection not in self.enabled:
+            # Not live. Distinguish a likely typo (no connection declares this
+            # name) from a connection that merely failed to boot / has no DSN.
+            if connection not in self.known:
+                return False, f"bound to unknown connection {connection!r}"
             return False, None
         if (
             requires_capability is not None

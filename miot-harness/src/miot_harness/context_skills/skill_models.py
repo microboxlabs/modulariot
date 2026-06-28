@@ -38,8 +38,11 @@ class _ConnectionBinding(BaseModel):
     eligibility against the active connection set at boot.
     """
 
-    connection: str | None = None
-    requires_capability: str | None = None
+    # min_length guards against an empty-string binding (e.g. `connection: ""`
+    # from YAML), which would otherwise look bound and be dropped/warned in a
+    # confusing way. An empty value fails validation → a load diagnostic.
+    connection: str | None = Field(default=None, min_length=1)
+    requires_capability: str | None = Field(default=None, min_length=1)
 
 
 class PlaybookSkill(_ConnectionBinding):

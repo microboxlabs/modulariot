@@ -1,6 +1,8 @@
 "use server";
 
+import fs from "node:fs";
 import { NextResponse } from "next/server";
+import path from "node:path";
 
 type BuildComponentInfo = {
   changed?: boolean;
@@ -100,6 +102,22 @@ function parseBuildInfoJson(): BuildInfo | null {
   }
 }
 
+function readPackagedBuildInfo(): BuildInfo | null {
+  const filePath = path.join(process.cwd(), "public", "build-info.json");
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+
+  try {
+    return normalizeBuildInfo(
+      JSON.parse(fs.readFileSync(filePath, "utf8")) as RawBuildInfo
+    );
+  } catch (error) {
+    console.error("Invalid packaged build-info.json:", error);
+    return null;
+  }
+}
+
 function component(prefix: string): BuildComponentInfo {
   const changed = optionalEnv(`${prefix}_CHANGED`);
 
@@ -139,12 +157,7 @@ function stripEmptyComponentValues(
   );
 }
 
-export async function GET() {
-  const fromJson = parseBuildInfoJson();
-  if (fromJson) {
-    return NextResponse.json(fromJson);
-  }
-
+function buildInfoFromEnv(): BuildInfo {
   const releaseVersion =
     optionalEnv("RELEASE_VERSION") ?? optionalEnv("APP_VERSION") ?? "local";
 
@@ -153,7 +166,7 @@ export async function GET() {
 
   const channel = optionalEnv("BUILD_CHANNEL") ?? inferChannel(releaseVersion);
 
-  return NextResponse.json({
+  return {
     product: "ModularIoT",
     channel,
     releaseVersion,
@@ -170,5 +183,33 @@ export async function GET() {
       modulith: component("MODULITH"),
       harness: component("HARNESS"),
     }),
-  } satisfies BuildInfo);
+  } satisfies BuildInfo;
+}
+
+function hasRuntimeBuildInfoEnv(): boolean {
+  return [
+    "RELEASE_VERSION",
+    "APP_VERSION",
+    "BUILD_CHANNEL",
+    "STACK_TAG",
+    "GIT_SHA",
+  ].some((key) => optionalEnv(key));
+}
+
+export async function GET() {
+  const fromJson = parseBuildInfoJson();
+  if (fromJson) {
+    return NextResponse.json(fromJson);
+  }
+
+  if (hasRuntimeBuildInfoEnv()) {
+    return NextResponse.json(buildInfoFromEnv());
+  }
+
+  const fromPackage = readPackagedBuildInfo();
+  if (fromPackage) {
+    return NextResponse.json(fromPackage);
+  }
+
+  return NextResponse.json(buildInfoFromEnv());
 }

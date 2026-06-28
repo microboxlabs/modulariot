@@ -8,6 +8,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgWhatsApp } from "./use-org-whatsapp";
 import { WhatsAppConnectionModal } from "./whatsapp-connection-modal";
+import { DEFAULT_GRAPH_VERSION } from "./whatsapp.types";
 import type { IntegrationConnection, WhatsAppFormData } from "./whatsapp.types";
 
 interface WhatsAppChannelCardProps {
@@ -16,26 +17,45 @@ interface WhatsAppChannelCardProps {
 }
 
 /**
- * Settings card for the org's WhatsApp channel. When no connection exists it
- * offers a Configure action (create); once configured it shows status + a live
- * Test. Edit/delete are deferred (the backend has no update/delete yet).
+ * Settings card for the org's WhatsApp channel. When no connection exists it offers a
+ * Configure action (create); once configured it shows status, a live Test, and an Edit
+ * action (update config / rotate the token).
  */
 export default function WhatsAppChannelCard({
   orgSlug,
   dict,
 }: WhatsAppChannelCardProps) {
   const waDict = (dict?.whatsappChannel as I18nRecord) ?? {};
-  const { connection, isLoading, error, actionLoading, create, test } =
+  const { connection, isLoading, error, actionLoading, create, update, test } =
     useOrgWhatsApp(orgSlug);
-  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
   const [submitError, setSubmitError] = useState<Error | null>(null);
+
+  function openModal(mode: "create" | "edit") {
+    setSubmitError(null);
+    setModalMode(mode);
+  }
 
   async function handleCreate(form: WhatsAppFormData) {
     setSubmitError(null);
     try {
       await create(form);
-      setShowModal(false);
+      setModalMode(null);
       toast.success(tr("toast.created", waDict));
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err : new Error(tr("toast.error", waDict)),
+      );
+    }
+  }
+
+  async function handleUpdate(form: WhatsAppFormData) {
+    if (!connection) return;
+    setSubmitError(null);
+    try {
+      await update(connection.id, form);
+      setModalMode(null);
+      toast.success(tr("toast.updated", waDict));
     } catch (err) {
       setSubmitError(
         err instanceof Error ? err : new Error(tr("toast.error", waDict)),
@@ -75,8 +95,9 @@ export default function WhatsAppChannelCard({
         <ConfiguredRow
           connection={connection}
           dict={waDict}
-          testing={actionLoading}
+          busy={actionLoading}
           onTest={handleTest}
+          onEdit={() => openModal("edit")}
         />
       );
     }
@@ -84,7 +105,7 @@ export default function WhatsAppChannelCard({
       <Button
         size="xs"
         color="green"
-        onClick={() => setShowModal(true)}
+        onClick={() => openModal("create")}
         disabled={!orgSlug}
       >
         {tr("configureButton", waDict)}
@@ -111,9 +132,13 @@ export default function WhatsAppChannelCard({
       <div className="mt-3">{renderBody()}</div>
 
       <WhatsAppConnectionModal
-        show={showModal}
-        onClose={() => setShowModal(false)}
-        onSubmit={handleCreate}
+        show={modalMode !== null}
+        mode={modalMode ?? "create"}
+        initial={
+          modalMode === "edit" && connection ? connectionToForm(connection) : null
+        }
+        onClose={() => setModalMode(null)}
+        onSubmit={modalMode === "edit" ? handleUpdate : handleCreate}
         loading={actionLoading}
         error={submitError}
         dict={waDict}
@@ -125,11 +150,12 @@ export default function WhatsAppChannelCard({
 interface ConfiguredRowProps {
   readonly connection: IntegrationConnection;
   readonly dict: I18nRecord;
-  readonly testing: boolean;
+  readonly busy: boolean;
   readonly onTest: () => void;
+  readonly onEdit: () => void;
 }
 
-function ConfiguredRow({ connection, dict, testing, onTest }: ConfiguredRowProps) {
+function ConfiguredRow({ connection, dict, busy, onTest, onEdit }: ConfiguredRowProps) {
   const rawPhone = connection.metadata?.phone_number_id;
   const phone = typeof rawPhone === "string" ? rawPhone : "—";
   return (
@@ -137,11 +163,30 @@ function ConfiguredRow({ connection, dict, testing, onTest }: ConfiguredRowProps
       <div className="text-sm text-gray-700 dark:text-gray-300">
         <span className="font-medium">{tr("phoneLabel", dict)}:</span> {phone}
       </div>
-      <Button size="xs" color="light" disabled={testing} onClick={onTest}>
-        {testing ? <Spinner size="sm" /> : tr("testButton", dict)}
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button size="xs" color="light" disabled={busy} onClick={onEdit}>
+          {tr("editButton", dict)}
+        </Button>
+        <Button size="xs" color="light" disabled={busy} onClick={onTest}>
+          {busy ? <Spinner size="sm" /> : tr("testButton", dict)}
+        </Button>
+      </div>
     </div>
   );
+}
+
+function connectionToForm(connection: IntegrationConnection): WhatsAppFormData {
+  const meta = connection.metadata ?? {};
+  const str = (value: unknown, fallback = ""): string =>
+    typeof value === "string" ? value : fallback;
+  return {
+    name: connection.name,
+    phoneNumberId: str(meta.phone_number_id),
+    wabaId: str(meta.waba_id),
+    graphVersion: str(meta.graph_version, DEFAULT_GRAPH_VERSION),
+    baseUrl: connection.baseUrl,
+    token: "",
+  };
 }
 
 interface StatusBadgeProps {

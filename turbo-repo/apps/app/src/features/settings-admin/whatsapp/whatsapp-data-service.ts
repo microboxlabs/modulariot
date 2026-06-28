@@ -25,9 +25,13 @@ async function getJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-async function postJson<T>(url: string, body: unknown): Promise<T> {
+async function mutateJson<T>(
+  method: string,
+  url: string,
+  body: unknown,
+): Promise<T> {
   const res = await fetch(url, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -49,6 +53,14 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     throw new ApiError({ status: res.status, url, message });
   }
   return (await res.json()) as T;
+}
+
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  return mutateJson<T>("POST", url, body);
+}
+
+async function patchJson<T>(url: string, body: unknown): Promise<T> {
+  return mutateJson<T>("PATCH", url, body);
 }
 
 /** The org's single WhatsApp connection, or null if not configured yet. */
@@ -95,6 +107,35 @@ export async function createWhatsAppConnection(
         graph_version: form.graphVersion,
       },
     },
+  );
+}
+
+/**
+ * Update the connection: name / base URL / metadata (phone-number-id, waba-id,
+ * graph-version). The token is sent only when the operator enters a new one — a blank
+ * token leaves the stored credential unchanged (rotation is handled by the backend).
+ */
+export async function updateWhatsAppConnection(
+  orgSlug: string,
+  connectionId: string,
+  form: WhatsAppFormData,
+): Promise<IntegrationConnection> {
+  const body: Record<string, unknown> = {
+    name: form.name,
+    baseUrl: form.baseUrl,
+    metadata: {
+      phone_number_id: form.phoneNumberId,
+      waba_id: form.wabaId,
+      graph_version: form.graphVersion,
+    },
+  };
+  const token = form.token?.trim();
+  if (token) {
+    body.token = token;
+  }
+  return patchJson<IntegrationConnection>(
+    `${integrationsBase(orgSlug)}/connections/${encodeURIComponent(connectionId)}`,
+    body,
   );
 }
 

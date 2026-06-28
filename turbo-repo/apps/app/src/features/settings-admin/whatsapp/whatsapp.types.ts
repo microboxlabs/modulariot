@@ -43,3 +43,11 @@ export const WhatsAppConnectionSchema = z.object({
 });
 
 export type WhatsAppFormData = z.infer<typeof WhatsAppConnectionSchema>;
+
+/**
+ * Edit form: same fields as create, but the token is optional — leaving it blank keeps
+ * the stored token. The form still uses {@link WhatsAppFormData} (token defaults to "").
+ */
+export const WhatsAppEditSchema = WhatsAppConnectionSchema.extend({
+  token: z.string().optional(),
+});

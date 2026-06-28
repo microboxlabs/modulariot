@@ -1240,6 +1240,7 @@
           "phoneLabel": "Phone number ID",
           "configureButton": "Configure",
           "testButton": "Test",
+          "editButton": "Edit",
           "status": {
             "active": "Active",
             "draft": "Draft",
@@ -1261,10 +1262,14 @@
             "wabaIdPlaceholder": "e.g. 1234567890",
             "cancel": "Cancel",
             "saving": "Saving...",
-            "createButton": "Create"
+            "createButton": "Create",
+            "editTitle": "Edit WhatsApp channel",
+            "saveButton": "Save",
+            "tokenEditPlaceholder": "Leave blank to keep the current token"
           },
           "toast": {
             "created": "WhatsApp channel configured",
+            "updated": "WhatsApp channel updated",
             "testSuccess": "Connection test successful",
             "testFailed": "Connection test failed",
             "error": "Something went wrong"

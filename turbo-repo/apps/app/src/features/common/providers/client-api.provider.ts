@@ -571,6 +571,12 @@ export type BuildCredit = {
   username?: string;
   url?: string;
   avatarUrl?: string;
+  profileName?: string;
+  bio?: string;
+  company?: string;
+  location?: string;
+  followers?: number;
+  publicRepos?: number;
   role?: string;
   commitCount?: number;
   filesChanged?: number;

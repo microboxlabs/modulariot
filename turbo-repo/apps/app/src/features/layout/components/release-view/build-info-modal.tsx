@@ -108,6 +108,25 @@ function CreditStat({
   );
 }
 
+function compactProfileInfo(credit: BuildCredit) {
+  const parts = [credit.bio, credit.company, credit.location].filter(Boolean);
+  if (parts.length > 0) {
+    return parts.join(" | ");
+  }
+
+  if (credit.followers) {
+    return `${formatStat(credit.followers)} GitHub follower${
+      credit.followers === 1 ? "" : "s"
+    }`;
+  }
+
+  if (credit.publicRepos) {
+    return `${formatStat(credit.publicRepos)} public repos`;
+  }
+
+  return credit.profileName ?? credit.role;
+}
+
 function CreditAvatar({
   credit,
 }: Readonly<{
@@ -157,12 +176,11 @@ function Credits({
       <ul className="grid gap-3 sm:grid-cols-2">
         {credits.map((credit) => {
           const label = credit.username ? `@${credit.username}` : credit.name;
-          const secondary =
-            credit.role ?? (credit.username ? credit.name : credit.email);
+          const profileInfo = compactProfileInfo(credit);
           const title =
             credit.rank === 1 && credits.length > 1
               ? "Top contributor"
-              : secondary;
+              : credit.role;
 
           return (
             <li
@@ -188,9 +206,11 @@ function Credits({
                           {label}
                         </span>
                       )}
-                      <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                        {credit.username ? credit.name : credit.email}
-                      </p>
+                      {profileInfo && (
+                        <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                          {profileInfo}
+                        </p>
+                      )}
                     </div>
                     {credit.rank && (
                       <span className="rounded-md bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-100">
@@ -209,6 +229,8 @@ function Credits({
                     <CreditStat label="++" value={credit.additions} />
                     <CreditStat label="--" value={credit.deletions} />
                     <CreditStat label="impact" value={credit.impactScore} />
+                    <CreditStat label="followers" value={credit.followers} />
+                    <CreditStat label="repos" value={credit.publicRepos} />
                   </div>
                 </div>
               </div>

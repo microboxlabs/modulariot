@@ -19,8 +19,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.jboss.logging.Logger;
 
@@ -37,6 +39,8 @@ public class WhatsAppMessagingService {
     private static final String PHONE_NUMBER_ID = "phone_number_id";
     private static final String TOKEN = "token";
     private static final int PREVIEW_MAX = 280;
+    private static final String TEST_MODE_ENABLED = "test_mode_enabled";
+    private static final String TEST_RECIPIENTS = "test_recipients";
 
     private final IntegrationConnectionResolver connectionResolver;
     private final MetaWhatsAppClient metaClient;
@@ -69,6 +73,7 @@ public class WhatsAppMessagingService {
             throw new ConnectionResolutionException(
                     "WhatsApp connection credential is missing the access token");
         }
+        enforceTestMode(connection, request.to());
 
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Conversation conversation = findOrCreateConversation(tenantCode, request, now);
@@ -183,6 +188,56 @@ public class WhatsAppMessagingService {
                         "templateParams['" + param.getKey() + "'] must have a non-blank value");
             }
         }
+    }
+
+    /**
+     * Demo/dev safety: when the connection's metadata has {@code test_mode_enabled} truthy,
+     * only allow sends to recipients on {@code test_recipients} (digit-only match, so
+     * formatting is ignored). Any other recipient is rejected so a real driver is never
+     * messaged while testing. Off/absent → no restriction. Config is per-connection (DB),
+     * editable in Settings at runtime — no restart.
+     */
+    static void enforceTestMode(ResolvedConnection connection, String to) {
+        Map<String, Object> metadata = connection.metadata();
+        if (metadata == null || !isTruthy(metadata.get(TEST_MODE_ENABLED))) {
+            return;
+        }
+        if (!parseRecipients(metadata.get(TEST_RECIPIENTS)).contains(digitsOnly(to))) {
+            throw new IllegalArgumentException(
+                    "Test mode is active for this WhatsApp connection — the recipient is not "
+                            + "on the allowed test-recipient list");
+        }
+    }
+
+    private static boolean isTruthy(Object value) {
+        return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(String.valueOf(value));
+    }
+
+    /** Accepts a JSON array (Iterable) or a comma-separated string; returns digit-only forms. */
+    static Set<String> parseRecipients(Object value) {
+        Set<String> recipients = new HashSet<>();
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                addDigits(recipients, String.valueOf(item));
+            }
+        } else if (value != null) {
+            for (String part : String.valueOf(value).split(",")) {
+                addDigits(recipients, part);
+            }
+        }
+        return recipients;
+    }
+
+    private static void addDigits(Set<String> recipients, String raw) {
+        String digits = digitsOnly(raw);
+        if (!digits.isBlank()) {
+            recipients.add(digits);
+        }
+    }
+
+    /** Reduces a phone to digits only, so formatting differences don't affect matching. */
+    static String digitsOnly(String phone) {
+        return phone == null ? "" : phone.replaceAll("\\D", "");
     }
 
     /** Masks a phone number for logs, keeping only the last 4 digits (PII reduction). */

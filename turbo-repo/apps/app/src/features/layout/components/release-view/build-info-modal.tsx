@@ -86,6 +86,55 @@ function ComponentFields({
   );
 }
 
+function formatStat(value?: number) {
+  return value === undefined ? "0" : new Intl.NumberFormat("en").format(value);
+}
+
+function CreditStat({
+  label,
+  value,
+}: Readonly<{
+  label: string;
+  value?: number;
+}>) {
+  if (!value) {
+    return null;
+  }
+
+  return (
+    <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+      {formatStat(value)} {label}
+    </span>
+  );
+}
+
+function CreditAvatar({
+  credit,
+}: Readonly<{
+  credit: BuildCredit;
+}>) {
+  const initials = credit.name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+  return (
+    <div
+      aria-hidden="true"
+      className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-50 bg-cover bg-center text-sm font-semibold text-blue-700 ring-2 ring-blue-100 dark:bg-blue-900/30 dark:text-blue-100 dark:ring-blue-800"
+      style={
+        credit.avatarUrl
+          ? { backgroundImage: `url("${credit.avatarUrl}")` }
+          : undefined
+      }
+    >
+      {!credit.avatarUrl && initials}
+    </div>
+  );
+}
+
 function Credits({
   credits,
 }: Readonly<{
@@ -97,36 +146,72 @@ function Credits({
 
   return (
     <section className="border-t border-gray-200 pt-3 dark:border-gray-700">
-      <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
-        Credits
-      </h3>
-      <ul className="grid gap-2 sm:grid-cols-2">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          Credits
+        </h3>
+        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+          {credits.length} contributor{credits.length === 1 ? "" : "s"}
+        </span>
+      </div>
+      <ul className="grid gap-3 sm:grid-cols-2">
         {credits.map((credit) => {
           const label = credit.username ? `@${credit.username}` : credit.name;
           const secondary =
             credit.role ?? (credit.username ? credit.name : credit.email);
+          const title =
+            credit.rank === 1 && credits.length > 1
+              ? "Top contributor"
+              : secondary;
 
           return (
-            <li key={`${credit.name}-${credit.email ?? credit.username ?? ""}`}>
-              {credit.url ? (
-                <Link
-                  className="text-sm font-medium text-gray-900 hover:underline dark:text-gray-100"
-                  href={credit.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {label}
-                </Link>
-              ) : (
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {label}
-                </span>
-              )}
-              {secondary && (
-                <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                  {secondary}
-                </p>
-              )}
+            <li
+              className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+              key={`${credit.name}-${credit.email ?? credit.username ?? ""}`}
+            >
+              <div className="flex gap-3">
+                <CreditAvatar credit={credit} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      {credit.url ? (
+                        <Link
+                          className="truncate text-sm font-semibold text-gray-900 hover:underline dark:text-gray-100"
+                          href={credit.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {label}
+                        </Link>
+                      ) : (
+                        <span className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          {label}
+                        </span>
+                      )}
+                      <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                        {credit.username ? credit.name : credit.email}
+                      </p>
+                    </div>
+                    {credit.rank && (
+                      <span className="rounded-md bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-100">
+                        #{credit.rank}
+                      </span>
+                    )}
+                  </div>
+                  {title && (
+                    <p className="mt-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+                      {title}
+                    </p>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <CreditStat label="commits" value={credit.commitCount} />
+                    <CreditStat label="files" value={credit.filesChanged} />
+                    <CreditStat label="++" value={credit.additions} />
+                    <CreditStat label="--" value={credit.deletions} />
+                    <CreditStat label="impact" value={credit.impactScore} />
+                  </div>
+                </div>
+              </div>
             </li>
           );
         })}

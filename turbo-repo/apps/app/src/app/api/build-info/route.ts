@@ -19,7 +19,14 @@ type BuildCredit = {
   email?: string;
   username?: string;
   url?: string;
+  avatarUrl?: string;
   role?: string;
+  commitCount?: number;
+  filesChanged?: number;
+  additions?: number;
+  deletions?: number;
+  impactScore?: number;
+  rank?: number;
 };
 
 type BuildInfo = {
@@ -75,6 +82,14 @@ function normalizeComponent(info: RawBuildComponentInfo): BuildComponentInfo {
   };
 }
 
+function normalizeNumber(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return value;
+}
+
 function normalizeCredits(credits: unknown): BuildCredit[] {
   if (!Array.isArray(credits)) {
     return [];
@@ -102,7 +117,14 @@ function normalizeCredits(credits: unknown): BuildCredit[] {
         email: candidate.email?.trim() || undefined,
         username: candidate.username?.trim() || undefined,
         url: candidate.url?.trim() || undefined,
+        avatarUrl: candidate.avatarUrl?.trim() || undefined,
         role: candidate.role?.trim() || undefined,
+        commitCount: normalizeNumber(candidate.commitCount),
+        filesChanged: normalizeNumber(candidate.filesChanged),
+        additions: normalizeNumber(candidate.additions),
+        deletions: normalizeNumber(candidate.deletions),
+        impactScore: normalizeNumber(candidate.impactScore),
+        rank: normalizeNumber(candidate.rank),
       },
     ];
   });

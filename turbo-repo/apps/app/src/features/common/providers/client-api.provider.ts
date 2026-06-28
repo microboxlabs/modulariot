@@ -570,7 +570,14 @@ export type BuildCredit = {
   email?: string;
   username?: string;
   url?: string;
+  avatarUrl?: string;
   role?: string;
+  commitCount?: number;
+  filesChanged?: number;
+  additions?: number;
+  deletions?: number;
+  impactScore?: number;
+  rank?: number;
 };
 
 export type BuildInfo = {

@@ -134,6 +134,34 @@ def test_list_skills_projects_summaries_source_scope_and_sort() -> None:
     assert "mintral-only" not in {s.id for s in bundle.list_skills("acme")}
 
 
+def test_list_skills_surfaces_connection_binding_marker() -> None:
+    # Phase 4 slice 2: a bound skill's summary carries the connection /
+    # capability it lights up for; an unbound skill leaves them None.
+    bundle = ContextSkillsBundle(
+        playbook_skills=(
+            LoadedSkill(
+                skill=PlaybookSkill(
+                    kind="playbook",
+                    id="acs-wf",
+                    name="ACS workflow",
+                    connection="acs",
+                    requires_capability="generic_query",
+                ),
+                source_path="/x/acs-wf.yaml",
+            ),
+            LoadedSkill(
+                skill=PlaybookSkill(kind="playbook", id="plain", name="Plain"),
+                source_path="/x/plain.yaml",
+            ),
+        )
+    )
+    by_id = {s.id: s for s in bundle.list_skills("acme")}
+    assert by_id["acs-wf"].connection == "acs"
+    assert by_id["acs-wf"].requires_capability == "generic_query"
+    assert by_id["plain"].connection is None
+    assert by_id["plain"].requires_capability is None
+
+
 def test_activate_skill_returns_name_and_body() -> None:
     bundle = ContextSkillsBundle(
         playbook_skills=(

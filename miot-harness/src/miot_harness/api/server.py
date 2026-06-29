@@ -469,6 +469,9 @@ def _make_lifespan(
                     # system-context block folded into its primer.
                     profile=effective_profile,
                     registry=harness.tools,
+                    # Phase 4: the resolved skills bundle so the planner can
+                    # surface this tenant's eligible connection-bound playbooks.
+                    context_skills=harness.context_skills,
                 )
                 harness.meta_model = get_chat_model(
                     settings.intent_router_model,

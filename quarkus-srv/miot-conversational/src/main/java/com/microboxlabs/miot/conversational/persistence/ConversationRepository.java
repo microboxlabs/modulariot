@@ -46,7 +46,7 @@ public class ConversationRepository {
                 status, last_inbound_at, last_outbound_at, last_message_at,
                 session_expires_at, last_message_preview, unread_count, created_at, updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-            RETURNING """ + COLUMNS;
+            RETURNING\s""" + COLUMNS;
 
     // Outbound touch: bump activity timestamps + preview, and fill trip context only when
     // the send carried it (COALESCE keeps prior context for ad-hoc sends).
@@ -61,7 +61,7 @@ public class ConversationRepository {
                 last_message_preview = $7,
                 updated_at = $6
             WHERE id = $1
-            RETURNING """ + COLUMNS;
+            RETURNING\s""" + COLUMNS;
 
     private final Instance<Pool> clientInstance;
 

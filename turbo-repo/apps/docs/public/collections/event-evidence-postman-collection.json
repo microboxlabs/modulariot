@@ -1,0 +1,512 @@
+{
+  "info": {
+    "_postman_id": "miot-event-evidence-v1",
+    "name": "ModularIoT Event Evidence API",
+    "description": "Ingest a domain event (a \"symptom\") together with its video evidence via `POST /v1/stream/events` (multipart/form-data).\n\n## Setup\n\n1. Import this collection into Postman.\n2. Create an environment with:\n   - `base_url`: https://iot.streamhub.cl\n   - `auth_url`: https://api.microboxlabs.com/api/v1/login\n   - `client_id`: Your client ID\n   - `client_secret`: Your client secret\n   - `audience`: https://iot.streamhub.cl/v1/asset/track\n3. Run **Authentication > Login** first — the token is saved automatically and reused.\n4. In each **Event Evidence** request, open the Body tab and attach a real `.mp4` to the `media` file field before sending.\n\n## Required scope\n\nThe client must be granted the **`stream:write`** scope, otherwise the API returns `403`.\n\n## Contract\n\n- `envelope` part: the typed JSON envelope (Content-Type `application/json`).\n- `media` part(s): the video file(s); repeat the `media` field for multiple clips (matched by order).\n- `client_id` is taken from the token — do not send it.\n- Response: `202 Accepted` with `{ status, event_id, media_count }`. The GCS URI / playback URL are not exposed.\n\n## Documentation\n\nSee https://docs.modulariot.com/integration/api-reference/event-evidence for full API documentation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://iot.streamhub.cl",
+      "type": "string"
+    },
+    {
+      "key": "auth_url",
+      "value": "https://api.microboxlabs.com/api/v1/login",
+      "type": "string"
+    },
+    {
+      "key": "client_id",
+      "value": "YOUR_CLIENT_ID",
+      "type": "string"
+    },
+    {
+      "key": "client_secret",
+      "value": "YOUR_CLIENT_SECRET",
+      "type": "string"
+    },
+    {
+      "key": "audience",
+      "value": "https://iot.streamhub.cl/v1/asset/track",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.access_token) {",
+                  "    pm.collectionVariables.set('access_token', jsonData.access_token);",
+                  "    console.log('Token saved successfully');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\",\n  \"audience\": \"{{audience}}\",\n  \"grant_type\": \"client_credentials\"\n}"
+            },
+            "url": {
+              "raw": "{{auth_url}}",
+              "host": [
+                "{{auth_url}}"
+              ]
+            },
+            "description": "Authenticate with Auth0 to get an access token (must include the stream:write scope). The token is saved to collection variables automatically."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Event Evidence",
+      "item": [
+        {
+          "name": "Ingest Event - Restricted Zone Person (inline clip)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 202 Accepted', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "envelope",
+                  "type": "text",
+                  "contentType": "application/json",
+                  "value": "{\"schema_version\":\"1.0\",\"event_type\":\"warehouse.restricted_zone.person\",\"occurred_at\":\"2026-06-20T14:32:05Z\",\"severity\":\"alert\",\"subject\":{\"device_id\":\"cam-bodega-04\",\"zone_id\":\"zona-restringida-A\"},\"detections\":[{\"class\":\"person\",\"score\":0.97,\"bbox\":[0.1,0.2,0.3,0.4]}],\"media\":[{\"ref\":\"clip\"}]}"
+                },
+                {
+                  "key": "media",
+                  "type": "file",
+                  "src": null,
+                  "description": "Attach an .mp4 / .h264 clip"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/stream/events",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "stream",
+                "events"
+              ]
+            },
+            "description": "Canonical happy path: an `envelope` JSON part + one `media` file. The server mints `event_id`; `client_id` comes from the token. Attach an .mp4 to the `media` field. Expect 202 with { status, event_id, media_count }."
+          },
+          "response": []
+        },
+        {
+          "name": "Ingest Event - Minimal (clip only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 202 Accepted', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "envelope",
+                  "type": "text",
+                  "contentType": "application/json",
+                  "value": "{\"schema_version\":\"1.0\",\"event_type\":\"warehouse.restricted_zone.person\",\"occurred_at\":\"2026-06-20T14:35:00Z\",\"subject\":{\"device_id\":\"cam-bodega-04\",\"zone_id\":\"zona-restringida-A\"}}"
+                },
+                {
+                  "key": "media",
+                  "type": "file",
+                  "src": null,
+                  "description": "Attach an .mp4 / .h264 clip"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/stream/events",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "stream",
+                "events"
+              ]
+            },
+            "description": "Smallest valid request: required fields only, no media[] and no detections. The server synthesizes the media descriptor from the uploaded part."
+          },
+          "response": []
+        },
+        {
+          "name": "Ingest Event - With Hints",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 202 Accepted', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "envelope",
+                  "type": "text",
+                  "contentType": "application/json",
+                  "value": "{\"schema_version\":\"1.0\",\"event_type\":\"warehouse.restricted_zone.person\",\"occurred_at\":\"2026-06-20T14:40:00Z\",\"severity\":\"warning\",\"subject\":{\"device_id\":\"cam-bodega-04\",\"zone_id\":\"zona-restringida-A\"},\"detections\":[{\"class\":\"person\",\"score\":0.88,\"bbox\":[0.42,0.3,0.18,0.55]}],\"media\":[{\"ref\":\"clip\",\"duration_seconds\":12.5,\"source\":\"device\"}]}"
+                },
+                {
+                  "key": "media",
+                  "type": "file",
+                  "src": null,
+                  "description": "Attach an .mp4 / .h264 clip"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/stream/events",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "stream",
+                "events"
+              ]
+            },
+            "description": "Optional client hints in media[] (duration_seconds, source). Add checksum_sha256 to have the server verify the upload (a mismatch returns 400 checksum_mismatch)."
+          },
+          "response": []
+        },
+        {
+          "name": "Ingest Event - Multiple Clips",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 202 Accepted', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "envelope",
+                  "type": "text",
+                  "contentType": "application/json",
+                  "value": "{\"schema_version\":\"1.0\",\"event_type\":\"warehouse.restricted_zone.person\",\"occurred_at\":\"2026-06-20T14:45:00Z\",\"severity\":\"alert\",\"subject\":{\"device_id\":\"cam-bodega-04\",\"zone_id\":\"zona-restringida-A\"},\"media\":[{\"ref\":\"clip-front\"},{\"ref\":\"clip-aisle\"}]}"
+                },
+                {
+                  "key": "media",
+                  "type": "file",
+                  "src": null,
+                  "description": "Attach the FIRST clip"
+                },
+                {
+                  "key": "media",
+                  "type": "file",
+                  "src": null,
+                  "description": "Attach the SECOND clip"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/stream/events",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "stream",
+                "events"
+              ]
+            },
+            "description": "Two media file parts matched to the media[] hints by order. Attach two .mp4 files. Expect media_count: 2."
+          },
+          "response": []
+        },
+        {
+          "name": "Ingest Event - Idempotent Replay",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 202 Accepted', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "envelope",
+                  "type": "text",
+                  "contentType": "application/json",
+                  "value": "{\"schema_version\":\"1.0\",\"event_type\":\"warehouse.restricted_zone.person\",\"occurred_at\":\"2026-06-20T14:50:00Z\",\"severity\":\"alert\",\"subject\":{\"device_id\":\"cam-bodega-04\",\"zone_id\":\"zona-restringida-A\"},\"event_id\":\"evt-postman-demo-0001\",\"media\":[{\"ref\":\"clip\"}]}"
+                },
+                {
+                  "key": "media",
+                  "type": "file",
+                  "src": null,
+                  "description": "Attach an .mp4 / .h264 clip"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/stream/events",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "stream",
+                "events"
+              ]
+            },
+            "description": "Explicit event_id. Run twice: the second call returns the cached response with header Idempotent-Replay: true. Change event_id to force a fresh ingest."
+          },
+          "response": []
+        },
+        {
+          "name": "Ingest Event - Unknown event_type (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('error code is unknown_event_type', function () {",
+                  "    pm.expect(pm.response.json().code).to.eql('unknown_event_type');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "envelope",
+                  "type": "text",
+                  "contentType": "application/json",
+                  "value": "{\"schema_version\":\"1.0\",\"event_type\":\"warehouse.not_a_real_symptom\",\"occurred_at\":\"2026-06-20T14:55:00Z\",\"subject\":{\"device_id\":\"cam-bodega-04\",\"zone_id\":\"zona-restringida-A\"}}"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/stream/events",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "stream",
+                "events"
+              ]
+            },
+            "description": "event_type not in the allowlist → 400 unknown_event_type. No file needed; validation happens before storage."
+          },
+          "response": []
+        },
+        {
+          "name": "Ingest Event - Missing Required Field (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('error code is validation_error', function () {",
+                  "    pm.expect(pm.response.json().code).to.eql('validation_error');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-Id",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "envelope",
+                  "type": "text",
+                  "contentType": "application/json",
+                  "value": "{\"schema_version\":\"1.0\",\"occurred_at\":\"2026-06-20T15:00:00Z\",\"subject\":{\"device_id\":\"cam-bodega-04\",\"zone_id\":\"zona-restringida-A\"}}"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/stream/events",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "stream",
+                "events"
+              ]
+            },
+            "description": "Missing event_type (a required field) → 400 validation_error. No file needed."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

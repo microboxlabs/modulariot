@@ -30,10 +30,12 @@ on:
   push:
     paths:
       - 'quarkus-srv/**'
+      - '.github/workflows/quarkus.yml'
     branches: [trunk, main]
   pull_request:
     paths:
       - 'quarkus-srv/**'
+      - '.github/workflows/quarkus.yml'
     branches: [trunk, main]
   workflow_dispatch:
 

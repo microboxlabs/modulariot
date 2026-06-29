@@ -1,0 +1,357 @@
+# Event Evidence
+
+Post a domain **event** (a "symptom") together with its **video evidence** in a single multipart request. The video is stored as an object and a small typed JSON **envelope** — carrying a reference to that object — is published to the event bus. This pattern is called **media-by-reference**: the binary never travels on the message bus. A namespaced `event_type` discriminator makes the endpoint extensible to many future symptoms without changing the API.
+
+## Endpoint
+
+```
+POST https://iot.streamhub.cl/v1/stream/events
+```
+
+## Authentication
+
+Requires a valid Bearer token with `stream:write` scope.
+
+```
+Authorization: Bearer <access_token>
+```
+
+→ See **Authentication > API Login** to obtain a token.
+
+## Request
+
+The request is `multipart/form-data` with two part names:
+
+| Part | Content-Type | Required | Description |
+|------|--------------|----------|-------------|
+| `envelope` | `application/json` | **Yes** | The typed event envelope (exactly one part) |
+| `media` | `video/mp4`, `video/h264` | No | Evidence file(s); send a part named `media` once per file (0..N) |
+
+> The file part is literally named **`media`**. To attach several clips, repeat the `media` part. Files are matched to the envelope's `media[]` hints **by order**, not by name.
+
+### Headers
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| `Authorization` | Yes | `Bearer <access_token>` (scope `stream:write`) |
+| `Content-Type` | Yes | `multipart/form-data` (set automatically by most HTTP clients) |
+| `Accept` | Recommended | `application/json` |
+| `X-Request-Id` | No | Request id for tracing; echoed back on the response (one is generated if omitted) |
+
+### Body (EventEnvelope)
+
+The `envelope` part is a typed, versioned JSON document. Send only the essentials — the server enriches the rest.
+
+```json
+{
+  "schema_version": "1.0",
+  "event_type": "warehouse.restricted_zone.person",
+  "event_id": "evt-7f3a...",
+  "occurred_at": "2026-06-20T14:32:05Z",
+  "severity": "alert",
+  "subject": { "device_id": "cam-bodega-04", "zone_id": "zona-restringida-A" },
+  "detections": [ { "class": "person", "score": 0.97, "bbox": [0.10, 0.20, 0.30, 0.40] } ],
+  "media": [ { "ref": "clip" } ]
+}
+```
+
+> `client_id` is taken from the token — do not send it. `media[]` is optional: you may omit it entirely and just upload the `media` part(s).
+
+### Field Reference
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schema_version` | string | **Yes** | Envelope schema version. Currently `"1.0"`. |
+| `event_type` | string | **Yes** | Namespaced symptom discriminator from the allowlist (see below). |
+| `event_id` | string | No | Idempotency key. If omitted, the server mints `evt-<uuid>`. |
+| `occurred_at` | string | **Yes** | ISO 8601 timestamp of when the symptom occurred. |
+| `ended_at` | string | No | ISO 8601 end of the window, for long-running symptoms. |
+| `severity` | string | No | `info`, `warning`, `alert`, or `critical`. |
+| `subject` | object | **Yes** | Who / where the event refers to (see below). |
+| `detections` | array | No | Detected objects (see below). |
+| `media` | array | No | Per-file hints, matched to the `media` parts by order (see below). |
+| `attributes` | object | No | Free-form, schema-per-`event_type` (forward-compatible). |
+
+#### subject
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `device_id` | string | **Yes** | Device identifier (e.g. the camera id). |
+| `client_id` | string | No | Normally derived from the token; override allowed. |
+| `zone_id` | string | No | Restricted/relevant zone id. |
+
+> Domain-specific identifiers (e.g. a vehicle's license plate) belong in `attributes`, not `subject`, so the subject stays one coherent domain across all event types.
+
+#### detections[]
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `class` | string | No | Detected class, e.g. `"person"`. (The wire field name is `class`.) |
+| `score` | number | No | Confidence score, `0..1`. |
+| `bbox` | number[] | No | Normalized bounding box `[x, y, w, h]` in `0..1` (4 values, top-left origin). |
+
+#### media[] (hints only)
+
+All optional — everything else about the media is computed by the server.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `ref` | string | No | Informational label for the matching file part. |
+| `duration_seconds` | number | No | Clip duration, if the device knows it. |
+| `checksum_sha256` | string | No | SHA-256 of the file; verified server-side if present. |
+| `source` | string | No | `device` or `generated`. Defaults to `device`. |
+
+### `event_type` allowlist
+
+`event_type` must be a registered symptom. Unknown values are rejected before any storage or publish.
+
+| Value | Description |
+|-------|-------------|
+| `warehouse.restricted_zone.person` | A person detected inside a restricted warehouse zone. |
+
+> The allowlist grows additively — new symptoms are onboarded without an API change. Contact the ModularIoT team to register a new `event_type`.
+
+---
+
+## Response
+
+### Accepted (202)
+
+A lean acknowledgment. The storage location and playback URL are intentionally **not** exposed by the ingest API.
+
+```json
+{
+  "status": "accepted",
+  "event_id": "evt-7f3a...",
+  "media_count": 1
+}
+```
+
+Repeated requests with the same `event_id` are idempotent: the second call returns the cached response with an `Idempotent-Replay: true` header — no duplicate storage or publish.
+
+### Validation Error (400)
+
+A required field is missing or malformed.
+
+```json
+{
+  "status": "error",
+  "code": "validation_error",
+  "details": { "eventType": "event_type is required" }
+}
+```
+
+### Unknown event_type (400)
+
+```json
+{
+  "status": "error",
+  "code": "unknown_event_type",
+  "details": { "event_type": "Unsupported event_type: warehouse.not_a_real_symptom" }
+}
+```
+
+### Checksum Mismatch (400)
+
+Returned when a `checksum_sha256` hint does not match the uploaded file.
+
+```json
+{
+  "status": "error",
+  "code": "checksum_mismatch",
+  "details": { "media[0]": "sha256 mismatch" }
+}
+```
+
+### Unauthorized (401) / Forbidden (403)
+
+`401` when the token is missing or expired; `403` when the token is valid but lacks the `stream:write` scope.
+
+---
+
+## How the Media is Stored (media-by-reference)
+
+1. The uploaded video is stored as an object, **isolated per `client_id`** (multi-tenant via the token).
+2. A small JSON **envelope**, carrying a reference to the stored object, is published to the event bus for downstream consumers (timeline, warehouse projection, playback).
+3. The ingest **response never exposes** the storage location or playback URL — those travel only in the published envelope.
+
+This keeps the request small and the binary off the message bus, while consumers still reach the exact clip by reference.
+
+---
+
+## Postman Collection
+
+<div className="postman-intro">
+  <svg className="postman-logo" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13.527.099C6.955-.744.942 3.9.099 10.473c-.843 6.572 3.8 12.584 10.373 13.428 6.573.843 12.587-3.801 13.428-10.374C24.744 6.955 20.101.943 13.527.099zm2.471 7.485a.855.855 0 0 0-.593.25l-4.453 4.453-.307-.307-.643-.643c4.389-4.376 5.18-4.418 5.996-3.753zm-4.863 4.861l4.44-4.44a.62.62 0 1 1 .847.903l-4.699 4.125-.588-.588zm.33.694l-1.1.238a.06.06 0 0 1-.067-.032.06.06 0 0 1 .01-.073l.645-.645.512.512zm-2.803-.459l1.172-1.172.879.878-1.979.426a.074.074 0 0 1-.085-.039.072.072 0 0 1 .013-.093zm-3.646 6.058a.076.076 0 0 1-.069-.083.077.077 0 0 1 .022-.046h.002l.946-.946 1.222 1.222-2.123-.147zm2.425-1.256a.228.228 0 0 0-.117.256l.203.865a.125.125 0 0 1-.211.117h-.003l-.934-.934-.294-.295 3.762-3.758 1.82-.393.874.874c-1.255 1.102-2.971 2.201-5.1 3.268zm5.279-3.428h-.002l-.839-.839 4.699-4.125a.952.952 0 0 0 .119-.127c-.148 1.345-2.029 3.245-3.977 5.091zm3.657-6.46l-.003-.002a1.822 1.822 0 0 1 2.459-2.684l-1.61 1.613a.119.119 0 0 0 0 .169l1.247 1.247a1.817 1.817 0 0 1-2.093-.343zm2.578 0a1.714 1.714 0 0 1-.271.218h-.001l-1.207-1.207 1.533-1.533c.661.72.637 1.832-.054 2.522zM18.855 6.05a.143.143 0 0 0-.053.157.416.416 0 0 1-.053.45.14.14 0 0 0 .023.197.141.141 0 0 0 .084.03.14.14 0 0 0 .106-.05.691.691 0 0 0 .087-.751.138.138 0 0 0-.194-.033z"/></svg>
+  <span>Download our ready-to-use Postman collection (login + 7 example requests):</span>
+</div>
+
+<a href="/api/downloads/postman/event-evidence" download="event-evidence-postman-collection.json" className="download-btn">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+  <span>Download Postman Collection</span>
+</a>
+
+The collection includes:
+- **Authentication** — pre-configured Auth0 login that saves the token automatically
+- **Restricted Zone Person** — canonical envelope + clip
+- **Minimal** — required fields only, clip only
+- **With Hints** — `duration_seconds` / `source` / `checksum_sha256`
+- **Multiple Clips** — two `media` parts
+- **Idempotent Replay** — fixed `event_id`
+- **Unknown event_type / Missing Required Field** — the `400` cases
+
+> Open each request's **Body** tab and attach a real `.mp4` to the `media` file field before sending. The client must have the `stream:write` scope.
+
+---
+
+## Complete Examples
+
+### curl (multipart)
+
+```bash
+# 1) Get a token (must include the stream:write scope)
+TOKEN=$(curl -s --request POST \
+  --url https://api.microboxlabs.com/api/v1/login \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "client_id": "YOUR_CLIENT_ID",
+    "client_secret": "YOUR_CLIENT_SECRET",
+    "audience": "https://iot.streamhub.cl/v1/asset/track",
+    "grant_type": "client_credentials"
+  }' | jq -r '.access_token')
+
+# 2) Post the event + clip. Note the per-part content types.
+curl --request POST \
+  --url https://iot.streamhub.cl/v1/stream/events \
+  --header "Authorization: Bearer $TOKEN" \
+  --header 'Accept: application/json' \
+  --header 'X-Request-Id: req-001' \
+  --form 'envelope={"schema_version":"1.0","event_type":"warehouse.restricted_zone.person","occurred_at":"2026-06-20T14:32:05Z","severity":"alert","subject":{"device_id":"cam-bodega-04","zone_id":"zona-restringida-A"},"detections":[{"class":"person","score":0.97,"bbox":[0.10,0.20,0.30,0.40]}]};type=application/json' \
+  --form 'media=@./restricted-zone-person.mp4;type=video/mp4'
+```
+
+### Node.js (fetch)
+
+```javascript
+import { readFile } from "node:fs/promises";
+
+const envelope = {
+  schema_version: "1.0",
+  event_type: "warehouse.restricted_zone.person",
+  occurred_at: "2026-06-20T14:32:05Z",
+  severity: "alert",
+  subject: { device_id: "cam-bodega-04", zone_id: "zona-restringida-A" },
+  detections: [{ class: "person", score: 0.97, bbox: [0.1, 0.2, 0.3, 0.4] }],
+};
+
+const form = new FormData();
+form.append("envelope", new Blob([JSON.stringify(envelope)], { type: "application/json" }));
+form.append("media", new Blob([await readFile("restricted-zone-person.mp4")], { type: "video/mp4" }), "clip.mp4");
+
+const res = await fetch("https://iot.streamhub.cl/v1/stream/events", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/json",
+    "X-Request-Id": crypto.randomUUID(),
+    // Do NOT set Content-Type — fetch adds the multipart boundary for you.
+  },
+  body: form,
+});
+
+if (!res.ok) throw new Error(`stream/events ${res.status}: ${await res.text()}`);
+console.log(await res.json()); // { status: "accepted", event_id, media_count }
+```
+
+### Python (requests)
+
+```python
+import json, uuid, requests
+
+envelope = {
+    "schema_version": "1.0",
+    "event_type": "warehouse.restricted_zone.person",
+    "occurred_at": "2026-06-20T14:32:05Z",
+    "severity": "alert",
+    "subject": {"device_id": "cam-bodega-04", "zone_id": "zona-restringida-A"},
+    "detections": [{"class": "person", "score": 0.97, "bbox": [0.10, 0.20, 0.30, 0.40]}],
+}
+
+with open("restricted-zone-person.mp4", "rb") as clip:
+    files = {
+        "envelope": (None, json.dumps(envelope), "application/json"),
+        "media": ("clip.mp4", clip, "video/mp4"),
+    }
+    res = requests.post(
+        "https://iot.streamhub.cl/v1/stream/events",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+            "X-Request-Id": str(uuid.uuid4()),
+        },
+        files=files,
+        timeout=30,
+    )
+
+res.raise_for_status()
+print(res.json())  # {'status': 'accepted', 'event_id': '...', 'media_count': 1}
+```
+
+For **multiple clips**, use a list of tuples (a dict can't repeat the `media` key):
+
+```python
+files = [
+    ("envelope", (None, json.dumps(envelope), "application/json")),
+    ("media", ("front.mp4", open("front.mp4", "rb"), "video/mp4")),
+    ("media", ("aisle.mp4", open("aisle.mp4", "rb"), "video/mp4")),
+]
+```
+
+### Java (HttpClient)
+
+`HttpClient` has no built-in multipart writer, so build the body from ordered byte chunks:
+
+```java
+import java.net.URI;
+import java.net.http.*;
+import java.nio.file.*;
+import java.util.*;
+
+String boundary = "----miot" + UUID.randomUUID();
+String envelope = """
+    {"schema_version":"1.0","event_type":"warehouse.restricted_zone.person",
+     "occurred_at":"2026-06-20T14:32:05Z","severity":"alert",
+     "subject":{"device_id":"cam-bodega-04","zone_id":"zona-restringida-A"},
+     "detections":[{"class":"person","score":0.97,"bbox":[0.10,0.20,0.30,0.40]}]}
+    """;
+
+List<byte[]> parts = new ArrayList<>();
+parts.add(("--" + boundary + "\r\n"
+    + "Content-Disposition: form-data; name=\"envelope\"\r\n"
+    + "Content-Type: application/json\r\n\r\n" + envelope + "\r\n").getBytes());
+parts.add(("--" + boundary + "\r\n"
+    + "Content-Disposition: form-data; name=\"media\"; filename=\"clip.mp4\"\r\n"
+    + "Content-Type: video/mp4\r\n\r\n").getBytes());
+parts.add(Files.readAllBytes(Path.of("restricted-zone-person.mp4")));
+parts.add(("\r\n--" + boundary + "--\r\n").getBytes());
+
+HttpRequest req = HttpRequest.newBuilder(URI.create("https://iot.streamhub.cl/v1/stream/events"))
+    .header("Authorization", "Bearer " + token)
+    .header("Accept", "application/json")
+    .header("X-Request-Id", UUID.randomUUID().toString())
+    .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+    .POST(HttpRequest.BodyPublishers.ofByteArrays(parts))
+    .build();
+
+HttpResponse<String> res = HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofString());
+if (res.statusCode() >= 300) throw new RuntimeException("stream/events " + res.statusCode() + ": " + res.body());
+```
+
+---
+
+## Notes
+
+- **Multiple clips:** repeat the `media` part and add one hint per file in `media[]` (matched by order). The response `media_count` reflects how many were stored.
+- **Idempotency:** set a stable `event_id` to make retries safe — duplicates are de-duplicated for 24 hours.
+- **Max upload size:** up to 256 MB per request. For larger or many clips, split across events.
+- **Checksums (optional):** include `checksum_sha256` in a `media[]` hint to have the server verify the upload (`shasum -a 256 clip.mp4`). A mismatch returns `400 checksum_mismatch`.

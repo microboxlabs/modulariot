@@ -68,6 +68,7 @@ All endpoints return JSON responses with consistent structure.
 | Code | Meaning |
 |------|---------|
 | 200 | Success |
+| 202 | Accepted - Request accepted for asynchronous processing |
 | 400 | Bad Request - Validation error or malformed request |
 | 401 | Unauthorized - Invalid or expired token |
 | 403 | Forbidden - Valid token but insufficient permissions |
@@ -79,5 +80,6 @@ All endpoints return JSON responses with consistent structure.
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/v1/asset/track` | Send asset tracking data with telemetry |
+| POST | `/v1/stream/events` | Post an event (a "symptom") with video evidence |
 
-→ See **Asset Track** for detailed endpoint documentation.
+→ See **Asset Track** and **Event Evidence** for detailed endpoint documentation.

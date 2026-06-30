@@ -155,6 +155,13 @@ export const pages: SidebarItem[] = [
         requiredGroups: [],
         blockedGroups: [], // Allow access for MINTRAL_REVISOR
       },
+      {
+        href: "/whatsapp/conversations",
+        label: "conversations",
+        totals: {},
+        requiredGroups: ["GROUP_CONVERSATIONS"],
+        blockedGroups: [],
+      },
     ],
 
     totals: {},

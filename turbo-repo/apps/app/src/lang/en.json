@@ -1532,6 +1532,7 @@
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",
         "signalHistory": "Signal history",
+        "conversations": "Conversations",
         "geographicView": "Geographic view",
         "symptoms": "Symptoms",
         "liveStreams": "Live Streams",
@@ -3996,6 +3997,23 @@
     "breadcrumb": {
       "collaboratorsManagement": "Collaborators Management"
     }
+  },
+  "conversations": {
+    "title": "WhatsApp Conversations",
+    "description": "Driver replies and message delivery status for your organization.",
+    "listTitle": "Conversations",
+    "loading": "Loading conversations…",
+    "empty": "No conversations yet.",
+    "noSelection": "Select a conversation to view the thread.",
+    "loadError": "Couldn't load conversations. Please try again.",
+    "unread": "Unread messages",
+    "template": "Template",
+    "attachment": "Attachment",
+    "unsupported": "Unsupported message",
+    "statusSent": "Sent",
+    "statusDelivered": "Delivered",
+    "statusRead": "Read",
+    "statusFailed": "Failed to deliver"
   },
   "ext_tasks": {
     "processing": "Processing your request...",

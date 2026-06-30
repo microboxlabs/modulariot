@@ -1536,6 +1536,7 @@
         "controlTower": "Torre de control",
         "whereIsMyLoad": "¿Dónde está mi carga?",
         "signalHistory": "Historial de señales",
+        "conversations": "Conversaciones",
         "geographicView": "Vista geográfica",
         "symptoms": "Síntomas",
         "liveStreams": "CCTV",
@@ -3996,6 +3997,23 @@
     "breadcrumb": {
       "collaboratorsManagement": "Gestión de Colaboradores"
     }
+  },
+  "conversations": {
+    "title": "Conversaciones de WhatsApp",
+    "description": "Respuestas de conductores y estado de entrega de los mensajes de tu organización.",
+    "listTitle": "Conversaciones",
+    "loading": "Cargando conversaciones…",
+    "empty": "Aún no hay conversaciones.",
+    "noSelection": "Selecciona una conversación para ver los mensajes.",
+    "loadError": "No se pudieron cargar las conversaciones. Inténtalo de nuevo.",
+    "unread": "Mensajes sin leer",
+    "template": "Plantilla",
+    "attachment": "Adjunto",
+    "unsupported": "Mensaje no compatible",
+    "statusSent": "Enviado",
+    "statusDelivered": "Entregado",
+    "statusRead": "Leído",
+    "statusFailed": "Falló el envío"
   },
   "ext_tasks": {
     "processing": "Procesando tu solicitud...",

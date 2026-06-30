@@ -22,4 +22,14 @@ class IntegrationConnectionRepositoryTest {
     void findByTenantAndIdReturnsNullForNonUuidId() {
         assertNull(repository.findByTenantAndId("tenant", "not-a-uuid"));
     }
+
+    @Test
+    void findActiveWhatsAppByPhoneNumberIdReturnsNullForBlankPhoneNumberId() {
+        assertNull(repository.findActiveWhatsAppByPhoneNumberId("  "));
+    }
+
+    @Test
+    void findActiveWhatsAppByPhoneNumberIdReturnsNullForNullPhoneNumberId() {
+        assertNull(repository.findActiveWhatsAppByPhoneNumberId(null));
+    }
 }

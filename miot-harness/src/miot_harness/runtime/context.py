@@ -17,6 +17,11 @@ from miot_harness.runtime.permissions import (
 # operator debugging.
 RunMode = Literal["auto", "canned", "meta", "agentic"]
 
+# The output format for the run's `answer` string. The JSON response envelope
+# never changes; only the encoding of `answer` does. "markdown" is canonical
+# (what the agents emit) and the default when a caller omits the field.
+AnswerFormat = Literal["markdown", "plain", "html", "xml", "yaml"]
+
 
 class HarnessContext(BaseModel):
     # ApprovalRegistry is a process-local handle, not a serializable
@@ -32,6 +37,9 @@ class HarnessContext(BaseModel):
     # Phase E (plan 13): the mode the caller requested. Set from
     # `UserRequest.mode` so per-mode cost can split in Langfuse panels.
     mode: RunMode = "auto"
+    # The caller-requested output format for the final answer string. Read by
+    # HarnessSupervisor._finalize_answer to render record.answer before save.
+    answer_format: AnswerFormat = "markdown"
     # Phase E10 (plan 13): the multi-turn conversation id, if any.
     # Used as the Langfuse `session_id` (falls back to `thread_id`).
     conversation_id: str | None = None
@@ -88,6 +96,8 @@ class UserRequest(BaseModel):
     # policy, then the tenant default.
     permission_mode: PermissionMode | None = None
     rules: list[PermissionRule] = Field(default_factory=list)
+    # Output format for the response `answer` string (default markdown).
+    answer_format: AnswerFormat = "markdown"
 
     def to_context(self) -> HarnessContext:
         # NOTE: the policy built here is UNGATED — the bypass policy gate
@@ -110,5 +120,6 @@ class UserRequest(BaseModel):
             mode=self.mode,
             conversation_id=self.conversation_id,
             debug=self.debug,
+            answer_format=self.answer_format,
             permission_policy=policy,
         )

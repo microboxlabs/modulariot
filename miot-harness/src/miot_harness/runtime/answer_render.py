@@ -15,7 +15,7 @@ import re
 from collections.abc import Callable
 from xml.sax.saxutils import escape as _xml_escape
 
-import markdown as _markdown
+import markdown as _markdown  # type: ignore[import-untyped]
 import yaml as _yaml
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ _TAG_RE = re.compile(r"<[^>]+>")
 
 
 def _to_html(text: str) -> str:
-    return _markdown.markdown(text)
+    return str(_markdown.markdown(text))
 
 
 def _to_plain(text: str) -> str:
@@ -37,7 +37,7 @@ def _to_xml(text: str) -> str:
 
 
 def _to_yaml(text: str) -> str:
-    return _yaml.safe_dump({"answer": text}, allow_unicode=True, sort_keys=False)
+    return str(_yaml.safe_dump({"answer": text}, allow_unicode=True, sort_keys=False))
 
 
 # Markdown is the identity case and is handled inline in render_answer.

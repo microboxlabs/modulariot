@@ -11,6 +11,7 @@ import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,26 @@ public class MessageRepository {
             ORDER BY created_at, id
             LIMIT $2
             """;
+
+    // Status mirroring looks up the outbound row by the wamid we stored on send (the partial
+    // unique index makes this a point lookup).
+    private static final String SELECT_BY_META_MESSAGE_ID = "SELECT " + COLUMNS + """
+            FROM miot_conversational.wa_message
+            WHERE meta_message_id = $1
+            LIMIT 1
+            """;
+
+    // Advance the lifecycle (SENT→DELIVERED→READ, or →FAILED). COALESCE keeps any timestamp /
+    // error already recorded by an earlier callback, so out-of-order delivery never erases state.
+    // The advance-only guard itself lives in the service.
+    private static final String MARK_STATUS = """
+            UPDATE miot_conversational.wa_message
+            SET status = $2,
+                delivered_at = COALESCE($3, delivered_at),
+                read_at = COALESCE($4, read_at),
+                error_message = COALESCE($5, error_message)
+            WHERE id = $1
+            RETURNING\s""" + COLUMNS;
 
     private final Instance<Pool> clientInstance;
 
@@ -85,6 +106,30 @@ public class MessageRepository {
                 .stream()
                 .map(this::mapRow)
                 .toList();
+    }
+
+    /** The outbound row a status callback refers to, or null if we never stored that wamid. */
+    public Message findByMetaMessageId(String metaMessageId) {
+        if (metaMessageId == null || metaMessageId.isBlank()) {
+            return null;
+        }
+        var rows = client().preparedQuery(SELECT_BY_META_MESSAGE_ID)
+                .execute(Tuple.of(metaMessageId))
+                .await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    public Message markStatus(
+            String messageId,
+            MessageStatus status,
+            OffsetDateTime deliveredAt,
+            OffsetDateTime readAt,
+            String errorMessage) {
+        var rows = client().preparedQuery(MARK_STATUS)
+                .execute(Tuple.of(UUID.fromString(messageId), status.name(), deliveredAt, readAt, errorMessage))
+                .await().indefinitely();
+        return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
     }
 
     private Pool client() {

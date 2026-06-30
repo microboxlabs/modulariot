@@ -1,7 +1,10 @@
 package com.microboxlabs.miot.conversational.api;
 
+import com.microboxlabs.miot.conversational.service.WhatsAppInboundService;
 import com.microboxlabs.miot.conversational.service.WhatsAppSignatureVerifier;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -44,13 +47,16 @@ public class WhatsAppWebhookResource {
 
     private final String verifyToken;
     private final String appSecret;
+    private final WhatsAppInboundService inboundService;
 
     @Inject
     public WhatsAppWebhookResource(
             @ConfigProperty(name = "miot.whatsapp.webhook.verify-token") String verifyToken,
-            @ConfigProperty(name = "miot.whatsapp.app-secret") String appSecret) {
+            @ConfigProperty(name = "miot.whatsapp.app-secret") String appSecret,
+            WhatsAppInboundService inboundService) {
         this.verifyToken = verifyToken;
         this.appSecret = appSecret;
+        this.inboundService = inboundService;
     }
 
     /**
@@ -80,16 +86,24 @@ public class WhatsAppWebhookResource {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Operation(summary = "Receive inbound WhatsApp messages and status callbacks (HMAC-verified)")
-    public Response receive(
+    public Uni<Response> receive(
             @HeaderParam("X-Hub-Signature-256") String signature,
             byte[] body) {
         if (!WhatsAppSignatureVerifier.verify(body, signature, appSecret)) {
             LOG.warn("Rejected WhatsApp webhook POST: missing or invalid X-Hub-Signature-256");
-            return Response.status(Response.Status.UNAUTHORIZED).build();
+            return Uni.createFrom().item(Response.status(Response.Status.UNAUTHORIZED).build());
         }
-        // Ingestion (parse → persist → status mirroring) is wired here in slice 3.
-        LOG.debugf("Accepted WhatsApp webhook POST (%d bytes)", body == null ? 0 : body.length);
-        return Response.ok().build();
+        // Verified: ingest on a worker thread (blocking SQL) and always ack 200. Ingestion is
+        // idempotent, so acking even on a processing error is safe and keeps Meta from disabling
+        // the subscription after repeated non-200s.
+        return Uni.createFrom().item(() -> {
+            try {
+                inboundService.ingest(body);
+            } catch (RuntimeException e) {
+                LOG.error("WhatsApp webhook ingestion failed; acking anyway (idempotent on retry)", e);
+            }
+            return Response.ok().build();
+        }).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 
     /**

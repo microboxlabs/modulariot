@@ -63,6 +63,21 @@ public class ConversationRepository {
             WHERE id = $1
             RETURNING\s""" + COLUMNS;
 
+    // Inbound touch: bump activity timestamps + preview, increment the unread badge, and refresh
+    // the 24h session window. wa_contact_name is filled only when Meta gave us one (COALESCE keeps
+    // a previously-learned name).
+    private static final String UPDATE_INBOUND = """
+            UPDATE miot_conversational.wa_conversation
+            SET last_inbound_at = $2,
+                last_message_at = $2,
+                last_message_preview = $3,
+                session_expires_at = $4,
+                wa_contact_name = COALESCE($5, wa_contact_name),
+                unread_count = unread_count + 1,
+                updated_at = $2
+            WHERE id = $1
+            RETURNING\s""" + COLUMNS;
+
     private final Instance<Pool> clientInstance;
 
     ConversationRepository(Instance<Pool> clientInstance) {
@@ -151,6 +166,24 @@ public class ConversationRepository {
                 .addOffsetDateTime(occurredAt)
                 .addString(lastMessagePreview);
         return mapRow(client().preparedQuery(UPDATE_OUTBOUND)
+                .execute(params)
+                .await().indefinitely()
+                .iterator().next());
+    }
+
+    public Conversation updateInbound(
+            String conversationId,
+            OffsetDateTime occurredAt,
+            String lastMessagePreview,
+            OffsetDateTime sessionExpiresAt,
+            String waContactName) {
+        Tuple params = Tuple.tuple()
+                .addUUID(UUID.fromString(conversationId))
+                .addOffsetDateTime(occurredAt)
+                .addString(lastMessagePreview)
+                .addOffsetDateTime(sessionExpiresAt)
+                .addString(waContactName);
+        return mapRow(client().preparedQuery(UPDATE_INBOUND)
                 .execute(params)
                 .await().indefinitely()
                 .iterator().next());

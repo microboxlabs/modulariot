@@ -15,9 +15,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.jboss.logging.Logger;
 
 @ApplicationScoped
 public class IntegrationConnectionRepository {
+
+    private static final Logger LOG = Logger.getLogger(IntegrationConnectionRepository.class);
 
     private static final String SELECT_BY_TENANT = """
             SELECT id, tenant_code, name, provider_type, base_url, credential_profile_id,
@@ -51,8 +54,10 @@ public class IntegrationConnectionRepository {
     // Reverse lookup for inbound Meta webhooks: an inbound event carries only the
     // phone_number_id (which of our numbers received it), so we map that back to the org that
     // owns the active WHATSAPP connection advertising it. provider_type is a literal so the
-    // partial expression index (V0.6.3) on metadata->>'phone_number_id' is used. Meta numbers
-    // are 1:1 with a connection, but the ORDER BY keeps the pick deterministic regardless.
+    // partial UNIQUE index (V0.6.3) on metadata->>'phone_number_id' is used. That index guarantees
+    // at most one such row, but we deliberately fetch LIMIT 2: the read path fails closed in
+    // findActiveWhatsAppByPhoneNumberId if the invariant is ever violated, so inbound is never
+    // silently routed to an arbitrary tenant (a cross-tenant leak).
     private static final String SELECT_ACTIVE_WHATSAPP_BY_PHONE_NUMBER_ID = """
             SELECT id, tenant_code, name, provider_type, base_url, credential_profile_id,
                    status, last_tested_at, last_test_result, metadata
@@ -60,10 +65,7 @@ public class IntegrationConnectionRepository {
             WHERE provider_type = 'WHATSAPP'
               AND active
               AND metadata->>'phone_number_id' = $1
-            ORDER BY (status = 'ACTIVE') DESC,
-                     last_test_result DESC NULLS LAST,
-                     last_tested_at DESC NULLS LAST
-            LIMIT 1
+            LIMIT 2
             """;
 
     private static final String INSERT = """
@@ -165,11 +167,21 @@ public class IntegrationConnectionRepository {
         if (phoneNumberId == null || phoneNumberId.isBlank()) {
             return null;
         }
-        var rows = client().preparedQuery(SELECT_ACTIVE_WHATSAPP_BY_PHONE_NUMBER_ID)
+        List<IntegrationConnection> matches = client().preparedQuery(SELECT_ACTIVE_WHATSAPP_BY_PHONE_NUMBER_ID)
                 .execute(Tuple.of(phoneNumberId))
-                .await().indefinitely();
-        var iterator = rows.iterator();
-        return iterator.hasNext() ? mapRow(iterator.next()) : null;
+                .await().indefinitely()
+                .stream()
+                .map(this::mapRow)
+                .toList();
+        if (matches.size() > 1) {
+            // Fail closed: the V0.6.3 unique index should make this impossible, but if two active
+            // WHATSAPP connections ever share a phone_number_id we refuse to route rather than
+            // leak one tenant's inbound message into another tenant's inbox.
+            LOG.errorf("Multiple active WHATSAPP connections advertise phone_number_id %s — refusing "
+                    + "to route inbound (the V0.6.3 unique index should prevent this)", phoneNumberId);
+            return null;
+        }
+        return matches.isEmpty() ? null : matches.get(0);
     }
 
     public IntegrationConnection update(

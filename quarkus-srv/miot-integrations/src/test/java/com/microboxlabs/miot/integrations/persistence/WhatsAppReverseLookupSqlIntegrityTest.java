@@ -35,6 +35,10 @@ class WhatsAppReverseLookupSqlIntegrityTest {
         assertFalse(
                 sql.contains("tenant_code ="),
                 "reverse lookup runs without a tenant (inbound has none yet) — it must not filter by one:\n" + sql);
+        assertTrue(
+                sql.contains("LIMIT 2"),
+                "reverse lookup must fetch LIMIT 2 so the read path can detect a duplicate "
+                        + "phone_number_id and fail closed instead of silently picking one:\n" + sql);
     }
 
     private static String readStaticString(String name) throws Exception {

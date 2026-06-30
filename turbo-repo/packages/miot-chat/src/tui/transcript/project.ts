@@ -45,6 +45,13 @@ export function applyHarnessEvent(
       // race the projector against END_TURN.
       return slice;
 
+    case "answer.delta": {
+      const delta =
+        typeof event.data.delta === "string" ? event.data.delta : "";
+      if (!delta) return slice;
+      return appendAnswerDelta(slice, delta, runId, ctx);
+    }
+
     case "answer.completed":
       return upsertAssistantItem(slice, event, runId, ctx);
 
@@ -267,6 +274,46 @@ function extractAnswerText(event: HarnessEvent): string | null {
     return data.answer;
   }
   return null;
+}
+
+/**
+ * Append a streamed answer.delta to the live assistant item, creating
+ * it on the first delta. Mirrors the thinking.delta accumulation so the
+ * assistant bubble grows token-by-token instead of popping in whole at
+ * END_TURN. END_TURN still reconciles against the authoritative run
+ * record, keeping the streamed text if the record answer is empty.
+ */
+function appendAnswerDelta(
+  slice: TranscriptSlice,
+  delta: string,
+  runId: string,
+  ctx: ProjectionContext,
+): TranscriptSlice {
+  const existingId = slice.currentAssistantItemId;
+  if (existingId) {
+    return {
+      ...slice,
+      transcript: slice.transcript.map((item) =>
+        item.kind === "assistant" && item.id === existingId
+          ? { ...item, text: item.text + delta, status: "streaming" as const }
+          : item,
+      ),
+    };
+  }
+  const id = ctx.uuid();
+  const item: TranscriptItem = {
+    kind: "assistant",
+    id,
+    runId,
+    text: delta,
+    status: "streaming",
+    ts: ctx.now(),
+  };
+  return {
+    ...slice,
+    currentAssistantItemId: id,
+    transcript: [...slice.transcript, item],
+  };
 }
 
 function upsertAssistantItem(

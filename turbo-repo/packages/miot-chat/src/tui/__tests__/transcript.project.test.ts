@@ -239,6 +239,43 @@ describe("transcript projector — answer.completed precedence", () => {
   });
 });
 
+describe("transcript projector — answer.delta streaming", () => {
+  it("accumulates answer.delta into one streaming assistant item", () => {
+    const ctx = mkCtx();
+    let s = applyHarnessEvent(
+      emptySlice(),
+      evt("answer.delta", { data: { delta: "Hola " } }),
+      "r1",
+      ctx,
+    );
+    s = applyHarnessEvent(
+      s,
+      evt("answer.delta", { data: { delta: "mundo" } }),
+      "r1",
+      ctx,
+    );
+    expect(s.transcript).toHaveLength(1);
+    expect(s.transcript[0]).toMatchObject({
+      kind: "assistant",
+      text: "Hola mundo",
+      status: "streaming",
+    });
+    expect(s.currentAssistantItemId).not.toBeNull();
+  });
+
+  it("ignores answer.delta with an empty delta", () => {
+    const ctx = mkCtx();
+    const s = applyHarnessEvent(
+      emptySlice(),
+      evt("answer.delta", { data: { delta: "" } }),
+      "r1",
+      ctx,
+    );
+    expect(s.transcript).toHaveLength(0);
+    expect(s.currentAssistantItemId).toBeNull();
+  });
+});
+
 describe("transcript projector — tool name normalization", () => {
   it("strips 'Starting <name>' / 'Completed <name>' so paired events collapse", () => {
     const ctx = mkCtx();

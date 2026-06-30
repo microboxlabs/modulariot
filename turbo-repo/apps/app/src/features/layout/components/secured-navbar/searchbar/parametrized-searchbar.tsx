@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { HiSearch } from "react-icons/hi";
 import { useDebouncedCallback } from "use-debounce";
-import Tags from "./tags";
 // import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
 import { ParamType } from "./navegation_params";
 import CustomSelector from "@/features/common/components/custom-dropdown/custom-selector";
@@ -261,12 +260,6 @@ export default function ParametrizedSearchBar({
           </div>
         )}
       </div>
-      <Tags
-        searchParams={searchParams}
-        router={router}
-        pathName={pathName}
-        navegation_params={navegation_params}
-      />
     </div>
   );
 }

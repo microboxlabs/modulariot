@@ -52,10 +52,10 @@ esac
 # Sign the EXACT bytes we send (printf '%s' = no trailing newline; curl --data sends them verbatim).
 SIG="sha256=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$APP_SECRET" -hex | sed 's/^.*= //')"
 
-echo "POST ${BASE_URL}/api/v1/whatsapp/webhook  (${KIND}, wamid=${WAMID})"
+echo "POST ${BASE_URL}/webhooks/whatsapp  (${KIND}, wamid=${WAMID})"
 curl -sS -i -X POST \
   -H "Content-Type: application/json" \
   -H "X-Hub-Signature-256: ${SIG}" \
   --data "$PAYLOAD" \
-  "${BASE_URL}/api/v1/whatsapp/webhook"
+  "${BASE_URL}/webhooks/whatsapp"
 echo

@@ -18,6 +18,8 @@ from xml.sax.saxutils import escape as _xml_escape
 import markdown as _markdown  # type: ignore[import-untyped]
 import yaml as _yaml
 
+from miot_harness.runtime.answer_blocks import to_json_blocks
+
 logger = logging.getLogger(__name__)
 
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -60,6 +62,11 @@ def render_answer_with_format(markdown_text: str | None, fmt: str) -> tuple[str 
     """
     if markdown_text is None:
         return None, fmt
+    if fmt == "json":
+        # `json` is not a re-render of Markdown: the agent emits a block array
+        # as its answer text. to_json_blocks parses+validates it (markdown-block
+        # fallback on failure) and never raises. Effective format is always json.
+        return to_json_blocks(markdown_text), "json"
     if fmt == "markdown":
         return markdown_text, "markdown"
     renderer = _RENDERERS.get(fmt)

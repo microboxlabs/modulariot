@@ -1,4 +1,4 @@
-import { Box, Text } from "ink";
+import { Box, Static, Text } from "ink";
 import { AssistantTurn } from "./AssistantTurn.js";
 import { Spinner } from "./Spinner.js";
 import { ToolCall } from "./ToolCall.js";
@@ -11,44 +11,84 @@ export interface TranscriptProps {
 }
 
 /**
- * Render the full transcript on every state change.
+ * An item is terminal when it will no longer mutate and is safe to
+ * commit to Ink's <Static> (rendered once, flushed to native terminal
+ * scrollback, never re-painted). When the run is over, every item is
+ * terminal. While a run is in flight, only finished items commit; the
+ * in-flight tail stays in the live region.
+ */
+function isTerminalItem(
+  item: TranscriptItem,
+  isStreaming: boolean,
+): boolean {
+  if (!isStreaming) return true;
+  switch (item.kind) {
+    case "assistant":
+      return item.status !== "streaming";
+    case "tool":
+      return item.status !== "running";
+    case "thinking":
+      return item.status !== "streaming";
+    case "route":
+    case "agent":
+    case "plan":
+    case "freshness":
+    case "artifact":
+      // May still be the spinning active step; keep live until run ends.
+      return false;
+    case "user":
+    case "system":
+      return true;
+  }
+}
+
+/**
+ * Render committed (terminal) turns via Ink's <Static> so they flush to
+ * native terminal scrollback and escape Ink's viewport-height
+ * truncation (the cause of long answers being cut with "…"). Only the
+ * in-flight tail renders in the dynamic <Box>.
  *
- * Earlier versions split items into Ink's <Static> (committed turns) +
- * a live <Box> (the in-flight turn) so completed turns scrolled into
- * terminal scrollback. The trade-off bit us: when an item migrates
- * from live → static AND its status flips in the same render,
- * real-terminal Ink doesn't reliably clear the live region's prior
- * paint, so a "… miot" line printed during streaming stayed on screen
- * even after END_TURN flipped the item to "complete". ink-testing-
- * library captures both regions as one frame and didn't catch it.
- *
- * Trade-off accepted: every state change re-paints every item. For
- * typical sessions (≤20 turns visible) the reconciliation cost is
- * negligible. Long-running sessions lose true scrollback; users can
- * still scroll the terminal manually.
- *
- * `isStreaming` is kept in the prop signature for the Header / spinner
- * gating but is no longer needed here.
+ * `committed` and `live` are derived by a pure per-render filter on
+ * `isTerminalItem`, so they are always disjoint — an item is never
+ * painted in both regions (no ghost line). The filter returns a fresh
+ * array each render, which is required for Ink's <Static> to detect and
+ * emit newly-committed items: <Static> only re-renders when its `items`
+ * prop reference changes (a same-reference mutation is silently
+ * dropped). `isTerminalItem` is monotonic — status only advances
+ * (streaming→complete) and a run only ends (isStreaming true→false) — so
+ * an item never oscillates back out of `committed`.
  */
 export function Transcript(props: TranscriptProps): React.ReactElement {
+  const committed = props.items.filter((item) =>
+    isTerminalItem(item, props.isStreaming),
+  );
+  const live = props.items.filter(
+    (item) => !isTerminalItem(item, props.isStreaming),
+  );
   // When a run is in flight, the most recent "chain" item (route /
-  // plan / agent / artifact / freshness) gets a spinner instead of
-  // the static "·" prefix to signal "this is the step the harness is
-  // working on right now". Tool items already self-animate via
-  // status=running; assistant items animate via status=streaming.
+  // plan / agent / artifact / freshness) in the live tail gets a
+  // spinner instead of the static "·" prefix to signal "this is the
+  // step the harness is working on right now".
   const activeChainIdx = props.isStreaming
-    ? findActiveChainIndex(props.items)
+    ? findActiveChainIndex(live)
     : -1;
 
   return (
     <Box flexDirection="column">
-      {props.items.map((item, i) => (
-        <TranscriptItemView
-          key={item.id}
-          item={item}
-          isActive={i === activeChainIdx}
-        />
-      ))}
+      <Static items={committed}>
+        {(item) => (
+          <TranscriptItemView key={item.id} item={item} isActive={false} />
+        )}
+      </Static>
+      <Box flexDirection="column">
+        {live.map((item, i) => (
+          <TranscriptItemView
+            key={item.id}
+            item={item}
+            isActive={i === activeChainIdx}
+          />
+        ))}
+      </Box>
     </Box>
   );
 }

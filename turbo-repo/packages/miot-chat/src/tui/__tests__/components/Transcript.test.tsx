@@ -90,6 +90,26 @@ describe("<Transcript />", () => {
     expect(frame).toContain("partial answer");
   });
 
+  it("keeps a streaming assistant out of Static, then commits it on completion", () => {
+    const streamingItems: TranscriptItem[] = [
+      user("hi", "u-9"),
+      assistant("partial", "streaming", "a-9"),
+    ];
+    const { rerender, lastFrame } = render(
+      <Transcript items={streamingItems} isStreaming={true} />,
+    );
+    expect(lastFrame() ?? "").toContain("partial");
+
+    const doneItems: TranscriptItem[] = [
+      user("hi", "u-9"),
+      assistant("partial complete answer", "complete", "a-9"),
+    ];
+    rerender(<Transcript items={doneItems} isStreaming={false} />);
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("hi");
+    expect(frame).toContain("partial complete answer");
+  });
+
   it("flushes the live tail back into the static section when streaming ends", () => {
     const items: TranscriptItem[] = [
       user("hi"),

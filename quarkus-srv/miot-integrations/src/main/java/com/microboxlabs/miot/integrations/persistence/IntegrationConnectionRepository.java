@@ -48,6 +48,24 @@ public class IntegrationConnectionRepository {
             LIMIT 1
             """;
 
+    // Reverse lookup for inbound Meta webhooks: an inbound event carries only the
+    // phone_number_id (which of our numbers received it), so we map that back to the org that
+    // owns the active WHATSAPP connection advertising it. provider_type is a literal so the
+    // partial expression index (V0.6.3) on metadata->>'phone_number_id' is used. Meta numbers
+    // are 1:1 with a connection, but the ORDER BY keeps the pick deterministic regardless.
+    private static final String SELECT_ACTIVE_WHATSAPP_BY_PHONE_NUMBER_ID = """
+            SELECT id, tenant_code, name, provider_type, base_url, credential_profile_id,
+                   status, last_tested_at, last_test_result, metadata
+            FROM miot_integrations.integration_connections
+            WHERE provider_type = 'WHATSAPP'
+              AND active
+              AND metadata->>'phone_number_id' = $1
+            ORDER BY (status = 'ACTIVE') DESC,
+                     last_test_result DESC NULLS LAST,
+                     last_tested_at DESC NULLS LAST
+            LIMIT 1
+            """;
+
     private static final String INSERT = """
             INSERT INTO miot_integrations.integration_connections (
                 id, tenant_code, name, provider_type, base_url, credential_profile_id,
@@ -136,6 +154,19 @@ public class IntegrationConnectionRepository {
     public IntegrationConnection findActiveByProvider(String tenantCode, ProviderType providerType) {
         var rows = client().preparedQuery(SELECT_ACTIVE_BY_PROVIDER)
                 .execute(Tuple.of(tenantCode, providerType.name()))
+                .await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    // Blank guard runs before client() so a missing phone_number_id never hits the DB (and is
+    // safe with a null pool in unit tests), mirroring findByTenantAndId.
+    public IntegrationConnection findActiveWhatsAppByPhoneNumberId(String phoneNumberId) {
+        if (phoneNumberId == null || phoneNumberId.isBlank()) {
+            return null;
+        }
+        var rows = client().preparedQuery(SELECT_ACTIVE_WHATSAPP_BY_PHONE_NUMBER_ID)
+                .execute(Tuple.of(phoneNumberId))
                 .await().indefinitely();
         var iterator = rows.iterator();
         return iterator.hasNext() ? mapRow(iterator.next()) : null;

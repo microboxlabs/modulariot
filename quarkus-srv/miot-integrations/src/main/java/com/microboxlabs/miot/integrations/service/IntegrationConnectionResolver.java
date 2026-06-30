@@ -9,6 +9,7 @@ import com.microboxlabs.miot.integrations.secret.IntegrationSecretCipher;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Resolves an org's active connection for a given provider into a ready-to-use
@@ -61,5 +62,23 @@ public class IntegrationConnectionResolver {
             }
         }
         return new ResolvedConnection(connection.id(), connection.baseUrl(), connection.metadata(), secret);
+    }
+
+    /**
+     * Reverse lookup for inbound Meta webhooks. A webhook event carries only the
+     * {@code phone_number_id} (which of our numbers received it), so we map that to the org that
+     * owns the active WHATSAPP connection advertising it. No credential is decrypted — inbound
+     * persistence only needs the tenant to scope the conversation.
+     *
+     * @return the owning channel, or empty when no active WHATSAPP connection advertises that
+     *         {@code phone_number_id}
+     */
+    public Optional<InboundChannelRef> resolveByWhatsAppPhoneNumberId(String phoneNumberId) {
+        IntegrationConnection connection =
+                connectionRepository.findActiveWhatsAppByPhoneNumberId(phoneNumberId);
+        if (connection == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new InboundChannelRef(connection.tenantCode(), connection.id()));
     }
 }

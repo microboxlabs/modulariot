@@ -161,4 +161,33 @@ class HarnessProxyResourcePostTest {
                 .statusCode();
         assertThat(status, is(401));
     }
+
+    @Test
+    void postRunsForwardsAnswerFormatAndEchoesItBack() {
+        // Arrange: stub the Python backend to assert it received answer_format
+        // and to return a record echoing it back. Registered after @BeforeEach's
+        // default /runs stub so WireMock (last-in-first-tried) evaluates this
+        // more specific body-matching stub first.
+        String token = TestTokenFactory.signWebToken(StubAlfrescoMembershipClient.MEMBER_EMAIL);
+        WireMockLifecycle.server().stubFor(WireMock.post(WireMock.urlEqualTo("/runs"))
+                .withRequestBody(
+                        WireMock.matchingJsonPath("$.answer_format", WireMock.equalTo("yaml")))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"run_id\":\"run_x\",\"status\":\"completed\","
+                                + "\"answer\":\"answer: hi\\n\",\"answer_format\":\"yaml\"}")));
+
+        // Act + Assert: proxy forwards answer_format to the backend and returns the echo.
+        given()
+                .header("Authorization", "Bearer " + token)
+                .contentType("application/json")
+                .body("{\"message\":\"hi\",\"answer_format\":\"yaml\"}")
+                .when()
+                .post(RUNS_PATH)
+                .then()
+                .statusCode(200)
+                .body("answer_format", is("yaml"))
+                .body("answer", is("answer: hi\n"));
+    }
 }

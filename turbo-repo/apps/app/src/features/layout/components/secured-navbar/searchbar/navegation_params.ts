@@ -28,7 +28,6 @@ function kanban_params(searchbarDict: I18nRecord): ParamType[] {
     setParam("destination", "text"),
     setParam("customer", "text"),
     setParam("originType", "selector", [
-      { value: "", label: tr("allOption", searchbarDict) },
       { value: "INTERNAL", label: tr("internal", searchbarDict) },
       { value: "EXTERNAL", label: tr("external", searchbarDict) },
     ]),
@@ -46,7 +45,6 @@ function fleet_params(searchbarDict: I18nRecord): ParamType[] {
     setParam("licensePlate", "text"),
     setParam("client", "text"),
     setParam("state", "selector", [
-      { value: "", label: tr("allOption", searchbarDict) },
       { value: "active", label: tr("stateActive", searchbarDict) },
       { value: "maintenance", label: tr("stateMaintenance", searchbarDict) },
       { value: "alert", label: tr("stateAlert", searchbarDict) },

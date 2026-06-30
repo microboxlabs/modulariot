@@ -1,4 +1,13 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(git ls-tree *)"
+    ],
+    "additionalDirectories": [
+      "/Users/khalz/Desktop/development/modulariot-new-searchbar-definition/turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search",
+      "/Users/khalz/Desktop/development/modulariot-new-searchbar-definition/turbo-repo/apps/app/src/app"
+    ]
+  },
   "enabledPlugins": {
     "coderabbit@claude-plugins-official": true
   }

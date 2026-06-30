@@ -15,7 +15,7 @@ export default async function WhatsAppConversationsPage({ params }: ParamsWithLa
   const dict = (dictionary.conversations as I18nRecord) ?? {};
 
   return (
-    <RouteGuard requiredGroups={[]} fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard requiredGroups={["GROUP_CONVERSATIONS"]} fallbackPath={`/${lang}/shipping`}>
       <ConversationsPageContent dict={dict} locale={lang} />
     </RouteGuard>
   );

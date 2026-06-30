@@ -159,7 +159,7 @@ export const pages: SidebarItem[] = [
         href: "/whatsapp/conversations",
         label: "conversations",
         totals: {},
-        requiredGroups: [],
+        requiredGroups: ["GROUP_CONVERSATIONS"],
         blockedGroups: [],
       },
     ],

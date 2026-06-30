@@ -43,7 +43,7 @@ public class AsyncJobRepository {
      */
     private static final String CLAIM = """
             WITH runnable AS (
-                SELECT j.id
+                SELECT j.id AS job_id
                 FROM miot_integrations.async_jobs j
                 WHERE j.tenant_code = $1
                   AND j.executor = $2
@@ -73,7 +73,7 @@ public class AsyncJobRepository {
                 attempts = a.attempts + 1,
                 updated_at = now()
             FROM runnable r
-            WHERE a.id = r.id
+            WHERE a.id = r.job_id
             RETURNING %s""".formatted(COLUMNS);
 
     /**

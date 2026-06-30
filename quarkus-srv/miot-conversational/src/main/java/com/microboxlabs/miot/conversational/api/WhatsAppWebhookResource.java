@@ -70,11 +70,15 @@ public class WhatsAppWebhookResource {
             @QueryParam("hub.mode") String mode,
             @QueryParam("hub.verify_token") String token,
             @QueryParam("hub.challenge") String challenge) {
-        if (isValidHandshake(mode, token, verifyToken)) {
-            return Response.ok(challenge).build();
+        if (!isValidHandshake(mode, token, verifyToken)) {
+            LOG.warn("Rejected WhatsApp webhook verification handshake (mode/verify-token mismatch)");
+            return Response.status(Response.Status.FORBIDDEN).build();
         }
-        LOG.warn("Rejected WhatsApp webhook verification handshake (mode/verify-token mismatch)");
-        return Response.status(Response.Status.FORBIDDEN).build();
+        if (challenge == null || challenge.isBlank()) {
+            LOG.warn("WhatsApp webhook handshake verified but hub.challenge was missing");
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+        return Response.ok(challenge).build();
     }
 
     /**

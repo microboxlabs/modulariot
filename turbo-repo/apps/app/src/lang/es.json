@@ -4009,6 +4009,7 @@
     "unread": "Mensajes sin leer",
     "template": "Plantilla",
     "attachment": "Adjunto",
+    "unsupported": "Mensaje no compatible",
     "statusSent": "Enviado",
     "statusDelivered": "Entregado",
     "statusRead": "Leído",

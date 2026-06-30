@@ -5,6 +5,7 @@ import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Locale;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -33,7 +34,9 @@ public final class WhatsAppSignatureVerifier {
         if (!signatureHeader.startsWith(SHA256_PREFIX)) {
             return false;
         }
-        String presented = signatureHeader.substring(SHA256_PREFIX.length());
+        // Tolerate incidental hex casing/whitespace from Meta or an intermediary; our computed
+        // signature is lowercase hex, so normalize the presented value the same way before compare.
+        String presented = signatureHeader.substring(SHA256_PREFIX.length()).trim().toLowerCase(Locale.ROOT);
         if (presented.isBlank()) {
             return false;
         }

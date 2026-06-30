@@ -4009,6 +4009,7 @@
     "unread": "Unread messages",
     "template": "Template",
     "attachment": "Attachment",
+    "unsupported": "Unsupported message",
     "statusSent": "Sent",
     "statusDelivered": "Delivered",
     "statusRead": "Read",

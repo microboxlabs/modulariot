@@ -116,7 +116,7 @@ function renderContent(message: Message, dict: I18nRecord): string {
   if (message.mediaRef) {
     return `${tr("attachment", dict)} (${message.mediaFileName ?? message.type.toLowerCase()})`;
   }
-  return "";
+  return tr("unsupported", dict);
 }
 
 function StatusTicks({

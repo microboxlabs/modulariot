@@ -31,6 +31,12 @@ class WhatsAppSignatureVerifierTest {
     }
 
     @Test
+    void verifyToleratesUppercaseAndWhitespaceInPresentedHex() {
+        assertTrue(WhatsAppSignatureVerifier.verify(
+                PAYLOAD, "sha256=  " + EXPECTED_HEX.toUpperCase() + "  ", SECRET));
+    }
+
+    @Test
     void verifyRejectsAWrongSecret() {
         assertFalse(WhatsAppSignatureVerifier.verify(PAYLOAD, VALID_HEADER, "not-the-secret"));
     }

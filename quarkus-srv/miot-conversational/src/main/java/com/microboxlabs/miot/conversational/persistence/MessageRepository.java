@@ -100,7 +100,8 @@ public class MessageRepository {
         var rows = client().preparedQuery(INSERT_IF_NEW)
                 .execute(toParams(message))
                 .await().indefinitely();
-        return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
     }
 
     private Tuple toParams(Message message) {
@@ -158,7 +159,8 @@ public class MessageRepository {
         var rows = client().preparedQuery(MARK_STATUS)
                 .execute(Tuple.of(UUID.fromString(messageId), status.name(), deliveredAt, readAt, errorMessage))
                 .await().indefinitely();
-        return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
     }
 
     private Pool client() {

@@ -43,28 +43,33 @@ function isTerminalItem(
 }
 
 /**
- * Render committed (terminal) turns via Ink's <Static> so they flush to
- * native terminal scrollback and escape Ink's viewport-height
- * truncation (the cause of long answers being cut with "…"). Only the
- * in-flight tail renders in the dynamic <Box>.
+ * Render the settled prefix via Ink's <Static> so it flushes to native
+ * terminal scrollback and escapes Ink's viewport-height truncation (the
+ * cause of long answers being cut with "…"). Only the in-flight tail
+ * renders in the dynamic <Box>.
  *
- * `committed` and `live` are derived by a pure per-render filter on
- * `isTerminalItem`, so they are always disjoint — an item is never
- * painted in both regions (no ghost line). The filter returns a fresh
- * array each render, which is required for Ink's <Static> to detect and
- * emit newly-committed items: <Static> only re-renders when its `items`
- * prop reference changes (a same-reference mutation is silently
- * dropped). `isTerminalItem` is monotonic — status only advances
- * (streaming→complete) and a run only ends (isStreaming true→false) — so
- * an item never oscillates back out of `committed`.
+ * The split is a single point — the index of the first non-terminal
+ * (in-flight) item — NOT two independent filters. A filter-based split
+ * would float a later terminal item (e.g. a finished tool) above an
+ * earlier still-active chain row, reordering the transcript. Slicing at
+ * the first live item keeps both regions in their original relative
+ * order: `committed` is the leading prefix, `live` the trailing tail.
+ *
+ * `slice` returns a fresh array each render, which is required for Ink's
+ * <Static> to detect and emit newly-committed items: <Static> only
+ * re-renders when its `items` prop reference changes (a same-reference
+ * mutation is silently dropped). The split point is monotonic during a
+ * run — items only append at the tail and `isTerminalItem` only advances
+ * (streaming→complete, run ends true→false) — so the committed prefix
+ * only ever grows and no item oscillates back out of <Static>.
  */
 export function Transcript(props: TranscriptProps): React.ReactElement {
-  const committed = props.items.filter((item) =>
-    isTerminalItem(item, props.isStreaming),
-  );
-  const live = props.items.filter(
+  const firstLive = props.items.findIndex(
     (item) => !isTerminalItem(item, props.isStreaming),
   );
+  const splitPoint = firstLive === -1 ? props.items.length : firstLive;
+  const committed = props.items.slice(0, splitPoint);
+  const live = props.items.slice(splitPoint);
   // When a run is in flight, the most recent "chain" item (route /
   // plan / agent / artifact / freshness) in the live tail gets a
   // spinner instead of the static "·" prefix to signal "this is the

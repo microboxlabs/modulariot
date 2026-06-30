@@ -25,19 +25,21 @@ import org.jboss.logging.Logger;
  * callbacks. Meta cannot present our JWT, so this path is deliberately outside both auth regimes:
  *
  * <ul>
- *   <li>It sits under {@code /api/v1/whatsapp/webhook} (no {@code {organizationId}}), so the
- *       org-scoped {@code OrganizationRequestFilter} — which only matches
- *       {@code /api/v1/orgs/**} — never runs. The owning org is resolved later from the payload's
- *       {@code phone_number_id} (slice 3), not from the path.</li>
- *   <li>A more-specific {@code permit} HTTP permission (see {@code application.properties}) lifts
- *       just this path out of the blanket {@code /api/* → authenticated} policy.</li>
+ *   <li>It sits under {@code /webhooks/whatsapp} — a prefix the blanket {@code /api/* →
+ *       authenticated} policy does not match at all, so the request is never challenged. (The
+ *       original {@code /api/v1/whatsapp/webhook} placement plus a more-specific {@code permit}
+ *       rule returned 401 in practice: Quarkus 3.32.4 did not let the narrower {@code permit}
+ *       override {@code /api/*}. Living off {@code /api/*} sidesteps that precedence entirely.)</li>
+ *   <li>It carries no {@code {organizationId}}, so the org-scoped {@code OrganizationRequestFilter}
+ *       — which only matches {@code /api/v1/orgs/**} — never runs. The owning org is resolved later
+ *       from the payload's {@code phone_number_id}, not from the path.</li>
  * </ul>
  *
  * <p>Trust is established instead by Meta's own signals: a verify-token handshake on
  * {@code GET} and an {@code X-Hub-Signature-256} HMAC over the raw body on {@code POST}. Both
  * are fail-closed — a mismatch returns 403/401 and the body is never processed.
  */
-@Path("/api/v1/whatsapp/webhook")
+@Path("/webhooks/whatsapp")
 @Tag(name = "WhatsApp Webhook", description = "Inbound Meta WhatsApp Cloud API webhook (public, signature-verified)")
 @IfBuildProperty(name = "miot.component.conversational.enabled", stringValue = "true")
 public class WhatsAppWebhookResource {
@@ -51,8 +53,8 @@ public class WhatsAppWebhookResource {
 
     @Inject
     public WhatsAppWebhookResource(
-            @ConfigProperty(name = "miot.whatsapp.webhook.verify-token") String verifyToken,
-            @ConfigProperty(name = "miot.whatsapp.app-secret") String appSecret,
+            @ConfigProperty(name = "miot.whatsapp.webhook.verify-token", defaultValue = "") String verifyToken,
+            @ConfigProperty(name = "miot.whatsapp.app-secret", defaultValue = "") String appSecret,
             WhatsAppInboundService inboundService) {
         this.verifyToken = verifyToken;
         this.appSecret = appSecret;

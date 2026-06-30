@@ -56,6 +56,7 @@ def test_json_format_returns_a_block_array_string(client: TestClient) -> None:
     # `answer` is a STRING containing a JSON array of blocks.
     blocks = json.loads(body["answer"])
     assert isinstance(blocks, list)
+    assert len(blocks) >= 1
     assert all("type" in b and "value" in b for b in blocks)
 
 

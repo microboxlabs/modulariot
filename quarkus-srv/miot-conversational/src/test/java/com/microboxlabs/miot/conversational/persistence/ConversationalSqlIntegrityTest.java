@@ -25,6 +25,7 @@ class ConversationalSqlIntegrityTest {
         assertSeparated(ConversationRepository.class, "INSERT");
         assertSeparated(ConversationRepository.class, "UPDATE_OUTBOUND");
         assertSeparated(ConversationRepository.class, "UPDATE_INBOUND");
+        assertSeparated(ConversationRepository.class, "RESET_UNREAD");
     }
 
     private static void assertSeparated(Class<?> type, String field) throws Exception {

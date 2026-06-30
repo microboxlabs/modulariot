@@ -78,6 +78,14 @@ public class ConversationRepository {
             WHERE id = $1
             RETURNING\s""" + COLUMNS;
 
+    // Clear the unread badge when an agent opens the thread.
+    private static final String RESET_UNREAD = """
+            UPDATE miot_conversational.wa_conversation
+            SET unread_count = 0,
+                updated_at = now()
+            WHERE id = $1
+            RETURNING\s""" + COLUMNS;
+
     private final Instance<Pool> clientInstance;
 
     ConversationRepository(Instance<Pool> clientInstance) {
@@ -187,6 +195,13 @@ public class ConversationRepository {
                 .execute(params)
                 .await().indefinitely()
                 .iterator().next());
+    }
+
+    public Conversation resetUnread(String conversationId) {
+        var rows = client().preparedQuery(RESET_UNREAD)
+                .execute(Tuple.of(UUID.fromString(conversationId)))
+                .await().indefinitely();
+        return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
     }
 
     private Pool client() {

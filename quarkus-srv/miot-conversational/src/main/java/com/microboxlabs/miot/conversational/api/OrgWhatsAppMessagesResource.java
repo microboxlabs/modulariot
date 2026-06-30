@@ -121,6 +121,22 @@ public class OrgWhatsAppMessagesResource {
         });
     }
 
+    @POST
+    @Path("/conversations/{conversationId}/read")
+    @Operation(summary = "Mark a conversation as read (reset its unread counter)")
+    public Uni<Response> markRead(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("conversationId") String conversationId) {
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> {
+            Conversation conversation = conversationRepository.findByTenantAndId(tenant, conversationId);
+            if (conversation == null) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+            return Response.ok(conversationRepository.resetUnread(conversation.id())).build();
+        });
+    }
+
     private static <T> Uni<T> onWorker(Supplier<T> work) {
         return Uni.createFrom().item(work).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }

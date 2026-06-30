@@ -1,3 +1,4 @@
+import re
 import xml.etree.ElementTree as ET
 
 import yaml
@@ -30,7 +31,7 @@ def test_plain_strips_markup_and_unescapes_entities():
     out = render_answer(MD, "plain")
     assert "Title" in out
     assert "Use A & B when x < y" in out
-    assert "</" not in out and "#" not in out
+    assert not re.search(r"<[a-zA-Z/]", out) and "#" not in out
 
 
 def test_yaml_round_trips_to_the_markdown_string():

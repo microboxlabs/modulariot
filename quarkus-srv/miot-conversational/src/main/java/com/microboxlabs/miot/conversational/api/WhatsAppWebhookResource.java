@@ -79,9 +79,9 @@ public class WhatsAppWebhookResource {
 
     /**
      * Inbound events (driver messages + delivery/read status). Verifies the HMAC over the exact
-     * received bytes, then always answers 200 on acceptance so Meta does not retry-storm a
-     * payload we have taken — idempotent ingestion (slice 3) absorbs the at-least-once retries
-     * that still occur.
+     * received bytes, then ingests on a worker thread: 200 on success, 500 on a processing error so
+     * Meta retries. Ingestion is idempotent (wamid unique-index dedup + advance-only status), so a
+     * retry recovers transient failures instead of permanently dropping the event.
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
@@ -93,16 +93,17 @@ public class WhatsAppWebhookResource {
             LOG.warn("Rejected WhatsApp webhook POST: missing or invalid X-Hub-Signature-256");
             return Uni.createFrom().item(Response.status(Response.Status.UNAUTHORIZED).build());
         }
-        // Verified: ingest on a worker thread (blocking SQL) and always ack 200. Ingestion is
-        // idempotent, so acking even on a processing error is safe and keeps Meta from disabling
-        // the subscription after repeated non-200s.
+        // Verified: ingest on a worker thread (blocking SQL). Ack 200 on success; on a processing
+        // error return 500 so Meta redelivers — idempotent ingestion makes the retry safe, which is
+        // better than swallowing a transient failure and losing the event.
         return Uni.createFrom().item(() -> {
             try {
                 inboundService.ingest(body);
+                return Response.ok().build();
             } catch (RuntimeException e) {
-                LOG.error("WhatsApp webhook ingestion failed; acking anyway (idempotent on retry)", e);
+                LOG.error("WhatsApp webhook ingestion failed; returning 500 so Meta retries", e);
+                return Response.serverError().build();
             }
-            return Response.ok().build();
         }).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 

@@ -63,18 +63,22 @@ public class ConversationRepository {
             WHERE id = $1
             RETURNING\s""" + COLUMNS;
 
-    // Inbound touch: bump activity timestamps + preview, increment the unread badge, and refresh
-    // the 24h session window. wa_contact_name is filled only when Meta gave us one (COALESCE keeps
-    // a previously-learned name).
+    // Inbound touch: increment the unread badge, refresh the contact name, and advance the
+    // "latest" fields — but only forward. Meta delivery isn't strictly ordered, so GREATEST keeps
+    // the newest timestamp/session window and the preview only changes when this event is the
+    // newest seen (an older event still counts as unread but doesn't reorder the inbox backwards).
+    // GREATEST ignores NULLs, so a freshly-created row (all-NULL) takes $2/$4 as-is.
     private static final String UPDATE_INBOUND = """
             UPDATE miot_conversational.wa_conversation
-            SET last_inbound_at = $2,
-                last_message_at = $2,
-                last_message_preview = $3,
-                session_expires_at = $4,
+            SET last_inbound_at = GREATEST(last_inbound_at, $2),
+                last_message_at = GREATEST(last_message_at, $2),
+                last_message_preview = CASE
+                    WHEN last_message_at IS NULL OR $2 >= last_message_at THEN $3
+                    ELSE last_message_preview END,
+                session_expires_at = GREATEST(session_expires_at, $4),
                 wa_contact_name = COALESCE($5, wa_contact_name),
                 unread_count = unread_count + 1,
-                updated_at = $2
+                updated_at = now()
             WHERE id = $1
             RETURNING\s""" + COLUMNS;
 

@@ -15,6 +15,7 @@ interface MessageThreadProps {
   readonly conversationId: string | null;
   readonly conversation: Conversation | null;
   readonly dict: I18nRecord;
+  readonly locale: string;
   readonly onRead: () => void;
 }
 
@@ -27,6 +28,7 @@ export default function MessageThread({
   conversationId,
   conversation,
   dict,
+  locale,
   onRead,
 }: MessageThreadProps) {
   const { messages, isLoading, error } = useMessages(conversationId);
@@ -68,14 +70,22 @@ export default function MessageThread({
           </div>
         )}
         {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} dict={dict} />
+          <MessageBubble key={message.id} message={message} dict={dict} locale={locale} />
         ))}
       </div>
     </div>
   );
 }
 
-function MessageBubble({ message, dict }: { message: Message; dict: I18nRecord }) {
+function MessageBubble({
+  message,
+  dict,
+  locale,
+}: {
+  readonly message: Message;
+  readonly dict: I18nRecord;
+  readonly locale: string;
+}) {
   const outbound = message.direction === "OUTBOUND";
   return (
     <div className={`flex ${outbound ? "justify-end" : "justify-start"}`}>
@@ -88,7 +98,7 @@ function MessageBubble({ message, dict }: { message: Message; dict: I18nRecord }
       >
         <p className="whitespace-pre-wrap break-words">{renderContent(message, dict)}</p>
         <span className="mt-1 flex items-center justify-end gap-1 text-[10px] text-gray-500 dark:text-gray-400">
-          {formatClockTime(message.createdAt)}
+          {formatClockTime(message.createdAt, locale)}
           {outbound && <StatusTicks status={message.status} dict={dict} />}
         </span>
       </div>
@@ -97,7 +107,7 @@ function MessageBubble({ message, dict }: { message: Message; dict: I18nRecord }
 }
 
 function renderContent(message: Message, dict: I18nRecord): string {
-  if (message.body && message.body.trim()) {
+  if (message.body?.trim()) {
     return message.body;
   }
   if (message.type === "TEMPLATE" && message.templateName) {
@@ -109,7 +119,13 @@ function renderContent(message: Message, dict: I18nRecord): string {
   return "";
 }
 
-function StatusTicks({ status, dict }: { status: MessageStatus; dict: I18nRecord }) {
+function StatusTicks({
+  status,
+  dict,
+}: {
+  readonly status: MessageStatus;
+  readonly dict: I18nRecord;
+}) {
   switch (status) {
     case "READ":
       return (

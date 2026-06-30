@@ -2,21 +2,20 @@ import type { Conversation } from "./conversation.types";
 
 /** Display label for a conversation: the WhatsApp contact name, or the phone if we have no name. */
 export function conversationName(conversation: Conversation): string {
-  const name = conversation.waContactName?.trim();
-  return name ? name : conversation.phoneE164;
+  return conversation.waContactName?.trim() || conversation.phoneE164;
 }
 
-/** HH:MM in the browser locale; empty string for a missing timestamp. */
-export function formatClockTime(iso: string | null): string {
+/** HH:MM in the active app locale; empty string for a missing timestamp. */
+export function formatClockTime(iso: string | null, locale: string): string {
   const date = parseDate(iso);
-  return date ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  return date ? date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "";
 }
 
 /**
  * Compact timestamp for the conversation list: clock time when it happened today, otherwise the
- * short date. Keeps the row tidy without a relative-time i18n table.
+ * short date. Formatted in the active app locale, so /en and /es render consistently.
  */
-export function formatListTime(iso: string | null): string {
+export function formatListTime(iso: string | null, locale: string): string {
   const date = parseDate(iso);
   if (!date) return "";
   const now = new Date();
@@ -25,8 +24,8 @@ export function formatListTime(iso: string | null): string {
     date.getMonth() === now.getMonth() &&
     date.getDate() === now.getDate();
   return sameDay
-    ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : date.toLocaleDateString([], { day: "2-digit", month: "2-digit" });
+    ? date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
+    : date.toLocaleDateString(locale, { day: "2-digit", month: "2-digit" });
 }
 
 function parseDate(iso: string | null): Date | null {

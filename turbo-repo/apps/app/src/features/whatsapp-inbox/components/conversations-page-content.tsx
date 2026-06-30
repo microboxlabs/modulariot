@@ -10,6 +10,7 @@ import MessageThread from "./message-thread";
 
 interface ConversationsPageContentProps {
   readonly dict: I18nRecord;
+  readonly locale: string;
 }
 
 /**
@@ -17,7 +18,7 @@ interface ConversationsPageContentProps {
  * Left: conversation list (polled). Right: the selected thread (polled), which clears the unread
  * badge on open. The active org is resolved server-side by the proxy routes.
  */
-export default function ConversationsPageContent({ dict }: ConversationsPageContentProps) {
+export default function ConversationsPageContent({ dict, locale }: ConversationsPageContentProps) {
   const { conversations, isLoading, error, refresh } = useConversations();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -48,11 +49,13 @@ export default function ConversationsPageContent({ dict }: ConversationsPageCont
           selectedId={selectedId}
           onSelect={setSelectedId}
           dict={dict}
+          locale={locale}
         />
         <MessageThread
           conversationId={selectedId}
           conversation={selected}
           dict={dict}
+          locale={locale}
           onRead={refresh}
         />
       </div>

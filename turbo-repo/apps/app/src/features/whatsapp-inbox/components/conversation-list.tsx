@@ -12,6 +12,7 @@ interface ConversationListProps {
   readonly selectedId: string | null;
   readonly onSelect: (id: string) => void;
   readonly dict: I18nRecord;
+  readonly locale: string;
 }
 
 /**
@@ -24,6 +25,7 @@ export default function ConversationList({
   selectedId,
   onSelect,
   dict,
+  locale,
 }: ConversationListProps) {
   const shell =
     "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden";
@@ -86,7 +88,7 @@ export default function ConversationList({
                       {conversationName(conversation)}
                     </span>
                     <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
-                      {formatListTime(conversation.lastMessageAt)}
+                      {formatListTime(conversation.lastMessageAt, locale)}
                     </span>
                   </span>
                   <span className="flex items-center justify-between gap-2">

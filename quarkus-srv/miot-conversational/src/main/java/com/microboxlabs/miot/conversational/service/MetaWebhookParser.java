@@ -20,6 +20,11 @@ import java.util.List;
  */
 final class MetaWebhookParser {
 
+    private static final String ID = "id";
+    private static final String MIME_TYPE = "mime_type";
+    private static final String CAPTION = "caption";
+    private static final String FILENAME = "filename";
+
     private MetaWebhookParser() {
     }
 
@@ -88,51 +93,56 @@ final class MetaWebhookParser {
 
     private static InboundMessage toInboundMessage(JsonObject m, String phoneNumberId, String contactName) {
         MessageType type = mapType(m.getString("type"));
-        String body = null;
-        String mediaRef = null;
-        String mediaMime = null;
-        String mediaFileName = null;
-        switch (type) {
-            case TEXT -> body = nestedString(m, "text", "body");
-            case IMAGE -> {
-                JsonObject media = m.getJsonObject("image");
-                mediaRef = media == null ? null : media.getString("id");
-                mediaMime = media == null ? null : media.getString("mime_type");
-                body = media == null ? null : media.getString("caption");
-            }
-            case DOCUMENT -> {
-                JsonObject media = m.getJsonObject("document");
-                mediaRef = media == null ? null : media.getString("id");
-                mediaMime = media == null ? null : media.getString("mime_type");
-                mediaFileName = media == null ? null : media.getString("filename");
-                body = media == null ? null : media.getString("caption");
-            }
-            case AUDIO, VIDEO, STICKER -> {
-                JsonObject media = m.getJsonObject(type.name().toLowerCase());
-                mediaRef = media == null ? null : media.getString("id");
-                mediaMime = media == null ? null : media.getString("mime_type");
-                body = media == null ? null : media.getString("caption");
-            }
-            default -> body = null;
-        }
+        MessageContent content = extractContent(m, type);
         return new InboundMessage(
                 phoneNumberId,
                 toE164(m.getString("from")),
                 contactName,
-                m.getString("id"),
+                m.getString(ID),
                 type,
-                body,
-                mediaRef,
-                mediaMime,
-                mediaFileName,
+                content.body(),
+                content.mediaRef(),
+                content.mediaMime(),
+                content.mediaFileName(),
                 epochSecondsToOffset(m.getString("timestamp")));
+    }
+
+    /** Pulls body/media fields for a message by type; absent keys read as null. */
+    private static MessageContent extractContent(JsonObject m, MessageType type) {
+        if (type == MessageType.TEXT) {
+            return new MessageContent(nestedString(m, "text", "body"), null, null, null);
+        }
+        String mediaKey = mediaKeyFor(type);
+        JsonObject media = mediaKey == null ? null : m.getJsonObject(mediaKey);
+        if (media == null) {
+            return new MessageContent(null, null, null, null);
+        }
+        return new MessageContent(
+                media.getString(CAPTION),
+                media.getString(ID),
+                media.getString(MIME_TYPE),
+                media.getString(FILENAME));
+    }
+
+    private static String mediaKeyFor(MessageType type) {
+        return switch (type) {
+            case IMAGE -> "image";
+            case DOCUMENT -> "document";
+            case AUDIO -> "audio";
+            case VIDEO -> "video";
+            case STICKER -> "sticker";
+            default -> null;
+        };
+    }
+
+    private record MessageContent(String body, String mediaRef, String mediaMime, String mediaFileName) {
     }
 
     private static StatusUpdate toStatusUpdate(JsonObject s) {
         if (s == null) {
             return null;
         }
-        String wamid = s.getString("id");
+        String wamid = s.getString(ID);
         MessageStatus status = mapStatus(s.getString("status"));
         if (wamid == null || status == null) {
             return null;

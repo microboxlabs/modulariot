@@ -8,7 +8,6 @@ import com.microboxlabs.miot.conversational.domain.MessageRole;
 import com.microboxlabs.miot.conversational.domain.MessageStatus;
 import com.microboxlabs.miot.conversational.persistence.ConversationRepository;
 import com.microboxlabs.miot.conversational.persistence.MessageRepository;
-import com.microboxlabs.miot.conversational.persistence.WebhookIdempotencyRepository;
 import com.microboxlabs.miot.integrations.service.InboundChannelRef;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionResolver;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,9 +22,10 @@ import org.jboss.logging.Logger;
 /**
  * Ingests a verified Meta webhook body into the message pool: driver replies become INBOUND
  * messages on the right org's conversation, and delivery/read/failed callbacks mirror onto the
- * outbound message they refer to. Idempotent — Meta retries are absorbed by the
- * {@link WebhookIdempotencyRepository} claim plus advance-only status transitions — so the webhook
- * can safely ack every well-signed POST.
+ * outbound message they refer to. Idempotent without a pre-write claim: inbound inserts dedupe on
+ * the wamid unique index ({@code appendInbound} returns null on a redelivery), and status
+ * mirroring is advance-only, so a retry after a failure re-processes safely rather than being
+ * silently swallowed.
  *
  * <p>Runs on a worker thread (the resource offloads it): the repositories use synchronous,
  * blocking Vert.x SQL, matching the outbound send path.
@@ -36,24 +36,19 @@ public class WhatsAppInboundService {
     private static final Logger LOG = Logger.getLogger(WhatsAppInboundService.class);
     private static final int PREVIEW_MAX = 280;
     private static final int SESSION_WINDOW_HOURS = 24;
-    private static final String SOURCE_MESSAGE = "meta-message";
-    private static final String SOURCE_STATUS = "meta-status";
 
     private final IntegrationConnectionResolver connectionResolver;
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
-    private final WebhookIdempotencyRepository idempotencyRepository;
 
     @Inject
     public WhatsAppInboundService(
             IntegrationConnectionResolver connectionResolver,
             ConversationRepository conversationRepository,
-            MessageRepository messageRepository,
-            WebhookIdempotencyRepository idempotencyRepository) {
+            MessageRepository messageRepository) {
         this.connectionResolver = connectionResolver;
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
-        this.idempotencyRepository = idempotencyRepository;
     }
 
     public void ingest(byte[] rawBody) {
@@ -71,17 +66,11 @@ public class WhatsAppInboundService {
             LOG.warn("Skipping inbound WhatsApp message with no id or sender");
             return;
         }
-        // Resolve the owning org BEFORE claiming, so a not-yet-configured number isn't permanently
-        // consumed — Meta can redeliver once the connection exists.
         Optional<InboundChannelRef> channel =
                 connectionResolver.resolveByWhatsAppPhoneNumberId(message.phoneNumberId());
         if (channel.isEmpty()) {
             LOG.warnf("No active WHATSAPP connection for phone_number_id %s — dropping inbound message",
                     message.phoneNumberId());
-            return;
-        }
-        if (!idempotencyRepository.recordOnce(SOURCE_MESSAGE, message.wamid())) {
-            LOG.debugf("Duplicate inbound WhatsApp message %s — already ingested", message.wamid());
             return;
         }
 
@@ -91,7 +80,9 @@ public class WhatsAppInboundService {
                 : OffsetDateTime.now(ZoneOffset.UTC);
         Conversation conversation = findOrCreateConversation(tenantCode, message, occurredAt);
 
-        messageRepository.append(new Message(
+        // The insert IS the dedup: a redelivered wamid hits the unique index and returns null, so
+        // we skip the conversation touch (no double unread count) without losing anything.
+        Message persisted = messageRepository.appendInbound(new Message(
                 UUID.randomUUID().toString(),
                 conversation.id(),
                 MessageDirection.INBOUND,
@@ -113,6 +104,10 @@ public class WhatsAppInboundService {
                 null,
                 null,
                 occurredAt));
+        if (persisted == null) {
+            LOG.debugf("Duplicate inbound WhatsApp message %s — already ingested", message.wamid());
+            return;
+        }
 
         conversationRepository.updateInbound(
                 conversation.id(),
@@ -128,10 +123,9 @@ public class WhatsAppInboundService {
             LOG.debugf("Status %s for unknown wamid %s — ignored", status.status(), status.wamid());
             return;
         }
+        // Advance-only IS the idempotency: re-applying a status the message already reached is a
+        // no-op, so a redelivered callback needs no separate dedup ledger.
         if (!advances(existing.status(), status.status())) {
-            return;
-        }
-        if (!idempotencyRepository.recordOnce(SOURCE_STATUS, status.wamid() + ":" + status.status())) {
             return;
         }
         OffsetDateTime at = status.timestamp() != null ? status.timestamp() : OffsetDateTime.now(ZoneOffset.UTC);

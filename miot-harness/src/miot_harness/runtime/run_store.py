@@ -16,6 +16,8 @@ class HarnessRunRecord(BaseModel):
     # The format `answer` was rendered in (see runtime.answer_render). Echoed so
     # callers know how to interpret the string. Default keeps legacy persisted
     # records (written before this field existed) loadable.
+    # Security note: the "html" format is unsanitized Markdown-to-HTML;
+    # consumers that inject it into a DOM must sanitize to prevent XSS.
     answer_format: str = "markdown"
     # Phase E (plan 13): the conversation this run belongs to. None for
     # one-shot requests; set when the caller passes `conversation_id`.

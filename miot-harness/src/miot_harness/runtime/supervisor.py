@@ -40,7 +40,7 @@ from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.spans import agent_span
-from miot_harness.runtime.answer_render import render_answer
+from miot_harness.runtime.answer_render import render_answer_with_format
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.context import HarnessContext, UserRequest
 from miot_harness.runtime.conversation import (
@@ -307,10 +307,15 @@ class HarnessSupervisor:
 
         Must be called AFTER any ConversationStore append (history stores the
         canonical Markdown) and immediately BEFORE persisting the record.
-        None-safe; render_answer never raises.
+        None-safe; render_answer_with_format never raises.
+
+        Must be called exactly once per run: it mutates `record.answer` in
+        place, so re-finalizing a non-markdown answer would double-render and
+        corrupt it.
         """
-        record.answer_format = ctx.answer_format
-        record.answer = render_answer(record.answer, ctx.answer_format)
+        rendered, effective_fmt = render_answer_with_format(record.answer, ctx.answer_format)
+        record.answer = rendered
+        record.answer_format = effective_fmt
 
     def _emit(self, record: HarnessRunRecord, event: HarnessEvent) -> None:
         """Single funnel for landing a `HarnessEvent` on a run record.

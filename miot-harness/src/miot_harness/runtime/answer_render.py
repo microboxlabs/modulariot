@@ -49,6 +49,29 @@ _RENDERERS: dict[str, Callable[[str], str]] = {
 }
 
 
+def render_answer_with_format(markdown_text: str | None, fmt: str) -> tuple[str | None, str]:
+    """Render `markdown_text` as `fmt`, returning (result, effective_fmt).
+
+    `effective_fmt` is `fmt` only when the result is genuinely in that format.
+    It is "markdown" whenever the result is the raw Markdown string — an
+    unknown format or a renderer-error fallback — so callers can echo a format
+    that actually matches the bytes they return. A None answer preserves the
+    requested `fmt` (there is no string to mislabel).
+    """
+    if markdown_text is None:
+        return None, fmt
+    if fmt == "markdown":
+        return markdown_text, "markdown"
+    renderer = _RENDERERS.get(fmt)
+    if renderer is None:
+        return markdown_text, "markdown"
+    try:
+        return renderer(markdown_text), fmt
+    except Exception:  # noqa: BLE001 — rendering must never fail a run
+        logger.exception("answer render failed for format=%s; using raw markdown", fmt)
+        return markdown_text, "markdown"
+
+
 def render_answer(markdown_text: str | None, fmt: str) -> str | None:
     """Return `markdown_text` rendered as `fmt`.
 
@@ -56,15 +79,4 @@ def render_answer(markdown_text: str | None, fmt: str) -> str | None:
     return the input unchanged. Renderer exceptions fall back to the raw
     Markdown (logged), never propagating.
     """
-    if markdown_text is None:
-        return None
-    if fmt == "markdown":
-        return markdown_text
-    renderer = _RENDERERS.get(fmt)
-    if renderer is None:
-        return markdown_text
-    try:
-        return renderer(markdown_text)
-    except Exception:  # noqa: BLE001 — rendering must never fail a run
-        logger.exception("answer render failed for format=%s; using raw markdown", fmt)
-        return markdown_text
+    return render_answer_with_format(markdown_text, fmt)[0]

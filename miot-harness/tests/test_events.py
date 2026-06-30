@@ -52,6 +52,7 @@ def test_event_type_full_set_is_pinned():
         "usage.recorded",
         "freshness.warning",
         "verification.completed",
+        "answer.delta",
         "answer.completed",
         "run.completed",
         "run.failed",

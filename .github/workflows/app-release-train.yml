@@ -189,16 +189,32 @@ jobs:
         run: |
           node - <<'NODE'
           const fs = require("fs");
-          const path = "miot-harness/pyproject.toml";
           const version = "${{ steps.plan.outputs.harness_version }}";
-          const content = fs.readFileSync(path, "utf8");
-          const match = content.match(/^version = "([^"]+)"$/m);
+
+          const updateFile = (path, pattern, replacement) => {
+            const content = fs.readFileSync(path, "utf8");
+            if (!pattern.test(content)) {
+              throw new Error(`Could not update harness version in ${path}`);
+            }
+            const next = content.replace(pattern, replacement);
+            if (next !== content) {
+              fs.writeFileSync(path, next);
+            }
+          };
+
+          const pyprojectPath = "miot-harness/pyproject.toml";
+          const pyprojectContent = fs.readFileSync(pyprojectPath, "utf8");
+          const match = pyprojectContent.match(/^version = "([^"]+)"$/m);
           if (!match) {
-            throw new Error(`Could not update project.version in ${path}`);
+            throw new Error(`Could not update project.version in ${pyprojectPath}`);
           }
-          if (match[1] !== version) {
-            fs.writeFileSync(path, content.replace(/^version = ".*"$/m, `version = "${version}"`));
-          }
+          updateFile(pyprojectPath, /^version = ".*"$/m, `version = "${version}"`);
+
+          updateFile(
+            "miot-harness/uv.lock",
+            /(\[\[package\]\]\nname = "miot-harness"\nversion = ")[^"]+(")/,
+            (_match, prefix, suffix) => `${prefix}${version}${suffix}`
+          );
           NODE
 
       - name: Resolve release date
@@ -278,7 +294,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "${{ steps.plan.outputs.stack_plan_file }}" releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/package.json turbo-repo/package-lock.json quarkus-srv miot-harness/pyproject.toml
+          git add "${{ steps.plan.outputs.stack_plan_file }}" releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/package.json turbo-repo/package-lock.json quarkus-srv miot-harness/pyproject.toml miot-harness/uv.lock
           if git diff --cached --quiet; then
             echo "No release prep changes to commit."
           else
@@ -416,8 +432,14 @@ jobs:
 
           if [[ "${{ needs.prepare.outputs.harness_changed }}" == "true" ]]; then
             harness_version="$(node -p "require('fs').readFileSync('miot-harness/pyproject.toml', 'utf8').match(/^version = \\\"([^\\\"]+)\\\"$/m)?.[1] || process.exit(1)")"
+            harness_lock_version="$(node -p "require('fs').readFileSync('miot-harness/uv.lock', 'utf8').match(/\\[\\[package\\]\\]\\nname = \\\"miot-harness\\\"\\nversion = \\\"([^\\\"]+)\\\"/)?.[1] || process.exit(1)")"
             if [[ "$harness_version" != "${{ needs.prepare.outputs.harness_version }}" ]]; then
               echo "trunk harness version is $harness_version, expected ${{ needs.prepare.outputs.harness_version }}." >&2
+              echo "Merge the release PR before approving/tagging." >&2
+              exit 1
+            fi
+            if [[ "$harness_lock_version" != "${{ needs.prepare.outputs.harness_version }}" ]]; then
+              echo "trunk harness lock version is $harness_lock_version, expected ${{ needs.prepare.outputs.harness_version }}." >&2
               echo "Merge the release PR before approving/tagging." >&2
               exit 1
             fi

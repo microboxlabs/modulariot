@@ -190,4 +190,35 @@ class HarnessProxyResourcePostTest {
                 .body("answer_format", is("yaml"))
                 .body("answer", is("answer: hi\n"));
     }
+
+    @Test
+    void postRunsForwardsJsonAnswerFormatAndEchoesBlocks() {
+        // Arrange: stub the Python backend to match answer_format:"json" in the request
+        // body and return a response with answer as a serialized JSON block array.
+        // Registered after @BeforeEach's default /runs stub so WireMock
+        // (last-in-first-tried) evaluates this more specific body-matching stub first.
+        String token = TestTokenFactory.signWebToken(StubAlfrescoMembershipClient.MEMBER_EMAIL);
+        WireMockLifecycle.server().stubFor(WireMock.post(WireMock.urlEqualTo("/runs"))
+                .withRequestBody(
+                        WireMock.matchingJsonPath("$.answer_format", WireMock.equalTo("json")))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"run_id\":\"run_x\",\"status\":\"completed\","
+                                + "\"answer\":\"[{\\\"type\\\":\\\"markdown\\\",\\\"value\\\":\\\"hi\\\"}]\","
+                                + "\"answer_format\":\"json\"}")));
+
+        // Act + Assert: proxy forwards answer_format:"json" to the backend and returns
+        // the echoed answer_format and the serialized block-array string.
+        given()
+                .header("Authorization", "Bearer " + token)
+                .contentType("application/json")
+                .body("{\"message\":\"hi\",\"answer_format\":\"json\"}")
+                .when()
+                .post(RUNS_PATH)
+                .then()
+                .statusCode(200)
+                .body("answer_format", is("json"))
+                .body("answer", org.hamcrest.Matchers.containsString("\"type\":\"markdown\""));
+    }
 }

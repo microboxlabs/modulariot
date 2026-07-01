@@ -94,3 +94,30 @@ def test_render_answer_with_format_none_preserves_requested_fmt():
     result, effective_fmt = render_answer_with_format(None, "yaml")
     assert result is None
     assert effective_fmt == "yaml"
+
+
+def test_json_format_passes_through_valid_block_array():
+    import json as _json
+
+    from miot_harness.runtime.answer_render import render_answer_with_format
+
+    raw = '[{"type": "markdown", "value": "hi"}]'
+    out, effective = render_answer_with_format(raw, "json")
+    assert effective == "json"
+    assert _json.loads(out) == [{"type": "markdown", "value": "hi"}]
+
+
+def test_json_format_falls_back_to_single_markdown_block():
+    import json as _json
+
+    from miot_harness.runtime.answer_render import render_answer_with_format
+
+    out, effective = render_answer_with_format("just prose", "json")
+    assert effective == "json"
+    assert _json.loads(out) == [{"type": "markdown", "value": "just prose"}]
+
+
+def test_json_format_none_input_preserves_none_and_format():
+    from miot_harness.runtime.answer_render import render_answer_with_format
+
+    assert render_answer_with_format(None, "json") == (None, "json")

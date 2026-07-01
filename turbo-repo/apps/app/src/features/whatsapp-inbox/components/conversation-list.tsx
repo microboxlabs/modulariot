@@ -67,8 +67,10 @@ export default function ConversationList({
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wide">
           {tr("listTitle", dict)}
         </h2>
-        <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-          <span className="sr-only sm:not-sr-only">{tr("groupBy", dict)}</span>
+        <label className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+          {/* Label kept for screen readers only — the select value already reads the current grouping,
+              and an inline label wraps/cramps the 340px list header. */}
+          <span className="sr-only">{tr("groupBy", dict)}</span>
           <select
             value={groupBy}
             onChange={(e) => onGroupByChange(e.target.value as GroupBy)}

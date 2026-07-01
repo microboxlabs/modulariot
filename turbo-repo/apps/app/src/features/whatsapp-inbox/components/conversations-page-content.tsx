@@ -5,6 +5,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useConversations } from "../use-conversations";
+import type { GroupBy } from "../grouping";
 import ConversationList from "./conversation-list";
 import MessageThread from "./message-thread";
 
@@ -21,6 +22,7 @@ interface ConversationsPageContentProps {
 export default function ConversationsPageContent({ dict, locale }: ConversationsPageContentProps) {
   const { conversations, isLoading, error, refresh } = useConversations();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [groupBy, setGroupBy] = useState<GroupBy>("recent");
 
   const selected = conversations.find((c) => c.id === selectedId) ?? null;
 
@@ -48,6 +50,8 @@ export default function ConversationsPageContent({ dict, locale }: Conversations
           isLoading={isLoading}
           selectedId={selectedId}
           onSelect={setSelectedId}
+          groupBy={groupBy}
+          onGroupByChange={setGroupBy}
           dict={dict}
           locale={locale}
         />

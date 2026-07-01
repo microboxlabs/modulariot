@@ -42,9 +42,12 @@ public class ConversationRepository {
 
     // The single open no-service thread for a phone — a cold-inbound home that the next service
     // outbound adopts (its context_service_code goes NULL → the service code).
+    // The partial unique index already guarantees at most one such row; ORDER BY keeps the pick
+    // deterministic even if a brief race ever produced two.
     private static final String SELECT_OPEN_UNASSIGNED_BY_PHONE = SELECT_FROM + """
             WHERE tenant_code = $1 AND phone_e164 = $2
               AND context_service_code IS NULL AND status = 'OPEN'
+            ORDER BY created_at DESC
             LIMIT 1
             """;
 

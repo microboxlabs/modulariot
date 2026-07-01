@@ -56,8 +56,8 @@ export default function MessageThread({
   return (
     <div className="flex flex-col min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white truncate min-w-0 flex-1">
             {conversationName(conversation)}
           </h2>
           {conversation.contextServiceCode && (

@@ -25,7 +25,8 @@ WITH ranked AS (
 UPDATE miot_conversational.wa_conversation c
    SET context_service_code = NULL,
        context_process_instance_id = NULL,
-       context_task_id = NULL
+       context_task_id = NULL,
+       driver_id = NULL
   FROM ranked
  WHERE c.id = ranked.id
    AND ranked.rn > 1;
@@ -42,6 +43,8 @@ CREATE UNIQUE INDEX idx_wa_conversation_tenant_phone_unassigned
     ON miot_conversational.wa_conversation (tenant_code, phone_e164)
     WHERE context_service_code IS NULL AND status = 'OPEN';
 
--- Inbound attribution: find the newest thread for a phone.
+-- Inbound attribution: find the newest thread for a phone. Column order/direction mirrors
+-- findLatestByTenantAndPhone's ORDER BY so the lookup is covered without an extra sort.
 CREATE INDEX idx_wa_conversation_tenant_phone_recent
-    ON miot_conversational.wa_conversation (tenant_code, phone_e164, last_message_at DESC);
+    ON miot_conversational.wa_conversation (
+        tenant_code, phone_e164, last_message_at DESC NULLS LAST, created_at DESC);

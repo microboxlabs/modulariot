@@ -147,8 +147,10 @@ public class WhatsAppMessagingService {
      */
     private Conversation findOrCreateConversation(
             String tenantCode, SendWhatsAppMessageRequest request, OffsetDateTime now) {
+        // serviceCode is normalized to null-if-blank by the request record, so a present value is a
+        // real service (never "").
         String serviceCode = request.serviceCode();
-        if (serviceCode != null && !serviceCode.isBlank()) {
+        if (serviceCode != null) {
             Conversation byService = conversationRepository.findByTenantAndService(tenantCode, serviceCode);
             if (byService != null) {
                 return byService;

@@ -67,6 +67,16 @@ from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
+_JSON_BLOCKS_INSTRUCTION = (
+    "# Output format: JSON blocks\n\n"
+    "Return ONLY a JSON array of typed blocks as your entire answer — no prose "
+    "outside the array and no code fence. Each block is an object "
+    '{"type": <string>, "value": <...>}. Known types:\n'
+    '- "markdown": value is a Markdown string.\n'
+    '- "url": value is an object {"url": <string>, "name": <string>}.\n'
+    "Emit multiple blocks to convey different parts of the answer."
+)
+
 
 class HarnessSupervisor:
     def __init__(
@@ -219,6 +229,7 @@ class HarnessSupervisor:
         # list when no store, no conversation_id, or no prior history.
         prior_messages = self._hydrate_history(request)
         prior_messages = self._inject_skill(request, ctx, prior_messages)
+        prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
 
         try:
             if route.route == HarnessRoute.DATA_QUERY:
@@ -386,6 +397,22 @@ class HarnessSupervisor:
             )
         )
         return [guidance, *prior_messages]
+
+    def _inject_json_blocks_instruction(
+        self,
+        ctx: HarnessContext,
+        prior_messages: list[BaseMessage],
+    ) -> list[BaseMessage]:
+        """Prepend the JSON-block output contract when json output is requested.
+
+        For ``answer_format == "json"`` the agent must emit a JSON array of
+        typed blocks instead of prose; this generic instruction supplies the
+        schema contract (any active skill supplies the domain content). For all
+        other formats this is a no-op.
+        """
+        if ctx.answer_format != "json":
+            return prior_messages
+        return [SystemMessage(content=_JSON_BLOCKS_INSTRUCTION), *prior_messages]
 
     def _hydrate_history(self, request: UserRequest) -> list[BaseMessage]:
         """Read prior turns from `ConversationStore` and trim them to fit the

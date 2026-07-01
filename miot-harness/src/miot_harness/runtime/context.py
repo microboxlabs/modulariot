@@ -1,8 +1,9 @@
+import re
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.permissions import (
@@ -20,7 +21,12 @@ RunMode = Literal["auto", "canned", "meta", "agentic"]
 # The output format for the run's `answer` string. The JSON response envelope
 # never changes; only the encoding of `answer` does. "markdown" is canonical
 # (what the agents emit) and the default when a caller omits the field.
-AnswerFormat = Literal["markdown", "plain", "html", "xml", "yaml"]
+AnswerFormat = Literal["markdown", "plain", "html", "xml", "yaml", "json"]
+
+# A leading "/slug" in a request message selects a skill (e.g.
+# "/fleet-report how is the fleet?"). The slug must be followed by whitespace
+# or end-of-string, so path-like text ("/runs/status") is not matched.
+_SKILL_SLUG_RE = re.compile(r"^/(?P<slug>[A-Za-z0-9_-]+)(?:\s+(?P<rest>.*))?$", re.DOTALL)
 
 
 class HarnessContext(BaseModel):
@@ -98,6 +104,20 @@ class UserRequest(BaseModel):
     rules: list[PermissionRule] = Field(default_factory=list)
     # Output format for the response `answer` string (default markdown).
     answer_format: AnswerFormat = "markdown"
+
+    @model_validator(mode="after")
+    def _extract_skill_slug(self) -> "UserRequest":
+        """Pull a leading "/slug" out of `message` into `skill_id` when empty.
+
+        An explicit `skill_id` always wins (message left untouched). Unknown
+        slugs resolve to no skill downstream and the run proceeds normally.
+        """
+        if not self.skill_id:
+            match = _SKILL_SLUG_RE.match(self.message)
+            if match is not None:
+                self.skill_id = match.group("slug")
+                self.message = match.group("rest") or ""
+        return self
 
     def to_context(self) -> HarnessContext:
         # NOTE: the policy built here is UNGATED — the bypass policy gate

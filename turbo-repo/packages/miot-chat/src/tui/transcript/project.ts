@@ -193,8 +193,6 @@ export function applyHarnessEvent(
         typeof event.data.cache_creation_input_tokens === "number"
           ? event.data.cache_creation_input_tokens
           : 0;
-      const cost =
-        typeof event.data.cost_usd === "number" ? event.data.cost_usd : 0;
       const agent =
         typeof event.data.agent === "string" ? event.data.agent : null;
       return {
@@ -204,10 +202,7 @@ export function applyHarnessEvent(
           outputTokens: slice.usageTotals.outputTokens + outT,
           cacheReadTokens: slice.usageTotals.cacheReadTokens + cacheR,
           cacheCreationTokens: slice.usageTotals.cacheCreationTokens + cacheC,
-          costUsd: slice.usageTotals.costUsd + cost,
           lastAgent: agent,
-          lastCostUsd:
-            typeof event.data.cost_usd === "number" ? event.data.cost_usd : null,
         },
       };
     }

@@ -43,17 +43,15 @@ export type TranscriptItem =
 
 /**
  * Running totals across the conversation. Reset by CLEAR /
- * RESET_CONVERSATION; accumulated turn-over-turn. `lastCostUsd` is
- * the cost of the most recent LLM call (chip footer uses it).
+ * RESET_CONVERSATION; accumulated turn-over-turn. Dollar cost is
+ * intentionally not tracked here — it is not shared with the client.
  */
 export interface UsageTotals {
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;
   cacheCreationTokens: number;
-  costUsd: number;
   lastAgent: string | null;
-  lastCostUsd: number | null;
 }
 
 export const ZERO_USAGE: UsageTotals = {
@@ -61,9 +59,7 @@ export const ZERO_USAGE: UsageTotals = {
   outputTokens: 0,
   cacheReadTokens: 0,
   cacheCreationTokens: 0,
-  costUsd: 0,
   lastAgent: null,
-  lastCostUsd: null,
 };
 
 export interface PendingApproval {

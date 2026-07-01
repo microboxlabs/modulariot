@@ -68,8 +68,10 @@ class WhatsAppMessagingServiceTest {
 
     @Test
     void previewLabelsTemplateByName() throws Exception {
+        // A template with no local copy (see WhatsAppTemplateRenderer) falls back to its bare name;
+        // templates we do have copy for render their filled body (covered in WhatsAppTemplateRendererTest).
         String preview = (String) preview().invoke(null, request("+56900", "TEMPLATE", null, "trip_assigned"));
-        assertEquals("[template] trip_assigned", preview);
+        assertEquals("trip_assigned", preview);
     }
 
     @Test

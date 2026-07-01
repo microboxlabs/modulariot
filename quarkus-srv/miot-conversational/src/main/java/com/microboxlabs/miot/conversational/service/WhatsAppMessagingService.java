@@ -96,7 +96,7 @@ public class WhatsAppMessagingService {
                 MessageDirection.OUTBOUND,
                 request.roleOrDefault(),
                 request.isTemplate() ? MessageType.TEMPLATE : MessageType.TEXT,
-                request.isTemplate() ? null : request.body(),
+                renderedBody(request),
                 request.isTemplate() ? request.templateName() : null,
                 null,
                 null,
@@ -254,10 +254,24 @@ public class WhatsAppMessagingService {
         return metadata;
     }
 
+    /**
+     * Body persisted to the pool: the free-text body for TEXT, or the rendered template copy for
+     * TEMPLATE (so the panel shows the real message). Null for a template we don't have copy for —
+     * the UI then falls back to the template name.
+     */
+    private static String renderedBody(SendWhatsAppMessageRequest request) {
+        if (!request.isTemplate()) {
+            return request.body();
+        }
+        return WhatsAppTemplateRenderer.render(request.templateName(), request.templateParamsOrEmpty());
+    }
+
     private static String preview(SendWhatsAppMessageRequest request) {
-        String text = request.isTemplate()
-                ? "[template] " + request.templateName()
-                : request.body();
+        String text = renderedBody(request);
+        if (text == null) {
+            // Unknown template (no local copy) — fall back to its name so the list still shows something.
+            text = request.isTemplate() ? request.templateName() : null;
+        }
         if (text == null) {
             return null;
         }

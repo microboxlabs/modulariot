@@ -139,12 +139,14 @@ public class WhatsAppInboundService {
 
     private Conversation findOrCreateConversation(
             String tenantCode, InboundMessage message, OffsetDateTime now) {
-        Conversation existing = conversationRepository.findByTenantAndPhone(tenantCode, message.fromE164());
-        if (existing != null) {
-            return existing;
+        // A driver runs one service at a time, so the newest thread for this phone is the current
+        // service — the reply belongs to it (and inherits its service code onto the message row).
+        Conversation latest = conversationRepository.findLatestByTenantAndPhone(tenantCode, message.fromE164());
+        if (latest != null) {
+            return latest;
         }
-        // Cold inbound: no trip context yet (context is anchored by trip-tied outbound). Created
-        // neutral; updateInbound then applies the first inbound touch (unread → 1, timestamps).
+        // Cold inbound: no thread yet. Create a no-service thread; a later service-tied outbound
+        // adopts it. updateInbound then applies the first inbound touch (unread → 1, timestamps).
         return conversationRepository.create(new Conversation(
                 UUID.randomUUID().toString(),
                 tenantCode,

@@ -138,11 +138,25 @@ public class WhatsAppMessagingService {
         return metaClient.sendText(connection.baseUrl(), phoneNumberId, token, request.to(), request.body());
     }
 
+    /**
+     * Resolves the thread this outbound belongs to under the per-service model. A trip-tied send
+     * (carries a service code) lands on that service's thread — reusing it across the whole service
+     * life, or adopting the phone's open no-service thread on first contact, or opening a fresh one.
+     * An ad-hoc send with no service uses the phone's open no-service thread (or a new one). The
+     * subsequent {@code updateOutbound} COALESCE fills the service code when adopting.
+     */
     private Conversation findOrCreateConversation(
             String tenantCode, SendWhatsAppMessageRequest request, OffsetDateTime now) {
-        Conversation existing = conversationRepository.findByTenantAndPhone(tenantCode, request.to());
-        if (existing != null) {
-            return existing;
+        String serviceCode = request.serviceCode();
+        if (serviceCode != null && !serviceCode.isBlank()) {
+            Conversation byService = conversationRepository.findByTenantAndService(tenantCode, serviceCode);
+            if (byService != null) {
+                return byService;
+            }
+        }
+        Conversation unassigned = conversationRepository.findOpenUnassignedByPhone(tenantCode, request.to());
+        if (unassigned != null) {
+            return unassigned;
         }
         return conversationRepository.create(new Conversation(
                 UUID.randomUUID().toString(),

@@ -477,6 +477,7 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
     expect(s2.usageTotals.lastAgent).toBe("synthesizer");
     // Dollar cost is never carried on the client-side usage totals.
     expect(s2.usageTotals).not.toHaveProperty("costUsd");
+    expect(s2.usageTotals).not.toHaveProperty("lastCostUsd");
   });
 
   it("agent.completed is intentionally dropped from the transcript", () => {

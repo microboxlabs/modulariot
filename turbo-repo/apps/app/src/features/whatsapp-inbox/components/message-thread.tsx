@@ -11,6 +11,7 @@ import type { Conversation, Message, MessageStatus } from "../conversation.types
 import { conversationName, formatClockTime } from "../format";
 import { useMessages } from "../use-messages";
 import { markConversationRead } from "../inbox-data-service";
+import ServiceBadge from "./service-badge";
 
 interface MessageThreadProps {
   readonly conversationId: string | null;
@@ -55,9 +56,14 @@ export default function MessageThread({
   return (
     <div className="flex flex-col min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-          {conversationName(conversation)}
-        </h2>
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white truncate min-w-0 flex-1">
+            {conversationName(conversation)}
+          </h2>
+          {conversation.contextServiceCode && (
+            <ServiceBadge code={conversation.contextServiceCode} dict={dict} />
+          )}
+        </div>
         <p className="text-xs text-gray-500 dark:text-gray-400">{conversation.phoneE164}</p>
       </div>
 

@@ -4008,6 +4008,7 @@
     "groupByDriver": "Driver",
     "noService": "No service",
     "noDriver": "Unknown driver",
+    "serviceLabel": "Service",
     "loading": "Loading conversations…",
     "empty": "No conversations yet.",
     "noSelection": "Select a conversation to view the thread.",

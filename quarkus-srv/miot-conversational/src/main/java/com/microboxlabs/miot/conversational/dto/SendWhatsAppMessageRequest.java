@@ -32,6 +32,25 @@ public record SendWhatsAppMessageRequest(
         String actor) {
 
     /**
+     * Normalizes blank context/identity fields to {@code null} so they never reach persistence as
+     * empty strings. Critical for {@code serviceCode}: per-service uniqueness treats {@code ""} as a
+     * real value (NOT NULL), so a blank code would be indexed and collide across unrelated
+     * blank-service sends, and would never match {@code findByTenantAndService} — distinct from
+     * "unassigned" ({@code null}). Applies on every construction path (the pre-{@code actor}
+     * constructor and Jackson both funnel through here).
+     */
+    public SendWhatsAppMessageRequest {
+        driverId = blankToNull(driverId);
+        serviceCode = blankToNull(serviceCode);
+        processInstanceId = blankToNull(processInstanceId);
+        taskId = blankToNull(taskId);
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
+    /**
      * Backward-compatible constructor (pre-{@code actor}). Keeps existing positional callers
      * working; {@code actor} defaults to {@code null} (the M2M path then attributes to the
      * calling principal). Jackson always binds the canonical (all-component) constructor.

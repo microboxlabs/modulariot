@@ -27,8 +27,29 @@ public class ConversationRepository {
 
     private static final String SELECT_FROM = "SELECT " + COLUMNS + " FROM miot_conversational.wa_conversation ";
 
-    private static final String SELECT_BY_TENANT_AND_PHONE =
-            SELECT_FROM + "WHERE tenant_code = $1 AND phone_e164 = $2";
+    // A thread's identity is the service it is about (context_service_code); outbound find-or-create
+    // keys on it.
+    private static final String SELECT_BY_TENANT_AND_SERVICE =
+            SELECT_FROM + "WHERE tenant_code = $1 AND context_service_code = $2";
+
+    // Inbound attribution: a driver runs one service at a time, so the newest thread for the phone is
+    // the current service.
+    private static final String SELECT_LATEST_BY_TENANT_AND_PHONE = SELECT_FROM + """
+            WHERE tenant_code = $1 AND phone_e164 = $2
+            ORDER BY last_message_at DESC NULLS LAST, created_at DESC
+            LIMIT 1
+            """;
+
+    // The single open no-service thread for a phone — a cold-inbound home that the next service
+    // outbound adopts (its context_service_code goes NULL → the service code).
+    // The partial unique index already guarantees at most one such row; ORDER BY keeps the pick
+    // deterministic even if a brief race ever produced two.
+    private static final String SELECT_OPEN_UNASSIGNED_BY_PHONE = SELECT_FROM + """
+            WHERE tenant_code = $1 AND phone_e164 = $2
+              AND context_service_code IS NULL AND status = 'OPEN'
+            ORDER BY created_at DESC
+            LIMIT 1
+            """;
 
     private static final String SELECT_BY_TENANT_AND_ID =
             SELECT_FROM + "WHERE tenant_code = $1 AND id = $2";
@@ -96,8 +117,30 @@ public class ConversationRepository {
         this.clientInstance = clientInstance;
     }
 
-    public Conversation findByTenantAndPhone(String tenantCode, String phoneE164) {
-        var rows = client().preparedQuery(SELECT_BY_TENANT_AND_PHONE)
+    /** The thread for a service (its immutable identity), or null. Used by the outbound send path. */
+    public Conversation findByTenantAndService(String tenantCode, String serviceCode) {
+        if (serviceCode == null || serviceCode.isBlank()) {
+            return null;
+        }
+        var rows = client().preparedQuery(SELECT_BY_TENANT_AND_SERVICE)
+                .execute(Tuple.of(tenantCode, serviceCode))
+                .await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    /** The newest thread for a phone (the driver's current service), or null. Inbound attaches here. */
+    public Conversation findLatestByTenantAndPhone(String tenantCode, String phoneE164) {
+        var rows = client().preparedQuery(SELECT_LATEST_BY_TENANT_AND_PHONE)
+                .execute(Tuple.of(tenantCode, phoneE164))
+                .await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    /** The one open no-service thread for a phone, or null — the target a new service adopts. */
+    public Conversation findOpenUnassignedByPhone(String tenantCode, String phoneE164) {
+        var rows = client().preparedQuery(SELECT_OPEN_UNASSIGNED_BY_PHONE)
                 .execute(Tuple.of(tenantCode, phoneE164))
                 .await().indefinitely();
         var iterator = rows.iterator();

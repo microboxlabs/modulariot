@@ -4008,6 +4008,7 @@
     "groupByDriver": "Conductor",
     "noService": "Sin servicio",
     "noDriver": "Conductor desconocido",
+    "serviceLabel": "Servicio",
     "loading": "Cargando conversaciones…",
     "empty": "Aún no hay conversaciones.",
     "noSelection": "Selecciona una conversación para ver los mensajes.",

@@ -1,0 +1,80 @@
+# 🔔 Release Notes v1.31.20 — ModularIoT
+
+### Fecha: 01/07/2026
+
+**Objetivo**: Consolidar el canal de WhatsApp y la capa de datos/IA del stack, mientras se refuerza la estabilidad operativa en CI/CD, despliegues y Helm. Esta versión prioriza trazabilidad de builds, robustez en producción y continuidad de la operación diaria.
+
+## 🚀 Evolutivos
+
+- **📍 Notificación de rechazo POD por WhatsApp (operación de entrega)**
+  - **Key point**: Se incorporó el flujo para notificar al conductor cuando un POD es rechazado, incluyendo motivos de rechazo y trazabilidad del operador que ejecuta la acción.
+  - **Technical detail**: `ecm-coordinator` dispara un job idempotente y delega el envío M2M al modulith con plantilla y parámetros nominales; se mantiene el comportamiento existente del flujo de rechazo.
+
+- **📍 Canal WhatsApp end-to-end en Modulith/App** *(Integración OSS — MIOT-0.5.21)*
+  - **Key point**: Se completó la base funcional del canal: proveedor de conexión, persistencia de conversaciones/mensajes, envío outbound, webhook inbound, inbox unificada y mejoras de experiencia (ticks, render de plantilla, agrupaciones, ventana 24h, media hacia `serviceFolder`).
+  - **Technical detail**: Se habilitó gestión en Settings (crear/editar/test, modo test y allowlist), soporte de parámetros de plantilla por nombre, endpoint outbound M2M separado y actualización de estados de mensajes en conversación.
+
+- **📍 Evolución del Harness como plataforma de datos genérica** *(Integración OSS — MIOT-0.5.21)*
+  - **Key point**: El harness avanzó desde abstracción de conexiones hasta consulta segura genérica, introspección de esquemas y knowledge packs curados.
+  - **Technical detail**: Se añadieron conexiones declarativas, políticas de SQL read-only, resumen de esquema con FKs, detección/probing de packs, descubrimiento de `SKILL.md`, listado de skills e invocación desde chat/CLI.
+
+- **📍 Build info y UX operativa en la app** *(Integración OSS — MIOT-0.5.21)*
+  - **Key point**: La app ahora expone metadatos completos de build/despliegue y créditos de contribución en modal de información.
+  - **Technical detail**: Se unificó el formato de manifiestos para nightly/release train y se incorporaron mejoras de encabezados/filtros en páginas seguras.
+
+## 🔧 Integraciones
+
+- **🔌 Helm charts del stack y despliegues de documentación** *(Integración OSS — MIOT-0.5.21)*
+  - **Scope**: Se agregó `miot-docs` al chart de stack (deshabilitado por defecto), se incorporó su build/publicación en los trenes de stack y quedó preparada la ruta de despliegue docs-only a Streamhub prod (ítem en estado abierto, planificado dentro del alcance de integración).
+
+- **🔌 Robustez de pipelines e imágenes de release/nightly** *(Integración OSS — MIOT-0.5.21)*
+  - **Scope**: Se corrigieron condiciones de carrera y disparadores de workflows para evitar imágenes stale, se aseguró build de modulith con componente conversacional habilitado y se mejoró el cálculo de créditos en nightlies por rango de release.
+
+- **🔌 Seguridad de toolchain de pruebas** *(Integración OSS — MIOT-0.5.21)*
+  - **Scope**: Se parchearon workspaces con Vitest 3.x a versión corregida frente a la alerta GHSA reportada por Dependabot.
+
+- **🔌 Estabilidad operativa de charts** *(Integración OSS — MIOT-0.5.21)*
+  - **Scope**: Se corrigió escaneo de Artifact Hub por tag de imagen no resoluble y se añadió estrategia `Recreate` en `miot-harness` para evitar deadlocks de rollout con PVC RWO en despliegues single-replica.
+
+## 🐛 Correcciones
+
+- **🐛 Webhook inbound de WhatsApp rechazado con 401 en dev** *(Integración OSS — MIOT-0.5.21)*
+  - **Impacto**: La verificación de Meta fallaba por conflicto de políticas de auth.
+  - **Solución**: Se movió la ruta fuera de `/api/*`, se ajustó la política permit para `/webhooks/*` y se configuraron defaults fail-closed explícitos.
+
+- **🐛 Error SQL en claim de async jobs (`id` ambiguo)** *(Integración OSS — MIOT-0.5.21)*
+  - **Impacto**: El worker podía fallar al reclamar jobs por ambigüedad en PostgreSQL.
+  - **Solución**: Se cualificó la clave del CTE (`job_id`) y se reforzó la estructura de join/consulta.
+
+- **🐛 Ruta front-door `/skills` devolviendo 404** *(Integración OSS — MIOT-0.5.21)*
+  - **Impacto**: La UI/CLI no podía descubrir skills detrás del proxy.
+  - **Solución**: Se agregó el endpoint proxy correspondiente y pruebas de cobertura del passthrough.
+
+- **🐛 Fallas de robustez en conversaciones/harness/app** *(Integración OSS — MIOT-0.5.21)*
+  - **Impacto**: Incluyó no-respuesta en ruta agentic por FS de solo lectura, warnings/diagnósticos confusos en conexiones, y fricciones de UI (duplicados de rol, opción WhatsApp prematura, refresco/nombre en edición Settings).
+  - **Solución**: Se degradaron rutas best-effort sin tumbar ejecución, se ajustaron validaciones y nulabilidad, y se corrigieron comportamientos de interfaz para consistencia y claridad.
+
+## 📊 Beneficios
+
+- Menor fricción operativa al comunicar incidencias de entrega por WhatsApp con contexto útil para reenvío de POD.
+- Mejor capacidad de soporte y auditoría gracias a build info completo y créditos de contribución visibles en la app.
+- Reducción de riesgos en despliegues nightly/release por mejoras en CI, resolución de imágenes y políticas de charts.
+- Mayor confiabilidad del canal conversacional (envío, recepción, estados, lectura y control de modo test).
+- Harness más potente y reutilizable para casos de datos multi-conexión con guardrails de seguridad.
+- Mejor estabilidad en producción al evitar fallos por condiciones de infraestructura (auth routing, filesystem read-only, PVC RWO).
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.21`
+- **App**: `app@v0.5.21` (actualizado)
+- **Modulith**: `modulith@v0.5.16` (actualizado)
+- **Harness**: `harness@v0.1.1` (actualizado)
+- Los digests exactos desplegados se consultan en el diálogo de información de build dentro de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.20 marca un salto importante en capacidades conversacionales y en madurez operativa del stack. WhatsApp pasa de habilitación base a un flujo más integral para operación real, incluyendo control administrativo, trazabilidad y continuidad entre módulos.
+
+En paralelo, se fortaleció la confiabilidad del pipeline de entrega y del entorno de ejecución, atacando causas reales de degradación en dev/prod. Esto reduce tiempos de recuperación y aumenta predictibilidad de despliegues.
+
+Con la base de datos/harness más genérica y segura, la plataforma queda mejor posicionada para próximos incrementos de automatización, soporte y analítica sobre operaciones industriales.

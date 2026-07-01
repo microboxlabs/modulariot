@@ -15,6 +15,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.Optional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -53,11 +54,16 @@ public class WhatsAppWebhookResource {
 
     @Inject
     public WhatsAppWebhookResource(
-            @ConfigProperty(name = "miot.whatsapp.webhook.verify-token", defaultValue = "") String verifyToken,
-            @ConfigProperty(name = "miot.whatsapp.app-secret", defaultValue = "") String appSecret,
+            // Optional (not String + defaultValue): application.properties maps these from env as
+            // ${WHATSAPP_..:}, so when the env is unset the property is present-but-EMPTY, and SmallRye
+            // rejects an empty value for a required String — crashing the modulith at boot even though
+            // conversational is baked into every image. Optional tolerates the empty/absent value; a
+            // blank token/secret then fails closed via the handshake + signature guards below.
+            @ConfigProperty(name = "miot.whatsapp.webhook.verify-token") Optional<String> verifyToken,
+            @ConfigProperty(name = "miot.whatsapp.app-secret") Optional<String> appSecret,
             WhatsAppInboundService inboundService) {
-        this.verifyToken = verifyToken;
-        this.appSecret = appSecret;
+        this.verifyToken = verifyToken.orElse("");
+        this.appSecret = appSecret.orElse("");
         this.inboundService = inboundService;
     }
 

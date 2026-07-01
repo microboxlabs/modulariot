@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Spinner } from "flowbite-react";
+import type { IconType } from "react-icons";
 import { HiOutlineExclamationCircle } from "react-icons/hi";
 import { BsCheck, BsCheckAll } from "react-icons/bs";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -119,6 +120,16 @@ function renderContent(message: Message, dict: I18nRecord): string {
   return tr("unsupported", dict);
 }
 
+// Sent/delivered/read share one shape (icon + color + tooltip), differing only by those three —
+// WhatsApp semantics: single gray tick = sent, double gray = delivered, double blue = read.
+const DELIVERY_TICKS: Partial<
+  Record<MessageStatus, { readonly Icon: IconType; readonly color: string; readonly labelKey: string }>
+> = {
+  SENT: { Icon: BsCheck, color: "text-gray-400", labelKey: "statusSent" },
+  DELIVERED: { Icon: BsCheckAll, color: "text-gray-400", labelKey: "statusDelivered" },
+  READ: { Icon: BsCheckAll, color: "text-blue-500", labelKey: "statusRead" },
+};
+
 function StatusTicks({
   status,
   dict,
@@ -126,24 +137,15 @@ function StatusTicks({
   readonly status: MessageStatus;
   readonly dict: I18nRecord;
 }) {
-  switch (status) {
-    case "READ":
-      // Double tick, blue — read (WhatsApp semantics).
-      return <BsCheckAll className="h-4 w-4 text-blue-500" title={tr("statusRead", dict)} />;
-    case "DELIVERED":
-      // Double tick, gray — delivered to the device.
-      return <BsCheckAll className="h-4 w-4 text-gray-400" title={tr("statusDelivered", dict)} />;
-    case "SENT":
-      // Single tick, gray — accepted by Meta, not yet delivered.
-      return <BsCheck className="h-4 w-4 text-gray-400" title={tr("statusSent", dict)} />;
-    case "FAILED":
-      return (
-        <HiOutlineExclamationCircle
-          className="h-3.5 w-3.5 text-red-500"
-          title={tr("statusFailed", dict)}
-        />
-      );
-    default:
-      return null;
+  if (status === "FAILED") {
+    return (
+      <HiOutlineExclamationCircle className="h-3.5 w-3.5 text-red-500" title={tr("statusFailed", dict)} />
+    );
   }
+  const tick = DELIVERY_TICKS[status];
+  if (!tick) {
+    return null;
+  }
+  const { Icon, color, labelKey } = tick;
+  return <Icon className={`h-4 w-4 ${color}`} title={tr(labelKey, dict)} />;
 }

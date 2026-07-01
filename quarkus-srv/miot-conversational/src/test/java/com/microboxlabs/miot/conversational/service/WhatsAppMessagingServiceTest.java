@@ -68,8 +68,9 @@ class WhatsAppMessagingServiceTest {
 
     @Test
     void previewLabelsTemplateByName() throws Exception {
+        // An unknown template with no stored copy shows its bare name in the preview.
         String preview = (String) preview().invoke(null, request("+56900", "TEMPLATE", null, "trip_assigned"));
-        assertEquals("[template] trip_assigned", preview);
+        assertEquals("trip_assigned", preview);
     }
 
     @Test

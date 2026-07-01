@@ -4020,7 +4020,15 @@
     "statusSent": "Sent",
     "statusDelivered": "Delivered",
     "statusRead": "Read",
-    "statusFailed": "Failed to deliver"
+    "statusFailed": "Failed to deliver",
+    "composePlaceholder": "Type a reply…",
+    "send": "Send",
+    "sendError": "Couldn't send the message.",
+    "windowOpen": "Open",
+    "windowClosingSoon": "Closing soon",
+    "windowClosed": "Window closed",
+    "windowHint": "Free replies are allowed for 24h after the driver's last message.",
+    "windowClosedHint": "The 24h reply window has closed — only an approved template can reopen the conversation."
   },
   "ext_tasks": {
     "processing": "Processing your request...",

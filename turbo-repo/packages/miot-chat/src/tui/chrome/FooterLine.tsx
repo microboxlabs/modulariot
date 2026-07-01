@@ -22,8 +22,7 @@ export function FooterLine(props: FooterLineProps): React.ReactElement {
   segments.push(`ctx≈${props.approxTokens}tok (${props.contextPercent}%)`);
   const u = props.usageTotals;
   if (u && (u.inputTokens > 0 || u.outputTokens > 0)) {
-    const cost = u.costUsd > 0 ? ` $${u.costUsd.toFixed(4)}` : "";
-    segments.push(`${u.inputTokens}→${u.outputTokens}${cost}`);
+    segments.push(`${u.inputTokens}→${u.outputTokens}`);
   }
   segments.push(props.baseUrl);
   if (props.profileName) {

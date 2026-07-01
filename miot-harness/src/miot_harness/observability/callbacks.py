@@ -216,8 +216,9 @@ class AgentTelemetryCallback(BaseCallbackHandler):
                 "cache_read_input_tokens": usage.cache_read_input_tokens,
                 "cache_creation_input_tokens": usage.cache_creation_input_tokens,
             }
-            if cost_usd is not None:
-                data["cost_usd"] = cost_usd
+            # NOTE: cost_usd is deliberately NOT emitted to the client. The dollar
+            # cost stays server-side (span attribute above / eval + provenance logs)
+            # so we can track our own spend without exposing it to the tenant.
             # Fail open: the progress sink is an observability concern,
             # so a buggy or saturated event bus must NOT bubble up and
             # tear down the LLM call. Catch Exception (not BaseException)

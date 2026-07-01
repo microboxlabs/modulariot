@@ -119,7 +119,6 @@ export interface UsageRecordedData {
   output_tokens: number;
   cache_read_input_tokens: number;
   cache_creation_input_tokens: number;
-  cost_usd?: number;
 }
 
 export const TERMINAL_EVENT_TYPES = new Set<HarnessEventType>([

@@ -9,9 +9,7 @@ function usage(partial: Partial<UsageTotals> = {}): UsageTotals {
     outputTokens: 0,
     cacheReadTokens: 0,
     cacheCreationTokens: 0,
-    costUsd: 0,
     lastAgent: null,
-    lastCostUsd: null,
     ...partial,
   };
 }
@@ -44,23 +42,22 @@ describe("<FooterLine />", () => {
     expect(lastFrame() ?? "").toContain("profile staging");
   });
 
-  it("shows a usage segment when usageTotals has any tokens", () => {
+  it("shows a token usage segment when usageTotals has any tokens", () => {
     const { lastFrame } = render(
       <FooterLine
         {...props({
           usageTotals: usage({
             inputTokens: 1234,
             outputTokens: 56,
-            costUsd: 0.0123,
             lastAgent: "synthesizer",
-            lastCostUsd: 0.0123,
           }),
         })}
       />,
     );
     const frame = lastFrame() ?? "";
     expect(frame).toContain("1234→56");
-    expect(frame).toContain("$0.0123");
+    // The dollar cost is never shown to the client.
+    expect(frame).not.toContain("$");
   });
 
   it("hides the usage segment when there are no tokens yet", () => {

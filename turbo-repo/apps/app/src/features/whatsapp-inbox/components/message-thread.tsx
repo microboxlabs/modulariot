@@ -10,8 +10,11 @@ import { tr } from "@/features/i18n/tr.service";
 import type { Conversation, Message, MessageStatus } from "../conversation.types";
 import { conversationName, formatClockTime } from "../format";
 import { useMessages } from "../use-messages";
+import { useSessionWindow } from "../use-session-window";
 import { markConversationRead } from "../inbox-data-service";
 import ServiceBadge from "./service-badge";
+import SessionCountdown from "./session-countdown";
+import ComposeBox from "./compose-box";
 
 interface MessageThreadProps {
   readonly conversationId: string | null;
@@ -33,7 +36,8 @@ export default function MessageThread({
   locale,
   onRead,
 }: MessageThreadProps) {
-  const { messages, isLoading, error } = useMessages(conversationId);
+  const { messages, isLoading, error, refresh: refreshMessages } = useMessages(conversationId);
+  const windowInfo = useSessionWindow(conversation?.sessionExpiresAt ?? null);
 
   const unreadCount = conversation?.unreadCount ?? 0;
   useEffect(() => {
@@ -63,6 +67,7 @@ export default function MessageThread({
           {conversation.contextServiceCode && (
             <ServiceBadge code={conversation.contextServiceCode} dict={dict} />
           )}
+          {windowInfo && <SessionCountdown state={windowInfo} dict={dict} />}
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400">{conversation.phoneE164}</p>
       </div>
@@ -80,6 +85,16 @@ export default function MessageThread({
           <MessageBubble key={message.id} message={message} dict={dict} locale={locale} />
         ))}
       </div>
+
+      <ComposeBox
+        conversation={conversation}
+        windowOpen={windowInfo === null ? true : windowInfo.status !== "closed"}
+        onSent={() => {
+          void refreshMessages();
+          onRead();
+        }}
+        dict={dict}
+      />
     </div>
   );
 }

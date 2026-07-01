@@ -4020,7 +4020,15 @@
     "statusSent": "Enviado",
     "statusDelivered": "Entregado",
     "statusRead": "Leído",
-    "statusFailed": "Falló el envío"
+    "statusFailed": "Falló el envío",
+    "composePlaceholder": "Escribe una respuesta…",
+    "send": "Enviar",
+    "sendError": "No se pudo enviar el mensaje.",
+    "windowOpen": "Abierta",
+    "windowClosingSoon": "Por cerrar",
+    "windowClosed": "Ventana cerrada",
+    "windowHint": "Puedes responder libremente hasta 24 h después del último mensaje del conductor.",
+    "windowClosedHint": "La ventana de 24 h se cerró — solo una plantilla aprobada puede reabrir la conversación."
   },
   "ext_tasks": {
     "processing": "Procesando tu solicitud...",

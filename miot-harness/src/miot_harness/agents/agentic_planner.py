@@ -33,6 +33,7 @@ from pydantic import ValidationError
 from miot_harness.agents.chat_models import response_text
 from miot_harness.agents.domain_analyst import render_evidence
 from miot_harness.agents.filter_expert import _strip_fences, build_tool_catalog
+from miot_harness.context_skills.skill_models import LoadedSkill, PlaybookSkill
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.plan import DataEvidence, DataStep
 from miot_harness.tools.registry import ToolRegistry
@@ -57,6 +58,11 @@ Exploration primitives (read-only SQL helpers; use ONLY when no curated
 tool covers the question):
 {primitives_catalog}
 
+Connection playbooks (ready-made recipes for this data source — PREFER one
+when its trigger matches; emit its steps IN ORDER as your plan instead of
+rediscovering them):
+{playbooks_catalog}
+
 Output ONLY a JSON object in one of these shapes:
 {{"action": "plan", "steps": [<step>, <step>, ...]}}   (each <step> = the call_tool fields below)
 {{"action": "call_tool", "tool": "...", "args": {{}}, "intent": "...", "rationale": "..."}}
@@ -70,6 +76,9 @@ forward. Use "call_tool" only for a genuine single step. Use "final" only when
 the executed evidence already answers the question.
 
 Rules:
+- If a connection playbook's trigger matches the question, follow it: emit its
+  listed steps (in order) as your plan. A playbook is the curated answer to its
+  question — do not re-derive the joins/columns it already encodes.
 - Prefer curated tools; primitives are a fallback for questions the
   curated catalog cannot answer.
 - args is a JSON object of parameter overrides; {{}} uses the defaults.
@@ -104,6 +113,37 @@ def build_primitives_catalog(registry: ToolRegistry) -> str:
         first_line = (tool.description or "").splitlines()[0].strip()
         lines.append(f"- {name}: {first_line}")
     return "\n".join(lines) if lines else "(no primitives registered)"
+
+
+def build_playbook_catalog(
+    playbooks: list[LoadedSkill], *, profile: DataSourceProfile
+) -> str:
+    """Render the connection-bound playbooks the planner may follow (Phase 4).
+
+    `playbooks` is the tenant-resolved playbook set (the loader already gated
+    connection/capability eligibility at boot, so every entry here is live). We
+    additionally drop any playbook bound to a *different* connection than this
+    planner's profile: its `tools` carry that connection's prefix and the step
+    scope-check would reject them, so advertising it would only be noise. An
+    unbound playbook (no `connection`) is shown for every profile.
+
+    Each line gives the trigger (`when_to_use`) and the ordered tool sequence so
+    the planner can emit the recipe as a single plan rather than rediscovering
+    it. The full Markdown body stays out of the prompt (progressive disclosure).
+    """
+    lines: list[str] = []
+    for loaded in playbooks:
+        skill = loaded.skill
+        if not isinstance(skill, PlaybookSkill):
+            continue
+        if skill.connection is not None and skill.connection != profile.name:
+            continue
+        marker = f" [connection: {skill.connection}]" if skill.connection else ""
+        trigger = (skill.when_to_use or skill.description or "").strip()
+        detail = f": {trigger}" if trigger else ""
+        steps = f" Steps: {' → '.join(skill.tools)}." if skill.tools else ""
+        lines.append(f"- {skill.name}{marker}{detail}{steps}")
+    return "\n".join(lines) if lines else "(no playbooks bound to this data source)"
 
 
 def _parse_action(text: str) -> dict[str, Any] | None:
@@ -163,6 +203,7 @@ async def agentic_planner_node(
     model: BaseChatModel,
     profile: DataSourceProfile,
     max_turns: int,
+    playbooks: list[LoadedSkill] | None = None,
 ) -> dict[str, Any]:
     evidence: list[DataEvidence] = list(state.get("evidence", []))
     turn_count = int(state.get("turn_count", 0) or 0)
@@ -179,6 +220,7 @@ async def agentic_planner_node(
         primer=profile.primer,
         catalog=build_tool_catalog(registry, profile=profile),
         primitives_catalog=build_primitives_catalog(registry),
+        playbooks_catalog=build_playbook_catalog(playbooks or [], profile=profile),
     )
 
     executed: list[DataStep] = list(state.get("executed_steps", []))

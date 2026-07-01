@@ -11,7 +11,11 @@ from langchain_core.language_models import FakeListChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel
 
-from miot_harness.agents.agentic_planner import agentic_planner_node
+from miot_harness.agents.agentic_planner import (
+    agentic_planner_node,
+    build_playbook_catalog,
+)
+from miot_harness.context_skills.skill_models import LoadedSkill, PlaybookSkill
 from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.permissions import PermissionResult
@@ -470,3 +474,126 @@ async def test_planner_prompt_lists_curated_and_primitive_catalogs() -> None:
     system = captured[0][0].content
     assert "coordinador_centro_control" in system
     assert "nexo_select" in system
+
+
+# ---- Phase 4 slice 2: connection-bound playbook surfacing ----------------
+
+
+def _pb(
+    id: str,
+    *,
+    connection: str | None = None,
+    when_to_use: str = "",
+    description: str = "",
+    tools: tuple[str, ...] = (),
+) -> LoadedSkill:
+    return LoadedSkill(
+        skill=PlaybookSkill(
+            kind="playbook",
+            id=id,
+            name=id.upper(),
+            connection=connection,
+            when_to_use=when_to_use,
+            description=description,
+            tools=tools,
+        ),
+        source_path=f"{id}.yaml",
+    )
+
+
+def test_build_playbook_catalog_renders_marker_trigger_and_steps() -> None:
+    catalog = build_playbook_catalog(
+        [
+            _pb(
+                "nexo-services",
+                connection="nexo",
+                when_to_use="list services in a workflow step",
+                tools=("coordinador_centro_control", "nexo_select"),
+            )
+        ],
+        profile=NEXO_PROFILE,
+    )
+    assert "[connection: nexo]" in catalog
+    assert "list services in a workflow step" in catalog
+    assert "coordinador_centro_control → nexo_select" in catalog
+
+
+def test_build_playbook_catalog_drops_playbook_bound_to_other_connection() -> None:
+    # Bound to `acs`; this planner's profile is `nexo` → its tools carry the
+    # wrong prefix and would be rejected, so it must not be advertised.
+    catalog = build_playbook_catalog(
+        [_pb("acs-pb", connection="acs", when_to_use="alfresco workflow")],
+        profile=NEXO_PROFILE,
+    )
+    assert "acs-pb" not in catalog.lower()
+    assert catalog == "(no playbooks bound to this data source)"
+
+
+def test_build_playbook_catalog_keeps_unbound_playbook_for_any_profile() -> None:
+    catalog = build_playbook_catalog(
+        [_pb("generic", when_to_use="works anywhere")],
+        profile=NEXO_PROFILE,
+    )
+    assert "GENERIC" in catalog
+    assert "[connection:" not in catalog  # unbound → no marker
+    assert "works anywhere" in catalog
+
+
+def test_build_playbook_catalog_falls_back_to_description_then_empty() -> None:
+    catalog = build_playbook_catalog(
+        [_pb("d", connection="nexo", description="desc fallback")],
+        profile=NEXO_PROFILE,
+    )
+    assert "desc fallback" in catalog
+    assert build_playbook_catalog([], profile=NEXO_PROFILE) == (
+        "(no playbooks bound to this data source)"
+    )
+
+
+@pytest.mark.asyncio
+async def test_planner_prompt_lists_matching_playbook() -> None:
+    captured: list[list[Any]] = []
+
+    class _RecordingModel(FakeListChatModel):
+        async def ainvoke(self, input, *args, **kwargs):  # type: ignore[override]
+            captured.append(list(input))
+            return await super().ainvoke(input, *args, **kwargs)
+
+    response = json.dumps({"action": "final", "reasoning": "done"})
+    await agentic_planner_node(
+        _state(evidence=[_evidence()]),
+        registry=_registry(),
+        model=_RecordingModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+        playbooks=[
+            _pb("nexo-services", connection="nexo", when_to_use="enumerate services"),
+            _pb("acs-pb", connection="acs", when_to_use="other connection"),
+        ],
+    )
+    system = captured[0][0].content
+    assert "Connection playbooks" in system
+    assert "enumerate services" in system
+    assert "other connection" not in system  # bound to a different connection
+
+
+@pytest.mark.asyncio
+async def test_planner_prompt_handles_no_playbooks() -> None:
+    captured: list[list[Any]] = []
+
+    class _RecordingModel(FakeListChatModel):
+        async def ainvoke(self, input, *args, **kwargs):  # type: ignore[override]
+            captured.append(list(input))
+            return await super().ainvoke(input, *args, **kwargs)
+
+    response = json.dumps({"action": "final", "reasoning": "done"})
+    # playbooks omitted (None) — back-compat, no crash, placeholder rendered.
+    await agentic_planner_node(
+        _state(evidence=[_evidence()]),
+        registry=_registry(),
+        model=_RecordingModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    system = captured[0][0].content
+    assert "(no playbooks bound to this data source)" in system

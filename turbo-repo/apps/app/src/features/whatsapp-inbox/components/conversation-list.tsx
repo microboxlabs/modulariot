@@ -6,6 +6,7 @@ import { tr } from "@/features/i18n/tr.service";
 import type { Conversation } from "../conversation.types";
 import { conversationName, formatListTime } from "../format";
 import { groupConversations, type GroupBy } from "../grouping";
+import ServiceBadge from "./service-badge";
 
 interface ConversationListProps {
   readonly conversations: Conversation[];
@@ -141,14 +142,19 @@ function ConversationRow({
       />
       <span className="min-w-0 flex-1">
         <span className="flex items-center justify-between gap-2">
-          <span
-            className={`block text-sm truncate ${
-              isActive
-                ? "font-semibold text-blue-700 dark:text-blue-300"
-                : "font-medium text-gray-900 dark:text-white"
-            }`}
-          >
-            {conversationName(conversation)}
+          <span className="flex items-center gap-1.5 min-w-0">
+            <span
+              className={`block text-sm truncate ${
+                isActive
+                  ? "font-semibold text-blue-700 dark:text-blue-300"
+                  : "font-medium text-gray-900 dark:text-white"
+              }`}
+            >
+              {conversationName(conversation)}
+            </span>
+            {conversation.contextServiceCode && (
+              <ServiceBadge code={conversation.contextServiceCode} dict={dict} />
+            )}
           </span>
           <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
             {formatListTime(conversation.lastMessageAt, locale)}

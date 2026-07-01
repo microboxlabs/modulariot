@@ -6,6 +6,10 @@ block types are validated strictly — `markdown` (value is a string) and `url`
 (value is an object with string `url` and `name`); any other `type` is accepted
 unchanged (passthrough). `to_json_blocks` never raises: on any failure it wraps
 the raw text as a single markdown block so a formatting glitch can't fail a run.
+
+Note: `url` block values are NOT scheme-validated — the schema only checks they
+are strings — so downstream consumers must sanitize urls as hrefs (reject
+`javascript:`, `data:`, etc.).
 """
 
 from __future__ import annotations
@@ -28,7 +32,7 @@ class AnswerBlock(BaseModel):
     value: Any
 
     @model_validator(mode="after")
-    def _validate_known_types(self) -> "AnswerBlock":
+    def _validate_known_types(self) -> AnswerBlock:
         if self.type == "markdown":
             if not isinstance(self.value, str):
                 raise ValueError("markdown block value must be a string")
@@ -81,6 +85,6 @@ def to_json_blocks(text: str) -> str:
     try:
         blocks = parse_blocks(text)
         return json.dumps([b.model_dump() for b in blocks], ensure_ascii=False)
-    except Exception:  # noqa: BLE001 — formatting must never fail a run
-        logger.exception("answer json-blocks parse failed; using markdown fallback")
+    except Exception as exc:  # noqa: BLE001 — formatting must never fail a run
+        logger.warning("answer json-blocks parse failed; using markdown fallback: %s", exc)
         return json.dumps([{"type": "markdown", "value": text}], ensure_ascii=False)

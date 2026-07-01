@@ -25,6 +25,12 @@ def test_parse_strips_json_code_fence():
     assert blocks[0].value == "hi"
 
 
+def test_parse_strips_bare_code_fence():
+    raw = '```\n[{"type": "markdown", "value": "hi"}]\n```'
+    blocks = parse_blocks(raw)
+    assert blocks[0].value == "hi"
+
+
 def test_parse_allows_unknown_type_passthrough():
     raw = json.dumps([{"type": "chart", "value": {"series": [1, 2, 3]}}])
     blocks = parse_blocks(raw)
@@ -50,6 +56,11 @@ def test_parse_rejects_markdown_block_with_non_string_value():
 def test_parse_rejects_url_block_missing_name():
     with pytest.raises(ValueError):
         parse_blocks(json.dumps([{"type": "url", "value": {"url": "https://x.com"}}]))
+
+
+def test_parse_rejects_url_block_missing_url():
+    with pytest.raises(ValueError):
+        parse_blocks(json.dumps([{"type": "url", "value": {"name": "X"}}]))
 
 
 def test_to_json_blocks_roundtrips_valid_input():

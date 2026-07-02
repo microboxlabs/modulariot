@@ -15,8 +15,6 @@ from langchain_core.messages import SystemMessage
 
 from miot_harness.datasource.provider import DataSourceProfile
 
-_EPHEMERAL_CACHE = {"type": "ephemeral"}
-
 _AGENT_SYSTEM_TEMPLATE = """\
 You are the {display_name} data agent ({tenant_display} fleet operations).
 You investigate the user's question by calling tools, then write the final
@@ -76,5 +74,5 @@ def cached_system_message(text: str) -> SystemMessage:
     the API renders tools before system, so one breakpoint covers both.
     """
     return SystemMessage(
-        content=[{"type": "text", "text": text, "cache_control": _EPHEMERAL_CACHE}]
+        content=[{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]
     )

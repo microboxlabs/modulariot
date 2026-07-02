@@ -15,9 +15,21 @@ def test_prompt_carries_rigor_and_answer_rules():
     text = build_agent_system_prompt(FAKE_PROFILE)
     assert "FakeSource" in text
     assert FAKE_PROFILE.primer in text
-    assert "FUZZY sample" in text          # planner rigor rule survives
-    assert "do not invent rows" in text.lower()  # synthesizer rule survives
     assert "fake_" in text                 # curated prefix guidance
+
+    # Planner rigor rules
+    assert "FUZZY sample" in text
+    assert "ENUMERATE the actual rows" in text
+    assert "join/pivot query" in text
+    assert "identified as needed" in text
+
+    # Synthesizer answer rules
+    assert "do not invent rows" in text
+    assert "executed_sql" in text
+    assert "refreshed_at" in text
+    assert "same language as the question" in text
+    assert "200 words" in text
+    assert "do NOT claim you fabricated them" in text
 
 
 def test_prompt_has_no_dynamic_markers():

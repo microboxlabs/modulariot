@@ -1,6 +1,9 @@
 import type { ComponentType } from "react";
+import type { HarnessBlock } from "@/app/api/harness/search/route";
 
-export type SpotlightResultKind = "navigate" | "harness";
+export type { HarnessBlock };
+
+export type SpotlightResultKind = "navigate" | "harness" | "harness-goto";
 
 export interface SpotlightItem {
   id: string;
@@ -14,4 +17,8 @@ export interface SpotlightItem {
   onSelect: () => void;
   /** Section-header rows rendered as group labels — skipped by keyboard nav */
   isGroupHeader?: boolean;
+  /** Structured answer blocks — harness items only */
+  blocks?: HarnessBlock[];
+  /** Marks the synthetic "Ask Harness" prompt row — selecting it fires the search, does not close modal */
+  isHarnessPrompt?: boolean;
 }

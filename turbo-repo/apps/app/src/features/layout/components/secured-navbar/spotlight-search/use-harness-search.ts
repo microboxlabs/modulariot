@@ -5,29 +5,24 @@ import { BsStars } from "react-icons/bs";
 import type { SpotlightItem } from "./types";
 import type { HarnessSearchResult } from "@/app/api/harness/search/route";
 
-const DEBOUNCE_MS = 500;
-
 export interface UseHarnessSearchReturn {
   results: SpotlightItem[];
   isLoading: boolean;
 }
 
 /**
- * Debounced harness search hook.
+ * Manual-trigger harness search hook.
  *
- * Fires DEBOUNCE_MS after the user stops typing. Cancels the in-flight request
- * via AbortController whenever the query changes or the component unmounts.
- *
- * The BFF route at /api/harness/search handles auth (user JWT) and communicates
- * with the Quarkus gateway (MIOT_HARNESS_URL env var). Returns empty results
- * gracefully when the env var is not set.
+ * Fires immediately when `committedQuery` becomes non-empty (no debounce —
+ * the caller controls when to commit). Cancels the in-flight request via
+ * AbortController whenever committedQuery changes or the component unmounts.
  */
-export function useHarnessSearch(query: string): UseHarnessSearchReturn {
+export function useHarnessSearch(committedQuery: string): UseHarnessSearchReturn {
   const [results, setResults] = useState<SpotlightItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const trimmed = query.trim();
+    const trimmed = committedQuery.trim();
 
     if (!trimmed) {
       setResults([]);
@@ -38,7 +33,7 @@ export function useHarnessSearch(query: string): UseHarnessSearchReturn {
     setIsLoading(true);
     const controller = new AbortController();
 
-    const timer = setTimeout(async () => {
+    const doFetch = async () => {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/search`, {
           method: "POST",
@@ -60,6 +55,7 @@ export function useHarnessSearch(query: string): UseHarnessSearchReturn {
               id: r.id,
               label: r.label,
               sublabel: r.sublabel,
+              blocks: r.blocks,
               kind: "harness" as const,
               icon: BsStars,
               keywords: [],
@@ -77,14 +73,15 @@ export function useHarnessSearch(query: string): UseHarnessSearchReturn {
       } finally {
         if (!controller.signal.aborted) setIsLoading(false);
       }
-    }, DEBOUNCE_MS);
+    };
+
+    doFetch();
 
     return () => {
-      clearTimeout(timer);
       controller.abort();
       setIsLoading(false);
     };
-  }, [query]);
+  }, [committedQuery]);
 
   return { results, isLoading };
 }

@@ -13,7 +13,7 @@ import { usePermissions } from "@/features/auth/hooks/use-permissions";
 import { BsStars } from "react-icons/bs";
 import { HiArrowRight, HiSearch } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import type { SpotlightItem, SpotlightResultKind } from "./types";
+import type { SpotlightItem, SpotlightResultKind, HarnessBlock } from "./types";
 import { buildNavigateItems } from "./navigate-actions";
 import { useSpotlightState } from "./use-spotlight-state";
 import { useHarnessSearch } from "./use-harness-search";
@@ -48,8 +48,13 @@ const KIND_ICONS: Record<SpotlightResultKind, IconConfig> = {
   },
   harness: {
     icon: BsStars,
-    iconColor: ICON_COLOR,
-    iconBg: "bg-amber-50 dark:bg-amber-900/30",
+    iconColor: "text-orange-500 dark:text-orange-400",
+    iconBg: "bg-orange-50 dark:bg-orange-900/30",
+  },
+  "harness-goto": {
+    icon: HiArrowRight,
+    iconColor: "text-orange-500 dark:text-orange-400",
+    iconBg: "bg-orange-50 dark:bg-orange-900/30",
   },
 };
 
@@ -108,7 +113,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
 
   // ── Core state ────────────────────────────────────────────────────────────
   const {
-    isOpen, close,
+    isOpen, open, close,
     query, setQuery,
     selectedIndex, setSelectedIndex,
     recentItems, addRecentItem,
@@ -118,21 +123,66 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
     onEnterSelect: handleEnterSelect,
   });
 
+  // ── Committed query — only set when user explicitly asks Harness ─────────
+  const [committedQuery, setCommittedQuery] = useState("");
+
+  // Reset when user types a new query so harness results clear.
+  useEffect(() => {
+    setCommittedQuery("");
+  }, [query]);
+
   // ── Pagefind static search (falls back to fuzzy in dev) ──────────────────
   const staticResults = usePagefindSearch(query, navigateItems, canAccess, onNavigate);
 
-  // ── Debounced harness search ──────────────────────────────────────────────
+  // ── Manual harness search — fires only after user commits ─────────────────
   const { results: harnessResults, isLoading: isHarnessLoading } =
-    useHarnessSearch(query);
+    useHarnessSearch(committedQuery);
+
+  // ── "Ask Harness" prompt item — first selectable row while uncommitted ────
+  const isEmpty = !query.trim();
+  const showHarnessPrompt = !isEmpty && !committedQuery;
+
+  const harnessPromptItem = useMemo(
+    () => ({
+      id: "__harness-prompt__",
+      label: query.trim(),
+      sublabel: "Ask Harness",
+      kind: "harness" as const,
+      icon: BsStars,
+      keywords: [],
+      isHarnessPrompt: true,
+      onSelect: () => setCommittedQuery(query.trim()),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [query],
+  );
+
+  // ── Harness-generated go-to items (url blocks) — keyboard-selectable ────────
+  const harnessGoToItems = useMemo<SpotlightItem[]>(() =>
+    harnessResults.flatMap((result) =>
+      (result.blocks ?? [])
+        .filter((b): b is HarnessBlock & { type: "url" } => b.type === "url")
+        .map((block, i) => ({
+          id: `harness-url-${i}`,
+          label: block.value.name,
+          kind: "harness-goto" as const,
+          keywords: [],
+          onSelect: () => window.open(block.value.url, "_blank"),
+        }))
+    ),
+    [harnessResults],
+  );
 
   // ── Flat selectable list (no group headers) ───────────────────────────────
-  // Static navigate items first, harness results below.
+  // Order matches visual layout: prompt → harness gotos → static navigate.
+  // Harness markdown answers are non-interactive prose — excluded from keyboard nav.
   const selectableItems = useMemo(
     () => [
+      ...(showHarnessPrompt ? [harnessPromptItem] : []),
+      ...harnessGoToItems,
       ...staticResults.filter((i) => !i.isGroupHeader),
-      ...harnessResults,
     ],
-    [staticResults, harnessResults],
+    [showHarnessPrompt, harnessPromptItem, harnessGoToItems, staticResults],
   );
 
   // Keep refs current — runs synchronously during render, before any event.
@@ -160,6 +210,10 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
   // ── Action handler ────────────────────────────────────────────────────────
   const handleSelectAction = useCallback(
     (item: SpotlightItem) => {
+      if (item.isHarnessPrompt) {
+        item.onSelect();
+        return; // keep modal open so the answer can appear
+      }
       if (item.kind === "navigate") addRecentItem(item);
       item.onSelect();
       close();
@@ -170,20 +224,25 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
   handleSelectRef.current = handleSelectAction;
 
   // ── Derived flags ─────────────────────────────────────────────────────────
-  const isEmpty   = !query.trim();
   const hasResults =
+    showHarnessPrompt ||
     staticResults.some((i) => !i.isGroupHeader) ||
     harnessResults.length > 0 ||
-    isHarnessLoading;
+    isHarnessLoading ||
+    !!committedQuery;
 
   return (
     <>
       {/* ── Navbar trigger ───────────────────────────────────────────── */}
-      <div className="flex flex-row items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-        <span className="hidden lg:inline">Use</span>
+      <button
+        type="button"
+        onClick={open}
+        className="flex items-center w-full lg:w-96 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+      >
+        <HiSearch className="mr-2 h-4 w-4 shrink-0" />
+        <span className="flex-1 text-left truncate">{placeholder}</span>
         <KbdHint />
-        <span className="hidden lg:inline">to search</span>
-      </div>
+      </button>
 
       {/* ── Overlay ──────────────────────────────────────────────────── */}
       {isOpen && (
@@ -221,11 +280,12 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
                   staticItems={staticResults}
                   harnessItems={harnessResults}
                   isHarnessLoading={isHarnessLoading}
+                  harnessQueried={!!committedQuery}
+                  harnessPrompt={showHarnessPrompt ? harnessPromptItem : null}
                   selectedItemId={selectableItems[selectedIndex]?.id ?? null}
                   onSelect={handleSelectAction}
                   onHover={setHoveredId}
                   navigateHeading={navigateHeading}
-                  harnessHeading={harnessHeading}
                 />
               )}
 

@@ -112,7 +112,7 @@ export function useSpotlightState({
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        setSelectedIndex((p) => Math.max(p - 1, -1));
+        setSelectedIndex((p) => Math.max(p - 1, 0));
         return;
       }
       if (e.key === "Enter") {

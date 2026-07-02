@@ -8,6 +8,8 @@ export interface UserRequest {
   route_context?: Record<string, unknown>;
   mode?: RunMode;
   conversation_id?: string | null;
+  answer_format?: string;
+  skill_id?: string;
   /**
    * When true, the SSE stream carries full tool inputs and truncated
    * tool outputs (~2 KB cap). Off by default. Coordinador outputs

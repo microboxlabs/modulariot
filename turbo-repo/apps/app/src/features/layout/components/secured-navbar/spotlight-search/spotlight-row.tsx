@@ -1,0 +1,77 @@
+import { memo, useCallback, useEffect, useRef } from "react";
+import { HiArrowRight } from "react-icons/hi";
+import type { SpotlightItem } from "./types";
+
+interface SpotlightRowProps {
+  item: SpotlightItem;
+  isSelected: boolean;
+  onSelect: (item: SpotlightItem) => void;
+  onHover: (id: string | null) => void;
+  /** When true, uses orange hover bg and selected bg (harness prompt only) */
+  accentHover?: boolean;
+}
+
+export const SpotlightRow = memo(function SpotlightRow({
+  item,
+  isSelected,
+  onSelect,
+  onHover,
+  accentHover = false,
+}: Readonly<SpotlightRowProps>) {
+  const ref = useRef<HTMLButtonElement>(null);
+
+  const handleClick = useCallback(() => onSelect(item), [onSelect, item]);
+  const handleMouseEnter = useCallback(() => onHover(item.id), [onHover, item.id]);
+  const handleMouseLeave = useCallback(() => onHover(null), [onHover]);
+
+  useEffect(() => {
+    if (isSelected) ref.current?.scrollIntoView({ block: "nearest" });
+  }, [isSelected]);
+
+  const ItemIcon = item.icon ?? HiArrowRight;
+  const isHarness = item.kind === "harness" || item.kind === "harness-goto";
+  const useOrangeAccent = accentHover || isHarness;
+
+  const iconClass = isHarness
+    ? "text-orange-500 dark:text-orange-400"
+    : "text-gray-500 dark:text-gray-400";
+
+  const iconBgClass = isHarness
+    ? "bg-orange-50 dark:bg-orange-900/30"
+    : "bg-gray-100 dark:bg-gray-700";
+
+  const rowBg = isSelected
+    ? useOrangeAccent ? "bg-orange-100 dark:bg-orange-800/40" : "bg-gray-100 dark:bg-gray-700/70"
+    : useOrangeAccent ? "hover:bg-orange-50 dark:hover:bg-orange-900/20" : "hover:bg-gray-50 dark:hover:bg-gray-700/50";
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className={`flex w-full items-center gap-3 px-4 py-2 text-left transition-colors ${rowBg}`}
+    >
+      <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ring-1 ring-inset ring-black/6 dark:ring-white/10 ${iconBgClass}`}>
+        <ItemIcon className={`h-3 w-3 ${iconClass}`} />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        {item.sublabel && (
+          <span className={`truncate text-[10px] font-medium ${isHarness ? "text-orange-500 dark:text-orange-400" : "text-gray-400 dark:text-gray-500"}`}>
+            {item.sublabel}
+          </span>
+        )}
+        <span className={`truncate text-sm ${
+          item.kind === "harness-goto"
+            ? "font-medium text-orange-500 dark:text-orange-400"
+            : isHarness
+              ? "font-medium text-gray-800 dark:text-white"
+              : "text-gray-600 dark:text-gray-300"
+        }`}>
+          {item.label}
+        </span>
+      </div>
+    </button>
+  );
+});

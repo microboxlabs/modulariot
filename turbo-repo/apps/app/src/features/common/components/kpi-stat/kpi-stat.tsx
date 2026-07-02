@@ -4,7 +4,6 @@ import type { IconType } from "react-icons";
 import type { CSSProperties, ReactNode } from "react";
 import { Tooltip } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
-import Markdown from "react-markdown";
 
 type KpiStatVariant = "horizontal" | "vertical";
 
@@ -153,17 +152,7 @@ function getScalableStyles(scalable: boolean) {
   };
 }
 
-// Stable component map for Markdown — strips block wrappers to keep text inline-compact
-const MD_P = ({ children }: { children?: ReactNode }) => <span className="block">{children}</span>;
-const MD_STRONG = ({ children }: { children?: ReactNode }) => <strong className="font-semibold">{children}</strong>;
-const MD_EM = ({ children }: { children?: ReactNode }) => <em className="italic">{children}</em>;
-const MD_A = ({ children, href }: { children?: ReactNode; href?: string }) => (
-  <a href={href} className="underline opacity-80 hover:opacity-100" target="_blank" rel="noopener noreferrer">{children}</a>
-);
-const MD_CODE = ({ children }: { children?: ReactNode }) => (
-  <code className="rounded bg-black/10 px-0.5 font-mono dark:bg-white/10">{children}</code>
-);
-const MD_COMPONENTS = { p: MD_P, strong: MD_STRONG, em: MD_EM, a: MD_A, code: MD_CODE };
+import { MarkdownContent } from "@/features/common/utils/markdown-components";
 
 /** Icon section sub-component */
 function IconSection({
@@ -265,7 +254,7 @@ function DescriptionElement({
         )}
         style={{ ...description.style, ...scalableStyles.description }}
       >
-        <Markdown components={MD_COMPONENTS}>{description.text}</Markdown>
+        <MarkdownContent>{description.text}</MarkdownContent>
       </div>
     );
   }

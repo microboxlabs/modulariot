@@ -22,6 +22,32 @@
   to   { opacity: 1; transform: scale(1) rotate(0deg); }
 }
 
+@keyframes caret-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes harness-think {
+  0%   { transform: rotate(0deg);   animation-timing-function: ease-in-out; }
+  20%  { transform: rotate(90deg);  }
+  25%  { transform: rotate(90deg);  animation-timing-function: ease-in-out; }
+  45%  { transform: rotate(180deg); }
+  50%  { transform: rotate(180deg); animation-timing-function: ease-in-out; }
+  70%  { transform: rotate(270deg); }
+  75%  { transform: rotate(270deg); animation-timing-function: ease-in-out; }
+  95%  { transform: rotate(360deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@layer utilities {
+  .animate-caret {
+    animation: caret-blink 1s step-end infinite;
+  }
+  .animate-harness-think {
+    animation: harness-think 2s linear infinite;
+  }
+}
+
 @layer utilities {
   .no-dot {
     text-decoration: none;

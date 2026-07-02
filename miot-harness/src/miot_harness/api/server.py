@@ -39,6 +39,7 @@ from miot_harness.datasource.provider import BootResult, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
+from miot_harness.runtime.agent_loop import AgentLoopRunner
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.data_graph import build_data_graph
@@ -470,6 +471,23 @@ def _make_lifespan(
                     profile=effective_profile,
                     registry=harness.tools,
                 )
+                # Single-agent loop (flag-gated). Reuses the planner seat's
+                # model/effort; the runner freezes prompt + tool list at boot
+                # so every request shares one prompt-cache prefix.
+                if settings.agents_agent_loop_enabled:
+                    harness.agent_loop = AgentLoopRunner(
+                        model=get_chat_model(
+                            settings.agents_planner_model,
+                            effort=settings.agents_planner_effort,
+                        ),
+                        registry=harness.tools,
+                        settings=settings,
+                        profile=effective_profile,
+                        provenance_log=ProvenanceLog(
+                            settings.provenance_log_dir,
+                            enabled=settings.provenance_log_enabled,
+                        ),
+                    )
                 harness.meta_model = get_chat_model(
                     settings.intent_router_model,
                     thinking_budget_tokens=synth_thinking_budget,
@@ -525,6 +543,7 @@ def _make_lifespan(
                 app.state.datasource_freshness = {}
                 harness.data_graph = None
                 harness.agentic_graph = None
+                harness.agent_loop = None
                 harness.meta_model = None
                 harness.meta_primer = ""  # meta path gates on meta_model
                 harness.meta_catalog = []

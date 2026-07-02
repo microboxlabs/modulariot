@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useCallback, type MutableRefObject } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, type RefObject } from "react";
 import type { SpotlightItem } from "./types";
 
 const RECENT_STORAGE_KEY = "spotlight_recent_v2";
@@ -26,7 +26,7 @@ interface UseSpotlightStateOptions {
    * Ref kept current by the parent (updated synchronously during render).
    * The keyboard handler reads this so ArrowDown knows the upper bound.
    */
-  selectableCountRef: MutableRefObject<number>;
+  selectableCountRef: RefObject<number>;
   /** Called with the current selectedIndex when Enter is pressed. */
   onEnterSelect: (index: number) => void;
 }
@@ -118,11 +118,10 @@ export function useSpotlightState({
       if (e.key === "Enter") {
         e.preventDefault();
         onEnterSelectRef.current(selectedIndexRef.current);
-        return;
       }
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    globalThis.addEventListener("keydown", onKeyDown);
+    return () => globalThis.removeEventListener("keydown", onKeyDown);
     // open/close captured via stable callbacks — intentional omission.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

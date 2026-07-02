@@ -6,6 +6,10 @@ import type { SpotlightItem } from "./types";
 
 export type CanAccessFn = (requiredGroups: string[], blockedGroups: string[]) => boolean;
 
+function translate(label: string, sidebarLabels: I18nRecord | null): string {
+  return sidebarLabels ? trDynamic(label, sidebarLabels) : label;
+}
+
 /**
  * Builds the full flat list of navigate items from the static pages registry.
  *
@@ -35,9 +39,7 @@ export function buildNavigateItems(
     );
 
     if (accessibleChildren.length > 0) {
-      const parentTranslated = sidebarLabels
-        ? trDynamic(page.label, sidebarLabels)
-        : page.label;
+      const parentTranslated = translate(page.label, sidebarLabels);
 
       items.push({
         id: `navigate:parent:${page.label}`,
@@ -49,10 +51,7 @@ export function buildNavigateItems(
       });
 
       for (const child of accessibleChildren) {
-        const childTranslated = sidebarLabels
-          ? trDynamic(child.label, sidebarLabels)
-          : child.label;
-
+        const childTranslated = translate(child.label, sidebarLabels);
         items.push({
           id: `navigate:${child.label}`,
           label: childTranslated,
@@ -68,10 +67,7 @@ export function buildNavigateItems(
         });
       }
     } else if (page.href) {
-      const translated = sidebarLabels
-        ? trDynamic(page.label, sidebarLabels)
-        : page.label;
-
+      const translated = translate(page.label, sidebarLabels);
       items.push({
         id: `navigate:${page.label}`,
         label: translated,

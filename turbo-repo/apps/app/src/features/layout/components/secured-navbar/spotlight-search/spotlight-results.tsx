@@ -14,7 +14,7 @@ interface SectionHeaderProps {
   dividerClass: string;
 }
 
-function SectionHeader({ Icon, label, iconClass, labelClass, dividerClass }: SectionHeaderProps) {
+function SectionHeader({ Icon, label, iconClass, labelClass, dividerClass }: Readonly<SectionHeaderProps>) {
   return (
     <div className="flex items-center gap-2 px-4 pb-1 select-none">
       <Icon className={`h-3 w-3 shrink-0 ${iconClass}`} />
@@ -40,7 +40,7 @@ function HarnessSkeleton() {
   );
 }
 
-function MarkdownBlock({ value }: { value: string }) {
+function MarkdownBlock({ value }: Readonly<{ value: string }>) {
   const [displayed, setDisplayed] = useState("");
 
   useEffect(() => {
@@ -61,12 +61,12 @@ function MarkdownBlock({ value }: { value: string }) {
   );
 }
 
-function HarnessAnswerItem({ item, onHover, navigateHeading, selectedItemId }: {
+function HarnessAnswerItem({ item, onHover, navigateHeading, selectedItemId }: Readonly<{
   item: SpotlightItem;
   onHover: (id: string | null) => void;
   navigateHeading: string;
   selectedItemId: string | null;
-}) {
+}>) {
   const markdownBlocks = (item.blocks ?? []).filter((b) => b.type === "markdown");
   const urlBlocks = (item.blocks ?? []).filter((b): b is HarnessBlock & { type: "url" } => b.type === "url");
 
@@ -82,8 +82,8 @@ function HarnessAnswerItem({ item, onHover, navigateHeading, selectedItemId }: {
               <BsStars className="h-3 w-3 text-orange-500 dark:text-orange-400" />
             </div>
             <div className="min-w-0 flex-1 flex flex-col gap-2">
-              {markdownBlocks.map((block, i) => (
-                <div key={i} className="text-sm text-gray-700 dark:text-gray-200">
+              {markdownBlocks.map((block) => (
+                <div key={block.value.slice(0, 40)} className="text-sm text-gray-700 dark:text-gray-200">
                   <MarkdownBlock value={block.value} />
                 </div>
               ))}

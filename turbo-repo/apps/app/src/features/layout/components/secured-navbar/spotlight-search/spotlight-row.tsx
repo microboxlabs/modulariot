@@ -2,6 +2,19 @@ import { memo, useCallback, useEffect, useRef } from "react";
 import { HiArrowRight } from "react-icons/hi";
 import type { SpotlightItem } from "./types";
 
+function getRowBg(isSelected: boolean, useOrangeAccent: boolean): string {
+  if (isSelected) {
+    return useOrangeAccent ? "bg-orange-100 dark:bg-orange-800/40" : "bg-gray-100 dark:bg-gray-700/70";
+  }
+  return useOrangeAccent ? "hover:bg-orange-50 dark:hover:bg-orange-900/20" : "hover:bg-gray-50 dark:hover:bg-gray-700/50";
+}
+
+function getLabelClass(isHarnessGoto: boolean, isHarness: boolean): string {
+  if (isHarnessGoto) return "font-medium text-orange-500 dark:text-orange-400";
+  if (isHarness) return "font-medium text-gray-800 dark:text-white";
+  return "text-gray-600 dark:text-gray-300";
+}
+
 interface SpotlightRowProps {
   item: SpotlightItem;
   isSelected: boolean;
@@ -40,9 +53,7 @@ export const SpotlightRow = memo(function SpotlightRow({
     ? "bg-orange-50 dark:bg-orange-900/30"
     : "bg-gray-100 dark:bg-gray-700";
 
-  const rowBg = isSelected
-    ? useOrangeAccent ? "bg-orange-100 dark:bg-orange-800/40" : "bg-gray-100 dark:bg-gray-700/70"
-    : useOrangeAccent ? "hover:bg-orange-50 dark:hover:bg-orange-900/20" : "hover:bg-gray-50 dark:hover:bg-gray-700/50";
+  const rowBg = getRowBg(isSelected, useOrangeAccent);
 
   return (
     <button
@@ -62,13 +73,7 @@ export const SpotlightRow = memo(function SpotlightRow({
             {item.sublabel}
           </span>
         )}
-        <span className={`truncate text-sm ${
-          item.kind === "harness-goto"
-            ? "font-medium text-orange-500 dark:text-orange-400"
-            : isHarness
-              ? "font-medium text-gray-800 dark:text-white"
-              : "text-gray-600 dark:text-gray-300"
-        }`}>
+        <span className={`truncate text-sm ${getLabelClass(item.kind === "harness-goto", isHarness)}`}>
           {item.label}
         </span>
       </div>

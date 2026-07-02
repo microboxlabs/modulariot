@@ -5,6 +5,19 @@ import { BsStars } from "react-icons/bs";
 import type { SpotlightItem } from "./types";
 import type { HarnessSearchResult } from "@/app/api/harness/search/route";
 
+function toSpotlightItem(r: HarnessSearchResult): SpotlightItem {
+  return {
+    id: r.id,
+    label: r.label,
+    sublabel: r.sublabel,
+    blocks: r.blocks,
+    kind: "harness" as const,
+    icon: BsStars,
+    keywords: [],
+    onSelect: () => {},
+  };
+}
+
 export interface UseHarnessSearchReturn {
   results: SpotlightItem[];
   isLoading: boolean;
@@ -50,18 +63,7 @@ export function useHarnessSearch(committedQuery: string): UseHarnessSearchReturn
         const data: { results: HarnessSearchResult[] } = await res.json();
 
         if (!controller.signal.aborted) {
-          setResults(
-            data.results.map((r) => ({
-              id: r.id,
-              label: r.label,
-              sublabel: r.sublabel,
-              blocks: r.blocks,
-              kind: "harness" as const,
-              icon: BsStars,
-              keywords: [],
-              onSelect: () => {},
-            })),
-          );
+          setResults(data.results.map(toSpotlightItem));
         }
       } catch (err: unknown) {
         if (

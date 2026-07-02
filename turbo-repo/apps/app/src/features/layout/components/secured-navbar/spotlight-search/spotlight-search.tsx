@@ -58,6 +58,16 @@ const KIND_ICONS: Record<SpotlightResultKind, IconConfig> = {
   },
 };
 
+function urlBlockToItem(block: HarnessBlock & { type: "url" }, i: number): SpotlightItem {
+  return {
+    id: `harness-url-${i}`,
+    label: block.value.name,
+    kind: "harness-goto" as const,
+    keywords: [],
+    onSelect: () => globalThis.open(block.value.url, "_blank"),
+  };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 interface SpotlightSearchProps {
   dict: I18nRecord;
@@ -76,8 +86,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
 
   const placeholder     = (spotlightDict?.placeholder as string | undefined) ?? "Search…";
   const recentLabel     = (spotlightDict?.recent       as string | undefined) ?? "Recent";
-  const navigateHeading = (navigateDict?.heading       as string | undefined) ?? "Go to";
-  const harnessHeading  = (spotlightDict?.harness      as string | undefined) ?? "Harness";
+  const navigateHeading = (navigateDict?.heading as string | undefined) ?? "Go to";
 
   // ── Stable nav callbacks ──────────────────────────────────────────────────
   const onNavigate = useCallback((href: string) => router.push(href), [router]);
@@ -107,7 +116,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
 
   // Stable Enter handler — reads from refs so it never goes stale.
   const handleEnterSelect = useCallback((index: number) => {
-    const item = selectableItemsRef.current[index >= 0 ? index : 0];
+    const item = selectableItemsRef.current[Math.max(index, 0)];
     if (item) handleSelectRef.current?.(item);
   }, []);
 
@@ -153,7 +162,6 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
       isHarnessPrompt: true,
       onSelect: () => setCommittedQuery(query.trim()),
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [query],
   );
 
@@ -162,13 +170,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
     harnessResults.flatMap((result) =>
       (result.blocks ?? [])
         .filter((b): b is HarnessBlock & { type: "url" } => b.type === "url")
-        .map((block, i) => ({
-          id: `harness-url-${i}`,
-          label: block.value.name,
-          kind: "harness-goto" as const,
-          keywords: [],
-          onSelect: () => window.open(block.value.url, "_blank"),
-        }))
+        .map(urlBlockToItem)
     ),
     [harnessResults],
   );
@@ -247,12 +249,12 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
       {/* ── Overlay ──────────────────────────────────────────────────── */}
       {isOpen && (
         <SpotlightBackdrop onClose={close}>
-          <div
-            role="dialog"
-            aria-modal="true"
+          <dialog
+            open
             aria-label={placeholder}
-            className="relative left-1/2 top-[15%] w-full max-w-2xl -translate-x-1/2 px-4"
+            className="relative left-1/2 top-[15%] w-full max-w-2xl -translate-x-1/2 px-4 border-0 bg-transparent p-0 m-0 max-h-none overflow-visible"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
 
@@ -292,7 +294,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
               <SpotlightFooter hasResults={!isEmpty && hasResults} />
 
             </div>
-          </div>
+          </dialog>
         </SpotlightBackdrop>
       )}
     </>

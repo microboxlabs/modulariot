@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from "react";
 
-function Key({ children }: { children: ReactNode }) {
+function Key({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <kbd className="inline-flex items-center rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] font-medium text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400">
       {children}
@@ -8,7 +8,7 @@ function Key({ children }: { children: ReactNode }) {
   );
 }
 
-function Hint({ keys, label }: { keys: string[]; label: string }) {
+function Hint({ keys, label }: Readonly<{ keys: string[]; label: string }>) {
   return (
     <span className="flex items-center gap-1">
       {keys.map((k) => <Key key={k}>{k}</Key>)}

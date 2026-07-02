@@ -27,6 +27,21 @@ export interface HarnessSearchResult {
   blocks: HarnessBlock[];
 }
 
+function parseAnswerBlocks(answer: string): HarnessBlock[] {
+  try {
+    return JSON.parse(answer) as HarnessBlock[];
+  } catch {
+    return [{ type: "markdown", value: answer }];
+  }
+}
+
+function buildLabel(blocks: HarnessBlock[]): string {
+  const first = blocks.find((b): b is Extract<HarnessBlock, { type: "markdown" }> => b.type === "markdown");
+  const raw = first?.value ?? "";
+  const plain = raw.replace(/[*_`#[\]]/g, "").trim();
+  return plain.slice(0, 120) + (plain.length > 120 ? "…" : "");
+}
+
 export async function POST(request: Request) {
   if (!MIOT_HARNESS_HOST) {
     return NextResponse.json({ results: [] });
@@ -94,21 +109,10 @@ export async function POST(request: Request) {
 
     if (!answer) return NextResponse.json({ results: [] });
 
-    let blocks: HarnessBlock[];
-    try {
-      blocks = JSON.parse(answer) as HarnessBlock[];
-    } catch {
-      blocks = [{ type: "markdown", value: answer }];
-    }
-
-    const firstMarkdown = blocks.find((b): b is Extract<HarnessBlock, { type: "markdown" }> => b.type === "markdown");
-    const rawLabel = firstMarkdown?.value ?? "";
-    const plainLabel = rawLabel.replace(/[*_`#[\]]/g, "").trim();
-    const label = plainLabel.slice(0, 120) + (plainLabel.length > 120 ? "…" : "");
-
+    const blocks = parseAnswerBlocks(answer);
     const result: HarnessSearchResult = {
       id: `harness:${run_id}`,
-      label,
+      label: buildLabel(blocks),
       blocks,
     };
 

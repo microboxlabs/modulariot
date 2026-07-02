@@ -41,7 +41,7 @@ const MARKDOWN_COMPONENTS = {
   ),
 };
 
-export function MarkdownContent({ children, className }: { children: string; className?: string }) {
+export function MarkdownContent({ children, className }: Readonly<{ children: string; className?: string }>) {
   return (
     <div className={className}>
       <ReactMarkdown remarkPlugins={[remarkBreaks]} components={MARKDOWN_COMPONENTS as never}>

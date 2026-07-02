@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import errno
 import json
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -150,3 +152,78 @@ def test_provenance_handles_missing_refreshed_at(
         assert payload["refreshed_at"] is None
     else:
         assert payload["refreshed_at"] == refreshed_at.isoformat()
+
+
+def _entry() -> ProvenanceEntry:
+    return ProvenanceEntry(
+        question="q",
+        sql="SELECT 1 FROM analytics.dx_servicios LIMIT 1",
+        plan_cost=1.0,
+        rows_returned=0,
+        refreshed_at=None,
+        run_id="r",
+        tenant_id="acme",
+    )
+
+
+def test_provenance_survives_read_only_filesystem(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A read-only FS (EROFS) when creating the dir must never break the run.
+
+    Production runs the harness on a read-only filesystem; provenance is a
+    best-effort telemetry side-channel and must degrade to a no-op so the
+    user still gets an answer.
+    """
+
+    def _raise_erofs(*_args: object, **_kwargs: object) -> None:
+        raise OSError(errno.EROFS, "Read-only file system")
+
+    monkeypatch.setattr(Path, "mkdir", _raise_erofs)
+    log = ProvenanceLog(root=tmp_path / "evals" / "provenance")
+
+    with caplog.at_level(logging.WARNING):
+        log.append(_entry(), now=datetime(2026, 5, 12, 9, 0, tzinfo=UTC))  # must not raise
+
+    assert not (tmp_path / "evals").exists()
+    assert any("provenance" in r.message.lower() for r in caplog.records)
+
+
+def test_provenance_survives_permission_error_on_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A permission error (EACCES) when opening the file must also degrade."""
+
+    def _raise_eacces(*_args: object, **_kwargs: object) -> None:
+        raise OSError(errno.EACCES, "Permission denied")
+
+    monkeypatch.setattr(Path, "open", _raise_eacces)
+    log = ProvenanceLog(root=tmp_path)
+
+    with caplog.at_level(logging.WARNING):
+        log.append(_entry(), now=datetime(2026, 5, 12, 9, 0, tzinfo=UTC))  # must not raise
+
+    assert any("provenance" in r.message.lower() for r in caplog.records)
+
+
+def test_provenance_disables_after_first_fs_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """After one FS failure the log latches off — no retries, no log spam."""
+
+    calls = {"mkdir": 0}
+
+    def _raise_erofs(*_args: object, **_kwargs: object) -> None:
+        calls["mkdir"] += 1
+        raise OSError(errno.EROFS, "Read-only file system")
+
+    monkeypatch.setattr(Path, "mkdir", _raise_erofs)
+    log = ProvenanceLog(root=tmp_path / "evals")
+
+    with caplog.at_level(logging.WARNING):
+        for _ in range(5):
+            log.append(_entry(), now=datetime(2026, 5, 12, 9, 0, tzinfo=UTC))
+
+    assert calls["mkdir"] == 1
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1

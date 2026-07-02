@@ -68,6 +68,7 @@ Todos los endpoints devuelven respuestas JSON con estructura consistente.
 | Código | Significado |
 |--------|-------------|
 | 200 | Éxito |
+| 202 | Aceptado - Solicitud aceptada para procesamiento asíncrono |
 | 400 | Solicitud Incorrecta - Error de validación o solicitud malformada |
 | 401 | No Autorizado - Token inválido o expirado |
 | 403 | Prohibido - Token válido pero permisos insuficientes |
@@ -79,5 +80,6 @@ Todos los endpoints devuelven respuestas JSON con estructura consistente.
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
 | POST | `/v1/asset/track` | Enviar datos de seguimiento de activos con telemetría |
+| POST | `/v1/stream/events` | Enviar un evento (un "síntoma") con evidencia en video |
 
-→ Ver **Asset Track** para documentación detallada del endpoint.
+→ Ver **Asset Track** y **Event Evidence** para documentación detallada del endpoint.

@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { registerHarnessCreateCommand } from "./create.js";
 import { registerHarnessRunsCommand } from "./runs.js";
+import { registerHarnessSkillsCommand } from "./skills.js";
 
 export function registerHarnessCommand(program: Command): void {
   const harness = program
@@ -19,4 +20,5 @@ export function registerHarnessCommand(program: Command): void {
 
   registerHarnessCreateCommand(harness);
   registerHarnessRunsCommand(harness);
+  registerHarnessSkillsCommand(harness);
 }

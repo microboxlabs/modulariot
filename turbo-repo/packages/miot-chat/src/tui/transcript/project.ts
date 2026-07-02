@@ -30,12 +30,27 @@ export function applyHarnessEvent(
     case "run.started":
       return { ...slice, currentRunId: runId };
 
+    case "approval.auto":
+    case "steering.mode_denied":
+      // Status-only markers (an approval auto-resolved; a steering mode was
+      // denied). The session reducer / footer surfaces these; the transcript
+      // projector leaves the slice unchanged, like run.completed below. Also
+      // keeps this switch exhaustive over HarnessEventType.
+      return slice;
+
     case "run.completed":
     case "run.failed":
       // The session reducer's END_TURN orchestrates the final transition;
       // mid-stream we leave the transcript alone so callers don't have to
       // race the projector against END_TURN.
       return slice;
+
+    case "answer.delta": {
+      const delta =
+        typeof event.data.delta === "string" ? event.data.delta : "";
+      if (!delta) return slice;
+      return appendAnswerDelta(slice, delta, runId, ctx);
+    }
 
     case "answer.completed":
       return upsertAssistantItem(slice, event, runId, ctx);
@@ -114,6 +129,13 @@ export function applyHarnessEvent(
       // node, not two).
       return slice;
 
+    case "verification.completed":
+      // Internal pipeline telemetry (the Phase 3 verify gate's "did we answer
+      // it?" verdict). Like agent.completed, it marks an internal node boundary
+      // and is intentionally not surfaced as a transcript row; the REPL
+      // renderer can show it inline. Keeps this switch exhaustive.
+      return slice;
+
     case "thinking.delta": {
       const delta =
         typeof event.data.delta === "string" ? event.data.delta : "";
@@ -178,8 +200,6 @@ export function applyHarnessEvent(
         typeof event.data.cache_creation_input_tokens === "number"
           ? event.data.cache_creation_input_tokens
           : 0;
-      const cost =
-        typeof event.data.cost_usd === "number" ? event.data.cost_usd : 0;
       const agent =
         typeof event.data.agent === "string" ? event.data.agent : null;
       return {
@@ -189,10 +209,7 @@ export function applyHarnessEvent(
           outputTokens: slice.usageTotals.outputTokens + outT,
           cacheReadTokens: slice.usageTotals.cacheReadTokens + cacheR,
           cacheCreationTokens: slice.usageTotals.cacheCreationTokens + cacheC,
-          costUsd: slice.usageTotals.costUsd + cost,
           lastAgent: agent,
-          lastCostUsd:
-            typeof event.data.cost_usd === "number" ? event.data.cost_usd : null,
         },
       };
     }
@@ -252,6 +269,46 @@ function extractAnswerText(event: HarnessEvent): string | null {
     return data.answer;
   }
   return null;
+}
+
+/**
+ * Append a streamed answer.delta to the live assistant item, creating
+ * it on the first delta. Mirrors the thinking.delta accumulation so the
+ * assistant bubble grows token-by-token instead of popping in whole at
+ * END_TURN. END_TURN still reconciles against the authoritative run
+ * record, keeping the streamed text if the record answer is empty.
+ */
+function appendAnswerDelta(
+  slice: TranscriptSlice,
+  delta: string,
+  runId: string,
+  ctx: ProjectionContext,
+): TranscriptSlice {
+  const existingId = slice.currentAssistantItemId;
+  if (existingId) {
+    return {
+      ...slice,
+      transcript: slice.transcript.map((item) =>
+        item.kind === "assistant" && item.id === existingId
+          ? { ...item, text: item.text + delta, status: "streaming" as const }
+          : item,
+      ),
+    };
+  }
+  const id = ctx.uuid();
+  const item: TranscriptItem = {
+    kind: "assistant",
+    id,
+    runId,
+    text: delta,
+    status: "streaming",
+    ts: ctx.now(),
+  };
+  return {
+    ...slice,
+    currentAssistantItemId: id,
+    transcript: [...slice.transcript, item],
+  };
 }
 
 function upsertAssistantItem(

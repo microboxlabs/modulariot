@@ -25,6 +25,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
     from miot_harness.config import HarnessSettings
+    from miot_harness.connections.models import Connection
+    from miot_harness.datasource.knowledge.models import DetectedPack
+    from miot_harness.datasource.schema_introspect import SchemaSummary
     from miot_harness.tools.registry import ToolRegistry
 
 
@@ -64,6 +67,11 @@ class DataSourceProfile:
     tenant_refusal_template: str
     freshness_warn_minutes: int
     freshness_refuse_minutes: int
+    # Whether this datasource has a snapshot/refresh freshness model (Nexo's
+    # `fn_dx_*` snapshot tables do; a live operational DB does not). When False,
+    # the freshness judge is a no-op — a live source with no `refreshed_at` is
+    # not "stale", so the snapshot-age warning is suppressed.
+    has_freshness_model: bool = True
 
 
 @dataclass(frozen=True)
@@ -98,6 +106,12 @@ class BootResult:
     # Descriptor-derived meta-agent catalog (title/layer/body + freshness
     # suffix). Empty → the server falls back to generic entries.
     catalog_entries: tuple[MetaAgentCatalogEntry, ...] = ()
+    # Connection Knowledge Base (Phase 2): the boot-time schema index for
+    # generic connections. None for providers that don't introspect (e.g.
+    # Nexo, which surfaces its function catalog instead).
+    schema_summary: SchemaSummary | None = None
+    # Curated knowledge packs detected for this connection (Phase 2 slice 2).
+    detected_packs: tuple[DetectedPack, ...] = ()
 
 
 class DataSourceProvider(ABC):
@@ -122,8 +136,21 @@ class DataSourceProvider(ABC):
 
     @abstractmethod
     async def boot(
-        self, registry: ToolRegistry, settings: HarnessSettings
-    ) -> BootResult: ...
+        self,
+        registry: ToolRegistry,
+        settings: HarnessSettings,
+        connection: Connection | None = None,
+    ) -> BootResult:
+        """Boot the datasource.
+
+        ``connection`` carries the resolved per-connection config (DSN +
+        options) when the harness boots from the connections subsystem. It is
+        optional and defaults to ``None`` so existing callers/tests that pass
+        only ``(registry, settings)`` keep the legacy settings-driven
+        behaviour; a provider reads ``connection`` when present and falls back
+        to ``settings`` field-by-field otherwise.
+        """
+        ...
 
     @abstractmethod
     async def close(self) -> None: ...

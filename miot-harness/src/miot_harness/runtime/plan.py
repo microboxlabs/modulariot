@@ -41,6 +41,13 @@ class DataEvidence(BaseModel):
     sample_size: int = 0
     is_stale: bool = False
     freshness_status: FreshnessStatus = "fresh"
+    # The rendered SQL that actually executed (when the tool ran one), so the
+    # synthesizer can cite it verbatim instead of confabulating a query.
+    executed_sql: str | None = None
+    # True for fuzzy/illustrative evidence (a grep/ILIKE sample): never a
+    # definitive count or complete list. The synthesizer must caveat it and
+    # never report its row count as a total.
+    is_sample: bool = False
 
 
 class DataState(TypedDict, total=False):
@@ -66,6 +73,18 @@ class DataState(TypedDict, total=False):
     # agentic mode is not bounded by the 4-step canned plan cap.
     current_step: DataStep | None
     executed_steps: Annotated[list[DataStep], operator.add]
+    # Phase 3 explicit-plan mode: the planner can emit an ordered multi-step
+    # plan at once; the executor drains this queue to completion (one step per
+    # executor turn, popping the head) before control returns to the planner.
+    # Plain key = replace semantics (the executor rewrites the remaining tail);
+    # NOT operator.add, which would re-append drained steps.
+    pending_steps: list[DataStep]
+    # Phase 3 verify gate: when the verifier judges the executed evidence does
+    # NOT yet fulfil the request, it records the gap here and routes back to the
+    # planner to re-plan. `replan_count` bounds those loops (separate from the
+    # planner's turn_count cap).
+    verification_gap: str | None
+    replan_count: int
     # Failed tool calls (one human-readable note each). The agentic
     # executor records failures here instead of dead-ending the run, so
     # the planner can adapt — try another tool or finalize.

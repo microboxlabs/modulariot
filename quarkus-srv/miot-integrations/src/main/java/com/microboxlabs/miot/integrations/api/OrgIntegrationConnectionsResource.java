@@ -6,6 +6,7 @@ import com.microboxlabs.miot.integrations.dto.ConnectionTestRequest;
 import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationOperationRequest;
+import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
@@ -14,6 +15,7 @@ import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -110,6 +112,22 @@ public class OrgIntegrationConnectionsResource {
         String tenant = tenantCode(organizationId);
         return onWorker(() -> {
             var connection = service.getConnection(tenant, connectionId);
+            return connection == null
+                    ? Response.status(Response.Status.NOT_FOUND).build()
+                    : Response.ok(connection).build();
+        });
+    }
+
+    @PATCH
+    @Path("/connections/{connectionId}")
+    @Operation(summary = "Update an integration connection (partial)")
+    public Uni<Response> updateConnection(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("connectionId") String connectionId,
+            UpdateIntegrationConnectionRequest req) {
+        String tenant = tenantCode(organizationId);
+        return onWorker(() -> {
+            var connection = service.updateConnection(tenant, connectionId, req);
             return connection == null
                     ? Response.status(Response.Status.NOT_FOUND).build()
                     : Response.ok(connection).build();

@@ -21,8 +21,15 @@ def _make_nexo() -> DataSourceProvider:
     return NexoProvider()
 
 
+def _make_generic_pg() -> DataSourceProvider:
+    from miot_harness.integrations.generic_pg.provider import GenericPgProvider
+
+    return GenericPgProvider()
+
+
 _REGISTRY: dict[str, Callable[[], DataSourceProvider]] = {
     "nexo": _make_nexo,
+    "pg": _make_generic_pg,
 }
 
 

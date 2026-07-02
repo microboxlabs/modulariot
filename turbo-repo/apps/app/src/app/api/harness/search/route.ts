@@ -58,19 +58,6 @@ export async function POST(request: Request) {
     authResult.session.user?.ticket ??
     undefined;
 
-  logger.info({ hasToken: !!token, orgSlug, query }, "[harness/search] starting run");
-
-  const requestBody = {
-    message: query,
-    skill_id: "miot-search",
-    answer_format: "json",
-    mode: "auto",
-    ...(authResult.session.user?.email && { user_id: authResult.session.user.email }),
-  };
-  console.log(
-    `[harness/search] curl equivalent:\ncurl -X POST '${harnessUrl}/runs:start' \\\n  -H 'Content-Type: application/json' \\\n  -H 'Authorization: Bearer ${token ?? "<no-token>"}' \\\n${authResult.session.user?.email ? `  -H 'X-Dev-User-Email: ${authResult.session.user.email}' \\\n` : ""}  -d '${JSON.stringify(requestBody)}'`,
-  );
-
   const client = createMiotHarnessClient({
     baseUrl: harnessUrl,
     token,
@@ -95,8 +82,6 @@ export async function POST(request: Request) {
       { signal: controller.signal },
     );
 
-    logger.info({ run_id }, "[harness/search] run created, streaming events");
-
     // Drain the stream until the terminal event — answer text is NOT carried
     // in stream events, only in the final run record from runs.get().
     for await (const event of client.runs.stream(run_id, { signal: controller.signal })) {
@@ -107,16 +92,12 @@ export async function POST(request: Request) {
     const record = await client.runs.get(run_id, { signal: controller.signal });
     const answer = record.answer;
 
-    logger.info({ run_id, hasAnswer: !!answer, rawAnswer: answer }, "[harness/search] done");
-
     if (!answer) return NextResponse.json({ results: [] });
 
     let blocks: HarnessBlock[];
     try {
       blocks = JSON.parse(answer) as HarnessBlock[];
-      logger.info({ run_id, blockCount: blocks.length, blocks }, "[harness/search] parsed blocks");
     } catch {
-      logger.warn({ run_id, rawAnswer: answer }, "[harness/search] answer is not JSON, falling back to markdown block");
       blocks = [{ type: "markdown", value: answer }];
     }
 
@@ -130,8 +111,6 @@ export async function POST(request: Request) {
       label,
       blocks,
     };
-
-    logger.info({ run_id, result }, "[harness/search] returning result");
 
     return NextResponse.json({ results: [result] });
   } catch (err: unknown) {

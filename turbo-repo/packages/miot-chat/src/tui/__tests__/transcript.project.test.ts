@@ -30,9 +30,7 @@ function emptySlice(): TranscriptSlice {
       outputTokens: 0,
       cacheReadTokens: 0,
       cacheCreationTokens: 0,
-      costUsd: 0,
       lastAgent: null,
-      lastCostUsd: null,
     },
   };
 }
@@ -58,6 +56,15 @@ describe("transcript projector — meta events", () => {
     const next = applyHarnessEvent(emptySlice(), evt("run.started"), "r1", ctx);
     expect(next.currentRunId).toBe("r1");
     expect(next.transcript).toEqual([]);
+  });
+
+  it("approval.auto and steering.mode_denied are no-op status markers", () => {
+    const ctx = mkCtx();
+    const seeded: TranscriptSlice = { ...emptySlice(), currentRunId: "r1" };
+    for (const type of ["approval.auto", "steering.mode_denied"] as const) {
+      const next = applyHarnessEvent(seeded, evt(type), "r1", ctx);
+      expect(next).toEqual(seeded);
+    }
   });
 
   it("run.completed and run.failed are no-ops on the slice", () => {
@@ -227,6 +234,43 @@ describe("transcript projector — answer.completed precedence", () => {
       ctx,
     );
     expect(s.transcript[0]).toMatchObject({ text: "from-answer" });
+  });
+});
+
+describe("transcript projector — answer.delta streaming", () => {
+  it("accumulates answer.delta into one streaming assistant item", () => {
+    const ctx = mkCtx();
+    let s = applyHarnessEvent(
+      emptySlice(),
+      evt("answer.delta", { data: { delta: "Hola " } }),
+      "r1",
+      ctx,
+    );
+    s = applyHarnessEvent(
+      s,
+      evt("answer.delta", { data: { delta: "mundo" } }),
+      "r1",
+      ctx,
+    );
+    expect(s.transcript).toHaveLength(1);
+    expect(s.transcript[0]).toMatchObject({
+      kind: "assistant",
+      text: "Hola mundo",
+      status: "streaming",
+    });
+    expect(s.currentAssistantItemId).not.toBeNull();
+  });
+
+  it("ignores answer.delta with an empty delta", () => {
+    const ctx = mkCtx();
+    const s = applyHarnessEvent(
+      emptySlice(),
+      evt("answer.delta", { data: { delta: "" } }),
+      "r1",
+      ctx,
+    );
+    expect(s.transcript).toHaveLength(0);
+    expect(s.currentAssistantItemId).toBeNull();
   });
 });
 
@@ -425,7 +469,7 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
     expect(s2.transcript[0]).toMatchObject({ kind: "thinking", status: "complete" });
   });
 
-  it("usage.recorded accumulates totals across calls", () => {
+  it("usage.recorded accumulates token totals across calls", () => {
     const ctx = mkCtx();
     const s1 = applyHarnessEvent(
       emptySlice(),
@@ -437,7 +481,6 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
           output_tokens: 100,
           cache_read_input_tokens: 50,
           cache_creation_input_tokens: 25,
-          cost_usd: 0.0042,
         },
       }),
       "r1",
@@ -448,9 +491,7 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
       outputTokens: 100,
       cacheReadTokens: 50,
       cacheCreationTokens: 25,
-      costUsd: 0.0042,
       lastAgent: "filter_expert",
-      lastCostUsd: 0.0042,
     });
 
     const s2 = applyHarnessEvent(
@@ -471,8 +512,9 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
     expect(s2.usageTotals.inputTokens).toBe(3000);
     expect(s2.usageTotals.outputTokens).toBe(300);
     expect(s2.usageTotals.lastAgent).toBe("synthesizer");
-    expect(s2.usageTotals.lastCostUsd).toBeNull();
-    expect(s2.usageTotals.costUsd).toBeCloseTo(0.0042);
+    // Dollar cost is never carried on the client-side usage totals.
+    expect(s2.usageTotals).not.toHaveProperty("costUsd");
+    expect(s2.usageTotals).not.toHaveProperty("lastCostUsd");
   });
 
   it("agent.completed is intentionally dropped from the transcript", () => {

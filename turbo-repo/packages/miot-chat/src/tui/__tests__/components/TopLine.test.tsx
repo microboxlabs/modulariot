@@ -25,9 +25,11 @@ describe("<TopLine />", () => {
     expect(frame).toContain("conv abcdef01");
   });
 
-  it("renders a spinner glyph when streaming", () => {
+  it("renders no spinner even while streaming (loading stays inline)", () => {
     const { lastFrame } = render(<TopLine meta={meta()} streaming={true} />);
-    expect(lastFrame() ?? "").toMatch(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/);
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("demo-tenant");
+    expect(frame).not.toMatch(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/);
   });
 
   it("does not render the spinner when idle", () => {

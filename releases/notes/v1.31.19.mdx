@@ -1,0 +1,32 @@
+# 🔔 Release Notes v1.31.19 — ModularIoT
+
+### Fecha: 24/06/2026
+
+**Objetivo**: incorporar almacenamiento persistente y escribible al Harness para administrar instrucciones personalizadas, skills y trazas de procedencia sin debilitar el filesystem de solo lectura del contenedor.
+
+## 🚀 Novedades
+
+- El chart `miot-harness 0.4.0` incorpora directorios escribibles para contexto e instrucciones en `/app/.miot-workspace/context` y para skills en `/app/.miot-workspace/skills`.
+- Los contenidos predeterminados incluidos en la imagen se inicializan automáticamente sin sobrescribir archivos personalizados existentes.
+- El workspace puede respaldarse con un PVC, permitiendo que las personalizaciones sobrevivan reinicios y reemplazos del Pod.
+- Los despliegues administrados habilitan un PVC de `1 GiB` y ejecutan el Harness con los permisos del usuario no privilegiado `65534`.
+- Las trazas de procedencia quedan habilitadas y se almacenan en `/app/.miot-workspace/evals/provenance`, dentro del volumen persistente.
+- El umbrella chart `modulariot 0.3.0` integra el nuevo subchart y mantiene el comportamiento anterior por defecto para instalaciones que no habiliten contenido escribible.
+
+## 📦 Componentes publicados
+
+- Stack: `miot-stack@v0.5.20`
+- Aplicación: `app@v0.5.20`
+- Modulith: `modulith@v0.5.15` (sin cambios)
+- Harness: `harness@v0.1.0`
+- Helm: `modulariot 0.3.0` y `miot-harness 0.4.0`
+
+## ⚙️ Consideraciones operativas
+
+- El contexto y los skills se cargan al iniciar el proceso; después de modificarlos se debe reiniciar el Deployment del Harness.
+- El modo predeterminado `ReadWriteOnce` es adecuado para una réplica. Para varias réplicas distribuidas entre nodos se requiere almacenamiento `ReadWriteMany`.
+- El filesystem raíz del contenedor continúa siendo de solo lectura; únicamente el workspace persistente admite escritura.
+
+## 📌 Conclusión
+
+Esta versión permite adaptar el comportamiento del Harness mediante instrucciones y skills administrados por cada entorno, conservando esas personalizaciones y sus registros operativos a través de los ciclos de vida de Kubernetes.

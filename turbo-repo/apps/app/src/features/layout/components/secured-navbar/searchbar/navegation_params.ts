@@ -3,6 +3,13 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 
+export type NavParam = {
+  label: string;
+  param: { key: string; type: string };
+  unique: boolean;
+  options?: { value: string; label: string }[];
+};
+
 export type ParamType =
   | string
   | {
@@ -21,7 +28,6 @@ function kanban_params(searchbarDict: I18nRecord): ParamType[] {
     setParam("destination", "text"),
     setParam("customer", "text"),
     setParam("originType", "selector", [
-      { value: "", label: tr("allOption", searchbarDict) },
       { value: "INTERNAL", label: tr("internal", searchbarDict) },
       { value: "EXTERNAL", label: tr("external", searchbarDict) },
     ]),
@@ -39,7 +45,6 @@ function fleet_params(searchbarDict: I18nRecord): ParamType[] {
     setParam("licensePlate", "text"),
     setParam("client", "text"),
     setParam("state", "selector", [
-      { value: "", label: tr("allOption", searchbarDict) },
       { value: "active", label: tr("stateActive", searchbarDict) },
       { value: "maintenance", label: tr("stateMaintenance", searchbarDict) },
       { value: "alert", label: tr("stateAlert", searchbarDict) },
@@ -96,6 +101,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
       true
     ),
     symptoms: getParamsFixed(symptoms_params, dict),
+    "geographic-view": getParamsFixed([setParam("licensePlate", "text")], dict),
     "fleet-management": getParamsFixed(fleet, dict),
     "collaborators-management": getParamsFixed(
       collaborators_management_params,

@@ -35,6 +35,9 @@ public class FlywayMigrator {
     @ConfigProperty(name = "miot.component.integrations.enabled", defaultValue = "false")
     boolean integrationsEnabled;
 
+    @ConfigProperty(name = "miot.component.conversational.enabled", defaultValue = "false")
+    boolean conversationalEnabled;
+
     @ConfigProperty(name = "quarkus.datasource.active", defaultValue = "true")
     boolean dataSourceActive;
 
@@ -42,7 +45,8 @@ public class FlywayMigrator {
         // Gateway and other stateless components have no DB schema.
         // Skip migration entirely when no DB-dependent component is active
         // to avoid connecting to (or validating against) a database that isn't needed.
-        if (!fleetEnabled && !driverEnabled && !trackingEnabled && !integrationsEnabled) {
+        if (!fleetEnabled && !driverEnabled && !trackingEnabled && !integrationsEnabled
+                && !conversationalEnabled) {
             LOG.debug("No DB-dependent components enabled — skipping Flyway");
             return;
         }
@@ -70,6 +74,9 @@ public class FlywayMigrator {
         }
         if (integrationsEnabled) {
             locations.add("db/migration/integrations");
+        }
+        if (conversationalEnabled) {
+            locations.add("db/migration/conversational");
         }
 
         LOG.infof("Flyway locations: %s", locations);

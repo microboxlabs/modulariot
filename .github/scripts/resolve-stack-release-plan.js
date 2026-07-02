@@ -25,10 +25,33 @@ const latestVersion = (pattern, prefix) => {
   return tags.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))[tags.length - 1];
 };
 
+const semverPattern = /^(\d+)\.(\d+)\.(\d+)$/;
+
+const assertSemver = (version, source) => {
+  if (!semverPattern.test(version)) {
+    throw new Error(`Invalid semver version from ${source}: ${version}`);
+  }
+  return version;
+};
+
+const maxVersion = (...versions) => {
+  const validVersions = versions.filter(Boolean).map((version) => assertSemver(version, "version source"));
+  if (validVersions.length === 0) return "";
+  return validVersions.sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).at(-1);
+};
+
+const projectVersion = (path) => {
+  const content = fs.readFileSync(path, "utf8");
+  const match = content.match(/^version = "([^"]+)"$/m);
+  if (!match) {
+    throw new Error(`Could not read project.version from ${path}`);
+  }
+  return assertSemver(match[1], path);
+};
+
 const bumpPatch = (version) => {
   if (!version) return "0.1.0";
-  const match = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
-  if (!match) throw new Error(`Invalid semver tag version: ${version}`);
+  const match = assertSemver(version, "tag").match(semverPattern);
   return `${match[1]}.${match[2]}.${Number(match[3]) + 1}`;
 };
 
@@ -101,20 +124,27 @@ const pathStarts = (prefixes) => [...changedFiles].some((file) => prefixes.some(
 // Stack release notes are bundled into the Next.js app, so the app package,
 // tag, and image intentionally stay in sync with the stack version.
 const appChanged = true;
+const docsChanged = true;
 const modulithChanged = pathStarts(["quarkus-srv/"]);
 
 const latestModulithVersion = latestVersion("modulith@v*", "modulith@v");
 const latestHarnessVersion = latestVersion("harness@v*", "harness@v");
+const currentHarnessVersion = projectVersion("miot-harness/pyproject.toml");
+const harnessBaseVersion = maxVersion(latestHarnessVersion, currentHarnessVersion);
 const harnessChanged = pathStarts(["miot-harness/"]) || !latestHarnessVersion;
 const appVersion = stackVersion;
 const modulithVersion = modulithChanged ? bumpPatch(latestModulithVersion) : latestModulithVersion;
-const harnessVersion = harnessChanged ? bumpPatch(latestHarnessVersion) : latestHarnessVersion;
+const harnessVersion = harnessChanged ? bumpPatch(harnessBaseVersion) : harnessBaseVersion;
+const docsVersion = stackVersion;
 
 if (!appVersion) {
   throw new Error("No app@v* tag exists and the app did not change in this milestone.");
 }
 if (!modulithVersion) {
   throw new Error("No modulith@v* tag exists and the modulith did not change in this milestone.");
+}
+if (!harnessVersion) {
+  throw new Error("No harness@v* tag exists and the harness did not change in this milestone.");
 }
 const plan = {
   stack_version: stackVersion,
@@ -127,6 +157,11 @@ const plan = {
       changed: appChanged,
       version: appVersion,
       tag: `app@v${appVersion}`,
+    },
+    docs: {
+      changed: docsChanged,
+      version: docsVersion,
+      tag: `docs@v${docsVersion}`,
     },
     modulith: {
       changed: modulithChanged,
@@ -149,6 +184,9 @@ const outputs = {
   app_changed: String(appChanged),
   app_version: appVersion,
   app_tag: plan.components.app.tag,
+  docs_changed: String(docsChanged),
+  docs_version: docsVersion,
+  docs_tag: plan.components.docs.tag,
   modulith_changed: String(modulithChanged),
   modulith_version: modulithVersion,
   modulith_tag: plan.components.modulith.tag,

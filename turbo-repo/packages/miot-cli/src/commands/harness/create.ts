@@ -24,6 +24,7 @@ interface CreateOpts {
   mode?: RunMode;
   conversation?: string;
   thread?: string;
+  skill?: string;
 }
 
 export function registerHarnessCreateCommand(parent: Command): void {
@@ -44,6 +45,10 @@ export function registerHarnessCreateCommand(parent: Command): void {
       "Conversation ID for multi-turn context (defaults to a fresh UUID server-side)",
     )
     .option("--thread <id>", "Thread ID (defaults to the harness's demo-thread)")
+    .option(
+      "--skill <id>",
+      "Activate a skill for this run (injects its SKILL.md body as guidance)",
+    )
     .action(async (message: string, opts: CreateOpts, cmd: Command) => {
       const { client, outputMode } = getHarnessActionContext(cmd);
       try {
@@ -56,6 +61,7 @@ export function registerHarnessCreateCommand(parent: Command): void {
             conversation_id: opts.conversation,
           }),
           ...(opts.thread !== undefined && { thread_id: opts.thread }),
+          ...(opts.skill !== undefined && { skill_id: opts.skill }),
         };
         const result = await client.runs.create(req);
         if (outputMode === "json") {

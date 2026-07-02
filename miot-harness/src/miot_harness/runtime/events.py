@@ -25,6 +25,8 @@ HarnessEventType = Literal[
     "thinking.completed",
     "usage.recorded",
     "freshness.warning",
+    "verification.completed",
+    "answer.delta",
     "answer.completed",
     "run.completed",
     "run.failed",

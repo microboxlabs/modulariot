@@ -17,6 +17,16 @@ def test_resolve_nexo_returns_provider_with_profile() -> None:
     assert provider.profile.tenant_lock == "mintral"
 
 
+def test_generic_pg_is_registered() -> None:
+    assert "pg" in available_kinds()
+
+
+def test_resolve_pg_returns_generic_provider() -> None:
+    from miot_harness.integrations.generic_pg.provider import GenericPgProvider
+
+    assert isinstance(resolve("pg"), GenericPgProvider)
+
+
 def test_resolve_unknown_kind_fails_fast_listing_kinds() -> None:
     with pytest.raises(ValueError) as exc:
         resolve("definitely-not-a-datasource")

@@ -22,6 +22,7 @@ env:
   GHCR_REGISTRY: ghcr.io
   IMAGE_OWNER: microboxlabs
   APP_IMAGE_NAME: miot-app
+  DOCS_IMAGE_NAME: miot-docs
   MODULITH_IMAGE_NAME: miot-srv
   HARNESS_IMAGE_NAME: miot-harness
   JAVA_VERSION: "21"
@@ -39,6 +40,9 @@ jobs:
       app_changed: ${{ steps.plan.outputs.app_changed }}
       app_version: ${{ steps.plan.outputs.app_version }}
       app_tag: ${{ steps.plan.outputs.app_tag }}
+      docs_changed: ${{ steps.plan.outputs.docs_changed }}
+      docs_version: ${{ steps.plan.outputs.docs_version }}
+      docs_tag: ${{ steps.plan.outputs.docs_tag }}
       modulith_changed: ${{ steps.plan.outputs.modulith_changed }}
       modulith_version: ${{ steps.plan.outputs.modulith_version }}
       modulith_tag: ${{ steps.plan.outputs.modulith_tag }}
@@ -78,6 +82,7 @@ jobs:
               latest="$(
                 {
                   git tag --list 'app@v*' | sed 's/^app@v//'
+                  git tag --list 'docs@v*' | sed 's/^docs@v//'
                   git tag --list 'modulith@v*' | sed 's/^modulith@v//'
                   git tag --list 'harness@v*' | sed 's/^harness@v//'
                 } | sort -V | tail -1
@@ -132,6 +137,26 @@ jobs:
             echo "oss_milestone=MIOT-$version"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Create release branch
+        id: branch
+        run: |
+          branch="release/miot-v${{ steps.version.outputs.release_version }}"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            git fetch origin "$branch"
+            git switch -C "$branch" "origin/$branch"
+          else
+            git switch -c "$branch"
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Restore release automation from workflow ref
+        run: |
+          git checkout "$GITHUB_SHA" -- \
+            .github/scripts/resolve-stack-release-plan.js \
+            .github/prompts/app-release-notes.prompt.yml \
+            turbo-repo/generative_ai/tools/sh/fetch-release-issues.sh \
+            turbo-repo/generative_ai/tools/sh/bump-app-version.sh
+
       - name: Collect release issues
         env:
           GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
@@ -150,13 +175,6 @@ jobs:
           OSS_MILESTONE: ${{ steps.version.outputs.oss_milestone }}
         run: node .github/scripts/resolve-stack-release-plan.js
 
-      - name: Create release branch
-        id: branch
-        run: |
-          branch="release/miot-v${{ steps.version.outputs.release_version }}"
-          git switch -c "$branch"
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
-
       - name: Bump app package version
         if: steps.plan.outputs.app_changed == 'true'
         run: bash turbo-repo/generative_ai/tools/sh/bump-app-version.sh "${{ steps.plan.outputs.app_version }}"
@@ -171,16 +189,32 @@ jobs:
         run: |
           node - <<'NODE'
           const fs = require("fs");
-          const path = "miot-harness/pyproject.toml";
           const version = "${{ steps.plan.outputs.harness_version }}";
-          const content = fs.readFileSync(path, "utf8");
-          const match = content.match(/^version = "([^"]+)"$/m);
+
+          const updateFile = (path, pattern, replacement) => {
+            const content = fs.readFileSync(path, "utf8");
+            if (!pattern.test(content)) {
+              throw new Error(`Could not update harness version in ${path}`);
+            }
+            const next = content.replace(pattern, replacement);
+            if (next !== content) {
+              fs.writeFileSync(path, next);
+            }
+          };
+
+          const pyprojectPath = "miot-harness/pyproject.toml";
+          const pyprojectContent = fs.readFileSync(pyprojectPath, "utf8");
+          const match = pyprojectContent.match(/^version = "([^"]+)"$/m);
           if (!match) {
-            throw new Error(`Could not update project.version in ${path}`);
+            throw new Error(`Could not update project.version in ${pyprojectPath}`);
           }
-          if (match[1] !== version) {
-            fs.writeFileSync(path, content.replace(/^version = ".*"$/m, `version = "${version}"`));
-          }
+          updateFile(pyprojectPath, /^version = ".*"$/m, `version = "${version}"`);
+
+          updateFile(
+            "miot-harness/uv.lock",
+            /(\[\[package\]\]\nname = "miot-harness"\nversion = ")[^"]+(")/,
+            (_match, prefix, suffix) => `${prefix}${version}${suffix}`
+          );
           NODE
 
       - name: Resolve release date
@@ -200,8 +234,18 @@ jobs:
           const body = prompt
             .replaceAll("{{release_version}}", "${{ steps.version.outputs.release_notes_version }}")
             .replaceAll("{{release_date}}", "${{ steps.release_date.outputs.date }}")
+            .replaceAll("{{stack_version}}", "${{ steps.version.outputs.release_version }}")
             .replaceAll("{{private_milestone}}", "${{ steps.version.outputs.private_milestone }}")
             .replaceAll("{{oss_milestone}}", "${{ steps.version.outputs.oss_milestone }}")
+            .replaceAll("{{stack_tag}}", "${{ steps.plan.outputs.stack_tag }}")
+            .replaceAll("{{app_tag}}", "${{ steps.plan.outputs.app_tag }}")
+            .replaceAll("{{app_changed}}", "${{ steps.plan.outputs.app_changed }}")
+            .replaceAll("{{docs_tag}}", "${{ steps.plan.outputs.docs_tag }}")
+            .replaceAll("{{docs_changed}}", "${{ steps.plan.outputs.docs_changed }}")
+            .replaceAll("{{modulith_tag}}", "${{ steps.plan.outputs.modulith_tag }}")
+            .replaceAll("{{modulith_changed}}", "${{ steps.plan.outputs.modulith_changed }}")
+            .replaceAll("{{harness_tag}}", "${{ steps.plan.outputs.harness_tag }}")
+            .replaceAll("{{harness_changed}}", "${{ steps.plan.outputs.harness_changed }}")
             .replaceAll("{{release_issues}}", indentedIssues);
           fs.writeFileSync("release-notes.prompt.yml", body);
           NODE
@@ -250,9 +294,13 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "${{ steps.plan.outputs.stack_plan_file }}" releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/package.json turbo-repo/package-lock.json quarkus-srv miot-harness/pyproject.toml
-          git commit -m "chore(release): prepare MIOT stack v${{ steps.version.outputs.release_version }}"
-          git push origin "${{ steps.branch.outputs.branch }}"
+          git add "${{ steps.plan.outputs.stack_plan_file }}" releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/package.json turbo-repo/package-lock.json quarkus-srv miot-harness/pyproject.toml miot-harness/uv.lock
+          if git diff --cached --quiet; then
+            echo "No release prep changes to commit."
+          else
+            git commit -m "chore(release): prepare MIOT stack v${{ steps.version.outputs.release_version }}"
+            git push origin "${{ steps.branch.outputs.branch }}"
+          fi
 
       - name: Open release PR
         id: pr
@@ -264,6 +312,7 @@ jobs:
 
           Components:
           - App: ${{ steps.plan.outputs.app_tag }} (changed: ${{ steps.plan.outputs.app_changed }})
+          - Docs: ${{ steps.plan.outputs.docs_tag }} (changed: ${{ steps.plan.outputs.docs_changed }})
           - Modulith: ${{ steps.plan.outputs.modulith_tag }} (changed: ${{ steps.plan.outputs.modulith_changed }})
           - Harness: ${{ steps.plan.outputs.harness_tag }} (changed: ${{ steps.plan.outputs.harness_changed }})
 
@@ -272,11 +321,19 @@ jobs:
           Approve and merge this PR, then approve the protected release job to tag changed components, resolve component images, and deploy the stack manifest.
           EOF
 
-          url="$(gh pr create \
+          url="$(gh pr list \
             --base trunk \
             --head "${{ steps.branch.outputs.branch }}" \
-            --title "chore(release): prepare MIOT stack v${{ steps.version.outputs.release_version }}" \
-            --body-file release-pr-body.md)"
+            --state open \
+            --json url \
+            --jq '.[0].url // ""')"
+          if [[ -z "$url" ]]; then
+            url="$(gh pr create \
+              --base trunk \
+              --head "${{ steps.branch.outputs.branch }}" \
+              --title "chore(release): prepare MIOT stack v${{ steps.version.outputs.release_version }}" \
+              --body-file release-pr-body.md)"
+          fi
           number="${url##*/}"
           echo "number=$number" >> "$GITHUB_OUTPUT"
           echo "url=$url" >> "$GITHUB_OUTPUT"
@@ -375,8 +432,14 @@ jobs:
 
           if [[ "${{ needs.prepare.outputs.harness_changed }}" == "true" ]]; then
             harness_version="$(node -p "require('fs').readFileSync('miot-harness/pyproject.toml', 'utf8').match(/^version = \\\"([^\\\"]+)\\\"$/m)?.[1] || process.exit(1)")"
+            harness_lock_version="$(node -p "require('fs').readFileSync('miot-harness/uv.lock', 'utf8').match(/\\[\\[package\\]\\]\\nname = \\\"miot-harness\\\"\\nversion = \\\"([^\\\"]+)\\\"/)?.[1] || process.exit(1)")"
             if [[ "$harness_version" != "${{ needs.prepare.outputs.harness_version }}" ]]; then
               echo "trunk harness version is $harness_version, expected ${{ needs.prepare.outputs.harness_version }}." >&2
+              echo "Merge the release PR before approving/tagging." >&2
+              exit 1
+            fi
+            if [[ "$harness_lock_version" != "${{ needs.prepare.outputs.harness_version }}" ]]; then
+              echo "trunk harness lock version is $harness_lock_version, expected ${{ needs.prepare.outputs.harness_version }}." >&2
               echo "Merge the release PR before approving/tagging." >&2
               exit 1
             fi
@@ -412,6 +475,11 @@ jobs:
             tags+=("${{ needs.prepare.outputs.app_tag }}")
           fi
 
+          if [[ "${{ needs.prepare.outputs.docs_changed }}" == "true" ]]; then
+            git tag -a "${{ needs.prepare.outputs.docs_tag }}" -m "${{ needs.prepare.outputs.docs_tag }}"
+            tags+=("${{ needs.prepare.outputs.docs_tag }}")
+          fi
+
           if [[ "${{ needs.prepare.outputs.modulith_changed }}" == "true" ]]; then
             git tag -a "${{ needs.prepare.outputs.modulith_tag }}" -m "${{ needs.prepare.outputs.modulith_tag }}"
             tags+=("${{ needs.prepare.outputs.modulith_tag }}")
@@ -437,6 +505,11 @@ jobs:
               --title "${{ needs.prepare.outputs.app_tag }}" \
               --generate-notes
           fi
+          if [[ "${{ needs.prepare.outputs.docs_changed }}" == "true" ]]; then
+            gh release create "${{ needs.prepare.outputs.docs_tag }}" \
+              --title "${{ needs.prepare.outputs.docs_tag }}" \
+              --generate-notes
+          fi
           if [[ "${{ needs.prepare.outputs.modulith_changed }}" == "true" ]]; then
             gh release create "${{ needs.prepare.outputs.modulith_tag }}" \
               --title "${{ needs.prepare.outputs.modulith_tag }}" \
@@ -459,6 +532,7 @@ jobs:
         if: needs.prepare.outputs.app_changed == 'true'
         with:
           ref: ${{ needs.tag.outputs.sha }}
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         if: needs.prepare.outputs.app_changed == 'true'
@@ -467,10 +541,245 @@ jobs:
           cache: npm
           cache-dependency-path: turbo-repo/package-lock.json
 
+      - name: Resolve build credits
+        id: credits
+        if: needs.prepare.outputs.app_changed == 'true'
+        env:
+          GIT_SHA: ${{ needs.tag.outputs.sha }}
+          STACK_TAG: ${{ needs.prepare.outputs.stack_tag }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          previous_stack_tag="$(
+            git tag --list 'miot-stack@v*' --sort=-v:refname |
+              grep -vx "$STACK_TAG" |
+              head -1 || true
+          )"
+          range="$GIT_SHA"
+          if [[ -n "$previous_stack_tag" ]]; then
+            range="${previous_stack_tag}..${GIT_SHA}"
+          fi
+
+          credit_log="$(git log --format='%H%x09%aN%x09%aE' --numstat "$range")"
+          if [[ -z "$credit_log" ]]; then
+            credit_log="$(git log -1 --format='%H%x09%aN%x09%aE' --numstat "$GIT_SHA")"
+          fi
+
+          credits_json="$(
+            GIT_CREDIT_LOG="$credit_log" GITHUB_TOKEN="$GITHUB_TOKEN" node <<'NODE'
+          const crypto = require("crypto");
+          const lines = (process.env.GIT_CREDIT_LOG ?? "").split("\n");
+          const contributors = new Map();
+          let currentKey = null;
+
+          function githubUsername(email) {
+            return email?.match(/^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/)?.[1];
+          }
+
+          function avatarUrl(email, username) {
+            if (username) {
+              return `https://github.com/${username}.png?size=96`;
+            }
+            if (!email) {
+              return undefined;
+            }
+            const hash = crypto.createHash("md5").update(email.trim().toLowerCase()).digest("hex");
+            return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=96`;
+          }
+
+          async function githubProfile(username) {
+            if (!username) {
+              return {};
+            }
+            const response = await fetch(`https://api.github.com/users/${username}`, {
+              headers: {
+                Accept: "application/vnd.github+json",
+                Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                "X-GitHub-Api-Version": "2022-11-28",
+              },
+            });
+            if (!response.ok) {
+              return {};
+            }
+            const profile = await response.json();
+            return {
+              profileName: profile.name || undefined,
+              bio: profile.bio || undefined,
+              company: profile.company || undefined,
+              location: profile.location || undefined,
+              followers: Number.isFinite(profile.followers) ? profile.followers : undefined,
+              publicRepos: Number.isFinite(profile.public_repos) ? profile.public_repos : undefined,
+            };
+          }
+
+          for (const line of lines) {
+            if (!line.trim()) {
+              continue;
+            }
+
+            const parts = line.split("\t");
+            if (parts.length === 3 && /^[0-9a-f]{40}$/.test(parts[0])) {
+              const [, name, email] = parts;
+              const username = githubUsername(email);
+              currentKey = (email || username || name).toLowerCase();
+              if (!contributors.has(currentKey)) {
+                contributors.set(currentKey, {
+                  name,
+                  ...(email ? { email } : {}),
+                  ...(username ? { username, url: `https://github.com/${username}` } : {}),
+                  avatarUrl: avatarUrl(email, username),
+                  commitCount: 0,
+                  filesChanged: 0,
+                  additions: 0,
+                  deletions: 0,
+                });
+              }
+              contributors.get(currentKey).commitCount += 1;
+              continue;
+            }
+
+            if (!currentKey || parts.length < 3) {
+              continue;
+            }
+
+            const [added, deleted] = parts;
+            const credit = contributors.get(currentKey);
+            credit.filesChanged += 1;
+            credit.additions += /^\d+$/.test(added) ? Number(added) : 0;
+            credit.deletions += /^\d+$/.test(deleted) ? Number(deleted) : 0;
+          }
+
+          const allCredits = [...contributors.values()].map((credit) => ({
+            ...credit,
+            impactScore: credit.commitCount * 25 + credit.filesChanged * 3 + Math.ceil((credit.additions + credit.deletions) / 50),
+          }));
+          Promise.all(
+            allCredits.map(async (credit) => ({
+              ...credit,
+              ...(await githubProfile(credit.username)),
+            }))
+          )
+            .then((enrichedCredits) => {
+              const humanCredits = enrichedCredits.filter(
+                (credit) => !credit.name.endsWith("[bot]") && credit.username !== "github-actions"
+              );
+              const credits = (humanCredits.length > 0 ? humanCredits : enrichedCredits)
+                .sort((left, right) => right.commitCount - left.commitCount || right.impactScore - left.impactScore || left.name.localeCompare(right.name))
+                .map((credit, index) => ({
+                  ...credit,
+                  rank: index + 1,
+                  role: index === 0 ? "Top contributor" : "Contributor",
+                }));
+              console.log(JSON.stringify(credits));
+            })
+            .catch((error) => {
+              console.error(error);
+              process.exit(1);
+            });
+          NODE
+          )"
+          {
+            echo "json<<EOF"
+            echo "$credits_json"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Install dependencies
         if: needs.prepare.outputs.app_changed == 'true'
         run: npm ci
         working-directory: turbo-repo
+
+      - name: Write packaged build info
+        if: needs.prepare.outputs.app_changed == 'true'
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
+          RELEASE_NOTES_VERSION: v${{ needs.prepare.outputs.release_notes_version }}
+          STACK_TAG: ${{ needs.prepare.outputs.stack_tag }}
+          GIT_SHA: ${{ needs.tag.outputs.sha }}
+          SHORT_SHA: ${{ needs.tag.outputs.short_sha }}
+          WORKFLOW_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          APP_VERSION: ${{ needs.prepare.outputs.app_version }}
+          APP_TAG: ${{ needs.prepare.outputs.app_tag }}
+          APP_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}
+          APP_IMAGE_TAG: app-v${{ needs.prepare.outputs.app_version }}
+          DOCS_VERSION: ${{ needs.prepare.outputs.docs_version }}
+          DOCS_TAG: ${{ needs.prepare.outputs.docs_tag }}
+          DOCS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}
+          DOCS_IMAGE_TAG: docs-v${{ needs.prepare.outputs.docs_version }}
+          MODULITH_VERSION: ${{ needs.prepare.outputs.modulith_version }}
+          MODULITH_TAG: ${{ needs.prepare.outputs.modulith_tag }}
+          MODULITH_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}
+          MODULITH_IMAGE_TAG: modulith-v${{ needs.prepare.outputs.modulith_version }}
+          HARNESS_VERSION: ${{ needs.prepare.outputs.harness_version }}
+          HARNESS_TAG: ${{ needs.prepare.outputs.harness_tag }}
+          HARNESS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}
+          HARNESS_IMAGE_TAG: harness-v${{ needs.prepare.outputs.harness_version }}
+          BUILD_CREDITS_JSON: ${{ steps.credits.outputs.json }}
+        run: |
+          mkdir -p turbo-repo/apps/app/public
+          jq -n \
+            --arg release_version "$RELEASE_VERSION" \
+            --arg release_notes_version "$RELEASE_NOTES_VERSION" \
+            --arg stack_tag "$STACK_TAG" \
+            --arg git_sha "$GIT_SHA" \
+            --arg short_sha "$SHORT_SHA" \
+            --arg built_at "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --arg workflow_run_url "$WORKFLOW_RUN_URL" \
+            --arg app_version "$APP_VERSION" \
+            --arg app_tag "$APP_TAG" \
+            --arg app_image_repository "$APP_IMAGE_REPOSITORY" \
+            --arg app_image_tag "$APP_IMAGE_TAG" \
+            --arg docs_version "$DOCS_VERSION" \
+            --arg docs_tag "$DOCS_TAG" \
+            --arg docs_image_repository "$DOCS_IMAGE_REPOSITORY" \
+            --arg docs_image_tag "$DOCS_IMAGE_TAG" \
+            --arg modulith_version "$MODULITH_VERSION" \
+            --arg modulith_tag "$MODULITH_TAG" \
+            --arg modulith_image_repository "$MODULITH_IMAGE_REPOSITORY" \
+            --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
+            --arg harness_version "$HARNESS_VERSION" \
+            --arg harness_tag "$HARNESS_TAG" \
+            --arg harness_image_repository "$HARNESS_IMAGE_REPOSITORY" \
+            --arg harness_image_tag "$HARNESS_IMAGE_TAG" \
+            --argjson credits "$BUILD_CREDITS_JSON" \
+            '{
+              product: "ModularIoT",
+              release_version: $release_version,
+              release_notes_version: $release_notes_version,
+              channel: "release",
+              stack_tag: $stack_tag,
+              git_sha: $git_sha,
+              short_sha: $short_sha,
+              built_at: $built_at,
+              workflow_run_url: $workflow_run_url,
+              manifest_version: 1,
+              credits: $credits,
+              components: {
+                app: {
+                  version: $app_version,
+                  tag: $app_tag,
+                  image_repository: $app_image_repository,
+                  image_tag: $app_image_tag
+                },
+                docs: {
+                  version: $docs_version,
+                  tag: $docs_tag,
+                  image_repository: $docs_image_repository,
+                  image_tag: $docs_image_tag
+                },
+                modulith: {
+                  version: $modulith_version,
+                  tag: $modulith_tag,
+                  image_repository: $modulith_image_repository,
+                  image_tag: $modulith_image_tag
+                },
+                harness: {
+                  version: $harness_version,
+                  tag: $harness_tag,
+                  image_repository: $harness_image_repository,
+                  image_tag: $harness_image_tag
+                }
+              }
+            }' > turbo-repo/apps/app/public/build-info.json
 
       - name: Build app
         if: needs.prepare.outputs.app_changed == 'true'
@@ -521,6 +830,79 @@ jobs:
             digest="$(docker buildx imagetools inspect "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}:app-v${{ needs.prepare.outputs.app_version }}" | awk '/^Digest:/ { print $2; exit }')"
           fi
           echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}@${digest}" >> "$GITHUB_OUTPUT"
+
+  build-docs:
+    name: Resolve docs image
+    runs-on: ubuntu-latest
+    needs: [prepare, tag]
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - uses: actions/checkout@v5
+        if: needs.prepare.outputs.docs_changed == 'true'
+        with:
+          ref: ${{ needs.tag.outputs.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        if: needs.prepare.outputs.docs_changed == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: turbo-repo/package-lock.json
+
+      - name: Install dependencies
+        if: needs.prepare.outputs.docs_changed == 'true'
+        run: npm ci
+        working-directory: turbo-repo
+
+      - name: Build docs
+        if: needs.prepare.outputs.docs_changed == 'true'
+        run: npx turbo run build --filter=@modulariot/docs
+        working-directory: turbo-repo
+
+      - name: Stage docs artifact
+        if: needs.prepare.outputs.docs_changed == 'true'
+        run: |
+          mkdir -p build-context/.next
+          cp -r turbo-repo/apps/docs/.next/standalone build-context/.next/standalone
+          cp -r turbo-repo/apps/docs/.next/static build-context/.next/static
+          cp -r turbo-repo/apps/docs/public build-context/public
+          cp turbo-repo/docker/nextjs.standalone-docs.Dockerfile build-context/
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        if: needs.prepare.outputs.docs_changed == 'true'
+        id: docker
+        uses: docker/build-push-action@v6
+        with:
+          context: build-context/
+          file: build-context/nextjs.standalone-docs.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:${{ needs.prepare.outputs.docs_version }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:docs-v${{ needs.prepare.outputs.docs_version }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:sha-${{ needs.tag.outputs.short_sha }}
+          provenance: true
+          sbom: true
+
+      - name: Export image ref
+        id: image
+        run: |
+          if [[ "${{ needs.prepare.outputs.docs_changed }}" == "true" ]]; then
+            digest="${{ steps.docker.outputs.digest }}"
+          else
+            digest="$(docker buildx imagetools inspect "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:docs-v${{ needs.prepare.outputs.docs_version }}" | awk '/^Digest:/ { print $2; exit }')"
+          fi
+          echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}@${digest}" >> "$GITHUB_OUTPUT"
 
   build-modulith:
     name: Resolve modulith image
@@ -636,7 +1018,7 @@ jobs:
   deploy:
     name: Dispatch configured environment deploys
     runs-on: ubuntu-latest
-    needs: [prepare, tag, build-app, build-modulith, build-harness]
+    needs: [prepare, tag, build-app, build-docs, build-modulith, build-harness]
     environment:
       name: app-deploy
     steps:
@@ -645,14 +1027,25 @@ jobs:
           GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
           DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
+          RELEASE_NOTES_VERSION: v${{ needs.prepare.outputs.release_notes_version }}
+          BUILD_CHANNEL: release
           STACK_TAG: ${{ needs.prepare.outputs.stack_tag }}
+          GIT_SHA: ${{ needs.tag.outputs.sha }}
+          SHORT_SHA: ${{ needs.tag.outputs.short_sha }}
+          WORKFLOW_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           APP_TAG: ${{ needs.prepare.outputs.app_tag }}
+          DOCS_TAG: ${{ needs.prepare.outputs.docs_tag }}
           MODULITH_TAG: ${{ needs.prepare.outputs.modulith_tag }}
           APP_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}
           APP_IMAGE_TAG: app-v${{ needs.prepare.outputs.app_version }}
           APP_IMAGE_REF: ${{ needs.build-app.outputs.image }}
           APP_CHANGED: ${{ needs.prepare.outputs.app_changed }}
           APP_VERSION: ${{ needs.prepare.outputs.app_version }}
+          DOCS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}
+          DOCS_IMAGE_TAG: docs-v${{ needs.prepare.outputs.docs_version }}
+          DOCS_IMAGE_REF: ${{ needs.build-docs.outputs.image }}
+          DOCS_CHANGED: ${{ needs.prepare.outputs.docs_changed }}
+          DOCS_VERSION: ${{ needs.prepare.outputs.docs_version }}
           MODULITH_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}
           MODULITH_IMAGE_TAG: modulith-v${{ needs.prepare.outputs.modulith_version }}
           MODULITH_IMAGE_REF: ${{ needs.build-modulith.outputs.image }}
@@ -671,23 +1064,38 @@ jobs:
             echo "DEPLOY_DISPATCH_TOKEN is required to dispatch the private deployment repository." >&2
             exit 1
           fi
+          BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           jq -n \
             --arg release_version "$RELEASE_VERSION" \
+            --arg release_notes_version "$RELEASE_NOTES_VERSION" \
+            --arg build_channel "$BUILD_CHANNEL" \
             --arg stack_tag "$STACK_TAG" \
+            --arg git_sha "$GIT_SHA" \
+            --arg short_sha "$SHORT_SHA" \
+            --arg built_at "$BUILT_AT" \
+            --arg workflow_run_url "$WORKFLOW_RUN_URL" \
             --arg app_tag "$APP_TAG" \
             --arg app_changed "$APP_CHANGED" \
             --arg app_version "$APP_VERSION" \
+            --arg docs_tag "$DOCS_TAG" \
+            --arg docs_changed "$DOCS_CHANGED" \
+            --arg docs_version "$DOCS_VERSION" \
             --arg modulith_tag "$MODULITH_TAG" \
             --arg modulith_changed "$MODULITH_CHANGED" \
             --arg modulith_version "$MODULITH_VERSION" \
             --arg app_image_repository "$APP_IMAGE_REPOSITORY" \
             --arg app_image_tag "$APP_IMAGE_TAG" \
             --arg app_image_ref "$APP_IMAGE_REF" \
+            --arg docs_image_repository "$DOCS_IMAGE_REPOSITORY" \
+            --arg docs_image_tag "$DOCS_IMAGE_TAG" \
+            --arg docs_image_ref "$DOCS_IMAGE_REF" \
             --arg modulith_image_repository "$MODULITH_IMAGE_REPOSITORY" \
             --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
             --arg modulith_image_ref "$MODULITH_IMAGE_REF" \
             --arg harness_tag "$HARNESS_TAG" \
+            --arg harness_changed "$HARNESS_CHANGED" \
+            --arg harness_version "$HARNESS_VERSION" \
             --arg harness_image_repository "$HARNESS_IMAGE_REPOSITORY" \
             --arg harness_image_tag "$HARNESS_IMAGE_TAG" \
             --arg harness_image_ref "$HARNESS_IMAGE_REF" \
@@ -695,33 +1103,75 @@ jobs:
               event_type: "miot-stack-release",
               client_payload: {
                 release_version: $release_version,
-                app_tag: $app_tag,
-                modulith_tag: $modulith_tag,
-                harness_tag: $harness_tag,
-                app_image_repository: $app_image_repository,
-                app_image_tag: $app_image_tag,
-                app_image_ref: $app_image_ref,
-                modulith_image_repository: $modulith_image_repository,
-                modulith_image_tag: $modulith_image_tag,
-                modulith_image_ref: $modulith_image_ref,
-                harness_image_repository: $harness_image_repository,
-                harness_image_tag: $harness_image_tag,
-                harness_image_ref: $harness_image_ref
+                release_notes_version: $release_notes_version,
+                channel: $build_channel,
+                stack_tag: $stack_tag,
+                git_sha: $git_sha,
+                short_sha: $short_sha,
+                built_at: $built_at,
+                workflow_run_url: $workflow_run_url,
+                manifest_version: 1,
+                components: {
+                  app: {
+                    changed: ($app_changed == "true"),
+                    version: $app_version,
+                    tag: $app_tag,
+                    image_repository: $app_image_repository,
+                    image_tag: $app_image_tag,
+                    image_ref: $app_image_ref
+                  },
+                  docs: {
+                    changed: ($docs_changed == "true"),
+                    version: $docs_version,
+                    tag: $docs_tag,
+                    image_repository: $docs_image_repository,
+                    image_tag: $docs_image_tag,
+                    image_ref: $docs_image_ref
+                  },
+                  modulith: {
+                    changed: ($modulith_changed == "true"),
+                    version: $modulith_version,
+                    tag: $modulith_tag,
+                    image_repository: $modulith_image_repository,
+                    image_tag: $modulith_image_tag,
+                    image_ref: $modulith_image_ref
+                  },
+                  harness: {
+                    changed: ($harness_changed == "true"),
+                    version: $harness_version,
+                    tag: $harness_tag,
+                    image_repository: $harness_image_repository,
+                    image_tag: $harness_image_tag,
+                    image_ref: $harness_image_ref
+                  }
+                }
               }
             }' > stack-dispatch-payload.json
 
           jq -n \
             --arg release_version "$RELEASE_VERSION" \
+            --arg release_notes_version "$RELEASE_NOTES_VERSION" \
+            --arg build_channel "$BUILD_CHANNEL" \
             --arg stack_tag "$STACK_TAG" \
+            --arg git_sha "$GIT_SHA" \
+            --arg short_sha "$SHORT_SHA" \
+            --arg built_at "$BUILT_AT" \
+            --arg workflow_run_url "$WORKFLOW_RUN_URL" \
             --arg app_tag "$APP_TAG" \
             --arg app_changed "$APP_CHANGED" \
             --arg app_version "$APP_VERSION" \
+            --arg docs_tag "$DOCS_TAG" \
+            --arg docs_changed "$DOCS_CHANGED" \
+            --arg docs_version "$DOCS_VERSION" \
             --arg modulith_tag "$MODULITH_TAG" \
             --arg modulith_changed "$MODULITH_CHANGED" \
             --arg modulith_version "$MODULITH_VERSION" \
             --arg app_image_repository "$APP_IMAGE_REPOSITORY" \
             --arg app_image_tag "$APP_IMAGE_TAG" \
             --arg app_image_ref "$APP_IMAGE_REF" \
+            --arg docs_image_repository "$DOCS_IMAGE_REPOSITORY" \
+            --arg docs_image_tag "$DOCS_IMAGE_TAG" \
+            --arg docs_image_ref "$DOCS_IMAGE_REF" \
             --arg modulith_image_repository "$MODULITH_IMAGE_REPOSITORY" \
             --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
             --arg modulith_image_ref "$MODULITH_IMAGE_REF" \
@@ -734,14 +1184,24 @@ jobs:
             '{
               release_version: $release_version,
               stack_version: $release_version,
+              release_notes_version: $release_notes_version,
+              channel: $build_channel,
               stack_tag: $stack_tag,
+              git_sha: $git_sha,
+              short_sha: $short_sha,
+              built_at: $built_at,
+              workflow_run_url: $workflow_run_url,
               manifest_version: 1,
               app_tag: $app_tag,
+              docs_tag: $docs_tag,
               modulith_tag: $modulith_tag,
               harness_tag: $harness_tag,
               app_image_repository: $app_image_repository,
               app_image_tag: $app_image_tag,
               app_image_ref: $app_image_ref,
+              docs_image_repository: $docs_image_repository,
+              docs_image_tag: $docs_image_tag,
+              docs_image_ref: $docs_image_ref,
               modulith_image_repository: $modulith_image_repository,
               modulith_image_tag: $modulith_image_tag,
               modulith_image_ref: $modulith_image_ref,
@@ -756,6 +1216,14 @@ jobs:
                   image_repository: $app_image_repository,
                   image_tag: $app_image_tag,
                   image_ref: $app_image_ref
+                },
+                docs: {
+                  changed: ($docs_changed == "true"),
+                  version: $docs_version,
+                  tag: $docs_tag,
+                  image_repository: $docs_image_repository,
+                  image_tag: $docs_image_tag,
+                  image_ref: $docs_image_ref
                 },
                 modulith: {
                   changed: ($modulith_changed == "true"),

@@ -163,3 +163,43 @@ def test_empty_no_timestamp_warns_with_reason_but_never_refuses():
     warnings = [e for e in events if e.type == "freshness.warning"]
     assert len(warnings) == 1
     assert warnings[0].data.get("reason") == "empty_no_timestamp"
+
+
+def test_no_freshness_model_skips_judge_no_warning():
+    """A live datasource (has_freshness_model=False) must not warn on missing
+    refreshed_at — the snapshot-age model doesn't apply to it."""
+    from dataclasses import replace
+
+    live_profile = replace(NEXO_PROFILE, has_freshness_model=False)
+    state: dict[str, Any] = {
+        "ctx": _ctx(),
+        "evidence": [_ev(None)],  # live row, no snapshot timestamp
+        "turn_count": 1,
+    }
+    events: list[HarnessEvent] = []
+
+    update = freshness_judge_node(
+        state, settings=HarnessSettings(), progress=events.append, profile=live_profile
+    )
+
+    assert update["next_action"] == "analyze"
+    assert update.get("freshness") == FRESHNESS_FRESH
+    assert "freshness.warning" not in {e.type for e in events}
+
+
+def test_snapshot_model_still_warns_on_missing_timestamp():
+    """Regression guard: with a freshness model (Nexo), missing refreshed_at
+    still warns (the existing behaviour Phase 1.5 must not break)."""
+    state: dict[str, Any] = {
+        "ctx": _ctx(),
+        "evidence": [_ev(None)],
+        "turn_count": 1,
+    }
+    events: list[HarnessEvent] = []
+
+    update = freshness_judge_node(
+        state, settings=HarnessSettings(), progress=events.append, profile=NEXO_PROFILE
+    )
+
+    assert update.get("freshness") == FRESHNESS_WARN
+    assert "freshness.warning" in {e.type for e in events}

@@ -1,19 +1,36 @@
 name: MIOT Stack Nightly
 
 on:
+  # App/UI/DB changes have no separate image-build workflow — the app image is
+  # built in-line by this workflow's `build-app` job, so a plain `push` trigger
+  # is race-free for them.
   push:
     branches:
       - trunk
       - main
     paths:
       - 'turbo-repo/apps/app/**'
+      - 'turbo-repo/apps/docs/**'
       - 'turbo-repo/packages/ui/**'
       - 'turbo-repo/packages/db/**'
       - 'turbo-repo/packages/typescript-config/**'
       - 'turbo-repo/package-lock.json'
       - 'turbo-repo/docker/**'
-      - 'quarkus-srv/**'
-      - 'miot-harness/**'
+  # The modulith and harness images are built by their OWN workflows (Quarkus CI
+  # / Harness CI) and only *retagged* here. Triggering on `push` for
+  # `quarkus-srv/**` / `miot-harness/**` raced those builds: the resolve step
+  # could check for `:sha-<short>` before the build pushed it and silently
+  # promote a stale `:latest` (#764). Instead, run AFTER the build workflow
+  # completes so the commit-pinned `sha-<short>` image is guaranteed to exist.
+  workflow_run:
+    workflows:
+      - Quarkus CI
+      - Harness CI
+    types:
+      - completed
+    branches:
+      - trunk
+      - main
   schedule:
     - cron: '0 7 * * *'
   workflow_dispatch:
@@ -30,6 +47,7 @@ env:
   GHCR_REGISTRY: ghcr.io
   IMAGE_OWNER: microboxlabs
   APP_IMAGE_NAME: miot-app
+  DOCS_IMAGE_NAME: miot-docs
   MODULITH_IMAGE_NAME: miot-srv
   HARNESS_IMAGE_NAME: miot-harness
 
@@ -37,16 +55,52 @@ jobs:
   metadata:
     name: Resolve nightly metadata
     runs-on: ubuntu-latest
+    # A failed/cancelled upstream build must never ship — only a green Quarkus CI
+    # / Harness CI run should fan out into a deploy. Skipping `metadata` skips
+    # every downstream job (they all `needs: metadata`).
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
       short_sha: ${{ steps.vars.outputs.short_sha }}
+      head_sha: ${{ steps.vars.outputs.head_sha }}
       nightly_date: ${{ steps.vars.outputs.nightly_date }}
+      expect_modulith_sha: ${{ steps.vars.outputs.expect_modulith_sha }}
+      expect_harness_sha: ${{ steps.vars.outputs.expect_harness_sha }}
     steps:
       - name: Resolve image metadata
         id: vars
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_SHA: ${{ github.sha }}
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_RUN_NAME: ${{ github.event.workflow_run.name }}
         run: |
+          # For `workflow_run`, build images for the commit the upstream build
+          # actually built (its head_sha), not the branch tip GITHUB_SHA points
+          # at — they can differ if trunk advanced while the build ran.
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            head_sha="$WORKFLOW_RUN_SHA"
+          else
+            head_sha="$PUSH_SHA"
+          fi
+
+          # Require a commit-pinned source image ONLY for the component whose
+          # build just completed. Everything else is resolved opportunistically
+          # and may legitimately fall back to :latest (unchanged this run).
+          expect_modulith_sha=false
+          expect_harness_sha=false
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            case "$WORKFLOW_RUN_NAME" in
+              "Quarkus CI") expect_modulith_sha=true ;;
+              "Harness CI") expect_harness_sha=true ;;
+            esac
+          fi
+
           {
-            echo "short_sha=${GITHUB_SHA::7}"
+            echo "short_sha=${head_sha:0:7}"
+            echo "head_sha=$head_sha"
             echo "nightly_date=$(date -u +'%Y%m%d')"
+            echo "expect_modulith_sha=$expect_modulith_sha"
+            echo "expect_harness_sha=$expect_harness_sha"
           } >> "$GITHUB_OUTPUT"
 
   build-app:
@@ -66,6 +120,12 @@ jobs:
       image: ${{ steps.image.outputs.image }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          # Build the exact commit we tag as `sha-<short>`. For `workflow_run`
+          # this is the upstream build's head_sha, which can differ from the
+          # branch tip checkout would grab by default.
+          ref: ${{ needs.metadata.outputs.head_sha }}
+          fetch-depth: 0
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
@@ -73,9 +133,221 @@ jobs:
           cache: npm
           cache-dependency-path: turbo-repo/package-lock.json
 
+      - name: Resolve build credits
+        id: credits
+        env:
+          GIT_SHA: ${{ needs.metadata.outputs.head_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          previous_stack_tag="$(
+            git tag --list 'miot-stack@v*' --merged "$GIT_SHA" --sort=-v:refname |
+              head -1 || true
+          )"
+          range="$GIT_SHA"
+          if [[ -n "$previous_stack_tag" ]]; then
+            range="${previous_stack_tag}..${GIT_SHA}"
+          fi
+
+          credit_log="$(git log --format='%H%x09%aN%x09%aE' --numstat "$range")"
+          if [[ -z "$credit_log" ]]; then
+            credit_log="$(git log -1 --format='%H%x09%aN%x09%aE' --numstat "$GIT_SHA")"
+          fi
+
+          credits_json="$(
+            GIT_CREDIT_LOG="$credit_log" GITHUB_TOKEN="$GITHUB_TOKEN" node <<'NODE'
+          const crypto = require("crypto");
+          const lines = (process.env.GIT_CREDIT_LOG ?? "").split("\n");
+          const contributors = new Map();
+          let currentKey = null;
+
+          function githubUsername(email) {
+            return email?.match(/^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/)?.[1];
+          }
+
+          function avatarUrl(email, username) {
+            if (username) {
+              return `https://github.com/${username}.png?size=96`;
+            }
+            if (!email) {
+              return undefined;
+            }
+            const hash = crypto.createHash("md5").update(email.trim().toLowerCase()).digest("hex");
+            return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=96`;
+          }
+
+          async function githubProfile(username) {
+            if (!username) {
+              return {};
+            }
+            const response = await fetch(`https://api.github.com/users/${username}`, {
+              headers: {
+                Accept: "application/vnd.github+json",
+                Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                "X-GitHub-Api-Version": "2022-11-28",
+              },
+            });
+            if (!response.ok) {
+              return {};
+            }
+            const profile = await response.json();
+            return {
+              profileName: profile.name || undefined,
+              bio: profile.bio || undefined,
+              company: profile.company || undefined,
+              location: profile.location || undefined,
+              followers: Number.isFinite(profile.followers) ? profile.followers : undefined,
+              publicRepos: Number.isFinite(profile.public_repos) ? profile.public_repos : undefined,
+            };
+          }
+
+          for (const line of lines) {
+            if (!line.trim()) {
+              continue;
+            }
+
+            const parts = line.split("\t");
+            if (parts.length === 3 && /^[0-9a-f]{40}$/.test(parts[0])) {
+              const [, name, email] = parts;
+              const username = githubUsername(email);
+              currentKey = (email || username || name).toLowerCase();
+              if (!contributors.has(currentKey)) {
+                contributors.set(currentKey, {
+                  name,
+                  ...(email ? { email } : {}),
+                  ...(username ? { username, url: `https://github.com/${username}` } : {}),
+                  avatarUrl: avatarUrl(email, username),
+                  commitCount: 0,
+                  filesChanged: 0,
+                  additions: 0,
+                  deletions: 0,
+                });
+              }
+              contributors.get(currentKey).commitCount += 1;
+              continue;
+            }
+
+            if (!currentKey || parts.length < 3) {
+              continue;
+            }
+
+            const [added, deleted] = parts;
+            const credit = contributors.get(currentKey);
+            credit.filesChanged += 1;
+            credit.additions += /^\d+$/.test(added) ? Number(added) : 0;
+            credit.deletions += /^\d+$/.test(deleted) ? Number(deleted) : 0;
+          }
+
+          const allCredits = [...contributors.values()].map((credit) => ({
+            ...credit,
+            impactScore: credit.commitCount * 25 + credit.filesChanged * 3 + Math.ceil((credit.additions + credit.deletions) / 50),
+          }));
+          Promise.all(
+            allCredits.map(async (credit) => ({
+              ...credit,
+              ...(await githubProfile(credit.username)),
+            }))
+          )
+            .then((enrichedCredits) => {
+              const humanCredits = enrichedCredits.filter(
+                (credit) => !credit.name.endsWith("[bot]") && credit.username !== "github-actions"
+              );
+              const credits = (humanCredits.length > 0 ? humanCredits : enrichedCredits)
+                .sort((left, right) => right.commitCount - left.commitCount || right.impactScore - left.impactScore || left.name.localeCompare(right.name))
+                .map((credit, index) => ({
+                  ...credit,
+                  rank: index + 1,
+                  role: index === 0 ? "Top contributor" : "Contributor",
+                }));
+              console.log(JSON.stringify(credits));
+            })
+            .catch((error) => {
+              console.error(error);
+              process.exit(1);
+            });
+          NODE
+          )"
+          {
+            echo "json<<EOF"
+            echo "$credits_json"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Install dependencies
         run: npm ci
         working-directory: turbo-repo
+
+      - name: Write packaged build info
+        env:
+          RELEASE_VERSION: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          STACK_TAG: miot-stack@nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          GIT_SHA: ${{ needs.metadata.outputs.head_sha }}
+          SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
+          WORKFLOW_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          APP_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}
+          APP_IMAGE_TAG: sha-${{ needs.metadata.outputs.short_sha }}
+          DOCS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}
+          DOCS_IMAGE_TAG: sha-${{ needs.metadata.outputs.short_sha }}
+          MODULITH_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}
+          MODULITH_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}
+          HARNESS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}
+          HARNESS_IMAGE_TAG: nightly-${{ needs.metadata.outputs.nightly_date }}
+          BUILD_CREDITS_JSON: ${{ steps.credits.outputs.json }}
+        run: |
+          mkdir -p turbo-repo/apps/app/public
+          jq -n \
+            --arg release_version "$RELEASE_VERSION" \
+            --arg stack_tag "$STACK_TAG" \
+            --arg git_sha "$GIT_SHA" \
+            --arg short_sha "$SHORT_SHA" \
+            --arg built_at "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --arg workflow_run_url "$WORKFLOW_RUN_URL" \
+            --arg app_image_repository "$APP_IMAGE_REPOSITORY" \
+            --arg app_image_tag "$APP_IMAGE_TAG" \
+            --arg docs_image_repository "$DOCS_IMAGE_REPOSITORY" \
+            --arg docs_image_tag "$DOCS_IMAGE_TAG" \
+            --arg modulith_image_repository "$MODULITH_IMAGE_REPOSITORY" \
+            --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
+            --arg harness_image_repository "$HARNESS_IMAGE_REPOSITORY" \
+            --arg harness_image_tag "$HARNESS_IMAGE_TAG" \
+            --argjson credits "$BUILD_CREDITS_JSON" \
+            '{
+              product: "ModularIoT",
+              release_version: $release_version,
+              channel: "nightly",
+              stack_tag: $stack_tag,
+              git_sha: $git_sha,
+              short_sha: $short_sha,
+              built_at: $built_at,
+              workflow_run_url: $workflow_run_url,
+              manifest_version: 1,
+              credits: $credits,
+              components: {
+                app: {
+                  version: $release_version,
+                  tag: ("app@" + $release_version),
+                  image_repository: $app_image_repository,
+                  image_tag: $app_image_tag
+                },
+                docs: {
+                  version: $release_version,
+                  tag: ("docs@" + $release_version),
+                  image_repository: $docs_image_repository,
+                  image_tag: $docs_image_tag
+                },
+                modulith: {
+                  version: $release_version,
+                  tag: ("modulith@" + $release_version),
+                  image_repository: $modulith_image_repository,
+                  image_tag: $modulith_image_tag
+                },
+                harness: {
+                  version: $release_version,
+                  tag: ("harness@" + $release_version),
+                  image_repository: $harness_image_repository,
+                  image_tag: $harness_image_tag
+                }
+              }
+            }' > turbo-repo/apps/app/public/build-info.json
 
       - name: Build app
         run: npx turbo run build --filter=@modulariot/app
@@ -135,6 +407,88 @@ jobs:
             echo "- Tags: \`nightly\`, \`nightly-${{ needs.metadata.outputs.nightly_date }}\`, \`sha-${{ needs.metadata.outputs.short_sha }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
+  build-docs:
+    name: Build and publish nightly docs image
+    runs-on: ubuntu-latest
+    needs: metadata
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          ref: ${{ needs.metadata.outputs.head_sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: turbo-repo/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: turbo-repo
+
+      - name: Build docs
+        run: npx turbo run build --filter=@modulariot/docs
+        working-directory: turbo-repo
+
+      - name: Prepare Docker context
+        run: |
+          mkdir -p /tmp/build-docs/.next
+          cp -r turbo-repo/apps/docs/.next/standalone /tmp/build-docs/.next/standalone
+          cp -r turbo-repo/apps/docs/.next/static /tmp/build-docs/.next/static
+          cp -r turbo-repo/apps/docs/public /tmp/build-docs/public
+          cp turbo-repo/docker/nextjs.standalone-docs.Dockerfile /tmp/build-docs/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        id: docker
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: /tmp/build-docs/
+          file: /tmp/build-docs/nextjs.standalone-docs.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:nightly
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:nightly-${{ needs.metadata.outputs.nightly_date }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:sha-${{ needs.metadata.outputs.short_sha }}
+          labels: |
+            org.opencontainers.image.title=${{ env.DOCS_IMAGE_NAME }}
+            org.opencontainers.image.description=ModularIoT docs nightly build
+            org.opencontainers.image.vendor=MicroboxLabs
+            org.opencontainers.image.revision=${{ needs.metadata.outputs.head_sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          provenance: true
+          sbom: true
+
+      - name: Resolve immutable image reference
+        id: image
+        run: echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}@${{ steps.docker.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+      - name: Nightly summary
+        run: |
+          {
+            echo "# MIOT Docs Nightly"
+            echo ""
+            echo "- Image: \`${{ steps.image.outputs.image }}\`"
+            echo "- Tags: \`nightly\`, \`nightly-${{ needs.metadata.outputs.nightly_date }}\`, \`sha-${{ needs.metadata.outputs.short_sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   resolve-modulith:
     name: Resolve nightly modulith image
     runs-on: ubuntu-latest
@@ -161,11 +515,42 @@ jobs:
         env:
           SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:sha-${{ needs.metadata.outputs.short_sha }}
           LATEST_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}:latest
+          SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
+          EXPECT_SHA: ${{ needs.metadata.outputs.expect_modulith_sha }}
         run: |
-          if docker buildx imagetools inspect "$SHA_IMAGE" >/dev/null; then
-            source_image="$SHA_IMAGE"
-            source_tag="sha-${{ needs.metadata.outputs.short_sha }}"
-          else
+          # Prefer the commit-pinned image; only consider :latest as a fallback.
+          #
+          #   EXPECT_SHA=true  -> the matching build (Quarkus CI) just reported
+          #     success, so this image MUST exist. Poll to absorb registry
+          #     propagation lag, then FAIL rather than silently shipping a stale
+          #     :latest (#764 — the fallback used to read as success).
+          #   EXPECT_SHA=false -> the modulith may be unchanged for this commit
+          #     (app push / cron). A missing sha image is expected; fall back to
+          #     :latest immediately, no waiting.
+          max_attempts=30
+          delay=10
+
+          source_image=""
+          source_tag=""
+          for attempt in $(seq 1 "$max_attempts"); do
+            if docker buildx imagetools inspect "$SHA_IMAGE" >/dev/null 2>&1; then
+              source_image="$SHA_IMAGE"
+              source_tag="sha-${SHORT_SHA}"
+              break
+            fi
+            if [[ "$EXPECT_SHA" != "true" ]]; then
+              break
+            fi
+            echo "Attempt ${attempt}/${max_attempts}: ${SHA_IMAGE} not in registry yet; retrying in ${delay}s..."
+            sleep "$delay"
+          done
+
+          if [[ -z "$source_image" ]]; then
+            if [[ "$EXPECT_SHA" == "true" ]]; then
+              echo "::error::${SHA_IMAGE} never became available after ~$((max_attempts * delay))s even though its build reported success; refusing to promote a stale :latest." >&2
+              exit 1
+            fi
+            echo "::notice::${SHA_IMAGE} not found (modulith unchanged this commit); falling back to ${LATEST_IMAGE}."
             source_image="$LATEST_IMAGE"
             source_tag="latest"
           fi
@@ -232,11 +617,42 @@ jobs:
         env:
           SHA_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:sha-${{ needs.metadata.outputs.short_sha }}
           LATEST_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.HARNESS_IMAGE_NAME }}:latest
+          SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
+          EXPECT_SHA: ${{ needs.metadata.outputs.expect_harness_sha }}
         run: |
-          if docker buildx imagetools inspect "$SHA_IMAGE" >/dev/null; then
-            source_image="$SHA_IMAGE"
-            source_tag="sha-${{ needs.metadata.outputs.short_sha }}"
-          else
+          # Prefer the commit-pinned image; only consider :latest as a fallback.
+          #
+          #   EXPECT_SHA=true  -> the matching build (Harness CI) just reported
+          #     success, so this image MUST exist. Poll to absorb registry
+          #     propagation lag, then FAIL rather than silently shipping a stale
+          #     :latest (#764 — the fallback used to read as success).
+          #   EXPECT_SHA=false -> the harness may be unchanged for this commit
+          #     (app push / cron). A missing sha image is expected; fall back to
+          #     :latest immediately, no waiting.
+          max_attempts=30
+          delay=10
+
+          source_image=""
+          source_tag=""
+          for attempt in $(seq 1 "$max_attempts"); do
+            if docker buildx imagetools inspect "$SHA_IMAGE" >/dev/null 2>&1; then
+              source_image="$SHA_IMAGE"
+              source_tag="sha-${SHORT_SHA}"
+              break
+            fi
+            if [[ "$EXPECT_SHA" != "true" ]]; then
+              break
+            fi
+            echo "Attempt ${attempt}/${max_attempts}: ${SHA_IMAGE} not in registry yet; retrying in ${delay}s..."
+            sleep "$delay"
+          done
+
+          if [[ -z "$source_image" ]]; then
+            if [[ "$EXPECT_SHA" == "true" ]]; then
+              echo "::error::${SHA_IMAGE} never became available after ~$((max_attempts * delay))s even though its build reported success; refusing to promote a stale :latest." >&2
+              exit 1
+            fi
+            echo "::notice::${SHA_IMAGE} not found (harness unchanged this commit); falling back to ${LATEST_IMAGE}."
             source_image="$LATEST_IMAGE"
             source_tag="latest"
           fi
@@ -280,7 +696,7 @@ jobs:
   deploy:
     name: Dispatch development environment deploys
     runs-on: ubuntu-latest
-    needs: [metadata, build-app, resolve-modulith, resolve-harness]
+    needs: [metadata, build-app, build-docs, resolve-modulith, resolve-harness]
     permissions:
       contents: read
     environment:
@@ -293,12 +709,20 @@ jobs:
           GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
           DEPLOY_DISPATCH_REPO: ${{ secrets.DEPLOY_DISPATCH_REPO }}
           RELEASE_VERSION: nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          BUILD_CHANNEL: nightly
+          GIT_SHA: ${{ needs.metadata.outputs.head_sha }}
+          SHORT_SHA: ${{ needs.metadata.outputs.short_sha }}
+          WORKFLOW_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           APP_TAG: app@nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          DOCS_TAG: docs@nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           MODULITH_TAG: modulith@nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           HARNESS_TAG: harness@nightly-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
           APP_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.APP_IMAGE_NAME }}
           APP_IMAGE_TAG: sha-${{ needs.metadata.outputs.short_sha }}
           APP_IMAGE_REF: ${{ needs.build-app.outputs.image }}
+          DOCS_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}
+          DOCS_IMAGE_TAG: sha-${{ needs.metadata.outputs.short_sha }}
+          DOCS_IMAGE_REF: ${{ needs.build-docs.outputs.image }}
           MODULITH_IMAGE_REPOSITORY: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.MODULITH_IMAGE_NAME }}
           MODULITH_IMAGE_TAG: ${{ needs.resolve-modulith.outputs.image_tag }}
           MODULITH_IMAGE_REF: ${{ needs.resolve-modulith.outputs.image }}
@@ -314,15 +738,25 @@ jobs:
             echo "DEPLOY_DISPATCH_TOKEN is required to dispatch the private deployment repository." >&2
             exit 1
           fi
+          BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           jq -n \
             --arg release_version "$RELEASE_VERSION" \
+            --arg build_channel "$BUILD_CHANNEL" \
+            --arg git_sha "$GIT_SHA" \
+            --arg short_sha "$SHORT_SHA" \
+            --arg built_at "$BUILT_AT" \
+            --arg workflow_run_url "$WORKFLOW_RUN_URL" \
             --arg app_tag "$APP_TAG" \
+            --arg docs_tag "$DOCS_TAG" \
             --arg modulith_tag "$MODULITH_TAG" \
             --arg harness_tag "$HARNESS_TAG" \
             --arg app_image_repository "$APP_IMAGE_REPOSITORY" \
             --arg app_image_tag "$APP_IMAGE_TAG" \
             --arg app_image_ref "$APP_IMAGE_REF" \
+            --arg docs_image_repository "$DOCS_IMAGE_REPOSITORY" \
+            --arg docs_image_tag "$DOCS_IMAGE_TAG" \
+            --arg docs_image_ref "$DOCS_IMAGE_REF" \
             --arg modulith_image_repository "$MODULITH_IMAGE_REPOSITORY" \
             --arg modulith_image_tag "$MODULITH_IMAGE_TAG" \
             --arg modulith_image_ref "$MODULITH_IMAGE_REF" \
@@ -335,22 +769,54 @@ jobs:
               event_type: "miot-stack-nightly",
               client_payload: {
                 release_version: $release_version,
-                app_tag: $app_tag,
-                modulith_tag: $modulith_tag,
-                harness_tag: $harness_tag,
-                app_image_repository: $app_image_repository,
-                app_image_tag: $app_image_tag,
-                app_image_ref: $app_image_ref,
-                modulith_image_repository: $modulith_image_repository,
-                modulith_image_tag: $modulith_image_tag,
-                modulith_image_ref: $modulith_image_ref,
-                harness_image_repository: $harness_image_repository,
-                harness_image_tag: $harness_image_tag,
-                harness_image_ref: $harness_image_ref
+                channel: $build_channel,
+                git_sha: $git_sha,
+                short_sha: $short_sha,
+                built_at: $built_at,
+                workflow_run_url: $workflow_run_url,
+                manifest_version: 1,
+                components: {
+                  app: {
+                    tag: $app_tag,
+                    image_repository: $app_image_repository,
+                    image_tag: $app_image_tag,
+                    image_ref: $app_image_ref
+                  },
+                  docs: {
+                    tag: $docs_tag,
+                    image_repository: $docs_image_repository,
+                    image_tag: $docs_image_tag,
+                    image_ref: $docs_image_ref
+                  },
+                  modulith: {
+                    tag: $modulith_tag,
+                    image_repository: $modulith_image_repository,
+                    image_tag: $modulith_image_tag,
+                    image_ref: $modulith_image_ref,
+                    source_tag: $modulith_source_tag
+                  },
+                  harness: {
+                    tag: $harness_tag,
+                    image_repository: $harness_image_repository,
+                    image_tag: $harness_image_tag,
+                    image_ref: $harness_image_ref,
+                    source_tag: $harness_source_tag
+                  }
+                }
               }
-            }' |
+            }' > nightly-dispatch-payload.json
+
+          jq '.client_payload' nightly-dispatch-payload.json > nightly-manifest.json
+
+          cat nightly-dispatch-payload.json |
             gh api "repos/${DEPLOY_DISPATCH_REPO}/dispatches" \
               --method POST \
               --input -
 
           echo "Dispatched nightly stack deployment ${RELEASE_VERSION} to ${DEPLOY_DISPATCH_REPO}."
+
+      - name: Upload nightly manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-manifest-${{ needs.metadata.outputs.nightly_date }}-${{ needs.metadata.outputs.short_sha }}
+          path: nightly-manifest.json

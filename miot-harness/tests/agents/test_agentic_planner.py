@@ -11,7 +11,11 @@ from langchain_core.language_models import FakeListChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel
 
-from miot_harness.agents.agentic_planner import agentic_planner_node
+from miot_harness.agents.agentic_planner import (
+    agentic_planner_node,
+    build_playbook_catalog,
+)
+from miot_harness.context_skills.skill_models import LoadedSkill, PlaybookSkill
 from miot_harness.integrations.nexo.provider import NEXO_PROFILE
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.permissions import PermissionResult
@@ -103,6 +107,186 @@ async def test_call_tool_action_produces_current_step() -> None:
     assert step.tool == "coordinador_centro_control"
     assert delta["turn_count"] == 1
     assert not delta.get("failure")
+
+
+class _ThinkingModel(FakeListChatModel):
+    """Mimics Opus 4.7+ under adaptive thinking: ainvoke returns an AIMessage
+    whose content is a LIST of blocks (thinking + text), not a plain string."""
+
+    async def ainvoke(self, input: Any, *args: Any, **kwargs: Any) -> Any:  # type: ignore[override]
+        return AIMessage(
+            content=[
+                {"type": "thinking", "thinking": "reasoning…", "signature": "sig"},
+                {"type": "text", "text": self.responses[0]},
+            ]
+        )
+
+
+@pytest.mark.asyncio
+async def test_planner_parses_opus_thinking_list_content() -> None:
+    # Regression: with adaptive thinking on, content is a list; the planner must
+    # extract the text block and parse it, not stringify the whole list.
+    response = json.dumps(
+        {"action": "call_tool", "tool": "coordinador_centro_control", "args": {}}
+    )
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=_ThinkingModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert delta.get("current_step") is not None
+    assert delta["current_step"].tool == "coordinador_centro_control"
+    assert not delta.get("failure")
+
+
+@pytest.mark.asyncio
+async def test_plan_action_produces_pending_steps() -> None:
+    response = json.dumps(
+        {
+            "action": "plan",
+            "steps": [
+                {"tool": "coordinador_centro_control", "args": {}, "intent": "kpis",
+                 "rationale": "overview"},
+                {"tool": "nexo_select", "args": {"table": "nexo.dx_servicios"},
+                 "intent": "rows", "rationale": "enumerate"},
+            ],
+        }
+    )
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    steps = delta["pending_steps"]
+    assert [s.tool for s in steps] == ["coordinador_centro_control", "nexo_select"]
+    assert delta["next_action"] == "execute_plan"
+    assert delta["turn_count"] == 1
+    assert delta["current_step"] is None
+    assert not delta.get("failure")
+
+
+@pytest.mark.asyncio
+async def test_plan_with_invalid_step_fails() -> None:
+    response = json.dumps(
+        {
+            "action": "plan",
+            "steps": [
+                {"tool": "coordinador_centro_control", "args": {}},
+                {"tool": "coordinador_inventada", "args": {}},  # unknown
+            ],
+        }
+    )
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert "unknown tool" in delta["failure"]
+    assert not delta.get("pending_steps")
+
+
+@pytest.mark.asyncio
+async def test_non_object_args_is_rejected() -> None:
+    # args=[] is falsey but NOT an object — must be rejected, not coerced to {}.
+    response = json.dumps(
+        {"action": "call_tool", "tool": "coordinador_centro_control", "args": []}
+    )
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert "args must be a JSON object" in delta["failure"]
+
+
+@pytest.mark.asyncio
+async def test_missing_args_defaults_to_empty_object() -> None:
+    response = json.dumps({"action": "call_tool", "tool": "coordinador_centro_control"})
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert delta["current_step"].args == {}
+    assert not delta.get("failure")
+
+
+@pytest.mark.asyncio
+async def test_empty_plan_fails() -> None:
+    response = json.dumps({"action": "plan", "steps": []})
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert "empty or malformed plan" in delta["failure"]
+
+
+@pytest.mark.asyncio
+async def test_verification_gap_is_surfaced_to_planner() -> None:
+    captured: list[list[Any]] = []
+
+    class _Recording(FakeListChatModel):
+        async def ainvoke(self, input, *args, **kwargs):  # type: ignore[override]
+            captured.append(list(input))
+            return await super().ainvoke(input, *args, **kwargs)
+
+    response = json.dumps({"action": "final", "reasoning": "done"})
+    delta = await agentic_planner_node(
+        _state(
+            evidence=[_evidence()],
+            verification_gap="solo corriste un grep; falta el COUNT real",
+        ),
+        registry=_registry(),
+        model=_Recording(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    human = [m for m in captured[0] if isinstance(m, HumanMessage)][-1]
+    assert "INCOMPLETE" in human.content
+    assert "falta el COUNT real" in human.content
+    # The gap is consumed: cleared from the delta so a later turn (e.g. the
+    # post-execution finish turn) doesn't re-see a stale note.
+    assert delta["verification_gap"] is None
+
+
+@pytest.mark.asyncio
+async def test_plan_and_call_tool_clear_verification_gap() -> None:
+    plan = json.dumps(
+        {"action": "plan", "steps": [{"tool": "coordinador_centro_control", "args": {}}]}
+    )
+    plan_delta = await agentic_planner_node(
+        _state(verification_gap="gap"),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[plan]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert plan_delta["verification_gap"] is None
+
+    call = json.dumps(
+        {"action": "call_tool", "tool": "coordinador_centro_control", "args": {}}
+    )
+    call_delta = await agentic_planner_node(
+        _state(verification_gap="gap"),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[call]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert call_delta["verification_gap"] is None
 
 
 @pytest.mark.asyncio
@@ -290,3 +474,126 @@ async def test_planner_prompt_lists_curated_and_primitive_catalogs() -> None:
     system = captured[0][0].content
     assert "coordinador_centro_control" in system
     assert "nexo_select" in system
+
+
+# ---- Phase 4 slice 2: connection-bound playbook surfacing ----------------
+
+
+def _pb(
+    id: str,
+    *,
+    connection: str | None = None,
+    when_to_use: str = "",
+    description: str = "",
+    tools: tuple[str, ...] = (),
+) -> LoadedSkill:
+    return LoadedSkill(
+        skill=PlaybookSkill(
+            kind="playbook",
+            id=id,
+            name=id.upper(),
+            connection=connection,
+            when_to_use=when_to_use,
+            description=description,
+            tools=tools,
+        ),
+        source_path=f"{id}.yaml",
+    )
+
+
+def test_build_playbook_catalog_renders_marker_trigger_and_steps() -> None:
+    catalog = build_playbook_catalog(
+        [
+            _pb(
+                "nexo-services",
+                connection="nexo",
+                when_to_use="list services in a workflow step",
+                tools=("coordinador_centro_control", "nexo_select"),
+            )
+        ],
+        profile=NEXO_PROFILE,
+    )
+    assert "[connection: nexo]" in catalog
+    assert "list services in a workflow step" in catalog
+    assert "coordinador_centro_control → nexo_select" in catalog
+
+
+def test_build_playbook_catalog_drops_playbook_bound_to_other_connection() -> None:
+    # Bound to `acs`; this planner's profile is `nexo` → its tools carry the
+    # wrong prefix and would be rejected, so it must not be advertised.
+    catalog = build_playbook_catalog(
+        [_pb("acs-pb", connection="acs", when_to_use="alfresco workflow")],
+        profile=NEXO_PROFILE,
+    )
+    assert "acs-pb" not in catalog.lower()
+    assert catalog == "(no playbooks bound to this data source)"
+
+
+def test_build_playbook_catalog_keeps_unbound_playbook_for_any_profile() -> None:
+    catalog = build_playbook_catalog(
+        [_pb("generic", when_to_use="works anywhere")],
+        profile=NEXO_PROFILE,
+    )
+    assert "GENERIC" in catalog
+    assert "[connection:" not in catalog  # unbound → no marker
+    assert "works anywhere" in catalog
+
+
+def test_build_playbook_catalog_falls_back_to_description_then_empty() -> None:
+    catalog = build_playbook_catalog(
+        [_pb("d", connection="nexo", description="desc fallback")],
+        profile=NEXO_PROFILE,
+    )
+    assert "desc fallback" in catalog
+    assert build_playbook_catalog([], profile=NEXO_PROFILE) == (
+        "(no playbooks bound to this data source)"
+    )
+
+
+@pytest.mark.asyncio
+async def test_planner_prompt_lists_matching_playbook() -> None:
+    captured: list[list[Any]] = []
+
+    class _RecordingModel(FakeListChatModel):
+        async def ainvoke(self, input, *args, **kwargs):  # type: ignore[override]
+            captured.append(list(input))
+            return await super().ainvoke(input, *args, **kwargs)
+
+    response = json.dumps({"action": "final", "reasoning": "done"})
+    await agentic_planner_node(
+        _state(evidence=[_evidence()]),
+        registry=_registry(),
+        model=_RecordingModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+        playbooks=[
+            _pb("nexo-services", connection="nexo", when_to_use="enumerate services"),
+            _pb("acs-pb", connection="acs", when_to_use="other connection"),
+        ],
+    )
+    system = captured[0][0].content
+    assert "Connection playbooks" in system
+    assert "enumerate services" in system
+    assert "other connection" not in system  # bound to a different connection
+
+
+@pytest.mark.asyncio
+async def test_planner_prompt_handles_no_playbooks() -> None:
+    captured: list[list[Any]] = []
+
+    class _RecordingModel(FakeListChatModel):
+        async def ainvoke(self, input, *args, **kwargs):  # type: ignore[override]
+            captured.append(list(input))
+            return await super().ainvoke(input, *args, **kwargs)
+
+    response = json.dumps({"action": "final", "reasoning": "done"})
+    # playbooks omitted (None) — back-compat, no crash, placeholder rendered.
+    await agentic_planner_node(
+        _state(evidence=[_evidence()]),
+        registry=_registry(),
+        model=_RecordingModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    system = captured[0][0].content
+    assert "(no playbooks bound to this data source)" in system

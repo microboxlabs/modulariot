@@ -14,6 +14,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from miot_harness.config import HarnessSettings
+from miot_harness.connections.models import Connection
 from miot_harness.datasource.provider import (
     BootResult,
     DataSourceProfile,
@@ -67,7 +68,10 @@ class FakeProvider(DataSourceProvider):
     profile = FAKE_PROFILE
 
     async def boot(
-        self, registry: ToolRegistry, settings: HarnessSettings
+        self,
+        registry: ToolRegistry,
+        settings: HarnessSettings,
+        connection: Connection | None = None,
     ) -> BootResult:
         registry.register(
             HarnessTool(

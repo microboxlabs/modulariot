@@ -45,19 +45,11 @@ def _tenant_refusal(profile: DataSourceProfile, tenant_lock: str) -> str:
     )
 
 
-# {display_name} → profile.display_name (the active datasource's human name).
-_SYNTH_SYSTEM_TEMPLATE = """\
-You are the {display_name} synthesizer. Write the final answer for the user
-in the same language as their question. Be concise (≤200 words).
-
-{primer}
-
-Rules:
+# Freshness guidance for SNAPSHOT datasources (Nexo's fn_dx_* tables). Omitted
+# for live sources, which have no snapshot/refresh model.
+_SYNTH_FRESHNESS_RULES = """\
 - Cite refreshed_at from the evidence (timestamp + "datos del snapshot ...").
 - If any evidence has is_stale=true, say so explicitly ("datos antiguos").
-- If the evidence is empty or insufficient, say what you don't know.
-- Do not invent rows or numbers; quote what's in the evidence.
-- Do not mention internal pipeline (filter_expert, plan, etc.).
 
 Per-status phrasing (each evidence line carries status=... and rows=...):
 - status=empty → the snapshot IS fresh but the filter matched nothing:
@@ -68,7 +60,35 @@ Per-status phrasing (each evidence line carries status=... and rows=...):
   say "datos sin marca de tiempo de actualización — trátalos con cautela".
 - status=empty_no_timestamp → no rows AND no timestamp; the view looks
   unrefreshed: say "esta vista parece no haberse refrescado; no puedo
-  distinguir 'sin datos' de 'snapshot vacío'".
+  distinguir 'sin datos' de 'snapshot vacío'"."""
+
+# Guidance for LIVE datasources (generic pg): current data, no snapshot model.
+_SYNTH_LIVE_RULES = """\
+- This is a LIVE datasource: the evidence is the current state. Do NOT add
+  freshness/snapshot/timestamp caveats and do NOT treat a missing refresh
+  timestamp as staleness. status=empty just means no rows matched."""
+
+
+# {display_name} → profile.display_name; {freshness_rules} → snapshot-vs-live.
+_SYNTH_SYSTEM_TEMPLATE = """\
+You are the {display_name} synthesizer. Write the final answer for the user
+in the same language as their question. Be concise (≤200 words).
+
+{primer}
+
+Rules:
+- If the evidence is empty or insufficient, say what you don't know.
+- Do not invent rows or numbers; quote what's in the evidence.
+- Do not mention internal pipeline (filter_expert, plan, etc.).
+- When asked what query you ran, quote the `executed_sql` of the relevant
+  evidence line verbatim. Never invent, guess, or paraphrase a query you did
+  not run; if no evidence line carries executed_sql, say you don't have it.
+- Evidence flagged SAMPLE is a fuzzy ILIKE/grep search — illustrative only.
+  Never report its row count as a total or present it as a complete list. Any
+  count or total MUST come from an aggregate/COUNT result, not from counting
+  sample rows.
+- Do not pad the answer with attributes or values that are not in the evidence.
+{freshness_rules}
 """
 
 
@@ -158,11 +178,18 @@ def _render_evidence_for_synth(evidence: list[DataEvidence]) -> str:
     for ev in evidence:
         refreshed = ev.refreshed_at.isoformat() if ev.refreshed_at else "unknown"
         stale = " STALE" if ev.is_stale else ""
+        # SAMPLE flags fuzzy grep/ILIKE evidence — illustrative, never a total.
+        sample = " SAMPLE" if ev.is_sample else ""
         snippet = json.dumps(ev.output, default=str)[:1200]
-        lines.append(
-            f"tool={ev.tool} source={ev.source} refreshed_at={refreshed}{stale} "
-            f"status={ev.freshness_status} rows={ev.sample_size}\n  {snippet}"
+        header = (
+            f"tool={ev.tool} source={ev.source} refreshed_at={refreshed}{stale}{sample} "
+            f"status={ev.freshness_status} rows={ev.sample_size}"
         )
+        # The exact SQL that ran (when the tool ran one): the synthesizer quotes
+        # this verbatim if asked what query produced the answer.
+        if ev.executed_sql:
+            header += f"\n  executed_sql: {ev.executed_sql[:600]}"
+        lines.append(f"{header}\n  {snippet}")
     return "\n".join(lines)
 
 
@@ -211,7 +238,13 @@ async def synthesizer_node(
 
     user_message = state.get("user_message", "")
     system = _SYNTH_SYSTEM_TEMPLATE.format(
-        display_name=profile.display_name, primer=profile.primer
+        display_name=profile.display_name,
+        primer=profile.primer,
+        freshness_rules=(
+            _SYNTH_FRESHNESS_RULES
+            if profile.has_freshness_model
+            else _SYNTH_LIVE_RULES
+        ),
     )
     if extra_system_rules:
         system = f"{system}\n{extra_system_rules}"

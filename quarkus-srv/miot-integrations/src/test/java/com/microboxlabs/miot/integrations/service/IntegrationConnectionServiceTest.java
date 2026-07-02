@@ -24,6 +24,6 @@ class IntegrationConnectionServiceTest {
     }
 
     private IntegrationConnectionService serviceWithoutDependencies() {
-        return new IntegrationConnectionService(null, null, null, null);
+        return new IntegrationConnectionService(null, null, null, null, null);
     }
 }

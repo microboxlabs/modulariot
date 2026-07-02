@@ -56,6 +56,8 @@ def test_callback_emits_usage_recorded_when_progress_wired(
     usage_events = [e for e in events if e.type == "usage.recorded"]
     assert len(usage_events) == 1
     payload = usage_events[0].data
+    # The dollar cost is NEVER shared with the client, even for a priced
+    # model — it stays server-side (span attribute + eval/provenance logs).
     # Total input (200) minus cache_read (5) minus cache_creation (3) = 192
     assert payload == {
         "agent": "filter_expert",
@@ -64,9 +66,8 @@ def test_callback_emits_usage_recorded_when_progress_wired(
         "output_tokens": 80,
         "cache_read_input_tokens": 5,
         "cache_creation_input_tokens": 3,
-        "cost_usd": payload["cost_usd"],
     }
-    assert payload["cost_usd"] > 0
+    assert "cost_usd" not in payload
     assert usage_events[0].run_id == "run_abc"
 
 

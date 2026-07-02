@@ -26,7 +26,7 @@ import logging
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, SystemMessage
 
 from miot_harness.agents.direct_agent import (
     FALLBACK_DIRECT_ANSWER,
@@ -40,6 +40,7 @@ from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.spans import agent_span
+from miot_harness.runtime.answer_render import render_answer_with_format
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.context import HarnessContext, UserRequest
 from miot_harness.runtime.conversation import (
@@ -65,6 +66,16 @@ from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
+
+_JSON_BLOCKS_INSTRUCTION = (
+    "# Output format: JSON blocks\n\n"
+    "Return ONLY a JSON array of typed blocks as your entire answer — no prose "
+    "outside the array and no code fence. Each block is an object "
+    '{"type": <string>, "value": <...>}. Known types:\n'
+    '- "markdown": value is a Markdown string.\n'
+    '- "url": value is an object {"url": <string>, "name": <string>}.\n'
+    "Emit multiple blocks to convey different parts of the answer."
+)
 
 
 class HarnessSupervisor:
@@ -199,6 +210,7 @@ class HarnessSupervisor:
                     },
                 )
             )
+            self._finalize_answer(record, ctx)
             self.run_store.save(record)
             self._close_bus(ctx.run_id)
             return record
@@ -216,6 +228,8 @@ class HarnessSupervisor:
         # actually carry context across `/runs` calls (plan 13 §E5). Empty
         # list when no store, no conversation_id, or no prior history.
         prior_messages = self._hydrate_history(request)
+        prior_messages = self._inject_skill(request, ctx, prior_messages)
+        prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
 
         try:
             if route.route == HarnessRoute.DATA_QUERY:
@@ -255,6 +269,7 @@ class HarnessSupervisor:
                     data={"error": "cancelled", "reason": "cancelled"},
                 )
             )
+            self._finalize_answer(record, ctx)
             self.run_store.save(record)
             self._close_bus(ctx.run_id)
             raise
@@ -276,6 +291,7 @@ class HarnessSupervisor:
                     data={"error": str(exc)},
                 )
             )
+            self._finalize_answer(record, ctx)
             self.run_store.save(record)
             self._close_bus(ctx.run_id)
             return record
@@ -292,9 +308,25 @@ class HarnessSupervisor:
 
         record.status = "completed"
         progress(HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed"))
+        self._finalize_answer(record, ctx)
         self.run_store.save(record)
         self._close_bus(ctx.run_id)
         return record
+
+    def _finalize_answer(self, record: HarnessRunRecord, ctx: HarnessContext) -> None:
+        """Render `record.answer` into the caller-requested format in place.
+
+        Must be called AFTER any ConversationStore append (history stores the
+        canonical Markdown) and immediately BEFORE persisting the record.
+        None-safe; render_answer_with_format never raises.
+
+        Must be called exactly once per run: it mutates `record.answer` in
+        place, so re-finalizing a non-markdown answer would double-render and
+        corrupt it.
+        """
+        rendered, effective_fmt = render_answer_with_format(record.answer, ctx.answer_format)
+        record.answer = rendered
+        record.answer_format = effective_fmt
 
     def _emit(self, record: HarnessRunRecord, event: HarnessEvent) -> None:
         """Single funnel for landing a `HarnessEvent` on a run record.
@@ -334,6 +366,53 @@ class HarnessSupervisor:
 
         if self.event_bus is not None:
             self.event_bus.close(run_id)
+
+    def _inject_skill(
+        self,
+        request: UserRequest,
+        ctx: HarnessContext,
+        prior_messages: list[BaseMessage],
+    ) -> list[BaseMessage]:
+        """Prepend an activated skill's body as run guidance.
+
+        When ``request.skill_id`` resolves to a skill the tenant can see,
+        its SKILL.md body is injected as a ``SystemMessage`` at the front
+        of the conversation so every run path (direct/meta/data/agentic)
+        follows it — the invocation half of skills. Unknown or bodyless
+        ids are ignored and the run proceeds normally (never a hard fail).
+        """
+        if not request.skill_id or self.context_skills is None:
+            return prior_messages
+        activated = self.context_skills.activate_skill(
+            ctx.tenant_id, request.skill_id
+        )
+        if activated is None:
+            return prior_messages
+        name, body = activated
+        guidance = SystemMessage(
+            content=(
+                f"# Active skill: {name}\n\n"
+                f'The user invoked the "{name}" skill. Follow these '
+                f"instructions for this run:\n\n{body}"
+            )
+        )
+        return [guidance, *prior_messages]
+
+    def _inject_json_blocks_instruction(
+        self,
+        ctx: HarnessContext,
+        prior_messages: list[BaseMessage],
+    ) -> list[BaseMessage]:
+        """Prepend the JSON-block output contract when json output is requested.
+
+        For ``answer_format == "json"`` the agent must emit a JSON array of
+        typed blocks instead of prose; this generic instruction supplies the
+        schema contract (any active skill supplies the domain content). For all
+        other formats this is a no-op.
+        """
+        if ctx.answer_format != "json":
+            return prior_messages
+        return [SystemMessage(content=_JSON_BLOCKS_INSTRUCTION), *prior_messages]
 
     def _hydrate_history(self, request: UserRequest) -> list[BaseMessage]:
         """Read prior turns from `ConversationStore` and trim them to fit the

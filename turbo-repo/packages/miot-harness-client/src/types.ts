@@ -11,6 +11,12 @@ export interface UserRequest {
   answer_format?: string;
   skill_id?: string;
   /**
+   * Skill to activate for this run. When set and resolvable server-side,
+   * the harness injects that skill's SKILL.md body as run guidance so the
+   * agent follows it. Unknown ids are ignored (the run proceeds normally).
+   */
+  skill_id?: string;
+  /**
    * When true, the SSE stream carries full tool inputs and truncated
    * tool outputs (~2 KB cap). Off by default. Coordinador outputs
    * contain customer/fleet data — gate this behind auth in production.
@@ -33,6 +39,8 @@ export const HARNESS_EVENT_TYPES = [
   "tool.completed",
   "tool.failed",
   "approval.requested",
+  "approval.auto",
+  "steering.mode_denied",
   "artifact.created",
   "plan.created",
   /** @deprecated superseded by agent.started / agent.completed. */
@@ -43,6 +51,8 @@ export const HARNESS_EVENT_TYPES = [
   "thinking.completed",
   "usage.recorded",
   "freshness.warning",
+  "verification.completed",
+  "answer.delta",
   "answer.completed",
   "run.completed",
   "run.failed",
@@ -105,6 +115,12 @@ export interface ThinkingCompletedData {
   length: number;
 }
 
+export interface AnswerDeltaData {
+  agent: string;
+  delta: string;
+  index: number;
+}
+
 export interface UsageRecordedData {
   agent: string;
   model: string;
@@ -112,7 +128,6 @@ export interface UsageRecordedData {
   output_tokens: number;
   cache_read_input_tokens: number;
   cache_creation_input_tokens: number;
-  cost_usd?: number;
 }
 
 export const TERMINAL_EVENT_TYPES = new Set<HarnessEventType>([
@@ -137,6 +152,23 @@ export interface HarnessRunRecord {
   artifacts: Array<Record<string, unknown>>;
   answer: string | null;
   conversation_id: string | null;
+}
+
+/**
+ * Compact projection of a skill, as returned by `GET /skills`. Mirrors the
+ * Python `SkillSummary` in
+ * `miot-harness/src/miot_harness/context_skills/skill_models.py`.
+ * `description` / `when_to_use` are the trigger text shown in a `/skills`
+ * picker; `source` distinguishes an Agent-Skills `SKILL.md` directory skill
+ * from a YAML manifest.
+ */
+export interface SkillSummary {
+  id: string;
+  name: string;
+  description: string;
+  when_to_use: string;
+  scope: "global" | "tenant";
+  source: "skill_md" | "manifest";
 }
 
 export interface ErrorResponse {

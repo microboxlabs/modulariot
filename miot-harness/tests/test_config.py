@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import os
+
 import pytest
 from pydantic import ValidationError
 
-from miot_harness.config import HarnessSettings, get_settings
+from miot_harness.config import (
+    HarnessSettings,
+    get_settings,
+    load_dotenv_into_environ,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -213,3 +219,69 @@ def test_empty_tenant_lock_rejected_at_boot(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_TENANT_LOCK", "")
     with pytest.raises(ValidationError):
         HarnessSettings()
+
+
+def _write_env(path, body: str) -> None:
+    path.write_text(body)
+
+
+def test_load_dotenv_bridges_unset_keys_into_environ(tmp_path, monkeypatch):
+    # A file-connection DSN that lives only in .env (not exported) must land in
+    # os.environ so the file loader can resolve it.
+    env_path = tmp_path / ".env"
+    _write_env(env_path, "MIOT_HARNESS_PRODGPS_DSN_T=postgresql://u:p@h:8432/db\n")
+    monkeypatch.setitem(HarnessSettings.model_config, "env_file", str(env_path))
+    monkeypatch.delenv("MIOT_HARNESS_PRODGPS_DSN_T", raising=False)
+
+    newly = load_dotenv_into_environ(HarnessSettings())
+
+    assert "MIOT_HARNESS_PRODGPS_DSN_T" in newly
+    assert os.environ["MIOT_HARNESS_PRODGPS_DSN_T"] == "postgresql://u:p@h:8432/db"
+
+
+def test_load_dotenv_never_overrides_real_env(tmp_path, monkeypatch):
+    env_path = tmp_path / ".env"
+    _write_env(env_path, "MIOT_HARNESS_PRODGPS_DSN_T=from-dotenv\n")
+    monkeypatch.setitem(HarnessSettings.model_config, "env_file", str(env_path))
+    monkeypatch.setenv("MIOT_HARNESS_PRODGPS_DSN_T", "real-env-wins")
+
+    newly = load_dotenv_into_environ(HarnessSettings())
+
+    assert "MIOT_HARNESS_PRODGPS_DSN_T" not in newly
+    assert os.environ["MIOT_HARNESS_PRODGPS_DSN_T"] == "real-env-wins"
+
+
+def test_load_dotenv_noop_in_production(tmp_path, monkeypatch):
+    env_path = tmp_path / ".env"
+    _write_env(env_path, "MIOT_HARNESS_PRODGPS_DSN_T=x\n")
+    monkeypatch.setitem(HarnessSettings.model_config, "env_file", str(env_path))
+    monkeypatch.delenv("MIOT_HARNESS_PRODGPS_DSN_T", raising=False)
+
+    assert load_dotenv_into_environ(HarnessSettings(env="production")) == []
+    assert "MIOT_HARNESS_PRODGPS_DSN_T" not in os.environ
+
+
+def test_load_dotenv_noop_when_file_absent(tmp_path, monkeypatch):
+    monkeypatch.setitem(
+        HarnessSettings.model_config, "env_file", str(tmp_path / "nope.env")
+    )
+    assert load_dotenv_into_environ(HarnessSettings()) == []
+
+
+def test_load_dotenv_multi_file_later_wins(tmp_path, monkeypatch):
+    # env_file may be a sequence; later files take precedence (mirrors pydantic),
+    # while a real env var still beats all of them.
+    base = tmp_path / "base.env"
+    over = tmp_path / "over.env"
+    base.write_text("MIOT_HARNESS_A_T=base\nMIOT_HARNESS_B_T=base\n")
+    over.write_text("MIOT_HARNESS_A_T=over\n")
+    monkeypatch.setitem(
+        HarnessSettings.model_config, "env_file", [str(base), str(over)]
+    )
+    monkeypatch.delenv("MIOT_HARNESS_A_T", raising=False)
+    monkeypatch.delenv("MIOT_HARNESS_B_T", raising=False)
+
+    load_dotenv_into_environ(HarnessSettings())
+
+    assert os.environ["MIOT_HARNESS_A_T"] == "over"  # later file wins
+    assert os.environ["MIOT_HARNESS_B_T"] == "base"

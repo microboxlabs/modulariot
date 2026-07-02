@@ -11,6 +11,7 @@ import logging
 import asyncpg
 
 from miot_harness.config import HarnessSettings
+from miot_harness.connections.models import Connection
 from miot_harness.datasource.provider import (
     BootResult,
     DataSourceProfile,
@@ -24,6 +25,16 @@ from miot_harness.integrations.nexo.settings import NexoSettings
 from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_minutes(*candidates: int | None) -> int:
+    """First non-None freshness-minutes value (explicit 0 is honored). The
+    last candidate is always the profile default (an int), so this returns."""
+    for c in candidates:
+        if c is not None:
+            return int(c)
+    return 0
+
 
 NEXO_PROFILE = DataSourceProfile(
     name="nexo",
@@ -61,35 +72,73 @@ class NexoProvider(DataSourceProvider):
         self._pool: asyncpg.Pool | None = None
 
     async def boot(
-        self, registry: ToolRegistry, settings: HarnessSettings
+        self,
+        registry: ToolRegistry,
+        settings: HarnessSettings,
+        connection: Connection | None = None,
     ) -> BootResult:
-        dsn = settings.datasource_dsn
-        if dsn is None:
+        # Connection options (when booted from the connections subsystem) win
+        # field-by-field over the legacy MIOT_HARNESS_DATASOURCE_* env, which in
+        # turn falls back to the NEXO profile default. With the synthesized /
+        # default-file connection these resolve to exactly the legacy values,
+        # so behaviour is unchanged.
+        opts = dict(connection.options) if connection is not None else {}
+        conn_name = connection.name if connection is not None else "<legacy>"
+        # Validate raw option values BEFORE the fallback chain so a
+        # misconfiguration surfaces instead of silently falling back to the
+        # settings/profile default (mirrors the legacy settings validation). An
+        # empty `tenant_lock` would otherwise resolve to the profile lock via the
+        # `or` chain below, hiding the mistake.
+        if "tenant_lock" in opts and not str(opts.get("tenant_lock") or "").strip():
             return BootResult(
                 enabled=False,
                 registered=(),
-                reason="MIOT_HARNESS_DATASOURCE_DSN is not set",
+                reason=f"connection {conn_name!r}: tenant_lock must be non-empty",
             )
-        # Resolve provider-private + effective knobs once. The schema /
-        # EXPLAIN cost knobs are honestly Nexo's (Postgres concepts), so
-        # they live in NexoSettings with the MIOT_HARNESS_NEXO_* prefix.
-        # tenant_lock / freshness are env overrides over the NEXO profile.
+        dsn = connection.dsn if connection is not None else settings.datasource_dsn
+        if dsn is None:
+            reason = (
+                "MIOT_HARNESS_DATASOURCE_DSN is not set"
+                if connection is None
+                else f"connection {connection.name!r}: no DSN (dsn_env unset)"
+            )
+            return BootResult(enabled=False, registered=(), reason=reason)
+        # The schema / EXPLAIN cost knobs are honestly Nexo's (Postgres
+        # concepts), so they stay in NexoSettings (MIOT_HARNESS_NEXO_* prefix).
         nexo_settings = NexoSettings()
-        tenant_lock = settings.datasource_tenant_lock or self.profile.tenant_lock
-        assert tenant_lock is not None  # NEXO_PROFILE.tenant_lock is "mintral"
-        refuse_minutes = (
-            settings.datasource_freshness_refuse_minutes
-            if settings.datasource_freshness_refuse_minutes is not None
-            else self.profile.freshness_refuse_minutes
+        tenant_lock = (
+            opts.get("tenant_lock")
+            or settings.datasource_tenant_lock
+            or self.profile.tenant_lock
         )
-        warn_minutes = (
-            settings.datasource_freshness_warn_minutes
-            if settings.datasource_freshness_warn_minutes is not None
-            else self.profile.freshness_warn_minutes
+        assert tenant_lock is not None  # NEXO_PROFILE.tenant_lock is "mintral"
+        # Non-numeric freshness options (e.g. `freshness_warn_minutes: "abc"`)
+        # would make `_resolve_minutes` raise `int(...)` out of boot(), violating
+        # the "boot must not raise" contract. Catch and degrade to disabled with
+        # a clear reason instead.
+        try:
+            refuse_minutes = _resolve_minutes(
+                opts.get("freshness_refuse_minutes"),
+                settings.datasource_freshness_refuse_minutes,
+                self.profile.freshness_refuse_minutes,
+            )
+            warn_minutes = _resolve_minutes(
+                opts.get("freshness_warn_minutes"),
+                settings.datasource_freshness_warn_minutes,
+                self.profile.freshness_warn_minutes,
+            )
+        except (TypeError, ValueError) as exc:
+            return BootResult(
+                enabled=False,
+                registered=(),
+                reason=f"connection {conn_name!r}: invalid freshness option ({exc})",
+            )
+        application_name = (
+            opts.get("application_name") or settings.datasource_application_name
         )
         try:
             self._pool = await create_nexo_pool(
-                dsn, application_name=settings.datasource_application_name
+                dsn, application_name=application_name
             )
             legacy = await load_nexo_tools(
                 registry,

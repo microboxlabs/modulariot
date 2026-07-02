@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import logging
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from dotenv import dotenv_values
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class HarnessSettings(BaseSettings):
@@ -57,6 +62,21 @@ class HarnessSettings(BaseSettings):
     agents_agentic_max_turns: int = Field(default=12, gt=0)
     agents_critic_enabled: bool = False
 
+    # Phase 3 verify gate. When enabled, the agentic planner's decision to
+    # finish is intercepted by a verifier node (rule-based + a small LLM judge)
+    # that asks "do the EXECUTED results fulfil the request?"; on a gap it
+    # routes back to the planner to re-plan (bounded by max_replans). This makes
+    # completion structural — the planner can no longer satisfice (answer from a
+    # grep sample, or stop before running the join it already identified). When
+    # `agents_verifier_model` is unset, the gate degrades to rule-based checks
+    # only (no extra LLM call). Tests build the graph without a verifier model,
+    # so they exercise the rules-only path.
+    agents_agentic_verify_enabled: bool = True
+    agents_agentic_max_replans: int = Field(default=2, ge=0)
+    # Small "did we answer it?" judge. Held separate from the synthesizer so it
+    # can stay cheap. Empty string disables the LLM judge (rules-only verify).
+    agents_verifier_model: str = "claude-haiku-4-5"
+
     # Provenance log for agentic tool invocations (plan 13, E4). One JSONL
     # line per executed step under `<dir>/YYYY-MM-DD.jsonl`; the weekly
     # curation pass mines these for curated-function candidates.
@@ -97,6 +117,39 @@ class HarnessSettings(BaseSettings):
     # Source-kind seam for the future API/DB-backed source (Phase 2).
     context_source_kind: str = "file"
     skills_source_kind: str = "file"
+    # Connections subsystem (datasource connections authored as content,
+    # like skills/context). The packaged default dir ships NO connection
+    # definitions — no client/tenant config is baked into the image. Operators
+    # supply connections via a K8s volume (MIOT_HARNESS_CONNECTIONS_DIR). When
+    # the dir has no connection files (the default, or an empty operator dir),
+    # the loader falls back to synthesizing one connection from the legacy
+    # MIOT_HARNESS_DATASOURCE_* env, so existing deployments keep working.
+    # See connections/loader.py and connections/defaults/README.md.
+    connections_dir: Path = Path(__file__).parent / "connections" / "defaults"
+    connections_source_kind: str = "file"
+    # Master switch for the Tier-B generic safe-query surface (Phase 1). When
+    # False (default), `backend: pg` connections load but register NO query
+    # tools — the generic SELECT capability ships inert. A connection must ALSO
+    # declare `capabilities.generic_query: true` to light up. Off everywhere
+    # today; only the dev/local `acs` connection opts in.
+    generic_query_enabled: bool = False
+    # Connection Knowledge Base (Phase 2): boot-time schema index for generic
+    # `pg` connections (table list + types + row estimates, folded into the
+    # agent grounding). Kill switch (mirrors the freshness survey); only affects
+    # connections that are already generic-query-enabled. `max_tables` bounds the
+    # always-on index so a large schema can't bloat every prompt (explicit
+    # truncation note, never silent).
+    generic_schema_introspect_enabled: bool = True
+    generic_schema_max_tables: int = Field(default=80, ge=0)
+    # Curated knowledge packs (Phase 2 slice 2): product-specific semantics
+    # attached to a generic connection when its schema matches a pack
+    # fingerprint (e.g. Alfresco/Activiti). Packs are content, shipped in the
+    # image; a K8s volume can add more via MIOT_HARNESS_KNOWLEDGE_PACKS_DIR.
+    # Gated on generic query being enabled, so inert by default.
+    generic_knowledge_packs_enabled: bool = True
+    knowledge_packs_dir: Path = (
+        Path(__file__).parent / "datasource" / "knowledge" / "packs"
+    )
     # Hard cap on connector tools registered from skill files — bounds the
     # blast radius of a misconfigured/oversized ConfigMap.
     max_connector_tools: int = Field(default=50, ge=0)
@@ -143,6 +196,17 @@ class HarnessSettings(BaseSettings):
     agents_synthesizer_model: str = "claude-sonnet-4-6"
     agents_critic_model: str = "claude-sonnet-4-6"
     agents_summarizer_model: str = "claude-haiku-4-5"
+
+    # Agentic plan-mode planner seat (Phase 3). Held separate from the canned
+    # analyst so the cheap canned path can stay on Sonnet while the agentic
+    # planner runs on a stronger tier. Opus 4.8 removed the Sonnet-4.6
+    # hallucination we saw side-by-side with Claude Code ("53 servicios" from a
+    # fuzzy grep, never running the real query). `effort` is the Opus 4.7+
+    # `output_config.effort` knob ("high" == the model's default/no-op;
+    # "xhigh"/"max" deepen reasoning at a latency+cost premium). None disables
+    # the effort/adaptive-thinking path entirely (plain Opus call).
+    agents_planner_model: str = "claude-opus-4-8"
+    agents_planner_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = "high"
 
     # Synthesizer streaming (plan: SSE rich events). When enabled, the
     # synthesizer's LLM call runs as a streaming `astream_events` loop
@@ -289,3 +353,41 @@ class HarnessSettings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> HarnessSettings:
     return HarnessSettings()
+
+
+def load_dotenv_into_environ(settings: HarnessSettings) -> list[str]:
+    """Populate ``os.environ`` from the settings' ``.env`` file (local only).
+
+    File-based connections resolve their ``dsn_env`` from the *process*
+    environment (``os.environ``), exactly as k8s injects each DSN as a real env
+    var. Locally those DSNs live in ``.env``, which pydantic reads for its own
+    fields but never exports — so without this, file connections boot disabled
+    ("no DSN unset"). This bridges that gap by copying ``.env`` keys into
+    ``os.environ``.
+
+    Contract: real environment variables ALWAYS win (never overridden), so prod
+    behaviour is unchanged. No-op in ``production`` or when no ``.env`` exists
+    (the prod case). Returns the names newly set, for logging.
+    """
+    if settings.env == "production":
+        return []
+    env_file = settings.model_config.get("env_file") or ".env"
+    # env_file may be a single path or a sequence of paths (pydantic-settings
+    # supports both); later files take precedence, matching pydantic's own merge.
+    candidates = (
+        env_file if isinstance(env_file, list | tuple) else (env_file,)
+    )
+    merged: dict[str, str] = {}
+    for candidate in candidates:
+        path = Path(str(candidate))
+        if not path.is_file():
+            continue
+        for key, value in dotenv_values(path).items():
+            if value is not None:
+                merged[key] = value  # later file wins
+    newly: list[str] = []
+    for key, value in merged.items():
+        if key not in os.environ:  # a real env var always wins
+            os.environ[key] = value
+            newly.append(key)
+    return newly

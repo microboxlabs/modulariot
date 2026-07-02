@@ -6,5 +6,6 @@ public enum ProviderType {
     N8N,
     AUTH0,
     ECM,
-    CUSTOM_HTTP
+    CUSTOM_HTTP,
+    WHATSAPP
 }

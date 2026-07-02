@@ -3,7 +3,8 @@ import type { EditorAction } from "./reducer.js";
 export type KeymapAction =
   | EditorAction
   | { kind: "SUBMIT" }
-  | { kind: "CANCEL" };
+  | { kind: "CANCEL" }
+  | { kind: "COMPLETE" };
 
 export interface KeyState {
   upArrow?: boolean;
@@ -40,7 +41,7 @@ export function mapKey(
   if (key.ctrl && input === "a") return { kind: "MOVE_HOME" };
   if (key.ctrl && input === "e") return { kind: "MOVE_END" };
   if (key.ctrl && input === "k") return { kind: "KILL_LINE" };
-  if (key.tab) return null;
+  if (key.tab) return { kind: "COMPLETE" };
   if (key.escape) return null;
   if (key.pageUp || key.pageDown) return null;
   if (input.length > 0 && !key.ctrl && !key.meta) {

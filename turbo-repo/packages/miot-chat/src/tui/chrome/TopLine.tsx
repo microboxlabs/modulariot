@@ -1,10 +1,12 @@
 import { Box, Text } from "ink";
 import type { SessionMeta } from "../session/types.js";
-import { Spinner } from "../transcript/Spinner.js";
 import { useTheme } from "../theme/ThemeProvider.js";
 
 export interface TopLineProps {
   meta: SessionMeta;
+  // Kept for API compatibility with App. Loading is now signalled
+  // inline in the transcript (the active chain row / AssistantTurn
+  // spinner) so it sits with the conversation, not detached up here.
   streaming: boolean;
 }
 
@@ -19,12 +21,6 @@ export function TopLine(props: TopLineProps): React.ReactElement {
       <Text color={theme.dim}>
         ⎇ {props.meta.tenantId} · {props.meta.userId} · conv {shortConv}
       </Text>
-      {props.streaming ? (
-        <>
-          <Text color={theme.dim}> </Text>
-          <Spinner color={theme.spinner} />
-        </>
-      ) : null}
     </Box>
   );
 }

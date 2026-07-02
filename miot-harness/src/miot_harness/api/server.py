@@ -24,8 +24,18 @@ from miot_harness.api.identity import (
     IdentityVerificationError,
     verify_signed_identity,
 )
-from miot_harness.config import HarnessSettings, get_settings
-from miot_harness.context_skills.loader import boot_context_skills
+from miot_harness.config import (
+    HarnessSettings,
+    get_settings,
+    load_dotenv_into_environ,
+)
+from miot_harness.connections.loader import load_connections, select_primary
+from miot_harness.context_skills.loader import (
+    ActiveConnections,
+    boot_context_skills,
+)
+from miot_harness.context_skills.skill_models import SkillSummary
+from miot_harness.datasource.provider import BootResult, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
@@ -61,6 +71,10 @@ def _make_lifespan(
         app.state.datasource_registered = []
         app.state.datasource_snapshot_age_minutes = None
         app.state.datasource_provider = None
+        # Per-connection boot state (Phase 0: connection abstraction). For a
+        # single connection this mirrors the datasource_* fields above.
+        app.state.connections = {}
+        app.state.connections_diagnostics = []
         # Context & Skills subsystem state (populated by its boot below).
         app.state.context_skills_registered = []
         app.state.context_skills_diagnostics = []
@@ -128,25 +142,168 @@ def _make_lifespan(
             )
         app.state.tracer_provider = tracer_provider
 
-        provider = resolve_datasource(settings.datasource_kind)
+        # Local dev: bridge `.env` into os.environ so file-based connections can
+        # resolve their `dsn_env` (which they read from the process environment,
+        # like k8s injects each DSN). Real env vars always win; no-op in prod.
+        # Must run BEFORE load_connections, which reads os.environ for each DSN.
+        loaded_env = load_dotenv_into_environ(settings)
+        if loaded_env:
+            logger.info(
+                "Local: bridged %d var(s) from .env into the environment for "
+                "connection DSN resolution",
+                len(loaded_env),
+            )
+
+        # Load the connections to boot (file-backed; falls back to a single
+        # connection synthesized from the legacy MIOT_HARNESS_DATASOURCE_* env).
+        conn_result = load_connections(settings)
+        app.state.connections_diagnostics = list(conn_result.diagnostics)
+        for conn_diag in conn_result.diagnostics:
+            (
+                logger.error
+                if conn_diag.level == "error"
+                else logger.warning
+            )("Connections: %s (%s)", conn_diag.message, conn_diag.path)
+
+        # The primary connection's provider drives profile/router/tenant-lock
+        # wiring. Resolve the provider even when nothing booted so the keyword
+        # router and tenant gate stay wired (matches the prior behaviour where
+        # a disabled datasource still routes its keywords to the data path).
+        primary = select_primary(conn_result.connections, settings)
+        primary_kind = primary.backend if primary is not None else settings.datasource_kind
+        app.state.primary_connection_name = primary.name if primary is not None else None
+        # Profile/router/tenant-lock wiring needs a provider profile. If the
+        # primary connection's backend has no registered provider yet (e.g. an
+        # acs connection pending the generic provider), fall back to the
+        # configured datasource_kind so the harness still wires + serves; the
+        # connection itself then boot-fails in the loop below (disabled, not a
+        # crash).
+        try:
+            provider = resolve_datasource(primary_kind)
+        except ValueError:
+            logger.error(
+                "Primary connection backend %r has no provider; using %r for "
+                "profile wiring",
+                primary_kind,
+                settings.datasource_kind,
+            )
+            provider = resolve_datasource(settings.datasource_kind)
         app.state.datasource_provider = provider
         harness.profile = provider.profile
-        # The base keyword router ships with no vocabulary; the profile
-        # supplies it. Wired BEFORE boot so that a disabled datasource
-        # still routes its keywords to the data path (where the
-        # "integration disabled" answer lives) instead of DIRECT/OTHER.
         harness.router = IntentRouter(
             data_keywords=provider.profile.router_keywords
         )
-        # Tenant lock likewise resolves regardless of boot outcome so
-        # mode gating (mode_resolver) keeps refusing off-lock tenants
-        # even while the datasource is disabled.
+        primary_lock = (
+            primary.options.get("tenant_lock") if primary is not None else None
+        )
         resolved_lock = (
-            settings.datasource_tenant_lock or provider.profile.tenant_lock
+            primary_lock
+            or settings.datasource_tenant_lock
+            or provider.profile.tenant_lock
         )
         if resolved_lock is not None:
             harness.tenant_lock = resolved_lock
-        result = await provider.boot(harness.tools, settings)
+
+        # Boot every connection. The primary reuses the provider resolved above
+        # (so app.state.datasource_provider is the one that booted); others get
+        # their own provider instance. Provider.boot never raises per contract,
+        # but guard anyway so one bad connection can't abort the lifespan.
+        # Every provider instance we allocate must be closed at shutdown, not
+        # just the primary — each non-primary connection gets its own provider
+        # (and, for backends like Nexo, its own pool). Seed with the primary
+        # provider (always resolved above); append non-primary providers as they
+        # resolve so a failed `resolve_datasource` (which allocates nothing)
+        # never lands in the close list.
+        providers_to_close: list[DataSourceProvider] = [provider]
+        primary_result: BootResult | None = None
+        # Connection Knowledge Base (Phase 2): per-connection grounding blocks
+        # (secondary primers + schema indexes), folded into the agent primer below.
+        ckb_blocks: list[str] = []
+        for conn in conn_result.connections:
+            is_primary = primary is not None and conn.name == primary.name
+            # Resolve + boot inside the guard: an unknown/typo'd backend
+            # (resolve_datasource raises ValueError) or a provider boot error
+            # must disable just that connection, never abort the lifespan.
+            try:
+                conn_provider = (
+                    provider if is_primary else resolve_datasource(conn.backend)
+                )
+                if not is_primary:
+                    providers_to_close.append(conn_provider)
+                boot_res = await conn_provider.boot(harness.tools, settings, conn)
+            except Exception as exc:  # noqa: BLE001 — a bad connection mustn't abort boot
+                logger.critical("Connection %s: boot failed (%s)", conn.name, exc)
+                boot_res = BootResult(
+                    enabled=False, registered=(), reason=f"boot failed: {exc}"
+                )
+            summary = boot_res.schema_summary
+            app.state.connections[conn.name] = {
+                "backend": conn.backend,
+                "enabled": boot_res.enabled,
+                "configured": conn.configured,
+                # gates_readiness: required AND has a DSN — a DSN-less connection
+                # never blocks readiness (preserves the dev no-datasource mode).
+                "required": conn.gates_readiness,
+                "registered": list(boot_res.registered),
+                "reason": boot_res.reason,
+                "snapshot_age_minutes": boot_res.snapshot_age_minutes,
+                # Connection Knowledge Base (Phase 2): schema index summary.
+                "schema": (
+                    {
+                        "schemas": list(summary.schemas),
+                        "table_count": summary.total_tables,
+                        "indexed": len(summary.tables),
+                        "truncated": summary.truncated,
+                    }
+                    if summary is not None
+                    else None
+                ),
+                # Detected curated knowledge packs (slice 2).
+                "packs": [
+                    {
+                        "id": dp.pack.id,
+                        "title": dp.pack.title,
+                        "version": dp.version,
+                        "cards": [c.id for c in dp.pack.cards],
+                    }
+                    for dp in boot_res.detected_packs
+                ],
+            }
+            # Accumulate the CKB grounding block for each enabled connection.
+            # The primary's primer is already in provider.profile.primer, so add
+            # it only for secondaries; the schema index + pack knowledge are new.
+            if boot_res.enabled:
+                parts: list[str] = []
+                if not is_primary and conn.primer:
+                    parts.append(conn.primer)
+                for dp in boot_res.detected_packs:
+                    ver = f" (v{dp.version})" if dp.version else ""
+                    card_titles = "; ".join(
+                        f"{c.id}: {c.title}" for c in dp.pack.cards
+                    )
+                    parts.append(
+                        f"**Knowledge pack: {dp.pack.title}{ver}**\n{dp.pack.overview}"
+                        + (
+                            f"\n\nKnowledge cards (open with `{conn.name}_knowledge`): "
+                            f"{card_titles}"
+                            if card_titles
+                            else ""
+                        )
+                    )
+                # total_tables (not tables) so the header + truncation note still
+                # render when the index is capped to 0 (generic_schema_max_tables=0).
+                if summary is not None and summary.total_tables:
+                    parts.append(summary.render())
+                if parts:
+                    ckb_blocks.append(f"## {conn.name}\n" + "\n\n".join(parts))
+            if is_primary:
+                primary_result = boot_res
+
+        # Back-compat single-valued datasource_* state, sourced from the primary
+        # connection (or a disabled placeholder when there is no connection).
+        result = primary_result or BootResult(
+            enabled=False, registered=(), reason="no datasource connection configured"
+        )
         app.state.datasource_enabled = result.enabled
         app.state.datasource_registered = list(result.registered)
         app.state.datasource_snapshot_age_minutes = result.snapshot_age_minutes
@@ -173,21 +330,46 @@ def _make_lifespan(
         # so it reaches every agent path while staying byte-stable across
         # tenants — keeping the Anthropic cache prefix hot. The per-tenant
         # overlay is applied per request on the meta path (see supervisor).
-        effective_profile = provider.profile
+        # Assemble the agent primer: base profile primer + the CKB block
+        # (per-connection schema indexes / secondary primers) + the global
+        # system-context block. One replace() so it stays byte-stable for the
+        # process lifetime (cache prefix stays hot).
+        primer_sections: list[str] = [provider.profile.primer]
+        if ckb_blocks:
+            primer_sections.append(
+                "# Connected data sources\n" + "\n\n".join(ckb_blocks)
+            )
+        # Active connection landscape for connection-bound skills (Phase 4): a
+        # skill bound to a connection name / capability surfaces only when a
+        # matching connection booted enabled. `known` spans every configured
+        # connection so the loader can flag a typo'd binding distinctly from a
+        # connection that merely failed to boot.
+        enabled_names = {
+            name
+            for name, conn_state in app.state.connections.items()
+            if conn_state.get("enabled")
+        }
+        active_connections = ActiveConnections(
+            enabled=frozenset(enabled_names),
+            capabilities=frozenset(
+                cap
+                for conn in conn_result.connections
+                if conn.name in enabled_names
+                for cap, on in conn.capabilities.items()
+                if on
+            ),
+            known=frozenset(conn.name for conn in conn_result.connections),
+        )
         try:
-            cs = boot_context_skills(harness.tools, settings)
+            cs = boot_context_skills(
+                harness.tools, settings, active_connections=active_connections
+            )
             harness.context_skills = cs.bundle
             app.state.context_skills_registered = list(cs.registered_tools)
             app.state.context_skills_diagnostics = list(cs.diagnostics)
             global_block = cs.bundle.global_primer()
             if global_block:
-                effective_profile = replace(
-                    provider.profile,
-                    primer=(
-                        f"{provider.profile.primer}\n\n"
-                        f"# System context\n{global_block}"
-                    ),
-                )
+                primer_sections.append(f"# System context\n{global_block}")
             for diag in cs.diagnostics:
                 (logger.error if diag.level == "error" else logger.warning)(
                     "Context/Skills: %s (%s)", diag.message, diag.path
@@ -203,6 +385,12 @@ def _make_lifespan(
                 exc,
             )
             harness.context_skills = None
+
+        effective_profile = (
+            replace(provider.profile, primer="\n\n".join(primer_sections))
+            if len(primer_sections) > 1
+            else provider.profile
+        )
 
         if not result.enabled:
             logger.info(
@@ -251,9 +439,27 @@ def _make_lifespan(
                     settings=settings,
                     models={
                         **models,
-                        # Agentic graph uses the analyst model as its
-                        # planner; same model pool, same callbacks.
-                        "planner": get_chat_model(settings.agents_analyst_model),
+                        # Agentic plan mode (Phase 3) runs a dedicated planner
+                        # seat — Opus 4.8 by default, at configurable effort —
+                        # instead of reusing the cheaper canned analyst. This
+                        # removes the Sonnet-4.6 planner's hallucination/
+                        # satisficing seen vs Claude Code.
+                        "planner": get_chat_model(
+                            settings.agents_planner_model,
+                            effort=settings.agents_planner_effort,
+                        ),
+                        # Small "did we answer it?" judge for the Phase 3 verify
+                        # gate. Only build it when the gate is ON and a model is
+                        # set — otherwise a misconfigured verifier model name
+                        # would raise and disable the datasource at boot for a
+                        # model that wouldn't even be used. Empty model name (gate
+                        # on) → rules-only verification.
+                        **(
+                            {"verifier": get_chat_model(settings.agents_verifier_model)}
+                            if settings.agents_agentic_verify_enabled
+                            and settings.agents_verifier_model
+                            else {}
+                        ),
                     },
                     provenance_log=ProvenanceLog(
                         settings.provenance_log_dir,
@@ -263,6 +469,9 @@ def _make_lifespan(
                     # system-context block folded into its primer.
                     profile=effective_profile,
                     registry=harness.tools,
+                    # Phase 4: the resolved skills bundle so the planner can
+                    # surface this tenant's eligible connection-bound playbooks.
+                    context_skills=harness.context_skills,
                 )
                 harness.meta_model = get_chat_model(
                     settings.intent_router_model,
@@ -333,9 +542,12 @@ def _make_lifespan(
         try:
             yield
         finally:
-            if provider is not None:
+            # Close every provider we booted (primary + each non-primary
+            # connection), reverse order. close() is idempotent, so the primary's
+            # earlier disabled-path close is a harmless no-op here.
+            for conn_provider in reversed(providers_to_close):
                 try:
-                    await provider.close()
+                    await conn_provider.close()
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("Datasource: provider close raised %s", exc)
             try:
@@ -546,9 +758,20 @@ def create_app() -> FastAPI:
         # the lifespan logs critical and continues serving, but the pod
         # should not receive traffic until tools register and the snapshot
         # passes the refuse-gate.
-        required = settings.datasource_dsn is not None
+        # Readiness is connection-driven: a connection gates readiness when its
+        # stored `required` flag is set (already = required-in-file AND has a
+        # DSN). The pod is ready iff every gating connection booted. For a
+        # single nexo connection with a DSN this equals the legacy "DSN
+        # configured -> must be enabled" contract; with no DSN, or with an
+        # explicit `required: false`, nothing gates and the pod is ready.
+        conns = getattr(app.state, "connections", {})
+        primary_name = getattr(app.state, "primary_connection_name", None)
+        gating = [c for c in conns.values() if c.get("required")]
+        ready = all(c.get("enabled") for c in gating)
+        # The top-level `datasource` block reports the primary connection.
+        primary_conn = conns.get(primary_name, {}) if primary_name else {}
+        required = bool(primary_conn.get("required"))
         enabled = bool(app.state.datasource_enabled)
-        ready = (not required) or enabled
         # Strict mode: an ERROR-level context/skills diagnostic (malformed
         # manifest, unsafe connector) fails readiness so a bad ConfigMap is
         # caught before the pod takes traffic. Default off = log-and-serve.
@@ -576,6 +799,9 @@ def create_app() -> FastAPI:
                 "snapshot_age_minutes": app.state.datasource_snapshot_age_minutes,
                 "freshness": getattr(app.state, "datasource_freshness", {}),
             },
+            # Additive (Phase 0): per-connection boot state. Non-breaking — the
+            # `datasource` block above stays the single-connection contract.
+            "connections": conns,
         }
 
     @app.post("/runs", response_model=HarnessRunRecord)
@@ -611,6 +837,26 @@ def create_app() -> FastAPI:
             ) from exc
         _enforce_tenant_owns_run(record, auth, run_id)
         return record
+
+    @app.get("/skills", response_model=list[SkillSummary])
+    async def get_skills(
+        tenant: str | None = Query(None),
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> list[SkillSummary]:
+        """List the skills available to the caller — the data behind a
+        `/skills` picker (chat) and `miot harness skills` (CLI).
+
+        Tenant precedence mirrors the runs endpoints: a verified header
+        tenant wins, else the `tenant` query param, else the configured
+        default. Returns ``[]`` when the Context/Skills subsystem failed to
+        boot (same degrade-don't-crash contract as the rest of the API).
+        """
+        harness: HarnessSupervisor = app.state.harness
+        bundle = harness.context_skills
+        if bundle is None:
+            return []
+        tenant_id = auth.get("tenant_id") or tenant or settings.default_tenant_id
+        return bundle.list_skills(tenant_id)
 
     @app.post("/runs:start", status_code=202)
     async def start_run(

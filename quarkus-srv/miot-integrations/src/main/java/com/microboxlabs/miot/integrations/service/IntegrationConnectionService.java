@@ -10,11 +10,13 @@ import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationOperationRequest;
 import com.microboxlabs.miot.integrations.dto.CredentialProfileResponse;
+import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.persistence.CredentialProfileRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
 import com.microboxlabs.miot.integrations.secret.IntegrationSecretCipher;
 import com.microboxlabs.miot.integrations.secret.IntegrationSecretEncryptionException;
+import com.microboxlabs.miot.integrations.tester.ConnectionTesterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
@@ -33,17 +35,20 @@ public class IntegrationConnectionService {
     private final IntegrationConnectionRepository connectionRepository;
     private final IntegrationOperationRepository operationRepository;
     private final IntegrationSecretCipher secretCipher;
+    private final ConnectionTesterRegistry testerRegistry;
 
     @Inject
     public IntegrationConnectionService(
             CredentialProfileRepository credentialProfileRepository,
             IntegrationConnectionRepository connectionRepository,
             IntegrationOperationRepository operationRepository,
-            IntegrationSecretCipher secretCipher) {
+            IntegrationSecretCipher secretCipher,
+            ConnectionTesterRegistry testerRegistry) {
         this.credentialProfileRepository = credentialProfileRepository;
         this.connectionRepository = connectionRepository;
         this.operationRepository = operationRepository;
         this.secretCipher = secretCipher;
+        this.testerRegistry = testerRegistry;
     }
 
     public List<CredentialProfileResponse> listCredentialProfiles(String tenantCode) {
@@ -101,6 +106,52 @@ public class IntegrationConnectionService {
         return connectionRepository.findByTenantAndId(tenantCode, connectionId);
     }
 
+    /**
+     * Partial update of a connection. Returns {@code null} if the connection does not exist.
+     * A non-blank {@code token} rotates the secret on the linked credential profile.
+     */
+    public IntegrationConnection updateConnection(
+            String tenantCode, String connectionId, UpdateIntegrationConnectionRequest req) {
+        IntegrationConnection existing = connectionRepository.findByTenantAndId(tenantCode, connectionId);
+        if (existing == null) {
+            return null;
+        }
+        rotateTokenIfPresent(tenantCode, existing, req.token());
+        String baseUrl = req.baseUrl() == null ? null : req.baseUrl().toString();
+        return connectionRepository.update(tenantCode, connectionId, req.name(), baseUrl, req.metadata());
+    }
+
+    /**
+     * Rotates the linked credential profile's secret when a non-blank token is supplied.
+     * Fails (does not silently drop the token) when there is no resolvable credential
+     * profile, so the rotation is part of the update's success contract.
+     */
+    private void rotateTokenIfPresent(String tenantCode, IntegrationConnection existing, String token) {
+        if (token == null || token.isBlank()) {
+            return;
+        }
+        CredentialProfile rotated = existing.credentialProfileId() == null
+                ? null
+                : credentialProfileRepository.updateSecret(
+                        tenantCode,
+                        existing.credentialProfileId(),
+                        encryptToken(token),
+                        maskSecret(Map.of("token", token)));
+        if (rotated == null) {
+            throw new IllegalStateException(
+                    "Cannot rotate the access token: the connection has no resolvable credential profile");
+        }
+    }
+
+    private String encryptToken(String token) {
+        try {
+            return secretCipher.encrypt(Map.of("token", token));
+        } catch (IntegrationSecretEncryptionException e) {
+            LOG.errorf(e, "Failed to encrypt rotated token during connection update");
+            throw e;
+        }
+    }
+
     public IntegrationOperation addOperation(
             String tenantCode,
             String connectionId,
@@ -137,17 +188,17 @@ public class IntegrationConnectionService {
             return new ConnectionTestResponse(false, OffsetDateTime.now(), "Connection not found");
         }
 
-        OffsetDateTime now = OffsetDateTime.now();
-        connectionRepository.updateTestResult(connection.tenantCode(), connection.id(), ConnectionStatus.ACTIVE, now, true);
-        return new ConnectionTestResponse(true, now, testMessage(req));
-    }
+        CredentialProfile credential = connection.credentialProfileId() == null
+                ? null
+                : credentialProfileRepository.findByTenantAndId(tenantCode, connection.credentialProfileId());
 
-    private String testMessage(ConnectionTestRequest req) {
-        if (req == null || req.path() == null || req.path().isBlank()) {
-            return "Connection contract is valid; runtime probe pending";
-        }
-        String method = req.method() == null || req.method().isBlank() ? "GET" : req.method();
-        return "Connection contract is valid for " + method + " " + req.path() + "; runtime probe pending";
+        ConnectionTestResponse response = testerRegistry.testerFor(connection.providerType())
+                .test(connection, credential, req);
+
+        ConnectionStatus status = response.success() ? ConnectionStatus.ACTIVE : ConnectionStatus.TEST_FAILED;
+        connectionRepository.updateTestResult(
+                connection.tenantCode(), connection.id(), status, response.testedAt(), response.success());
+        return response;
     }
 
     private CredentialProfileResponse toResponse(CredentialProfile profile) {

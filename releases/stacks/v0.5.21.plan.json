@@ -1,0 +1,641 @@
+{
+  "stack_version": "0.5.21",
+  "stack_tag": "miot-stack@v0.5.21",
+  "milestone": "MIOT-0.5.21",
+  "pull_requests": [
+    {
+      "number": 744,
+      "title": "fix(harness): never fail a run when provenance log is unwritable",
+      "source_issues": [
+        {
+          "number": 746,
+          "title": "bug: agentic data route returns \"(no answer recorded)\" in production — harness crashes writing provenance log to a read-only filesystem"
+        }
+      ]
+    },
+    {
+      "number": 749,
+      "title": "feat(miot-harness): discover SKILL.md (Agent Skills standard) directory skills",
+      "source_issues": [
+        {
+          "number": 748,
+          "title": "feat(miot-harness): discover SKILL.md (Agent Skills standard) directory skills"
+        }
+      ]
+    },
+    {
+      "number": 751,
+      "title": "feat(integrations): WhatsApp Cloud API connection provider + live test",
+      "source_issues": [
+        {
+          "number": 750,
+          "title": "feat(integrations): WhatsApp Cloud API connection provider + live test"
+        }
+      ]
+    },
+    {
+      "number": 753,
+      "title": "feat(conversational): miot-conversational module skeleton + WhatsApp message-pool tables",
+      "source_issues": [
+        {
+          "number": 752,
+          "title": "feat(conversational): miot-conversational module skeleton + WhatsApp message-pool tables"
+        }
+      ]
+    },
+    {
+      "number": 756,
+      "title": "feat: skills listing, /-autocomplete palette, and skill invocation across harness + CLI + chat",
+      "source_issues": [
+        {
+          "number": 755,
+          "title": "feat: skills listing, /-autocomplete palette, and skill invocation across harness + CLI + chat"
+        }
+      ]
+    },
+    {
+      "number": 757,
+      "title": "feat(app): WhatsApp channel settings card (configure + test)",
+      "source_issues": [
+        {
+          "number": 754,
+          "title": "feat(app): Settings UI to configure & test the WhatsApp channel connection"
+        }
+      ]
+    },
+    {
+      "number": 759,
+      "title": "fix: unblock Phase 0 dev run — Flyway V0.6.2 + register conversational in start.sh",
+      "source_issues": []
+    },
+    {
+      "number": 760,
+      "title": "Fixed new filter method",
+      "source_issues": [
+        {
+          "number": 772,
+          "title": "feat(app): unified secured-page section header filters"
+        }
+      ]
+    },
+    {
+      "number": 761,
+      "title": "feat(harness-proxy): proxy GET /skills through the front door",
+      "source_issues": [
+        {
+          "number": 762,
+          "title": "bug: front-door harness proxy returns 404 for /skills"
+        }
+      ]
+    },
+    {
+      "number": 765,
+      "title": "fix(ci): order nightly after image builds to stop stale modulith deploys",
+      "source_issues": [
+        {
+          "number": 764,
+          "title": "bug: nightly deploys a stale modulith image (race with quarkus.yml build)"
+        }
+      ]
+    },
+    {
+      "number": 766,
+      "title": "feat(harness): Phase 0 — connection abstraction",
+      "source_issues": [
+        {
+          "number": 767,
+          "title": "feat(harness): Phase 0 — connection abstraction (generic data platform)"
+        }
+      ]
+    },
+    {
+      "number": 768,
+      "title": "feat(harness): Phase 1 — Tier B generic safe query",
+      "source_issues": [
+        {
+          "number": 770,
+          "title": "feat(harness): Phase 1 — Tier B generic safe query"
+        }
+      ]
+    },
+    {
+      "number": 774,
+      "title": "feat(conversational): outbound WhatsApp send + message-pool persistence (Phase 1a)",
+      "source_issues": [
+        {
+          "number": 773,
+          "title": "feat(conversational): outbound WhatsApp send + message-pool persistence (Phase 1a)"
+        }
+      ]
+    },
+    {
+      "number": 776,
+      "title": "feat(conversational): named template parameters for outbound WhatsApp sends",
+      "source_issues": [
+        {
+          "number": 775,
+          "title": "feat(conversational): named template parameters for outbound WhatsApp sends"
+        }
+      ]
+    },
+    {
+      "number": 777,
+      "title": "feat(harness): Phase 2 slice 1 — schema introspection + lazy index + describe-with-FKs",
+      "source_issues": [
+        {
+          "number": 779,
+          "title": "feat(harness): Phase 2 slice 1 — schema introspection + lazy index + describe-with-FKs"
+        }
+      ]
+    },
+    {
+      "number": 778,
+      "title": "Fixing searchbar component",
+      "source_issues": []
+    },
+    {
+      "number": 780,
+      "title": "feat(harness): Phase 2 slice 2 — curated knowledge packs (Alfresco/Activiti)",
+      "source_issues": [
+        {
+          "number": 781,
+          "title": "feat(harness): Phase 2 slice 2 — curated knowledge packs"
+        }
+      ]
+    },
+    {
+      "number": 783,
+      "title": "feat(app): Control Tower \"Send WhatsApp\" to driver (Phase 1b)",
+      "source_issues": [
+        {
+          "number": 782,
+          "title": "feat(app): Control Tower \"Send WhatsApp\" to driver (Phase 1b)"
+        }
+      ]
+    },
+    {
+      "number": 787,
+      "title": "fix(conversational): address Copilot review on Phase 1a (#774)",
+      "source_issues": [
+        {
+          "number": 786,
+          "title": "fix(conversational): address Copilot review on Phase 1a (#774)"
+        }
+      ]
+    },
+    {
+      "number": 793,
+      "title": "feat(ci): expose deployed build metadata",
+      "source_issues": [
+        {
+          "number": 792,
+          "title": "feat(ci): expose deployed build metadata"
+        }
+      ]
+    },
+    {
+      "number": 799,
+      "title": "feat(integrations): PATCH a connection (partial update + token rotation)",
+      "source_issues": [
+        {
+          "number": 798,
+          "title": "feat(integrations): PATCH a connection (partial update + token rotation)"
+        }
+      ]
+    },
+    {
+      "number": 801,
+      "title": "feat(app): edit a WhatsApp connection in Settings",
+      "source_issues": [
+        {
+          "number": 800,
+          "title": "feat(app): edit a WhatsApp connection in Settings"
+        }
+      ]
+    },
+    {
+      "number": 803,
+      "title": "feat(conversational): metadata-driven WhatsApp test mode",
+      "source_issues": [
+        {
+          "number": 802,
+          "title": "feat(conversational): metadata-driven WhatsApp test mode (block non-allowlisted recipients)"
+        }
+      ]
+    },
+    {
+      "number": 804,
+      "title": "fix(ci): bake build info into app images",
+      "source_issues": []
+    },
+    {
+      "number": 805,
+      "title": "feat(app): show logo and release notes in build modal",
+      "source_issues": []
+    },
+    {
+      "number": 808,
+      "title": "fix(app): WhatsApp Settings edit — instant refresh + show connection name",
+      "source_issues": [
+        {
+          "number": 807,
+          "title": "fix(app): WhatsApp Settings edit — instant refresh + show connection name"
+        }
+      ]
+    },
+    {
+      "number": 812,
+      "title": "feat(app): show full stack build metadata",
+      "source_issues": [
+        {
+          "number": 811,
+          "title": "feat(app): show full stack build metadata"
+        }
+      ]
+    },
+    {
+      "number": 813,
+      "title": "feat(app): WhatsApp test mode — manage allowlist + toggle in Settings",
+      "source_issues": [
+        {
+          "number": 810,
+          "title": "feat(app): WhatsApp test mode — manage allowlist + toggle in Settings"
+        }
+      ]
+    },
+    {
+      "number": 814,
+      "title": "fix(harness): make ActiveConnections.known nullable (CodeRabbit follow-up to #806)",
+      "source_issues": [
+        {
+          "number": 826,
+          "title": "fix(harness): make ActiveConnections.known nullable"
+        }
+      ]
+    },
+    {
+      "number": 816,
+      "title": "feat(app): add build credits",
+      "source_issues": [
+        {
+          "number": 815,
+          "title": "feat(app): add build credits to deployment info"
+        }
+      ]
+    },
+    {
+      "number": 818,
+      "title": "feat(app): celebrate build contributors",
+      "source_issues": [
+        {
+          "number": 817,
+          "title": "fix(app): credit nightly builds from release range"
+        }
+      ]
+    },
+    {
+      "number": 820,
+      "title": "fix(app): disable Control Tower WhatsApp send until slice 3",
+      "source_issues": [
+        {
+          "number": 819,
+          "title": "fix(app): disable Control Tower WhatsApp send until slice 3 finalizes it"
+        }
+      ]
+    },
+    {
+      "number": 821,
+      "title": "feat(harness): bridge .env into os.environ for local file-connection DSNs",
+      "source_issues": [
+        {
+          "number": 827,
+          "title": "feat(harness): bridge .env into os.environ for local file-connection DSNs"
+        }
+      ]
+    },
+    {
+      "number": 825,
+      "title": "feat(conversational): M2M-callable WhatsApp send for POD notifications (slice 4a)",
+      "source_issues": [
+        {
+          "number": 824,
+          "title": "feat(conversational): M2M-callable WhatsApp send for POD notifications (slice 4a)"
+        }
+      ]
+    },
+    {
+      "number": 829,
+      "title": "fix(app): avoid duplicate build credit role text",
+      "source_issues": [
+        {
+          "number": 828,
+          "title": "fix(app): avoid duplicate build credit role text"
+        }
+      ]
+    },
+    {
+      "number": 831,
+      "title": "fix(ci): build the modulith image with the conversational component",
+      "source_issues": [
+        {
+          "number": 830,
+          "title": "fix(ci): build the modulith image with the conversational component enabled"
+        }
+      ]
+    },
+    {
+      "number": 833,
+      "title": "fix(ci): trigger Quarkus CI on changes to its own workflow file",
+      "source_issues": [
+        {
+          "number": 832,
+          "title": "fix(ci): trigger Quarkus CI on changes to its own workflow file"
+        }
+      ]
+    },
+    {
+      "number": 840,
+      "title": "fix(integrations): qualify async-job CLAIM key to avoid ambiguous \"id\" (42702)",
+      "source_issues": [
+        {
+          "number": 841,
+          "title": "fix(integrations): qualify async-job CLAIM key to avoid ambiguous id"
+        }
+      ]
+    },
+    {
+      "number": 843,
+      "title": "feat(whatsapp): Phase 2a — inbound webhook + Conversations inbox",
+      "source_issues": [
+        {
+          "number": 842,
+          "title": "feat(whatsapp): Phase 2a — inbound webhook + Conversations inbox"
+        }
+      ]
+    },
+    {
+      "number": 844,
+      "title": "Patch Vitest 3.x workspaces to 3.2.6 for GHSA-5xrq-8626-4rwp",
+      "source_issues": [
+        {
+          "number": 845,
+          "title": "fix(security): patch Vitest 3.x workspaces for GHSA-5xrq-8626-4rwp"
+        }
+      ]
+    },
+    {
+      "number": 850,
+      "title": "fix(whatsapp): inbound webhook 401 on dev — serve off /api/* + fail-closed config defaults",
+      "source_issues": [
+        {
+          "number": 849,
+          "title": "fix(whatsapp): inbound webhook 401 on dev — relocate off /api/* + fail-closed config defaults"
+        }
+      ]
+    },
+    {
+      "number": 853,
+      "title": "feat(whatsapp): WhatsApp-style delivery ticks in the conversation panel",
+      "source_issues": [
+        {
+          "number": 852,
+          "title": "Phase 2b — WhatsApp conversation module enhancements (ticks, template render, group-by, 24h window+compose, inbound media→serviceFolder)"
+        }
+      ]
+    }
+  ],
+  "changed_files": [
+    ".github/prompts/app-release-notes.prompt.yml",
+    ".github/workflows/app-nightly.yml",
+    ".github/workflows/app-release-train.yml",
+    ".github/workflows/quarkus.yml",
+    "miot-harness/pyproject.toml",
+    "miot-harness/src/miot_harness/agents/data_fetcher.py",
+    "miot-harness/src/miot_harness/agents/freshness_judge.py",
+    "miot-harness/src/miot_harness/agents/synthesizer.py",
+    "miot-harness/src/miot_harness/api/server.py",
+    "miot-harness/src/miot_harness/config.py",
+    "miot-harness/src/miot_harness/connections/__init__.py",
+    "miot-harness/src/miot_harness/connections/defaults/README.md",
+    "miot-harness/src/miot_harness/connections/file_source.py",
+    "miot-harness/src/miot_harness/connections/loader.py",
+    "miot-harness/src/miot_harness/connections/models.py",
+    "miot-harness/src/miot_harness/connections/source.py",
+    "miot-harness/src/miot_harness/context_skills/file_source.py",
+    "miot-harness/src/miot_harness/context_skills/loader.py",
+    "miot-harness/src/miot_harness/context_skills/registry.py",
+    "miot-harness/src/miot_harness/context_skills/skill_models.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/__init__.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/loader.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/models.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/packs/alfresco-activiti/pack.md",
+    "miot-harness/src/miot_harness/datasource/pool.py",
+    "miot-harness/src/miot_harness/datasource/provider.py",
+    "miot-harness/src/miot_harness/datasource/registry.py",
+    "miot-harness/src/miot_harness/datasource/safe_query.py",
+    "miot-harness/src/miot_harness/datasource/safe_sql.py",
+    "miot-harness/src/miot_harness/datasource/schema_introspect.py",
+    "miot-harness/src/miot_harness/datasource/sql_policy.py",
+    "miot-harness/src/miot_harness/integrations/generic_pg/__init__.py",
+    "miot-harness/src/miot_harness/integrations/generic_pg/primitive_tools.py",
+    "miot-harness/src/miot_harness/integrations/generic_pg/provider.py",
+    "miot-harness/src/miot_harness/integrations/nexo/primitives.py",
+    "miot-harness/src/miot_harness/integrations/nexo/provider.py",
+    "miot-harness/src/miot_harness/observability/provenance.py",
+    "miot-harness/src/miot_harness/runtime/context.py",
+    "miot-harness/src/miot_harness/runtime/supervisor.py",
+    "miot-harness/tests/api/test_health.py",
+    "miot-harness/tests/api/test_skills.py",
+    "miot-harness/tests/connections/__init__.py",
+    "miot-harness/tests/connections/test_lifespan_multi.py",
+    "miot-harness/tests/connections/test_loader.py",
+    "miot-harness/tests/context_skills/test_bundle_layering.py",
+    "miot-harness/tests/context_skills/test_file_source.py",
+    "miot-harness/tests/context_skills/test_loader.py",
+    "miot-harness/tests/datasource/test_knowledge.py",
+    "miot-harness/tests/datasource/test_registry.py",
+    "miot-harness/tests/datasource/test_safe_query.py",
+    "miot-harness/tests/datasource/test_schema_introspect.py",
+    "miot-harness/tests/datasource/test_sql_policy.py",
+    "miot-harness/tests/fixtures/fake_provider.py",
+    "miot-harness/tests/fixtures/recording_pool.py",
+    "miot-harness/tests/integrations/generic_pg/__init__.py",
+    "miot-harness/tests/integrations/generic_pg/test_provider.py",
+    "miot-harness/tests/integrations/nexo/test_provider.py",
+    "miot-harness/tests/observability/test_provenance.py",
+    "miot-harness/tests/runtime/test_supervisor_skill.py",
+    "miot-harness/tests/test_config.py",
+    "miot-harness/tests/test_data_fetcher.py",
+    "miot-harness/tests/test_freshness_judge.py",
+    "miot-harness/uv.lock",
+    "quarkus-srv/miot-cli/pom.xml",
+    "quarkus-srv/miot-cli/src/main/java/com/microboxlabs/miot/cli/FlywayMigrator.java",
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-conversational/pom.xml",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/ConversationalComponent.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/OrgWhatsAppMessagesResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/OrgWhatsAppOutboundResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/WhatsAppWebhookResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/client/MetaWhatsAppClient.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/client/WhatsAppSendException.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/domain/Conversation.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/domain/ConversationStatus.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/domain/Message.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/domain/MessageDirection.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/domain/MessageRole.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/domain/MessageStatus.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/domain/MessageType.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/dto/SendWhatsAppMessageRequest.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/persistence/ConversationRepository.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/persistence/MessageRepository.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/InboundMessage.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/MetaWebhookParser.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/ParsedWebhook.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/StatusUpdate.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/WhatsAppInboundService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/WhatsAppMessagingService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/WhatsAppSignatureVerifier.java",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.7.0__create_conversational_schema.sql",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/api/OrgWhatsAppOutboundResourceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/api/WhatsAppWebhookResourceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/client/MetaWhatsAppClientTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/dto/SendWhatsAppMessageRequestTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/persistence/ConversationRepositoryTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/persistence/ConversationalSqlIntegrityTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/MetaWebhookParserTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/WhatsAppInboundServiceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/WhatsAppMessagingServiceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/WhatsAppSignatureVerifierTest.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/HarnessClient.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/HarnessProxyResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/config/AbstractMiotComponent.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceSkillsTest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgIntegrationConnectionsResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/ProviderType.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/UpdateIntegrationConnectionRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/AsyncJobRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/CredentialProfileRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/IntegrationConnectionRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/ConnectionResolutionException.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/InboundChannelRef.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/IntegrationConnectionResolver.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/IntegrationConnectionService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/ResolvedConnection.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/ConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/ConnectionTesterRegistry.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/GenericConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/WhatsAppConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.1__add_whatsapp_provider_type.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.2__add_whatsapp_provider_type.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.3__index_whatsapp_phone_number_id.sql",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/AsyncJobSqlIntegrityTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/CredentialProfileRepositoryTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/IntegrationConnectionRepositoryTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/WhatsAppReverseLookupSqlIntegrityTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/IntegrationConnectionServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/tester/WhatsAppConnectionTesterTest.java",
+    "quarkus-srv/pom.xml",
+    "quarkus-srv/scripts/simulate-meta-inbound.sh",
+    "quarkus-srv/start.sh",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/geographic-view/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/live-streams/devices/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/mytasks/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/symptoms/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/whatsapp/conversations/page.tsx",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/connections/[connId]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/connections/[connId]/test/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/connections/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/credential-profiles/route.ts",
+    "turbo-repo/apps/app/src/app/api/build-info/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/build-info/route.ts",
+    "turbo-repo/apps/app/src/app/api/whatsapp/conversations/[conversationId]/messages/route.ts",
+    "turbo-repo/apps/app/src/app/api/whatsapp/conversations/[conversationId]/read/route.ts",
+    "turbo-repo/apps/app/src/app/api/whatsapp/conversations/route.ts",
+    "turbo-repo/apps/app/src/app/api/whatsapp/messages/route.ts",
+    "turbo-repo/apps/app/src/features/common/components/Breadcrumb/Breadcrumb.tsx",
+    "turbo-repo/apps/app/src/features/common/providers/client-api.provider.ts",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-view/dashboard-view.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/layout-content.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/release-view/build-info-modal.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/release-view/release-view.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/section-header/section-header.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-layout.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/navegation_params.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/parametrized-filter-bar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/search-bar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/section-filter-bar-controller.tsx",
+    "turbo-repo/apps/app/src/features/layout/models/pages.ts",
+    "turbo-repo/apps/app/src/features/map-visualization/map-visualization.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/org-detail-panel.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/use-org-whatsapp.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp-channel-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp-connection-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp-data-service.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp.types.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp.types.ts",
+    "turbo-repo/apps/app/src/features/shipping/components/content.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/blurrable-stepped-menu/menus/whatsapp-contact/whatsapp-contact.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/blurrable-stepped-menu/symptom-form.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/blurrable-dropdown.tsx",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/components/conversation-list.tsx",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/components/conversations-page-content.tsx",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/components/message-thread.tsx",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/conversation.types.ts",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/format.ts",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/inbox-data-service.ts",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/use-conversations.ts",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/use-messages.ts",
+    "turbo-repo/apps/app/src/features/whatsapp/send-data-service.ts",
+    "turbo-repo/apps/app/src/features/whatsapp/whatsapp-templates.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/package-lock.json",
+    "turbo-repo/packages/miot-chat/package.json",
+    "turbo-repo/packages/miot-chat/src/tui/App.tsx",
+    "turbo-repo/packages/miot-chat/src/tui/__tests__/components/Editor.test.tsx",
+    "turbo-repo/packages/miot-chat/src/tui/__tests__/skillCommand.test.ts",
+    "turbo-repo/packages/miot-chat/src/tui/__tests__/slash.skills.test.ts",
+    "turbo-repo/packages/miot-chat/src/tui/__tests__/transcript.project.test.ts",
+    "turbo-repo/packages/miot-chat/src/tui/input/Editor.tsx",
+    "turbo-repo/packages/miot-chat/src/tui/input/keymap.ts",
+    "turbo-repo/packages/miot-chat/src/tui/slash/Palette.tsx",
+    "turbo-repo/packages/miot-chat/src/tui/slash/handlers/skills.ts",
+    "turbo-repo/packages/miot-chat/src/tui/slash/skillCommand.ts",
+    "turbo-repo/packages/miot-chat/src/tui/transcript/project.ts",
+    "turbo-repo/packages/miot-chat/src/tui/useSession.ts",
+    "turbo-repo/packages/miot-cli/package.json",
+    "turbo-repo/packages/miot-cli/src/commands/harness/create.ts",
+    "turbo-repo/packages/miot-cli/src/commands/harness/index.ts",
+    "turbo-repo/packages/miot-cli/src/commands/harness/skills.ts",
+    "turbo-repo/packages/miot-harness-client/package.json",
+    "turbo-repo/packages/miot-harness-client/src/__tests__/skills.test.ts",
+    "turbo-repo/packages/miot-harness-client/src/client.ts",
+    "turbo-repo/packages/miot-harness-client/src/index.ts",
+    "turbo-repo/packages/miot-harness-client/src/resources/skills.ts",
+    "turbo-repo/packages/miot-harness-client/src/types.ts",
+    "turbo-repo/turbo.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.21",
+      "tag": "app@v0.5.21"
+    },
+    "docs": {
+      "changed": true,
+      "version": "0.5.21",
+      "tag": "docs@v0.5.21"
+    },
+    "modulith": {
+      "changed": true,
+      "version": "0.5.16",
+      "tag": "modulith@v0.5.16"
+    },
+    "harness": {
+      "changed": true,
+      "version": "0.1.1",
+      "tag": "harness@v0.1.1"
+    }
+  }
+}

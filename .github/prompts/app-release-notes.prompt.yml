@@ -21,8 +21,15 @@ messages:
 
       Release version: {{release_version}}
       Release date: {{release_date}}
+      Stack version: {{stack_version}}
       Private milestone: {{private_milestone}}
       OSS milestone: {{oss_milestone}}
+
+      Component release plan:
+      - Stack tag: {{stack_tag}}
+      - App tag: {{app_tag}} (changed: {{app_changed}})
+      - Modulith tag: {{modulith_tag}} (changed: {{modulith_changed}})
+      - Harness tag: {{harness_tag}} (changed: {{harness_changed}})
 
       Issue JSON:
       {{release_issues}}
@@ -73,6 +80,12 @@ messages:
       ## 📊 Beneficios
 
       Include 4-7 Spanish bullets covering user, technical, and operational improvements.
+
+      ## 🧾 Versiones del stack
+
+      Include the component release plan above as concise Spanish bullets. Mention
+      that exact deployed image digests are available from the in-app build
+      information dialog and the `stack-manifest.json` release asset.
 
       ## 📌 Conclusión
 

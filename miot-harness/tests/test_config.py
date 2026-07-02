@@ -285,3 +285,19 @@ def test_load_dotenv_multi_file_later_wins(tmp_path, monkeypatch):
 
     assert os.environ["MIOT_HARNESS_A_T"] == "over"  # later file wins
     assert os.environ["MIOT_HARNESS_B_T"] == "base"
+
+
+def test_agent_loop_settings_defaults(monkeypatch):
+    monkeypatch.delenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_ENABLED", raising=False)
+    from miot_harness.config import HarnessSettings
+
+    s = HarnessSettings()
+    assert s.agents_agent_loop_enabled is False
+    assert s.agents_agent_loop_tool_result_max_chars == 6000
+
+
+def test_agent_loop_settings_env_override(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_ENABLED", "true")
+    from miot_harness.config import HarnessSettings
+
+    assert HarnessSettings().agents_agent_loop_enabled is True

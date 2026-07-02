@@ -73,6 +73,14 @@ class HarnessSettings(BaseSettings):
     # so they exercise the rules-only path.
     agents_agentic_verify_enabled: bool = True
     agents_agentic_max_replans: int = Field(default=2, ge=0)
+    # Single-agent tool-calling loop (spec 2026-07-02). When enabled, the
+    # DATA_AGENTIC route runs one cached native tool-use loop instead of the
+    # planner/verifier/synthesizer/critic panel. Default off until golden
+    # evals show parity with the legacy agentic graph.
+    agents_agent_loop_enabled: bool = False
+    # Per-tool-result cap on the JSON fed back to the model. Bounds context
+    # growth (and cache-write size) when a tool returns a large row set.
+    agents_agent_loop_tool_result_max_chars: int = Field(default=6000, gt=0)
     # Small "did we answer it?" judge. Held separate from the synthesizer so it
     # can stay cheap. Empty string disables the LLM judge (rules-only verify).
     agents_verifier_model: str = "claude-haiku-4-5"

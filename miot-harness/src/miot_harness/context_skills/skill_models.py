@@ -121,3 +121,9 @@ class SkillSummary(BaseModel):
     when_to_use: str = ""
     scope: Literal["global", "tenant"] = "global"
     source: Literal["skill_md", "manifest"] = "manifest"
+    # Phase 4 connection binding, surfaced so a `/skills` picker can badge a
+    # skill with the connection / capability it lights up for. None when the
+    # skill is unbound (eligible everywhere). The skill only appears at all when
+    # its binding is already satisfied (the loader gates eligibility at boot).
+    connection: str | None = None
+    requires_capability: str | None = None

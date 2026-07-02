@@ -42,6 +42,7 @@ from miot_harness.agents.freshness_judge import freshness_judge_node
 from miot_harness.agents.synthesizer import synthesizer_node
 from miot_harness.agents.verifier import REPLAN, verify_node
 from miot_harness.config import HarnessSettings
+from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.provenance import ProvenanceEntry, ProvenanceLog
 from miot_harness.runtime.context import HarnessContext
@@ -98,11 +99,18 @@ def build_agentic_graph(
     provenance_log: ProvenanceLog | None,
     profile: DataSourceProfile,
     registry: ToolRegistry,
+    context_skills: ContextSkillsBundle | None = None,
 ) -> Any:
     """Compile and return the LangGraph agentic StateGraph.
 
     `provenance_log` receives one entry per executed step (question, sql,
     rows, refreshed_at). Pass None for tests that don't need recording.
+
+    `context_skills` is the resolved bundle (Phase 4). When present, the planner
+    is handed the requesting tenant's eligible connection-bound playbooks so it
+    can follow a ready-made recipe instead of rediscovering it. None disables the
+    surface (no playbook section in the prompt) — back-compat for tests/boots
+    where the subsystem failed to load.
     """
 
     graph = StateGraph(DataState)
@@ -137,6 +145,13 @@ def build_agentic_graph(
     async def planner(state: DataState) -> dict[str, Any]:
         ctx: HarnessContext = cast(dict[str, Any], state)["ctx"]
         buf, progress = _make_event_buffer()
+        # Phase 4: hand the planner this tenant's eligible connection-bound
+        # playbooks. The bundle already gated connection/capability eligibility
+        # at boot; playbooks_for layers tenant over global. build_playbook_catalog
+        # further drops any bound to a different connection than this profile.
+        playbooks = (
+            context_skills.playbooks_for(ctx.tenant_id) if context_skills else None
+        )
         delta = await agentic_planner_node(
             cast(dict[str, Any], state),
             registry=registry,
@@ -146,6 +161,7 @@ def build_agentic_graph(
             ),
             profile=profile,
             max_turns=max_turns,
+            playbooks=playbooks,
         )
         return _merge_events(delta, buf)
 

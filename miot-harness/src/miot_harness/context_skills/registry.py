@@ -165,6 +165,11 @@ class ContextSkillsBundle:
                     description=skill.description,
                     when_to_use=skill.when_to_use,
                     scope=skill.scope.kind,
+                    # Connection / capability the skill binds to (Phase 4); None
+                    # when unbound. The loader already gated eligibility, so a
+                    # surfaced bound skill is one whose connection is live.
+                    connection=skill.connection,
+                    requires_capability=skill.requires_capability,
                     source=(
                         # Match the basename, not a suffix: a substring
                         # check would misbadge e.g. `foo-skill.md`.

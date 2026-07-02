@@ -50,6 +50,7 @@ export const HARNESS_EVENT_TYPES = [
   "usage.recorded",
   "freshness.warning",
   "verification.completed",
+  "answer.delta",
   "answer.completed",
   "run.completed",
   "run.failed",
@@ -110,6 +111,12 @@ export interface ThinkingCompletedData {
   agent: "synthesizer";
   tokens: number;
   length: number;
+}
+
+export interface AnswerDeltaData {
+  agent: string;
+  delta: string;
+  index: number;
 }
 
 export interface UsageRecordedData {

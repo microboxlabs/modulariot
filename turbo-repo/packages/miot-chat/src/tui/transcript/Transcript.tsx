@@ -1,4 +1,4 @@
-import { Box, Text } from "ink";
+import { Box, Static, Text } from "ink";
 import { AssistantTurn } from "./AssistantTurn.js";
 import { Spinner } from "./Spinner.js";
 import { ToolCall } from "./ToolCall.js";
@@ -11,44 +11,89 @@ export interface TranscriptProps {
 }
 
 /**
- * Render the full transcript on every state change.
+ * An item is terminal when it will no longer mutate and is safe to
+ * commit to Ink's <Static> (rendered once, flushed to native terminal
+ * scrollback, never re-painted). When the run is over, every item is
+ * terminal. While a run is in flight, only finished items commit; the
+ * in-flight tail stays in the live region.
+ */
+function isTerminalItem(
+  item: TranscriptItem,
+  isStreaming: boolean,
+): boolean {
+  if (!isStreaming) return true;
+  switch (item.kind) {
+    case "assistant":
+      return item.status !== "streaming";
+    case "tool":
+      return item.status !== "running";
+    case "thinking":
+      return item.status !== "streaming";
+    case "route":
+    case "agent":
+    case "plan":
+    case "freshness":
+    case "artifact":
+      // May still be the spinning active step; keep live until run ends.
+      return false;
+    case "user":
+    case "system":
+      return true;
+  }
+}
+
+/**
+ * Render the settled prefix via Ink's <Static> so it flushes to native
+ * terminal scrollback and escapes Ink's viewport-height truncation (the
+ * cause of long answers being cut with "…"). Only the in-flight tail
+ * renders in the dynamic <Box>.
  *
- * Earlier versions split items into Ink's <Static> (committed turns) +
- * a live <Box> (the in-flight turn) so completed turns scrolled into
- * terminal scrollback. The trade-off bit us: when an item migrates
- * from live → static AND its status flips in the same render,
- * real-terminal Ink doesn't reliably clear the live region's prior
- * paint, so a "… miot" line printed during streaming stayed on screen
- * even after END_TURN flipped the item to "complete". ink-testing-
- * library captures both regions as one frame and didn't catch it.
+ * The split is a single point — the index of the first non-terminal
+ * (in-flight) item — NOT two independent filters. A filter-based split
+ * would float a later terminal item (e.g. a finished tool) above an
+ * earlier still-active chain row, reordering the transcript. Slicing at
+ * the first live item keeps both regions in their original relative
+ * order: `committed` is the leading prefix, `live` the trailing tail.
  *
- * Trade-off accepted: every state change re-paints every item. For
- * typical sessions (≤20 turns visible) the reconciliation cost is
- * negligible. Long-running sessions lose true scrollback; users can
- * still scroll the terminal manually.
- *
- * `isStreaming` is kept in the prop signature for the Header / spinner
- * gating but is no longer needed here.
+ * `slice` returns a fresh array each render, which is required for Ink's
+ * <Static> to detect and emit newly-committed items: <Static> only
+ * re-renders when its `items` prop reference changes (a same-reference
+ * mutation is silently dropped). The split point is monotonic during a
+ * run — items only append at the tail and `isTerminalItem` only advances
+ * (streaming→complete, run ends true→false) — so the committed prefix
+ * only ever grows and no item oscillates back out of <Static>.
  */
 export function Transcript(props: TranscriptProps): React.ReactElement {
+  const firstLive = props.items.findIndex(
+    (item) => !isTerminalItem(item, props.isStreaming),
+  );
+  const splitPoint = firstLive === -1 ? props.items.length : firstLive;
+  const committed = props.items.slice(0, splitPoint);
+  const live = props.items.slice(splitPoint);
   // When a run is in flight, the most recent "chain" item (route /
-  // plan / agent / artifact / freshness) gets a spinner instead of
-  // the static "·" prefix to signal "this is the step the harness is
-  // working on right now". Tool items already self-animate via
-  // status=running; assistant items animate via status=streaming.
+  // plan / agent / artifact / freshness) in the live tail gets a
+  // spinner instead of the static "·" prefix to signal "this is the
+  // step the harness is working on right now".
   const activeChainIdx = props.isStreaming
-    ? findActiveChainIndex(props.items)
+    ? findActiveChainIndex(live)
     : -1;
 
   return (
     <Box flexDirection="column">
-      {props.items.map((item, i) => (
-        <TranscriptItemView
-          key={item.id}
-          item={item}
-          isActive={i === activeChainIdx}
-        />
-      ))}
+      <Static items={committed}>
+        {(item) => (
+          <TranscriptItemView key={item.id} item={item} isActive={false} />
+        )}
+      </Static>
+      <Box flexDirection="column">
+        {live.map((item, i) => (
+          <TranscriptItemView
+            key={item.id}
+            item={item}
+            isActive={i === activeChainIdx}
+          />
+        ))}
+      </Box>
     </Box>
   );
 }

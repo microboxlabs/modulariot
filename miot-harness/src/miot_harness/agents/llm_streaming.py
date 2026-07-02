@@ -46,6 +46,7 @@ async def stream_llm_with_thinking(
     thinking_parts: list[str] = []
     text_parts: list[str] = []
     thinking_index = 0
+    answer_index = 0
     thinking_emitted = False
 
     async for event in model.astream_events(messages, version="v2"):
@@ -58,6 +59,19 @@ async def stream_llm_with_thinking(
             if isinstance(content, str):
                 if content:
                     text_parts.append(content)
+                    progress(
+                        HarnessEvent(
+                            run_id=run_id,
+                            type="answer.delta",
+                            message="",
+                            data={
+                                "agent": agent_name,
+                                "delta": content,
+                                "index": answer_index,
+                            },
+                        )
+                    )
+                    answer_index += 1
                 continue
             if not isinstance(content, list):
                 continue
@@ -87,6 +101,19 @@ async def stream_llm_with_thinking(
                     delta = block.get("text") or ""
                     if delta:
                         text_parts.append(delta)
+                        progress(
+                            HarnessEvent(
+                                run_id=run_id,
+                                type="answer.delta",
+                                message="",
+                                data={
+                                    "agent": agent_name,
+                                    "delta": delta,
+                                    "index": answer_index,
+                                },
+                            )
+                        )
+                        answer_index += 1
         elif kind == "on_chat_model_end" and thinking_parts and not thinking_emitted:
             full_thinking = "".join(thinking_parts)
             progress(

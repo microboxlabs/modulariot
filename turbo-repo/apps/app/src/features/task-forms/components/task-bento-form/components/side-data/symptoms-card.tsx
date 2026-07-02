@@ -43,7 +43,7 @@ function getConditions(symptoms: any[], id: string): string[] {
     : [];
 }
 
-// Symptom card component
+// Symptom row component (same data as before, laid out as a compact row)
 const SymptomCard = ({
   symptom,
   dict,
@@ -53,50 +53,49 @@ const SymptomCard = ({
   dict: I18nRecord;
   loading?: boolean;
 }) => {
+  const conditions = symptom.conditions.filter(Boolean);
+
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center gap-1 p-2 w-min-[150px] h-[70px] ">
-      {/* min-w-fit */}
-      {/* First column: Icon and conditions */}
-      <div className="flex flex-col items-center gap-1 min-w-0.5">
-        <div className="text-gray-600 dark:text-gray-400 dark:bg-gray-300 rounded-lg p-1">
-          <SymptomIcon
-            type={symptom.icon}
-            size="h-6 w-6"
-            dict={dict}
-            fixed_label={symptom.label}
-          />
-        </div>
-        <div className="flex gap-1">
-          <div className="flex -space-x-2.5 transition-all duration-[0.5s] animate-show-flex">
-            {Array.from(symptom.conditions).map((condition) => (
-              <ConditionIcon
-                key={condition}
-                condition={condition ?? ""}
-                size="h-4 w-4"
-                dict={dict}
-              />
-            ))}
-          </div>
-        </div>
+    <div className="flex items-center gap-2 py-1 px-1.5 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+      <div className="text-gray-600 dark:text-gray-400 dark:bg-gray-300 rounded-md p-0.5 shrink-0">
+        <SymptomIcon
+          type={symptom.icon}
+          size="h-5 w-5"
+          dict={dict}
+          fixed_label={symptom.label}
+        />
       </div>
 
-      {/* Second column: Label */}
-      <div className="flex-1 justify-center text-gray-900 dark:text-gray-100 text-[11px] font-light min-w-0 overflow-hidden">
-        {/*  <span className="text-sm text-gray-700 font-light truncate block"> */}
+      <span className="flex-1 min-w-0 truncate font-light text-sm text-gray-600 dark:text-gray-300">
         {symptom.label}
-        {/* </span> */}
-      </div>
+      </span>
 
-      {/* Third column: Number */}
-      <div className="text-xl text-gray-800 dark:text-gray-200 flex-shrink-0">
-        {loading ? (
-          <div className="bg-gray-300 dark:bg-gray-700 text-gray-300 dark:text-gray-700 animate-pulse rounded-lg h-full w-full">
-            00
-          </div>
-        ) : (
-          symptom.count.toString().padStart(2, "0")
-        )}
-      </div>
+      {conditions.length > 0 && (
+        <div className="flex -space-x-1.5 shrink-0">
+          {conditions.map((condition) => (
+            <ConditionIcon
+              key={condition}
+              condition={condition}
+              size="h-4 w-4"
+              dict={dict}
+            />
+          ))}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="bg-gray-300 dark:bg-gray-700 animate-pulse rounded h-4 w-6 shrink-0" />
+      ) : (
+        <span
+          className={`shrink-0 text-xs font-medium rounded px-1.5 py-0.5 min-w-6 text-center ${
+            symptom.count > 0
+              ? "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+              : "text-gray-300 dark:text-gray-600"
+          }`}
+        >
+          {symptom.count.toString().padStart(2, "0")}
+        </span>
+      )}
     </div>
   );
 };
@@ -266,12 +265,19 @@ export default function SymptomsCard({
       subtitle={null}
     >
       <div
-        className={`grid gap-2 ${reactive ? "grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3" : "grid-cols-2 md:grid-cols-3"}`}
+        className={`grid gap-1.5 ${
+          reactive
+            ? "grid-cols-1 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2"
+            : "grid-cols-2 md:grid-cols-3 max-md:[&>*:last-child:nth-child(odd)]:col-span-2 md:[&>*:last-child:nth-child(3n+1)]:col-span-3 md:[&>*:last-child:nth-child(3n+2)]:col-span-2"
+        }`}
       >
         {allSymptoms.map((symptom) => (
-          <div key={symptom.key}>
-            <SymptomCard symptom={symptom} dict={dict} loading={isLoading} />
-          </div>
+          <SymptomCard
+            key={symptom.key}
+            symptom={symptom}
+            dict={dict}
+            loading={isLoading}
+          />
         ))}
       </div>
     </CustomCard>

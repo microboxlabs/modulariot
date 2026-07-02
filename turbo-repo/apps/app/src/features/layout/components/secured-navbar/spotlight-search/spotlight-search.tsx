@@ -170,7 +170,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
     harnessResults.flatMap((result) =>
       (result.blocks ?? [])
         .filter((b): b is HarnessBlock & { type: "url" } => b.type === "url")
-        .map(urlBlockToItem)
+        .map((block, i) => urlBlockToItem(block, i))
     ),
     [harnessResults],
   );
@@ -253,10 +253,13 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
             open
             aria-label={placeholder}
             className="relative left-1/2 top-[15%] w-full max-w-2xl -translate-x-1/2 px-4 border-0 bg-transparent p-0 m-0 max-h-none overflow-visible"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
           >
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
+            <div
+              className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={() => {}}
+              role="presentation"
+            >
 
               <SpotlightInput
                 query={query}

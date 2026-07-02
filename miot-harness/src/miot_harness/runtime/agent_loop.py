@@ -27,11 +27,9 @@ import logging
 from typing import Any
 
 from langchain_core.messages import (
-    AIMessage,
     BaseMessage,
     HumanMessage,
     SystemMessage,
-    ToolMessage,
 )
 
 logger = logging.getLogger(__name__)
@@ -77,7 +75,7 @@ def _with_tail_marker(messages: list[BaseMessage]) -> list[BaseMessage]:
     tests) so breakpoints can't accumulate past the API's 4-marker cap.
     """
     if not messages:
-        return messages
+        return list(messages)
     last = messages[-1]
     marked = _mark_message(last)
     if marked is None:

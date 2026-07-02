@@ -88,3 +88,13 @@ def test_stored_history_stays_unmarked():
     messages = [cached_system_message("s"), _compose_human("q", [])]
     _with_tail_marker(messages)
     assert "cache_control" not in json.dumps(messages[-1].content)
+
+
+def test_stored_history_stays_unmarked_list_content():
+    tail = HumanMessage(content=[{"type": "text", "text": "q"}])
+    messages = [cached_system_message("s"), tail]
+    marked = _with_tail_marker(messages)
+    # the returned copy carries the marker...
+    assert "cache_control" in json.dumps(marked[-1].content)
+    # ...but the caller's stored message object must stay untouched
+    assert "cache_control" not in json.dumps(tail.content)

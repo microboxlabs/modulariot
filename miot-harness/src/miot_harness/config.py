@@ -81,6 +81,10 @@ class HarnessSettings(BaseSettings):
     # Per-tool-result cap on the JSON fed back to the model. Bounds context
     # growth (and cache-write size) when a tool returns a large row set.
     agents_agent_loop_tool_result_max_chars: int = Field(default=6000, gt=0)
+    # LLM timeout for the agent loop (seconds). The loop's final turn writes
+    # the full user-facing answer and adaptive-thinking turns can exceed the
+    # current hard 60s default. 300s (5 minutes) suits multi-step planning.
+    agents_agent_loop_llm_timeout_seconds: int = Field(default=300, gt=0)
     # Small "did we answer it?" judge. Held separate from the synthesizer so it
     # can stay cheap. Empty string disables the LLM judge (rules-only verify).
     agents_verifier_model: str = "claude-haiku-4-5"

@@ -301,3 +301,18 @@ def test_agent_loop_settings_env_override(monkeypatch):
     from miot_harness.config import HarnessSettings
 
     assert HarnessSettings().agents_agent_loop_enabled is True
+
+
+def test_agent_loop_llm_timeout_default(monkeypatch):
+    monkeypatch.delenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_LLM_TIMEOUT_SECONDS", raising=False)
+    from miot_harness.config import HarnessSettings
+
+    s = HarnessSettings()
+    assert s.agents_agent_loop_llm_timeout_seconds == 300
+
+
+def test_agent_loop_llm_timeout_env_override(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_LLM_TIMEOUT_SECONDS", "600")
+    from miot_harness.config import HarnessSettings
+
+    assert HarnessSettings().agents_agent_loop_llm_timeout_seconds == 600

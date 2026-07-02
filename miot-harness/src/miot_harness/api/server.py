@@ -479,6 +479,7 @@ def _make_lifespan(
                         model=get_chat_model(
                             settings.agents_planner_model,
                             effort=settings.agents_planner_effort,
+                            timeout=settings.agents_agent_loop_llm_timeout_seconds,
                         ),
                         registry=harness.tools,
                         settings=settings,

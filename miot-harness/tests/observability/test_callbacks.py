@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.outputs import ChatGeneration, LLMResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from miot_harness.observability.callbacks import AgentTelemetryCallback
+from miot_harness.observability.callbacks import AgentTelemetryCallback, _extract_usage
 
 
 def _serialized_anthropic(model: str = "claude-haiku-4-5") -> dict[str, object]:
@@ -154,3 +154,58 @@ def test_callback_span_prefix_overrides_default(
     assert span.name == "fake.filter_expert"
     attrs = dict(span.attributes)
     assert attrs["gen_ai.operation.name"] == "fake.filter_expert"
+
+
+def _llm_result_with_details(
+    *,
+    input_tokens: int = 6100,
+    output_tokens: int = 20,
+    input_token_details: dict,
+) -> LLMResult:
+    """Build an LLMResult with arbitrary input_token_details (for ephemeral tests)."""
+    usage_metadata = {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens": input_tokens + output_tokens,
+        "input_token_details": input_token_details,
+    }
+    message = AIMessage(content="ok", usage_metadata=usage_metadata)
+    generation = ChatGeneration(message=message)
+    return LLMResult(generations=[[generation]], llm_output={"model_name": "claude-haiku-4-5"})
+
+
+def test_extract_usage_counts_ephemeral_5m_as_cache_creation() -> None:
+    """langchain_anthropic sets cache_creation=0 and stores ephemeral writes in
+    ephemeral_5m_input_tokens; _extract_usage must count those as cache-creation
+    so telemetry is accurate and pricing uses the 1.25× write rate.
+    """
+    result = _llm_result_with_details(
+        input_tokens=5100,
+        output_tokens=20,
+        input_token_details={
+            "cache_read": 100,
+            "cache_creation": 0,
+            "ephemeral_5m_input_tokens": 5000,
+        },
+    )
+    usage = _extract_usage(result)
+    assert usage.cache_creation_input_tokens == 5000
+    assert usage.cache_read_input_tokens == 100
+
+
+def test_extract_usage_sums_ephemeral_5m_and_1h_as_cache_creation() -> None:
+    """Both ephemeral_5m_input_tokens and ephemeral_1h_input_tokens contribute
+    to the cache-creation bucket so all ephemeral write costs are captured.
+    cache_creation=0 + ephemeral_5m=5000 + ephemeral_1h=200 → 5200
+    """
+    result = _llm_result_with_details(
+        input_tokens=5200,
+        output_tokens=20,
+        input_token_details={
+            "cache_creation": 0,
+            "ephemeral_5m_input_tokens": 5000,
+            "ephemeral_1h_input_tokens": 200,
+        },
+    )
+    usage = _extract_usage(result)
+    assert usage.cache_creation_input_tokens == 5200

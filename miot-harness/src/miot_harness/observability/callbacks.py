@@ -82,7 +82,15 @@ def _extract_usage(response: LLMResult) -> TokenUsage:
                 continue
             details = usage_metadata.get("input_token_details") or {}
             cache_read = int(details.get("cache_read", 0) or 0)
-            cache_creation = int(details.get("cache_creation", 0) or 0)
+            # langchain_anthropic maps ephemeral cache writes to
+            # ephemeral_5m_input_tokens / ephemeral_1h_input_tokens and sets
+            # cache_creation=0. Sum all three so telemetry captures ephemeral
+            # writes at the correct 1.25× pricing rate.
+            cache_creation = (
+                int(details.get("cache_creation", 0) or 0)
+                + int(details.get("ephemeral_5m_input_tokens", 0) or 0)
+                + int(details.get("ephemeral_1h_input_tokens", 0) or 0)
+            )
             total_input = int(usage_metadata.get("input_tokens", 0) or 0)
             return TokenUsage(
                 input_tokens=max(total_input - cache_read - cache_creation, 0),

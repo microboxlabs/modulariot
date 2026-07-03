@@ -64,7 +64,12 @@ function urlBlockToItem(block: HarnessBlock & { type: "url" }, i: number): Spotl
     label: block.value.name,
     kind: "harness-goto" as const,
     keywords: [],
-    onSelect: () => globalThis.open(block.value.url, "_blank"),
+    onSelect: () => {
+      const { url } = block.value;
+      if (/^https?:\/\//i.test(url)) {
+        globalThis.open(url, "_blank", "noopener,noreferrer");
+      }
+    },
   };
 }
 
@@ -84,9 +89,10 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
     (dict?.layout as I18nRecord | undefined)?.secured as I18nRecord | undefined
   )?.sidebar as I18nRecord | undefined;
 
-  const placeholder     = (spotlightDict?.placeholder as string | undefined) ?? "Search…";
-  const recentLabel     = (spotlightDict?.recent       as string | undefined) ?? "Recent";
-  const navigateHeading = (navigateDict?.heading as string | undefined) ?? "Go to";
+  const placeholder      = (spotlightDict?.placeholder  as string | undefined) ?? "Search…";
+  const recentLabel      = (spotlightDict?.recent       as string | undefined) ?? "Recent";
+  const navigateHeading  = (navigateDict?.heading       as string | undefined) ?? "Go to";
+  const harnessEmptyLabel = (spotlightDict?.harnessEmpty as string | undefined) ?? "No answer found, please try again!";
 
   // ── Stable nav callbacks ──────────────────────────────────────────────────
   const onNavigate = useCallback((href: string) => router.push(href), [router]);
@@ -291,6 +297,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
                   onSelect={handleSelectAction}
                   onHover={setHoveredId}
                   navigateHeading={navigateHeading}
+                  harnessEmptyLabel={harnessEmptyLabel}
                 />
               )}
 

@@ -27,12 +27,32 @@ export interface HarnessSearchResult {
   blocks: HarnessBlock[];
 }
 
+function isValidBlock(item: unknown): item is HarnessBlock {
+  if (!item || typeof item !== "object") return false;
+  const b = item as Record<string, unknown>;
+  if (b.type === "markdown") return typeof b.value === "string";
+  if (b.type === "url") {
+    if (!b.value || typeof b.value !== "object") return false;
+    const v = b.value as Record<string, unknown>;
+    return (
+      typeof v.url === "string" &&
+      /^https?:\/\//i.test(v.url) &&
+      typeof v.name === "string"
+    );
+  }
+  return false;
+}
+
 function parseAnswerBlocks(answer: string): HarnessBlock[] {
   try {
-    return JSON.parse(answer) as HarnessBlock[];
+    const parsed: unknown = JSON.parse(answer);
+    if (Array.isArray(parsed)) {
+      return parsed.filter(isValidBlock);
+    }
   } catch {
-    return [{ type: "markdown", value: answer }];
+    // fall through to plain-text fallback
   }
+  return [{ type: "markdown", value: answer }];
 }
 
 function buildLabel(blocks: HarnessBlock[]): string {

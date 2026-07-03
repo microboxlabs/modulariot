@@ -232,7 +232,7 @@ export const authConfig: NextAuthConfig = {
         // Auth0 token refresh on subsequent invocations
         if (token.refreshToken && !account && !token.ticket) {
           const expiresAt = Number(token.accessTokenExpiresAt ?? 0) * 1000;
-          const shouldRefresh = expiresAt - Date.now() < 3 * 60 * 60 * 1000; // 3 h — harness rejects tokens older than ~4 h
+          const shouldRefresh = expiresAt - Date.now() < 5 * 60 * 1000; // 5 min before expiry
 
           if (shouldRefresh) {
             const response = await fetch(`${process.env.AUTH_AUTH0_ISSUER}/oauth/token`, {
@@ -249,7 +249,7 @@ export const authConfig: NextAuthConfig = {
             if (response.ok) {
               const tokens = await response.json();
               token.rawJWT = tokens.id_token;
-              if (tokens.access_token) token.accessToken = tokens.access_token;
+              token.accessToken = tokens.access_token ?? undefined;
               token.accessTokenExpiresAt = Math.floor(Date.now() / 1000) + tokens.expires_in;
               if (tokens.refresh_token) token.refreshToken = tokens.refresh_token;
               authAuth0Logger.debug({ expiresAt: token.accessTokenExpiresAt }, "Auth0 token refreshed");

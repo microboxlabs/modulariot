@@ -1,11 +1,16 @@
 [
   {
     "label": "home",
+    "dynamicItemsSource": "dashboards",
+    "searchable": true,
+    "createAction": { "href": "/home", "label": "createDashboard" },
+    "items": [],
     "requiredGroups": ["GROUP_DASHBOARD"],
     "blockedGroups": []
   },
   {
     "label": "calendar",
+    "dynamicItemsSource": "calendars",
     "items": [
       { "href": "/calendar", "label": "calendarOverview", "requiredGroups": [], "blockedGroups": [] }
     ],
@@ -25,6 +30,7 @@
   },
   {
     "label": "tasks",
+    "dynamicItemsSource": "tasks",
     "items": [
       { "href": "/mytasks?status=finished", "label": "completed_tasks", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/mytasks?status=pending", "label": "pending_tasks", "requiredGroups": [], "blockedGroups": [] }
@@ -38,7 +44,8 @@
     "items": [
       { "href": "/geographic-view", "label": "geographicView", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/symptoms", "label": "symptoms", "requiredGroups": [], "blockedGroups": ["GROUP_MINTRAL_REVISOR"] },
-      { "href": "/signal-history", "label": "signalHistory", "requiredGroups": [], "blockedGroups": [] }
+      { "href": "/signal-history", "label": "signalHistory", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/whatsapp/conversations", "label": "conversations", "requiredGroups": ["GROUP_CONVERSATIONS"], "blockedGroups": [] }
     ],
     "requiredGroups": [],
     "blockedGroups": []

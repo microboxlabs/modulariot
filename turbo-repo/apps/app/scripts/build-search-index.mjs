@@ -18,7 +18,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const appDir = resolve(__dirname, "..");
 
 const pages = JSON.parse(
-  readFileSync(resolve(appDir, "src/features/layout/models/pages-searchable.json"), "utf-8"),
+  readFileSync(resolve(appDir, "src/features/layout/models/pages-config.json"), "utf-8"),
 );
 
 const en = JSON.parse(readFileSync(resolve(appDir, "src/lang/en.json"), "utf-8"));
@@ -48,7 +48,7 @@ for (const page of pages) {
     await index.addCustomRecord({
       url: page.href,
       content: `${enParent} ${esParent}`,
-      language: "en",
+      language: "es",
       meta: {
         title: enParent,
         id: page.label,
@@ -72,7 +72,7 @@ for (const page of pages) {
       url: child.href,
       // Include both languages so users can search in either
       content: `${enParent} ${enChild} ${esParent} ${esChild}`,
-      language: "en",
+      language: "es",
       meta: {
         title: enChild,
         id: child.label,

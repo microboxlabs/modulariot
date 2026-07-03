@@ -112,7 +112,7 @@ function HarnessAnswerItem({ item, onHover, navigateHeading, selectedItemId }: R
                   label: block.value.name,
                   kind: "harness-goto",
                   keywords: [],
-                  onSelect: () => window.open(block.value.url, "_blank"),
+                  onSelect: () => globalThis.open(block.value.url, "_blank", "noopener,noreferrer"),
                 }}
                 isSelected={id === selectedItemId}
                 onSelect={(it) => it.onSelect()}
@@ -136,6 +136,7 @@ interface SpotlightResultsProps {
   onSelect: (item: SpotlightItem) => void;
   onHover: (id: string | null) => void;
   navigateHeading: string;
+  harnessEmptyLabel: string;
 }
 
 export const SpotlightResults = memo(function SpotlightResults({
@@ -148,6 +149,7 @@ export const SpotlightResults = memo(function SpotlightResults({
   onSelect,
   onHover,
   navigateHeading,
+  harnessEmptyLabel,
 }: Readonly<SpotlightResultsProps>) {
   const hasStaticResults = staticItems.some((i) => !i.isGroupHeader);
   const showHarnessResults = isHarnessLoading || harnessItems.length > 0;
@@ -176,7 +178,7 @@ export const SpotlightResults = memo(function SpotlightResults({
                 <BsStars className="h-3 w-3 text-orange-500 dark:text-orange-400" />
               </div>
               <p className="pt-1 text-sm text-gray-500 dark:text-gray-400">
-                Hmm, no logré encontrar una respuesta esta vez. ¡Inténtalo de nuevo!
+                {harnessEmptyLabel}
               </p>
             </div>
           )}

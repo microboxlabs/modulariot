@@ -31,7 +31,11 @@ async function loadPagefind(): Promise<PagefindInstance | null> {
       pagefindSingleton = pf;
       return pf;
     })
-    .catch(() => null);
+    .catch(() => {
+      // Clear the promise so the next call can retry.
+      loadPromise = null;
+      return null;
+    });
 
   return loadPromise;
 }
@@ -83,7 +87,18 @@ export function usePagefindSearch(
 ): SpotlightItem[] {
   const [pagefind, setPagefind] = useState<PagefindInstance | null>(null);
   const [results, setResults] = useState<SpotlightItem[]>([]);
-  const cancelRef = useRef(false);
+
+  // Refs keep these values current without them being effect dependencies.
+  // navigateItems/canAccess/onNavigate can have unstable references (e.g.
+  // canAccess rebuilds when userGroups returns a new [] before SWR resolves),
+  // so putting them in deps would cause the effect to rerun on every render,
+  // firing setResults and resetting selection via the auto-select in the parent.
+  const navigateItemsRef = useRef(navigateItems);
+  const canAccessRef = useRef(canAccess);
+  const onNavigateRef = useRef(onNavigate);
+  navigateItemsRef.current = navigateItems;
+  canAccessRef.current = canAccess;
+  onNavigateRef.current = onNavigate;
 
   // Load pagefind once on mount
   useEffect(() => {
@@ -91,20 +106,22 @@ export function usePagefindSearch(
   }, []);
 
   useEffect(() => {
-    cancelRef.current = false;
+    // Per-invocation flag: each effect closure owns its own cancellation state
+    // so a newer search cannot accidentally un-cancel an older in-flight promise.
+    let cancelled = false;
 
     if (!query.trim()) {
       setResults([]);
       return () => {
-        cancelRef.current = true;
+        cancelled = true;
       };
     }
 
     // Dev fallback: no pagefind index built yet
     if (!pagefind) {
-      setResults(fuzzyFallback(navigateItems, query));
+      setResults(fuzzyFallback(navigateItemsRef.current, query));
       return () => {
-        cancelRef.current = true;
+        cancelled = true;
       };
     }
 
@@ -115,7 +132,7 @@ export function usePagefindSearch(
           raw.slice(0, 15).map((r) => r.data()),
         );
 
-        if (cancelRef.current) return;
+        if (cancelled) return;
 
         const items: SpotlightItem[] = [];
         const seenParents = new Set<string>();
@@ -125,7 +142,7 @@ export function usePagefindSearch(
 
           const reqGroups = meta.requiredGroups?.split(",").filter(Boolean) ?? [];
           const blkGroups = meta.blockedGroups?.split(",").filter(Boolean) ?? [];
-          if (!canAccess(reqGroups, blkGroups)) continue;
+          if (!canAccessRef.current(reqGroups, blkGroups)) continue;
 
           // Re-insert group header when a new parent is encountered
           if (meta.parent && meta.parentId && !seenParents.has(meta.parentId)) {
@@ -147,22 +164,25 @@ export function usePagefindSearch(
             kind: "navigate",
             icon: HiArrowRight,
             keywords: [],
-            onSelect: () => onNavigate(data.url),
+            onSelect: () => onNavigateRef.current(data.url),
           });
         }
 
         setResults(items);
       })
       .catch(() => {
-        if (!cancelRef.current) {
-          setResults(fuzzyFallback(navigateItems, query));
+        if (!cancelled) {
+          setResults(fuzzyFallback(navigateItemsRef.current, query));
         }
       });
 
     return () => {
-      cancelRef.current = true;
+      cancelled = true;
     };
-  }, [query, pagefind, navigateItems, canAccess, onNavigate]);
+    // navigateItems, canAccess, onNavigate are intentionally excluded — they are
+    // accessed via refs so reference instability does not retrigger the search.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, pagefind]);
 
   return results;
 }

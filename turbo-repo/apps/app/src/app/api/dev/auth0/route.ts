@@ -13,12 +13,19 @@ export async function GET() {
 
   const { user } = authResult.session;
 
+  // Raw tokens (accessToken, rawJWT) are only exposed when AUTH_DEV_EXPOSE_TOKENS=true
+  // is explicitly set. NODE_ENV=development alone is not sufficient, so shared dev
+  // deployments never return bearer tokens by default.
+  const exposeTokens = process.env.AUTH_DEV_EXPOSE_TOKENS === "true";
+
   return NextResponse.json({
     email: user?.email,
     hasAccessToken: !!user?.accessToken,
     hasRawJWT: !!user?.rawJWT,
     hasTicket: !!user?.ticket,
-    accessToken: user?.accessToken ?? null,
-    rawJWT: user?.rawJWT ?? null,
+    ...(exposeTokens && {
+      accessToken: user?.accessToken ?? null,
+      rawJWT: user?.rawJWT ?? null,
+    }),
   });
 }

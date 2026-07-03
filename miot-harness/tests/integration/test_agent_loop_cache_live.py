@@ -454,3 +454,72 @@ async def test_prefix_caches_across_two_runs() -> None:
         f"unstable bytes into the prefix between calls. "
         f"usage_log[0]={second['usage_log'][0]}"
     )
+
+
+@pytest.mark.asyncio
+async def test_tool_result_turn_accepts_cache_marker() -> None:
+    """Live-verify that the Anthropic API accepts cache_control on tool-result turns.
+
+    _mark_message wraps a ToolMessage's string content into
+    [{"type":"text",...,"cache_control":{...}}] and langchain_anthropic hoists
+    that marker onto the surrounding tool_result block.  If the API ever rejects
+    this placement with "invalid cache_control location", the ainvoke() call
+    will raise and this test will fail — that is the regression it guards.
+
+    Assertions:
+    - evidence is non-empty  → a tool actually executed (not just a text reply)
+    - len(usage_log) >= 2    → at least one tool round-trip (turn 0: tool_call,
+                               turn 1: answer after tool_result) was accepted by
+                               the API with the tool_result cache marker in place
+    - usage_log[1] cache_read > 0 → the frozen prefix (system + tools) was read
+                               from cache on the second API call, confirming the
+                               prefix is still stable through the tool-result turn
+    """
+    runner = AgentLoopRunner(
+        model=get_chat_model("claude-sonnet-4-6"),
+        registry=_big_registry(),
+        settings=HarnessSettings(agents_agentic_max_turns=3),
+        profile=FAKE_PROFILE,
+    )
+    ctx = UserRequest(
+        message="tool-result-cache", tenant_id="acme", mode="agentic"
+    ).to_context()
+
+    result = await runner.run(
+        user_message=(
+            "Call the fake_production_output_kpi tool exactly once with default "
+            "arguments, then summarize its result in one sentence."
+        ),
+        ctx=ctx,
+        prior_messages=[],
+        progress=lambda e: None,
+    )
+
+    assert result["answer"], "run returned an empty answer"
+
+    # evidence is populated only when at least one tool executed successfully;
+    # an empty list means the model answered without calling any tool.
+    assert result["evidence"], (
+        "no evidence collected — the model did not call a tool; "
+        "the prompt may need strengthening or max_turns may be too low"
+    )
+
+    # At minimum: turn 0 (tool_call request) + turn 1 (answer after tool_result).
+    # Fewer entries means the loop exited before the tool round-trip completed.
+    assert len(result["usage_log"]) >= 2, (
+        f"expected >=2 usage_log entries for a tool round-trip, "
+        f"got {len(result['usage_log'])}"
+    )
+
+    # The second API call's request carries the same frozen prefix (system +
+    # tools) as the first call.  That prefix must be read from the ephemeral
+    # cache — a miss here means either the prefix invalidated between turns or
+    # the tool_result cache_control marker caused the API to reject/ignore the
+    # cache entirely.
+    _second_created, second_read = _cache_tokens(result["usage_log"][1])
+    assert second_read > 0, (
+        f"second API call (after tool_result turn) saw zero cache_read — "
+        f"the tool_result cache_control marker may have been rejected or the "
+        f"frozen prefix invalidated between turns. "
+        f"usage_log[1]={result['usage_log'][1]}"
+    )

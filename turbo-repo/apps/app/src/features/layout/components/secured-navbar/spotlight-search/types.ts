@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
-import type { HarnessBlock } from "@/app/api/harness/search/route";
+import type { HarnessBlock, HarnessIntent } from "@/app/api/harness/search/route";
 
-export type { HarnessBlock };
+export type { HarnessBlock, HarnessIntent };
 
 export type SpotlightResultKind = "navigate" | "harness" | "harness-goto";
 
@@ -19,6 +19,8 @@ export interface SpotlightItem {
   isGroupHeader?: boolean;
   /** Structured answer blocks — harness items only */
   blocks?: HarnessBlock[];
+  /** Query intent declared by the miot-search skill — harness items only */
+  intent?: HarnessIntent;
   /** Marks the synthetic "Ask Harness" prompt row — selecting it fires the search, does not close modal */
   isHarnessPrompt?: boolean;
 }

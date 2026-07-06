@@ -61,9 +61,10 @@ function MarkdownBlock({ value }: Readonly<{ value: string }>) {
   );
 }
 
-function HarnessAnswerItem({ item, onHover, navigateHeading, selectedItemId }: Readonly<{
+function HarnessAnswerItem({ item, onHover, onOpenUrl, navigateHeading, selectedItemId }: Readonly<{
   item: SpotlightItem;
   onHover: (id: string | null) => void;
+  onOpenUrl: (url: string) => void;
   navigateHeading: string;
   selectedItemId: string | null;
 }>) {
@@ -112,7 +113,7 @@ function HarnessAnswerItem({ item, onHover, navigateHeading, selectedItemId }: R
                   label: block.value.name,
                   kind: "harness-goto",
                   keywords: [],
-                  onSelect: () => globalThis.open(block.value.url, "_blank", "noopener,noreferrer"),
+                  onSelect: () => onOpenUrl(block.value.url),
                 }}
                 isSelected={id === selectedItemId}
                 onSelect={(it) => it.onSelect()}
@@ -135,6 +136,7 @@ interface SpotlightResultsProps {
   selectedItemId: string | null;
   onSelect: (item: SpotlightItem) => void;
   onHover: (id: string | null) => void;
+  onOpenUrl: (url: string) => void;
   navigateHeading: string;
   harnessEmptyLabel: string;
 }
@@ -148,6 +150,7 @@ export const SpotlightResults = memo(function SpotlightResults({
   selectedItemId,
   onSelect,
   onHover,
+  onOpenUrl,
   navigateHeading,
   harnessEmptyLabel,
 }: Readonly<SpotlightResultsProps>) {
@@ -191,6 +194,7 @@ export const SpotlightResults = memo(function SpotlightResults({
                   key={item.id}
                   item={item}
                   onHover={onHover}
+                  onOpenUrl={onOpenUrl}
                   navigateHeading={navigateHeading}
                   selectedItemId={selectedItemId}
                 />

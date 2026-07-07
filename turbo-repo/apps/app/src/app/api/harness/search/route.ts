@@ -8,10 +8,6 @@ import { resolveTenantScope } from "../../utils/tenant-scope";
 import { logger } from "@/lib/logger";
 
 const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
-// Org slug on the harness proxy. May differ from MIOT_DEFAULT_ORG_ID when the
-// harness and resource API are hosted on separate deployments with different
-// org slugs for the same tenant. Falls back to dynamic scope resolution.
-const MIOT_HARNESS_ORG = process.env.MIOT_HARNESS_ORG ?? "";
 
 /** ms before we abort a run that hasn't completed — entity lookups on the
  * agentic path (planner → datasource tools → verify gate) need headroom */
@@ -90,15 +86,13 @@ export async function POST(request: Request) {
   const query = body.query?.trim() ?? "";
   if (!query) return NextResponse.json({ results: [] });
 
-  // Use MIOT_HARNESS_ORG if set (harness slug may differ from the resource API
-  // slug when the two services run in separate deployments). Fall back to
-  // resolveTenantScope() only when no override is configured.
-  let orgSlug = MIOT_HARNESS_ORG;
-  if (!orgSlug) {
-    const scopeResult = await resolveTenantScope();
-    if (!scopeResult.resolved) return scopeResult.response;
-    orgSlug = scopeResult.scope.activeOrg.slug;
-  }
+  // The org (and therefore the tenant) is always resolved by the backend from
+  // the authenticated session — never pinned by env. resolveTenantScope() reads
+  // the active org via Quarkus /me/scopes; the harness proxy at
+  // /api/v1/orgs/{slug}/harness injects the tenant client id from membership.
+  const scopeResult = await resolveTenantScope();
+  if (!scopeResult.resolved) return scopeResult.response;
+  const orgSlug = scopeResult.scope.activeOrg.slug;
 
   const harnessUrl = `${MIOT_HARNESS_HOST}/api/v1/orgs/${orgSlug}/harness`;
 

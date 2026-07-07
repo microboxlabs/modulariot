@@ -5,6 +5,11 @@ import { IoPerson, IoPeople } from "react-icons/io5";
 import type { PlannedService } from "./planning-selection-context";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import {
+  getAssignmentAccreditation,
+  assignmentAccreditationTooltip,
+} from "./assignment-accreditation";
+import { AccreditationBadge } from "./sidebar-tabs/assignment/accreditation";
 import { ServiceCategoryBadge } from "@/features/common/components/service-category-badge/service-category-badge";
 
 /**
@@ -83,6 +88,11 @@ export function PlannedServiceChip({
   const hasUrgencia = hasUrgenciaIncidencia(plannedService.service);
   const driverCount = getDriverCount(plannedService.service);
   const { origen, destino } = plannedService.service;
+  // Weakest accreditation level across the assigned resources — rendered with
+  // the same labelled badge the service card and sidebar show (icon + text),
+  // with the per-resource breakdown as tooltip. Unknown levels (legacy
+  // bookings) render nothing.
+  const accreditation = getAssignmentAccreditation(plannedService.service);
 
   return (
     <button
@@ -147,6 +157,14 @@ export function PlannedServiceChip({
             variant="ghost"
             className="shrink-0 px-1 text-[9px] font-semibold leading-none"
           />
+          {accreditation && (
+            <AccreditationBadge
+              level={accreditation.level}
+              dict={dict}
+              title={assignmentAccreditationTooltip(accreditation, dict)}
+              className="cursor-help px-1 py-0 text-[9px] leading-none"
+            />
+          )}
         </div>
       </div>
       {/* Right: Driver icon centered vertically */}

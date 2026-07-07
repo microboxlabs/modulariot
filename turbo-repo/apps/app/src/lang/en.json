@@ -1528,6 +1528,7 @@
         "settings": "Settings",
         "organizations": "Organizations",
         "dataSources": "Data Sources",
+        "vitalSigns": "Vital Signs",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",

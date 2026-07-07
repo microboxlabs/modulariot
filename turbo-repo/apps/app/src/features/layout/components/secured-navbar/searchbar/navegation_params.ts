@@ -2,6 +2,7 @@
 
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { CATS } from "@/features/vital-signs/vital-signs-data";
 
 export type NavParam = {
   label: string;
@@ -58,6 +59,21 @@ const collaborators_management_params: ParamType[] = [
   setParam("rut", "text"),
 ];
 
+const vital_signs_params: ParamType[] = [
+  setParam("name", "text"),
+  setParam(
+    "state",
+    "selector",
+    Object.values(CATS)
+      .sort((a, b) => a.order - b.order)
+      .map((cat) => ({ value: cat.id, label: cat.label }))
+  ),
+  setParam("status", "selector", [
+    { value: "on", label: "On" },
+    { value: "off", label: "Off" },
+  ]),
+];
+
 const symptoms_params: ParamType[] = [
   setParam("asset_id", "text"),
   setParam("trip_id", "text"),
@@ -109,6 +125,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
       dict,
       true
     ),
+    "vital-signs": getParamsFixed(vital_signs_params, dict),
   };
 }
 

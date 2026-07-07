@@ -75,7 +75,7 @@ export function SelectFilterBadge({ filter, values, onApply, onClear, dictionary
             key={opt.value}
             type="button"
             onMouseDown={(e) => { e.preventDefault(); toggleOption(opt.value); }}
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600"
+            className="flex w-full items-center gap-2 whitespace-nowrap px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600"
           >
             <span
               className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border transition-colors ${

@@ -233,6 +233,10 @@ export const pages: SidebarItem[] = [
         href: "/users/settings/data-sources",
         label: "dataSources",
       },
+      {
+        href: "/users/settings/vital-signs",
+        label: "vitalSigns",
+      },
     ],
     totals: {},
   },

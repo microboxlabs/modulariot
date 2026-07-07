@@ -55,6 +55,7 @@ def get_chat_model(
     *,
     thinking_budget_tokens: int | None = None,
     effort: Effort | None = None,
+    timeout: int | None = None,
 ) -> BaseChatModel:
     """Multi-provider chat-model factory.
 
@@ -96,7 +97,10 @@ def get_chat_model(
         kwargs: dict[str, object] = {
             "model_name": name,
             "api_key": SecretStr(settings.anthropic_api_key),
-            "timeout": 60,
+            # 60s suits single-shot seats; the agent loop passes a longer
+            # budget because an adaptive-thinking turn that plans several
+            # tool calls can legitimately exceed a minute.
+            "timeout": timeout if timeout is not None else 60,
             "stop": None,
         }
         if effort is not None:

@@ -58,18 +58,17 @@ const KIND_ICONS: Record<SpotlightResultKind, IconConfig> = {
   },
 };
 
-function urlBlockToItem(block: HarnessBlock & { type: "url" }, i: number): SpotlightItem {
+function urlBlockToItem(
+  block: HarnessBlock & { type: "url" },
+  i: number,
+  openUrl: (url: string) => void,
+): SpotlightItem {
   return {
     id: `harness-url-${i}`,
     label: block.value.name,
     kind: "harness-goto" as const,
     keywords: [],
-    onSelect: () => {
-      const { url } = block.value;
-      if (/^https?:\/\//i.test(url)) {
-        globalThis.open(url, "_blank", "noopener,noreferrer");
-      }
-    },
+    onSelect: () => openUrl(block.value.url),
   };
 }
 
@@ -138,6 +137,22 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
     onEnterSelect: handleEnterSelect,
   });
 
+  // ── Harness url opener — relative paths navigate in-app (locale-aware),
+  //    absolute http(s) urls open a new tab ──────────────────────────────────
+  const onOpenHarnessUrl = useCallback(
+    (url: string) => {
+      if (/^https?:\/\//i.test(url)) {
+        globalThis.open(url, "_blank", "noopener,noreferrer");
+        return;
+      }
+      if (url.startsWith("/") && !url.startsWith("//")) {
+        router.push(url);
+        close();
+      }
+    },
+    [router, close],
+  );
+
   // ── Committed query — only set when user explicitly asks Harness ─────────
   const [committedQuery, setCommittedQuery] = useState("");
 
@@ -176,9 +191,9 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
     harnessResults.flatMap((result) =>
       (result.blocks ?? [])
         .filter((b): b is HarnessBlock & { type: "url" } => b.type === "url")
-        .map((block, i) => urlBlockToItem(block, i))
+        .map((block, i) => urlBlockToItem(block, i, onOpenHarnessUrl))
     ),
-    [harnessResults],
+    [harnessResults, onOpenHarnessUrl],
   );
 
   // ── Flat selectable list (no group headers) ───────────────────────────────
@@ -296,6 +311,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
                   selectedItemId={selectableItems[selectedIndex]?.id ?? null}
                   onSelect={handleSelectAction}
                   onHover={setHoveredId}
+                  onOpenUrl={onOpenHarnessUrl}
                   navigateHeading={navigateHeading}
                   harnessEmptyLabel={harnessEmptyLabel}
                 />

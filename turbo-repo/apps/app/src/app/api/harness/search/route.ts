@@ -13,10 +13,14 @@ const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
 // org slugs for the same tenant. Falls back to dynamic scope resolution.
 const MIOT_HARNESS_ORG = process.env.MIOT_HARNESS_ORG ?? "";
 
-/** ms before we abort a run that hasn't completed */
-const HARNESS_SEARCH_TIMEOUT_MS = 12_000;
+/** ms before we abort a run that hasn't completed — entity lookups on the
+ * agentic path (planner → datasource tools → verify gate) need headroom */
+const HARNESS_SEARCH_TIMEOUT_MS = 30_000;
+
+export type HarnessIntent = "ask" | "navigate" | "build";
 
 export type HarnessBlock =
+  | { type: "intent"; value: HarnessIntent }
   | { type: "markdown"; value: string }
   | { type: "url"; value: { url: string; name: string } };
 
@@ -24,19 +28,31 @@ export interface HarnessSearchResult {
   id: string;
   label: string;
   sublabel?: string;
+  intent?: HarnessIntent;
   blocks: HarnessBlock[];
+}
+
+const HARNESS_INTENTS: readonly string[] = ["ask", "navigate", "build"];
+
+/** Absolute http(s), or an app-relative path (single leading slash — a
+ * protocol-relative `//host` is rejected). */
+function isSafeHref(url: string): boolean {
+  return /^https?:\/\//i.test(url) || (url.startsWith("/") && !url.startsWith("//"));
 }
 
 function isValidBlock(item: unknown): item is HarnessBlock {
   if (!item || typeof item !== "object") return false;
   const b = item as Record<string, unknown>;
+  if (b.type === "intent") {
+    return typeof b.value === "string" && HARNESS_INTENTS.includes(b.value);
+  }
   if (b.type === "markdown") return typeof b.value === "string";
   if (b.type === "url") {
     if (!b.value || typeof b.value !== "object") return false;
     const v = b.value as Record<string, unknown>;
     return (
       typeof v.url === "string" &&
-      /^https?:\/\//i.test(v.url) &&
+      isSafeHref(v.url) &&
       typeof v.name === "string"
     );
   }
@@ -129,10 +145,17 @@ export async function POST(request: Request) {
 
     if (!answer) return NextResponse.json({ results: [] });
 
-    const blocks = parseAnswerBlocks(answer);
+    const parsed = parseAnswerBlocks(answer);
+    // The skill emits the intent as a leading typed block — surface it as a
+    // field and keep only renderable blocks.
+    const intent = parsed.find(
+      (b): b is Extract<HarnessBlock, { type: "intent" }> => b.type === "intent",
+    )?.value;
+    const blocks = parsed.filter((b) => b.type !== "intent");
     const result: HarnessSearchResult = {
       id: `harness:${run_id}`,
       label: buildLabel(blocks),
+      ...(intent && { intent }),
       blocks,
     };
 

@@ -12,6 +12,12 @@ import {
   getLeadTimeStatus,
 } from "./planning-selection-types";
 import { getDisplayIncidencias } from "./incidencias.types";
+import {
+  getAssignmentAccreditation,
+  assignmentAccreditationTooltip,
+} from "./assignment-accreditation";
+import { AccreditationBadge } from "./sidebar-tabs/assignment/accreditation";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { ServiceCategoryBadge } from "@/features/common/components/service-category-badge/service-category-badge";
 
 // Set Spanish locale for dayjs
@@ -20,6 +26,7 @@ dayjs.locale("es");
 export interface ServiceEventProps {
   readonly service: SelectedService;
   readonly className?: string;
+  readonly dict: I18nRecord;
 }
 
 /**
@@ -73,12 +80,15 @@ function getOccupancyColor(percentage: number): string {
  * 2. KPIs (Lead Time, Ocupación)
  * 3. Static (Cliente, Origen → Destino)
  */
-export function ServiceEvent({ service, className }: ServiceEventProps) {
+export function ServiceEvent({ service, className, dict }: ServiceEventProps) {
   const { selectedService, selectService } =
     usePlanningSelection<SelectedService>();
 
   const isSelected = selectedService?.id === service.id;
   const leadTimeStyles = getLeadTimeStyles(service.leadTime);
+  // Weakest accreditation level across the assigned resources; null until an
+  // assignment with a known level is persisted (no badge for legacy bookings).
+  const accreditation = getAssignmentAccreditation(service);
 
   // Extract incident codes and create code-to-label map for tooltips
   const codeToLabelMap = new Map<string, string>();
@@ -141,7 +151,7 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
         </h4>
 
         {/* Flags row */}
-        {(hasFlags || service.serviceCategory) && (
+        {(hasFlags || service.serviceCategory || accreditation) && (
           <div className="flex flex-wrap items-center gap-1 pointer-events-auto">
             {/* Service category - shown alongside incidencia flags */}
             <ServiceCategoryBadge
@@ -149,6 +159,16 @@ export function ServiceEvent({ service, className }: ServiceEventProps) {
               variant="soft"
               className="px-2 py-0.5 text-xs cursor-help"
             />
+
+            {/* Assignment accreditation — tooltip breaks it down per resource */}
+            {accreditation && (
+              <AccreditationBadge
+                level={accreditation.level}
+                dict={dict}
+                title={assignmentAccreditationTooltip(accreditation, dict)}
+                className="cursor-help"
+              />
+            )}
 
             {/* Sort-relevant incidencias, in tier order */}
             {displayIncidencias.map(({ key, config }) => {

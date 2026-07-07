@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import BackgroundShapes from "./background-shapes";
+// eslint-disable-next-line import/no-unresolved
+import logoIcon from "@assets/logo-icon.svg";
 
 const MESSAGES = [
   "Preparing your experience",
@@ -102,13 +105,22 @@ export default function PreparingExperience({
                 <motion.span
                   key={wordIndex}
                   variants={wordVariants}
-                  className={`inline-block ${
-                    isBrand
-                      ? "text-4xl sm:text-5xl text-blue-600 dark:text-blue-400"
-                      : ""
-                  }`}
+                  className="inline-flex items-center"
                 >
-                  {word}
+                  {isBrand ? (
+                    <span className="inline-flex items-center gap-2 text-4xl sm:text-5xl">
+                      <Image
+                        src={logoIcon}
+                        alt=""
+                        width={56}
+                        height={48}
+                        className="inline-block"
+                      />
+                      ModularIOT
+                    </span>
+                  ) : (
+                    word
+                  )}
                 </motion.span>
               );
             })}

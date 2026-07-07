@@ -89,6 +89,7 @@ class HarnessSupervisor:
         *,
         llm_router: LLMIntentRouter | None = None,
         agentic_graph: Any | None = None,
+        agent_loop: Any | None = None,
         meta_model: BaseChatModel | None = None,
         meta_primer: str = "",
         meta_catalog: list[MetaAgentCatalogEntry] | None = None,
@@ -111,6 +112,10 @@ class HarnessSupervisor:
         self.data_graph = data_graph
         self.llm_router = llm_router
         self.agentic_graph = agentic_graph
+        # Single-agent loop (spec 2026-07-02). When set, DATA_AGENTIC runs
+        # this instead of agentic_graph. Both stay wire-able so the flag can
+        # flip per deployment while golden evals compare the two.
+        self.agent_loop = agent_loop
         self.meta_model = meta_model
         self.meta_primer = meta_primer
         self.meta_catalog: list[MetaAgentCatalogEntry] = meta_catalog or []
@@ -609,6 +614,17 @@ class HarnessSupervisor:
         route: HarnessRoute | None = None,
         prior_messages: list[BaseMessage] | None = None,
     ) -> None:
+        if self.agent_loop is not None:
+            with agent_span("run", **self._root_span_kwargs(ctx, route)):
+                delta = await self.agent_loop.run(
+                    user_message=request.message,
+                    ctx=ctx,
+                    prior_messages=prior_messages or [],
+                    progress=progress,
+                )
+            record.answer = delta.get("answer") or "(no answer produced by agent loop)"
+            return
+
         if self.agentic_graph is None:
             answer = (
                 "Agentic exploration is currently disabled "

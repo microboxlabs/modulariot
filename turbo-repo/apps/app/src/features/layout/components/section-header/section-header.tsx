@@ -25,9 +25,6 @@ export function SectionHeader({
   rightContent,
 }: Readonly<SectionHeaderProps>) {
   return (
-    // z-20: must stay below the navbar's z-30 (secured-navbar.tsx) so
-    // navbar-anchored overlays like the user dropdown always render on top,
-    // while still sitting above normal in-page scrolling content.
     <div className="sticky top-0 z-20 bg-white dark:bg-gray-900 w-full">
       <div className="px-5 h-[60px] flex items-center justify-between dark:text-white border-b border-gray-200 dark:border-gray-700">
         {leftContent ?? (

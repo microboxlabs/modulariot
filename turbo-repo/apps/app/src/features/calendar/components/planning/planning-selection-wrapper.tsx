@@ -66,6 +66,15 @@ import type { SelectedService, TaskStage } from "./planning-selection-types";
 import { ServiceEvent } from "./service-event";
 
 /**
+ * Persisted accreditation level of an assigned resource — mirrors the
+ * `AccreditationLevel` union; `null` = unknown at selection time.
+ */
+const AccreditationLevelSchema = z
+  .enum(["accredited", "notAccredited", "superAccredited"])
+  .nullable()
+  .optional();
+
+/**
  * Zod schema for data stored inside booking.resource.data. All SelectedService
  * fields are optional (defaults applied on merge). `_anden` is stored here
  * because SlotData has no andén field.
@@ -119,6 +128,11 @@ const StoredServiceSchema = z
     assignedDriver2ExternalId: z.string().nullable().optional(),
     assignedTruckExternalId: z.string().nullable().optional(),
     assignedTrailerExternalId: z.string().nullable().optional(),
+    assignedCarrierAccreditation: AccreditationLevelSchema,
+    assignedDriverAccreditation: AccreditationLevelSchema,
+    assignedDriver2Accreditation: AccreditationLevelSchema,
+    assignedTruckAccreditation: AccreditationLevelSchema,
+    assignedTrailerAccreditation: AccreditationLevelSchema,
     _anden: z.number().optional(),
   })
   .optional();
@@ -496,7 +510,7 @@ export function PlanningSelectionProvider({
       // canonical item's raw service. The package's generic SidebarShell calls
       // this seam (falling back to its default ItemCard when unset).
       renderItemCard: (item) => (
-        <ServiceEvent service={item.raw as SelectedService} />
+        <ServiceEvent service={item.raw as SelectedService} dict={dict} />
       ),
       bookingApi: {
         createBooking,
@@ -633,6 +647,11 @@ export function PlanningSelectionProvider({
             assignedDriver2: undefined,
             assignedTruck: undefined,
             assignedTrailer: undefined,
+            assignedCarrierAccreditation: undefined,
+            assignedDriverAccreditation: undefined,
+            assignedDriver2Accreditation: undefined,
+            assignedTruckAccreditation: undefined,
+            assignedTrailerAccreditation: undefined,
           };
         },
       },

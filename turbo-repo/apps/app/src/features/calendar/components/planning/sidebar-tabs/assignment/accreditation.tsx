@@ -75,6 +75,8 @@ interface AccreditationBadgeProps {
   readonly dict: I18nRecord;
   /** Extra classes merged onto the badge wrapper (e.g. layout tweaks). */
   readonly className?: string;
+  /** Native tooltip (e.g. the per-resource breakdown on calendar cards). */
+  readonly title?: string;
 }
 
 /**
@@ -87,6 +89,7 @@ export function AccreditationBadge({
   level,
   dict,
   className,
+  title,
 }: AccreditationBadgeProps) {
   const base =
     "text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 inline-flex items-center gap-1";
@@ -94,7 +97,7 @@ export function AccreditationBadge({
 
   if (level === "notAccredited") {
     return (
-      <span className={twMerge(base, BADGE_TONE[level], className)}>
+      <span className={twMerge(base, BADGE_TONE[level], className)} title={title}>
         {label}
       </span>
     );
@@ -103,7 +106,7 @@ export function AccreditationBadge({
   const Icon = level === "superAccredited" ? HiStar : HiCheck;
 
   return (
-    <span className={twMerge(base, BADGE_TONE[level], className)}>
+    <span className={twMerge(base, BADGE_TONE[level], className)} title={title}>
       <span
         className={twMerge(
           "flex items-center justify-center w-3.5 h-3.5 rounded-full",

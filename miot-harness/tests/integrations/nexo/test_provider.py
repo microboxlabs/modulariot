@@ -63,7 +63,11 @@ async def test_boot_registers_composable_primitives(
     provider = NexoProvider()
     registry = ToolRegistry()
     result = await provider.boot(
-        registry, HarnessSettings(datasource_dsn="postgresql://u:p@h:5/db")
+        registry,
+        HarnessSettings(
+            datasource_dsn="postgresql://u:p@h:5/db",
+            datasource_tenant_lock="mintral",
+        ),
     )
     assert result.enabled is True
     for name in ("nexo_describe", "nexo_select", "nexo_grep", "nexo_explain"):
@@ -86,6 +90,23 @@ async def test_boot_empty_tenant_lock_option_returns_disabled() -> None:
         options={"tenant_lock": ""},
     )
     result = await provider.boot(ToolRegistry(), HarnessSettings(), conn)
+    assert result.enabled is False
+    assert "tenant_lock" in (result.reason or "")
+    await provider.close()
+
+
+@pytest.mark.asyncio
+async def test_boot_without_tenant_lock_returns_disabled() -> None:
+    """No tenant lock anywhere (no connection option, no
+    MIOT_HARNESS_DATASOURCE_TENANT_LOCK env) must fail loud: the tenant that
+    reaches the harness is the org's tenant_client_id, so silently falling back
+    to the profile slug ("mintral") would refuse every real request. Boot must
+    return disabled with a tenant_lock reason instead."""
+    provider = NexoProvider()
+    settings = HarnessSettings(
+        datasource_dsn="postgresql://u:p@h:5/db", datasource_tenant_lock=None
+    )
+    result = await provider.boot(ToolRegistry(), settings)
     assert result.enabled is False
     assert "tenant_lock" in (result.reason or "")
     await provider.close()
@@ -122,7 +143,11 @@ async def test_boot_pool_failure_returns_disabled_and_no_leak(
     )
     provider = NexoProvider()
     result = await provider.boot(
-        ToolRegistry(), HarnessSettings(datasource_dsn="postgresql://u:p@h:5/db")
+        ToolRegistry(),
+        HarnessSettings(
+            datasource_dsn="postgresql://u:p@h:5/db",
+            datasource_tenant_lock="mintral",
+        ),
     )
     assert result.enabled is False
     assert "connection refused" in (result.reason or "")

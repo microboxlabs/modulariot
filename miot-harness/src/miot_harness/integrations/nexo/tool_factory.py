@@ -38,7 +38,7 @@ SHARED_FILTER_PRIMER = (
     "Shared filter contract: all coordinador_* tools accept the same set of "
     "p_* parameters with sensible defaults. Only set parameters the user "
     "explicitly asked for. Do not invent tenants — the harness is locked to "
-    "Mintral. The Coordinador snapshot may be hours old; cite refreshed_at* "
+    "Orion. The Coordinador snapshot may be hours old; cite refreshed_at* "
     "from the result in your answer."
 )
 

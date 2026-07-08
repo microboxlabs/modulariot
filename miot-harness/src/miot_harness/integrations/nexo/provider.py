@@ -1,7 +1,7 @@
 """Nexo: the first DataSourceProvider (Citus/Postgres, Coordinador schema).
 
 This package is the ONLY place in the harness allowed to say
-"Nexo", "Coordinador", or "mintral".
+"Nexo", "Coordinador", or "orion".
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ NEXO_PROFILE = DataSourceProfile(
     router_keywords=frozenset(
         {
             "coordinador",
-            "mintral",
+            "orion",
             "centro de control",
             "cola crítica",
             "cola critica",
@@ -56,7 +56,7 @@ NEXO_PROFILE = DataSourceProfile(
             "fn_dx",
         }
     ),
-    tenant_lock="mintral",
+    tenant_lock="orion",
     tenant_refusal_template=(
         "{display_name} is {lock}-only. I can't answer for other tenants."
     ),
@@ -109,7 +109,7 @@ class NexoProvider(DataSourceProvider):
         # Tenant lock: the connection option (validated non-empty above) wins
         # over the legacy MIOT_HARNESS_DATASOURCE_TENANT_LOCK env. There is
         # deliberately NO fallback to the profile's slug default
-        # (NEXO_PROFILE.tenant_lock == "mintral"): the tenant that reaches the
+        # (NEXO_PROFILE.tenant_lock == "orion"): the tenant that reaches the
         # harness is the org's tenant_client_id (injected as
         # X-Miot-Tenant-Client-Id by the proxy), so a profile slug would never
         # match a real request and would silently refuse every query. Require an

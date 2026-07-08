@@ -24,7 +24,7 @@ def test_primer_covers_required_topics():
         "fecha_tipo",  # date-type enum
         "es_critico",  # critical flag
         "refreshed_at",  # freshness rule
-        "mintral",  # single-tenant lock
+        "orion",  # single-tenant lock
     ):
         assert needle in text, f"primer missing required topic: {needle}"
 

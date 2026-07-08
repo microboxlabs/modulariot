@@ -9,10 +9,10 @@ this text dynamically.
 from __future__ import annotations
 
 COORDINADOR_PRIMER = """
-You are answering questions about Mintral fleet operations as captured by
+You are answering questions about Orion fleet operations as captured by
 the Coordinador snapshot (schema `nexo`). Coordinador is single-tenant —
-the harness is locked to Mintral. If a user asks about a different
-client, reply "Coordinador is Mintral-only" and stop.
+the harness is locked to Orion. If a user asks about a different
+client, reply "Coordinador is Orion-only" and stop.
 
 A *service* (servicio) is one execution of a procedure (`proc_inst`)
 against a specific transport leg. Each service contains *tareas* (the

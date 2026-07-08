@@ -1,8 +1,8 @@
 """E7 — tenancy gate behavior matrix.
 
 The plan's matrix:
-- DATA_QUERY  → refuse non-Mintral.
-- DATA_AGENTIC → refuse non-Mintral (composable primitives touch data).
+- DATA_QUERY  → refuse non-Orion.
+- DATA_AGENTIC → refuse non-Orion (composable primitives touch data).
 - DATA_META   → allow ANY tenant (meta-info is non-confidential).
 
 Plus: when meta is allowed for a non-locked tenant, emit an audit
@@ -25,7 +25,7 @@ from miot_harness.runtime.router import HarnessRoute
 from miot_harness.runtime.tenancy import tenancy_gate_decision
 
 
-def _ctx(tenant: str = "mintral") -> HarnessContext:
+def _ctx(tenant: str = "orion") -> HarnessContext:
     return HarnessContext(thread_id="t", tenant_id=tenant, user_id="u")
 
 
@@ -33,14 +33,14 @@ def _ctx(tenant: str = "mintral") -> HarnessContext:
     "route",
     [HarnessRoute.DATA_QUERY, HarnessRoute.DATA_AGENTIC],
 )
-def test_data_routes_refuse_non_mintral(route: HarnessRoute) -> None:
+def test_data_routes_refuse_non_orion(route: HarnessRoute) -> None:
     decision = tenancy_gate_decision(
         ctx=_ctx(tenant="other-tenant"),
         route=route,
-        settings=HarnessSettings(datasource_tenant_lock="mintral"),
+        settings=HarnessSettings(datasource_tenant_lock="orion"),
     )
     assert decision.allowed is False
-    assert "mintral" in (decision.refusal_message or "").lower()
+    assert "orion" in (decision.refusal_message or "").lower()
     assert decision.audit_attr is None
 
 
@@ -52,9 +52,9 @@ def test_data_routes_allow_locked_tenant(route: HarnessRoute) -> None:
     # The lock must be SET for this to test "locked tenant allowed";
     # default settings carry no lock and would pass vacuously.
     decision = tenancy_gate_decision(
-        ctx=_ctx(tenant="mintral"),
+        ctx=_ctx(tenant="orion"),
         route=route,
-        settings=HarnessSettings(datasource_tenant_lock="mintral"),
+        settings=HarnessSettings(datasource_tenant_lock="orion"),
     )
     assert decision.allowed is True
     assert decision.refusal_message is None
@@ -65,7 +65,7 @@ def test_data_meta_allows_any_tenant_with_audit_attr() -> None:
     decision = tenancy_gate_decision(
         ctx=_ctx(tenant="ams-customer"),
         route=HarnessRoute.DATA_META,
-        settings=HarnessSettings(datasource_tenant_lock="mintral"),
+        settings=HarnessSettings(datasource_tenant_lock="orion"),
     )
     assert decision.allowed is True
     # Audit attr fires only when the gate is "bypassed" for a non-locked tenant.
@@ -76,9 +76,9 @@ def test_data_meta_for_locked_tenant_does_not_emit_bypass_attr() -> None:
     # Lock set explicitly: with no lock, tenant_matches is trivially True
     # and the no-bypass assertion would pass vacuously.
     decision = tenancy_gate_decision(
-        ctx=_ctx(tenant="mintral"),
+        ctx=_ctx(tenant="orion"),
         route=HarnessRoute.DATA_META,
-        settings=HarnessSettings(datasource_tenant_lock="mintral"),
+        settings=HarnessSettings(datasource_tenant_lock="orion"),
     )
     assert decision.allowed is True
     assert decision.audit_attr is None
@@ -90,7 +90,7 @@ def test_unknown_route_defaults_to_strict_refuse_for_safety() -> None:
     decision = tenancy_gate_decision(
         ctx=_ctx(tenant="other"),
         route=HarnessRoute.OTHER,
-        settings=HarnessSettings(datasource_tenant_lock="mintral"),
+        settings=HarnessSettings(datasource_tenant_lock="orion"),
     )
     assert decision.allowed is False
 

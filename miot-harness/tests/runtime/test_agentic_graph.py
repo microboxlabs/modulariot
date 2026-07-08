@@ -22,7 +22,7 @@ from miot_harness.tools.registry import ToolRegistry
 
 
 def _ctx() -> HarnessContext:
-    return HarnessContext(thread_id="t", tenant_id="mintral", user_id="u")
+    return HarnessContext(thread_id="t", tenant_id="orion", user_id="u")
 
 
 def _stub_tool(name: str, refreshed: datetime | None) -> HarnessTool:
@@ -35,8 +35,8 @@ def _stub_tool(name: str, refreshed: datetime | None) -> HarnessTool:
         source: str = "Coordinador · nexo (Citus DB)"
 
     async def _check(ctx: HarnessContext, inp: Any) -> PermissionResult:
-        if ctx.tenant_id != "mintral":
-            return PermissionResult.deny("Mintral-only")
+        if ctx.tenant_id != "orion":
+            return PermissionResult.deny("Orion-only")
         return PermissionResult.allow()
 
     async def _call(ctx: HarnessContext, inp: Any, progress: Any) -> Any:
@@ -113,7 +113,7 @@ def _visited_agents(final_state: dict[str, Any]) -> list[str]:
 
 
 @pytest.mark.asyncio
-async def test_agentic_graph_refuses_non_mintral_tenant() -> None:
+async def test_agentic_graph_refuses_non_orion_tenant() -> None:
     graph = _graph(models=_models([]))
     state = await graph.ainvoke(
         {
@@ -123,7 +123,7 @@ async def test_agentic_graph_refuses_non_mintral_tenant() -> None:
             "turn_count": 0,
         }
     )
-    assert "mintral" in state.get("answer", "").lower()
+    assert "orion" in state.get("answer", "").lower()
 
 
 @pytest.mark.asyncio
@@ -245,7 +245,7 @@ async def test_agentic_executor_writes_provenance(tmp_path: Path) -> None:
     assert len(lines) == 1
     entry = json.loads(lines[0])
     assert "coordinador_centro_control" in entry["sql"]
-    assert entry["tenant_id"] == "mintral"
+    assert entry["tenant_id"] == "orion"
     assert entry["rows_returned"] == 1
 
 

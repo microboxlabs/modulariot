@@ -16,7 +16,7 @@ from miot_harness.runtime.plan import DataEvidence
 
 
 def _ctx() -> HarnessContext:
-    return HarnessContext(thread_id="t", tenant_id="mintral", user_id="u")
+    return HarnessContext(thread_id="t", tenant_id="orion", user_id="u")
 
 
 def _ev(tool: str = "acs_query", *, is_sample: bool = False) -> DataEvidence:

@@ -10,8 +10,10 @@ import { logger } from "@/lib/logger";
 const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
 
 /** ms before we abort a run that hasn't completed — entity lookups on the
- * agentic path (planner → datasource tools → verify gate) need headroom */
-const HARNESS_SEARCH_TIMEOUT_MS = 30_000;
+ * agentic path (planner → datasource tools → verify gate) need headroom.
+ * Multi-turn agentic runs (planner + ~5 primitive calls + verify + synth)
+ * measure ~35-45s against the acs connection, so 30s aborted real answers. */
+const HARNESS_SEARCH_TIMEOUT_MS = 90_000;
 
 export type HarnessIntent = "ask" | "navigate" | "build";
 

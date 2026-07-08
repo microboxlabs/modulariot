@@ -8,15 +8,15 @@ import { resolveTenantScope } from "../../utils/tenant-scope";
 import { logger } from "@/lib/logger";
 
 const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
-// Org slug on the harness proxy. May differ from MIOT_DEFAULT_ORG_ID when the
-// harness and resource API are hosted on separate deployments with different
-// org slugs for the same tenant. Falls back to dynamic scope resolution.
-const MIOT_HARNESS_ORG = process.env.MIOT_HARNESS_ORG ?? "";
 
-/** ms before we abort a run that hasn't completed */
-const HARNESS_SEARCH_TIMEOUT_MS = 12_000;
+/** ms before we abort a run that hasn't completed — entity lookups on the
+ * agentic path (planner → datasource tools → verify gate) need headroom */
+const HARNESS_SEARCH_TIMEOUT_MS = 30_000;
+
+export type HarnessIntent = "ask" | "navigate" | "build";
 
 export type HarnessBlock =
+  | { type: "intent"; value: HarnessIntent }
   | { type: "markdown"; value: string }
   | { type: "url"; value: { url: string; name: string } };
 
@@ -24,19 +24,31 @@ export interface HarnessSearchResult {
   id: string;
   label: string;
   sublabel?: string;
+  intent?: HarnessIntent;
   blocks: HarnessBlock[];
+}
+
+const HARNESS_INTENTS: readonly string[] = ["ask", "navigate", "build"];
+
+/** Absolute http(s), or an app-relative path (single leading slash — a
+ * protocol-relative `//host` is rejected). */
+function isSafeHref(url: string): boolean {
+  return /^https?:\/\//i.test(url) || (url.startsWith("/") && !url.startsWith("//"));
 }
 
 function isValidBlock(item: unknown): item is HarnessBlock {
   if (!item || typeof item !== "object") return false;
   const b = item as Record<string, unknown>;
+  if (b.type === "intent") {
+    return typeof b.value === "string" && HARNESS_INTENTS.includes(b.value);
+  }
   if (b.type === "markdown") return typeof b.value === "string";
   if (b.type === "url") {
     if (!b.value || typeof b.value !== "object") return false;
     const v = b.value as Record<string, unknown>;
     return (
       typeof v.url === "string" &&
-      /^https?:\/\//i.test(v.url) &&
+      isSafeHref(v.url) &&
       typeof v.name === "string"
     );
   }
@@ -74,15 +86,13 @@ export async function POST(request: Request) {
   const query = body.query?.trim() ?? "";
   if (!query) return NextResponse.json({ results: [] });
 
-  // Use MIOT_HARNESS_ORG if set (harness slug may differ from the resource API
-  // slug when the two services run in separate deployments). Fall back to
-  // resolveTenantScope() only when no override is configured.
-  let orgSlug = MIOT_HARNESS_ORG;
-  if (!orgSlug) {
-    const scopeResult = await resolveTenantScope();
-    if (!scopeResult.resolved) return scopeResult.response;
-    orgSlug = scopeResult.scope.activeOrg.slug;
-  }
+  // The org (and therefore the tenant) is always resolved by the backend from
+  // the authenticated session — never pinned by env. resolveTenantScope() reads
+  // the active org via Quarkus /me/scopes; the harness proxy at
+  // /api/v1/orgs/{slug}/harness injects the tenant client id from membership.
+  const scopeResult = await resolveTenantScope();
+  if (!scopeResult.resolved) return scopeResult.response;
+  const orgSlug = scopeResult.scope.activeOrg.slug;
 
   const harnessUrl = `${MIOT_HARNESS_HOST}/api/v1/orgs/${orgSlug}/harness`;
 
@@ -129,10 +139,17 @@ export async function POST(request: Request) {
 
     if (!answer) return NextResponse.json({ results: [] });
 
-    const blocks = parseAnswerBlocks(answer);
+    const parsed = parseAnswerBlocks(answer);
+    // The skill emits the intent as a leading typed block — surface it as a
+    // field and keep only renderable blocks.
+    const intent = parsed.find(
+      (b): b is Extract<HarnessBlock, { type: "intent" }> => b.type === "intent",
+    )?.value;
+    const blocks = parsed.filter((b) => b.type !== "intent");
     const result: HarnessSearchResult = {
       id: `harness:${run_id}`,
       label: buildLabel(blocks),
+      ...(intent && { intent }),
       blocks,
     };
 

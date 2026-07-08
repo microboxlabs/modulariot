@@ -74,7 +74,10 @@ _JSON_BLOCKS_INSTRUCTION = (
     '{"type": <string>, "value": <...>}. Known types:\n'
     '- "markdown": value is a Markdown string.\n'
     '- "url": value is an object {"url": <string>, "name": <string>}.\n'
-    "Emit multiple blocks to convey different parts of the answer."
+    "Emit multiple blocks to convey different parts of the answer.\n"
+    "This contract applies ONLY to the final user-facing answer; internal "
+    "protocol outputs (planner action objects, tool-call JSON, verdicts) "
+    "keep their own formats."
 )
 
 
@@ -400,7 +403,12 @@ class HarnessSupervisor:
             content=(
                 f"# Active skill: {name}\n\n"
                 f'The user invoked the "{name}" skill. Follow these '
-                f"instructions for this run:\n\n{body}"
+                f"instructions for this run:\n\n{body}\n\n"
+                "Scope note: these instructions — including any answer "
+                "format they specify — apply ONLY to the final user-facing "
+                "answer. Internal protocol outputs (planner action objects, "
+                "tool-call JSON, verdicts) keep their own formats exactly "
+                "as each seat's own instructions state."
             )
         )
         return [guidance, *prior_messages]

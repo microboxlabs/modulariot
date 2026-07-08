@@ -13,7 +13,8 @@ async def test_delivery_compliance_story_run_creates_story_artifact(tmp_path) ->
             message=(
                 "Tell me the story of delivery compliance this month "
                 "and suggest one dashboard widget."
-            )
+            ),
+            tenant_id="demo-tenant",
         )
     )
 

@@ -3,6 +3,7 @@
 // are injected into the generic planning provider via planning-selection-wrapper.
 
 import { type LeadTimeData } from "@/features/common/components/kpi-display";
+import type { AccreditationLevel } from "./sidebar-tabs/assignment/accreditation";
 
 // Re-export the lead-time helpers so existing planning imports keep resolving.
 export type { LeadTimeData };
@@ -90,4 +91,17 @@ export interface SelectedService {
   assignedDriver2ExternalId?: string | null;
   assignedTruckExternalId?: string | null;
   assignedTrailerExternalId?: string | null;
+  /**
+   * Accreditation level of each assigned resource, captured from the
+   * accredited-resources row at selection time (same lifecycle as the
+   * external-id slots) and persisted on the booking so the calendar card /
+   * chip can show the assignment's accreditation without re-querying the
+   * feed. `null` = unknown (row wasn't on the loaded page when selected);
+   * absent = booking written before this field existed.
+   */
+  assignedCarrierAccreditation?: AccreditationLevel | null;
+  assignedDriverAccreditation?: AccreditationLevel | null;
+  assignedDriver2Accreditation?: AccreditationLevel | null;
+  assignedTruckAccreditation?: AccreditationLevel | null;
+  assignedTrailerAccreditation?: AccreditationLevel | null;
 }

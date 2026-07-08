@@ -25,7 +25,7 @@ def test_bypass_in_prod_emits_mode_denied(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("MIOT_HARNESS_STEERING_BYPASS_POLICY", "dev_only")
     get_settings.cache_clear()
     app = create_app()
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as client:
         resp = client.post(
             "/runs", json={"message": "hola", "permission_mode": "bypass"}
         )
@@ -40,7 +40,7 @@ def test_bypass_in_local_does_not_emit_mode_denied(
     monkeypatch.setenv("MIOT_HARNESS_ENV", "local")
     get_settings.cache_clear()
     app = create_app()
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as client:
         resp = client.post(
             "/runs", json={"message": "hola", "permission_mode": "bypass"}
         )

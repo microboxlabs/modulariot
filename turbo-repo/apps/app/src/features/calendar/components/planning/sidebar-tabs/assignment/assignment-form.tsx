@@ -11,19 +11,13 @@ import {
   useAccreditedResources,
   type AccreditedResource,
 } from "@/features/calendar/services/accredited-resources.service";
-import {
-  toAccreditationLevel,
-  type AccreditationLevel,
-} from "./accreditation";
+import { toAccreditationLevel, type AccreditationLevel } from "./accreditation";
 import { DriverSearchDropdown } from "./driver-search-dropdown";
 import {
   CarrierSearchDropdown,
   type CarrierOption,
 } from "./carrier-search-dropdown";
-import {
-  TruckSearchDropdown,
-  type TruckOption,
-} from "./truck-search-dropdown";
+import { TruckSearchDropdown, type TruckOption } from "./truck-search-dropdown";
 import {
   TrailerSearchDropdown,
   type TrailerOption,
@@ -252,6 +246,93 @@ export interface AssignmentFormData {
   truck: string;
   trailer: string;
   hasTrailer: boolean;
+  /**
+   * Accreditation level of each selected resource, captured from the
+   * accredited-resources row on every change (same lifecycle as
+   * `carrierExternalId`). Travels up to `assignmentOverrides` so the booking
+   * carries the levels the calendar card renders. `null` when the slot is
+   * empty or the row wasn't on the loaded feed page.
+   */
+  carrierAccreditation: AccreditationLevel | null;
+  driverAccreditation: AccreditationLevel | null;
+  secondDriverAccreditation: AccreditationLevel | null;
+  truckAccreditation: AccreditationLevel | null;
+  trailerAccreditation: AccreditationLevel | null;
+}
+
+/**
+ * Look up the accreditation level of the row backing a just-selected resource
+ * id. `null` when the selection was cleared or the row is not on the
+ * currently loaded page (same "not yet in the page" caveat as the
+ * carrier external-id capture).
+ */
+function accreditationFromRows(
+  rows: AccreditedResource[],
+  resourceId: string | boolean
+): AccreditationLevel | null {
+  if (typeof resourceId !== "string" || resourceId.length === 0) return null;
+  const row = rows.find((r) => r.resource_id === resourceId);
+  return row ? toAccreditationLevel(row.is_acredited) : null;
+}
+
+function carrierExternalIdFromRows(
+  rows: AccreditedResource[],
+  resourceId: string | boolean
+): string | null {
+  if (typeof resourceId !== "string" || resourceId.length === 0) return null;
+  return (
+    rows.find((row) => row.resource_id === resourceId)?.external_id ?? null
+  );
+}
+
+function clearCarrierScopedAssignment(updated: AssignmentFormData): void {
+  updated.driver = "";
+  updated.secondDriver = "";
+  updated.truck = "";
+  updated.trailer = "";
+  updated.driverAccreditation = null;
+  updated.secondDriverAccreditation = null;
+  updated.truckAccreditation = null;
+  updated.trailerAccreditation = null;
+}
+
+function updateSelectedResourceAccreditation(
+  updated: AssignmentFormData,
+  field: keyof AssignmentFormData,
+  fieldValue: string | boolean,
+  resources: {
+    drivers: AccreditedResource[];
+    trucks: AccreditedResource[];
+    trailers: AccreditedResource[];
+  }
+): void {
+  if (field === "driver") {
+    updated.driverAccreditation = accreditationFromRows(
+      resources.drivers,
+      fieldValue
+    );
+    return;
+  }
+  if (field === "secondDriver") {
+    updated.secondDriverAccreditation = accreditationFromRows(
+      resources.drivers,
+      fieldValue
+    );
+    return;
+  }
+  if (field === "truck") {
+    updated.truckAccreditation = accreditationFromRows(
+      resources.trucks,
+      fieldValue
+    );
+    return;
+  }
+  if (field === "trailer") {
+    updated.trailerAccreditation = accreditationFromRows(
+      resources.trailers,
+      fieldValue
+    );
+  }
 }
 
 interface AssignmentFormProps {
@@ -513,39 +594,45 @@ export function AssignmentForm({
     // row (or null when the new value is empty / row not yet in the page) so
     // the upstream prve_codigo travels with the UUID.
     if (field === "carrier" && fieldValue !== value.carrier) {
-      updated.driver = "";
-      updated.secondDriver = "";
-      updated.truck = "";
-      updated.trailer = "";
+      clearCarrierScopedAssignment(updated);
       setDriverQuery("");
       setTruckQuery("");
       setTrailerQuery("");
-      updated.carrierExternalId =
-        typeof fieldValue === "string" && fieldValue.length > 0
-          ? accreditedCarriers.find((row) => row.resource_id === fieldValue)
-              ?.external_id ?? null
-          : null;
+      updated.carrierExternalId = carrierExternalIdFromRows(
+        accreditedCarriers,
+        fieldValue
+      );
+      updated.carrierAccreditation = accreditationFromRows(
+        accreditedCarriers,
+        fieldValue
+      );
     }
+
+    updateSelectedResourceAccreditation(updated, field, fieldValue, {
+      drivers: accreditedDrivers,
+      trucks: accreditedTrucks,
+      trailers: accreditedTrailers,
+    });
 
     // When changing driver, clear secondDriver if it matches the new value
     // or if the second driver section is disabled
     if (field === "driver" && typeof fieldValue === "string") {
-      if (
-        updated.secondDriver === fieldValue ||
-        !updated.hasSecondDriver
-      ) {
+      if (updated.secondDriver === fieldValue || !updated.hasSecondDriver) {
         updated.secondDriver = "";
+        updated.secondDriverAccreditation = null;
       }
     }
 
     // When disabling second driver section, clear the selection
     if (field === "hasSecondDriver" && fieldValue === false) {
       updated.secondDriver = "";
+      updated.secondDriverAccreditation = null;
     }
 
     // When disabling trailer section, clear the selection and search.
     if (field === "hasTrailer" && fieldValue === false) {
       updated.trailer = "";
+      updated.trailerAccreditation = null;
       setTrailerQuery("");
     }
 
@@ -576,10 +663,7 @@ export function AssignmentForm({
         drivers={driverOptions}
         selectedDriverId={value.driver}
         onSelect={(v: string) => handleChange("driver", v)}
-        placeholder={tr(
-          "pages.planning.sidebar.assignment.selectDriver",
-          dict
-        )}
+        placeholder={tr("pages.planning.sidebar.assignment.selectDriver", dict)}
         dict={dict}
         disabled={!value.carrier}
         onQueryChange={setDriverQuery}
@@ -588,10 +672,7 @@ export function AssignmentForm({
         labelRightElement={
           <label className="flex items-center gap-1 cursor-pointer">
             <span className="text-[10px] text-gray-500 dark:text-gray-400">
-              {tr(
-                "pages.planning.sidebar.assignment.secondDriverLabel",
-                dict
-              )}
+              {tr("pages.planning.sidebar.assignment.secondDriverLabel", dict)}
             </span>
             <Checkbox
               id="segundo-driver-check"

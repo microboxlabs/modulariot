@@ -504,6 +504,9 @@ class HarnessSupervisor:
         if requested is None:
             return PermissionPolicy(), False
 
+        # tenant is guaranteed non-None here: run() builds the HarnessContext
+        # (which requires a tenant) before resolving the policy.
+        assert request.tenant_id is not None
         effective, denied = resolve_effective_mode(
             requested, settings=settings, tenant_id=request.tenant_id
         )

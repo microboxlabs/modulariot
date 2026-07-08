@@ -60,7 +60,7 @@ def _refusal_entry() -> dict[str, Any]:
     return {
         "id": "x",
         "question": "q",
-        "tenant_id": "mintral",
+        "tenant_id": "orion",
         "category": "adversarial",
         "expected_tools": [],
         "forbidden_tools": [],
@@ -96,7 +96,7 @@ def test_build_fake_registry_stubs_arbitrary_expected_tools() -> None:
     with no prefix filter — so a dataset can ask for any tool name."""
     entry = {
         "id": "x",
-        "tenant_id": "mintral",
+        "tenant_id": "orion",
         "expected_tools": ["weather_lookup", "ams_inventory", "totally_custom"],
     }
     profile = _active_profile()
@@ -111,7 +111,7 @@ def test_build_fake_registry_empty_expected_uses_fallback() -> None:
     """Refusal cases (empty expected_tools) still get the fallback tool."""
     profile = _active_profile()
     registry = _build_fake_registry(
-        {"id": "x", "tenant_id": "mintral", "expected_tools": []}, profile
+        {"id": "x", "tenant_id": "orion", "expected_tools": []}, profile
     )
     assert registry.names() == [default_fallback_tool(profile)]
 

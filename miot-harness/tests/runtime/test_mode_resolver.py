@@ -30,9 +30,9 @@ def _llm_router_that_must_not_be_called() -> LLMIntentRouter:
 
 @pytest.mark.asyncio
 async def test_explicit_canned_mode_bypasses_router() -> None:
-    request = UserRequest(message="anything", tenant_id="mintral", mode="canned")
+    request = UserRequest(message="anything", tenant_id="orion", mode="canned")
     result = await resolve_mode(
-        request, llm_router=_llm_router_that_must_not_be_called(), tenant_lock="mintral"
+        request, llm_router=_llm_router_that_must_not_be_called(), tenant_lock="orion"
     )
     assert result.route is HarnessRoute.DATA_QUERY
     assert "canned" in result.reason
@@ -42,34 +42,34 @@ async def test_explicit_canned_mode_bypasses_router() -> None:
 async def test_explicit_meta_mode_bypasses_router() -> None:
     request = UserRequest(message="what data?", tenant_id="any-tenant", mode="meta")
     result = await resolve_mode(
-        request, llm_router=_llm_router_that_must_not_be_called(), tenant_lock="mintral"
+        request, llm_router=_llm_router_that_must_not_be_called(), tenant_lock="orion"
     )
     # Meta is allowed for any tenant — non-confidential by spec.
     assert result.route is HarnessRoute.DATA_META
 
 
 @pytest.mark.asyncio
-async def test_explicit_agentic_mode_for_mintral_tenant() -> None:
-    request = UserRequest(message="explore the data", tenant_id="mintral", mode="agentic")
+async def test_explicit_agentic_mode_for_orion_tenant() -> None:
+    request = UserRequest(message="explore the data", tenant_id="orion", mode="agentic")
     result = await resolve_mode(
-        request, llm_router=_llm_router_that_must_not_be_called(), tenant_lock="mintral"
+        request, llm_router=_llm_router_that_must_not_be_called(), tenant_lock="orion"
     )
     assert result.route is HarnessRoute.DATA_AGENTIC
 
 
 @pytest.mark.asyncio
-async def test_explicit_agentic_mode_rejected_for_non_mintral_tenant() -> None:
+async def test_explicit_agentic_mode_rejected_for_non_orion_tenant() -> None:
     request = UserRequest(message="explore", tenant_id="ams-other", mode="agentic")
     with pytest.raises(ModeAccessDenied):
         await resolve_mode(
             request,
             llm_router=_llm_router_that_must_not_be_called(),
-            tenant_lock="mintral",
+            tenant_lock="orion",
         )
 
 
 @pytest.mark.asyncio
-async def test_explicit_canned_mode_rejected_for_non_mintral_tenant() -> None:
+async def test_explicit_canned_mode_rejected_for_non_orion_tenant() -> None:
     """`canned` is data-touching just like `agentic` — the tenant lock
     must reject it at request-validation time so an off-lock caller can't
     even reach the graph (where the tool-level lock would deny anyway,
@@ -81,7 +81,7 @@ async def test_explicit_canned_mode_rejected_for_non_mintral_tenant() -> None:
         await resolve_mode(
             request,
             llm_router=_llm_router_that_must_not_be_called(),
-            tenant_lock="mintral",
+            tenant_lock="orion",
         )
 
 
@@ -91,8 +91,8 @@ async def test_auto_mode_delegates_to_llm_router() -> None:
         responses=[json.dumps({"route": "DATA_AGENTIC", "confidence": 0.95})]
     )
     router = LLMIntentRouter(model, confidence_threshold=0.7, keyword_fallback=IntentRouter())
-    request = UserRequest(message="show me services", tenant_id="mintral")  # mode default "auto"
-    result = await resolve_mode(request, llm_router=router, tenant_lock="mintral")
+    request = UserRequest(message="show me services", tenant_id="orion")  # mode default "auto"
+    result = await resolve_mode(request, llm_router=router, tenant_lock="orion")
     assert result.route is HarnessRoute.DATA_AGENTIC
 
 
@@ -102,4 +102,4 @@ def test_user_request_rejects_unknown_mode() -> None:
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError):
-        UserRequest(message="x", tenant_id="mintral", mode="bogus")  # type: ignore[arg-type]
+        UserRequest(message="x", tenant_id="orion", mode="bogus")  # type: ignore[arg-type]

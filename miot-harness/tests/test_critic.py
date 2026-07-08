@@ -12,7 +12,7 @@ from miot_harness.runtime.context import HarnessContext
 
 
 def _ctx() -> HarnessContext:
-    return HarnessContext(thread_id="t", tenant_id="mintral", user_id="u")
+    return HarnessContext(thread_id="t", tenant_id="orion", user_id="u")
 
 
 @pytest.mark.asyncio

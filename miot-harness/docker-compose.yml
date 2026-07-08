@@ -81,7 +81,7 @@ services:
         HOST (not in this container):
 
           kubectl --context AKS-MINT_COORDINADOR_BI_PROD \
-            port-forward svc/prod-mintral-pgbouncer 6434:6432 \
+            port-forward svc/prod-orion-pgbouncer 6434:6432 \
             -n <namespace>
 
         Then point MIOT_HARNESS_DATASOURCE_DSN at host.docker.internal:6434

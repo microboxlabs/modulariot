@@ -23,7 +23,7 @@ def _descriptor(name: str = "fn_dx_centro_control") -> FunctionDescriptor:
         proc_oid=10,
         description=ParsedDescription(layer="L1", body="kpi"),
         args=[
-            FunctionArg(name="p_tenant", pg_type="text", has_default=True, default_expr="'mintral'")
+            FunctionArg(name="p_tenant", pg_type="text", has_default=True, default_expr="'orion'")
         ],
         returns_kind="table",
         returns_columns=[("refreshed_at_servicios", "timestamptz")],
@@ -38,7 +38,7 @@ def _boot_kwargs(**overrides) -> dict:
     """
     base = {
         "schema": "nexo",
-        "tenant_lock": "mintral",
+        "tenant_lock": "orion",
         "refuse_minutes": 240,
         # No sleeping between probe retries in tests.
         "probe_retry_delay_s": 0.0,

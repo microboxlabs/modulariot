@@ -1,7 +1,7 @@
 """A minimal second DataSourceProvider.
 
 Exists to prove the seam: core runtime/agent tests run against this
-provider so they cannot accidentally depend on Nexo/Coordinador/Mintral
+provider so they cannot accidentally depend on Nexo/Coordinador/Orion
 specifics. Mirrors the eval-stub tool shape used by run_golden.py.
 """
 

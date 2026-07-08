@@ -14,7 +14,7 @@ def test_resolve_nexo_returns_provider_with_profile() -> None:
     assert provider.profile.name == "nexo"
     assert provider.profile.display_name == "Coordinador"
     assert provider.profile.tool_prefix == "coordinador_"
-    assert provider.profile.tenant_lock == "mintral"
+    assert provider.profile.tenant_lock == "orion"
 
 
 def test_generic_pg_is_registered() -> None:

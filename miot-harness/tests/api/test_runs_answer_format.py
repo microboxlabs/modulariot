@@ -37,7 +37,7 @@ def _clean_settings_and_workspace(
 def client() -> Iterator[TestClient]:
     """A TestClient wired to a fresh app instance with no auth or datasource."""
     app = create_app()
-    with TestClient(app) as tc:
+    with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as tc:
         yield tc
 
 

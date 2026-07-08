@@ -10,7 +10,7 @@ from miot_harness.runtime.context import HarnessContext
 
 
 def _ctx() -> HarnessContext:
-    return HarnessContext(thread_id="t", tenant_id="mintral", user_id="u")
+    return HarnessContext(thread_id="t", tenant_id="orion", user_id="u")
 
 
 @pytest.mark.asyncio
@@ -18,7 +18,7 @@ async def test_summarizer_compresses_long_transcript():
     """Triggered when state['messages'] exceeds the threshold; replaces
     the list with [system summary, last_message]."""
     messages = [{"role": "user", "content": f"msg {i}"} for i in range(15)]
-    model = FakeListChatModel(responses=["The user is asking about Mintral fleet status."])
+    model = FakeListChatModel(responses=["The user is asking about Orion fleet status."])
 
     state: dict[str, Any] = {
         "user_message": "?",
@@ -32,7 +32,7 @@ async def test_summarizer_compresses_long_transcript():
     new_msgs = update["messages"]
 
     assert len(new_msgs) <= 3
-    assert any("Mintral" in str(m.get("content", "")) for m in new_msgs)
+    assert any("Orion" in str(m.get("content", "")) for m in new_msgs)
     # The last user message must remain so context isn't lost
     assert any(m.get("content") == "msg 14" for m in new_msgs)
 

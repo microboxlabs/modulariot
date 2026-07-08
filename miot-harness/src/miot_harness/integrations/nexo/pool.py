@@ -5,7 +5,7 @@ just exposes a thin factory so tests and boot can build pools the same
 way.
 
 Read-only enforcement note (PgBouncer compatibility):
-The Coordinador prod tunnel routes through `prod-mintral-pgbouncer` in
+The Coordinador prod tunnel routes through `prod-orion-pgbouncer` in
 transaction-pooling mode, which rejects unknown startup parameters
 (`default_transaction_read_only`, `statement_timeout`,
 `idle_in_transaction_session_timeout`) sent via asyncpg's

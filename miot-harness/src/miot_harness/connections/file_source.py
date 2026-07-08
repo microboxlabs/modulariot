@@ -15,7 +15,7 @@ optional Markdown body (the connection primer):
     dsn_env: MIOT_HARNESS_DATASOURCE_DSN   # env var holding the DSN (secret-safe)
     scope: tenant                # global | tenant
     options:
-      tenant_lock: mintral
+      tenant_lock: orion
       freshness_warn_minutes: 30
       freshness_refuse_minutes: 240
     capabilities:
@@ -90,7 +90,7 @@ def _coerce_connection(
     # Scope is derived purely from the dir convention: a connection is
     # tenant-scoped iff it lives under `tenants/<tenant_id>/`. (A globally
     # loaded connection can still be tenant-*locked* via options.tenant_lock —
-    # that's a different concept, like Nexo being Mintral-only.)
+    # that's a different concept, like Nexo being Orion-only.)
     resolved_scope: ConnectionScope = scope
     # Validate types rather than coercing them: the loader contract is that bad
     # content becomes a diagnostic. Silently casting `required: "false"` to True

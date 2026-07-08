@@ -51,7 +51,7 @@ def _supervisor(
         data_graph=data_graph,
         agentic_graph=agentic_graph,
         llm_router=llm_router,
-        tenant_lock="mintral",
+        tenant_lock="orion",
         event_bus=event_bus,
     )
 
@@ -111,7 +111,7 @@ async def test_events_published_to_bus_match_record_events(tmp_path: Any) -> Non
     bus.publish = tap  # type: ignore[method-assign]
 
     record = await sup.run(
-        UserRequest(message="q", tenant_id="mintral")
+        UserRequest(message="q", tenant_id="orion")
     )
 
     # Every event the supervisor wrote to the record was also published.
@@ -144,7 +144,7 @@ async def test_bus_closed_on_happy_completion(tmp_path: Any) -> None:
     # problem we subscribe to ALL run_ids via the bus internal map: the
     # test asserts that whatever run_id the supervisor used, its
     # subscriber list is empty after run() returns (close fired).
-    record = await sup.run(UserRequest(message="q", tenant_id="mintral"))
+    record = await sup.run(UserRequest(message="q", tenant_id="orion"))
 
     # After run() returns, the run_id has been closed — no live
     # subscribers remain. We verify by attempting a new subscribe +
@@ -184,7 +184,7 @@ async def test_bus_closed_on_mode_refusal(tmp_path: Any) -> None:
     record = await sup.run(
         UserRequest(
             message="explore",
-            tenant_id="not-mintral",
+            tenant_id="not-orion",
             mode="agentic",
         )
     )
@@ -208,7 +208,7 @@ async def test_bus_closed_on_run_failure(tmp_path: Any) -> None:
         event_bus=bus,
     )
 
-    record = await sup.run(UserRequest(message="q", tenant_id="mintral"))
+    record = await sup.run(UserRequest(message="q", tenant_id="orion"))
     assert record.status == "failed"
     assert record.run_id not in bus._subscribers  # type: ignore[attr-defined]
 
@@ -234,7 +234,7 @@ async def test_bus_emits_cancelled_run_failed_on_task_cancel(tmp_path: Any) -> N
 
     with pytest.raises(asyncio.CancelledError):
         await sup.run(
-            UserRequest(message="q", tenant_id="mintral"),
+            UserRequest(message="q", tenant_id="orion"),
             run_id_override="run_cancel_test",
         )
 
@@ -264,7 +264,7 @@ async def test_supervisor_without_bus_behaves_unchanged(tmp_path: Any) -> None:
         llm_router=_scripted_router("DATA_QUERY"),
         event_bus=None,
     )
-    record = await sup.run(UserRequest(message="q", tenant_id="mintral"))
+    record = await sup.run(UserRequest(message="q", tenant_id="orion"))
     assert record.status == "completed"
     assert record.answer == "ok"
 
@@ -285,7 +285,7 @@ async def test_supervisor_honors_run_id_override(tmp_path: Any) -> None:
         llm_router=_scripted_router("DATA_QUERY"),
     )
     record = await sup.run(
-        UserRequest(message="q", tenant_id="mintral"),
+        UserRequest(message="q", tenant_id="orion"),
         run_id_override="run_pre_minted_abc",
     )
     assert record.run_id == "run_pre_minted_abc"
@@ -329,10 +329,10 @@ async def test_supervisor_checkpoints_during_long_run(tmp_path: Any) -> None:
         llm_router=_scripted_router("DATA_QUERY"),
         event_bus=RunEventBus(),
         checkpoint_every_n_events=2,
-        tenant_lock="mintral",
+        tenant_lock="orion",
     )
 
-    await sup.run(UserRequest(message="q", tenant_id="mintral"))
+    await sup.run(UserRequest(message="q", tenant_id="orion"))
 
     # With checkpoint_every_n=2, _emit fires saves on every even-numbered
     # event count. Plus the final explicit save in run(). We assert at
@@ -372,10 +372,10 @@ async def test_supervisor_skips_checkpoint_when_no_event_bus(tmp_path: Any) -> N
         llm_router=_scripted_router("DATA_QUERY"),
         event_bus=None,  # eval path
         checkpoint_every_n_events=2,
-        tenant_lock="mintral",
+        tenant_lock="orion",
     )
 
-    await sup.run(UserRequest(message="q", tenant_id="mintral"))
+    await sup.run(UserRequest(message="q", tenant_id="orion"))
 
     # Exactly one save: the final terminal save inside run().
     assert len(saves) == 1, (

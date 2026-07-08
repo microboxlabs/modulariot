@@ -45,7 +45,7 @@ export default function ModalTooltip({
         selected={selectedTask}
         setSelected={setSelectedTask}
         maxWidth="1500px"
-        maxHeight="90vh"
+        maxHeight="80vh"
         height=""
       >
         <div className="p-4 text-gray-500 dark:text-gray-400">
@@ -60,7 +60,7 @@ export default function ModalTooltip({
       selected={selectedTask}
       setSelected={setSelectedTask}
       maxWidth="1500px"
-      maxHeight="90vh"
+      maxHeight="80vh"
       height="fit-content"
     >
       {isLoading && (

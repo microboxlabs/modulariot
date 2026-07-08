@@ -26,9 +26,7 @@ from miot_harness.runtime.events import HarnessEvent
 
 
 @pytest.fixture(autouse=True)
-def _clean_settings_and_workspace(
-    tmp_path: Any, monkeypatch: pytest.MonkeyPatch
-) -> Iterator[None]:
+def _clean_settings_and_workspace(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.delenv("MIOT_HARNESS_DATASOURCE_DSN", raising=False)
     # Pin provider selection to the default kind for deterministic boots.
     monkeypatch.delenv("MIOT_HARNESS_DATASOURCE_KIND", raising=False)
@@ -70,7 +68,7 @@ def test_post_runs_start_returns_202_with_run_id() -> None:
     """
 
     app = create_app()
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as client:
         resp = client.post("/runs:start", json={"message": "hi"})
     assert resp.status_code == 202
     body = resp.json()
@@ -84,7 +82,7 @@ def test_post_runs_unchanged_returns_harness_run_record() -> None:
     """
 
     app = create_app()
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as client:
         resp = client.post("/runs", json={"message": "hi"})
     assert resp.status_code == 200
     body = resp.json()
@@ -101,7 +99,7 @@ def test_stream_replays_completed_run() -> None:
     """
 
     app = create_app()
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as client:
         post = client.post("/runs", json={"message": "hi"})
         run_id = post.json()["run_id"]
 
@@ -126,7 +124,7 @@ def test_stream_with_last_event_id_skips_replayed_events() -> None:
     """
 
     app = create_app()
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as client:
         post = client.post("/runs", json={"message": "hi"})
         run_id = post.json()["run_id"]
 
@@ -141,7 +139,7 @@ def test_stream_with_last_event_id_skips_replayed_events() -> None:
 
     # Resume with that id; expect events with seq > cursor_seq.
     app = create_app()  # fresh app, same workspace via env var
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as client:
         with client.stream(
             "GET",
             f"/runs/{run_id}/stream",
@@ -165,7 +163,7 @@ def test_cancel_unknown_run_id_returns_404() -> None:
     """
 
     app = create_app()
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as client:
         resp = client.post("/runs/run_never_started/cancel")
     assert resp.status_code == 404
 
@@ -179,7 +177,7 @@ def test_stream_unknown_run_id_emits_error_event() -> None:
     """
 
     app = create_app()
-    with TestClient(app) as client:
+    with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as client:
         with client.stream("GET", "/runs/run_unknown_xyz/stream") as resp:
             assert resp.status_code == 200
             body = resp.read().decode()
@@ -221,7 +219,7 @@ async def test_stream_receives_live_events_during_in_flight(
 
     # Drive lifespan via TestClient, then run the actual stream test
     # against httpx.AsyncClient(transport=ASGITransport) on the same app.
-    with TestClient(app):
+    with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}):
         # Force route to DATA_QUERY via a scripted llm_router, and inject
         # a slow graph that emits 2 events and blocks until released.
         gate = asyncio.Event()
@@ -246,13 +244,14 @@ async def test_stream_receives_live_events_during_in_flight(
         harness = app.state.harness
         harness.data_graph = data_graph
         # No LLM router → keyword router picks DATA_QUERY when the message
-        # contains a keyword. Easiest: use a Mintral-related keyword.
+        # contains a keyword. Easiest: use a Orion-related keyword.
         # Looking at router.py for an actual DATA_QUERY trigger word.
-        message = "mintral status"  # keyword router routes this to DATA_QUERY
+        message = "orion status"  # keyword router routes this to DATA_QUERY
 
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),
             base_url="http://test",
+            headers={"X-Miot-Tenant-Client-Id": "demo-tenant"},
         ) as client:
             # Kick the slow run
             post = await client.post("/runs:start", json={"message": message})
@@ -261,9 +260,7 @@ async def test_stream_receives_live_events_during_in_flight(
 
             # Start streaming concurrently with the in-flight run
             async def consume() -> list[dict[str, Any]]:
-                async with client.stream(
-                    "GET", f"/runs/{run_id}/stream"
-                ) as resp:
+                async with client.stream("GET", f"/runs/{run_id}/stream") as resp:
                     buffer = b""
                     async for chunk in resp.aiter_bytes():
                         buffer += chunk

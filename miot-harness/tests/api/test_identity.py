@@ -48,11 +48,11 @@ def _clean_settings_and_workspace(
 def test_sign_and_verify_roundtrip() -> None:
     secret = "shh"
     header = sign_identity(
-        {"tenant_id": "mintral", "user_id": "u-42", "exp": int(time.time()) + 60},
+        {"tenant_id": "orion", "user_id": "u-42", "exp": int(time.time()) + 60},
         secret,
     )
     identity = verify_signed_identity(header, secret)
-    assert identity.tenant_id == "mintral"
+    assert identity.tenant_id == "orion"
     assert identity.user_id == "u-42"
 
 

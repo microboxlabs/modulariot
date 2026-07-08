@@ -34,7 +34,9 @@ def _supervisor(**kw: object) -> HarnessSupervisor:
 
 def test_request_bypass_downgraded_in_prod_sets_denied_flag() -> None:
     sup = _supervisor()
-    req = UserRequest(message="hi", permission_mode=PermissionMode.BYPASS)
+    req = UserRequest(
+        message="hi", tenant_id="demo-tenant", permission_mode=PermissionMode.BYPASS
+    )
     policy, denied = _resolve(sup, req, env="prod")
     assert policy.mode is PermissionMode.DEFAULT
     assert denied is True
@@ -47,12 +49,15 @@ def test_sticky_policy_reused_when_request_omits_mode() -> None:
     sup = _supervisor(conversation_policy_store=store)
     first = UserRequest(
         message="hi",
+        tenant_id="demo-tenant",
         conversation_id="c1",
         permission_mode=PermissionMode.AUTO_SAFE,
         rules=[PermissionRule(tool="run_sql", decision=PermissionDecision.ALLOW)],
     )
     sup._resolve_policy(first, settings=HarnessSettings(datasource_dsn=None, env="local"))  # type: ignore[arg-type]
-    second = UserRequest(message="again", conversation_id="c1")  # no mode/rules
+    second = UserRequest(
+        message="again", tenant_id="demo-tenant", conversation_id="c1"
+    )  # no mode/rules
     policy, _ = sup._resolve_policy(
         second, settings=HarnessSettings(datasource_dsn=None, env="local")  # type: ignore[arg-type]
     )

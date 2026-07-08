@@ -39,6 +39,7 @@ from miot_harness.datasource.provider import BootResult, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
+from miot_harness.runtime.agent_loop import AgentLoopRunner
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.data_graph import build_data_graph
@@ -50,6 +51,27 @@ from miot_harness.runtime.run_store import HarnessRunRecord
 from miot_harness.runtime.supervisor import HarnessSupervisor
 
 logger = logging.getLogger(__name__)
+
+
+def _configure_logging(settings: HarnessSettings) -> None:
+    """Apply ``MIOT_HARNESS_LOG_LEVEL`` to the package logger.
+
+    uvicorn configures its own loggers but not ours, and nothing else wires
+    ``settings.log_level`` into logging — so without this the harness's own
+    INFO/DEBUG records are dropped (only WARNING+ leak via ``logging``'s
+    last-resort handler) and the log-level setting is inert. Attach one stream
+    handler to the ``miot_harness`` logger at the requested level. Idempotent
+    (create_app may run more than once under the test suite); ``propagate``
+    stays on so pytest's ``caplog`` still captures records.
+    """
+    pkg_logger = logging.getLogger("miot_harness")
+    pkg_logger.setLevel(settings.log_level)
+    if not pkg_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+        )
+        pkg_logger.addHandler(handler)
 
 
 class ApprovalDecision(BaseModel):
@@ -473,6 +495,24 @@ def _make_lifespan(
                     # surface this tenant's eligible connection-bound playbooks.
                     context_skills=harness.context_skills,
                 )
+                # Single-agent loop (flag-gated). Reuses the planner seat's
+                # model/effort; the runner freezes prompt + tool list at boot
+                # so every request shares one prompt-cache prefix.
+                if settings.agents_agent_loop_enabled:
+                    harness.agent_loop = AgentLoopRunner(
+                        model=get_chat_model(
+                            settings.agents_planner_model,
+                            effort=settings.agents_planner_effort,
+                            timeout=settings.agents_agent_loop_llm_timeout_seconds,
+                        ),
+                        registry=harness.tools,
+                        settings=settings,
+                        profile=effective_profile,
+                        provenance_log=ProvenanceLog(
+                            settings.provenance_log_dir,
+                            enabled=settings.provenance_log_enabled,
+                        ),
+                    )
                 harness.meta_model = get_chat_model(
                     settings.intent_router_model,
                     thinking_budget_tokens=synth_thinking_budget,
@@ -528,6 +568,7 @@ def _make_lifespan(
                 app.state.datasource_freshness = {}
                 harness.data_graph = None
                 harness.agentic_graph = None
+                harness.agent_loop = None
                 harness.meta_model = None
                 harness.meta_primer = ""  # meta path gates on meta_model
                 harness.meta_catalog = []
@@ -560,6 +601,7 @@ def _make_lifespan(
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    _configure_logging(settings)
     harness = build_harness(Path(settings.workspace_dir))
     app = FastAPI(
         title="MIOT Harness",
@@ -620,9 +662,10 @@ def create_app() -> FastAPI:
     async def require_auth(request: Request) -> Mapping[str, Any]:
         """Auth0 RS256 verification gate for /runs* endpoints.
 
-        Short-circuits to a blank context when auth is disabled (the
-        legacy unauthenticated mode used by unit tests and local
-        dev). When enabled:
+        Skips JWT verification when auth is disabled (the legacy
+        unauthenticated mode used by unit tests and local dev), but still
+        resolves `X-Miot-Tenant-Client-Id` when the proxy supplies it. When
+        auth is enabled:
 
         - Enforces Bearer-token + JWKS RS256 sig/iss/aud/exp checks.
         - Resolves the caller's tenant from the
@@ -637,7 +680,16 @@ def create_app() -> FastAPI:
         still depends on it.
         """
         if not settings.auth_enabled:
-            return {"claims": {}, "tenant_id": None}
+            # Auth disabled skips JWT verification, but the tenant is still the
+            # backend's to assign: honor the `X-Miot-Tenant-Client-Id` header
+            # (set by the Quarkus proxy) so a proxied dev deployment resolves the
+            # real tenant instead of silently falling back. Absent header → None,
+            # which `_apply_tenant_override` turns into a 400 unless the caller
+            # supplied a body tenant (the dev/test escape hatch).
+            header_tenant = (
+                request.headers.get("X-Miot-Tenant-Client-Id") or ""
+            ).strip() or None
+            return {"claims": {}, "tenant_id": header_tenant}
 
         auth_header = request.headers.get("Authorization") or ""
         if not auth_header.startswith("Bearer "):
@@ -705,23 +757,38 @@ def create_app() -> FastAPI:
     def _apply_tenant_override(
         user_request: UserRequest, auth: Mapping[str, Any]
     ) -> UserRequest:
-        """If the verified header carried a tenant, that value wins
-        over whatever the body declared. Body-only flow (auth
-        disabled, i.e. local dev / unit tests) keeps the body value.
-        The body field itself is deprecated; a future release will
-        delete it from the schema once staging soak confirms no
-        caller still depends on it.
+        """Resolve the run's tenant and enforce that one exists.
+
+        A verified ``X-Miot-Tenant-Client-Id`` header (set by the Quarkus
+        proxy) wins over the body; the body ``tenant_id`` is only an
+        auth-disabled dev/test escape hatch. The tenant is NEVER defaulted:
+        a run with neither a header nor an explicit body tenant is rejected
+        (400) instead of being silently attributed to a placeholder, since
+        a missing tenant means the request did not pass through the org
+        proxy — a misconfiguration, not a valid anonymous run. The body
+        field is deprecated; a future release will delete it from the schema.
         """
         header_tenant = auth.get("tenant_id")
-        if not header_tenant:
-            return user_request
-        if user_request.tenant_id != header_tenant:
+        if header_tenant and user_request.tenant_id != header_tenant:
             logger.info(
                 "Auth: overriding body tenant %r with header tenant %r",
                 user_request.tenant_id,
                 header_tenant,
             )
-        return user_request.model_copy(update={"tenant_id": header_tenant})
+            user_request = user_request.model_copy(
+                update={"tenant_id": header_tenant}
+            )
+        if not user_request.tenant_id:
+            logger.error(
+                "Run rejected: unresolved tenant — no X-Miot-Tenant-Client-Id "
+                "header and no tenant_id supplied. The tenant is required and is "
+                "never defaulted; verify the request is routed through the "
+                "Quarkus org proxy."
+            )
+            raise HTTPException(
+                status_code=400, detail="missing_required_tenant"
+            )
+        return user_request
 
     @app.get("/health")
     async def health() -> dict[str, object]:
@@ -1033,6 +1100,10 @@ def _enforce_debug_allowlist(request: UserRequest, settings: HarnessSettings) ->
     """
     if not request.debug:
         return
+    # tenant is guaranteed non-None here: every /runs* handler calls
+    # _apply_tenant_override first, which 400s a tenant-less request before
+    # this gate is reached.
+    assert request.tenant_id is not None
     if settings.debug_tenant_allowed(request.tenant_id):
         return
     raise HTTPException(

@@ -57,14 +57,25 @@ function assignmentOverrides(
     // `null` is a real value (carrier with no upstream code on file) and
     // must be preserved — don't gate this on truthiness.
     out.assignedCarrierExternalId = data.carrierExternalId;
+    // Same lifecycle for the accreditation level the calendar card renders:
+    // `null` (unknown) is a real value too.
+    out.assignedCarrierAccreditation = data.carrierAccreditation;
   }
-  if (data.driver) out.assignedDriver = data.driver;
+  if (data.driver) {
+    out.assignedDriver = data.driver;
+    out.assignedDriverAccreditation = data.driverAccreditation;
+  }
   if (data.hasSecondDriver && data.secondDriver) {
     out.assignedDriver2 = data.secondDriver;
+    out.assignedDriver2Accreditation = data.secondDriverAccreditation;
   }
-  if (data.truck) out.assignedTruck = data.truck;
+  if (data.truck) {
+    out.assignedTruck = data.truck;
+    out.assignedTruckAccreditation = data.truckAccreditation;
+  }
   if (data.hasTrailer && data.trailer) {
     out.assignedTrailer = data.trailer;
+    out.assignedTrailerAccreditation = data.trailerAccreditation;
   }
   return out;
 }
@@ -85,11 +96,16 @@ function assignmentDataFromService(
     // carrier row falls off the current accredited-resources page or the
     // carrier has been deactivated upstream since the prior confirm.
     carrierExternalId: service?.assignedCarrierExternalId ?? null,
+    carrierAccreditation: service?.assignedCarrierAccreditation ?? null,
     driver: service?.assignedDriver ?? "",
+    driverAccreditation: service?.assignedDriverAccreditation ?? null,
     secondDriver: service?.assignedDriver2 ?? "",
+    secondDriverAccreditation: service?.assignedDriver2Accreditation ?? null,
     hasSecondDriver: Boolean(service?.assignedDriver2),
     truck: service?.assignedTruck ?? "",
+    truckAccreditation: service?.assignedTruckAccreditation ?? null,
     trailer: service?.assignedTrailer ?? "",
+    trailerAccreditation: service?.assignedTrailerAccreditation ?? null,
     hasTrailer: Boolean(service?.assignedTrailer),
   };
 }

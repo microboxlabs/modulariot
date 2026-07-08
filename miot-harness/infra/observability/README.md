@@ -128,7 +128,7 @@ Three ways to get a cost number per tenant:
 ### 1. Langfuse UI (interactive)
 
 1. http://localhost:3000 → Project menu → **Tracing**.
-2. Filters sidebar → **Tags** → click `tenant:mintral` (or whichever).
+2. Filters sidebar → **Tags** → click `tenant:orion` (or whichever).
 3. Top-right time window → choose your billing period.
 4. The `Total Cost` column header shows the sum across the filtered
    rows. Add `User ID` to the visible columns for an audit trail.
@@ -144,7 +144,7 @@ Output (sample):
 
 ```
   #  TENANT                COST_USD       INPUT      OUTPUT      N
-  1  mintral               0.087412           0           0     17
+  1  orion               0.087412           0           0     17
   2  acme                  0.004210           0           0      3
 ```
 
@@ -181,7 +181,7 @@ Sample output (from a freshly populated stack):
 
 ```
    ┌─tag────────────┬─n_traces─┬─cost_usd─┐
-1. │ tenant:mintral │        4 │ 0.078648 │
+1. │ tenant:orion │        4 │ 0.078648 │
 2. │ tenant:gama    │        1 │ 0.008334 │
    └────────────────┴──────────┴──────────┘
 ```

@@ -17,7 +17,7 @@ from tests.fixtures.fake_provider import FAKE_PROFILE
 def _nexo_fallback() -> IntentRouter:
     # The core router ships no built-in vocabulary; the keyword fallback in
     # these tests uses the nexo profile keyword set (the provider-under-test's
-    # own vocabulary) so the "Mintral status" fallback prompts route to data.
+    # own vocabulary) so the "Orion status" fallback prompts route to data.
     return IntentRouter(data_keywords=NEXO_PROFILE.router_keywords)
 
 
@@ -135,7 +135,7 @@ async def test_unparseable_llm_response_falls_back_to_keyword() -> None:
     router = LLMIntentRouter(
         model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
-    result = await router.route("Mintral fleet status")  # contains 'mintral'
+    result = await router.route("Orion fleet status")  # contains 'orion'
     assert result.route is HarnessRoute.DATA_QUERY
 
 
@@ -162,7 +162,7 @@ async def test_invalid_route_name_falls_back_to_keyword() -> None:
     router = LLMIntentRouter(
         model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
-    result = await router.route("Mintral status")  # mintral keyword
+    result = await router.route("Orion status")  # orion keyword
     assert result.route is HarnessRoute.DATA_QUERY
 
 
@@ -189,8 +189,8 @@ async def test_non_dict_json_falls_back_to_keyword(raw_response: str) -> None:
     router = LLMIntentRouter(
         model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
-    # "Mintral status" has the `mintral` keyword so the fallback returns DATA_QUERY.
-    result = await router.route("Mintral status")
+    # "Orion status" has the `orion` keyword so the fallback returns DATA_QUERY.
+    result = await router.route("Orion status")
     assert result.route is HarnessRoute.DATA_QUERY
 
 

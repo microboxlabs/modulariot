@@ -37,7 +37,7 @@ def fake_pool() -> _FakePool:
     return _FakePool()
 
 
-def _ctx(tenant: str = "mintral") -> HarnessContext:
+def _ctx(tenant: str = "orion") -> HarnessContext:
     return HarnessContext(thread_id="t", tenant_id=tenant, user_id="u")
 
 
@@ -45,7 +45,7 @@ def _tools(fake_pool: _FakePool) -> dict[str, Any]:
     tools = build_primitive_tools(
         pool=fake_pool,
         schema="nexo",
-        tenant_lock="mintral",
+        tenant_lock="orion",
         explain_cost_threshold=10000.0,
         source_label="Coordinador · nexo (Citus DB)",
     )

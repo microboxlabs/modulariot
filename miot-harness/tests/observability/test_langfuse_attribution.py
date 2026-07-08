@@ -25,11 +25,11 @@ def test_agent_span_emits_langfuse_user_session_tags(
     with agent_span(
         "run",
         run_id="run_e10_001",
-        tenant_id="mintral",
+        tenant_id="orion",
         mode="agentic",
         user_id="odtorres",
         session_id="conv-abc-123",
-        tags=["tenant:mintral", "mode:agentic", "route:data_agentic"],
+        tags=["tenant:orion", "mode:agentic", "route:data_agentic"],
         environment="local",
     ):
         pass
@@ -42,7 +42,7 @@ def test_agent_span_emits_langfuse_user_session_tags(
     assert attrs["langfuse.environment"] == "local"
     # Tags are serialized as JSON for portability across Langfuse versions.
     assert json.loads(attrs["langfuse.tags"]) == [
-        "tenant:mintral",
+        "tenant:orion",
         "mode:agentic",
         "route:data_agentic",
     ]
@@ -75,11 +75,11 @@ def test_callback_emits_langfuse_attrs_on_llm_call(
     cb = AgentTelemetryCallback(
         agent_name="filter_expert",
         run_id="run_e10_002",
-        tenant_id="mintral",
+        tenant_id="orion",
         mode="canned",
         user_id="odtorres",
         session_id="thread-xyz",
-        tags=["tenant:mintral", "mode:canned", "agent:filter_expert"],
+        tags=["tenant:orion", "mode:canned", "agent:filter_expert"],
         environment="local",
     )
 
@@ -116,7 +116,7 @@ def test_callback_emits_langfuse_attrs_on_llm_call(
     assert attrs["langfuse.session.id"] == "thread-xyz"
     assert attrs["langfuse.environment"] == "local"
     assert json.loads(attrs["langfuse.tags"]) == [
-        "tenant:mintral",
+        "tenant:orion",
         "mode:canned",
         "agent:filter_expert",
     ]
@@ -131,7 +131,7 @@ def test_callback_omits_langfuse_attrs_when_not_provided(
     from langchain_core.outputs import ChatGeneration, LLMResult
 
     cb = AgentTelemetryCallback(
-        agent_name="critic", run_id="run_old", tenant_id="mintral"
+        agent_name="critic", run_id="run_old", tenant_id="orion"
     )
 
     rid = uuid4()

@@ -58,6 +58,9 @@ _GENERIC_DEFAULT_PROFILE = DataSourceProfile(
     freshness_warn_minutes=0,
     freshness_refuse_minutes=0,
     has_freshness_model=False,
+    # generic_pg only ever exposes composable SQL primitives — no curated
+    # catalog — so its data questions are always agentic, never canned.
+    has_curated_catalog=False,
 )
 
 
@@ -169,6 +172,9 @@ class GenericPgProvider(DataSourceProvider):
             freshness_warn_minutes=0,
             freshness_refuse_minutes=0,
             has_freshness_model=False,
+            # Primitives-only connection: no curated catalog, so its data
+            # questions route agentic (never to the canned filter_expert seat).
+            has_curated_catalog=False,
         )
 
         application_name = (

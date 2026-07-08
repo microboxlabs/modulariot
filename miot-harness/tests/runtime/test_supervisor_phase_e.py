@@ -217,6 +217,68 @@ async def test_auto_mode_uses_llm_router_to_pick_route(tmp_path: Any) -> None:
 
 
 @pytest.mark.asyncio
+async def test_data_query_remapped_to_agentic_without_curated_catalog(
+    tmp_path: Any,
+) -> None:
+    """A primitives-only datasource (no curated catalog) has nothing for the
+    canned filter_expert seat to pick, so a DATA_QUERY route — whether the LLM
+    misclassified it or the caller sent `mode=canned` — must be remapped to the
+    agentic graph. This is the regression guard for the "servicio 1585735"
+    onboarding-fallback dead-end."""
+
+    from dataclasses import replace
+
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "canned (should not run)"})
+    agentic_graph = AsyncMock()
+    agentic_graph.ainvoke = AsyncMock(
+        return_value={"answer": "servicio 1585735 encontrado", "_events": []}
+    )
+    supervisor = _build_supervisor(
+        tmp_path,
+        data_graph=data_graph,
+        agentic_graph=agentic_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
+    )
+    # The active datasource has no curated catalog (generic_pg / acs).
+    supervisor.profile = replace(FAKE_PROFILE, has_curated_catalog=False)
+
+    record = await supervisor.run(
+        UserRequest(message="que me puedes decir del servicio 1585735", tenant_id="mintral")
+    )
+
+    agentic_graph.ainvoke.assert_awaited_once()
+    data_graph.ainvoke.assert_not_awaited()
+    assert record.answer == "servicio 1585735 encontrado"
+
+
+@pytest.mark.asyncio
+async def test_data_query_kept_canned_with_curated_catalog(tmp_path: Any) -> None:
+    """The remap is scoped to no-catalog datasources: a curated profile still
+    sends DATA_QUERY to the canned data graph."""
+
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "canned answer", "_events": []})
+    agentic_graph = AsyncMock()
+    agentic_graph.ainvoke = AsyncMock(return_value={"answer": "should not run"})
+    supervisor = _build_supervisor(
+        tmp_path,
+        data_graph=data_graph,
+        agentic_graph=agentic_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
+    )
+    supervisor.profile = FAKE_PROFILE  # has_curated_catalog defaults to True
+
+    record = await supervisor.run(
+        UserRequest(message="dame KPIs", tenant_id="mintral")
+    )
+
+    data_graph.ainvoke.assert_awaited_once()
+    agentic_graph.ainvoke.assert_not_awaited()
+    assert record.answer == "canned answer"
+
+
+@pytest.mark.asyncio
 async def test_conversation_id_round_trips_via_store(tmp_path: Any) -> None:
     """When a request carries `conversation_id`, the supervisor must:
     1. Set `record.conversation_id` for downstream telemetry.

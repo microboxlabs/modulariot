@@ -214,3 +214,18 @@ def test_system_prompt_falls_back_without_profile() -> None:
     prompt = _render_system_prompt(None)
     assert "DATA_QUERY" in prompt
     assert "the data source" in prompt
+
+
+def test_system_prompt_omits_data_query_without_curated_catalog() -> None:
+    """A primitives-only datasource (no curated catalog) drops DATA_QUERY from
+    the menu so the LLM can't classify a question as canned — every data
+    question is DATA_AGENTIC (composable-primitive) exploration."""
+
+    from dataclasses import replace
+
+    prompt = _render_system_prompt(replace(FAKE_PROFILE, has_curated_catalog=False))
+    assert "DATA_QUERY" not in prompt
+    # The remaining data routes and the datasource name are still present.
+    assert "DATA_AGENTIC" in prompt
+    assert "DATA_META" in prompt
+    assert FAKE_PROFILE.display_name in prompt

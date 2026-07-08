@@ -4057,6 +4057,23 @@
     "build": {
       "heading": "Build",
       "triggers": "build,create,scaffold"
+    },
+    "harnessEmpty": "No answer found, please try again!",
+    "progress": {
+      "connecting": "Searching…",
+      "routing": "Understanding your question…",
+      "exploring": "Querying the data…",
+      "verifying": "Verifying the answer…",
+      "answering": "Writing the answer…",
+      "tools": {
+        "query": "Querying the database",
+        "select": "Reading records",
+        "grep": "Searching for matches",
+        "describe": "Inspecting the schema",
+        "list_tables": "Exploring tables",
+        "knowledge": "Reading the domain guide",
+        "explain": "Analyzing the query plan"
+      }
     }
   }
 }

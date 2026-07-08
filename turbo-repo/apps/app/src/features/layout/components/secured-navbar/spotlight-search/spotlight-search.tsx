@@ -93,6 +93,17 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
   const navigateHeading  = (navigateDict?.heading       as string | undefined) ?? "Go to";
   const harnessEmptyLabel = (spotlightDict?.harnessEmpty as string | undefined) ?? "No answer found, please try again!";
 
+  // Chain-of-thought labels for the live progress panel. The dictionary
+  // carries both the phase lines and the per-primitive tool labels.
+  const progressDict = spotlightDict?.progress as I18nRecord | undefined;
+  const harnessProgressLabels = useMemo(
+    () => ({
+      phases: (progressDict ?? {}) as Record<string, string>,
+      tools: ((progressDict?.tools as I18nRecord | undefined) ?? {}) as Record<string, string>,
+    }),
+    [progressDict],
+  );
+
   // ── Stable nav callbacks ──────────────────────────────────────────────────
   const onNavigate = useCallback((href: string) => router.push(href), [router]);
 
@@ -165,8 +176,11 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
   const staticResults = usePagefindSearch(query, navigateItems, canAccess, onNavigate);
 
   // ── Manual harness search — fires only after user commits ─────────────────
-  const { results: harnessResults, isLoading: isHarnessLoading } =
-    useHarnessSearch(committedQuery);
+  const {
+    results: harnessResults,
+    isLoading: isHarnessLoading,
+    progress: harnessProgress,
+  } = useHarnessSearch(committedQuery);
 
   // ── "Ask Harness" prompt item — first selectable row while uncommitted ────
   const isEmpty = !query.trim();
@@ -307,6 +321,8 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
                   harnessItems={harnessResults}
                   isHarnessLoading={isHarnessLoading}
                   harnessQueried={!!committedQuery}
+                  harnessProgress={harnessProgress}
+                  harnessProgressLabels={harnessProgressLabels}
                   harnessPrompt={showHarnessPrompt ? harnessPromptItem : null}
                   selectedItemId={selectableItems[selectedIndex]?.id ?? null}
                   onSelect={handleSelectAction}

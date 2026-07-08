@@ -3,6 +3,11 @@ import { HiArrowRight } from "react-icons/hi";
 import { BsStars } from "react-icons/bs";
 import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import type { SpotlightItem, HarnessBlock } from "./types";
+import type { HarnessStreamProgress } from "./harness-stream";
+import {
+  SpotlightHarnessProgress,
+  type HarnessProgressLabels,
+} from "./spotlight-harness-progress";
 import { SpotlightResultItem } from "./spotlight-result-item";
 import { SpotlightRow } from "./spotlight-row";
 
@@ -22,20 +27,6 @@ function SectionHeader({ Icon, label, iconClass, labelClass, dividerClass }: Rea
         {label}
       </span>
       <div className={`h-px flex-1 ${dividerClass}`} />
-    </div>
-  );
-}
-
-function HarnessSkeleton() {
-  return (
-    <div className="px-4 py-2.5 flex items-start gap-3">
-      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-orange-50 dark:bg-orange-900/30 ring-1 ring-inset ring-black/6 dark:ring-white/10 animate-harness-think">
-        <BsStars className="h-3 w-3 text-orange-500 dark:text-orange-400" />
-      </div>
-      <div className="flex-1 pt-0.5 flex flex-col gap-2">
-        <div className="h-2.5 w-2/3 rounded bg-gray-100 dark:bg-gray-700 animate-pulse" />
-        <div className="h-2.5 w-1/2 rounded bg-gray-100 dark:bg-gray-700 animate-pulse" />
-      </div>
     </div>
   );
 }
@@ -132,6 +123,8 @@ interface SpotlightResultsProps {
   harnessItems: SpotlightItem[];
   isHarnessLoading: boolean;
   harnessQueried: boolean;
+  harnessProgress: HarnessStreamProgress;
+  harnessProgressLabels: HarnessProgressLabels;
   harnessPrompt: SpotlightItem | null;
   selectedItemId: string | null;
   onSelect: (item: SpotlightItem) => void;
@@ -146,6 +139,8 @@ export const SpotlightResults = memo(function SpotlightResults({
   harnessItems,
   isHarnessLoading,
   harnessQueried,
+  harnessProgress,
+  harnessProgressLabels,
   harnessPrompt,
   selectedItemId,
   onSelect,
@@ -187,7 +182,10 @@ export const SpotlightResults = memo(function SpotlightResults({
           )}
           {showHarnessResults && (
             isHarnessLoading ? (
-              <HarnessSkeleton />
+              <SpotlightHarnessProgress
+                progress={harnessProgress}
+                labels={harnessProgressLabels}
+              />
             ) : (
               harnessItems.map((item) => (
                 <HarnessAnswerItem

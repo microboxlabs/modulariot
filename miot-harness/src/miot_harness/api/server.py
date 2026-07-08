@@ -53,6 +53,27 @@ from miot_harness.runtime.supervisor import HarnessSupervisor
 logger = logging.getLogger(__name__)
 
 
+def _configure_logging(settings: HarnessSettings) -> None:
+    """Apply ``MIOT_HARNESS_LOG_LEVEL`` to the package logger.
+
+    uvicorn configures its own loggers but not ours, and nothing else wires
+    ``settings.log_level`` into logging — so without this the harness's own
+    INFO/DEBUG records are dropped (only WARNING+ leak via ``logging``'s
+    last-resort handler) and the log-level setting is inert. Attach one stream
+    handler to the ``miot_harness`` logger at the requested level. Idempotent
+    (create_app may run more than once under the test suite); ``propagate``
+    stays on so pytest's ``caplog`` still captures records.
+    """
+    pkg_logger = logging.getLogger("miot_harness")
+    pkg_logger.setLevel(settings.log_level)
+    if not pkg_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+        )
+        pkg_logger.addHandler(handler)
+
+
 class ApprovalDecision(BaseModel):
     """Body schema for POST /runs/{run_id}/approvals/{approval_id}.
 
@@ -580,6 +601,7 @@ def _make_lifespan(
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    _configure_logging(settings)
     harness = build_harness(Path(settings.workspace_dir))
     app = FastAPI(
         title="MIOT Harness",

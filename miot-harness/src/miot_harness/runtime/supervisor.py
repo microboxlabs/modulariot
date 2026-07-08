@@ -22,6 +22,7 @@ multi-turn chats accumulate context across `/runs` calls.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 from typing import Any
 
@@ -338,6 +339,42 @@ class HarnessSupervisor:
         record.answer = rendered
         record.answer_format = effective_fmt
 
+    async def _invoke_graph_emitting(
+        self, graph: Any, initial_state: dict[str, Any], record: HarnessRunRecord
+    ) -> dict[str, Any]:
+        """Run a compiled graph, landing its `_events` on the record AS each
+        node completes rather than after the whole run.
+
+        LangGraph's `astream(stream_mode="values")` yields the merged state
+        after every node; emitting the not-yet-seen tail of `_events` per
+        snapshot makes `GET /runs/{id}/stream` narrate the run live — the
+        point of the SSE endpoint. Before this, events were drained only
+        after `ainvoke` returned, so subscribers saw `route.selected` and
+        then one flush at run end (~40s of silence on agentic runs).
+
+        Falls back to `ainvoke` + post-hoc drain when the graph doesn't
+        implement `astream` as an async generator (unit-test doubles /
+        AsyncMock). Events are deduped by `event.id` so replace-vs-append
+        channel semantics can't double-emit.
+        """
+        final_state: dict[str, Any]
+        astream = getattr(graph, "astream", None)
+        if astream is None or not inspect.isasyncgenfunction(astream):
+            final_state = await graph.ainvoke(initial_state)
+            for evt in final_state.get("_events") or []:
+                self._emit(record, evt)
+            return final_state
+
+        emitted_ids: set[str] = set()
+        final_state = initial_state
+        async for state in astream(initial_state, stream_mode="values"):
+            final_state = state
+            for evt in final_state.get("_events") or []:
+                if evt.id not in emitted_ids:
+                    emitted_ids.add(evt.id)
+                    self._emit(record, evt)
+        return final_state
+
     def _emit(self, record: HarnessRunRecord, event: HarnessEvent) -> None:
         """Single funnel for landing a `HarnessEvent` on a run record.
 
@@ -625,15 +662,15 @@ class HarnessSupervisor:
             "prior_messages": prior_messages or [],
         }
         with agent_span("run", **self._root_span_kwargs(ctx, route)):
-            final_state = await self.data_graph.ainvoke(initial_state)
+            # Streams the graph's _events channel onto the record per node
+            # (live SSE) instead of draining it after the run.
+            final_state = await self._invoke_graph_emitting(
+                self.data_graph, initial_state, record
+            )
 
-        # Drain the graph's _events channel into the run record in order
-        for evt in final_state.get("_events") or []:
-            self._emit(record, evt)
-
-        answer = final_state.get("answer")
-        if answer:
-            record.answer = answer
+        graph_answer = final_state.get("answer")
+        if graph_answer:
+            record.answer = str(graph_answer)
         else:
             display_name = (
                 self.profile.display_name if self.profile is not None else "datasource"
@@ -689,11 +726,14 @@ class HarnessSupervisor:
             "prior_messages": prior_messages or [],
         }
         with agent_span("run", **self._root_span_kwargs(ctx, route)):
-            final_state = await self.agentic_graph.ainvoke(initial_state)
-
-        for evt in final_state.get("_events") or []:
-            self._emit(record, evt)
-        record.answer = final_state.get("answer") or "(no answer produced by agentic graph)"
+            # Streams the graph's _events channel onto the record per node
+            # (live SSE) instead of draining it after the run.
+            final_state = await self._invoke_graph_emitting(
+                self.agentic_graph, initial_state, record
+            )
+        record.answer = str(
+            final_state.get("answer") or "(no answer produced by agentic graph)"
+        )
 
     async def _run_data_meta(
         self,

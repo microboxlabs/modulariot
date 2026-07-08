@@ -69,19 +69,18 @@ class UserRequest(BaseModel):
     message: str
     thread_id: str = "demo-thread"
     # Issue #522 R6: `tenant_id` and `user_id` are deprecated body
-    # fields. In production they are silently overridden in
-    # `api.server` from the `X-Miot-Tenant-Client-Id` header set by
-    # the Quarkus proxy — `api.server.require_auth` makes the header
-    # mandatory whenever `MIOT_HARNESS_AUTH_ENABLED=true`, so body
-    # values are inert in any deployment that has auth on. They
-    # remain on the schema only to keep the CLI demo, eval harness,
-    # and the existing unit-test fleet (~30 call sites) working
-    # while the dev escape hatch is being phased out. A follow-up
-    # release will remove both fields once staging soak confirms no
-    # remaining caller relies on them. Do NOT build new logic that
-    # trusts these values.
-    tenant_id: str = Field(
-        default="demo-tenant",
+    # fields. In production the tenant is set in `api.server` from the
+    # trusted `X-Miot-Tenant-Client-Id` header (Quarkus proxy); the
+    # body value is only an auth-disabled dev/test escape hatch.
+    #
+    # `tenant_id` has NO default. A run with no resolved tenant — no
+    # header and no explicit body value — is rejected at the API
+    # boundary (400) rather than silently attributed to a placeholder:
+    # a missing tenant means the request bypassed the org proxy, which
+    # is a misconfiguration, not a valid anonymous run. Do NOT build
+    # new logic that trusts these values.
+    tenant_id: str | None = Field(
+        default=None,
         json_schema_extra={"deprecated": True},
     )
     user_id: str = Field(
@@ -120,6 +119,15 @@ class UserRequest(BaseModel):
         return self
 
     def to_context(self) -> HarnessContext:
+        # A HarnessContext requires a concrete tenant. The API rejects
+        # unresolved tenants (400) before reaching here; this guard turns a
+        # direct caller's mistake into a clear error instead of an opaque
+        # pydantic ValidationError on HarnessContext.tenant_id.
+        if not self.tenant_id:
+            raise ValueError(
+                "UserRequest.tenant_id is unresolved; a run requires a tenant "
+                "(from the X-Miot-Tenant-Client-Id header or an explicit body value)"
+            )
         # NOTE: the policy built here is UNGATED — the bypass policy gate
         # (resolve_effective_mode) is NOT applied. HarnessSupervisor.run
         # overwrites ctx.permission_policy with the gated result of

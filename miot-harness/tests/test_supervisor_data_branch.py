@@ -67,7 +67,9 @@ async def test_storytelling_path_unchanged(tmp_path):
     """Existing storytelling flow must still work — no data keywords trigger
     the legacy path with the default tool registry."""
     sup = _supervisor(tmp_path, data_graph=None, registry=build_default_registry())
-    record = await sup.run(UserRequest(message="write a story about delivery"))
+    record = await sup.run(
+        UserRequest(message="write a story about delivery", tenant_id="demo-tenant")
+    )
     assert record.status == "completed"
     assert any(e.type == "artifact.created" for e in record.events)
 
@@ -109,7 +111,7 @@ async def test_meta_disabled_emits_answer_completed(tmp_path):
     sup = _supervisor(tmp_path, data_graph=None)
     sup.profile = FAKE_PROFILE  # meta_model stays None
 
-    request = UserRequest(message="what can you do?", mode="meta")
+    request = UserRequest(message="what can you do?", mode="meta", tenant_id="demo-tenant")
     ctx = request.to_context()
     record = HarnessRunRecord(run_id=ctx.run_id, status="running")
     events = []

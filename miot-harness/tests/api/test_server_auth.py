@@ -135,8 +135,48 @@ def test_auth_disabled_runs_endpoint_open() -> None:
     and the demo CLI depend on)."""
     app = create_app()
     with TestClient(app) as client:
-        resp = client.post("/runs", json={"message": "hi"})
+        resp = client.post(
+            "/runs", json={"message": "hi", "tenant_id": "demo-tenant"}
+        )
     assert resp.status_code == 200, resp.text
+
+
+def test_auth_disabled_missing_tenant_returns_400() -> None:
+    """With auth off, a run carrying no tenant at all — no
+    X-Miot-Tenant-Client-Id header and no body tenant_id — is rejected
+    (400), not silently attributed to a placeholder tenant."""
+    app = create_app()
+    with TestClient(app) as client:
+        resp = client.post("/runs", json={"message": "hi"})
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "missing_required_tenant"
+
+
+def test_auth_disabled_tenant_from_header_is_honored() -> None:
+    """Auth off skips JWT verification, not tenant resolution: the
+    X-Miot-Tenant-Client-Id header set by the proxy still resolves the
+    tenant for the run."""
+    app = create_app()
+    with TestClient(app) as client:
+        resp = client.post(
+            "/runs",
+            json={"message": "hi"},
+            headers={"X-Miot-Tenant-Client-Id": "tenant-from-header"},
+        )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["tenant_id"] == "tenant-from-header"
+
+
+def test_auth_disabled_body_tenant_is_escape_hatch() -> None:
+    """With auth off and no header, the deprecated body tenant_id still
+    works as the local dev/test escape hatch."""
+    app = create_app()
+    with TestClient(app) as client:
+        resp = client.post(
+            "/runs", json={"message": "hi", "tenant_id": "tenant-from-body"}
+        )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["tenant_id"] == "tenant-from-body"
 
 
 # ---------------------------------------------------------------------------

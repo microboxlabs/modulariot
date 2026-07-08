@@ -35,7 +35,9 @@ async def test_agentic_route_prefers_agent_loop(tmp_path):
         agentic_graph=object(),  # would explode if invoked
         agent_loop=loop,
     )
-    record = await sup.run(UserRequest(message="explore this", mode="agentic"))
+    record = await sup.run(
+        UserRequest(message="explore this", tenant_id="demo-tenant", mode="agentic")
+    )
     assert record.answer == "loop answer"
     assert record.status == "completed"
     assert loop.calls[0]["user_message"] == "explore this"
@@ -51,5 +53,7 @@ async def test_agentic_route_falls_back_to_graph_when_no_loop(tmp_path):
         agentic_graph=None,
         agent_loop=None,
     )
-    record = await sup.run(UserRequest(message="explore this", mode="agentic"))
+    record = await sup.run(
+        UserRequest(message="explore this", tenant_id="demo-tenant", mode="agentic")
+    )
     assert "disabled" in (record.answer or "")

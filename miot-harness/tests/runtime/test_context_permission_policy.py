@@ -17,6 +17,7 @@ def test_context_defaults_permission_policy_to_none() -> None:
 def test_user_request_carries_mode_and_rules_to_context() -> None:
     req = UserRequest(
         message="hi",
+        tenant_id="demo-tenant",
         permission_mode=PermissionMode.AUTO_SAFE,
         rules=[PermissionRule(tool="run_sql", decision=PermissionDecision.ALLOW)],
     )
@@ -27,7 +28,7 @@ def test_user_request_carries_mode_and_rules_to_context() -> None:
 
 
 def test_user_request_without_mode_yields_no_policy() -> None:
-    ctx = UserRequest(message="hi").to_context()
+    ctx = UserRequest(message="hi", tenant_id="demo-tenant").to_context()
     assert ctx.permission_policy is None
 
 

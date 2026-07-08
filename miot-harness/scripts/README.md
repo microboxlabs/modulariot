@@ -27,7 +27,7 @@ uv run python scripts/diagnose_task_timeline.py --service-code 1643006
 uv run python scripts/diagnose_task_timeline.py --service-code 1643006 --proc-inst-id 45703329
 ```
 
-Diagnosis run on 2026-06-11 against tenant mintral concluded:
+Diagnosis run on 2026-06-11 against tenant orion concluded:
 `p_service_code` works (11 rows, fresh snapshot) — the beta failure was
 an unrefreshed snapshot that day, not argument semantics. Note that all
 `p_*` filters are pg `text`; the harness now coerces numeric LLM args

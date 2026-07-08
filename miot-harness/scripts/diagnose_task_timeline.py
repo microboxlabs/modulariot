@@ -1,5 +1,5 @@
 """Diagnose Gap 3: `coordinador_task_timeline` returning 0 rows for a
-valid service code (beta review, tenant mintral, service 1643006).
+valid service code (beta review, tenant orion, service 1643006).
 
 Read-only probes against the Coordinador DB:
 

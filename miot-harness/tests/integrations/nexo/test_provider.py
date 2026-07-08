@@ -17,13 +17,13 @@ def test_profile_values_match_legacy_hardcodes() -> None:
     assert p.source_label == "Coordinador · nexo (Citus DB)"
     assert p.tool_prefix == "coordinador_"
     assert "coordinador" in p.router_keywords
-    assert "mintral" in p.router_keywords
-    assert p.tenant_lock == "mintral"
+    assert "orion" in p.router_keywords
+    assert p.tenant_lock == "orion"
     assert (
         p.tenant_refusal_template.format(
             display_name=p.display_name, lock=p.tenant_lock
         )
-        == "Coordinador is mintral-only. I can't answer for other tenants."
+        == "Coordinador is orion-only. I can't answer for other tenants."
     )
     assert p.freshness_warn_minutes == 30
     assert p.freshness_refuse_minutes == 240
@@ -66,7 +66,7 @@ async def test_boot_registers_composable_primitives(
         registry,
         HarnessSettings(
             datasource_dsn="postgresql://u:p@h:5/db",
-            datasource_tenant_lock="mintral",
+            datasource_tenant_lock="orion",
         ),
     )
     assert result.enabled is True
@@ -100,7 +100,7 @@ async def test_boot_without_tenant_lock_returns_disabled() -> None:
     """No tenant lock anywhere (no connection option, no
     MIOT_HARNESS_DATASOURCE_TENANT_LOCK env) must fail loud: the tenant that
     reaches the harness is the org's tenant_client_id, so silently falling back
-    to the profile slug ("mintral") would refuse every real request. Boot must
+    to the profile slug ("orion") would refuse every real request. Boot must
     return disabled with a tenant_lock reason instead."""
     provider = NexoProvider()
     settings = HarnessSettings(
@@ -123,7 +123,7 @@ async def test_boot_invalid_freshness_option_returns_disabled() -> None:
         name="nexo",
         backend="nexo",
         dsn="postgresql://u:p@h:5/db",
-        options={"tenant_lock": "mintral", "freshness_warn_minutes": "abc"},
+        options={"tenant_lock": "orion", "freshness_warn_minutes": "abc"},
     )
     result = await provider.boot(ToolRegistry(), HarnessSettings(), conn)
     assert result.enabled is False
@@ -146,7 +146,7 @@ async def test_boot_pool_failure_returns_disabled_and_no_leak(
         ToolRegistry(),
         HarnessSettings(
             datasource_dsn="postgresql://u:p@h:5/db",
-            datasource_tenant_lock="mintral",
+            datasource_tenant_lock="orion",
         ),
     )
     assert result.enabled is False

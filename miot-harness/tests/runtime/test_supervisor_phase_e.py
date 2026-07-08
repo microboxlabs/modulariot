@@ -4,7 +4,7 @@ Verifies the runtime contract documented in `.ralph/blockers.md` (the
 supervisor-wire-up OPEN entry). Covers:
 - LLM router replaces the keyword router for "auto" mode.
 - Explicit modes (canned / meta / agentic) bypass the LLM router.
-- agentic-mode refusal for non-Mintral tenants surfaces as a record answer.
+- agentic-mode refusal for non-Orion tenants surfaces as a record answer.
 - meta route calls `meta_agent_node` directly (no graph).
 - agentic route calls the agentic graph.
 - conversation_id round-trips via `ConversationStore`.
@@ -73,7 +73,7 @@ def _build_supervisor(
         meta_primer="primer text",
         meta_catalog=_meta_catalog(),
         conversation_store=conversation_store,
-        tenant_lock="mintral",
+        tenant_lock="orion",
     )
 
 
@@ -88,7 +88,7 @@ async def test_explicit_canned_mode_dispatches_to_data_graph(tmp_path: Any) -> N
     )
 
     record = await supervisor.run(
-        UserRequest(message="anything", tenant_id="mintral", mode="canned")
+        UserRequest(message="anything", tenant_id="orion", mode="canned")
     )
     data_graph.ainvoke.assert_awaited_once()
     assert record.answer == "canned answer"
@@ -173,14 +173,14 @@ async def test_explicit_agentic_mode_dispatches_to_agentic_graph(tmp_path: Any) 
         llm_router=_scripted_llm_router("DIRECT"),
     )
     record = await supervisor.run(
-        UserRequest(message="explore", tenant_id="mintral", mode="agentic")
+        UserRequest(message="explore", tenant_id="orion", mode="agentic")
     )
     agentic_graph.ainvoke.assert_awaited_once()
     assert record.answer == "agentic exploration result"
 
 
 @pytest.mark.asyncio
-async def test_explicit_agentic_mode_for_non_mintral_returns_refusal(tmp_path: Any) -> None:
+async def test_explicit_agentic_mode_for_non_orion_returns_refusal(tmp_path: Any) -> None:
     agentic_graph = AsyncMock()
     agentic_graph.ainvoke = AsyncMock(return_value={"answer": "should not run"})
     supervisor = _build_supervisor(
@@ -192,7 +192,7 @@ async def test_explicit_agentic_mode_for_non_mintral_returns_refusal(tmp_path: A
         UserRequest(message="explore", tenant_id="other-tenant", mode="agentic")
     )
     agentic_graph.ainvoke.assert_not_awaited()
-    assert "mintral" in (record.answer or "").lower()
+    assert "orion" in (record.answer or "").lower()
 
 
 @pytest.mark.asyncio
@@ -210,7 +210,7 @@ async def test_auto_mode_uses_llm_router_to_pick_route(tmp_path: Any) -> None:
         llm_router=_scripted_llm_router("DATA_AGENTIC"),
     )
     record = await supervisor.run(
-        UserRequest(message="show me stuff", tenant_id="mintral")  # mode default "auto"
+        UserRequest(message="show me stuff", tenant_id="orion")  # mode default "auto"
     )
     agentic_graph.ainvoke.assert_awaited_once()
     assert record.answer == "routed agentic"
@@ -235,7 +235,7 @@ async def test_conversation_id_round_trips_via_store(tmp_path: Any) -> None:
     record = await supervisor.run(
         UserRequest(
             message="q1",
-            tenant_id="mintral",
+            tenant_id="orion",
             conversation_id="conv-supervisor-1",
         )
     )
@@ -304,7 +304,7 @@ async def test_supervisor_hydrates_prior_messages_into_data_graph_state(
     await supervisor.run(
         UserRequest(
             message="estado del coordinador",
-            tenant_id="mintral",
+            tenant_id="orion",
             conversation_id="conv-hydrate-1",
         )
     )
@@ -324,7 +324,7 @@ async def test_supervisor_hydrates_prior_messages_into_data_graph_state(
     await supervisor.run(
         UserRequest(
             message="tell me more about that",
-            tenant_id="mintral",
+            tenant_id="orion",
             conversation_id="conv-hydrate-1",
         )
     )
@@ -450,7 +450,7 @@ async def test_run_record_events_have_contiguous_monotonic_seq(tmp_path: Any) ->
     )
 
     record = await supervisor.run(
-        UserRequest(message="q", tenant_id="mintral")
+        UserRequest(message="q", tenant_id="orion")
     )
 
     seqs = [e.seq for e in record.events]
@@ -485,7 +485,7 @@ async def test_seq_monotonic_across_agentic_path(tmp_path: Any) -> None:
     )
 
     record = await supervisor.run(
-        UserRequest(message="explore", tenant_id="mintral", mode="agentic")
+        UserRequest(message="explore", tenant_id="orion", mode="agentic")
     )
 
     seqs = [e.seq for e in record.events]

@@ -28,7 +28,7 @@ export interface HarnessSearchResult {
   blocks: HarnessBlock[];
 }
 
-const HARNESS_INTENTS: readonly string[] = ["ask", "navigate", "build"];
+const HARNESS_INTENTS: ReadonlySet<string> = new Set(["ask", "navigate", "build"]);
 
 /** Absolute http(s), or an app-relative path (single leading slash — a
  * protocol-relative `//host` is rejected). */
@@ -40,7 +40,7 @@ function isValidBlock(item: unknown): item is HarnessBlock {
   if (!item || typeof item !== "object") return false;
   const b = item as Record<string, unknown>;
   if (b.type === "intent") {
-    return typeof b.value === "string" && HARNESS_INTENTS.includes(b.value);
+    return typeof b.value === "string" && HARNESS_INTENTS.has(b.value);
   }
   if (b.type === "markdown") return typeof b.value === "string";
   if (b.type === "url") {

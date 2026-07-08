@@ -28,7 +28,7 @@ from miot_harness.tools.registry import ToolRegistry
 
 def _ctx(mode: str = "agentic") -> HarnessContext:
     return HarnessContext(
-        thread_id="t", tenant_id="mintral", user_id="u", mode=mode  # type: ignore[arg-type]
+        thread_id="t", tenant_id="orion", user_id="u", mode=mode  # type: ignore[arg-type]
     )
 
 

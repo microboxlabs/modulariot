@@ -27,7 +27,7 @@ def _descriptor(name: str, *, defaults: bool = True) -> FunctionDescriptor:
                 name="p_tenant",
                 pg_type="text",
                 has_default=defaults,
-                default_expr="'mintral'" if defaults else None,
+                default_expr="'orion'" if defaults else None,
             )
         ],
         returns_kind="table",

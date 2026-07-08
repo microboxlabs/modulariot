@@ -133,7 +133,7 @@ async def test_callback_attribution_survives_high_concurrency() -> None:
 
     async def emit(run_id: str, agent: str) -> str:
         cb = AgentTelemetryCallback(
-            agent_name=agent, run_id=run_id, tenant_id="mintral"
+            agent_name=agent, run_id=run_id, tenant_id="orion"
         )
         model = _model(f"resp-{run_id}").with_config(callbacks=[cb])
         resp = await model.ainvoke([HumanMessage(content=run_id)])

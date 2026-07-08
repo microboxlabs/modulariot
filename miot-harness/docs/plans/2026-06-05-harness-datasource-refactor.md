@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the harness core datasource-agnostic: "Nexo", "Coordinador", and "mintral" live only inside `integrations/nexo/`, behind a `DataSourceProvider` interface selected by `MIOT_HARNESS_DATASOURCE_KIND`.
+**Goal:** Make the harness core datasource-agnostic: "Nexo", "Coordinador", and "orion" live only inside `integrations/nexo/`, behind a `DataSourceProvider` interface selected by `MIOT_HARNESS_DATASOURCE_KIND`.
 
 **Architecture:** A new `datasource/` package defines `DataSourceProvider` (lifecycle) + `DataSourceProfile` (declarative domain values: names, prompts, keywords, thresholds) + a named registry. `integrations/nexo/` becomes the first provider. Core (runtime/agents/api/observability/evals) reads only the profile. Runtime output (tool names, SSE source strings, refusal copy, span names) stays byte-identical because the nexo profile carries today's exact values; the wire-visible breaks are route strings (`nexo_query`→`data_query`), artifact type (`nexo_plan`→`data_plan`), `/health` block key, and the env-var rename.
 
@@ -234,7 +234,7 @@ def test_resolve_nexo_returns_provider_with_profile() -> None:
     assert provider.profile.name == "nexo"
     assert provider.profile.display_name == "Coordinador"
     assert provider.profile.tool_prefix == "coordinador_"
-    assert provider.profile.tenant_lock == "mintral"
+    assert provider.profile.tenant_lock == "orion"
 
 
 def test_resolve_unknown_kind_fails_fast_listing_kinds() -> None:
@@ -332,13 +332,13 @@ def test_profile_values_match_legacy_hardcodes() -> None:
     assert p.source_label == "Coordinador · nexo (Citus DB)"
     assert p.tool_prefix == "coordinador_"
     assert "coordinador" in p.router_keywords
-    assert "mintral" in p.router_keywords
-    assert p.tenant_lock == "mintral"
+    assert "orion" in p.router_keywords
+    assert p.tenant_lock == "orion"
     assert (
         p.tenant_refusal_template.format(
             display_name=p.display_name, lock=p.tenant_lock
         )
-        == "Coordinador is mintral-only. I can't answer for other tenants."
+        == "Coordinador is orion-only. I can't answer for other tenants."
     )
     assert p.freshness_warn_minutes == 30
     assert p.freshness_refuse_minutes == 240
@@ -369,7 +369,7 @@ Note: in Stage 1 the provider still reads the OLD settings names (`nexo_dsn`, `n
 """Nexo: the first DataSourceProvider (Citus/Postgres, Coordinador schema).
 
 This package is the ONLY place in the harness allowed to say
-"Nexo", "Coordinador", or "mintral".
+"Nexo", "Coordinador", or "orion".
 """
 
 from __future__ import annotations
@@ -400,7 +400,7 @@ NEXO_PROFILE = DataSourceProfile(
     router_keywords=frozenset(
         {
             "coordinador",
-            "mintral",
+            "orion",
             "centro de control",
             "cola crítica",
             "cola critica",
@@ -411,7 +411,7 @@ NEXO_PROFILE = DataSourceProfile(
             "fn_dx",
         }
     ),
-    tenant_lock="mintral",
+    tenant_lock="orion",
     tenant_refusal_template=(
         "{display_name} is {lock}-only. I can't answer for other tenants."
     ),
@@ -510,7 +510,7 @@ Expected: FAIL — `ModuleNotFoundError: tests.fixtures.fake_provider`
 """A minimal second DataSourceProvider.
 
 Exists to prove the seam: core runtime/agent tests run against this
-provider so they cannot accidentally depend on Nexo/Coordinador/Mintral
+provider so they cannot accidentally depend on Nexo/Coordinador/Orion
 specifics. Mirrors the eval-stub tool shape used by run_golden.py.
 """
 
@@ -709,14 +709,14 @@ def test_gate_uses_profile_lock_and_template() -> None:
 ### Task 8: agents read profile (prompts, primer, prefix, source, freshness)
 
 **Files:**
-- Modify: `src/miot_harness/agents/filter_expert.py` — system prompt `"You are the Filter Expert for Coordinador (Mintral fleet operations)"` → templated with `profile.display_name`; the two `name.startswith("coordinador_")` checks → `name.startswith(profile.tool_prefix)`
+- Modify: `src/miot_harness/agents/filter_expert.py` — system prompt `"You are the Filter Expert for Coordinador (Orion fleet operations)"` → templated with `profile.display_name`; the two `name.startswith("coordinador_")` checks → `name.startswith(profile.tool_prefix)`
 - Modify: `src/miot_harness/agents/domain_analyst.py` — prompt `"You are the Coordinador Domain Analyst"` → templated; `COORDINADOR_PRIMER` import → `profile.primer`
 - Modify: `src/miot_harness/agents/synthesizer.py` — same pattern; the tenant-refusal helper uses `profile.tenant_refusal_template`; keep ALL Spanish user-facing copy byte-identical
 - Modify: `src/miot_harness/agents/critic.py` — prompt templated
 - Modify: `src/miot_harness/agents/freshness_judge.py` — thresholds from `profile.freshness_*_minutes` (Stage 2: profile wins when present, settings otherwise); `"Coordinador snapshot is stale"` → `f"{profile.display_name} snapshot is stale"`
 - Modify: `src/miot_harness/agents/data_fetcher.py` — `source="Coordinador · nexo (Citus DB)"` → `source=profile.source_label`
 - Modify: `src/miot_harness/runtime/nexo_graph.py` — `build_nexo_graph(..., profile: DataSourceProfile)` required kwarg, passed into every node builder
-- Modify: `src/miot_harness/runtime/agentic_graph.py` — same; system prompt `"You are the Coordinador agentic synthesizer for Mintral fleet operations"` → templated with display_name; `COORDINADOR_PRIMER` import → `profile.primer`
+- Modify: `src/miot_harness/runtime/agentic_graph.py` — same; system prompt `"You are the Coordinador agentic synthesizer for Orion fleet operations"` → templated with display_name; `COORDINADOR_PRIMER` import → `profile.primer`
 - Modify: call sites of `build_nexo_graph` / `build_agentic_graph`: `src/miot_harness/api/server.py` (pass `provider.profile`), `src/miot_harness/evals/run_golden.py` (pass `NEXO_PROFILE` for now — Task 16 generalizes)
 - Tests: existing agent tests pin behavior; add one seam test:
 
@@ -752,7 +752,7 @@ def test_graph_builds_with_fake_profile() -> None:
 
 ```python
 # OLD
-SYSTEM_PROMPT = """You are the Filter Expert for Coordinador (Mintral fleet operations).
+SYSTEM_PROMPT = """You are the Filter Expert for Coordinador (Orion fleet operations).
 ..."""
 
 # NEW
@@ -847,7 +847,7 @@ grep -rl '"nexo_query"\|"nexo_meta"\|"nexo_agentic"\|"nexo_plan"' src/ tests/ \
   | xargs sed -i '' -e 's/"nexo_query"/"data_query"/g; s/"nexo_meta"/"data_meta"/g; s/"nexo_agentic"/"data_agentic"/g; s/"nexo_plan"/"data_plan"/g'
 ```
 
-Also check the **LLM intent-router prompt** (`runtime/intent_router.py`): its route vocabulary must emit the new strings; reword its routing-rule examples from "Coordinador/Mintral" to profile-agnostic phrasing parameterized with `profile.display_name` + `profile.router_keywords` (this is the one prompt where wording legitimately changes — it names routes, and the route names changed).
+Also check the **LLM intent-router prompt** (`runtime/intent_router.py`): its route vocabulary must emit the new strings; reword its routing-rule examples from "Coordinador/Orion" to profile-agnostic phrasing parameterized with `profile.display_name` + `profile.router_keywords` (this is the one prompt where wording legitimately changes — it names routes, and the route names changed).
 
 - [ ] **Step 3: supervisor internals**
 
@@ -1092,14 +1092,14 @@ MIOT_HARNESS_NEXO_EXPLAIN_COST_THRESHOLD) are unchanged."
 - [ ] **Step 1: The gate that proves the goal**
 
 ```bash
-grep -rin "nexo\|coordinador\|mintral" src/miot_harness --exclude-dir=integrations
+grep -rin "nexo\|coordinador\|orion" src/miot_harness --exclude-dir=integrations
 ```
 Expected: **zero matches**. Every hit is a missed reference — fix it (typically: comments, docstrings, log strings missed by the symbol renames).
 
 - [ ] **Step 2: Same sweep over tests** (allowed only under `tests/integrations/nexo/` and imports of `NEXO_PROFILE`/`tests.fixtures`):
 
 ```bash
-grep -rln "nexo\|coordinador\|mintral" -i tests/ | grep -v "tests/integrations/nexo"
+grep -rln "nexo\|coordinador\|orion" -i tests/ | grep -v "tests/integrations/nexo"
 ```
 Inspect each remaining file: legitimate hits are only `from miot_harness.integrations.nexo.provider import NEXO_PROFILE` in eval-related tests. Fix the rest (switch to FakeProvider).
 

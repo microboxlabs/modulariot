@@ -23,7 +23,7 @@ Sources of truth:
 - **When to use:** day-to-day chat. You don't know — or don't care — which
   path is appropriate.
 - **Example questions:**
-  - "What's in stock at Mintral right now?" → routes to canned.
+  - "What's in stock at Orion right now?" → routes to canned.
   - "How does `fn_dx_cola_critica` work?" → routes to meta.
   - "Hi, what can you do?" → routes to direct.
 
@@ -34,7 +34,7 @@ Sources of truth:
   functions (for **nexo**: the `fn_dx_*` Coordinador functions). Deterministic
   SQL, real data, tenant-gated.
 - **Tenant rule:** data-touching, gated by `tenant_lock` (the datasource
-  profile's default; `mintral` for nexo). The mode itself isn't refused at
+  profile's default; `orion` for nexo). The mode itself isn't refused at
   validation, but the underlying tools enforce the tenant lock.
 - **When to use:** you know the answer lives in a curated analytical function
   and you want to skip the router.
@@ -64,7 +64,7 @@ Sources of truth:
 - **What it does:** planner Sonnet + **composable primitives** for open-ended
   exploration. Turn cap is 12 (vs 8 in `canned`), critic is ON by default.
 - **Tenant rule:** **locked-tenant-only** (the datasource's `tenant_lock`;
-  `mintral` for nexo). `resolve_mode()` raises `ModeAccessDenied` at
+  `orion` for nexo). `resolve_mode()` raises `ModeAccessDenied` at
   request-validation time for any off-lock tenant; the supervisor records a
   `mode_access_denied` answer and emits `answer.completed`. The `miot-chat` TUI
   header bar warns in yellow if you set `mode=agentic` on an off-lock tenant.
@@ -96,5 +96,5 @@ Stay on `auto` unless:
   the router picking SQL.
 - You want to **force `canned`** when you already know which curated function
   has the answer (saves a router turn).
-- You want **`agentic`** on `mintral` for genuine exploration that doesn't
+- You want **`agentic`** on `orion` for genuine exploration that doesn't
   map to a single canned function.

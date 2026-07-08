@@ -18,7 +18,7 @@ from miot_harness.tools.registry import ToolRegistry
 
 
 def _ctx() -> HarnessContext:
-    return HarnessContext(thread_id="t", tenant_id="mintral", user_id="u")
+    return HarnessContext(thread_id="t", tenant_id="orion", user_id="u")
 
 
 def _stub_tool(name: str, output_payload: dict[str, Any]) -> HarnessTool:
@@ -157,7 +157,7 @@ async def test_fetcher_denied_permission_records_failure():
         pass
 
     async def _check(ctx, inp):
-        return PermissionResult.deny("Mintral-only")
+        return PermissionResult.deny("Orion-only")
 
     async def _call(ctx, inp, progress):
         return _Out()
@@ -191,7 +191,7 @@ async def test_fetcher_denied_permission_records_failure():
         profile=NEXO_PROFILE,
     )
     assert update.get("failure")
-    assert "Mintral" in update["failure"] or "permission" in update["failure"].lower()
+    assert "Orion" in update["failure"] or "permission" in update["failure"].lower()
 
 
 @pytest.mark.asyncio

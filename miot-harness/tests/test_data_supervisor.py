@@ -13,7 +13,7 @@ def _settings(**overrides: Any) -> HarnessSettings:
 
 
 def _ctx() -> HarnessContext:
-    return HarnessContext(thread_id="t", tenant_id="mintral", user_id="u")
+    return HarnessContext(thread_id="t", tenant_id="orion", user_id="u")
 
 
 def test_no_plan_routes_to_filter_expert():

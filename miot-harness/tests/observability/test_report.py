@@ -36,9 +36,9 @@ def _trace(agent: str, tenant: str, mode: str, cost: float) -> dict[str, object]
 def test_aggregate_by_agent_sums_cost() -> None:
     rows = aggregate_cost(
         [
-            _trace("filter_expert", "mintral", "auto", 0.001),
-            _trace("filter_expert", "mintral", "auto", 0.002),
-            _trace("domain_analyst", "mintral", "auto", 0.010),
+            _trace("filter_expert", "orion", "auto", 0.001),
+            _trace("filter_expert", "orion", "auto", 0.002),
+            _trace("domain_analyst", "orion", "auto", 0.010),
         ],
         by="agent",
     )
@@ -52,24 +52,24 @@ def test_aggregate_by_agent_sums_cost() -> None:
 def test_aggregate_by_tenant_groups_by_tenant_id() -> None:
     rows = aggregate_cost(
         [
-            _trace("a", "mintral", "auto", 0.01),
+            _trace("a", "orion", "auto", 0.01),
             _trace("a", "ams-other", "auto", 0.02),
-            _trace("b", "mintral", "auto", 0.03),
+            _trace("b", "orion", "auto", 0.03),
         ],
         by="tenant",
     )
     by_tenant = {r.key: r for r in rows}
-    assert by_tenant["mintral"].cost_usd == Decimal("0.040000")
+    assert by_tenant["orion"].cost_usd == Decimal("0.040000")
     assert by_tenant["ams-other"].cost_usd == Decimal("0.020000")
 
 
 def test_aggregate_by_mode_splits_canned_vs_agentic() -> None:
     rows = aggregate_cost(
         [
-            _trace("a", "mintral", "canned", 0.01),
-            _trace("a", "mintral", "agentic", 0.05),
-            _trace("a", "mintral", "agentic", 0.04),
-            _trace("a", "mintral", "meta", 0.001),
+            _trace("a", "orion", "canned", 0.01),
+            _trace("a", "orion", "agentic", 0.05),
+            _trace("a", "orion", "agentic", 0.04),
+            _trace("a", "orion", "meta", 0.001),
         ],
         by="mode",
     )
@@ -82,7 +82,7 @@ def test_aggregate_by_mode_splits_canned_vs_agentic() -> None:
 def test_aggregate_skips_traces_without_cost_attr() -> None:
     rows = aggregate_cost(
         [
-            _trace("a", "mintral", "auto", 0.0),
+            _trace("a", "orion", "auto", 0.0),
             {"attributes": {"modular.agent": "b"}},  # cost missing → skip
         ],
         by="agent",
@@ -94,9 +94,9 @@ def test_aggregate_skips_traces_without_cost_attr() -> None:
 def test_aggregate_sorts_by_cost_descending() -> None:
     rows = aggregate_cost(
         [
-            _trace("low", "mintral", "auto", 0.001),
-            _trace("high", "mintral", "auto", 1.0),
-            _trace("mid", "mintral", "auto", 0.1),
+            _trace("low", "orion", "auto", 0.001),
+            _trace("high", "orion", "auto", 1.0),
+            _trace("mid", "orion", "auto", 0.1),
         ],
         by="agent",
     )
@@ -110,7 +110,7 @@ def test_aggregate_rejects_unknown_grouping_dimension() -> None:
 
 def test_aggregate_returns_cost_row_with_token_totals() -> None:
     rows = aggregate_cost(
-        [_trace("a", "mintral", "auto", 0.01)],
+        [_trace("a", "orion", "auto", 0.01)],
         by="agent",
     )
     assert isinstance(rows[0], CostRow)
@@ -151,7 +151,7 @@ def _langfuse_trace_fixture(**overrides: object) -> dict[str, object]:
         "name": "nexo.run",
         "userId": "odtorres",
         "sessionId": "conv-1",
-        "tags": ["tenant:mintral", "mode:auto", "agent:filter_expert", "route:data_query"],
+        "tags": ["tenant:orion", "mode:auto", "agent:filter_expert", "route:data_query"],
         "metadata": {},
         "totalCost": 0.0521,
         "timestamp": "2026-05-13T10:00:00Z",
@@ -200,7 +200,7 @@ def test_project_langfuse_trace_marks_multi_agent_with_sentinel() -> None:
     """
 
     row = _langfuse_trace_fixture(
-        tags=["agent:filter_expert", "agent:synthesizer", "tenant:mintral"]
+        tags=["agent:filter_expert", "agent:synthesizer", "tenant:orion"]
     )
     attrs = _project_langfuse_trace(row)["attributes"]
     assert attrs["modular.agent"] == "(multi)"

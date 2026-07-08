@@ -6,6 +6,7 @@ import {
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../../utils/tenant-scope";
 import { logger } from "@/lib/logger";
+import { toSearchResult } from "./search-blocks";
 
 const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
 
@@ -14,67 +15,6 @@ const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
  * Multi-turn agentic runs (planner + ~5 primitive calls + verify + synth)
  * measure ~35-45s against the acs connection, so 30s aborted real answers. */
 const HARNESS_SEARCH_TIMEOUT_MS = 90_000;
-
-export type HarnessIntent = "ask" | "navigate" | "build";
-
-export type HarnessBlock =
-  | { type: "intent"; value: HarnessIntent }
-  | { type: "markdown"; value: string }
-  | { type: "url"; value: { url: string; name: string } };
-
-export interface HarnessSearchResult {
-  id: string;
-  label: string;
-  sublabel?: string;
-  intent?: HarnessIntent;
-  blocks: HarnessBlock[];
-}
-
-const HARNESS_INTENTS: ReadonlySet<string> = new Set(["ask", "navigate", "build"]);
-
-/** Absolute http(s), or an app-relative path (single leading slash — a
- * protocol-relative `//host` is rejected). */
-function isSafeHref(url: string): boolean {
-  return /^https?:\/\//i.test(url) || (url.startsWith("/") && !url.startsWith("//"));
-}
-
-function isValidBlock(item: unknown): item is HarnessBlock {
-  if (!item || typeof item !== "object") return false;
-  const b = item as Record<string, unknown>;
-  if (b.type === "intent") {
-    return typeof b.value === "string" && HARNESS_INTENTS.has(b.value);
-  }
-  if (b.type === "markdown") return typeof b.value === "string";
-  if (b.type === "url") {
-    if (!b.value || typeof b.value !== "object") return false;
-    const v = b.value as Record<string, unknown>;
-    return (
-      typeof v.url === "string" &&
-      isSafeHref(v.url) &&
-      typeof v.name === "string"
-    );
-  }
-  return false;
-}
-
-function parseAnswerBlocks(answer: string): HarnessBlock[] {
-  try {
-    const parsed: unknown = JSON.parse(answer);
-    if (Array.isArray(parsed)) {
-      return parsed.filter(isValidBlock);
-    }
-  } catch {
-    // fall through to plain-text fallback
-  }
-  return [{ type: "markdown", value: answer }];
-}
-
-function buildLabel(blocks: HarnessBlock[]): string {
-  const first = blocks.find((b): b is Extract<HarnessBlock, { type: "markdown" }> => b.type === "markdown");
-  const raw = first?.value ?? "";
-  const plain = raw.replace(/[*_`#[\]]/g, "").trim();
-  return plain.slice(0, 120) + (plain.length > 120 ? "…" : "");
-}
 
 export async function POST(request: Request) {
   if (!MIOT_HARNESS_HOST) {
@@ -141,21 +81,7 @@ export async function POST(request: Request) {
 
     if (!answer) return NextResponse.json({ results: [] });
 
-    const parsed = parseAnswerBlocks(answer);
-    // The skill emits the intent as a leading typed block — surface it as a
-    // field and keep only renderable blocks.
-    const intent = parsed.find(
-      (b): b is Extract<HarnessBlock, { type: "intent" }> => b.type === "intent",
-    )?.value;
-    const blocks = parsed.filter((b) => b.type !== "intent");
-    const result: HarnessSearchResult = {
-      id: `harness:${run_id}`,
-      label: buildLabel(blocks),
-      ...(intent && { intent }),
-      blocks,
-    };
-
-    return NextResponse.json({ results: [result] });
+    return NextResponse.json({ results: [toSearchResult(run_id, answer)] });
   } catch (err: unknown) {
     const isAbort = (err as { name?: string }).name === "AbortError";
     if (!isAbort) {

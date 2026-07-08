@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { BsStars } from "react-icons/bs";
 import type { SpotlightItem } from "./types";
-import type { HarnessSearchResult } from "@/app/api/harness/search/route";
+import type { HarnessSearchResult } from "@/app/api/harness/search/search-blocks";
 
 function toSpotlightItem(r: HarnessSearchResult): SpotlightItem {
   return {

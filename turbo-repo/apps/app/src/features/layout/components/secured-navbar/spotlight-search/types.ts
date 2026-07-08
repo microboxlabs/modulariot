@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import type { HarnessBlock, HarnessIntent } from "@/app/api/harness/search/route";
+import type { HarnessBlock, HarnessIntent } from "@/app/api/harness/search/search-blocks";
 
 export type { HarnessBlock, HarnessIntent };
 

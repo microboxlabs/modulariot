@@ -220,6 +220,8 @@ class HarnessSupervisor:
             self._close_bus(ctx.run_id)
             return record
 
+        route = self._apply_catalog_route_override(route)
+
         progress(
             HarnessEvent(
                 run_id=ctx.run_id,
@@ -534,6 +536,33 @@ class HarnessSupervisor:
         # Plan 12 default: keyword router on the message; explicit modes
         # are ignored because the keyword router doesn't know about them.
         return self.router.route(request.message)
+
+    def _apply_catalog_route_override(self, route: RouteResult) -> RouteResult:
+        """Force DATA_QUERY → DATA_AGENTIC on primitives-only datasources.
+
+        The canned DATA_QUERY seat (`filter_expert`) picks ONE curated data
+        function. A datasource with no curated catalog (generic_pg: only
+        composable SQL primitives) has nothing for it to pick, so `filter_expert`
+        dead-ends — it emits an off-contract step and the run falls to the
+        onboarding fallback. Every data question on such a source is agentic
+        (composable-primitive) exploration. The intent router already drops
+        DATA_QUERY from its menu for these datasources; this is the deterministic
+        safety net that also catches an explicit `mode=canned` request and any
+        keyword-fallback DATA_QUERY the LLM prompt can't prevent.
+        """
+        if (
+            route.route == HarnessRoute.DATA_QUERY
+            and self.profile is not None
+            and not self.profile.has_curated_catalog
+        ):
+            return RouteResult(
+                route=HarnessRoute.DATA_AGENTIC,
+                reason=(
+                    f"{route.reason} → remapped to DATA_AGENTIC "
+                    f"({self.profile.name} has no curated catalog)"
+                ),
+            )
+        return route
 
     async def _run_storytelling(
         self,

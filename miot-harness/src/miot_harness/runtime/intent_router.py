@@ -33,10 +33,10 @@ logger = logging.getLogger(__name__)
 _DEFAULT_DISPLAY_NAME = "the data source"
 _DEFAULT_KEYWORD_EXAMPLES = "operational status, KPIs, fleet metrics"
 
-_SYSTEM_PROMPT_TEMPLATE = """You are the intent router for the ModularIoT harness.
-
-Classify the user's message into EXACTLY ONE of these routes:
-
+# Data-route block for a datasource WITH a curated catalog (Nexo's L1/L2/L3/VT
+# `fn_dx_*` seats): DATA_QUERY maps a canned question to one curated function,
+# and DATA_AGENTIC is the escape hatch for what the catalog doesn't cover.
+_CURATED_DATA_ROUTES = """\
 - DATA_QUERY: A canned data question about {display_name} that maps
   cleanly to a curated data function. Examples are phrased around its
   vocabulary: {keyword_examples}.
@@ -46,7 +46,30 @@ Classify the user's message into EXACTLY ONE of these routes:
 - DATA_AGENTIC: A free-form exploration of {display_name} data that may
   need composable primitives (describe/select/grep) — the canned
   catalog doesn't cover it. Examples: "show me rows where some_metric
-  > 6", "tell me more about that", multi-turn drilldowns.
+  > 6", "tell me more about that", multi-turn drilldowns."""
+
+# Data-route block for a PRIMITIVES-ONLY datasource (generic_pg): there is NO
+# curated catalog, so DATA_QUERY is omitted entirely. Every data lookup —
+# including a concrete single-record lookup like "tell me about service
+# 1585735" — is DATA_AGENTIC. Offering DATA_QUERY here mis-primes the LLM into
+# inventing a curated function that doesn't exist, dead-ending the run in the
+# canned filter_expert seat.
+_PRIMITIVES_DATA_ROUTES = """\
+- DATA_META: A schema/primer/introspection question that needs no SQL.
+  Examples: "what data do you have?", "how is this field calculated?",
+  "what columns does this table have?".
+- DATA_AGENTIC: ANY data question about {display_name} — it has no canned
+  catalog and is queried only with composable primitives
+  (describe/select/grep/query), so every lookup, count, filter and
+  drilldown takes this route. Examples: "tell me about service 1585735",
+  "show me rows where some_metric > 6", "how many X last week", "tell me
+  more about that"."""
+
+_SYSTEM_PROMPT_TEMPLATE = """You are the intent router for the ModularIoT harness.
+
+Classify the user's message into EXACTLY ONE of these routes:
+
+{data_routes}
 - STORYTELLING_RUN: User wants a written narrative or dashboard draft.
   Examples: "write a story about", "draft a status update".
 - DIRECT: Greetings, small talk, simple chat where no data or narrative
@@ -67,11 +90,16 @@ def _render_system_prompt(profile: DataSourceProfile | None) -> str:
     The route vocabulary is profile-agnostic; only the example wording is
     parameterized via the profile's `display_name` and `router_keywords`
     so the prompt names the active datasource instead of hardcoding it.
+
+    A datasource with no curated catalog (`has_curated_catalog=False`) drops
+    the DATA_QUERY route from the menu — it has no canned functions, so every
+    data question is DATA_AGENTIC (composable-primitive) exploration.
     """
 
     if profile is None:
         display_name = _DEFAULT_DISPLAY_NAME
         keyword_examples = _DEFAULT_KEYWORD_EXAMPLES
+        has_curated_catalog = True
     else:
         display_name = profile.display_name
         # Sorted for deterministic rendering; the full keyword set keeps
@@ -79,9 +107,11 @@ def _render_system_prompt(profile: DataSourceProfile | None) -> str:
         keyword_examples = ", ".join(sorted(profile.router_keywords)) or (
             _DEFAULT_KEYWORD_EXAMPLES
         )
-    return _SYSTEM_PROMPT_TEMPLATE.format(
-        display_name=display_name, keyword_examples=keyword_examples
-    )
+        has_curated_catalog = profile.has_curated_catalog
+    data_routes = (
+        _CURATED_DATA_ROUTES if has_curated_catalog else _PRIMITIVES_DATA_ROUTES
+    ).format(display_name=display_name, keyword_examples=keyword_examples)
+    return _SYSTEM_PROMPT_TEMPLATE.format(data_routes=data_routes)
 
 _JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
 

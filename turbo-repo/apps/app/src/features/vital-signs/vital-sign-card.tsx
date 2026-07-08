@@ -58,19 +58,21 @@ export default function VitalSignCard({
       title={symptom.name}
       description={symptom.desc}
       headerAccessory={
-        <ToggleSwitch
-          checked={checked}
-          onChange={onToggleChange}
-          disabled={!symptom.ready}
-          sizing="sm"
-        />
-      }
-      badge={
         <div className="flex items-center gap-3">
-          <Badge color={badgeColorForCat(symptom.cat)}>{cat.label}</Badge>
+          <ToggleSwitch
+            checked={checked}
+            onChange={onToggleChange}
+            disabled={!symptom.ready}
+            sizing="sm"
+          />
+          {/* Its tooltip trigger is a real <button>, so this can't live
+              inside the header <button> above (badge) without nesting
+              buttons — kept here instead, alongside the toggle. */}
           <SeverityDots ceiling={symptom.ceiling} />
         </div>
       }
+      headerAccessoryOffsetClassName="pl-32"
+      badge={<Badge color={badgeColorForCat(symptom.cat)}>{cat.label}</Badge>}
     >
       {!hasForm ? (
         <p className="text-sm text-gray-400 dark:text-gray-500">

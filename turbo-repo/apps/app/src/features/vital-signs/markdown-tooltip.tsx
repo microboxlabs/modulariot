@@ -14,7 +14,7 @@ export default function MarkdownTooltip({
   content: string;
   children: ReactNode;
 }>) {
-  const triggerRef = useRef<HTMLSpanElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [visible, setVisible] = useState(false);
   const coordsRef = useRef({ top: 0, left: 0 });
@@ -74,21 +74,17 @@ export default function MarkdownTooltip({
 
   return (
     <>
-      {/* Not role="button": this only shows a tooltip on hover/focus (no
-          onClick), and it's nested inside other buttons in some usages
-          (e.g. SeverityDots inside VitalSignCard's header), so it must stay
-          a plain focusable element rather than a native <button>. */}
-      <span
+      <button
         ref={triggerRef}
-        className="inline-flex"
-        tabIndex={0}
+        type="button"
+        className="inline-flex appearance-none border-0 bg-transparent p-0"
         onMouseEnter={show}
         onMouseLeave={hide}
         onFocus={show}
         onBlur={hide}
       >
         {children}
-      </span>
+      </button>
       {visible &&
         createPortal(
           <div

@@ -15,6 +15,10 @@ interface ExpandableSectionProps {
    * header <button> so it isn't a nested button, and clicks on it don't
    * expand/collapse the section. */
   readonly headerAccessory?: ReactNode;
+  /** Left padding class reserved on the header <button> for headerAccessory,
+   * so wider accessories (e.g. a toggle plus another control) don't overlap
+   * the title. Defaults to enough space for a single small control. */
+  readonly headerAccessoryOffsetClassName?: string;
   readonly children: ReactNode;
   readonly defaultExpanded?: boolean;
   readonly status?: SectionStatus;
@@ -27,6 +31,7 @@ export default function ExpandableSection({
   description,
   badge,
   headerAccessory,
+  headerAccessoryOffsetClassName = "pl-14",
   children,
   defaultExpanded = false,
   status,
@@ -69,7 +74,7 @@ export default function ExpandableSection({
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
           className={`w-full flex items-center gap-3 p-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-            headerAccessory ? "pl-14" : ""
+            headerAccessory ? headerAccessoryOffsetClassName : ""
           }`}
           aria-expanded={isExpanded}
         >

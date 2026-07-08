@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import {
   createMiotHarnessClient,
   TERMINAL_EVENT_TYPES,
-  type HarnessEvent,
 } from "@microboxlabs/miot-harness-client";
 import { requireAuth } from "../../../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../../../utils/tenant-scope";
@@ -20,8 +19,10 @@ import { toSearchResult } from "../search-blocks";
  *
  * Emitted frames (SSE `event:` names):
  * - `search.accepted`  — `{ run_id }`, sent as soon as the run is created.
- * - forwarded harness events (whitelist below) — payload is the raw
- *   `HarnessEvent` JSON.
+ * - forwarded harness events (whitelist below) — payload is the event's own
+ *   `data` object (flat: `{tool}`, `{route}`, `{delta}` …); the envelope's
+ *   `type`/`seq` already travel on the SSE `event:`/`id:` lines and the rest
+ *   is unused by the UI, so every frame carries one uniform payload shape.
  * - `search.result`    — `{ results: HarnessSearchResult[] }`, the same
  *   shape the buffered route returns, emitted after the terminal event.
  * - `search.error`     — `{ error: string }` when the relay fails mid-run.
@@ -125,7 +126,7 @@ export async function POST(request: Request) {
           signal: controller.signal,
         })) {
           if (FORWARDED_EVENTS.has(event.type)) {
-            send(event.type, event satisfies HarnessEvent, event.seq);
+            send(event.type, event.data, event.seq);
           }
           if (TERMINAL_EVENT_TYPES.has(event.type)) break;
         }

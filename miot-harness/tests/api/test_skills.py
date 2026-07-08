@@ -73,9 +73,9 @@ def test_skills_tenant_query_scopes_results() -> None:
             LoadedSkill(
                 skill=PlaybookSkill(
                     kind="playbook",
-                    id="mintral-pb",
-                    name="Mintral",
-                    scope={"kind": "tenant", "tenant_id": "mintral"},  # type: ignore[arg-type]
+                    id="orion-pb",
+                    name="Orion",
+                    scope={"kind": "tenant", "tenant_id": "orion"},  # type: ignore[arg-type]
                 ),
                 source_path="/w/m.yaml",
             ),
@@ -84,7 +84,7 @@ def test_skills_tenant_query_scopes_results() -> None:
     app = create_app()
     with TestClient(app) as client:
         app.state.harness.context_skills = bundle
-        mintral = {s["id"] for s in client.get("/skills?tenant=mintral").json()}
+        orion = {s["id"] for s in client.get("/skills?tenant=orion").json()}
         acme = {s["id"] for s in client.get("/skills?tenant=acme").json()}
-    assert mintral == {"global-pb", "mintral-pb"}
+    assert orion == {"global-pb", "orion-pb"}
     assert acme == {"global-pb"}

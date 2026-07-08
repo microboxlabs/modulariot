@@ -20,7 +20,7 @@ from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.permissions import PermissionDecision
 
 
-def _ctx(tenant_id: str = "mintral") -> HarnessContext:
+def _ctx(tenant_id: str = "orion") -> HarnessContext:
     return HarnessContext(thread_id="t", tenant_id=tenant_id, user_id="u")
 
 
@@ -36,7 +36,7 @@ def _table_descriptor() -> FunctionDescriptor:
         ),
         args=[
             FunctionArg(
-                name="p_tenant", pg_type="text", has_default=True, default_expr="'mintral'"
+                name="p_tenant", pg_type="text", has_default=True, default_expr="'orion'"
             ),
             FunctionArg(
                 name="p_window_hours", pg_type="integer", has_default=True, default_expr="24"
@@ -67,17 +67,17 @@ def _json_descriptor() -> FunctionDescriptor:
 
 
 def test_tool_name_strips_fn_dx_prefix():
-    tool = build_nexo_tool(_table_descriptor(), pool=MagicMock(), tenant_lock="mintral")
+    tool = build_nexo_tool(_table_descriptor(), pool=MagicMock(), tenant_lock="orion")
     assert tool.name == "coordinador_centro_control"
 
 
 def test_description_includes_shared_filter_primer():
-    tool = build_nexo_tool(_table_descriptor(), pool=MagicMock(), tenant_lock="mintral")
+    tool = build_nexo_tool(_table_descriptor(), pool=MagicMock(), tenant_lock="orion")
     assert SHARED_FILTER_PRIMER in tool.description
 
 
 def test_meta_description_renders_title_body_meta_hints():
-    tool = build_nexo_tool(_table_descriptor(), pool=MagicMock(), tenant_lock="mintral")
+    tool = build_nexo_tool(_table_descriptor(), pool=MagicMock(), tenant_lock="orion")
     desc = tool.description
     assert "Centro de control" in desc
     assert "Top-level KPI summary" in desc
@@ -86,20 +86,20 @@ def test_meta_description_renders_title_body_meta_hints():
 
 
 def test_layer_prefix_description_renders_layer_tag():
-    tool = build_nexo_tool(_json_descriptor(), pool=MagicMock(), tenant_lock="mintral")
+    tool = build_nexo_tool(_json_descriptor(), pool=MagicMock(), tenant_lock="orion")
     assert "[Layer L3]" in tool.description
     assert "per-service KPI" in tool.description
 
 
 def test_input_model_fields_optional_when_default_present():
-    tool = build_nexo_tool(_table_descriptor(), pool=MagicMock(), tenant_lock="mintral")
+    tool = build_nexo_tool(_table_descriptor(), pool=MagicMock(), tenant_lock="orion")
     # Should be fully constructible with no input — both args have defaults
     model = tool.input_model()
     assert model.model_dump() == {"p_tenant": None, "p_window_hours": None}
 
 
 def test_input_model_field_required_when_no_default():
-    tool = build_nexo_tool(_json_descriptor(), pool=MagicMock(), tenant_lock="mintral")
+    tool = build_nexo_tool(_json_descriptor(), pool=MagicMock(), tenant_lock="orion")
     # p_servicio_id is required (no default)
     with pytest.raises(ValidationError):
         tool.input_model()
@@ -121,7 +121,7 @@ def test_input_model_pg_type_to_python_mapping():
         returns_kind="json",
         returns_columns=[],
     )
-    tool = build_nexo_tool(descriptor, pool=MagicMock(), tenant_lock="mintral")
+    tool = build_nexo_tool(descriptor, pool=MagicMock(), tenant_lock="orion")
     fields = tool.input_model.model_fields
     # pydantic exposes annotation under .annotation
     assert "p_text" in fields
@@ -132,16 +132,16 @@ def test_input_model_pg_type_to_python_mapping():
 
 @pytest.mark.asyncio
 async def test_check_permission_denies_cross_tenant():
-    tool = build_nexo_tool(_table_descriptor(), pool=MagicMock(), tenant_lock="mintral")
+    tool = build_nexo_tool(_table_descriptor(), pool=MagicMock(), tenant_lock="orion")
     decision = await tool.check_permission(_ctx(tenant_id="demo-tenant"), tool.input_model())
     assert decision.decision == PermissionDecision.DENY
-    assert "Mintral" in decision.reason or "mintral" in decision.reason.lower()
+    assert "Orion" in decision.reason or "orion" in decision.reason.lower()
 
 
 @pytest.mark.asyncio
 async def test_check_permission_allows_locked_tenant():
-    tool = build_nexo_tool(_table_descriptor(), pool=MagicMock(), tenant_lock="mintral")
-    decision = await tool.check_permission(_ctx(tenant_id="mintral"), tool.input_model())
+    tool = build_nexo_tool(_table_descriptor(), pool=MagicMock(), tenant_lock="orion")
+    decision = await tool.check_permission(_ctx(tenant_id="orion"), tool.input_model())
     assert decision.decision == PermissionDecision.ALLOW
 
 
@@ -186,7 +186,7 @@ async def test_invoke_runs_sql_and_lifts_metadata_into_event():
         }
     ]
     pool = _make_pool_with_rows(rows)
-    tool = build_nexo_tool(_table_descriptor(), pool=pool, tenant_lock="mintral")
+    tool = build_nexo_tool(_table_descriptor(), pool=pool, tenant_lock="orion")
     progress_events: list[Any] = []
 
     output = await tool.invoke(_ctx(), {}, progress_events.append)
@@ -209,7 +209,7 @@ async def test_invoke_truncates_long_row_lists():
     refreshed = datetime(2026, 5, 8, 10, 0, tzinfo=UTC)
     rows = [{"servicio_id": i, "refreshed_at_servicios": refreshed} for i in range(12)]
     pool = _make_pool_with_rows(rows)
-    tool = build_nexo_tool(_table_descriptor(), pool=pool, tenant_lock="mintral")
+    tool = build_nexo_tool(_table_descriptor(), pool=pool, tenant_lock="orion")
     events: list[Any] = []
 
     output = await tool.invoke(_ctx(), {}, events.append)
@@ -242,7 +242,7 @@ def test_text_args_coerce_numeric_input():
         returns_kind="table",
         returns_columns=[],
     )
-    tool = build_nexo_tool(descriptor, pool=MagicMock(), tenant_lock="mintral")
+    tool = build_nexo_tool(descriptor, pool=MagicMock(), tenant_lock="orion")
 
     parsed = tool.input_model.model_validate({"p_service_code": 1643006})
     assert parsed.p_service_code == "1643006"
@@ -302,6 +302,6 @@ async def test_invoke_uses_freshest_refreshed_at_across_rows():
     cm.__aexit__ = AsyncMock(return_value=None)
     pool.acquire = MagicMock(return_value=cm)
 
-    tool = build_nexo_tool(_table_descriptor(), pool=pool, tenant_lock="mintral")
+    tool = build_nexo_tool(_table_descriptor(), pool=pool, tenant_lock="orion")
     output = await tool.invoke(_ctx(), {}, lambda e: None)
     assert output.model_dump()["refreshed_at"] == fresh

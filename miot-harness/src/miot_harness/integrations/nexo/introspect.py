@@ -131,7 +131,7 @@ def _split_args(signature: str) -> list[FunctionArg]:
     Format examples:
       ""                                      → []
       "p_tenant text"                         → 1 arg, no default
-      "p_tenant text DEFAULT 'mintral'"       → 1 arg, default 'mintral'
+      "p_tenant text DEFAULT 'orion'"       → 1 arg, default 'orion'
       "p_a int DEFAULT 1, p_b text"           → 2 args
     """
     if not signature.strip():

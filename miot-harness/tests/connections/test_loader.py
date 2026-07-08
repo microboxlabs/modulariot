@@ -15,7 +15,7 @@ name: nexo
 backend: nexo
 dsn_env: TEST_NEXO_DSN
 options:
-  tenant_lock: mintral
+  tenant_lock: orion
   freshness_refuse_minutes: 240
 capabilities:
   curated: true
@@ -44,7 +44,7 @@ def test_file_source_parses_connection(tmp_path: Path, monkeypatch) -> None:
     assert c.dsn == "postgresql://u:p@h:5432/db"
     assert c.scope == "global"
     assert c.tenant_id is None
-    assert c.options["tenant_lock"] == "mintral"
+    assert c.options["tenant_lock"] == "orion"
     assert c.options["freshness_refuse_minutes"] == 240
     assert c.capabilities == {"curated": True, "generic_query": False}
     assert c.primer.strip() == "Coordinador primer body."
@@ -153,7 +153,7 @@ def test_load_connections_synthesizes_from_legacy_env_when_no_files() -> None:
     settings = HarnessSettings(
         datasource_kind="nexo",
         datasource_dsn="postgresql://u:p@h:5432/db",
-        datasource_tenant_lock="mintral",
+        datasource_tenant_lock="orion",
     )
     result = load_connections(settings, source=_EmptySource())
     assert len(result.connections) == 1
@@ -161,7 +161,7 @@ def test_load_connections_synthesizes_from_legacy_env_when_no_files() -> None:
     assert c.name == "nexo"
     assert c.backend == "nexo"
     assert c.dsn == "postgresql://u:p@h:5432/db"
-    assert c.options["tenant_lock"] == "mintral"
+    assert c.options["tenant_lock"] == "orion"
     assert c.source_path == "<legacy-env>"
 
 

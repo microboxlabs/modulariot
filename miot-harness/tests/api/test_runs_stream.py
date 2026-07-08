@@ -244,9 +244,9 @@ async def test_stream_receives_live_events_during_in_flight(
         harness = app.state.harness
         harness.data_graph = data_graph
         # No LLM router → keyword router picks DATA_QUERY when the message
-        # contains a keyword. Easiest: use a Mintral-related keyword.
+        # contains a keyword. Easiest: use a Orion-related keyword.
         # Looking at router.py for an actual DATA_QUERY trigger word.
-        message = "mintral status"  # keyword router routes this to DATA_QUERY
+        message = "orion status"  # keyword router routes this to DATA_QUERY
 
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),

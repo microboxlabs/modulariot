@@ -26,7 +26,7 @@ from miot_harness.runtime.tool import HarnessTool
 from miot_harness.tools.registry import ToolRegistry
 
 
-def _ctx(run_id: str, tenant: str = "mintral") -> HarnessContext:
+def _ctx(run_id: str, tenant: str = "orion") -> HarnessContext:
     return HarnessContext(run_id=run_id, thread_id="t", tenant_id=tenant, user_id="u")
 
 
@@ -123,7 +123,7 @@ async def test_graph_emits_per_agent_spans_with_run_attribution(
         attrs = dict(span.attributes or {})
         if attrs.get("modular.agent"):
             assert attrs.get("modular.run_id") == "run_a3_test_001", span.name
-            assert attrs.get("modular.tenant_id") == "mintral", span.name
+            assert attrs.get("modular.tenant_id") == "orion", span.name
 
 
 @pytest.mark.asyncio
@@ -167,5 +167,5 @@ async def test_root_nexo_run_span_parents_per_agent_spans(
     assert root is not None, "nexo.run root span not emitted"
     attrs = dict(root.attributes or {})
     assert attrs["modular.run_id"] == "run_root_span_test"
-    assert attrs["modular.tenant_id"] == "mintral"
+    assert attrs["modular.tenant_id"] == "orion"
     assert attrs["gen_ai.operation.name"] == "nexo.run"

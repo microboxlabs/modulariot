@@ -14,7 +14,7 @@ from miot_harness.runtime.plan import DataEvidence
 
 
 def _ctx() -> HarnessContext:
-    return HarnessContext(thread_id="t", tenant_id="mintral", user_id="u")
+    return HarnessContext(thread_id="t", tenant_id="orion", user_id="u")
 
 
 def _ev(refreshed=None, is_stale=False) -> DataEvidence:
@@ -109,9 +109,9 @@ async def test_planning_failure_does_not_leak_snapshot_retry_advice():
 
 
 @pytest.mark.asyncio
-async def test_synthesizes_tenant_refusal_for_non_mintral():
-    """A non-Mintral tenant context with no evidence is rendered as a
-    fixed Mintral-only refusal (also no LLM call)."""
+async def test_synthesizes_tenant_refusal_for_non_orion():
+    """A non-Orion tenant context with no evidence is rendered as a
+    fixed Orion-only refusal (also no LLM call)."""
     state = {
         "user_message": "for client X?",
         "ctx": HarnessContext(thread_id="t", tenant_id="demo-tenant", user_id="u"),
@@ -125,7 +125,7 @@ async def test_synthesizes_tenant_refusal_for_non_mintral():
         state, model=model, progress=events.append, profile=NEXO_PROFILE
     )
     assert update["answer"]
-    assert "Mintral" in update["answer"] or "mintral" in update["answer"].lower()
+    assert "Orion" in update["answer"] or "orion" in update["answer"].lower()
 
 
 @pytest.mark.asyncio

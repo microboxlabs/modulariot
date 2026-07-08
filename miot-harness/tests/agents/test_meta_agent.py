@@ -47,7 +47,7 @@ async def test_meta_agent_answers_from_primer_and_catalog() -> None:
     delta = await meta_agent_node(
         {"user_message": "what data do you have available?"},
         model=model,
-        primer="Mintral fleet operations primer text",
+        primer="Orion fleet operations primer text",
         catalog=_catalog_fixture(),
     )
     assert "fn_dx_centro_control" in delta["answer"]

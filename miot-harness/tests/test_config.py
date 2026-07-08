@@ -43,7 +43,7 @@ def test_datasource_and_agents_settings_from_env(monkeypatch):
     monkeypatch.setenv(
         "MIOT_HARNESS_DATASOURCE_DSN", "postgresql://harness:secret@db:6432/citus"
     )
-    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_TENANT_LOCK", "mintral")
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_TENANT_LOCK", "orion")
     monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_FRESHNESS_WARN_MINUTES", "15")
     monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_FRESHNESS_REFUSE_MINUTES", "60")
     monkeypatch.setenv("MIOT_HARNESS_AGENTS_MAX_TURNS", "12")
@@ -54,7 +54,7 @@ def test_datasource_and_agents_settings_from_env(monkeypatch):
     settings = HarnessSettings()
 
     assert settings.datasource_dsn == "postgresql://harness:secret@db:6432/citus"
-    assert settings.datasource_tenant_lock == "mintral"
+    assert settings.datasource_tenant_lock == "orion"
     assert settings.datasource_freshness_warn_minutes == 15
     assert settings.datasource_freshness_refuse_minutes == 60
     assert settings.agents_max_turns == 12
@@ -196,10 +196,10 @@ def test_debug_tenant_allowed_trims_both_sides():
     so accidental whitespace on either side doesn't produce a silent
     false-negative match.
     """
-    settings = HarnessSettings(allow_debug_tenants=" mintral-dev , mintral-stg ")
-    assert settings.debug_tenant_allowed("mintral-dev") is True
-    assert settings.debug_tenant_allowed("  mintral-dev  ") is True
-    assert settings.debug_tenant_allowed("\tmintral-stg\n") is True
+    settings = HarnessSettings(allow_debug_tenants=" orion-dev , orion-stg ")
+    assert settings.debug_tenant_allowed("orion-dev") is True
+    assert settings.debug_tenant_allowed("  orion-dev  ") is True
+    assert settings.debug_tenant_allowed("\torion-stg\n") is True
     assert settings.debug_tenant_allowed("unauthorized") is False
     assert settings.debug_tenant_allowed("") is False
     assert settings.debug_tenant_allowed("   ") is False
@@ -207,7 +207,7 @@ def test_debug_tenant_allowed_trims_both_sides():
 
 def test_debug_tenant_allowed_denies_when_unset():
     settings = HarnessSettings(allow_debug_tenants=None)
-    assert settings.debug_tenant_allowed("mintral-dev") is False
+    assert settings.debug_tenant_allowed("orion-dev") is False
 
 
 def test_empty_tenant_lock_rejected_at_boot(monkeypatch: pytest.MonkeyPatch) -> None:

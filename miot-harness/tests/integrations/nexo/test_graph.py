@@ -17,7 +17,7 @@ from miot_harness.runtime.tool import HarnessTool
 from miot_harness.tools.registry import ToolRegistry
 
 
-def _ctx(tenant: str = "mintral") -> HarnessContext:
+def _ctx(tenant: str = "orion") -> HarnessContext:
     return HarnessContext(thread_id="t", tenant_id=tenant, user_id="u")
 
 
@@ -31,8 +31,8 @@ def _stub_tool(name: str, refreshed: datetime) -> HarnessTool:
         source: str = "Coordinador · nexo (Citus DB)"
 
     async def _check(ctx, inp):
-        if ctx.tenant_id != "mintral":
-            return PermissionResult.deny("Mintral-only")
+        if ctx.tenant_id != "orion":
+            return PermissionResult.deny("Orion-only")
         return PermissionResult.allow()
 
     async def _call(ctx, inp, progress):
@@ -89,7 +89,7 @@ def _models(filter_step_tool: str = "coordinador_centro_control") -> dict[str, A
 
 
 @pytest.mark.asyncio
-async def test_happy_path_mintral_run_emits_answer():
+async def test_happy_path_orion_run_emits_answer():
     registry, _refreshed = _registry_with_centro()
     settings = HarnessSettings(
         datasource_freshness_warn_minutes=30,
@@ -162,7 +162,7 @@ async def test_happy_path_visits_full_pipeline():
 
 
 @pytest.mark.asyncio
-async def test_non_mintral_tenant_short_circuits_at_tenant_gate():
+async def test_non_orion_tenant_short_circuits_at_tenant_gate():
     """tenant_gate must produce a refusal WITHOUT invoking any LLM."""
     registry, _ = _registry_with_centro()
     settings = HarnessSettings()
@@ -188,7 +188,7 @@ async def test_non_mintral_tenant_short_circuits_at_tenant_gate():
 
     final = await graph.ainvoke(initial)
     assert final.get("answer")
-    assert "Mintral" in final["answer"] or "mintral" in final["answer"].lower()
+    assert "Orion" in final["answer"] or "orion" in final["answer"].lower()
 
 
 @pytest.mark.asyncio

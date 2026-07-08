@@ -50,14 +50,14 @@ def test_debug_allowlist_blocks_when_unset(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_debug_allowlist_blocks_unknown_tenant(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MIOT_HARNESS_ALLOW_DEBUG_TENANTS", "mintral-dev,mintral-stg")
+    monkeypatch.setenv("MIOT_HARNESS_ALLOW_DEBUG_TENANTS", "orion-dev,orion-stg")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy")
     with _client_with_env({}) as client:
         r = client.post(
             "/runs?debug=true",
             json={
                 "message": "hi",
-                "tenant_id": "mintral-prod",
+                "tenant_id": "orion-prod",
                 "user_id": "u",
                 "thread_id": "t",
             },
@@ -66,14 +66,14 @@ def test_debug_allowlist_blocks_unknown_tenant(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_debug_allowlist_permits_listed_tenant(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MIOT_HARNESS_ALLOW_DEBUG_TENANTS", "mintral-dev")
+    monkeypatch.setenv("MIOT_HARNESS_ALLOW_DEBUG_TENANTS", "orion-dev")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy")
     with _client_with_env({}) as client:
         r = client.post(
             "/runs",
             json={
                 "message": "hi",
-                "tenant_id": "mintral-dev",
+                "tenant_id": "orion-dev",
                 "user_id": "u",
                 "thread_id": "t",
                 "debug": True,

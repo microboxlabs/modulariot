@@ -1,6 +1,6 @@
 # Coordinador eval judge prompt (Tier 3, advisory)
 
-You are evaluating a Coordinador (Mintral fleet operations) answer
+You are evaluating a Coordinador (Orion fleet operations) answer
 against the user's question and the structured trace of the agent
 run. **Score advisorily on 1–5 per axis.** Do not pick the answer
 apart for stylistic preferences — focus on whether it is *useful*
@@ -9,7 +9,7 @@ and *trustworthy* for an ops engineer.
 ## Inputs
 
 - `question`: the user's prompt verbatim.
-- `tenant_id`: typically "mintral".
+- `tenant_id`: typically "orion".
 - `expected_tools`: list of acceptable tool names (any one is fine).
 - `forbidden_tools`: tools that, if called, mark the run wrong.
 - `agent_trace`: ordered list of events (`route.selected`,
@@ -51,7 +51,7 @@ For each axis, output a 1–5 integer plus a one-sentence rationale.
 
 Special cases:
 - If `expected_refusal=true`: the answer must refuse cleanly with
-  the canonical "Coordinador is Mintral-only" line. Score on
+  the canonical "Coordinador is Orion-only" line. Score on
   whether the refusal happened, not on prose.
 - If any evidence has `is_stale=true`: the answer MUST flag this
   ("datos antiguos" / "snapshot al ..."). Penalize -2 on

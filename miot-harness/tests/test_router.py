@@ -19,7 +19,7 @@ def router() -> IntentRouter:
     [
         "¿estado del coordinador hoy?",
         "Centro de control: dame KPIs",
-        "Mintral fleet status",
+        "Orion fleet status",
         "cola crítica para hoy",
         "dimensionamiento para mañana",
         "torre de control overview",
@@ -50,7 +50,7 @@ def test_storytelling_still_routes_correctly(router: IntentRouter):
 
 def test_storytelling_with_data_keyword_resolves_to_data_first(router: IntentRouter):
     """Plan resolution: when both keywords appear, Nexo wins."""
-    result = router.route("write a story about Mintral coordinador status")
+    result = router.route("write a story about Orion coordinador status")
     assert result.route == HarnessRoute.DATA_QUERY
 
 

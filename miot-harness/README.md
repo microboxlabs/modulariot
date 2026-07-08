@@ -132,7 +132,7 @@ system the tools come from — see `src/miot_harness/datasource/`.
 named registry (`datasource/registry.py`). The first (and default)
 provider is **nexo** (Citus/Postgres, Coordinador schema), which lives
 entirely under `src/miot_harness/integrations/nexo/` — the only package
-allowed to say "Nexo", "Coordinador", or "mintral".
+allowed to say "Nexo", "Coordinador", or "orion".
 
 | Env var                              | Default        | Purpose                                                             |
 |--------------------------------------|----------------|--------------------------------------------------------------------|

@@ -288,11 +288,11 @@ def test_binding_composes_with_tenant_scope() -> None:
     pb = _bound_playbook(
         "acs-t",
         connection="acs",
-        scope=ContextScope(kind="tenant", tenant_id="mintral"),
+        scope=ContextScope(kind="tenant", tenant_id="orion"),
     )
     result = _boot(pb, active=active)
     # Eligible for its tenant, absent for others (scope still applies).
-    assert [s.skill.id for s in result.bundle.playbooks_for("mintral")] == ["acs-t"]
+    assert [s.skill.id for s in result.bundle.playbooks_for("orion")] == ["acs-t"]
     assert result.bundle.playbooks_for("other") == []
 
 

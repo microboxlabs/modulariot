@@ -10,7 +10,7 @@ statement_timeout`), not via startup parameters.
 
 This lives under `datasource/` (not `integrations/nexo/`) so generic
 connections can build pools without importing the Nexo integration — the
-"only `integrations/nexo` may say Nexo/Coordinador/mintral" boundary stays
+"only `integrations/nexo` may say Nexo/Coordinador/orion" boundary stays
 intact.
 """
 

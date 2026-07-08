@@ -81,7 +81,7 @@ Real mode adds:
 
 Fake mode is intentionally deterministic so it catches routing/structural
 regressions without spending tokens. The values below (`coordinador_*` tool
-names, the `mintral` tenant lock) are the **nexo** profile's, since the
+names, the `orion` tenant lock) are the **nexo** profile's, since the
 shipped dataset targets the nexo provider. When authoring `examples.yaml`:
 
 - The scripted synthesizer always emits
@@ -95,13 +95,13 @@ shipped dataset targets the nexo provider. When authoring `examples.yaml`:
 - `expected_tools` may be any tool names — the fake registry now stubs every
   name in `expected_tools` verbatim (plus a `<prefix>centro_control` fallback).
   For the nexo dataset these are `coordinador_*` names. Adversarial cases use
-  `[]`; an off-lock `tenant_id` (≠ `mintral` for nexo) exercises the tenant gate
-  and produces the canonical `"…is mintral-only…"` refusal.
+  `[]`; an off-lock `tenant_id` (≠ `orion` for nexo) exercises the tenant gate
+  and produces the canonical `"…is orion-only…"` refusal.
 - `category: adversarial` requires `expected_refusal: true` (enforced by
   `validate_entries`).
 - Every `expected_refusal: true` case must declare `refusal_mechanism:
   structural | semantic` (enforced by `validate_entries`). `structural` means a
-  deterministic harness gate produces the refusal (today: a non-`mintral`
+  deterministic harness gate produces the refusal (today: a non-`orion`
   `tenant_id` hitting the tenant gate); `semantic` means it needs a real LLM and
   is therefore `null` in fake mode.
 

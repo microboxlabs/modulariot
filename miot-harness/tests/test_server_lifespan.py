@@ -39,6 +39,8 @@ def test_app_boots_without_nexo_when_dsn_unset(monkeypatch, tmp_path):
 
 def test_app_boots_with_nexo_when_load_succeeds(monkeypatch, tmp_path):
     monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@localhost:5432/d")
+    # Nexo boot now requires an explicit tenant lock (no profile-slug fallback).
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_TENANT_LOCK", "mintral")
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
     # Provider keys required by the chat-model factory once Nexo enables
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
@@ -75,6 +77,7 @@ def test_app_boots_when_load_nexo_returns_disabled(monkeypatch, tmp_path):
     """ACL leak / stale snapshot — load_nexo_tools returns enabled=False
     with a reason. The app must still boot and the pool must close."""
     monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@localhost:5432/d")
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_TENANT_LOCK", "mintral")
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
 
     fake_pool = MagicMock()
@@ -102,6 +105,7 @@ def test_app_boots_when_load_nexo_returns_disabled(monkeypatch, tmp_path):
 def test_app_boots_when_pool_creation_raises(monkeypatch, tmp_path):
     """Tunnel down — asyncpg.create_pool raises. App still boots."""
     monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@localhost:5432/d")
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_TENANT_LOCK", "mintral")
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
 
     with patch(
@@ -121,6 +125,7 @@ def test_graph_build_failure_tears_down_partial_wiring(monkeypatch, tmp_path):
     disabled /health would silently keep serving) and the provider's
     pool must be closed immediately, not at app shutdown."""
     monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@localhost:5432/d")
+    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_TENANT_LOCK", "mintral")
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path / "ws"))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
 

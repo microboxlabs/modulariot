@@ -106,12 +106,26 @@ class NexoProvider(DataSourceProvider):
         # The schema / EXPLAIN cost knobs are honestly Nexo's (Postgres
         # concepts), so they stay in NexoSettings (MIOT_HARNESS_NEXO_* prefix).
         nexo_settings = NexoSettings()
-        tenant_lock = (
-            opts.get("tenant_lock")
-            or settings.datasource_tenant_lock
-            or self.profile.tenant_lock
-        )
-        assert tenant_lock is not None  # NEXO_PROFILE.tenant_lock is "mintral"
+        # Tenant lock: the connection option (validated non-empty above) wins
+        # over the legacy MIOT_HARNESS_DATASOURCE_TENANT_LOCK env. There is
+        # deliberately NO fallback to the profile's slug default
+        # (NEXO_PROFILE.tenant_lock == "mintral"): the tenant that reaches the
+        # harness is the org's tenant_client_id (injected as
+        # X-Miot-Tenant-Client-Id by the proxy), so a profile slug would never
+        # match a real request and would silently refuse every query. Require an
+        # explicit lock and fail loud — mirrors the tenant_id fail-fast in
+        # UserRequest.to_context and the empty-option check above.
+        tenant_lock = opts.get("tenant_lock") or settings.datasource_tenant_lock
+        if not tenant_lock:
+            return BootResult(
+                enabled=False,
+                registered=(),
+                reason=(
+                    f"connection {conn_name!r}: tenant_lock is not configured "
+                    "(set the connection's tenant_lock option or "
+                    "MIOT_HARNESS_DATASOURCE_TENANT_LOCK)"
+                ),
+            )
         # Non-numeric freshness options (e.g. `freshness_warn_minutes: "abc"`)
         # would make `_resolve_minutes` raise `int(...)` out of boot(), violating
         # the "boot must not raise" contract. Catch and degrade to disabled with

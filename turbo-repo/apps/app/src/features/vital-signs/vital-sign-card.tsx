@@ -27,11 +27,11 @@ export default function VitalSignCard({
   symptom,
   checked,
   onToggleChange,
-}: {
+}: Readonly<{
   symptom: VitalSign;
   checked: boolean;
   onToggleChange: (checked: boolean) => void;
-}) {
+}>) {
   const cat = CATS[symptom.cat];
 
   const [paramValues, setParamValues] = useState<Record<string, string>>(() =>

@@ -12,12 +12,12 @@ export default function OnboardingFooter({
   currentStep,
   profileId,
   onFinish,
-}: {
+}: Readonly<{
   lang: string;
   currentStep: OnboardingStepId;
   profileId: string;
   onFinish: () => void;
-}) {
+}>) {
   const currentIndex = ENABLED_STEPS.findIndex(
     (step) => step.id === currentStep
   );

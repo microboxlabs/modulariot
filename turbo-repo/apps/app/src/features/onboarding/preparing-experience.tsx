@@ -49,9 +49,9 @@ const wordVariants: Variants = {
 
 export default function PreparingExperience({
   onComplete,
-}: {
+}: Readonly<{
   onComplete: () => void;
-}) {
+}>) {
   const [index, setIndex] = useState(0);
   const [isWhitingOut, setIsWhitingOut] = useState(false);
   const isLastMessage = index === MESSAGES.length - 1;
@@ -99,11 +99,11 @@ export default function PreparingExperience({
             exit="exit"
             className="relative z-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-3xl sm:text-4xl font-bold text-gray-700 dark:text-white text-center"
           >
-            {MESSAGES[index].split(" ").map((word, wordIndex) => {
+            {MESSAGES[index].split(" ").map((word) => {
               const isBrand = word === "ModularIOT";
               return (
                 <motion.span
-                  key={wordIndex}
+                  key={word}
                   variants={wordVariants}
                   className="inline-flex items-center"
                 >

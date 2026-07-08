@@ -7,11 +7,11 @@ export default function VitalSignParamField({
   param,
   value,
   onChange,
-}: {
+}: Readonly<{
   param: VitalSignParam;
   value: string;
   onChange: (value: string) => void;
-}) {
+}>) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-sm text-gray-600 dark:text-gray-300">

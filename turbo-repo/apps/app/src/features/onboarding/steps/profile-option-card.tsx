@@ -9,11 +9,11 @@ export default function ProfileOptionCard({
   option,
   isSelected,
   onSelect,
-}: {
+}: Readonly<{
   option: ProfileOption;
   isSelected: boolean;
   onSelect: (id: string) => void;
-}) {
+}>) {
   return (
     <button
       type="button"

@@ -11,7 +11,9 @@ function buildTooltipMarkdown(ceiling: number): string {
   ].join("\n");
 }
 
-export default function SeverityDots({ ceiling }: { ceiling: number }) {
+export default function SeverityDots({
+  ceiling,
+}: Readonly<{ ceiling: number }>) {
   return (
     <MarkdownTooltip content={buildTooltipMarkdown(ceiling)}>
       <div className="flex items-center gap-1 shrink-0">

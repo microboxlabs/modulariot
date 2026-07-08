@@ -9,9 +9,9 @@ import {
 
 export default function ProfileStep({
   selectedProfileId,
-}: {
+}: Readonly<{
   selectedProfileId: string;
-}) {
+}>) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

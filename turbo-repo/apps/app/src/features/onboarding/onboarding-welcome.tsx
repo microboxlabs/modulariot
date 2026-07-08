@@ -13,7 +13,9 @@ import BackgroundShapes from "./background-shapes";
 
 const LEAVE_TRANSITION_S = 0.6;
 
-export default function OnboardingWelcome({ lang }: { lang: string }) {
+export default function OnboardingWelcome({
+  lang,
+}: Readonly<{ lang: string }>) {
   const router = useRouter();
   const [isLeaving, setIsLeaving] = useState(false);
 

@@ -61,10 +61,7 @@ export default function ExpandableSection({
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
       <div className="relative">
         {headerAccessory && (
-          <div
-            className="absolute left-3 top-1/2 z-10 -translate-y-1/2"
-            onClick={(event) => event.stopPropagation()}
-          >
+          <div className="absolute left-3 top-1/2 z-10 -translate-y-1/2">
             {headerAccessory}
           </div>
         )}

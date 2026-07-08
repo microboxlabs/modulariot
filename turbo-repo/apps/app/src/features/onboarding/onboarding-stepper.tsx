@@ -15,11 +15,11 @@ export default function OnboardingStepper({
   lang,
   currentStep,
   profileId,
-}: {
+}: Readonly<{
   lang: string;
   currentStep: OnboardingStepId;
   profileId: string;
-}) {
+}>) {
   const router = useRouter();
   const [isFinishing, setIsFinishing] = useState(false);
 

@@ -14,7 +14,9 @@ const CATEGORIES_IN_ORDER = Object.values(CATS).sort(
   (a, b) => a.order - b.order
 );
 
-export default function VitalSignsStep({ profileId }: { profileId: string }) {
+export default function VitalSignsStep({
+  profileId,
+}: Readonly<{ profileId: string }>) {
   const profile = PROFILES.find((p) => p.id === profileId) ?? PROFILES[0];
   const recommended = recommendedReadySymptoms(profile.id);
   const recommendedIds = new Set(recommended.map((symptom) => symptom.id));

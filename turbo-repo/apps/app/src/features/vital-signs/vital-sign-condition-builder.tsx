@@ -14,11 +14,11 @@ export default function VitalSignConditionBuilder({
   condition,
   rows,
   onChangeRow,
-}: {
+}: Readonly<{
   condition: ConditionBuilder;
   rows: ConditionRowValue[];
   onChangeRow: (severityCode: number, row: ConditionRowValue) => void;
-}) {
+}>) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm font-medium text-gray-700 dark:text-gray-200">

@@ -2,15 +2,25 @@ import Link from "next/link";
 import { HiCheck } from "react-icons/hi2";
 import { ONBOARDING_STEPS, OnboardingStepId } from "./onboarding-steps";
 
+function badgeColorClasses(disabled: boolean, isSelected: boolean): string {
+  if (disabled) {
+    return "border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-700";
+  }
+  if (isSelected) {
+    return "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400";
+  }
+  return "border-gray-300 text-gray-400 dark:border-gray-600 dark:text-gray-500";
+}
+
 export default function OnboardingHeader({
   lang,
   currentStep,
   profileId,
-}: {
+}: Readonly<{
   lang: string;
   currentStep: OnboardingStepId;
   profileId: string;
-}) {
+}>) {
   const currentIndex = ONBOARDING_STEPS.findIndex(
     (step) => step.id === currentStep
   );
@@ -24,13 +34,10 @@ export default function OnboardingHeader({
 
           const badge = (
             <span
-              className={`flex items-center justify-center w-6 h-6 rounded-full border text-xs transition-colors duration-200 ${
-                step.disabled
-                  ? "border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-700"
-                  : isSelected
-                    ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
-                    : "border-gray-300 text-gray-400 dark:border-gray-600 dark:text-gray-500"
-              }`}
+              className={`flex items-center justify-center w-6 h-6 rounded-full border text-xs transition-colors duration-200 ${badgeColorClasses(
+                step.disabled,
+                isSelected
+              )}`}
             >
               {isPassed ? (
                 <HiCheck

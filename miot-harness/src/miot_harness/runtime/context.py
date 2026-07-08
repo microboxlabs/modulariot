@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.permissions import (
@@ -104,6 +104,13 @@ class UserRequest(BaseModel):
     # Output format for the response `answer` string (default markdown).
     answer_format: AnswerFormat = "markdown"
 
+    @field_validator("tenant_id")
+    @classmethod
+    def _normalize_tenant_id(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
     @model_validator(mode="after")
     def _extract_skill_slug(self) -> "UserRequest":
         """Pull a leading "/slug" out of `message` into `skill_id` when empty.
@@ -123,7 +130,8 @@ class UserRequest(BaseModel):
         # unresolved tenants (400) before reaching here; this guard turns a
         # direct caller's mistake into a clear error instead of an opaque
         # pydantic ValidationError on HarnessContext.tenant_id.
-        if not self.tenant_id:
+        tenant_id = self.tenant_id
+        if not tenant_id:
             raise ValueError(
                 "UserRequest.tenant_id is unresolved; a run requires a tenant "
                 "(from the X-Miot-Tenant-Client-Id header or an explicit body value)"
@@ -142,7 +150,7 @@ class UserRequest(BaseModel):
             )
         return HarnessContext(
             thread_id=self.thread_id,
-            tenant_id=self.tenant_id,
+            tenant_id=tenant_id,
             user_id=self.user_id,
             route_context=self.route_context,
             mode=self.mode,

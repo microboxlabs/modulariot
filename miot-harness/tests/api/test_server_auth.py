@@ -152,6 +152,15 @@ def test_auth_disabled_missing_tenant_returns_400() -> None:
     assert resp.json()["detail"] == "missing_required_tenant"
 
 
+def test_auth_disabled_whitespace_body_tenant_returns_400() -> None:
+    """Whitespace-only body tenant_id is unresolved, not an escape hatch."""
+    app = create_app()
+    with TestClient(app) as client:
+        resp = client.post("/runs", json={"message": "hi", "tenant_id": "   "})
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "missing_required_tenant"
+
+
 def test_auth_disabled_tenant_from_header_is_honored() -> None:
     """Auth off skips JWT verification, not tenant resolution: the
     X-Miot-Tenant-Client-Id header set by the proxy still resolves the
@@ -174,6 +183,17 @@ def test_auth_disabled_body_tenant_is_escape_hatch() -> None:
     with TestClient(app) as client:
         resp = client.post(
             "/runs", json={"message": "hi", "tenant_id": "tenant-from-body"}
+        )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["tenant_id"] == "tenant-from-body"
+
+
+def test_auth_disabled_body_tenant_is_normalized() -> None:
+    """Body tenant_id is stripped before creating the run context."""
+    app = create_app()
+    with TestClient(app) as client:
+        resp = client.post(
+            "/runs", json={"message": "hi", "tenant_id": "  tenant-from-body  "}
         )
     assert resp.status_code == 200, resp.text
     assert resp.json()["tenant_id"] == "tenant-from-body"

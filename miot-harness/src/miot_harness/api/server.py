@@ -640,9 +640,10 @@ def create_app() -> FastAPI:
     async def require_auth(request: Request) -> Mapping[str, Any]:
         """Auth0 RS256 verification gate for /runs* endpoints.
 
-        Short-circuits to a blank context when auth is disabled (the
-        legacy unauthenticated mode used by unit tests and local
-        dev). When enabled:
+        Skips JWT verification when auth is disabled (the legacy
+        unauthenticated mode used by unit tests and local dev), but still
+        resolves `X-Miot-Tenant-Client-Id` when the proxy supplies it. When
+        auth is enabled:
 
         - Enforces Bearer-token + JWKS RS256 sig/iss/aud/exp checks.
         - Resolves the caller's tenant from the

@@ -1,7 +1,8 @@
 package com.microboxlabs.miot.integrations.reconciliation;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -77,11 +78,13 @@ class KnowledgeDistillerJobTest {
     void disabledJobTouchesNothing() {
         var episodes = new FakeEpisodeRepo();
         episodes.throwIfRead = true; // any read is a failure when disabled
+        var candidateRepo = new FakeCandidateRepo();
         var job = new KnowledgeDistillerJob(
-                episodes, candidateService(new FakeCandidateRepo()),
+                episodes, candidateService(candidateRepo),
                 (c, t, m, a, b) -> { throw new AssertionError("must not call harness"); },
                 false, 24, 200, "m2m", "");
-        job.reconcile(); // must be a no-op, no exception
+        assertDoesNotThrow(job::reconcile); // no read, no harness call, no exception
+        assertTrue(candidateRepo.inserted.isEmpty());
     }
 
     @Test
@@ -108,7 +111,7 @@ class KnowledgeDistillerJobTest {
         assertEquals("acs", staged.connection());
         assertNull(staged.createdBy()); // system-distilled → no user author
         assertEquals("pending", staged.status());
-        assertFalse(episodes.recentTenant == null); // proves the read path ran
+        assertNotNull(episodes.recentTenant); // proves the read path ran
     }
 
     @Test

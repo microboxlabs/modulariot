@@ -25,8 +25,8 @@ import java.util.Map;
 @ApplicationScoped
 public class InteractionEpisodeRepository {
 
-    private static final String COLUMNS = """
-            id, tenant_code, user_id, surface, run_id, signal, payload, created_at""";
+    private static final String COLUMNS =
+            "id, tenant_code, user_id, surface, run_id, signal, payload, created_at";
 
     private static final String INSERT = """
             INSERT INTO miot_integrations.interaction_episodes (

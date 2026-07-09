@@ -18,6 +18,7 @@ from miot_harness.datasource.knowledge.loader import (
 from miot_harness.datasource.knowledge.writer import (
     ConnectionCardWrite,
     render_connection_card,
+    revert_connection_card,
     slug_card_id,
     write_connection_card,
 )
@@ -91,6 +92,46 @@ def test_write_same_term_overwrites_in_place(tmp_path: Path) -> None:
     assert first == second
     assert list(tmp_path.glob("*.md")) == [first]
     assert "v2" in first.read_text(encoding="utf-8")
+
+
+def test_overwrite_snapshots_prior_version_for_rollback(tmp_path: Path) -> None:
+    """A content-changing overwrite stashes the old version in `.history`, out of
+    the loader's top-level `*.md` glob, so it is never served as knowledge."""
+    write_connection_card(tmp_path, ConnectionCardWrite(term="t", body="v1"))
+    write_connection_card(tmp_path, ConnectionCardWrite(term="t", body="v2"))
+    history = tmp_path / ".history" / "t"
+    snapshots = list(history.glob("*.md"))
+    assert [p.name for p in snapshots] == ["0001.md"]
+    assert "v1" in snapshots[0].read_text(encoding="utf-8")
+    # The loader serves only the live card (v2), never the superseded snapshot.
+    loaded = load_connection_cards(tmp_path)
+    assert loaded.diagnostics == ()
+    assert [c.body for c in loaded.cards] == ["v2"]
+
+
+def test_idempotent_rewrite_does_not_snapshot(tmp_path: Path) -> None:
+    write_connection_card(tmp_path, ConnectionCardWrite(term="t", body="same"))
+    write_connection_card(tmp_path, ConnectionCardWrite(term="t", body="same"))
+    assert not (tmp_path / ".history").exists()
+
+
+def test_revert_restores_previous_version_and_steps_back(tmp_path: Path) -> None:
+    live = write_connection_card(tmp_path, ConnectionCardWrite(term="t", body="v1"))
+    write_connection_card(tmp_path, ConnectionCardWrite(term="t", body="v2"))
+    write_connection_card(tmp_path, ConnectionCardWrite(term="t", body="v3"))
+    assert "v3" in live.read_text(encoding="utf-8")
+
+    reverted = revert_connection_card(tmp_path, "t")
+    assert reverted == live
+    assert "v2" in live.read_text(encoding="utf-8")
+
+    revert_connection_card(tmp_path, "t")
+    assert "v1" in live.read_text(encoding="utf-8")
+
+
+def test_revert_without_history_returns_none(tmp_path: Path) -> None:
+    write_connection_card(tmp_path, ConnectionCardWrite(term="t", body="v1"))
+    assert revert_connection_card(tmp_path, "t") is None
 
 
 @pytest.mark.parametrize(

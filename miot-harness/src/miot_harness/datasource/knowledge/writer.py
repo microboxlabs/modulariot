@@ -10,6 +10,11 @@ stay in lock-step (a round-trip test pins them together).
 Secret-safe by construction: a card records the MEANING of a business term
 (e.g. which `task_def_key`s count as "entregas"), never row-level secret
 values — the invariant the human gate enforces upstream.
+
+Versioned for rollback: overwriting a card first snapshots the prior version
+into a sibling `.history/<id>/NNNN.md` stack, so a bad promotion is reverted in
+one step (`revert_connection_card`). History lives under a dot-dir, so the
+loader's `*.md` glob never serves a superseded version as knowledge.
 """
 
 from __future__ import annotations
@@ -22,6 +27,10 @@ from typing import Any
 import yaml
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
+
+# Superseded card versions live here (one subdir per card id), out of the way of
+# the loader's top-level `*.md` glob so history is never served as knowledge.
+_HISTORY_DIR = ".history"
 
 # A shared connection card records the MEANING of a business term, never
 # row-level secret values — the security invariant of the loop ("memory informs,
@@ -122,15 +131,61 @@ def render_connection_card(card: ConnectionCardWrite) -> str:
     return f"---\n{fm}---\n\n{body}\n"
 
 
+def _history_dir(cards_dir: Path, stem: str) -> Path:
+    return cards_dir / _HISTORY_DIR / stem
+
+
+def _history_versions(history_dir: Path) -> list[Path]:
+    """Superseded versions oldest→newest. Zero-padded numeric names sort
+    lexicographically in version order, so `[-1]` is the most recent."""
+    if not history_dir.exists():
+        return []
+    return sorted(history_dir.glob("[0-9]" * 4 + ".md"))
+
+
+def _snapshot(history_dir: Path, content: str) -> Path:
+    history_dir.mkdir(parents=True, exist_ok=True)
+    existing = _history_versions(history_dir)
+    next_num = int(existing[-1].stem) + 1 if existing else 1
+    path = history_dir / f"{next_num:04d}.md"
+    path.write_text(content, encoding="utf-8")
+    return path
+
+
 def write_connection_card(cards_dir: Path, card: ConnectionCardWrite) -> Path:
     """Write `card` into `cards_dir/<slug>.md`, creating the dir if needed, and
     return the path. Re-writing the same term overwrites the same file (an
-    idempotent update: re-approval refreshes the card in place)."""
+    idempotent update: re-approval refreshes the card in place). Before an
+    overwrite that CHANGES the content, the prior version is snapshotted into the
+    `.history` stack so the change is one-step revertible; an identical re-write
+    snapshots nothing (no history churn on idempotent re-approval)."""
     stem = slug_card_id(card.card_id or card.term)
     if not stem:
         raise ValueError(f"cannot derive a card filename from term {card.term!r}")
     content = render_connection_card(card)  # validates term/body before any I/O
     cards_dir.mkdir(parents=True, exist_ok=True)
     path = cards_dir / f"{stem}.md"
+    if path.exists():
+        prior = path.read_text(encoding="utf-8")
+        if prior != content:
+            _snapshot(_history_dir(cards_dir, stem), prior)
     path.write_text(content, encoding="utf-8")
+    return path
+
+
+def revert_connection_card(cards_dir: Path, card_id: str) -> Path | None:
+    """Roll a card back one step: restore the most recent superseded version to
+    the live file and pop it off the history stack, so a bad promotion is undone
+    in a single call (a second call steps back another version). Returns the live
+    card path, or None when there is no prior version to restore."""
+    stem = slug_card_id(card_id)
+    if not stem:
+        raise ValueError(f"cannot derive a card id from {card_id!r}")
+    versions = _history_versions(_history_dir(cards_dir, stem))
+    if not versions:
+        return None
+    latest = versions[-1]
+    path = cards_dir / f"{stem}.md"
+    path.write_text(latest.read_text(encoding="utf-8"), encoding="utf-8")
+    latest.unlink()
     return path

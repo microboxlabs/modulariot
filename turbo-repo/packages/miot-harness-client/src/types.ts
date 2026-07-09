@@ -146,6 +146,12 @@ export interface HarnessAssumption {
   interpretation: string;
   predicate: string;
   grounded: boolean;
+  /**
+   * The connection the run resolved against (e.g. "acs"), stamped by the harness
+   * so a review surface can stage a candidate against the right connection.
+   * Optional for back-compat with records predating the field.
+   */
+  connection?: string;
 }
 
 export interface HarnessRunRecord {

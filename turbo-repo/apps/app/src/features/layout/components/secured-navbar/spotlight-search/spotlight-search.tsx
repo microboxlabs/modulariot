@@ -84,7 +84,10 @@ function postSpotlightSignal(body: {
   runId?: string;
   payload?: Record<string, unknown>;
 }): void {
-  void fetch("/api/interactions/episodes", {
+  // Prefix the app basePath (/app) like every sibling fetch — without it the
+  // POST resolves off-app and 404s in every deployed env, silently dropping the
+  // clicked signal (one of the loop's two capture paths).
+  void fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/interactions/episodes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ surface: "spotlight", ...body }),

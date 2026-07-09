@@ -46,11 +46,11 @@ function ElicitChip({
   assumption,
   runId,
   dict,
-}: {
+}: Readonly<{
   assumption: HarnessAssumption;
   runId?: string;
   dict: I18nRecord;
-}) {
+}>) {
   const [state, setState] = useState<"idle" | "saving" | "done">("idle");
   if (state === "done") return null;
 
@@ -102,11 +102,11 @@ export function SpotlightElicitChips({
   assumptions,
   runId,
   dict,
-}: {
+}: Readonly<{
   assumptions?: HarnessAssumption[];
   runId?: string;
   dict?: I18nRecord;
-}) {
+}>) {
   if (!assumptions || assumptions.length === 0) return null;
   const d = (dict ?? {}) as I18nRecord;
   return (

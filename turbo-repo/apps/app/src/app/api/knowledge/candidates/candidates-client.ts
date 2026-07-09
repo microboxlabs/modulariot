@@ -52,7 +52,7 @@ async function modulith(
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers ?? {}),
+      ...init.headers,
     },
     signal: AbortSignal.timeout(10_000),
   });

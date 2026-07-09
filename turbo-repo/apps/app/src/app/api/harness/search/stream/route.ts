@@ -122,6 +122,33 @@ export async function POST(request: Request) {
   // upstream relay and cancel the run.
   request.signal.addEventListener("abort", abortRelay);
 
+  // Relay a run's SSE events to the browser as they arrive, accumulating the
+  // route + tool names for the interaction episode. Extracted from the stream's
+  // start() so that function stays under the cognitive-complexity budget.
+  async function relayRunEvents(
+    runId: string,
+    send: (event: string, data: unknown, id?: string | number) => void,
+  ): Promise<{ route?: string; tools: string[] }> {
+    let route: string | undefined;
+    const tools: string[] = [];
+    for await (const event of client.runs.stream(runId, {
+      signal: controller.signal,
+    })) {
+      if (FORWARDED_EVENTS.has(event.type)) {
+        send(event.type, event.data, event.seq);
+      }
+      if (event.type === "route.selected") {
+        const r = (event.data as { route?: unknown }).route;
+        if (typeof r === "string") route = r;
+      } else if (event.type === "tool.started") {
+        const t = (event.data as { tool?: unknown }).tool;
+        if (typeof t === "string") tools.push(t);
+      }
+      if (TERMINAL_EVENT_TYPES.has(event.type)) break;
+    }
+    return { route, tools };
+  }
+
   const stream = new ReadableStream<Uint8Array>({
     async start(ctrl) {
       // enqueue() throws once the consumer is gone; treat that as an abort
@@ -148,26 +175,10 @@ export async function POST(request: Request) {
         activeRunId = run_id;
         send("search.accepted", { run_id });
 
-        // Accumulate the route + tool names as they stream, for the interaction
-        // episode written on completion (the learning-loop's captured signal).
-        let episodeRoute: string | undefined;
-        const episodeTools: string[] = [];
-
-        for await (const event of client.runs.stream(run_id, {
-          signal: controller.signal,
-        })) {
-          if (FORWARDED_EVENTS.has(event.type)) {
-            send(event.type, event.data, event.seq);
-          }
-          if (event.type === "route.selected") {
-            const r = (event.data as { route?: unknown }).route;
-            if (typeof r === "string") episodeRoute = r;
-          } else if (event.type === "tool.started") {
-            const t = (event.data as { tool?: unknown }).tool;
-            if (typeof t === "string") episodeTools.push(t);
-          }
-          if (TERMINAL_EVENT_TYPES.has(event.type)) break;
-        }
+        // Relay the run's events, accumulating the route + tool names for the
+        // interaction episode written on completion (the loop's captured signal).
+        const { route: episodeRoute, tools: episodeTools } =
+          await relayRunEvents(run_id, send);
 
         // Terminal event reached — the run finished on its own; a later
         // disconnect must not fire a pointless cancel.

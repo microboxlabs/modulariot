@@ -13,7 +13,9 @@ import { useKnowledgeCandidates } from "../hooks/use-knowledge-candidates";
  * connection card the next run grounds on) or reject them. Rendered as a peer
  * panel on the data-sources settings page.
  */
-export default function LearnedKnowledgePanel({ dict }: { dict: I18nRecord }) {
+export default function LearnedKnowledgePanel({
+  dict,
+}: Readonly<{ dict: I18nRecord }>) {
   const kn = dict?.learnedKnowledge as I18nRecord;
   const { candidates, isLoading, error, reviewing, review, refetch } =
     useKnowledgeCandidates();

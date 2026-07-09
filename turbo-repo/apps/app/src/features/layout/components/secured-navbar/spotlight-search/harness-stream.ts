@@ -133,7 +133,7 @@ export function reduceHarnessStreamEvent(
       // Only ungrounded assumptions that carry a connection can become a
       // candidate — those are what the elicit chip offers to remember.
       const assumptions = (payload?.assumptions ?? []).filter(
-        (a) => a && a.grounded === false && typeof a.connection === "string",
+        (a) => a?.grounded === false && typeof a.connection === "string",
       );
       return {
         ...state,

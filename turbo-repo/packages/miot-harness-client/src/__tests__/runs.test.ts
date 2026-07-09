@@ -46,6 +46,19 @@ describe("runs.get", () => {
   });
 });
 
+describe("runs.cancel", () => {
+  it("POSTs /runs/{id}/cancel and resolves on 204", async () => {
+    const { fn, call } = createMockFetch(undefined, 204);
+    const client = createMiotHarnessClient({
+      baseUrl: "http://harness.local",
+      fetch: fn,
+    });
+    await expect(client.runs.cancel("run id")).resolves.toBeUndefined();
+    expect(call.url).toBe("http://harness.local/runs/run%20id/cancel");
+    expect(call.init.method).toBe("POST");
+  });
+});
+
 describe("runs.stream", () => {
   it("consumes SSE frames and yields parsed events", async () => {
     const body =

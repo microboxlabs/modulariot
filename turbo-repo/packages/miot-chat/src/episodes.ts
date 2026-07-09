@@ -19,7 +19,11 @@ export type EpisodeRecorder = (body: CliEpisodeBody) => void;
  * `/harness` suffix), in which case episode capture is silently disabled.
  */
 export function episodesUrlFromHarnessBase(harnessBaseUrl: string): string | null {
-  const trimmed = harnessBaseUrl.replace(/\/+$/, "");
+  // Strip trailing slashes with a linear scan, not `/\/+$/` — that regex is a
+  // polynomial ReDoS on inputs like "///…/x" (CodeQL js/polynomial-redos).
+  let end = harnessBaseUrl.length;
+  while (end > 0 && harnessBaseUrl[end - 1] === "/") end--;
+  const trimmed = harnessBaseUrl.slice(0, end);
   const suffix = "/harness";
   if (!trimmed.endsWith(suffix)) return null;
   return `${trimmed.slice(0, -suffix.length)}/interactions/episodes`;

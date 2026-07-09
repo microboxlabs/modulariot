@@ -4074,6 +4074,8 @@
         "knowledge": "Consultando la guía del dominio",
         "explain": "Analizando el plan de consulta"
       }
-    }
+    },
+    "harnessError": "Algo salió mal al buscar la respuesta.",
+    "harnessRetry": "Reintentar"
   }
 }

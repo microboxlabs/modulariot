@@ -31,6 +31,20 @@ function SectionHeader({ Icon, label, iconClass, labelClass, dividerClass }: Rea
   );
 }
 
+/** Orange-stars icon + one-line notice — the error and empty states share it. */
+function HarnessNotice({ label }: Readonly<{ label: string }>) {
+  return (
+    <div className="px-4 py-3 flex items-start gap-3">
+      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-orange-50 dark:bg-orange-900/30 ring-1 ring-inset ring-black/6 dark:ring-white/10">
+        <BsStars className="h-3 w-3 text-orange-500 dark:text-orange-400" />
+      </div>
+      <p className="pt-1 text-sm text-gray-500 dark:text-gray-400">
+        {label}
+      </p>
+    </div>
+  );
+}
+
 function MarkdownBlock({ value }: Readonly<{ value: string }>) {
   const [displayed, setDisplayed] = useState("");
 
@@ -125,6 +139,9 @@ interface SpotlightResultsProps {
   harnessQueried: boolean;
   harnessProgress: HarnessStreamProgress;
   harnessProgressLabels: HarnessProgressLabels;
+  harnessError: boolean;
+  harnessErrorLabel: string;
+  harnessRetryItem: SpotlightItem | null;
   harnessPrompt: SpotlightItem | null;
   selectedItemId: string | null;
   onSelect: (item: SpotlightItem) => void;
@@ -141,6 +158,9 @@ export const SpotlightResults = memo(function SpotlightResults({
   harnessQueried,
   harnessProgress,
   harnessProgressLabels,
+  harnessError,
+  harnessErrorLabel,
+  harnessRetryItem,
   harnessPrompt,
   selectedItemId,
   onSelect,
@@ -151,16 +171,19 @@ export const SpotlightResults = memo(function SpotlightResults({
 }: Readonly<SpotlightResultsProps>) {
   const hasStaticResults = staticItems.some((i) => !i.isGroupHeader);
   const showHarnessResults = isHarnessLoading || harnessItems.length > 0;
-  const showHarnessEmpty = harnessQueried && !isHarnessLoading && harnessItems.length === 0;
+  const showHarnessEmpty =
+    harnessQueried && !isHarnessLoading && !harnessError && harnessItems.length === 0;
 
-  if (!harnessPrompt && !hasStaticResults && !showHarnessResults && !showHarnessEmpty) return null;
+  if (!harnessPrompt && !hasStaticResults && !showHarnessResults && !showHarnessEmpty && !harnessError)
+    return null;
 
-  const hasSeparator = (harnessPrompt || showHarnessResults || showHarnessEmpty) && hasStaticResults;
+  const hasSeparator =
+    (harnessPrompt || showHarnessResults || showHarnessEmpty || harnessError) && hasStaticResults;
 
   return (
     <div className="max-h-[60vh] overflow-y-auto">
       {/* ── Harness section — prompt (before commit) OR answer + gotos (after commit) ── */}
-      {(harnessPrompt || showHarnessResults || showHarnessEmpty) && (
+      {(harnessPrompt || showHarnessResults || showHarnessEmpty || harnessError) && (
         <div>
           {harnessPrompt && (
             <SpotlightResultItem
@@ -170,16 +193,20 @@ export const SpotlightResults = memo(function SpotlightResults({
               onHover={onHover}
             />
           )}
-          {showHarnessEmpty && (
-            <div className="px-4 py-3 flex items-start gap-3">
-              <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-orange-50 dark:bg-orange-900/30 ring-1 ring-inset ring-black/6 dark:ring-white/10">
-                <BsStars className="h-3 w-3 text-orange-500 dark:text-orange-400" />
-              </div>
-              <p className="pt-1 text-sm text-gray-500 dark:text-gray-400">
-                {harnessEmptyLabel}
-              </p>
-            </div>
+          {harnessError && (
+            <>
+              <HarnessNotice label={harnessErrorLabel} />
+              {harnessRetryItem && (
+                <SpotlightResultItem
+                  item={harnessRetryItem}
+                  isSelected={harnessRetryItem.id === selectedItemId}
+                  onSelect={onSelect}
+                  onHover={onHover}
+                />
+              )}
+            </>
           )}
+          {showHarnessEmpty && <HarnessNotice label={harnessEmptyLabel} />}
           {showHarnessResults && (
             isHarnessLoading ? (
               <SpotlightHarnessProgress

@@ -4074,6 +4074,8 @@
         "knowledge": "Reading the domain guide",
         "explain": "Analyzing the query plan"
       }
-    }
+    },
+    "harnessError": "Something went wrong while searching.",
+    "harnessRetry": "Retry"
   }
 }

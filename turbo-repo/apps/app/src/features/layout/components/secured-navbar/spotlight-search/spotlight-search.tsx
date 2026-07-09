@@ -92,6 +92,8 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
   const recentLabel      = (spotlightDict?.recent       as string | undefined) ?? "Recent";
   const navigateHeading  = (navigateDict?.heading       as string | undefined) ?? "Go to";
   const harnessEmptyLabel = (spotlightDict?.harnessEmpty as string | undefined) ?? "No answer found, please try again!";
+  const harnessErrorLabel = (spotlightDict?.harnessError as string | undefined) ?? "Something went wrong while searching.";
+  const harnessRetryLabel = (spotlightDict?.harnessRetry as string | undefined) ?? "Retry";
 
   // Chain-of-thought labels for the live progress panel. The dictionary
   // carries both the phase lines and the per-primitive tool labels.
@@ -166,10 +168,13 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
 
   // ── Committed query — only set when user explicitly asks Harness ─────────
   const [committedQuery, setCommittedQuery] = useState("");
+  // Bumped by the retry row to re-fire the same committed query.
+  const [searchAttempt, setSearchAttempt] = useState(0);
 
   // Reset when user types a new query so harness results clear.
   useEffect(() => {
     setCommittedQuery("");
+    setSearchAttempt(0);
   }, [query]);
 
   // ── Pagefind static search (falls back to fuzzy in dev) ──────────────────
@@ -180,7 +185,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
     results: harnessResults,
     isLoading: isHarnessLoading,
     progress: harnessProgress,
-  } = useHarnessSearch(committedQuery);
+  } = useHarnessSearch(committedQuery, searchAttempt);
 
   // ── "Ask Harness" prompt item — first selectable row while uncommitted ────
   const isEmpty = !query.trim();
@@ -200,6 +205,25 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
     [query],
   );
 
+  // ── Retry row — keyboard-selectable after a stream failure ────────────────
+  const hasHarnessError = harnessProgress.phase === "error";
+  const harnessRetryItem = useMemo<SpotlightItem | null>(
+    () =>
+      hasHarnessError
+        ? {
+            id: "__harness-retry__",
+            label: harnessRetryLabel,
+            kind: "harness" as const,
+            icon: BsStars,
+            keywords: [],
+            // isHarnessPrompt semantics: fire the action, keep the modal open.
+            isHarnessPrompt: true,
+            onSelect: () => setSearchAttempt((a) => a + 1),
+          }
+        : null,
+    [hasHarnessError, harnessRetryLabel],
+  );
+
   // ── Harness-generated go-to items (url blocks) — keyboard-selectable ────────
   const harnessGoToItems = useMemo<SpotlightItem[]>(() =>
     harnessResults.flatMap((result) =>
@@ -216,10 +240,11 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
   const selectableItems = useMemo(
     () => [
       ...(showHarnessPrompt ? [harnessPromptItem] : []),
+      ...(harnessRetryItem ? [harnessRetryItem] : []),
       ...harnessGoToItems,
       ...staticResults.filter((i) => !i.isGroupHeader),
     ],
-    [showHarnessPrompt, harnessPromptItem, harnessGoToItems, staticResults],
+    [showHarnessPrompt, harnessPromptItem, harnessRetryItem, harnessGoToItems, staticResults],
   );
 
   // Keep refs current — runs synchronously during render, before any event.
@@ -323,6 +348,9 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
                   harnessQueried={!!committedQuery}
                   harnessProgress={harnessProgress}
                   harnessProgressLabels={harnessProgressLabels}
+                  harnessError={hasHarnessError}
+                  harnessErrorLabel={harnessErrorLabel}
+                  harnessRetryItem={harnessRetryItem}
                   harnessPrompt={showHarnessPrompt ? harnessPromptItem : null}
                   selectedItemId={selectableItems[selectedIndex]?.id ?? null}
                   onSelect={handleSelectAction}

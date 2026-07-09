@@ -50,8 +50,14 @@ const LOADING_PHASES: ReadonlySet<HarnessStreamProgress["phase"]> = new Set([
  * `reduceHarnessStreamEvent` so the spotlight can narrate the run live
  * (route → tools → thinking → answer). Cancels the in-flight stream via
  * AbortController whenever committedQuery changes or the component unmounts.
+ *
+ * `attempt` re-fires the same committed query (the retry row after a stream
+ * failure) — bump it to start a fresh run without retyping.
  */
-export function useHarnessSearch(committedQuery: string): UseHarnessSearchReturn {
+export function useHarnessSearch(
+  committedQuery: string,
+  attempt = 0,
+): UseHarnessSearchReturn {
   const [progress, setProgress] = useState<HarnessStreamProgress>(INITIAL_PROGRESS);
 
   useEffect(() => {
@@ -116,7 +122,7 @@ export function useHarnessSearch(committedQuery: string): UseHarnessSearchReturn
     consumeStream();
 
     return () => controller.abort();
-  }, [committedQuery]);
+  }, [committedQuery, attempt]);
 
   const results = useMemo(
     () => (progress.results ?? []).map(toSpotlightItem),

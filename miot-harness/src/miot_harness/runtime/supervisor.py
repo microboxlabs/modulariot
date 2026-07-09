@@ -137,6 +137,28 @@ class HarnessSupervisor:
         # block is already folded into `meta_primer` at boot — this bundle
         # supplies the per-request tenant overlay and the queryable facts.
         self.context_skills: ContextSkillsBundle | None = None
+        # Set by the lifespan after boot to the primary connection's name (e.g.
+        # "acs"); None in legacy/dev. Stamped onto ground-or-flag assumptions so
+        # the review surface can stage a candidate against the right connection.
+        self.primary_connection_name: str | None = None
+
+    def _stamp_connection(
+        self, assumptions: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Attach the run's connection to each declared assumption. The
+        synthesizer self-reports term/interpretation/predicate; the connection is
+        the harness's to assign (the LLM can't reliably know it) and defaults to
+        the primary connection this deployment serves. Never overwrites a
+        connection already present, and a no-op when none is configured."""
+        conn = self.primary_connection_name
+        if not conn:
+            return list(assumptions)
+        return [
+            {**a, "connection": conn}
+            if isinstance(a, dict) and not a.get("connection")
+            else a
+            for a in assumptions
+        ]
 
     def _meta_primer_for(self, tenant_id: str) -> str:
         """meta_primer (datasource primer + global context) plus this
@@ -736,7 +758,9 @@ class HarnessSupervisor:
         )
         # Ground-or-flag: carry the synthesizer's declared assumptions onto the
         # persisted record (feeds the capture/distill loop; empty when grounded).
-        record.assumptions = list(final_state.get("assumptions") or [])
+        record.assumptions = self._stamp_connection(
+            list(final_state.get("assumptions") or [])
+        )
 
     async def _run_data_meta(
         self,

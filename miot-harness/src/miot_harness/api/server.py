@@ -226,6 +226,9 @@ def _make_lifespan(
         primary = select_primary(conn_result.connections, settings)
         primary_kind = primary.backend if primary is not None else settings.datasource_kind
         app.state.primary_connection_name = primary.name if primary is not None else None
+        # Let the supervisor stamp this connection onto ground-or-flag assumptions
+        # so the review surface stages candidates against the right connection.
+        harness.primary_connection_name = app.state.primary_connection_name
         # Profile/router/tenant-lock wiring needs a provider profile. If the
         # primary connection's backend has no registered provider yet (e.g. an
         # acs connection pending the generic provider), fall back to the

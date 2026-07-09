@@ -316,3 +316,30 @@ def test_agent_loop_llm_timeout_env_override(monkeypatch):
     from miot_harness.config import HarnessSettings
 
     assert HarnessSettings().agents_agent_loop_llm_timeout_seconds == 600
+
+
+def test_knowledge_distiller_defaults_are_off():
+    """The R3 distiller ships DISABLED, and auto-promotion is OFF regardless —
+    the human gate is the only promotion path unless an operator opts in."""
+    settings = HarnessSettings()
+    assert settings.knowledge_distiller_enabled is False
+    assert settings.knowledge_auto_promote_enabled is False
+    assert settings.knowledge_distiller_model == "claude-sonnet-4-6"
+    assert settings.knowledge_card_decay_days == 90
+    assert settings.knowledge_auto_promote_min_confidence == 0.9
+
+
+def test_knowledge_distiller_flags_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_KNOWLEDGE_DISTILLER_ENABLED", "true")
+    monkeypatch.setenv("MIOT_HARNESS_KNOWLEDGE_AUTO_PROMOTE_ENABLED", "true")
+    monkeypatch.setenv("MIOT_HARNESS_KNOWLEDGE_CARD_DECAY_DAYS", "30")
+    settings = HarnessSettings()
+    assert settings.knowledge_distiller_enabled is True
+    assert settings.knowledge_auto_promote_enabled is True
+    assert settings.knowledge_card_decay_days == 30
+
+
+def test_knowledge_decay_days_rejects_non_positive(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_KNOWLEDGE_CARD_DECAY_DAYS", "0")
+    with pytest.raises(ValidationError):
+        HarnessSettings()

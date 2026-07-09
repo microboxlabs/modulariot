@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from typing import Any
 
@@ -47,6 +48,73 @@ async def test_synthesizes_answer_from_evidence():
 
     assert update["answer"] == fake
     assert "answer.completed" in {e.type for e in events}
+
+
+@pytest.mark.asyncio
+async def test_ground_or_flag_extracts_assumption_and_emits_gap():
+    # The synthesizer self-reports an assumption via a json `assumption` block
+    # (ground-or-flag). The node extracts it into `assumptions` and emits one
+    # `grounding.gap` event per ungrounded term.
+    answer = json.dumps(
+        [
+            {"type": "intent", "value": "ask"},
+            {"type": "markdown", "value": "Hay 11 servicios en entregas."},
+            {
+                "type": "assumption",
+                "value": {
+                    "term": "entregas",
+                    "interpretation": "confirmDelivery + receiveDelivery + confirmArrival",
+                    "predicate": "task_def_key_ IN (...)",
+                },
+            },
+        ]
+    )
+    model = FakeListChatModel(responses=[answer])
+    state: dict[str, Any] = {
+        "user_message": "cuántos servicios en entregas?",
+        "ctx": _ctx(),
+        "evidence": [_ev()],
+        "turn_count": 2,
+    }
+    events: list[HarnessEvent] = []
+
+    update = await synthesizer_node(
+        state, model=model, progress=events.append, profile=NEXO_PROFILE
+    )
+
+    assert update["assumptions"] == [
+        {
+            "term": "entregas",
+            "interpretation": "confirmDelivery + receiveDelivery + confirmArrival",
+            "predicate": "task_def_key_ IN (...)",
+            "grounded": False,
+        }
+    ]
+    gaps = [e for e in events if e.type == "grounding.gap"]
+    assert len(gaps) == 1
+    assert gaps[0].data["term"] == "entregas"
+
+
+@pytest.mark.asyncio
+async def test_grounded_answer_emits_no_assumption_or_gap():
+    # A plain prose answer carries no assumption blocks → no assumptions and no
+    # grounding.gap event. Guards the no-op contract so the shared (nexo) path
+    # is unaffected unless a skill opts into the assumptions block.
+    model = FakeListChatModel(responses=["Hay 9 servicios en entregas."])
+    state: dict[str, Any] = {
+        "user_message": "cuántos servicios en entregas?",
+        "ctx": _ctx(),
+        "evidence": [_ev()],
+        "turn_count": 2,
+    }
+    events: list[HarnessEvent] = []
+
+    update = await synthesizer_node(
+        state, model=model, progress=events.append, profile=NEXO_PROFILE
+    )
+
+    assert update["assumptions"] == []
+    assert not [e for e in events if e.type == "grounding.gap"]
 
 
 @pytest.mark.asyncio

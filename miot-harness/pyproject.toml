@@ -44,6 +44,7 @@ dependencies = [
   # still pass `module=` → instrumentor fails to init. Remove once upstream
   # ships a wrapt-2.x compatible release.
   "wrapt<2",
+  "json-repair>=0.61.2",
 ]
 
 [project.scripts]

@@ -12,6 +12,7 @@ export { TERMINAL_EVENT_TYPES } from "./types.js";
 export type {
   ClientConfig,
   ErrorResponse,
+  HarnessAssumption,
   HarnessEvent,
   HarnessEventType,
   HarnessRunRecord,

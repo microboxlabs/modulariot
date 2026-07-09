@@ -162,6 +162,29 @@ class HarnessSettings(BaseSettings):
     knowledge_packs_dir: Path = (
         Path(__file__).parent / "datasource" / "knowledge" / "packs"
     )
+    # Connection-scoped AUTHORED cards (semantic-layer continual learning): per
+    # `pg` connection, markdown cards (one fact per file) under
+    # `<connection dir>/knowledge/*.md` are merged into that connection's
+    # `<prefix>knowledge` tool, overriding a pack card of the same id. Loaded
+    # independently of pack fingerprinting (a learned business definition is not
+    # a product-schema fact); kill switch mirrors the packs flag.
+    generic_connection_cards_enabled: bool = True
+    # Background knowledge distiller (semantic-layer continual learning, R3): a
+    # reflector that reads interaction episodes OFF the request hot path and
+    # distills recurring ungrounded business terms into human-gated candidate
+    # facts. OFF by default — turning the background pass on is an ops decision,
+    # and it never auto-applies anything (see knowledge_auto_promote_enabled).
+    knowledge_distiller_enabled: bool = False
+    knowledge_distiller_model: str = "claude-sonnet-4-6"
+    # Decay window: a promoted card whose `last_confirmed` is older than this
+    # resurfaces for review instead of silently rotting (safety.is_stale).
+    knowledge_card_decay_days: int = Field(default=90, ge=1)
+    # Auto-promotion of a distilled candidate to an authoritative card WITHOUT a
+    # human — deliberately OFF for R0–R3. The human gate is the only promotion
+    # path unless an operator explicitly earns autonomy; even then a candidate
+    # must clear conflict + no-secrets + confidence (safety.may_auto_promote).
+    knowledge_auto_promote_enabled: bool = False
+    knowledge_auto_promote_min_confidence: float = Field(default=0.9, ge=0.0, le=1.0)
     # Hard cap on connector tools registered from skill files — bounds the
     # blast radius of a misconfigured/oversized ConfigMap.
     max_connector_tools: int = Field(default=50, ge=0)

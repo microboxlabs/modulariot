@@ -21,6 +21,7 @@ import { usePagefindSearch } from "./use-pagefind-search";
 import { SpotlightBackdrop } from "./spotlight-backdrop";
 import { SpotlightInput } from "./spotlight-input";
 import { SpotlightResults } from "./spotlight-results";
+import { SpotlightElicitChips } from "./spotlight-elicit-chip";
 import { SpotlightEmptyState } from "./spotlight-empty-state";
 import { SpotlightFooter } from "./spotlight-footer";
 import { KbdHint } from "../searchbar/kbd-hint";
@@ -70,6 +71,28 @@ function urlBlockToItem(
     keywords: [],
     onSelect: () => openUrl(block.value.url),
   };
+}
+
+/**
+ * Best-effort client signal to the interaction-episode store (semantic-layer
+ * learning loop): which harness result the user engaged with. `keepalive` lets
+ * it survive the navigation a "go to" selection triggers. Never surfaced on
+ * failure — a lost signal must not disrupt the user's action.
+ */
+function postSpotlightSignal(body: {
+  signal: string;
+  runId?: string;
+  payload?: Record<string, unknown>;
+}): void {
+  // Prefix the app basePath (/app) like every sibling fetch — without it the
+  // POST resolves off-app and 404s in every deployed env, silently dropping the
+  // clicked signal (one of the loop's two capture paths).
+  void fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/interactions/episodes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ surface: "spotlight", ...body }),
+    keepalive: true,
+  }).catch(() => {});
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -276,6 +299,18 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
         item.onSelect();
         return; // keep modal open so the answer can appear
       }
+      // Learning-loop signal: the user engaged with a harness result (the
+      // answer row `harness:${runId}` or a "go to" link). Best-effort.
+      if (item.kind === "harness" || item.kind === "harness-goto") {
+        const runId = item.id.startsWith("harness:")
+          ? item.id.slice("harness:".length)
+          : undefined;
+        postSpotlightSignal({
+          signal: "clicked",
+          runId,
+          payload: { itemId: item.id, itemKind: item.kind },
+        });
+      }
       if (item.kind === "navigate") addRecentItem(item);
       item.onSelect();
       close();
@@ -360,6 +395,12 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
                   harnessEmptyLabel={harnessEmptyLabel}
                 />
               )}
+
+              <SpotlightElicitChips
+                assumptions={harnessProgress.assumptions}
+                runId={harnessProgress.runId}
+                dict={spotlightDict?.elicit as I18nRecord | undefined}
+              />
 
               <SpotlightFooter hasResults={!isEmpty && hasResults} />
 

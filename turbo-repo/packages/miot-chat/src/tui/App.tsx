@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { randomUUID } from "node:crypto";
 import type { SkillSummary } from "@microboxlabs/miot-harness-client";
 import type { ResolvedConfig } from "../config.js";
+import type { EpisodeRecorder } from "../episodes.js";
 import { packageVersion } from "../version.js";
 import { Editor } from "./input/Editor.js";
 import { TopLine } from "./chrome/TopLine.js";
@@ -58,6 +59,7 @@ import { exportCommand } from "./slash/handlers/export.js";
 import { runsCommand } from "./slash/handlers/runs.js";
 import { approveCommand } from "./slash/handlers/approve.js";
 import { skillsCommand } from "./slash/handlers/skills.js";
+import { rememberCommand } from "./slash/handlers/remember.js";
 import { readSession, listSessions } from "./persistence/store.js";
 import { defaultMiotChatHome } from "./persistence/paths.js";
 import type { TranscriptItem } from "./session/types.js";
@@ -70,6 +72,9 @@ export interface AppProps {
   onExit?: () => void;
   now?: () => string;
   uuid?: () => string;
+  /** Best-effort interaction-episode recorder (learning loop); bound by
+   * runMiotChat from the config. Undefined disables CLI episode capture. */
+  recordEpisode?: EpisodeRecorder;
 }
 
 interface ModalState {
@@ -161,7 +166,8 @@ function AppInner(
       .register(exportCommand)
       .register(runsCommand)
       .register(approveCommand)
-      .register(skillsCommand);
+      .register(skillsCommand)
+      .register(rememberCommand);
     const builtinNames = new Set(reg.all().map((c) => c.name));
     const ids = new Set<string>();
     for (const skill of skills) {
@@ -205,6 +211,7 @@ function AppInner(
         uuid,
         home,
         client: props.client,
+        recordEpisode: props.recordEpisode,
       };
       // Wrap the dispatch so a throwing handler (e.g. /save hitting
       // an EPERM, /export writing to a read-only path) surfaces in
@@ -235,6 +242,7 @@ function AppInner(
       uuid,
       home,
       props.client,
+      props.recordEpisode,
       props.onExit,
       appendSystem,
     ],

@@ -14,6 +14,7 @@
 
 import type { MiotHarnessClient } from "@microboxlabs/miot-harness-client";
 import type { ResolvedConfig } from "./config.js";
+import { makeEpisodeRecorder } from "./episodes.js";
 import { runRepl } from "./repl/loop.js";
 import { runTui } from "./tui/runTui.js";
 
@@ -45,7 +46,13 @@ export async function runMiotChat(opts: RunMiotChatOptions): Promise<number> {
   const stdin = opts.stdin ?? process.stdin;
   const stdout = opts.stdout ?? process.stdout;
   if (shouldUseTui(env, stdin, stdout)) {
-    const handle = runTui({ config: opts.config, client: opts.client });
+    // Best-effort interaction-episode capture for the learning loop; a no-op
+    // when the base URL isn't org-scoped (episode capture disabled).
+    const recordEpisode = makeEpisodeRecorder({
+      harnessBaseUrl: opts.config.harnessBaseUrl,
+      token: opts.config.token ?? undefined,
+    });
+    const handle = runTui({ config: opts.config, client: opts.client, recordEpisode });
     await handle.waitUntilExit();
     return 0;
   }

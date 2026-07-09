@@ -21,7 +21,8 @@ import java.util.Set;
 @ApplicationScoped
 public class CandidateService {
 
-    private static final Set<String> STATUSES = Set.of("pending", "approved", "rejected");
+    private static final String STATUS_PENDING = "pending";
+    private static final Set<String> STATUSES = Set.of(STATUS_PENDING, "approved", "rejected");
     private static final int DEFAULT_LIMIT = 100;
     private static final int MAX_LIMIT = 500;
 
@@ -49,7 +50,7 @@ public class CandidateService {
                 request.confidence(),
                 body,
                 request.provenance() == null ? Map.of() : request.provenance(),
-                "pending",
+                STATUS_PENDING,
                 userId,
                 null,
                 null,
@@ -57,7 +58,7 @@ public class CandidateService {
     }
 
     public List<KnowledgeCandidate> list(String tenantCode, String status, int limit) {
-        String resolved = blankToDefault(status, "pending");
+        String resolved = blankToDefault(status, STATUS_PENDING);
         if (!STATUSES.contains(resolved)) {
             throw new IllegalArgumentException("status must be one of " + STATUSES);
         }

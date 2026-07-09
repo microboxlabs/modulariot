@@ -66,13 +66,13 @@ public class OrgInteractionEpisodesResource {
     @POST
     @Path("/episodes")
     @Operation(summary = "Record an interaction episode")
-    public Uni<Response> record(
+    public Uni<Response> recordEpisode(
             @PathParam("organizationId") String organizationId,
             EpisodeRequest request) {
         String tenant = tenantCode(organizationId);
         String userId = currentUserId();
         return onWorker(() -> Response.status(Response.Status.CREATED)
-                .entity(service.record(tenant, userId, request))
+                .entity(service.recordEpisode(tenant, userId, request))
                 .build())
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(e -> errorResponse(Response.Status.BAD_REQUEST, e.getMessage()));

@@ -16,18 +16,21 @@ class EpisodeServiceTest {
     @Test
     void recordRejectsMissingOrUnknownSurface() {
         var service = new EpisodeService(new FakeRepository());
+        var nullSurface = new EpisodeRequest(null, null, null, null);
+        var blankSurface = new EpisodeRequest("  ", null, null, null);
+        var unknownSurface = new EpisodeRequest("email", null, null, null);
         assertThrows(IllegalArgumentException.class,
-                () -> service.record("t", "u", new EpisodeRequest(null, null, null, null)));
+                () -> service.recordEpisode("t", "u", nullSurface));
         assertThrows(IllegalArgumentException.class,
-                () -> service.record("t", "u", new EpisodeRequest("  ", null, null, null)));
+                () -> service.recordEpisode("t", "u", blankSurface));
         assertThrows(IllegalArgumentException.class,
-                () -> service.record("t", "u", new EpisodeRequest("email", null, null, null)));
+                () -> service.recordEpisode("t", "u", unknownSurface));
     }
 
     @Test
     void recordRejectsNullBody() {
         var service = new EpisodeService(new FakeRepository());
-        assertThrows(IllegalArgumentException.class, () -> service.record("t", "u", null));
+        assertThrows(IllegalArgumentException.class, () -> service.recordEpisode("t", "u", null));
     }
 
     @Test
@@ -35,7 +38,7 @@ class EpisodeServiceTest {
         var repo = new FakeRepository();
         var service = new EpisodeService(repo);
 
-        var saved = service.record("tenant-1", "user-1",
+        var saved = service.recordEpisode("tenant-1", "user-1",
                 new EpisodeRequest("spotlight", "run-9", "clicked", null));
 
         assertNotNull(saved);
@@ -52,7 +55,7 @@ class EpisodeServiceTest {
         var repo = new FakeRepository();
         var service = new EpisodeService(repo);
 
-        service.record("t", "u", new EpisodeRequest("cli", "  ", "  ", Map.of("fact", "x")));
+        service.recordEpisode("t", "u", new EpisodeRequest("cli", "  ", "  ", Map.of("fact", "x")));
 
         assertNull(repo.inserted.runId());
         assertNull(repo.inserted.signal());

@@ -27,7 +27,7 @@ public class EpisodeService {
         this.repository = repository;
     }
 
-    public InteractionEpisode record(String tenantCode, String userId, EpisodeRequest request) {
+    public InteractionEpisode recordEpisode(String tenantCode, String userId, EpisodeRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("episode body is required");
         }

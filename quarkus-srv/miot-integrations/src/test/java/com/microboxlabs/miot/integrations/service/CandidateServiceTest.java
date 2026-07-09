@@ -21,13 +21,16 @@ class CandidateServiceTest {
     @Test
     void createRejectsNullBodyAndMissingRequiredFields() {
         var service = new CandidateService(new FakeRepository());
+        var missingConnection = req(null, "entregas", "def");
+        var blankTerm = req("acs", "  ", "def");
+        var blankBody = req("acs", "entregas", "");
         assertThrows(IllegalArgumentException.class, () -> service.create("t", "u", null));
         assertThrows(IllegalArgumentException.class,
-                () -> service.create("t", "u", req(null, "entregas", "def")));
+                () -> service.create("t", "u", missingConnection));
         assertThrows(IllegalArgumentException.class,
-                () -> service.create("t", "u", req("acs", "  ", "def")));
+                () -> service.create("t", "u", blankTerm));
         assertThrows(IllegalArgumentException.class,
-                () -> service.create("t", "u", req("acs", "entregas", "")));
+                () -> service.create("t", "u", blankBody));
     }
 
     @Test

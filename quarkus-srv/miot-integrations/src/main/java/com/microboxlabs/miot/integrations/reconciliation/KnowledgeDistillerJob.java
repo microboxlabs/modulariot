@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
@@ -55,7 +56,9 @@ public class KnowledgeDistillerJob {
     private final int lookbackHours;
     private final int batchLimit;
     private final String authMode;
-    private final String bearerToken;
+    // Optional, not defaultValue="" — SmallRye treats an empty-string default as
+    // UNCONFIGURED and then fails the injection as "required". Absent → empty.
+    private final Optional<String> harnessToken;
 
     @Inject
     public KnowledgeDistillerJob(
@@ -66,7 +69,7 @@ public class KnowledgeDistillerJob {
             @ConfigProperty(name = "miot.distill.lookback-hours", defaultValue = "24") int lookbackHours,
             @ConfigProperty(name = "miot.distill.batch-limit", defaultValue = "200") int batchLimit,
             @ConfigProperty(name = "miot.distill.auth-mode", defaultValue = "m2m") String authMode,
-            @ConfigProperty(name = "miot.distill.harness-token", defaultValue = "") String bearerToken) {
+            @ConfigProperty(name = "miot.distill.harness-token") Optional<String> harnessToken) {
         this.episodes = episodes;
         this.candidates = candidates;
         this.harness = harness;
@@ -74,7 +77,7 @@ public class KnowledgeDistillerJob {
         this.lookbackHours = lookbackHours;
         this.batchLimit = batchLimit;
         this.authMode = authMode;
-        this.bearerToken = bearerToken;
+        this.harnessToken = harnessToken;
     }
 
     @Scheduled(
@@ -111,7 +114,10 @@ public class KnowledgeDistillerJob {
         // that recurs across connections. Approved/rejected terms are NOT in here,
         // so a re-learn after a rejection can still be re-proposed.
         Set<String> staged = pendingKeys(tenantCode);
-        String bearer = bearerToken.isBlank() ? null : "Bearer " + bearerToken;
+        String bearer = harnessToken
+                .filter(t -> !t.isBlank())
+                .map(t -> "Bearer " + t)
+                .orElse(null);
         for (Map.Entry<String, List<Map<String, Object>>> entry : byConnection.entrySet()) {
             String connection = entry.getKey();
             try {

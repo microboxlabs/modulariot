@@ -18,6 +18,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class KnowledgeDistillerJobTest {
@@ -82,7 +83,7 @@ class KnowledgeDistillerJobTest {
         var job = new KnowledgeDistillerJob(
                 episodes, candidateService(candidateRepo),
                 (c, t, m, a, b) -> { throw new AssertionError("must not call harness"); },
-                false, 24, 200, "m2m", "");
+                false, 24, 200, "m2m", Optional.empty());
         assertDoesNotThrow(job::reconcile); // no read, no harness call, no exception
         assertTrue(candidateRepo.inserted.isEmpty());
     }
@@ -101,7 +102,7 @@ class KnowledgeDistillerJobTest {
                         "stage", "tenant", 0.9, Map.of("run_ids", List.of("run_a")))));
 
         var job = new KnowledgeDistillerJob(
-                episodes, candidateService(candidateRepo), client, true, 24, 200, "m2m", "");
+                episodes, candidateService(candidateRepo), client, true, 24, 200, "m2m", Optional.empty());
         job.reconcile();
 
         assertEquals(1, candidateRepo.inserted.size());
@@ -127,7 +128,7 @@ class KnowledgeDistillerJobTest {
                         "acs", "Entregas", "def", "stage", "tenant", 0.9, Map.of())));
 
         var job = new KnowledgeDistillerJob(
-                episodes, candidateService(candidateRepo), client, true, 24, 200, "m2m", "");
+                episodes, candidateService(candidateRepo), client, true, 24, 200, "m2m", Optional.empty());
         job.reconcile();
 
         // Case-insensitively the same term is already pending → not re-staged.
@@ -148,7 +149,7 @@ class KnowledgeDistillerJobTest {
                         new DistillCandidate("acs", "cobranzas", "def3", "stage", "tenant", 0.9, Map.of())));
 
         var job = new KnowledgeDistillerJob(
-                episodes, candidateService(candidateRepo), client, true, 24, 200, "m2m", "");
+                episodes, candidateService(candidateRepo), client, true, 24, 200, "m2m", Optional.empty());
         job.reconcile(); // the blank-body candidate must not abort the batch
 
         assertEquals(List.of("entregas", "cobranzas"),

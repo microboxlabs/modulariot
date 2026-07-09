@@ -1,0 +1,109 @@
+name: Docs CI
+
+on:
+  push:
+    paths:
+      - 'turbo-repo/apps/docs/**'
+      - 'turbo-repo/packages/ui/**'
+      - 'turbo-repo/packages/typescript-config/**'
+      - 'turbo-repo/packages/eslint-config/**'
+      - 'turbo-repo/package-lock.json'
+      - 'turbo-repo/docker/nextjs.standalone-docs.Dockerfile'
+      - '.github/workflows/docs.yml'
+    branches: [trunk, main]
+  pull_request:
+    paths:
+      - 'turbo-repo/apps/docs/**'
+      - 'turbo-repo/packages/ui/**'
+      - 'turbo-repo/packages/typescript-config/**'
+      - 'turbo-repo/packages/eslint-config/**'
+      - 'turbo-repo/package-lock.json'
+      - 'turbo-repo/docker/nextjs.standalone-docs.Dockerfile'
+      - '.github/workflows/docs.yml'
+    branches: [trunk, main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: "24"
+  GHCR_REGISTRY: ghcr.io
+  IMAGE_OWNER: microboxlabs
+  IMAGE_NAME: miot-docs
+
+jobs:
+  build:
+    name: Build and publish docs image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      security-events: write
+    outputs:
+      image-digest: ${{ steps.docker.outputs.digest }}
+      short-sha: ${{ steps.vars.outputs.short_sha }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: turbo-repo/package-lock.json
+
+      - name: Resolve image metadata
+        id: vars
+        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: turbo-repo
+
+      - name: Build docs
+        run: npx turbo run build --filter=@modulariot/docs
+        working-directory: turbo-repo
+
+      - name: Prepare Docker context
+        run: |
+          mkdir -p /tmp/build-docs/.next
+          cp -r turbo-repo/apps/docs/.next/standalone /tmp/build-docs/.next/standalone
+          cp -r turbo-repo/apps/docs/.next/static /tmp/build-docs/.next/static
+          cp -r turbo-repo/apps/docs/public /tmp/build-docs/public
+          cp turbo-repo/docker/nextjs.standalone-docs.Dockerfile /tmp/build-docs/
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        id: docker
+        uses: docker/build-push-action@v6
+        with:
+          context: /tmp/build-docs/
+          file: /tmp/build-docs/nextjs.standalone-docs.Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:sha-${{ steps.vars.outputs.short_sha }}
+          labels: |
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.description=ModularIoT docs site
+            org.opencontainers.image.vendor=MicroboxLabs
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          provenance: true
+          sbom: true
+
+      - name: Image summary
+        run: |
+          {
+            echo "# Docs Image"
+            echo ""
+            echo "- Digest: \`${{ steps.docker.outputs.digest }}\`"
+            echo "- Tags: \`latest\`, \`sha-${{ steps.vars.outputs.short_sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

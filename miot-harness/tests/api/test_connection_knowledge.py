@@ -118,6 +118,22 @@ def test_personal_scope_is_rejected(tmp_path: Path) -> None:
     assert "not shareable" in resp.json()["detail"]
 
 
+def test_row_level_secret_body_is_400(tmp_path: Path) -> None:
+    """The security invariant at the endpoint: a card embedding a concrete
+    sensitive value (here a phone number) is rejected, not written."""
+    conn, knowledge_dir = _on_disk_connection(tmp_path)
+    app = create_app()
+    with TestClient(app) as client:
+        client.app.state.connection_objects[conn.name] = conn
+        resp = client.post(
+            "/connections/acs/knowledge",
+            json={"term": "chofer", "body": "El chofer es +56 9 1234 5678"},
+        )
+    assert resp.status_code == 400
+    assert "row-level value" in resp.json()["detail"]
+    assert not knowledge_dir.exists()  # nothing written
+
+
 def test_empty_term_is_422(tmp_path: Path) -> None:
     app = create_app()
     with TestClient(app) as client:

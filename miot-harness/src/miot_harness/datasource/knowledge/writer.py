@@ -23,6 +23,38 @@ import yaml
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
+# A shared connection card records the MEANING of a business term, never
+# row-level secret values — the security invariant of the loop ("memory informs,
+# the boundary enforces"). These flag a body that embeds concrete sensitive data:
+# an email address, or a numeric token of 9+ digits (a phone / national-id /
+# account number). A definition ("entregas = task_def_key in (confirmDelivery)")
+# never trips these; a leaked data row does.
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+# A numeric token: digits joined only by id/phone formatting (`.` `-` space) —
+# NOT commas, so a definition enumerating codes ("1, 2, 3, …") doesn't false-trip
+# while a RUT (12.345.678-9) or phone (+56 9 1234 5678) does.
+_NUMERIC_TOKEN_RE = re.compile(r"\d[\d.\-\s]*\d")
+
+
+def _reject_if_secretish(body: str) -> None:
+    """Raise ValueError if the body looks like it carries a row-level secret
+    rather than a term's meaning. Conservative on purpose: a false negative just
+    stores a slightly over-specific card, but a false positive would block a
+    legitimate definition, so only unambiguous data shapes (emails, long numeric
+    ids) trip it."""
+    if _EMAIL_RE.search(body):
+        raise ValueError(
+            "card body looks like it contains a row-level value (an email "
+            "address); a shared card must state the term's MEANING, not data"
+        )
+    for token in _NUMERIC_TOKEN_RE.findall(body):
+        if len(re.sub(r"\D", "", token)) >= 9:
+            raise ValueError(
+                "card body looks like it contains a row-level value (a long "
+                "numeric id / phone / account); a shared card must state the "
+                "term's MEANING, not data"
+            )
+
 
 def slug_card_id(value: str) -> str:
     """Filesystem-safe stem for a card file: lowercased, every run of
@@ -63,6 +95,7 @@ def render_connection_card(card: ConnectionCardWrite) -> str:
         raise ValueError("card term is required")
     if not body:
         raise ValueError("card body is required")
+    _reject_if_secretish(body)
     card_id = slug_card_id(card.card_id or term)
     if not card_id:
         raise ValueError(f"cannot derive a card id from term {term!r}")

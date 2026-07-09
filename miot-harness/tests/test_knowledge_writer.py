@@ -114,3 +114,32 @@ def test_write_rejects_unsluggable_term(tmp_path: Path) -> None:
 def test_render_rejects_empty_body() -> None:
     with pytest.raises(ValueError, match="body is required"):
         render_connection_card(ConnectionCardWrite(term="t", body="   "))
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "El responsable es ops@mintral.cl",  # email
+        "El chofer +56 9 1234 5678 hace la entrega",  # phone (9+ digits)
+        "RUT 12.345.678-9 del mandante",  # national id (9+ digits)
+    ],
+)
+def test_render_rejects_row_level_secrets(body: str) -> None:
+    """The security invariant: a shared card stores meaning, not concrete data."""
+    with pytest.raises(ValueError, match="row-level value"):
+        render_connection_card(ConnectionCardWrite(term="t", body=body))
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "entregas = task_def_key in (confirmDelivery); confirmArrival no cuenta",
+        "El SLA es de 48 horas y el umbral 2024",  # short numbers are fine
+    ],
+)
+def test_render_accepts_definitions_without_secrets(body: str) -> None:
+    parsed = _parse_connection_card(
+        render_connection_card(ConnectionCardWrite(term="entregas", body=body)),
+        default_id="x",
+    )
+    assert parsed.body == body

@@ -26,6 +26,10 @@ HarnessEventType = Literal[
     "usage.recorded",
     "freshness.warning",
     "verification.completed",
+    # Ground-or-flag: the synthesizer answered using a business term with no
+    # authoritative definition (knowledge card) and is declaring its assumption.
+    # Carries the assumption record in `data`. See the semantic-layer design.
+    "grounding.gap",
     "answer.delta",
     "answer.completed",
     "run.completed",

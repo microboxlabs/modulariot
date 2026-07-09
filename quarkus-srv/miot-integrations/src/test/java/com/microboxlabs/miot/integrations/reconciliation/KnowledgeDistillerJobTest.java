@@ -111,6 +111,47 @@ class KnowledgeDistillerJobTest {
         assertFalse(episodes.recentTenant == null); // proves the read path ran
     }
 
+    @Test
+    void dedupsAgainstExistingPendingCandidates() {
+        var episodes = new FakeEpisodeRepo();
+        episodes.tenants = List.of("tenantA");
+        episodes.recent = List.of(episode("run_a", List.of(assumption("entregas", false, "acs"))));
+        var candidateRepo = new FakeCandidateRepo();
+        candidateRepo.pending.add(pendingCandidate("acs", "entregas")); // already queued
+
+        HarnessDistillClient client = (connection, tenant, mode, auth, body) -> new DistillResponse(
+                connection, List.of(new DistillCandidate(
+                        "acs", "Entregas", "def", "stage", "tenant", 0.9, Map.of())));
+
+        var job = new KnowledgeDistillerJob(
+                episodes, candidateService(candidateRepo), client, true, 24, 200, "m2m", "");
+        job.reconcile();
+
+        // Case-insensitively the same term is already pending → not re-staged.
+        assertTrue(candidateRepo.inserted.isEmpty());
+    }
+
+    @Test
+    void skipsMalformedCandidateAndContinuesTheBatch() {
+        var episodes = new FakeEpisodeRepo();
+        episodes.tenants = List.of("tenantA");
+        episodes.recent = List.of(episode("run_a", List.of(assumption("entregas", false, "acs"))));
+        var candidateRepo = new FakeCandidateRepo();
+
+        HarnessDistillClient client = (connection, tenant, mode, auth, body) -> new DistillResponse(
+                connection, List.of(
+                        new DistillCandidate("acs", "entregas", "def1", "stage", "tenant", 0.9, Map.of()),
+                        new DistillCandidate("acs", "despachos", "  ", "stage", "tenant", 0.9, Map.of()),
+                        new DistillCandidate("acs", "cobranzas", "def3", "stage", "tenant", 0.9, Map.of())));
+
+        var job = new KnowledgeDistillerJob(
+                episodes, candidateService(candidateRepo), client, true, 24, 200, "m2m", "");
+        job.reconcile(); // the blank-body candidate must not abort the batch
+
+        assertEquals(List.of("entregas", "cobranzas"),
+                candidateRepo.inserted.stream().map(KnowledgeCandidate::term).toList());
+    }
+
     private static CandidateService candidateService(FakeCandidateRepo repo) {
         return new CandidateService(repo);
     }
@@ -145,6 +186,7 @@ class KnowledgeDistillerJobTest {
 
     private static class FakeCandidateRepo extends KnowledgeCandidateRepository {
         final List<KnowledgeCandidate> inserted = new ArrayList<>();
+        final List<KnowledgeCandidate> pending = new ArrayList<>();
 
         FakeCandidateRepo() {
             super(null);
@@ -155,5 +197,16 @@ class KnowledgeDistillerJobTest {
             inserted.add(candidate);
             return candidate;
         }
+
+        @Override
+        public List<KnowledgeCandidate> listByStatus(String tenantCode, String status, int limit) {
+            return pending;
+        }
+    }
+
+    private static KnowledgeCandidate pendingCandidate(String connection, String term) {
+        return new KnowledgeCandidate(
+                null, "tenantA", connection, term, null, "tenant", null, "body",
+                Map.of(), "pending", null, null, null, null);
     }
 }

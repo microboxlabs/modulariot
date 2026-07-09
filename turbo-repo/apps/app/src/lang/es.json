@@ -4054,6 +4054,13 @@
     "invalid": "Este enlace no es válido"
   },
   "spotlight": {
+    "elicit": {
+      "prompt": "Interpreté \"{term}\" como {interpretation}. ¿Es correcto?",
+      "remember": "Sí, recordar",
+      "dismiss": "No",
+      "saved": "Recordaré \"{term}\".",
+      "error": "No se pudo guardar. Inténtalo de nuevo."
+    },
     "placeholder": "Pregunta, construye o navega",
     "sections": {
       "ask": "Preguntar",

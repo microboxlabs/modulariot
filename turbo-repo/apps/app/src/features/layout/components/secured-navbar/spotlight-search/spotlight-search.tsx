@@ -21,6 +21,7 @@ import { usePagefindSearch } from "./use-pagefind-search";
 import { SpotlightBackdrop } from "./spotlight-backdrop";
 import { SpotlightInput } from "./spotlight-input";
 import { SpotlightResults } from "./spotlight-results";
+import { SpotlightElicitChips } from "./spotlight-elicit-chip";
 import { SpotlightEmptyState } from "./spotlight-empty-state";
 import { SpotlightFooter } from "./spotlight-footer";
 import { KbdHint } from "../searchbar/kbd-hint";
@@ -391,6 +392,12 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
                   harnessEmptyLabel={harnessEmptyLabel}
                 />
               )}
+
+              <SpotlightElicitChips
+                assumptions={harnessProgress.assumptions}
+                runId={harnessProgress.runId}
+                dict={spotlightDict?.elicit as I18nRecord | undefined}
+              />
 
               <SpotlightFooter hasResults={!isEmpty && hasResults} />
 

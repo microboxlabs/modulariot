@@ -204,6 +204,52 @@ def _emit(progress: Progress, run_id: str, answer: str) -> None:
     )
 
 
+def _extract_assumptions(answer: str) -> list[dict[str, Any]]:
+    """Pull self-reported ground-or-flag assumptions out of a JSON-blocks answer.
+
+    The synthesizer (guided by the miot-search skill's assumptions contract)
+    emits one `{"type":"assumption","value":{term,interpretation,predicate}}`
+    block per business term it could not ground in an authoritative card. A
+    non-JSON or block-less answer yields nothing — this is a NO-OP for every
+    other synthesis path (prose answers, nexo, refusals), so the shared
+    synthesizer behaviour is unchanged unless a skill opts in."""
+    try:
+        parsed = json.loads(answer)
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(parsed, list):
+        return []
+    assumptions: list[dict[str, Any]] = []
+    for item in parsed:
+        if not isinstance(item, dict) or item.get("type") != "assumption":
+            continue
+        value = item.get("value")
+        if not isinstance(value, dict):
+            continue
+        assumptions.append(
+            {
+                "term": str(value.get("term", "")),
+                "interpretation": str(value.get("interpretation", "")),
+                "predicate": str(value.get("predicate", "")),
+                "grounded": False,
+            }
+        )
+    return assumptions
+
+
+def _emit_grounding_gap(
+    progress: Progress, run_id: str, assumption: dict[str, Any]
+) -> None:
+    progress(
+        HarnessEvent(
+            run_id=run_id,
+            type="grounding.gap",
+            message=f"Ungrounded business term: {assumption.get('term') or '?'}",
+            data=assumption,
+        )
+    )
+
+
 async def synthesizer_node(
     state: dict[str, Any],
     *,
@@ -279,4 +325,10 @@ async def synthesizer_node(
         answer = text.strip() or "(sin respuesta)"
 
     _emit(progress, ctx.run_id, answer)
-    return {"answer": answer}
+    # Ground-or-flag: surface any self-reported assumption as a structured
+    # record + one grounding.gap event per ungrounded term (no-op unless the
+    # answer carried assumption blocks).
+    assumptions = _extract_assumptions(answer)
+    for assumption in assumptions:
+        _emit_grounding_gap(progress, ctx.run_id, assumption)
+    return {"answer": answer, "assumptions": assumptions}

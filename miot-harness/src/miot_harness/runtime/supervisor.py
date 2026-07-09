@@ -734,6 +734,9 @@ class HarnessSupervisor:
         record.answer = str(
             final_state.get("answer") or "(no answer produced by agentic graph)"
         )
+        # Ground-or-flag: carry the synthesizer's declared assumptions onto the
+        # persisted record (feeds the capture/distill loop; empty when grounded).
+        record.assumptions = list(final_state.get("assumptions") or [])
 
     async def _run_data_meta(
         self,

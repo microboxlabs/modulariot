@@ -2,6 +2,7 @@
   "pages": {
     "login": {
       "welcome": "Welcome back",
+      "subtitle": "Sign in to your ModularIOT account",
       "fields": {
         "email": {
           "label": "Email",
@@ -37,6 +38,35 @@
         "label": "Team identifier",
         "placeholder": "your-team-name",
         "required": "Team identifier is required"
+      },
+      "requestAccess": {
+        "prompt": "Don't have an account?",
+        "link": "Request access",
+        "backToLogin": "Already have an account? Sign in"
+      },
+      "credentialsTitle": "Sign in",
+      "credentialsSubtitle": "Enter your email and password to access your account",
+      "register": {
+        "title": "Request access",
+        "subtitle": "Fill in your details to create your ModularIOT account",
+        "fields": {
+          "name": {
+            "label": "First name",
+            "placeholder": "Your first name"
+          },
+          "lastname": {
+            "label": "Last name",
+            "placeholder": "Your last name"
+          },
+          "confirmPassword": {
+            "label": "Confirm password",
+            "placeholder": ""
+          }
+        },
+        "submit": "Request access",
+        "errors": {
+          "passwordMismatch": "Passwords do not match"
+        }
       },
       "errors": {
         "invalidCredentials": "Access denied. Please verify your credentials and try again.",

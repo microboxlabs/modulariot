@@ -13,6 +13,37 @@ export type FormSignInMessages = {
   buttonContinueWithMicrosoft: string;
   /** @deprecated Use authConfig.providers[].name instead */
   buttonContinueWithEmail: string;
+  /** "¿No tienes cuenta?" prompt shown before the request-access link */
+  requestAccessPrompt: string;
+  /** "Solicitar acceso" link that switches the card to the register view */
+  requestAccessLink: string;
+  /** Card title for the main (provider buttons) view */
+  mainTitle: string;
+  /** Card description for the main (provider buttons) view */
+  mainSubtitle: string;
+  /** Card title for the credentials (email/password) view */
+  loginTitle: string;
+  /** Card description for the credentials (email/password) view */
+  loginSubtitle: string;
+};
+
+/** Messages for the register ("request access") view */
+export type RegisterFormMessages = {
+  /** Card title for the register view */
+  title: string;
+  /** Card description for the register view */
+  subtitle: string;
+  nameLabel: string;
+  namePlaceholder: string;
+  lastnameLabel: string;
+  lastnamePlaceholder: string;
+  emailLabel: string;
+  emailPlaceholder: string;
+  passwordLabel: string;
+  confirmPasswordLabel: string;
+  submitLabel: string;
+  passwordMismatchError: string;
+  backToLoginLabel: string;
 };
 
 /** Pre-computed labels for each provider (by provider id) */
@@ -30,6 +61,8 @@ export type SamlLabels = Readonly<{
 
 export type FormSignInProps = Readonly<{
   messages: FormSignInMessages;
+  /** Messages for the register ("request access") view */
+  registerMessages: RegisterFormMessages;
   /** Auth providers configuration */
   authConfig: AuthConfig;
   /** Pre-computed labels for each provider */

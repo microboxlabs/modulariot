@@ -2,6 +2,7 @@
   "pages": {
     "login": {
       "welcome": "Bienvenido de nuevo",
+      "subtitle": "Inicia sesión en tu cuenta de ModularIOT",
       "fields": {
         "email": {
           "label": "Correo electrónico",
@@ -37,6 +38,35 @@
         "label": "Identificador del equipo",
         "placeholder": "nombre-de-tu-equipo",
         "required": "El identificador del equipo es requerido"
+      },
+      "requestAccess": {
+        "prompt": "¿No tienes cuenta?",
+        "link": "Solicitar acceso",
+        "backToLogin": "¿Ya tienes cuenta? Inicia sesión"
+      },
+      "credentialsTitle": "Inicia sesión",
+      "credentialsSubtitle": "Ingresa tu correo y contraseña para acceder a tu cuenta",
+      "register": {
+        "title": "Solicitar acceso",
+        "subtitle": "Completa tus datos para crear tu cuenta en ModularIOT",
+        "fields": {
+          "name": {
+            "label": "Nombre",
+            "placeholder": "Tu nombre"
+          },
+          "lastname": {
+            "label": "Apellido",
+            "placeholder": "Tu apellido"
+          },
+          "confirmPassword": {
+            "label": "Confirmar contraseña",
+            "placeholder": ""
+          }
+        },
+        "submit": "Solicitar acceso",
+        "errors": {
+          "passwordMismatch": "Las contraseñas no coinciden"
+        }
       },
       "errors": {
         "invalidCredentials": "Acceso denegado. Por favor, verifique sus credenciales e intente nuevamente.",

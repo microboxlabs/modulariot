@@ -1,5 +1,6 @@
 import { Label, TextInput, Checkbox, Button } from "flowbite-react";
 import Link from "next/link";
+import { LoginDivider } from "../login-divider";
 
 export default function SignIn({
   msg,
@@ -78,11 +79,11 @@ export default function SignIn({
         >
           {msg.buttonSubmitLabel}
         </Button>
-        <div className="mt-2 flex gap-1 flex-col text-sm justify-center items-center text-gray-500">
-          <p>o</p>
+        <div className="mt-2 flex flex-col gap-2">
+          <LoginDivider text="o" />
           <a
             href="#"
-            className="text-center hover:underline cursor-pointer text-blue-700 text-md"
+            className="text-center hover:underline cursor-pointer text-blue-700 text-sm"
             onClick={() => setShowLogin(false)}
           >
             {msg.buttonContinueWithMicrosoft}

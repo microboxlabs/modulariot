@@ -4,7 +4,10 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import NavbarSignIn from "@/features/auth/components/navbar-sign-in";
 import FooterSignIn from "@/features/auth/components/footer-sign-in/footer-sign-in";
 import FormSignIn from "@/features/auth/components/form-sign-in/form-sign-in";
-import { buildSignInFormMessages } from "@/features/auth/utils/utils";
+import {
+  buildSignInFormMessages,
+  buildRegisterFormMessages,
+} from "@/features/auth/utils/utils";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getAuthConfig } from "@/features/auth/config/auth-providers.config";
@@ -95,6 +98,7 @@ export default async function SignInPage(
       ? dict("pages.login.errors.accessDenied")
       : null;
   const signInMessages = buildSignInFormMessages({ messages: dict });
+  const registerMessages = buildRegisterFormMessages({ messages: dict });
   const orgLogo = await getPublicOrgLogo();
   const authConfig = getAuthConfig();
   // Provider/SAML labels and dividerText come from runtime auth config: the key
@@ -118,13 +122,10 @@ export default async function SignInPage(
             theme={{
               root: {
                 base: "flex rounded-lg border border-gray-200 shadow-md dark:border-gray-700",
-                children: "my-auto w-full gap-0 space-y-4 p-6 sm:p-4 lg:p-8",
+                children: "my-auto w-full gap-0 p-6 sm:p-4 lg:p-8",
               },
             }}
           >
-            <h2 className="text-2xl font-bold text-gray-900 lg:text-3xl dark:text-white w-full text-center">
-              {dict("pages.login.welcome")}
-            </h2>
             {accessDeniedMessage && (
               <Alert
                 color="failure"
@@ -136,6 +137,7 @@ export default async function SignInPage(
             )}
             <FormSignIn
               messages={signInMessages}
+              registerMessages={registerMessages}
               authConfig={authConfig}
               providerLabels={providerLabels}
               dividerText={dividerText}

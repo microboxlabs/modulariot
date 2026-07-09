@@ -5,7 +5,7 @@ import json
 import logging
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
@@ -36,6 +36,8 @@ from miot_harness.context_skills.loader import (
     boot_context_skills,
 )
 from miot_harness.context_skills.skill_models import SkillSummary
+from miot_harness.datasource.knowledge.distiller import distill_episodes
+from miot_harness.datasource.knowledge.loader import load_connection_cards
 from miot_harness.datasource.knowledge.writer import (
     ConnectionCardWrite,
     write_connection_card,
@@ -108,6 +110,15 @@ class KnowledgeCardWrite(BaseModel):
     approved_by: str = ""
     provenance: dict[str, Any] | list[Any] | None = None
     last_confirmed: str = ""
+
+
+class DistillRequest(BaseModel):
+    """Body for POST /connections/{connection}/distill — the batch of interaction
+    episodes the modulith read for this tenant+connection. Episodes are flexible
+    telemetry dicts (`run_id` + `payload{query, assumptions, …}`); the distiller
+    reads them defensively, so the schema stays permissive."""
+
+    episodes: list[dict[str, Any]] = Field(default_factory=list)
 
 
 def _make_lifespan(
@@ -1100,6 +1111,60 @@ def create_app() -> FastAPI:
             "path": str(path),
             "scope": scope,
             "status": "approved",
+        }
+
+    @app.post("/connections/{connection}/distill")
+    async def distill_connection(
+        connection: str,
+        body: DistillRequest,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, Any]:
+        """Run the background knowledge distiller over a batch of interaction
+        episodes for one connection and return CANDIDATE facts (pending human
+        review) — the DISTILL seam. The modulith's scheduled reconciler reads the
+        episodes from `interaction_episodes`, POSTs them here, and stages the
+        returned candidates in `knowledge_candidates`; the harness lends its LLM +
+        its authoritative cards (so already-grounded terms are skipped) and owns
+        no episode/candidate storage. OFF by default — 503 unless
+        `knowledge_distiller_enabled`. Produces only PENDING candidates; it never
+        promotes or writes a card (promotion stays human-gated).
+        """
+        if not settings.knowledge_distiller_enabled:
+            raise HTTPException(status_code=503, detail="knowledge distiller disabled")
+        conn: Connection | None = getattr(
+            app.state, "connection_objects", {}
+        ).get(connection)
+        if conn is None:
+            raise HTTPException(
+                status_code=404, detail=f"unknown connection {connection!r}"
+            )
+        _enforce_tenant_may_write_connection(conn, auth, connection)
+
+        # Skip terms this connection already grounds — the distiller proposes only
+        # what is still ungrounded. The authoritative cards are the harness's own,
+        # on the PVC beside the connection file.
+        existing_terms: list[str] = []
+        source_path = conn.source_path
+        if source_path and not source_path.startswith("<"):
+            cards_dir = Path(source_path).parent / "knowledge"
+            existing_terms = [
+                c.term or c.id for c in load_connection_cards(cards_dir).cards
+            ]
+
+        # Tests inject a stub via app.state.distiller_model; prod builds the seat
+        # on demand (a background batch call, not the hot path).
+        model = getattr(app.state, "distiller_model", None)
+        if model is None:
+            model = get_chat_model(settings.knowledge_distiller_model)
+        candidates = await distill_episodes(
+            body.episodes,
+            connection=connection,
+            model=model,
+            existing_terms=existing_terms,
+        )
+        return {
+            "connection": connection,
+            "candidates": [asdict(c) for c in candidates],
         }
 
     @app.get("/runs/{run_id}/stream")

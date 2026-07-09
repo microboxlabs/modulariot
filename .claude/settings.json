@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(git fetch *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(npm install *)",
+      "Bash(npx turbo *)"
     ]
   },
   "enabledPlugins": {

@@ -1,0 +1,42 @@
+<svg width="600" height="300" viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="600" height="300" fill="#f8fafc"/>
+  <rect x="20" y="20" width="560" height="40" rx="6" fill="#1e293b"/>
+  <text x="30" y="45" font-family="Arial, sans-serif" font-size="16" fill="white" font-weight="bold">Symptom Detection Timeline</text>
+  <text x="450" y="45" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">Last 24 hours</text>
+  
+  <!-- Timeline background -->
+  <rect x="20" y="80" width="560" height="180" rx="6" fill="white" stroke="#e2e8f0"/>
+  
+  <!-- Timeline axis -->
+  <line x1="50" y1="240" x2="570" y2="240" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="50" y="255" font-family="Arial, sans-serif" font-size="10" fill="#64748b">00:00</text>
+  <text x="300" y="255" font-family="Arial, sans-serif" font-size="10" fill="#64748b">12:00</text>
+  <text x="550" y="255" font-family="Arial, sans-serif" font-size="10" fill="#64748b">24:00</text>
+  
+  <!-- Y-axis labels -->
+  <text x="35" y="100" font-family="Arial, sans-serif" font-size="10" fill="#64748b">High</text>
+  <text x="25" y="160" font-family="Arial, sans-serif" font-size="10" fill="#64748b">Medium</text>
+  <text x="35" y="220" font-family="Arial, sans-serif" font-size="10" fill="#64748b">Low</text>
+  
+  <!-- Data points and lines -->
+  <polyline points="50,200 120,180 200,120 280,140 360,100 440,130 520,110 570,120" 
+            fill="none" stroke="#3b82f6" stroke-width="3"/>
+  
+  <!-- Anomaly markers -->
+  <circle cx="200" cy="120" r="8" fill="#ef4444" stroke="white" stroke-width="2"/>
+  <circle cx="360" cy="100" r="8" fill="#ef4444" stroke="white" stroke-width="2"/>
+  <circle cx="520" cy="110" r="8" fill="#f59e0b" stroke="white" stroke-width="2"/>
+  
+  <!-- Legend -->
+  <rect x="400" y="90" width="160" height="80" rx="4" fill="white" stroke="#e2e8f0"/>
+  <text x="410" y="105" font-family="Arial, sans-serif" font-size="12" fill="#1e293b" font-weight="bold">Legend</text>
+  
+  <line x1="410" y1="120" x2="430" y2="120" stroke="#3b82f6" stroke-width="3"/>
+  <text x="435" y="125" font-family="Arial, sans-serif" font-size="10" fill="#64748b">Normal</text>
+  
+  <circle cx="420" cy="135" r="4" fill="#f59e0b"/>
+  <text x="435" y="140" font-family="Arial, sans-serif" font-size="10" fill="#64748b">Warning</text>
+  
+  <circle cx="420" cy="150" r="4" fill="#ef4444"/>
+  <text x="435" y="155" font-family="Arial, sans-serif" font-size="10" fill="#64748b">Critical</text>
+</svg> 

@@ -1,0 +1,83 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "../../globals.css";
+import DemoFab from "../../../components/v2/DemoFab";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: 'swap',
+  variable: '--font-inter',
+});
+
+export const metadata: Metadata = {
+  title: "ModularIoT — Sabemos lo que pasa. Antes de que te pase a ti.",
+  description: "Plataforma de monitoreo operacional en tiempo real. Supervisamos tus activos y procesos para que actúes antes de que ocurra el problema. Código abierto, sin dependencia de proveedores.",
+  keywords: ["fleet management", "IoT", "real-time data", "streaming", "telematics", "GPS tracking", "sensor data", "open source", "Apache-2.0"],
+  authors: [{ name: "MicroboxLabs" }],
+  creator: "MicroboxLabs",
+  publisher: "MicroboxLabs",
+  openGraph: {
+    title: "ModularIoT - Own Your Fleet Data in Real Time",
+    description: "ModularIoT is an open-source real-time monitoring platform for fleet data. Stream every GPS ping, sensor value and driver event through your cloud in milliseconds.",
+    url: "https://modulariot.com",
+    siteName: "ModularIoT",
+    type: "website",
+    images: [
+      {
+        url: "/hero-pipeline.svg",
+        width: 400,
+        height: 300,
+        alt: "ModularIoT Real-time Data Pipeline",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ModularIoT - Own Your Fleet Data in Real Time",
+    description: "ModularIoT is an open-source real-time monitoring platform for fleet data. Stream every GPS ping, sensor value and driver event through your cloud in milliseconds.",
+    images: ["/hero-pipeline.svg"],
+    creator: "@microboxlabs",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    google: "your-google-verification-code",
+  },
+};
+
+export async function generateStaticParams() {
+  return [{ lang: 'en' }, { lang: 'es' }, { lang: 'pt' }];
+}
+
+export default async function RootLayout({
+  children,
+  params,
+}: Readonly<{
+  children: React.ReactNode;
+  params: Promise<{ lang: string }>;
+}>) {
+  const { lang } = await params;
+  
+  return (
+    <html lang={lang} suppressHydrationWarning className={inter.variable}>
+      <head>
+        <link rel="canonical" href="https://modulariot.com" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" href="/favicon.ico" />
+      </head>
+      <body className="font-sans antialiased bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+        {children}
+        <DemoFab lang={lang} />
+      </body>
+    </html>
+  );
+}

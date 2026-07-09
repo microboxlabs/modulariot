@@ -57,6 +57,11 @@ class DataState(TypedDict, total=False):
     evidence: Annotated[list[DataEvidence], operator.add]
     pending_step_index: int
     answer: str | None
+    # Ground-or-flag: assumptions the synthesizer declared for business terms it
+    # could not ground in an authoritative knowledge card. Plain key = replace
+    # semantics (the synthesizer writes it once). MUST be declared or LangGraph
+    # silently drops the node's write (see the channel note below).
+    assumptions: list[dict[str, Any]]
     failure: str | None
     # Supervisor routing + accounting channels. LangGraph SILENTLY drops
     # node writes to channels not declared here (verified on langgraph

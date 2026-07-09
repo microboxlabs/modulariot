@@ -145,6 +145,27 @@ public class HarnessProxyResource {
     }
 
     /**
+     * Writes a human-approved business fact to the harness as a connection-scoped
+     * knowledge card — the APPLY seam of the semantic-layer learning loop, fired by
+     * the app after a reviewer approves a staged candidate. Same auth + membership
+     * chain as the run routes; the harness resolves the tenant from the forwarded
+     * {@code X-Miot-Tenant-Client-Id} header and only lets the connection's owning
+     * tenant attach a card.
+     */
+    @POST
+    @Path("/connections/{connection}/knowledge")
+    public Uni<Response> writeConnectionKnowledge(@PathParam("slug") String slug,
+                                                  @PathParam("connection") String connection,
+                                                  @HeaderParam("Authorization") String authorization,
+                                                  Map<String, Object> body) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        return passThrough(harness.writeConnectionKnowledge(
+                connection, authorization, tenantClientId, userEmail, authMode, body));
+    }
+
+    /**
      * SSE relay (Q3) for the harness {@code GET /runs/{runId}/stream}.
      * Streams the harness event stream straight to the browser, preserving
      * the {@code id:}/{@code event:}/{@code data:} framing byte-for-byte —

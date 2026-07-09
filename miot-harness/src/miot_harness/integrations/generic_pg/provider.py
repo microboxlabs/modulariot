@@ -14,6 +14,7 @@ BOTH `settings.generic_query_enabled` is true AND the connection declares
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import asyncpg
 
@@ -21,6 +22,7 @@ from miot_harness.config import HarnessSettings
 from miot_harness.connections.models import Connection
 from miot_harness.datasource.knowledge.loader import (
     detect_packs,
+    load_connection_cards,
     load_packs,
     probe_version,
 )
@@ -225,6 +227,13 @@ class GenericPgProvider(DataSourceProvider):
                         exc_info=True,  # keep the traceback for catalog/permission diag
                     )
 
+            # Connection-scoped AUTHORED cards (continual-learning write target):
+            # loaded independently of pack fingerprinting and appended AFTER pack
+            # cards so an authored card overrides a pack card of the same id
+            # (build_generic_tools' cards_by_id is last-wins).
+            if settings.generic_connection_cards_enabled:
+                knowledge_cards += self._load_connection_cards(connection)
+
             tools = build_generic_tools(
                 pool=self._pool,
                 policy=policy,
@@ -283,6 +292,22 @@ class GenericPgProvider(DataSourceProvider):
                     )
             out.append(DetectedPack(pack=pack, version=version))
         return tuple(out)
+
+    def _load_connection_cards(self, connection: Connection) -> list[KnowledgeCard]:
+        """Load `<connection dir>/knowledge/*.md` authored cards (the
+        continual-learning write target). Best-effort: a synthesized/legacy
+        connection has no on-disk dir; a missing dir or a bad card yields no
+        cards, never an exception (mirrors pack detection)."""
+        source_path = connection.source_path
+        # Synthesized ("<synthesized>") / legacy-env ("<legacy-env>") connections
+        # have no authored file on disk, hence no sibling knowledge dir.
+        if not source_path or source_path.startswith("<"):
+            return []
+        cards_dir = Path(source_path).parent / "knowledge"
+        result = load_connection_cards(cards_dir)
+        for diag in result.diagnostics:
+            logger.warning("generic_pg %s: connection card: %s", connection.name, diag)
+        return list(result.cards)
 
     async def close(self) -> None:
         if self._pool is not None:

@@ -81,6 +81,24 @@ describe("reduceHarnessStreamEvent", () => {
     expect(s.results).toEqual(results);
   });
 
+  it("search.accepted captures the run id (candidate provenance)", () => {
+    const s = reduceAll([harnessFrame("search.accepted", { run_id: "run_9" })]);
+    expect(s.runId).toBe("run_9");
+  });
+
+  it("search.result keeps only ungrounded assumptions that carry a connection", () => {
+    const assumptions = [
+      { term: "entregas", interpretation: "confirmDelivery", predicate: "p", grounded: false, connection: "acs" },
+      { term: "grounded", interpretation: "x", predicate: "p", grounded: true, connection: "acs" },
+      { term: "no-conn", interpretation: "y", predicate: "p", grounded: false },
+    ];
+    const s = reduceAll([{ event: "search.result", data: { results: [], assumptions } }]);
+    expect(s.phase).toBe("done");
+    expect(s.assumptions).toEqual([
+      { term: "entregas", interpretation: "confirmDelivery", predicate: "p", grounded: false, connection: "acs" },
+    ]);
+  });
+
   it("run.failed and search.error map to the error phase", () => {
     expect(reduceAll([harnessFrame("run.failed", {})]).phase).toBe("error");
     expect(

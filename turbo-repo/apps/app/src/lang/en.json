@@ -1305,6 +1305,21 @@
         }
       },
       "dataSources": {
+        "learnedKnowledge": {
+          "title": "Learned knowledge",
+          "description": "Business definitions the assistant learned from your questions. Approve them so it uses them in future answers.",
+          "empty": "No knowledge pending review.",
+          "error": "Couldn't load learned knowledge.",
+          "retry": "Retry",
+          "approve": "Approve",
+          "reject": "Dismiss",
+          "toast": {
+            "approved": "\"{term}\" approved and applied.",
+            "approvedNotApplied": "\"{term}\" approved, but not applied yet. Retry later.",
+            "rejected": "\"{term}\" dismissed.",
+            "reviewError": "Couldn't complete the review."
+          }
+        },
         "title": "Data Sources",
         "description": "Manage your data sources connections.",
         "addButton": "Add Data Source",
@@ -4039,6 +4054,13 @@
     "invalid": "This link is not valid"
   },
   "spotlight": {
+    "elicit": {
+      "prompt": "I read \"{term}\" as {interpretation}. Is that right?",
+      "remember": "Yes, remember",
+      "dismiss": "No",
+      "saved": "I'll remember \"{term}\".",
+      "error": "Couldn't save. Try again."
+    },
     "placeholder": "Ask, build or navigate",
     "sections": {
       "ask": "Ask",

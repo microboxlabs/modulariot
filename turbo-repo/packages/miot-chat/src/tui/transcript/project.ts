@@ -32,10 +32,13 @@ export function applyHarnessEvent(
 
     case "approval.auto":
     case "steering.mode_denied":
+    case "grounding.gap":
       // Status-only markers (an approval auto-resolved; a steering mode was
-      // denied). The session reducer / footer surfaces these; the transcript
-      // projector leaves the slice unchanged, like run.completed below. Also
-      // keeps this switch exhaustive over HarnessEventType.
+      // denied; a ground-or-flag assumption was declared — it also rides the
+      // final answer, so nothing to render mid-stream). The session reducer /
+      // footer surfaces these; the transcript projector leaves the slice
+      // unchanged, like run.completed below. Keeps this switch exhaustive over
+      // HarnessEventType.
       return slice;
 
     case "run.completed":

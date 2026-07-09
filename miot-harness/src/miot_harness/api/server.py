@@ -14,7 +14,7 @@ import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import get_chat_model
@@ -30,11 +30,16 @@ from miot_harness.config import (
     load_dotenv_into_environ,
 )
 from miot_harness.connections.loader import load_connections, select_primary
+from miot_harness.connections.models import Connection
 from miot_harness.context_skills.loader import (
     ActiveConnections,
     boot_context_skills,
 )
 from miot_harness.context_skills.skill_models import SkillSummary
+from miot_harness.datasource.knowledge.writer import (
+    ConnectionCardWrite,
+    write_connection_card,
+)
 from miot_harness.datasource.provider import BootResult, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
@@ -82,6 +87,27 @@ class ApprovalDecision(BaseModel):
     """
 
     decision: Literal["approve", "deny"]
+
+
+class KnowledgeCardWrite(BaseModel):
+    """Body schema for POST /connections/{connection}/knowledge — one
+    human-approved business fact to persist as a connection-scoped card.
+
+    `scope` is restricted to shared tiers: a personal fact never becomes a
+    shared connection card (it would leak to every user of the connection), so
+    the endpoint rejects it. `body` records the MEANING of the term, never
+    row-level secret values.
+    """
+
+    term: str = Field(min_length=1)
+    body: str = Field(min_length=1)
+    kind: str = ""
+    title: str = ""
+    scope: str = "tenant"
+    confidence: float | None = None
+    approved_by: str = ""
+    provenance: dict[str, Any] | list[Any] | None = None
+    last_confirmed: str = ""
 
 
 def _make_lifespan(
@@ -180,6 +206,12 @@ def _make_lifespan(
         # connection synthesized from the legacy MIOT_HARNESS_DATASOURCE_* env).
         conn_result = load_connections(settings)
         app.state.connections_diagnostics = list(conn_result.diagnostics)
+        # Keep the resolved Connection objects (not just the JSON summary in
+        # app.state.connections) so the knowledge-write endpoint can resolve a
+        # connection to its on-disk source_path + tenant scope.
+        app.state.connection_objects = {
+            c.name: c for c in conn_result.connections
+        }
         for conn_diag in conn_result.diagnostics:
             (
                 logger.error
@@ -1000,6 +1032,73 @@ def create_app() -> FastAPI:
         task.cancel()
         return Response(status_code=204)
 
+    @app.post("/connections/{connection}/knowledge", status_code=201)
+    async def write_connection_knowledge(
+        connection: str,
+        body: KnowledgeCardWrite,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, str]:
+        """Persist a human-approved business fact as a connection-scoped
+        authored card on the harness PVC — the APPLY seam of the
+        continual-learning loop. R0's knowledge loader picks up
+        `<conn>/knowledge/*.md` on the next run, so grounding improves without a
+        redeploy. Promotion is human-gated upstream (the app's review UI); this
+        endpoint only writes what an authenticated, tenant-authorized caller
+        approved.
+        """
+        conn: Connection | None = getattr(
+            app.state, "connection_objects", {}
+        ).get(connection)
+        if conn is None:
+            raise HTTPException(
+                status_code=404, detail=f"unknown connection {connection!r}"
+            )
+        _enforce_tenant_may_write_connection(conn, auth, connection)
+
+        # A personal fact never becomes a shared connection card — it would leak
+        # to every user of the connection. Only tenant/group tiers are shareable.
+        scope = body.scope.strip() or "tenant"
+        if scope != "tenant" and scope != "group" and not scope.startswith("group:"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"scope {body.scope!r} is not shareable "
+                "(expected 'tenant' or 'group[:<id>]')",
+            )
+
+        # Synthesized / legacy-env connections have no authored file on disk,
+        # hence no sibling knowledge dir to attach a card to.
+        source_path = conn.source_path
+        if not source_path or source_path.startswith("<"):
+            raise HTTPException(
+                status_code=409,
+                detail=f"connection {connection!r} has no authored file on disk; "
+                "cannot attach knowledge",
+            )
+        cards_dir = Path(source_path).parent / "knowledge"
+        card = ConnectionCardWrite(
+            term=body.term,
+            body=body.body,
+            kind=body.kind,
+            title=body.title,
+            scope=scope,
+            status="approved",
+            confidence=body.confidence,
+            approved_by=body.approved_by or str(auth.get("user_id") or ""),
+            provenance=body.provenance,
+            last_confirmed=body.last_confirmed,
+        )
+        try:
+            path = write_connection_card(cards_dir, card)
+        except (ValueError, OSError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {
+            "connection": connection,
+            "card_id": path.stem,
+            "path": str(path),
+            "scope": scope,
+            "status": "approved",
+        }
+
     @app.get("/runs/{run_id}/stream")
     async def stream_run(
         run_id: str,
@@ -1052,6 +1151,34 @@ def _enforce_tenant_owns_run(
         raise HTTPException(
             status_code=403,
             detail=f"cross_tenant_replay:run {run_id!r} belongs to a different tenant",
+        )
+
+
+def _enforce_tenant_may_write_connection(
+    conn: Connection, auth: Mapping[str, Any], name: str
+) -> None:
+    """Refuse a knowledge write from a caller whose tenant doesn't own the
+    connection. No-op when auth resolved no tenant (auth disabled — local dev /
+    unit tests).
+
+    Mirrors the runtime tenancy gate's ``tenant_id == lock`` equality exactly:
+    a tenant-scoped connection is that tenant's; a globally-loaded connection
+    may still be sealed to one tenant via ``options.tenant_lock`` (e.g.
+    Nexo→Orion). A global, unlocked connection is shared infrastructure — any
+    authenticated tenant may attach a card (the write is human-gated upstream).
+    """
+    caller = auth.get("tenant_id")
+    if not caller:
+        return
+    if conn.scope == "tenant" and conn.tenant_id:
+        lock: str | None = str(conn.tenant_id)
+    else:
+        raw_lock = conn.options.get("tenant_lock")
+        lock = str(raw_lock) if raw_lock else None
+    if lock is not None and caller != lock:
+        raise HTTPException(
+            status_code=403,
+            detail=f"connection {name!r} is locked to another tenant",
         )
 
 

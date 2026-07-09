@@ -2,7 +2,34 @@
   "permissions": {
     "allow": [
       "Bash(git fetch *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(xargs -I{} echo {})",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3050/en/sign-in)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3050/en/sign-in --max-time 5)",
+      "Read(//tmp/**)",
+      "Read(//private/tmp/**)",
+      "Bash(curl -s http://localhost:3050/en/sign-in --max-time 5 -o /tmp/signin.html -w \"%{http_code}\\\\n\")",
+      "Bash(curl -s http://localhost:3050/ --max-time 5 -o /tmp/root.html -w \"%{http_code}\\\\n\")",
+      "Bash(curl -s http://localhost:3050/app/en/sign-in --max-time 8 -o /tmp/signin.html -w \"%{http_code}\\\\n\")",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(npx --no-install playwright --version)",
+      "Bash(node /private/tmp/claude-501/-Users-khalz-Desktop-development-modulariot-refactor-login-style/6a91a0d5-1727-429c-9c00-750fb0492226/scratchpad/screenshot-signin.mjs)",
+      "Bash(node screenshot-signin.mjs)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3050/app/en/sign-in --max-time 3)",
+      "Bash(mkdir -p /private/tmp/claude-501/-Users-khalz-Desktop-development-modulariot-refactor-login-style/e449903d-93db-4e04-8f8e-e234aa7874f8/scratchpad)",
+      "Bash(sed 's#outDir = \".*\"#outDir = \"/private/tmp/claude-501/-Users-khalz-Desktop-development-modulariot-refactor-login-style/e449903d-93db-4e04-8f8e-e234aa7874f8/scratchpad\"#' screenshot-signin.mjs)",
+      "Bash(node /tmp/screenshot-signin-mine.mjs)",
+      "Bash(cp /tmp/screenshot-signin-mine.mjs ./screenshot-signin-mine.mjs)",
+      "Bash(node screenshot-signin-mine.mjs)",
+      "Bash(cp /tmp/screenshot-signin-mine.mjs ./screenshot-signin-mine2.mjs)",
+      "Bash(node screenshot-signin-mine2.mjs)",
+      "Bash(rm -f /tmp/screenshot-signin-mine.mjs)",
+      "Bash(grep -rn \"ENABLE_REGISTER_LINK\" . --include=\".env*\")",
+      "Bash(ls -la .env*)"
+    ],
+    "additionalDirectories": [
+      "/private/tmp"
     ]
   },
   "enabledPlugins": {

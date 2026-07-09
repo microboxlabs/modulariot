@@ -3,7 +3,6 @@ import React from "react";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import AuthPageShell from "@/features/auth/components/auth-page-shell/auth-page-shell";
 import FormSignIn from "@/features/auth/components/form-sign-in/form-sign-in";
-import { buildSignInFormMessages } from "@/features/auth/utils/utils";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getAuthConfig } from "@/features/auth/config/auth-providers.config";
@@ -93,16 +92,31 @@ export default async function SignInPage(
     resolvedSearchParams?.error === "AccessDenied"
       ? dict("pages.login.errors.accessDenied")
       : null;
-  const signInMessages = buildSignInFormMessages({ messages: dict });
   const orgLogo = await getPublicOrgLogo();
   const authConfig = getAuthConfig();
   // Provider/SAML labels and dividerText come from runtime auth config: the key
   // is only known at runtime, so they use the dynamic (unchecked) translator.
   const providerLabels = buildProviderLabels(authConfig, dictDynamic);
+  // mintral asked for the original "Continue with external user" wording on
+  // the credentials link, kept only for that tenant while other tenants get
+  // the clearer default copy.
+  if (process.env.MIOT_DEFAULT_ORG_ID === "mintral") {
+    const credentialsProvider = authConfig.providers.find(
+      (p) => p.type === "credentials"
+    );
+    if (credentialsProvider) {
+      providerLabels[credentialsProvider.id] = dict(
+        "pages.login.buttons.continueWithEmail"
+      );
+    }
+  }
   const dividerText = authConfig.dividerText?.includes(".")
     ? dictDynamic(authConfig.dividerText)
     : (authConfig.dividerText ?? dict("pages.login.divider"));
   const samlLabels = buildSamlLabels(authConfig, dictDynamic);
+  // Server-only flag: kept off NEXT_PUBLIC_ so the toggle never ships to
+  // the client bundle; FormSignIn just receives the resolved boolean.
+  const showRegisterLink = process.env.ENABLE_REGISTER_LINK === "true";
 
   return (
     <AuthPageShell orgLogoUrl={orgLogo} footerMessages={dict}>
@@ -113,14 +127,11 @@ export default async function SignInPage(
         className="bg-white dark:bg-gray-800 transition-colors duration-200"
         theme={{
           root: {
-            base: "flex rounded-lg border border-gray-200 shadow-md dark:border-gray-700",
-            children: "my-auto w-full gap-0 space-y-4 p-6 sm:p-4 lg:p-8",
+            base: "flex rounded-lg border border-gray-200 shadow-none dark:border-gray-700",
+            children: "my-auto w-full gap-0 p-10 sm:p-10 lg:p-10",
           },
         }}
       >
-        <h2 className="text-2xl font-bold text-gray-900 lg:text-3xl dark:text-white w-full text-center">
-          {dict("pages.login.welcome")}
-        </h2>
         {accessDeniedMessage && (
           <Alert
             color="failure"
@@ -131,12 +142,37 @@ export default async function SignInPage(
           </Alert>
         )}
         <FormSignIn
-          messages={signInMessages}
+          messages={{
+            emailPlaceHolder: dict("pages.login.fields.email.placeholder"),
+            emailLabel: dict("pages.login.fields.email.label"),
+            passwordLabel: dict("pages.login.fields.password.label"),
+            rememberMeLabel: dict("pages.login.fields.remember.label"),
+            forgotPasswordLabel: dict("pages.login.fields.forgot.label"),
+            buttonSubmitLabel: dict("pages.login.buttons.submit"),
+            invalidCredentials: dict("pages.login.errors.invalidCredentials"),
+            invalidFromData: dict("pages.login.errors.invalidFromData"),
+            buttonContinueWithMicrosoft: dict(
+              "pages.login.buttons.continueWithMicrosoft"
+            ),
+            buttonContinueWithEmail: dict(
+              "pages.login.buttons.continueWithEmail"
+            ),
+            requestAccessPrompt: dict("pages.login.requestAccess.prompt"),
+            requestAccessLink: dict("pages.login.requestAccess.link"),
+            mainTitle: dict("pages.login.welcome"),
+            mainSubtitle: dict("pages.login.subtitle"),
+            loginTitle: dict("pages.login.credentialsTitle"),
+            loginSubtitle: dict("pages.login.credentialsSubtitle"),
+            ssoTitle: dict("pages.login.ssoTitle"),
+            ssoSubtitle: dict("pages.login.ssoSubtitle"),
+            ssoSubmitLabel: dict("pages.login.buttons.ssoSubmit"),
+          }}
           authConfig={authConfig}
           providerLabels={providerLabels}
           dividerText={dividerText}
           samlLabels={samlLabels}
           callbackUrl={callbackUrl}
+          showRegisterLink={showRegisterLink}
         />
       </Card>
     </AuthPageShell>

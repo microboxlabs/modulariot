@@ -65,14 +65,12 @@ export default function LoginButton({
   onClick,
   formAction,
   isLoading,
-  isPrimary,
 }: LoginButtonProps) {
   const IconComponent = provider.icon ? ICON_MAP[provider.icon] : null;
-  const shouldBePrimary = isPrimary ?? provider.primary;
 
   return (
     <Button
-      color={shouldBePrimary ? "blue" : "light"}
+      color="alternative"
       className="w-full px-0 py-px"
       type="submit"
       formAction={formAction}

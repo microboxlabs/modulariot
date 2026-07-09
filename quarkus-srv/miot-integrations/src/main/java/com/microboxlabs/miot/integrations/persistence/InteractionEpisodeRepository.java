@@ -8,7 +8,10 @@ import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -31,6 +34,22 @@ public class InteractionEpisodeRepository {
             ) VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING %s""".formatted(COLUMNS);
 
+    // The distiller's READ side: recent episodes for one tenant (newest first),
+    // and the set of tenants with fresh activity to iterate. Both are bounded by
+    // a `since` cutoff so a background pass only reflects on recent signal, and
+    // ride the `(tenant_code, created_at DESC)` index the migration created.
+    private static final String LIST_RECENT_BY_TENANT = """
+            SELECT %s
+            FROM miot_integrations.interaction_episodes
+            WHERE tenant_code = $1 AND created_at >= $2
+            ORDER BY created_at DESC
+            LIMIT $3""".formatted(COLUMNS);
+
+    private static final String LIST_DISTINCT_RECENT_TENANTS = """
+            SELECT DISTINCT tenant_code
+            FROM miot_integrations.interaction_episodes
+            WHERE created_at >= $1""";
+
     private final Instance<Pool> clientInstance;
 
     protected InteractionEpisodeRepository(Instance<Pool> clientInstance) {
@@ -50,6 +69,33 @@ public class InteractionEpisodeRepository {
                 .execute(params)
                 .await().indefinitely();
         return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
+    }
+
+    /** Recent episodes for one tenant, newest first — bounded by `since` + `limit`. */
+    public List<InteractionEpisode> listRecentByTenant(
+            String tenantCode, OffsetDateTime since, int limit) {
+        RowSet<Row> rows = client().preparedQuery(LIST_RECENT_BY_TENANT)
+                .execute(Tuple.of(tenantCode, since, limit))
+                .await().indefinitely();
+        List<InteractionEpisode> out = new ArrayList<>();
+        for (Row row : rows) {
+            out.add(mapRow(row));
+        }
+        return out;
+    }
+
+    /** Distinct tenant_codes with an episode since `since` — the per-tenant loop
+     * driver. tenant_code already equals the org's tenant_client_id, so callers
+     * use it verbatim as the harness `X-Miot-Tenant-Client-Id`. */
+    public List<String> listDistinctTenantsSince(OffsetDateTime since) {
+        RowSet<Row> rows = client().preparedQuery(LIST_DISTINCT_RECENT_TENANTS)
+                .execute(Tuple.of(since))
+                .await().indefinitely();
+        List<String> out = new ArrayList<>();
+        for (Row row : rows) {
+            out.add(row.getString("tenant_code"));
+        }
+        return out;
     }
 
     private Pool client() {

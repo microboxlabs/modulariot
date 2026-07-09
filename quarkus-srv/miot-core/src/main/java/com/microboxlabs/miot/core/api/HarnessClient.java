@@ -76,4 +76,20 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
             @HeaderParam("X-Miot-User-Email") String userEmail,
             @HeaderParam("X-Miot-Auth-Mode") String authMode);
+
+    /**
+     * Writes a human-approved business fact as a connection-scoped knowledge card
+     * (the semantic-layer learning loop's APPLY seam). The harness resolves the
+     * tenant from the forwarded {@code X-Miot-Tenant-Client-Id} header, so the same
+     * tenant that owns the connection is the only one that can attach a card.
+     */
+    @POST
+    @Path("/connections/{connection}/knowledge")
+    Uni<Response> writeConnectionKnowledge(
+            @PathParam("connection") String connection,
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode,
+            Map<String, Object> body);
 }

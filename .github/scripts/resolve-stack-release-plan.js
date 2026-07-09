@@ -124,21 +124,32 @@ const pathStarts = (prefixes) => [...changedFiles].some((file) => prefixes.some(
 // Stack release notes are bundled into the Next.js app, so the app package,
 // tag, and image intentionally stay in sync with the stack version.
 const appChanged = true;
-const docsChanged = true;
+const docsChanged = pathStarts([
+  "turbo-repo/apps/docs/",
+  "turbo-repo/packages/ui/",
+  "turbo-repo/packages/typescript-config/",
+  "turbo-repo/packages/eslint-config/",
+  "turbo-repo/package-lock.json",
+  "turbo-repo/docker/nextjs.standalone-docs.Dockerfile",
+]);
 const modulithChanged = pathStarts(["quarkus-srv/"]);
 
+const latestDocsVersion = latestVersion("docs@v*", "docs@v");
 const latestModulithVersion = latestVersion("modulith@v*", "modulith@v");
 const latestHarnessVersion = latestVersion("harness@v*", "harness@v");
 const currentHarnessVersion = projectVersion("miot-harness/pyproject.toml");
 const harnessBaseVersion = maxVersion(latestHarnessVersion, currentHarnessVersion);
 const harnessChanged = pathStarts(["miot-harness/"]) || !latestHarnessVersion;
 const appVersion = stackVersion;
+const docsVersion = docsChanged ? stackVersion : latestDocsVersion;
 const modulithVersion = modulithChanged ? bumpPatch(latestModulithVersion) : latestModulithVersion;
 const harnessVersion = harnessChanged ? bumpPatch(harnessBaseVersion) : harnessBaseVersion;
-const docsVersion = stackVersion;
 
 if (!appVersion) {
   throw new Error("No app@v* tag exists and the app did not change in this milestone.");
+}
+if (!docsVersion) {
+  throw new Error("No docs@v* tag exists and the docs did not change in this milestone.");
 }
 if (!modulithVersion) {
   throw new Error("No modulith@v* tag exists and the modulith did not change in this milestone.");

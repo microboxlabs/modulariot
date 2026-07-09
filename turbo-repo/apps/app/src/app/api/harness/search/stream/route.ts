@@ -7,6 +7,7 @@ import { requireAuth } from "../../../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../../../utils/tenant-scope";
 import { logger } from "@/lib/logger";
 import { toSearchResult } from "../search-blocks";
+import { recordEpisode } from "../../../interactions/episodes/record-episode";
 
 /**
  * Streaming twin of the buffered POST /api/harness/search.
@@ -142,11 +143,23 @@ export async function POST(request: Request) {
         activeRunId = run_id;
         send("search.accepted", { run_id });
 
+        // Accumulate the route + tool names as they stream, for the interaction
+        // episode written on completion (the learning-loop's captured signal).
+        let episodeRoute: string | undefined;
+        const episodeTools: string[] = [];
+
         for await (const event of client.runs.stream(run_id, {
           signal: controller.signal,
         })) {
           if (FORWARDED_EVENTS.has(event.type)) {
             send(event.type, event.data, event.seq);
+          }
+          if (event.type === "route.selected") {
+            const r = (event.data as { route?: unknown }).route;
+            if (typeof r === "string") episodeRoute = r;
+          } else if (event.type === "tool.started") {
+            const t = (event.data as { tool?: unknown }).tool;
+            if (typeof t === "string") episodeTools.push(t);
           }
           if (TERMINAL_EVENT_TYPES.has(event.type)) break;
         }
@@ -159,6 +172,26 @@ export async function POST(request: Request) {
         const record = await client.runs.get(run_id, { signal: controller.signal });
         send("search.result", {
           results: record.answer ? [toSearchResult(run_id, record.answer)] : [],
+        });
+
+        // Fire-and-forget: append the completed search as an interaction episode
+        // (query + route/tools + answer + ground-or-flag assumptions) for the
+        // semantic-layer learning loop. Best-effort — never blocks or fails the
+        // search (recordEpisode swallows its own errors).
+        void recordEpisode({
+          orgSlug,
+          token,
+          body: {
+            surface: "spotlight",
+            runId: run_id,
+            payload: {
+              query,
+              route: episodeRoute,
+              tools: episodeTools,
+              answer: record.answer,
+              assumptions: record.assumptions ?? [],
+            },
+          },
         });
       } catch (err: unknown) {
         const isAbort =

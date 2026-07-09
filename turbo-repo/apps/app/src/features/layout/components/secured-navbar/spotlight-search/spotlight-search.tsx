@@ -72,6 +72,25 @@ function urlBlockToItem(
   };
 }
 
+/**
+ * Best-effort client signal to the interaction-episode store (semantic-layer
+ * learning loop): which harness result the user engaged with. `keepalive` lets
+ * it survive the navigation a "go to" selection triggers. Never surfaced on
+ * failure — a lost signal must not disrupt the user's action.
+ */
+function postSpotlightSignal(body: {
+  signal: string;
+  runId?: string;
+  payload?: Record<string, unknown>;
+}): void {
+  void fetch("/api/interactions/episodes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ surface: "spotlight", ...body }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 interface SpotlightSearchProps {
   dict: I18nRecord;
@@ -275,6 +294,18 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
       if (item.isHarnessPrompt) {
         item.onSelect();
         return; // keep modal open so the answer can appear
+      }
+      // Learning-loop signal: the user engaged with a harness result (the
+      // answer row `harness:${runId}` or a "go to" link). Best-effort.
+      if (item.kind === "harness" || item.kind === "harness-goto") {
+        const runId = item.id.startsWith("harness:")
+          ? item.id.slice("harness:".length)
+          : undefined;
+        postSpotlightSignal({
+          signal: "clicked",
+          runId,
+          payload: { itemId: item.id, itemKind: item.kind },
+        });
       }
       if (item.kind === "navigate") addRecentItem(item);
       item.onSelect();

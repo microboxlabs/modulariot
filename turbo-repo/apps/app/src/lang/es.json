@@ -1305,6 +1305,21 @@
         }
       },
       "dataSources": {
+        "learnedKnowledge": {
+          "title": "Conocimiento aprendido",
+          "description": "Definiciones de negocio que el asistente aprendió de tus consultas. Apruébalas para que las use en respuestas futuras.",
+          "empty": "No hay conocimiento pendiente de revisión.",
+          "error": "No se pudo cargar el conocimiento aprendido.",
+          "retry": "Reintentar",
+          "approve": "Aprobar",
+          "reject": "Descartar",
+          "toast": {
+            "approved": "\"{term}\" aprobado y aplicado.",
+            "approvedNotApplied": "\"{term}\" aprobado, pero aún no se aplicó. Reinténtalo más tarde.",
+            "rejected": "\"{term}\" descartado.",
+            "reviewError": "No se pudo completar la revisión."
+          }
+        },
         "title": "Fuentes de Datos",
         "description": "Administra tus conexiones de fuentes de datos.",
         "addButton": "Agregar Fuente",

@@ -1305,6 +1305,21 @@
         }
       },
       "dataSources": {
+        "learnedKnowledge": {
+          "title": "Learned knowledge",
+          "description": "Business definitions the assistant learned from your questions. Approve them so it uses them in future answers.",
+          "empty": "No knowledge pending review.",
+          "error": "Couldn't load learned knowledge.",
+          "retry": "Retry",
+          "approve": "Approve",
+          "reject": "Dismiss",
+          "toast": {
+            "approved": "\"{term}\" approved and applied.",
+            "approvedNotApplied": "\"{term}\" approved, but not applied yet. Retry later.",
+            "rejected": "\"{term}\" dismissed.",
+            "reviewError": "Couldn't complete the review."
+          }
+        },
         "title": "Data Sources",
         "description": "Manage your data sources connections.",
         "addButton": "Add Data Source",

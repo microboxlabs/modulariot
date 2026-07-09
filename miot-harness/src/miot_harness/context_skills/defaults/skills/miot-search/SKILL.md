@@ -53,6 +53,17 @@ contract, follow these rules:
 3. For `navigate` (and for `ask` answers that reference app entities), add one
    `url` block per destination, most relevant first, at most 5:
    `{"type": "url", "value": {"url": "/fleet-management?licensePlate=ABC123", "name": "Fleet — ABC-123"}}`
+4. **Ground-or-flag.** When a data answer hinges on interpreting a business
+   term — a stage/column (e.g. "entregas"), a category, or a metric — and the
+   evidence carries an **authoritative definition** for it (a knowledge card you
+   opened via `<connection>_knowledge`), use that definition. When it does NOT —
+   you had to guess what the term means — you MUST both (a) state the assumption
+   inside the `markdown` block ("asumí que 'entregas' = …") and (b) append one
+   `assumption` block, LAST in the array, per guessed term:
+   `{"type": "assumption", "value": {"term": "entregas", "interpretation": "Confirmar Entrega + Recepción", "predicate": "task_def_key_ IN ('confirmDelivery','receiveDelivery')"}}`.
+   A term you grounded in a card gets NO assumption block. Never silently invent
+   a business definition — flagging the guess is how the system learns the real
+   one.
 
 URL rules — never break these:
 

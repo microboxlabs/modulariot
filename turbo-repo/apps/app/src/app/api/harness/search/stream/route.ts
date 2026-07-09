@@ -31,9 +31,14 @@ import { recordEpisode } from "../../../interactions/episodes/record-episode";
 
 const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
 
-/** Same headroom rationale as the buffered route: agentic runs measure
- * ~35-45s; the stream is aborted if the harness never terminates. */
-const HARNESS_STREAM_TIMEOUT_MS = 90_000;
+/** Typical agentic runs measure ~35-45s, but harder questions (per-entity
+ * detail, not a count) replan several times on the Opus planner and can exceed 2
+ * minutes — the run is otherwise cancelled mid-loop and surfaces as a retry
+ * error. This raised ceiling is a STOPGAP; the real fix is the harness
+ * agent-orchestration redesign (move planning off the every-turn Opus seat to an
+ * advisor/orchestrator pattern). The stream is still aborted if the harness never
+ * terminates. */
+const HARNESS_STREAM_TIMEOUT_MS = 180_000;
 
 /** Chain-of-thought events the browser needs. `answer.delta` is excluded on
  * purpose — with answer_format=json the deltas are fragments of a raw JSON

@@ -13,6 +13,7 @@ const resolveTenantScopeMock = vi.fn();
 const runsCreateMock = vi.fn();
 const runsGetMock = vi.fn();
 const runsStreamMock = vi.fn();
+const runsCancelMock = vi.fn();
 
 vi.mock("../../../utils/alfresco-crud-client", () => ({
   requireAuth: (...args: unknown[]) => requireAuthMock(...args),
@@ -31,6 +32,7 @@ vi.mock("@microboxlabs/miot-harness-client", async (importOriginal) => ({
       create: (...args: unknown[]) => runsCreateMock(...args),
       get: (...args: unknown[]) => runsGetMock(...args),
       stream: (...args: unknown[]) => runsStreamMock(...args),
+      cancel: (...args: unknown[]) => runsCancelMock(...args),
     },
   }),
   TERMINAL_EVENT_TYPES: new Set(["run.completed", "run.failed"]),
@@ -163,7 +165,8 @@ describe("POST /api/harness/search/stream", () => {
     expect(runsCreateMock).not.toHaveBeenCalled();
   });
 
-  it("emits search.error and still terminates when the relay fails mid-run", async () => {
+  it("emits search.error, cancels the run, and still terminates when the relay fails mid-run", async () => {
+    runsCancelMock.mockResolvedValue(undefined);
     runsStreamMock.mockImplementation(async function* () {
       yield harnessEvent("route.selected", 1);
       throw new Error("upstream died");
@@ -175,5 +178,43 @@ describe("POST /api/harness/search/stream", () => {
     expect(names).toContain("route.selected");
     expect(names.at(-1)).toBe("search.error");
     expect(names).not.toContain("search.result");
+    // Nobody can consume the run's answer anymore — it must be cancelled.
+    expect(runsCancelMock).toHaveBeenCalledWith("run_1", expect.anything());
+  });
+
+  it("cancels the upstream run when the consumer disconnects mid-run", async () => {
+    runsCancelMock.mockResolvedValue(undefined);
+    runsStreamMock.mockImplementation(async function* (
+      _id: string,
+      opts: { signal: AbortSignal },
+    ) {
+      yield harnessEvent("route.selected", 1);
+      // Block like a live run until the relay aborts us (client.runs.stream
+      // honors the signal the route passes in).
+      await new Promise((_, reject) => {
+        opts.signal.addEventListener("abort", () =>
+          reject(new DOMException("aborted", "AbortError")),
+        );
+      });
+    });
+
+    const res = await POST(searchRequest());
+    const reader = res.body!.getReader();
+    await reader.read(); // search.accepted / first frames
+    await reader.cancel(); // spotlight dismissed
+
+    expect(runsCancelMock).toHaveBeenCalledWith("run_1", expect.anything());
+    expect(runsGetMock).not.toHaveBeenCalled();
+  });
+
+  it("does NOT cancel a run that finished on its own", async () => {
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("run.completed", 1);
+    });
+    runsGetMock.mockResolvedValue({ answer: "[]" });
+
+    const res = await POST(searchRequest());
+    await res.text(); // drain to completion
+    expect(runsCancelMock).not.toHaveBeenCalled();
   });
 });

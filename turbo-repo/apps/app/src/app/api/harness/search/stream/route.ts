@@ -91,11 +91,30 @@ export async function POST(request: Request) {
     headers: userEmail ? { "X-Dev-User-Email": userEmail } : {},
   });
 
+  let activeRunId: string | null = null;
+  let runSettled = false;
+
+  /** Best-effort server-side cancel: when the relay stops before the run is
+   * terminal (spotlight dismissed, navigation, 90s cap), tell the harness to
+   * stop burning model tokens on an answer nobody will read. Runs on its own
+   * timeout signal — the request's controller is already aborted by then. */
+  const cancelUpstreamRun = () => {
+    if (!activeRunId || runSettled) return;
+    runSettled = true;
+    client.runs
+      .cancel(activeRunId, { signal: AbortSignal.timeout(5_000) })
+      .catch(() => {}); // the run may already be terminal — 204 either way
+  };
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), HARNESS_STREAM_TIMEOUT_MS);
+  const abortRelay = () => {
+    controller.abort();
+    cancelUpstreamRun();
+  };
+  const timeout = setTimeout(abortRelay, HARNESS_STREAM_TIMEOUT_MS);
   // Browser closed the request (spotlight dismissed, navigation) → stop the
-  // upstream relay too.
-  request.signal.addEventListener("abort", () => controller.abort());
+  // upstream relay and cancel the run.
+  request.signal.addEventListener("abort", abortRelay);
 
   const stream = new ReadableStream<Uint8Array>({
     async start(ctrl) {
@@ -120,6 +139,7 @@ export async function POST(request: Request) {
           },
           { signal: controller.signal },
         );
+        activeRunId = run_id;
         send("search.accepted", { run_id });
 
         for await (const event of client.runs.stream(run_id, {
@@ -131,6 +151,10 @@ export async function POST(request: Request) {
           if (TERMINAL_EVENT_TYPES.has(event.type)) break;
         }
 
+        // Terminal event reached — the run finished on its own; a later
+        // disconnect must not fire a pointless cancel.
+        runSettled = true;
+
         // The answer text is only on the final run record, not in the stream.
         const record = await client.runs.get(run_id, { signal: controller.signal });
         send("search.result", {
@@ -141,6 +165,9 @@ export async function POST(request: Request) {
           controller.signal.aborted || (err as { name?: string }).name === "AbortError";
         if (!isAbort) {
           logger.error({ err }, "[harness/search/stream] relay failed");
+          // The relay can no longer observe the run — stop it server-side
+          // too; nobody will consume its answer.
+          cancelUpstreamRun();
           send("search.error", { error: "stream_failed" });
         }
       } finally {
@@ -153,7 +180,7 @@ export async function POST(request: Request) {
       }
     },
     cancel() {
-      controller.abort();
+      abortRelay();
       clearTimeout(timeout);
     },
   });

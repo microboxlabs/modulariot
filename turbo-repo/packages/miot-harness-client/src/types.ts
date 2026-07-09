@@ -8,17 +8,8 @@ export interface UserRequest {
   route_context?: Record<string, unknown>;
   mode?: RunMode;
   conversation_id?: string | null;
-  /**
-   * Skill to activate for this run. When set and resolvable server-side,
-   * the harness injects that skill's SKILL.md body as run guidance so the
-   * agent follows it. Unknown ids are ignored (the run proceeds normally).
-   */
+  answer_format?: string;
   skill_id?: string;
-  /**
-   * When true, the SSE stream carries full tool inputs and truncated
-   * tool outputs (~2 KB cap). Off by default. Coordinador outputs
-   * contain customer/fleet data — gate this behind auth in production.
-   */
   debug?: boolean;
 }
 

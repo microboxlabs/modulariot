@@ -68,6 +68,11 @@ Output ONLY a JSON object in one of these shapes:
 {{"action": "call_tool", "tool": "...", "args": {{}}, "intent": "...", "rationale": "..."}}
 {{"action": "final", "reasoning": "..."}}
 
+If run guidance (an active skill or answer-format instruction) specifies a
+final-answer format such as typed JSON blocks, that applies ONLY to the
+synthesizer's user-facing answer — NEVER to your output. Your output here is
+always exactly one action object from the shapes above.
+
 Prefer "plan": emit the COMPLETE ordered sequence of steps that fully answers
 the question (e.g. read the relevant knowledge card → discover the variable /
 column names → run the join/pivot that returns the rows with their attributes).
@@ -146,12 +151,45 @@ def build_playbook_catalog(
     return "\n".join(lines) if lines else "(no playbooks bound to this data source)"
 
 
+def _extract_json_payload(text: str) -> Any | None:
+    """`json.loads`, else the first parseable JSON value embedded in prose.
+
+    Models occasionally preface the action JSON with a sentence ("I'll
+    investigate what X refers to… {\"action\": …}"). A strict loads rejects
+    the whole response; scanning for the first decodable object/array
+    recovers the action instead of dead-ending the run."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    decoder = json.JSONDecoder()
+    for i, ch in enumerate(text):
+        if ch in "{[":
+            try:
+                payload, _ = decoder.raw_decode(text, i)
+            except json.JSONDecodeError:
+                continue
+            return payload
+    return None
+
+
 def _parse_action(text: str) -> dict[str, Any] | None:
     cleaned = _strip_fences(text)
-    try:
-        payload = json.loads(cleaned)
-    except json.JSONDecodeError:
-        return None
+    payload = _extract_json_payload(cleaned)
+    # A bare array of action objects is a plan the model forgot to wrap:
+    # [{"action": "call_tool", …}, …] ≡ {"action": "plan", "steps": […]}.
+    # (Answer-block arrays like [{"type": "markdown", …}] carry no "action"
+    # key and still return None — the existing degrade paths handle those.)
+    if isinstance(payload, list):
+        if not payload or not all(
+            isinstance(item, dict) and "action" in item for item in payload
+        ):
+            return None
+        if len(payload) > 1 and all(
+            item.get("action") == "call_tool" for item in payload
+        ):
+            return {"action": "plan", "steps": payload}
+        payload = payload[0]
     if not isinstance(payload, dict):
         return None
     return payload

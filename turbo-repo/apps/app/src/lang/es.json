@@ -4037,5 +4037,45 @@
     "expired": "Este enlace ha expirado",
     "error": "Algo salió mal. Por favor, intenta más tarde.",
     "invalid": "Este enlace no es válido"
+  },
+  "spotlight": {
+    "placeholder": "Pregunta, construye o navega",
+    "sections": {
+      "ask": "Preguntar",
+      "build": "Construir",
+      "navigate": "Navegar"
+    },
+    "navigate": {
+      "heading": "Ir a",
+      "triggers": "ir a,goto,navegar,abrir,go to"
+    },
+    "recent": "Reciente",
+    "ask": {
+      "heading": "Preguntar",
+      "triggers": "preguntar,pregunta,ayuda"
+    },
+    "build": {
+      "heading": "Construir",
+      "triggers": "construir,crear,generar"
+    },
+    "harnessEmpty": "No encontré una respuesta, ¡inténtalo de nuevo!",
+    "progress": {
+      "connecting": "Buscando…",
+      "routing": "Entendiendo tu pregunta…",
+      "exploring": "Consultando los datos…",
+      "verifying": "Verificando la respuesta…",
+      "answering": "Redactando la respuesta…",
+      "tools": {
+        "query": "Consultando la base de datos",
+        "select": "Leyendo registros",
+        "grep": "Buscando coincidencias",
+        "describe": "Inspeccionando la estructura",
+        "list_tables": "Explorando las tablas",
+        "knowledge": "Consultando la guía del dominio",
+        "explain": "Analizando el plan de consulta"
+      }
+    },
+    "harnessError": "Algo salió mal al buscar la respuesta.",
+    "harnessRetry": "Reintentar"
   }
 }

@@ -162,6 +162,13 @@ class HarnessSettings(BaseSettings):
     knowledge_packs_dir: Path = (
         Path(__file__).parent / "datasource" / "knowledge" / "packs"
     )
+    # Connection-scoped AUTHORED cards (semantic-layer continual learning): per
+    # `pg` connection, markdown cards (one fact per file) under
+    # `<connection dir>/knowledge/*.md` are merged into that connection's
+    # `<prefix>knowledge` tool, overriding a pack card of the same id. Loaded
+    # independently of pack fingerprinting (a learned business definition is not
+    # a product-schema fact); kill switch mirrors the packs flag.
+    generic_connection_cards_enabled: bool = True
     # Hard cap on connector tools registered from skill files — bounds the
     # blast radius of a misconfigured/oversized ConfigMap.
     max_connector_tools: int = Field(default=50, ge=0)

@@ -7,6 +7,7 @@
  * folds them into the progress state the spotlight renders live — no I/O, no
  * React, so the whole chain-of-thought mapping is unit-testable.
  */
+import type { HarnessAssumption } from "@microboxlabs/miot-harness-client";
 import type { HarnessSearchResult } from "@/app/api/harness/search/search-blocks";
 
 export type HarnessSearchPhase =
@@ -34,6 +35,14 @@ export interface HarnessStreamProgress {
   thinking: string;
   /** Final results — null until the search.result frame lands. */
   results: HarnessSearchResult[] | null;
+  /** The run id (from search.accepted) — provenance for an elicited candidate. */
+  runId?: string;
+  /**
+   * Ungrounded ground-or-flag assumptions from search.result — the business
+   * terms the run interpreted without an authoritative card. Drive the elicit
+   * chip that lets the user turn a confirmation into a knowledge candidate.
+   */
+  assumptions?: HarnessAssumption[];
 }
 
 export const INITIAL_PROGRESS: HarnessStreamProgress = {
@@ -71,8 +80,14 @@ export function reduceHarnessStreamEvent(
   frame: HarnessStreamFrame,
 ): HarnessStreamProgress {
   switch (frame.event) {
-    case "search.accepted":
-      return { ...state, phase: "connecting" };
+    case "search.accepted": {
+      const runId = eventData(frame).run_id;
+      return {
+        ...state,
+        phase: "connecting",
+        ...(typeof runId === "string" && { runId }),
+      };
+    }
 
     case "route.selected": {
       const route = eventData(frame).route;
@@ -112,8 +127,20 @@ export function reduceHarnessStreamEvent(
       return { ...state, phase: "answering" };
 
     case "search.result": {
-      const payload = frame.data as { results?: HarnessSearchResult[] } | undefined;
-      return { ...state, phase: "done", results: payload?.results ?? [] };
+      const payload = frame.data as
+        | { results?: HarnessSearchResult[]; assumptions?: HarnessAssumption[] }
+        | undefined;
+      // Only ungrounded assumptions that carry a connection can become a
+      // candidate — those are what the elicit chip offers to remember.
+      const assumptions = (payload?.assumptions ?? []).filter(
+        (a) => a && a.grounded === false && typeof a.connection === "string",
+      );
+      return {
+        ...state,
+        phase: "done",
+        results: payload?.results ?? [],
+        assumptions,
+      };
     }
 
     case "run.failed":

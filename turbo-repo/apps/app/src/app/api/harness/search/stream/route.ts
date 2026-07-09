@@ -172,6 +172,9 @@ export async function POST(request: Request) {
         const record = await client.runs.get(run_id, { signal: controller.signal });
         send("search.result", {
           results: record.answer ? [toSearchResult(run_id, record.answer)] : [],
+          // Ground-or-flag assumptions (with the connection stamped by the
+          // harness) so the spotlight can offer an elicit chip → candidate.
+          assumptions: record.assumptions ?? [],
         });
 
         // Fire-and-forget: append the completed search as an interaction episode

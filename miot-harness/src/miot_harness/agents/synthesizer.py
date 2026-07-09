@@ -21,6 +21,7 @@ import logging
 import re
 from typing import Any
 
+from json_repair import repair_json
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
@@ -204,6 +205,64 @@ def _emit(progress: Progress, run_id: str, answer: str) -> None:
     )
 
 
+def _lenient_load(text: str) -> Any:
+    """Parse `text` as JSON, repairing common LLM malformations (unescaped inner
+    quotes, trailing commas) via json-repair when strict parsing fails. Returns
+    None when even the repair can't produce JSON."""
+    try:
+        return json.loads(text)
+    except (ValueError, TypeError):
+        pass
+    try:
+        return json.loads(repair_json(text))
+    except (ValueError, TypeError):
+        return None
+
+
+def _coerce_blocks(answer: str) -> list[dict[str, Any]] | None:
+    """Recover the typed-block array from a (possibly malformed) block answer,
+    unwrapping the double-wrap failure mode — the whole array nested as a string
+    inside a lone markdown block. Returns None when nothing block-like survives."""
+    parsed = _lenient_load(answer)
+    if not isinstance(parsed, list):
+        return None
+    if (
+        len(parsed) == 1
+        and isinstance(parsed[0], dict)
+        and parsed[0].get("type") == "markdown"
+    ):
+        inner = _lenient_load(str(parsed[0].get("value", "")))
+        if isinstance(inner, list) and any(
+            isinstance(b, dict) and "type" in b for b in inner
+        ):
+            parsed = inner
+    blocks = [
+        b for b in parsed if isinstance(b, dict) and isinstance(b.get("type"), str)
+    ]
+    return blocks or None
+
+
+def harden_answer(answer: str) -> str:
+    """Return a guaranteed-valid JSON-blocks answer for the block-format skills
+    (miot-search), repairing the two observed LLM failure modes: unescaped inner
+    quotes (invalid JSON) and double-wrapping (the array nested as a string in one
+    markdown block). Both otherwise break the client's block rendering AND the
+    server's assumption extraction (the elicit chip).
+
+    Self-gating: only answers that begin with ``[`` (the block format) are
+    touched — prose refusals and non-JSON synthesis paths pass through unchanged.
+    A block-format answer that can't be salvaged is wrapped as one markdown block
+    so the client renders text, never a raw JSON dump."""
+    if not answer.lstrip().startswith("["):
+        return answer
+    blocks = _coerce_blocks(answer)
+    if blocks is None:
+        return json.dumps(
+            [{"type": "markdown", "value": answer.strip()}], ensure_ascii=False
+        )
+    return json.dumps(blocks, ensure_ascii=False)
+
+
 def _extract_assumptions(answer: str) -> list[dict[str, Any]]:
     """Pull self-reported ground-or-flag assumptions out of a JSON-blocks answer.
 
@@ -323,6 +382,12 @@ async def synthesizer_node(
         if not isinstance(text, str):
             text = str(text)
         answer = text.strip() or "(sin respuesta)"
+
+    # Guarantee a valid JSON-blocks answer (block-format skills only): repairs the
+    # LLM's unescaped-quote / double-wrap slips so the client renders blocks and
+    # the assumption extraction below sees the ground-or-flag blocks. No-op for
+    # prose refusals and non-JSON answers.
+    answer = harden_answer(answer)
 
     _emit(progress, ctx.run_id, answer)
     # Ground-or-flag: surface any self-reported assumption as a structured

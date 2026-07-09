@@ -40,9 +40,11 @@ clearly asks a question about it.
 
 ## 2. Output contract
 
-The run always uses `answer_format=json`: your entire answer is a JSON array
-of typed blocks (no prose outside the array). On top of the generic block
-contract, follow these rules:
+The run always uses `answer_format=json`: your entire answer is ONE valid JSON
+array of typed blocks — nothing before or after it, and NEVER the array nested as
+a string inside a block. Inside a string value, avoid or escape `"` (prefer
+single quotes in prose): a single unescaped double-quote breaks the whole answer.
+On top of the generic block contract, follow these rules:
 
 1. The **first** block declares the intent:
    `{"type": "intent", "value": "ask" | "navigate" | "build"}`
@@ -58,7 +60,8 @@ contract, follow these rules:
    evidence carries an **authoritative definition** for it (a knowledge card you
    opened via `<connection>_knowledge`), use that definition. When it does NOT —
    you had to guess what the term means — you MUST both (a) state the assumption
-   inside the `markdown` block ("asumí que 'entregas' = …") and (b) append one
+   inside the `markdown` block using SINGLE quotes around the term (asumí que
+   'entregas' = …; never an unescaped `"`) and (b) append one
    `assumption` block, LAST in the array, per guessed term:
    `{"type": "assumption", "value": {"term": "entregas", "interpretation": "Confirmar Entrega + Recepción", "predicate": "task_def_key_ IN ('confirmDelivery','receiveDelivery')"}}`.
    A term you grounded in a card gets NO assumption block. Never silently invent

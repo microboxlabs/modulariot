@@ -13,7 +13,7 @@ export default function SignInSaml({
   pending,
   setShowLogin,
   showRegisterLink,
-}: {
+}: Readonly<{
   msg: any;
   samlLabels: any;
   teamSlug: string;
@@ -23,7 +23,7 @@ export default function SignInSaml({
   pending: boolean;
   setShowLogin: (show: boolean) => void;
   showRegisterLink: boolean;
-}) {
+}>) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-y-2">
@@ -55,13 +55,13 @@ export default function SignInSaml({
         </Button>
         <div className="mt-2 flex flex-col gap-2">
           <LoginDivider text="o" />
-          <a
-            href="#"
-            className="text-center hover:underline cursor-pointer text-blue-700 dark:text-blue-400 text-sm"
+          <button
+            type="button"
+            className="bg-transparent border-0 p-0 text-center hover:underline cursor-pointer text-blue-700 dark:text-blue-400 text-sm"
             onClick={() => setShowLogin(false)}
           >
             {msg.buttonContinueWithMicrosoft}
-          </a>
+          </button>
           <RegisterLink
             prompt={msg.requestAccessPrompt}
             label={msg.requestAccessLink}

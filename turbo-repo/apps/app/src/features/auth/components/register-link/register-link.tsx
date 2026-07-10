@@ -20,12 +20,12 @@ export default function RegisterLink({
   return (
     <div className="flex justify-center gap-1 text-sm text-gray-500 dark:text-gray-400">
       <span>{prompt}</span>
-      <a
-        href="#"
-        className="text-blue-700 hover:underline cursor-pointer dark:text-blue-400"
+      <button
+        type="button"
+        className="bg-transparent border-0 p-0 text-blue-700 hover:underline cursor-pointer dark:text-blue-400"
       >
         {label}
-      </a>
+      </button>
     </div>
   );
 }

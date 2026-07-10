@@ -97,18 +97,20 @@ export default async function SignInPage(
   // Provider/SAML labels and dividerText come from runtime auth config: the key
   // is only known at runtime, so they use the dynamic (unchecked) translator.
   const providerLabels = buildProviderLabels(authConfig, dictDynamic);
-  // mintral asked for the original "Continue with external user" wording on
-  // the credentials link, kept only for that tenant while other tenants get
-  // the clearer default copy.
-  if (process.env.MIOT_DEFAULT_ORG_ID === "mintral") {
-    const credentialsProvider = authConfig.providers.find(
-      (p) => p.type === "credentials"
-    );
-    if (credentialsProvider) {
-      providerLabels[credentialsProvider.id] = dict(
-        "pages.login.buttons.continueWithEmail"
-      );
-    }
+  // Server-only toggle for the credentials link wording: AUTH_CREDENTIALS_LABEL_VARIANT
+  // selects an i18n *key* (never raw text) so the label stays translated.
+  // "continueExternal" -> "Continue with external user"; anything else
+  // (including unset) falls back to the default "Continue with email and
+  // password" copy.
+  const credentialsLabelKey: "pages.login.buttons.continueWithEmail" | "pages.login.buttons.credentials" =
+    process.env.AUTH_CREDENTIALS_LABEL_VARIANT === "continueExternal"
+      ? "pages.login.buttons.continueWithEmail"
+      : "pages.login.buttons.credentials";
+  const credentialsProvider = authConfig.providers.find(
+    (p) => p.type === "credentials"
+  );
+  if (credentialsProvider) {
+    providerLabels[credentialsProvider.id] = dict(credentialsLabelKey);
   }
   const dividerText = authConfig.dividerText?.includes(".")
     ? dictDynamic(authConfig.dividerText)

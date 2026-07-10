@@ -37,6 +37,11 @@ from miot_harness.agents.meta_agent import (
     MetaAgentCatalogEntry,
     meta_agent_node,
 )
+from miot_harness.agents.synthesizer import (
+    emit_grounding_gap,
+    extract_assumptions,
+    harden_answer,
+)
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.datasource.provider import DataSourceProfile
@@ -721,7 +726,15 @@ class HarnessSupervisor:
                     prior_messages=prior_messages or [],
                     progress=progress,
                 )
-            record.answer = delta.get("answer") or "(no answer produced by agent loop)"
+            answer = delta.get("answer") or "(no answer produced by agent loop)"
+            record.answer = harden_answer(answer)
+            # Ground-or-flag: the loop path bypasses the synthesizer, so the
+            # assumption blocks must be surfaced here too — otherwise this
+            # route feeds nothing to the capture/distill loop.
+            assumptions = extract_assumptions(record.answer)
+            for assumption in assumptions:
+                emit_grounding_gap(progress, ctx.run_id, assumption)
+            record.assumptions = self._stamp_connection(assumptions)
             return
 
         if self.agentic_graph is None:

@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 
 from miot_harness.agents.synthesizer import (
-    _extract_assumptions,
+    extract_assumptions,
     harden_answer,
 )
 
@@ -33,7 +33,7 @@ _CLEAN = json.dumps(
 def _assert_valid_blocks_with_assumption(answer: str) -> None:
     parsed = json.loads(answer)  # must be valid JSON now
     assert isinstance(parsed, list)
-    assumptions = _extract_assumptions(answer)
+    assumptions = extract_assumptions(answer)
     assert [a["term"] for a in assumptions] == ["entregas"]
 
 

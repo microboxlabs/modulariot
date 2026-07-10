@@ -263,15 +263,17 @@ def harden_answer(answer: str) -> str:
     return json.dumps(blocks, ensure_ascii=False)
 
 
-def _extract_assumptions(answer: str) -> list[dict[str, Any]]:
+def extract_assumptions(answer: str) -> list[dict[str, Any]]:
     """Pull self-reported ground-or-flag assumptions out of a JSON-blocks answer.
 
-    The synthesizer (guided by the miot-search skill's assumptions contract)
-    emits one `{"type":"assumption","value":{term,interpretation,predicate}}`
-    block per business term it could not ground in an authoritative card. A
-    non-JSON or block-less answer yields nothing — this is a NO-OP for every
-    other synthesis path (prose answers, nexo, refusals), so the shared
-    synthesizer behaviour is unchanged unless a skill opts in."""
+    The answering agent (guided by the miot-search skill's assumptions
+    contract) emits one `{"type":"assumption","value":{term,interpretation,
+    predicate}}` block per business term it could not ground in an
+    authoritative card. A non-JSON or block-less answer yields nothing — this
+    is a NO-OP for every other synthesis path (prose answers, nexo, refusals),
+    so the shared behaviour is unchanged unless a skill opts in. Shared by the
+    synthesizer node and the supervisor's agent_loop branch: every agentic
+    path must surface assumptions or the learning loop never sees them."""
     try:
         parsed = json.loads(answer)
     except (ValueError, TypeError):
@@ -296,7 +298,7 @@ def _extract_assumptions(answer: str) -> list[dict[str, Any]]:
     return assumptions
 
 
-def _emit_grounding_gap(
+def emit_grounding_gap(
     progress: Progress, run_id: str, assumption: dict[str, Any]
 ) -> None:
     progress(
@@ -393,7 +395,7 @@ async def synthesizer_node(
     # Ground-or-flag: surface any self-reported assumption as a structured
     # record + one grounding.gap event per ungrounded term (no-op unless the
     # answer carried assumption blocks).
-    assumptions = _extract_assumptions(answer)
+    assumptions = extract_assumptions(answer)
     for assumption in assumptions:
-        _emit_grounding_gap(progress, ctx.run_id, assumption)
+        emit_grounding_gap(progress, ctx.run_id, assumption)
     return {"answer": answer, "assumptions": assumptions}

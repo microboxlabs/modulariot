@@ -34,23 +34,57 @@ export function buildRegisterFormMessages({
   messages: dict,
 }: MessagesType): RegisterFormMessages {
   return {
-    title: dict("pages.login.register.title"),
-    subtitle: dict("pages.login.register.subtitle"),
-    nameLabel: dict("pages.login.register.fields.name.label"),
-    namePlaceholder: dict("pages.login.register.fields.name.placeholder"),
-    lastnameLabel: dict("pages.login.register.fields.lastname.label"),
-    lastnamePlaceholder: dict(
-      "pages.login.register.fields.lastname.placeholder"
+    stepOrganizationTitle: dict("pages.login.register.steps.organization.title"),
+    stepOrganizationSubtitle: dict(
+      "pages.login.register.steps.organization.subtitle"
     ),
+    organizationNameLabel: dict(
+      "pages.login.register.fields.organizationName.label"
+    ),
+    organizationNamePlaceholder: dict(
+      "pages.login.register.fields.organizationName.placeholder"
+    ),
+    teamNameLabel: dict("pages.login.register.fields.teamName.label"),
+    teamNamePlaceholder: dict("pages.login.register.fields.teamName.placeholder"),
+    teamNameSsoLabel: dict("pages.login.register.fields.teamName.sso"),
+    organizationLocationLabel: dict(
+      "pages.login.register.fields.organizationLocation.label"
+    ),
+    organizationLocationPlaceholder: dict(
+      "pages.login.register.fields.organizationLocation.placeholder"
+    ),
+    organizationPhoneLabel: dict(
+      "pages.login.register.fields.organizationPhone.label"
+    ),
+    organizationPhonePlaceholder: dict(
+      "pages.login.register.fields.organizationPhone.placeholder"
+    ),
+    organizationSizeLabel: dict(
+      "pages.login.register.fields.organizationSize.label"
+    ),
+    industryLabel: dict("pages.login.register.fields.industry.label"),
+    monitoringInterestLabel: dict(
+      "pages.login.register.fields.monitoringInterest.label"
+    ),
+    optionalLabel: dict("pages.login.register.optionalLabel"),
+
+    stepProfileTitle: dict("pages.login.register.steps.profile.title"),
+    stepProfileSubtitle: dict("pages.login.register.steps.profile.subtitle"),
+    createAccountWithLabel: dict("pages.login.register.createAccountWith"),
+    dividerText: dict("pages.login.divider"),
+    fullNameLabel: dict("pages.login.register.fields.fullName.label"),
+    fullNamePlaceholder: dict("pages.login.register.fields.fullName.placeholder"),
     emailLabel: dict("pages.login.fields.email.label"),
     emailPlaceholder: dict("pages.login.fields.email.placeholder"),
-    passwordLabel: dict("pages.login.fields.password.label"),
-    confirmPasswordLabel: dict(
-      "pages.login.register.fields.confirmPassword.label"
-    ),
-    submitLabel: dict("pages.login.register.submit"),
-    passwordMismatchError: dict("pages.login.register.errors.passwordMismatch"),
-    backToLoginLabel: dict("pages.login.requestAccess.backToLogin"),
+    phoneLabel: dict("pages.login.register.fields.phone.label"),
+    phonePlaceholder: dict("pages.login.register.fields.phone.placeholder"),
+
+    stepVerificationTitle: dict("pages.login.register.steps.verification.title"),
+    verificationMessage: dict("pages.login.register.steps.verification.message"),
+    verifyEmailLabel: dict("pages.login.register.buttons.verifyEmail"),
+
+    nextLabel: dict("pages.login.register.buttons.next"),
+    backLabel: dict("pages.login.register.buttons.back"),
   };
 }
 

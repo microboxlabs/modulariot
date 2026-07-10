@@ -27,23 +27,61 @@ export type FormSignInMessages = {
   loginSubtitle: string;
 };
 
-/** Messages for the register ("request access") view */
+/**
+ * Messages for the register ("request access") wizard.
+ * 3 steps: organization -> profile -> verification. Each step drives the
+ * card's main heading (title + subtitle), which swaps as the user moves
+ * between steps — there's no separate static card title.
+ */
 export type RegisterFormMessages = {
-  /** Card title for the register view */
-  title: string;
-  /** Card description for the register view */
-  subtitle: string;
-  nameLabel: string;
-  namePlaceholder: string;
-  lastnameLabel: string;
-  lastnamePlaceholder: string;
+  /** Main heading while on the organization step */
+  stepOrganizationTitle: string;
+  /** Subtitle under the heading while on the organization step */
+  stepOrganizationSubtitle: string;
+  organizationNameLabel: string;
+  organizationNamePlaceholder: string;
+  teamNameLabel: string;
+  teamNamePlaceholder: string;
+  /** Suffix shown next to the team name label, e.g. "(SSO)" */
+  teamNameSsoLabel: string;
+  organizationLocationLabel: string;
+  /** Shown in the location dropdown's trigger button before a country is picked */
+  organizationLocationPlaceholder: string;
+  organizationPhoneLabel: string;
+  organizationPhonePlaceholder: string;
+  organizationSizeLabel: string;
+  industryLabel: string;
+  monitoringInterestLabel: string;
+  /** Suffix shown next to optional field labels, e.g. "(optional)" */
+  optionalLabel: string;
+
+  /** Main heading while on the profile step */
+  stepProfileTitle: string;
+  /** Subtitle under the heading while on the profile step */
+  stepProfileSubtitle: string;
+  /** "Create account with" label above the OAuth provider buttons */
+  createAccountWithLabel: string;
+  /** Divider text between the OAuth buttons and the manual fields (same as sign-in's) */
+  dividerText: string;
+  fullNameLabel: string;
+  fullNamePlaceholder: string;
   emailLabel: string;
   emailPlaceholder: string;
-  passwordLabel: string;
-  confirmPasswordLabel: string;
-  submitLabel: string;
-  passwordMismatchError: string;
-  backToLoginLabel: string;
+  phoneLabel: string;
+  phonePlaceholder: string;
+
+  /** Main heading while on the verification step */
+  stepVerificationTitle: string;
+  /** The verification step's only description — shown in the panel below the
+   * heading, not duplicated as a header subtitle like the other steps */
+  verificationMessage: string;
+  /** "Send verification email" button label */
+  verifyEmailLabel: string;
+
+  /** "Next" button label, shown on every step but the last */
+  nextLabel: string;
+  /** "Back" button label, shown on every step */
+  backLabel: string;
 };
 
 /** Pre-computed labels for each provider (by provider id) */
@@ -61,8 +99,6 @@ export type SamlLabels = Readonly<{
 
 export type FormSignInProps = Readonly<{
   messages: FormSignInMessages;
-  /** Messages for the register ("request access") view */
-  registerMessages: RegisterFormMessages;
   /** Auth providers configuration */
   authConfig: AuthConfig;
   /** Pre-computed labels for each provider */
@@ -75,4 +111,6 @@ export type FormSignInProps = Readonly<{
    * down from the page's searchParams so the client component doesn't
    * need useSearchParams (which requires a Suspense boundary). */
   callbackUrl?: string | null;
+  /** Switches the parent card to the register view (?view=register), no page navigation */
+  onRegisterClick: () => void;
 }>;

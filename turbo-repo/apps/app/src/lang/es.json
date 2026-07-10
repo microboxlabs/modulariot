@@ -41,32 +41,68 @@
       },
       "requestAccess": {
         "prompt": "¿No tienes cuenta?",
-        "link": "Solicitar acceso",
-        "backToLogin": "¿Ya tienes cuenta? Inicia sesión"
+        "link": "Solicitar acceso"
       },
       "credentialsTitle": "Inicia sesión",
       "credentialsSubtitle": "Ingresa tu correo y contraseña para acceder a tu cuenta",
       "register": {
-        "title": "Solicitar acceso",
-        "subtitle": "Completa tus datos para crear tu cuenta en ModularIOT",
-        "fields": {
-          "name": {
-            "label": "Nombre",
-            "placeholder": "Tu nombre"
+        "steps": {
+          "organization": {
+            "title": "Cuéntanos de tu operación",
+            "subtitle": "Esto nos ayuda a preparar tu cuenta de ModularIOT"
           },
-          "lastname": {
-            "label": "Apellido",
-            "placeholder": "Tu apellido"
+          "profile": {
+            "title": "Crea tu cuenta",
+            "subtitle": "Regístrate con un proveedor o completa tus datos"
           },
-          "confirmPassword": {
-            "label": "Confirmar contraseña",
-            "placeholder": ""
+          "verification": {
+            "title": "Revisa tu correo",
+            "message": "Enviamos un enlace de acceso a {email}. Ábrelo para confirmar tu cuenta — el enlace expira en 15 minutos."
           }
         },
-        "submit": "Solicitar acceso",
-        "errors": {
-          "passwordMismatch": "Las contraseñas no coinciden"
-        }
+        "fields": {
+          "organizationName": {
+            "label": "Nombre de la empresa",
+            "placeholder": "Nombre de tu empresa"
+          },
+          "teamName": {
+            "label": "Nombre del equipo",
+            "placeholder": "tu-equipo",
+            "sso": "(SSO)"
+          },
+          "organizationLocation": {
+            "label": "Ubicación",
+            "placeholder": "País"
+          },
+          "organizationPhone": {
+            "label": "Número de teléfono",
+            "placeholder": "Teléfono de la empresa"
+          },
+          "organizationSize": {
+            "label": "Tamaño de la empresa"
+          },
+          "industry": {
+            "label": "¿A qué se dedica?"
+          },
+          "monitoringInterest": {
+            "label": "¿Qué deseas monitorear?"
+          },
+          "fullName": {
+            "label": "Nombre completo",
+            "placeholder": "Tu nombre completo"
+          },
+          "phone": {
+            "label": "Número de teléfono",
+            "placeholder": "Tu número de teléfono"
+          }
+        },
+        "buttons": {
+          "next": "Siguiente",
+          "back": "Atrás",
+          "verifyEmail": "Ver correo"
+        },
+        "createAccountWith": "Crear cuenta con",
+        "optionalLabel": "(opcional)"
       },
       "errors": {
         "invalidCredentials": "Acceso denegado. Por favor, verifique sus credenciales e intente nuevamente.",

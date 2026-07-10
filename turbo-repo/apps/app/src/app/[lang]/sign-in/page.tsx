@@ -1,12 +1,10 @@
-import { Alert, Card } from "flowbite-react";
 import React from "react";
 import { getDictionary } from "@/features/i18n/i18n.service";
-import NavbarSignIn from "@/features/auth/components/navbar-sign-in";
-import FooterSignIn from "@/features/auth/components/footer-sign-in/footer-sign-in";
-import FormSignIn from "@/features/auth/components/form-sign-in/form-sign-in";
+import AuthPageShell from "@/features/auth/components/auth-page-shell/auth-page-shell";
+import AuthCard from "@/features/auth/components/auth-card/auth-card";
 import {
-  buildSignInFormMessages,
   buildRegisterFormMessages,
+  buildSignInFormMessages,
 } from "@/features/auth/utils/utils";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
@@ -110,44 +108,23 @@ export default async function SignInPage(
   const samlLabels = buildSamlLabels(authConfig, dictDynamic);
 
   return (
-    <div className="mx-auto flex flex-col px-6 pt-8 md:h-screen">
-      <NavbarSignIn orgLogoUrl={orgLogo} />
-      <div className="flex flex-1 flex-col items-center justify-center">
-        <div className="w-full md:max-w-lg">
-          <Card
-            data-testid="login-card"
-            horizontal
-            imgAlt=""
-            className="bg-white dark:bg-gray-800 transition-colors duration-200"
-            theme={{
-              root: {
-                base: "flex rounded-lg border border-gray-200 shadow-md dark:border-gray-700",
-                children: "my-auto w-full gap-0 p-6 sm:p-4 lg:p-8",
-              },
-            }}
-          >
-            {accessDeniedMessage && (
-              <Alert
-                color="failure"
-                data-testid="sign-in-access-denied"
-                className="w-full"
-              >
-                {accessDeniedMessage}
-              </Alert>
-            )}
-            <FormSignIn
-              messages={signInMessages}
-              registerMessages={registerMessages}
-              authConfig={authConfig}
-              providerLabels={providerLabels}
-              dividerText={dividerText}
-              samlLabels={samlLabels}
-              callbackUrl={callbackUrl}
-            />
-          </Card>
-        </div>
-      </div>
-      <FooterSignIn messages={dict} />
-    </div>
+    <AuthPageShell
+      orgLogoUrl={orgLogo}
+      footerMessages={dict}
+      maxWidthClassName="md:max-w-3xl"
+    >
+      <AuthCard
+        signInProps={{
+          messages: signInMessages,
+          authConfig,
+          providerLabels,
+          dividerText,
+          samlLabels,
+          callbackUrl,
+        }}
+        registerMessages={registerMessages}
+        accessDeniedMessage={accessDeniedMessage}
+      />
+    </AuthPageShell>
   );
 }

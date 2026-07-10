@@ -1,119 +1,213 @@
 "use client";
 
-import { Label, TextInput, Button } from "flowbite-react";
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Button } from "flowbite-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { AnimatePresence, motion } from "motion/react";
+import { HiArrowLeft, HiArrowRight } from "react-icons/hi2";
 import type { RegisterFormMessages } from "./form-sign-in.types";
-import { LoginDivider } from "../login-divider";
+import { registerSchema, type RegisterSchema } from "./register-form.schema";
+import RegisterProgress from "./register-progress";
+import RegisterStepOrganization from "./register-step-organization";
+import RegisterStepProfile from "./register-step-profile";
+import RegisterStepVerification from "./register-step-verification";
 
-const registerSchema = z
-  .object({
-    name: z.string().min(1),
-    lastname: z.string().min(1),
-    email: z.string().email(),
-    password: z.string().min(8),
-    confirmPassword: z.string().min(8),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    path: ["confirmPassword"],
-  });
+type RegisterStep = "organization" | "profile" | "verification";
 
-type RegisterSchema = z.infer<typeof registerSchema>;
+const FULL_FLOW: readonly RegisterStep[] = [
+  "organization",
+  "profile",
+  "verification",
+];
+const NO_ORG_FLOW: readonly RegisterStep[] = ["profile", "verification"];
+
+const BUTTON_SHAPE = "rounded-lg font-semibold";
 
 export default function RegisterForm({
   msg,
-  onBack,
+  onBackToLogin,
 }: Readonly<{
   msg: RegisterFormMessages;
-  onBack: () => void;
+  /** Switches the parent card back to the sign-in view (register is a URL param, not a route) */
+  onBackToLogin: () => void;
 }>) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<RegisterSchema>({ resolver: zodResolver(registerSchema) });
+  const searchParams = useSearchParams();
 
-  // No self-registration backend exists yet; this only validates client-side.
-  const onSubmit = handleSubmit(() => {});
+  // ?org=false drops the organization step from the flow entirely (e.g. for
+  // invited users joining an existing org).
+  const includeOrganization = searchParams.get("org") !== "false";
+  const flow = includeOrganization ? FULL_FLOW : NO_ORG_FLOW;
+
+  // Step is local React state, not derived from useSearchParams() on every
+  // render: next/navigation's router.push/replace re-fetches and re-renders
+  // the whole server-rendered page tree (Navbar/Footer/Card) on every call,
+  // which caused a visible full-page "rerender" on each Next/Back click.
+  // We still reflect the step in the URL (for deep-linking/refresh) via the
+  // raw History API below, which updates the address bar without going
+  // through Next's router at all. We read window.location.pathname (not
+  // next/navigation's usePathname()) because this app runs behind
+  // basePath: "/app" and usePathname() strips it, which would drop "/app"
+  // from the address bar.
+  const [step, setStep] = useState<RegisterStep>(() => {
+    const requestedStep = searchParams.get("step") as RegisterStep | null;
+    return requestedStep && flow.includes(requestedStep)
+      ? requestedStep
+      : flow[0];
+  });
+
+  const currentIndex = flow.indexOf(step);
+  const isFirst = currentIndex === 0;
+  const isLast = currentIndex === flow.length - 1;
+  const prevStep = flow[currentIndex - 1];
+  const nextStep = flow[currentIndex + 1];
+
+  function goToStep(next: RegisterStep) {
+    setStep(next);
+    const params = new URLSearchParams(window.location.search);
+    params.set("view", "register");
+    params.set("step", next);
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}?${params.toString()}`
+    );
+  }
+
+  const { register, control, watch, setValue } = useForm<RegisterSchema>({
+    resolver: zodResolver(registerSchema),
+    mode: "onBlur",
+  });
+
+  // Verification has no subtitle here: its one description lives in the
+  // panel below (RegisterStepVerification), so it isn't shown twice.
+  const stepHeaderByStep: Record<RegisterStep, { title: string; subtitle?: string }> = {
+    organization: {
+      title: msg.stepOrganizationTitle,
+      subtitle: msg.stepOrganizationSubtitle,
+    },
+    profile: {
+      title: msg.stepProfileTitle,
+      subtitle: msg.stepProfileSubtitle,
+    },
+    verification: {
+      title: msg.stepVerificationTitle,
+    },
+  };
+  const header = stepHeaderByStep[step];
+
+  function handleBack() {
+    if (isFirst) {
+      onBackToLogin();
+      return;
+    }
+    goToStep(prevStep);
+  }
 
   return (
-    <form className="space-y-4" onSubmit={onSubmit}>
-      <div className="flex flex-col gap-y-2">
-        <Label htmlFor="name">{msg.nameLabel}</Label>
-        <TextInput
-          id="name"
-          placeholder={msg.namePlaceholder}
-          type="text"
-          {...register("name")}
-        />
+    <div className="flex w-full flex-col">
+      <div className="p-6 sm:p-8 lg:p-10">
+        <motion.div
+          layout
+          transition={{ layout: { duration: 0.3, ease: "easeInOut" } }}
+          className="overflow-hidden"
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={step}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mb-6"
+            >
+              <h2 className="text-2xl font-bold text-gray-900 lg:text-3xl dark:text-white">
+                {header.title}
+              </h2>
+              {header.subtitle && (
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {header.subtitle}
+                </p>
+              )}
+            </motion.div>
+          </AnimatePresence>
+
+          <form onSubmit={(e) => e.preventDefault()}>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={step}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                {step === "organization" && (
+                  <RegisterStepOrganization
+                    msg={msg}
+                    register={register}
+                    control={control}
+                    watch={watch}
+                    setValue={setValue}
+                  />
+                )}
+                {step === "profile" && (
+                  <RegisterStepProfile msg={msg} register={register} />
+                )}
+                {step === "verification" && (
+                  <RegisterStepVerification msg={msg} email={watch("email")} />
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </form>
+        </motion.div>
       </div>
-      <div className="flex flex-col gap-y-2">
-        <Label htmlFor="lastname">{msg.lastnameLabel}</Label>
-        <TextInput
-          id="lastname"
-          placeholder={msg.lastnamePlaceholder}
-          type="text"
-          {...register("lastname")}
+
+      <div className="rounded-b-2xl bg-gray-50 dark:bg-gray-900/40">
+        <RegisterProgress
+          currentStepIndex={currentIndex}
+          totalSteps={flow.length}
+          rounded={false}
         />
-      </div>
-      <div className="flex flex-col gap-y-2">
-        <Label htmlFor="register-email">{msg.emailLabel}</Label>
-        <TextInput
-          id="register-email"
-          placeholder={msg.emailPlaceholder}
-          type="text"
-          {...register("email")}
-        />
-      </div>
-      <div className="flex flex-col gap-y-2">
-        <Label htmlFor="register-password">{msg.passwordLabel}</Label>
-        <TextInput
-          id="register-password"
-          placeholder="••••••••"
-          type="password"
-          {...register("password")}
-        />
-      </div>
-      <div className="flex flex-col gap-y-2">
-        <Label htmlFor="confirm-password">{msg.confirmPasswordLabel}</Label>
-        <TextInput
-          id="confirm-password"
-          placeholder="••••••••"
-          type="password"
-          className={
-            errors.confirmPassword
-              ? "animate-pulse border-2 border-rose-500"
-              : ""
-          }
-          {...register("confirmPassword")}
-        />
-        {errors.confirmPassword && (
-          <p className="text-sm text-red-600 dark:text-red-500">
-            {msg.passwordMismatchError}
-          </p>
-        )}
-      </div>
-      <div>
-        <Button color="blue" type="submit" className="w-full px-0 py-px">
-          {msg.submitLabel}
-        </Button>
-        <div className="mt-2">
-          <LoginDivider text="o" />
-        </div>
-        <div className="mt-2 flex justify-center text-sm text-gray-500">
-          <a
-            href="#"
-            className="text-center hover:underline cursor-pointer text-blue-700"
-            onClick={(e) => {
-              e.preventDefault();
-              onBack();
-            }}
+
+        <div className="flex items-center justify-between gap-3 p-4">
+          <Button
+            color="light"
+            size="sm"
+            type="button"
+            onClick={handleBack}
+            className={BUTTON_SHAPE}
           >
-            {msg.backToLoginLabel}
-          </a>
+            <span className="flex items-center gap-1.5">
+              <HiArrowLeft className="h-3.5 w-3.5" />
+              {msg.backLabel}
+            </span>
+          </Button>
+          {isLast ? (
+            <Button
+              color="blue"
+              size="sm"
+              type="button"
+              className={BUTTON_SHAPE}
+            >
+              {msg.verifyEmailLabel}
+            </Button>
+          ) : (
+            <Button
+              color="blue"
+              size="sm"
+              type="button"
+              onClick={() => goToStep(nextStep)}
+              className={BUTTON_SHAPE}
+            >
+              <span className="flex items-center gap-1.5">
+                {msg.nextLabel}
+                <HiArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </Button>
+          )}
         </div>
       </div>
-    </form>
+    </div>
   );
 }

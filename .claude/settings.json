@@ -1,4 +1,50 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(grep -rn \"\\\\\"/register\\\\\"\\\\|'/register'\\\\|/register\\\\`\\\\|register\\\\\"\" src/auth.config.ts src/middleware.ts)",
+      "Bash(python3 -)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('src/lang/en.json'\\)\\); JSON.parse\\(require\\('fs'\\).readFileSync\\('src/lang/es.json'\\)\\); console.log\\('valid json'\\)\")",
+      "Bash(rm -rf \"/Users/khalz/Desktop/development/modulariot-896-redefine-login/turbo-repo/apps/app/src/app/[lang]/register\" *)",
+      "Bash(npx eslint *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(npm run *)",
+      "Bash(disown)",
+      "Bash(echo \"started, pid: $!\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3050/app/sign-in)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3050/app/sign-in)",
+      "Bash(curl -sI http://localhost:3050/app/sign-in)",
+      "Bash(npx --no-install playwright --version)",
+      "Bash(npx --yes playwright install chromium --with-deps)",
+      "Read(//private/tmp/**)",
+      "Bash(npx --yes playwright install chromium)",
+      "Bash(node drive.mjs)",
+      "Bash(cp /private/tmp/claude-501/-Users-khalz-Desktop-development-modulariot-896-redefine-login/a94388cd-be79-4b8c-9b0a-657e1c500a48/scratchpad/drive.mjs /Users/khalz/Desktop/development/modulariot-896-redefine-login/turbo-repo/drive.mjs)",
+      "Bash(node drive2.mjs)",
+      "Bash(rm -f /Users/khalz/Desktop/development/modulariot-896-redefine-login/turbo-repo/drive.mjs /Users/khalz/Desktop/development/modulariot-896-redefine-login/turbo-repo/drive2.mjs *)",
+      "Bash(grep -rln \"register-stepper\\\\|RegisterStepper\\\\b\" src)",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('src/lang/es.json'\\)\\); console.log\\('valid json'\\)\")",
+      "Bash(curl -s http://localhost:3050/app/es/sign-in -o /tmp/signin.html -w \"%{http_code}\\\\n\")",
+      "Bash(curl -s \"http://localhost:3050/app/_next/static/chunks/apps_app_src_app_globals_0c3y6.x.css\" -o /tmp/globals-live.css)",
+      "Read(//tmp/**)",
+      "Bash(lsof -i :3050 -sTCP:LISTEN)",
+      "Bash(curl -s \"http://localhost:3050/app/_next/static/chunks/apps_app_src_app_globals_0c3y6.x.css\" -o /tmp/globals-live2.css)",
+      "Bash(curl -s http://localhost:3050/app/es/sign-in -o /tmp/signin2.html)",
+      "Bash(grep -o 'href=\"[^\"]*\\\\.js[^\"]*\"\\\\|src=\"[^\"]*\\\\.js[^\"]*\"' /tmp/signin2.html | grep -i \"form-sign-in\\\\|register\" | head -10)",
+      "Bash(grep -o 'src=\"[^\"]*chunks[^\"]*\\\\.js\"' /tmp/signin2.html | head -20)",
+      "Bash(curl -s \"http://localhost:3050/app/_next/static/chunks/apps_app_0rqeker._.js\" -o /tmp/appchunk.js)",
+      "Bash(curl -sI \"http://localhost:3050/app/_next/static/chunks/apps_app_src_app_globals_0c3y6.x.css\")",
+      "Bash(curl -s \"http://localhost:3050/app/_next/static/chunks/apps_app_src_app_globals_0c3y6.x.css\" -o /tmp/globals-live3.css)",
+      "Bash(sed -n '555,570p' /tmp/globals-live3.css)"
+    ],
+    "additionalDirectories": [
+      "/Users/khalz/Desktop/development/modulariot-896-redefine-login/turbo-repo/apps/app/src/app/[lang]/register",
+      "/private/tmp/claude-501/-Users-khalz-Desktop-development-modulariot-896-redefine-login/a94388cd-be79-4b8c-9b0a-657e1c500a48/scratchpad"
+    ]
+  },
   "enabledPlugins": {
     "coderabbit@claude-plugins-official": true
   }

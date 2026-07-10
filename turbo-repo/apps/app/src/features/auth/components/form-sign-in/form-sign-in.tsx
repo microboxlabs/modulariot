@@ -11,12 +11,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formSchema, FormSchema } from "../../services/auth.service.types";
 import SignIn from "./sign-in";
-import RegisterForm from "./register-form";
 import { LoginButton } from "../login-button";
 import { LoginDivider } from "../login-divider";
 import { TeamSlugInput } from "../team-slug-input";
 
-type ViewMode = "main" | "login" | "register";
+type ViewMode = "main" | "login";
 
 function CardHeader({
   title,
@@ -36,12 +35,12 @@ function CardHeader({
 
 export default function FormSignIn({
   messages: msg,
-  registerMessages,
   authConfig,
   providerLabels,
   dividerText,
   samlLabels,
   callbackUrl,
+  onRegisterClick,
 }: FormSignInProps) {
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
@@ -139,22 +138,6 @@ export default function FormSignIn({
     );
   }
 
-  // If showing the register ("request access") form
-  if (viewMode === "register" && credentialsProvider) {
-    return (
-      <>
-        <CardHeader
-          title={registerMessages.title}
-          subtitle={registerMessages.subtitle}
-        />
-        <RegisterForm
-          msg={registerMessages}
-          onBack={() => setViewMode("main")}
-        />
-      </>
-    );
-  }
-
   return (
     <>
       <CardHeader title={msg.mainTitle} subtitle={msg.mainSubtitle} />
@@ -218,16 +201,13 @@ export default function FormSignIn({
 
               <div className="flex justify-center gap-1 text-sm text-gray-500 dark:text-gray-400">
                 <span>{msg.requestAccessPrompt}</span>
-                <a
-                  href="#"
+                <button
+                  type="button"
+                  onClick={onRegisterClick}
                   className="text-blue-700 hover:underline cursor-pointer dark:text-blue-400"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setViewMode("register");
-                  }}
                 >
                   {msg.requestAccessLink}
-                </a>
+                </button>
               </div>
             </>
           )}

@@ -15,6 +15,18 @@
   button:not(:disabled):not([aria-disabled="true"]) {
     @apply cursor-pointer;
   }
+
+  /* Flowbite's form fields pair a focus ring (box-shadow) with a focus
+     border-color change. The ring gets visually clipped whenever the field
+     sits close to a container's edge/padding, so we drop it globally here
+     and keep just the border-color change flowbite's theme already applies
+     on focus — fix it once instead of overriding `ring-*` per component. */
+  input:focus,
+  select:focus,
+  textarea:focus {
+    --tw-ring-shadow: 0 0 #0000 !important;
+    box-shadow: none !important;
+  }
 }
 
 @layer utilities {

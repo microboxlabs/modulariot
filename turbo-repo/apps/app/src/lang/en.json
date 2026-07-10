@@ -41,32 +41,68 @@
       },
       "requestAccess": {
         "prompt": "Don't have an account?",
-        "link": "Request access",
-        "backToLogin": "Already have an account? Sign in"
+        "link": "Request access"
       },
       "credentialsTitle": "Sign in",
       "credentialsSubtitle": "Enter your email and password to access your account",
       "register": {
-        "title": "Request access",
-        "subtitle": "Fill in your details to create your ModularIOT account",
-        "fields": {
-          "name": {
-            "label": "First name",
-            "placeholder": "Your first name"
+        "steps": {
+          "organization": {
+            "title": "Tell us about your organization",
+            "subtitle": "This helps us set up your ModularIOT account"
           },
-          "lastname": {
-            "label": "Last name",
-            "placeholder": "Your last name"
+          "profile": {
+            "title": "Create your account",
+            "subtitle": "Sign up with a provider or fill in your details"
           },
-          "confirmPassword": {
-            "label": "Confirm password",
-            "placeholder": ""
+          "verification": {
+            "title": "Check your email",
+            "message": "We sent an access link to {email}. Open it to confirm your account — the link expires in 15 minutes."
           }
         },
-        "submit": "Request access",
-        "errors": {
-          "passwordMismatch": "Passwords do not match"
-        }
+        "fields": {
+          "organizationName": {
+            "label": "Organization name",
+            "placeholder": "Your organization's name"
+          },
+          "teamName": {
+            "label": "Team name",
+            "placeholder": "your-team-name",
+            "sso": "(SSO)"
+          },
+          "organizationLocation": {
+            "label": "Location",
+            "placeholder": "country"
+          },
+          "organizationPhone": {
+            "label": "Phone number",
+            "placeholder": "Organization's phone number"
+          },
+          "organizationSize": {
+            "label": "Organization size"
+          },
+          "industry": {
+            "label": "What does it do?"
+          },
+          "monitoringInterest": {
+            "label": "What do you want to monitor?"
+          },
+          "fullName": {
+            "label": "Full name",
+            "placeholder": "Your full name"
+          },
+          "phone": {
+            "label": "Phone number",
+            "placeholder": "Your phone number"
+          }
+        },
+        "buttons": {
+          "next": "Next",
+          "back": "Back",
+          "verifyEmail": "Send verification email"
+        },
+        "createAccountWith": "Create account with",
+        "optionalLabel": "(optional)"
       },
       "errors": {
         "invalidCredentials": "Access denied. Please verify your credentials and try again.",

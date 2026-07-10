@@ -5,6 +5,7 @@ import com.microboxlabs.miot.integrations.retransmit.EnrichedPositionRetransmitC
 import com.microboxlabs.miot.integrations.retransmit.StreamhubGpsClient;
 import io.quarkus.arc.lookup.LookupIfProperty;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.jboss.logging.Logger;
@@ -15,11 +16,11 @@ public class IntegrationsComponent implements IMiotComponent {
 
     private static final Logger LOG = Logger.getLogger(IntegrationsComponent.class);
 
-    private final EnrichedPositionRetransmitConsumer retransmitConsumer;
+    private final Instance<EnrichedPositionRetransmitConsumer> retransmitConsumer;
     private final StreamhubGpsClient gpsClient;
 
     IntegrationsComponent(
-            EnrichedPositionRetransmitConsumer retransmitConsumer,
+            Instance<EnrichedPositionRetransmitConsumer> retransmitConsumer,
             StreamhubGpsClient gpsClient) {
         this.retransmitConsumer = retransmitConsumer;
         this.gpsClient = gpsClient;
@@ -38,13 +39,19 @@ public class IntegrationsComponent implements IMiotComponent {
     @Override
     public void onStart() {
         LOG.info("Integrations component started");
-        if (retransmitConsumer.isEnabled()) {
+        if (!retransmitConsumer.isResolvable()) {
+            // Native builds omit the Pulsar consumer bean (see EnrichedPositionRetransmitConsumer).
+            LOG.debug("Retransmit Pulsar consumer not available in this build");
+            return;
+        }
+        EnrichedPositionRetransmitConsumer consumer = retransmitConsumer.get();
+        if (consumer.isEnabled()) {
             if (!gpsClient.isConfigured()) {
                 LOG.warn(
                         "Retransmit worker enabled but GPS datasource is not configured "
                                 + "(miot.integrations.retransmit.gps.reactive-url / username)");
             }
-            retransmitConsumer.start();
+            consumer.start();
         }
     }
 

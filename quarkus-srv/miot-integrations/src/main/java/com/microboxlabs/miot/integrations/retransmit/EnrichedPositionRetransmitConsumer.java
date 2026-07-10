@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.retransmit;
 
+import io.quarkus.arc.properties.UnlessBuildProperty;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.nio.charset.StandardCharsets;
@@ -22,8 +23,14 @@ import org.jboss.logging.Logger;
  *
  * <p>Started from {@link com.microboxlabs.miot.integrations.IntegrationsComponent}
  * when {@code miot.integrations.retransmit.worker.enabled=true}.
+ *
+ * <p>Excluded from native images ({@code quarkus.native.enabled=true}): the
+ * Apache Pulsar client pulls Netty io_uring / network types into the image heap
+ * and fails Mandrel builds. StreamHub retransmit deploys the JVM package; enable
+ * a native retransmit worker only after dedicated Pulsar native config exists.
  */
 @ApplicationScoped
+@UnlessBuildProperty(name = "quarkus.native.enabled", stringValue = "true")
 public class EnrichedPositionRetransmitConsumer {
 
     private static final Logger LOG = Logger.getLogger(EnrichedPositionRetransmitConsumer.class);

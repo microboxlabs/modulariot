@@ -20,7 +20,9 @@ import com.microboxlabs.miot.integrations.persistence.WebhookDeliveryRepository;
 import com.microboxlabs.miot.integrations.service.WebhookFilterCompiler.CompiledFilter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -57,7 +59,10 @@ public class GpsWebhookSubscriptionService {
                 connectionRepository,
                 deliveryRepository,
                 filterCompiler,
-                HttpClient.newBuilder().connectTimeout(TEST_TIMEOUT).build());
+                HttpClient.newBuilder()
+                        .connectTimeout(TEST_TIMEOUT)
+                        .followRedirects(HttpClient.Redirect.NEVER)
+                        .build());
     }
 
     GpsWebhookSubscriptionService(
@@ -232,6 +237,7 @@ public class GpsWebhookSubscriptionService {
             String nextName,
             URI url) {
         if (url != null) {
+            validateUrl(url);
             String nextUrl = url.toString();
             connectionRepository.update(tenantCode, existing.connectionId(), nextName, nextUrl, null);
             return nextUrl;
@@ -257,12 +263,35 @@ public class GpsWebhookSubscriptionService {
             throw new IllegalArgumentException("Request body is required");
         }
         requireName(req.name());
-        if (req.url() == null) {
+        validateUrl(req.url());
+    }
+
+    /**
+     * Rejects non-http(s) schemes and resolved internal addresses (SSRF guard for
+     * create / update / test POST). DNS rebinding remains a residual TOCTOU risk.
+     */
+    static void validateUrl(URI url) {
+        if (url == null) {
             throw new IllegalArgumentException("url is required");
         }
-        String scheme = req.url().getScheme();
+        String scheme = url.getScheme();
         if (scheme == null || !(scheme.equalsIgnoreCase("https") || scheme.equalsIgnoreCase("http"))) {
             throw new IllegalArgumentException("url must be http or https");
+        }
+        String host = url.getHost();
+        if (host == null || host.isBlank()) {
+            throw new IllegalArgumentException("url host is required");
+        }
+        try {
+            InetAddress addr = InetAddress.getByName(host);
+            if (addr.isLoopbackAddress()
+                    || addr.isAnyLocalAddress()
+                    || addr.isLinkLocalAddress()
+                    || addr.isSiteLocalAddress()) {
+                throw new IllegalArgumentException("url must not point to an internal address");
+            }
+        } catch (UnknownHostException e) {
+            throw new IllegalArgumentException("url host could not be resolved");
         }
     }
 

@@ -61,6 +61,19 @@ class GpsWebhookSubscriptionServiceTest {
     }
 
     @Test
+    void createRejectsLoopbackUrl() {
+        CreateGpsWebhookRequest req = new CreateGpsWebhookRequest(
+                "ops-hook",
+                URI.create("http://127.0.0.1/hook"),
+                null,
+                FilterMode.ALL_VISIBLE,
+                null,
+                true);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> service.create("t", req));
+        assertTrue(ex.getMessage().contains("internal"));
+    }
+
+    @Test
     void createRejectsEmptyRulesFilterBeforeDbAccess() {
         CreateGpsWebhookRequest req = new CreateGpsWebhookRequest(
                 "ops-hook",

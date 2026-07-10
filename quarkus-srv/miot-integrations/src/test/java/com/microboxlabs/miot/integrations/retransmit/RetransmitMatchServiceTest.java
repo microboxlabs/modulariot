@@ -1,7 +1,6 @@
 package com.microboxlabs.miot.integrations.retransmit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -47,7 +46,6 @@ class RetransmitMatchServiceTest {
                 .put("asset_id", "GZKD49")
                 .put("request_id", "req-1")
                 .put("mode", "privacy");
-        assertTrue(RetransmitMatchService.buildDedupeKey(payload).contains("req-1"));
-        assertTrue(RetransmitMatchService.buildDedupeKey(payload).endsWith(":privacy"));
+        assertEquals("mel-gauss:GZKD49:req-1:privacy", RetransmitMatchService.buildDedupeKey(payload));
     }
 }

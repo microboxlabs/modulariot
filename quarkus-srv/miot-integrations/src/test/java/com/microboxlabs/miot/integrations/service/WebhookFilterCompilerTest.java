@@ -86,6 +86,14 @@ class WebhookFilterCompilerTest {
     }
 
     @Test
+    void rulesModeRejectsNullFilter() {
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> compiler.compile(FilterMode.RULES, null));
+        assertTrue(ex.getMessage().contains("filter is required"));
+    }
+
+    @Test
     void rejectsUnsupportedMatchMode() {
         WebhookFilterSpec anyMatch = new WebhookFilterSpec(
                 new WebhookFilterScopes(false, List.of("A"), List.of(), List.of(), List.of(), List.of()),

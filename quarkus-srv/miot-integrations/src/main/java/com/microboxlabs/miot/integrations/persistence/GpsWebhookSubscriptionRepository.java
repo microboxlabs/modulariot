@@ -2,9 +2,11 @@ package com.microboxlabs.miot.integrations.persistence;
 
 import com.microboxlabs.miot.integrations.domain.FilterMode;
 import com.microboxlabs.miot.integrations.domain.GpsWebhookSubscription;
+import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.SqlConnection;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -115,6 +117,10 @@ public class GpsWebhookSubscriptionRepository {
         return withAssets(mapJoinedRow(result.iterator().next()));
     }
 
+    /**
+     * Inserts the subscription and replaces assets in one transaction so a failed
+     * membership write never leaves a partial create.
+     */
     public GpsWebhookSubscription create(CreateSubscriptionParams params) {
         Tuple tuple = Tuple.tuple()
                 .addUUID(UUID.fromString(params.id()))
@@ -126,14 +132,22 @@ public class GpsWebhookSubscriptionRepository {
                 .addJsonObject(toJson(params.filterJson()))
                 .addBoolean(params.includeAllVisible())
                 .addOffsetDateTime(params.compiledAt());
-        Row row = client().preparedQuery(INSERT)
-                .execute(tuple)
-                .await().indefinitely()
-                .iterator().next();
-        replaceAssets(params.id(), params.assetIds());
-        return withAssets(mapCoreRow(row, params.webhookUrl()));
+        List<String> assets = params.assetIds() == null ? List.of() : List.copyOf(params.assetIds());
+        return client().withTransaction(conn -> conn.preparedQuery(INSERT)
+                        .execute(tuple)
+                        .chain(rs -> {
+                            Row row = rs.iterator().next();
+                            return replaceAssetsOn(conn, UUID.fromString(params.id()), assets)
+                                    .replaceWith(withAssetList(mapCoreRow(row, params.webhookUrl()), assets));
+                        }))
+                .await()
+                .indefinitely();
     }
 
+    /**
+     * Updates subscription columns and, when asset membership is supplied, replaces
+     * assets in the same transaction.
+     */
     public GpsWebhookSubscription update(UpdateSubscriptionParams params) {
         UUID id = parseUuidOrNull(params.subscriptionId());
         if (id == null) {
@@ -150,16 +164,26 @@ public class GpsWebhookSubscriptionRepository {
                 .addValue(filterJson == null ? null : toJson(filterJson))
                 .addBoolean(params.includeAllVisible())
                 .addOffsetDateTime(params.compiledAt());
-        var result = client().preparedQuery(UPDATE)
-                .execute(tuple)
-                .await().indefinitely();
-        if (!result.iterator().hasNext()) {
-            return null;
-        }
-        if (params.assetIdsOrNull() != null) {
-            replaceAssets(params.subscriptionId(), params.assetIdsOrNull());
-        }
-        return withAssets(mapCoreRow(result.iterator().next(), params.webhookUrl()));
+        List<String> assetsOrNull = params.assetIdsOrNull();
+
+        return client().withTransaction(conn -> conn.preparedQuery(UPDATE)
+                        .execute(tuple)
+                        .chain(rs -> {
+                            if (!rs.iterator().hasNext()) {
+                                return Uni.createFrom().nullItem();
+                            }
+                            Row row = rs.iterator().next();
+                            GpsWebhookSubscription core = mapCoreRow(row, params.webhookUrl());
+                            if (assetsOrNull == null) {
+                                return listAssetsOn(conn, id)
+                                        .map(assets -> withAssetList(core, assets));
+                            }
+                            List<String> assets = List.copyOf(assetsOrNull);
+                            return replaceAssetsOn(conn, id, assets)
+                                    .replaceWith(withAssetList(core, assets));
+                        }))
+                .await()
+                .indefinitely();
     }
 
     public boolean softDelete(String tenantCode, String subscriptionId) {
@@ -181,21 +205,30 @@ public class GpsWebhookSubscriptionRepository {
     public void replaceAssets(String subscriptionId, List<String> assetIds) {
         UUID id = UUID.fromString(subscriptionId);
         List<String> assets = assetIds == null ? List.of() : assetIds;
-        client().withTransaction(conn -> {
-            var chain = conn.preparedQuery(DELETE_ASSETS)
-                    .execute(Tuple.of(id))
-                    .replaceWithVoid();
-            for (String assetId : assets) {
-                chain = chain.chain(() -> conn.preparedQuery(INSERT_ASSET)
-                        .execute(Tuple.of(id, assetId))
-                        .replaceWithVoid());
-            }
-            return chain;
-        }).await().indefinitely();
+        client().withTransaction(conn -> replaceAssetsOn(conn, id, assets))
+                .await()
+                .indefinitely();
+    }
+
+    private Uni<Void> replaceAssetsOn(SqlConnection conn, UUID id, List<String> assets) {
+        Uni<Void> chain = conn.preparedQuery(DELETE_ASSETS)
+                .execute(Tuple.of(id))
+                .replaceWithVoid();
+        for (String assetId : assets) {
+            chain = chain.chain(() -> conn.preparedQuery(INSERT_ASSET)
+                    .execute(Tuple.of(id, assetId))
+                    .replaceWithVoid());
+        }
+        return chain;
     }
 
     private GpsWebhookSubscription withAssets(GpsWebhookSubscription subscription) {
         List<String> assets = listAssets(subscription.id());
+        return withAssetList(subscription, assets);
+    }
+
+    private static GpsWebhookSubscription withAssetList(
+            GpsWebhookSubscription subscription, List<String> assets) {
         return new GpsWebhookSubscription(
                 subscription.id(),
                 subscription.tenantCode(),
@@ -219,6 +252,16 @@ public class GpsWebhookSubscriptionRepository {
                 .await().indefinitely()
                 .forEach(row -> assets.add(row.getString("asset_id")));
         return List.copyOf(assets);
+    }
+
+    private Uni<List<String>> listAssetsOn(SqlConnection conn, UUID id) {
+        return conn.preparedQuery(SELECT_ASSETS)
+                .execute(Tuple.of(id))
+                .map(rs -> {
+                    List<String> assets = new ArrayList<>();
+                    rs.forEach(row -> assets.add(row.getString("asset_id")));
+                    return List.copyOf(assets);
+                });
     }
 
     private GpsWebhookSubscription mapJoinedRow(Row row) {

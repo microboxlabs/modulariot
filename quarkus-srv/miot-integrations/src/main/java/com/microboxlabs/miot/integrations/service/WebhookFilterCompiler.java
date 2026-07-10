@@ -34,14 +34,18 @@ public class WebhookFilterCompiler {
         if (mode == null) {
             throw new IllegalArgumentException("filterMode is required");
         }
-        WebhookFilterSpec spec = input == null ? WebhookFilterSpec.allVisible() : input;
-        if (!WebhookFilterSpec.MATCH_ALL.equals(spec.match())) {
-            throw new IllegalArgumentException("Only match=ALL is supported in v1");
-        }
-
         if (mode == FilterMode.ALL_VISIBLE) {
             WebhookFilterSpec allVisibleSpec = WebhookFilterSpec.allVisible();
             return new CompiledFilter(mode, allVisibleSpec, true, List.of());
+        }
+
+        // RULES must not silently become allVisible when the filter document is omitted.
+        if (input == null) {
+            throw new IllegalArgumentException("filter is required for RULES mode");
+        }
+        WebhookFilterSpec spec = input;
+        if (!WebhookFilterSpec.MATCH_ALL.equals(spec.match())) {
+            throw new IllegalArgumentException("Only match=ALL is supported in v1");
         }
 
         WebhookFilterScopes scopes = spec.scopes();

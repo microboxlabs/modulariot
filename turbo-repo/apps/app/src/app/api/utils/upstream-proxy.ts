@@ -48,7 +48,19 @@ export async function proxyToUpstream(
     return new NextResponse(null, { status: 204 });
   }
 
-  const responseBody = await upstream.text();
+  let responseBody: string;
+  try {
+    responseBody = await upstream.text();
+  } catch (err) {
+    return NextResponse.json(
+      {
+        error: options?.upstreamErrorMessage ?? "Upstream request failed",
+        details: err instanceof Error ? err.message : "Failed to read upstream body",
+      },
+      { status: 502 },
+    );
+  }
+
   const contentType =
     upstream.headers.get("content-type") ?? "application/json";
 

@@ -83,17 +83,20 @@ public class EnrichedPositionRetransmitConsumer {
     }
 
     private void consumeLoop() {
-        Consumer<byte[]> c;
-        try {
-            c = getConsumer();
-        } catch (PulsarClientException e) {
-            LOG.errorf(e, "Failed to create retransmit Pulsar consumer");
-            running.set(false);
-            return;
-        }
-
+        // Keep the worker alive across transient Pulsar outages (startup or mid-run).
         while (running.get()) {
-            receiveAndProcess(c);
+            Consumer<byte[]> c;
+            try {
+                c = getConsumer();
+            } catch (PulsarClientException e) {
+                LOG.errorf(e, "Failed to create retransmit Pulsar consumer; retry in 5s");
+                sleep(5000);
+                continue;
+            }
+
+            while (running.get()) {
+                receiveAndProcess(c);
+            }
         }
     }
 
@@ -115,13 +118,12 @@ public class EnrichedPositionRetransmitConsumer {
     private void processMessage(Consumer<byte[]> c, Message<byte[]> msg) {
         try {
             String raw = new String(msg.getValue(), StandardCharsets.UTF_8);
-            // Always log the payload so local runs can verify topic traffic.
+            // Metadata only at INFO — full GPS body is PII / log-volume risk.
             LOG.infof(
-                    "RETRANSMIT_RX topic=%s key=%s size=%d body=%s",
+                    "RETRANSMIT_RX topic=%s key=%s size=%d",
                     msg.getTopicName(),
                     msg.getKey(),
-                    msg.getValue() == null ? 0 : msg.getValue().length,
-                    raw);
+                    msg.getValue() == null ? 0 : msg.getValue().length);
             matchService.processEnrichedMessage(raw);
             c.acknowledge(msg);
         } catch (Exception e) {

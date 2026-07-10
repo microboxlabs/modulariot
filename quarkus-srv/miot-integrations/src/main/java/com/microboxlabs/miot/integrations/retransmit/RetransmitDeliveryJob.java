@@ -67,9 +67,15 @@ public class RetransmitDeliveryJob {
         if (!workerEnabled) {
             return;
         }
-        List<RetransmitDelivery> batch = repository.claim(workerId, claimLimit, leaseSeconds);
-        for (RetransmitDelivery delivery : batch) {
-            deliverOne(delivery);
+        // Claim one row at a time so a slow HTTP POST cannot expire later leases
+        // from a multi-row claim while this worker is still serializing delivery.
+        int remaining = Math.max(claimLimit, 1);
+        while (remaining-- > 0) {
+            List<RetransmitDelivery> batch = repository.claim(workerId, 1, leaseSeconds);
+            if (batch.isEmpty()) {
+                return;
+            }
+            deliverOne(batch.get(0));
         }
     }
 

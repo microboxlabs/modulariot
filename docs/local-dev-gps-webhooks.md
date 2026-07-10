@@ -96,6 +96,22 @@ curl -s http://localhost:8180/miot/q/openapi | grep -i gps || true
 # App: login as coordinator-dev user → Settings → Organizations → GPS webhooks
 ```
 
+## Retransmit worker (MEL/Gauss) — StreamHub
+
+Modulith consumes PR3 `asset-positions-enriched`, stamps geofences via GPS SQL,
+matches `retransmit_config`, and delivers via outbox (`miot_integrations.retransmit_deliveries`).
+
+| Env | Purpose |
+|-----|---------|
+| `MIOT_INTEGRATIONS_RETRANSMIT_WORKER_ENABLED=true` | Start Pulsar consumer + claim loop |
+| `MIOT_INTEGRATIONS_RETRANSMIT_PULSAR_SERVICE_URL` | Pulsar broker |
+| `MIOT_INTEGRATIONS_RETRANSMIT_PULSAR_TOPIC` | Default `persistent://streamhub/tracking/asset-positions-enriched` |
+| `MIOT_INTEGRATIONS_RETRANSMIT_GPS_REACTIVE_URL` | `postgresql://host:port/prod_iot_gps` |
+| `MIOT_INTEGRATIONS_RETRANSMIT_GPS_USERNAME` / `_PASSWORD` | GPS DB role |
+| `MIOT_INTEGRATIONS_RETRANSMIT_DEFAULT_URL` | Fallback HTTP destination (echo/Gauss) |
+
+SQL on GPS DB (db-writer): `stamp_signal_geofences`, `process_enriched_position_retransmit` (V1.43.1).
+
 ## Moving GPS API to StreamHub later
 
 1. Deploy modulith (or integrations worker) on StreamHub GKE with DB that has

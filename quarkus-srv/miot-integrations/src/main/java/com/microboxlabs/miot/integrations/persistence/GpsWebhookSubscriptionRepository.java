@@ -8,7 +8,6 @@ import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -116,72 +115,51 @@ public class GpsWebhookSubscriptionRepository {
         return withAssets(mapJoinedRow(result.iterator().next()));
     }
 
-    public GpsWebhookSubscription create(
-            String id,
-            String tenantCode,
-            String connectionId,
-            String name,
-            boolean enabled,
-            FilterMode filterMode,
-            Map<String, Object> filterJson,
-            boolean includeAllVisible,
-            OffsetDateTime compiledAt,
-            List<String> assetIds,
-            String webhookUrl) {
-        Tuple params = Tuple.tuple()
-                .addUUID(UUID.fromString(id))
-                .addString(tenantCode)
-                .addUUID(UUID.fromString(connectionId))
-                .addString(name)
-                .addBoolean(enabled)
-                .addString(filterMode.name())
-                .addJsonObject(toJson(filterJson))
-                .addBoolean(includeAllVisible)
-                .addOffsetDateTime(compiledAt);
+    public GpsWebhookSubscription create(CreateSubscriptionParams params) {
+        Tuple tuple = Tuple.tuple()
+                .addUUID(UUID.fromString(params.id()))
+                .addString(params.tenantCode())
+                .addUUID(UUID.fromString(params.connectionId()))
+                .addString(params.name())
+                .addBoolean(params.enabled())
+                .addString(params.filterMode().name())
+                .addJsonObject(toJson(params.filterJson()))
+                .addBoolean(params.includeAllVisible())
+                .addOffsetDateTime(params.compiledAt());
         Row row = client().preparedQuery(INSERT)
-                .execute(params)
+                .execute(tuple)
                 .await().indefinitely()
                 .iterator().next();
-        replaceAssets(id, assetIds);
-        GpsWebhookSubscription base = mapCoreRow(row, webhookUrl);
-        return withAssets(base);
+        replaceAssets(params.id(), params.assetIds());
+        return withAssets(mapCoreRow(row, params.webhookUrl()));
     }
 
-    public GpsWebhookSubscription update(
-            String tenantCode,
-            String subscriptionId,
-            String name,
-            Boolean enabled,
-            FilterMode filterMode,
-            Map<String, Object> filterJson,
-            Boolean includeAllVisible,
-            OffsetDateTime compiledAt,
-            List<String> assetIdsOrNull,
-            String webhookUrl) {
-        UUID id = parseUuidOrNull(subscriptionId);
+    public GpsWebhookSubscription update(UpdateSubscriptionParams params) {
+        UUID id = parseUuidOrNull(params.subscriptionId());
         if (id == null) {
             return null;
         }
-        Tuple params = Tuple.tuple()
-                .addString(tenantCode)
+        FilterMode filterMode = params.filterMode();
+        Map<String, Object> filterJson = params.filterJson();
+        Tuple tuple = Tuple.tuple()
+                .addString(params.tenantCode())
                 .addUUID(id)
-                .addString(name)
-                .addBoolean(enabled)
+                .addString(params.name())
+                .addBoolean(params.enabled())
                 .addString(filterMode == null ? null : filterMode.name())
                 .addValue(filterJson == null ? null : toJson(filterJson))
-                .addBoolean(includeAllVisible)
-                .addOffsetDateTime(compiledAt);
+                .addBoolean(params.includeAllVisible())
+                .addOffsetDateTime(params.compiledAt());
         var result = client().preparedQuery(UPDATE)
-                .execute(params)
+                .execute(tuple)
                 .await().indefinitely();
         if (!result.iterator().hasNext()) {
             return null;
         }
-        if (assetIdsOrNull != null) {
-            replaceAssets(subscriptionId, assetIdsOrNull);
+        if (params.assetIdsOrNull() != null) {
+            replaceAssets(params.subscriptionId(), params.assetIdsOrNull());
         }
-        GpsWebhookSubscription base = mapCoreRow(result.iterator().next(), webhookUrl);
-        return withAssets(base);
+        return withAssets(mapCoreRow(result.iterator().next(), params.webhookUrl()));
     }
 
     public boolean softDelete(String tenantCode, String subscriptionId) {

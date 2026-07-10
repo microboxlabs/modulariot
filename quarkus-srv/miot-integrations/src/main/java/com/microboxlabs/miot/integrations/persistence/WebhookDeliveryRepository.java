@@ -40,7 +40,7 @@ public class WebhookDeliveryRepository {
         if (id == null) {
             return List.of();
         }
-        int safeLimit = Math.min(Math.max(limit, 1), 200);
+        int safeLimit = Math.clamp(limit, 1, 200);
         return client().preparedQuery(SELECT_BY_SUBSCRIPTION)
                 .execute(Tuple.of(tenantCode, id, safeLimit))
                 .await().indefinitely()

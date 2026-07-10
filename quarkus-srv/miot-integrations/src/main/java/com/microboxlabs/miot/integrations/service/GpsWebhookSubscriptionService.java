@@ -12,8 +12,10 @@ import com.microboxlabs.miot.integrations.dto.GpsWebhookResponse;
 import com.microboxlabs.miot.integrations.dto.GpsWebhookTestResponse;
 import com.microboxlabs.miot.integrations.dto.UpdateGpsWebhookRequest;
 import com.microboxlabs.miot.integrations.dto.WebhookDeliveryResponse;
+import com.microboxlabs.miot.integrations.persistence.CreateSubscriptionParams;
 import com.microboxlabs.miot.integrations.persistence.GpsWebhookSubscriptionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
+import com.microboxlabs.miot.integrations.persistence.UpdateSubscriptionParams;
 import com.microboxlabs.miot.integrations.persistence.WebhookDeliveryRepository;
 import com.microboxlabs.miot.integrations.service.WebhookFilterCompiler.CompiledFilter;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -24,9 +26,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.jboss.logging.Logger;
 
@@ -101,9 +105,8 @@ public class GpsWebhookSubscriptionService {
         connectionRepository.create(connection);
 
         String subscriptionId = UUID.randomUUID().toString();
-        OffsetDateTime compiledAt = OffsetDateTime.now();
         boolean enabled = req.enabled() == null || req.enabled();
-        GpsWebhookSubscription created = subscriptionRepository.create(
+        GpsWebhookSubscription created = subscriptionRepository.create(new CreateSubscriptionParams(
                 subscriptionId,
                 tenantCode,
                 connectionId,
@@ -112,9 +115,9 @@ public class GpsWebhookSubscriptionService {
                 compiled.filterMode(),
                 compiled.spec().toMap(),
                 compiled.includeAllVisible(),
-                compiledAt,
+                nowUtc(),
                 compiled.assetIds(),
-                req.url().toString());
+                req.url().toString()));
         return toResponse(created);
     }
 
@@ -125,22 +128,10 @@ public class GpsWebhookSubscriptionService {
         }
 
         String nextName = req.name() == null ? null : requireName(req.name());
-        String nextUrl = null;
-        if (req.url() != null) {
-            nextUrl = req.url().toString();
-            connectionRepository.update(tenantCode, existing.connectionId(), nextName, nextUrl, null);
-        } else if (nextName != null) {
-            connectionRepository.update(tenantCode, existing.connectionId(), nextName, null, null);
-        }
+        String nextUrl = applyConnectionUpdate(tenantCode, existing, nextName, req.url());
+        CompiledFilter compiled = compileFilterIfRequested(existing, req);
 
-        CompiledFilter compiled = null;
-        if (req.filterMode() != null || req.filter() != null) {
-            FilterMode mode = req.filterMode() != null ? req.filterMode() : existing.filterMode();
-            Map<String, Object> filterMap = req.filter() != null ? req.filter() : existing.filterJson();
-            compiled = filterCompiler.compile(mode, WebhookFilterSpec.fromMap(filterMap));
-        }
-
-        GpsWebhookSubscription updated = subscriptionRepository.update(
+        GpsWebhookSubscription updated = subscriptionRepository.update(new UpdateSubscriptionParams(
                 tenantCode,
                 subscriptionId,
                 nextName,
@@ -148,9 +139,9 @@ public class GpsWebhookSubscriptionService {
                 compiled == null ? null : compiled.filterMode(),
                 compiled == null ? null : compiled.spec().toMap(),
                 compiled == null ? null : compiled.includeAllVisible(),
-                compiled == null ? null : OffsetDateTime.now(),
+                compiled == null ? null : nowUtc(),
                 compiled == null ? null : compiled.assetIds(),
-                nextUrl != null ? nextUrl : existing.webhookUrl());
+                nextUrl != null ? nextUrl : existing.webhookUrl()));
         return updated == null ? null : toResponse(updated);
     }
 
@@ -165,7 +156,7 @@ public class GpsWebhookSubscriptionService {
         }
         CompiledFilter compiled = filterCompiler.compile(
                 existing.filterMode(), WebhookFilterSpec.fromMap(existing.filterJson()));
-        GpsWebhookSubscription updated = subscriptionRepository.update(
+        GpsWebhookSubscription updated = subscriptionRepository.update(new UpdateSubscriptionParams(
                 tenantCode,
                 subscriptionId,
                 null,
@@ -173,19 +164,26 @@ public class GpsWebhookSubscriptionService {
                 compiled.filterMode(),
                 compiled.spec().toMap(),
                 compiled.includeAllVisible(),
-                OffsetDateTime.now(),
+                nowUtc(),
                 compiled.assetIds(),
-                existing.webhookUrl());
+                existing.webhookUrl()));
         return updated == null ? null : toResponse(updated);
     }
 
-    public List<WebhookDeliveryResponse> listDeliveries(String tenantCode, String subscriptionId, int limit) {
+    /**
+     * @return empty when the subscription does not exist; otherwise the delivery list (may be empty)
+     */
+    public Optional<List<WebhookDeliveryResponse>> listDeliveries(
+            String tenantCode, String subscriptionId, int limit) {
         if (subscriptionRepository.findByTenantAndId(tenantCode, subscriptionId) == null) {
-            return null;
+            return Optional.empty();
         }
-        return deliveryRepository.listBySubscription(tenantCode, subscriptionId, limit).stream()
+        List<WebhookDeliveryResponse> deliveries = deliveryRepository
+                .listBySubscription(tenantCode, subscriptionId, limit)
+                .stream()
                 .map(this::toDeliveryResponse)
                 .toList();
+        return Optional.of(deliveries);
     }
 
     /**
@@ -195,10 +193,10 @@ public class GpsWebhookSubscriptionService {
     public GpsWebhookTestResponse test(String tenantCode, String subscriptionId) {
         GpsWebhookSubscription subscription = subscriptionRepository.findByTenantAndId(tenantCode, subscriptionId);
         if (subscription == null) {
-            return new GpsWebhookTestResponse(false, null, "Subscription not found", OffsetDateTime.now());
+            return testFailure("Subscription not found");
         }
         if (subscription.webhookUrl() == null || subscription.webhookUrl().isBlank()) {
-            return new GpsWebhookTestResponse(false, null, "Webhook URL is missing", OffsetDateTime.now());
+            return testFailure("Webhook URL is missing");
         }
 
         Map<String, Object> payload = samplePayload(subscription);
@@ -217,12 +215,41 @@ public class GpsWebhookSubscriptionService {
             String message = success
                     ? "Webhook accepted synthetic sample"
                     : "Webhook returned HTTP " + response.statusCode();
-            return new GpsWebhookTestResponse(success, response.statusCode(), message, OffsetDateTime.now());
+            return new GpsWebhookTestResponse(success, response.statusCode(), message, nowUtc());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOG.warnf(e, "GPS webhook test interrupted for subscription %s", subscriptionId);
+            return testFailure("Request interrupted: " + e.getMessage());
         } catch (Exception e) {
             LOG.warnf(e, "GPS webhook test failed for subscription %s", subscriptionId);
-            return new GpsWebhookTestResponse(
-                    false, null, "Request failed: " + e.getMessage(), OffsetDateTime.now());
+            return testFailure("Request failed: " + e.getMessage());
         }
+    }
+
+    private String applyConnectionUpdate(
+            String tenantCode,
+            GpsWebhookSubscription existing,
+            String nextName,
+            URI url) {
+        if (url != null) {
+            String nextUrl = url.toString();
+            connectionRepository.update(tenantCode, existing.connectionId(), nextName, nextUrl, null);
+            return nextUrl;
+        }
+        if (nextName != null) {
+            connectionRepository.update(tenantCode, existing.connectionId(), nextName, null, null);
+        }
+        return null;
+    }
+
+    private CompiledFilter compileFilterIfRequested(
+            GpsWebhookSubscription existing, UpdateGpsWebhookRequest req) {
+        if (req.filterMode() == null && req.filter() == null) {
+            return null;
+        }
+        FilterMode mode = req.filterMode() != null ? req.filterMode() : existing.filterMode();
+        Map<String, Object> filterMap = req.filter() != null ? req.filter() : existing.filterJson();
+        return filterCompiler.compile(mode, WebhookFilterSpec.fromMap(filterMap));
     }
 
     private void validateCreate(CreateGpsWebhookRequest req) {
@@ -254,6 +281,14 @@ public class GpsWebhookSubscriptionService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    private static OffsetDateTime nowUtc() {
+        return OffsetDateTime.now(ZoneOffset.UTC);
+    }
+
+    private GpsWebhookTestResponse testFailure(String message) {
+        return new GpsWebhookTestResponse(false, null, message, nowUtc());
+    }
+
     private Map<String, Object> samplePayload(GpsWebhookSubscription subscription) {
         Map<String, Object> gps = new LinkedHashMap<>();
         gps.put("latitude", -33.4489);
@@ -264,16 +299,17 @@ public class GpsWebhookSubscriptionService {
         Map<String, Object> telecom = new LinkedHashMap<>();
         telecom.put("gps_provider", "sample");
 
+        String now = nowUtc().toString();
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("spec", "miot.gps.webhook@1");
         payload.put("subscription_id", subscription.id());
-        payload.put("delivered_at", OffsetDateTime.now().toString());
+        payload.put("delivered_at", now);
         payload.put("request_id", "test-" + UUID.randomUUID());
         payload.put("ingest_client_id", "test-client");
         payload.put("asset_id", subscription.compiledAssetIds().isEmpty()
                 ? "SAMPLE-ASSET"
                 : subscription.compiledAssetIds().get(0));
-        payload.put("timestamp", OffsetDateTime.now().toString());
+        payload.put("timestamp", now);
         payload.put("gps", gps);
         payload.put("telecom", telecom);
         payload.put("owner", "sample");

@@ -78,27 +78,26 @@ class WebhookFilterCompilerTest {
 
     @Test
     void rulesModeRejectsEmptyFilter() {
+        WebhookFilterSpec emptyRules = new WebhookFilterSpec(WebhookFilterScopes.empty(), "ALL");
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> compiler.compile(
-                        FilterMode.RULES,
-                        new WebhookFilterSpec(WebhookFilterScopes.empty(), "ALL")));
+                () -> compiler.compile(FilterMode.RULES, emptyRules));
         assertTrue(ex.getMessage().contains("at least one"));
     }
 
     @Test
     void rejectsUnsupportedMatchMode() {
+        WebhookFilterSpec anyMatch = new WebhookFilterSpec(
+                new WebhookFilterScopes(false, List.of("A"), List.of(), List.of(), List.of(), List.of()),
+                "ANY");
         assertThrows(
                 IllegalArgumentException.class,
-                () -> compiler.compile(
-                        FilterMode.RULES,
-                        new WebhookFilterSpec(
-                                new WebhookFilterScopes(false, List.of("A"), List.of(), List.of(), List.of(), List.of()),
-                                "ANY")));
+                () -> compiler.compile(FilterMode.RULES, anyMatch));
     }
 
     @Test
     void requiresFilterMode() {
-        assertThrows(IllegalArgumentException.class, () -> compiler.compile(null, WebhookFilterSpec.allVisible()));
+        WebhookFilterSpec allVisible = WebhookFilterSpec.allVisible();
+        assertThrows(IllegalArgumentException.class, () -> compiler.compile(null, allVisible));
     }
 }

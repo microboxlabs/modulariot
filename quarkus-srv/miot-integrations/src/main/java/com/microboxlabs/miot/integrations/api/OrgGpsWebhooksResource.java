@@ -149,12 +149,9 @@ public class OrgGpsWebhooksResource {
             @PathParam("subscriptionId") String subscriptionId,
             @QueryParam("limit") @DefaultValue("50") int limit) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> {
-            var body = service.listDeliveries(tenant, subscriptionId, limit);
-            return body == null
-                    ? Response.status(Response.Status.NOT_FOUND).build()
-                    : Response.ok(body).build();
-        });
+        return onWorker(() -> service.listDeliveries(tenant, subscriptionId, limit)
+                .map(body -> Response.ok(body).build())
+                .orElseGet(() -> Response.status(Response.Status.NOT_FOUND).build()));
     }
 
     @POST

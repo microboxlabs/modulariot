@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { getSharedAuthToken } from "@/app/api/utils/streamhub-api-client";
+import { proxyToUpstream } from "@/app/api/utils/upstream-proxy";
 
 /**
  * Proxy to the StreamHub-facing modulith API (GPS webhooks and future GPS
@@ -51,46 +52,8 @@ export async function forwardToStreamhubModulith(
     );
   }
 
-  const headers = await buildHeaders(session);
-  const method = init?.method ?? "GET";
-  let body: string | undefined;
-  if (init?.body !== undefined) {
-    body = JSON.stringify(init.body);
-    headers["Content-Type"] = "application/json";
-  }
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${baseUrl}${path}`, {
-      method,
-      headers,
-      body,
-      signal: AbortSignal.timeout(15_000),
-    });
-  } catch (err) {
-    return NextResponse.json(
-      {
-        error: "Upstream StreamHub modulith request failed",
-        details: err instanceof Error ? err.message : "Unknown error",
-      },
-      { status: 502 },
-    );
-  }
-
-  if (upstream.status === 204) {
-    return new NextResponse(null, { status: 204 });
-  }
-
-  const responseBody = await upstream.text();
-  const contentType =
-    upstream.headers.get("content-type") ?? "application/json";
-
-  return new NextResponse(responseBody, {
-    status: upstream.status,
-    headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "private, no-store",
-    },
+  return proxyToUpstream(baseUrl, path, await buildHeaders(session), init, {
+    upstreamErrorMessage: "Upstream StreamHub modulith request failed",
   });
 }
 

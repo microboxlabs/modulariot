@@ -2,6 +2,7 @@ import "server-only";
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
+import { proxyToUpstream } from "@/app/api/utils/upstream-proxy";
 
 /**
  * Forward the caller's session JWT to a Quarkus endpoint and return the
@@ -39,47 +40,7 @@ export async function forwardToQuarkus(
     );
   }
 
-  const headers = buildAuthHeaders(session);
-  const method = init?.method ?? "GET";
-  let body: string | undefined;
-  if (init?.body !== undefined) {
-    body = JSON.stringify(init.body);
-    headers["Content-Type"] = "application/json";
-  }
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${baseUrl}${path}`, {
-      method,
-      headers,
-      body,
-      signal: AbortSignal.timeout(15_000),
-    });
-  } catch (err) {
-    return NextResponse.json(
-      {
-        error: "Upstream request failed",
-        details: err instanceof Error ? err.message : "Unknown error",
-      },
-      { status: 502 },
-    );
-  }
-
-  // 204 No Content responses carry no body — return them as-is.
-  if (upstream.status === 204) {
-    return new NextResponse(null, { status: 204 });
-  }
-
-  const responseBody = await upstream.text();
-  const contentType = upstream.headers.get("content-type") ?? "application/json";
-
-  return new NextResponse(responseBody, {
-    status: upstream.status,
-    headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "private, no-store",
-    },
-  });
+  return proxyToUpstream(baseUrl, path, buildAuthHeaders(session), init);
 }
 
 function buildAuthHeaders(session: Session): Record<string, string> {

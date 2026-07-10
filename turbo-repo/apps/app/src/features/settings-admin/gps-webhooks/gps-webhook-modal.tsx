@@ -1,12 +1,17 @@
 "use client";
 
-import { Label, Textarea, TextInput, ToggleSwitch } from "flowbite-react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { Textarea, TextInput, ToggleSwitch } from "flowbite-react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { SettingsFormField } from "@/features/settings-admin/components/settings-form-field";
+import {
+  settingsModalChrome,
+  settingsModalSubmitLabel,
+  useSettingsModalFormOpenReset,
+} from "@/features/settings-admin/hooks/use-settings-modal-form";
 import {
   GpsWebhookFormSchema,
   type GpsWebhookFormData,
@@ -59,48 +64,35 @@ export function GpsWebhookModal({
   });
 
   const filterMode = watch("filterMode");
-  const wasOpen = useRef(false);
 
-  useEffect(() => {
-    if (show && !wasOpen.current) {
-      reset(
-        isEdit && initial
-          ? initial
-          : { ...DEFAULTS, name: tr("modal.defaultName", dict) },
-      );
-    }
-    wasOpen.current = show;
-  }, [show, isEdit, initial, reset, dict]);
+  useSettingsModalFormOpenReset({
+    show,
+    isEdit,
+    initial,
+    defaults: DEFAULTS,
+    dict,
+    reset,
+  });
 
-  let submitLabel: string;
-  if (loading) {
-    submitLabel = tr("modal.saving", dict);
-  } else if (isEdit) {
-    submitLabel = tr("modal.saveButton", dict);
-  } else {
-    submitLabel = tr("modal.createButton", dict);
-  }
+  const submitLabel = settingsModalSubmitLabel(loading, isEdit, dict);
+  const chrome = settingsModalChrome(isEdit, dict);
 
   return (
     <FormModal
       isOpen={show}
       onClose={onClose}
-      title={
-        isEdit ? tr("modal.editTitle", dict) : tr("modal.addTitle", dict)
-      }
-      subtitle={
-        isEdit ? tr("modal.editSubtitle", dict) : tr("modal.subtitle", dict)
-      }
+      title={chrome.title}
+      subtitle={chrome.subtitle}
       submitLabel={submitLabel}
       isProcessing={loading}
       error={error}
       onSubmit={handleSubmit(onSubmit)}
       size="2xl"
       showCancelButton
-      cancelLabel={tr("modal.cancel", dict)}
+      cancelLabel={chrome.cancelLabel}
     >
       <div className="flex flex-col gap-4">
-        <Field
+        <SettingsFormField
           id="gps-wh-name"
           label={tr("modal.name", dict)}
           error={trDynamic(errors.name?.message ?? "", dict)}
@@ -110,9 +102,9 @@ export function GpsWebhookModal({
             {...register("name")}
             color={errors.name ? "failure" : undefined}
           />
-        </Field>
+        </SettingsFormField>
 
-        <Field
+        <SettingsFormField
           id="gps-wh-url"
           label={tr("modal.url", dict)}
           error={trDynamic(errors.url?.message ?? "", dict)}
@@ -123,7 +115,7 @@ export function GpsWebhookModal({
             {...register("url")}
             color={errors.url ? "failure" : undefined}
           />
-        </Field>
+        </SettingsFormField>
 
         <Controller
           control={control}
@@ -162,7 +154,7 @@ export function GpsWebhookModal({
 
           {filterMode === "RULES" && (
             <div className="flex flex-col gap-3">
-              <Field
+              <SettingsFormField
                 id="gps-wh-assets"
                 label={tr("modal.assetIds", dict)}
                 error={trDynamic(errors.assetIds?.message ?? "", dict)}
@@ -174,8 +166,8 @@ export function GpsWebhookModal({
                   {...register("assetIds")}
                   color={errors.assetIds ? "failure" : undefined}
                 />
-              </Field>
-              <Field
+              </SettingsFormField>
+              <SettingsFormField
                 id="gps-wh-carriers"
                 label={tr("modal.carrierIds", dict)}
                 error={trDynamic(errors.carrierIds?.message ?? "", dict)}
@@ -186,8 +178,8 @@ export function GpsWebhookModal({
                   placeholder={tr("modal.listPlaceholder", dict)}
                   {...register("carrierIds")}
                 />
-              </Field>
-              <Field
+              </SettingsFormField>
+              <SettingsFormField
                 id="gps-wh-ingest"
                 label={tr("modal.ingestClientIds", dict)}
                 error={trDynamic(errors.ingestClientIds?.message ?? "", dict)}
@@ -198,8 +190,8 @@ export function GpsWebhookModal({
                   placeholder={tr("modal.listPlaceholder", dict)}
                   {...register("ingestClientIds")}
                 />
-              </Field>
-              <Field
+              </SettingsFormField>
+              <SettingsFormField
                 id="gps-wh-vendors"
                 label={tr("modal.gpsProviders", dict)}
                 error={trDynamic(errors.gpsProviders?.message ?? "", dict)}
@@ -210,8 +202,8 @@ export function GpsWebhookModal({
                   placeholder={tr("modal.listPlaceholder", dict)}
                   {...register("gpsProviders")}
                 />
-              </Field>
-              <Field
+              </SettingsFormField>
+              <SettingsFormField
                 id="gps-wh-owners"
                 label={tr("modal.owners", dict)}
                 error={trDynamic(errors.owners?.message ?? "", dict)}
@@ -222,32 +214,11 @@ export function GpsWebhookModal({
                   placeholder={tr("modal.listPlaceholder", dict)}
                   {...register("owners")}
                 />
-              </Field>
+              </SettingsFormField>
             </div>
           )}
         </div>
       </div>
     </FormModal>
-  );
-}
-
-interface FieldProps {
-  readonly id: string;
-  readonly label: string;
-  readonly error?: string;
-  readonly children: ReactNode;
-}
-
-function Field({ id, label, error, children }: FieldProps) {
-  return (
-    <div>
-      <Label htmlFor={id} className="mb-1 block">
-        {label}
-      </Label>
-      {children}
-      {error && (
-        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
-      )}
-    </div>
   );
 }

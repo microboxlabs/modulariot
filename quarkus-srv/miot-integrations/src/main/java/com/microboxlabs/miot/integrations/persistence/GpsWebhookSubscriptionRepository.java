@@ -196,19 +196,24 @@ public class GpsWebhookSubscriptionRepository {
         return updated > 0;
     }
 
+    /**
+     * Replaces membership in a single transaction so a failed insert never leaves
+     * the subscription with a wiped asset set.
+     */
     public void replaceAssets(String subscriptionId, List<String> assetIds) {
         UUID id = UUID.fromString(subscriptionId);
-        client().preparedQuery(DELETE_ASSETS)
-                .execute(Tuple.of(id))
-                .await().indefinitely();
-        if (assetIds == null || assetIds.isEmpty()) {
-            return;
-        }
-        for (String assetId : assetIds) {
-            client().preparedQuery(INSERT_ASSET)
-                    .execute(Tuple.of(id, assetId))
-                    .await().indefinitely();
-        }
+        List<String> assets = assetIds == null ? List.of() : assetIds;
+        client().withTransaction(conn -> {
+            var chain = conn.preparedQuery(DELETE_ASSETS)
+                    .execute(Tuple.of(id))
+                    .replaceWithVoid();
+            for (String assetId : assets) {
+                chain = chain.chain(() -> conn.preparedQuery(INSERT_ASSET)
+                        .execute(Tuple.of(id, assetId))
+                        .replaceWithVoid());
+            }
+            return chain;
+        }).await().indefinitely();
     }
 
     private GpsWebhookSubscription withAssets(GpsWebhookSubscription subscription) {

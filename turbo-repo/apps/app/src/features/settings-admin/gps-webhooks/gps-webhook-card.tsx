@@ -213,12 +213,12 @@ function SubscriptionRow({
   }
 
   const filterKey = summarizeFilter(subscription);
-  const filterLabel =
-    filterKey === "allVisible"
-      ? tr("filter.allVisible", dict)
-      : filterKey === "rules"
-        ? tr("filter.rules", dict)
-        : filterKey;
+  let filterLabel = filterKey;
+  if (filterKey === "allVisible") {
+    filterLabel = tr("filter.allVisible", dict);
+  } else if (filterKey === "rules") {
+    filterLabel = tr("filter.rules", dict);
+  }
 
   return (
     <li className="flex flex-col gap-2 rounded-md border border-gray-100 p-3 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">

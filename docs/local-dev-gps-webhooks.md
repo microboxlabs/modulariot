@@ -81,7 +81,7 @@ cd apps/app && npm run dev -- --port 3050
 ```
 
 Flyway: with `MIOT_COMPONENT_INTEGRATIONS_ENABLED=true`, local startup should
-apply `V0.6.4__add_gps_webhook_subscriptions.sql` onto coordinator
+apply `V0.6.6__add_gps_webhook_subscriptions.sql` onto coordinator
 `miot_integrations` (same DB as WhatsApp connections).
 
 ## Smoke checks

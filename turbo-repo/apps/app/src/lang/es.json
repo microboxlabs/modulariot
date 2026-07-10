@@ -1233,6 +1233,20 @@
     },
     "userSettings": {
       "organizations": {
+        "title": "Organizaciones",
+        "description": "Administra la configuración de la organización, canales y webhooks GPS.",
+        "loadError": "No se pudieron cargar tus organizaciones. Verifica que el modulith local esté en ejecución y que hayas iniciado sesión.",
+        "empty": "No hay organizaciones disponibles para tu cuenta.",
+        "loading": "Cargando…",
+        "listTitle": "Tus organizaciones",
+        "parentAccount": "Cuenta principal",
+        "noSelection": "Selecciona una organización para ver el detalle.",
+        "membersTitle": "Miembros",
+        "membersDescription": "Personas con acceso a esta organización.",
+        "membersEmpty": "No se encontraron miembros.",
+        "modulesTitle": "Módulos",
+        "modulesDescription": "Módulos de producto habilitados para esta organización.",
+        "modulesEmpty": "No hay módulos habilitados.",
         "whatsappChannel": {
           "title": "Canal WhatsApp",
           "description": "Configura y prueba la conexión de WhatsApp para contactar a los conductores.",
@@ -1290,11 +1304,69 @@
             "testRecipientsRequired": "Agrega al menos un destinatario, o desactiva el modo prueba"
           },
           "testModeBadge": "Modo prueba"
+        },
+        "gpsWebhooks": {
+          "title": "Webhooks GPS",
+          "description": "Reenvía posiciones GPS validadas a sistemas externos con criterios de filtro.",
+          "loadError": "No se pudieron cargar las suscripciones de webhook GPS.",
+          "empty": "Aún no hay webhooks GPS configurados.",
+          "addButton": "Agregar webhook",
+          "editButton": "Editar",
+          "testButton": "Probar",
+          "deleteButton": "Eliminar",
+          "filterLabel": "Filtro",
+          "filter": {
+            "allVisible": "Todos los activos visibles",
+            "rules": "Reglas personalizadas"
+          },
+          "status": {
+            "enabled": "Activo",
+            "disabled": "Inactivo"
+          },
+          "modal": {
+            "addTitle": "Agregar webhook GPS",
+            "editTitle": "Editar webhook GPS",
+            "subtitle": "Registra la URL del cliente y elige qué datos de posición reenviar.",
+            "editSubtitle": "Actualiza la URL del webhook o los criterios de filtro.",
+            "defaultName": "Webhook GPS",
+            "name": "Nombre",
+            "url": "URL del webhook",
+            "urlPlaceholder": "https://cliente.example/hooks/gps",
+            "enabledLabel": "Activo",
+            "filterTitle": "Selección de datos",
+            "filterHelp": "Elige todos los activos que esta organización ya puede ver, o define reglas. Las reglas se combinan con AND entre dimensiones completadas.",
+            "filterAllVisible": "Todos los activos visibles",
+            "filterRules": "Reglas personalizadas",
+            "assetIds": "IDs de activos (camiones)",
+            "carrierIds": "IDs de transportistas",
+            "ingestClientIds": "Cuentas de proveedor GPS (client IDs de ingest)",
+            "gpsProviders": "Fabricantes de dispositivo (telecom gps_provider)",
+            "owners": "Propietarios",
+            "listPlaceholder": "Un valor por línea (o separados por coma)",
+            "cancel": "Cancelar",
+            "saving": "Guardando...",
+            "createButton": "Crear",
+            "saveButton": "Guardar"
+          },
+          "toast": {
+            "created": "Webhook GPS creado",
+            "updated": "Webhook GPS actualizado",
+            "deleted": "Webhook GPS eliminado",
+            "testSuccess": "Prueba de webhook exitosa",
+            "testFailed": "La prueba de webhook falló",
+            "error": "Ocurrió un error"
+          },
+          "validation": {
+            "nameRequired": "El nombre es obligatorio",
+            "urlInvalid": "Ingresa una URL válida",
+            "rulesRequired": "Agrega al menos una dimensión de filtro, o elige todos los activos visibles"
+          }
         }
       },
       "breadcrumb": {
         "user": "Usuario",
         "settings": "Ajustes",
+        "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos"
       },
       "symptoms": {

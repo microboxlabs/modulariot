@@ -6,7 +6,9 @@ export type ProviderType =
   | "N8N"
   | "AUTH0"
   | "ECM"
-  | "CUSTOM_HTTP";
+  | "CUSTOM_HTTP"
+  | "WHATSAPP"
+  | "GPS_WEBHOOK";
 
 export type AuthType =
   | "NONE"
@@ -98,6 +100,87 @@ export interface IntegrationOperation {
   requestSchema: JsonObject;
   responseSchema: JsonObject;
   testOperation: boolean;
+}
+
+// --- GPS webhook subscriptions ---
+
+export type GpsWebhookFilterMode = "ALL_VISIBLE" | "RULES";
+
+export interface GpsWebhookFilterScopes {
+  allVisible?: boolean;
+  assetIds?: string[];
+  carrierIds?: string[];
+  ingestClientIds?: string[];
+  gpsProviders?: string[];
+  owners?: string[];
+}
+
+export interface GpsWebhookFilter {
+  scopes?: GpsWebhookFilterScopes;
+  match?: "ALL" | string;
+}
+
+export interface CreateGpsWebhookRequest {
+  name: string;
+  url: string;
+  credentialProfileId?: string | null;
+  filterMode: GpsWebhookFilterMode;
+  filter?: GpsWebhookFilter | JsonObject;
+  enabled?: boolean;
+}
+
+export interface UpdateGpsWebhookRequest {
+  name?: string;
+  url?: string;
+  filterMode?: GpsWebhookFilterMode;
+  filter?: GpsWebhookFilter | JsonObject;
+  enabled?: boolean;
+}
+
+export interface GpsWebhookResponse {
+  id: string;
+  tenantCode: string;
+  connectionId: string;
+  name: string;
+  url: string;
+  enabled: boolean;
+  filterMode: GpsWebhookFilterMode;
+  filter: GpsWebhookFilter | JsonObject;
+  includeAllVisible: boolean;
+  compiledAssetIds: string[];
+  compiledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GpsWebhookTestResponse {
+  success: boolean;
+  statusCode: number | null;
+  message: string;
+  testedAt: string;
+}
+
+export type WebhookDeliveryState =
+  | "PENDING"
+  | "RUNNING"
+  | "SUCCEEDED"
+  | "FAILED"
+  | "DEAD";
+
+export interface WebhookDeliveryResponse {
+  id: string;
+  subscriptionId: string;
+  tenantCode: string;
+  dedupeKey: string | null;
+  payload: JsonObject;
+  state: WebhookDeliveryState;
+  attempts: number;
+  maxAttempts: number;
+  nextRetryAt: string | null;
+  lastStatusCode: number | null;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // --- Error ---

@@ -2,6 +2,7 @@ import type { ClientConfig } from "./types.js";
 import { MiotConnectionApiError } from "./errors.js";
 import { createConnectionsApi } from "./resources/connections.js";
 import { createCredentialProfilesApi } from "./resources/credential-profiles.js";
+import { createGpsWebhooksApi } from "./resources/gps-webhooks.js";
 
 export interface FetchOptions<TBody = unknown> {
   body?: TBody;
@@ -77,5 +78,6 @@ export function createMiotConnectionClient(config: ClientConfig) {
   return {
     connections: createConnectionsApi(fetcher, config.organizationId),
     credentialProfiles: createCredentialProfilesApi(fetcher, config.organizationId),
+    gpsWebhooks: createGpsWebhooksApi(fetcher, config.organizationId),
   };
 }

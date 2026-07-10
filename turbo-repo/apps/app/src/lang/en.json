@@ -1233,6 +1233,20 @@
     },
     "userSettings": {
       "organizations": {
+        "title": "Organizations",
+        "description": "Manage organization settings, channels, and GPS webhooks.",
+        "loadError": "Couldn't load your organizations. Check that the local modulith is running and you are signed in.",
+        "empty": "No organizations available for your account.",
+        "loading": "Loading…",
+        "listTitle": "Your organizations",
+        "parentAccount": "Primary account",
+        "noSelection": "Select an organization to view details.",
+        "membersTitle": "Members",
+        "membersDescription": "People with access to this organization.",
+        "membersEmpty": "No members found.",
+        "modulesTitle": "Modules",
+        "modulesDescription": "Enabled product modules for this organization.",
+        "modulesEmpty": "No modules enabled.",
         "whatsappChannel": {
           "title": "WhatsApp Channel",
           "description": "Configure and test the WhatsApp connection used to reach drivers.",
@@ -1290,11 +1304,69 @@
             "testRecipientsRequired": "Add at least one recipient, or turn test mode off"
           },
           "testModeBadge": "Test mode"
+        },
+        "gpsWebhooks": {
+          "title": "GPS webhooks",
+          "description": "Forward validated GPS positions to external systems with filter criteria.",
+          "loadError": "Couldn't load GPS webhook subscriptions.",
+          "empty": "No GPS webhooks configured yet.",
+          "addButton": "Add webhook",
+          "editButton": "Edit",
+          "testButton": "Test",
+          "deleteButton": "Delete",
+          "filterLabel": "Filter",
+          "filter": {
+            "allVisible": "All visible assets",
+            "rules": "Custom rules"
+          },
+          "status": {
+            "enabled": "Enabled",
+            "disabled": "Disabled"
+          },
+          "modal": {
+            "addTitle": "Add GPS webhook",
+            "editTitle": "Edit GPS webhook",
+            "subtitle": "Register a customer URL and choose which position data to forward.",
+            "editSubtitle": "Update the webhook URL or filter criteria.",
+            "defaultName": "GPS webhook",
+            "name": "Name",
+            "url": "Webhook URL",
+            "urlPlaceholder": "https://customer.example/hooks/gps",
+            "enabledLabel": "Enabled",
+            "filterTitle": "Data selection",
+            "filterHelp": "Choose all assets this org can already see, or define rules. Rules combine with AND across filled dimensions.",
+            "filterAllVisible": "All visible assets",
+            "filterRules": "Custom rules",
+            "assetIds": "Asset IDs (trucks)",
+            "carrierIds": "Carrier IDs",
+            "ingestClientIds": "GPS provider accounts (ingest client IDs)",
+            "gpsProviders": "Device vendors (telecom gps_provider)",
+            "owners": "Owners",
+            "listPlaceholder": "One value per line (or comma-separated)",
+            "cancel": "Cancel",
+            "saving": "Saving...",
+            "createButton": "Create",
+            "saveButton": "Save"
+          },
+          "toast": {
+            "created": "GPS webhook created",
+            "updated": "GPS webhook updated",
+            "deleted": "GPS webhook deleted",
+            "testSuccess": "Webhook test successful",
+            "testFailed": "Webhook test failed",
+            "error": "Something went wrong"
+          },
+          "validation": {
+            "nameRequired": "Name is required",
+            "urlInvalid": "Enter a valid URL",
+            "rulesRequired": "Add at least one filter dimension, or choose all visible assets"
+          }
         }
       },
       "breadcrumb": {
         "user": "User",
         "settings": "Settings",
+        "organizations": "Organizations",
         "dataSources": "Data Sources"
       },
       "symptoms": {

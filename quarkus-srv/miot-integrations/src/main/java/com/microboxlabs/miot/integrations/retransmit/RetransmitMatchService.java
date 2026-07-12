@@ -168,7 +168,9 @@ public class RetransmitMatchService {
         gps.put("latitude", privacyPinLat.get());
         gps.put("longitude", privacyPinLon.get());
         gps.put("fixed", true);
-        privacyPinLabel.ifPresent(label -> gps.put("label", label));
+        if (privacyPinLabel.isPresent()) {
+            gps.put("label", privacyPinLabel.get());
+        }
     }
 
     static List<JsonObject> extractPayloads(Object data) {

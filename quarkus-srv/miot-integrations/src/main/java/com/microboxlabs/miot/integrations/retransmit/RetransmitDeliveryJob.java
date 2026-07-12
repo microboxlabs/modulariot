@@ -3,7 +3,6 @@ package com.microboxlabs.miot.integrations.retransmit;
 import com.microboxlabs.miot.integrations.domain.RetransmitDelivery;
 import com.microboxlabs.miot.integrations.domain.WebhookDeliveryState;
 import com.microboxlabs.miot.integrations.persistence.RetransmitDeliveryRepository;
-import com.microboxlabs.miot.integrations.retransmit.GaussPositionMapper.Defaults;
 import io.quarkus.scheduler.Scheduled;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -19,7 +18,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
@@ -38,54 +36,17 @@ public class RetransmitDeliveryJob {
 
     private final RetransmitDeliveryRepository repository;
     private final GaussAuthClient gaussAuth;
-    private final boolean workerEnabled;
-    private final int claimLimit;
-    private final int leaseSeconds;
-    private final int retryBaseSeconds;
-    private final int retryMaxSeconds;
-    private final String payloadFormat;
-    private final Defaults gaussDefaults;
+    private final RetransmitDeliverySettings settings;
     private final String workerId;
     private final HttpClient httpClient;
 
     RetransmitDeliveryJob(
             RetransmitDeliveryRepository repository,
             GaussAuthClient gaussAuth,
-            @ConfigProperty(name = "miot.integrations.retransmit.worker.enabled", defaultValue = "false")
-                    boolean workerEnabled,
-            @ConfigProperty(name = "miot.integrations.retransmit.claim-limit", defaultValue = "20")
-                    int claimLimit,
-            @ConfigProperty(name = "miot.integrations.retransmit.lease-seconds", defaultValue = "60")
-                    int leaseSeconds,
-            @ConfigProperty(name = "miot.integrations.retransmit.retry-base-seconds", defaultValue = "30")
-                    int retryBaseSeconds,
-            @ConfigProperty(name = "miot.integrations.retransmit.retry-max-seconds", defaultValue = "900")
-                    int retryMaxSeconds,
-            @ConfigProperty(
-                            name = "miot.integrations.retransmit.payload-format",
-                            defaultValue = "auto")
-                    String payloadFormat,
-            @ConfigProperty(name = "miot.integrations.retransmit.gauss.tags", defaultValue = ";MEL;")
-                    String gaussTags,
-            @ConfigProperty(name = "miot.integrations.retransmit.gauss.device-type", defaultValue = "gps")
-                    String gaussDeviceType,
-            @ConfigProperty(
-                            name = "miot.integrations.retransmit.gauss.event-provider",
-                            defaultValue = "streamhub")
-                    String gaussEventProvider,
-            @ConfigProperty(
-                            name = "miot.integrations.retransmit.gauss.device-model",
-                            defaultValue = "streamhub-miot")
-                    String gaussDeviceModel) {
+            RetransmitDeliverySettings settings) {
         this.repository = repository;
         this.gaussAuth = gaussAuth;
-        this.workerEnabled = workerEnabled;
-        this.claimLimit = claimLimit;
-        this.leaseSeconds = leaseSeconds;
-        this.retryBaseSeconds = retryBaseSeconds;
-        this.retryMaxSeconds = retryMaxSeconds;
-        this.payloadFormat = payloadFormat == null ? "auto" : payloadFormat.trim().toLowerCase(Locale.ROOT);
-        this.gaussDefaults = Defaults.fromConfig(gaussTags, gaussDeviceType, gaussEventProvider, gaussDeviceModel);
+        this.settings = settings;
         this.workerId = "retransmit-" + UUID.randomUUID().toString().substring(0, 8);
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
@@ -95,14 +56,14 @@ public class RetransmitDeliveryJob {
 
     @Scheduled(every = "${miot.integrations.retransmit.claim-every:5s}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void claimAndDeliver() {
-        if (!workerEnabled) {
+        if (!settings.workerEnabled()) {
             return;
         }
         // Claim one row at a time so a slow HTTP POST cannot expire later leases
         // from a multi-row claim while this worker is still serializing delivery.
-        int remaining = Math.max(claimLimit, 1);
+        int remaining = Math.max(settings.claimLimit(), 1);
         while (remaining-- > 0) {
-            List<RetransmitDelivery> batch = repository.claim(workerId, 1, leaseSeconds);
+            List<RetransmitDelivery> batch = repository.claim(workerId, 1, settings.leaseSeconds());
             if (batch.isEmpty()) {
                 return;
             }
@@ -124,7 +85,7 @@ public class RetransmitDeliveryJob {
 
             if (gauss) {
                 JsonObject payload = new JsonObject(delivery.payload());
-                JsonArray gaussBody = GaussPositionMapper.toGaussBody(payload, gaussDefaults);
+                JsonArray gaussBody = GaussPositionMapper.toGaussBody(payload, settings.gaussDefaults());
                 body = gaussBody.encode();
                 attachGaussAuth(req, false);
             } else {
@@ -207,10 +168,11 @@ public class RetransmitDeliveryJob {
     }
 
     private boolean useGaussFormat(RetransmitDelivery delivery) {
-        if ("gauss".equals(payloadFormat)) {
+        String format = settings.payloadFormat();
+        if ("gauss".equals(format)) {
             return true;
         }
-        if ("raw".equals(payloadFormat) || "miot".equals(payloadFormat)) {
+        if ("raw".equals(format) || "miot".equals(format)) {
             return false;
         }
         // auto
@@ -245,8 +207,8 @@ public class RetransmitDeliveryJob {
 
     private OffsetDateTime nextRetryAt(int attempts) {
         long delay = Math.min(
-                retryMaxSeconds,
-                (long) retryBaseSeconds * (1L << Math.min(Math.max(attempts - 1, 0), 8)));
+                settings.retryMaxSeconds(),
+                (long) settings.retryBaseSeconds() * (1L << Math.min(Math.max(attempts - 1, 0), 8)));
         return OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(delay);
     }
 

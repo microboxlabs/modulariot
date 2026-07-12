@@ -22,6 +22,12 @@ public final class GaussPositionMapper {
     private static final DateTimeFormatter GAUSS_START =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneOffset.UTC);
 
+    private static final String KEY_LATITUDE = "latitude";
+    private static final String KEY_LONGITUDE = "longitude";
+    private static final String KEY_ALTITUDE = "altitude";
+    private static final String KEY_SPEED = "speed";
+    private static final String KEY_ODOMETER = "odometer";
+
     private GaussPositionMapper() {}
 
     /**
@@ -55,10 +61,10 @@ public final class GaussPositionMapper {
                 telecom != null ? telecom.getString("gps_provider") : null,
                 defaults.eventProvider());
 
-        double lat = requireDouble(gps, "latitude");
-        double lon = requireDouble(gps, "longitude");
-        double altitude = gps.containsKey("altitude") ? gps.getDouble("altitude") : 0.0;
-        double speed = gps.containsKey("speed") ? gps.getDouble("speed") : 0.0;
+        double lat = requireDouble(gps, KEY_LATITUDE);
+        double lon = requireDouble(gps, KEY_LONGITUDE);
+        double altitude = gps.containsKey(KEY_ALTITUDE) ? gps.getDouble(KEY_ALTITUDE) : 0.0;
+        double speed = gps.containsKey(KEY_SPEED) ? gps.getDouble(KEY_SPEED) : 0.0;
         int heading = normalizeHeading(gps.getValue("heading"));
 
         boolean privacy = "privacy".equalsIgnoreCase(retransmitPayload.getString("mode"));
@@ -67,10 +73,10 @@ public final class GaussPositionMapper {
         JsonObject out = new JsonObject();
         out.put("start", formatStart(retransmitPayload.getValue("timestamp")));
         out.put("vehicleCode", vehicleCode);
-        out.put("latitude", lat);
-        out.put("longitude", lon);
-        out.put("altitude", altitude);
-        out.put("speed", speed);
+        out.put(KEY_LATITUDE, lat);
+        out.put(KEY_LONGITUDE, lon);
+        out.put(KEY_ALTITUDE, altitude);
+        out.put(KEY_SPEED, speed);
         out.put("tags", normalizeTags(defaults.tags()));
         out.putNull("driverCode");
         out.putNull("ibuttonCode");
@@ -88,8 +94,8 @@ public final class GaussPositionMapper {
         out.put("accelerometerY", 0.0);
         out.put("accelerometerZ", 9.81);
 
-        if (gps.containsKey("odometer") && gps.getValue("odometer") != null) {
-            out.put("odometer", gps.getDouble("odometer"));
+        if (gps.containsKey(KEY_ODOMETER) && gps.getValue(KEY_ODOMETER) != null) {
+            out.put(KEY_ODOMETER, gps.getDouble(KEY_ODOMETER));
         }
 
         return out;

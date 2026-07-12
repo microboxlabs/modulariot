@@ -3,7 +3,9 @@ package com.microboxlabs.miot.integrations.retransmit;
 import com.microboxlabs.miot.integrations.domain.RetransmitDelivery;
 import com.microboxlabs.miot.integrations.domain.WebhookDeliveryState;
 import com.microboxlabs.miot.integrations.persistence.RetransmitDeliveryRepository;
+import com.microboxlabs.miot.integrations.retransmit.GaussPositionMapper.Defaults;
 import io.quarkus.scheduler.Scheduled;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.net.URI;
@@ -14,6 +16,8 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -21,6 +25,10 @@ import org.jboss.logging.Logger;
 /**
  * Claims PENDING retransmit outbox rows and POSTs payloads. Separate from the
  * Pulsar consume loop so slow destinations never nack the enriched topic.
+ *
+ * <p>When the destination is a Gauss Control position API (or
+ * {@code miot.integrations.retransmit.payload-format=gauss}), the body is mapped
+ * to <em>Inyección puntos GPS v2</em> (JSON array + Bearer auth).
  */
 @ApplicationScoped
 public class RetransmitDeliveryJob {
@@ -29,16 +37,20 @@ public class RetransmitDeliveryJob {
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(15);
 
     private final RetransmitDeliveryRepository repository;
+    private final GaussAuthClient gaussAuth;
     private final boolean workerEnabled;
     private final int claimLimit;
     private final int leaseSeconds;
     private final int retryBaseSeconds;
     private final int retryMaxSeconds;
+    private final String payloadFormat;
+    private final Defaults gaussDefaults;
     private final String workerId;
     private final HttpClient httpClient;
 
     RetransmitDeliveryJob(
             RetransmitDeliveryRepository repository,
+            GaussAuthClient gaussAuth,
             @ConfigProperty(name = "miot.integrations.retransmit.worker.enabled", defaultValue = "false")
                     boolean workerEnabled,
             @ConfigProperty(name = "miot.integrations.retransmit.claim-limit", defaultValue = "20")
@@ -48,17 +60,36 @@ public class RetransmitDeliveryJob {
             @ConfigProperty(name = "miot.integrations.retransmit.retry-base-seconds", defaultValue = "30")
                     int retryBaseSeconds,
             @ConfigProperty(name = "miot.integrations.retransmit.retry-max-seconds", defaultValue = "900")
-                    int retryMaxSeconds) {
+                    int retryMaxSeconds,
+            @ConfigProperty(
+                            name = "miot.integrations.retransmit.payload-format",
+                            defaultValue = "auto")
+                    String payloadFormat,
+            @ConfigProperty(name = "miot.integrations.retransmit.gauss.tags", defaultValue = ";MEL;")
+                    String gaussTags,
+            @ConfigProperty(name = "miot.integrations.retransmit.gauss.device-type", defaultValue = "gps")
+                    String gaussDeviceType,
+            @ConfigProperty(
+                            name = "miot.integrations.retransmit.gauss.event-provider",
+                            defaultValue = "streamhub")
+                    String gaussEventProvider,
+            @ConfigProperty(
+                            name = "miot.integrations.retransmit.gauss.device-model",
+                            defaultValue = "streamhub-miot")
+                    String gaussDeviceModel) {
         this.repository = repository;
+        this.gaussAuth = gaussAuth;
         this.workerEnabled = workerEnabled;
         this.claimLimit = claimLimit;
         this.leaseSeconds = leaseSeconds;
         this.retryBaseSeconds = retryBaseSeconds;
         this.retryMaxSeconds = retryMaxSeconds;
+        this.payloadFormat = payloadFormat == null ? "auto" : payloadFormat.trim().toLowerCase(Locale.ROOT);
+        this.gaussDefaults = Defaults.fromConfig(gaussTags, gaussDeviceType, gaussEventProvider, gaussDeviceModel);
         this.workerId = "retransmit-" + UUID.randomUUID().toString().substring(0, 8);
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
-                .followRedirects(HttpClient.Redirect.NORMAL)
+                .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
     }
 
@@ -82,33 +113,116 @@ public class RetransmitDeliveryJob {
     void deliverOne(RetransmitDelivery delivery) {
         UUID id = UUID.fromString(delivery.id());
         try {
-            String body = new JsonObject(delivery.payload()).encode();
-            HttpRequest request = HttpRequest.newBuilder()
+            boolean gauss = useGaussFormat(delivery);
+            String body;
+            HttpRequest.Builder req = HttpRequest.newBuilder()
                     .uri(URI.create(delivery.destinationUrl()))
                     .timeout(HTTP_TIMEOUT)
                     .header("Content-Type", "application/json")
                     .header("User-Agent", "ModularIoT-Retransmit/1.0")
-                    .header("X-Miot-Retransmit-Config", delivery.configId())
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            int code = response.statusCode();
-            if (code >= 200 && code < 300) {
-                repository.markSucceeded(id, workerId, code);
-                LOG.debugf("Retransmit delivered id=%s status=%d", delivery.id(), code);
-                return;
+                    .header("X-Miot-Retransmit-Config", delivery.configId());
+
+            if (gauss) {
+                JsonObject payload = new JsonObject(delivery.payload());
+                JsonArray gaussBody = GaussPositionMapper.toGaussBody(payload, gaussDefaults);
+                body = gaussBody.encode();
+                attachGaussAuth(req, false);
+            } else {
+                body = new JsonObject(delivery.payload()).encode();
             }
-            failOrRetry(delivery, id, code, "HTTP " + code);
+
+            HttpResponse<String> response = httpClient.send(
+                    req.POST(HttpRequest.BodyPublishers.ofString(body)).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            int code = response.statusCode();
+
+            // One retry after re-auth on 401 for Gauss
+            if (gauss && code == 401) {
+                gaussAuth.invalidate();
+                HttpRequest.Builder retry = HttpRequest.newBuilder()
+                        .uri(URI.create(delivery.destinationUrl()))
+                        .timeout(HTTP_TIMEOUT)
+                        .header("Content-Type", "application/json")
+                        .header("User-Agent", "ModularIoT-Retransmit/1.0")
+                        .header("X-Miot-Retransmit-Config", delivery.configId());
+                attachGaussAuth(retry, true);
+                response = httpClient.send(
+                        retry.POST(HttpRequest.BodyPublishers.ofString(body)).build(),
+                        HttpResponse.BodyHandlers.ofString());
+                code = response.statusCode();
+            }
+
+            handleResponse(delivery, id, code, response.body(), gauss);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            failOrRetry(delivery, id, null, "interrupted: " + e.getMessage());
+            failOrRetry(delivery, id, null, "interrupted: " + e.getMessage(), true);
         } catch (Exception e) {
-            failOrRetry(delivery, id, null, e.getMessage());
+            failOrRetry(delivery, id, null, e.getMessage(), true);
         }
     }
 
-    private void failOrRetry(RetransmitDelivery delivery, UUID id, Integer statusCode, String error) {
-        boolean exhausted = delivery.attempts() >= delivery.maxAttempts();
+    private void attachGaussAuth(HttpRequest.Builder req, boolean force) {
+        if (force) {
+            gaussAuth.invalidate();
+        }
+        if (!gaussAuth.isConfigured()) {
+            LOG.warn("Gauss delivery without auth config — request will likely 401");
+            return;
+        }
+        String token = gaussAuth.getAccessToken();
+        req.header("Authorization", "bearer " + token);
+    }
+
+    private void handleResponse(
+            RetransmitDelivery delivery, UUID id, int code, String responseBody, boolean gauss) {
+        if (code >= 200 && code < 300) {
+            repository.markSucceeded(id, workerId, code);
+            LOG.infof(
+                    "Retransmit delivered id=%s config=%s asset=%s status=%d gauss=%s",
+                    delivery.id(),
+                    delivery.configId(),
+                    delivery.assetId(),
+                    code,
+                    gauss);
+            return;
+        }
+        // Gauss 409 = partial business rejection (unknown vehicle/driver or validation).
+        // Do not spin forever: mark DEAD with response snippet.
+        if (gauss && code == 409) {
+            String err = "Gauss 409: " + truncate(responseBody);
+            repository.markRetryOrDead(
+                    id, workerId, WebhookDeliveryState.DEAD, null, code, err);
+            LOG.warnf(
+                    "Retransmit DEAD (Gauss business reject) id=%s asset=%s %s",
+                    delivery.id(),
+                    delivery.assetId(),
+                    err);
+            return;
+        }
+        if (code == 401 || code == 403) {
+            failOrRetry(delivery, id, code, "HTTP " + code + ": " + truncate(responseBody), false);
+            return;
+        }
+        failOrRetry(delivery, id, code, "HTTP " + code + ": " + truncate(responseBody), true);
+    }
+
+    private boolean useGaussFormat(RetransmitDelivery delivery) {
+        if ("gauss".equals(payloadFormat)) {
+            return true;
+        }
+        if ("raw".equals(payloadFormat) || "miot".equals(payloadFormat)) {
+            return false;
+        }
+        // auto
+        String url = Optional.ofNullable(delivery.destinationUrl()).orElse("").toLowerCase(Locale.ROOT);
+        return url.contains("gausscontrol")
+                || url.contains("positionupdate")
+                || url.contains("/processor/events/");
+    }
+
+    private void failOrRetry(
+            RetransmitDelivery delivery, UUID id, Integer statusCode, String error, boolean retryable) {
+        boolean exhausted = !retryable || delivery.attempts() >= delivery.maxAttempts();
         WebhookDeliveryState next = exhausted ? WebhookDeliveryState.DEAD : WebhookDeliveryState.PENDING;
         OffsetDateTime retryAt = exhausted ? null : nextRetryAt(delivery.attempts());
         repository.markRetryOrDead(id, workerId, next, retryAt, statusCode, truncate(error));

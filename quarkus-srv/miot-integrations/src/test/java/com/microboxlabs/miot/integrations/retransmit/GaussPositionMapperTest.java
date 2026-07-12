@@ -68,10 +68,10 @@ class GaussPositionMapperTest {
                 .put(
                         "gps",
                         new JsonObject()
-                                .put("latitude", -33.55104873326316)
-                                .put("longitude", -70.69639380274505)
+                                .put("latitude", -33.45)
+                                .put("longitude", -70.66)
                                 .put("fixed", true)
-                                .put("label", "Mintral SCL"));
+                                .put("label", "privacy-pin"));
 
         JsonObject gauss = GaussPositionMapper.toGaussPosition(payload, defaults);
         assertEquals(0.0, gauss.getDouble("speed"), 1e-9);

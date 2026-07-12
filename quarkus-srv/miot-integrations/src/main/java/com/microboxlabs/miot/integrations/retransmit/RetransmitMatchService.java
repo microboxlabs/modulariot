@@ -25,6 +25,10 @@ public class RetransmitMatchService {
     private final RetransmitDeliveryRepository deliveryRepository;
     private final Optional<String> defaultDestinationUrl;
     private final int maxAttempts;
+    /** Optional privacy pin from env/secret (preferred over SQL seed for non-public coords). */
+    private final Optional<Double> privacyPinLat;
+    private final Optional<Double> privacyPinLon;
+    private final Optional<String> privacyPinLabel;
 
     RetransmitMatchService(
             StreamhubGpsClient gpsClient,
@@ -32,11 +36,20 @@ public class RetransmitMatchService {
             @ConfigProperty(name = "miot.integrations.retransmit.default-url")
                     Optional<String> defaultDestinationUrl,
             @ConfigProperty(name = "miot.integrations.retransmit.max-attempts", defaultValue = "5")
-                    int maxAttempts) {
+                    int maxAttempts,
+            @ConfigProperty(name = "miot.integrations.retransmit.privacy-pin.lat")
+                    Optional<Double> privacyPinLat,
+            @ConfigProperty(name = "miot.integrations.retransmit.privacy-pin.lon")
+                    Optional<Double> privacyPinLon,
+            @ConfigProperty(name = "miot.integrations.retransmit.privacy-pin.label")
+                    Optional<String> privacyPinLabel) {
         this.gpsClient = gpsClient;
         this.deliveryRepository = deliveryRepository;
         this.defaultDestinationUrl = defaultDestinationUrl;
         this.maxAttempts = maxAttempts;
+        this.privacyPinLat = privacyPinLat;
+        this.privacyPinLon = privacyPinLon;
+        this.privacyPinLabel = privacyPinLabel.filter(s -> s != null && !s.isBlank());
     }
 
     /**
@@ -112,6 +125,8 @@ public class RetransmitMatchService {
             return false;
         }
 
+        applyPrivacyPinOverride(payload);
+
         String dedupeKey = buildDedupeKey(payload);
         Map<String, Object> body = new LinkedHashMap<>(payload.getMap());
         body.remove("destination_url");
@@ -132,6 +147,28 @@ public class RetransmitMatchService {
                     dedupeKey);
         }
         return inserted;
+    }
+
+    /**
+     * When mode is privacy and env pin lat/lon are set, overwrite GPS (and label).
+     * Keeps sensitive coordinates out of public SQL seeds / git.
+     */
+    void applyPrivacyPinOverride(JsonObject payload) {
+        if (payload == null || !"privacy".equalsIgnoreCase(payload.getString("mode"))) {
+            return;
+        }
+        if (privacyPinLat.isEmpty() || privacyPinLon.isEmpty()) {
+            return;
+        }
+        JsonObject gps = payload.getJsonObject("gps");
+        if (gps == null) {
+            gps = new JsonObject();
+            payload.put("gps", gps);
+        }
+        gps.put("latitude", privacyPinLat.get());
+        gps.put("longitude", privacyPinLon.get());
+        gps.put("fixed", true);
+        privacyPinLabel.ifPresent(label -> gps.put("label", label));
     }
 
     static List<JsonObject> extractPayloads(Object data) {

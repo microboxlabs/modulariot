@@ -1,0 +1,588 @@
+{
+  "stack_version": "0.5.22",
+  "stack_tag": "miot-stack@v0.5.22",
+  "milestone": "MIOT-0.5.22",
+  "pull_requests": [
+    {
+      "number": 834,
+      "title": "feat(harness): surface connection-bound playbooks in the planner catalog (Phase 4 slice 2)",
+      "source_issues": [
+        {
+          "number": 875,
+          "title": "feat(harness): surface connection-bound playbooks in the planner catalog"
+        }
+      ]
+    },
+    {
+      "number": 846,
+      "title": "feat(harness): selectable answer formats (markdown/plain/html/xml/yaml)",
+      "source_issues": [
+        {
+          "number": 848,
+          "title": "feat: Support selectable answer formats in the harness API response"
+        }
+      ]
+    },
+    {
+      "number": 854,
+      "title": "feat(harness): json answer_format — skill-driven typed blocks",
+      "source_issues": [
+        {
+          "number": 855,
+          "title": "feat: Structured (json) answer format with skill-driven typed blocks"
+        }
+      ]
+    },
+    {
+      "number": 856,
+      "title": "feat(whatsapp): render outbound template body in the conversation panel",
+      "source_issues": [
+        {
+          "number": 858,
+          "title": "feat(whatsapp): render outbound template body in the conversation panel"
+        }
+      ]
+    },
+    {
+      "number": 860,
+      "title": "[codex] fix release train harness version floor",
+      "source_issues": [
+        {
+          "number": 859,
+          "title": "fix(release): prevent harness version downgrade in release train"
+        }
+      ]
+    },
+    {
+      "number": 861,
+      "title": "refactor(whatsapp): drive delivery ticks from a lookup map (CodeRabbit follow-up)",
+      "source_issues": [
+        {
+          "number": 862,
+          "title": "refactor(whatsapp): drive delivery ticks from a lookup map"
+        }
+      ]
+    },
+    {
+      "number": 864,
+      "title": "fix(whatsapp): boot the modulith when WhatsApp env is unset (Optional config)",
+      "source_issues": [
+        {
+          "number": 863,
+          "title": "bug: miot-modulith crashes at boot when WhatsApp env unset (Optional<String> fix)"
+        }
+      ]
+    },
+    {
+      "number": 865,
+      "title": "feat(whatsapp): group-by control for the conversation list",
+      "source_issues": [
+        {
+          "number": 866,
+          "title": "feat(whatsapp): group-by control for the conversation list"
+        }
+      ]
+    },
+    {
+      "number": 867,
+      "title": "feat(whatsapp): per-service conversation threads (model + inbox)",
+      "source_issues": [
+        {
+          "number": 868,
+          "title": "feat(whatsapp): per-service conversation threads"
+        }
+      ]
+    },
+    {
+      "number": 869,
+      "title": "feat(whatsapp): 24h session countdown + agent compose box",
+      "source_issues": [
+        {
+          "number": 870,
+          "title": "feat(whatsapp): 24h session countdown and agent compose box"
+        }
+      ]
+    },
+    {
+      "number": 871,
+      "title": "feat(harness): stop sharing agent $ cost with the client",
+      "source_issues": [
+        {
+          "number": 872,
+          "title": "Do not expose harness agent $ cost to the client/tenant"
+        }
+      ]
+    },
+    {
+      "number": 874,
+      "title": "Fixing tooltip in kanban",
+      "source_issues": [
+        {
+          "number": 873,
+          "title": "Header of kanban z-index its being setted in front of the kanban tooltip module"
+        }
+      ]
+    },
+    {
+      "number": 876,
+      "title": "Based/new searchbar definition",
+      "source_issues": [
+        {
+          "number": 897,
+          "title": "feat(app): Spotlight search with harness-backed Ask/Navigate"
+        }
+      ]
+    },
+    {
+      "number": 877,
+      "title": "feat(harness): single-agent cached tool-calling loop (replaces agentic expert panel, flag-gated)",
+      "source_issues": [
+        {
+          "number": 878,
+          "title": "feat: collapse harness agentic expert panel into a single prompt-cached tool-calling agent"
+        }
+      ]
+    },
+    {
+      "number": 883,
+      "title": "feat: show assignment accreditation on planning services",
+      "source_issues": [
+        {
+          "number": 882,
+          "title": "feat: show assignment accreditation on planning services"
+        }
+      ]
+    },
+    {
+      "number": 884,
+      "title": "feat(harness): miot-search skill + backend-resolved harness org",
+      "source_issues": [
+        {
+          "number": 880,
+          "title": "feat: miot-search harness skill and backend-resolved search org"
+        }
+      ]
+    },
+    {
+      "number": 886,
+      "title": "fix(harness): reject runs with an unresolved tenant instead of defaulting to demo-tenant",
+      "source_issues": [
+        {
+          "number": 887,
+          "title": "bug: harness silently defaults a missing tenant to demo-tenant"
+        }
+      ]
+    },
+    {
+      "number": 891,
+      "title": "fix(harness): fail loud when nexo tenant lock is unconfigured (no slug fallback)",
+      "source_issues": [
+        {
+          "number": 890,
+          "title": "bug: harness nexo boot silently falls back to slug tenant lock instead of failing loud"
+        }
+      ]
+    },
+    {
+      "number": 893,
+      "title": "chore(harness): replace hardcoded tenant name with a neutral codename",
+      "source_issues": [
+        {
+          "number": 892,
+          "title": "chore(harness): replace hardcoded tenant name with a neutral codename in miot-harness"
+        }
+      ]
+    },
+    {
+      "number": 895,
+      "title": "fix(harness): route primitives-only datasources to agentic, not canned",
+      "source_issues": [
+        {
+          "number": 894,
+          "title": "harness: generic_pg (primitives-only) data queries dead-end in canned filter_expert → onboarding fallback"
+        }
+      ]
+    },
+    {
+      "number": 900,
+      "title": "feat(sem): semantic-layer continual-learning loop (R0–R3)",
+      "source_issues": [
+        {
+          "number": 901,
+          "title": "feat(sem): semantic-layer continual-learning loop"
+        }
+      ]
+    },
+    {
+      "number": 904,
+      "title": "feat: GPS webhook subscriptions for filtered position forwarding",
+      "source_issues": [
+        {
+          "number": 903,
+          "title": "feat: GPS webhook subscriptions for filtered position forwarding"
+        }
+      ]
+    },
+    {
+      "number": 906,
+      "title": "fix(harness): surface ground-or-flag assumptions on the agent_loop path",
+      "source_issues": [
+        {
+          "number": 905,
+          "title": "harness: agent_loop path bypasses ground-or-flag (no grounding.gap, empty assumptions)"
+        }
+      ]
+    }
+  ],
+  "changed_files": [
+    ".claude/settings.json",
+    ".github/scripts/resolve-stack-release-plan.js",
+    ".github/workflows/app-release-train.yml",
+    ".github/workflows/harness.yaml",
+    "miot-harness/.env.example",
+    "miot-harness/README.md",
+    "miot-harness/docker-compose.yml",
+    "miot-harness/docs/dispatch-modes.md",
+    "miot-harness/docs/plans/2026-06-05-harness-datasource-refactor.md",
+    "miot-harness/docs/specs/2026-06-05-harness-datasource-refactor-design.md",
+    "miot-harness/evals/README.md",
+    "miot-harness/evals/golden/nexo/examples.yaml",
+    "miot-harness/evals/judge_prompt.md",
+    "miot-harness/infra/observability/README.md",
+    "miot-harness/pyproject.toml",
+    "miot-harness/scripts/README.md",
+    "miot-harness/scripts/diagnose_task_timeline.py",
+    "miot-harness/src/miot_harness/agents/agentic_planner.py",
+    "miot-harness/src/miot_harness/agents/chat_models.py",
+    "miot-harness/src/miot_harness/agents/native_tools.py",
+    "miot-harness/src/miot_harness/agents/synthesizer.py",
+    "miot-harness/src/miot_harness/api/server.py",
+    "miot-harness/src/miot_harness/config.py",
+    "miot-harness/src/miot_harness/connections/file_source.py",
+    "miot-harness/src/miot_harness/context_skills/defaults/context/tenants/mintral/overlay.yaml",
+    "miot-harness/src/miot_harness/context_skills/defaults/context/tenants/orion/overlay.yaml",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/miot-search/SKILL.md",
+    "miot-harness/src/miot_harness/context_skills/registry.py",
+    "miot-harness/src/miot_harness/context_skills/skill_models.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/distiller.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/loader.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/models.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/safety.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/writer.py",
+    "miot-harness/src/miot_harness/datasource/pool.py",
+    "miot-harness/src/miot_harness/datasource/provider.py",
+    "miot-harness/src/miot_harness/integrations/generic_pg/provider.py",
+    "miot-harness/src/miot_harness/integrations/nexo/introspect.py",
+    "miot-harness/src/miot_harness/integrations/nexo/pool.py",
+    "miot-harness/src/miot_harness/integrations/nexo/primer.py",
+    "miot-harness/src/miot_harness/integrations/nexo/provider.py",
+    "miot-harness/src/miot_harness/integrations/nexo/tool_factory.py",
+    "miot-harness/src/miot_harness/observability/callbacks.py",
+    "miot-harness/src/miot_harness/runtime/agent_loop.py",
+    "miot-harness/src/miot_harness/runtime/agent_prompt.py",
+    "miot-harness/src/miot_harness/runtime/agentic_graph.py",
+    "miot-harness/src/miot_harness/runtime/answer_blocks.py",
+    "miot-harness/src/miot_harness/runtime/answer_render.py",
+    "miot-harness/src/miot_harness/runtime/context.py",
+    "miot-harness/src/miot_harness/runtime/event_types.json",
+    "miot-harness/src/miot_harness/runtime/events.py",
+    "miot-harness/src/miot_harness/runtime/intent_router.py",
+    "miot-harness/src/miot_harness/runtime/plan.py",
+    "miot-harness/src/miot_harness/runtime/run_store.py",
+    "miot-harness/src/miot_harness/runtime/supervisor.py",
+    "miot-harness/tests/agents/test_agentic_planner.py",
+    "miot-harness/tests/agents/test_chat_models_loop.py",
+    "miot-harness/tests/agents/test_meta_agent.py",
+    "miot-harness/tests/agents/test_verifier.py",
+    "miot-harness/tests/api/test_connection_distill.py",
+    "miot-harness/tests/api/test_connection_knowledge.py",
+    "miot-harness/tests/api/test_debug_allowlist.py",
+    "miot-harness/tests/api/test_identity.py",
+    "miot-harness/tests/api/test_runs_answer_format.py",
+    "miot-harness/tests/api/test_runs_json_format.py",
+    "miot-harness/tests/api/test_runs_stream.py",
+    "miot-harness/tests/api/test_server_auth.py",
+    "miot-harness/tests/api/test_skills.py",
+    "miot-harness/tests/api/test_steering_modes.py",
+    "miot-harness/tests/connections/test_lifespan_multi.py",
+    "miot-harness/tests/connections/test_loader.py",
+    "miot-harness/tests/context_skills/test_bundle_layering.py",
+    "miot-harness/tests/context_skills/test_connector_factory.py",
+    "miot-harness/tests/context_skills/test_file_source.py",
+    "miot-harness/tests/context_skills/test_loader.py",
+    "miot-harness/tests/context_skills/test_miot_search_pages_parity.py",
+    "miot-harness/tests/datasource/test_knowledge.py",
+    "miot-harness/tests/datasource/test_registry.py",
+    "miot-harness/tests/datasource/test_safe_query.py",
+    "miot-harness/tests/fixtures/fake_provider.py",
+    "miot-harness/tests/integration/__init__.py",
+    "miot-harness/tests/integration/conftest.py",
+    "miot-harness/tests/integration/test_agent_loop_cache_live.py",
+    "miot-harness/tests/integrations/nexo/test_boot.py",
+    "miot-harness/tests/integrations/nexo/test_freshness.py",
+    "miot-harness/tests/integrations/nexo/test_graph.py",
+    "miot-harness/tests/integrations/nexo/test_primer.py",
+    "miot-harness/tests/integrations/nexo/test_primitive_tools.py",
+    "miot-harness/tests/integrations/nexo/test_provider.py",
+    "miot-harness/tests/integrations/nexo/test_tool_factory.py",
+    "miot-harness/tests/observability/test_callbacks.py",
+    "miot-harness/tests/observability/test_graph_wiring.py",
+    "miot-harness/tests/observability/test_langfuse_attribution.py",
+    "miot-harness/tests/observability/test_mode_telemetry.py",
+    "miot-harness/tests/observability/test_propagation.py",
+    "miot-harness/tests/observability/test_report.py",
+    "miot-harness/tests/observability/test_usage_recorded_event.py",
+    "miot-harness/tests/runtime/test_agent_loop.py",
+    "miot-harness/tests/runtime/test_agent_loop_payload.py",
+    "miot-harness/tests/runtime/test_agent_prompt.py",
+    "miot-harness/tests/runtime/test_agentic_graph.py",
+    "miot-harness/tests/runtime/test_answer_blocks.py",
+    "miot-harness/tests/runtime/test_answer_render.py",
+    "miot-harness/tests/runtime/test_context_answer_format.py",
+    "miot-harness/tests/runtime/test_context_json_and_slug.py",
+    "miot-harness/tests/runtime/test_context_permission_policy.py",
+    "miot-harness/tests/runtime/test_intent_router.py",
+    "miot-harness/tests/runtime/test_mode_resolver.py",
+    "miot-harness/tests/runtime/test_run_record_answer_format.py",
+    "miot-harness/tests/runtime/test_supervisor_agent_loop.py",
+    "miot-harness/tests/runtime/test_supervisor_answer_format.py",
+    "miot-harness/tests/runtime/test_supervisor_direct.py",
+    "miot-harness/tests/runtime/test_supervisor_event_bus.py",
+    "miot-harness/tests/runtime/test_supervisor_json_instruction.py",
+    "miot-harness/tests/runtime/test_supervisor_phase_e.py",
+    "miot-harness/tests/runtime/test_supervisor_policy.py",
+    "miot-harness/tests/runtime/test_supervisor_skill.py",
+    "miot-harness/tests/runtime/test_supervisor_stamp_connection.py",
+    "miot-harness/tests/runtime/test_tenancy_gate.py",
+    "miot-harness/tests/test_config.py",
+    "miot-harness/tests/test_critic.py",
+    "miot-harness/tests/test_data_fetcher.py",
+    "miot-harness/tests/test_data_supervisor.py",
+    "miot-harness/tests/test_domain_analyst.py",
+    "miot-harness/tests/test_events.py",
+    "miot-harness/tests/test_filter_expert.py",
+    "miot-harness/tests/test_freshness_judge.py",
+    "miot-harness/tests/test_knowledge_distiller.py",
+    "miot-harness/tests/test_knowledge_safety.py",
+    "miot-harness/tests/test_knowledge_writer.py",
+    "miot-harness/tests/test_native_tools.py",
+    "miot-harness/tests/test_router.py",
+    "miot-harness/tests/test_run_golden.py",
+    "miot-harness/tests/test_server_lifespan.py",
+    "miot-harness/tests/test_storytelling_module.py",
+    "miot-harness/tests/test_summarizer.py",
+    "miot-harness/tests/test_supervisor_data_branch.py",
+    "miot-harness/tests/test_synthesizer.py",
+    "miot-harness/tests/test_synthesizer_harden.py",
+    "miot-harness/tests/test_synthesizer_streaming.py",
+    "miot-harness/uv.lock",
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/api/WhatsAppWebhookResource.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/domain/Conversation.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/dto/SendWhatsAppMessageRequest.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/persistence/ConversationRepository.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/WhatsAppInboundService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/WhatsAppMessagingService.java",
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/service/WhatsAppTemplateRenderer.java",
+    "quarkus-srv/miot-conversational/src/main/resources/db/migration/conversational/V0.7.1__fork_conversation_per_service.sql",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/WhatsAppMessagingServiceTest.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/service/WhatsAppTemplateRendererTest.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/HarnessClient.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/HarnessProxyResource.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourcePostTest.java",
+    "quarkus-srv/miot-integrations/pom.xml",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/IntegrationsComponent.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgGpsWebhooksResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgInteractionEpisodesResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgKnowledgeCandidatesResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/client/HarnessDistillClient.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/FilterMode.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/GpsWebhookSubscription.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/InteractionEpisode.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/KnowledgeCandidate.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/ProviderType.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/RetransmitDelivery.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/WebhookDelivery.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/WebhookDeliveryState.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/WebhookFilterScopes.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/WebhookFilterSpec.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/CandidateRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/CreateGpsWebhookRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/DistillCandidate.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/DistillResponse.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/EpisodeRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/GpsWebhookResponse.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/GpsWebhookTestResponse.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/UpdateGpsWebhookRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/WebhookDeliveryResponse.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/CreateSubscriptionParams.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/GpsWebhookSubscriptionRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/InteractionEpisodeRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/KnowledgeCandidateRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/RetransmitDeliveryRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/UpdateSubscriptionParams.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/WebhookDeliveryRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/reconciliation/KnowledgeDistillerJob.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/retransmit/EnrichedPositionRetransmitConsumer.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/retransmit/RetransmitDeliveryJob.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/retransmit/RetransmitMatchService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/retransmit/StreamhubGpsClient.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/CandidateService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/EpisodeService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/GpsWebhookSubscriptionService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/WebhookFilterCompiler.java",
+    "quarkus-srv/miot-integrations/src/main/resources/META-INF/native-image/com.microboxlabs.miot/miot-integrations/native-image.properties",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.4__create_interaction_episodes.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.5__create_knowledge_candidates.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.6__add_gps_webhook_subscriptions.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.7__add_retransmit_deliveries.sql",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/domain/WebhookFilterSpecTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/GpsWebhookSubscriptionRepositoryTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/InteractionEpisodeSqlIntegrityTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/KnowledgeCandidateSqlIntegrityTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/reconciliation/KnowledgeDistillerJobTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/retransmit/RetransmitMatchServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/CandidateServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/EpisodeServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/GpsWebhookSubscriptionServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/WebhookFilterCompilerTest.java",
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/.gitignore",
+    "turbo-repo/apps/app/next.config.mjs",
+    "turbo-repo/apps/app/package.json",
+    "turbo-repo/apps/app/scripts/build-search-index.mjs",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/gps-webhooks/[subId]/deliveries/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/gps-webhooks/[subId]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/gps-webhooks/[subId]/test/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/gps-webhooks/route.ts",
+    "turbo-repo/apps/app/src/app/api/dev/auth0/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/search/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/search/search-blocks.ts",
+    "turbo-repo/apps/app/src/app/api/harness/search/stream/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/search/stream/route.ts",
+    "turbo-repo/apps/app/src/app/api/interactions/episodes/record-episode.test.ts",
+    "turbo-repo/apps/app/src/app/api/interactions/episodes/record-episode.ts",
+    "turbo-repo/apps/app/src/app/api/interactions/episodes/route.ts",
+    "turbo-repo/apps/app/src/app/api/knowledge/candidates/[id]/route.ts",
+    "turbo-repo/apps/app/src/app/api/knowledge/candidates/candidates-client.test.ts",
+    "turbo-repo/apps/app/src/app/api/knowledge/candidates/candidates-client.ts",
+    "turbo-repo/apps/app/src/app/api/knowledge/candidates/route.ts",
+    "turbo-repo/apps/app/src/app/api/utils/quarkus-proxy.ts",
+    "turbo-repo/apps/app/src/app/api/utils/streamhub-modulith-proxy.ts",
+    "turbo-repo/apps/app/src/app/api/utils/upstream-proxy.ts",
+    "turbo-repo/apps/app/src/app/globals.css",
+    "turbo-repo/apps/app/src/auth.config.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/assignment-accreditation.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/assignment-accreditation.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planned-service-chip.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-selection-types.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-selection-wrapper.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-sidebar-form.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/service-event.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/sidebar-tabs/assignment/accreditation.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/sidebar-tabs/assignment/assignment-form.tsx",
+    "turbo-repo/apps/app/src/features/common/components/absolute-modal/absolute-modal.tsx",
+    "turbo-repo/apps/app/src/features/common/components/kpi-stat/kpi-stat.tsx",
+    "turbo-repo/apps/app/src/features/common/utils/markdown-components.tsx",
+    "turbo-repo/apps/app/src/features/data-sources/components/data-sources-page-content.tsx",
+    "turbo-repo/apps/app/src/features/knowledge/components/learned-knowledge-panel.tsx",
+    "turbo-repo/apps/app/src/features/knowledge/hooks/use-knowledge-candidates.ts",
+    "turbo-repo/apps/app/src/features/knowledge/types.ts",
+    "turbo-repo/apps/app/src/features/layout/components/section-header/section-header.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-layout.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/kbd-hint.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/navegation_params.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/search-bar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/secured-navbar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/harness-stream.test.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/harness-stream.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/navigate-actions.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-backdrop.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-elicit-chip.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-empty-state.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-footer.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-harness-progress.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-input.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-result-item.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-results.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-row.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-search.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/types.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/use-harness-search.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/use-pagefind-search.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/use-spotlight-state.ts",
+    "turbo-repo/apps/app/src/features/layout/models/pages-config.json",
+    "turbo-repo/apps/app/src/features/layout/models/pages.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/components/org-detail-panel.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/settings-form-field.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/gps-webhooks/gps-webhook-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/gps-webhooks/gps-webhook-data-service.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/gps-webhooks/gps-webhook-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/gps-webhooks/gps-webhook.types.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/gps-webhooks/gps-webhook.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/gps-webhooks/use-org-gps-webhooks.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/hooks/use-settings-modal-form.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp-connection-modal.tsx",
+    "turbo-repo/apps/app/src/features/shipping/components/modal-tooltip.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/symptoms-card.tsx",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/components/compose-box.tsx",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/components/conversation-list.tsx",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/components/conversations-page-content.tsx",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/components/message-thread.tsx",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/components/service-badge.tsx",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/components/session-countdown.tsx",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/grouping.ts",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/inbox-data-service.ts",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/session-window.test.ts",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/session-window.ts",
+    "turbo-repo/apps/app/src/features/whatsapp-inbox/use-session-window.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/app/src/types/pagefind.d.ts",
+    "turbo-repo/package-lock.json",
+    "turbo-repo/packages/miot-chat/src/episodes.test.ts",
+    "turbo-repo/packages/miot-chat/src/episodes.ts",
+    "turbo-repo/packages/miot-chat/src/runMiotChat.ts",
+    "turbo-repo/packages/miot-chat/src/tui/App.tsx",
+    "turbo-repo/packages/miot-chat/src/tui/__tests__/components/FooterLine.test.tsx",
+    "turbo-repo/packages/miot-chat/src/tui/__tests__/transcript.project.test.ts",
+    "turbo-repo/packages/miot-chat/src/tui/chrome/FooterLine.tsx",
+    "turbo-repo/packages/miot-chat/src/tui/runTui.ts",
+    "turbo-repo/packages/miot-chat/src/tui/session/types.ts",
+    "turbo-repo/packages/miot-chat/src/tui/slash/handlers/remember.test.ts",
+    "turbo-repo/packages/miot-chat/src/tui/slash/handlers/remember.ts",
+    "turbo-repo/packages/miot-chat/src/tui/transcript/project.ts",
+    "turbo-repo/packages/miot-connection-client/src/__tests__/gps-webhooks.test.ts",
+    "turbo-repo/packages/miot-connection-client/src/client.ts",
+    "turbo-repo/packages/miot-connection-client/src/index.ts",
+    "turbo-repo/packages/miot-connection-client/src/resources/gps-webhooks.ts",
+    "turbo-repo/packages/miot-connection-client/src/types.ts",
+    "turbo-repo/packages/miot-harness-client/src/__tests__/runs.test.ts",
+    "turbo-repo/packages/miot-harness-client/src/index.ts",
+    "turbo-repo/packages/miot-harness-client/src/resources/runs.ts",
+    "turbo-repo/packages/miot-harness-client/src/types.ts",
+    "turbo-repo/turbo.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.22",
+      "tag": "app@v0.5.22"
+    },
+    "docs": {
+      "changed": true,
+      "version": "0.5.22",
+      "tag": "docs@v0.5.22"
+    },
+    "modulith": {
+      "changed": true,
+      "version": "0.5.17",
+      "tag": "modulith@v0.5.17"
+    },
+    "harness": {
+      "changed": true,
+      "version": "0.1.2",
+      "tag": "harness@v0.1.2"
+    }
+  }
+}

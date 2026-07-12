@@ -68,8 +68,8 @@ class GaussPositionMapperTest {
                 .put(
                         "gps",
                         new JsonObject()
-                                .put("latitude", -33.4489)
-                                .put("longitude", -70.6693)
+                                .put("latitude", -33.55104873326316)
+                                .put("longitude", -70.69639380274505)
                                 .put("fixed", true)
                                 .put("label", "Mintral SCL"));
 

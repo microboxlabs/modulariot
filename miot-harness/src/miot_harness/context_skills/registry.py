@@ -44,6 +44,14 @@ def _is_for_tenant(scope_kind: str, scope_tenant: str | None, tenant_id: str) ->
     return scope_tenant == tenant_id
 
 
+def _is_for_connection(skill_connection: str | None, connection: str | None) -> bool:
+    """True if the caller asked for no narrowing, the skill is unbound, or
+    both name the same connection."""
+    if connection is None or skill_connection is None:
+        return True
+    return skill_connection == connection
+
+
 class ContextSkillsBundle:
     def __init__(
         self,
@@ -124,7 +132,17 @@ class ContextSkillsBundle:
 
     # ---- playbooks --------------------------------------------------------
 
-    def playbooks_for(self, tenant_id: str) -> list[LoadedSkill]:
+    def playbooks_for(
+        self, tenant_id: str, *, connection: str | None = None
+    ) -> list[LoadedSkill]:
+        """Playbooks the tenant can see (global ∪ tenant, tenant wins).
+
+        `connection` narrows the set to playbooks this connection may
+        actually follow: an unbound playbook is for everyone, a bound one
+        only for its own connection (its `tools` carry that connection's
+        prefix, so the step scope-check would reject them elsewhere).
+        Omit it to get the tenant's full set.
+        """
         chosen: dict[str, LoadedSkill] = {}
         chosen_tenant: dict[str, bool] = {}
         for loaded in self._by_priority_skills(self.playbook_skills):
@@ -132,6 +150,8 @@ class ContextSkillsBundle:
             if not isinstance(skill, PlaybookSkill):
                 continue
             if not _is_for_tenant(skill.scope.kind, skill.scope.tenant_id, tenant_id):
+                continue
+            if not _is_for_connection(skill.connection, connection):
                 continue
             tenant_scoped = skill.scope.kind == "tenant"
             # Same rule as facts_for: a global never overrides a tenant
@@ -183,7 +203,7 @@ class ContextSkillsBundle:
         return sorted(summaries, key=lambda s: s.name.lower())
 
     def activate_skill(
-        self, tenant_id: str, skill_id: str
+        self, tenant_id: str, skill_id: str, *, connection: str | None = None
     ) -> tuple[str, str] | None:
         """Resolve a skill the tenant can see to ``(name, body)`` for
         injection into a run, or ``None`` when unknown or bodyless.
@@ -191,8 +211,13 @@ class ContextSkillsBundle:
         This is the invocation half of skills: `list_skills` discovers
         them, `activate_skill` hands back the SKILL.md body so the
         supervisor can inject it as run guidance.
+
+        `connection` applies the same narrowing as `playbooks_for`, so a
+        caller that advertised a connection-filtered index (the agent
+        loop's `load_skill`) cannot be talked into loading a playbook it
+        never offered by a guessed id.
         """
-        for loaded in self.playbooks_for(tenant_id):
+        for loaded in self.playbooks_for(tenant_id, connection=connection):
             skill = loaded.skill
             assert isinstance(skill, PlaybookSkill)  # playbooks_for guarantees
             if skill.id == skill_id and loaded.playbook_body:

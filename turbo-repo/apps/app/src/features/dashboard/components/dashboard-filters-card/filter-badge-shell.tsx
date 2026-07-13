@@ -1,6 +1,8 @@
 "use client";
 
 import type React from "react";
+import { useState } from "react";
+import { createPortal } from "react-dom";
 import { HiChevronDown, HiXMark } from "react-icons/hi2";
 import type { DashboardFilterParam } from "../../types/dashboard.types";
 import { BADGE_ACTIVE, BADGE_IDLE, BADGE_BASE } from "./badge-styles";
@@ -15,6 +17,7 @@ interface FilterBadgeShellProps {
   onClear: () => void;
   panelClassName: string;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  panelRef: React.RefObject<HTMLDivElement | null>;
   children: React.ReactNode;
 }
 
@@ -28,13 +31,31 @@ export function FilterBadgeShell({
   onClear,
   panelClassName,
   containerRef,
+  panelRef,
   children,
 }: Readonly<FilterBadgeShellProps>) {
+  // Panel renders in a portal (see below) so it can't inherit position from
+  // this container — its coordinates are computed from the trigger's rect
+  // right when it's about to open, since the badge row sits inside
+  // overflow-hidden ancestors (page/layout scroll containers) that would
+  // otherwise clip it. Computed here (rather than in an effect that runs
+  // after `open` flips) so the first paint already has the right
+  // coordinates instead of flashing at (0, 0) for a frame.
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+
+  const handleToggle = () => {
+    if (!open && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setPosition({ top: rect.bottom + 4, left: rect.left });
+    }
+    onToggle();
+  };
+
   return (
     <div ref={containerRef} className="relative inline-flex">
       <button
         type="button"
-        onClick={onToggle}
+        onClick={handleToggle}
         className={`${BADGE_BASE} ${hasValue ? BADGE_ACTIVE : BADGE_IDLE}`}
       >
         <span>{hasValue ? `${filter.label}:` : filter.label}</span>
@@ -59,11 +80,17 @@ export function FilterBadgeShell({
           <HiXMark className="h-3 w-3" />
         </button>
       )}
-      {open && (
-        <div className={`absolute left-0 top-full z-50 mt-1 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700 ${panelClassName}`}>
-          {children}
-        </div>
-      )}
+      {open &&
+        createPortal(
+          <div
+            ref={panelRef}
+            className={`fixed z-50 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700 ${panelClassName}`}
+            style={{ top: position.top, left: position.left }}
+          >
+            {children}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

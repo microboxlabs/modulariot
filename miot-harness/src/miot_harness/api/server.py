@@ -558,6 +558,9 @@ def _make_lifespan(
                             settings.provenance_log_dir,
                             enabled=settings.provenance_log_enabled,
                         ),
+                        # Skills index in the frozen prefix + lazy
+                        # `load_skill` bodies (booted above, before wiring).
+                        context_skills=harness.context_skills,
                     )
                 harness.meta_model = get_chat_model(
                     settings.intent_router_model,

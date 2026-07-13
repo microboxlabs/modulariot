@@ -5,6 +5,8 @@ from langchain_core.messages import AIMessage, ToolMessage
 
 import miot_harness.runtime.agent_loop as agent_loop_mod
 from miot_harness.config import HarnessSettings
+from miot_harness.context_skills.registry import ContextSkillsBundle
+from miot_harness.context_skills.skill_models import LoadedSkill, PlaybookSkill
 from miot_harness.runtime.agent_loop import AgentLoopRunner
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.plan import DataEvidence
@@ -52,6 +54,56 @@ def _runner(model: ScriptedModel) -> AgentLoopRunner:
     return AgentLoopRunner(
         model=model, registry=_registry(), settings=_settings(),
         profile=FAKE_PROFILE, provenance_log=None,
+    )
+
+
+_SKILL_BODY = "1. Query the tasks.\n2. Join per-service variables."
+
+
+def _skills_bundle() -> ContextSkillsBundle:
+    return ContextSkillsBundle(
+        playbook_skills=(
+            LoadedSkill(
+                skill=PlaybookSkill(
+                    kind="playbook",
+                    id="pending-deliveries",
+                    name="Pending Deliveries",
+                    when_to_use="Which services are pending delivery.",
+                    tools=("fake_kpi_summary",),
+                ),
+                playbook_body=_SKILL_BODY,
+                source_path="/skills/pending-deliveries/SKILL.md",
+            ),
+        )
+    )
+
+
+def _skilled_runner(model: ScriptedModel) -> AgentLoopRunner:
+    return AgentLoopRunner(
+        model=model, registry=_registry(), settings=_settings(),
+        profile=FAKE_PROFILE, provenance_log=None,
+        context_skills=_skills_bundle(),
+    )
+
+
+def _text(msg: ToolMessage) -> str:
+    """Message text, tolerating the request-time cache-marker block form."""
+    if isinstance(msg.content, str):
+        return msg.content
+    return "".join(b.get("text", "") for b in msg.content if isinstance(b, dict))
+
+
+def _load_skill_msg(skill_id: str, call_id: str) -> AIMessage:
+    return AIMessage(
+        content="",
+        tool_calls=[
+            {
+                "name": "load_skill",
+                "args": {"skill_id": skill_id},
+                "id": call_id,
+                "type": "tool_call",
+            }
+        ],
     )
 
 
@@ -171,6 +223,78 @@ async def test_tenancy_refusal_short_circuits():
     )
     assert "acme" in delta["answer"].lower() or "only" in delta["answer"].lower()
     assert model.calls == []
+
+
+@pytest.mark.asyncio
+async def test_load_skill_bound_and_indexed_only_with_bundle():
+    plain = ScriptedModel([AIMessage(content="x")])
+    _runner(plain)
+    assert "load_skill" not in [t["name"] for t in plain.bound_tools]
+
+    skilled = ScriptedModel([AIMessage(content="x")])
+    runner = _skilled_runner(skilled)
+    names = [t["name"] for t in skilled.bound_tools]
+    assert "load_skill" in names
+    assert names == sorted(names)  # byte-stability contract kept
+    system_text = runner.system_message.content[0]["text"]
+    assert "pending-deliveries" in system_text
+    assert _SKILL_BODY not in system_text  # index only, body stays lazy
+
+
+@pytest.mark.asyncio
+async def test_load_skill_returns_body_without_evidence():
+    model = ScriptedModel(
+        [_load_skill_msg("pending-deliveries", "c1"), AIMessage(content="ok")]
+    )
+    events: list[Any] = []
+    delta = await _skilled_runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    assert delta["answer"] == "ok"
+    assert delta["evidence"] == []  # guidance, not data
+    tm = model.calls[1][-1]
+    assert isinstance(tm, ToolMessage)
+    assert tm.tool_call_id == "c1"
+    assert "# Skill: Pending Deliveries" in _text(tm)
+    assert _SKILL_BODY in _text(tm)
+    tool_events = [e for e in events if e.type.startswith("tool.")]
+    assert [e.type for e in tool_events] == ["tool.started", "tool.completed"]
+    assert all(e.data["tool"] == "load_skill" for e in tool_events)
+
+
+@pytest.mark.asyncio
+async def test_load_skill_unknown_id_is_error_feedback():
+    model = ScriptedModel(
+        [_load_skill_msg("nope", "c1"), AIMessage(content="answered anyway")]
+    )
+    events: list[Any] = []
+    delta = await _skilled_runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    assert delta["answer"] == "answered anyway"
+    tm = model.calls[1][-1]
+    assert tm.status == "error"
+    assert "Unknown or bodyless skill 'nope'" in _text(tm)
+    assert "tool.failed" in [e.type for e in events]
+
+
+@pytest.mark.asyncio
+async def test_load_skill_duplicate_returns_pointer_not_body():
+    model = ScriptedModel(
+        [
+            _load_skill_msg("pending-deliveries", "c1"),
+            _load_skill_msg("pending-deliveries", "c2"),
+            AIMessage(content="done"),
+        ]
+    )
+    delta = await _skilled_runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=lambda e: None
+    )
+    assert delta["answer"] == "done"
+    second = model.calls[2][-1]
+    assert isinstance(second, ToolMessage)
+    assert "already loaded" in _text(second)
+    assert _SKILL_BODY not in _text(second)
 
 
 @pytest.mark.asyncio

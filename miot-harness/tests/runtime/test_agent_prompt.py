@@ -1,8 +1,38 @@
+from miot_harness.context_skills.registry import ContextSkillsBundle
+from miot_harness.context_skills.skill_models import LoadedSkill, PlaybookSkill
 from miot_harness.runtime.agent_prompt import (
     build_agent_system_prompt,
     cached_system_message,
+    render_skills_index,
 )
 from tests.fixtures.fake_provider import FAKE_PROFILE
+
+
+def _playbook(
+    skill_id: str = "pending-deliveries",
+    *,
+    body: str | None = "1. Query tasks.\n2. Join variables.",
+    connection: str | None = None,
+    scope_kind: str = "global",
+    tenant_id: str | None = None,
+) -> LoadedSkill:
+    return LoadedSkill(
+        skill=PlaybookSkill(
+            kind="playbook",
+            id=skill_id,
+            name=skill_id.replace("-", " ").title(),
+            when_to_use="User asks which services are pending delivery.",
+            tools=("fake_kpi_summary", "fake_alpha_query"),
+            connection=connection,
+            scope={"kind": scope_kind, "tenant_id": tenant_id},
+        ),
+        playbook_body=body,
+        source_path=f"/skills/{skill_id}/SKILL.md",
+    )
+
+
+def _bundle(*skills: LoadedSkill) -> ContextSkillsBundle:
+    return ContextSkillsBundle(playbook_skills=tuple(skills))
 
 
 def test_prompt_is_byte_stable():
@@ -49,3 +79,51 @@ def test_cached_system_message_has_single_ephemeral_breakpoint():
     assert block["type"] == "text"
     assert block["text"] == "hello"
     assert block["cache_control"] == {"type": "ephemeral"}
+
+
+def test_skills_index_renders_one_line_per_eligible_skill():
+    index = render_skills_index(_bundle(_playbook()), FAKE_PROFILE)
+    assert index == (
+        "- pending-deliveries: User asks which services are pending "
+        "delivery. Steps: fake_kpi_summary → fake_alpha_query. "
+        "Full guide: `load_skill`."
+    )
+
+
+def test_skills_index_omits_load_marker_for_bodyless_skill():
+    index = render_skills_index(_bundle(_playbook(body=None)), FAKE_PROFILE)
+    assert "load_skill" not in index
+    assert "pending-deliveries" in index
+
+
+def test_skills_index_filters_other_connections_and_tenants():
+    index = render_skills_index(
+        _bundle(
+            _playbook("other-conn", connection="not-fake"),
+            _playbook("other-tenant", scope_kind="tenant", tenant_id="rival"),
+            _playbook("locked-tenant", scope_kind="tenant", tenant_id="acme"),
+        ),
+        FAKE_PROFILE,  # profile.name="fake", tenant_lock="acme"
+    )
+    assert "other-conn" not in index
+    assert "other-tenant" not in index
+    assert "locked-tenant" in index
+
+
+def test_skills_index_empty_without_bundle():
+    assert render_skills_index(None, FAKE_PROFILE) == ""
+    assert render_skills_index(_bundle(), FAKE_PROFILE) == ""
+
+
+def test_prompt_with_skills_block_is_byte_stable_and_gated():
+    index = render_skills_index(_bundle(_playbook()), FAKE_PROFILE)
+    with_skills = build_agent_system_prompt(FAKE_PROFILE, skills_index=index)
+    assert with_skills == build_agent_system_prompt(
+        FAKE_PROFILE, skills_index=index
+    )
+    assert "pending-deliveries" in with_skills
+    assert "call `load_skill`" in with_skills
+    # No index → the whole skills block is omitted, not rendered empty.
+    without = build_agent_system_prompt(FAKE_PROFILE)
+    assert "load_skill" not in without
+    assert "Skills" not in without

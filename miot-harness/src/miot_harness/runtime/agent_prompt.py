@@ -7,12 +7,19 @@ it rides in the user turn (see agent_loop._compose_human).
 
 The rules merge the two seats the loop replaces: the agentic planner's
 investigation-rigor rules and the synthesizer's answer rules.
+
+Skills are progressive disclosure over the same prefix contract: only the
+one-line index (trigger text) lives here; full playbook bodies arrive
+mid-transcript as `load_skill` tool results, so pulling one never touches
+the cached prefix.
 """
 
 from __future__ import annotations
 
 from langchain_core.messages import SystemMessage
 
+from miot_harness.context_skills.registry import ContextSkillsBundle
+from miot_harness.context_skills.skill_models import PlaybookSkill
 from miot_harness.datasource.provider import DataSourceProfile
 
 _AGENT_SYSTEM_TEMPLATE = """\
@@ -27,7 +34,7 @@ Investigation rules:
   primitives are a fallback for questions the curated catalog cannot answer.
 - Never repeat a tool call you already made with identical arguments.
 - Read any knowledge card at most once, then ACT on what it says.
-
+{skills_block}
 Rigor — do not answer from incomplete or fuzzy evidence:
 - A grep / ILIKE result is a FUZZY sample, never an authoritative count or
   list. Do not report a total or enumerate items from a grep — run a precise
@@ -58,12 +65,53 @@ Answer rules (write in the same language as the question; be concise,
 """
 
 
-def build_agent_system_prompt(profile: DataSourceProfile) -> str:
+_SKILLS_BLOCK_TEMPLATE = """
+Skills (domain playbooks — the index below is intentionally terse):
+{index}
+When the question matches a skill's trigger, call `load_skill` with its id
+BEFORE planning queries, then follow the loaded instructions. Load each
+skill at most once per conversation.
+"""
+
+
+def render_skills_index(
+    bundle: ContextSkillsBundle | None, profile: DataSourceProfile
+) -> str:
+    """One line per eligible playbook for the frozen prefix.
+
+    Resolved against `profile.tenant_lock` (an open profile sees only
+    global skills) and filtered to this profile's connection — the same
+    scoping as the legacy planner catalog — so the text is a pure function
+    of (profile, bundle) and the cache prefix stays byte-stable. Returns ""
+    when nothing is eligible; the skills block is omitted entirely then.
+    """
+    if bundle is None:
+        return ""
+    lines: list[str] = []
+    for loaded in bundle.playbooks_for(profile.tenant_lock or ""):
+        skill = loaded.skill
+        assert isinstance(skill, PlaybookSkill)  # playbooks_for guarantees
+        if skill.connection is not None and skill.connection != profile.name:
+            continue
+        trigger = (skill.when_to_use or skill.description or skill.name).strip()
+        steps = f" Steps: {' → '.join(skill.tools)}." if skill.tools else ""
+        guide = " Full guide: `load_skill`." if loaded.playbook_body else ""
+        lines.append(f"- {skill.id}: {trigger}{steps}{guide}")
+    return "\n".join(lines)
+
+
+def build_agent_system_prompt(
+    profile: DataSourceProfile, *, skills_index: str = ""
+) -> str:
+    skills_block = (
+        _SKILLS_BLOCK_TEMPLATE.format(index=skills_index) if skills_index else ""
+    )
     return _AGENT_SYSTEM_TEMPLATE.format(
         display_name=profile.display_name,
         tenant_display=(profile.tenant_lock or profile.display_name).capitalize(),
         primer=profile.primer,
         tool_prefix=profile.tool_prefix,
+        skills_block=skills_block,
     )
 
 

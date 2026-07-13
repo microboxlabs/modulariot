@@ -81,19 +81,24 @@ def render_skills_index(
 
     Resolved against `profile.tenant_lock` (an open profile sees only
     global skills) and filtered to this profile's connection — the same
-    scoping as the legacy planner catalog — so the text is a pure function
-    of (profile, bundle) and the cache prefix stays byte-stable. Returns ""
+    scoping as the legacy planner catalog, and the same the loop re-applies
+    when a `load_skill` call arrives — so the text is a pure function of
+    (profile, bundle) and the cache prefix stays byte-stable. Returns ""
     when nothing is eligible; the skills block is omitted entirely then.
     """
     if bundle is None:
         return ""
     lines: list[str] = []
-    for loaded in bundle.playbooks_for(profile.tenant_lock or ""):
+    for loaded in bundle.playbooks_for(
+        profile.tenant_lock or "", connection=profile.name
+    ):
         skill = loaded.skill
         assert isinstance(skill, PlaybookSkill)  # playbooks_for guarantees
-        if skill.connection is not None and skill.connection != profile.name:
-            continue
-        trigger = (skill.when_to_use or skill.description or skill.name).strip()
+        # Collapse whitespace: one entry is one line, and an author's
+        # newline must not forge extra index bullets.
+        trigger = " ".join(
+            (skill.when_to_use or skill.description or skill.name).split()
+        )
         steps = f" Steps: {' → '.join(skill.tools)}." if skill.tools else ""
         guide = " Full guide: `load_skill`." if loaded.playbook_body else ""
         lines.append(f"- {skill.id}: {trigger}{steps}{guide}")

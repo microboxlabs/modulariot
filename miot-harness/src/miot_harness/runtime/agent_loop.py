@@ -378,7 +378,9 @@ class AgentLoopRunner:
         not data — it must not become DataEvidence, be freshness-judged, or
         land in the provenance log. Resolution uses the requesting tenant so
         tenant-scoped overrides apply even though the advertised index was
-        resolved against the profile's tenant_lock at boot.
+        resolved against the profile's tenant_lock at boot, and re-applies
+        this profile's connection filter so a guessed id cannot pull a
+        playbook the index never offered.
         """
         call_id = str(call.get("id", ""))
         skill_id = str((call.get("args") or {}).get("skill_id", "")).strip()
@@ -405,7 +407,9 @@ class AgentLoopRunner:
                 progress=progress, loaded=False,
             )
         activated = (
-            self.context_skills.activate_skill(ctx.tenant_id, skill_id)
+            self.context_skills.activate_skill(
+                ctx.tenant_id, skill_id, connection=self.profile.name
+            )
             if self.context_skills is not None
             else None
         )

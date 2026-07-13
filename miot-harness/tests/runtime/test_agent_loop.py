@@ -60,6 +60,9 @@ def _runner(model: ScriptedModel) -> AgentLoopRunner:
 _SKILL_BODY = "1. Query the tasks.\n2. Join per-service variables."
 
 
+_OTHER_CONN_BODY = "Secrets of another connection."
+
+
 def _skills_bundle() -> ContextSkillsBundle:
     return ContextSkillsBundle(
         playbook_skills=(
@@ -73,6 +76,19 @@ def _skills_bundle() -> ContextSkillsBundle:
                 ),
                 playbook_body=_SKILL_BODY,
                 source_path="/skills/pending-deliveries/SKILL.md",
+            ),
+            # Bound to a different connection than FAKE_PROFILE ("fake"):
+            # never indexed, and must not be loadable by a guessed id.
+            LoadedSkill(
+                skill=PlaybookSkill(
+                    kind="playbook",
+                    id="other-conn-skill",
+                    name="Other Connection",
+                    when_to_use="Never for this profile.",
+                    connection="not-fake",
+                ),
+                playbook_body=_OTHER_CONN_BODY,
+                source_path="/skills/other-conn-skill/SKILL.md",
             ),
         )
     )
@@ -276,6 +292,23 @@ async def test_load_skill_unknown_id_is_error_feedback():
     assert tm.status == "error"
     assert "Unknown or bodyless skill 'nope'" in _text(tm)
     assert "tool.failed" in [e.type for e in events]
+
+
+@pytest.mark.asyncio
+async def test_load_skill_refuses_skill_bound_to_another_connection():
+    # The index never advertised it; a guessed id must not smuggle the body in.
+    model = ScriptedModel(
+        [_load_skill_msg("other-conn-skill", "c1"), AIMessage(content="moved on")]
+    )
+    runner = _skilled_runner(model)
+    assert "other-conn-skill" not in runner.system_message.content[0]["text"]
+    await runner.run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=lambda e: None
+    )
+    tm = model.calls[1][-1]
+    assert tm.status == "error"
+    assert _OTHER_CONN_BODY not in _text(tm)
+    assert "Unknown or bodyless skill 'other-conn-skill'" in _text(tm)
 
 
 @pytest.mark.asyncio

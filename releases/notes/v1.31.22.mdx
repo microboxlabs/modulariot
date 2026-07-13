@@ -1,0 +1,42 @@
+# 🔔 Release Notes v1.31.22 — ModularIoT
+
+### Fecha: 13/07/2026
+
+**Objetivo**: Esta versión refuerza la estabilidad operativa de la app en dashboards y avanza capacidades del stack para asistentes con contexto más eficiente. El foco combina corrección de experiencia de usuario y preparación de mejoras evolutivas en `harness`.
+
+## 🚀 Evolutivos
+
+- **📍 Carga diferida de skills en el loop del agente** *(Integración OSS — MIOT-0.5.23)*
+  - **Key point**: Se prepara un mecanismo de *progressive disclosure* para que el agente cargue skills bajo demanda mediante `load_skill`, manteniendo el índice en el prefijo estable.
+  - **Technical detail**: El alcance contempla integración entre `runtime/agent_prompt.py`, `runtime/agent_loop.py` y `api/server.py`, con reglas de *scoping* por tenant/conexiones y eventos de herramienta en SSE; al estar el issue abierto, queda como trabajo preparado en el alcance del release.
+
+## 🐛 Correcciones
+
+- **🐛 Posicionamiento y visibilidad de la barra de filtros en dashboards** *(Integración OSS — MIOT-0.5.23)*
+  - **Impacto**: Los paneles de filtros podían mostrarse mal posicionados, con baja visibilidad o cerrarse al interactuar con controles internos.
+  - **Solución**: Se corrigió el comportamiento de renderizado/posicionamiento inicial y la lógica de foco/click (incluyendo manejo de clic externo y badges de filtros) para mantener los paneles visibles y utilizables en distintos layouts.
+
+## 📊 Beneficios
+
+- Mejor experiencia de filtrado en dashboards con menor fricción en interacción.
+- Reducción de cierres involuntarios en paneles de filtros y mayor consistencia visual.
+- Base técnica más sólida para el loop de agentes con contexto único y skills bajo demanda.
+- Mejor preservación del contrato de caché del prompt al separar índice y cuerpo de skills.
+- Mayor mantenibilidad del flujo de herramientas del agente con eventos SSE explícitos.
+- Mejor alineación entre evolución OSS (`MIOT-0.5.23`) y release de plataforma.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.23`
+- **App**: `app@v0.5.23` (con cambios)
+- **Modulith**: `modulith@v0.5.17` (sin cambios en este release)
+- **Harness**: `harness@v0.1.3` (con cambios)
+- Los *digests* exactos de imágenes desplegadas se pueden consultar en el diálogo de información de build dentro de la app y en el asset `stack-manifest.json` del release.
+
+## 📌 Conclusión
+
+La `v1.31.22` aporta una mejora directa y tangible en la usabilidad de dashboards, corrigiendo un punto crítico de interacción en filtros que impactaba el trabajo diario de operación.
+
+En paralelo, el release incorpora trabajo evolutivo de OSS para robustecer la arquitectura del agente en `harness`, dejando preparado un patrón de carga de skills más eficiente y escalable.
+
+En conjunto, la entrega equilibra estabilización funcional inmediata y avance técnico estratégico del stack `0.5.23`.

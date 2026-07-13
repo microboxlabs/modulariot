@@ -1,0 +1,63 @@
+{
+  "stack_version": "0.5.23",
+  "stack_tag": "miot-stack@v0.5.23",
+  "milestone": "MIOT-0.5.23",
+  "pull_requests": [
+    {
+      "number": 911,
+      "title": "feat(harness): lazy-loaded skills for the agent loop (progressive disclosure)",
+      "source_issues": [
+        {
+          "number": 910,
+          "title": "feat(harness): lazy-loaded skills for the agent loop (progressive disclosure)"
+        }
+      ]
+    },
+    {
+      "number": 913,
+      "title": "Fixing filter bar positioning issues",
+      "source_issues": [
+        {
+          "number": 914,
+          "title": "fix(app): dashboard filter bar positioning and visibility"
+        }
+      ]
+    }
+  ],
+  "changed_files": [
+    "miot-harness/src/miot_harness/api/server.py",
+    "miot-harness/src/miot_harness/context_skills/registry.py",
+    "miot-harness/src/miot_harness/runtime/agent_loop.py",
+    "miot-harness/src/miot_harness/runtime/agent_prompt.py",
+    "miot-harness/tests/context_skills/test_bundle_layering.py",
+    "miot-harness/tests/runtime/test_agent_loop.py",
+    "miot-harness/tests/runtime/test_agent_prompt.py",
+    "turbo-repo/apps/app/src/features/common/components/absolute-modal/absolute-modal.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/filter-badge-shell.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/select-filter-badge.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/text-filter-badge.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/use-outside-click.ts"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.23",
+      "tag": "app@v0.5.23"
+    },
+    "docs": {
+      "changed": false,
+      "version": "0.5.22",
+      "tag": "docs@v0.5.22"
+    },
+    "modulith": {
+      "changed": false,
+      "version": "0.5.17",
+      "tag": "modulith@v0.5.17"
+    },
+    "harness": {
+      "changed": true,
+      "version": "0.1.3",
+      "tag": "harness@v0.1.3"
+    }
+  }
+}

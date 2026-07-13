@@ -2,6 +2,7 @@
   "pages": {
     "login": {
       "welcome": "Welcome back",
+      "subtitle": "Sign in to your ModularIOT account",
       "fields": {
         "email": {
           "label": "Email",
@@ -30,7 +31,8 @@
         "microsoft": "Continue with Microsoft",
         "microsoft-entra-id": "Continue with Microsoft",
         "saml": "Continue with SSO",
-        "credentials": "Continue with external user"
+        "credentials": "Continue with email and password",
+        "ssoSubmit": "Continue"
       },
       "divider": "o",
       "teamSlug": {
@@ -38,6 +40,14 @@
         "placeholder": "your-team-name",
         "required": "Team identifier is required"
       },
+      "requestAccess": {
+        "prompt": "Don't have an account?",
+        "link": "Sign up"
+      },
+      "credentialsTitle": "Sign in",
+      "credentialsSubtitle": "Enter your email and password to access your account",
+      "ssoTitle": "Sign in with SSO",
+      "ssoSubtitle": "Enter your team identifier to continue",
       "errors": {
         "invalidCredentials": "Access denied. Please verify your credentials and try again.",
         "invalidFromData": "Invalid form data. Please verify your credentials and try again.",

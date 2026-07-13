@@ -2,6 +2,7 @@
   "pages": {
     "login": {
       "welcome": "Bienvenido de nuevo",
+      "subtitle": "Inicia sesión en tu cuenta de ModularIOT",
       "fields": {
         "email": {
           "label": "Correo electrónico",
@@ -30,7 +31,8 @@
         "microsoft": "Continuar con Microsoft",
         "microsoft-entra-id": "Continuar con Microsoft",
         "saml": "Continuar con SSO",
-        "credentials": "Continuar con usuario externo"
+        "credentials": "Continuar con correo y contraseña",
+        "ssoSubmit": "Continuar"
       },
       "divider": "o",
       "teamSlug": {
@@ -38,6 +40,14 @@
         "placeholder": "nombre-de-tu-equipo",
         "required": "El identificador del equipo es requerido"
       },
+      "requestAccess": {
+        "prompt": "¿No tienes cuenta?",
+        "link": "Regístrate"
+      },
+      "credentialsTitle": "Inicia sesión",
+      "credentialsSubtitle": "Ingresa tu correo y contraseña para acceder a tu cuenta",
+      "ssoTitle": "Inicia sesión con SSO",
+      "ssoSubtitle": "Ingresa el identificador de tu equipo para continuar",
       "errors": {
         "invalidCredentials": "Acceso denegado. Por favor, verifique sus credenciales e intente nuevamente.",
         "invalidFromData": "Datos de formulario inválidos. Por favor, verifique sus credenciales e intente nuevamente.",

@@ -13,6 +13,24 @@ export type FormSignInMessages = {
   buttonContinueWithMicrosoft: string;
   /** @deprecated Use authConfig.providers[].name instead */
   buttonContinueWithEmail: string;
+  /** "¿No tienes cuenta?" prompt shown before the request-access link */
+  requestAccessPrompt: string;
+  /** "Solicitar acceso" link that switches the card to the register view */
+  requestAccessLink: string;
+  /** Card title for the main (provider buttons) view */
+  mainTitle: string;
+  /** Card description for the main (provider buttons) view */
+  mainSubtitle: string;
+  /** Card title for the credentials (email/password) view */
+  loginTitle: string;
+  /** Card description for the credentials (email/password) view */
+  loginSubtitle: string;
+  /** Card title for the SSO (team identifier) view */
+  ssoTitle: string;
+  /** Card description for the SSO (team identifier) view */
+  ssoSubtitle: string;
+  /** Submit button label for the SSO (team identifier) view */
+  ssoSubmitLabel: string;
 };
 
 /** Pre-computed labels for each provider (by provider id) */
@@ -42,4 +60,7 @@ export type FormSignInProps = Readonly<{
    * down from the page's searchParams so the client component doesn't
    * need useSearchParams (which requires a Suspense boundary). */
   callbackUrl?: string | null;
+  /** Whether to show the "Sign up" / request-access link, resolved
+   * server-side from ENABLE_REGISTER_LINK. */
+  showRegisterLink: boolean;
 }>;

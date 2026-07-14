@@ -3361,7 +3361,12 @@
     "date": "Fecha",
     "symptom_name": "Nombre del síntoma",
     "name": "Nombre",
-    "rut": "RUT"
+    "rut": "RUT",
+    "tipoViaje": "Tipo de viaje",
+    "assignment": "Asignación",
+    "unassigned": "Sin asignar",
+    "partial": "Parcial",
+    "assigned": "Asignado"
   },
   "comments": {
     "title": "Comentarios",

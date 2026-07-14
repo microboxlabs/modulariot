@@ -88,6 +88,12 @@ export type RegisterFormMessages = {
   nextLabel: string;
   /** "Back" button label, shown on every step */
   backLabel: string;
+  /** Card title for the SSO (team identifier) view */
+  ssoTitle: string;
+  /** Card description for the SSO (team identifier) view */
+  ssoSubtitle: string;
+  /** Submit button label for the SSO (team identifier) view */
+  ssoSubmitLabel: string;
 };
 
 /** Pre-computed labels for each provider (by provider id) */
@@ -119,4 +125,7 @@ export type FormSignInProps = Readonly<{
   callbackUrl?: string | null;
   /** Switches the parent card to the register view (?view=register), no page navigation */
   onRegisterClick: () => void;
+  /** Whether to show the "Sign up" / request-access link, resolved
+   * server-side from ENABLE_REGISTER_LINK. */
+  showRegisterLink: boolean;
 }>;

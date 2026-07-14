@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+<<<<<<< HEAD
       "Bash(python3 -c ' *)",
       "Bash(grep -rn \"\\\\\"/register\\\\\"\\\\|'/register'\\\\|/register\\\\`\\\\|register\\\\\"\" src/auth.config.ts src/middleware.ts)",
       "Bash(python3 -)",
@@ -44,6 +45,10 @@
     "additionalDirectories": [
       "/Users/khalz/Desktop/development/modulariot-896-redefine-login/turbo-repo/apps/app/src/app/[lang]/register",
       "/private/tmp/claude-501/-Users-khalz-Desktop-development-modulariot-896-redefine-login/a94388cd-be79-4b8c-9b0a-657e1c500a48/scratchpad"
+=======
+      "Bash(git fetch *)",
+      "Bash(git pull *)"
+>>>>>>> 9a0469cfa860d416975dab544742f87aa40656d1
     ]
   },
   "enabledPlugins": {

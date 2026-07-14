@@ -30,7 +30,11 @@ export default async function SecuredLayout({
     redirect(`/${lang}/sign-in`);
   }
   const initialOrgLogo = await getPublicOrgLogo();
-  const isSearchEnabled = process.env.ENABLE_SEARCHBAR === "true";
+  // Server-only flag: kept off NEXT_PUBLIC_ so it never ships to the client
+  // bundle. When false/unset, SpotlightSearch isn't rendered at all below,
+  // which also removes its Cmd+K listener — there's no client-side toggle
+  // to bypass.
+  const isSeachEnabled = process.env.ENABLE_SEARCHBAR === "true";
   return (
     <RuntimeConfigProvider>
       <SidebarProvider>
@@ -43,7 +47,7 @@ export default async function SecuredLayout({
             messages={navBarMessages}
             dict={dictionary as I18nRecord}
             initialOrgLogo={initialOrgLogo}
-            isSeachEnabled={isSearchEnabled}
+            isSeachEnabled={isSeachEnabled}
           />
           <div
             data-testid="content-with-sidebar"

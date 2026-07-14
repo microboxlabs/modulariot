@@ -23,6 +23,7 @@ export function TextFilterBadge({ filter, value, onApply, onClear, dictionary }:
     value ? value.split(",").filter(Boolean) : []
   );
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setChips(value ? value.split(",").filter(Boolean) : []); }, [value]);
@@ -34,7 +35,7 @@ export function TextFilterBadge({ filter, value, onApply, onClear, dictionary }:
     }
   }, [open]);
 
-  useOutsideClick(containerRef, () => setOpen(false), open);
+  useOutsideClick(containerRef, () => setOpen(false), open, panelRef);
 
   const hasValue = chips.length > 0;
 
@@ -69,6 +70,7 @@ export function TextFilterBadge({ filter, value, onApply, onClear, dictionary }:
       onClear={handleClear}
       panelClassName="w-64 p-2"
       containerRef={containerRef}
+      panelRef={panelRef}
     >
       {chips.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1">
@@ -100,7 +102,12 @@ export function TextFilterBadge({ filter, value, onApply, onClear, dictionary }:
         }}
         onBlur={(e) => {
           const related = e.relatedTarget as Node | null;
-          if (!containerRef.current?.contains(related)) setOpen(false);
+          if (
+            !containerRef.current?.contains(related) &&
+            !panelRef.current?.contains(related)
+          ) {
+            setOpen(false);
+          }
         }}
         placeholder={tr("dashboard.settings.textFilterPlaceholder", dictionary)}
         className="h-7 w-full rounded border border-gray-300 bg-white px-2 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"

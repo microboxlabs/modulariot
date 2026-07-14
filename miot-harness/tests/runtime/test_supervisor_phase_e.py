@@ -579,3 +579,85 @@ def test_emit_stamps_seq_and_appends_to_record(tmp_path: Any) -> None:
 
     assert [e.seq for e in record.events] == [0, 1]
     assert record.events == [e1, e2]
+
+
+@pytest.mark.asyncio
+async def test_agentic_graph_events_emit_live_per_node(tmp_path: Any) -> None:
+    """A graph exposing a real `astream` (as compiled LangGraph does) has its
+    `_events` landed on the record per state snapshot — the live-SSE contract —
+    not drained after the run. Events repeated across snapshots (append-channel
+    semantics) emit exactly once. Regression for the "route.selected, then ~40s
+    of silence, then one flush" stream observed on agentic runs."""
+
+    from miot_harness.runtime.events import HarnessEvent
+
+    e1 = HarnessEvent(run_id="", type="agent.started", message="planner in")
+    e2 = HarnessEvent(run_id="", type="tool.started", message="acs_query")
+
+    class _RecordingBus:
+        def __init__(self) -> None:
+            self.published: list[str] = []
+
+        def publish(self, run_id: str, event: HarnessEvent) -> None:
+            self.published.append(event.id)
+
+        def close(self, run_id: str) -> None:  # supervisor closes at run end
+            pass
+
+    bus = _RecordingBus()
+
+    class _StreamingGraph:
+        """Async-generator astream double; captures what the bus had already
+        seen when control resumed between snapshots (the liveness probe)."""
+
+        def __init__(self) -> None:
+            self.bus_ids_mid_run: list[str] | None = None
+
+        async def astream(
+            self, initial_state: dict[str, Any], stream_mode: str = "values"
+        ) -> Any:
+            assert stream_mode == "values"
+            yield {"_events": [e1]}
+            # Control resumes only after the supervisor consumed snapshot 1:
+            # e1 must ALREADY have been published (live), not deferred.
+            self.bus_ids_mid_run = list(bus.published)
+            yield {"_events": [e1, e2], "answer": "streamed"}
+
+    graph = _StreamingGraph()
+    supervisor = HarnessSupervisor(
+        router=IntentRouter(),
+        tools=ToolRegistry(),
+        stories=StorytellingModule(),
+        run_store=JsonRunStore(tmp_path),
+        llm_router=_scripted_llm_router("DIRECT"),
+        agentic_graph=graph,
+        event_bus=bus,  # type: ignore[arg-type]
+        tenant_lock="orion",
+    )
+
+    record = await supervisor.run(
+        UserRequest(message="explore", tenant_id="orion", mode="agentic")
+    )
+
+    assert record.answer == "streamed"
+    # Liveness: e1 was published before the graph produced its second snapshot.
+    assert graph.bus_ids_mid_run is not None
+    assert e1.id in graph.bus_ids_mid_run
+    assert e2.id not in graph.bus_ids_mid_run
+    # Dedup: e1 appeared in both snapshots but landed exactly once.
+    assert [ev.id for ev in record.events].count(e1.id) == 1
+    assert [ev.id for ev in record.events].count(e2.id) == 1
+
+
+def test_langgraph_astream_is_async_generator_function() -> None:
+    """`_invoke_graph_emitting` detects real compiled graphs via
+    `inspect.isasyncgenfunction(graph.astream)`. If a langgraph upgrade ever
+    turns `astream` into a plain method returning an async iterator, the
+    supervisor would silently fall back to post-run emission and live SSE
+    would die undetected — pin the assumption here instead."""
+
+    import inspect
+
+    from langgraph.pregel import Pregel
+
+    assert inspect.isasyncgenfunction(Pregel.astream)

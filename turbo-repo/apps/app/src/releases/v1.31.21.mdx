@@ -1,0 +1,83 @@
+# 🔔 Release Notes v1.31.21 — ModularIoT
+
+### Fecha: 12/07/2026
+
+**Objetivo**: Esta versión consolida estabilidad operativa en flujos críticos de despacho/entrega y amplía capacidades de búsqueda, aprendizaje semántico, mensajería y webhooks en la plataforma. También refuerza el control de tenancy y la robustez de configuración en servicios de Harness y Modulith.
+
+## 🚀 Evolutivos
+
+- **🔍 Spotlight con Ask/Navigate y búsqueda asistida en Harness** *(Integración OSS — MIOT-0.5.22)*
+  - **Key point**: Se incorporó experiencia Spotlight con resultados locales, respuestas asistidas, navegación in-app, streaming de progreso, cancelación y reintento.
+  - **Technical detail**: Se agregó la skill `miot-search`, contrato de bloques tipados (`intent`, `markdown`, `url`) y resolución de tenant/organización desde backend.
+
+- **🧠 Capa semántica con ciclo de aprendizaje continuo** *(Integración OSS — MIOT-0.5.22)*
+  - **Key point**: Se habilitó el flujo para detectar vacíos de contexto, capturar episodios, proponer candidatos de conocimiento y aprobar/rechazar antes de publicar.
+  - **Technical detail**: Se añadieron eventos `grounding.gap`, almacenamiento de `assumptions`, distiller en segundo plano (apagado por defecto) y escritura segura de tarjetas por conexión.
+
+- **⚙️ Harness agentic con loop único y cacheable** *(Integración OSS — MIOT-0.5.22)*
+  - **Key point**: Se avanzó hacia un agente de tool-calling unificado, reduciendo fricción del panel multi-agente y preparando mejor uso de caché de prompt.
+  - **Technical detail**: El comportamiento quedó controlado por flag, manteniendo compatibilidad de API/SSE y preservando validaciones determinísticas de tenancy/frescura.
+
+- **📲 WhatsApp operativo por servicio** *(Integración OSS — MIOT-0.5.22)*
+  - **Key point**: La bandeja ahora trabaja mejor por contexto operativo: conversaciones por servicio, agrupación por vista, cuenta regresiva de sesión de 24h y caja de respuesta para agentes.
+  - **Technical detail**: Se reforzó la identidad de hilo por servicio, envío por proxy existente, refresco de lista/hilo tras respuesta y i18n ES/EN para estados y composición.
+
+- **🌐 Suscripciones GPS salientes con filtros por organización** *(Integración OSS — MIOT-0.5.22)*
+  - **Key point**: Se habilitó configuración de webhooks GPS con criterios de filtrado, prueba sintética y administración por organización.
+  - **Technical detail**: Se incorporaron tipo de proveedor `GPS_WEBHOOK`, migraciones de suscripción/ledger y endpoints org-scoped para CRUD, test y recompilación.
+
+- **🗂️ Acreditación visible en servicios planificados** *(Integración OSS — MIOT-0.5.22)*
+  - **Key point**: Se muestra el nivel de acreditación de asignaciones en tarjetas/chips de planificación.
+  - **Technical detail**: Se persisten niveles por recurso y se agrega desglose contextual con criterio del nivel más débil asignado.
+
+## 🐛 Correcciones
+
+- **🐛 Regresión de editabilidad en tareas de coordinación de despacho/entrega**
+  - **Impacto**: Tareas no delivery podían quedar con `isEditable` incorrecto tras reasignaciones en tareas hermanas del mismo proceso.
+  - **Solución**: Se acotó el override de reasignación solo a claves de tareas delivery, con constante compartida para evitar desalineación entre cálculo de editabilidad y job de reasignación.
+
+- **🐛 Preguntas de datos en `generic_pg` que caían en fallback de onboarding** *(Integración OSS — MIOT-0.5.22)*
+  - **Impacto**: Consultas válidas en fuentes sin catálogo curado terminaban en respuestas genéricas sin ejecutar exploración agentic.
+  - **Solución**: Se corrigió el enrutamiento para evitar el camino canned no aplicable y derivar a flujo agentic con primitivas de consulta.
+
+- **🐛 Endurecimiento de tenancy en Harness** *(Integración OSS — MIOT-0.5.22)*
+  - **Impacto**: Faltantes de tenant podían derivar en defaults silenciosos o locks inconsistentes, generando rechazos confusos.
+  - **Solución**: Se pasó a fail-fast para tenant faltante y tenant lock no configurado, respetando encabezados inyectados por proxy incluso con auth deshabilitada.
+
+- **🐛 Boot de modulith con configuración de WhatsApp vacía** *(Integración OSS — MIOT-0.5.22)*
+  - **Impacto**: El servicio podía caer al iniciar cuando variables de WhatsApp estaban definidas vacías por entorno.
+  - **Solución**: Se ajustó lectura de configuración opcional para arrancar en modo fail-closed sin bloquear el boot HTTP.
+
+- **🐛 Visibilidad/UI y robustez de mensajería** *(Integración OSS — MIOT-0.5.22)*
+  - **Impacto**: Había superposición de z-index en tooltip de Kanban y previsualizaciones menos claras en plantillas salientes.
+  - **Solución**: Se corrigió jerarquía visual del header y se persistió/renderizó cuerpo de plantillas conocidas para mejorar lectura de conversación.
+
+- **🐛 Resguardo de release train y exposición de costos en cliente** *(Integración OSS — MIOT-0.5.22)*
+  - **Impacto**: El tren de release podía bajar versión de harness y el cliente podía ver costo USD por consulta.
+  - **Solución**: Se tomó la versión de paquete como piso en planificación de release y se ocultó `cost_usd` en salidas cliente, manteniendo telemetría interna.
+
+## 📊 Beneficios
+
+- Mayor continuidad operativa en workflows de entrega con reglas de editabilidad consistentes.
+- Mejor experiencia de búsqueda y navegación asistida en app, con progreso en vivo y menor fricción.
+- Gobernanza de conocimiento semántico con aprobación humana y trazabilidad por tenant/conexión.
+- Comunicación WhatsApp más accionable para operación diaria, con contexto por servicio y ventana de sesión visible.
+- Integraciones GPS más controladas, evitando fan-out indiscriminado y facilitando pruebas por organización.
+- Menor riesgo operativo en despliegues por validaciones explícitas de tenancy/configuración.
+- Mejor higiene de release y confidencialidad al no exponer costos internos al cliente.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.22`
+- **App**: `app@v0.5.22` (con cambios)
+- **Modulith**: `modulith@v0.5.17` (con cambios)
+- **Harness**: `harness@v0.1.2` (con cambios)
+- Los digests exactos de imágenes desplegadas están disponibles en el diálogo in-app de información de build y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.21 combina correcciones críticas de operación con una expansión clara de capacidades en búsqueda asistida, aprendizaje semántico e integración de canales/logística. El resultado es una plataforma más confiable para ejecución diaria y toma de decisiones.
+
+En paralelo, se fortalecen controles de tenancy, configuración y release para reducir fallas silenciosas y mejorar trazabilidad técnica entre servicios.
+
+Con el stack `0.5.22`, ModularIoT queda mejor preparado para escalar automatización asistida y flujos multi-sistema manteniendo control operativo y seguridad de contexto.

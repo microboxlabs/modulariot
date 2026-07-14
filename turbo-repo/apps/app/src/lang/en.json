@@ -31,7 +31,8 @@
         "microsoft": "Continue with Microsoft",
         "microsoft-entra-id": "Continue with Microsoft",
         "saml": "Continue with SSO",
-        "credentials": "Continue with external user"
+        "credentials": "Continue with email and password",
+        "ssoSubmit": "Continue"
       },
       "divider": "o",
       "teamSlug": {
@@ -102,8 +103,13 @@
           "verifyEmail": "Send verification email"
         },
         "createAccountWith": "Create account with",
-        "optionalLabel": "(optional)"
+        "optionalLabel": "(optional)",
+        "link": "Sign up"
       },
+      "credentialsTitle": "Sign in",
+      "credentialsSubtitle": "Enter your email and password to access your account",
+      "ssoTitle": "Sign in with SSO",
+      "ssoSubtitle": "Enter your team identifier to continue",
       "errors": {
         "invalidCredentials": "Access denied. Please verify your credentials and try again.",
         "invalidFromData": "Invalid form data. Please verify your credentials and try again.",
@@ -1299,6 +1305,20 @@
     },
     "userSettings": {
       "organizations": {
+        "title": "Organizations",
+        "description": "Manage organization settings, channels, and GPS webhooks.",
+        "loadError": "Couldn't load your organizations. Check that the local modulith is running and you are signed in.",
+        "empty": "No organizations available for your account.",
+        "loading": "Loading…",
+        "listTitle": "Your organizations",
+        "parentAccount": "Primary account",
+        "noSelection": "Select an organization to view details.",
+        "membersTitle": "Members",
+        "membersDescription": "People with access to this organization.",
+        "membersEmpty": "No members found.",
+        "modulesTitle": "Modules",
+        "modulesDescription": "Enabled product modules for this organization.",
+        "modulesEmpty": "No modules enabled.",
         "whatsappChannel": {
           "title": "WhatsApp Channel",
           "description": "Configure and test the WhatsApp connection used to reach drivers.",
@@ -1356,11 +1376,69 @@
             "testRecipientsRequired": "Add at least one recipient, or turn test mode off"
           },
           "testModeBadge": "Test mode"
+        },
+        "gpsWebhooks": {
+          "title": "GPS webhooks",
+          "description": "Forward validated GPS positions to external systems with filter criteria.",
+          "loadError": "Couldn't load GPS webhook subscriptions.",
+          "empty": "No GPS webhooks configured yet.",
+          "addButton": "Add webhook",
+          "editButton": "Edit",
+          "testButton": "Test",
+          "deleteButton": "Delete",
+          "filterLabel": "Filter",
+          "filter": {
+            "allVisible": "All visible assets",
+            "rules": "Custom rules"
+          },
+          "status": {
+            "enabled": "Enabled",
+            "disabled": "Disabled"
+          },
+          "modal": {
+            "addTitle": "Add GPS webhook",
+            "editTitle": "Edit GPS webhook",
+            "subtitle": "Register a customer URL and choose which position data to forward.",
+            "editSubtitle": "Update the webhook URL or filter criteria.",
+            "defaultName": "GPS webhook",
+            "name": "Name",
+            "url": "Webhook URL",
+            "urlPlaceholder": "https://customer.example/hooks/gps",
+            "enabledLabel": "Enabled",
+            "filterTitle": "Data selection",
+            "filterHelp": "Choose all assets this org can already see, or define rules. Rules combine with AND across filled dimensions.",
+            "filterAllVisible": "All visible assets",
+            "filterRules": "Custom rules",
+            "assetIds": "Asset IDs (trucks)",
+            "carrierIds": "Carrier IDs",
+            "ingestClientIds": "GPS provider accounts (ingest client IDs)",
+            "gpsProviders": "Device vendors (telecom gps_provider)",
+            "owners": "Owners",
+            "listPlaceholder": "One value per line (or comma-separated)",
+            "cancel": "Cancel",
+            "saving": "Saving...",
+            "createButton": "Create",
+            "saveButton": "Save"
+          },
+          "toast": {
+            "created": "GPS webhook created",
+            "updated": "GPS webhook updated",
+            "deleted": "GPS webhook deleted",
+            "testSuccess": "Webhook test successful",
+            "testFailed": "Webhook test failed",
+            "error": "Something went wrong"
+          },
+          "validation": {
+            "nameRequired": "Name is required",
+            "urlInvalid": "Enter a valid URL",
+            "rulesRequired": "Add at least one filter dimension, or choose all visible assets"
+          }
         }
       },
       "breadcrumb": {
         "user": "User",
         "settings": "Settings",
+        "organizations": "Organizations",
         "dataSources": "Data Sources"
       },
       "symptoms": {
@@ -1371,6 +1449,21 @@
         }
       },
       "dataSources": {
+        "learnedKnowledge": {
+          "title": "Learned knowledge",
+          "description": "Business definitions the assistant learned from your questions. Approve them so it uses them in future answers.",
+          "empty": "No knowledge pending review.",
+          "error": "Couldn't load learned knowledge.",
+          "retry": "Retry",
+          "approve": "Approve",
+          "reject": "Dismiss",
+          "toast": {
+            "approved": "\"{term}\" approved and applied.",
+            "approvedNotApplied": "\"{term}\" approved, but not applied yet. Retry later.",
+            "rejected": "\"{term}\" dismissed.",
+            "reviewError": "Couldn't complete the review."
+          }
+        },
         "title": "Data Sources",
         "description": "Manage your data sources connections.",
         "addButton": "Add Data Source",
@@ -4103,5 +4196,52 @@
     "expired": "This link has expired",
     "error": "Something went wrong. Please try again later.",
     "invalid": "This link is not valid"
+  },
+  "spotlight": {
+    "elicit": {
+      "prompt": "I read \"{term}\" as {interpretation}. Is that right?",
+      "remember": "Yes, remember",
+      "dismiss": "No",
+      "saved": "I'll remember \"{term}\".",
+      "error": "Couldn't save. Try again."
+    },
+    "placeholder": "Ask, build or navigate",
+    "sections": {
+      "ask": "Ask",
+      "build": "Build",
+      "navigate": "Navigate"
+    },
+    "navigate": {
+      "heading": "Go to",
+      "triggers": "goto,go to,navigate,open"
+    },
+    "recent": "Recent",
+    "ask": {
+      "heading": "Ask",
+      "triggers": "ask,question,help"
+    },
+    "build": {
+      "heading": "Build",
+      "triggers": "build,create,scaffold"
+    },
+    "harnessEmpty": "No answer found, please try again!",
+    "progress": {
+      "connecting": "Searching…",
+      "routing": "Understanding your question…",
+      "exploring": "Querying the data…",
+      "verifying": "Verifying the answer…",
+      "answering": "Writing the answer…",
+      "tools": {
+        "query": "Querying the database",
+        "select": "Reading records",
+        "grep": "Searching for matches",
+        "describe": "Inspecting the schema",
+        "list_tables": "Exploring tables",
+        "knowledge": "Reading the domain guide",
+        "explain": "Analyzing the query plan"
+      }
+    },
+    "harnessError": "Something went wrong while searching.",
+    "harnessRetry": "Retry"
   }
 }

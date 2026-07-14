@@ -1,6 +1,23 @@
 import { Label, TextInput, Checkbox, Button } from "flowbite-react";
 import Link from "next/link";
 import { LoginDivider } from "../login-divider";
+<<<<<<< HEAD
+=======
+import { RegisterLink } from "../register-link";
+
+// Matches the light-bordered look of the provider buttons on the main view
+// (border-gray-200/bg-white) instead of flowbite's default gray-50 fill,
+// so the credentials form reads as part of the same card.
+export const inputTheme = {
+  field: {
+    input: {
+      colors: {
+        gray: "border-gray-200 bg-white text-gray-900 placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400 dark:focus:border-primary-500 dark:focus:ring-primary-500",
+      },
+    },
+  },
+};
+>>>>>>> 9a0469cfa860d416975dab544742f87aa40656d1
 
 export default function SignIn({
   msg,
@@ -10,6 +27,7 @@ export default function SignIn({
   onSubmitForm,
   getMessages,
   setShowLogin,
+  showRegisterLink,
 }: {
   msg: any;
   register: any;
@@ -18,9 +36,10 @@ export default function SignIn({
   onSubmitForm: any;
   getMessages: any;
   setShowLogin: any;
+  showRegisterLink: boolean;
 }) {
   return (
-    <div className="mt-8 space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col gap-y-2">
         <Label htmlFor="email">{msg.emailLabel}</Label>
         <TextInput
@@ -28,6 +47,7 @@ export default function SignIn({
           /* name="email" */
           placeholder={msg.emailPlaceHolder}
           type="text"
+          theme={inputTheme}
           className={
             _state && _state.dataErrors?.email
               ? "animate-pulse border-2 border-rose-500"
@@ -43,6 +63,7 @@ export default function SignIn({
           /* name="password" */
           placeholder="••••••••"
           type="password"
+          theme={inputTheme}
           className={
             _state && _state.dataErrors?.password
               ? "animate-pulse border-2 border-rose-500"
@@ -51,25 +72,26 @@ export default function SignIn({
           {...register("password")}
         />
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-x-3">
-          <Checkbox id="rememberMe" name="rememberMe" />
-          <Label htmlFor="rememberMe">{msg.rememberMeLabel}</Label>
-        </div>
-        <Link
-          href="#"
-          className="text-right text-sm text-primary-700 hover:underline dark:text-primary-500 text-blue-700"
-        >
-          {msg.forgotPasswordLabel}
-        </Link>
-      </div>
-      {_state?.message && !_state?.success && (
-        <div className="text-red-500 mb-4">{getMessages(_state.message)}</div>
-      )}
+      
       {/* <div>
   {_state && _state.dataErrors && JSON.stringify(_state.dataErrors)}
 </div> */}
-      <div className="">
+      <div className="flex flex-col gap-y-2">
+          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-x-3">
+            <Checkbox id="rememberMe" name="rememberMe" />
+            <Label htmlFor="rememberMe" className="font-light">{msg.rememberMeLabel}</Label>
+          </div>
+          <Link
+            href="#"
+            className="text-right text-sm text-blue-700 hover:underline dark:text-blue-400"
+          >
+            {msg.forgotPasswordLabel}
+          </Link>
+        </div>
+        {_state?.message && !_state?.success && (
+          <div className="text-red-500 mb-4">{getMessages(_state.message)}</div>
+        )}
         <Button
           color="blue"
           className="w-full px-0 py-px submit px-5 py-3"
@@ -83,11 +105,20 @@ export default function SignIn({
           <LoginDivider text="o" />
           <a
             href="#"
+<<<<<<< HEAD
             className="text-center hover:underline cursor-pointer text-blue-700 text-sm"
+=======
+            className="text-center hover:underline cursor-pointer text-blue-700 dark:text-blue-400 text-sm"
+>>>>>>> 9a0469cfa860d416975dab544742f87aa40656d1
             onClick={() => setShowLogin(false)}
           >
             {msg.buttonContinueWithMicrosoft}
           </a>
+          <RegisterLink
+            prompt={msg.requestAccessPrompt}
+            label={msg.requestAccessLink}
+            enabled={showRegisterLink}
+          />
         </div>
       </div>
     </div>

@@ -20,14 +20,13 @@ type AuthPageShellProps = PropsWithChildren<{
 export default function AuthPageShell({
   orgLogoUrl,
   footerMessages,
-  maxWidthClassName = "md:max-w-lg",
   children,
 }: Readonly<AuthPageShellProps>) {
   return (
-    <div className="mx-auto flex flex-col px-6 pt-8 md:h-screen">
+    <div className="mx-auto flex flex-col md:h-screen bg-gray-50 dark:bg-gray-900">
       <NavbarSignIn orgLogoUrl={orgLogoUrl} />
       <div className="flex flex-1 flex-col items-center justify-center">
-        <div className={`w-full ${maxWidthClassName}`}>{children}</div>
+        <div className="w-full md:max-w-lg">{children}</div>
       </div>
       <FooterSignIn messages={footerMessages} />
     </div>

@@ -38,7 +38,8 @@
       "Bash(curl -s \"http://localhost:3050/app/_next/static/chunks/apps_app_0rqeker._.js\" -o /tmp/appchunk.js)",
       "Bash(curl -sI \"http://localhost:3050/app/_next/static/chunks/apps_app_src_app_globals_0c3y6.x.css\")",
       "Bash(curl -s \"http://localhost:3050/app/_next/static/chunks/apps_app_src_app_globals_0c3y6.x.css\" -o /tmp/globals-live3.css)",
-      "Bash(sed -n '555,570p' /tmp/globals-live3.css)"
+      "Bash(sed -n '555,570p' /tmp/globals-live3.css)",
+      "Bash(gh pr *)"
     ],
     "additionalDirectories": [
       "/Users/khalz/Desktop/development/modulariot-896-redefine-login/turbo-repo/apps/app/src/app/[lang]/register",

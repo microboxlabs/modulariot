@@ -23,7 +23,7 @@ export default function RegisterProgress({
   return (
     <div
       className={twMerge(
-        "h-1.5 w-full overflow-hidden bg-gray-100 dark:bg-gray-800",
+        "h-0.5 w-full overflow-hidden bg-gray-100 dark:bg-gray-800",
         roundedClass,
         className
       )}

@@ -44,14 +44,22 @@ export type RegisterFormMessages = {
   teamNamePlaceholder: string;
   /** Suffix shown next to the team name label, e.g. "(SSO)" */
   teamNameSsoLabel: string;
+  /** Tooltip shown on hover over the invalid-state (X) icon, explaining the slug format rule */
+  teamNameInvalidMessage: string;
   organizationLocationLabel: string;
   /** Shown in the location dropdown's trigger button before a country is picked */
   organizationLocationPlaceholder: string;
+  /** Shown in the location dropdown when no country matches the typed search text */
+  organizationLocationNoResults: string;
   organizationPhoneLabel: string;
   organizationPhonePlaceholder: string;
   organizationSizeLabel: string;
   industryLabel: string;
+  /** Placeholder for the free-text field shown when the "Otro" industry badge is selected */
+  industryOtherPlaceholder: string;
   monitoringInterestLabel: string;
+  /** Placeholder for the free-text field shown when the "Otros" monitoring-interest badge is selected */
+  monitoringInterestOtherPlaceholder: string;
   /** Suffix shown next to optional field labels, e.g. "(optional)" */
   optionalLabel: string;
 
@@ -67,8 +75,6 @@ export type RegisterFormMessages = {
   fullNamePlaceholder: string;
   emailLabel: string;
   emailPlaceholder: string;
-  phoneLabel: string;
-  phonePlaceholder: string;
 
   /** Main heading while on the verification step */
   stepVerificationTitle: string;

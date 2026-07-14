@@ -75,6 +75,7 @@
     "react-icons": "^5.5.0",
     "react-map-gl": "^7.1.8",
     "react-markdown": "^10.1.0",
+    "react-phone-number-input": "^3.4.17",
     "react-sortablejs": "^6.1.4",
     "server-only": "^0.0.1",
     "sharp": "^0.33.4",

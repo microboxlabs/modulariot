@@ -4,7 +4,6 @@ import type { RegisterFormMessages } from "./form-sign-in.types";
 import type { RegisterSchema } from "./register-form.schema";
 import { LoginButton } from "../login-button";
 import { LoginDivider } from "../login-divider";
-import PhoneInput from "./phone-input";
 import type { AuthProviderConfig } from "@/features/auth/config/auth-providers.types";
 
 // Static — the register wizard isn't wired to a live OAuth flow yet, this
@@ -36,8 +35,8 @@ export default function RegisterStepProfile({
 
       <LoginDivider text={msg.dividerText} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-y-2 sm:col-span-2">
+      <div className="flex flex-col gap-y-4">
+        <div className="flex flex-col gap-y-2">
           <Label htmlFor="full-name">{msg.fullNameLabel}</Label>
           <TextInput
             id="full-name"
@@ -53,14 +52,6 @@ export default function RegisterStepProfile({
             placeholder={msg.emailPlaceholder}
             type="text"
             {...register("email")}
-          />
-        </div>
-        <div className="flex flex-col gap-y-2">
-          <Label htmlFor="phone">{msg.phoneLabel}</Label>
-          <PhoneInput
-            id="phone"
-            placeholder={msg.phonePlaceholder}
-            {...register("phone")}
           />
         </div>
       </div>

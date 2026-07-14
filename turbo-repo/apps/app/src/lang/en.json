@@ -68,32 +68,32 @@
           "teamName": {
             "label": "Team name",
             "placeholder": "your-team-name",
-            "sso": "(SSO)"
+            "sso": "(SSO)",
+            "invalid": "Only lowercase letters, numbers, and single hyphens between words. No spaces, uppercase, symbols, or leading/trailing hyphens."
           },
           "organizationLocation": {
             "label": "Location",
-            "placeholder": "country"
+            "placeholder": "country",
+            "noResults": "No countries found"
           },
           "organizationPhone": {
             "label": "Phone number",
-            "placeholder": "Organization's phone number"
+            "placeholder": "Phone"
           },
           "organizationSize": {
             "label": "Organization size"
           },
           "industry": {
-            "label": "What does it do?"
+            "label": "What does it do?",
+            "otherPlaceholder": "Please specify"
           },
           "monitoringInterest": {
-            "label": "What do you want to monitor?"
+            "label": "What do you want to monitor?",
+            "otherPlaceholder": "Please specify"
           },
           "fullName": {
             "label": "Full name",
             "placeholder": "Your full name"
-          },
-          "phone": {
-            "label": "Phone number",
-            "placeholder": "Your phone number"
           }
         },
         "buttons": {

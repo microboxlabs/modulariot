@@ -16,6 +16,8 @@ export const INDUSTRIES = [
   "Otro",
 ] as const;
 export type Industry = (typeof INDUSTRIES)[number];
+/** Selecting this badge reveals a free-text field to specify what it means. */
+export const INDUSTRY_OTHER: Industry = "Otro";
 
 export const MONITORING_INTERESTS = [
   "Flota / GPS",
@@ -25,3 +27,5 @@ export const MONITORING_INTERESTS = [
   "Otros",
 ] as const;
 export type MonitoringInterest = (typeof MONITORING_INTERESTS)[number];
+/** Selecting this badge reveals a free-text field to specify what it means. */
+export const MONITORING_INTEREST_OTHER: MonitoringInterest = "Otros";

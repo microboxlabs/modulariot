@@ -7,6 +7,9 @@ import type { RegisterFormMessages } from "./form-sign-in.types";
 // Classic Gmail palette, used as a blurred backdrop on this last screen —
 // the only step with no form fields, so it needed something to fill the
 // space besides a line of text. Each blob just fades in from invisible.
+// Rendered by the parent (register-form.tsx) over the whole upper section,
+// not just this component's own box, so the colors bleed to the section's
+// edges instead of sitting inside a padded card.
 const BLOBS = [
   { color: "#FBBC05", className: "-right-8 -bottom-12 h-32 w-32", delay: 0 },
   { color: "#EA4335", className: "-left-10 -top-16 h-40 w-40", delay: 0.1 },
@@ -15,6 +18,23 @@ const BLOBS = [
 ] as const;
 
 const BLOB_OPACITY = 0.22;
+
+export function RegisterVerificationBackdrop() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden bg-gray-50 dark:bg-gray-900/40">
+      {BLOBS.map((blob) => (
+        <motion.span
+          key={blob.color}
+          className={`absolute rounded-full blur-3xl ${blob.className}`}
+          style={{ backgroundColor: blob.color }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: BLOB_OPACITY }}
+          transition={{ duration: 1, ease: "easeInOut", delay: blob.delay }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function RegisterStepVerification({
   msg,
@@ -27,24 +47,11 @@ export default function RegisterStepVerification({
   const [before, after] = msg.verificationMessage.split("{email}");
 
   return (
-    <div className="relative flex flex-col items-center gap-4 overflow-hidden rounded-2xl bg-gray-50 px-6 py-12 text-center dark:bg-gray-900/40">
-      <div className="pointer-events-none absolute inset-0">
-        {BLOBS.map((blob) => (
-          <motion.span
-            key={blob.color}
-            className={`absolute rounded-full blur-3xl ${blob.className}`}
-            style={{ backgroundColor: blob.color }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: BLOB_OPACITY }}
-            transition={{ duration: 1, ease: "easeInOut", delay: blob.delay }}
-          />
-        ))}
-      </div>
-
-      <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-white text-blue-700 shadow-sm dark:bg-gray-800 dark:text-blue-400">
+    <div className="relative flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-blue-700 shadow-sm dark:bg-gray-800 dark:text-blue-400">
         <HiOutlineEnvelope className="h-7 w-7" />
       </span>
-      <p className="relative max-w-sm text-sm text-gray-600 dark:text-gray-300">
+      <p className="max-w-sm text-sm text-gray-600 dark:text-gray-300">
         {before}
         {email && (
           <span className="font-medium text-gray-900 dark:text-white">

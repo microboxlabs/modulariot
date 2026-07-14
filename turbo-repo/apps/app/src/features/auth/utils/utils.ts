@@ -47,11 +47,17 @@ export function buildRegisterFormMessages({
     teamNameLabel: dict("pages.login.register.fields.teamName.label"),
     teamNamePlaceholder: dict("pages.login.register.fields.teamName.placeholder"),
     teamNameSsoLabel: dict("pages.login.register.fields.teamName.sso"),
+    teamNameInvalidMessage: dict(
+      "pages.login.register.fields.teamName.invalid"
+    ),
     organizationLocationLabel: dict(
       "pages.login.register.fields.organizationLocation.label"
     ),
     organizationLocationPlaceholder: dict(
       "pages.login.register.fields.organizationLocation.placeholder"
+    ),
+    organizationLocationNoResults: dict(
+      "pages.login.register.fields.organizationLocation.noResults"
     ),
     organizationPhoneLabel: dict(
       "pages.login.register.fields.organizationPhone.label"
@@ -63,8 +69,14 @@ export function buildRegisterFormMessages({
       "pages.login.register.fields.organizationSize.label"
     ),
     industryLabel: dict("pages.login.register.fields.industry.label"),
+    industryOtherPlaceholder: dict(
+      "pages.login.register.fields.industry.otherPlaceholder"
+    ),
     monitoringInterestLabel: dict(
       "pages.login.register.fields.monitoringInterest.label"
+    ),
+    monitoringInterestOtherPlaceholder: dict(
+      "pages.login.register.fields.monitoringInterest.otherPlaceholder"
     ),
     optionalLabel: dict("pages.login.register.optionalLabel"),
 
@@ -76,8 +88,6 @@ export function buildRegisterFormMessages({
     fullNamePlaceholder: dict("pages.login.register.fields.fullName.placeholder"),
     emailLabel: dict("pages.login.fields.email.label"),
     emailPlaceholder: dict("pages.login.fields.email.placeholder"),
-    phoneLabel: dict("pages.login.register.fields.phone.label"),
-    phonePlaceholder: dict("pages.login.register.fields.phone.placeholder"),
 
     stepVerificationTitle: dict("pages.login.register.steps.verification.title"),
     verificationMessage: dict("pages.login.register.steps.verification.message"),

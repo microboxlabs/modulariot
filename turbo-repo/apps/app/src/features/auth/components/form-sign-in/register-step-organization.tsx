@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ComponentProps } from "react";
-import { Label, TextInput, Dropdown, DropdownItem } from "flowbite-react";
+import { Label, TextInput, Tooltip } from "flowbite-react";
+import Markdown from "react-markdown";
 import { Controller } from "react-hook-form";
 import type {
   Control,
@@ -10,8 +10,11 @@ import type {
   UseFormSetValue,
   UseFormWatch,
 } from "react-hook-form";
-import { HiChevronDown, HiCheckCircle, HiXCircle } from "react-icons/hi2";
-import { twMerge } from "tailwind-merge";
+import {
+  CheckCircle,
+  ErrorCircle,
+} from "@/features/task-forms/components/task-bento-form/components/driver/driver-validations";
+import { MARKDOWN_COMPONENTS } from "@/features/dashboard/dashlets/common/settings-fields";
 import type { RegisterFormMessages } from "./form-sign-in.types";
 import {
   TEAM_NAME_REGEX,
@@ -19,13 +22,16 @@ import {
 } from "./register-form.schema";
 import BadgeSelectGroup from "./badge-select-group";
 import BadgeMultiSelectGroup from "./badge-multi-select-group";
+import CountryCombobox from "./country-combobox";
 import PhoneInput from "./phone-input";
 import {
   ORGANIZATION_SIZES,
   INDUSTRIES,
+  INDUSTRY_OTHER,
   MONITORING_INTERESTS,
+  MONITORING_INTEREST_OTHER,
 } from "@/features/auth/constants/register-options.constants";
-import { COUNTRIES } from "@/features/auth/constants/countries.constants";
+import { countryNameToCode } from "@/features/auth/utils/country-name-to-code";
 
 /** Lowercases and hyphenates free text into a team-name-shaped slug. */
 function slugify(value: string) {
@@ -53,6 +59,16 @@ export default function RegisterStepOrganization({
   const teamName = watch("teamName");
   const isTeamNameValid = TEAM_NAME_REGEX.test(teamName || "");
 
+  // Suggests the phone field's country from the location just picked above
+  // it — e.g. picking "Chile" defaults the phone to +56. It's only a
+  // starting point: react-phone-number-input won't reapply this once the
+  // user has explicitly chosen a country of their own on the phone field,
+  // or has started typing a number.
+  const organizationLocation = watch("organizationLocation");
+  const organizationPhoneDefaultCountry = organizationLocation
+    ? countryNameToCode(organizationLocation)
+    : undefined;
+
   // Live-syncs the team name from the organization name on every keystroke,
   // until the user types into the team name field themselves — at that
   // point we stop touching it for good, even if they clear it back to empty.
@@ -68,11 +84,24 @@ export default function RegisterStepOrganization({
 
   const teamNameField = register("teamName");
 
-  function TeamNameIcon(props: ComponentProps<"svg">) {
-    return isTeamNameValid ? (
-      <HiCheckCircle {...props} className={twMerge(props.className, "text-green-500")} />
-    ) : (
-      <HiXCircle {...props} className={twMerge(props.className, "text-red-500")} />
+  // Reuses the same green-check/red-X circle used for driver validation
+  // status elsewhere in the app, instead of a one-off icon. The X gets a
+  // tooltip since "invalid" alone doesn't tell the user what to fix.
+  function TeamNameIcon() {
+    if (isTeamNameValid) return <CheckCircle />;
+    return (
+      <Tooltip
+        content={
+          <div className="max-w-64 text-left text-xs">
+            <Markdown components={MARKDOWN_COMPONENTS}>
+              {msg.teamNameInvalidMessage}
+            </Markdown>
+          </div>
+        }
+        style="auto"
+      >
+        <ErrorCircle />
+      </Tooltip>
     );
   }
 
@@ -95,17 +124,31 @@ export default function RegisterStepOrganization({
             {msg.teamNameSsoLabel}
           </span>
         </Label>
-        <TextInput
-          id="team-name"
-          placeholder={msg.teamNamePlaceholder}
-          type="text"
-          rightIcon={teamName ? TeamNameIcon : undefined}
-          {...teamNameField}
-          onChange={(e) => {
-            setTeamNameEdited(true);
-            teamNameField.onChange(e);
-          }}
-        />
+        <div className="relative">
+          {/* Not TextInput's `rightIcon` prop: that slot is hardcoded
+              `pointer-events-none` (it's normally decoration-only), which
+              would block hover from ever reaching the invalid-state
+              tooltip below. flowbite-react's theme overrides only add
+              classes, they can't strip an existing one, so there's no way
+              to unset that through the `theme` prop either — positioning
+              the icon manually is the only way to keep it hoverable. */}
+          <TextInput
+            id="team-name"
+            placeholder={msg.teamNamePlaceholder}
+            type="text"
+            theme={{ field: { input: { base: "pr-10" } } }}
+            {...teamNameField}
+            onChange={(e) => {
+              setTeamNameEdited(true);
+              teamNameField.onChange(e);
+            }}
+          />
+          {teamName && (
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+              <TeamNameIcon />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -115,31 +158,13 @@ export default function RegisterStepOrganization({
             name="organizationLocation"
             control={control}
             render={({ field }) => (
-              <Dropdown
-                label=""
-                dismissOnClick
-                renderTrigger={() => (
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-left text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                  >
-                    <span className={field.value ? "" : "text-gray-400"}>
-                      {field.value || msg.organizationLocationPlaceholder}
-                    </span>
-                    <HiChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
-                  </button>
-                )}
-                className="max-h-64 overflow-y-auto"
-              >
-                {COUNTRIES.map((country) => (
-                  <DropdownItem
-                    key={country}
-                    onClick={() => field.onChange(country)}
-                  >
-                    {country}
-                  </DropdownItem>
-                ))}
-              </Dropdown>
+              <CountryCombobox
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                placeholder={msg.organizationLocationPlaceholder}
+                noResultsLabel={msg.organizationLocationNoResults}
+              />
             )}
           />
         </div>
@@ -150,10 +175,20 @@ export default function RegisterStepOrganization({
               {msg.optionalLabel}
             </span>
           </Label>
-          <PhoneInput
-            id="organization-phone"
-            placeholder={msg.organizationPhonePlaceholder}
-            {...register("organizationPhone")}
+          <Controller
+            name="organizationPhone"
+            control={control}
+            render={({ field }) => (
+              <PhoneInput
+                id="organization-phone"
+                name={field.name}
+                placeholder={msg.organizationPhonePlaceholder}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                defaultCountry={organizationPhoneDefaultCountry}
+              />
+            )}
           />
         </div>
       </div>
@@ -180,11 +215,21 @@ export default function RegisterStepOrganization({
           name="industry"
           control={control}
           render={({ field }) => (
-            <BadgeSelectGroup
-              name={msg.industryLabel}
-              options={INDUSTRIES}
-              value={field.value}
-              onChange={field.onChange}
+            <Controller
+              name="industryOtherDetail"
+              control={control}
+              render={({ field: otherField }) => (
+                <BadgeSelectGroup
+                  name={msg.industryLabel}
+                  options={INDUSTRIES}
+                  value={field.value}
+                  onChange={field.onChange}
+                  otherOption={INDUSTRY_OTHER}
+                  otherValue={otherField.value}
+                  onOtherValueChange={otherField.onChange}
+                  otherPlaceholder={msg.industryOtherPlaceholder}
+                />
+              )}
             />
           )}
         />
@@ -201,11 +246,21 @@ export default function RegisterStepOrganization({
           name="monitoringInterest"
           control={control}
           render={({ field }) => (
-            <BadgeMultiSelectGroup
-              name={msg.monitoringInterestLabel}
-              options={MONITORING_INTERESTS}
-              value={field.value}
-              onChange={field.onChange}
+            <Controller
+              name="monitoringInterestOtherDetail"
+              control={control}
+              render={({ field: otherField }) => (
+                <BadgeMultiSelectGroup
+                  name={msg.monitoringInterestLabel}
+                  options={MONITORING_INTERESTS}
+                  value={field.value}
+                  onChange={field.onChange}
+                  otherOption={MONITORING_INTEREST_OTHER}
+                  otherValue={otherField.value}
+                  onOtherValueChange={otherField.onChange}
+                  otherPlaceholder={msg.monitoringInterestOtherPlaceholder}
+                />
+              )}
             />
           )}
         />

@@ -8,11 +8,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "motion/react";
 import { HiArrowLeft, HiArrowRight } from "react-icons/hi2";
 import type { RegisterFormMessages } from "./form-sign-in.types";
-import { registerSchema, type RegisterSchema } from "./register-form.schema";
+import {
+  registerSchema,
+  organizationStepSchema,
+  profileStepSchema,
+  type RegisterSchema,
+} from "./register-form.schema";
 import RegisterProgress from "./register-progress";
 import RegisterStepOrganization from "./register-step-organization";
 import RegisterStepProfile from "./register-step-profile";
-import RegisterStepVerification from "./register-step-verification";
+import RegisterStepVerification, {
+  RegisterVerificationBackdrop,
+} from "./register-step-verification";
 
 type RegisterStep = "organization" | "profile" | "verification";
 
@@ -80,6 +87,23 @@ export default function RegisterForm({
     mode: "onBlur",
   });
 
+  // Gates the "Next"/"Ver correo" buttons: only the fields required on a
+  // given step (i.e. not labeled "opcional") have to be filled in — optional
+  // fields don't block progress, matching what the UI actually marks as
+  // required.
+  const formValues = watch();
+  function isStepValid(s: RegisterStep) {
+    if (s === "organization") {
+      return organizationStepSchema.safeParse(formValues).success;
+    }
+    if (s === "profile") {
+      return profileStepSchema.safeParse(formValues).success;
+    }
+    return true;
+  }
+  const isCurrentStepValid = isStepValid(step);
+  const canVerifyEmail = flow.slice(0, -1).every(isStepValid);
+
   // Verification has no subtitle here: its one description lives in the
   // panel below (RegisterStepVerification), so it isn't shown twice.
   const stepHeaderByStep: Record<RegisterStep, { title: string; subtitle?: string }> = {
@@ -105,62 +129,57 @@ export default function RegisterForm({
     goToStep(prevStep);
   }
 
+  const isVerification = step === "verification";
+
   return (
     <div className="flex w-full flex-col">
-      <div className="p-6 sm:p-8 lg:p-10">
-        <motion.div
-          layout
-          transition={{ layout: { duration: 0.3, ease: "easeInOut" } }}
-          className="overflow-hidden"
-        >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={step}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="mb-6"
-            >
-              <h2 className="text-2xl font-bold text-gray-900 lg:text-3xl dark:text-white">
-                {header.title}
-              </h2>
-              {header.subtitle && (
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {header.subtitle}
-                </p>
-              )}
-            </motion.div>
-          </AnimatePresence>
+      <div className="relative overflow-hidden p-6 sm:p-8 lg:p-10">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={step}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className={
+              isVerification
+                ? "relative -m-6 overflow-hidden sm:-m-8 lg:-m-10"
+                : undefined
+            }
+          >
+            {isVerification && <RegisterVerificationBackdrop />}
+            {!isVerification && (
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 lg:text-3xl dark:text-white">
+                  {header.title}
+                </h2>
+                {header.subtitle && (
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {header.subtitle}
+                  </p>
+                )}
+              </div>
+            )}
 
-          <form onSubmit={(e) => e.preventDefault()}>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={step}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                {step === "organization" && (
-                  <RegisterStepOrganization
-                    msg={msg}
-                    register={register}
-                    control={control}
-                    watch={watch}
-                    setValue={setValue}
-                  />
-                )}
-                {step === "profile" && (
-                  <RegisterStepProfile msg={msg} register={register} />
-                )}
-                {step === "verification" && (
-                  <RegisterStepVerification msg={msg} email={watch("email")} />
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </form>
-        </motion.div>
+            <form onSubmit={(e) => e.preventDefault()} autoComplete="off">
+              {step === "organization" && (
+                <RegisterStepOrganization
+                  msg={msg}
+                  register={register}
+                  control={control}
+                  watch={watch}
+                  setValue={setValue}
+                />
+              )}
+              {step === "profile" && (
+                <RegisterStepProfile msg={msg} register={register} />
+              )}
+              {step === "verification" && (
+                <RegisterStepVerification msg={msg} email={watch("email")} />
+              )}
+            </form>
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <div className="rounded-b-2xl bg-gray-50 dark:bg-gray-900/40">
@@ -176,7 +195,7 @@ export default function RegisterForm({
             size="sm"
             type="button"
             onClick={handleBack}
-            className={BUTTON_SHAPE}
+            className={`w-1/3 ${BUTTON_SHAPE}`}
           >
             <span className="flex items-center gap-1.5">
               <HiArrowLeft className="h-3.5 w-3.5" />
@@ -188,7 +207,8 @@ export default function RegisterForm({
               color="blue"
               size="sm"
               type="button"
-              className={BUTTON_SHAPE}
+              disabled={!canVerifyEmail}
+              className={`w-2/3 ${BUTTON_SHAPE}`}
             >
               {msg.verifyEmailLabel}
             </Button>
@@ -197,8 +217,9 @@ export default function RegisterForm({
               color="blue"
               size="sm"
               type="button"
+              disabled={!isCurrentStepValid}
               onClick={() => goToStep(nextStep)}
-              className={BUTTON_SHAPE}
+              className={`w-2/3 ${BUTTON_SHAPE}`}
             >
               <span className="flex items-center gap-1.5">
                 {msg.nextLabel}

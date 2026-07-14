@@ -68,32 +68,32 @@
           "teamName": {
             "label": "Nombre del equipo",
             "placeholder": "tu-equipo",
-            "sso": "(SSO)"
+            "sso": "(SSO)",
+            "invalid": "Solo minúsculas, números y guiones simples entre palabras. Sin espacios, mayúsculas, símbolos ni guiones al inicio o final."
           },
           "organizationLocation": {
             "label": "Ubicación",
-            "placeholder": "País"
+            "placeholder": "País",
+            "noResults": "No se encontraron países"
           },
           "organizationPhone": {
             "label": "Número de teléfono",
-            "placeholder": "Teléfono de la empresa"
+            "placeholder": "Teléfono"
           },
           "organizationSize": {
             "label": "Tamaño de la empresa"
           },
           "industry": {
-            "label": "¿A qué se dedica?"
+            "label": "¿A qué se dedica?",
+            "otherPlaceholder": "Especifica cuál"
           },
           "monitoringInterest": {
-            "label": "¿Qué deseas monitorear?"
+            "label": "¿Qué deseas monitorear?",
+            "otherPlaceholder": "Especifica qué"
           },
           "fullName": {
             "label": "Nombre completo",
             "placeholder": "Tu nombre completo"
-          },
-          "phone": {
-            "label": "Número de teléfono",
-            "placeholder": "Tu número de teléfono"
           }
         },
         "buttons": {

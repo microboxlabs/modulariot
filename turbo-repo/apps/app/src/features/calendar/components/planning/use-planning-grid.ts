@@ -59,6 +59,9 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     inspectPlannedService,
     isChipSelected,
     clearChipSelection,
+    isItemHighlighted,
+    isItemDimmed,
+    focusedItemId,
     andenesCount,
   } = usePlanningSelection();
 
@@ -214,6 +217,12 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
 
     // Predicate the chip uses to render its right-click highlight ring.
     isChipSelected,
+
+    // Search highlight: which chips matched, which missed, and which one the
+    // match navigator is parked on.
+    isItemHighlighted,
+    isItemDimmed,
+    focusedItemId,
 
     // Service actions (context menu, delete modals). Spread first, then
     // override the open/close handlers with the wrapped versions that also

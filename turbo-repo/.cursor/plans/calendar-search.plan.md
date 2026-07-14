@@ -129,6 +129,24 @@ sidebar state and the bookings cache are all lost. So there is **no in-memory ch
 across the jump**: the highlight target must ride in the URL and be applied *after*
 `loadBookings` resolves.
 
+## Status (branch `feat/calendar-search`)
+
+P0–P3 are **implemented and committed**. Gates green at each step: `check-types`,
+722 vitest tests, and `next build`.
+
+**Not yet driven in a browser.** No runtime verification against a live backend —
+the logic is unit-tested (37 new tests) but nobody has watched a chip light up.
+
+Corrections made while building, worth remembering:
+- The search window is anchored on **today**, not the viewed date. Anchoring it on
+  `?date=` (as originally planned, mirroring the grid) is a **feedback loop**:
+  jumping to a match rewrites `?date=` → moves the window → refetches → can change
+  the match set → bounces the navigator. Today is stable; stepping never refetches.
+- `driver`/`carrier` params were dropped — the booking blob stores resource UUIDs,
+  not RUTs (see below).
+- The filter-bar registry key is the synthetic `calendar-planning`, not `calendar`,
+  or the bare `/calendar` landing page would grow a filter bar.
+
 ## Phases
 
 Work one phase at a time. Each ships independently.

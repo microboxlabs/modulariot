@@ -1,13 +1,15 @@
 import type { SelectedService } from "@/features/calendar/components/planning/planning-selection-types";
 
 /**
- * How far either side of the viewed date the search sweeps, in days.
+ * How far either side of **today** the search sweeps, in days.
  *
- * Deliberately the same window the grid already loads for a single calendar
+ * Sized to match the window the grid already loads for one calendar
  * (planning-selection-wrapper's bookingsRange) — search just sweeps it across
- * every calendar instead of one. Matching the grid keeps the payload a known
- * multiple of a cost the product already accepts, rather than a guess at the
- * planning horizon.
+ * every calendar instead of one, so the payload is a known multiple of a cost
+ * the product already accepts rather than a guess at the planning horizon.
+ *
+ * Anchored on today rather than the viewed date so the window holds still while
+ * the user steps through matches; see the rationale in use-calendar-search.
  *
  * The cost of that choice: a service planned outside this window is not found.
  * Widening it is a one-line change here, but the honest fix is a server-side

@@ -59,16 +59,22 @@ export function useCalendarSearch(): CalendarSearchResult {
   );
   const active = isCalendarSearchActive(params);
 
-  // Anchored on the viewed date, mirroring the grid's own booking range.
+  // Anchored on TODAY, not on the viewed date — deliberately, and load-bearing.
+  //
+  // The grid anchors its range on `?date=` because it must load what you are
+  // looking at. If the search did the same, stepping to a match would rewrite
+  // `?date=`, which would move the window, which would refetch a different set
+  // of bookings, which could change the matches and bounce the navigator to a
+  // different one — a feedback loop with itself. Anchoring on today makes the
+  // window stand still while you travel through it: one fetch per search, and
+  // stepping through matches never refetches.
   const range = useMemo(() => {
-    const anchor = parseUrlDate(searchParams.get("date")) ?? dayjs();
+    const today = dayjs().startOf("day");
     return {
-      startDate: anchor
-        .subtract(SEARCH_WINDOW_DAYS, "day")
-        .format("YYYY-MM-DD"),
-      endDate: anchor.add(SEARCH_WINDOW_DAYS, "day").format("YYYY-MM-DD"),
+      startDate: today.subtract(SEARCH_WINDOW_DAYS, "day").format("YYYY-MM-DD"),
+      endDate: today.add(SEARCH_WINDOW_DAYS, "day").format("YYYY-MM-DD"),
     };
-  }, [searchParams]);
+  }, []);
 
   const { data, error, isLoading } = useSWR(
     // Query terms are intentionally absent from the key — see above.

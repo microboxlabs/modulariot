@@ -7,6 +7,7 @@ import {
   PlanningSelectionProvider,
   usePlanningSelection,
 } from "./planning-selection-context";
+import { CalendarSearchProvider } from "./calendar-search-context";
 import { PlanningSidebarClient } from "./planning-sidebar-client";
 
 interface PlanningLayoutClientProps {
@@ -66,7 +67,11 @@ export function PlanningLayoutClient({
 }: PlanningLayoutClientProps) {
   return (
     <PlanningSelectionProvider calendarId={calendarId} dict={dict}>
-      <PlanningLayoutInner dict={dict} header={header} calendar={calendar} />
+      {/* Inside the selection provider: the search feeds its matches into that
+          context's highlight channel, and both the header and the grid read it. */}
+      <CalendarSearchProvider>
+        <PlanningLayoutInner dict={dict} header={header} calendar={calendar} />
+      </CalendarSearchProvider>
     </PlanningSelectionProvider>
   );
 }

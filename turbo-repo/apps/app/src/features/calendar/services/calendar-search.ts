@@ -1,0 +1,133 @@
+import type { SelectedService } from "@/features/calendar/components/planning/planning-selection-types";
+
+/**
+ * How far either side of the viewed date the search sweeps, in days.
+ *
+ * Deliberately the same window the grid already loads for a single calendar
+ * (planning-selection-wrapper's bookingsRange) — search just sweeps it across
+ * every calendar instead of one. Matching the grid keeps the payload a known
+ * multiple of a cost the product already accepts, rather than a guess at the
+ * planning horizon.
+ *
+ * The cost of that choice: a service planned outside this window is not found.
+ * Widening it is a one-line change here, but the honest fix is a server-side
+ * query (the bookings API has no `q` param and no pagination today).
+ */
+export const SEARCH_WINDOW_DAYS = 30;
+
+/**
+ * Whether a service's resource tuple is complete.
+ *
+ * Carrier + driver + truck is the tuple the assignment actually requires —
+ * `buildAssignProcessVariables` (task-driven-assign) refuses to build unless
+ * all three are present, and treats the trailer as nullable. So the trailer is
+ * deliberately not part of this verdict.
+ */
+export type AssignmentState = "unassigned" | "partial" | "assigned";
+
+export function assignmentStateOf(service: SelectedService): AssignmentState {
+  const core = [
+    service.assignedCarrier,
+    service.assignedDriver,
+    service.assignedTruck,
+  ];
+  const filled = core.filter(Boolean).length;
+  if (filled === 0) return "unassigned";
+  if (filled === core.length) return "assigned";
+  return "partial";
+}
+
+export interface CalendarSearchParams {
+  /** Matched against the display id and the stable service code. */
+  service: string[];
+  customer: string[];
+  origin: string[];
+  destination: string[];
+  /** Matched against the truck and trailer plates. */
+  licensePlate: string[];
+  tipoViaje: string[];
+  assignment: AssignmentState[];
+}
+
+const ASSIGNMENT_STATES: readonly string[] = [
+  "unassigned",
+  "partial",
+  "assigned",
+];
+
+/**
+ * Both the text and the select badges write comma-joined values (text badges
+ * accumulate chips on Enter), so every param parses as a list.
+ */
+function list(raw: string | null): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+export function parseCalendarSearchParams(
+  searchParams: URLSearchParams
+): CalendarSearchParams {
+  return {
+    service: list(searchParams.get("service")),
+    customer: list(searchParams.get("customer")),
+    origin: list(searchParams.get("origin")),
+    destination: list(searchParams.get("destination")),
+    licensePlate: list(searchParams.get("licensePlate")),
+    tipoViaje: list(searchParams.get("tipoViaje")),
+    assignment: list(searchParams.get("assignment")).filter(
+      (v): v is AssignmentState => ASSIGNMENT_STATES.includes(v)
+    ),
+  };
+}
+
+export function isCalendarSearchActive(params: CalendarSearchParams): boolean {
+  return Object.values(params).some((v) => v.length > 0);
+}
+
+/** Case-insensitive substring match against any of the candidate fields. */
+function matchesAny(
+  terms: string[],
+  fields: (string | null | undefined)[]
+): boolean {
+  if (terms.length === 0) return true; // an unset param constrains nothing
+  const haystack = fields
+    .filter((f): f is string => Boolean(f))
+    .map((f) => f.toLowerCase());
+  // Terms within one param are OR-ed: the badge's chips read as "any of these".
+  return terms.some((term) => {
+    const needle = term.toLowerCase();
+    return haystack.some((f) => f.includes(needle));
+  });
+}
+
+/**
+ * Does this planned service match the active search?
+ *
+ * Params AND together (each badge narrows), terms within a param OR together
+ * (a badge's chips are alternatives). An unset param constrains nothing, so an
+ * empty search matches *every* service — callers must gate on
+ * `isCalendarSearchActive` rather than relying on this to return false.
+ */
+export function matchesCalendarSearch(
+  service: SelectedService,
+  params: CalendarSearchParams
+): boolean {
+  return (
+    matchesAny(params.service, [service.id, service.mintral_serviceCode]) &&
+    matchesAny(params.customer, [service.cliente]) &&
+    matchesAny(params.origin, [service.origen]) &&
+    matchesAny(params.destination, [service.destino]) &&
+    matchesAny(params.licensePlate, [
+      service.assignedTruckExternalId,
+      service.assignedTrailerExternalId,
+    ]) &&
+    // Trip type and assignment are exact-value selects, not substrings.
+    (params.tipoViaje.length === 0 ||
+      params.tipoViaje.includes(service.tipoViaje)) &&
+    (params.assignment.length === 0 ||
+      params.assignment.includes(assignmentStateOf(service)))
+  );
+}

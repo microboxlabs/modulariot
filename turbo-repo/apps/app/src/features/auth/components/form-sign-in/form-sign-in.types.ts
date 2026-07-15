@@ -1,6 +1,8 @@
 import type { AuthConfig } from "../../config/auth-providers.types";
 
 export type FormSignInMessages = {
+  ssoSubtitle: string;
+  ssoTitle: string;
   emailPlaceHolder: string;
   emailLabel: string;
   passwordLabel: string;

@@ -76,15 +76,35 @@ export default function CountryCombobox({
   }
 
   return (
-    <div className="relative" onBlur={handleContainerBlur}>
+    // The `[&_input::...]` selector (not on TextInput's own `className`,
+    // which lands on its outer wrapper, not the <input>) hides the native
+    // "clear" (x) button that `type="search"` brings in WebKit/Blink —
+    // this is a country picker, not free text, so a one-click
+    // erase-everything affordance on it doesn't make sense.
+    <div
+      className="relative [&_input::-webkit-search-cancel-button]:appearance-none"
+      onBlur={handleContainerBlur}
+    >
       <TextInput
         ref={inputRef}
         id={id}
+        // This is a search/filter box, not a data-entry field — `type="search"`
+        // says so explicitly, which keeps it out of Chrome's address-autofill
+        // targeting in the first place (that heuristic is scoped to
+        // `type="text"`/similar data-entry inputs).
+        type="search"
         // Not `name={name}`: this is a fully controlled field (committed via
         // `onChange` on selection, not native form submission), and giving
         // it a real `name`/autocomplete-shaped attributes is exactly what
         // triggers Chrome's own address-suggestion popover on top of ours.
-        autoComplete="off"
+        //
+        // `autocomplete="off"` alone doesn't stop Chrome's own saved-entry
+        // history dropdown — that one specifically ignores "off". Chrome
+        // does, however, always respect "new-password": it's the one token
+        // it guarantees never to autofill or suggest from, so it's become
+        // the standard (if odd-looking) way to fully opt a field out —
+        // password-specific in name only, not in effect.
+        autoComplete="new-password"
         // Chrome ignores `autocomplete="off"` outright for fields it
         // heuristically decides are address-shaped — and a "país"/
         // "ubicación" field is exactly that pattern. Starting the field

@@ -92,13 +92,24 @@ export default function RegisterStepOrganization({
     return (
       <Tooltip
         content={
-          <div className="max-w-64 text-left text-xs">
+          <div className="w-80 text-left text-xs">
             <Markdown components={MARKDOWN_COMPONENTS}>
               {msg.teamNameInvalidMessage}
             </Markdown>
           </div>
         }
         style="auto"
+        // flowbite-react's `className`/`theme` merging is additive, not a
+        // replace — the base theme's `dark:border-none` (from the "auto"
+        // style) stuck around no matter what was layered on top of it,
+        // `!important` included. `clearTheme` resets this specific leaf
+        // first so the replacement below is the only thing left standing.
+        clearTheme={{ style: true }}
+        theme={{
+          style: {
+            auto: "border border-gray-400 bg-white text-gray-900 dark:border dark:border-gray-400 dark:bg-gray-700 dark:text-white",
+          },
+        }}
       >
         <ErrorCircle />
       </Tooltip>

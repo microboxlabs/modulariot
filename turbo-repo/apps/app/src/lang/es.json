@@ -70,7 +70,7 @@
             "label": "Nombre del equipo",
             "placeholder": "tu-equipo",
             "sso": "(SSO)",
-            "invalid": "Solo minúsculas, números y guiones simples entre palabras. Sin espacios, mayúsculas, símbolos ni guiones al inicio o final."
+            "invalid": "- Solo minúsculas y números\n- Guiones simples entre palabras\n- Sin espacios, mayúsculas ni símbolos\n- No puede empezar ni terminar con guion"
           },
           "organizationLocation": {
             "label": "Ubicación",

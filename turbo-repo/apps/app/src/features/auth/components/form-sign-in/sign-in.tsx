@@ -1,8 +1,6 @@
 import { Label, TextInput, Checkbox, Button } from "flowbite-react";
 import Link from "next/link";
 import { LoginDivider } from "../login-divider";
-<<<<<<< HEAD
-=======
 import { RegisterLink } from "../register-link";
 
 // Matches the light-bordered look of the provider buttons on the main view
@@ -17,7 +15,6 @@ export const inputTheme = {
     },
   },
 };
->>>>>>> 9a0469cfa860d416975dab544742f87aa40656d1
 
 export default function SignIn({
   msg,
@@ -28,6 +25,7 @@ export default function SignIn({
   getMessages,
   setShowLogin,
   showRegisterLink,
+  onRegisterClick,
 }: {
   msg: any;
   register: any;
@@ -37,6 +35,7 @@ export default function SignIn({
   getMessages: any;
   setShowLogin: any;
   showRegisterLink: boolean;
+  onRegisterClick: () => void;
 }) {
   return (
     <div className="space-y-6">
@@ -105,11 +104,7 @@ export default function SignIn({
           <LoginDivider text="o" />
           <a
             href="#"
-<<<<<<< HEAD
-            className="text-center hover:underline cursor-pointer text-blue-700 text-sm"
-=======
             className="text-center hover:underline cursor-pointer text-blue-700 dark:text-blue-400 text-sm"
->>>>>>> 9a0469cfa860d416975dab544742f87aa40656d1
             onClick={() => setShowLogin(false)}
           >
             {msg.buttonContinueWithMicrosoft}
@@ -118,6 +113,7 @@ export default function SignIn({
             prompt={msg.requestAccessPrompt}
             label={msg.requestAccessLink}
             enabled={showRegisterLink}
+            onClick={onRegisterClick}
           />
         </div>
       </div>

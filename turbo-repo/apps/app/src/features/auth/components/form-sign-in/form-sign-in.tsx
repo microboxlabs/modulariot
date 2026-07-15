@@ -42,6 +42,7 @@ export default function FormSignIn({
   samlLabels,
   callbackUrl,
   showRegisterLink,
+  onRegisterClick,
 }: FormSignInProps) {
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
@@ -130,6 +131,7 @@ export default function FormSignIn({
             getMessages={getMessages}
             setShowLogin={() => setViewMode("main")}
             showRegisterLink={showRegisterLink}
+            onRegisterClick={onRegisterClick}
           />
         </form>
       </>
@@ -154,6 +156,7 @@ export default function FormSignIn({
           pending={pending}
           setShowLogin={() => setViewMode("main")}
           showRegisterLink={showRegisterLink}
+          onRegisterClick={onRegisterClick}
         />
       </>
     );
@@ -204,6 +207,7 @@ export default function FormSignIn({
                 prompt={msg.requestAccessPrompt}
                 label={msg.requestAccessLink}
                 enabled={showRegisterLink}
+                onClick={onRegisterClick}
               />
             </div>
           )}
@@ -221,6 +225,7 @@ export default function FormSignIn({
                 getMessages={getMessages}
                 setShowLogin={() => setViewMode("main")}
                 showRegisterLink={showRegisterLink}
+                onRegisterClick={onRegisterClick}
               />
             )}
         </div>

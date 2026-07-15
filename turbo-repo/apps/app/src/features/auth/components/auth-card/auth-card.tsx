@@ -59,10 +59,10 @@ export default function AuthCard({
 
   if (view === "register") {
     return (
-      <div className="mx-auto w-full md:max-w-lg">
+      <div className="mx-auto w-full md:max-w-xl">
         <Card
           data-testid="register-card"
-          className="bg-white dark:bg-gray-800 transition-colors duration-200"
+          className="bg-white dark:bg-gray-800 transition-colors duration-200 w-full"
           theme={{
             root: {
               base: "flex overflow-hidden rounded-2xl border border-gray-200 shadow-none dark:border-gray-700",

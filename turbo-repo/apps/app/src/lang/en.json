@@ -70,7 +70,7 @@
             "label": "Team name",
             "placeholder": "your-team-name",
             "sso": "(SSO)",
-            "invalid": "Only lowercase letters, numbers, and single hyphens between words. No spaces, uppercase, symbols, or leading/trailing hyphens."
+            "invalid": "- Lowercase letters and numbers only\n- Single hyphens between words\n- No spaces, uppercase letters, or symbols\n- Can't start or end with a hyphen"
           },
           "organizationLocation": {
             "label": "Location",

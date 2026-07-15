@@ -10,6 +10,7 @@ import { useDataSources } from "../hooks/use-data-sources";
 import { DataSourceTable } from "./data-source-table";
 import { DataSourceModal } from "./data-source-modal";
 import { DataSourceDeleteDialog } from "./data-source-delete-dialog";
+import LearnedKnowledgePanel from "@/features/knowledge/components/learned-knowledge-panel";
 import type { DataSourceListItem, DataSourceFormData } from "../types";
 import { shouldTestStoredCredential } from "../test-decision";
 import { toast } from "sonner";
@@ -199,6 +200,8 @@ export default function DataSourcesPageContent({
             dict={dsDict}
           />
         )}
+
+        <LearnedKnowledgePanel dict={dsDict} />
       </div>
 
       <DataSourceModal

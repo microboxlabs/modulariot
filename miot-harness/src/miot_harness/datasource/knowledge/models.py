@@ -28,6 +28,17 @@ class KnowledgeCard:
     id: str
     title: str
     body: str
+    # Optional metadata. Empty/None for fingerprinted PACK cards (which declare
+    # generic product mechanics, never client specifics). Connection-scoped
+    # AUTHORED cards — the continual-learning write target — carry these so the
+    # loop can classify, scope, and provenance a learned fact. See the
+    # semantic-layer continual-learning design.
+    kind: str = ""            # term | stage | metric | entity | recipe | gotcha
+    term: str = ""            # the business term this card defines, if any
+    scope: str = "tenant"     # personal | group:<id> | tenant
+    status: str = "approved"  # staged | approved
+    confidence: float | None = None
+    source: str = "pack"      # pack | connection (which tier authored it)
 
 
 @dataclass(frozen=True)
@@ -69,4 +80,16 @@ class DetectedPack:
 @dataclass(frozen=True)
 class PackLoadResult:
     packs: tuple[KnowledgePack, ...] = ()
+    diagnostics: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class ConnectionCardsResult:
+    """Result of loading a connection's AUTHORED cards (one card per file).
+
+    Mirrors `PackLoadResult`: never raised on content errors — a bad card file
+    becomes a diagnostic and is skipped, so one malformed learned fact can't
+    take down a connection's boot."""
+
+    cards: tuple[KnowledgeCard, ...] = ()
     diagnostics: tuple[str, ...] = field(default_factory=tuple)

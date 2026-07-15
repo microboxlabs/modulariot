@@ -2,6 +2,7 @@
   "pages": {
     "login": {
       "welcome": "Bienvenido de nuevo",
+      "subtitle": "Inicia sesión en tu cuenta de ModularIOT",
       "fields": {
         "email": {
           "label": "Correo electrónico",
@@ -30,7 +31,8 @@
         "microsoft": "Continuar con Microsoft",
         "microsoft-entra-id": "Continuar con Microsoft",
         "saml": "Continuar con SSO",
-        "credentials": "Continuar con usuario externo"
+        "credentials": "Continuar con correo y contraseña",
+        "ssoSubmit": "Continuar"
       },
       "divider": "o",
       "teamSlug": {
@@ -38,6 +40,14 @@
         "placeholder": "nombre-de-tu-equipo",
         "required": "El identificador del equipo es requerido"
       },
+      "requestAccess": {
+        "prompt": "¿No tienes cuenta?",
+        "link": "Regístrate"
+      },
+      "credentialsTitle": "Inicia sesión",
+      "credentialsSubtitle": "Ingresa tu correo y contraseña para acceder a tu cuenta",
+      "ssoTitle": "Inicia sesión con SSO",
+      "ssoSubtitle": "Ingresa el identificador de tu equipo para continuar",
       "errors": {
         "invalidCredentials": "Acceso denegado. Por favor, verifique sus credenciales e intente nuevamente.",
         "invalidFromData": "Datos de formulario inválidos. Por favor, verifique sus credenciales e intente nuevamente.",
@@ -530,6 +540,16 @@
           },
           "loadingMore": "Cargando más…"
         }
+      },
+      "search": {
+        "searching": "Buscando…",
+        "noResults": "Sin resultados",
+        "counter": "{current} de {total}",
+        "previous": "Coincidencia anterior",
+        "next": "Coincidencia siguiente",
+        "clear": "Limpiar búsqueda",
+        "otherCalendar": "En otro calendario: {calendar}",
+        "error": "La búsqueda falló"
       }
     },
     "shipping": {
@@ -1233,6 +1253,20 @@
     },
     "userSettings": {
       "organizations": {
+        "title": "Organizaciones",
+        "description": "Administra la configuración de la organización, canales y webhooks GPS.",
+        "loadError": "No se pudieron cargar tus organizaciones. Verifica que el modulith local esté en ejecución y que hayas iniciado sesión.",
+        "empty": "No hay organizaciones disponibles para tu cuenta.",
+        "loading": "Cargando…",
+        "listTitle": "Tus organizaciones",
+        "parentAccount": "Cuenta principal",
+        "noSelection": "Selecciona una organización para ver el detalle.",
+        "membersTitle": "Miembros",
+        "membersDescription": "Personas con acceso a esta organización.",
+        "membersEmpty": "No se encontraron miembros.",
+        "modulesTitle": "Módulos",
+        "modulesDescription": "Módulos de producto habilitados para esta organización.",
+        "modulesEmpty": "No hay módulos habilitados.",
         "whatsappChannel": {
           "title": "Canal WhatsApp",
           "description": "Configura y prueba la conexión de WhatsApp para contactar a los conductores.",
@@ -1290,11 +1324,69 @@
             "testRecipientsRequired": "Agrega al menos un destinatario, o desactiva el modo prueba"
           },
           "testModeBadge": "Modo prueba"
+        },
+        "gpsWebhooks": {
+          "title": "Webhooks GPS",
+          "description": "Reenvía posiciones GPS validadas a sistemas externos con criterios de filtro.",
+          "loadError": "No se pudieron cargar las suscripciones de webhook GPS.",
+          "empty": "Aún no hay webhooks GPS configurados.",
+          "addButton": "Agregar webhook",
+          "editButton": "Editar",
+          "testButton": "Probar",
+          "deleteButton": "Eliminar",
+          "filterLabel": "Filtro",
+          "filter": {
+            "allVisible": "Todos los activos visibles",
+            "rules": "Reglas personalizadas"
+          },
+          "status": {
+            "enabled": "Activo",
+            "disabled": "Inactivo"
+          },
+          "modal": {
+            "addTitle": "Agregar webhook GPS",
+            "editTitle": "Editar webhook GPS",
+            "subtitle": "Registra la URL del cliente y elige qué datos de posición reenviar.",
+            "editSubtitle": "Actualiza la URL del webhook o los criterios de filtro.",
+            "defaultName": "Webhook GPS",
+            "name": "Nombre",
+            "url": "URL del webhook",
+            "urlPlaceholder": "https://cliente.example/hooks/gps",
+            "enabledLabel": "Activo",
+            "filterTitle": "Selección de datos",
+            "filterHelp": "Elige todos los activos que esta organización ya puede ver, o define reglas. Las reglas se combinan con AND entre dimensiones completadas.",
+            "filterAllVisible": "Todos los activos visibles",
+            "filterRules": "Reglas personalizadas",
+            "assetIds": "IDs de activos (camiones)",
+            "carrierIds": "IDs de transportistas",
+            "ingestClientIds": "Cuentas de proveedor GPS (client IDs de ingest)",
+            "gpsProviders": "Fabricantes de dispositivo (telecom gps_provider)",
+            "owners": "Propietarios",
+            "listPlaceholder": "Un valor por línea (o separados por coma)",
+            "cancel": "Cancelar",
+            "saving": "Guardando...",
+            "createButton": "Crear",
+            "saveButton": "Guardar"
+          },
+          "toast": {
+            "created": "Webhook GPS creado",
+            "updated": "Webhook GPS actualizado",
+            "deleted": "Webhook GPS eliminado",
+            "testSuccess": "Prueba de webhook exitosa",
+            "testFailed": "La prueba de webhook falló",
+            "error": "Ocurrió un error"
+          },
+          "validation": {
+            "nameRequired": "El nombre es obligatorio",
+            "urlInvalid": "Ingresa una URL válida",
+            "rulesRequired": "Agrega al menos una dimensión de filtro, o elige todos los activos visibles"
+          }
         }
       },
       "breadcrumb": {
         "user": "Usuario",
         "settings": "Ajustes",
+        "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos"
       },
       "symptoms": {
@@ -1305,6 +1397,21 @@
         }
       },
       "dataSources": {
+        "learnedKnowledge": {
+          "title": "Conocimiento aprendido",
+          "description": "Definiciones de negocio que el asistente aprendió de tus consultas. Apruébalas para que las use en respuestas futuras.",
+          "empty": "No hay conocimiento pendiente de revisión.",
+          "error": "No se pudo cargar el conocimiento aprendido.",
+          "retry": "Reintentar",
+          "approve": "Aprobar",
+          "reject": "Descartar",
+          "toast": {
+            "approved": "\"{term}\" aprobado y aplicado.",
+            "approvedNotApplied": "\"{term}\" aprobado, pero aún no se aplicó. Reinténtalo más tarde.",
+            "rejected": "\"{term}\" descartado.",
+            "reviewError": "No se pudo completar la revisión."
+          }
+        },
         "title": "Fuentes de Datos",
         "description": "Administra tus conexiones de fuentes de datos.",
         "addButton": "Agregar Fuente",
@@ -3265,7 +3372,12 @@
     "date": "Fecha",
     "symptom_name": "Nombre del síntoma",
     "name": "Nombre",
-    "rut": "RUT"
+    "rut": "RUT",
+    "tipoViaje": "Tipo de viaje",
+    "assignment": "Asignación",
+    "unassigned": "Sin asignar",
+    "partial": "Parcial",
+    "assigned": "Asignado"
   },
   "comments": {
     "title": "Comentarios",
@@ -4038,5 +4150,52 @@
     "expired": "Este enlace ha expirado",
     "error": "Algo salió mal. Por favor, intenta más tarde.",
     "invalid": "Este enlace no es válido"
+  },
+  "spotlight": {
+    "elicit": {
+      "prompt": "Interpreté \"{term}\" como {interpretation}. ¿Es correcto?",
+      "remember": "Sí, recordar",
+      "dismiss": "No",
+      "saved": "Recordaré \"{term}\".",
+      "error": "No se pudo guardar. Inténtalo de nuevo."
+    },
+    "placeholder": "Pregunta, construye o navega",
+    "sections": {
+      "ask": "Preguntar",
+      "build": "Construir",
+      "navigate": "Navegar"
+    },
+    "navigate": {
+      "heading": "Ir a",
+      "triggers": "ir a,goto,navegar,abrir,go to"
+    },
+    "recent": "Reciente",
+    "ask": {
+      "heading": "Preguntar",
+      "triggers": "preguntar,pregunta,ayuda"
+    },
+    "build": {
+      "heading": "Construir",
+      "triggers": "construir,crear,generar"
+    },
+    "harnessEmpty": "No encontré una respuesta, ¡inténtalo de nuevo!",
+    "progress": {
+      "connecting": "Buscando…",
+      "routing": "Entendiendo tu pregunta…",
+      "exploring": "Consultando los datos…",
+      "verifying": "Verificando la respuesta…",
+      "answering": "Redactando la respuesta…",
+      "tools": {
+        "query": "Consultando la base de datos",
+        "select": "Leyendo registros",
+        "grep": "Buscando coincidencias",
+        "describe": "Inspeccionando la estructura",
+        "list_tables": "Explorando las tablas",
+        "knowledge": "Consultando la guía del dominio",
+        "explain": "Analizando el plan de consulta"
+      }
+    },
+    "harnessError": "Algo salió mal al buscar la respuesta.",
+    "harnessRetry": "Reintentar"
   }
 }

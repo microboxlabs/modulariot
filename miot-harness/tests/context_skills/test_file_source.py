@@ -18,8 +18,8 @@ def test_context_source_loads_global_and_tenant(tmp_path: Path) -> None:
         "facts:\n  - name: f1\n    body: b1\n",
     )
     _write(
-        tmp_path / "tenants" / "mintral" / "overlay.yaml",
-        "id: mintral\nprimer_text: tenant-hello\n",
+        tmp_path / "tenants" / "orion" / "overlay.yaml",
+        "id: orion\nprimer_text: tenant-hello\n",
     )
     _write(tmp_path / "notes.md", "# Markdown primer\nbody")
 
@@ -29,8 +29,8 @@ def test_context_source_loads_global_and_tenant(tmp_path: Path) -> None:
     by_id = {c.id: c for c in result.contexts}
     assert by_id["system-base"].scope.kind == "global"
     assert by_id["system-base"].primer_text == "hello"
-    assert by_id["mintral"].scope.kind == "tenant"
-    assert by_id["mintral"].scope.tenant_id == "mintral"
+    assert by_id["orion"].scope.kind == "tenant"
+    assert by_id["orion"].scope.tenant_id == "orion"
     # A bare .md file becomes a global primer document keyed by its stem.
     assert by_id["notes"].primer_text.startswith("# Markdown primer")
 
@@ -117,12 +117,12 @@ def test_context_source_skips_k8s_projected_volume_dirs(tmp_path: Path) -> None:
 
 def test_skill_source_tenant_scope_from_dir(tmp_path: Path) -> None:
     _write(
-        tmp_path / "tenants" / "mintral" / "s.yaml",
+        tmp_path / "tenants" / "orion" / "s.yaml",
         "kind: http\nid: s1\ntool_name: t\nurl: https://x.example/t\n",
     )
     result = FileSkillSource(tmp_path).load()
     assert result.skills[0].skill.scope.kind == "tenant"
-    assert result.skills[0].skill.scope.tenant_id == "mintral"
+    assert result.skills[0].skill.scope.tenant_id == "orion"
 
 
 def test_skill_source_loads_skill_md_directory_skill(tmp_path: Path) -> None:
@@ -168,12 +168,12 @@ def test_skill_source_skill_md_name_falls_back_to_dir(tmp_path: Path) -> None:
 
 def test_skill_source_skill_md_tenant_scope_from_dir(tmp_path: Path) -> None:
     _write(
-        tmp_path / "tenants" / "mintral" / "greeter" / "SKILL.md",
+        tmp_path / "tenants" / "orion" / "greeter" / "SKILL.md",
         "---\nname: greeter\ndescription: greet\n---\nhi\n",
     )
     result = FileSkillSource(tmp_path).load()
     assert result.skills[0].skill.scope.kind == "tenant"
-    assert result.skills[0].skill.scope.tenant_id == "mintral"
+    assert result.skills[0].skill.scope.tenant_id == "orion"
 
 
 def test_skill_source_skill_md_malformed_frontmatter_isolated(tmp_path: Path) -> None:

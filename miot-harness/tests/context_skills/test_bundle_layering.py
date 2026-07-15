@@ -34,15 +34,15 @@ def test_facts_tenant_overrides_global() -> None:
             _ctx(
                 "t",
                 "tenant",
-                "mintral",
+                "orion",
                 "T",
                 (SystemFact(name="shared", body="tenant"),),
             ),
         )
     )
-    mintral = {e.name: e.body for e in bundle.facts_for("mintral")}
+    orion = {e.name: e.body for e in bundle.facts_for("orion")}
     acme = {e.name: e.body for e in bundle.facts_for("acme")}
-    assert mintral["shared"] == "tenant"
+    assert orion["shared"] == "tenant"
     assert acme["shared"] == "global"
 
 
@@ -63,29 +63,29 @@ def test_primer_blocks_split_and_cache_invariant() -> None:
     bundle = ContextSkillsBundle(
         contexts=(
             _ctx("g", "global", None, "GLOBAL", ()),
-            _ctx("t", "tenant", "mintral", "TENANT-ONLY", ()),
+            _ctx("t", "tenant", "orion", "TENANT-ONLY", ()),
         )
     )
-    mintral = bundle.primer_for("mintral")
+    orion = bundle.primer_for("orion")
     acme = bundle.primer_for("acme")
-    assert mintral.global_block == "GLOBAL"
-    assert mintral.tenant_block == "TENANT-ONLY"
+    assert orion.global_block == "GLOBAL"
+    assert orion.tenant_block == "TENANT-ONLY"
     assert acme.tenant_block == ""
     # The global block must be byte-identical across tenants so the
     # Anthropic cache prefix stays hot.
-    assert mintral.global_block == acme.global_block
+    assert orion.global_block == acme.global_block
 
 
 def test_playbooks_filter_by_tenant() -> None:
     bundle = ContextSkillsBundle(
         playbook_skills=(
             _playbook("global-pb", "global", None),
-            _playbook("mintral-pb", "tenant", "mintral"),
+            _playbook("orion-pb", "tenant", "orion"),
         )
     )
-    mintral_ids = {s.skill.id for s in bundle.playbooks_for("mintral")}
+    orion_ids = {s.skill.id for s in bundle.playbooks_for("orion")}
     acme_ids = {s.skill.id for s in bundle.playbooks_for("acme")}
-    assert mintral_ids == {"global-pb", "mintral-pb"}
+    assert orion_ids == {"global-pb", "orion-pb"}
     assert acme_ids == {"global-pb"}
 
 
@@ -116,13 +116,13 @@ def test_list_skills_projects_summaries_source_scope_and_sort() -> None:
                 ),
                 source_path="/x/alpha/SKILL.md",
             ),
-            _playbook("mintral-only", "tenant", "mintral"),
+            _playbook("orion-only", "tenant", "orion"),
         )
     )
-    skills = bundle.list_skills("mintral")
+    skills = bundle.list_skills("orion")
     by_id = {s.id: s for s in skills}
     # Global ∪ tenant, same layering as playbooks_for.
-    assert {"zeta", "alpha", "mintral-only"} <= set(by_id)
+    assert {"zeta", "alpha", "orion-only"} <= set(by_id)
     # source is derived from the load path: SKILL.md vs YAML manifest.
     assert by_id["alpha"].source == "skill_md"
     assert by_id["zeta"].source == "manifest"
@@ -130,8 +130,8 @@ def test_list_skills_projects_summaries_source_scope_and_sort() -> None:
     # Stable, case-insensitive name sort for a deterministic picker.
     names = [s.name for s in skills]
     assert names == sorted(names, key=str.lower)
-    # A different tenant doesn't see the mintral-scoped skill.
-    assert "mintral-only" not in {s.id for s in bundle.list_skills("acme")}
+    # A different tenant doesn't see the orion-scoped skill.
+    assert "orion-only" not in {s.id for s in bundle.list_skills("acme")}
 
 
 def test_list_skills_surfaces_connection_binding_marker() -> None:
@@ -177,3 +177,37 @@ def test_activate_skill_returns_name_and_body() -> None:
     # Bodyless and unknown skills are not activatable.
     assert bundle.activate_skill("acme", "nobody") is None
     assert bundle.activate_skill("acme", "missing") is None
+
+
+def test_connection_narrowing_gates_playbooks_and_activation() -> None:
+    bundle = ContextSkillsBundle(
+        playbook_skills=(
+            LoadedSkill(
+                skill=PlaybookSkill(
+                    kind="playbook", id="bound", name="Bound", connection="acs"
+                ),
+                playbook_body="ACS BODY",
+                source_path="/w/bound/SKILL.md",
+            ),
+            LoadedSkill(
+                skill=PlaybookSkill(kind="playbook", id="unbound", name="Unbound"),
+                playbook_body="ANY BODY",
+                source_path="/w/unbound/SKILL.md",
+            ),
+        )
+    )
+    def ids(conn: str | None) -> set[str]:
+        return {s.skill.id for s in bundle.playbooks_for("acme", connection=conn)}
+
+    # An unbound playbook is for everyone; a bound one only for its connection.
+    assert ids("acs") == {"bound", "unbound"}
+    assert ids("nexo") == {"unbound"}
+    assert ids(None) == {"bound", "unbound"}  # no narrowing asked for
+
+    assert bundle.activate_skill("acme", "bound", connection="acs") == (
+        "Bound", "ACS BODY",
+    )
+    assert bundle.activate_skill("acme", "bound", connection="nexo") is None
+    assert bundle.activate_skill("acme", "unbound", connection="nexo") == (
+        "Unbound", "ANY BODY",
+    )

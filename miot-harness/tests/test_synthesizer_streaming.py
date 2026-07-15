@@ -93,7 +93,7 @@ async def test_streaming_synthesizer_emits_thinking_then_text() -> None:
     model = _FakeStreamingModel(_streaming_events())
     settings = HarnessSettings(agents_synthesizer_stream=True)
     state = {
-        "ctx": HarnessContext(thread_id="t", tenant_id="mintral", user_id="u"),
+        "ctx": HarnessContext(thread_id="t", tenant_id="orion", user_id="u"),
         "user_message": "hola",
         "evidence": [],
         "failure": None,
@@ -115,8 +115,8 @@ async def test_streaming_synthesizer_emits_thinking_then_text() -> None:
     completed_idx = types.index("thinking.completed")
     answer_idx = types.index("answer.completed")
     assert max(delta_idx) < completed_idx < answer_idx
-    # Final answer carries the streamed text
-    assert delta == {"answer": "Final answer."}
+    # Final answer carries the streamed text (prose → no ground-or-flag assumptions)
+    assert delta == {"answer": "Final answer.", "assumptions": []}
     # thinking.completed payload
     completed = events[completed_idx]
     assert completed.data["agent"] == "synthesizer"
@@ -143,7 +143,7 @@ async def test_streaming_synthesizer_disabled_falls_back_to_ainvoke() -> None:
     events: list[HarnessEvent] = []
     settings = HarnessSettings(agents_synthesizer_stream=False)
     state = {
-        "ctx": HarnessContext(thread_id="t", tenant_id="mintral", user_id="u"),
+        "ctx": HarnessContext(thread_id="t", tenant_id="orion", user_id="u"),
         "user_message": "hola",
         "evidence": [],
         "failure": None,
@@ -155,6 +155,6 @@ async def test_streaming_synthesizer_disabled_falls_back_to_ainvoke() -> None:
         settings=settings,  # type: ignore[arg-type]
         profile=NEXO_PROFILE,
     )
-    assert delta == {"answer": "ainvoke path."}
+    assert delta == {"answer": "ainvoke path.", "assumptions": []}
     assert "thinking.delta" not in {e.type for e in events}
     assert "thinking.completed" not in {e.type for e in events}

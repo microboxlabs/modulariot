@@ -13,7 +13,7 @@ The harness hardcodes the names of one specific deployment everywhere:
   response, OTel span names.
 - **Coordinador** (the product/schema): the `coordinador_*` tool prefix,
   `COORDINADOR_PRIMER`, and agent system prompts.
-- **mintral** (a customer tenant): the tenant-lock default, refusal copy,
+- **orion** (a customer tenant): the tenant-lock default, refusal copy,
   router keywords, test fixtures.
 
 The harness is meant to be environment-independent: the datasource could be
@@ -24,7 +24,7 @@ server. Core code must not name any specific connection system.
 
 1. **Depth**: abstraction + rename. A real provider interface; Nexo becomes
    the first implementation. Not a full plugin system yet.
-2. **Scope**: all of it — Coordinador and mintral move behind the seam too.
+2. **Scope**: all of it — Coordinador and orion move behind the seam too.
 3. **Compatibility**: clean break on env vars and the `/health` payload.
    docker-compose, `.env.example`, deploy scripts, and docs update in the
    same PR. No aliases.
@@ -43,7 +43,7 @@ src/miot_harness/
 │   ├── provider.py      # DataSourceProvider ABC + DataSourceProfile + BootResult
 │   └── registry.py      # {"nexo": NexoProvider}; resolve(kind) -> provider
 ├── integrations/
-│   └── nexo/            # the ONLY place that says Postgres/Coordinador/Mintral
+│   └── nexo/            # the ONLY place that says Postgres/Coordinador/Orion
 │       ├── provider.py  # NexoProvider(boot, close, profile=NEXO_PROFILE)
 │       ├── settings.py  # NexoSettings (provider-private env vars)
 │       └── pool.py / introspect.py / tool_factory.py / primer.py / primitives.py
@@ -72,7 +72,7 @@ class DataSourceProfile:
     tool_prefix: str                # "coordinador_" — filter_expert tool filtering
     primer: str                     # COORDINADOR_PRIMER — agent grounding text
     router_keywords: frozenset[str] # keyword-router literals
-    tenant_lock: str | None         # "mintral" — default; env-overridable
+    tenant_lock: str | None         # "orion" — default; env-overridable
     tenant_refusal_template: str    # exact current refusal copy, templated
     freshness_warn_minutes: int     # 30 — default; env-overridable
     freshness_refuse_minutes: int   # 240 — default; env-overridable
@@ -143,7 +143,7 @@ doc-sync-package flow before any release tag.
   `test_supervisor_nexo_branch.py` → `test_supervisor_data_branch.py`.
 - Gates per commit: full pytest, `ruff check`, `mypy`, fake-mode evals
   25/25, and the grep gate:
-  `grep -ri "nexo\|coordinador\|mintral" src/ --exclude-dir=integrations`
+  `grep -ri "nexo\|coordinador\|orion" src/ --exclude-dir=integrations`
   must return zero matches at the final commit.
 
 ## Error handling
@@ -153,7 +153,7 @@ doc-sync-package flow before any release tag.
 - No DSN / boot failure → `BootResult(enabled=False, reason=...)`; harness
   serves non-data routes exactly as today; disabled-copy comes from the
   profile so user-visible text is unchanged.
-- Env overrides unset → profile defaults apply (mintral lock, 30/240
+- Env overrides unset → profile defaults apply (orion lock, 30/240
   freshness windows): zero behavior change for existing deploys that only
   set `MIOT_HARNESS_NEXO_DSN` → they must rename it to
   `MIOT_HARNESS_DATASOURCE_DSN` (the one mandatory ops change).

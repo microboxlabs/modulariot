@@ -33,6 +33,13 @@ export function createRunsApi(ctx: ClientContext) {
       });
     },
 
+    /** Cancels an in-flight run (204 whether cancelled or already terminal). */
+    cancel(id: string, opts?: { signal?: AbortSignal }): Promise<void> {
+      return ctx.fetcher("POST", `${BASE}/${encodeURIComponent(id)}/cancel`, {
+        signal: opts?.signal,
+      });
+    },
+
     async *stream(
       id: string,
       opts?: { lastEventId?: string; signal?: AbortSignal },

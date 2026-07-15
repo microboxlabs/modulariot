@@ -36,6 +36,41 @@ function kanban_params(searchbarDict: I18nRecord): ParamType[] {
   ];
 }
 
+/**
+ * Calendar search params. Deliberately not a copy of `kanban_params`: the
+ * calendar searches the service blob stored on a booking, which holds different
+ * fields than an ECM task.
+ *
+ * - `originType` has no equivalent on the stored service.
+ * - `date_range` is redundant — the calendar's own date axis is the date filter.
+ * - driver/carrier are absent because the blob stores resource *UUIDs*
+ *   (`assignedDriver`, `assignedCarrier`), not the RUTs the kanban searches.
+ *   Only `licensePlate` survives, because `assignedTruckExternalId` really is
+ *   the plate (`cami_matricula`).
+ *
+ * `assignment` is calendar-only: it finds services that are planned but not yet
+ * crewed, which is the whole point of searching the calendar.
+ */
+function calendar_params(searchbarDict: I18nRecord): ParamType[] {
+  return [
+    setParam("service", "text"),
+    setParam("customer", "text"),
+    setParam("origin", "text"),
+    setParam("destination", "text"),
+    setParam("licensePlate", "text"),
+    setParam("tipoViaje", "selector", [
+      { value: "Sider", label: "Sider" },
+      { value: "Doble Sider", label: "Doble Sider" },
+      { value: "Rampla", label: "Rampla" },
+    ]),
+    setParam("assignment", "selector", [
+      { value: "unassigned", label: tr("unassigned", searchbarDict) },
+      { value: "partial", label: tr("partial", searchbarDict) },
+      { value: "assigned", label: tr("assigned", searchbarDict) },
+    ]),
+  ];
+}
+
 const where_is_my_load_params: ParamType[] = [
   setParam("expeditionCode", "text"),
   setParam("expeditionNumber", "text"),
@@ -103,14 +138,17 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
   const searchbarDict = dict.searchbar as I18nRecord;
   const kanban = kanban_params(searchbarDict);
   const fleet = fleet_params(searchbarDict);
+  const calendar = calendar_params(searchbarDict);
 
   return {
-    home: null,
     finished: getParamsFixed(kanban, dict),
     shipping: getParamsFixed(kanban, dict),
     delivery: getParamsFixed(kanban, dict),
     planning: getParamsFixed(kanban, dict),
     mytasks: getParamsFixed(kanban, dict),
+    // Synthetic key — see `resolveSection` in section-filter-bar-controller.
+    // Not a path segment, so `/calendar` (the landing page) stays bar-less.
+    "calendar-planning": getParamsFixed(calendar, dict),
     "where-is-my-load": getParamsFixed(
       where_is_my_load_params,
       dict,

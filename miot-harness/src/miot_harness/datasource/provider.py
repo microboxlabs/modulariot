@@ -72,6 +72,15 @@ class DataSourceProfile:
     # the freshness judge is a no-op — a live source with no `refreshed_at` is
     # not "stale", so the snapshot-age warning is suppressed.
     has_freshness_model: bool = True
+    # Whether this datasource exposes a curated catalog of named data functions
+    # (Nexo's L1/L2/L3/VT `fn_dx_*` seats do) vs. only composable SQL primitives
+    # (generic_pg: describe/select/grep/query). The canned DATA_QUERY seat
+    # (`filter_expert`) picks ONE curated tool; it has nothing to pick on a
+    # primitives-only source, so the router must never send such a datasource
+    # there — every data question is agentic (composable-primitive) exploration.
+    # When False, the intent router drops DATA_QUERY from its menu and the
+    # supervisor remaps any DATA_QUERY it still sees to DATA_AGENTIC.
+    has_curated_catalog: bool = True
 
 
 @dataclass(frozen=True)

@@ -22,6 +22,7 @@ multi-turn chats accumulate context across `/runs` calls.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 from typing import Any
 
@@ -35,6 +36,11 @@ from miot_harness.agents.direct_agent import (
 from miot_harness.agents.meta_agent import (
     MetaAgentCatalogEntry,
     meta_agent_node,
+)
+from miot_harness.agents.synthesizer import (
+    emit_grounding_gap,
+    extract_assumptions,
+    harden_answer,
 )
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.context_skills.registry import ContextSkillsBundle
@@ -74,7 +80,10 @@ _JSON_BLOCKS_INSTRUCTION = (
     '{"type": <string>, "value": <...>}. Known types:\n'
     '- "markdown": value is a Markdown string.\n'
     '- "url": value is an object {"url": <string>, "name": <string>}.\n'
-    "Emit multiple blocks to convey different parts of the answer."
+    "Emit multiple blocks to convey different parts of the answer.\n"
+    "This contract applies ONLY to the final user-facing answer; internal "
+    "protocol outputs (planner action objects, tool-call JSON, verdicts) "
+    "keep their own formats."
 )
 
 
@@ -133,6 +142,28 @@ class HarnessSupervisor:
         # block is already folded into `meta_primer` at boot — this bundle
         # supplies the per-request tenant overlay and the queryable facts.
         self.context_skills: ContextSkillsBundle | None = None
+        # Set by the lifespan after boot to the primary connection's name (e.g.
+        # "acs"); None in legacy/dev. Stamped onto ground-or-flag assumptions so
+        # the review surface can stage a candidate against the right connection.
+        self.primary_connection_name: str | None = None
+
+    def _stamp_connection(
+        self, assumptions: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Attach the run's connection to each declared assumption. The
+        synthesizer self-reports term/interpretation/predicate; the connection is
+        the harness's to assign (the LLM can't reliably know it) and defaults to
+        the primary connection this deployment serves. Never overwrites a
+        connection already present, and a no-op when none is configured."""
+        conn = self.primary_connection_name
+        if not conn:
+            return list(assumptions)
+        return [
+            {**a, "connection": conn}
+            if isinstance(a, dict) and not a.get("connection")
+            else a
+            for a in assumptions
+        ]
 
     def _meta_primer_for(self, tenant_id: str) -> str:
         """meta_primer (datasource primer + global context) plus this
@@ -219,6 +250,8 @@ class HarnessSupervisor:
             self.run_store.save(record)
             self._close_bus(ctx.run_id)
             return record
+
+        route = self._apply_catalog_route_override(route)
 
         progress(
             HarnessEvent(
@@ -333,6 +366,42 @@ class HarnessSupervisor:
         record.answer = rendered
         record.answer_format = effective_fmt
 
+    async def _invoke_graph_emitting(
+        self, graph: Any, initial_state: dict[str, Any], record: HarnessRunRecord
+    ) -> dict[str, Any]:
+        """Run a compiled graph, landing its `_events` on the record AS each
+        node completes rather than after the whole run.
+
+        LangGraph's `astream(stream_mode="values")` yields the merged state
+        after every node; emitting the not-yet-seen tail of `_events` per
+        snapshot makes `GET /runs/{id}/stream` narrate the run live — the
+        point of the SSE endpoint. Before this, events were drained only
+        after `ainvoke` returned, so subscribers saw `route.selected` and
+        then one flush at run end (~40s of silence on agentic runs).
+
+        Falls back to `ainvoke` + post-hoc drain when the graph doesn't
+        implement `astream` as an async generator (unit-test doubles /
+        AsyncMock). Events are deduped by `event.id` so replace-vs-append
+        channel semantics can't double-emit.
+        """
+        final_state: dict[str, Any]
+        astream = getattr(graph, "astream", None)
+        if astream is None or not inspect.isasyncgenfunction(astream):
+            final_state = await graph.ainvoke(initial_state)
+            for evt in final_state.get("_events") or []:
+                self._emit(record, evt)
+            return final_state
+
+        emitted_ids: set[str] = set()
+        final_state = initial_state
+        async for state in astream(initial_state, stream_mode="values"):
+            final_state = state
+            for evt in final_state.get("_events") or []:
+                if evt.id not in emitted_ids:
+                    emitted_ids.add(evt.id)
+                    self._emit(record, evt)
+        return final_state
+
     def _emit(self, record: HarnessRunRecord, event: HarnessEvent) -> None:
         """Single funnel for landing a `HarnessEvent` on a run record.
 
@@ -398,7 +467,12 @@ class HarnessSupervisor:
             content=(
                 f"# Active skill: {name}\n\n"
                 f'The user invoked the "{name}" skill. Follow these '
-                f"instructions for this run:\n\n{body}"
+                f"instructions for this run:\n\n{body}\n\n"
+                "Scope note: these instructions — including any answer "
+                "format they specify — apply ONLY to the final user-facing "
+                "answer. Internal protocol outputs (planner action objects, "
+                "tool-call JSON, verdicts) keep their own formats exactly "
+                "as each seat's own instructions state."
             )
         )
         return [guidance, *prior_messages]
@@ -504,6 +578,9 @@ class HarnessSupervisor:
         if requested is None:
             return PermissionPolicy(), False
 
+        # tenant is guaranteed non-None here: run() builds the HarnessContext
+        # (which requires a tenant) before resolving the policy.
+        assert request.tenant_id is not None
         effective, denied = resolve_effective_mode(
             requested, settings=settings, tenant_id=request.tenant_id
         )
@@ -531,6 +608,33 @@ class HarnessSupervisor:
         # Plan 12 default: keyword router on the message; explicit modes
         # are ignored because the keyword router doesn't know about them.
         return self.router.route(request.message)
+
+    def _apply_catalog_route_override(self, route: RouteResult) -> RouteResult:
+        """Force DATA_QUERY → DATA_AGENTIC on primitives-only datasources.
+
+        The canned DATA_QUERY seat (`filter_expert`) picks ONE curated data
+        function. A datasource with no curated catalog (generic_pg: only
+        composable SQL primitives) has nothing for it to pick, so `filter_expert`
+        dead-ends — it emits an off-contract step and the run falls to the
+        onboarding fallback. Every data question on such a source is agentic
+        (composable-primitive) exploration. The intent router already drops
+        DATA_QUERY from its menu for these datasources; this is the deterministic
+        safety net that also catches an explicit `mode=canned` request and any
+        keyword-fallback DATA_QUERY the LLM prompt can't prevent.
+        """
+        if (
+            route.route == HarnessRoute.DATA_QUERY
+            and self.profile is not None
+            and not self.profile.has_curated_catalog
+        ):
+            return RouteResult(
+                route=HarnessRoute.DATA_AGENTIC,
+                reason=(
+                    f"{route.reason} → remapped to DATA_AGENTIC "
+                    f"({self.profile.name} has no curated catalog)"
+                ),
+            )
+        return route
 
     async def _run_storytelling(
         self,
@@ -585,15 +689,15 @@ class HarnessSupervisor:
             "prior_messages": prior_messages or [],
         }
         with agent_span("run", **self._root_span_kwargs(ctx, route)):
-            final_state = await self.data_graph.ainvoke(initial_state)
+            # Streams the graph's _events channel onto the record per node
+            # (live SSE) instead of draining it after the run.
+            final_state = await self._invoke_graph_emitting(
+                self.data_graph, initial_state, record
+            )
 
-        # Drain the graph's _events channel into the run record in order
-        for evt in final_state.get("_events") or []:
-            self._emit(record, evt)
-
-        answer = final_state.get("answer")
-        if answer:
-            record.answer = answer
+        graph_answer = final_state.get("answer")
+        if graph_answer:
+            record.answer = str(graph_answer)
         else:
             display_name = (
                 self.profile.display_name if self.profile is not None else "datasource"
@@ -622,7 +726,15 @@ class HarnessSupervisor:
                     prior_messages=prior_messages or [],
                     progress=progress,
                 )
-            record.answer = delta.get("answer") or "(no answer produced by agent loop)"
+            answer = delta.get("answer") or "(no answer produced by agent loop)"
+            record.answer = harden_answer(answer)
+            # Ground-or-flag: the loop path bypasses the synthesizer, so the
+            # assumption blocks must be surfaced here too — otherwise this
+            # route feeds nothing to the capture/distill loop.
+            assumptions = extract_assumptions(record.answer)
+            for assumption in assumptions:
+                emit_grounding_gap(progress, ctx.run_id, assumption)
+            record.assumptions = self._stamp_connection(assumptions)
             return
 
         if self.agentic_graph is None:
@@ -649,11 +761,19 @@ class HarnessSupervisor:
             "prior_messages": prior_messages or [],
         }
         with agent_span("run", **self._root_span_kwargs(ctx, route)):
-            final_state = await self.agentic_graph.ainvoke(initial_state)
-
-        for evt in final_state.get("_events") or []:
-            self._emit(record, evt)
-        record.answer = final_state.get("answer") or "(no answer produced by agentic graph)"
+            # Streams the graph's _events channel onto the record per node
+            # (live SSE) instead of draining it after the run.
+            final_state = await self._invoke_graph_emitting(
+                self.agentic_graph, initial_state, record
+            )
+        record.answer = str(
+            final_state.get("answer") or "(no answer produced by agentic graph)"
+        )
+        # Ground-or-flag: carry the synthesizer's declared assumptions onto the
+        # persisted record (feeds the capture/distill loop; empty when grounded).
+        record.assumptions = self._stamp_connection(
+            list(final_state.get("assumptions") or [])
+        )
 
     async def _run_data_meta(
         self,

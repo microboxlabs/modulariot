@@ -25,7 +25,7 @@ from miot_harness.tools.registry import ToolRegistry
 
 
 def _ctx() -> HarnessContext:
-    return HarnessContext(thread_id="t", tenant_id="mintral", user_id="u")
+    return HarnessContext(thread_id="t", tenant_id="orion", user_id="u")
 
 
 def _stub_tool(name: str, description: str, *, kind: str = "curated") -> HarnessTool:
@@ -348,6 +348,101 @@ async def test_malformed_response_without_evidence_fails() -> None:
         max_turns=12,
     )
     assert "malformed" in delta["failure"]
+
+
+@pytest.mark.asyncio
+async def test_array_of_call_tool_actions_becomes_plan() -> None:
+    """Regression: the model sometimes emits a JSON ARRAY of call_tool actions
+    instead of {"action": "plan", "steps": [...]}. That array is semantically
+    a plan — unwrap it instead of failing the run."""
+    response = json.dumps(
+        [
+            {"action": "call_tool", "tool": "coordinador_centro_control",
+             "args": {}, "intent": "kpis", "rationale": "overview"},
+            {"action": "call_tool", "tool": "nexo_select",
+             "args": {"table": "nexo.dx_servicios"}, "intent": "rows",
+             "rationale": "enumerate"},
+        ]
+    )
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    steps = delta["pending_steps"]
+    assert [s.tool for s in steps] == ["coordinador_centro_control", "nexo_select"]
+    assert delta["next_action"] == "execute_plan"
+    assert not delta.get("failure")
+
+
+@pytest.mark.asyncio
+async def test_single_element_array_action_is_unwrapped() -> None:
+    """A one-element array wrapping a valid action parses as that action."""
+    response = json.dumps([{"action": "final", "reasoning": "evidence suffices"}])
+    delta = await agentic_planner_node(
+        _state(evidence=[_evidence()]),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert delta["next_action"] == "ready_to_synthesize"
+    assert not delta.get("failure")
+
+
+@pytest.mark.asyncio
+async def test_prose_prefixed_action_json_is_parsed() -> None:
+    """Regression: the model prefaced the action with prose ("I'll investigate
+    what 1585735 refers to…"). The embedded action object must be recovered."""
+    action = json.dumps(
+        {"action": "call_tool", "tool": "coordinador_centro_control", "args": {}}
+    )
+    response = (
+        '<br>\n\nI\'ll investigate what "1585735" refers to — most likely a '
+        f"workflow business key.\n\n{action}"
+    )
+    delta = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[response]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert delta.get("current_step") is not None
+    assert delta["current_step"].tool == "coordinador_centro_control"
+    assert not delta.get("failure")
+
+
+@pytest.mark.asyncio
+async def test_answer_blocks_array_still_degrades() -> None:
+    """A skill's ANSWER-block array ([{"type": "intent"…}]) is not an action:
+    with evidence it degrades to synthesis, without evidence it fails."""
+    blocks = json.dumps(
+        [
+            {"type": "intent", "value": "navigate"},
+            {"type": "markdown", "value": "Servicio 1585735 — activo"},
+        ]
+    )
+    with_evidence = await agentic_planner_node(
+        _state(evidence=[_evidence()]),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[blocks]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert with_evidence["next_action"] == "ready_to_synthesize"
+    assert not with_evidence.get("failure")
+
+    without_evidence = await agentic_planner_node(
+        _state(),
+        registry=_registry(),
+        model=FakeListChatModel(responses=[blocks]),
+        profile=NEXO_PROFILE,
+        max_turns=12,
+    )
+    assert "malformed" in without_evidence["failure"]
 
 
 @pytest.mark.asyncio

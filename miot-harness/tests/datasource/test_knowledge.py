@@ -9,10 +9,11 @@ import pytest
 from miot_harness.datasource.knowledge.loader import (
     _parse_pack,
     detect_packs,
+    load_connection_cards,
     load_packs,
     probe_version,
 )
-from miot_harness.datasource.knowledge.models import VersionProbe
+from miot_harness.datasource.knowledge.models import KnowledgeCard, VersionProbe
 from tests.fixtures.recording_pool import RecordingPool
 
 _PACK = """---
@@ -93,8 +94,8 @@ def test_real_alfresco_pack_loads() -> None:
     # client specifics baked into the shipped pack).
     card = pack.card("workflow-business-data")
     assert card is not None and "act_ru_variable" in card.body
-    assert "mintral" not in pack.overview.lower()
-    assert all("mintral" not in c.body.lower() for c in pack.cards)
+    assert "orion" not in pack.overview.lower()
+    assert all("orion" not in c.body.lower() for c in pack.cards)
 
 
 def test_load_packs_malformed_yaml_is_diagnostic_not_raise(tmp_path: Path) -> None:
@@ -108,3 +109,81 @@ def test_load_packs_malformed_yaml_is_diagnostic_not_raise(tmp_path: Path) -> No
     result = load_packs(tmp_path)  # must not raise
     assert result.packs == ()
     assert any("pack.md" in diag for diag in result.diagnostics)
+
+
+# --- Connection-scoped AUTHORED cards (semantic-layer continual learning) ---
+
+_CONN_CARD = """---
+kind: stage
+term: entregas
+scope: tenant
+status: approved
+confidence: 0.9
+---
+"Entregas" = task_def_key_ IN ('confirmDelivery','receiveDelivery').
+Excludes confirmArrival (that is despacho/transit).
+"""
+
+
+def test_load_connection_cards_parses_frontmatter_and_body(tmp_path: Path) -> None:
+    d = tmp_path / "knowledge"
+    d.mkdir()
+    (d / "stage-entregas.md").write_text(_CONN_CARD, encoding="utf-8")
+    result = load_connection_cards(d)
+    assert result.diagnostics == ()
+    assert len(result.cards) == 1
+    card = result.cards[0]
+    assert card.id == "entregas"  # derived from `term` when no explicit id
+    assert card.term == "entregas"
+    assert card.kind == "stage"
+    assert card.scope == "tenant"
+    assert card.status == "approved"
+    assert card.confidence == 0.9
+    assert card.source == "connection"
+    assert "confirmDelivery" in card.body
+    assert "confirmArrival" in card.body
+
+
+def test_load_connection_cards_missing_dir_is_empty(tmp_path: Path) -> None:
+    result = load_connection_cards(tmp_path / "does-not-exist")
+    assert result.cards == ()
+    assert result.diagnostics == ()
+
+
+def test_load_connection_cards_bad_card_is_diagnostic_not_raise(tmp_path: Path) -> None:
+    d = tmp_path / "knowledge"
+    d.mkdir()
+    # No frontmatter fence → rejected as a diagnostic (never served as knowledge).
+    (d / "loose.md").write_text("just prose, no frontmatter", encoding="utf-8")
+    # Valid card with no id/term → id falls back to the filename stem.
+    (d / "term-patente.md").write_text(
+        "---\nkind: term\n---\nUna patente con sufijo -V es un vehículo.\n",
+        encoding="utf-8",
+    )
+    result = load_connection_cards(d)  # must not raise
+    assert [c.id for c in result.cards] == ["term-patente"]
+    assert any("loose.md" in diag for diag in result.diagnostics)
+
+
+def test_load_connection_cards_bad_confidence_is_diagnostic(tmp_path: Path) -> None:
+    d = tmp_path / "knowledge"
+    d.mkdir()
+    (d / "x.md").write_text(
+        "---\nterm: foo\nconfidence: high\n---\nbody\n", encoding="utf-8"
+    )
+    result = load_connection_cards(d)
+    assert result.cards == ()
+    assert any("confidence" in diag for diag in result.diagnostics)
+
+
+def test_connection_card_overrides_pack_card_of_same_id() -> None:
+    # The provider appends connection cards AFTER pack cards, and
+    # build_generic_tools indexes them as {c.id: c for c in cards} (last-wins),
+    # so an authored client card overrides a generic pack card of the same id.
+    pack_card = KnowledgeCard(id="entregas", title="pack", body="generic", source="pack")
+    conn_card = KnowledgeCard(
+        id="entregas", title="authored", body="client-specific", source="connection"
+    )
+    by_id = {c.id: c for c in [pack_card, conn_card]}
+    assert by_id["entregas"].source == "connection"
+    assert by_id["entregas"].body == "client-specific"

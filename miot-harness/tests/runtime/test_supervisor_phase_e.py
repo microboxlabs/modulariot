@@ -4,7 +4,7 @@ Verifies the runtime contract documented in `.ralph/blockers.md` (the
 supervisor-wire-up OPEN entry). Covers:
 - LLM router replaces the keyword router for "auto" mode.
 - Explicit modes (canned / meta / agentic) bypass the LLM router.
-- agentic-mode refusal for non-Mintral tenants surfaces as a record answer.
+- agentic-mode refusal for non-Orion tenants surfaces as a record answer.
 - meta route calls `meta_agent_node` directly (no graph).
 - agentic route calls the agentic graph.
 - conversation_id round-trips via `ConversationStore`.
@@ -73,7 +73,7 @@ def _build_supervisor(
         meta_primer="primer text",
         meta_catalog=_meta_catalog(),
         conversation_store=conversation_store,
-        tenant_lock="mintral",
+        tenant_lock="orion",
     )
 
 
@@ -88,7 +88,7 @@ async def test_explicit_canned_mode_dispatches_to_data_graph(tmp_path: Any) -> N
     )
 
     record = await supervisor.run(
-        UserRequest(message="anything", tenant_id="mintral", mode="canned")
+        UserRequest(message="anything", tenant_id="orion", mode="canned")
     )
     data_graph.ainvoke.assert_awaited_once()
     assert record.answer == "canned answer"
@@ -173,14 +173,14 @@ async def test_explicit_agentic_mode_dispatches_to_agentic_graph(tmp_path: Any) 
         llm_router=_scripted_llm_router("DIRECT"),
     )
     record = await supervisor.run(
-        UserRequest(message="explore", tenant_id="mintral", mode="agentic")
+        UserRequest(message="explore", tenant_id="orion", mode="agentic")
     )
     agentic_graph.ainvoke.assert_awaited_once()
     assert record.answer == "agentic exploration result"
 
 
 @pytest.mark.asyncio
-async def test_explicit_agentic_mode_for_non_mintral_returns_refusal(tmp_path: Any) -> None:
+async def test_explicit_agentic_mode_for_non_orion_returns_refusal(tmp_path: Any) -> None:
     agentic_graph = AsyncMock()
     agentic_graph.ainvoke = AsyncMock(return_value={"answer": "should not run"})
     supervisor = _build_supervisor(
@@ -192,7 +192,7 @@ async def test_explicit_agentic_mode_for_non_mintral_returns_refusal(tmp_path: A
         UserRequest(message="explore", tenant_id="other-tenant", mode="agentic")
     )
     agentic_graph.ainvoke.assert_not_awaited()
-    assert "mintral" in (record.answer or "").lower()
+    assert "orion" in (record.answer or "").lower()
 
 
 @pytest.mark.asyncio
@@ -210,10 +210,72 @@ async def test_auto_mode_uses_llm_router_to_pick_route(tmp_path: Any) -> None:
         llm_router=_scripted_llm_router("DATA_AGENTIC"),
     )
     record = await supervisor.run(
-        UserRequest(message="show me stuff", tenant_id="mintral")  # mode default "auto"
+        UserRequest(message="show me stuff", tenant_id="orion")  # mode default "auto"
     )
     agentic_graph.ainvoke.assert_awaited_once()
     assert record.answer == "routed agentic"
+
+
+@pytest.mark.asyncio
+async def test_data_query_remapped_to_agentic_without_curated_catalog(
+    tmp_path: Any,
+) -> None:
+    """A primitives-only datasource (no curated catalog) has nothing for the
+    canned filter_expert seat to pick, so a DATA_QUERY route — whether the LLM
+    misclassified it or the caller sent `mode=canned` — must be remapped to the
+    agentic graph. This is the regression guard for the "servicio 1585735"
+    onboarding-fallback dead-end."""
+
+    from dataclasses import replace
+
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "canned (should not run)"})
+    agentic_graph = AsyncMock()
+    agentic_graph.ainvoke = AsyncMock(
+        return_value={"answer": "servicio 1585735 encontrado", "_events": []}
+    )
+    supervisor = _build_supervisor(
+        tmp_path,
+        data_graph=data_graph,
+        agentic_graph=agentic_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
+    )
+    # The active datasource has no curated catalog (generic_pg / acs).
+    supervisor.profile = replace(FAKE_PROFILE, has_curated_catalog=False)
+
+    record = await supervisor.run(
+        UserRequest(message="que me puedes decir del servicio 1585735", tenant_id="mintral")
+    )
+
+    agentic_graph.ainvoke.assert_awaited_once()
+    data_graph.ainvoke.assert_not_awaited()
+    assert record.answer == "servicio 1585735 encontrado"
+
+
+@pytest.mark.asyncio
+async def test_data_query_kept_canned_with_curated_catalog(tmp_path: Any) -> None:
+    """The remap is scoped to no-catalog datasources: a curated profile still
+    sends DATA_QUERY to the canned data graph."""
+
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "canned answer", "_events": []})
+    agentic_graph = AsyncMock()
+    agentic_graph.ainvoke = AsyncMock(return_value={"answer": "should not run"})
+    supervisor = _build_supervisor(
+        tmp_path,
+        data_graph=data_graph,
+        agentic_graph=agentic_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
+    )
+    supervisor.profile = FAKE_PROFILE  # has_curated_catalog defaults to True
+
+    record = await supervisor.run(
+        UserRequest(message="dame KPIs", tenant_id="mintral")
+    )
+
+    data_graph.ainvoke.assert_awaited_once()
+    agentic_graph.ainvoke.assert_not_awaited()
+    assert record.answer == "canned answer"
 
 
 @pytest.mark.asyncio
@@ -235,7 +297,7 @@ async def test_conversation_id_round_trips_via_store(tmp_path: Any) -> None:
     record = await supervisor.run(
         UserRequest(
             message="q1",
-            tenant_id="mintral",
+            tenant_id="orion",
             conversation_id="conv-supervisor-1",
         )
     )
@@ -304,7 +366,7 @@ async def test_supervisor_hydrates_prior_messages_into_data_graph_state(
     await supervisor.run(
         UserRequest(
             message="estado del coordinador",
-            tenant_id="mintral",
+            tenant_id="orion",
             conversation_id="conv-hydrate-1",
         )
     )
@@ -324,7 +386,7 @@ async def test_supervisor_hydrates_prior_messages_into_data_graph_state(
     await supervisor.run(
         UserRequest(
             message="tell me more about that",
-            tenant_id="mintral",
+            tenant_id="orion",
             conversation_id="conv-hydrate-1",
         )
     )
@@ -450,7 +512,7 @@ async def test_run_record_events_have_contiguous_monotonic_seq(tmp_path: Any) ->
     )
 
     record = await supervisor.run(
-        UserRequest(message="q", tenant_id="mintral")
+        UserRequest(message="q", tenant_id="orion")
     )
 
     seqs = [e.seq for e in record.events]
@@ -485,7 +547,7 @@ async def test_seq_monotonic_across_agentic_path(tmp_path: Any) -> None:
     )
 
     record = await supervisor.run(
-        UserRequest(message="explore", tenant_id="mintral", mode="agentic")
+        UserRequest(message="explore", tenant_id="orion", mode="agentic")
     )
 
     seqs = [e.seq for e in record.events]
@@ -517,3 +579,85 @@ def test_emit_stamps_seq_and_appends_to_record(tmp_path: Any) -> None:
 
     assert [e.seq for e in record.events] == [0, 1]
     assert record.events == [e1, e2]
+
+
+@pytest.mark.asyncio
+async def test_agentic_graph_events_emit_live_per_node(tmp_path: Any) -> None:
+    """A graph exposing a real `astream` (as compiled LangGraph does) has its
+    `_events` landed on the record per state snapshot — the live-SSE contract —
+    not drained after the run. Events repeated across snapshots (append-channel
+    semantics) emit exactly once. Regression for the "route.selected, then ~40s
+    of silence, then one flush" stream observed on agentic runs."""
+
+    from miot_harness.runtime.events import HarnessEvent
+
+    e1 = HarnessEvent(run_id="", type="agent.started", message="planner in")
+    e2 = HarnessEvent(run_id="", type="tool.started", message="acs_query")
+
+    class _RecordingBus:
+        def __init__(self) -> None:
+            self.published: list[str] = []
+
+        def publish(self, run_id: str, event: HarnessEvent) -> None:
+            self.published.append(event.id)
+
+        def close(self, run_id: str) -> None:  # supervisor closes at run end
+            pass
+
+    bus = _RecordingBus()
+
+    class _StreamingGraph:
+        """Async-generator astream double; captures what the bus had already
+        seen when control resumed between snapshots (the liveness probe)."""
+
+        def __init__(self) -> None:
+            self.bus_ids_mid_run: list[str] | None = None
+
+        async def astream(
+            self, initial_state: dict[str, Any], stream_mode: str = "values"
+        ) -> Any:
+            assert stream_mode == "values"
+            yield {"_events": [e1]}
+            # Control resumes only after the supervisor consumed snapshot 1:
+            # e1 must ALREADY have been published (live), not deferred.
+            self.bus_ids_mid_run = list(bus.published)
+            yield {"_events": [e1, e2], "answer": "streamed"}
+
+    graph = _StreamingGraph()
+    supervisor = HarnessSupervisor(
+        router=IntentRouter(),
+        tools=ToolRegistry(),
+        stories=StorytellingModule(),
+        run_store=JsonRunStore(tmp_path),
+        llm_router=_scripted_llm_router("DIRECT"),
+        agentic_graph=graph,
+        event_bus=bus,  # type: ignore[arg-type]
+        tenant_lock="orion",
+    )
+
+    record = await supervisor.run(
+        UserRequest(message="explore", tenant_id="orion", mode="agentic")
+    )
+
+    assert record.answer == "streamed"
+    # Liveness: e1 was published before the graph produced its second snapshot.
+    assert graph.bus_ids_mid_run is not None
+    assert e1.id in graph.bus_ids_mid_run
+    assert e2.id not in graph.bus_ids_mid_run
+    # Dedup: e1 appeared in both snapshots but landed exactly once.
+    assert [ev.id for ev in record.events].count(e1.id) == 1
+    assert [ev.id for ev in record.events].count(e2.id) == 1
+
+
+def test_langgraph_astream_is_async_generator_function() -> None:
+    """`_invoke_graph_emitting` detects real compiled graphs via
+    `inspect.isasyncgenfunction(graph.astream)`. If a langgraph upgrade ever
+    turns `astream` into a plain method returning an async iterator, the
+    supervisor would silently fall back to post-run emission and live SSE
+    would die undetected — pin the assumption here instead."""
+
+    import inspect
+
+    from langgraph.pregel import Pregel
+
+    assert inspect.isasyncgenfunction(Pregel.astream)

@@ -179,6 +179,31 @@ jobs:
         if: steps.plan.outputs.app_changed == 'true'
         run: bash turbo-repo/generative_ai/tools/sh/bump-app-version.sh "${{ steps.plan.outputs.app_version }}"
 
+      - name: Bump docs package version
+        if: steps.plan.outputs.docs_changed == 'true'
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+          const version = "${{ steps.plan.outputs.docs_version }}";
+
+          const updateJsonFile = (path, updater) => {
+            const data = JSON.parse(fs.readFileSync(path, "utf8"));
+            updater(data);
+            fs.writeFileSync(path, `${JSON.stringify(data, null, 2)}\n`);
+          };
+
+          updateJsonFile("turbo-repo/apps/docs/package.json", (data) => {
+            data.version = version;
+          });
+          updateJsonFile("turbo-repo/package-lock.json", (data) => {
+            const docsPackage = data.packages?.["apps/docs"];
+            if (!docsPackage) {
+              throw new Error("Could not find apps/docs in turbo-repo/package-lock.json");
+            }
+            docsPackage.version = version;
+          });
+          NODE
+
       - name: Bump modulith Maven version
         if: steps.plan.outputs.modulith_changed == 'true'
         run: ./mvnw versions:set -DnewVersion="${{ steps.plan.outputs.modulith_version }}" -DgenerateBackupPoms=false -DprocessAllModules=true
@@ -294,7 +319,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "${{ steps.plan.outputs.stack_plan_file }}" releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/package.json turbo-repo/package-lock.json quarkus-srv miot-harness/pyproject.toml miot-harness/uv.lock
+          git add "${{ steps.plan.outputs.stack_plan_file }}" releases/notes/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/src/releases/v${{ steps.version.outputs.release_notes_version }}.mdx turbo-repo/apps/app/package.json turbo-repo/apps/docs/package.json turbo-repo/package-lock.json quarkus-srv miot-harness/pyproject.toml miot-harness/uv.lock
           if git diff --cached --quiet; then
             echo "No release prep changes to commit."
           else
@@ -838,38 +863,6 @@ jobs:
     outputs:
       image: ${{ steps.image.outputs.image }}
     steps:
-      - uses: actions/checkout@v5
-        if: needs.prepare.outputs.docs_changed == 'true'
-        with:
-          ref: ${{ needs.tag.outputs.sha }}
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v6
-        if: needs.prepare.outputs.docs_changed == 'true'
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: turbo-repo/package-lock.json
-
-      - name: Install dependencies
-        if: needs.prepare.outputs.docs_changed == 'true'
-        run: npm ci
-        working-directory: turbo-repo
-
-      - name: Build docs
-        if: needs.prepare.outputs.docs_changed == 'true'
-        run: npx turbo run build --filter=@modulariot/docs
-        working-directory: turbo-repo
-
-      - name: Stage docs artifact
-        if: needs.prepare.outputs.docs_changed == 'true'
-        run: |
-          mkdir -p build-context/.next
-          cp -r turbo-repo/apps/docs/.next/standalone build-context/.next/standalone
-          cp -r turbo-repo/apps/docs/.next/static build-context/.next/static
-          cp -r turbo-repo/apps/docs/public build-context/public
-          cp turbo-repo/docker/nextjs.standalone-docs.Dockerfile build-context/
-
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -878,30 +871,40 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image
+      - name: Wait for release docs image
         if: needs.prepare.outputs.docs_changed == 'true'
-        id: docker
-        uses: docker/build-push-action@v6
-        with:
-          context: build-context/
-          file: build-context/nextjs.standalone-docs.Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:${{ needs.prepare.outputs.docs_version }}
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:docs-v${{ needs.prepare.outputs.docs_version }}
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:sha-${{ needs.tag.outputs.short_sha }}
-          provenance: true
-          sbom: true
+        env:
+          SOURCE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:sha-${{ needs.tag.outputs.short_sha }}
+        run: |
+          for attempt in {1..60}; do
+            if docker buildx imagetools inspect "$SOURCE_IMAGE" >/dev/null; then
+              echo "Promoting release docs image $SOURCE_IMAGE."
+              exit 0
+            fi
+
+            echo "Waiting for Docs CI to publish release image... ($attempt/60)"
+            sleep 60
+          done
+
+          echo "::error::Timed out waiting for Docs CI to publish release image."
+          exit 1
+
+      - name: Promote image tags
+        if: needs.prepare.outputs.docs_changed == 'true'
+        env:
+          SOURCE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:sha-${{ needs.tag.outputs.short_sha }}
+          RELEASE_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:${{ needs.prepare.outputs.docs_version }}
+          COMPONENT_IMAGE: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:docs-v${{ needs.prepare.outputs.docs_version }}
+        run: |
+          docker buildx imagetools create \
+            --tag "$RELEASE_IMAGE" \
+            --tag "$COMPONENT_IMAGE" \
+            "$SOURCE_IMAGE"
 
       - name: Export image ref
         id: image
         run: |
-          if [[ "${{ needs.prepare.outputs.docs_changed }}" == "true" ]]; then
-            digest="${{ steps.docker.outputs.digest }}"
-          else
-            digest="$(docker buildx imagetools inspect "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:docs-v${{ needs.prepare.outputs.docs_version }}" | awk '/^Digest:/ { print $2; exit }')"
-          fi
+          digest="$(docker buildx imagetools inspect "${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}:docs-v${{ needs.prepare.outputs.docs_version }}" | awk '/^Digest:/ { print $2; exit }')"
           echo "image=${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.DOCS_IMAGE_NAME }}@${digest}" >> "$GITHUB_OUTPUT"
 
   build-modulith:

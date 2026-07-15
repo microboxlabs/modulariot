@@ -17,7 +17,7 @@ from tests.fixtures.fake_provider import FAKE_PROFILE
 def _nexo_fallback() -> IntentRouter:
     # The core router ships no built-in vocabulary; the keyword fallback in
     # these tests uses the nexo profile keyword set (the provider-under-test's
-    # own vocabulary) so the "Mintral status" fallback prompts route to data.
+    # own vocabulary) so the "Orion status" fallback prompts route to data.
     return IntentRouter(data_keywords=NEXO_PROFILE.router_keywords)
 
 
@@ -135,7 +135,7 @@ async def test_unparseable_llm_response_falls_back_to_keyword() -> None:
     router = LLMIntentRouter(
         model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
-    result = await router.route("Mintral fleet status")  # contains 'mintral'
+    result = await router.route("Orion fleet status")  # contains 'orion'
     assert result.route is HarnessRoute.DATA_QUERY
 
 
@@ -162,7 +162,7 @@ async def test_invalid_route_name_falls_back_to_keyword() -> None:
     router = LLMIntentRouter(
         model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
-    result = await router.route("Mintral status")  # mintral keyword
+    result = await router.route("Orion status")  # orion keyword
     assert result.route is HarnessRoute.DATA_QUERY
 
 
@@ -189,8 +189,8 @@ async def test_non_dict_json_falls_back_to_keyword(raw_response: str) -> None:
     router = LLMIntentRouter(
         model, confidence_threshold=0.7, keyword_fallback=_nexo_fallback()
     )
-    # "Mintral status" has the `mintral` keyword so the fallback returns DATA_QUERY.
-    result = await router.route("Mintral status")
+    # "Orion status" has the `orion` keyword so the fallback returns DATA_QUERY.
+    result = await router.route("Orion status")
     assert result.route is HarnessRoute.DATA_QUERY
 
 
@@ -214,3 +214,18 @@ def test_system_prompt_falls_back_without_profile() -> None:
     prompt = _render_system_prompt(None)
     assert "DATA_QUERY" in prompt
     assert "the data source" in prompt
+
+
+def test_system_prompt_omits_data_query_without_curated_catalog() -> None:
+    """A primitives-only datasource (no curated catalog) drops DATA_QUERY from
+    the menu so the LLM can't classify a question as canned — every data
+    question is DATA_AGENTIC (composable-primitive) exploration."""
+
+    from dataclasses import replace
+
+    prompt = _render_system_prompt(replace(FAKE_PROFILE, has_curated_catalog=False))
+    assert "DATA_QUERY" not in prompt
+    # The remaining data routes and the datasource name are still present.
+    assert "DATA_AGENTIC" in prompt
+    assert "DATA_META" in prompt
+    assert FAKE_PROFILE.display_name in prompt

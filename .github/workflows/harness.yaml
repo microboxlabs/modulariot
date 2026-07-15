@@ -37,6 +37,9 @@ on:
     paths:
       - 'miot-harness/**'
       - '.github/workflows/harness.yaml'
+      # apps/app nav registry — the miot-search skill's page inventory is
+      # parity-tested against it (tests/context_skills/test_miot_search_pages_parity.py)
+      - 'turbo-repo/apps/app/src/features/layout/models/pages-config.json'
     branches: [trunk, main]
     tags:
       - 'v*'
@@ -44,6 +47,7 @@ on:
     paths:
       - 'miot-harness/**'
       - '.github/workflows/harness.yaml'
+      - 'turbo-repo/apps/app/src/features/layout/models/pages-config.json'
     branches: [trunk, main]
   workflow_dispatch:
 

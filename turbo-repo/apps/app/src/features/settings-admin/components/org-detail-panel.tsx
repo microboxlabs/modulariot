@@ -6,6 +6,7 @@ import { useOrgMembers } from "../hooks/use-org-members";
 import { useOrgModules } from "../hooks/use-org-modules";
 import MembersList from "./members-list";
 import ModulesList from "./modules-list";
+import GpsWebhookCard from "../gps-webhooks/gps-webhook-card";
 import WhatsAppChannelCard from "../whatsapp/whatsapp-channel-card";
 
 interface OrgDetailPanelProps {
@@ -47,6 +48,7 @@ export default function OrgDetailPanel({ orgSlug, dict }: OrgDetailPanelProps) {
         dict={dict}
       />
       <WhatsAppChannelCard orgSlug={orgSlug} dict={dict} />
+      <GpsWebhookCard orgSlug={orgSlug} dict={dict} />
       <MembersList
         members={members}
         isLoading={membersLoading}

@@ -25,7 +25,7 @@ name: nexo
 backend: nexo
 dsn_env: MIOT_HARNESS_DATASOURCE_DSN
 options:
-  tenant_lock: mintral
+  tenant_lock: orion
 ---
 Coordinador primer.
 """

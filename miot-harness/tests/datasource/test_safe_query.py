@@ -316,7 +316,7 @@ async def test_run_select_handles_join_with_and_or() -> None:
         sql=(
             "SELECT t.id_, v.text_ FROM acs.act_ru_task t "
             "JOIN acs.act_ru_variable v ON v.proc_inst_id_ = t.proc_inst_id_ "
-            "WHERE v.name_ = 'mintral_serviceCode' AND t.suspension_state_ = 1"
+            "WHERE v.name_ = 'orion_serviceCode' AND t.suspension_state_ = 1"
         ),
     )
     assert run.rows == [{"id_": "1"}]

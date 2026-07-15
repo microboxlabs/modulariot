@@ -45,7 +45,7 @@ def _build_supervisor(
         run_store=JsonRunStore(tmp_path),
         llm_router=llm_router,
         meta_model=meta_model,
-        tenant_lock="mintral",
+        tenant_lock="orion",
     )
 
 

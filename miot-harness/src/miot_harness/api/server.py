@@ -5,7 +5,7 @@ import json
 import logging
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
@@ -14,7 +14,7 @@ import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import get_chat_model
@@ -30,11 +30,18 @@ from miot_harness.config import (
     load_dotenv_into_environ,
 )
 from miot_harness.connections.loader import load_connections, select_primary
+from miot_harness.connections.models import Connection
 from miot_harness.context_skills.loader import (
     ActiveConnections,
     boot_context_skills,
 )
 from miot_harness.context_skills.skill_models import SkillSummary
+from miot_harness.datasource.knowledge.distiller import distill_episodes
+from miot_harness.datasource.knowledge.loader import load_connection_cards
+from miot_harness.datasource.knowledge.writer import (
+    ConnectionCardWrite,
+    write_connection_card,
+)
 from miot_harness.datasource.provider import BootResult, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
@@ -53,6 +60,27 @@ from miot_harness.runtime.supervisor import HarnessSupervisor
 logger = logging.getLogger(__name__)
 
 
+def _configure_logging(settings: HarnessSettings) -> None:
+    """Apply ``MIOT_HARNESS_LOG_LEVEL`` to the package logger.
+
+    uvicorn configures its own loggers but not ours, and nothing else wires
+    ``settings.log_level`` into logging — so without this the harness's own
+    INFO/DEBUG records are dropped (only WARNING+ leak via ``logging``'s
+    last-resort handler) and the log-level setting is inert. Attach one stream
+    handler to the ``miot_harness`` logger at the requested level. Idempotent
+    (create_app may run more than once under the test suite); ``propagate``
+    stays on so pytest's ``caplog`` still captures records.
+    """
+    pkg_logger = logging.getLogger("miot_harness")
+    pkg_logger.setLevel(settings.log_level)
+    if not pkg_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+        )
+        pkg_logger.addHandler(handler)
+
+
 class ApprovalDecision(BaseModel):
     """Body schema for POST /runs/{run_id}/approvals/{approval_id}.
 
@@ -61,6 +89,36 @@ class ApprovalDecision(BaseModel):
     """
 
     decision: Literal["approve", "deny"]
+
+
+class KnowledgeCardWrite(BaseModel):
+    """Body schema for POST /connections/{connection}/knowledge — one
+    human-approved business fact to persist as a connection-scoped card.
+
+    `scope` is restricted to shared tiers: a personal fact never becomes a
+    shared connection card (it would leak to every user of the connection), so
+    the endpoint rejects it. `body` records the MEANING of the term, never
+    row-level secret values.
+    """
+
+    term: str = Field(min_length=1)
+    body: str = Field(min_length=1)
+    kind: str = ""
+    title: str = ""
+    scope: str = "tenant"
+    confidence: float | None = None
+    approved_by: str = ""
+    provenance: dict[str, Any] | list[Any] | None = None
+    last_confirmed: str = ""
+
+
+class DistillRequest(BaseModel):
+    """Body for POST /connections/{connection}/distill — the batch of interaction
+    episodes the modulith read for this tenant+connection. Episodes are flexible
+    telemetry dicts (`run_id` + `payload{query, assumptions, …}`); the distiller
+    reads them defensively, so the schema stays permissive."""
+
+    episodes: list[dict[str, Any]] = Field(default_factory=list)
 
 
 def _make_lifespan(
@@ -159,6 +217,12 @@ def _make_lifespan(
         # connection synthesized from the legacy MIOT_HARNESS_DATASOURCE_* env).
         conn_result = load_connections(settings)
         app.state.connections_diagnostics = list(conn_result.diagnostics)
+        # Keep the resolved Connection objects (not just the JSON summary in
+        # app.state.connections) so the knowledge-write endpoint can resolve a
+        # connection to its on-disk source_path + tenant scope.
+        app.state.connection_objects = {
+            c.name: c for c in conn_result.connections
+        }
         for conn_diag in conn_result.diagnostics:
             (
                 logger.error
@@ -173,6 +237,9 @@ def _make_lifespan(
         primary = select_primary(conn_result.connections, settings)
         primary_kind = primary.backend if primary is not None else settings.datasource_kind
         app.state.primary_connection_name = primary.name if primary is not None else None
+        # Let the supervisor stamp this connection onto ground-or-flag assumptions
+        # so the review surface stages candidates against the right connection.
+        harness.primary_connection_name = app.state.primary_connection_name
         # Profile/router/tenant-lock wiring needs a provider profile. If the
         # primary connection's backend has no registered provider yet (e.g. an
         # acs connection pending the generic provider), fall back to the
@@ -491,6 +558,9 @@ def _make_lifespan(
                             settings.provenance_log_dir,
                             enabled=settings.provenance_log_enabled,
                         ),
+                        # Skills index in the frozen prefix + lazy
+                        # `load_skill` bodies (booted above, before wiring).
+                        context_skills=harness.context_skills,
                     )
                 harness.meta_model = get_chat_model(
                     settings.intent_router_model,
@@ -580,6 +650,7 @@ def _make_lifespan(
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    _configure_logging(settings)
     harness = build_harness(Path(settings.workspace_dir))
     app = FastAPI(
         title="MIOT Harness",
@@ -640,9 +711,10 @@ def create_app() -> FastAPI:
     async def require_auth(request: Request) -> Mapping[str, Any]:
         """Auth0 RS256 verification gate for /runs* endpoints.
 
-        Short-circuits to a blank context when auth is disabled (the
-        legacy unauthenticated mode used by unit tests and local
-        dev). When enabled:
+        Skips JWT verification when auth is disabled (the legacy
+        unauthenticated mode used by unit tests and local dev), but still
+        resolves `X-Miot-Tenant-Client-Id` when the proxy supplies it. When
+        auth is enabled:
 
         - Enforces Bearer-token + JWKS RS256 sig/iss/aud/exp checks.
         - Resolves the caller's tenant from the
@@ -657,7 +729,16 @@ def create_app() -> FastAPI:
         still depends on it.
         """
         if not settings.auth_enabled:
-            return {"claims": {}, "tenant_id": None}
+            # Auth disabled skips JWT verification, but the tenant is still the
+            # backend's to assign: honor the `X-Miot-Tenant-Client-Id` header
+            # (set by the Quarkus proxy) so a proxied dev deployment resolves the
+            # real tenant instead of silently falling back. Absent header → None,
+            # which `_apply_tenant_override` turns into a 400 unless the caller
+            # supplied a body tenant (the dev/test escape hatch).
+            header_tenant = (
+                request.headers.get("X-Miot-Tenant-Client-Id") or ""
+            ).strip() or None
+            return {"claims": {}, "tenant_id": header_tenant}
 
         auth_header = request.headers.get("Authorization") or ""
         if not auth_header.startswith("Bearer "):
@@ -725,23 +806,38 @@ def create_app() -> FastAPI:
     def _apply_tenant_override(
         user_request: UserRequest, auth: Mapping[str, Any]
     ) -> UserRequest:
-        """If the verified header carried a tenant, that value wins
-        over whatever the body declared. Body-only flow (auth
-        disabled, i.e. local dev / unit tests) keeps the body value.
-        The body field itself is deprecated; a future release will
-        delete it from the schema once staging soak confirms no
-        caller still depends on it.
+        """Resolve the run's tenant and enforce that one exists.
+
+        A verified ``X-Miot-Tenant-Client-Id`` header (set by the Quarkus
+        proxy) wins over the body; the body ``tenant_id`` is only an
+        auth-disabled dev/test escape hatch. The tenant is NEVER defaulted:
+        a run with neither a header nor an explicit body tenant is rejected
+        (400) instead of being silently attributed to a placeholder, since
+        a missing tenant means the request did not pass through the org
+        proxy — a misconfiguration, not a valid anonymous run. The body
+        field is deprecated; a future release will delete it from the schema.
         """
         header_tenant = auth.get("tenant_id")
-        if not header_tenant:
-            return user_request
-        if user_request.tenant_id != header_tenant:
+        if header_tenant and user_request.tenant_id != header_tenant:
             logger.info(
                 "Auth: overriding body tenant %r with header tenant %r",
                 user_request.tenant_id,
                 header_tenant,
             )
-        return user_request.model_copy(update={"tenant_id": header_tenant})
+            user_request = user_request.model_copy(
+                update={"tenant_id": header_tenant}
+            )
+        if not user_request.tenant_id:
+            logger.error(
+                "Run rejected: unresolved tenant — no X-Miot-Tenant-Client-Id "
+                "header and no tenant_id supplied. The tenant is required and is "
+                "never defaulted; verify the request is routed through the "
+                "Quarkus org proxy."
+            )
+            raise HTTPException(
+                status_code=400, detail="missing_required_tenant"
+            )
+        return user_request
 
     @app.get("/health")
     async def health() -> dict[str, object]:
@@ -953,6 +1049,127 @@ def create_app() -> FastAPI:
         task.cancel()
         return Response(status_code=204)
 
+    @app.post("/connections/{connection}/knowledge", status_code=201)
+    async def write_connection_knowledge(
+        connection: str,
+        body: KnowledgeCardWrite,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, str]:
+        """Persist a human-approved business fact as a connection-scoped
+        authored card on the harness PVC — the APPLY seam of the
+        continual-learning loop. R0's knowledge loader picks up
+        `<conn>/knowledge/*.md` on the next run, so grounding improves without a
+        redeploy. Promotion is human-gated upstream (the app's review UI); this
+        endpoint only writes what an authenticated, tenant-authorized caller
+        approved.
+        """
+        conn: Connection | None = getattr(
+            app.state, "connection_objects", {}
+        ).get(connection)
+        if conn is None:
+            raise HTTPException(
+                status_code=404, detail=f"unknown connection {connection!r}"
+            )
+        _enforce_tenant_may_write_connection(conn, auth, connection)
+
+        # A personal fact never becomes a shared connection card — it would leak
+        # to every user of the connection. Only tenant/group tiers are shareable.
+        scope = body.scope.strip() or "tenant"
+        if scope != "tenant" and scope != "group" and not scope.startswith("group:"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"scope {body.scope!r} is not shareable "
+                "(expected 'tenant' or 'group[:<id>]')",
+            )
+
+        # Synthesized / legacy-env connections have no authored file on disk,
+        # hence no sibling knowledge dir to attach a card to.
+        source_path = conn.source_path
+        if not source_path or source_path.startswith("<"):
+            raise HTTPException(
+                status_code=409,
+                detail=f"connection {connection!r} has no authored file on disk; "
+                "cannot attach knowledge",
+            )
+        cards_dir = Path(source_path).parent / "knowledge"
+        card = ConnectionCardWrite(
+            term=body.term,
+            body=body.body,
+            kind=body.kind,
+            title=body.title,
+            scope=scope,
+            status="approved",
+            confidence=body.confidence,
+            approved_by=body.approved_by or str(auth.get("user_id") or ""),
+            provenance=body.provenance,
+            last_confirmed=body.last_confirmed,
+        )
+        try:
+            path = write_connection_card(cards_dir, card)
+        except (ValueError, OSError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {
+            "connection": connection,
+            "card_id": path.stem,
+            "path": str(path),
+            "scope": scope,
+            "status": "approved",
+        }
+
+    @app.post("/connections/{connection}/distill")
+    async def distill_connection(
+        connection: str,
+        body: DistillRequest,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, Any]:
+        """Run the background knowledge distiller over a batch of interaction
+        episodes for one connection and return CANDIDATE facts (pending human
+        review) — the DISTILL seam. The modulith's scheduled reconciler reads the
+        episodes from `interaction_episodes`, POSTs them here, and stages the
+        returned candidates in `knowledge_candidates`; the harness lends its LLM +
+        its authoritative cards (so already-grounded terms are skipped) and owns
+        no episode/candidate storage. OFF by default — 503 unless
+        `knowledge_distiller_enabled`. Produces only PENDING candidates; it never
+        promotes or writes a card (promotion stays human-gated).
+        """
+        if not settings.knowledge_distiller_enabled:
+            raise HTTPException(status_code=503, detail="knowledge distiller disabled")
+        conn: Connection | None = getattr(
+            app.state, "connection_objects", {}
+        ).get(connection)
+        if conn is None:
+            raise HTTPException(
+                status_code=404, detail=f"unknown connection {connection!r}"
+            )
+        _enforce_tenant_may_write_connection(conn, auth, connection)
+
+        # Skip terms this connection already grounds — the distiller proposes only
+        # what is still ungrounded. The authoritative cards are the harness's own,
+        # on the PVC beside the connection file.
+        existing_terms: list[str] = []
+        source_path = conn.source_path
+        if source_path and not source_path.startswith("<"):
+            cards_dir = Path(source_path).parent / "knowledge"
+            existing_terms = [
+                c.term or c.id for c in load_connection_cards(cards_dir).cards
+            ]
+
+        # Tests inject a stub via app.state.distiller_model; prod builds the seat
+        # on demand (a background batch call, not the hot path).
+        model = getattr(app.state, "distiller_model", None)
+        if model is None:
+            model = get_chat_model(settings.knowledge_distiller_model)
+        candidates = await distill_episodes(
+            body.episodes,
+            connection=connection,
+            model=model,
+            existing_terms=existing_terms,
+        )
+        return {
+            "connection": connection,
+            "candidates": [asdict(c) for c in candidates],
+        }
+
     @app.get("/runs/{run_id}/stream")
     async def stream_run(
         run_id: str,
@@ -1008,6 +1225,34 @@ def _enforce_tenant_owns_run(
         )
 
 
+def _enforce_tenant_may_write_connection(
+    conn: Connection, auth: Mapping[str, Any], name: str
+) -> None:
+    """Refuse a knowledge write from a caller whose tenant doesn't own the
+    connection. No-op when auth resolved no tenant (auth disabled — local dev /
+    unit tests).
+
+    Mirrors the runtime tenancy gate's ``tenant_id == lock`` equality exactly:
+    a tenant-scoped connection is that tenant's; a globally-loaded connection
+    may still be sealed to one tenant via ``options.tenant_lock`` (e.g.
+    Nexo→Orion). A global, unlocked connection is shared infrastructure — any
+    authenticated tenant may attach a card (the write is human-gated upstream).
+    """
+    caller = auth.get("tenant_id")
+    if not caller:
+        return
+    if conn.scope == "tenant" and conn.tenant_id:
+        lock: str | None = str(conn.tenant_id)
+    else:
+        raw_lock = conn.options.get("tenant_lock")
+        lock = str(raw_lock) if raw_lock else None
+    if lock is not None and caller != lock:
+        raise HTTPException(
+            status_code=403,
+            detail=f"connection {name!r} is locked to another tenant",
+        )
+
+
 def _enforce_tenant_owns_stream(
     app: FastAPI, run_id: str, auth: Mapping[str, Any]
 ) -> None:
@@ -1053,6 +1298,10 @@ def _enforce_debug_allowlist(request: UserRequest, settings: HarnessSettings) ->
     """
     if not request.debug:
         return
+    # tenant is guaranteed non-None here: every /runs* handler calls
+    # _apply_tenant_override first, which 400s a tenant-less request before
+    # this gate is reached.
+    assert request.tenant_id is not None
     if settings.debug_tenant_allowed(request.tenant_id):
         return
     raise HTTPException(

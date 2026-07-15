@@ -7,7 +7,9 @@ import {
   PlanningSelectionProvider,
   usePlanningSelection,
 } from "./planning-selection-context";
+import { CalendarSearchProvider } from "./calendar-search-context";
 import { PlanningSidebarClient } from "./planning-sidebar-client";
+import { SectionFilterBar } from "@/features/layout/components/secured-navbar/section-filter-bar-controller";
 
 interface PlanningLayoutClientProps {
   readonly dict: I18nDictionary;
@@ -30,6 +32,11 @@ function PlanningLayoutInner({
     <div className="flex flex-col h-full w-full">
       {/* Header */}
       {header}
+
+      {/* Search badges. The calendar has no SectionHeader (it carries its own
+          title/date/view header instead), so the filter bar is mounted here
+          directly — SectionFilterBar keys off the pathname, not its host. */}
+      <SectionFilterBar dict={dict} />
 
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">
@@ -66,7 +73,11 @@ export function PlanningLayoutClient({
 }: PlanningLayoutClientProps) {
   return (
     <PlanningSelectionProvider calendarId={calendarId} dict={dict}>
-      <PlanningLayoutInner dict={dict} header={header} calendar={calendar} />
+      {/* Inside the selection provider: the search feeds its matches into that
+          context's highlight channel, and both the header and the grid read it. */}
+      <CalendarSearchProvider>
+        <PlanningLayoutInner dict={dict} header={header} calendar={calendar} />
+      </CalendarSearchProvider>
     </PlanningSelectionProvider>
   );
 }

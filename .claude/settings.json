@@ -1,4 +1,10 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(git fetch *)",
+      "Bash(git pull *)"
+    ]
+  },
   "enabledPlugins": {
     "coderabbit@claude-plugins-official": true
   }

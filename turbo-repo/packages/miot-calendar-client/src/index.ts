@@ -6,6 +6,7 @@ export type {
   SlotData,
   BookingRequest,
   BookingUpdateRequest,
+  BookingStatus,
   BookingResponse,
   BookingListResponse,
   MoveBookingRequest,

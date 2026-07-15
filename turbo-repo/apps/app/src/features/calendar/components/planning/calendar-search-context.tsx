@@ -190,23 +190,31 @@ export function CalendarSearchProvider({
   // Highlighting alone is not enough: the grid shows one day or week, but the
   // search spans a 60-day window across every calendar, so a match is usually
   // off-screen. Land on it.
+  //
+  // Prefer a match in the calendar already on screen: submitting a search that
+  // has hits here should light them up in place, not immediately jump to
+  // another calendar (which would remount the grid the moment you search). Only
+  // when nothing matches here do we jump to the first match elsewhere.
   const autoJumpedTo = useRef<string | null>(null);
   useEffect(() => {
     if (!search.active || search.isLoading || search.error) return;
-    const first = search.matches[0];
-    if (!first) return;
+    const target =
+      search.matches.find((m) => m.calendarId === calendarId) ??
+      search.matches[0];
+    if (!target) return;
     // Already parked on a real match — the user is steering, leave them alone.
     if (currentIndex !== -1) return;
     // Guard against re-pushing the same jump while the router settles.
-    if (autoJumpedTo.current === first.bookingId) return;
-    autoJumpedTo.current = first.bookingId;
-    goToMatch(first);
+    if (autoJumpedTo.current === target.bookingId) return;
+    autoJumpedTo.current = target.bookingId;
+    goToMatch(target);
   }, [
     search.active,
     search.isLoading,
     search.error,
     search.matches,
     currentIndex,
+    calendarId,
     goToMatch,
   ]);
 

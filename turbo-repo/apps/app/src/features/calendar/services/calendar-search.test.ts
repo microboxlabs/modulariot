@@ -3,6 +3,7 @@ import {
   assignmentStateOf,
   isCalendarSearchActive,
   matchesCalendarSearch,
+  orderMatchesByCalendar,
   parseCalendarSearchParams,
   type CalendarSearchParams,
 } from "./calendar-search";
@@ -220,5 +221,53 @@ describe("matchesCalendarSearch", () => {
     expect(
       matchesCalendarSearch(service(), params({ licensePlate: ["JJKK11"] }))
     ).toBe(false);
+  });
+});
+
+describe("orderMatchesByCalendar", () => {
+  const at = (calendarId: string, time: number) => ({ calendarId, time });
+  const order = (items: { calendarId: string; time: number }[]) =>
+    orderMatchesByCalendar(items, (m) => m.time).map(
+      (m) => `${m.calendarId}@${m.time}`
+    );
+
+  it("keeps each calendar's matches contiguous instead of interleaving", () => {
+    // Chronological order would be A,B,A,B — every step a calendar hop, every
+    // hop a grid remount. Grouping makes it A,A then B,B: one hop total.
+    expect(
+      order([at("A", 1), at("B", 2), at("A", 3), at("B", 4)])
+    ).toEqual(["A@1", "A@3", "B@2", "B@4"]);
+  });
+
+  it("sorts by time within a calendar", () => {
+    expect(order([at("A", 30), at("A", 10), at("A", 20)])).toEqual([
+      "A@10",
+      "A@20",
+      "A@30",
+    ]);
+  });
+
+  it("orders calendars by their earliest match", () => {
+    // B's earliest (5) precedes A's earliest (10), so B's group comes first.
+    expect(order([at("A", 10), at("B", 5), at("A", 40), at("B", 90)])).toEqual([
+      "B@5",
+      "B@90",
+      "A@10",
+      "A@40",
+    ]);
+  });
+
+  it("is stable regardless of which calendar is 'current' — it takes no such input", () => {
+    // The order is a pure function of the matches, so the counter can't jump
+    // around as the user navigates between calendars.
+    const items = [at("A", 10), at("B", 5), at("A", 40)];
+    expect(order(items)).toEqual(order(items));
+  });
+
+  it("does not mutate its input", () => {
+    const items = [at("A", 3), at("B", 1)];
+    const snapshot = [...items];
+    orderMatchesByCalendar(items, (m) => m.time);
+    expect(items).toEqual(snapshot);
   });
 });

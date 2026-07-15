@@ -11,6 +11,7 @@ import {
   SEARCH_WINDOW_DAYS,
   isCalendarSearchActive,
   matchesCalendarSearch,
+  orderMatchesByCalendar,
   parseCalendarSearchParams,
   type CalendarSearchParams,
 } from "@/features/calendar/services/calendar-search";
@@ -85,13 +86,13 @@ export function useCalendarSearch(): CalendarSearchResult {
 
   const matches = useMemo(() => {
     if (!active || !data) return [];
-    return data.data
+    const mapped = data.data
       .map(mapBookingToPlannedService)
       .filter((m): m is MappedBooking => m !== null)
-      .filter((m) => matchesCalendarSearch(m.planned.service, params))
-      .sort(
-        (a, b) => slotTime(a).valueOf() - slotTime(b).valueOf()
-      );
+      .filter((m) => matchesCalendarSearch(m.planned.service, params));
+    // Grouped by calendar so stepping stays put instead of remounting the grid
+    // on every hop — see orderMatchesByCalendar.
+    return orderMatchesByCalendar(mapped, (m) => slotTime(m).valueOf());
   }, [active, data, params]);
 
   return {

@@ -18,6 +18,40 @@ import type { SelectedService } from "@/features/calendar/components/planning/pl
 export const SEARCH_WINDOW_DAYS = 30;
 
 /**
+ * Orders search matches so each calendar's matches are contiguous, sorted by
+ * time within a calendar, with calendars ordered by their earliest match.
+ *
+ * This is what makes stepping through results bearable. Crossing between
+ * calendars changes the `[calendarId]` route segment, which remounts the grid
+ * and refetches its bookings — a visible reset. A plain chronological order
+ * interleaves calendars and pays that cost on nearly every step; grouping pays
+ * it only once per calendar boundary.
+ *
+ * Ordering calendars by earliest match (not by the calendar currently on
+ * screen) keeps the order — and the "n of m" counter — stable no matter which
+ * calendar the user has navigated into. Does not mutate the input.
+ */
+export function orderMatchesByCalendar<T extends { calendarId: string }>(
+  items: readonly T[],
+  timeOf: (item: T) => number
+): T[] {
+  const earliest = new Map<string, number>();
+  for (const item of items) {
+    const t = timeOf(item);
+    const prev = earliest.get(item.calendarId);
+    if (prev === undefined || t < prev) earliest.set(item.calendarId, t);
+  }
+  return [...items].sort((a, b) => {
+    if (a.calendarId !== b.calendarId) {
+      return (
+        (earliest.get(a.calendarId) ?? 0) - (earliest.get(b.calendarId) ?? 0)
+      );
+    }
+    return timeOf(a) - timeOf(b);
+  });
+}
+
+/**
  * Whether a service's resource tuple is complete.
  *
  * Carrier + driver + truck is the tuple the assignment actually requires —

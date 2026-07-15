@@ -192,6 +192,18 @@ describe("CalendarSearchProvider — navigation", () => {
     expect(pushedParams().get("focus")).toBe("bk-svc-1");
   });
 
+  it("auto-jumps to a match in the current calendar over an earlier one elsewhere", () => {
+    // Submitting a search that has hits here must light them up in place, not
+    // remount the grid by jumping to another calendar the instant you search.
+    // svc-1 (cal-B) sorts first, but cal-A is on screen, so svc-2 wins.
+    searchResult = result({
+      matches: [match("svc-1", "cal-B"), match("svc-2", "cal-A")],
+    });
+    mount();
+    expect(pushedUrl()).toContain("/es/calendar/cal-A/planning");
+    expect(pushedParams().get("focus")).toBe("bk-svc-2");
+  });
+
   it("does not auto-jump once the user is parked on a real match", () => {
     url = "focus=bk-svc-1";
     searchResult = result({

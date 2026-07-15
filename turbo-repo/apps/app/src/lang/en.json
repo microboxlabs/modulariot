@@ -544,11 +544,11 @@
       "search": {
         "searching": "Searching…",
         "noResults": "No results",
-        "counter": "{{current}} of {{total}}",
+        "counter": "{current} of {total}",
         "previous": "Previous match",
         "next": "Next match",
         "clear": "Clear search",
-        "otherCalendar": "In another calendar: {{calendar}}"
+        "otherCalendar": "In another calendar: {calendar}"
       }
     },
     "shipping": {

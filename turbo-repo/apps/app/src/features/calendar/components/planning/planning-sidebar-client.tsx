@@ -16,6 +16,7 @@ import { tr } from "@/features/i18n/tr.service";
 import {
   usePlanningSelection,
   type SelectedService,
+  type PlannedWorkflowStage,
 } from "./planning-selection-context";
 import { PlanningSidebarForm } from "./planning-sidebar-form";
 import { PlanningSearchAutocomplete } from "./planning-search-autocomplete";
@@ -200,6 +201,7 @@ export function PlanningSidebarClient({
     bookingVersion,
     isSidebarOpen,
     getLiveTask,
+    plannedServices,
   } = usePlanningSelection();
   const [filteredServiceId, setFilteredServiceId] = useState<string | null>(
     null
@@ -745,7 +747,13 @@ export function PlanningSidebarClient({
           backendSlots={backendSlots}
           isSlotsLoading={isSlotsLoading}
           liveTaskStage={
-            getLiveTask(displayState.selectedService?.mintral_serviceCode)?.stage
+            // Live task first; a finished/cancelled service has no live task,
+            // so fall back to the terminal stage the booking row carries.
+            getLiveTask(displayState.selectedService?.mintral_serviceCode)
+              ?.stage ??
+            (plannedServices.find(
+              (p) => p.service.id === displayState.selectedService?.id
+            )?.workflowStage as PlannedWorkflowStage | undefined)
           }
         />
       }

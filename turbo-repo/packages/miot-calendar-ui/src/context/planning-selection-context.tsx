@@ -114,6 +114,24 @@ export interface PlanningSelectionContextValue<
   inspectPlannedService: (plannedService: PlannedService<TItem>) => void;
   isChipSelected: (serviceId: string) => boolean;
   clearChipSelection: () => void;
+  /**
+   * Ids matching the active search, or `null` when no search is running.
+   *
+   * The distinction matters: `null` is "no search, show everything normally",
+   * while an *empty set* is "a search is running and nothing in this calendar
+   * matched" — which must dim every chip, not none of them.
+   *
+   * Kept separate from `selectedChipServiceId` so a right-click selection and a
+   * search highlight compose instead of clobbering each other.
+   */
+  searchMatchIds: ReadonlySet<string> | null;
+  setSearchMatchIds: (ids: ReadonlySet<string> | null) => void;
+  isItemHighlighted: (serviceId: string) => boolean;
+  /** A search is running and this item is not one of its matches. */
+  isItemDimmed: (serviceId: string) => boolean;
+  /** The single match the search navigator is currently parked on. */
+  focusedItemId: string | null;
+  setFocusedItemId: (serviceId: string | null) => void;
   updateServiceAssignment: (
     serviceId: string,
     patch: Partial<TItem>
@@ -210,6 +228,12 @@ export function PlanningSelectionProvider<
   const [selectedChipServiceId, setSelectedChipServiceId] = useState<
     string | null
   >(null);
+  // Search highlight. null = no active search (see `searchMatchIds` on the
+  // context type for why null and the empty set must stay distinguishable).
+  const [searchMatchIds, setSearchMatchIds] = useState<ReadonlySet<
+    string
+  > | null>(null);
+  const [focusedItemId, setFocusedItemId] = useState<string | null>(null);
   const [plannedServices, setPlannedServices] = useState<
     PlannedService<TItem>[]
   >([]);
@@ -743,6 +767,17 @@ export function PlanningSelectionProvider<
     [selectedChipServiceId]
   );
 
+  const isItemHighlighted = useCallback(
+    (serviceId: string) => searchMatchIds?.has(serviceId) ?? false,
+    [searchMatchIds]
+  );
+
+  const isItemDimmed = useCallback(
+    (serviceId: string) =>
+      searchMatchIds !== null && !searchMatchIds.has(serviceId),
+    [searchMatchIds]
+  );
+
   const updateServiceAssignment = useCallback(
     (serviceId: string, patch: Partial<TItem>) => {
       setPlannedServices((prev) =>
@@ -801,6 +836,12 @@ export function PlanningSelectionProvider<
       inspectPlannedService,
       isChipSelected,
       clearChipSelection,
+      searchMatchIds,
+      setSearchMatchIds,
+      isItemHighlighted,
+      isItemDimmed,
+      focusedItemId,
+      setFocusedItemId,
       updateServiceAssignment,
       bookingsLoadError,
       backendSlots,
@@ -850,6 +891,10 @@ export function PlanningSelectionProvider<
       inspectPlannedService,
       isChipSelected,
       clearChipSelection,
+      searchMatchIds,
+      isItemHighlighted,
+      isItemDimmed,
+      focusedItemId,
       updateServiceAssignment,
       bookingsLoadError,
       backendSlots,

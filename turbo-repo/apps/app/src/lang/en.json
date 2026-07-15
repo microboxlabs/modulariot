@@ -540,6 +540,16 @@
           },
           "loadingMore": "Loading more…"
         }
+      },
+      "search": {
+        "searching": "Searching…",
+        "noResults": "No results",
+        "counter": "{current} of {total}",
+        "previous": "Previous match",
+        "next": "Next match",
+        "clear": "Clear search",
+        "otherCalendar": "In another calendar: {calendar}",
+        "error": "Search failed"
       }
     },
     "shipping": {
@@ -3361,7 +3371,12 @@
     "date": "Date",
     "symptom_name": "Symptom Name",
     "name": "Name",
-    "rut": "RUT"
+    "rut": "RUT",
+    "tipoViaje": "Trip Type",
+    "assignment": "Assignment",
+    "unassigned": "Unassigned",
+    "partial": "Partial",
+    "assigned": "Assigned"
   },
   "comments": {
     "title": "Comments",

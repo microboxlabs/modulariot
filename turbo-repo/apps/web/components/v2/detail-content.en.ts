@@ -39,38 +39,15 @@ export const detailPagesEn: Record<string, DetailPageData> = {
         ],
       },
       {
-        type: "code",
-        kicker: "What it looks like",
-        title: "Set up the pipeline in minutes",
-        cards: [
-          {
-            title: "Ingestion pipeline",
-            code: `const pipeline = new StreamProcessor({
-  source: 'fleet-telemetry',
-  processors: [
-    new GPSProcessor(),
-    new SensorProcessor(),
-    new EventProcessor()
-  ],
-  sink: 'your-cloud-storage',
-  latency: '< 56ms'
-});
-
-pipeline.start();`,
-          },
-          {
-            title: "Last signal per asset",
-            code: `GET /api/v1/lastsignal/{assetId}
-
-{
-  "assetId": "TRK-48210",
-  "lat": -33.4489,
-  "lng": -70.6693,
-  "speed": 62,
-  "ts": "2026-07-02T14:02:11Z",
-  "source": "your-postgres"
-}`,
-          },
+        type: "steps",
+        kicker: "How it works",
+        title: "From signal to your database, in real time",
+        subtitle: "No polling, no batch jobs: every signal flows in and lands ready to query.",
+        steps: [
+          { n: "01", title: "The signal arrives", body: "GPS, sensors and events from any hardware stream in continuously, no waiting." },
+          { n: "02", title: "Processed instantly", body: "Every signal is normalized and evaluated with median latency under 56 ms." },
+          { n: "03", title: "Lands in your cloud", body: "Data stays in your own database: full sovereignty, effortless compliance." },
+          { n: "04", title: "Query anytime", body: "Latest position and status of each asset via open API or direct SQL." },
         ],
       },
     ],
@@ -219,37 +196,17 @@ pipeline.start();`,
       "Everything you need to process, analyze and act on fleet data in real time, on an open architecture you control.",
     blocks: [
       {
-        type: "code",
+        type: "split",
         kicker: "Streaming",
-        title: "Real-time streaming pipeline",
-        subtitle: "Process every signal as it arrives, with sub-second latency.",
-        cards: [
-          {
-            title: "StreamProcessor",
-            code: `const pipeline = new StreamProcessor({
-  source: 'fleet-telemetry',
-  processors: [
-    new GPSProcessor(),
-    new SensorProcessor(),
-    new EventProcessor()
-  ],
-  sink: 'your-cloud-storage',
-  latency: '< 56ms'
-});
-pipeline.start();`,
-          },
-          {
-            title: "Symptom alerts",
-            code: `const alertRules = {
-  driverFatigue: {
-    triggers: ['eye_closure > 3s',
-               'lane_deviation > 2'],
-    actions: ['sms_supervisor'],
-    priority: 'critical'
-  }
-};
-AlertManager.configure(alertRules);`,
-          },
+        title: "Process every signal as it arrives",
+        body:
+          "The engine evaluates telemetry in real time against your operation's rules. When something deviates, it fires the action —notify, escalate, record— with sub-second latency. All configurable, no code required.",
+        bullets: [
+          "One source: all fleet telemetry in a single stream",
+          "Rules per symptom: fatigue, speeding, zones and more",
+          "Automatic actions: SMS to the supervisor, with evidence saved",
+          "Priority and severity per rule, tuned to your operation",
+          "Median end-to-end latency under 56 ms",
         ],
       },
       {
@@ -404,6 +361,17 @@ AlertManager.configure(alertRules);`,
           { title: "GitHub", body: "Open-source platform under Apache-2.0 license. Explore, contribute, give us a star.", href: "https://github.com/microboxlabs", external: true },
           { title: "MicroBox Labs", body: "Meet the company behind ModularIoT and the rest of the portfolio.", href: "https://microboxlabs.com", external: true },
           { title: "Talk to us", body: "Book a free 30-minute assessment for your operation.", href: "/#contacto" },
+        ],
+      },
+      {
+        type: "grid",
+        kicker: "Blog",
+        title: "News and technical notes",
+        subtitle: "Coming soon: articles, cases and lessons from real operations. In the meantime, the docs and cases are already available.",
+        cards: [
+          { icon: "radar", title: "How the Control Tower works", body: "A walkthrough of the rules that turn signals into decisions." },
+          { icon: "chart", title: "The 36 symptoms, explained", body: "What each rule detects and why it matters for your operation." },
+          { icon: "shield", title: "Your data, your cloud", body: "How the platform works without vendor lock-in, with full sovereignty." },
         ],
       },
     ],

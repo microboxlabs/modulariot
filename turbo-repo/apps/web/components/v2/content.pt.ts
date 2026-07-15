@@ -9,7 +9,7 @@ export const pt = {
         {
           title: "Plataforma",
           items: [
-            { icon: "signal", label: "Ingestão GPS Core", href: "/producto/ingesta-gps-core", desc: "Pipeline de sinais GPS e sensores em tempo real" },
+            { icon: "signal", label: "Ingestão GPS Core", href: "/producto/ingesta-gps-core", desc: "Sinais GPS e sensores em tempo real para o seu banco de dados" },
             { icon: "radar", label: "Sintomas / Torre de Controle", href: "/producto/sintomas-torre-control", desc: "Mais de 30 regras de detecção com rastreabilidade" },
             { icon: "plug", label: "Integrações", href: "/producto/integraciones", desc: "Workflows, webhooks e cofre de evidências" },
             { icon: "video", label: "Vídeo ao Vivo / HLS", href: "/producto/video-en-vivo", desc: "Streaming contínuo de câmeras e dashcams" },
@@ -89,11 +89,19 @@ export const pt = {
     ],
     github: { label: "GitHub", href: "https://github.com/microboxlabs" },
     languages: [
-      { code: "es", label: "Español" },
-      { code: "en", label: "English" },
-      { code: "pt", label: "Português" },
+      { lang: "es", country: "Chile", flag: "cl" },
+      { lang: "es", country: "Peru", flag: "pe" },
+      { lang: "es", country: "Colômbia", flag: "co" },
+      { lang: "es", country: "México", flag: "mx" },
+      { lang: "pt", country: "Brasil", flag: "br" },
+      { lang: "en", country: "Global", flag: "gl" },
     ],
     cta: "Solicitar demo",
+    actions: {
+      demo: { label: "Agende uma demo", href: "/contacto?intent=demo" },
+      login: { label: "Entrar", href: "/contacto?intent=login" },
+      signup: { label: "Criar conta", href: "/contacto?intent=signup" },
+    },
   },
 
   hero: {
@@ -105,13 +113,18 @@ export const pt = {
       "Não vendemos mais alertas: transformamos cada sinal em menos problemas repetidos. E os dados e as decisões são seus.",
     ctaPrimary: "Agende uma demo técnica de 20 min",
     ctaSecondary: "Ver preços",
-    terminalTitle: "modulariot — fluxo ao vivo",
-    terminalLines: [
-      { time: "14:02:11", tag: "INGESTA", text: "2.847 sinais GPS/s · latência p50 42ms" },
-      { time: "14:02:36", tag: "SINTOMA", text: "Excesso de velocidade · Rota interna A2 · severidade alta" },
-      { time: "14:02:37", tag: "WORKFLOW", text: "Evento #48210 → SMS supervisor + evidência capturada" },
-      { time: "14:02:39", tag: "SINK", text: "asset_data ← 2.847 linhas · seu PostgreSQL, sua nuvem" },
-    ],
+    livePanel: {
+      title: "Operação ao vivo",
+      subtitle: "uma operação real, agora mesmo",
+      live: "recebendo eventos…",
+      done: "tudo fica na sua operação",
+      events: [
+        { kind: "signal", title: "Sinais chegando", detail: "2.847 ativos reportando em tempo real" },
+        { kind: "symptom", title: "Sintoma detectado", detail: "Excesso de velocidade · rota interna · severidade alta" },
+        { kind: "action", title: "Escalonado ao responsável", detail: "supervisor notificado por SMS, com evidência" },
+        { kind: "record", title: "Fica registrado", detail: "no seu banco de dados, na sua nuvem" },
+      ],
+    },
   },
 
   stats: {
@@ -214,48 +227,22 @@ export const pt = {
     subtitle: "Tudo o que você precisa para processar, analisar e agir sobre dados de frota em tempo real",
     cards: [
       {
-        title: "Pipeline de streaming em tempo real",
-        code: `// Streaming de dados GPS e sensores
-const pipeline = new StreamProcessor({
-  source: 'fleet-telemetry',
-  processors: [
-    new GPSProcessor(),
-    new SensorProcessor(),
-    new EventProcessor()
-  ],
-  sink: 'your-cloud-storage',
-  latency: '< 56ms'
-});
-
-pipeline.start();
-// Stream ativo: 10K+ eventos/seg`,
+        icon: "signal",
+        title: "Processamento em tempo real",
+        body: "Cada sinal GPS, sensor e evento do motorista é processado conforme chega, com latência mediana abaixo de 56 ms.",
+        bullets: ["Uma única fonte para toda a telemetria", "Enriquecido e avaliado na hora", "Milhares de eventos por segundo, sem lote"],
       },
       {
-        title: "Alertas baseados em sintomas",
-        code: `// Regras de alerta inteligentes
-const alertRules = {
-  driverFatigue: {
-    triggers: ['eye_closure > 3s',
-               'lane_deviation > 2'],
-    actions: ['sms_supervisor',
-              'audio_alert'],
-    priority: 'critical'
-  }
-};
-
-AlertManager.configure(alertRules);
-// 32% menos incidentes em 2 semanas`,
+        icon: "radar",
+        title: "Alertas por sintoma",
+        body: "Mais de 30 regras detectam o desvio —fadiga, excesso de velocidade, zonas de risco— e geram um evento classificado, não mais uma notificação genérica.",
+        bullets: ["Severidade e responsável automáticos", "Exclusão inteligente de ruído", "Ação disparada: SMS, painel ou ordem de serviço"],
       },
       {
-        title: "Escalonamento conforme o sintoma",
-        code: `// Escalonamento por sintoma
-const escalonamento = new Escalation({
-  onSymptom: 'código preto',
-  notify: ['email', 'whatsapp', 'teams'],
-  conversation: true,   // ciclo bidirecional
-  owner: 'gerente_operacoes'
-});
-// Cada alerta chega com plano e responsável`,
+        icon: "plug",
+        title: "Escalonamento por sintoma",
+        body: "Cada sintoma é escalonado ao canal onde a operação vive —e-mail, WhatsApp, Teams— com conversa bidirecional, plano e responsável.",
+        bullets: ["Canal conforme o tipo de sintoma", "Ciclo bidirecional, não só notificar", "Cada alerta chega com plano e responsável"],
       },
     ],
   },
@@ -349,27 +336,16 @@ const escalonamento = new Escalation({
 
   deployment: {
     kicker: "Implantação",
-    title: "Opções de implantação",
-    subtitle: "Escolha o modelo que melhor se adapta aos seus requisitos e necessidades de conformidade",
-    options: [
-      {
-        title: "SaaS · gerenciado pela MBL",
-        highlight: "Mais popular",
-        description: "Nós operamos a infraestrutura na nuvem; você foca na operação. A forma mais rápida de começar.",
-        features: ["Zero overhead de DevOps", "Monitoramento e suporte", "Atualizações automáticas", "Garantias de SLA"],
-      },
-      {
-        title: "Na sua nuvem",
-        highlight: "Soberania de dados",
-        description: "Implantado na sua própria infraestrutura (AWS, Azure ou GCP). Os dados nunca saem do seu controle.",
-        features: ["Soberania completa de dados", "Suas próprias políticas de segurança", "Escalonamento ilimitado", "Acesso direto ao banco de dados"],
-      },
-      {
-        title: "On-premise · edge",
-        highlight: "Nas suas instalações",
-        description: "Processamento nas suas instalações para baixa latência, com backup e análise em nuvem.",
-        features: ["Processamento edge de baixa latência", "Capacidade offline", "Sincronização com a nuvem", "Conformidade regional"],
-      },
+    title: "Implantação",
+    subtitle: "Uma colocação em operação gerenciada pela MicroBox Labs sobre a sua própria nuvem: nós operamos a infraestrutura, você foca na operação. No ar em dias, não meses.",
+    soonLabel: "Em breve",
+    includes: [
+      { title: "Configurado à sua operação", body: "Limites, zonas e regras ajustados a como você trabalha — não um modelo genérico." },
+      { title: "Implantado na sua nuvem", body: "Roda na sua própria infraestrutura (AWS, Azure ou GCP); seus dados nunca saem do seu controle.", soon: true },
+      { title: "Conectado aos seus sistemas", body: "Integração via API com as plataformas que você já usa (despacho, manutenção, ERP); soma-se à sua operação, não a substitui." },
+      { title: "Canais da sua operação", body: "E-mail, WhatsApp, Teams, Webex e SMS conectados para que o alerta chegue onde o time vive." },
+      { title: "Colocação em operação gerenciada", body: "A MicroBox Labs opera e acompanha a operação, sem overhead de DevOps do seu lado." },
+      { title: "Monitoramento, suporte e atualizações", body: "A plataforma se mantém atualizada e monitorada sem que você precise se ocupar." },
     ],
   },
 

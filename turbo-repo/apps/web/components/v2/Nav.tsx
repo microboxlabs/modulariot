@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { getContent } from "./content";
+import { Flag } from "./flags";
+
+const COUNTRY_KEY = "miot_country";
+
+// Abreviatura compacta para el botón colapsado (el dropdown usa nombre completo).
+const ABBR: Record<string, string> = { cl: "CL", pe: "PE", co: "CO", mx: "MX", br: "BR", gl: "INT" };
 
 // Los hrefs del contenido son relativos a la home ("/#seccion", "/precios");
 // se prefijan con /alpha-2506/{lang} según la ruta actual.
@@ -66,8 +72,29 @@ const topItem =
 export default function Nav() {
   const [open, setOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [country, setCountry] = useState<string | null>(null);
   const { base, lang } = useBasePath();
   const nav = getContent(lang).nav;
+
+  // País elegido persistido; se lee tras montar (evita mismatch SSR).
+  useEffect(() => {
+    try {
+      setCountry(localStorage.getItem(COUNTRY_KEY));
+    } catch {}
+  }, []);
+
+  // País activo: el guardado si coincide con el idioma de la ruta, si no el
+  // primer país (ancla) de ese idioma.
+  const regions = nav.languages;
+  const activeRegion =
+    regions.find((r) => r.flag === country && r.lang === lang) ||
+    regions.find((r) => r.lang === lang) ||
+    regions[0];
+  const pickRegion = (flag: string) => {
+    try {
+      localStorage.setItem(COUNTRY_KEY, flag);
+    } catch {}
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-gray-950/85 backdrop-blur transition-colors">
@@ -186,37 +213,53 @@ export default function Nav() {
             </svg>
           </a>
 
-          {/* Selector de idioma (region selector de ClickHouse) */}
+          {/* Selector de país → idioma (region selector de ClickHouse) */}
           <div className="group relative">
-            <button className={topItem} aria-label="Cambiar idioma">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-              </svg>
-              <span className="uppercase">{lang}</span>
+            <button className={topItem} aria-label="Cambiar país / idioma">
+              <Flag code={activeRegion.flag} />
+              <span>{ABBR[activeRegion.flag] ?? activeRegion.country}</span>
               <Chevron />
             </button>
-            <div className={`${panelBase} right-0 w-40 origin-top-right`}>
+            <div className={`${panelBase} right-0 w-48 origin-top-right`}>
               <div className="rounded-xl border border-white/10 bg-gray-900 p-2 shadow-2xl">
-                {nav.languages.map((l) => (
-                  <a
-                    key={l.code}
-                    href={`/alpha-2506/${l.code}`}
-                    className={`block rounded-lg px-3 py-2 text-sm transition-colors hover:bg-white/5 ${
-                      l.code === lang ? "font-semibold text-blue-400" : "text-gray-200"
-                    }`}
-                  >
-                    {l.label}
-                  </a>
-                ))}
+                {regions.map((r, i) => {
+                  const active = r.flag === activeRegion.flag;
+                  const divider = i > 0 && regions[i - 1].lang !== r.lang;
+                  return (
+                    <a
+                      key={r.flag}
+                      href={`/alpha-2506/${r.lang}`}
+                      onClick={() => pickRegion(r.flag)}
+                      className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-white/5 ${
+                        divider ? "mt-1 border-t border-white/10 pt-2.5" : ""
+                      } ${active ? "font-semibold text-blue-400" : "text-gray-200"}`}
+                    >
+                      <Flag code={r.flag} />
+                      <span>{r.country}</span>
+                    </a>
+                  );
+                })}
               </div>
             </div>
           </div>
 
           <a
-            href={resolveHref(base, "/contacto?intent=demo")}
-            className="ml-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+            href={resolveHref(base, nav.actions.demo.href)}
+            className="ml-1 rounded-lg border border-white/15 bg-white/5 px-3.5 py-2 text-sm font-medium text-gray-100 transition-colors hover:bg-white/10"
           >
-            {nav.cta}
+            {nav.actions.demo.label}
+          </a>
+          <a
+            href={resolveHref(base, nav.actions.login.href)}
+            className="rounded-lg border border-white/15 bg-white/5 px-3.5 py-2 text-sm font-medium text-gray-100 transition-colors hover:bg-white/10"
+          >
+            {nav.actions.login.label}
+          </a>
+          <a
+            href={resolveHref(base, nav.actions.signup.href)}
+            className="rounded-lg bg-white px-3.5 py-2 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-200"
+          >
+            {nav.actions.signup.label}
           </a>
         </div>
 
@@ -283,24 +326,49 @@ export default function Nav() {
               {item.label}
             </a>
           ))}
-          <div className="mt-3 flex items-center gap-3">
-            {nav.languages.map((l) => (
-              <a
-                key={l.code}
-                href={`/alpha-2506/${l.code}`}
-                className={`text-sm uppercase ${l.code === lang ? "font-bold text-blue-400" : "text-gray-400"}`}
-              >
-                {l.code}
-              </a>
-            ))}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {regions.map((r) => {
+              const active = r.flag === activeRegion.flag;
+              return (
+                <a
+                  key={r.flag}
+                  href={`/alpha-2506/${r.lang}`}
+                  onClick={() => pickRegion(r.flag)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm transition-colors ${
+                    active
+                      ? "border-blue-400/40 bg-blue-400/10 font-semibold text-blue-400"
+                      : "border-white/10 text-gray-300"
+                  }`}
+                >
+                  <Flag code={r.flag} className="h-3 w-[18px]" />
+                  <span>{r.country}</span>
+                </a>
+              );
+            })}
           </div>
-          <a
-            href={resolveHref(base, "/contacto?intent=demo")}
-            onClick={() => setOpen(false)}
-            className="mt-4 block rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white"
-          >
-            {nav.cta}
-          </a>
+          <div className="mt-4 space-y-2">
+            <a
+              href={resolveHref(base, nav.actions.demo.href)}
+              onClick={() => setOpen(false)}
+              className="block rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-center text-sm font-medium text-gray-100"
+            >
+              {nav.actions.demo.label}
+            </a>
+            <a
+              href={resolveHref(base, nav.actions.login.href)}
+              onClick={() => setOpen(false)}
+              className="block rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-center text-sm font-medium text-gray-100"
+            >
+              {nav.actions.login.label}
+            </a>
+            <a
+              href={resolveHref(base, nav.actions.signup.href)}
+              onClick={() => setOpen(false)}
+              className="block rounded-lg bg-white px-4 py-2.5 text-center text-sm font-semibold text-gray-900"
+            >
+              {nav.actions.signup.label}
+            </a>
+          </div>
         </div>
       )}
     </header>

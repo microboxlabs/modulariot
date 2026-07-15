@@ -1,0 +1,34 @@
+# 🔔 Release Notes v1.31.24 — ModularIoT
+
+### Fecha: 15/07/2026
+
+**Objetivo**: Esta versión prioriza la estabilidad operativa del flujo de planificación y asignación en ECM/Alfresco, corrigiendo errores de permisos que bloqueaban la operación diaria. Además, alinea el despliegue de la plataforma con el stack `0.5.25` para mantener consistencia entre componentes.
+
+## 🐛 Correcciones
+
+- **🐛 Error de permisos en planificación desde calendario y asignación de conductor**
+  - **Impacto**: Usuarios de planificación recibían errores `500` (`AccessDenied`) al planificar servicios o avanzar tareas cuando no figuraban en los grupos candidatos configurados para `planService` y `assignDriver`.
+  - **Solución**: Se ampliaron los grupos candidatos para incluir los perfiles de planificación/asignación en ambos pasos, y se ejecutó una migración idempotente para corregir tareas e instancias en curso. La corrección quedó verificada en entornos dev y prod; para nuevas instancias, requiere desplegar la imagen ECM actualizada en producción.
+
+## 📊 Beneficios
+
+- Se elimina un bloqueo crítico en la planificación operativa desde calendario.
+- Se reduce el riesgo de fallas recurrentes entre pasos consecutivos del workflow (`planService` y `assignDriver`).
+- Se mejora la continuidad de operación en instancias ya activas mediante backfill controlado.
+- La migración idempotente permite reejecución segura para cubrir ventanas entre despliegues.
+- Se refuerza la trazabilidad y gobernanza de permisos en tareas BPM vinculadas a Alfresco.
+- Se mantiene la estabilidad del release con un cambio focalizado y de alto impacto funcional.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.25`
+- **App**: `app@v0.5.25` (con cambios)
+- **Modulith**: `modulith@v0.5.17` (sin cambios)
+- **Harness**: `harness@v0.1.3` (sin cambios)
+- Los *digests* exactos de imágenes desplegadas están disponibles en el diálogo de información de compilación de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión `1.31.24` se enfoca en confiabilidad del flujo de trabajo donde el impacto era más directo para operación: planificación y asignación en ECM. Con esta corrección, el proceso recupera capacidad de ejecución para los equipos correctos y disminuye la fricción en tareas críticas.
+
+También deja preparada una transición segura a nivel de despliegue: la migración cubre instancias en curso y el ajuste de imagen ECM asegura que las nuevas instancias nazcan con la configuración correcta. En conjunto, es un release de estabilización con efecto operativo inmediato.

@@ -60,11 +60,17 @@ export function ItemChip({
         onClick ? "cursor-pointer" : "cursor-context-menu",
         color,
         // Ring precedence, strongest intent first. An in-flight reassignment
-        // outranks a search: it is an operation, not a lookup. Search rings are
-        // fuchsia so a match never reads as an amber selection.
+        // outranks a search: it is an operation, not a lookup. Search rings use
+        // the platform's Smalt/primary blue — the design system reserves it for
+        // "focus rings, selected states", which is exactly what a match is
+        // (amber stays the must-act/reassign accent). The dark 600/700 steps
+        // and the ring-offset separate it from the chip's own light-blue fill.
         reassigning && "ring-2 ring-amber-500 ring-offset-1 animate-pulse",
-        !reassigning && focused && "ring-4 ring-fuchsia-600 ring-offset-2",
-        !reassigning && !focused && highlighted && "ring-2 ring-fuchsia-500",
+        !reassigning && focused && "ring-4 ring-primary-700 ring-offset-2",
+        !reassigning &&
+          !focused &&
+          highlighted &&
+          "ring-2 ring-primary-600 ring-offset-1",
         !reassigning &&
           !focused &&
           !highlighted &&

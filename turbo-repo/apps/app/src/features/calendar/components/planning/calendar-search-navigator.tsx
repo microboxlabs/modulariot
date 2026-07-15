@@ -67,7 +67,7 @@ export function CalendarSearchNavigator({
 
   return (
     <Shell>
-      <span className="font-medium text-fuchsia-700 dark:text-fuchsia-300 tabular-nums">
+      <span className="font-medium text-primary-700 dark:text-primary-300 tabular-nums">
         {tr("pages.planning.search.counter", searchDict, {
           // -1 (nothing focused yet) still reads as "1 of N" rather than "0 of N".
           current: String(currentIndex === -1 ? 1 : currentIndex + 1),
@@ -112,7 +112,7 @@ export function CalendarSearchNavigator({
 
 function Shell({ children }: { readonly children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-fuchsia-300 bg-fuchsia-50 px-2 py-1 text-xs dark:border-fuchsia-700 dark:bg-fuchsia-950/40">
+    <div className="flex items-center gap-2 rounded-md border border-primary-300 bg-primary-50 px-2 py-1 text-xs dark:border-primary-700 dark:bg-primary-900/30">
       {children}
     </div>
   );
@@ -133,7 +133,7 @@ function NavButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="cursor-pointer rounded p-1 text-fuchsia-700 hover:bg-fuchsia-100 dark:text-fuchsia-300 dark:hover:bg-fuchsia-900/50"
+      className="cursor-pointer rounded p-1 text-primary-700 hover:bg-primary-100 dark:text-primary-300 dark:hover:bg-primary-900/50"
     >
       {children}
     </button>

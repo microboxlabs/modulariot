@@ -144,16 +144,19 @@ export function PlannedServiceChip({
         getPlannedServiceChipClassName(hasUrgencia),
         // Ring precedence, strongest intent first. An in-flight reassignment
         // outranks a search hit: it is an operation, not a lookup. Search rings
-        // are fuchsia so a match never reads as an amber right-click selection.
+        // use the platform's Smalt/primary blue — the design system reserves it
+        // for "focus rings, selected states", exactly what a match is (amber
+        // stays the must-act/reassign accent). Dark 600/700 steps + ring-offset
+        // separate it from the chip's own blue fill.
         isBeingReassigned &&
           "ring-2 ring-amber-500 ring-offset-1 animate-pulse",
         !isBeingReassigned &&
           isFocused &&
-          "ring-4 ring-fuchsia-600 ring-offset-2",
+          "ring-4 ring-primary-700 ring-offset-2",
         !isBeingReassigned &&
           !isFocused &&
           isHighlighted &&
-          "ring-2 ring-fuchsia-500",
+          "ring-2 ring-primary-600 ring-offset-1",
         !isBeingReassigned &&
           !isFocused &&
           !isHighlighted &&

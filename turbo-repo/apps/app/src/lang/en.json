@@ -548,7 +548,8 @@
         "previous": "Previous match",
         "next": "Next match",
         "clear": "Clear search",
-        "otherCalendar": "In another calendar: {calendar}"
+        "otherCalendar": "In another calendar: {calendar}",
+        "error": "Search failed"
       }
     },
     "shipping": {

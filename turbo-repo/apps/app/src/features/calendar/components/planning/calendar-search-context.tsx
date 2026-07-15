@@ -148,11 +148,19 @@ export function CalendarSearchProvider({
           .map((seg) => (seg === calendarId ? match.calendarId : seg))
           .join("/");
 
-        // The title's picker lists the calendars of `?groupCode=`. Carry the
-        // target's group across, or it would render a picker that does not
-        // contain the calendar you just landed on.
-        const targetGroup = calendars.find((c) => c.id === match.calendarId)
-          ?.groups?.[0]?.code;
+        // The title's picker lists the calendars of `?groupCode=`. Carry a
+        // group the target belongs to, or it would render a picker that does
+        // not contain the calendar you just landed on. When the target belongs
+        // to several groups, keep the one currently in the URL if it's among
+        // them (a calendar shared across groups shouldn't jump groups on you);
+        // otherwise fall back to its first group.
+        const targetGroups =
+          calendars.find((c) => c.id === match.calendarId)?.groups ?? [];
+        const currentGroup = searchParams.get("groupCode");
+        const targetGroup =
+          currentGroup && targetGroups.some((g) => g.code === currentGroup)
+            ? currentGroup
+            : targetGroups[0]?.code;
         if (targetGroup) params.set("groupCode", targetGroup);
         else params.delete("groupCode");
       }

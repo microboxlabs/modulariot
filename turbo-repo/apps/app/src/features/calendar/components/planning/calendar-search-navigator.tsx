@@ -49,7 +49,20 @@ export function CalendarSearchNavigator({
     );
   }
 
-  if (error || matches.length === 0) {
+  if (error) {
+    // A failed fetch is not an empty result — say so, or the planner second-
+    // guesses valid filters that actually matched nothing they can see.
+    return (
+      <Shell>
+        <span className="text-red-600 dark:text-red-400">
+          {tr("pages.planning.search.error", searchDict)}
+        </span>
+        <ClearButton dict={searchDict} onClear={clearSearch} />
+      </Shell>
+    );
+  }
+
+  if (matches.length === 0) {
     return (
       <Shell>
         <span className="text-gray-500 dark:text-gray-400">

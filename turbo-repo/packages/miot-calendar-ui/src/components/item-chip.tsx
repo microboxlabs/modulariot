@@ -3,11 +3,18 @@
 import type { MouseEvent } from "react";
 import { twMerge } from "tailwind-merge";
 import type { CalendarItem, CalendarItemColor } from "../types/calendar-item";
+import { useScrollIntoViewWhen } from "./planning/use-scroll-into-view-when";
 
 export interface ItemChipProps {
   item: CalendarItem;
   selected?: boolean;
   reassigning?: boolean;
+  /** Matches the active search. */
+  highlighted?: boolean;
+  /** A search is active and this chip missed it — fade it into the background. */
+  dimmed?: boolean;
+  /** The match the search navigator is parked on. Scrolls itself into view. */
+  focused?: boolean;
   onClick?: () => void;
   onContextMenu?: (e: MouseEvent) => void;
   className?: string;
@@ -31,13 +38,18 @@ export function ItemChip({
   item,
   selected = false,
   reassigning = false,
+  highlighted = false,
+  dimmed = false,
+  focused = false,
   onClick,
   onContextMenu,
   className,
 }: ItemChipProps) {
   const color = CHIP_COLOR[item.color ?? "blue"];
+  const ref = useScrollIntoViewWhen<HTMLButtonElement>(focused);
   return (
     <button
+      ref={ref}
       type="button"
       onClick={onClick}
       onContextMenu={onContextMenu}
@@ -47,8 +59,24 @@ export function ItemChip({
         "text-xs font-medium px-1.5 py-1 border-l-4",
         onClick ? "cursor-pointer" : "cursor-context-menu",
         color,
+        // Ring precedence, strongest intent first. An in-flight reassignment
+        // outranks a search: it is an operation, not a lookup. Search rings use
+        // the platform's Smalt/primary blue — the design system reserves it for
+        // "focus rings, selected states", which is exactly what a match is
+        // (amber stays the must-act/reassign accent). The dark 600/700 steps
+        // and the ring-offset separate it from the chip's own light-blue fill.
         reassigning && "ring-2 ring-amber-500 ring-offset-1 animate-pulse",
-        !reassigning && selected && "ring-2 ring-amber-500 ring-offset-1",
+        !reassigning && focused && "ring-4 ring-primary-700 ring-offset-2",
+        !reassigning &&
+          !focused &&
+          highlighted &&
+          "ring-2 ring-primary-600 ring-offset-1",
+        !reassigning &&
+          !focused &&
+          !highlighted &&
+          selected &&
+          "ring-2 ring-amber-500 ring-offset-1",
+        dimmed && "opacity-30",
         className
       )}
     >

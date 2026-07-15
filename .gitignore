@@ -47,8 +47,10 @@ apps/app/.env.local.dev
 # Aura
 .aura
 
-# Cursor IDE plans (local only)
+# Cursor IDE plans (local only) — `**/` so it also covers nested checkouts
+# like turbo-repo/.cursor/plans (a bare `.cursor/plans/` only anchors to root).
 .cursor/plans/
+**/.cursor/plans/
 
 # Ralph loop session state (local only)
 .ralph/

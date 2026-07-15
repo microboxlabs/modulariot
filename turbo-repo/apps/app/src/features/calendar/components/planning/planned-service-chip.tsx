@@ -2,6 +2,7 @@
 
 import { twMerge } from "tailwind-merge";
 import { IoPerson, IoPeople } from "react-icons/io5";
+import { useScrollIntoViewWhen } from "@microboxlabs/miot-calendar-ui";
 import type { PlannedService } from "./planning-selection-context";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -64,6 +65,12 @@ interface PlannedServiceChipProps {
    * ring, no pulse) and is independent of slot/sidebar selection.
    */
   readonly isSelected?: boolean;
+  /** Matches the active calendar search. */
+  readonly isHighlighted?: boolean;
+  /** A search is active and this chip missed it — faded into the background. */
+  readonly isDimmed?: boolean;
+  /** The match the search navigator is parked on. Scrolls itself into view. */
+  readonly isFocused?: boolean;
   readonly onContextMenu: (e: React.MouseEvent, ps: PlannedService) => void;
   /** Optional left-click handler — opens the sidebar in view/read-only mode. */
   readonly onClick?: (ps: PlannedService) => void;
@@ -80,11 +87,15 @@ export function PlannedServiceChip({
   plannedService,
   isBeingReassigned = false,
   isSelected = false,
+  isHighlighted = false,
+  isDimmed = false,
+  isFocused = false,
   onContextMenu,
   onClick,
   className,
   dict,
 }: PlannedServiceChipProps) {
+  const ref = useScrollIntoViewWhen<HTMLButtonElement>(isFocused);
   const hasUrgencia = hasUrgenciaIncidencia(plannedService.service);
   const driverCount = getDriverCount(plannedService.service);
   const { origen, destino } = plannedService.service;
@@ -96,6 +107,7 @@ export function PlannedServiceChip({
 
   return (
     <button
+      ref={ref}
       type="button"
       onClick={
         onClick
@@ -130,13 +142,29 @@ export function PlannedServiceChip({
         onClick ? "cursor-pointer" : "cursor-context-menu",
         "text-xs font-medium px-1.5 py-1 border-l-4",
         getPlannedServiceChipClassName(hasUrgencia),
+        // Ring precedence, strongest intent first. An in-flight reassignment
+        // outranks a search hit: it is an operation, not a lookup. Search rings
+        // use the platform's Smalt/primary blue — the design system reserves it
+        // for "focus rings, selected states", exactly what a match is (amber
+        // stays the must-act/reassign accent). Dark 600/700 steps + ring-offset
+        // separate it from the chip's own blue fill.
         isBeingReassigned &&
           "ring-2 ring-amber-500 ring-offset-1 animate-pulse",
-        // Reassign takes visual precedence: only apply the right-click
-        // highlight when the chip isn't already pulsing for reassignment.
         !isBeingReassigned &&
+          isFocused &&
+          "ring-4 ring-primary-700 ring-offset-2",
+        !isBeingReassigned &&
+          !isFocused &&
+          isHighlighted &&
+          "ring-2 ring-primary-600 ring-offset-1",
+        !isBeingReassigned &&
+          !isFocused &&
+          !isHighlighted &&
           isSelected &&
           "ring-2 ring-amber-500 ring-offset-1",
+        // Non-matches stay legible enough to keep the slot's context, but
+        // clearly recede so the eye lands on the match.
+        isDimmed && "opacity-30",
         className
       )}
       title={`${plannedService.service.id} - ${tr("pages.planning.sidebar.contextMenu.chipTitle", dict)}`}

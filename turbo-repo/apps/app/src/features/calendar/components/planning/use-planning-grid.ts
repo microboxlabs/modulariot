@@ -5,7 +5,9 @@ import dayjs from "dayjs";
 import {
   isTimeWindow,
   usePlanningSelection,
+  TimeWindowUtils,
   type PlannedService,
+  type TimeSlot,
   type TimeWindow,
 } from "./planning-selection-context";
 import type { PositionedShift } from "@microboxlabs/miot-calendar-ui";
@@ -27,6 +29,57 @@ interface SlotIdentifier {
   hour: number;
   minutes: number;
   dayIndex?: number;
+}
+
+/**
+ * Resolve the grid's visible hour span. The `[baseStartHour, baseEndHour]`
+ * range is a floor, not a fixed window: it expands outward (never shrinks) to
+ * cover any bookable time window or planned service that falls earlier or
+ * later. Without this, a booking outside the baseline — e.g. a 05:00 window
+ * while the grid starts at 08:00 — has no row to sit in: its shift rectangle
+ * clamps to the grid's top edge and collapses to a sliver, so all its chips
+ * pile up at that one line and overlap. Rounding keeps the span whole-hour
+ * aligned with `generateTimeSlots`, which steps by the hour: the start floors
+ * to the hour, and the end rounds up so a window ending at HH:MM (>HH:00) or a
+ * service in hour HH still gets a rendered row.
+ *
+ * Only bookable WINDOW entries drive the span. BLOCK entries mark closed /
+ * out-of-hours periods and can legitimately span the whole day (a "Fuera de
+ * Horario" block from 00:00–23:00); folding them in would pull the grid back
+ * to midnight even when every bookable window and every booking starts much
+ * later. Blocks still render as closed cells wherever they fall inside the
+ * resolved span — they just don't get to widen it.
+ */
+function computeGridHourRange(
+  configuredTimeSlots: readonly TimeSlot[],
+  plannedServices: readonly PlannedService[],
+  baseStartHour: number,
+  baseEndHour: number
+): { startHour: number; endHour: number } {
+  let startHour = baseStartHour;
+  let endHour = baseEndHour;
+
+  for (const tw of configuredTimeSlots) {
+    // Skip BLOCK entries — only bookable windows define the working span.
+    if (!isTimeWindow(tw)) continue;
+    const range = TimeWindowUtils.getTimeRange(tw);
+    if (!range) continue;
+    startHour = Math.min(startHour, range.startHour);
+    endHour = Math.max(
+      endHour,
+      range.endHour + (range.endMinutes > 0 ? 1 : 0)
+    );
+  }
+
+  for (const ps of plannedServices) {
+    startHour = Math.min(startHour, ps.slot.hour);
+    endHour = Math.max(endHour, ps.slot.hour + 1);
+  }
+
+  // Clamp to a valid 0..24 day and guarantee a non-empty span.
+  startHour = Math.max(0, Math.min(startHour, 23));
+  endHour = Math.min(24, Math.max(endHour, startHour + 1));
+  return { startHour, endHour };
 }
 
 // ============================================================================
@@ -59,6 +112,9 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     inspectPlannedService,
     isChipSelected,
     clearChipSelection,
+    isItemHighlighted,
+    isItemDimmed,
+    focusedItemId,
     andenesCount,
   } = usePlanningSelection();
 
@@ -106,9 +162,25 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     clearChipSelection();
   }, [serviceActions, clearChipSelection]);
 
+  // Adapt the visible hour span to the data so nothing renders outside the
+  // grid (see computeGridHourRange). Both the row axis (timeSlots below) and
+  // the shift-overlay geometry in the package views must use the SAME start
+  // hour, so these values are also returned for the caller to forward to the
+  // day/week views as startHour/endHour.
+  const { startHour: gridStartHour, endHour: gridEndHour } = useMemo(
+    () =>
+      computeGridHourRange(
+        configuredTimeSlots,
+        plannedServices,
+        startHour,
+        endHour
+      ),
+    [configuredTimeSlots, plannedServices, startHour, endHour]
+  );
+
   const timeSlots = useMemo(
-    () => generateTimeSlots(startHour, endHour),
-    [startHour, endHour]
+    () => generateTimeSlots(gridStartHour, gridEndHour),
+    [gridStartHour, gridEndHour]
   );
 
   const isLastSlot = useCallback(
@@ -184,6 +256,12 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     timeSlots,
     isLastSlot,
 
+    // Resolved visible hour span (adapted to the data). Forward these to the
+    // package day/week views so their shift-overlay pixel origin (dayStartMin)
+    // matches the row axis generated above.
+    startHour: gridStartHour,
+    endHour: gridEndHour,
+
     // Configured TWs/blocks for the current calendar (used by overlays
     // that need to know the real shift cadence per time window).
     configuredTimeSlots,
@@ -214,6 +292,12 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
 
     // Predicate the chip uses to render its right-click highlight ring.
     isChipSelected,
+
+    // Search highlight: which chips matched, which missed, and which one the
+    // match navigator is parked on.
+    isItemHighlighted,
+    isItemDimmed,
+    focusedItemId,
 
     // Service actions (context menu, delete modals). Spread first, then
     // override the open/close handlers with the wrapped versions that also

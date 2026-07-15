@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
-import { z } from "zod";
 import {
   PlanningSelectionProvider as CorePlanningSelectionProvider,
   CalendarProvider,
@@ -64,78 +63,8 @@ import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import type { SelectedService, TaskStage } from "./planning-selection-types";
 import { ServiceEvent } from "./service-event";
+import { mapBookingToPlannedService } from "@/features/calendar/services/booking-service-mapper";
 
-/**
- * Persisted accreditation level of an assigned resource — mirrors the
- * `AccreditationLevel` union; `null` = unknown at selection time.
- */
-const AccreditationLevelSchema = z
-  .enum(["accredited", "notAccredited", "superAccredited"])
-  .nullable()
-  .optional();
-
-/**
- * Zod schema for data stored inside booking.resource.data. All SelectedService
- * fields are optional (defaults applied on merge). `_anden` is stored here
- * because SlotData has no andén field.
- */
-const StoredServiceSchema = z
-  .object({
-    mintral_clientRut: z.string().optional(),
-    mintral_delegacionOrigen: z.string().optional(),
-    /**
-     * Stable business id for the service. Persisted because `resource.id` is a
-     * derived display label whose format is owed to the kanban transform —
-     * keeping the raw code lets the live-task lookup work without parsing.
-     */
-    mintral_serviceCode: z.string().optional(),
-    origen: z.string().optional(),
-    lugarCarguio: z.string().optional(),
-    destino: z.string().optional(),
-    tipoViaje: z.enum(["Sider", "Doble Sider", "Rampla"]).optional(),
-    mintral_serviceType: z.string().optional(),
-    ocupacion: z.number().optional(),
-    permanencia: z.string().optional(),
-    leadTime: z
-      .object({
-        total_lineasoc_cumplen: z.number(),
-        total_lineasoc_incumplen: z.number(),
-        // null means "not measured yet" — distinct from a measured 0%.
-        lineasoc_pctn_cumplimiento: z.number().nullable(),
-      })
-      .optional(),
-    eta: z.string().optional(),
-    incidencias: z.array(z.string()).optional(),
-    mintral_incidents: z.array(z.tuple([z.string(), z.string()])).optional(),
-    observaciones: z.string().optional(),
-    prioridad: z.number().optional(),
-    cm_created: z.string().optional(),
-    loadConstraint: z.string().optional(),
-    loadMaxUtilization: z.number().optional(),
-    loadWeightUtilization: z.number().optional(),
-    loadPalletUtilization: z.number().optional(),
-    loadVolumeUtilization: z.number().optional(),
-    serviceCategory: z.string().optional(),
-    expectedDepartureDate: z.string().optional(),
-    presentationDate: z.string().optional(),
-    assignedDriver: z.string().optional(),
-    assignedDriver2: z.string().optional(),
-    assignedCarrier: z.string().optional(),
-    assignedTruck: z.string().optional(),
-    assignedTrailer: z.string().optional(),
-    assignedCarrierExternalId: z.string().nullable().optional(),
-    assignedDriverExternalId: z.string().nullable().optional(),
-    assignedDriver2ExternalId: z.string().nullable().optional(),
-    assignedTruckExternalId: z.string().nullable().optional(),
-    assignedTrailerExternalId: z.string().nullable().optional(),
-    assignedCarrierAccreditation: AccreditationLevelSchema,
-    assignedDriverAccreditation: AccreditationLevelSchema,
-    assignedDriver2Accreditation: AccreditationLevelSchema,
-    assignedTruckAccreditation: AccreditationLevelSchema,
-    assignedTrailerAccreditation: AccreditationLevelSchema,
-    _anden: z.number().optional(),
-  })
-  .optional();
 
 async function cancelBookingWithWarning(
   bookingId: string,
@@ -411,48 +340,12 @@ export function PlanningSelectionProvider({
         signal
       );
       for (const booking of result.data) {
-        // Skip entries whose slot is missing — nothing to place on the grid.
-        if (!booking.slot) continue;
-        const storedParse = StoredServiceSchema.safeParse(booking.resource.data);
-        const stored = storedParse.success ? storedParse.data : undefined;
-        // Keep _anden separate so it is not spread into SelectedService.
-        const { _anden, ...storedService } = stored ?? {};
-        const service: SelectedService = {
-          origen: "",
-          lugarCarguio: "",
-          destino: "",
-          tipoViaje: "Sider",
-          ocupacion: 0,
-          permanencia: "",
-          leadTime: {
-            total_lineasoc_cumplen: 0,
-            total_lineasoc_incumplen: 0,
-            lineasoc_pctn_cumplimiento: 0,
-          },
-          eta: "",
-          incidencias: [],
-          observaciones: "",
-          prioridad: 0,
-          ...storedService,
-          // Canonical booking fields always win over stored data.
-          id: booking.resource.id,
-          cliente: booking.resource.label ?? booking.resource.id,
-          // Recover the code from the `${code}-${type}` resource id prefix for
-          // legacy bookings written before mintral_serviceCode was persisted.
-          mintral_serviceCode:
-            storedService.mintral_serviceCode ??
-            booking.resource.id.split("-")[0],
-        };
-        planned.push({
-          service,
-          slot: {
-            date: dayjs(booking.slot.date).toDate(),
-            hour: booking.slot.hour,
-            minutes: booking.slot.minutes,
-            ...(_anden === undefined ? {} : { anden: _anden }),
-          },
-        });
-        ids.set(booking.resource.id, booking.id);
+        // Shared with the calendar search, so a match can never point at a
+        // booking the grid declines to draw. Null = no slot, nothing to place.
+        const mapped = mapBookingToPlannedService(booking);
+        if (!mapped) continue;
+        planned.push(mapped.planned);
+        ids.set(mapped.planned.service.id, mapped.bookingId);
       }
       return { planned, ids };
     },

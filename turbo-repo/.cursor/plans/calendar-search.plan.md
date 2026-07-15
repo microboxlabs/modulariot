@@ -193,6 +193,18 @@ Only if P2's payload proves too heavy. Separate PR in `miot-calendar`.
 Note: the existing GIN index is `jsonb_ops` — it accelerates containment/exact match,
 **not** `ILIKE` substring. Real text search needs `pg_trgm` + an expression index.
 
+## Known pre-existing bug (NOT this feature — do not fix on this branch)
+
+Chip **overlap** in day/week view when a short-duration slot (e.g. 15m) nears its
+capacity. `computeStretchedRowLayout` sizes each slot's rectangle from
+`CHIP_HEIGHT_PX = 40` (`shift-layout.ts:18`), but `PlannedServiceChip`'s second
+line carries category + accreditation badges + a driver icon and renders taller,
+so the stack overflows its rectangle and bleeds onto the next slot's chips below.
+The estimate is one shared constant, blind to the real chip height. Untouched by
+this branch (my chip edits are ring/opacity only; layout math is unchanged).
+Confirmed visually on localhost 2026-07-14; not measured. Fix belongs on its own
+branch off trunk.
+
 ## Risks
 
 - **Payload.** Omitting `calendarId` returns an unpaginated org-wide set, each booking

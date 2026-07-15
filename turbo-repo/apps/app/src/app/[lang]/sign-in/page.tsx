@@ -10,7 +10,7 @@ import type {
   SamlLabels,
 } from "@/features/auth/components/form-sign-in/form-sign-in.types";
 import type { AuthConfig } from "@/features/auth/config/auth-providers.types";
-import { buildRegisterFormMessages, buildSignInFormMessages } from "@/features/auth/utils/utils";
+import { buildRegisterFormMessages } from "@/features/auth/utils/utils";
 
 /**
  * Pre-computes labels for all providers on the server side.
@@ -92,7 +92,6 @@ export default async function SignInPage(
     resolvedSearchParams?.error === "AccessDenied"
       ? dict("pages.login.errors.accessDenied")
       : null;
-  const signInMessages = buildSignInFormMessages({ messages: dict });
   const registerMessages = buildRegisterFormMessages({ messages: dict });
   const orgLogo = await getPublicOrgLogo();
   const authConfig = getAuthConfig();

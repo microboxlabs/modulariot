@@ -32,6 +32,24 @@ const NO_ORG_FLOW: readonly RegisterStep[] = ["profile", "verification"];
 
 const BUTTON_SHAPE = "rounded-lg font-semibold";
 
+/** Points the Gmail link at the account the user just registered with,
+ * instead of whichever Google account happens to be first in the browser's
+ * account switcher (the URL's default `/u/0/` slot) — so "Ver correo" opens
+ * their own inbox even when multiple Google accounts are signed in.
+ * The email must go in the `authuser` query param: Gmail resolves it to the
+ * matching signed-in account internally, but putting it directly in the
+ * `/u/` path segment (which only accepts the numeric session index) 404s. */
+function withGmailAuthUser(url: string, email?: string): string {
+  if (!email) return url;
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("authuser", email);
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 export default function RegisterForm({
   msg,
   onBackToLogin,
@@ -134,7 +152,8 @@ export default function RegisterForm({
     // hand off to Gmail, pre-filtered to the configured sender, so the
     // user doesn't have to hunt for the verification email themselves.
     if (verificationEmailSearchUrl) {
-      window.open(verificationEmailSearchUrl, "_blank", "noopener,noreferrer");
+      const url = withGmailAuthUser(verificationEmailSearchUrl, watch("email"));
+      window.open(url, "_blank", "noopener,noreferrer");
     }
   }
 

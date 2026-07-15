@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 
 type BadgeSelectGroupProps = Readonly<{
@@ -34,11 +34,18 @@ function OtherPillInput({
   placeholder?: string;
 }>) {
   const mirrorRef = useRef<HTMLSpanElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [width, setWidth] = useState<number>();
 
   useLayoutEffect(() => {
     setWidth(mirrorRef.current?.offsetWidth);
   }, [value, placeholder]);
+
+  // This component only mounts once "Otro" becomes the selected option, so
+  // focusing on mount is exactly focusing right after the user picks it.
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   return (
     <span className="relative inline-block">
@@ -54,6 +61,7 @@ function OtherPillInput({
         {value || placeholder}
       </span>
       <input
+        ref={inputRef}
         type="text"
         role="radio"
         aria-checked

@@ -53,10 +53,11 @@ export default function AuthCard({
       params.delete("org");
     }
     const qs = params.toString();
+    const search = qs ? `?${qs}` : "";
     window.history.replaceState(
       null,
       "",
-      `${window.location.pathname}${qs ? `?${qs}` : ""}`
+      `${window.location.pathname}${search}`
     );
   }
 

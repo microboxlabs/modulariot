@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { HiXMark } from "react-icons/hi2";
 import { twMerge } from "tailwind-merge";
 
@@ -41,11 +41,18 @@ function OtherInlineInput({
   placeholder?: string;
 }>) {
   const mirrorRef = useRef<HTMLSpanElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [width, setWidth] = useState<number>();
 
   useLayoutEffect(() => {
     setWidth(mirrorRef.current?.offsetWidth);
   }, [value, placeholder]);
+
+  // This component only mounts once "Otros" becomes selected, so focusing
+  // on mount is exactly focusing right after the user picks it.
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   return (
     <span className="relative inline-block">
@@ -60,6 +67,7 @@ function OtherInlineInput({
         {value || placeholder}
       </span>
       <input
+        ref={inputRef}
         type="text"
         role="checkbox"
         aria-checked
@@ -99,7 +107,10 @@ export default function BadgeMultiSelectGroup({
   }
 
   return (
-    <div role="group" aria-label={name} className="flex flex-wrap gap-2">
+    <fieldset
+      aria-label={name}
+      className="m-0 flex flex-wrap gap-2 border-0 p-0"
+    >
       {options.map((option) => {
         const selected = selectedValues.includes(option);
 
@@ -133,21 +144,24 @@ export default function BadgeMultiSelectGroup({
         }
 
         return (
-          <button
+          <label
             key={option}
-            type="button"
-            role="checkbox"
-            aria-checked={selected}
-            onClick={() => toggle(option)}
             className={twMerge(
               PILL_SHAPE,
-              selected ? PILL_SELECTED : PILL_UNSELECTED
+              selected ? PILL_SELECTED : PILL_UNSELECTED,
+              "cursor-pointer has-focus-visible:ring-2 has-focus-visible:ring-blue-300 has-focus-visible:ring-offset-1"
             )}
           >
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={() => toggle(option)}
+              className="sr-only"
+            />
             {option}
-          </button>
+          </label>
         );
       })}
-    </div>
+    </fieldset>
   );
 }

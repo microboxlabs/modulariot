@@ -45,7 +45,43 @@ function slugify(value: string) {
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
+}
+
+/** Reuses the same green-check/red-X circle used for driver validation
+ * status elsewhere in the app, instead of a one-off icon. The X gets a
+ * tooltip since "invalid" alone doesn't tell the user what to fix. */
+function TeamNameIcon({
+  isValid,
+  invalidMessage,
+}: Readonly<{ isValid: boolean; invalidMessage: string }>) {
+  if (isValid) return <CheckCircle />;
+  return (
+    <Tooltip
+      content={
+        <div className="w-80 text-left text-xs">
+          <Markdown components={MARKDOWN_COMPONENTS}>
+            {invalidMessage}
+          </Markdown>
+        </div>
+      }
+      style="auto"
+      // flowbite-react's `className`/`theme` merging is additive, not a
+      // replace — the base theme's `dark:border-none` (from the "auto"
+      // style) stuck around no matter what was layered on top of it,
+      // `!important` included. `clearTheme` resets this specific leaf
+      // first so the replacement below is the only thing left standing.
+      clearTheme={{ style: true }}
+      theme={{
+        style: {
+          auto: "border border-gray-400 bg-white text-gray-900 dark:border dark:border-gray-400 dark:bg-gray-700 dark:text-white",
+        },
+      }}
+    >
+      <ErrorCircle />
+    </Tooltip>
+  );
 }
 
 export default function RegisterStepOrganization({
@@ -111,38 +147,6 @@ export default function RegisterStepOrganization({
 
   const teamNameField = register("teamName");
 
-  // Reuses the same green-check/red-X circle used for driver validation
-  // status elsewhere in the app, instead of a one-off icon. The X gets a
-  // tooltip since "invalid" alone doesn't tell the user what to fix.
-  function TeamNameIcon() {
-    if (isTeamNameValid) return <CheckCircle />;
-    return (
-      <Tooltip
-        content={
-          <div className="w-80 text-left text-xs">
-            <Markdown components={MARKDOWN_COMPONENTS}>
-              {msg.teamNameInvalidMessage}
-            </Markdown>
-          </div>
-        }
-        style="auto"
-        // flowbite-react's `className`/`theme` merging is additive, not a
-        // replace — the base theme's `dark:border-none` (from the "auto"
-        // style) stuck around no matter what was layered on top of it,
-        // `!important` included. `clearTheme` resets this specific leaf
-        // first so the replacement below is the only thing left standing.
-        clearTheme={{ style: true }}
-        theme={{
-          style: {
-            auto: "border border-gray-400 bg-white text-gray-900 dark:border dark:border-gray-400 dark:bg-gray-700 dark:text-white",
-          },
-        }}
-      >
-        <ErrorCircle />
-      </Tooltip>
-    );
-  }
-
   return (
     <div className="grid grid-cols-1 gap-4">
       <div className="flex flex-col gap-y-2">
@@ -188,7 +192,10 @@ export default function RegisterStepOrganization({
           />
           {teamName && (
             <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-              <TeamNameIcon />
+              <TeamNameIcon
+                isValid={isTeamNameValid}
+                invalidMessage={msg.teamNameInvalidMessage}
+              />
             </div>
           )}
         </div>

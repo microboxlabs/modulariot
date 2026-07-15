@@ -43,9 +43,13 @@ export function orderMatchesByCalendar<T extends { calendarId: string }>(
   }
   return [...items].sort((a, b) => {
     if (a.calendarId !== b.calendarId) {
-      return (
-        (earliest.get(a.calendarId) ?? 0) - (earliest.get(b.calendarId) ?? 0)
-      );
+      const ea = earliest.get(a.calendarId) ?? 0;
+      const eb = earliest.get(b.calendarId) ?? 0;
+      if (ea !== eb) return ea - eb;
+      // Same earliest match: fall back to calendarId so equal-earliest calendars
+      // still sort into contiguous blocks instead of interleaving (returning 0
+      // here would defeat the whole point of grouping).
+      return a.calendarId < b.calendarId ? -1 : 1;
     }
     return timeOf(a) - timeOf(b);
   });
@@ -85,11 +89,11 @@ export interface CalendarSearchParams {
   assignment: AssignmentState[];
 }
 
-const ASSIGNMENT_STATES: readonly string[] = [
+const ASSIGNMENT_STATES = new Set<string>([
   "unassigned",
   "partial",
   "assigned",
-];
+]);
 
 /**
  * Both the text and the select badges write comma-joined values (text badges
@@ -114,7 +118,7 @@ export function parseCalendarSearchParams(
     licensePlate: list(searchParams.get("licensePlate")),
     tipoViaje: list(searchParams.get("tipoViaje")),
     assignment: list(searchParams.get("assignment")).filter(
-      (v): v is AssignmentState => ASSIGNMENT_STATES.includes(v)
+      (v): v is AssignmentState => ASSIGNMENT_STATES.has(v)
     ),
   };
 }

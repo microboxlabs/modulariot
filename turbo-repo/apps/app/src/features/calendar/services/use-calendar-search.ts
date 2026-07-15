@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import dayjs from "dayjs";
 import { listBookings } from "@/features/common/providers/client-api.provider";
-import { parseUrlDate } from "@/features/calendar/services/calendar.service";
 import { mapBookingToPlannedService } from "@/features/calendar/services/booking-service-mapper";
 import {
   SEARCH_WINDOW_DAYS,

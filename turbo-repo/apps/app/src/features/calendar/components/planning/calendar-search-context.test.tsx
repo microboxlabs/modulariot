@@ -34,6 +34,8 @@ vi.mock("@/features/common/providers/client-api.provider", () => ({
       { id: "cal-A", name: "Santiago", groups: [{ code: "SCL" }] },
       { id: "cal-B", name: "Antofagasta", groups: [{ code: "ANF" }] },
       { id: "cal-C", name: "Iquique", groups: [] },
+      // Belongs to two groups; groups[0] is ANF, but it's also in SCL.
+      { id: "cal-D", name: "Shared", groups: [{ code: "ANF" }, { code: "SCL" }] },
     ],
   }),
 }));
@@ -258,6 +260,18 @@ describe("CalendarSearchProvider — navigation", () => {
     mount();
     act(() => ctx.goNext());
     expect(pushedParams().has("groupCode")).toBe(false);
+  });
+
+  it("keeps the current group when the target calendar also belongs to it", () => {
+    // cal-D is in [ANF, SCL]. Coming from SCL, blindly taking groups[0] (ANF)
+    // would yank a shared calendar into a different group; SCL must stick.
+    url = "focus=bk-svc-1&groupCode=SCL";
+    searchResult = result({
+      matches: [match("svc-1", "cal-A"), match("svc-4", "cal-D")],
+    });
+    mount();
+    act(() => ctx.goNext());
+    expect(pushedParams().get("groupCode")).toBe("SCL");
   });
 
   it("drills month view down to day, where a match is always drawn", () => {

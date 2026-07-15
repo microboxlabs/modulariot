@@ -257,6 +257,15 @@ describe("orderMatchesByCalendar", () => {
     ]);
   });
 
+  it("keeps calendars contiguous even when their earliest matches tie", () => {
+    // A and B share the same earliest time (10). A 0-return comparator would
+    // let them interleave (A,B,A,B); the calendarId tie-break keeps each block
+    // whole.
+    expect(
+      order([at("A", 10), at("B", 10), at("A", 20), at("B", 20)])
+    ).toEqual(["A@10", "A@20", "B@10", "B@20"]);
+  });
+
   it("is stable regardless of which calendar is 'current' — it takes no such input", () => {
     // The order is a pure function of the matches, so the counter can't jump
     // around as the user navigates between calendars.

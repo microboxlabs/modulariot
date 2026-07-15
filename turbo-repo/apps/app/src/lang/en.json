@@ -44,8 +44,6 @@
         "prompt": "Don't have an account?",
         "link": "Request access"
       },
-      "credentialsTitle": "Sign in",
-      "credentialsSubtitle": "Enter your email and password to access your account",
       "register": {
         "steps": {
           "organization": {

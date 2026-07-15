@@ -41,12 +41,15 @@ import {
 
 /** Lowercases and hyphenates free text into a team-name-shaped slug. */
 function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+/, "")
-    .replace(/-+$/, "");
+  const hyphenated = value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-");
+  // Trimmed by hand rather than with /^-+|-+$/: an unanchored trailing-dash
+  // regex still backtracks super-linearly on a long dash run that isn't at
+  // the string's end, even split out from the leading-dash alternative.
+  let start = 0;
+  let end = hyphenated.length;
+  while (start < end && hyphenated[start] === "-") start++;
+  while (end > start && hyphenated[end - 1] === "-") end--;
+  return hyphenated.slice(start, end);
 }
 
 /** Reuses the same green-check/red-X circle used for driver validation

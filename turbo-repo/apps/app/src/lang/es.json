@@ -44,8 +44,6 @@
         "prompt": "¿No tienes cuenta?",
         "link": "Solicitar acceso"
       },
-      "credentialsTitle": "Inicia sesión",
-      "credentialsSubtitle": "Ingresa tu correo y contraseña para acceder a tu cuenta",
       "register": {
         "steps": {
           "organization": {

@@ -160,6 +160,7 @@ export default async function SignInPage(
             loginSubtitle: dict("pages.login.credentialsSubtitle"),
             ssoTitle: dict("pages.login.ssoTitle"),
             ssoSubtitle: dict("pages.login.ssoSubtitle"),
+            ssoSubmitLabel: dict("pages.login.buttons.ssoSubmit"),
           },
           authConfig,
           providerLabels,

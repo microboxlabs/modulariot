@@ -1,34 +1,6 @@
 import { MessagesType } from "@/features/i18n/i18n.service.types";
-import type {
-  FormSignInMessages,
-  RegisterFormMessages,
-} from "../components/form-sign-in/form-sign-in.types";
+import type { RegisterFormMessages } from "../components/form-sign-in/form-sign-in.types";
 import groups from "../model/groups.json";
-
-export function buildSignInFormMessages({
-  messages: dict,
-}: MessagesType): FormSignInMessages {
-  return {
-    emailPlaceHolder: dict("pages.login.fields.email.placeholder"),
-    emailLabel: dict("pages.login.fields.email.label"),
-    passwordLabel: dict("pages.login.fields.password.label"),
-    rememberMeLabel: dict("pages.login.fields.remember.label"),
-    forgotPasswordLabel: dict("pages.login.fields.forgot.label"),
-    buttonSubmitLabel: dict("pages.login.buttons.submit"),
-    invalidCredentials: dict("pages.login.errors.invalidCredentials"),
-    invalidFromData: dict("pages.login.errors.invalidFromData"),
-    buttonContinueWithMicrosoft: dict(
-      "pages.login.buttons.continueWithMicrosoft"
-    ),
-    buttonContinueWithEmail: dict("pages.login.buttons.continueWithEmail"),
-    requestAccessPrompt: dict("pages.login.requestAccess.prompt"),
-    requestAccessLink: dict("pages.login.requestAccess.link"),
-    mainTitle: dict("pages.login.welcome"),
-    mainSubtitle: dict("pages.login.subtitle"),
-    loginTitle: dict("pages.login.credentialsTitle"),
-    loginSubtitle: dict("pages.login.credentialsSubtitle"),
-  };
-}
 
 export function buildRegisterFormMessages({
   messages: dict,

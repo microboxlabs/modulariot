@@ -1,8 +1,6 @@
 import type { AuthConfig } from "../../config/auth-providers.types";
 
 export type FormSignInMessages = {
-  ssoSubtitle: string;
-  ssoTitle: string;
   emailPlaceHolder: string;
   emailLabel: string;
   passwordLabel: string;
@@ -27,6 +25,12 @@ export type FormSignInMessages = {
   loginTitle: string;
   /** Card description for the credentials (email/password) view */
   loginSubtitle: string;
+  /** Card title for the SSO (team identifier) view */
+  ssoTitle: string;
+  /** Card description for the SSO (team identifier) view */
+  ssoSubtitle: string;
+  /** Submit button label for the SSO (team identifier) view */
+  ssoSubmitLabel: string;
 };
 
 /**
@@ -90,12 +94,6 @@ export type RegisterFormMessages = {
   nextLabel: string;
   /** "Back" button label, shown on every step */
   backLabel: string;
-  /** Card title for the SSO (team identifier) view */
-  ssoTitle: string;
-  /** Card description for the SSO (team identifier) view */
-  ssoSubtitle: string;
-  /** Submit button label for the SSO (team identifier) view */
-  ssoSubmitLabel: string;
 };
 
 /** Pre-computed labels for each provider (by provider id) */

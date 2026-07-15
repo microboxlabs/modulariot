@@ -63,6 +63,8 @@ export default function PlanningCalendar({
       grid={grid}
       buildShellProps={buildShellProps}
       renderDayChip={renderDayChip}
+      startHour={grid.startHour}
+      endHour={grid.endHour}
     />
   );
 }

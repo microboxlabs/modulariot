@@ -1,10 +1,14 @@
 import { Label, TextInput } from "flowbite-react";
-import type { UseFormRegister } from "react-hook-form";
+import type { FieldErrors, UseFormRegister } from "react-hook-form";
 import type { RegisterFormMessages } from "./form-sign-in.types";
 import type { RegisterSchema } from "./register-form.schema";
 import { LoginButton } from "../login-button";
 import { LoginDivider } from "../login-divider";
 import type { AuthProviderConfig } from "@/features/auth/config/auth-providers.types";
+import {
+  failureBorderTheme,
+  failureBorderClearTheme,
+} from "./failure-border-theme";
 
 // Static — the register wizard isn't wired to a live OAuth flow yet, this
 // mirrors the sign-in card's provider buttons for a consistent look.
@@ -17,9 +21,11 @@ const OAUTH_PROVIDERS: readonly AuthProviderConfig[] = [
 export default function RegisterStepProfile({
   msg,
   register,
+  errors,
 }: Readonly<{
   msg: RegisterFormMessages;
   register: UseFormRegister<RegisterSchema>;
+  errors: FieldErrors<RegisterSchema>;
 }>) {
   return (
     <div className="flex flex-col gap-6">
@@ -42,6 +48,10 @@ export default function RegisterStepProfile({
             id="full-name"
             placeholder={msg.fullNamePlaceholder}
             type="text"
+            autoComplete="name"
+            color={errors.fullName ? "failure" : undefined}
+            theme={failureBorderTheme}
+            clearTheme={failureBorderClearTheme}
             {...register("fullName")}
           />
         </div>
@@ -50,7 +60,11 @@ export default function RegisterStepProfile({
           <TextInput
             id="register-email"
             placeholder={msg.emailPlaceholder}
-            type="text"
+            type="email"
+            autoComplete="email"
+            color={errors.email ? "failure" : undefined}
+            theme={failureBorderTheme}
+            clearTheme={failureBorderClearTheme}
             {...register("email")}
           />
         </div>

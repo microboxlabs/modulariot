@@ -121,6 +121,11 @@ export default async function SignInPage(
   // Server-only flag: kept off NEXT_PUBLIC_ so the toggle never ships to
   // the client bundle; FormSignIn just receives the resolved boolean.
   const showRegisterLink = process.env.ENABLE_REGISTER_LINK === "true";
+  // Also server-only: the URL the register wizard's "Ver correo" button
+  // opens (e.g. a Gmail search link pre-filtered to a sender). The whole
+  // URL lives in the env var so it can point anywhere per environment
+  // without a code change — unset skips opening anything.
+  const verificationEmailSearchUrl = process.env.AUTH_VERIFICATION_EMAIL_URL;
 
   return (
     <AuthPageShell
@@ -131,6 +136,7 @@ export default async function SignInPage(
       <AuthCard
         accessDeniedMessage={accessDeniedMessage}
         registerMessages={registerMessages}
+        verificationEmailSearchUrl={verificationEmailSearchUrl}
         signInProps={{
           messages: {
             emailPlaceHolder: dict("pages.login.fields.email.placeholder"),

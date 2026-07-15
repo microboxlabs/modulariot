@@ -6,6 +6,7 @@ import Markdown from "react-markdown";
 import { Controller } from "react-hook-form";
 import type {
   Control,
+  FieldErrors,
   UseFormRegister,
   UseFormSetValue,
   UseFormWatch,
@@ -32,6 +33,11 @@ import {
   MONITORING_INTEREST_OTHER,
 } from "@/features/auth/constants/register-options.constants";
 import { countryNameToCode } from "@/features/auth/utils/country-name-to-code";
+import {
+  failureBorderTheme,
+  failureBorderClearTheme,
+  withFailureBorderTheme,
+} from "./failure-border-theme";
 
 /** Lowercases and hyphenates free text into a team-name-shaped slug. */
 function slugify(value: string) {
@@ -48,12 +54,14 @@ export default function RegisterStepOrganization({
   control,
   watch,
   setValue,
+  errors,
 }: Readonly<{
   msg: RegisterFormMessages;
   register: UseFormRegister<RegisterSchema>;
   control: Control<RegisterSchema>;
   watch: UseFormWatch<RegisterSchema>;
   setValue: UseFormSetValue<RegisterSchema>;
+  errors: FieldErrors<RegisterSchema>;
 }>) {
   const organizationName = watch("organizationName");
   const teamName = watch("teamName");
@@ -76,10 +84,29 @@ export default function RegisterStepOrganization({
 
   useEffect(() => {
     if (!teamNameEdited) {
+      // Not unconditionally `{ shouldValidate: true }`: that force-validates
+      // on every keystroke (mount included, while it's still ""), which
+      // fought the "only show errors once the user tries to continue"
+      // behavior — the red border would show up before anyone had done
+      // anything. But once teamName *has* a red border (from an earlier
+      // failed attempt to continue), this sync is the only thing that ever
+      // touches its value — without re-validating here too, typing more of
+      // the organization name would never clear it even after the synced
+      // slug becomes valid.
+      //
+      // `errors.teamName` is read but deliberately left out of the
+      // dependency array: zodResolver hands back a new error object on
+      // every validation pass even when the failure is unchanged, so
+      // depending on it here — combined with `shouldValidate` triggering
+      // exactly that revalidation — is a one-line infinite render loop.
+      // Re-running this effect on every `organizationName` keystroke
+      // already re-reads the current value each time, which is all this
+      // needs.
       setValue("teamName", slugify(organizationName || ""), {
-        shouldValidate: true,
+        shouldValidate: !!errors.teamName,
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationName, teamNameEdited, setValue]);
 
   const teamNameField = register("teamName");
@@ -124,6 +151,9 @@ export default function RegisterStepOrganization({
           id="organization-name"
           placeholder={msg.organizationNamePlaceholder}
           type="text"
+          color={errors.organizationName ? "failure" : undefined}
+          theme={failureBorderTheme}
+          clearTheme={failureBorderClearTheme}
           {...register("organizationName")}
         />
       </div>
@@ -147,7 +177,9 @@ export default function RegisterStepOrganization({
             id="team-name"
             placeholder={msg.teamNamePlaceholder}
             type="text"
-            theme={{ field: { input: { base: "pr-10" } } }}
+            color={errors.teamName ? "failure" : undefined}
+            theme={withFailureBorderTheme("pr-10")}
+            clearTheme={failureBorderClearTheme}
             {...teamNameField}
             onChange={(e) => {
               setTeamNameEdited(true);
@@ -175,6 +207,7 @@ export default function RegisterStepOrganization({
                 onBlur={field.onBlur}
                 placeholder={msg.organizationLocationPlaceholder}
                 noResultsLabel={msg.organizationLocationNoResults}
+                invalid={!!errors.organizationLocation}
               />
             )}
           />
@@ -205,7 +238,12 @@ export default function RegisterStepOrganization({
       </div>
 
       <div className="flex flex-col gap-y-2">
-        <Label>{msg.organizationSizeLabel}</Label>
+        <Label>
+          {msg.organizationSizeLabel}
+          {errors.organizationSize && (
+            <span className="text-red-500"> *</span>
+          )}
+        </Label>
         <Controller
           name="organizationSize"
           control={control}
@@ -221,7 +259,10 @@ export default function RegisterStepOrganization({
       </div>
 
       <div className="flex flex-col gap-y-2">
-        <Label>{msg.industryLabel}</Label>
+        <Label>
+          {msg.industryLabel}
+          {errors.industry && <span className="text-red-500"> *</span>}
+        </Label>
         <Controller
           name="industry"
           control={control}

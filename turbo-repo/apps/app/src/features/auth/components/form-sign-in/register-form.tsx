@@ -35,10 +35,13 @@ const BUTTON_SHAPE = "rounded-lg font-semibold";
 export default function RegisterForm({
   msg,
   onBackToLogin,
+  verificationEmailSearchUrl,
 }: Readonly<{
   msg: RegisterFormMessages;
   /** Switches the parent card back to the sign-in view (register is a URL param, not a route) */
   onBackToLogin: () => void;
+  /** Gmail search URL (pre-filtered by sender) opened by the "Ver correo" button; undefined skips opening Gmail. */
+  verificationEmailSearchUrl?: string;
 }>) {
   const searchParams = useSearchParams();
 
@@ -82,27 +85,58 @@ export default function RegisterForm({
     );
   }
 
-  const { register, control, watch, setValue } = useForm<RegisterSchema>({
+  const {
+    register,
+    control,
+    watch,
+    setValue,
+    trigger,
+    formState: { errors },
+  } = useForm<RegisterSchema>({
     resolver: zodResolver(registerSchema),
     mode: "onBlur",
   });
 
-  // Gates the "Next"/"Ver correo" buttons: only the fields required on a
-  // given step (i.e. not labeled "opcional") have to be filled in — optional
-  // fields don't block progress, matching what the UI actually marks as
-  // required.
-  const formValues = watch();
-  function isStepValid(s: RegisterStep) {
-    if (s === "organization") {
-      return organizationStepSchema.safeParse(formValues).success;
-    }
-    if (s === "profile") {
-      return profileStepSchema.safeParse(formValues).success;
-    }
-    return true;
+  // Only the fields required on a given step (i.e. not labeled "opcional")
+  // block progress — optional fields don't, matching what the UI actually
+  // marks as required.
+  const STEP_FIELDS: Record<RegisterStep, (keyof RegisterSchema)[]> = {
+    organization: Object.keys(
+      organizationStepSchema.shape
+    ) as (keyof RegisterSchema)[],
+    profile: Object.keys(profileStepSchema.shape) as (keyof RegisterSchema)[],
+    verification: [],
+  };
+
+  // The buttons stay enabled either way — clicking with something missing
+  // doesn't navigate, it just validates (via RHF's `trigger`, which
+  // populates `errors` for the fields checked) so the offending inputs can
+  // show a red border, instead of leaving the user guessing why the button
+  // won't respond.
+  async function handleNext() {
+    const fields = STEP_FIELDS[step];
+    const valid = fields.length === 0 || (await trigger(fields));
+    if (valid) goToStep(nextStep);
   }
-  const isCurrentStepValid = isStepValid(step);
-  const canVerifyEmail = flow.slice(0, -1).every(isStepValid);
+
+  async function handleVerifyClick() {
+    for (const s of flow.slice(0, -1)) {
+      const fields = STEP_FIELDS[s];
+      const valid = fields.length === 0 || (await trigger(fields));
+      if (!valid) {
+        // Jump back to the earliest step with something missing so its
+        // now-populated errors are actually visible to fix.
+        goToStep(s);
+        return;
+      }
+    }
+    // Everything's valid and we're already on the verification step —
+    // hand off to Gmail, pre-filtered to the configured sender, so the
+    // user doesn't have to hunt for the verification email themselves.
+    if (verificationEmailSearchUrl) {
+      window.open(verificationEmailSearchUrl, "_blank", "noopener,noreferrer");
+    }
+  }
 
   // Verification has no subtitle here: its one description lives in the
   // panel below (RegisterStepVerification), so it isn't shown twice.
@@ -169,10 +203,11 @@ export default function RegisterForm({
                   control={control}
                   watch={watch}
                   setValue={setValue}
+                  errors={errors}
                 />
               )}
               {step === "profile" && (
-                <RegisterStepProfile msg={msg} register={register} />
+                <RegisterStepProfile msg={msg} register={register} errors={errors} />
               )}
               {step === "verification" && (
                 <RegisterStepVerification msg={msg} email={watch("email")} />
@@ -207,7 +242,7 @@ export default function RegisterForm({
               color="blue"
               size="sm"
               type="button"
-              disabled={!canVerifyEmail}
+              onClick={handleVerifyClick}
               className={`w-2/3 ${BUTTON_SHAPE}`}
             >
               {msg.verifyEmailLabel}
@@ -217,8 +252,7 @@ export default function RegisterForm({
               color="blue"
               size="sm"
               type="button"
-              disabled={!isCurrentStepValid}
-              onClick={() => goToStep(nextStep)}
+              onClick={handleNext}
               className={`w-2/3 ${BUTTON_SHAPE}`}
             >
               <span className="flex items-center gap-1.5">

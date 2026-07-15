@@ -4,6 +4,10 @@ import { useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
 import { TextInput } from "flowbite-react";
 import { HiOutlineMagnifyingGlass } from "react-icons/hi2";
 import { COUNTRIES } from "@/features/auth/constants/countries.constants";
+import {
+  failureBorderTheme,
+  failureBorderClearTheme,
+} from "./failure-border-theme";
 
 type CountryComboboxProps = Readonly<{
   id?: string;
@@ -12,6 +16,7 @@ type CountryComboboxProps = Readonly<{
   onBlur?: () => void;
   placeholder?: string;
   noResultsLabel: string;
+  invalid?: boolean;
 }>;
 
 // A plain TextInput + custom floating list rather than Flowbite's Dropdown:
@@ -26,6 +31,7 @@ export default function CountryCombobox({
   onBlur,
   placeholder,
   noResultsLabel,
+  invalid,
 }: CountryComboboxProps) {
   const [query, setQuery] = useState(value ?? "");
   const [isOpen, setIsOpen] = useState(false);
@@ -118,6 +124,9 @@ export default function CountryCombobox({
         }}
         placeholder={placeholder}
         rightIcon={HiOutlineMagnifyingGlass}
+        color={invalid ? "failure" : undefined}
+        theme={failureBorderTheme}
+        clearTheme={failureBorderClearTheme}
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);

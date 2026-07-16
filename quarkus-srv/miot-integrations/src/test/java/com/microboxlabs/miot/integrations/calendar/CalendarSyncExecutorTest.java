@@ -263,6 +263,47 @@ class CalendarSyncExecutorTest {
     }
 
     @Test
+    void ensureCreatePostStatus404Propagates() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of(); // absent → create path
+        client.patchThrows = new CalendarBookingsHttpException(404, "not found after create");
+        var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 17), 14, 30);
+        var executor = new CalendarSyncExecutor(client, CLOCK);
+
+        // Create succeeds; a 404 on the POST-create status patch is an anomaly
+        // (the booking exists) → propagate so a retry converges, not benign-skip.
+        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle(payload));
+        assertEquals(1, client.createCalls, "the booking was created; the status patch is what failed");
+    }
+
+    @Test
+    void ensureCreatePostStatus409IsBenign() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();
+        client.patchThrows = new CalendarBookingsHttpException(409, "already at/ahead");
+        var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 17), 14, 30);
+
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome(), "409 on the post-create status patch is benign");
+        assertEquals(1, client.createCalls);
+    }
+
+    @Test
+    void ensureIncompleteExplicitSlotThrows() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();
+        var payload = ensurePayload("PLANNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_SLOT_DATE, "2026-07-17"); // date but no hour/minutes
+        var executor = new CalendarSyncExecutor(client, CLOCK);
+
+        // A partial explicit slot is malformed — reject it rather than silently
+        // falling back to ETD auto-pick and booking an unintended slot.
+        assertThrows(IllegalArgumentException.class, () -> executor.handle(payload));
+        assertEquals(0, client.createCalls);
+    }
+
+    @Test
     void ensureWithoutCalendarIdThrows() {
         FakeClient client = new FakeClient();
         Map<String, Object> p = new LinkedHashMap<>();

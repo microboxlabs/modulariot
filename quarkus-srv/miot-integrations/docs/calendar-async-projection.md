@@ -1,6 +1,8 @@
 # Calendar as an async projection of the kanban stage (Phase 2)
 
-**Status:** IN PROGRESS — **2a (modulith), 2b + 2c (ECM) implemented** (full projection); **2d (reconciler backfill) pending**. Depends on Phase 1 (modulith execution) landing first. Deploys behind the outbox flag + executor lane.
+**Status:** IN PROGRESS (full projection) — **2a (modulith) = modulariot #931 (this PR)**; **2b + 2c (ECM enqueuer changes) = ecm-coordinator #313 (separate PR)**; **2d (reconciler backfill) not started**. Depends on Phase 1 (modulith execution) landing first.
+
+> **This PR (#931) contains only 2a** — the modulith `ensure` handler. ECM does **not** emit `ensure` jobs until #313 is merged, deployed, and the executor lane is flipped to `modulith` (see *Migration / safety*). Until then this handler is dormant (nothing enqueues `ensure`).
 
 ## Where this sits on the roadmap
 
@@ -9,8 +11,8 @@ One linear roadmap for getting the calendar correct **and** off ECM:
 | Phase | What | State |
 |---|---|---|
 | **0** | CALSYNC: async `calendar_sync` **status** pushes (PATCH), reconciler, booking `status` column. Executed on ECM. | ✅ shipped |
-| **1** | Move `calendar_sync` **execution** to the modulith (executor lane `modulith` + generic `ModulithJobHandler` registry). | 🔄 **current** — modulariot #929 merged; ECM lane-flip #311 open; dev deploy/validate pending |
-| **2** | **This doc.** Booking **create/move/cancel** become async `ensure` jobs too; the sync `#266` listeners collapse into enqueuers; the calendar becomes a retryable projection of the kanban stage. | 🔄 in progress — 2a (modulith) + 2b/2c (ECM full projection) done; 2d (reconciler backfill) pending |
+| **1** | Move `calendar_sync` **execution** to the modulith (executor lane `modulith` + generic `ModulithJobHandler` registry). | 🔄 code merged (modulariot #929, ECM lane-flip #311); dev deploy + lane flip + validate pending |
+| **2** | **This doc.** Booking **create/move/cancel** become async `ensure` jobs too; the sync `#266` listeners collapse into enqueuers; the calendar becomes a retryable projection of the kanban stage. | 🔄 code done — 2a (modulariot #931), 2b/2c (ECM #313, full projection); 2d (reconciler backfill) not started; **none deployed/emitting** |
 
 > Separate **execution-scale track** (parallel, not on the correctness path): relocate other job types (`whatsapp`, later `alerce`) to modulith handlers; add broker wake (ActiveMQ/Pulsar). The Phase-1 doc's "Phase 2+" list refers to *that* axis, not this one.
 
@@ -28,7 +30,7 @@ status pushes       = ASYNC, patch-only          (presentDriver+ — calendar_sy
 - The **create** — the most failure-prone step (slot availability, miot-calendar reachability) — is the one step that's **synchronous and non-recoverable**. On no-slot or a transient error it logs one warn, skips, and the workflow advances anyway. No retry, no reconcile-create.
 - The async status pushes only **PATCH**; they never create. So when the sync create fails, every later push hits a missing booking → 404 → benign SKIP. The resilient layer can't recover the fragile layer's failure.
 
-Result: the calendar sits empty and self-heals for **no** service whose create failed (observed: service 1586586, no slot in the ETD window).
+Result: the calendar sits empty and **does not self-heal for any** service whose create failed (observed: service 1586586, no slot in the ETD window).
 
 ## Goal
 
@@ -72,9 +74,16 @@ Full projection chosen over the surgical option (user call, 2026-07-15): the wor
 
 ## Migration / safety
 
-- Rides the existing `mintral.features.integrationOutbox.enabled` flag and the `calendarSync.executor` lane — no new transport.
-- Gate the sync→async create switch behind config so it can roll out per env; keep the sync create as a fallback until 2b is validated.
-- Rollback at any sub-step: revert the enqueue to the sync call.
+No new transport — rides the existing gates. **Two ECM keys control whether `ensure` is emitted and where it runs; both default to the safe (disabled/legacy) value:**
+
+| Key (ECM `alfresco-global.properties`) | Default | Effect |
+|---|---|---|
+| `mintral.features.integrationOutbox.enabled` | `false` | Master gate. While `false`, ECM enqueues **nothing** (no `ensure`, no status pushes) — the workflow just advances. |
+| `mintral.features.integrationOutbox.calendarSync.executor` | `ecm` | Lane. `ensure` is a modulith-only op, so this **must be `modulith`**; on the `ecm` lane the legacy in-ECM `CalendarSyncJobExecutor` cannot handle `op=ensure`. |
+
+**Rollout ordering (strict — else jobs strand or fail).** Deploy the **modulith `ensure` handler (this PR, #931) first**, then flip the lane to `modulith`, then deploy ECM #313 (the enqueuer). Only enable `integrationOutbox.enabled` in an env where the modulith handler is live and the lane is `modulith`.
+
+- **Rollback:** flip `calendarSync.executor` back to `ecm`, or set `integrationOutbox.enabled=false`. (There is no sync-create fallback — the full projection removed the synchronous `.create()`/move/cancel; the flag/lane are the rollback.)
 - **Not solved by this:** raw calendar capacity. Async turns *silent permanent failure* into *retryable eventual consistency*, but "no slot, ever" still won't book — slot definitions/capacity remain a data concern.
 
 ## Decisions (resolved 2026-07-15)

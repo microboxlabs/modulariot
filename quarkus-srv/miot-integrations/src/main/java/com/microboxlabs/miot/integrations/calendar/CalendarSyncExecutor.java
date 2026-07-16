@@ -169,7 +169,14 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
                 + (moved ? " [moved]" : "") + (targetStatus == null ? "" : " -> " + targetStatus));
     }
 
-    /** Set the stage status after a create; benign-skip a raced 404/409. */
+    /**
+     * Set the stage status on the booking we just created. Unlike a status-only
+     * push, a 404 here is NOT benign — the booking exists (we just created it), so
+     * a 404 is a visibility-lag anomaly; propagate it so a retry (whose
+     * {@code listByResource} then finds the booking) converges rather than
+     * reporting success with the status unset. Only 409 (the create default
+     * already at/ahead of the target) is benign.
+     */
     private void applyStatus(String resourceId, UUID calendarId, String targetStatus) {
         if (targetStatus == null) {
             return;
@@ -177,9 +184,11 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         try {
             client.patchByResource(resourceId, calendarId, targetStatus, null);
         } catch (CalendarBookingsHttpException e) {
-            if (benignSkip(e, resourceId, targetStatus) == null) {
+            if (e.getStatus() != 409) {
                 throw e;
             }
+            LOG.infof("calendar_sync ensure: post-create status %s for %s rejected as regression (409) — booking "
+                    + "already at/ahead of target", targetStatus, resourceId);
         }
     }
 
@@ -302,13 +311,24 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         return LocalTime.of(booking.slotHour(), booking.slotMinutes()).isAfter(now.toLocalTime());
     }
 
-    /** Explicit slot from the payload, or {@code null} if any of date/hour/minutes is absent. */
+    /**
+     * Explicit slot from the payload. All-or-nothing: {@code null} only when
+     * date/hour/minutes are ALL absent (no explicit intent → the caller may fall
+     * back to the ETD). An <b>incomplete</b> slot (some present, some absent) is a
+     * malformed payload — reject it rather than silently falling back to an ETD
+     * auto-pick that would book an unintended slot.
+     */
     private static SlotInfo resolveExplicitSlot(Map<String, Object> payload, UUID calendarId) {
         String date = str(payload, CalendarSyncFeature.PAYLOAD_SLOT_DATE);
         Object hour = payload.get(CalendarSyncFeature.PAYLOAD_SLOT_HOUR);
         Object minutes = payload.get(CalendarSyncFeature.PAYLOAD_SLOT_MINUTES);
-        if (date == null || hour == null || minutes == null) {
+        if (date == null && hour == null && minutes == null) {
             return null;
+        }
+        if (date == null || hour == null || minutes == null) {
+            throw new IllegalArgumentException(
+                    "calendar_sync ensure: incomplete explicit slot (slotDate/slotHour/slotMinutes must be "
+                            + "all-or-nothing): slotDate=" + date + " slotHour=" + hour + " slotMinutes=" + minutes);
         }
         return new SlotInfo(calendarId, LocalDate.parse(date), toInt(hour), toInt(minutes));
     }

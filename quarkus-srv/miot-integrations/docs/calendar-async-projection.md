@@ -1,6 +1,6 @@
 # Calendar as an async projection of the kanban stage (Phase 2)
 
-**Status:** IN PROGRESS — sub-step **2a (modulith `ensure` op) implemented**; 2b–2d (ECM) not started. Depends on Phase 1 (modulith execution) landing first.
+**Status:** IN PROGRESS — **2a (modulith), 2b + 2c (ECM) implemented** (full projection); **2d (reconciler backfill) pending**. Depends on Phase 1 (modulith execution) landing first. Deploys behind the outbox flag + executor lane.
 
 ## Where this sits on the roadmap
 
@@ -10,7 +10,7 @@ One linear roadmap for getting the calendar correct **and** off ECM:
 |---|---|---|
 | **0** | CALSYNC: async `calendar_sync` **status** pushes (PATCH), reconciler, booking `status` column. Executed on ECM. | ✅ shipped |
 | **1** | Move `calendar_sync` **execution** to the modulith (executor lane `modulith` + generic `ModulithJobHandler` registry). | 🔄 **current** — modulariot #929 merged; ECM lane-flip #311 open; dev deploy/validate pending |
-| **2** | **This doc.** Booking **create/move/cancel** become async `ensure` jobs too; the sync `#266` listeners collapse into enqueuers; the calendar becomes a retryable projection of the kanban stage. | 🔄 in progress — 2a (modulith `ensure` op) done; 2b–2d (ECM) pending |
+| **2** | **This doc.** Booking **create/move/cancel** become async `ensure` jobs too; the sync `#266` listeners collapse into enqueuers; the calendar becomes a retryable projection of the kanban stage. | 🔄 in progress — 2a (modulith) + 2b/2c (ECM full projection) done; 2d (reconciler backfill) pending |
 
 > Separate **execution-scale track** (parallel, not on the correctness path): relocate other job types (`whatsapp`, later `alerce`) to modulith handlers; add broker wake (ActiveMQ/Pulsar). The Phase-1 doc's "Phase 2+" list refers to *that* axis, not this one.
 
@@ -64,11 +64,11 @@ Extend `JobReconcileCalendarSync` to derive expected `ensure` jobs for services 
 ## Sub-steps (each shippable behind the existing outbox flag + executor lane)
 
 - **2a — Executor upsert.** ✅ *Done (modulith).* Additive `ensure` op: create-if-absent (explicit slot or ETD auto-pick at run time), move-if-explicit-slot-differs, then forward-only status. Legacy `patch`/`cancel` untouched. No ECM change; ships behind the executor lane. Tests: `CalendarSyncExecutorTest` (18).
-- **2b — Async create at assignDriver.** `OnCreateAssignDriverBinding` enqueues `ensure(planned)` instead of sync `.create()` (ECM). No-slot becomes retryable.
-- **2c — Collapse move + unplanned.** Move-on-replan and unplanned-cancel become `ensure`/`cancel` enqueues; drop the `bookingId` var dependency (ECM).
-- **2d — Reconciler create-backfill.** Extend the reconciler to created/planned state (ECM).
+- **2b — Async create at assignDriver.** ✅ *Done (ECM).* `OnCreateAssignDriverBinding` enqueues `ensure(PLANNED, slot-or-ETD)` (via `CalendarSyncEnqueuer.enqueueEnsure`) instead of the sync `.create()`/adopt. The workflow always advances; no-slot is now retryable + reconciled instead of a silent soft-fail. Explicit planner slot vars are still validated (throw on malformed); the ETD is snapshotted as an ISO string for the worker to auto-pick at execute time.
+- **2c — Collapse move + unplanned.** ✅ *Done (ECM).* `OnAssignDriverMoveBooking` **deleted** — a re-plan re-entry to `assignDriver` enqueues `ensure(PLANNED, <new slot>)` and the worker re-slots by `(calendarId, resourceId)`. `OnCreateUnplannedBinding` now `enqueueCancel(serviceCode, calendarId, taskId)` instead of the sync cancel. The `mintral_calendarBookingId_*` var is no longer read or written (the worker resolves by resource id); the `MintralModel` constant is **kept** as dead code (audited: only these 3 listeners used it — no search/query/frontend reader) and swept later.
+- **2d — Reconciler create-backfill.** 📋 *Pending (ECM).* Extend `JobReconcileCalendarSync` to derive expected `ensure` jobs for `assignDriver+` services with no booking (not just terminal statuses).
 
-Do them in order; 2a + 2b already deliver the user's use case (async, retryable create+status per kanban stage).
+Full projection chosen over the surgical option (user call, 2026-07-15): the workflow never blocks on the calendar; the planner's synchronous "slot taken" feedback on an interactive move is traded for async convergence + the reconciler. 2a+2b+2c are landed; 2d is the remaining safety net.
 
 ## Migration / safety
 
@@ -77,11 +77,16 @@ Do them in order; 2a + 2b already deliver the user's use case (async, retryable 
 - Rollback at any sub-step: revert the enqueue to the sync call.
 - **Not solved by this:** raw calendar capacity. Async turns *silent permanent failure* into *retryable eventual consistency*, but "no slot, ever" still won't book — slot definitions/capacity remain a data concern.
 
-## Open decisions (need a call before 2b)
+## Decisions (resolved 2026-07-15)
 
-1. **Dedupe key for `ensure` jobs** — per `(service, stage)` or per `(service, slot-tuple)`? Must let a genuine re-plan re-fire while a re-entry dedupes. (Mirror the ASSIGNED hash-suffix trick.)
-2. **Does any business rule need the workflow to BLOCK on no-slot?** Today it soft-fails and advances. If "no calendar slot ⇒ can't assign" must hard-stop, that stays synchronous and is out of scope for async-ification.
-3. **`bookingId` var readers** — confirm nothing outside the calendar listeners depends on `mintral_calendarBookingId_*` before removing the write.
+1. **Dedupe key for `ensure`/`cancel` jobs → keyed by the firing transition (Activiti task id).** *Load-bearing correctness finding:* the ledger dedupe is `ON CONFLICT (tenant_code, dedupe_key) DO NOTHING` on a **permanent** index, and it **suppresses the job entirely** — so the executor's `(calendarId, resourceId)` idempotency only protects you if the job runs. A static `calsync:<svc>:PLANNED`/`:CANCELLED` key would dedupe a `plan→unplan→re-plan(same slot)→unplan` cycle's recreate and second cancel → booking never recreated / never re-cancelled. `CalendarSyncFeature.transitionDedupeKey(svc, status, taskId)` makes each transition its own job; a same-task job-executor retry still dedupes; a duplicate job (retry with a new task id) just converges, never double-books.
+2. **No hard-block on no-slot** — user chose the full projection: the workflow always advances; a conflict/no-slot is surfaced via the calendar UI + reconciler, not a synchronous rollback. (The old interactive-move "slot taken" feedback is the accepted cost.)
+3. **`bookingId` var** — audited case-insensitively across ECM (only the 3 listeners + `MintralModel`) **and** the frontend (zero references); the planner's "already booked" exclusion reads the miot-calendar **booking row** (`calendar-search.ts` → `listBookings`), not this var. Safe to stop reading/writing. Constant **kept** as dead code, swept later. See [[feedback_symbol_removal_audit_depth]].
+
+## Consequences uncovered (both handled)
+
+- **Async-create lag window (benign).** With async create, the booking row lags a few seconds behind the service entering `assignDriver`, so the planner search briefly shows it as not-yet-planned. No double-booking: `ensure` is idempotent by `(calendarId, resourceId)` + ledger dedupe, and a slot race makes the create-409 loser retry+re-pick the next free slot. Self-heals when the job runs (or via the reconciler).
+- **Async-move loses synchronous "slot taken" (accepted).** A re-plan drag to a full slot no longer rolls back with immediate operator feedback; the move-409 currently retries. *Follow-up:* consider a terminal outcome + structured warn for a move-409-capacity so it surfaces to ops instead of retrying — tracked, not yet done.
 
 ## Out of scope
 

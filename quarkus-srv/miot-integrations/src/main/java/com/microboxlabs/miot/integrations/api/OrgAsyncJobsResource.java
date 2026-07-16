@@ -6,7 +6,9 @@ import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
 import com.microboxlabs.miot.integrations.dto.ClaimJobsRequest;
 import com.microboxlabs.miot.integrations.dto.EnqueueJobsRequest;
+import com.microboxlabs.miot.integrations.dto.EnqueueJobsResponse;
 import com.microboxlabs.miot.integrations.dto.ReportJobRequest;
+import com.microboxlabs.miot.integrations.jobs.ModulithJobWorker;
 import com.microboxlabs.miot.integrations.service.AsyncJobService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
@@ -63,15 +65,18 @@ public class OrgAsyncJobsResource {
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
     private final AsyncJobService service;
+    private final ModulithJobWorker modulithJobWorker;
 
     @Inject
     public OrgAsyncJobsResource(
             TenantContext tenantContext,
             OrganizationContext organizationContext,
-            AsyncJobService service) {
+            AsyncJobService service,
+            ModulithJobWorker modulithJobWorker) {
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
         this.service = service;
+        this.modulithJobWorker = modulithJobWorker;
     }
 
     @POST
@@ -79,7 +84,14 @@ public class OrgAsyncJobsResource {
     @Operation(summary = "Idempotently enqueue a batch of jobs (dedupe-key aware)")
     public Uni<Response> enqueue(@PathParam("organizationId") String organizationId, EnqueueJobsRequest request) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> Response.ok(service.enqueue(tenant, request)).build())
+        return onWorker(() -> {
+            EnqueueJobsResponse response = service.enqueue(tenant, request);
+            // Fast path: wake the in-modulith worker if this batch created a
+            // handled modulith-lane job, so it runs in ~ms instead of waiting for
+            // the reconciler poll. Non-blocking and never throws.
+            modulithJobWorker.onEnqueued(response);
+            return Response.ok(response).build();
+        })
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(e -> errorResponse(Response.Status.BAD_REQUEST, e.getMessage(), BAD_REQUEST));
     }

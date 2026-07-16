@@ -123,6 +123,24 @@ public class AsyncJobService {
     }
 
     /**
+     * Tenant-agnostic lane claim for an in-process worker (no request/tenant
+     * scope) — e.g. the modulith job worker draining the
+     * {@code "modulith"} executor across all tenants. Same lease/backoff/CAS
+     * ledger semantics as {@link #claim}; only the tenant filter is dropped.
+     */
+    public List<AsyncJob> claimForExecutor(String executor, String workerId, int limit, int leaseSeconds) {
+        if (executor == null || executor.isBlank()) {
+            throw new IllegalArgumentException("executor is required");
+        }
+        if (workerId == null || workerId.isBlank()) {
+            throw new IllegalArgumentException("workerId is required");
+        }
+        int lim = Math.min(Math.max(limit, 1), MAX_CLAIM_LIMIT);
+        int lease = leaseSeconds < 1 ? DEFAULT_LEASE_SECONDS : leaseSeconds;
+        return repository.claimForExecutor(executor, workerId, lim, lease);
+    }
+
+    /**
      * Records a worker's outcome for a claimed job and computes the next state:
      * SUCCEEDED/SKIPPED close the job; FAILED schedules a backoff retry (job back
      * to PENDING) until attempts are exhausted or the failure is non-retryable,

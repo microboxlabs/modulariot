@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.integrations.calendar;
 
+import com.microboxlabs.miot.integrations.jobs.JobOutcome;
+import com.microboxlabs.miot.integrations.jobs.ModulithJobHandler;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Clock;
@@ -12,9 +14,9 @@ import java.util.UUID;
 import org.jboss.logging.Logger;
 
 /**
- * Translates a self-contained {@code calendar_sync} payload into miot-calendar
- * calls. Ported verbatim from ECM's {@code CalendarSyncJobExecutor} — the moved
- * runtime is the only change.
+ * {@link ModulithJobHandler} for {@code calendar_sync}: translates a
+ * self-contained payload into miot-calendar calls. Ported verbatim from ECM's
+ * {@code CalendarSyncJobExecutor} — the moved runtime is the only change.
  *
  * <p>Outcome policy: 404 (no booking) and 409 (status regression — a newer
  * status already applied by an out-of-order sibling) are benign SKIPs; transport
@@ -23,12 +25,9 @@ import org.jboss.logging.Logger;
  * unordered jobs converge on the max status.
  */
 @ApplicationScoped
-public class CalendarSyncExecutor {
+public class CalendarSyncExecutor implements ModulithJobHandler {
 
     private static final Logger LOG = Logger.getLogger(CalendarSyncExecutor.class);
-
-    static final String OUTCOME_SUCCEEDED = "SUCCEEDED";
-    static final String OUTCOME_SKIPPED = "SKIPPED";
 
     private final CalendarBookingsClient client;
     private final Clock clock;
@@ -43,19 +42,19 @@ public class CalendarSyncExecutor {
         this.clock = clock;
     }
 
-    /** Worker outcome: SUCCEEDED / SKIPPED. Retryable failures are thrown, not returned. */
-    public record Result(String outcome, String detail) {
-
-        static Result succeeded(String detail) {
-            return new Result(OUTCOME_SUCCEEDED, detail);
-        }
-
-        static Result skipped(String detail) {
-            return new Result(OUTCOME_SKIPPED, detail);
-        }
+    @Override
+    public String jobType() {
+        return CalendarSyncFeature.JOB_TYPE;
     }
 
-    public Result execute(Map<String, Object> payload) {
+    /** Not ready until the miot-calendar base URL is configured. */
+    @Override
+    public boolean isReady() {
+        return client.isConfigured();
+    }
+
+    @Override
+    public JobOutcome handle(Map<String, Object> payload) {
         String op = str(payload, CalendarSyncFeature.PAYLOAD_OP);
         String resourceId = str(payload, CalendarSyncFeature.PAYLOAD_RESOURCE_ID);
         String calendarIdRaw = str(payload, CalendarSyncFeature.PAYLOAD_CALENDAR_ID);
@@ -73,14 +72,14 @@ public class CalendarSyncExecutor {
         throw new IllegalArgumentException("calendar_sync unknown op: " + op);
     }
 
-    private Result executePatch(Map<String, Object> payload, String resourceId, UUID calendarId) {
+    private JobOutcome executePatch(Map<String, Object> payload, String resourceId, UUID calendarId) {
         String targetStatus = str(payload, CalendarSyncFeature.PAYLOAD_TARGET_STATUS);
         Map<String, Object> resourceData = asMap(payload.get(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA));
         try {
             client.patchByResource(resourceId, calendarId, targetStatus, resourceData);
-            return Result.succeeded("Booking patched to " + targetStatus + " for " + resourceId);
+            return JobOutcome.succeeded("Booking patched to " + targetStatus + " for " + resourceId);
         } catch (CalendarBookingsHttpException e) {
-            Result benign = benignSkip(e, resourceId, targetStatus);
+            JobOutcome benign = benignSkip(e, resourceId, targetStatus);
             if (benign != null) {
                 return benign;
             }
@@ -93,10 +92,10 @@ public class CalendarSyncExecutor {
      * capacity); past slot → PATCH CANCELLED (keep history). No matching
      * booking → SKIPPED.
      */
-    private Result executeCancel(String resourceId, UUID calendarId) {
+    private JobOutcome executeCancel(String resourceId, UUID calendarId) {
         List<CalendarBookingsClient.BookingView> bookings = client.listByResource(resourceId, calendarId);
         if (bookings.isEmpty()) {
-            return Result.skipped("No booking to cancel for " + resourceId);
+            return JobOutcome.skipped("No booking to cancel for " + resourceId);
         }
 
         LocalDateTime now = LocalDateTime.now(clock);
@@ -119,7 +118,7 @@ public class CalendarSyncExecutor {
                 }
             }
         }
-        return Result.succeeded(String.format(
+        return JobOutcome.succeeded(String.format(
                 "Cancel applied for %s (deleted=%d, pastPatched=%b)", resourceId, deleted, pastRemains));
     }
 
@@ -138,12 +137,12 @@ public class CalendarSyncExecutor {
     }
 
     /** 404/409 are benign for status pushes; anything else is not ours to absorb. */
-    private static Result benignSkip(CalendarBookingsHttpException e, String resourceId, String targetStatus) {
+    private static JobOutcome benignSkip(CalendarBookingsHttpException e, String resourceId, String targetStatus) {
         if (e.getStatus() == 404) {
-            return Result.skipped("No booking for " + resourceId + " (status " + targetStatus + ")");
+            return JobOutcome.skipped("No booking for " + resourceId + " (status " + targetStatus + ")");
         }
         if (e.getStatus() == 409) {
-            return Result.skipped("Status regression rejected for " + resourceId + " -> " + targetStatus
+            return JobOutcome.skipped("Status regression rejected for " + resourceId + " -> " + targetStatus
                     + " (a newer status already applied)");
         }
         return null;

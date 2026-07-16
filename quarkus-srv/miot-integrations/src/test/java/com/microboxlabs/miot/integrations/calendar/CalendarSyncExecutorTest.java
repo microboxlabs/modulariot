@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.integrations.jobs.JobOutcome;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -54,9 +55,9 @@ class CalendarSyncExecutorTest {
     @Test
     void patchSuccessIsSucceeded() {
         FakeClient client = new FakeClient();
-        var result = new CalendarSyncExecutor(client, CLOCK).execute(patchPayload("ASSIGNED"));
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(patchPayload("ASSIGNED"));
 
-        assertEquals(CalendarSyncExecutor.OUTCOME_SUCCEEDED, result.outcome());
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(1, client.patchCalls);
         assertEquals("ASSIGNED", client.lastPatchStatus);
     }
@@ -65,16 +66,16 @@ class CalendarSyncExecutorTest {
     void patch404IsBenignSkip() {
         FakeClient client = new FakeClient();
         client.patchThrows = new CalendarBookingsHttpException(404, "no booking");
-        var result = new CalendarSyncExecutor(client, CLOCK).execute(patchPayload("FINISHED"));
-        assertEquals(CalendarSyncExecutor.OUTCOME_SKIPPED, result.outcome());
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(patchPayload("FINISHED"));
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
     }
 
     @Test
     void patch409IsBenignSkip() {
         FakeClient client = new FakeClient();
         client.patchThrows = new CalendarBookingsHttpException(409, "regression");
-        var result = new CalendarSyncExecutor(client, CLOCK).execute(patchPayload("ARRIVED"));
-        assertEquals(CalendarSyncExecutor.OUTCOME_SKIPPED, result.outcome());
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(patchPayload("ARRIVED"));
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
     }
 
     @Test
@@ -83,7 +84,7 @@ class CalendarSyncExecutorTest {
         client.patchThrows = new CalendarBookingsHttpException(500, "boom");
         var executor = new CalendarSyncExecutor(client, CLOCK);
         var payload = patchPayload("FINISHED");
-        assertThrows(CalendarBookingsHttpException.class, () -> executor.execute(payload));
+        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle(payload));
     }
 
     // --- cancel --------------------------------------------------------------
@@ -92,8 +93,8 @@ class CalendarSyncExecutorTest {
     void cancelNoBookingsIsSkipped() {
         FakeClient client = new FakeClient();
         client.listResult = List.of();
-        var result = new CalendarSyncExecutor(client, CLOCK).execute(cancelPayload());
-        assertEquals(CalendarSyncExecutor.OUTCOME_SKIPPED, result.outcome());
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(cancelPayload());
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
     }
 
     @Test
@@ -102,9 +103,9 @@ class CalendarSyncExecutorTest {
         var future = booking(LocalDate.of(2026, 7, 16));
         client.listResult = List.of(future);
 
-        var result = new CalendarSyncExecutor(client, CLOCK).execute(cancelPayload());
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(cancelPayload());
 
-        assertEquals(CalendarSyncExecutor.OUTCOME_SUCCEEDED, result.outcome());
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(List.of(future.id()), client.cancelled);
         assertEquals(0, client.patchCalls, "future slot deletes, never patches CANCELLED");
     }
@@ -114,9 +115,9 @@ class CalendarSyncExecutorTest {
         FakeClient client = new FakeClient();
         client.listResult = List.of(booking(LocalDate.of(2026, 7, 14)));
 
-        var result = new CalendarSyncExecutor(client, CLOCK).execute(cancelPayload());
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(cancelPayload());
 
-        assertEquals(CalendarSyncExecutor.OUTCOME_SUCCEEDED, result.outcome());
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertTrue(client.cancelled.isEmpty(), "past slot is kept for history, not deleted");
         assertEquals(CalendarSyncFeature.STATUS_CANCELLED, client.lastPatchStatus);
     }
@@ -128,7 +129,7 @@ class CalendarSyncExecutorTest {
         Map<String, Object> p = cancelPayload();
         p.put(CalendarSyncFeature.PAYLOAD_OP, "explode");
         var executor = new CalendarSyncExecutor(new FakeClient(), CLOCK);
-        assertThrows(IllegalArgumentException.class, () -> executor.execute(p));
+        assertThrows(IllegalArgumentException.class, () -> executor.handle(p));
     }
 
     @Test
@@ -136,7 +137,7 @@ class CalendarSyncExecutorTest {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put(CalendarSyncFeature.PAYLOAD_OP, CalendarSyncFeature.OP_PATCH);
         var executor = new CalendarSyncExecutor(new FakeClient(), CLOCK);
-        assertThrows(IllegalArgumentException.class, () -> executor.execute(p));
+        assertThrows(IllegalArgumentException.class, () -> executor.handle(p));
     }
 
     /** Records calls and lets each network method be primed to throw. */

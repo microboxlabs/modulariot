@@ -78,7 +78,7 @@ public class AsyncJobRepository {
 
     /**
      * Tenant-agnostic claim for an in-process worker (e.g. the modulith
-     * calendar-sync worker) that has no request/tenant scope. Identical
+     * job worker) that has no request/tenant scope. Identical
      * runnability + chain-head + lease semantics to {@link #CLAIM}, minus the
      * {@code tenant_code} filter, so one worker drains the executor's lane
      * across all tenants. Chain scoping stays per-tenant (the NOT EXISTS still

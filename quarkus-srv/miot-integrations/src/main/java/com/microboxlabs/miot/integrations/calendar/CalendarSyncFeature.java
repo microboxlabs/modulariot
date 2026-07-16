@@ -5,23 +5,16 @@ package com.microboxlabs.miot.integrations.calendar;
  *
  * <p>This is the modulith counterpart of ECM's
  * {@code cl.mintral.features.calendar.sync.CalendarSyncFeature}: ECM enqueues a
- * self-contained booking-lifecycle snapshot on the async-job ledger, and — when
- * stamped with executor {@link #EXECUTOR} — the modulith claims and runs it here
- * instead of on ECM. The payload field names and op values below MUST stay in
- * lockstep with the ECM enqueuer (the payload is the wire contract).
+ * self-contained booking-lifecycle snapshot on the async-job ledger, stamped with
+ * the {@code modulith} executor lane ({@code ModulithJobHandler.EXECUTOR}), and
+ * {@link CalendarSyncExecutor} claims and runs it here instead of on ECM. The
+ * payload field names and op values below MUST stay in lockstep with the ECM
+ * enqueuer (the payload is the wire contract).
  */
 public final class CalendarSyncFeature {
 
     private CalendarSyncFeature() {
     }
-
-    /**
-     * Executor lane: {@code calendar_sync} jobs stamped with this value run
-     * inside the modulith (off ECM). Must match the value ECM stamps on enqueue
-     * ({@code mintral.features.integrationOutbox.calendarSync.executor=modulith}).
-     * ECM claims only its own {@code "ecm"} lane, so the two never collide.
-     */
-    public static final String EXECUTOR = "modulith";
 
     public static final String JOB_TYPE = "calendar_sync";
 

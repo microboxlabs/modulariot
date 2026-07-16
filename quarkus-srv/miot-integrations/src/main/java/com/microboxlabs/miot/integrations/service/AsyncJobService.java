@@ -124,7 +124,7 @@ public class AsyncJobService {
 
     /**
      * Tenant-agnostic lane claim for an in-process worker (no request/tenant
-     * scope) — e.g. the modulith calendar-sync worker draining the
+     * scope) — e.g. the modulith job worker draining the
      * {@code "modulith"} executor across all tenants. Same lease/backoff/CAS
      * ledger semantics as {@link #claim}; only the tenant filter is dropped.
      */

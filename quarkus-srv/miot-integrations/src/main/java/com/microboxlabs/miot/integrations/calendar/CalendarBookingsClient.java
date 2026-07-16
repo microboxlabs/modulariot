@@ -39,6 +39,8 @@ public class CalendarBookingsClient {
     // path would let an operator point at an incompatible endpoint shape.
     @SuppressWarnings("java:S1075")
     private static final String BASE_PATH = "/api/v1/miot-calendar/bookings";
+    @SuppressWarnings("java:S1075")
+    private static final String SLOTS_PATH = "/api/v1/miot-calendar/slots";
     private static final String X_USER_ID = "miot-integrations";
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(15);
 
@@ -119,6 +121,60 @@ public class CalendarBookingsClient {
         }
     }
 
+    /**
+     * Creates a booking at an explicit slot (the {@link CalendarSyncFeature#OP_ENSURE}
+     * create-if-absent path). 201/200 = created; returns the new booking id. Ported
+     * from ECM's {@code MiotCalendarBookingsClient#create} — same wire contract.
+     */
+    public UUID create(UUID calendarId, LocalDate slotDate, int slotHour, int slotMinutes,
+                       String resourceId, String resourceType, Map<String, Object> resourceData) {
+        JsonObject resource = new JsonObject().put("id", resourceId);
+        if (resourceType != null) {
+            resource.put("type", resourceType);
+        }
+        if (resourceData != null && !resourceData.isEmpty()) {
+            resource.put("data", new JsonObject(resourceData));
+        }
+        JsonObject body = new JsonObject()
+                .put("calendarId", calendarId.toString())
+                .put("resource", resource)
+                .put("slot", slotJson(slotDate, slotHour, slotMinutes));
+        String url = base() + BASE_PATH;
+        HttpResponse<String> response = send("POST", url, body.encode());
+        if (response.statusCode() != 201 && response.statusCode() != 200) {
+            throw httpError("create", url, response);
+        }
+        return parseBookingId(response.body(), url);
+    }
+
+    /** Re-slots an existing booking (the ensure re-plan path). 200 = ok. */
+    public void move(UUID bookingId, LocalDate slotDate, int slotHour, int slotMinutes) {
+        JsonObject body = new JsonObject().put("slot", slotJson(slotDate, slotHour, slotMinutes));
+        String url = base() + BASE_PATH + "/" + bookingId + "/move";
+        HttpResponse<String> response = send("POST", url, body.encode());
+        if (response.statusCode() != 200) {
+            throw httpError("move", url, response);
+        }
+    }
+
+    /**
+     * Lists slots with remaining capacity in {@code [startDate, endDate]} — drives
+     * the ensure ETD auto-pick. Slots are unsorted by contract; the executor sorts
+     * and windows them. Ported from ECM's {@code listAvailableSlots}.
+     */
+    public List<AvailableSlot> listAvailableSlots(UUID calendarId, LocalDate startDate, LocalDate endDate) {
+        String url = base() + SLOTS_PATH
+                + "?calendarId=" + calendarId
+                + "&startDate=" + startDate
+                + "&endDate=" + endDate
+                + "&available=true";
+        HttpResponse<String> response = send("GET", url, null);
+        if (response.statusCode() != 200) {
+            throw httpError("listAvailableSlots", url, response);
+        }
+        return parseAvailableSlots(response.body(), url);
+    }
+
     // -------------------------------------------------------------- helpers
 
     private String base() {
@@ -147,6 +203,59 @@ public class CalendarBookingsClient {
             throw new CalendarBookingsHttpException(-1,
                     "miot-calendar " + method + " " + url + " io error: " + e.getMessage());
         }
+    }
+
+    private static JsonObject slotJson(LocalDate date, int hour, int minutes) {
+        return new JsonObject()
+                .put("date", date.toString())
+                .put("hour", hour)
+                .put("minutes", minutes);
+    }
+
+    private static UUID parseBookingId(String body, String url) {
+        if (body == null || body.isBlank()) {
+            throw new CalendarBookingsHttpException(200, "miot-calendar create response empty from " + url);
+        }
+        try {
+            String id = new JsonObject(body).getString("id");
+            if (id == null || id.isBlank()) {
+                throw new CalendarBookingsHttpException(200,
+                        "miot-calendar create response missing 'id' from " + url);
+            }
+            return UUID.fromString(id);
+        } catch (RuntimeException e) {
+            throw new CalendarBookingsHttpException(200,
+                    "miot-calendar create response unparseable from " + url + ": " + e.getMessage());
+        }
+    }
+
+    private static List<AvailableSlot> parseAvailableSlots(String body, String url) {
+        JsonArray data = parseDataArray(body, url);
+        if (data == null) {
+            return List.of();
+        }
+        List<AvailableSlot> out = new ArrayList<>(data.size());
+        for (int i = 0; i < data.size(); i++) {
+            AvailableSlot slot = toAvailableSlot(data.getJsonObject(i));
+            if (slot != null) {
+                out.add(slot);
+            }
+        }
+        return out;
+    }
+
+    private static AvailableSlot toAvailableSlot(JsonObject slot) {
+        if (slot == null) {
+            return null;
+        }
+        String date = slot.getString("slotDate");
+        Integer hour = slot.getInteger("slotHour");
+        Integer minutes = slot.getInteger("slotMinutes");
+        Integer avail = slot.getInteger("availableCapacity");
+        if (date == null || hour == null || minutes == null || avail == null) {
+            return null;
+        }
+        return new AvailableSlot(LocalDate.parse(date), hour, minutes, avail);
     }
 
     private static List<BookingView> parseBookingViews(String body, UUID calendarId, String url) {
@@ -219,5 +328,9 @@ public class CalendarBookingsClient {
      */
     public record BookingView(UUID id, UUID calendarId, LocalDate slotDate,
                               int slotHour, int slotMinutes, String status) {
+    }
+
+    /** A slot with remaining capacity, as returned by {@link #listAvailableSlots}. */
+    public record AvailableSlot(LocalDate date, int hour, int minutes, int availableCapacity) {
     }
 }

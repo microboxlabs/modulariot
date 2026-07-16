@@ -23,11 +23,34 @@ public final class CalendarSyncFeature {
     public static final String PAYLOAD_SERVICE_CODE = "serviceCode";
     public static final String PAYLOAD_CALENDAR_ID = "calendarId";
     public static final String PAYLOAD_RESOURCE_ID = "resourceId";
+    public static final String PAYLOAD_RESOURCE_TYPE = "resourceType";
     public static final String PAYLOAD_TARGET_STATUS = "targetStatus";
     public static final String PAYLOAD_RESOURCE_DATA = "resourceData";
 
+    /**
+     * Slot source for {@link #OP_ENSURE} (Phase 2). Either an explicit slot
+     * ({@link #PAYLOAD_SLOT_DATE}/{@link #PAYLOAD_SLOT_HOUR}/{@link #PAYLOAD_SLOT_MINUTES},
+     * a planner drag) or an {@link #PAYLOAD_ETD} for next-available auto-pick at
+     * <b>execute</b> time — a retry re-picks against fresh availability, so a
+     * transient no-slot self-heals when capacity frees.
+     */
+    public static final String PAYLOAD_SLOT_DATE = "slotDate";
+    public static final String PAYLOAD_SLOT_HOUR = "slotHour";
+    public static final String PAYLOAD_SLOT_MINUTES = "slotMinutes";
+    public static final String PAYLOAD_ETD = "etd";
+
+    /** Status-only push (legacy CALSYNC): PATCH, 404 skips. */
     public static final String OP_PATCH = "patch";
+    /**
+     * Upsert (Phase 2): create-if-absent at the slot, re-slot an existing
+     * booking when an explicit slot differs, then set the stage status. Makes
+     * the calendar a retryable projection of the kanban stage.
+     */
+    public static final String OP_ENSURE = "ensure";
     public static final String OP_CANCEL = "cancel";
+
+    /** Resource type sent when {@link #OP_ENSURE} creates a booking. */
+    public static final String DEFAULT_RESOURCE_TYPE = "service";
 
     /** Terminal booking status pushed for a past-slot cancel (keep history). */
     public static final String STATUS_CANCELLED = "CANCELLED";

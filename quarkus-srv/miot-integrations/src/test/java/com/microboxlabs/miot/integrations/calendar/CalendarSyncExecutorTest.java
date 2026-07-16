@@ -50,6 +50,26 @@ class CalendarSyncExecutorTest {
                 UUID.randomUUID(), CAL, date, 9, 0, "ASSIGNED");
     }
 
+    private static Map<String, Object> ensurePayload(String status) {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put(CalendarSyncFeature.PAYLOAD_OP, CalendarSyncFeature.OP_ENSURE);
+        p.put(CalendarSyncFeature.PAYLOAD_RESOURCE_ID, RESOURCE);
+        p.put(CalendarSyncFeature.PAYLOAD_CALENDAR_ID, CAL.toString());
+        p.put(CalendarSyncFeature.PAYLOAD_TARGET_STATUS, status);
+        return p;
+    }
+
+    private static Map<String, Object> withExplicitSlot(Map<String, Object> p, LocalDate date, int hour, int min) {
+        p.put(CalendarSyncFeature.PAYLOAD_SLOT_DATE, date.toString());
+        p.put(CalendarSyncFeature.PAYLOAD_SLOT_HOUR, hour);
+        p.put(CalendarSyncFeature.PAYLOAD_SLOT_MINUTES, min);
+        return p;
+    }
+
+    private static CalendarBookingsClient.AvailableSlot slot(LocalDate date, int hour, int min, int capacity) {
+        return new CalendarBookingsClient.AvailableSlot(date, hour, min, capacity);
+    }
+
     // --- patch ---------------------------------------------------------------
 
     @Test
@@ -122,6 +142,137 @@ class CalendarSyncExecutorTest {
         assertEquals(CalendarSyncFeature.STATUS_CANCELLED, client.lastPatchStatus);
     }
 
+    // --- ensure (Phase 2 upsert) ---------------------------------------------
+
+    @Test
+    void ensureAbsentWithExplicitSlotCreatesThenPatches() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of(); // no booking yet
+        var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 17), 14, 30);
+
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(1, client.createCalls);
+        assertEquals(LocalDate.of(2026, 7, 17), client.lastCreateDate);
+        assertEquals(14, client.lastCreateHour);
+        assertEquals(30, client.lastCreateMinutes);
+        assertEquals("PLANNED", client.lastPatchStatus, "stage status set after create");
+        assertEquals(0, client.listAvailableCalls, "explicit slot needs no availability lookup");
+    }
+
+    @Test
+    void ensureAbsentWithEtdAutoPicksEarliestAvailableSlot() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();
+        // window is [etd, etd+48h] = [2026-07-16T13:00, 2026-07-18T13:00]
+        client.availableSlots = List.of(
+                slot(LocalDate.of(2026, 7, 17), 8, 0, 2),
+                slot(LocalDate.of(2026, 7, 16), 15, 0, 1)); // earliest in window
+        var payload = ensurePayload("PLANNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-16T13:00:00");
+
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(1, client.createCalls);
+        assertEquals(LocalDate.of(2026, 7, 16), client.lastCreateDate, "earliest available wins");
+        assertEquals(15, client.lastCreateHour);
+    }
+
+    @Test
+    void ensureAbsentWithEtdButNoCapacityThrowsForRetry() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();
+        client.availableSlots = List.of(); // capacity exhausted
+        var payload = ensurePayload("PLANNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-16T13:00:00");
+        var executor = new CalendarSyncExecutor(client, CLOCK);
+
+        assertThrows(IllegalStateException.class, () -> executor.handle(payload));
+        assertEquals(0, client.createCalls, "no slot → nothing created, job retries");
+    }
+
+    @Test
+    void ensureAbsentWithNoSlotIntentIsSkipped() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();
+        // no explicit slot, no etd
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(ensurePayload("PLANNED"));
+
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
+        assertEquals(0, client.createCalls);
+        assertEquals(0, client.listAvailableCalls);
+    }
+
+    @Test
+    void ensureExistingWithDifferentExplicitSlotMovesThenPatches() {
+        FakeClient client = new FakeClient();
+        var existing = booking(LocalDate.of(2026, 7, 16)); // 09:00
+        client.listResult = List.of(existing);
+        var payload = withExplicitSlot(ensurePayload("ASSIGNED"), LocalDate.of(2026, 7, 17), 14, 30);
+
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(1, client.moveCalls);
+        assertEquals(existing.id(), client.lastMoveBookingId);
+        assertEquals(LocalDate.of(2026, 7, 17), client.lastMoveDate);
+        assertEquals(0, client.createCalls, "existing booking is moved, never recreated");
+        assertEquals("ASSIGNED", client.lastPatchStatus);
+    }
+
+    @Test
+    void ensureExistingWithSameSlotDoesNotMove() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of(booking(LocalDate.of(2026, 7, 16))); // 09:00
+        var payload = withExplicitSlot(ensurePayload("ASSIGNED"), LocalDate.of(2026, 7, 16), 9, 0);
+
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(0, client.moveCalls, "same slot → no move");
+        assertEquals(1, client.patchCalls);
+    }
+
+    @Test
+    void ensureExistingWithEtdOnlyDoesNotMove() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of(booking(LocalDate.of(2026, 7, 16)));
+        var payload = ensurePayload("IN_TRANSIT");
+        payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-16T13:00:00");
+
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(0, client.moveCalls, "ETD auto-pick never re-slots an existing booking");
+        assertEquals(0, client.listAvailableCalls);
+        assertEquals("IN_TRANSIT", client.lastPatchStatus);
+    }
+
+    @Test
+    void ensureExistingStatusRegressionIsBenign() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of(booking(LocalDate.of(2026, 7, 16)));
+        client.patchThrows = new CalendarBookingsHttpException(409, "regression");
+        var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 16), 9, 0);
+
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome(), "409 on the status patch is benign");
+    }
+
+    @Test
+    void ensureWithoutCalendarIdThrows() {
+        FakeClient client = new FakeClient();
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put(CalendarSyncFeature.PAYLOAD_OP, CalendarSyncFeature.OP_ENSURE);
+        p.put(CalendarSyncFeature.PAYLOAD_RESOURCE_ID, RESOURCE);
+        p.put(CalendarSyncFeature.PAYLOAD_TARGET_STATUS, "PLANNED");
+        var executor = new CalendarSyncExecutor(client, CLOCK);
+        assertThrows(IllegalArgumentException.class, () -> executor.handle(p));
+    }
+
     // --- validation ----------------------------------------------------------
 
     @Test
@@ -143,10 +294,24 @@ class CalendarSyncExecutorTest {
     /** Records calls and lets each network method be primed to throw. */
     private static final class FakeClient extends CalendarBookingsClient {
         List<CalendarBookingsClient.BookingView> listResult = List.of();
+        List<CalendarBookingsClient.AvailableSlot> availableSlots = List.of();
         RuntimeException patchThrows;
         int patchCalls;
         String lastPatchStatus;
         final List<UUID> cancelled = new ArrayList<>();
+
+        final UUID createdId = UUID.fromString("00000000-0000-0000-0000-0000000000c1");
+        int createCalls;
+        LocalDate lastCreateDate;
+        int lastCreateHour;
+        int lastCreateMinutes;
+        int listAvailableCalls;
+
+        int moveCalls;
+        UUID lastMoveBookingId;
+        LocalDate lastMoveDate;
+        int lastMoveHour;
+        int lastMoveMinutes;
 
         @Override
         public boolean isConfigured() {
@@ -171,6 +336,32 @@ class CalendarSyncExecutorTest {
         @Override
         public void cancel(UUID bookingId) {
             cancelled.add(bookingId);
+        }
+
+        @Override
+        public UUID create(UUID calendarId, LocalDate slotDate, int slotHour, int slotMinutes,
+                           String resourceId, String resourceType, Map<String, Object> resourceData) {
+            createCalls++;
+            lastCreateDate = slotDate;
+            lastCreateHour = slotHour;
+            lastCreateMinutes = slotMinutes;
+            return createdId;
+        }
+
+        @Override
+        public void move(UUID bookingId, LocalDate slotDate, int slotHour, int slotMinutes) {
+            moveCalls++;
+            lastMoveBookingId = bookingId;
+            lastMoveDate = slotDate;
+            lastMoveHour = slotHour;
+            lastMoveMinutes = slotMinutes;
+        }
+
+        @Override
+        public List<CalendarBookingsClient.AvailableSlot> listAvailableSlots(
+                UUID calendarId, LocalDate startDate, LocalDate endDate) {
+            listAvailableCalls++;
+            return availableSlots;
         }
     }
 }

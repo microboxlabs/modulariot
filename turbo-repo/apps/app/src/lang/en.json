@@ -376,7 +376,12 @@
           "assignDriver": "Assign driver",
           "presentDriver": "Present driver",
           "prepareService": "Prepare service",
-          "missionControl": "Mission control"
+          "missionControl": "Mission control",
+          "monitorTrip": "Trip in progress",
+          "confirmArrival": "Confirm arrival",
+          "closeMonitoring": "Close monitoring",
+          "finished": "Finished",
+          "cancelled": "Cancelled"
         },
         "contextMenu": {
           "service": "Service",

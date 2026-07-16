@@ -1,7 +1,13 @@
 "use client";
 
 import { twMerge } from "tailwind-merge";
-import { IoPerson, IoPeople } from "react-icons/io5";
+import {
+  IoPerson,
+  IoPeople,
+  IoNavigate,
+  IoCheckmarkCircle,
+  IoCloseCircle,
+} from "react-icons/io5";
 import { useScrollIntoViewWhen } from "@microboxlabs/miot-calendar-ui";
 import type { PlannedService } from "./planning-selection-context";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -46,6 +52,17 @@ export function hasUrgenciaIncidencia(
 }
 
 /**
+ * Post-planning workflow stages the chip marks with an "en route" indicator.
+ * Planning-segment stages keep the plain chip look (the chip's existence
+ * already means "planned", driver icons mean "assigned").
+ */
+const IN_COURSE_STAGES = new Set<string>([
+  "monitorTrip",
+  "confirmArrival",
+  "closeMonitoring",
+]);
+
+/**
  * Get the number of assigned drivers for a service
  */
 export function getDriverCount(service: PlannedService["service"]): 0 | 1 | 2 {
@@ -54,6 +71,37 @@ export function getDriverCount(service: PlannedService["service"]): 0 | 1 | 2 {
   if (hasDriver1 && hasDriver2) return 2;
   if (hasDriver1 || hasDriver2) return 1;
   return 0;
+}
+
+/** CALSYNC read-time stage → chip presentation flags + tooltip suffix. */
+interface StageIndicator {
+  /** Terminal/muted: the slot is history, not plannable work. */
+  readonly isTerminal: boolean;
+  readonly isFinished: boolean;
+  readonly isCancelled: boolean;
+  /** In-course stages get an "en route" marker. */
+  readonly isInCourse: boolean;
+  /** " · <label>" appended to the chip title, or "" when no stage. */
+  readonly titleSuffix: string;
+}
+
+function getStageIndicator(
+  workflowStage: string | undefined,
+  dict: I18nRecord
+): StageIndicator {
+  const isFinished = workflowStage === "finished";
+  const isCancelled = workflowStage === "cancelled";
+  const stageTitle = workflowStage
+    ? tr(`pages.planning.sidebar.taskStage.${workflowStage}`, dict)
+    : undefined;
+  return {
+    isTerminal: isFinished || isCancelled,
+    isFinished,
+    isCancelled,
+    isInCourse:
+      workflowStage !== undefined && IN_COURSE_STAGES.has(workflowStage),
+    titleSuffix: stageTitle ? ` · ${stageTitle}` : "",
+  };
 }
 
 interface PlannedServiceChipProps {
@@ -99,6 +147,13 @@ export function PlannedServiceChip({
   const hasUrgencia = hasUrgenciaIncidencia(plannedService.service);
   const driverCount = getDriverCount(plannedService.service);
   const { origen, destino } = plannedService.service;
+  // Live/terminal workflow stage (CALSYNC read-time join). Terminal chips
+  // recede — the slot is history, not plannable work — while in-course
+  // stages get a marker so a dispatched service stops looking merely
+  // "planned".
+  const workflowStage = plannedService.workflowStage;
+  const { isTerminal, isFinished, isCancelled, isInCourse, titleSuffix } =
+    getStageIndicator(workflowStage, dict);
   // Weakest accreditation level across the assigned resources — rendered with
   // the same labelled badge the service card and sidebar show (icon + text),
   // with the per-resource breakdown as tooltip. Unknown levels (legacy
@@ -162,12 +217,15 @@ export function PlannedServiceChip({
           !isHighlighted &&
           isSelected &&
           "ring-2 ring-amber-500 ring-offset-1",
+        // Terminal services recede (the search dim below is stronger and
+        // still wins when both apply).
+        isTerminal && "opacity-60 saturate-50",
         // Non-matches stay legible enough to keep the slot's context, but
         // clearly recede so the eye lands on the match.
         isDimmed && "opacity-30",
         className
       )}
-      title={`${plannedService.service.id} - ${tr("pages.planning.sidebar.contextMenu.chipTitle", dict)}`}
+      title={`${plannedService.service.id}${titleSuffix} - ${tr("pages.planning.sidebar.contextMenu.chipTitle", dict)}`}
     >
       {/* Left: Service ID + Route stacked */}
       <div className="flex flex-col flex-1 min-w-0">
@@ -214,6 +272,24 @@ export function PlannedServiceChip({
               ? "text-purple-700 dark:text-purple-300"
               : "text-blue-700 dark:text-blue-300"
           )}
+        />
+      )}
+      {isInCourse && (
+        <IoNavigate
+          aria-label={`workflow-stage-${workflowStage}`}
+          className="ml-1 shrink-0 w-3.5 h-3.5 text-sky-600 dark:text-sky-400"
+        />
+      )}
+      {isFinished && (
+        <IoCheckmarkCircle
+          aria-label="workflow-stage-finished"
+          className="ml-1 shrink-0 w-4 h-4 text-emerald-600 dark:text-emerald-400"
+        />
+      )}
+      {isCancelled && (
+        <IoCloseCircle
+          aria-label="workflow-stage-cancelled"
+          className="ml-1 shrink-0 w-4 h-4 text-red-500 dark:text-red-400"
         />
       )}
     </button>

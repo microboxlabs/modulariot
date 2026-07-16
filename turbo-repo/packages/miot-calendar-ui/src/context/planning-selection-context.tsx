@@ -45,6 +45,7 @@ import {
   buildResource,
   rollbackPlannedService,
 } from "../services/booking-persistence";
+import { mergeWorkflowStages } from "../services/workflow-stage-merge";
 
 dayjs.extend(isoWeek);
 dayjs.extend(isSameOrAfter);
@@ -288,7 +289,17 @@ export function PlanningSelectionProvider<
   // there is no data (downstream memos key off these references).
   const emptyPlannedRef = useRef<PlannedService<TItem>[]>([]);
   const emptyBookingIdsRef = useRef<Map<string, string>>(new Map());
-  const plannedServices = bookingsData?.planned ?? emptyPlannedRef.current;
+  const rawPlannedServices = bookingsData?.planned ?? emptyPlannedRef.current;
+  // Booking payloads are planning-time snapshots; the host's live workflow
+  // index is the source of truth for stage. Overlaying here — a derive over
+  // the SWR cache — instead of inside `loadBookings` keeps the stage
+  // reactive: a live-index refresh re-labels chips without refetching
+  // bookings (the fetcher is deliberately identity-stable, see above).
+  const resolveWorkflowStage = host.resolveWorkflowStage;
+  const plannedServices = useMemo(
+    () => mergeWorkflowStages(rawPlannedServices, resolveWorkflowStage),
+    [rawPlannedServices, resolveWorkflowStage]
+  );
   const bookingIds = bookingsData?.ids ?? emptyBookingIdsRef.current;
   const bookingsLoadError = bookingsError ? bookingsLoadErrorMessage : null;
 

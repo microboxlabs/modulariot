@@ -376,7 +376,12 @@
           "assignDriver": "Asignar conductor",
           "presentDriver": "Presentar conductor",
           "prepareService": "Preparar servicio",
-          "missionControl": "Control de misión"
+          "missionControl": "Control de misión",
+          "monitorTrip": "Viaje en curso",
+          "confirmArrival": "Confirmar arribo",
+          "closeMonitoring": "Cierre de monitoreo",
+          "finished": "Finalizado",
+          "cancelled": "Cancelado"
         },
         "contextMenu": {
           "service": "Servicio",

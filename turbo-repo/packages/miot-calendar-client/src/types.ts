@@ -63,13 +63,24 @@ export interface MoveBookingRequest {
   resource?: ResourceData;
 }
 
+/** Booking lifecycle status (CALSYNC). Servers without the status column omit it. */
+export type BookingStatus =
+  | "PLANNED"
+  | "ASSIGNED"
+  | "IN_TRANSIT"
+  | "ARRIVED"
+  | "FINISHED"
+  | "CANCELLED";
+
 export interface BookingResponse {
   id: string;
   calendarId: string;
   resource: ResourceData;
   slot: SlotData;
+  status?: BookingStatus;
   createdAt: string;
   createdBy?: string;
+  updatedAt?: string;
 }
 
 export interface BookingListResponse {

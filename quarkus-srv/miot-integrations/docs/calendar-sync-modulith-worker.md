@@ -99,15 +99,9 @@ the ledger keep draining on ECM. To roll back, flip ECM's flag to `ecm`.
 | `miot.integrations.calendar-sync.miot-calendar.token` | *(unset)* | optional bearer (calendar handler) |
 | `mintral.features.integrationOutbox.calendarSync.executor` (ECM) | `ecm` | lane flip |
 
-## Out of scope
+## Out of scope (Phase 2+)
 
-**Execution-scale axis** (where jobs run — this doc's follow-ons):
 - `whatsapp_pod_notify` relocation (same machinery; also kills a claim-then-POST-back round-trip).
 - `alerce_assignment` (Activiti-coupled writeback — stays on ECM).
 - Broker wake (ActiveMQ/Pulsar) for ECM-lane jobs.
 - Removing ECM's `CalendarSyncJobExecutor` (keep until no `ecm`-lane jobs remain).
-
-**Correctness axis** (what's async): making booking create/move/cancel async too, so the
-calendar is a retryable projection of the kanban stage — see
-[`calendar-async-projection.md`](calendar-async-projection.md) (Phase 2). Today those still
-run synchronously in ECM and soft-fail with no retry.

@@ -84,7 +84,7 @@
           },
           "industry": {
             "label": "¿A qué se dedica?",
-            "otherPlaceholder": "Especifica cuál"
+            "otherPlaceholder": "Especifica qué"
           },
           "monitoringInterest": {
             "label": "¿Qué deseas monitorear?",

@@ -16,8 +16,6 @@ type AuthCardProps = Readonly<{
   signInProps: Omit<FormSignInProps, "onRegisterClick">;
   registerMessages: RegisterFormMessages;
   accessDeniedMessage?: string | null;
-  /** Gmail search URL (pre-filtered by sender) opened by the register wizard's "Ver correo" button. Resolved server-side from AUTH_VERIFICATION_EMAIL_SENDER; undefined skips opening Gmail. */
-  verificationEmailSearchUrl?: string;
 }>;
 
 /**
@@ -29,7 +27,6 @@ export default function AuthCard({
   signInProps,
   registerMessages,
   accessDeniedMessage,
-  verificationEmailSearchUrl,
 }: AuthCardProps) {
   const searchParams = useSearchParams();
 
@@ -77,7 +74,6 @@ export default function AuthCard({
           <RegisterForm
             msg={registerMessages}
             onBackToLogin={() => goToView("auth")}
-            verificationEmailSearchUrl={verificationEmailSearchUrl}
           />
         </Card>
       </div>

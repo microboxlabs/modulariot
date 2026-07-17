@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "motion/react";
 import { HiArrowLeft, HiArrowRight } from "react-icons/hi2";
+import { getVerificationEmailSearchUrl } from "@/features/auth/services/verification-email.service";
 import type { RegisterFormMessages } from "./form-sign-in.types";
 import {
   registerSchema,
@@ -32,34 +33,13 @@ const NO_ORG_FLOW: readonly RegisterStep[] = ["profile", "verification"];
 
 const BUTTON_SHAPE = "rounded-lg font-semibold";
 
-/** Points the Gmail link at the account the user just registered with,
- * instead of whichever Google account happens to be first in the browser's
- * account switcher (the URL's default `/u/0/` slot) — so "Ver correo" opens
- * their own inbox even when multiple Google accounts are signed in.
- * The email must go in the `authuser` query param: Gmail resolves it to the
- * matching signed-in account internally, but putting it directly in the
- * `/u/` path segment (which only accepts the numeric session index) 404s. */
-function withGmailAuthUser(url: string, email?: string): string {
-  if (!email) return url;
-  try {
-    const parsed = new URL(url);
-    parsed.searchParams.set("authuser", email);
-    return parsed.toString();
-  } catch {
-    return url;
-  }
-}
-
 export default function RegisterForm({
   msg,
   onBackToLogin,
-  verificationEmailSearchUrl,
 }: Readonly<{
   msg: RegisterFormMessages;
   /** Switches the parent card back to the sign-in view (register is a URL param, not a route) */
   onBackToLogin: () => void;
-  /** Gmail search URL (pre-filtered by sender) opened by the "Ver correo" button; undefined skips opening Gmail. */
-  verificationEmailSearchUrl?: string;
 }>) {
   const searchParams = useSearchParams();
 
@@ -148,11 +128,12 @@ export default function RegisterForm({
         return;
       }
     }
-    // Everything's valid and we're already on the verification step —
-    // hand off to Gmail, pre-filtered to the configured sender, so the
-    // user doesn't have to hunt for the verification email themselves.
-    if (verificationEmailSearchUrl) {
-      const url = withGmailAuthUser(verificationEmailSearchUrl, watch("email"));
+    // Everything's valid and we're already on the verification step — hand
+    // off to the user's own webmail (Gmail or Outlook, detected from their
+    // email's MX records), pre-filtered to unread mail from the configured
+    // sender, so they don't have to hunt for the verification email themselves.
+    const url = await getVerificationEmailSearchUrl(watch("email"));
+    if (url) {
       window.open(url, "_blank", "noopener,noreferrer");
     }
   }

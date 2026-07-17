@@ -1,6 +1,11 @@
 "use client";
 
-import { useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
+import {
+  useState,
+  type ChangeEvent,
+  type FocusEvent,
+  type KeyboardEvent,
+} from "react";
 import { TextInput } from "flowbite-react";
 import { HiOutlineMagnifyingGlass } from "react-icons/hi2";
 import { COUNTRIES } from "@/features/auth/constants/countries.constants";
@@ -35,7 +40,9 @@ export default function CountryCombobox({
 }: CountryComboboxProps) {
   const [query, setQuery] = useState(value ?? "");
   const [isOpen, setIsOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  // Starts readOnly and flips on focus — see the input's `readOnly` comment
+  // below for why (Chrome autofill avoidance), not a real read-only field.
+  const [isReadOnly, setIsReadOnly] = useState(true);
 
   const normalizedQuery = query.trim().toLowerCase();
   const results = normalizedQuery
@@ -54,7 +61,7 @@ export default function CountryCombobox({
     // mid-click, so focus ends up moving to `<body>` rather than cleanly
     // "blurring the container to somewhere outside it" — the container's
     // onBlur handler never sees that as a real departure.
-    inputRef.current?.setAttribute("readonly", "");
+    setIsReadOnly(true);
   }
 
   function handleContainerBlur(event: FocusEvent<HTMLDivElement>) {
@@ -66,7 +73,7 @@ export default function CountryCombobox({
     setIsOpen(false);
     // Re-arm the readonly-until-focus guard (see the input's `readOnly`
     // comment below) for the next time this field is focused.
-    inputRef.current?.setAttribute("readonly", "");
+    setIsReadOnly(true);
     onBlur?.();
   }
 
@@ -81,6 +88,16 @@ export default function CountryCombobox({
     }
   }
 
+  function handleFocus() {
+    setIsReadOnly(false);
+    setIsOpen(true);
+  }
+
+  function handleQueryChange(event: ChangeEvent<HTMLInputElement>) {
+    setQuery(event.target.value);
+    setIsOpen(true);
+  }
+
   return (
     // The `[&_input::...]` selector (not on TextInput's own `className`,
     // which lands on its outer wrapper, not the <input>) hides the native
@@ -92,7 +109,6 @@ export default function CountryCombobox({
       onBlur={handleContainerBlur}
     >
       <TextInput
-        ref={inputRef}
         id={id}
         // This is a search/filter box, not a data-entry field — `type="search"`
         // says so explicitly, which keeps it out of Chrome's address-autofill
@@ -117,21 +133,15 @@ export default function CountryCombobox({
         // `readOnly` keeps Chrome from treating it as an autofill target at
         // all; flipping it back to editable on focus (before the user can
         // type anything) is the standard workaround for this.
-        readOnly
-        onFocus={(event) => {
-          event.currentTarget.removeAttribute("readonly");
-          setIsOpen(true);
-        }}
+        readOnly={isReadOnly}
+        onFocus={handleFocus}
         placeholder={placeholder}
         rightIcon={HiOutlineMagnifyingGlass}
         color={invalid ? "failure" : undefined}
         theme={failureBorderTheme}
         clearTheme={failureBorderClearTheme}
         value={query}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          setIsOpen(true);
-        }}
+        onChange={handleQueryChange}
         onKeyDown={handleKeyDown}
       />
       {isOpen && (

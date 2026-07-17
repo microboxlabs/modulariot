@@ -1,7 +1,7 @@
 "use server";
 import "server-only";
 
-import { promises as dns } from "dns";
+import { promises as dns } from "node:dns";
 
 type WebmailProvider = "gmail" | "outlook";
 

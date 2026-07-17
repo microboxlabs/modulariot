@@ -37,17 +37,21 @@ export const registerSchema = z.object({
 
 export type RegisterSchema = z.infer<typeof registerSchema>;
 
-// Subsets of the full schema used to gate the "Next" button per step —
-// only the fields required on that step (i.e. not labeled "opcional" in the
-// UI). Optional fields are deliberately left out: their own constraints
-// (e.g. organizationPhone still has to be a valid number if filled in)
-// are enforced by `registerSchema` itself at submit time, not by this gate.
+// Subsets of the full schema used to gate the "Next" button per step. Being
+// empty never blocks progress on this step's optional fields (zod's
+// `.optional()` passes trivially when absent) — they're included so a
+// populated-but-invalid value (e.g. a malformed organizationPhone) still
+// does, instead of silently sailing through to the end of the wizard.
 export const organizationStepSchema = registerSchema.pick({
   organizationName: true,
   teamName: true,
   organizationLocation: true,
+  organizationPhone: true,
   organizationSize: true,
   industry: true,
+  industryOtherDetail: true,
+  monitoringInterest: true,
+  monitoringInterestOtherDetail: true,
 });
 
 export const profileStepSchema = registerSchema.pick({

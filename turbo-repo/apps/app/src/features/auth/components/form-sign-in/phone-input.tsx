@@ -1,14 +1,20 @@
 "use client";
 
 import { forwardRef, type ComponentPropsWithoutRef } from "react";
+import { useParams } from "next/navigation";
 import { textInputTheme } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
 import PhoneInputWithCountry, {
   type Country,
   type Value,
 } from "react-phone-number-input";
+import en from "react-phone-number-input/locale/en.json";
 import es from "react-phone-number-input/locale/es.json";
 import PhoneCountrySelect from "./phone-country-select";
+
+// Keyed by this app's supported locales (src/lang/*.json) — falls back to
+// English for any other/unrecognized value.
+const PHONE_LOCALES: Record<string, typeof en> = { en, es };
 
 type PhoneInputProps = Readonly<{
   id?: string;
@@ -60,6 +66,9 @@ export default function PhoneInput({
   onBlur,
   defaultCountry,
 }: PhoneInputProps) {
+  const { lang } = useParams<{ lang: string }>();
+  const labels = PHONE_LOCALES[lang] ?? en;
+
   return (
     <PhoneInputWithCountry
       id={id}
@@ -67,7 +76,7 @@ export default function PhoneInput({
       className="flex"
       international
       defaultCountry={defaultCountry}
-      labels={es}
+      labels={labels}
       placeholder={placeholder}
       value={value}
       onChange={onChange}

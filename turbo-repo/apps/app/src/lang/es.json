@@ -1547,6 +1547,7 @@
         "lane": "Ejecutor",
         "created": "Creado",
         "updated": "Actualizado",
+        "duration": "Duración",
         "nextRetry": "Próximo reintento",
         "lease": "Lease",
         "source": "Instancia origen",

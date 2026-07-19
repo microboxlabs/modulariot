@@ -120,11 +120,48 @@ export function shortJobId(id: string): string {
   return id.slice(0, 8);
 }
 
+/**
+ * Lenient timestamp → epoch ms. Accepts the ISO-8601 strings the backend
+ * emits, plus numeric epochs (seconds or millis) as insurance against
+ * serializer changes. Returns null when unparseable.
+ */
+export function toEpochMs(value: unknown): number | null {
+  if (value == null) return null;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return null;
+    // Heuristic: epoch seconds are ~1e9, epoch millis ~1e12.
+    return value < 1e11 ? Math.round(value * 1000) : Math.round(value);
+  }
+  if (typeof value === "string") {
+    const ms = Date.parse(value);
+    return Number.isNaN(ms) ? null : ms;
+  }
+  return null;
+}
+
+/** "19-07-2026 18:04:50" — absolute local timestamp for operators. */
+export function formatDateTime(value: unknown): string {
+  const ms = toEpochMs(value);
+  if (ms == null) return "—";
+  const date = new Date(ms);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+/** "18:04:50" — local clock time for timeline entries. */
+export function formatClock(value: unknown): string {
+  const ms = toEpochMs(value);
+  if (ms == null) return "—";
+  const date = new Date(ms);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 /** "now", "42s", "7m", "3h", "2d" — compact relative age. */
-export function relativeAge(iso: string | null, nowMs: number = Date.now()): string {
-  if (!iso) return "—";
-  const seconds = Math.round((nowMs - new Date(iso).getTime()) / 1000);
-  if (Number.isNaN(seconds)) return "—";
+export function relativeAge(value: unknown, nowMs: number = Date.now()): string {
+  const ms = toEpochMs(value);
+  if (ms == null) return "—";
+  const seconds = Math.round((nowMs - ms) / 1000);
   if (seconds < 5) return "now";
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.round(seconds / 60);
@@ -135,26 +172,28 @@ export function relativeAge(iso: string | null, nowMs: number = Date.now()): str
 }
 
 /** "in 12s" / "in 3m" / "due now" — countdown to a future instant. */
-export function countdownTo(iso: string | null, nowMs: number = Date.now()): string {
-  if (!iso) return "—";
-  const seconds = Math.round((new Date(iso).getTime() - nowMs) / 1000);
-  if (Number.isNaN(seconds)) return "—";
+export function countdownTo(value: unknown, nowMs: number = Date.now()): string {
+  const ms = toEpochMs(value);
+  if (ms == null) return "—";
+  const seconds = Math.round((ms - nowMs) / 1000);
   if (seconds <= 0) return "due now";
   if (seconds < 60) return `in ${seconds}s`;
   return `in ${Math.round(seconds / 60)}m`;
 }
 
-/** Duration of the last finished attempt, in ms, when derivable from history. */
-export function lastAttemptDurationMs(job: AsyncJob): number | null {
-  // History entries are appended per report; a claim stamps no entry, so we
-  // approximate with createdAt→updatedAt when the job closed on attempt one.
+/**
+ * End-to-end duration of a closed job in ms (enqueue → final report), when
+ * derivable. Attempt history records report times only (claims stamp no
+ * entry), so per-attempt runtimes are not reconstructable — this is the
+ * honest total the console can show.
+ */
+export function jobDurationMs(job: AsyncJob): number | null {
   const finished = [...job.attemptHistory]
     .reverse()
     .find((entry) => entry.outcome === "SUCCEEDED" || entry.outcome === "FAILED" || entry.outcome === "SKIPPED");
-  if (!finished?.at || !job.updatedAt) return null;
-  const startedAt = new Date(job.createdAt).getTime();
-  const finishedAt = new Date(finished.at).getTime();
-  if (Number.isNaN(startedAt) || Number.isNaN(finishedAt) || finishedAt < startedAt) return null;
+  const startedAt = toEpochMs(job.createdAt);
+  const finishedAt = toEpochMs(finished?.at);
+  if (startedAt == null || finishedAt == null || finishedAt < startedAt) return null;
   return finishedAt - startedAt;
 }
 
@@ -177,8 +216,10 @@ export function jobContextLine(job: AsyncJob, nowMs: number = Date.now()): strin
         return `chain step ${job.chainSequence} · waiting`;
       }
       return `queued · ${job.enqueuedBy}`;
-    case "SUCCEEDED":
-      return "completed";
+    case "SUCCEEDED": {
+      const duration = jobDurationMs(job);
+      return duration != null ? `completed in ${formatDurationMs(duration)}` : "completed";
+    }
     case "FAILED":
       return job.lastError ?? "failed";
     case "CANCELLED":

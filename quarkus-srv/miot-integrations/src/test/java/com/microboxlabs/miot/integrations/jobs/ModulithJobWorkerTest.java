@@ -8,6 +8,7 @@ import com.microboxlabs.miot.integrations.domain.AsyncJob;
 import com.microboxlabs.miot.integrations.domain.JobState;
 import com.microboxlabs.miot.integrations.dto.EnqueueJobsResponse;
 import com.microboxlabs.miot.integrations.dto.ReportJobRequest;
+import com.microboxlabs.miot.integrations.events.JobEventEmitter;
 import com.microboxlabs.miot.integrations.persistence.AsyncJobRepository;
 import com.microboxlabs.miot.integrations.service.AsyncJobService;
 import java.util.ArrayDeque;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -159,7 +161,7 @@ class ModulithJobWorkerTest {
         int claimCalls;
 
         RecordingService() {
-            super(new NoopRepository(), 60, 3600);
+            super(new NoopRepository(), new JobEventEmitter(Optional.empty()), 60, 3600);
         }
 
         @Override

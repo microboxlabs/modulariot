@@ -1497,6 +1497,91 @@
         "dataSources": "Fuentes de Datos"
       }
     },
+    "integrationJobs": {
+      "title": "Consola de trabajos",
+      "subtitle": "Trabajos de integración asíncronos, en vivo desde el ledger del outbox",
+      "refresh": "Actualizar",
+      "loadError": "No se pudieron cargar los trabajos de integración.",
+      "live": {
+        "connected": "En vivo",
+        "disconnected": "Sin conexión",
+        "notConfigured": "Las actualizaciones en vivo no están configuradas en este ambiente"
+      },
+      "states": {
+        "PENDING": "Pendiente",
+        "RUNNING": "En curso",
+        "SUCCEEDED": "Completado",
+        "FAILED": "Fallido",
+        "CANCELLED": "Cancelado"
+      },
+      "filters": {
+        "all": "Todos",
+        "allLanes": "Todos los ejecutores",
+        "allTypes": "Todos los tipos",
+        "searchPlaceholder": "Id, correlación, cadena…"
+      },
+      "table": {
+        "title": "Trabajos",
+        "job": "Trabajo",
+        "correlation": "Correlación",
+        "lane": "Ejecutor",
+        "state": "Estado",
+        "attempts": "Int.",
+        "detail": "Detalle",
+        "age": "Edad",
+        "chainStep": "cadena",
+        "loading": "Cargando trabajos…",
+        "empty": "Ningún trabajo coincide con los filtros actuales."
+      },
+      "detail": {
+        "overview": "Resumen",
+        "attempts": "Intentos",
+        "payload": "Payload",
+        "chain": "Cadena",
+        "loading": "Cargando trabajo…",
+        "loadError": "No se pudo cargar el trabajo.",
+        "close": "Cerrar",
+        "lastError": "Último error",
+        "attemptsLabel": "Intentos",
+        "attempt": "intento",
+        "lane": "Ejecutor",
+        "created": "Creado",
+        "updated": "Actualizado",
+        "nextRetry": "Próximo reintento",
+        "lease": "Lease",
+        "source": "Instancia origen",
+        "tenant": "Tenant",
+        "dedupe": "Clave de deduplicación",
+        "step": "paso",
+        "chainHint": "Los pasos corren en orden — un paso se reclama solo cuando el anterior termina.",
+        "retry": "Reintentar trabajo",
+        "runNow": "Ejecutar ahora"
+      },
+      "timeline": {
+        "enqueuedBy": "Encolado por",
+        "manualRetry": "Reintento manual — intentos reiniciados",
+        "report": "Reporte",
+        "running": "En curso",
+        "retryScheduled": "Reintento agendado, intento",
+        "backoff": "backoff exponencial"
+      },
+      "bell": {
+        "title": "Notificaciones",
+        "viewAll": "Ver todas",
+        "integrations": "Actividad de integraciones",
+        "empty": "Sin actividad de integraciones aún. Las ejecuciones aparecen aquí en tiempo real.",
+        "hint": "Transmitido desde el outbox de integraciones",
+        "openConsole": "Abrir consola de trabajos"
+      },
+      "transitions": {
+        "enqueued": "encolado",
+        "claimed": "iniciado",
+        "succeeded": "completado",
+        "retry_scheduled": "reintento agendado",
+        "failed": "falló definitivamente",
+        "retried": "reintento en cola"
+      }
+    },
     "admin": {
       "breadcrumb": {
         "admin": "Admin",
@@ -1641,6 +1726,7 @@
         "subtitle3": "Validación Sistema Cliente",
         "subtitle4": "Validación GPS",
         "details": "Detalles servicio nº {serviceCode}",
+        "integrations": "Integraciones",
         "settings": "Ajustes",
         "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos",

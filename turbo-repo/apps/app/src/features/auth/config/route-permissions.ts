@@ -60,6 +60,10 @@ export const ROUTE_PERMISSIONS = {
   // Fleet management
   "/fleet-management": FLEET_MANAGEMENT_ROLES,
 
+  // Integrations job console — any authenticated org member; the backend
+  // enforces org membership per request.
+  "/integrations/jobs": [],
+
   // Admin console routes
   "/admin/console/message-templates": ADMIN_ROLES,
 } as const;

@@ -7,7 +7,7 @@ import { SidebarItem } from "../types/common.types";
 import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
 import { FaTruckLoading } from "react-icons/fa";
-import { HiCog } from "react-icons/hi";
+import { HiCog, HiLightningBolt } from "react-icons/hi";
 import { LuTowerControl } from "react-icons/lu";
 import type { FC, ComponentProps } from "react";
 import pagesConfig from "./pages-config.json";
@@ -22,6 +22,7 @@ const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   collaboratorsManagement: PeopleIcon,
   fleetManagement: TruckIcon,
   whereIsMyLoad: FaTruckLoading as FC<ComponentProps<"svg">>,
+  integrations: HiLightningBolt as FC<ComponentProps<"svg">>,
   settings: HiCog as FC<ComponentProps<"svg">>,
 };
 

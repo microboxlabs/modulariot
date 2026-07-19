@@ -26,6 +26,13 @@ import org.jboss.logging.Logger;
  * / 5xx / network ({@code -1}) errors are thrown so the worker reports FAILED and
  * the ledger retries with backoff. miot-calendar only moves statuses forward, so
  * unordered jobs converge on the max status.
+ *
+ * <p><b>Except when a regression is the point.</b> The workflow is not
+ * monotonic — a service can go back from {@code presentDriver} to
+ * {@code assignDriver} — so {@link CalendarSyncFeature#OP_UNASSIGN} exists to
+ * carry that revert, and it reads 409 the opposite way: not "this job is late"
+ * but "the booking has run ahead of the workflow". See
+ * {@code executeUnassign}.
  */
 @ApplicationScoped
 public class CalendarSyncExecutor implements ModulithJobHandler {
@@ -79,10 +86,47 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         if (CalendarSyncFeature.OP_ENSURE.equals(op)) {
             return executeEnsure(payload, resourceId, calendarId);
         }
+        if (CalendarSyncFeature.OP_UNASSIGN.equals(op)) {
+            return executeUnassign(payload, resourceId, calendarId);
+        }
         if (CalendarSyncFeature.OP_CANCEL.equals(op)) {
             return executeCancel(resourceId, calendarId);
         }
         throw new IllegalArgumentException("calendar_sync unknown op: " + op);
+    }
+
+    /**
+     * Reset the booking to PLANNED and clear the assignment keys, keeping the
+     * slot — the {@code presentDriver → assignDriver} revert.
+     *
+     * <p>Outcome policy differs from {@link #executePatch} on purpose, because
+     * the two 409s mean opposite things. There, a 409 says the job lost a race
+     * and a newer status already won, so skipping is right. Here the job is on
+     * time and the regression <b>is</b> the intent, so a 409 says the booking
+     * has run ahead of the workflow — past ASSIGNED, truck already moving. No
+     * retry makes that converge, so it is a terminal skip, logged loudly rather
+     * than reported as a clean success.
+     *
+     * <p>404 stays quietly benign: the forward {@code planService →
+     * assignDriver} path enqueues the same op with no booking yet to unassign.
+     */
+    private JobOutcome executeUnassign(Map<String, Object> payload, String resourceId, UUID calendarId) {
+        List<String> clearDataKeys = asStringList(payload.get(CalendarSyncFeature.PAYLOAD_CLEAR_DATA_KEYS));
+        try {
+            client.unassignByResource(resourceId, calendarId, clearDataKeys);
+            return JobOutcome.succeeded("Booking unassigned for " + resourceId
+                    + " (cleared " + clearDataKeys.size() + " data key(s))");
+        } catch (CalendarBookingsHttpException e) {
+            if (e.getStatus() == 404) {
+                return JobOutcome.skipped("No booking to unassign for " + resourceId);
+            }
+            if (e.getStatus() == 409) {
+                LOG.warnf("calendar_sync unassign rejected for %s: the booking is past ASSIGNED while the "
+                        + "workflow went back to assignDriver — calendar and workflow have diverged", resourceId);
+                return JobOutcome.skipped("Unassign rejected for " + resourceId + " (booking past ASSIGNED)");
+            }
+            throw e;
+        }
     }
 
     private JobOutcome executePatch(Map<String, Object> payload, String resourceId, UUID calendarId) {
@@ -383,6 +427,23 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
     @SuppressWarnings("unchecked")
     private static Map<String, Object> asMap(Object value) {
         return value instanceof Map<?, ?> map ? (Map<String, Object>) map : null;
+    }
+
+    /**
+     * Payload list of resource-data keys, normalized: never null, no null or
+     * blank entries. Unlike {@link #asMap} this returns an empty list rather
+     * than null, because an unassign with nothing to clear is a valid job (it
+     * resets the lifecycle and leaves the payload alone).
+     */
+    private static List<String> asStringList(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(Object::toString)
+                .filter(s -> !s.isBlank())
+                .toList();
     }
 
     /** Resolved slot for an ensure create/move. */

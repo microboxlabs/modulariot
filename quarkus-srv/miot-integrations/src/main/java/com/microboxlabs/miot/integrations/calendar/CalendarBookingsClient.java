@@ -96,6 +96,29 @@ public class CalendarBookingsClient {
     }
 
     /**
+     * Unassign every booking of a resource: reset to {@code PLANNED} and drop
+     * {@code clearDataKeys} from {@code resource.data}, keeping the slot.
+     *
+     * <p>The sanctioned ASSIGNED → PLANNED regression, which a plain
+     * {@link #patchByResource} cannot express — miot-calendar keeps status
+     * patches strictly forward-only and carries each legal regression on its
+     * own operation. 200 = ok; 404 = no booking, 409 = the booking is past
+     * ASSIGNED; the caller decides what those mean.
+     */
+    public void unassignByResource(String resourceId, UUID calendarId, List<String> clearDataKeys) {
+        JsonObject body = new JsonObject();
+        if (clearDataKeys != null && !clearDataKeys.isEmpty()) {
+            body.put("clearDataKeys", new JsonArray(clearDataKeys));
+        }
+        String url = base() + BASE_PATH + "/resource/" + enc(resourceId) + "/unassign"
+                + (calendarId != null ? "?calendarId=" + calendarId : "");
+        HttpResponse<String> response = send("POST", url, body.encode());
+        if (response.statusCode() != 200) {
+            throw httpError("unassignByResource", url, response);
+        }
+    }
+
+    /**
      * Lists a resource's bookings with the fields the cancel decision needs (id,
      * calendar, slot date/time, status). 404 = no bookings (empty list). Scoped
      * to one calendar when {@code calendarId} is non-null (filtered client-side).

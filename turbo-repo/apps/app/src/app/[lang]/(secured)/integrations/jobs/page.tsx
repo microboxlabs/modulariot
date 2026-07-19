@@ -10,7 +10,11 @@ export default async function IntegrationJobsPage({ params }: ParamsWithLang) {
 
   return (
     <RouteGuard path="/integrations/jobs" fallbackPath={`/${lang}/shipping`}>
-      <JobConsolePageContent dict={dict ?? {}} />
+      {/* LayoutContent is overflow-hidden — pages own their scroll (same
+          wrapper as fleet-management). */}
+      <div className="flex h-full w-full flex-col overflow-y-auto bg-white dark:bg-gray-900">
+        <JobConsolePageContent dict={dict ?? {}} />
+      </div>
     </RouteGuard>
   );
 }

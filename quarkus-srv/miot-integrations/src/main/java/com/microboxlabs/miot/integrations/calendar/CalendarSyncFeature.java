@@ -26,6 +26,13 @@ public final class CalendarSyncFeature {
     public static final String PAYLOAD_RESOURCE_TYPE = "resourceType";
     public static final String PAYLOAD_TARGET_STATUS = "targetStatus";
     public static final String PAYLOAD_RESOURCE_DATA = "resourceData";
+    /**
+     * Top-level {@code resource.data} keys an {@link #OP_UNASSIGN} clears. ECM
+     * names them because the payload vocabulary is its own — miot-calendar and
+     * this worker only know a booking <i>has</i> data, not what "assigned
+     * driver" is called in it.
+     */
+    public static final String PAYLOAD_CLEAR_DATA_KEYS = "clearDataKeys";
 
     /**
      * Slot source for {@link #OP_ENSURE} (Phase 2). Either an explicit slot
@@ -48,6 +55,14 @@ public final class CalendarSyncFeature {
      */
     public static final String OP_ENSURE = "ensure";
     public static final String OP_CANCEL = "cancel";
+    /**
+     * Unassign: reset the booking to {@code PLANNED} and clear the assignment
+     * keys, keeping the slot. The coordinator's workflow is not monotonic — a
+     * service can go back from {@code presentDriver} to {@code assignDriver} —
+     * and miot-calendar rejects that as a status regression on a plain
+     * {@link #OP_PATCH}, so the revert needs its own operation.
+     */
+    public static final String OP_UNASSIGN = "unassign";
 
     /** Resource type sent when {@link #OP_ENSURE} creates a booking. */
     public static final String DEFAULT_RESOURCE_TYPE = "service";

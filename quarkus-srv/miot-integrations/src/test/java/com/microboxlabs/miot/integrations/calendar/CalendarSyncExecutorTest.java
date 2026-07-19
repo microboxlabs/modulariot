@@ -37,6 +37,19 @@ class CalendarSyncExecutorTest {
         return p;
     }
 
+    private static final List<String> CLEAR_KEYS = List.of("assignedDriver", "assignedTruck");
+
+    private static Map<String, Object> unassignPayload(List<String> clearDataKeys) {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put(CalendarSyncFeature.PAYLOAD_OP, CalendarSyncFeature.OP_UNASSIGN);
+        p.put(CalendarSyncFeature.PAYLOAD_RESOURCE_ID, RESOURCE);
+        p.put(CalendarSyncFeature.PAYLOAD_CALENDAR_ID, CAL.toString());
+        if (clearDataKeys != null) {
+            p.put(CalendarSyncFeature.PAYLOAD_CLEAR_DATA_KEYS, clearDataKeys);
+        }
+        return p;
+    }
+
     private static Map<String, Object> cancelPayload() {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put(CalendarSyncFeature.PAYLOAD_OP, CalendarSyncFeature.OP_CANCEL);
@@ -105,6 +118,79 @@ class CalendarSyncExecutorTest {
         var executor = new CalendarSyncExecutor(client, CLOCK);
         var payload = patchPayload("FINISHED");
         assertThrows(CalendarBookingsHttpException.class, () -> executor.handle(payload));
+    }
+
+    // --- unassign ------------------------------------------------------------
+
+    @Test
+    void unassignSuccessIsSucceededAndForwardsTheKeys() {
+        FakeClient client = new FakeClient();
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(unassignPayload(CLEAR_KEYS));
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(1, client.unassignCalls);
+        assertEquals(CLEAR_KEYS, client.lastClearDataKeys);
+    }
+
+    /**
+     * The forward {@code planService → assignDriver} path enqueues this op with
+     * no booking yet to unassign.
+     */
+    @Test
+    void unassign404IsBenignSkip() {
+        FakeClient client = new FakeClient();
+        client.unassignThrows = new CalendarBookingsHttpException(404, "no booking");
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(unassignPayload(CLEAR_KEYS));
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
+    }
+
+    /**
+     * Unlike a patch 409 — which means this job lost a race and a newer status
+     * already won — an unassign 409 means the booking ran ahead of the
+     * workflow. No retry converges, so it is terminal rather than a failure.
+     */
+    @Test
+    void unassign409IsTerminalSkipNotRetried() {
+        FakeClient client = new FakeClient();
+        client.unassignThrows = new CalendarBookingsHttpException(409, "past ASSIGNED");
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(unassignPayload(CLEAR_KEYS));
+
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
+        assertTrue(result.detail().contains("past ASSIGNED"), result.detail());
+    }
+
+    @Test
+    void unassign500PropagatesForRetry() {
+        FakeClient client = new FakeClient();
+        client.unassignThrows = new CalendarBookingsHttpException(500, "boom");
+        var executor = new CalendarSyncExecutor(client, CLOCK);
+        var payload = unassignPayload(CLEAR_KEYS);
+        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle(payload));
+    }
+
+    /** No keys is a valid job: reset the lifecycle, leave the payload alone. */
+    @Test
+    void unassignWithoutClearKeysStillRuns() {
+        FakeClient client = new FakeClient();
+        var payload = unassignPayload(null);
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(List.of(), client.lastClearDataKeys);
+    }
+
+    /** Null and blank entries would silently target nothing — drop them. */
+    @Test
+    void unassignSkipsNullAndBlankKeys() {
+        FakeClient client = new FakeClient();
+        var keys = new ArrayList<String>();
+        keys.add("assignedDriver");
+        keys.add(null);
+        keys.add("   ");
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(unassignPayload(keys));
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(List.of("assignedDriver"), client.lastClearDataKeys);
     }
 
     // --- cancel --------------------------------------------------------------
@@ -348,6 +434,10 @@ class CalendarSyncExecutorTest {
         int lastCreateMinutes;
         int listAvailableCalls;
 
+        RuntimeException unassignThrows;
+        int unassignCalls;
+        List<String> lastClearDataKeys;
+
         int moveCalls;
         UUID lastMoveBookingId;
         LocalDate lastMoveDate;
@@ -403,6 +493,15 @@ class CalendarSyncExecutorTest {
                 UUID calendarId, LocalDate startDate, LocalDate endDate) {
             listAvailableCalls++;
             return availableSlots;
+        }
+
+        @Override
+        public void unassignByResource(String resourceId, UUID calendarId, List<String> clearDataKeys) {
+            unassignCalls++;
+            lastClearDataKeys = clearDataKeys;
+            if (unassignThrows != null) {
+                throw unassignThrows;
+            }
         }
     }
 }

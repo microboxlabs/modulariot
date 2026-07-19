@@ -67,7 +67,7 @@ export function markJobEventsSeen(): void {
  * every consumer render; reconnects only when the tenant changes.
  */
 export function connectJobEvents(ecmPublicUrl: string, tenantId: string, eventType: string): void {
-  if (typeof window === "undefined") return;
+  if (globalThis.window === undefined) return;
   if (eventSource && connectedTenant === tenantId) return;
 
   eventSource?.close();

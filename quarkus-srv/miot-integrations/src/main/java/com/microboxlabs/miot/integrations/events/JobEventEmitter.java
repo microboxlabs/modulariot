@@ -71,22 +71,29 @@ public class JobEventEmitter {
         if (job == null || baseUrl.isEmpty()) {
             return;
         }
-        String body = eventData(job, transition).encode();
-        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl.get() + EMIT_PATH))
-                .timeout(Duration.ofSeconds(5))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
-        http.sendAsync(request, HttpResponse.BodyHandlers.discarding())
-                .whenComplete((response, error) -> {
-                    if (error != null) {
-                        LOG.debugf("Job event emit failed for job %s (%s): %s",
-                                job.id(), transition, error.getMessage());
-                    } else if (response.statusCode() >= 400) {
-                        LOG.debugf("Job event emit rejected for job %s (%s): HTTP %d",
-                                job.id(), transition, response.statusCode());
-                    }
-                });
+        try {
+            String body = eventData(job, transition).encode();
+            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl.get() + EMIT_PATH))
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+            http.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+                    .whenComplete((response, error) -> {
+                        if (error != null) {
+                            LOG.debugf("Job event emit failed for job %s (%s): %s",
+                                    job.id(), transition, error.getMessage());
+                        } else if (response.statusCode() >= 400) {
+                            LOG.debugf("Job event emit rejected for job %s (%s): HTTP %d",
+                                    job.id(), transition, response.statusCode());
+                        }
+                    });
+        } catch (Exception e) {
+            // e.g. a malformed configured base URL (URI.create) — never let the
+            // emitter abort the enqueue/claim/report path it piggybacks on.
+            LOG.debugf("Job event emit failed for job %s (%s): %s",
+                    job.id(), transition, e.getMessage());
+        }
     }
 
     /** quarkus-sse {@code EventData} frame for a job transition. */

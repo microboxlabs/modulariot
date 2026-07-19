@@ -79,6 +79,10 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
 
   const counts = overview?.counts;
 
+  let liveDotClass = "bg-gray-400";
+  if (connected) liveDotClass = "animate-pulse bg-green-500";
+  else if (liveConfigured) liveDotClass = "bg-amber-500";
+
   return (
     <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 p-4">
       {/* header */}
@@ -92,11 +96,7 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
             className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-300"
             title={liveConfigured ? undefined : tr("live.notConfigured", dict)}
           >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                connected ? "animate-pulse bg-green-500" : liveConfigured ? "bg-amber-500" : "bg-gray-400"
-              }`}
-            />
+            <span className={`h-1.5 w-1.5 rounded-full ${liveDotClass}`} />
             {connected ? tr("live.connected", dict) : tr("live.disconnected", dict)}
           </span>
           <button
@@ -256,6 +256,14 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
                   <tr
                     key={job.id}
                     onClick={() => setSelectedJobId(job.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedJobId(job.id);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
                     className={`cursor-pointer border-b border-gray-50 last:border-0 dark:border-gray-700/50 ${
                       selectedJobId === job.id
                         ? "bg-gray-100 dark:bg-gray-700/60"

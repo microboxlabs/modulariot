@@ -16,7 +16,9 @@ const JOB_KEY = "org-integration-job";
 
 export function useIntegrationJobs(orgSlug: string | null, filters: JobListFilters = {}) {
   const { data, error, isLoading, mutate } = useSWR<AsyncJob[], Error>(
-    orgSlug ? [JOBS_KEY, orgSlug, filters.state ?? "", filters.jobType ?? "", filters.limit ?? 100] : null,
+    orgSlug
+      ? [JOBS_KEY, orgSlug, filters.state ?? "", filters.jobType ?? "", filters.chainKey ?? "", filters.limit ?? 100]
+      : null,
     () => fetchJobs(orgSlug as string, filters),
     { revalidateOnFocus: false, dedupingInterval: 5_000 },
   );

@@ -58,7 +58,8 @@ export function fetchJobs(orgSlug: string, filters: JobListFilters = {}): Promis
   if (filters.chainKey) params.set("chainKey", filters.chainKey);
   if (filters.limit) params.set("limit", String(filters.limit));
   const qs = params.toString();
-  return getJson<AsyncJob[]>(`${base(orgSlug)}${qs ? `?${qs}` : ""}`);
+  const suffix = qs ? `?${qs}` : "";
+  return getJson<AsyncJob[]>(`${base(orgSlug)}${suffix}`);
 }
 
 export function fetchJobsOverview(orgSlug: string): Promise<JobsOverview> {

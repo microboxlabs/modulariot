@@ -157,6 +157,7 @@ export function SecuredNavbar({
           <div className="flex items-center w-fit">
             {isSidebarToggleEnabled && (
               <button
+                type="button"
                 onClick={handleToggleSidebar}
                 className={twMerge(
                   "cursor-pointer rounded p-2 text-gray-600 lg:hidden",

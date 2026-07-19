@@ -8,7 +8,6 @@ export async function GET(
   const { orgId } = await params;
   const safe = encodeURIComponent(orgId);
   const query = new URL(request.url).searchParams.toString();
-  return forwardToQuarkus(
-    `/api/v1/orgs/${safe}/integrations/console/jobs${query ? `?${query}` : ""}`,
-  );
+  const suffix = query ? `?${query}` : "";
+  return forwardToQuarkus(`/api/v1/orgs/${safe}/integrations/console/jobs${suffix}`);
 }

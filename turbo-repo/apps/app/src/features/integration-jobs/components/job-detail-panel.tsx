@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "flowbite-react";
+import { twMerge } from "tailwind-merge";
 import { HiOutlineX, HiLightningBolt, HiCheck } from "react-icons/hi";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -30,7 +31,15 @@ interface JobDetailPanelProps {
   readonly onSelectJob: (jobId: string) => void;
 }
 
-function Stat({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Stat({
+  label,
+  value,
+  mono,
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly mono?: boolean;
+}) {
   return (
     <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 min-w-0">
       <div className="text-[11px] text-gray-500 dark:text-gray-400">{label}</div>
@@ -55,6 +64,18 @@ interface TimelineNode {
   readonly error?: string | null;
 }
 
+function historyDotClass(outcome: string): string {
+  if (outcome === "RETRY_REQUESTED") return "bg-amber-500";
+  if (outcome === "FAILED") return "bg-rose-500";
+  return "bg-green-500";
+}
+
+function chainBadgeClass(memberState: string, isCurrent: boolean): string {
+  if (memberState === "SUCCEEDED") return "bg-green-500 text-white";
+  if (isCurrent) return "bg-gray-900 text-white dark:bg-white dark:text-gray-900";
+  return "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300";
+}
+
 function timelineNodes(job: AsyncJob, dict: I18nRecord, nowMs: number): TimelineNode[] {
   const nodes: TimelineNode[] = [
     {
@@ -70,7 +91,7 @@ function timelineNodes(job: AsyncJob, dict: I18nRecord, nowMs: number): Timeline
     const isManual = outcome === "RETRY_REQUESTED";
     nodes.push({
       key: `h-${index}`,
-      dotClass: isManual ? "bg-amber-500" : isFailure ? "bg-rose-500" : "bg-green-500",
+      dotClass: historyDotClass(outcome),
       title: isManual ? tr("timeline.manualRetry", dict) : `${tr("timeline.report", dict)} — ${outcome.toLowerCase()}`,
       meta: [entry.by, entry.at ? relativeAge(entry.at, nowMs) : null].filter(Boolean).join(" · "),
       error: isFailure && typeof entry.detail === "string" ? entry.detail : null,
@@ -118,6 +139,10 @@ export default function JobDetailPanel({
       </aside>
     );
   }
+
+  const handleTabChange = (key: DetailTab) => () => setTab(key);
+  const handleSelectChainJob = (id: string) => () => onSelectJob(id);
+  const handleRetry = () => void retry(job.id);
 
   const chainMembers = sortChain(chain);
   const tabs: Array<[DetailTab, string]> = [
@@ -169,12 +194,13 @@ export default function JobDetailPanel({
             <button
               key={key}
               type="button"
-              onClick={() => setTab(key)}
-              className={`-mb-px border-b-2 px-2.5 py-2 text-xs font-medium ${
+              onClick={handleTabChange(key)}
+              className={twMerge(
+                "-mb-px border-b-2 px-2.5 py-2 text-xs font-medium",
                 tab === key
                   ? "border-gray-900 text-gray-900 dark:border-white dark:text-white"
-                  : "border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-              }`}
+                  : "border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300",
+              )}
             >
               {label}
             </button>
@@ -276,24 +302,22 @@ export default function JobDetailPanel({
                   <span className="absolute left-[10px] top-6 bottom-0 w-px bg-gray-200 dark:bg-gray-700" />
                 )}
                 <span
-                  className={`mt-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
-                    member.state === "SUCCEEDED"
-                      ? "bg-green-500 text-white"
-                      : member.id === job.id
-                        ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900"
-                        : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                  }`}
+                  className={twMerge(
+                    "mt-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-semibold",
+                    chainBadgeClass(member.state, member.id === job.id),
+                  )}
                 >
                   {member.state === "SUCCEEDED" ? <HiCheck className="h-3 w-3" /> : member.chainSequence}
                 </span>
                 <button
                   type="button"
-                  onClick={() => onSelectJob(member.id)}
-                  className={`flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-3 py-2 text-left ${
+                  onClick={handleSelectChainJob(member.id)}
+                  className={twMerge(
+                    "flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-3 py-2 text-left",
                     member.id === job.id
                       ? "border-gray-900 dark:border-white"
-                      : "border-gray-200 hover:border-gray-400 dark:border-gray-700 dark:hover:border-gray-500"
-                  }`}
+                      : "border-gray-200 hover:border-gray-400 dark:border-gray-700 dark:hover:border-gray-500",
+                  )}
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-xs font-semibold text-gray-900 dark:text-white">
@@ -327,7 +351,7 @@ export default function JobDetailPanel({
             size="xs"
             color="blue"
             disabled={retrying === job.id}
-            onClick={() => void retry(job.id)}
+            onClick={handleRetry}
           >
             <HiLightningBolt className="mr-1 h-3.5 w-3.5" />
             {job.state === "PENDING" ? tr("detail.runNow", dict) : tr("detail.retry", dict)}

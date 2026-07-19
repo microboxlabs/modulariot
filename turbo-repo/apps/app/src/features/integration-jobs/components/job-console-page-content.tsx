@@ -256,14 +256,6 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
                   <tr
                     key={job.id}
                     onClick={() => setSelectedJobId(job.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        setSelectedJobId(job.id);
-                      }
-                    }}
-                    role="button"
-                    tabIndex={0}
                     className={`cursor-pointer border-b border-gray-50 last:border-0 dark:border-gray-700/50 ${
                       selectedJobId === job.id
                         ? "bg-gray-100 dark:bg-gray-700/60"
@@ -271,13 +263,21 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
                     }`}
                   >
                     <td className="px-4 py-2.5">
-                      <span className="block text-[13px] font-semibold text-gray-900 dark:text-white">
-                        {jobTypeLabel(job.jobType)}
-                      </span>
-                      <span className="block font-mono text-[10px] text-gray-400 dark:text-gray-500">
-                        {shortJobId(job.id)}
-                        {job.chainKey ? ` · ${tr("table.chainStep", dict)} ${job.chainSequence}` : ""}
-                      </span>
+                      {/* Native button = the keyboard/AT path for opening the
+                          detail panel; the row onClick is mouse convenience. */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedJobId(job.id)}
+                        className="block text-left"
+                      >
+                        <span className="block text-[13px] font-semibold text-gray-900 dark:text-white">
+                          {jobTypeLabel(job.jobType)}
+                        </span>
+                        <span className="block font-mono text-[10px] text-gray-400 dark:text-gray-500">
+                          {shortJobId(job.id)}
+                          {job.chainKey ? ` · ${tr("table.chainStep", dict)} ${job.chainSequence}` : ""}
+                        </span>
+                      </button>
                     </td>
                     <td className="px-2 py-2.5 font-mono text-xs text-gray-700 dark:text-gray-300">
                       {job.correlationKey ?? "—"}

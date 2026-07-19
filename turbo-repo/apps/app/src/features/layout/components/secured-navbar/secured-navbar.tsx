@@ -4,7 +4,7 @@ import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import { Navbar, NavbarBrand } from "flowbite-react";
 import Image from "next/image";
 import Link from "next/link";
-import { HiBell, HiMenuAlt1, HiX } from "react-icons/hi";
+import { HiMenuAlt1, HiX } from "react-icons/hi";
 import { useMediaQuery } from "../../hooks/use-media-query";
 import UserDropdown from "../user-dropdown/user-dropdown";
 import { SecuredNavBarProps } from "./secured-navbar.types";
@@ -13,7 +13,7 @@ import { twMerge } from "tailwind-merge";
 /* import { useSearch } from "@/features/search/context/search-context"; */
 import { usePathname } from "next/navigation";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
-import { useLoadNotifications } from "@/features/notifications/hooks/use-load-notifications";
+import NotificationBell from "@/features/integration-jobs/components/notification-bell";
 import SpotlightSearch from "./spotlight-search/spotlight-search";
 import OrgSwitcher from "./org-switcher/org-switcher";
 // import { Filter } from "flowbite-react-icons/outline";
@@ -139,19 +139,7 @@ export function SecuredNavbar({
   const pathname = usePathname();
   /* const { searchTerm, setSearchTerm } = useSearch(); */
 
-  const { data: notifications } = useLoadNotifications();
   const { logoUrlLight, logoUrlDark, isLoading: isLoadingLogo } = useUserSite();
-
-  let unreadNotifications = 0;
-  if (
-    notifications &&
-    notifications.notifications &&
-    Array.isArray(notifications.notifications)
-  ) {
-    unreadNotifications = notifications.notifications.filter(
-      (notification: any) => !notification.is_read
-    ).length;
-  }
 
   function handleToggleSidebar() {
     if (!isDesktop) {
@@ -203,24 +191,7 @@ export function SecuredNavbar({
           <div className="flex items-center justify-end gap-2 w-full">
             <OrgSwitcher dict={dict} />
             {!pathname.includes("/notifications") && (
-              <Link
-                href="/notifications"
-                className="h-10 w-10 select-none cursor-pointer relative flex items-center justify-center p-2 bg-gray-100 dark:bg-gray-700 rounded-lg border border-transparent transition-all duration-300 hover:border-gray-300 dark:hover:border-gray-600 active:ring-2 active:ring-gray-300 dark:active:ring-gray-600"
-              >
-                {unreadNotifications > 0 && (
-                  <div
-                    className={`absolute flex items-center justify-center ${
-                      unreadNotifications.toString().length > 1
-                        ? "w-7 -left-3"
-                        : "w-5 -left-1"
-                    } h-5 bg-red-400 dark:bg-red-600 text-xs font-medium text-white rounded-full -top-2  min-w-[1.25rem]`}
-                  >
-                    {unreadNotifications > 99 ? "99+" : unreadNotifications}
-                  </div>
-                )}
-                <span className="sr-only">Notifications</span>
-                <HiBell className="h-6 w-6 text-gray-500 dark:text-gray-400" />
-              </Link>
+              <NotificationBell dict={dict} />
             )}
             <div className="hidden md:block">
               <CustomThemeToggle />

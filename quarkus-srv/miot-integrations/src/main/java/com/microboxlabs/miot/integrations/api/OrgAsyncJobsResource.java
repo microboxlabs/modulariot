@@ -147,10 +147,11 @@ public class OrgAsyncJobsResource {
             @QueryParam("state") String state,
             @QueryParam("correlationKey") String correlationKey,
             @QueryParam("jobType") String jobType,
+            @QueryParam("chainKey") String chainKey,
             @QueryParam("limit") @DefaultValue("100") int limit) {
         String tenant = tenantCode(organizationId);
         return onWorker(() -> Response.ok(
-                service.list(tenant, state, correlationKey, jobType, Math.min(limit, 500))).build())
+                service.list(tenant, state, correlationKey, jobType, chainKey, Math.min(limit, 500))).build())
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(errorResponse(Response.Status.BAD_REQUEST, "Invalid state filter: " + state, null));
     }

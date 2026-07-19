@@ -163,8 +163,15 @@ public class AsyncJobRepository {
               AND ($2::varchar IS NULL OR state = $2)
               AND ($3::varchar IS NULL OR correlation_key = $3)
               AND ($4::varchar IS NULL OR job_type = $4)
+              AND ($5::varchar IS NULL OR chain_key = $5)
             ORDER BY created_at DESC
-            LIMIT $5""".formatted(COLUMNS);
+            LIMIT $6""".formatted(COLUMNS);
+
+    private static final String COUNT_BY_STATE = """
+            SELECT state, count(*)::int AS n
+            FROM miot_integrations.async_jobs
+            WHERE tenant_code = $1
+            GROUP BY state""";
 
     private final Instance<Pool> clientInstance;
 
@@ -264,12 +271,14 @@ public class AsyncJobRepository {
         return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
     }
 
-    public List<AsyncJob> list(String tenantCode, String state, String correlationKey, String jobType, int limit) {
+    public List<AsyncJob> list(String tenantCode, String state, String correlationKey, String jobType,
+            String chainKey, int limit) {
         Tuple params = Tuple.tuple()
                 .addString(tenantCode)
                 .addString(state)
                 .addString(correlationKey)
                 .addString(jobType)
+                .addString(chainKey)
                 .addInteger(limit);
         return client().preparedQuery(LIST)
                 .execute(params)
@@ -277,6 +286,16 @@ public class AsyncJobRepository {
                 .stream()
                 .map(this::mapRow)
                 .toList();
+    }
+
+    /** Per-state row counts for the whole tenant ledger (not window-limited like {@link #list}). */
+    public Map<String, Integer> countByState(String tenantCode) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        client().preparedQuery(COUNT_BY_STATE)
+                .execute(Tuple.of(tenantCode))
+                .await().indefinitely()
+                .forEach(row -> counts.put(row.getString("state"), row.getInteger("n")));
+        return counts;
     }
 
     private Pool client() {

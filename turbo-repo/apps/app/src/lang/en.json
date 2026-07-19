@@ -1547,6 +1547,7 @@
         "lane": "Executor lane",
         "created": "Created",
         "updated": "Updated",
+        "duration": "Duration",
         "nextRetry": "Next retry",
         "lease": "Lease",
         "source": "Source instance",

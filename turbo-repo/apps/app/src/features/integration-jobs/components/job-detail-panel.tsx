@@ -9,6 +9,10 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
   canRetry,
   countdownTo,
+  formatClock,
+  formatDateTime,
+  formatDurationMs,
+  jobDurationMs,
   jobTypeLabel,
   relativeAge,
   shortJobId,
@@ -82,7 +86,7 @@ function timelineNodes(job: AsyncJob, dict: I18nRecord, nowMs: number): Timeline
       key: "enqueued",
       dotClass: "bg-gray-400",
       title: `${tr("timeline.enqueuedBy", dict)} ${job.enqueuedBy}`,
-      meta: `${job.sourceInstance} · ${relativeAge(job.createdAt, nowMs)}`,
+      meta: `${job.sourceInstance} · ${formatClock(job.createdAt)} · ${relativeAge(job.createdAt, nowMs)}`,
     },
   ];
   job.attemptHistory.forEach((entry: AsyncJobAttempt, index) => {
@@ -93,7 +97,9 @@ function timelineNodes(job: AsyncJob, dict: I18nRecord, nowMs: number): Timeline
       key: `h-${index}`,
       dotClass: historyDotClass(outcome),
       title: isManual ? tr("timeline.manualRetry", dict) : `${tr("timeline.report", dict)} — ${outcome.toLowerCase()}`,
-      meta: [entry.by, entry.at ? relativeAge(entry.at, nowMs) : null].filter(Boolean).join(" · "),
+      meta: [entry.by, entry.at ? formatClock(entry.at) : null, entry.at ? relativeAge(entry.at, nowMs) : null]
+        .filter(Boolean)
+        .join(" · "),
       error: isFailure && typeof entry.detail === "string" ? entry.detail : null,
     });
   });
@@ -222,10 +228,25 @@ export default function JobDetailPanel({
             <div className="grid grid-cols-2 gap-2">
               <Stat label={tr("detail.attemptsLabel", dict)} value={`${job.attempts} / ${job.maxAttempts}`} />
               <Stat label={tr("detail.lane", dict)} value={job.executor} mono />
-              <Stat label={tr("detail.created", dict)} value={relativeAge(job.createdAt, nowMs)} />
-              <Stat label={tr("detail.updated", dict)} value={relativeAge(job.updatedAt, nowMs)} />
+              <Stat
+                label={`${tr("detail.created", dict)} · ${relativeAge(job.createdAt, nowMs)}`}
+                value={formatDateTime(job.createdAt)}
+                mono
+              />
+              <Stat
+                label={`${tr("detail.updated", dict)} · ${relativeAge(job.updatedAt, nowMs)}`}
+                value={formatDateTime(job.updatedAt)}
+                mono
+              />
+              {jobDurationMs(job) != null && (
+                <Stat label={tr("detail.duration", dict)} value={formatDurationMs(jobDurationMs(job) as number)} />
+              )}
               {job.nextRetryAt && (
-                <Stat label={tr("detail.nextRetry", dict)} value={countdownTo(job.nextRetryAt, nowMs)} />
+                <Stat
+                  label={`${tr("detail.nextRetry", dict)} · ${countdownTo(job.nextRetryAt, nowMs)}`}
+                  value={formatDateTime(job.nextRetryAt)}
+                  mono
+                />
               )}
               {job.state === "RUNNING" && job.lockedBy && (
                 <Stat label={tr("detail.lease", dict)} value={job.lockedBy} mono />

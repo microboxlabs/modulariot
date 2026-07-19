@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   canRetry,
   countdownTo,
+  formatClock,
+  formatDateTime,
   jobContextLine,
+  jobDurationMs,
   jobTypeLabel,
   relativeAge,
   shortJobId,
   sortChain,
+  toEpochMs,
   type AsyncJob,
 } from "./integration-job.types";
 
@@ -79,6 +83,38 @@ describe("integration-job.types", () => {
     expect(canRetry(job({ state: "PENDING" }))).toBe(false);
     expect(canRetry(job({ state: "RUNNING" }))).toBe(false);
     expect(canRetry(job({ state: "SUCCEEDED" }))).toBe(false);
+  });
+
+  it("toEpochMs handles ISO strings, epoch seconds, epoch millis and junk", () => {
+    expect(toEpochMs("2026-07-19T12:00:00Z")).toBe(NOW);
+    expect(toEpochMs(NOW)).toBe(NOW); // epoch millis pass through
+    expect(toEpochMs(NOW / 1000)).toBe(NOW); // epoch seconds are scaled
+    expect(toEpochMs(null)).toBeNull();
+    expect(toEpochMs("not a date")).toBeNull();
+    expect(toEpochMs({})).toBeNull();
+  });
+
+  it("formatDateTime and formatClock render local absolute times", () => {
+    const iso = "2026-07-19T12:34:56Z";
+    const expected = new Date(iso);
+    const pad = (part: number) => String(part).padStart(2, "0");
+    expect(formatClock(iso)).toBe(
+      `${pad(expected.getHours())}:${pad(expected.getMinutes())}:${pad(expected.getSeconds())}`,
+    );
+    expect(formatDateTime(iso)).toContain(String(expected.getFullYear()));
+    expect(formatDateTime(null)).toBe("—");
+  });
+
+  it("jobDurationMs derives enqueue→final-report duration and feeds the context line", () => {
+    const closed = job({
+      state: "SUCCEEDED",
+      createdAt: new Date(NOW - 10_000).toISOString(),
+      attemptHistory: [{ at: new Date(NOW - 5_900).toISOString(), outcome: "SUCCEEDED" }],
+    });
+    expect(jobDurationMs(closed)).toBe(4100);
+    expect(jobContextLine(closed, NOW)).toBe("completed in 4.1s");
+    expect(jobDurationMs(job())).toBeNull();
+    expect(jobContextLine(job({ state: "SUCCEEDED" }), NOW)).toBe("completed");
   });
 
   it("sortChain orders by chainSequence without mutating input", () => {

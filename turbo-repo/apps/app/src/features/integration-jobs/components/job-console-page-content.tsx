@@ -8,6 +8,7 @@ import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-sw
 import {
   JOB_STATES,
   JOB_STATE_DOT,
+  formatDateTime,
   jobContextLine,
   jobTypeLabel,
   relativeAge,
@@ -300,7 +301,10 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
                     <td className={`max-w-[220px] truncate px-2 py-2.5 text-xs ${CONTEXT_TONE[job.state]}`}>
                       {jobContextLine(job, nowMs)}
                     </td>
-                    <td className="px-2 py-2.5 text-right text-[11px] text-gray-400 dark:text-gray-500">
+                    <td
+                      className="px-2 py-2.5 text-right text-[11px] text-gray-400 dark:text-gray-500"
+                      title={formatDateTime(job.createdAt)}
+                    >
                       {relativeAge(job.createdAt, nowMs)}
                     </td>
                     <td className="px-2 py-2.5 text-gray-300 dark:text-gray-600">

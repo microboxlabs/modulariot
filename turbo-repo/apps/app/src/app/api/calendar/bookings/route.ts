@@ -30,6 +30,7 @@ import { runCalendarBinding } from "./binding-helpers";
 import {
   isOriginTaskDriven,
   parseTaskDrivenOrigins,
+  readBookingOrigin,
 } from "@/features/calendar/services/task-driven-origin";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
@@ -190,23 +191,6 @@ async function compensateBooking(
   }
 }
 
-/**
- * Resolve the service's origin delegate code from the booking's
- * `resource.data` blob. `origen` is the canonical key the planner persists
- * (`SelectedService.origen`, populated from `mintral_originDelegateCode`);
- * the longer key is checked as a defensive fallback for bookings written
- * through paths that store the raw Alfresco field name. Returns undefined
- * when the field is missing or not a non-empty string.
- */
-function readOrigin(data: Record<string, unknown> | undefined): string | undefined {
-  if (!data) return undefined;
-  const candidates = [data.origen, data.mintral_originDelegateCode];
-  for (const value of candidates) {
-    if (typeof value === "string" && value.length > 0) return value;
-  }
-  return undefined;
-}
-
 async function runTaskAdvance(
   session: Session,
   advance: TaskAdvance
@@ -257,7 +241,7 @@ export async function POST(request: Request) {
   const enabledOrigins = parseTaskDrivenOrigins(
     process.env.TASK_DRIVEN_ORIGINS
   );
-  const originCode = readOrigin(body.resource?.data);
+  const originCode = readBookingOrigin(body.resource?.data);
   if (!isOriginTaskDriven(originCode, enabledOrigins)) {
     // Tell the coordinator about this calendar binding *before* the workflow
     // advance. The coordinator dispatches based on stage:

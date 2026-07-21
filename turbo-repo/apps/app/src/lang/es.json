@@ -1596,6 +1596,26 @@
         "retry_scheduled": "reintento agendado",
         "failed": "falló definitivamente",
         "retried": "reintento en cola"
+      },
+      "notifications": {
+        "button": "Notificaciones",
+        "title": "Notificaciones de fallas",
+        "subtitle": "Envía un mensaje de WhatsApp cuando trabajos de un tipo quedan en falla definitiva.",
+        "empty": "Aún no hay reglas — elige un tipo de trabajo para agregar una.",
+        "addType": "Tipo de trabajo…",
+        "add": "Agregar regla",
+        "enabled": "Notificar",
+        "recipients": "Destinatarios",
+        "recipientPlaceholder": "+56912345678",
+        "addRecipient": "Agregar",
+        "removeRecipient": "Quitar",
+        "invalidRecipient": "Usa formato E.164 completo, ej. +56912345678",
+        "noRecipients": "Agrega al menos un número",
+        "throttle": "Segundos mínimos entre mensajes",
+        "save": "Guardar",
+        "delete": "Eliminar",
+        "saveError": "No se pudo guardar la regla",
+        "loadError": "No se pudieron cargar las reglas de notificación"
       }
     },
     "admin": {

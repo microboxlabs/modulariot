@@ -1596,6 +1596,26 @@
         "retry_scheduled": "retry scheduled",
         "failed": "failed permanently",
         "retried": "retry queued"
+      },
+      "notifications": {
+        "button": "Notifications",
+        "title": "Failure notifications",
+        "subtitle": "Send a WhatsApp message when jobs of a type are parked as failed.",
+        "empty": "No rules yet — pick a job type below to add one.",
+        "addType": "Job type…",
+        "add": "Add rule",
+        "enabled": "Notify",
+        "recipients": "Recipients",
+        "recipientPlaceholder": "+56912345678",
+        "addRecipient": "Add",
+        "removeRecipient": "Remove",
+        "invalidRecipient": "Use full E.164 format, e.g. +56912345678",
+        "noRecipients": "Add at least one number",
+        "throttle": "Min. seconds between messages",
+        "save": "Save",
+        "delete": "Delete",
+        "saveError": "Could not save the rule",
+        "loadError": "Could not load the notification rules"
       }
     },
     "admin": {

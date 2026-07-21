@@ -1,6 +1,12 @@
 "use client";
 
-import type { AsyncJob, JobListFilters, JobsOverview } from "./integration-job.types";
+import type {
+  AsyncJob,
+  JobListFilters,
+  JobsOverview,
+  NotificationRule,
+  NotificationRuleUpsert,
+} from "./integration-job.types";
 
 /**
  * Thin client-side fetch wrappers around the Next.js proxy routes for the
@@ -72,4 +78,47 @@ export function fetchJob(orgSlug: string, jobId: string): Promise<AsyncJob> {
 
 export function retryJob(orgSlug: string, jobId: string): Promise<AsyncJob> {
   return postJson<AsyncJob>(`${base(orgSlug)}/${encodeURIComponent(jobId)}/retry`);
+}
+
+const rulesBase = (orgSlug: string) =>
+  `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/integrations/notification-rules`;
+
+async function readError(res: Response, url: string): Promise<JobsApiError> {
+  let message: string | undefined;
+  try {
+    const body = (await res.json()) as { error?: string; message?: string };
+    message = body.error ?? body.message;
+  } catch {
+    // non-JSON error body — fall back to the status message
+  }
+  return new JobsApiError({ status: res.status, url, message });
+}
+
+export function fetchNotificationRules(orgSlug: string): Promise<NotificationRule[]> {
+  return getJson<NotificationRule[]>(rulesBase(orgSlug));
+}
+
+export async function upsertNotificationRule(
+  orgSlug: string,
+  jobType: string,
+  rule: NotificationRuleUpsert,
+): Promise<NotificationRule> {
+  const url = `${rulesBase(orgSlug)}/${encodeURIComponent(jobType)}`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(rule),
+  });
+  if (!res.ok) {
+    throw await readError(res, url);
+  }
+  return (await res.json()) as NotificationRule;
+}
+
+export async function deleteNotificationRule(orgSlug: string, jobType: string): Promise<void> {
+  const url = `${rulesBase(orgSlug)}/${encodeURIComponent(jobType)}`;
+  const res = await fetch(url, { method: "DELETE" });
+  if (!res.ok) {
+    throw await readError(res, url);
+  }
 }

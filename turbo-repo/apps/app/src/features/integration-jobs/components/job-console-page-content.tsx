@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { HiOutlineChevronRight, HiOutlineSearch, HiOutlineRefresh } from "react-icons/hi";
+import { HiOutlineBell, HiOutlineChevronRight, HiOutlineSearch, HiOutlineRefresh } from "react-icons/hi";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
@@ -20,6 +20,7 @@ import { useIntegrationJobs, useIntegrationJobsOverview } from "../use-integrati
 import { useJobEvents } from "../use-job-events";
 import JobDetailPanel from "./job-detail-panel";
 import JobStateBadge from "./job-state-badge";
+import NotificationRulesPanel from "./notification-rules-panel";
 
 interface JobConsolePageContentProps {
   readonly dict: I18nRecord;
@@ -42,7 +43,15 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
   const [laneFilter, setLaneFilter] = useState<string>("");
   const [search, setSearch] = useState("");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
+
+  // One right-hand panel at a time: a job opens the detail, the bell opens
+  // the notification rules — each closes the other.
+  const openJob = (jobId: string) => {
+    setRulesOpen(false);
+    setSelectedJobId(jobId);
+  };
 
   // Countdown/age labels tick every 5s without refetching.
   useEffect(() => {
@@ -100,6 +109,21 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
             <span className={`h-1.5 w-1.5 rounded-full ${liveDotClass}`} />
             {connected ? tr("live.connected", dict) : tr("live.disconnected", dict)}
           </span>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedJobId(null);
+              setRulesOpen((open) => !open);
+            }}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
+              rulesOpen
+                ? "border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white dark:text-gray-900"
+                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            }`}
+          >
+            <HiOutlineBell className="h-3.5 w-3.5" />
+            {tr("notifications.button", dict)}
+          </button>
           <button
             type="button"
             onClick={() => void refresh()}
@@ -212,7 +236,7 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
 
       {/* table + detail */}
       <div
-        className={`grid grid-cols-1 items-start gap-4 ${selectedJobId ? "xl:grid-cols-[minmax(0,1fr)_400px]" : ""}`}
+        className={`grid grid-cols-1 items-start gap-4 ${selectedJobId || rulesOpen ? "xl:grid-cols-[minmax(0,1fr)_400px]" : ""}`}
       >
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center border-b border-gray-100 px-4 py-3 dark:border-gray-700">
@@ -256,7 +280,7 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
                 {visibleJobs.map((job: AsyncJob) => (
                   <tr
                     key={job.id}
-                    onClick={() => setSelectedJobId(job.id)}
+                    onClick={() => openJob(job.id)}
                     className={`cursor-pointer border-b border-gray-50 last:border-0 dark:border-gray-700/50 ${
                       selectedJobId === job.id
                         ? "bg-gray-100 dark:bg-gray-700/60"
@@ -268,7 +292,7 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
                           detail panel; the row onClick is mouse convenience. */}
                       <button
                         type="button"
-                        onClick={() => setSelectedJobId(job.id)}
+                        onClick={() => openJob(job.id)}
                         className="block text-left"
                       >
                         <span className="block text-[13px] font-semibold text-gray-900 dark:text-white">
@@ -324,7 +348,15 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
             dict={dict}
             nowMs={nowMs}
             onClose={() => setSelectedJobId(null)}
-            onSelectJob={setSelectedJobId}
+            onSelectJob={openJob}
+          />
+        )}
+        {rulesOpen && orgSlug && (
+          <NotificationRulesPanel
+            orgSlug={orgSlug}
+            jobTypes={jobTypes}
+            dict={dict}
+            onClose={() => setRulesOpen(false)}
           />
         )}
       </div>

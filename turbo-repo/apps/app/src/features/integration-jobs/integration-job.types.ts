@@ -86,6 +86,37 @@ export interface JobListFilters {
   readonly limit?: number;
 }
 
+/**
+ * A per-job-type failure-notification rule, as served by
+ * `/integrations/console/notification-rules`: when jobs of `jobType` park as
+ * FAILED, message `recipients` on `channel` at most once per
+ * `throttleSeconds`.
+ */
+export interface NotificationRule {
+  readonly id: string;
+  readonly tenantCode: string;
+  readonly jobType: string;
+  readonly channel: string;
+  readonly recipients: string[];
+  readonly enabled: boolean;
+  readonly throttleSeconds: number;
+  readonly templateName: string | null;
+  readonly language: string | null;
+  readonly lastNotifiedAt: string | null;
+  readonly createdAt: string | null;
+  readonly updatedAt: string | null;
+}
+
+/** Upsert body for a rule (jobType rides the path; channel defaults to whatsapp). */
+export interface NotificationRuleUpsert {
+  readonly recipients: string[];
+  readonly enabled: boolean;
+  readonly throttleSeconds: number;
+}
+
+/** Mirrors the backend's recipient validation (full E.164, e.g. +56912345678). */
+export const E164_PATTERN = /^\+[1-9]\d{7,14}$/;
+
 /** flowbite-react Badge color per job state. */
 export const JOB_STATE_BADGE: Record<JobState, string> = {
   PENDING: "warning",

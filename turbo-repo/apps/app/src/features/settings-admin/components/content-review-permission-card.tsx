@@ -49,7 +49,12 @@ export default function ContentReviewPermissionCard({
   const handleSave = async () => {
     setSaveError(false);
     try {
-      await save({ enabled, assigneeIds: [...assigneeIds].sort() });
+      await save({
+        enabled,
+        assigneeIds: [...assigneeIds].sort((left, right) =>
+          left.localeCompare(right)
+        ),
+      });
     } catch {
       setSaveError(true);
     }
@@ -59,7 +64,7 @@ export default function ContentReviewPermissionCard({
   const memberIds = new Set(members.map((member) => member.id));
   const unavailableAssigneeIds = [...assigneeIds]
     .filter((personId) => !memberIds.has(personId))
-    .sort();
+    .sort((left, right) => left.localeCompare(right));
   const hasAssigneesToRender =
     members.length > 0 || unavailableAssigneeIds.length > 0;
 
@@ -90,22 +95,30 @@ export default function ContentReviewPermissionCard({
         )}
         {!busy && !error && (
           <>
-            <label className="flex cursor-pointer items-start gap-3">
+            <div className="flex items-start gap-3">
               <input
                 type="checkbox"
                 checked={enabled}
                 onChange={(event) => setEnabled(event.target.checked)}
+                aria-labelledby="content-review-enabled-label"
+                aria-describedby="content-review-enabled-help"
                 className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600"
               />
               <span>
-                <span className="block text-sm font-medium text-gray-900 dark:text-white">
+                <span
+                  id="content-review-enabled-label"
+                  className="block text-sm font-medium text-gray-900 dark:text-white"
+                >
                   {tr("enabledLabel", permissionDict)}
                 </span>
-                <span className="block text-xs text-gray-500 dark:text-gray-400">
+                <span
+                  id="content-review-enabled-help"
+                  className="block text-xs text-gray-500 dark:text-gray-400"
+                >
                   {tr("enabledHelp", permissionDict)}
                 </span>
               </span>
-            </label>
+            </div>
 
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
@@ -118,14 +131,15 @@ export default function ContentReviewPermissionCard({
               ) : (
                 <div className="grid gap-2 sm:grid-cols-2">
                   {members.map((member) => (
-                    <label
+                    <div
                       key={member.id}
-                      className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-200 px-3 py-2 dark:border-gray-700"
+                      className="flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 dark:border-gray-700"
                     >
                       <input
                         type="checkbox"
                         checked={assigneeIds.has(member.id)}
                         onChange={() => toggleAssignee(member.id)}
+                        aria-label={member.displayName || member.email}
                         className="h-4 w-4 rounded border-gray-300 text-blue-600"
                       />
                       <span className="min-w-0">
@@ -136,17 +150,21 @@ export default function ContentReviewPermissionCard({
                           {member.email}
                         </span>
                       </span>
-                    </label>
+                    </div>
                   ))}
                   {unavailableAssigneeIds.map((personId) => (
-                    <label
+                    <div
                       key={personId}
-                      className="flex cursor-pointer items-center gap-2 rounded-md border border-amber-300 px-3 py-2 dark:border-amber-700"
+                      className="flex items-center gap-2 rounded-md border border-amber-300 px-3 py-2 dark:border-amber-700"
                     >
                       <input
                         type="checkbox"
                         checked
                         onChange={() => toggleAssignee(personId)}
+                        aria-label={`${personId}: ${tr(
+                          "unavailableMember",
+                          permissionDict
+                        )}`}
                         className="h-4 w-4 rounded border-gray-300 text-blue-600"
                       />
                       <span className="min-w-0">
@@ -157,7 +175,7 @@ export default function ContentReviewPermissionCard({
                           {tr("unavailableMember", permissionDict)}
                         </span>
                       </span>
-                    </label>
+                    </div>
                   ))}
                 </div>
               )}

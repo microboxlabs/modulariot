@@ -383,6 +383,12 @@
           "finished": "Finalizado",
           "cancelled": "Cancelado"
         },
+        "syncStatus": {
+          "label": "Sincronización",
+          "pending": "Sincronización pendiente",
+          "confirmed": "Sincronizado",
+          "rejected": "Sincronización rechazada"
+        },
         "contextMenu": {
           "service": "Servicio",
           "chipTitle": "Clic derecho para opciones",

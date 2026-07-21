@@ -57,3 +57,29 @@ describe("mapBookingToPlannedService — workflowStage from booking status", () 
     expect(mapBookingToPlannedService(slotless)).toBeNull();
   });
 });
+
+describe("mapBookingToPlannedService — sync status", () => {
+  it("leaves syncStatus unset for untracked bookings (no external mirror)", () => {
+    const mapped = mapBookingToPlannedService(booking());
+    expect(mapped?.planned.syncStatus).toBeUndefined();
+    expect(mapped?.planned.syncDetail).toBeUndefined();
+  });
+
+  it("carries CONFIRMED through the map", () => {
+    const mapped = mapBookingToPlannedService(booking({ syncStatus: "CONFIRMED" }));
+    expect(mapped?.planned.syncStatus).toBe("CONFIRMED");
+  });
+
+  it("carries REJECTED and its detail through the map", () => {
+    const mapped = mapBookingToPlannedService(
+      booking({ syncStatus: "REJECTED", syncDetail: "CONDUCTOR2 NO EXISTE" })
+    );
+    expect(mapped?.planned.syncStatus).toBe("REJECTED");
+    expect(mapped?.planned.syncDetail).toBe("CONDUCTOR2 NO EXISTE");
+  });
+
+  it("carries PENDING through the map", () => {
+    const mapped = mapBookingToPlannedService(booking({ syncStatus: "PENDING" }));
+    expect(mapped?.planned.syncStatus).toBe("PENDING");
+  });
+});

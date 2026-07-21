@@ -85,6 +85,45 @@ interface StageIndicator {
   readonly titleSuffix: string;
 }
 
+/** Sync-status dot presentation: color family + tooltip + a11y label. */
+interface SyncIndicator {
+  readonly colorClass: string;
+  readonly title: string;
+  readonly ariaLabel: string;
+}
+
+/** dot color per downstream ack — grey pending, green confirmed, red rejected. */
+const SYNC_DOT_COLOR: Record<
+  NonNullable<PlannedService["syncStatus"]>,
+  string
+> = {
+  PENDING: "bg-gray-400 dark:bg-gray-500",
+  CONFIRMED: "bg-emerald-500 dark:bg-emerald-400",
+  REJECTED: "bg-red-500 dark:bg-red-400",
+};
+
+/**
+ * Downstream sync acknowledgement → status-dot presentation. Null = untracked
+ * (no external mirror / legacy booking): the chip shows no dot. A REJECTED dot
+ * appends the reason to its tooltip so a hover explains why the slot is
+ * "planned but unconfirmed".
+ */
+function getSyncIndicator(
+  syncStatus: PlannedService["syncStatus"],
+  syncDetail: string | undefined,
+  dict: I18nRecord
+): SyncIndicator | null {
+  if (!syncStatus) return null;
+  const key = syncStatus.toLowerCase();
+  const label = tr(`pages.planning.sidebar.syncStatus.${key}`, dict);
+  return {
+    colorClass: SYNC_DOT_COLOR[syncStatus],
+    title:
+      syncStatus === "REJECTED" && syncDetail ? `${label}: ${syncDetail}` : label,
+    ariaLabel: `sync-status-${key}`,
+  };
+}
+
 function getStageIndicator(
   workflowStage: string | undefined,
   dict: I18nRecord
@@ -159,6 +198,14 @@ export function PlannedServiceChip({
   // with the per-resource breakdown as tooltip. Unknown levels (legacy
   // bookings) render nothing.
   const accreditation = getAssignmentAccreditation(plannedService.service);
+  // Downstream sync ack (grey pending / green confirmed / red rejected).
+  // Untracked bookings render no dot. A red dot means the slot is planned but
+  // the external system refused its current data — hover shows the reason.
+  const sync = getSyncIndicator(
+    plannedService.syncStatus,
+    plannedService.syncDetail,
+    dict
+  );
 
   return (
     <button
@@ -290,6 +337,17 @@ export function PlannedServiceChip({
         <IoCloseCircle
           aria-label="workflow-stage-cancelled"
           className="ml-1 shrink-0 w-4 h-4 text-red-500 dark:text-red-400"
+        />
+      )}
+      {sync && (
+        <span
+          role="img"
+          aria-label={sync.ariaLabel}
+          title={sync.title}
+          className={twMerge(
+            "ml-1 shrink-0 w-2 h-2 rounded-full",
+            sync.colorClass
+          )}
         />
       )}
     </button>

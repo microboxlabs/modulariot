@@ -131,9 +131,10 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
 
     private JobOutcome executePatch(Map<String, Object> payload, String resourceId, UUID calendarId) {
         String targetStatus = str(payload, CalendarSyncFeature.PAYLOAD_TARGET_STATUS);
+        String syncStatus = str(payload, CalendarSyncFeature.PAYLOAD_SYNC_STATUS);
         Map<String, Object> resourceData = asMap(payload.get(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA));
         try {
-            client.patchByResource(resourceId, calendarId, targetStatus, resourceData);
+            client.patchByResource(resourceId, calendarId, targetStatus, resourceData, syncStatus, null);
             return JobOutcome.succeeded("Booking patched to " + targetStatus + " for " + resourceId);
         } catch (CalendarBookingsHttpException e) {
             JobOutcome benign = benignSkip(e, resourceId, targetStatus);

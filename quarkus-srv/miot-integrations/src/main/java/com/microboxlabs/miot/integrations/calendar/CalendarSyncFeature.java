@@ -33,6 +33,14 @@ public final class CalendarSyncFeature {
      * driver" is called in it.
      */
     public static final String PAYLOAD_CLEAR_DATA_KEYS = "clearDataKeys";
+    /**
+     * Optional TMS-confirmation status on an {@link #OP_PATCH}
+     * (miot-calendar {@code syncStatus} — orthogonal to the monotonic
+     * lifecycle {@code status}). The ECM assign chain stamps {@code PENDING}
+     * here to open the confirmation window that the {@code calendar_confirm}
+     * leg later closes.
+     */
+    public static final String PAYLOAD_SYNC_STATUS = "syncStatus";
 
     /**
      * Slot source for {@link #OP_ENSURE} (Phase 2). Either an explicit slot

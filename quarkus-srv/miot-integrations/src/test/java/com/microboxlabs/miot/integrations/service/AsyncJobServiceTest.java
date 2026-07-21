@@ -12,13 +12,19 @@ import com.microboxlabs.miot.integrations.dto.ClaimJobsRequest;
 import com.microboxlabs.miot.integrations.dto.EnqueueJobsRequest;
 import com.microboxlabs.miot.integrations.dto.ReportJobRequest;
 import com.microboxlabs.miot.integrations.events.JobEventEmitter;
+import com.microboxlabs.miot.integrations.events.JobParkedEvent;
 import com.microboxlabs.miot.integrations.persistence.AsyncJobRepository;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.NotificationOptions;
+import jakarta.enterprise.util.TypeLiteral;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletionStage;
 import org.junit.jupiter.api.Test;
 
 class AsyncJobServiceTest {
@@ -29,7 +35,7 @@ class AsyncJobServiceTest {
     @Test
     void reportFailureSchedulesBackoffRetryWhileAttemptsRemain() {
         var repo = new FakeRepository(runningJob(1, 5));
-        var service = new AsyncJobService(repo, noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
 
         service.report("tenant-less-id", "job-1", failed());
 
@@ -39,7 +45,7 @@ class AsyncJobServiceTest {
 
     @Test
     void backoffDoublesPerAttemptAndIsCapped() throws Exception {
-        var service = new AsyncJobService(new FakeRepository(null), noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(new FakeRepository(null), noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
         Method backoff = AsyncJobService.class.getDeclaredMethod("backoffSeconds", int.class);
         backoff.setAccessible(true);
 
@@ -51,7 +57,7 @@ class AsyncJobServiceTest {
     @Test
     void reportFailureParksJobWhenAttemptsExhausted() {
         var repo = new FakeRepository(runningJob(5, 5));
-        var service = new AsyncJobService(repo, noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
 
         service.report("t", "job-1", failed());
 
@@ -62,7 +68,7 @@ class AsyncJobServiceTest {
     @Test
     void reportNonRetryableFailureParksImmediately() {
         var repo = new FakeRepository(runningJob(1, 5));
-        var service = new AsyncJobService(repo, noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
 
         service.report("t", "job-1", new ReportJobRequest("w", "FAILED", "bad config", false, null));
 
@@ -72,7 +78,7 @@ class AsyncJobServiceTest {
     @Test
     void reportSkippedClosesJobAsSucceeded() {
         var repo = new FakeRepository(runningJob(1, 5));
-        var service = new AsyncJobService(repo, noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
 
         service.report("t", "job-1", new ReportJobRequest("w", "SKIPPED", "already delivered", null, null));
 
@@ -83,7 +89,7 @@ class AsyncJobServiceTest {
     @Test
     void reportRejectsJobsThatAreNotRunning() {
         var repo = new FakeRepository(jobInState(JobState.PENDING, 0, 5));
-        var service = new AsyncJobService(repo, noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
         var request = failed();
 
         assertThrows(IllegalStateException.class,
@@ -93,14 +99,14 @@ class AsyncJobServiceTest {
     @Test
     void retryRejectsSucceededJobs() {
         var repo = new FakeRepository(jobInState(JobState.SUCCEEDED, 1, 5));
-        var service = new AsyncJobService(repo, noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
 
         assertThrows(IllegalStateException.class, () -> service.retry("t", "job-1", "actor"));
     }
 
     @Test
     void enqueueValidatesRequiredFields() {
-        var service = new AsyncJobService(new FakeRepository(null), noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(new FakeRepository(null), noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
         var missingSource = new EnqueueJobsRequest(null, "listener", List.of(spec()));
         var emptyJobs = new EnqueueJobsRequest("ecm-1", "listener", List.of());
         var bogusActor = new EnqueueJobsRequest("ecm-1", "bogus", List.of(spec()));
@@ -121,7 +127,7 @@ class AsyncJobServiceTest {
                 return ++calls == 1 ? job : null;
             }
         };
-        var service = new AsyncJobService(repo, noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
 
         var response = service.enqueue("t",
                 new EnqueueJobsRequest("ecm-1", "reconciler", List.of(spec(), spec())));
@@ -132,7 +138,7 @@ class AsyncJobServiceTest {
 
     @Test
     void nullRequestBodiesAreRejected() {
-        var service = new AsyncJobService(new FakeRepository(null), noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(new FakeRepository(null), noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
 
         assertThrows(IllegalArgumentException.class, () -> service.enqueue("t", null));
         assertThrows(IllegalArgumentException.class, () -> service.claim("t", null));
@@ -142,7 +148,7 @@ class AsyncJobServiceTest {
     @Test
     void claimScopesByTenantAndValidatesBounds() {
         var repo = new FakeRepository(null);
-        var service = new AsyncJobService(repo, noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
         var badLimit = new ClaimJobsRequest("ecm", "w1", 0, null, null);
         var badLease = new ClaimJobsRequest("ecm", "w1", null, 0, null);
 
@@ -157,7 +163,7 @@ class AsyncJobServiceTest {
     void staleReportIsRejectedWhenLeaseCasFails() {
         var repo = new FakeRepository(runningJob(1, 5));
         repo.reportStale = true;
-        var service = new AsyncJobService(repo, noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
         var request = failed();
 
         assertThrows(IllegalStateException.class, () -> service.report("t", "job-1", request));
@@ -166,7 +172,7 @@ class AsyncJobServiceTest {
     @Test
     void reportEchoesWorkerAndAttemptIntoLeaseCas() {
         var repo = new FakeRepository(runningJob(2, 5));
-        var service = new AsyncJobService(repo, noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
 
         service.report("t", "job-1", new ReportJobRequest("worker-1", "SUCCEEDED", "ok", null, 2));
 
@@ -177,7 +183,7 @@ class AsyncJobServiceTest {
     @Test
     void reportEmitsTransitionEvents() {
         var emitter = new RecordingEmitter();
-        var service = new AsyncJobService(new FakeRepository(runningJob(1, 5)), emitter, BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(new FakeRepository(runningJob(1, 5)), emitter, noParked(), BASE_SECONDS, MAX_SECONDS);
 
         service.report("t", "job-1", failed());
 
@@ -188,7 +194,7 @@ class AsyncJobServiceTest {
     void retryEmitsRetriedEvent() {
         var emitter = new RecordingEmitter();
         var service = new AsyncJobService(new FakeRepository(jobInState(JobState.FAILED, 5, 5)),
-                emitter, BASE_SECONDS, MAX_SECONDS);
+                emitter, noParked(), BASE_SECONDS, MAX_SECONDS);
 
         service.retry("t", "job-1", "operator@test.example");
 
@@ -206,7 +212,7 @@ class AsyncJobServiceTest {
             }
         };
         var emitter = new RecordingEmitter();
-        var service = new AsyncJobService(repo, emitter, BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(repo, emitter, noParked(), BASE_SECONDS, MAX_SECONDS);
 
         service.enqueue("t", new EnqueueJobsRequest("ecm-1", "listener", List.of(spec(), spec())));
 
@@ -221,7 +227,7 @@ class AsyncJobServiceTest {
                 return Map.of("FAILED", 2);
             }
         };
-        var service = new AsyncJobService(repo, noEvents(), BASE_SECONDS, MAX_SECONDS);
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
 
         Map<String, Integer> counts = service.counts("t");
 
@@ -230,10 +236,87 @@ class AsyncJobServiceTest {
         assertEquals(JobState.values().length, counts.size());
     }
 
+    @Test
+    void reportParkFiresParkedEvent() {
+        var parked = new RecordingParkedEvent();
+        var service = new AsyncJobService(new FakeRepository(runningJob(5, 5)), noEvents(), parked,
+                BASE_SECONDS, MAX_SECONDS);
+
+        service.report("t", "job-1", failed());
+
+        assertEquals(1, parked.fired.size());
+        assertEquals("job-1", parked.fired.get(0).job().id());
+    }
+
+    @Test
+    void reportRetrySchedulingDoesNotFireParkedEvent() {
+        var parked = new RecordingParkedEvent();
+        var service = new AsyncJobService(new FakeRepository(runningJob(1, 5)), noEvents(), parked,
+                BASE_SECONDS, MAX_SECONDS);
+
+        service.report("t", "job-1", failed());
+
+        assertEquals(List.of(), parked.fired);
+    }
+
+    @Test
+    void parkedObserverFailureDoesNotBreakTheReport() {
+        var repo = new FakeRepository(runningJob(5, 5));
+        var parked = new RecordingParkedEvent();
+        parked.throwOnFire = new IllegalStateException("observer blew up");
+        var service = new AsyncJobService(repo, noEvents(), parked, BASE_SECONDS, MAX_SECONDS);
+
+        assertNotNull(service.report("t", "job-1", failed()));
+        assertEquals(JobState.FAILED, repo.reportedState);
+    }
+
     // -----------------------------------------------------------------------
 
     private static JobEventEmitter noEvents() {
         return new JobEventEmitter(Optional.empty());
+    }
+
+    private static Event<JobParkedEvent> noParked() {
+        return new RecordingParkedEvent();
+    }
+
+    /** Captures fired park events instead of dispatching to CDI observers. */
+    private static class RecordingParkedEvent implements Event<JobParkedEvent> {
+        final List<JobParkedEvent> fired = new ArrayList<>();
+        RuntimeException throwOnFire;
+
+        @Override
+        public void fire(JobParkedEvent event) {
+            if (throwOnFire != null) {
+                throw throwOnFire;
+            }
+            fired.add(event);
+        }
+
+        @Override
+        public <U extends JobParkedEvent> CompletionStage<U> fireAsync(U event) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <U extends JobParkedEvent> CompletionStage<U> fireAsync(U event, NotificationOptions options) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Event<JobParkedEvent> select(Annotation... qualifiers) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <U extends JobParkedEvent> Event<U> select(Class<U> subtype, Annotation... qualifiers) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <U extends JobParkedEvent> Event<U> select(TypeLiteral<U> subtype, Annotation... qualifiers) {
+            throw new UnsupportedOperationException();
+        }
     }
 
     /** Captures transitions instead of POSTing to quarkus-sse. */

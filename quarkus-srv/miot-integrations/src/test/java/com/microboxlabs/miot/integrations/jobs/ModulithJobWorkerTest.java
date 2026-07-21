@@ -161,7 +161,7 @@ class ModulithJobWorkerTest {
         int claimCalls;
 
         RecordingService() {
-            super(new NoopRepository(), new JobEventEmitter(Optional.empty()), 60, 3600);
+            super(new NoopRepository(), new JobEventEmitter(Optional.empty()), null, 60, 3600);
         }
 
         @Override

@@ -8,8 +8,10 @@ import com.microboxlabs.miot.integrations.dto.EnqueueJobsRequest;
 import com.microboxlabs.miot.integrations.dto.EnqueueJobsResponse;
 import com.microboxlabs.miot.integrations.dto.ReportJobRequest;
 import com.microboxlabs.miot.integrations.events.JobEventEmitter;
+import com.microboxlabs.miot.integrations.events.JobParkedEvent;
 import com.microboxlabs.miot.integrations.persistence.AsyncJobRepository;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -37,6 +39,7 @@ public class AsyncJobService {
 
     private final AsyncJobRepository repository;
     private final JobEventEmitter eventEmitter;
+    private final Event<JobParkedEvent> parkedEvent;
     private final int retryBaseSeconds;
     private final int retryMaxSeconds;
 
@@ -44,10 +47,12 @@ public class AsyncJobService {
     public AsyncJobService(
             AsyncJobRepository repository,
             JobEventEmitter eventEmitter,
+            Event<JobParkedEvent> parkedEvent,
             @ConfigProperty(name = "miot.integrations.jobs.retry-base-seconds", defaultValue = "60") int retryBaseSeconds,
             @ConfigProperty(name = "miot.integrations.jobs.retry-max-seconds", defaultValue = "3600") int retryMaxSeconds) {
         this.repository = repository;
         this.eventEmitter = eventEmitter;
+        this.parkedEvent = parkedEvent;
         this.retryBaseSeconds = retryBaseSeconds;
         this.retryMaxSeconds = retryMaxSeconds;
     }
@@ -188,6 +193,7 @@ public class AsyncJobService {
         if (newState == JobState.FAILED) {
             LOG.errorf("Job %s (%s, correlation=%s) parked as FAILED after %d attempt(s): %s",
                     jobId, job.jobType(), job.correlationKey(), job.attempts(), request.detail());
+            fireParked(updated);
         }
         eventEmitter.emit(updated, switch (newState) {
             case SUCCEEDED -> "succeeded";
@@ -241,6 +247,20 @@ public class AsyncJobService {
         }
         counts.putAll(repository.countByState(tenantCode));
         return counts;
+    }
+
+    /**
+     * Notifies park observers (REJECTED stamp, failure notifications). Fired
+     * after the ledger write is durable; a misbehaving observer must never fail
+     * the worker's report, so everything thrown is swallowed here.
+     */
+    private void fireParked(AsyncJob job) {
+        try {
+            parkedEvent.fire(new JobParkedEvent(job));
+        } catch (Exception e) {
+            LOG.errorf(e, "JobParkedEvent observer failed for job %s (%s) — park already recorded",
+                    job.id(), job.jobType());
+        }
     }
 
     private static void requireBody(Object request) {

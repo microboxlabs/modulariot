@@ -10,6 +10,7 @@ import com.microboxlabs.miot.integrations.service.AsyncJobService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,9 +23,11 @@ import org.jboss.logging.Logger;
  *
  * <p>The rule's throttle slot is claimed atomically <i>before</i> enqueueing,
  * so a burst of parks inside the window coalesces into the one notification
- * already sent (across pods — the claim is a DB CAS). Rules are never matched
- * for the notification job type itself: a parked notification can't notify
- * about its own failure.
+ * already sent (across pods — the claim is a DB CAS). When the enqueue then
+ * fails, the claim is released again (CAS on its own stamp) — a claim that
+ * produced no notification job must not suppress the window's next park.
+ * Rules are never matched for the notification job type itself: a parked
+ * notification can't notify about its own failure.
  *
  * <p>Never throws — a notification problem must not disturb the report path
  * that fired the event.
@@ -63,27 +66,47 @@ public class JobFailureNotifyOnPark {
         }
     }
 
+    /** Never throws — one rule's failure must not skip the tenant's other rules. */
     private void notifyRule(AsyncJob parked, JobNotificationRule rule) {
         if (rule.recipients() == null || rule.recipients().isEmpty()) {
             return;
         }
-        if (!ruleRepository.claimThrottleSlot(rule.id())) {
+        OffsetDateTime claimedAt = ruleRepository.claimThrottleSlot(rule.id());
+        if (claimedAt == null) {
             LOG.debugf("Notification for parked job %s (%s) throttled by rule %s",
                     parked.id(), parked.jobType(), rule.id());
             return;
         }
-        AsyncJobSpec spec = new AsyncJobSpec(
-                JobFailureNotificationFeature.JOB_TYPE,
-                ModulithJobHandler.EXECUTOR,
-                parked.correlationKey(),
-                null, null,
-                "notify:" + rule.id() + ":" + parked.id() + ":" + parked.attempts(),
-                notificationPayload(parked, rule),
-                null);
-        worker.onEnqueued(jobService.enqueue(parked.tenantCode(),
-                new EnqueueJobsRequest(parked.sourceInstance(), "listener", List.of(spec))));
-        LOG.infof("Parked %s job %s → enqueued %s notification to %d recipient(s)",
-                parked.jobType(), parked.id(), rule.channel(), rule.recipients().size());
+        try {
+            AsyncJobSpec spec = new AsyncJobSpec(
+                    JobFailureNotificationFeature.JOB_TYPE,
+                    ModulithJobHandler.EXECUTOR,
+                    parked.correlationKey(),
+                    null, null,
+                    "notify:" + rule.id() + ":" + parked.id() + ":" + parked.attempts(),
+                    notificationPayload(parked, rule),
+                    null);
+            worker.onEnqueued(jobService.enqueue(parked.tenantCode(),
+                    new EnqueueJobsRequest(parked.sourceInstance(), "listener", List.of(spec))));
+            LOG.infof("Parked %s job %s → enqueued %s notification to %d recipient(s)",
+                    parked.jobType(), parked.id(), rule.channel(), rule.recipients().size());
+        } catch (Exception e) {
+            // The claim consumed the throttle window but no notification job
+            // exists — release it so the window's next park notifies instead of
+            // being silently suppressed.
+            LOG.errorf(e, "Failed to enqueue %s notification for parked job %s — releasing rule %s's throttle slot",
+                    rule.channel(), parked.id(), rule.id());
+            releaseQuietly(rule, claimedAt);
+        }
+    }
+
+    private void releaseQuietly(JobNotificationRule rule, OffsetDateTime claimedAt) {
+        try {
+            ruleRepository.releaseThrottleSlot(rule.id(), claimedAt);
+        } catch (Exception e) {
+            LOG.errorf(e, "Could not release rule %s's throttle slot — notifications suppressed until %s + throttle",
+                    rule.id(), claimedAt);
+        }
     }
 
     /** Self-contained — the handler (in miot-conversational) sees only the payload. */

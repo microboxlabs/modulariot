@@ -34,3 +34,22 @@ export function isOriginTaskDriven(
   if (!origin) return false;
   return enabledOrigins.has(origin);
 }
+
+/**
+ * Resolve the service's origin delegate code from a booking's
+ * `resource.data` blob. `origen` is the canonical key the planner persists
+ * (`SelectedService.origen`, populated from `mintral_originDelegateCode`);
+ * the longer key is checked as a defensive fallback for bookings written
+ * through paths that store the raw Alfresco field name. Returns undefined
+ * when the field is missing or not a non-empty string.
+ */
+export function readBookingOrigin(
+  data: Record<string, unknown> | undefined
+): string | undefined {
+  if (!data) return undefined;
+  const candidates = [data.origen, data.mintral_originDelegateCode];
+  for (const value of candidates) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return undefined;
+}

@@ -3,6 +3,7 @@ package com.microboxlabs.miot.integrations.retransmit;
 import com.microboxlabs.miot.integrations.retransmit.GaussPositionMapper.Defaults;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
+import jakarta.inject.Singleton;
 import java.util.Locale;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
@@ -48,8 +49,10 @@ public class RetransmitDeliverySettings {
         this.gaussDefaults = gaussDefaults;
     }
 
+    // Singleton, not @ApplicationScoped: Defaults is a record (final), and a
+    // normal scope would need a client proxy ArC cannot subclass it into.
     @Produces
-    @ApplicationScoped
+    @Singleton
     static Defaults gaussDefaults(
             @ConfigProperty(name = "miot.integrations.retransmit.gauss.tags", defaultValue = ";MEL;")
                     String gaussTags,

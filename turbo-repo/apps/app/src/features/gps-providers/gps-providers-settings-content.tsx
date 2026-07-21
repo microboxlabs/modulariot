@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "flowbite-react";
-import { HiArrowDown, HiArrowUp } from "react-icons/hi2";
-import { Pill } from "@/features/dashboard/dashlets/common/pill";
 import GpsProviderRequestForm from "./gps-provider-request-form";
 import GpsProviderRequestItem from "./gps-provider-request-item";
 import type { GpsProviderRequest } from "./gps-provider-request.types";
@@ -15,9 +14,22 @@ function generateId(): string {
 }
 
 export default function GpsProvidersSettingsContent() {
+  const searchParams = useSearchParams();
+  const organizationQuery = (searchParams.get("organizationName") ?? "")
+    .trim()
+    .toLowerCase();
+  const providerValues = (searchParams.get("provider") ?? "")
+    .split(",")
+    .filter(Boolean);
+  const statusValues = (searchParams.get("status") ?? "")
+    .split(",")
+    .filter(Boolean);
+  // The sort toggle only ever writes "asc" or "desc" (or clears the param);
+  // anything else (unset) falls back to the newest-first default.
+  const sortDir = searchParams.get("sort") === "asc" ? "asc" : "desc";
+
   const [requests, setRequests] = useState<GpsProviderRequest[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const addRequest = (data: {
     providerId: string;
@@ -38,28 +50,49 @@ export default function GpsProvidersSettingsContent() {
     setShowForm(false);
   };
 
-  const sortedRequests = useMemo(() => {
-    const sorted = [...requests].sort(
+  const visibleRequests = useMemo(() => {
+    const filtered = requests.filter((request) => {
+      if (
+        organizationQuery &&
+        !request.organizationName.toLowerCase().includes(organizationQuery)
+      ) {
+        return false;
+      }
+      if (
+        providerValues.length > 0 &&
+        !providerValues.includes(request.providerId)
+      ) {
+        return false;
+      }
+      if (statusValues.length > 0 && !statusValues.includes(request.status)) {
+        return false;
+      }
+      return true;
+    });
+
+    const sorted = [...filtered].sort(
       (a, b) =>
         new Date(a.requestedAt).getTime() - new Date(b.requestedAt).getTime()
     );
     return sortDir === "desc" ? sorted.reverse() : sorted;
-  }, [requests, sortDir]);
+  }, [requests, organizationQuery, providerValues, statusValues, sortDir]);
 
   return (
     <div className="flex-1 overflow-y-auto px-5 py-4">
       <div className="max-w-3xl mx-auto flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Request permission to connect the GPS data sources for your
-            fleet.
-          </p>
-          {!showForm && (
-            <Button size="xs" color="blue" onClick={() => setShowForm(true)}>
-              Add GPS provider
-            </Button>
-          )}
-        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Request permission to connect the GPS data sources for your fleet.
+        </p>
+
+        {!showForm && (
+          <Button
+            color="blue"
+            className="w-full"
+            onClick={() => setShowForm(true)}
+          >
+            Add GPS provider
+          </Button>
+        )}
 
         {showForm && (
           <GpsProviderRequestForm
@@ -68,36 +101,20 @@ export default function GpsProvidersSettingsContent() {
           />
         )}
 
-        {requests.length === 0 ? (
+        {visibleRequests.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-1 py-8 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              No GPS provider requests yet.
+              {requests.length === 0
+                ? "No GPS provider requests yet."
+                : "No GPS provider requests match your filters."}
             </p>
           </div>
         ) : (
-          <>
-            <div className="flex justify-end">
-              <Pill
-                label="Request date"
-                active
-                onClick={() =>
-                  setSortDir((prev) => (prev === "desc" ? "asc" : "desc"))
-                }
-                icon={
-                  sortDir === "asc" ? (
-                    <HiArrowUp className="h-3 w-3" />
-                  ) : (
-                    <HiArrowDown className="h-3 w-3" />
-                  )
-                }
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              {sortedRequests.map((request) => (
-                <GpsProviderRequestItem key={request.id} request={request} />
-              ))}
-            </div>
-          </>
+          <div className="flex flex-col gap-1.5">
+            {visibleRequests.map((request) => (
+              <GpsProviderRequestItem key={request.id} request={request} />
+            ))}
+          </div>
         )}
       </div>
     </div>

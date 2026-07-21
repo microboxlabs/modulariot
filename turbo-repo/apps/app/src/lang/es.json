@@ -3505,7 +3505,12 @@
     "assignment": "Asignación",
     "unassigned": "Sin asignar",
     "partial": "Parcial",
-    "assigned": "Asignado"
+    "assigned": "Asignado",
+    "state": "Estado",
+    "status": "Estado",
+    "organizationName": "Nombre de la organización",
+    "provider": "Proveedor",
+    "sort": "Ordenar"
   },
   "comments": {
     "title": "Comentarios",

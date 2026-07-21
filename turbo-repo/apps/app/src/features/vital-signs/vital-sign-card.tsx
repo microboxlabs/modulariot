@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { ToggleSwitch } from "flowbite-react";
+import Markdown from "react-markdown";
 import { CustomBadge } from "@/features/common/components/custom-badge";
 import ExpandableSection from "@/features/fleet-management/components/vehicle-detail/expandable-section";
 import SeverityDots from "./severity-dots";
+import { MARKDOWN_CONTENT_CLASSNAME } from "./markdown-tooltip";
 import VitalSignParamField from "./vital-sign-param-field";
 import VitalSignConditionBuilder, {
   ConditionRowValue,
@@ -54,8 +56,7 @@ export default function VitalSignCard({
     )
   );
 
-  const showCondition = !minimal && Boolean(symptom.condition);
-  const hasForm = symptom.params.length > 0 || showCondition;
+  const hasForm = symptom.params.length > 0 || Boolean(symptom.condition);
 
   return (
     <ExpandableSection
@@ -79,13 +80,17 @@ export default function VitalSignCard({
         <CustomBadge text={cat.label} className={badgeClassNameForCat(symptom.cat)} />
       }
     >
-      {!hasForm ? (
+      {minimal ? (
+        <div className={MARKDOWN_CONTENT_CLASSNAME}>
+          <Markdown>{symptom.about}</Markdown>
+        </div>
+      ) : !hasForm ? (
         <p className="text-sm text-gray-400 dark:text-gray-500">
           No additional configuration for this vital sign.
         </p>
       ) : (
         <div className="flex flex-col gap-4">
-          {showCondition && symptom.condition && (
+          {symptom.condition && (
             <VitalSignConditionBuilder
               condition={symptom.condition}
               rows={symptom.condition.rows.map(

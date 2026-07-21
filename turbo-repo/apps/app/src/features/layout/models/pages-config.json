@@ -89,6 +89,7 @@
     "items": [
       { "href": "/users/settings/organizations", "label": "organizations", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/data-sources", "label": "dataSources", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/users/settings/vital-signs", "label": "vitalSigns", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/gps-providers", "label": "gpsProviders", "requiredGroups": [], "blockedGroups": [] }
     ],
     "requiredGroups": [],

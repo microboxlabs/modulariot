@@ -25,3 +25,19 @@ export interface OrgMember {
   lastName: string;
   displayName: string;
 }
+
+export interface ContentReviewPermission {
+  enabled: boolean;
+  permissionCode: string;
+  roleCode: string;
+  alfrescoGroupId: string;
+  assigneeIds: string[];
+  projectionStatus: "PENDING" | "SYNCED" | "FAILED";
+  projectionError: string | null;
+  projectedAt: string | null;
+}
+
+export interface SetContentReviewPermission {
+  enabled: boolean;
+  assigneeIds: string[];
+}

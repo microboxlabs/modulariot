@@ -17,7 +17,18 @@ export type TaskStage =
   | "assignDriver"
   | "presentDriver"
   | "prepareService"
-  | "missionControl";
+  | "missionControl"
+  | "monitorTrip"
+  | "confirmArrival"
+  | "closeMonitoring";
+
+/**
+ * Stage shown on the planning grid for a booked service: a live kanban stage
+ * from the workflow index, or a terminal state read from the booking's
+ * lifecycle status (CALSYNC). Terminal values only appear once the booking
+ * backend carries a status column and ECM pushes transitions.
+ */
+export type PlannedWorkflowStage = TaskStage | "finished" | "cancelled";
 
 /**
  * Represents a service that can be selected in the planning calendar.

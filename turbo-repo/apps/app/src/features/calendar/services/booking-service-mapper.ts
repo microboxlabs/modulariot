@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import type { BookingResponse } from "@microboxlabs/miot-calendar-client";
 import type { PlannedService } from "@microboxlabs/miot-calendar-ui";
 import type { SelectedService } from "@/features/calendar/components/planning/planning-selection-types";
+import { bookingStatusToWorkflowStage } from "@/features/calendar/services/workflow-stage";
 
 /**
  * Persisted accreditation level of an assigned resource — mirrors the
@@ -129,6 +130,12 @@ export function mapBookingToPlannedService(
       storedService.mintral_serviceCode ?? booking.resource.id.split("-")[0],
   };
 
+  // Terminal stages ride the booking row itself (ECM writes the status);
+  // load-time is fine for them because a FINISHED/CANCELLED booking never
+  // goes live again. Live stages overlay this at render time via the
+  // provider's workflow-stage merge, and win on conflict.
+  const workflowStage = bookingStatusToWorkflowStage(booking.status);
+
   return {
     bookingId: booking.id,
     calendarId: booking.calendarId,
@@ -140,6 +147,7 @@ export function mapBookingToPlannedService(
         minutes: booking.slot.minutes,
         ...(_anden === undefined ? {} : { anden: _anden }),
       },
+      ...(workflowStage === undefined ? {} : { workflowStage }),
     },
   };
 }

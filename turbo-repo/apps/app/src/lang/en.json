@@ -376,7 +376,12 @@
           "assignDriver": "Assign driver",
           "presentDriver": "Present driver",
           "prepareService": "Prepare service",
-          "missionControl": "Mission control"
+          "missionControl": "Mission control",
+          "monitorTrip": "Trip in progress",
+          "confirmArrival": "Confirm arrival",
+          "closeMonitoring": "Close monitoring",
+          "finished": "Finished",
+          "cancelled": "Cancelled"
         },
         "contextMenu": {
           "service": "Service",
@@ -1267,6 +1272,21 @@
         "modulesTitle": "Modules",
         "modulesDescription": "Enabled product modules for this organization.",
         "modulesEmpty": "No modules enabled.",
+        "contentReviewPermission": {
+          "title": "Multimedia review permission",
+          "description": "Choose which organization members may have their multimedia reviews approved automatically. ModularIoT owns the setting and synchronizes it to Alfresco.",
+          "loadError": "Couldn't load the multimedia review permission.",
+          "enabledLabel": "Enable automatic approval",
+          "enabledHelp": "Assigned members receive the Content Review Auto Approver role while this setting is enabled.",
+          "assigneesLabel": "Role assignees",
+          "noMembers": "Add members to the organization before assigning this role.",
+          "unavailableMember": "No longer an organization member; uncheck to remove",
+          "projectionFailed": "The setting was saved, but Alfresco synchronization failed. Saving again will retry it.",
+          "projectionSynced": "Synchronized with Alfresco.",
+          "saveError": "Couldn't save the permission.",
+          "save": "Save permission",
+          "saving": "Saving…"
+        },
         "whatsappChannel": {
           "title": "WhatsApp Channel",
           "description": "Configure and test the WhatsApp connection used to reach drivers.",
@@ -1492,6 +1512,112 @@
         "dataSources": "Data Sources"
       }
     },
+    "integrationJobs": {
+      "title": "Job console",
+      "subtitle": "Asynchronous integration jobs, live from the outbox ledger",
+      "refresh": "Refresh",
+      "loadError": "Couldn't load integration jobs.",
+      "live": {
+        "connected": "Live",
+        "disconnected": "Offline",
+        "notConfigured": "Live updates are not configured for this environment"
+      },
+      "states": {
+        "PENDING": "Pending",
+        "RUNNING": "Running",
+        "SUCCEEDED": "Succeeded",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled"
+      },
+      "filters": {
+        "all": "All",
+        "allLanes": "All lanes",
+        "allTypes": "All job types",
+        "searchPlaceholder": "Job id, correlation, chain…"
+      },
+      "table": {
+        "title": "Jobs",
+        "job": "Job",
+        "correlation": "Correlation",
+        "lane": "Lane",
+        "state": "State",
+        "attempts": "Att.",
+        "detail": "Detail",
+        "age": "Age",
+        "chainStep": "chain",
+        "loading": "Loading jobs…",
+        "empty": "No jobs match the current filters."
+      },
+      "detail": {
+        "overview": "Overview",
+        "attempts": "Attempts",
+        "payload": "Payload",
+        "chain": "Chain",
+        "loading": "Loading job…",
+        "loadError": "Couldn't load the job.",
+        "close": "Close",
+        "lastError": "Last error",
+        "attemptsLabel": "Attempts",
+        "attempt": "attempt",
+        "lane": "Executor lane",
+        "created": "Created",
+        "updated": "Updated",
+        "duration": "Duration",
+        "nextRetry": "Next retry",
+        "lease": "Lease",
+        "source": "Source instance",
+        "tenant": "Tenant",
+        "dedupe": "Dedupe key",
+        "step": "step",
+        "chainHint": "Steps run in order — a step is claimed only after the previous one finishes.",
+        "retry": "Retry job",
+        "runNow": "Run now"
+      },
+      "timeline": {
+        "enqueuedBy": "Enqueued by",
+        "manualRetry": "Manual retry — attempts reset",
+        "report": "Report",
+        "running": "Running",
+        "retryScheduled": "Retry scheduled, attempt",
+        "backoff": "exponential backoff"
+      },
+      "bell": {
+        "title": "Notifications",
+        "viewAll": "View all",
+        "integrations": "Integration activity",
+        "empty": "No integration activity yet. Job executions show up here in real time.",
+        "hint": "Streamed from the integrations outbox",
+        "openConsole": "Open job console"
+      },
+      "transitions": {
+        "enqueued": "enqueued",
+        "claimed": "started",
+        "succeeded": "completed",
+        "retry_scheduled": "retry scheduled",
+        "failed": "failed permanently",
+        "retried": "retry queued"
+      },
+      "notifications": {
+        "button": "Notifications",
+        "title": "Failure notifications",
+        "subtitle": "Send a WhatsApp message when jobs of a type are parked as failed.",
+        "empty": "No rules yet — pick a job type below to add one.",
+        "addType": "Job type…",
+        "add": "Add rule",
+        "enabled": "Notify",
+        "recipients": "Recipients",
+        "recipientPlaceholder": "+56912345678",
+        "addRecipient": "Add",
+        "removeRecipient": "Remove",
+        "invalidRecipient": "Use full E.164 format, e.g. +56912345678",
+        "noRecipients": "Add at least one number",
+        "throttle": "Min. seconds between messages",
+        "save": "Save",
+        "delete": "Delete",
+        "saveError": "Could not save the rule",
+        "loadError": "Could not load the notification rules"
+      }
+    },
     "admin": {
       "breadcrumb": {
         "admin": "Admin",
@@ -1632,6 +1758,7 @@
         "others": "Others",
         "reports": "Reports",
         "details": "Service details nº {serviceCode}",
+        "integrations": "Integrations",
         "settings": "Settings",
         "organizations": "Organizations",
         "dataSources": "Data Sources",

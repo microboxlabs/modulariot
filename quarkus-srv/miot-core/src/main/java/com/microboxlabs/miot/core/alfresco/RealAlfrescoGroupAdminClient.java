@@ -38,7 +38,14 @@ public class RealAlfrescoGroupAdminClient implements IAlfrescoGroupAdminClient {
     @Override
     public Uni<String> createGroup(String groupId, String displayName) {
         return coreApi.createGroup(new CreateGroupRequest(groupId, displayName))
-                .map(resp -> resp.entry() != null ? resp.entry().id() : groupId);
+                .map(resp -> resp.entry() != null ? resp.entry().id() : groupId)
+                .onFailure(AlfrescoClientException.class).recoverWithUni(ex -> {
+                    if (ex.isConflict()) {
+                        LOG.debugf("createGroup(%s): already exists — ignoring 409", groupId);
+                        return Uni.createFrom().item(groupId);
+                    }
+                    return Uni.createFrom().failure(ex);
+                });
     }
 
     @Override

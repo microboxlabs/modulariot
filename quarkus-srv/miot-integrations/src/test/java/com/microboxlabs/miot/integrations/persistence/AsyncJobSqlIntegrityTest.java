@@ -33,6 +33,20 @@ class AsyncJobSqlIntegrityTest {
                 "CLAIM must not reference r.id — it is ambiguous with the target table's id:\n" + claim);
     }
 
+    @Test
+    void claimAnyTenantJoinsOnDistinctlyNamedKeyToAvoidAmbiguousId() throws Exception {
+        String claim = readStaticString("CLAIM_ANY_TENANT");
+        assertTrue(
+                claim.contains("AS job_id"),
+                "CLAIM_ANY_TENANT's runnable CTE must alias its key as job_id:\n" + claim);
+        assertTrue(
+                claim.contains("r.job_id"),
+                "CLAIM_ANY_TENANT must join the target table on r.job_id:\n" + claim);
+        assertFalse(
+                claim.contains("r.id"),
+                "CLAIM_ANY_TENANT must not reference r.id — it is ambiguous with the target table's id:\n" + claim);
+    }
+
     private static String readStaticString(String name) throws Exception {
         Field field = AsyncJobRepository.class.getDeclaredField(name);
         field.setAccessible(true);

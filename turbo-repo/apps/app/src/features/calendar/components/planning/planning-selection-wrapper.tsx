@@ -64,6 +64,7 @@ import { useCalendarViewMode } from "./use-calendar-view-mode";
 import type { SelectedService, TaskStage } from "./planning-selection-types";
 import { ServiceEvent } from "./service-event";
 import { mapBookingToPlannedService } from "@/features/calendar/services/booking-service-mapper";
+import { CALENDAR_LIVE_TASK_COLUMNS } from "@/features/calendar/services/workflow-stage";
 
 
 async function cancelBookingWithWarning(
@@ -276,13 +277,7 @@ export function PlanningSelectionProvider({
   // per workflow stage; this is the single source of truth for "which Alfresco
   // task represents service X right now".
   const { data: liveTasksData, refresh: refreshLiveTasks } = useMyTasks(
-    [
-      "planService",
-      "assignDriver",
-      "presentDriver",
-      "prepareService",
-      "missionControl",
-    ],
+    [...CALENDAR_LIVE_TASK_COLUMNS],
     false,
     1,
     500
@@ -413,6 +408,12 @@ export function PlanningSelectionProvider({
         listBookings,
       },
       getLiveTask,
+      // Read-time join: the provider overlays this onto each planned
+      // service's workflowStage, so chips re-label when the live index
+      // refreshes. Undefined keeps any terminal stage the booking mapper
+      // read from the row's lifecycle status.
+      resolveWorkflowStage: (service) =>
+        getLiveTask(service.mintral_serviceCode)?.stage,
       hooks: {
         shouldPersistBooking: (item, slot, ctx) => {
           const service = item.raw as SelectedService;

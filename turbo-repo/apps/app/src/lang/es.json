@@ -376,7 +376,12 @@
           "assignDriver": "Asignar conductor",
           "presentDriver": "Presentar conductor",
           "prepareService": "Preparar servicio",
-          "missionControl": "Control de misión"
+          "missionControl": "Control de misión",
+          "monitorTrip": "Viaje en curso",
+          "confirmArrival": "Confirmar arribo",
+          "closeMonitoring": "Cierre de monitoreo",
+          "finished": "Finalizado",
+          "cancelled": "Cancelado"
         },
         "contextMenu": {
           "service": "Servicio",
@@ -1267,6 +1272,21 @@
         "modulesTitle": "Módulos",
         "modulesDescription": "Módulos de producto habilitados para esta organización.",
         "modulesEmpty": "No hay módulos habilitados.",
+        "contentReviewPermission": {
+          "title": "Permiso de revisión multimedia",
+          "description": "Elige qué miembros de la organización pueden aprobar automáticamente sus revisiones multimedia. ModularIoT administra la configuración y la sincroniza con Alfresco.",
+          "loadError": "No se pudo cargar el permiso de revisión multimedia.",
+          "enabledLabel": "Habilitar aprobación automática",
+          "enabledHelp": "Los miembros asignados reciben el rol de aprobación automática de contenido mientras esta opción esté habilitada.",
+          "assigneesLabel": "Usuarios asignados al rol",
+          "noMembers": "Agrega miembros a la organización antes de asignar este rol.",
+          "unavailableMember": "Ya no pertenece a la organización; desmarca para eliminar",
+          "projectionFailed": "La configuración se guardó, pero falló la sincronización con Alfresco. Guardar nuevamente volverá a intentarlo.",
+          "projectionSynced": "Sincronizado con Alfresco.",
+          "saveError": "No se pudo guardar el permiso.",
+          "save": "Guardar permiso",
+          "saving": "Guardando…"
+        },
         "whatsappChannel": {
           "title": "Canal WhatsApp",
           "description": "Configura y prueba la conexión de WhatsApp para contactar a los conductores.",
@@ -1492,6 +1512,112 @@
         "dataSources": "Fuentes de Datos"
       }
     },
+    "integrationJobs": {
+      "title": "Consola de trabajos",
+      "subtitle": "Trabajos de integración asíncronos, en vivo desde el ledger del outbox",
+      "refresh": "Actualizar",
+      "loadError": "No se pudieron cargar los trabajos de integración.",
+      "live": {
+        "connected": "En vivo",
+        "disconnected": "Sin conexión",
+        "notConfigured": "Las actualizaciones en vivo no están configuradas en este ambiente"
+      },
+      "states": {
+        "PENDING": "Pendiente",
+        "RUNNING": "En curso",
+        "SUCCEEDED": "Completado",
+        "FAILED": "Fallido",
+        "CANCELLED": "Cancelado"
+      },
+      "filters": {
+        "all": "Todos",
+        "allLanes": "Todos los ejecutores",
+        "allTypes": "Todos los tipos",
+        "searchPlaceholder": "Id, correlación, cadena…"
+      },
+      "table": {
+        "title": "Trabajos",
+        "job": "Trabajo",
+        "correlation": "Correlación",
+        "lane": "Ejecutor",
+        "state": "Estado",
+        "attempts": "Int.",
+        "detail": "Detalle",
+        "age": "Edad",
+        "chainStep": "cadena",
+        "loading": "Cargando trabajos…",
+        "empty": "Ningún trabajo coincide con los filtros actuales."
+      },
+      "detail": {
+        "overview": "Resumen",
+        "attempts": "Intentos",
+        "payload": "Payload",
+        "chain": "Cadena",
+        "loading": "Cargando trabajo…",
+        "loadError": "No se pudo cargar el trabajo.",
+        "close": "Cerrar",
+        "lastError": "Último error",
+        "attemptsLabel": "Intentos",
+        "attempt": "intento",
+        "lane": "Ejecutor",
+        "created": "Creado",
+        "updated": "Actualizado",
+        "duration": "Duración",
+        "nextRetry": "Próximo reintento",
+        "lease": "Lease",
+        "source": "Instancia origen",
+        "tenant": "Tenant",
+        "dedupe": "Clave de deduplicación",
+        "step": "paso",
+        "chainHint": "Los pasos corren en orden — un paso se reclama solo cuando el anterior termina.",
+        "retry": "Reintentar trabajo",
+        "runNow": "Ejecutar ahora"
+      },
+      "timeline": {
+        "enqueuedBy": "Encolado por",
+        "manualRetry": "Reintento manual — intentos reiniciados",
+        "report": "Reporte",
+        "running": "En curso",
+        "retryScheduled": "Reintento agendado, intento",
+        "backoff": "backoff exponencial"
+      },
+      "bell": {
+        "title": "Notificaciones",
+        "viewAll": "Ver todas",
+        "integrations": "Actividad de integraciones",
+        "empty": "Sin actividad de integraciones aún. Las ejecuciones aparecen aquí en tiempo real.",
+        "hint": "Transmitido desde el outbox de integraciones",
+        "openConsole": "Abrir consola de trabajos"
+      },
+      "transitions": {
+        "enqueued": "encolado",
+        "claimed": "iniciado",
+        "succeeded": "completado",
+        "retry_scheduled": "reintento agendado",
+        "failed": "falló definitivamente",
+        "retried": "reintento en cola"
+      },
+      "notifications": {
+        "button": "Notificaciones",
+        "title": "Notificaciones de fallas",
+        "subtitle": "Envía un mensaje de WhatsApp cuando trabajos de un tipo quedan en falla definitiva.",
+        "empty": "Aún no hay reglas — elige un tipo de trabajo para agregar una.",
+        "addType": "Tipo de trabajo…",
+        "add": "Agregar regla",
+        "enabled": "Notificar",
+        "recipients": "Destinatarios",
+        "recipientPlaceholder": "+56912345678",
+        "addRecipient": "Agregar",
+        "removeRecipient": "Quitar",
+        "invalidRecipient": "Usa formato E.164 completo, ej. +56912345678",
+        "noRecipients": "Agrega al menos un número",
+        "throttle": "Segundos mínimos entre mensajes",
+        "save": "Guardar",
+        "delete": "Eliminar",
+        "saveError": "No se pudo guardar la regla",
+        "loadError": "No se pudieron cargar las reglas de notificación"
+      }
+    },
     "admin": {
       "breadcrumb": {
         "admin": "Admin",
@@ -1636,6 +1762,7 @@
         "subtitle3": "Validación Sistema Cliente",
         "subtitle4": "Validación GPS",
         "details": "Detalles servicio nº {serviceCode}",
+        "integrations": "Integraciones",
         "settings": "Ajustes",
         "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos",

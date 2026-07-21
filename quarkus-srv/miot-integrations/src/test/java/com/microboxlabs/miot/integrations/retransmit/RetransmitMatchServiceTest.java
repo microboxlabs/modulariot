@@ -1,13 +1,47 @@
 package com.microboxlabs.miot.integrations.retransmit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class RetransmitMatchServiceTest {
+
+    @Test
+    void applyPrivacyPinOverride_fromEnv() {
+        RetransmitMatchService svc = new RetransmitMatchService(
+                null,
+                null,
+                Optional.empty(),
+                5,
+                Optional.of(-33.55),
+                Optional.of(-70.69),
+                Optional.of("test-pin"));
+        JsonObject payload = new JsonObject()
+                .put("mode", "privacy")
+                .put("gps", new JsonObject().put("latitude", 0).put("longitude", 0));
+        svc.applyPrivacyPinOverride(payload);
+        assertEquals(-33.55, payload.getJsonObject("gps").getDouble("latitude"), 1e-9);
+        assertEquals(-70.69, payload.getJsonObject("gps").getDouble("longitude"), 1e-9);
+        assertTrue(payload.getJsonObject("gps").getBoolean("fixed"));
+        assertEquals("test-pin", payload.getJsonObject("gps").getString("label"));
+    }
+
+    @Test
+    void applyPrivacyPinOverride_skipsFullMode() {
+        RetransmitMatchService svc = new RetransmitMatchService(
+                null, null, Optional.empty(), 5, Optional.of(1.0), Optional.of(2.0), Optional.empty());
+        JsonObject payload = new JsonObject()
+                .put("mode", "full")
+                .put("gps", new JsonObject().put("latitude", -24.0).put("longitude", -69.0));
+        svc.applyPrivacyPinOverride(payload);
+        assertEquals(-24.0, payload.getJsonObject("gps").getDouble("latitude"), 1e-9);
+    }
+
 
     @Test
     void extractPayloads_singleObject() {

@@ -71,6 +71,9 @@ const KNOWN_TASK_STAGES = new Set<TaskStage>([
   "presentDriver",
   "prepareService",
   "missionControl",
+  "monitorTrip",
+  "confirmArrival",
+  "closeMonitoring",
 ]);
 
 /**

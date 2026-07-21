@@ -37,6 +37,7 @@ export type {
   SelectedService,
   TripType,
   TaskStage,
+  PlannedWorkflowStage,
   LeadTimeData,
 } from "./planning-selection-types";
 

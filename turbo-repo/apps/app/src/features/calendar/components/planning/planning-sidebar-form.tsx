@@ -16,7 +16,7 @@ import {
   usePlanningSelection,
   type SelectedService,
   type SelectedSlot,
-  type TaskStage,
+  type PlannedWorkflowStage,
 } from "./planning-selection-context";
 import { useServiceTypes } from "@/features/common/providers/client-api.provider";
 import { HiCalendar, HiExclamation, HiUserAdd } from "react-icons/hi";
@@ -125,11 +125,12 @@ interface PlanningSidebarFormProps {
   /** Whether backend slots are currently loading */
   readonly isSlotsLoading?: boolean;
   /**
-   * Live kanban stage of the selected task, derived by the parent from the
-   * freshly fetched myTasks payload. Never persisted on the booking — pass
-   * `undefined` when the task isn't in any active column.
+   * Workflow stage of the selected service: the live kanban stage when the
+   * task sits in an active column, or the terminal stage carried by the
+   * booking's lifecycle status ("finished"/"cancelled") once the workflow
+   * has ended. Pass `undefined` when neither source knows the service.
    */
-  readonly liveTaskStage?: TaskStage;
+  readonly liveTaskStage?: PlannedWorkflowStage;
 }
 
 export function PlanningSidebarForm({

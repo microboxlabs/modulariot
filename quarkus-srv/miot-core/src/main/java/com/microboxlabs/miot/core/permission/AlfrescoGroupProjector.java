@@ -6,6 +6,7 @@ import com.microboxlabs.miot.core.alfresco.IAlfrescoGroupAdminClient;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -37,7 +38,11 @@ public class AlfrescoGroupProjector {
                             .collect(java.util.stream.Collectors.toSet());
                     return applyMembershipDelta(groupId, current, desired);
                 })
-                .flatMap(ignored -> verifyMembership(groupId, desired));
+                .flatMap(ignored -> verifyMembership(groupId, desired)
+                        .onFailure(IllegalStateException.class)
+                        .retry()
+                        .withBackOff(Duration.ofMillis(200), Duration.ofSeconds(2))
+                        .atMost(5));
     }
 
     /**
@@ -45,7 +50,7 @@ public class AlfrescoGroupProjector {
      * responses as proof that Alfresco applied the requested membership.
      */
     public Uni<Void> verifyMembership(String groupId, Set<String> desired) {
-        return listAllMembers(groupId)
+        return Uni.createFrom().deferred(() -> listAllMembers(groupId))
                 .invoke(currentMembers -> {
                     Set<String> current = currentMembers.stream()
                             .map(AlfrescoPerson::id)

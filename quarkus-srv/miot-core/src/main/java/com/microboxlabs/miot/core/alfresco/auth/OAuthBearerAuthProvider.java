@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.alfresco.auth;
 
+import io.quarkus.arc.Unremovable;
 import io.quarkus.arc.lookup.LookupIfProperty;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -19,6 +20,7 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
  * than a silent success against Alfresco.
  */
 @ApplicationScoped
+@Unremovable
 @LookupIfProperty(name = "miot.alfresco.auth", stringValue = "oauth")
 public class OAuthBearerAuthProvider implements AlfrescoAuthProvider {
 

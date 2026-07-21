@@ -1,6 +1,8 @@
 package com.microboxlabs.miot.core.permission;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.alfresco.AlfrescoPerson;
 import com.microboxlabs.miot.core.alfresco.IAlfrescoDirectoryClient;
@@ -30,7 +32,23 @@ class AlfrescoGroupProjectorTest {
         assertEquals(List.of("GROUP_MINTRAL_AUTO_APPROVERS"), alfresco.createdGroups);
         assertEquals(List.of("new-user"), alfresco.added);
         assertEquals(50, alfresco.removed.size());
-        assertEquals(List.of(0, 50), alfresco.requestedOffsets);
+        assertEquals(List.of(0, 50, 0), alfresco.requestedOffsets);
+    }
+
+    @Test
+    void rejectsAFalsePositiveWhenAlfrescoDoesNotApplyTheDelta() {
+        FakeAlfresco alfresco = new FakeAlfresco();
+        alfresco.ignoreMutations = true;
+        AlfrescoGroupProjector projector = new AlfrescoGroupProjector(alfresco, alfresco);
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> projector.reconcile(
+                                "GROUP_MINTRAL_AUTO_APPROVERS_SITE_MINTRAL",
+                                "Multimedia content auto approvers",
+                                Set.of("mdavid@sitrans.cl"))
+                        .await().indefinitely());
+
+        assertTrue(error.getMessage().contains("missing=[mdavid@sitrans.cl]"));
     }
 
     private static AlfrescoPerson person(String id) {
@@ -45,6 +63,7 @@ class AlfrescoGroupProjectorTest {
         private final List<String> added = new ArrayList<>();
         private final List<String> removed = new ArrayList<>();
         private final List<Integer> requestedOffsets = new ArrayList<>();
+        private boolean ignoreMutations;
 
         @Override
         public Uni<List<AlfrescoPerson>> listGroupMembers(
@@ -75,12 +94,18 @@ class AlfrescoGroupProjectorTest {
         @Override
         public Uni<Void> addGroupMember(String groupId, String personId) {
             added.add(personId);
+            if (!ignoreMutations) {
+                current.add(person(personId));
+            }
             return Uni.createFrom().voidItem();
         }
 
         @Override
         public Uni<Void> removeGroupMember(String groupId, String personId) {
             removed.add(personId);
+            if (!ignoreMutations) {
+                current.removeIf(person -> personId.equals(person.id()));
+            }
             return Uni.createFrom().voidItem();
         }
     }

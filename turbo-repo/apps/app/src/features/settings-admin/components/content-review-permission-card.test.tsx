@@ -10,7 +10,7 @@ const { permission, save } = vi.hoisted(() => ({
     roleCode: "CONTENT_REVIEW_AUTO_APPROVER",
     alfrescoGroupId: "GROUP_MINTRAL_AUTO_APPROVERS_SITE_MINTRAL",
     assigneeIds: ["antonia"],
-    projectionStatus: "SYNCED" as const,
+    projectionStatus: "SYNCED" as "SYNCED" | "FAILED",
     projectionError: null,
     projectedAt: null,
   },
@@ -134,5 +134,27 @@ describe("ContentReviewPermissionCard", () => {
     expect(
       screen.queryByRole("button", { name: "Save permission" })
     ).not.toBeInTheDocument();
+  });
+
+  it("allows retrying a failed Alfresco projection without changing settings", () => {
+    permission.projectionStatus = "FAILED";
+
+    render(
+      <ContentReviewPermissionCard
+        orgSlug="mintral"
+        members={members}
+        membersLoading={false}
+        membersError={null}
+        canManage
+        dict={dict}
+      />
+    );
+
+    expect(screen.getByText("Projection failed")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Save permission" })
+    ).toBeEnabled();
+
+    permission.projectionStatus = "SYNCED";
   });
 });

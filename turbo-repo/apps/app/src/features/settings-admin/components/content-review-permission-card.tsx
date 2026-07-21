@@ -88,7 +88,8 @@ export default function ContentReviewPermissionCard({
   );
   const hasChanges =
     permission != null &&
-    (enabled !== permission.enabled ||
+    (permission.projectionStatus === "FAILED" ||
+      enabled !== permission.enabled ||
       assigneeIds.size !== permission.assigneeIds.length ||
       permission.assigneeIds.some((personId) => !assigneeIds.has(personId)));
 

@@ -7,6 +7,7 @@ import {
   IoNavigate,
   IoCheckmarkCircle,
   IoCloseCircle,
+  IoEllipse,
 } from "react-icons/io5";
 import { useScrollIntoViewWhen } from "@microboxlabs/miot-calendar-ui";
 import type { PlannedService } from "./planning-selection-context";
@@ -97,9 +98,9 @@ const SYNC_DOT_COLOR: Record<
   NonNullable<PlannedService["syncStatus"]>,
   string
 > = {
-  PENDING: "bg-gray-400 dark:bg-gray-500",
-  CONFIRMED: "bg-emerald-500 dark:bg-emerald-400",
-  REJECTED: "bg-red-500 dark:bg-red-400",
+  PENDING: "text-gray-400 dark:text-gray-500",
+  CONFIRMED: "text-emerald-500 dark:text-emerald-400",
+  REJECTED: "text-red-500 dark:text-red-400",
 };
 
 /**
@@ -340,15 +341,15 @@ export function PlannedServiceChip({
         />
       )}
       {sync && (
-        <span
-          role="img"
-          aria-label={sync.ariaLabel}
-          title={sync.title}
-          className={twMerge(
-            "ml-1 shrink-0 w-2 h-2 rounded-full",
-            sync.colorClass
-          )}
-        />
+        // Wrapper carries the hover tooltip (the reason for a REJECTED sync);
+        // the icon carries the accessible name. Matches the react-icons +
+        // aria-label convention of the workflow-stage indicators above.
+        <span title={sync.title} className="ml-1 shrink-0 flex items-center">
+          <IoEllipse
+            aria-label={sync.ariaLabel}
+            className={twMerge("w-2.5 h-2.5", sync.colorClass)}
+          />
+        </span>
       )}
     </button>
   );

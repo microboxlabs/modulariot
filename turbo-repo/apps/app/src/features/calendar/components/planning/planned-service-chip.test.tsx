@@ -101,20 +101,21 @@ describe("PlannedServiceChip — sync status dot", () => {
   it("renders a grey dot for a PENDING sync", () => {
     renderChip(undefined, "PENDING");
     const dot = screen.getByLabelText("sync-status-pending");
-    expect(dot.className).toContain("bg-gray-400");
+    expect(dot.getAttribute("class")).toContain("text-gray-400");
   });
 
   it("renders a green dot for a CONFIRMED sync", () => {
     renderChip(undefined, "CONFIRMED");
     const dot = screen.getByLabelText("sync-status-confirmed");
-    expect(dot.className).toContain("bg-emerald-500");
+    expect(dot.getAttribute("class")).toContain("text-emerald-500");
   });
 
   it("renders a red dot for a REJECTED sync and shows the reason on hover", () => {
     renderChip(undefined, "REJECTED", "CONDUCTOR2 NO EXISTE");
     const dot = screen.getByLabelText("sync-status-rejected");
-    expect(dot.className).toContain("bg-red-500");
-    expect(dot.getAttribute("title")).toContain("CONDUCTOR2 NO EXISTE");
+    expect(dot.getAttribute("class")).toContain("text-red-500");
+    // Reason tooltip lives on the wrapper.
+    expect(screen.getByTitle(/CONDUCTOR2 NO EXISTE/)).toBeTruthy();
   });
 
   it("shows the sync dot independently of the workflow stage", () => {

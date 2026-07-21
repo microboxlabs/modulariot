@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { forwardToQuarkus } from "@/app/api/utils/quarkus-proxy";
+import { requireOrganizationSettingsAdmin } from "@/app/api/utils/organization-settings-admin";
 
 /**
  * PATCH /api/admin/orgs/[orgId]/integrations/connections/[connId]
@@ -13,6 +14,8 @@ export async function PATCH(
   { params }: { params: Promise<{ orgId: string; connId: string }> },
 ) {
   const { orgId, connId } = await params;
+  const denied = await requireOrganizationSettingsAdmin(orgId);
+  if (denied) return denied;
   let body: unknown;
   try {
     body = await request.json();

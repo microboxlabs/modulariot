@@ -1636,6 +1636,7 @@
         "organizations": "Organizations",
         "dataSources": "Data Sources",
         "vitalSigns": "Vital Signs",
+        "gpsProviders": "GPS Providers",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",

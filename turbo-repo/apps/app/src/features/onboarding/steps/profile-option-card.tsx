@@ -18,9 +18,9 @@ export default function ProfileOptionCard({
     <button
       type="button"
       onClick={() => onSelect(option.id)}
-      className={`relative flex flex-col items-start gap-1 text-left p-3 px-4 rounded-lg border transition-colors bg-white ${
+      className={`relative flex flex-col items-start gap-1 text-left p-3 px-4 rounded-lg border bg-white dark:bg-gray-800 transition-colors ${
         isSelected
-          ? "border-blue-600 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/30"
+          ? "border-blue-600 dark:border-blue-400"
           : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
       }`}
     >

@@ -78,10 +78,10 @@ export default function PreparingExperience({
   }, [isWhitingOut, onComplete]);
 
   return (
-    <motion.div
-      className="relative flex items-center justify-center w-full h-full overflow-hidden px-6"
-      animate={{ backgroundColor: isWhitingOut ? "#ffffff" : "rgba(255,255,255,0)" }}
-      transition={{ duration: WHITE_OUT_DURATION_MS / 1000, ease: "easeInOut" }}
+    <div
+      className={`relative flex items-center justify-center w-full h-full overflow-hidden px-6 transition-colors duration-900 ease-in-out ${
+        isWhitingOut ? "bg-white dark:bg-gray-900" : "bg-transparent"
+      }`}
     >
       <motion.div
         animate={{ opacity: isWhitingOut ? 0 : 1 }}
@@ -127,6 +127,6 @@ export default function PreparingExperience({
           </motion.h1>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

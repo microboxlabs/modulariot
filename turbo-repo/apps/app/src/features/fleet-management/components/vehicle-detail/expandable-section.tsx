@@ -19,6 +19,17 @@ interface ExpandableSectionProps {
    * so wider accessories (e.g. a toggle plus another control) don't overlap
    * the title. Defaults to enough space for a single small control. */
   readonly headerAccessoryOffsetClassName?: string;
+  /** Where the expand/collapse chevron renders. Defaults to "right" (existing
+   * behavior); "left" puts it before the icon/title, freeing the right side
+   * for a trailingAccessory. */
+  readonly chevronPosition?: "left" | "right";
+  /** Extra interactive header content rendered outside the header <button> on
+   * the right (mirrors headerAccessory, but right-aligned) — e.g. a remove
+   * button — so it isn't a nested button and doesn't toggle expand/collapse. */
+  readonly trailingAccessory?: ReactNode;
+  /** Right padding class reserved on the header <button> for
+   * trailingAccessory, so it doesn't overlap the badge/chevron. */
+  readonly trailingAccessoryOffsetClassName?: string;
   readonly children: ReactNode;
   readonly defaultExpanded?: boolean;
   readonly status?: SectionStatus;
@@ -32,6 +43,9 @@ export default function ExpandableSection({
   badge,
   headerAccessory,
   headerAccessoryOffsetClassName = "pl-14",
+  chevronPosition = "right",
+  trailingAccessory,
+  trailingAccessoryOffsetClassName = "pr-14",
   children,
   defaultExpanded = false,
   status,
@@ -62,6 +76,14 @@ export default function ExpandableSection({
     return null;
   };
 
+  const chevron = (
+    <HiChevronDown
+      className={`w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform duration-200 shrink-0 ${
+        isExpanded ? "rotate-180" : ""
+      }`}
+    />
+  );
+
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
       <div className="relative">
@@ -70,14 +92,20 @@ export default function ExpandableSection({
             {headerAccessory}
           </div>
         )}
+        {trailingAccessory && (
+          <div className="absolute right-3 top-1/2 z-10 -translate-y-1/2">
+            {trailingAccessory}
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
           className={`w-full flex items-center gap-3 p-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
             headerAccessory ? headerAccessoryOffsetClassName : ""
-          }`}
+          } ${trailingAccessory ? trailingAccessoryOffsetClassName : ""}`}
           aria-expanded={isExpanded}
         >
+          {chevronPosition === "left" && chevron}
           {renderIcon()}
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -88,11 +116,7 @@ export default function ExpandableSection({
             </p>
           </div>
           {badge && <div className="shrink-0">{badge}</div>}
-          <HiChevronDown
-            className={`w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform duration-200 shrink-0 ${
-              isExpanded ? "rotate-180" : ""
-            }`}
-          />
+          {chevronPosition === "right" && chevron}
         </button>
       </div>
       <div

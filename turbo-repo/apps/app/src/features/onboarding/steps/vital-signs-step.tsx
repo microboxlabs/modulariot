@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import SeverityLegend from "@/features/vital-signs/severity-legend";
 import VitalSignCard from "@/features/vital-signs/vital-sign-card";
 import {
   CATS,
@@ -45,7 +44,6 @@ export default function VitalSignsStep({
           rest unlock when their data source is connected.
         </p>
       </div>
-      <SeverityLegend />
       <div className="flex flex-col gap-4 w-full">
         {recommended.length > 0 && (
           <div className="flex flex-col gap-3">
@@ -58,6 +56,7 @@ export default function VitalSignsStep({
                 symptom={symptom}
                 checked={enabled.has(symptom.id)}
                 onToggleChange={(checked) => toggleSymptom(symptom.id, checked)}
+                minimal
               />
             ))}
           </div>
@@ -79,6 +78,7 @@ export default function VitalSignsStep({
                   symptom={symptom}
                   checked={enabled.has(symptom.id)}
                   onToggleChange={(checked) => toggleSymptom(symptom.id, checked)}
+                  minimal
                 />
               ))}
             </div>

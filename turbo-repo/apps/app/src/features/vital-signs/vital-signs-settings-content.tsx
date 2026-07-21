@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
+import { Button, ButtonGroup } from "flowbite-react";
 import SeverityLegend from "./severity-legend";
 import VitalSignCard from "./vital-sign-card";
 import { SYMPTOMS, recommendedReadySymptoms } from "./vital-signs-data";
@@ -30,6 +31,7 @@ export default function VitalSignsSettingsContent() {
         recommendedReadySymptoms(DEFAULT_PROFILE_ID).map((symptom) => symptom.id)
       )
   );
+  const [minimal, setMinimal] = useState(false);
 
   const toggleSymptom = (id: number, checked: boolean) => {
     setEnabled((prev) => {
@@ -92,10 +94,30 @@ export default function VitalSignsSettingsContent() {
     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-5 py-4">
       <div className="max-w-4xl mx-auto flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <SeverityLegend />
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {visibleSymptoms.length} available
-          </p>
+          {!minimal && <SeverityLegend />}
+          <div className="flex items-center gap-4">
+            <ButtonGroup>
+              <Button
+                color="alternative"
+                size="sm"
+                onClick={() => setMinimal(true)}
+                disabled={minimal}
+              >
+                Minimal
+              </Button>
+              <Button
+                color="alternative"
+                size="sm"
+                onClick={() => setMinimal(false)}
+                disabled={!minimal}
+              >
+                Detailed
+              </Button>
+            </ButtonGroup>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {visibleSymptoms.length} available
+            </p>
+          </div>
         </div>
         {visibleSymptoms.length === 0 ? (
           <p className="mt-8 text-center text-sm text-gray-400 dark:text-gray-500">
@@ -118,6 +140,7 @@ export default function VitalSignsSettingsContent() {
                   symptom={symptom}
                   checked={enabled.has(symptom.id)}
                   onToggleChange={(checked) => toggleSymptom(symptom.id, checked)}
+                  minimal={minimal}
                 />
               </motion.div>
             ))}

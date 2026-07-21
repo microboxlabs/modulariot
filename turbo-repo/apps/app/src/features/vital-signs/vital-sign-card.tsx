@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, ToggleSwitch } from "flowbite-react";
+import { ToggleSwitch } from "flowbite-react";
+import { CustomBadge } from "@/features/common/components/custom-badge";
 import ExpandableSection from "@/features/fleet-management/components/vehicle-detail/expandable-section";
 import SeverityDots from "./severity-dots";
 import VitalSignParamField from "./vital-sign-param-field";
@@ -10,16 +11,16 @@ import VitalSignConditionBuilder, {
 } from "./vital-sign-condition-builder";
 import { CATS, VitalSign } from "./vital-signs-data";
 
-function badgeColorForCat(catId: VitalSign["cat"]): string {
+function badgeClassNameForCat(catId: VitalSign["cat"]): string {
   switch (catId) {
     case "gps_metrics":
-      return "success";
+      return "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300";
     case "trip_planning":
-      return "warning";
+      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300";
     case "event":
-      return "purple";
+      return "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300";
     case "sensor":
-      return "gray";
+      return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
   }
 }
 
@@ -27,10 +28,12 @@ export default function VitalSignCard({
   symptom,
   checked,
   onToggleChange,
+  minimal = false,
 }: Readonly<{
   symptom: VitalSign;
   checked: boolean;
   onToggleChange: (checked: boolean) => void;
+  minimal?: boolean;
 }>) {
   const cat = CATS[symptom.cat];
 
@@ -51,7 +54,8 @@ export default function VitalSignCard({
     )
   );
 
-  const hasForm = symptom.params.length > 0 || Boolean(symptom.condition);
+  const showCondition = !minimal && Boolean(symptom.condition);
+  const hasForm = symptom.params.length > 0 || showCondition;
 
   return (
     <ExpandableSection
@@ -68,11 +72,12 @@ export default function VitalSignCard({
           {/* Its tooltip trigger is a real <button>, so this can't live
               inside the header <button> above (badge) without nesting
               buttons — kept here instead, alongside the toggle. */}
-          <SeverityDots ceiling={symptom.ceiling} />
+          {!minimal && <SeverityDots ceiling={symptom.ceiling} />}
         </div>
       }
-      headerAccessoryOffsetClassName="pl-32"
-      badge={<Badge color={badgeColorForCat(symptom.cat)}>{cat.label}</Badge>}
+      badge={
+        <CustomBadge text={cat.label} className={badgeClassNameForCat(symptom.cat)} />
+      }
     >
       {!hasForm ? (
         <p className="text-sm text-gray-400 dark:text-gray-500">
@@ -80,7 +85,7 @@ export default function VitalSignCard({
         </p>
       ) : (
         <div className="flex flex-col gap-4">
-          {symptom.condition && (
+          {showCondition && symptom.condition && (
             <VitalSignConditionBuilder
               condition={symptom.condition}
               rows={symptom.condition.rows.map(

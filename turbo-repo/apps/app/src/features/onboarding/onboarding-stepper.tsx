@@ -56,7 +56,7 @@ export default function OnboardingStepper({
           />
           <div
             key={currentStep}
-            className="flex-1 overflow-y-auto p-6 animate-fade-in-opacity"
+            className="flex-1 overflow-y-auto p-6 animate-fade-in-opacity bg-gray-100 dark:bg-gray-900"
           >
             {currentStep === "profile" && (
               <ProfileStep selectedProfileId={profileId} />

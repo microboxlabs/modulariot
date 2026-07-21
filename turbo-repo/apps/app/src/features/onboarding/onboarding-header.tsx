@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { HiCheck } from "react-icons/hi2";
+import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import { ONBOARDING_STEPS, OnboardingStepId } from "./onboarding-steps";
 
 function badgeColorClasses(disabled: boolean, isSelected: boolean): string {
@@ -26,7 +27,7 @@ export default function OnboardingHeader({
   );
 
   return (
-    <div className="flex items-center justify-between w-full px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+    <div className="flex items-center justify-between w-full px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
       <div className="flex items-center gap-6">
         {ONBOARDING_STEPS.map((step, index) => {
           const isSelected = step.id === currentStep;
@@ -79,12 +80,7 @@ export default function OnboardingHeader({
           );
         })}
       </div>
-      <Link
-        href={`/${lang}/home`}
-        className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
-      >
-        Skip
-      </Link>
+      <CustomThemeToggle />
     </div>
   );
 }

@@ -27,12 +27,10 @@ export default function OnboardingWelcome({
   };
 
   return (
-    <motion.div
-      className="relative w-full h-full"
-      animate={{
-        backgroundColor: isLeaving ? "#ffffff" : "rgba(255,255,255,0)",
-      }}
-      transition={{ duration: LEAVE_TRANSITION_S, ease: "easeInOut" }}
+    <div
+      className={`relative w-full h-full transition-colors duration-600 ease-in-out ${
+        isLeaving ? "bg-white dark:bg-gray-900" : "bg-transparent"
+      }`}
     >
       <motion.div
         animate={{ opacity: isLeaving ? 0 : 1 }}
@@ -82,6 +80,6 @@ export default function OnboardingWelcome({
           </Button>
         </div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }

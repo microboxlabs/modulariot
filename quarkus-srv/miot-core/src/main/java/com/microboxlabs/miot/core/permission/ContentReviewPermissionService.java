@@ -69,7 +69,8 @@ public class ContentReviewPermissionService {
                                 "Organization not found: " + organizationSlug));
                     }
                     return loadDto(org.id, targetGroupFor(org));
-                }));
+                }))
+                .flatMap(this::verifyReportedProjection);
     }
 
     public Uni<ContentReviewPermissionDto> replace(
@@ -88,8 +89,11 @@ public class ContentReviewPermissionService {
                             return markProjection(target.organizationId(), "FAILED",
                                     abbreviate(error.getMessage()), null);
                         }))
-                .flatMap(organizationId -> Panache.withSession(() -> Organization.<Organization>findById(organizationId)
-                        .flatMap(org -> loadDto(organizationId, targetGroupFor(org)))));
+                .flatMap(organizationId -> Panache.withSession(
+                        () -> Organization.<Organization>findById(organizationId)
+                                .flatMap(org -> loadDto(
+                                        organizationId, targetGroupFor(org)))))
+                .flatMap(this::verifyReportedProjection);
     }
 
     private Uni<OrganizationTarget> authorizeAndResolve(String organizationSlug) {
@@ -222,6 +226,27 @@ public class ContentReviewPermissionService {
                 setting == null ? "SYNCED" : setting.projectionStatus,
                 setting == null ? null : setting.projectionError,
                 setting == null ? null : setting.projectedAt);
+    }
+
+    private Uni<ContentReviewPermissionDto> verifyReportedProjection(
+            ContentReviewPermissionDto dto) {
+        if (!"SYNCED".equals(dto.projectionStatus()) || dto.projectedAt() == null) {
+            return Uni.createFrom().item(dto);
+        }
+        Set<String> desired = dto.enabled()
+                ? Set.copyOf(dto.assigneeIds())
+                : Set.of();
+        return groupProjector.verifyMembership(dto.alfrescoGroupId(), desired)
+                .replaceWith(dto)
+                .onFailure().recoverWithItem(error -> new ContentReviewPermissionDto(
+                        dto.enabled(),
+                        dto.permissionCode(),
+                        dto.roleCode(),
+                        dto.alfrescoGroupId(),
+                        dto.assigneeIds(),
+                        "FAILED",
+                        abbreviate(error.getMessage()),
+                        dto.projectedAt()));
     }
 
     private static Set<String> normalize(SetContentReviewPermissionRequest request) {

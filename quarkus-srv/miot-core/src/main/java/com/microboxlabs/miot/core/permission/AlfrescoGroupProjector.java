@@ -36,7 +36,32 @@ public class AlfrescoGroupProjector {
                             .map(AlfrescoPerson::id)
                             .collect(java.util.stream.Collectors.toSet());
                     return applyMembershipDelta(groupId, current, desired);
-                });
+                })
+                .flatMap(ignored -> verifyMembership(groupId, desired));
+    }
+
+    /**
+     * Verify the repository state instead of treating successful mutation
+     * responses as proof that Alfresco applied the requested membership.
+     */
+    public Uni<Void> verifyMembership(String groupId, Set<String> desired) {
+        return listAllMembers(groupId)
+                .invoke(currentMembers -> {
+                    Set<String> current = currentMembers.stream()
+                            .map(AlfrescoPerson::id)
+                            .collect(java.util.stream.Collectors.toSet());
+                    Set<String> missing = new TreeSet<>(desired);
+                    missing.removeAll(current);
+                    Set<String> unexpected = new TreeSet<>(current);
+                    unexpected.removeAll(desired);
+                    if (!missing.isEmpty() || !unexpected.isEmpty()) {
+                        throw new IllegalStateException(
+                                "Alfresco group " + groupId
+                                        + " is out of sync; missing=" + missing
+                                        + ", unexpected=" + unexpected);
+                    }
+                })
+                .replaceWithVoid();
     }
 
     private Uni<Void> applyMembershipDelta(

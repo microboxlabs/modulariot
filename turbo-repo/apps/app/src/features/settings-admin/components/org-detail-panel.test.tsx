@@ -16,7 +16,6 @@ vi.mock("./content-review-permission-card", () => ({
   ),
 }));
 
-vi.mock("./members-list", () => ({ default: () => null }));
 vi.mock("./modules-list", () => ({ default: () => null }));
 vi.mock("../gps-webhooks/gps-webhook-card", () => ({ default: () => null }));
 vi.mock("../whatsapp/whatsapp-channel-card", () => ({ default: () => null }));
@@ -30,6 +29,7 @@ describe("OrgDetailPanel", () => {
           slug: "mintral",
           displayName: "Mintral",
           taxId: null,
+          role: "SITE_MANAGER",
           isParent: true,
         }}
         dict={{}}

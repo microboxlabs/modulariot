@@ -69,6 +69,16 @@ public interface AlfrescoCoreApi {
     Uni<SinglePersonEntry> getPerson(@PathParam("personId") String personId);
 
     /**
+     * Fetch a person's authoritative membership for one site. The returned
+     * role is an Alfresco site role such as {@code SiteManager}.
+     */
+    @GET
+    @Path("/sites/{siteId}/members/{personId}")
+    Uni<SingleSiteMemberEntry> getSiteMember(
+            @PathParam("siteId") String siteId,
+            @PathParam("personId") String personId);
+
+    /**
      * Free-text search over the people directory. Matches firstName,
      * lastName, email, username — per Alfresco's {@code term} semantics.
      */
@@ -108,6 +118,14 @@ public interface AlfrescoCoreApi {
 
     /** Single-person wrapper: {@code { "entry": { ... } }}. */
     record SinglePersonEntry(AlfrescoPersonEntry entry) {
+    }
+
+    /** Single-site-member wrapper: {@code { "entry": { "id", "role" } }}. */
+    record SingleSiteMemberEntry(AlfrescoSiteMemberEntry entry) {
+    }
+
+    /** Minimal site membership shape required for authorization. */
+    record AlfrescoSiteMemberEntry(String id, String role) {
     }
 
     /** Single-group wrapper used by createGroup's response. */

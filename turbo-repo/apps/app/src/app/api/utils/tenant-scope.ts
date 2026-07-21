@@ -36,6 +36,7 @@ export interface TenantScope {
     slug: string;
     displayName: string;
     taxId: string | null;
+    role: string;
     isParent: boolean;
   }>;
   /** Tax ids for the active org (union of children for parents). */
@@ -109,7 +110,7 @@ export async function resolveTenantScope(): Promise<TenantScopeResult> {
       resolved: false,
       response: NextResponse.json(
         { error: "Failed to resolve tenant scopes" },
-        { status: 502 },
+        { status: 502 }
       ),
     };
   }
@@ -119,7 +120,7 @@ export async function resolveTenantScope(): Promise<TenantScopeResult> {
       resolved: false,
       response: NextResponse.json(
         { error: "No organization memberships found" },
-        { status: 403 },
+        { status: 403 }
       ),
     };
   }
@@ -148,6 +149,7 @@ export async function resolveTenantScope(): Promise<TenantScopeResult> {
         slug: s.slug,
         displayName: s.displayName,
         taxId: s.taxId,
+        role: s.role,
         isParent: s.isParent,
       })),
       effectiveTaxIds: activeScope.effectiveTaxIds,
@@ -166,14 +168,14 @@ export async function resolveTenantScope(): Promise<TenantScopeResult> {
  */
 export function requireModule(
   scope: TenantScope,
-  code: string,
+  code: string
 ): NextResponse | null {
   if (scope.activeOrg.modules.includes(code)) return null;
   return NextResponse.json(
     {
       error: `Module ${code} is not enabled for organization ${scope.activeOrg.slug}`,
     },
-    { status: 403 },
+    { status: 403 }
   );
 }
 
@@ -191,7 +193,7 @@ async function fetchScopes(session: Session): Promise<OrganizationScope[]> {
   if (!baseUrl) {
     throw new Error(
       "MIOT_RESOURCE_URL environment variable is not set. " +
-        "Required for tenant scope resolution.",
+        "Required for tenant scope resolution."
     );
   }
 

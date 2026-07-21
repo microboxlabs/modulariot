@@ -24,6 +24,14 @@ public interface IAlfrescoDirectoryClient {
     Uni<List<AlfrescoPerson>> listGroupMembers(String groupId, int maxItems, int skipCount);
 
     /**
+     * Resolve a person's authoritative role in an Alfresco site.
+     *
+     * @return an Alfresco role such as {@code SiteManager}, or {@code null}
+     *         when the person is not a member
+     */
+    Uni<String> getSiteRole(String personId, String siteId);
+
+    /**
      * Search the Alfresco people directory by a free-text query.
      * Implementations should match against firstName, lastName, email and id.
      */

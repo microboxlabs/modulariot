@@ -49,9 +49,8 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 public interface AlfrescoCoreApi {
 
     /**
-     * List the direct members of an Alfresco group. Returns only
-     * {@code PERSON} entries; nested subgroups are filtered out on
-     * the caller side.
+     * List the direct members of an Alfresco group. The directory adapter
+     * recursively follows returned {@code GROUP} entries to flatten site roles.
      */
     @GET
     @Path("/groups/{groupId}/members")

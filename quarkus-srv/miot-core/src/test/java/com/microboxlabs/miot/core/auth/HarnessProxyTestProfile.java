@@ -52,7 +52,8 @@ public class HarnessProxyTestProfile implements QuarkusTestProfile {
         overrides.put("miot.alfresco.auth", "stub");
         overrides.put("quarkus.arc.exclude-types",
                 "com.microboxlabs.miot.core.alfresco.RealAlfrescoDirectoryClient,"
-                        + "com.microboxlabs.miot.core.alfresco.RealAlfrescoGroupAdminClient");
+                        + "com.microboxlabs.miot.core.alfresco.RealAlfrescoGroupAdminClient,"
+                        + "com.microboxlabs.miot.core.alfresco.RealAlfrescoMembershipClient");
 
         // Permission policy: miot-core has no application.properties; without
         // these /api/* would be permit-all and the 401/403 split would not fire.

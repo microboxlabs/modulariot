@@ -53,14 +53,12 @@ export default function OrgDetailPanel({
         error={modulesError}
         dict={dict}
       />
-      {organization?.taxId && (
-        <ContentReviewPermissionCard
-          orgSlug={orgSlug}
-          members={members}
-          membersLoading={membersLoading}
-          dict={dict}
-        />
-      )}
+      <ContentReviewPermissionCard
+        orgSlug={orgSlug}
+        members={members}
+        membersLoading={membersLoading}
+        dict={dict}
+      />
       <WhatsAppChannelCard orgSlug={orgSlug} dict={dict} />
       <GpsWebhookCard orgSlug={orgSlug} dict={dict} />
       <MembersList

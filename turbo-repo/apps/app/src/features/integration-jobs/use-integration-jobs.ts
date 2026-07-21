@@ -2,17 +2,27 @@
 
 import { useCallback, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
-import type { AsyncJob, JobListFilters, JobsOverview } from "./integration-job.types";
+import type {
+  AsyncJob,
+  JobListFilters,
+  JobsOverview,
+  NotificationRule,
+  NotificationRuleUpsert,
+} from "./integration-job.types";
 import {
+  deleteNotificationRule,
   fetchJob,
   fetchJobs,
   fetchJobsOverview,
+  fetchNotificationRules,
   retryJob,
+  upsertNotificationRule,
 } from "./integration-jobs-data-service";
 
 const JOBS_KEY = "org-integration-jobs";
 const OVERVIEW_KEY = "org-integration-jobs-overview";
 const JOB_KEY = "org-integration-job";
+const RULES_KEY = "org-integration-notification-rules";
 
 export function useIntegrationJobs(orgSlug: string | null, filters: JobListFilters = {}) {
   const { data, error, isLoading, mutate } = useSWR<AsyncJob[], Error>(
@@ -82,6 +92,54 @@ export function useRetryJob(orgSlug: string | null) {
   );
 
   return { retry, retrying, retryError };
+}
+
+export function useNotificationRules(orgSlug: string | null) {
+  const { data, error, isLoading, mutate } = useSWR<NotificationRule[], Error>(
+    orgSlug ? [RULES_KEY, orgSlug] : null,
+    () => fetchNotificationRules(orgSlug as string),
+    { revalidateOnFocus: false, dedupingInterval: 5_000 },
+  );
+  return { rules: data ?? [], isLoading, error, refresh: mutate };
+}
+
+/** Save/delete a notification rule, revalidating the rules list on success. */
+export function useSaveNotificationRule(orgSlug: string | null) {
+  const { mutate } = useSWRConfig();
+  const [saving, setSaving] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<Error | null>(null);
+
+  const run = useCallback(
+    async (jobType: string, action: () => Promise<unknown>) => {
+      if (!orgSlug) return false;
+      setSaving(jobType);
+      setSaveError(null);
+      try {
+        await action();
+        await mutate([RULES_KEY, orgSlug]);
+        return true;
+      } catch (error) {
+        setSaveError(error as Error);
+        return false;
+      } finally {
+        setSaving(null);
+      }
+    },
+    [orgSlug, mutate],
+  );
+
+  const save = useCallback(
+    (jobType: string, rule: NotificationRuleUpsert) =>
+      run(jobType, () => upsertNotificationRule(orgSlug as string, jobType, rule)),
+    [orgSlug, run],
+  );
+
+  const remove = useCallback(
+    (jobType: string) => run(jobType, () => deleteNotificationRule(orgSlug as string, jobType)),
+    [orgSlug, run],
+  );
+
+  return { save, remove, saving, saveError, clearError: () => setSaveError(null) };
 }
 
 /** Revalidates every jobs-related SWR key for the org (used on live events). */

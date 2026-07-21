@@ -95,6 +95,26 @@ class CalendarSyncExecutorTest {
         assertEquals("ASSIGNED", client.lastPatchStatus);
     }
 
+    /** The assign chain's PENDING stamp rides the patch payload untouched. */
+    @Test
+    void patchPassesSyncStatusThrough() {
+        FakeClient client = new FakeClient();
+        Map<String, Object> payload = patchPayload("ASSIGNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
+
+        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals("PENDING", client.lastPatchSyncStatus);
+    }
+
+    @Test
+    void patchWithoutSyncStatusSendsNone() {
+        FakeClient client = new FakeClient();
+        new CalendarSyncExecutor(client, CLOCK).handle(patchPayload("ASSIGNED"));
+        org.junit.jupiter.api.Assertions.assertNull(client.lastPatchSyncStatus);
+    }
+
     @Test
     void patch404IsBenignSkip() {
         FakeClient client = new FakeClient();
@@ -425,6 +445,7 @@ class CalendarSyncExecutorTest {
         RuntimeException patchThrows;
         int patchCalls;
         String lastPatchStatus;
+        String lastPatchSyncStatus;
         final List<UUID> cancelled = new ArrayList<>();
 
         final UUID createdId = UUID.fromString("00000000-0000-0000-0000-0000000000c1");
@@ -451,9 +472,11 @@ class CalendarSyncExecutorTest {
 
         @Override
         public void patchByResource(String resourceId, UUID calendarId, String targetStatus,
-                                    Map<String, Object> resourceDataPatch) {
+                                    Map<String, Object> resourceDataPatch,
+                                    String syncStatus, String syncDetail) {
             patchCalls++;
             lastPatchStatus = targetStatus;
+            lastPatchSyncStatus = syncStatus;
             if (patchThrows != null) {
                 throw patchThrows;
             }

@@ -80,12 +80,31 @@ public class CalendarBookingsClient {
      */
     public void patchByResource(String resourceId, UUID calendarId,
                                 String targetStatus, Map<String, Object> resourceDataPatch) {
+        patchByResource(resourceId, calendarId, targetStatus, resourceDataPatch, null, null);
+    }
+
+    /**
+     * Full patch variant, additionally carrying the TMS-confirmation
+     * {@code syncStatus} (PENDING/CONFIRMED/REJECTED — orthogonal to the
+     * monotonic lifecycle {@code status}; null leaves it untouched) and its
+     * optional detail. Overridden by test fakes — keep this the single method
+     * that actually sends.
+     */
+    public void patchByResource(String resourceId, UUID calendarId,
+                                String targetStatus, Map<String, Object> resourceDataPatch,
+                                String syncStatus, String syncDetail) {
         JsonObject body = new JsonObject();
         if (targetStatus != null) {
             body.put("status", targetStatus);
         }
         if (resourceDataPatch != null && !resourceDataPatch.isEmpty()) {
             body.put("resourceData", new JsonObject(resourceDataPatch));
+        }
+        if (syncStatus != null) {
+            body.put("syncStatus", syncStatus);
+            if (syncDetail != null) {
+                body.put("syncDetail", syncDetail);
+            }
         }
         String url = base() + BASE_PATH + "/resource/" + enc(resourceId)
                 + (calendarId != null ? "?calendarId=" + calendarId : "");

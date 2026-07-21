@@ -87,7 +87,7 @@ public class RetransmitDeliveryJob {
                 JsonObject payload = new JsonObject(delivery.payload());
                 JsonArray gaussBody = GaussPositionMapper.toGaussBody(payload, settings.gaussDefaults());
                 body = gaussBody.encode();
-                attachGaussAuth(req, false);
+                gaussAuth.applyAuthHeaders(req);
             } else {
                 body = new JsonObject(delivery.payload()).encode();
             }
@@ -97,7 +97,7 @@ public class RetransmitDeliveryJob {
                     HttpResponse.BodyHandlers.ofString());
             int code = response.statusCode();
 
-            // One retry after re-auth on 401 for Gauss
+            // One retry after re-auth on 401 for Gauss (OAuth/bearer; API-key mode is static)
             if (gauss && code == 401) {
                 gaussAuth.invalidate();
                 HttpRequest.Builder retry = HttpRequest.newBuilder()
@@ -106,7 +106,7 @@ public class RetransmitDeliveryJob {
                         .header("Content-Type", "application/json")
                         .header("User-Agent", "ModularIoT-Retransmit/1.0")
                         .header("X-Miot-Retransmit-Config", delivery.configId());
-                attachGaussAuth(retry, true);
+                gaussAuth.applyAuthHeaders(retry);
                 response = httpClient.send(
                         retry.POST(HttpRequest.BodyPublishers.ofString(body)).build(),
                         HttpResponse.BodyHandlers.ofString());
@@ -120,18 +120,6 @@ public class RetransmitDeliveryJob {
         } catch (Exception e) {
             failOrRetry(delivery, id, null, e.getMessage(), true);
         }
-    }
-
-    private void attachGaussAuth(HttpRequest.Builder req, boolean force) {
-        if (force) {
-            gaussAuth.invalidate();
-        }
-        if (!gaussAuth.isConfigured()) {
-            LOG.warn("Gauss delivery without auth config — request will likely 401");
-            return;
-        }
-        String token = gaussAuth.getAccessToken();
-        req.header("Authorization", "bearer " + token);
     }
 
     private void handleResponse(

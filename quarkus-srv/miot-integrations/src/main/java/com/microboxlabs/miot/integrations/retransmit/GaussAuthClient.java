@@ -17,9 +17,11 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
- * Gauss Control OAuth (Basic client + password / refresh_token) for position upload.
+ * Gauss Control auth for position upload.
  *
- * <p>Docs: APG2 / Autenticación - API de Login. Optional static bearer overrides OAuth.
+ * <p>Preferred (provider gateway): {@code X-Provider-Api-Key} + optional
+ * {@code X-Target-Tenant}. Fallback: static bearer or OAuth password/refresh
+ * (APG2 login docs).
  */
 @ApplicationScoped
 public class GaussAuthClient {
@@ -29,6 +31,8 @@ public class GaussAuthClient {
     /** Refresh a minute before expiry when expires_in is known. */
     private static final long SKEW_SECONDS = 60;
 
+    private final Optional<String> providerApiKey;
+    private final Optional<String> targetTenant;
     private final Optional<String> staticBearer;
     private final Optional<String> tokenUrl;
     private final Optional<String> clientId;
@@ -43,6 +47,10 @@ public class GaussAuthClient {
     private Instant accessExpiresAt = Instant.EPOCH;
 
     GaussAuthClient(
+            @ConfigProperty(name = "miot.integrations.retransmit.gauss.provider-api-key")
+                    Optional<String> providerApiKey,
+            @ConfigProperty(name = "miot.integrations.retransmit.gauss.target-tenant")
+                    Optional<String> targetTenant,
             @ConfigProperty(name = "miot.integrations.retransmit.gauss.bearer-token")
                     Optional<String> staticBearer,
             @ConfigProperty(name = "miot.integrations.retransmit.gauss.oauth-token-url")
@@ -55,6 +63,8 @@ public class GaussAuthClient {
                     Optional<String> username,
             @ConfigProperty(name = "miot.integrations.retransmit.gauss.password")
                     Optional<String> password) {
+        this.providerApiKey = providerApiKey.filter(s -> s != null && !s.isBlank());
+        this.targetTenant = targetTenant.filter(s -> s != null && !s.isBlank());
         this.staticBearer = staticBearer.filter(s -> s != null && !s.isBlank());
         this.tokenUrl = tokenUrl.filter(s -> s != null && !s.isBlank());
         this.clientId = clientId.filter(s -> s != null && !s.isBlank());
@@ -67,8 +77,11 @@ public class GaussAuthClient {
                 .build();
     }
 
-    /** Whether Gauss auth is configured (static bearer or full OAuth). */
+    /** Whether any Gauss auth mode is configured. */
     public boolean isConfigured() {
+        if (providerApiKey.isPresent()) {
+            return true;
+        }
         if (staticBearer.isPresent()) {
             return true;
         }
@@ -79,11 +92,31 @@ public class GaussAuthClient {
     }
 
     /**
+     * Applies auth headers to a Gauss upload request.
+     * Prefer provider API key; else OAuth/bearer {@code Authorization}.
+     */
+    public void applyAuthHeaders(HttpRequest.Builder req) {
+        if (providerApiKey.isPresent()) {
+            req.header("X-Provider-Api-Key", providerApiKey.get().trim());
+            targetTenant.ifPresent(t -> req.header("X-Target-Tenant", t.trim()));
+            return;
+        }
+        if (!isConfigured()) {
+            LOG.warn("Gauss delivery without auth config — request will likely 401");
+            return;
+        }
+        req.header("Authorization", "bearer " + getAccessToken());
+    }
+
+    /**
      * Returns a usable access token. Refreshes or re-authenticates as needed.
      *
      * @throws IllegalStateException if auth is not configured or login fails
      */
     public String getAccessToken() {
+        if (providerApiKey.isPresent()) {
+            throw new IllegalStateException("Gauss provider API key mode does not use bearer tokens");
+        }
         if (staticBearer.isPresent()) {
             return staticBearer.get().trim();
         }

@@ -12,10 +12,10 @@ import org.junit.jupiter.api.Test;
 class RealAlfrescoMembershipClientTest {
 
     @Test
-    void resolvesSiteManagerFromNestedSiteRoleGroup() {
+    void resolvesSiteManagerFromAuthoritativeSiteMembership() {
         RealAlfrescoMembershipClient client = new RealAlfrescoMembershipClient(
-                new FakeDirectory(Map.of(
-                        "GROUP_site_mintral_SiteManager", List.of(person("manager@example.com")))));
+                new FakeDirectory(Map.of(), Map.of(
+                        "mintral:manager@example.com", "SiteManager")));
 
         assertTrue(client.isMember("manager@example.com", "GROUP_site_mintral")
                 .await().indefinitely());
@@ -26,17 +26,15 @@ class RealAlfrescoMembershipClientTest {
     @Test
     void rejectsPersonOutsideEverySiteRoleGroup() {
         RealAlfrescoMembershipClient client =
-                new RealAlfrescoMembershipClient(new FakeDirectory(Map.of()));
+                new RealAlfrescoMembershipClient(new FakeDirectory(Map.of(), Map.of()));
 
         assertFalse(client.isMember("outsider@example.com", "GROUP_site_mintral")
                 .await().indefinitely());
     }
 
-    private static AlfrescoPerson person(String id) {
-        return new AlfrescoPerson(id, id, null, null, id);
-    }
-
-    private record FakeDirectory(Map<String, List<AlfrescoPerson>> groups)
+    private record FakeDirectory(
+            Map<String, List<AlfrescoPerson>> groups,
+            Map<String, String> siteRoles)
             implements IAlfrescoDirectoryClient {
 
         @Override
@@ -47,6 +45,11 @@ class RealAlfrescoMembershipClientTest {
             return Uni.createFrom().item(skipCount >= members.size()
                     ? List.of()
                     : List.copyOf(members.subList(skipCount, end)));
+        }
+
+        @Override
+        public Uni<String> getSiteRole(String personId, String siteId) {
+            return Uni.createFrom().item(siteRoles.get(siteId + ":" + personId));
         }
 
         @Override

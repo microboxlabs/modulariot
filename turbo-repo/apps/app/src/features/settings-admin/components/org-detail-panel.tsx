@@ -4,7 +4,6 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgMembers } from "../hooks/use-org-members";
 import { useOrgModules } from "../hooks/use-org-modules";
-import MembersList from "./members-list";
 import ModulesList from "./modules-list";
 import GpsWebhookCard from "../gps-webhooks/gps-webhook-card";
 import WhatsAppChannelCard from "../whatsapp/whatsapp-channel-card";
@@ -46,7 +45,7 @@ export default function OrgDetailPanel({
   }
 
   return (
-    <div className="flex flex-col gap-4 min-h-0">
+    <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
       <ModulesList
         modules={modules}
         isLoading={modulesLoading}
@@ -57,16 +56,15 @@ export default function OrgDetailPanel({
         orgSlug={orgSlug}
         members={members}
         membersLoading={membersLoading}
+        membersError={membersError}
+        canManage={
+          organization?.role === "SITE_MANAGER" ||
+          organization?.role === "GROUP_ADMIN"
+        }
         dict={dict}
       />
       <WhatsAppChannelCard orgSlug={orgSlug} dict={dict} />
       <GpsWebhookCard orgSlug={orgSlug} dict={dict} />
-      <MembersList
-        members={members}
-        isLoading={membersLoading}
-        error={membersError}
-        dict={dict}
-      />
     </div>
   );
 }

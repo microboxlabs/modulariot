@@ -57,6 +57,11 @@ class AlfrescoGroupProjectorTest {
         }
 
         @Override
+        public Uni<String> getSiteRole(String personId, String siteId) {
+            return Uni.createFrom().nullItem();
+        }
+
+        @Override
         public Uni<List<AlfrescoPerson>> searchPeople(String query, int maxItems) {
             return Uni.createFrom().item(List.of());
         }

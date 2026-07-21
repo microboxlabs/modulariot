@@ -46,6 +46,12 @@ public class StubAlfrescoDirectoryClient implements IAlfrescoDirectoryClient {
     }
 
     @Override
+    public Uni<String> getSiteRole(String personId, String siteId) {
+        LOG.warnf("STUB: getSiteRole(%s, %s) — returning SiteManager", personId, siteId);
+        return Uni.createFrom().item("SiteManager");
+    }
+
+    @Override
     public Uni<List<AlfrescoPerson>> searchPeople(String query, int maxItems) {
         LOG.warnf("STUB: searchPeople(%s, max=%d) — returning filtered sample", query, maxItems);
         if (query == null || query.isBlank()) {

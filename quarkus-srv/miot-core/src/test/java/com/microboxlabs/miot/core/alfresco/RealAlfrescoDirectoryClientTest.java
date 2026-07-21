@@ -40,6 +40,15 @@ class RealAlfrescoDirectoryClientTest {
                 members.stream().map(AlfrescoPerson::id).toList());
     }
 
+    @Test
+    void resolvesTheAuthoritativeSiteRole() {
+        RealAlfrescoDirectoryClient client =
+                new RealAlfrescoDirectoryClient(new FakeAlfrescoCoreApi());
+
+        assertEquals("SiteManager", client.getSiteRole("alice@example.com", "mintral")
+                .await().indefinitely());
+    }
+
     static final class FakeAlfrescoCoreApi implements AlfrescoCoreApi {
 
         private final Map<String, List<AlfrescoGroupMemberEntry>> groups = Map.of(
@@ -70,6 +79,12 @@ class RealAlfrescoDirectoryClientTest {
             String lastName = personId.startsWith("alice") ? "Reviewer" : "Operator";
             return Uni.createFrom().item(new SinglePersonEntry(new AlfrescoPersonEntry(
                     personId, firstName, lastName, firstName + " " + lastName, personId)));
+        }
+
+        @Override
+        public Uni<SingleSiteMemberEntry> getSiteMember(String siteId, String personId) {
+            return Uni.createFrom().item(new SingleSiteMemberEntry(
+                    new AlfrescoSiteMemberEntry(personId, "SiteManager")));
         }
 
         @Override

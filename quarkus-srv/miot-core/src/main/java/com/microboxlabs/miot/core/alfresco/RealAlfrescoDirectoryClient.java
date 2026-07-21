@@ -53,6 +53,18 @@ public class RealAlfrescoDirectoryClient implements IAlfrescoDirectoryClient {
                 .map(members -> page(members, safeMaxItems, safeSkipCount));
     }
 
+    @Override
+    public Uni<String> getSiteRole(String personId, String siteId) {
+        return coreApi.getSiteMember(siteId, personId)
+                .map(response -> response.entry() == null ? null : response.entry().role())
+                .onFailure(AlfrescoClientException.class).recoverWithItem(ex -> {
+                    if (ex.isNotFound()) {
+                        return null;
+                    }
+                    throw ex;
+                });
+    }
+
     private Uni<Map<String, AlfrescoGroupMemberEntry>> collectGroupMembers(
             String groupId,
             Set<String> visitedGroups,

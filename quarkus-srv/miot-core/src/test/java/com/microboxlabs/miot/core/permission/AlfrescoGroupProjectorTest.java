@@ -51,6 +51,23 @@ class AlfrescoGroupProjectorTest {
         assertTrue(error.getMessage().contains("missing=[mdavid@sitrans.cl]"));
     }
 
+    @Test
+    void retriesVerificationWhileAlfrescoMembershipIsNotYetVisible() {
+        FakeAlfresco alfresco = new FakeAlfresco();
+        alfresco.staleReadsAfterMutation = 1;
+        AlfrescoGroupProjector projector = new AlfrescoGroupProjector(alfresco, alfresco);
+
+        projector.reconcile(
+                        "GROUP_MINTRAL_AUTO_APPROVERS_SITE_MINTRAL",
+                        "Multimedia content auto approvers",
+                        Set.of("mdavid@sitrans.cl"))
+                .await().indefinitely();
+
+        assertEquals(List.of("mdavid@sitrans.cl"), alfresco.added);
+        assertEquals(List.of("mdavid@sitrans.cl"),
+                alfresco.current.stream().map(AlfrescoPerson::id).toList());
+    }
+
     private static AlfrescoPerson person(String id) {
         return new AlfrescoPerson(id, id, null, null, id);
     }
@@ -63,12 +80,22 @@ class AlfrescoGroupProjectorTest {
         private final List<String> added = new ArrayList<>();
         private final List<String> removed = new ArrayList<>();
         private final List<Integer> requestedOffsets = new ArrayList<>();
+        private final List<AlfrescoPerson> pendingAdditions = new ArrayList<>();
         private boolean ignoreMutations;
+        private int staleReadsAfterMutation;
 
         @Override
         public Uni<List<AlfrescoPerson>> listGroupMembers(
                 String groupId, int maxItems, int skipCount) {
             requestedOffsets.add(skipCount);
+            if (!pendingAdditions.isEmpty()) {
+                if (staleReadsAfterMutation > 0) {
+                    staleReadsAfterMutation--;
+                } else {
+                    current.addAll(pendingAdditions);
+                    pendingAdditions.clear();
+                }
+            }
             int end = Math.min(skipCount + maxItems, current.size());
             return Uni.createFrom().item(skipCount >= current.size()
                     ? List.of()
@@ -95,7 +122,11 @@ class AlfrescoGroupProjectorTest {
         public Uni<Void> addGroupMember(String groupId, String personId) {
             added.add(personId);
             if (!ignoreMutations) {
-                current.add(person(personId));
+                if (staleReadsAfterMutation > 0) {
+                    pendingAdditions.add(person(personId));
+                } else {
+                    current.add(person(personId));
+                }
             }
             return Uni.createFrom().voidItem();
         }

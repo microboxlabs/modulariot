@@ -10,7 +10,11 @@ vi.mock("@microboxlabs/miot-calendar-ui", () => ({
 import { PlannedServiceChip } from "./planned-service-chip";
 import type { PlannedService } from "./planning-selection-context";
 
-function plannedService(workflowStage?: string): PlannedService {
+function plannedService(
+  workflowStage?: string,
+  syncStatus?: PlannedService["syncStatus"],
+  syncDetail?: string
+): PlannedService {
   return {
     service: {
       id: "1658427-V",
@@ -34,13 +38,19 @@ function plannedService(workflowStage?: string): PlannedService {
     },
     slot: { date: new Date("2026-07-13T00:00:00Z"), hour: 5, minutes: 0 },
     ...(workflowStage ? { workflowStage } : {}),
+    ...(syncStatus ? { syncStatus } : {}),
+    ...(syncDetail ? { syncDetail } : {}),
   };
 }
 
-function renderChip(workflowStage?: string) {
+function renderChip(
+  workflowStage?: string,
+  syncStatus?: PlannedService["syncStatus"],
+  syncDetail?: string
+) {
   return render(
     <PlannedServiceChip
-      plannedService={plannedService(workflowStage)}
+      plannedService={plannedService(workflowStage, syncStatus, syncDetail)}
       onContextMenu={vi.fn()}
       dict={{}}
     />
@@ -79,5 +89,38 @@ describe("PlannedServiceChip — workflow stage rendering", () => {
   it("keeps planning-segment stages on the plain look", () => {
     renderChip("assignDriver");
     expect(screen.queryByLabelText(/^workflow-stage-/)).toBeNull();
+  });
+});
+
+describe("PlannedServiceChip — sync status dot", () => {
+  it("renders no sync dot when the booking is untracked", () => {
+    renderChip();
+    expect(screen.queryByLabelText(/^sync-status-/)).toBeNull();
+  });
+
+  it("renders a grey dot for a PENDING sync", () => {
+    renderChip(undefined, "PENDING");
+    const dot = screen.getByLabelText("sync-status-pending");
+    expect(dot.getAttribute("class")).toContain("text-gray-400");
+  });
+
+  it("renders a green dot for a CONFIRMED sync", () => {
+    renderChip(undefined, "CONFIRMED");
+    const dot = screen.getByLabelText("sync-status-confirmed");
+    expect(dot.getAttribute("class")).toContain("text-emerald-500");
+  });
+
+  it("renders a red dot for a REJECTED sync and shows the reason on hover", () => {
+    renderChip(undefined, "REJECTED", "CONDUCTOR2 NO EXISTE");
+    const dot = screen.getByLabelText("sync-status-rejected");
+    expect(dot.getAttribute("class")).toContain("text-red-500");
+    // Reason tooltip lives on the wrapper.
+    expect(screen.getByTitle(/CONDUCTOR2 NO EXISTE/)).toBeTruthy();
+  });
+
+  it("shows the sync dot independently of the workflow stage", () => {
+    renderChip("finished", "REJECTED");
+    expect(screen.getByLabelText("workflow-stage-finished")).toBeTruthy();
+    expect(screen.getByLabelText("sync-status-rejected")).toBeTruthy();
   });
 });

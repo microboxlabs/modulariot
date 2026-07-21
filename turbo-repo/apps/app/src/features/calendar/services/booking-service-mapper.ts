@@ -148,6 +148,14 @@ export function mapBookingToPlannedService(
         ...(_anden === undefined ? {} : { anden: _anden }),
       },
       ...(workflowStage === undefined ? {} : { workflowStage }),
+      // Downstream sync ack rides the booking row (the integration layer is the
+      // single writer). Absent = untracked, so the chip shows no sync dot.
+      ...(booking.syncStatus === undefined
+        ? {}
+        : { syncStatus: booking.syncStatus }),
+      ...(booking.syncDetail === undefined
+        ? {}
+        : { syncDetail: booking.syncDetail }),
     },
   };
 }

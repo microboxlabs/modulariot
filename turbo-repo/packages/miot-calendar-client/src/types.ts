@@ -72,12 +72,27 @@ export type BookingStatus =
   | "FINISHED"
   | "CANCELLED";
 
+/**
+ * External-system acknowledgement of the booking's current data (CALSYNC).
+ * Orthogonal to the monotonic {@link BookingStatus}: a booking can be ASSIGNED
+ * yet unconfirmed downstream, and a data change legitimately drops back to
+ * PENDING. Absent (field omitted) = untracked — calendars with no external
+ * mirror, or bookings created before the feature.
+ */
+export type BookingSyncStatus = "PENDING" | "CONFIRMED" | "REJECTED";
+
 export interface BookingResponse {
   id: string;
   calendarId: string;
   resource: ResourceData;
   slot: SlotData;
   status?: BookingStatus;
+  /** External-system acknowledgement of the booking's current data. */
+  syncStatus?: BookingSyncStatus;
+  /** Acknowledgement/rejection detail (e.g. the downstream refusal reason). */
+  syncDetail?: string;
+  /** ISO timestamp of the last syncStatus transition. */
+  syncAt?: string;
   createdAt: string;
   createdBy?: string;
   updatedAt?: string;

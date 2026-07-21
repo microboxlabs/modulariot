@@ -383,6 +383,12 @@
           "finished": "Finished",
           "cancelled": "Cancelled"
         },
+        "syncStatus": {
+          "label": "Sync",
+          "pending": "Sync pending",
+          "confirmed": "Synced",
+          "rejected": "Sync rejected"
+        },
         "contextMenu": {
           "service": "Service",
           "chipTitle": "Right-click for options",

@@ -8,9 +8,11 @@ import MembersList from "./members-list";
 import ModulesList from "./modules-list";
 import GpsWebhookCard from "../gps-webhooks/gps-webhook-card";
 import WhatsAppChannelCard from "../whatsapp/whatsapp-channel-card";
+import ContentReviewPermissionCard from "./content-review-permission-card";
+import type { OrgSummary } from "../types";
 
 interface OrgDetailPanelProps {
-  readonly orgSlug: string | null;
+  readonly organization: OrgSummary | null;
   readonly dict: I18nRecord;
 }
 
@@ -19,7 +21,11 @@ interface OrgDetailPanelProps {
  * modules. Both sections load independently via SWR; the hooks skip the
  * fetch when orgSlug is null.
  */
-export default function OrgDetailPanel({ orgSlug, dict }: OrgDetailPanelProps) {
+export default function OrgDetailPanel({
+  organization,
+  dict,
+}: OrgDetailPanelProps) {
+  const orgSlug = organization?.slug ?? null;
   const {
     members,
     isLoading: membersLoading,
@@ -47,6 +53,14 @@ export default function OrgDetailPanel({ orgSlug, dict }: OrgDetailPanelProps) {
         error={modulesError}
         dict={dict}
       />
+      {organization?.taxId && (
+        <ContentReviewPermissionCard
+          orgSlug={orgSlug}
+          members={members}
+          membersLoading={membersLoading}
+          dict={dict}
+        />
+      )}
       <WhatsAppChannelCard orgSlug={orgSlug} dict={dict} />
       <GpsWebhookCard orgSlug={orgSlug} dict={dict} />
       <MembersList

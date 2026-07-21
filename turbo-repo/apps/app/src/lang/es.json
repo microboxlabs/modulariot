@@ -1272,6 +1272,21 @@
         "modulesTitle": "Módulos",
         "modulesDescription": "Módulos de producto habilitados para esta organización.",
         "modulesEmpty": "No hay módulos habilitados.",
+        "contentReviewPermission": {
+          "title": "Permiso de revisión multimedia",
+          "description": "Elige qué miembros de la organización pueden aprobar automáticamente sus revisiones multimedia. ModularIoT administra la configuración y la sincroniza con Alfresco.",
+          "loadError": "No se pudo cargar el permiso de revisión multimedia.",
+          "enabledLabel": "Habilitar aprobación automática",
+          "enabledHelp": "Los miembros asignados reciben el rol de aprobación automática de contenido mientras esta opción esté habilitada.",
+          "assigneesLabel": "Usuarios asignados al rol",
+          "noMembers": "Agrega miembros a la organización antes de asignar este rol.",
+          "unavailableMember": "Ya no pertenece a la organización; desmarca para eliminar",
+          "projectionFailed": "La configuración se guardó, pero falló la sincronización con Alfresco. Guardar nuevamente volverá a intentarlo.",
+          "projectionSynced": "Sincronizado con Alfresco.",
+          "saveError": "No se pudo guardar el permiso.",
+          "save": "Guardar permiso",
+          "saving": "Guardando…"
+        },
         "whatsappChannel": {
           "title": "Canal WhatsApp",
           "description": "Configura y prueba la conexión de WhatsApp para contactar a los conductores.",

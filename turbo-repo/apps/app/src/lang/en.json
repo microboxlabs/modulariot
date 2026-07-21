@@ -1272,6 +1272,21 @@
         "modulesTitle": "Modules",
         "modulesDescription": "Enabled product modules for this organization.",
         "modulesEmpty": "No modules enabled.",
+        "contentReviewPermission": {
+          "title": "Multimedia review permission",
+          "description": "Choose which organization members may have their multimedia reviews approved automatically. ModularIoT owns the setting and synchronizes it to Alfresco.",
+          "loadError": "Couldn't load the multimedia review permission.",
+          "enabledLabel": "Enable automatic approval",
+          "enabledHelp": "Assigned members receive the Content Review Auto Approver role while this setting is enabled.",
+          "assigneesLabel": "Role assignees",
+          "noMembers": "Add members to the organization before assigning this role.",
+          "unavailableMember": "No longer an organization member; uncheck to remove",
+          "projectionFailed": "The setting was saved, but Alfresco synchronization failed. Saving again will retry it.",
+          "projectionSynced": "Synchronized with Alfresco.",
+          "saveError": "Couldn't save the permission.",
+          "save": "Save permission",
+          "saving": "Saving…"
+        },
         "whatsappChannel": {
           "title": "WhatsApp Channel",
           "description": "Configure and test the WhatsApp connection used to reach drivers.",

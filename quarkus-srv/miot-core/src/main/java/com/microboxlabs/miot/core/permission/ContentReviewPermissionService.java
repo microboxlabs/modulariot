@@ -41,6 +41,7 @@ public class ContentReviewPermissionService {
     private final AlfrescoGroupProjector groupProjector;
     private final WriteAuthorizer writeAuthorizer;
     private final String targetGroupPrefix;
+    private final String siteTargetGroupPrefix;
 
     @Inject
     public ContentReviewPermissionService(
@@ -49,11 +50,15 @@ public class ContentReviewPermissionService {
             WriteAuthorizer writeAuthorizer,
             @ConfigProperty(
                     name = "miot.permissions.content-review.alfresco-group-prefix",
-                    defaultValue = "GROUP_MINTRAL_AUTO_APPROVERS_") String targetGroupPrefix) {
+                    defaultValue = "GROUP_MINTRAL_AUTO_APPROVERS_") String targetGroupPrefix,
+            @ConfigProperty(
+                    name = "miot.permissions.content-review.alfresco-site-group-prefix",
+                    defaultValue = "GROUP_MINTRAL_AUTO_APPROVERS_SITE_") String siteTargetGroupPrefix) {
         this.directoryClient = directoryClient;
         this.groupProjector = groupProjector;
         this.writeAuthorizer = writeAuthorizer;
         this.targetGroupPrefix = targetGroupPrefix;
+        this.siteTargetGroupPrefix = siteTargetGroupPrefix;
     }
 
     public Uni<ContentReviewPermissionDto> get(String organizationSlug) {
@@ -240,7 +245,11 @@ public class ContentReviewPermissionService {
     }
 
     private String targetGroupFor(Organization organization) {
-        return targetGroupForTaxId(targetGroupPrefix, organization.taxId);
+        if (organization.taxId != null && !organization.taxId.isBlank()) {
+            return targetGroupForTaxId(targetGroupPrefix, organization.taxId);
+        }
+        return targetGroupForSite(
+                siteTargetGroupPrefix, organization.alfrescoGroupId);
     }
 
     static String targetGroupForTaxId(String groupPrefix, String taxId) {
@@ -251,6 +260,22 @@ public class ContentReviewPermissionService {
         String normalizedTaxId = taxId.toUpperCase(Locale.ROOT)
                 .replaceAll("[^A-Z0-9]", "");
         return groupPrefix + normalizedTaxId;
+    }
+
+    static String targetGroupForSite(String groupPrefix, String alfrescoGroupId) {
+        final String siteGroupPrefix = "GROUP_site_";
+        if (alfrescoGroupId == null || !alfrescoGroupId.startsWith(siteGroupPrefix)) {
+            throw new BadRequestException(
+                    "Parent content-review permissions require an Alfresco site group binding");
+        }
+        String siteId = alfrescoGroupId.substring(siteGroupPrefix.length())
+                .toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z0-9]", "");
+        if (siteId.isEmpty()) {
+            throw new BadRequestException(
+                    "Parent content-review permissions require an Alfresco site id");
+        }
+        return groupPrefix + siteId;
     }
 
     private record OrganizationTarget(

@@ -7,7 +7,7 @@ import org.jboss.logging.Logger;
 
 /**
  * Stub implementation — always approves membership.
- * Active by default until a real Alfresco REST client is registered.
+ * Used only by local/test profiles that explicitly exclude the real client.
  */
 @ApplicationScoped
 @DefaultBean

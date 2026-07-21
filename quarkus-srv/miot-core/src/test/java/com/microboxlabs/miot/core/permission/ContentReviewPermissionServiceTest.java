@@ -25,4 +25,19 @@ class ContentReviewPermissionServiceTest {
         assertThrows(BadRequestException.class,
                 () -> ContentReviewPermissionService.targetGroupForTaxId("GROUP_", null));
     }
+
+    @Test
+    void derivesSiteWideGroupForParentOrganization() {
+        assertEquals(
+                "GROUP_MINTRAL_AUTO_APPROVERS_SITE_MINTRAL",
+                ContentReviewPermissionService.targetGroupForSite(
+                        "GROUP_MINTRAL_AUTO_APPROVERS_SITE_", "GROUP_site_mintral"));
+    }
+
+    @Test
+    void rejectsParentOrganizationWithoutSiteGroupBinding() {
+        assertThrows(BadRequestException.class,
+                () -> ContentReviewPermissionService.targetGroupForSite(
+                        "GROUP_MINTRAL_AUTO_APPROVERS_SITE_", "GROUP_MINTRAL_CLIENTS"));
+    }
 }

@@ -19,6 +19,7 @@ public class RetransmitDeliverySettings {
     private final int retryBaseSeconds;
     private final int retryMaxSeconds;
     private final String payloadFormat;
+    private final boolean logTraffic;
     private final Defaults gaussDefaults;
 
     RetransmitDeliverySettings(
@@ -34,6 +35,8 @@ public class RetransmitDeliverySettings {
                     int retryMaxSeconds,
             @ConfigProperty(name = "miot.integrations.retransmit.payload-format", defaultValue = "auto")
                     String payloadFormat,
+            @ConfigProperty(name = "miot.integrations.retransmit.gauss.log-traffic", defaultValue = "false")
+                    boolean logTraffic,
             Defaults gaussDefaults) {
         this.workerEnabled = workerEnabled;
         this.claimLimit = claimLimit;
@@ -41,6 +44,7 @@ public class RetransmitDeliverySettings {
         this.retryBaseSeconds = retryBaseSeconds;
         this.retryMaxSeconds = retryMaxSeconds;
         this.payloadFormat = payloadFormat == null ? "auto" : payloadFormat.trim().toLowerCase(Locale.ROOT);
+        this.logTraffic = logTraffic;
         this.gaussDefaults = gaussDefaults;
     }
 
@@ -84,6 +88,14 @@ public class RetransmitDeliverySettings {
 
     String payloadFormat() {
         return payloadFormat;
+    }
+
+    /**
+     * When true, log Gauss HTTP request payload and response body at INFO
+     * (auth headers redacted). Off by default — enable only for traffic capture.
+     */
+    boolean logTraffic() {
+        return logTraffic;
     }
 
     Defaults gaussDefaults() {

@@ -33,6 +33,8 @@ public class RetransmitDeliveryJob {
 
     private static final Logger LOG = Logger.getLogger(RetransmitDeliveryJob.class);
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(15);
+    /** Max chars of request/response body in traffic logs (full GPS points are small). */
+    private static final int TRAFFIC_BODY_MAX = 16_384;
 
     private final RetransmitDeliveryRepository repository;
     private final GaussAuthClient gaussAuth;
@@ -92,10 +94,18 @@ public class RetransmitDeliveryJob {
                 body = new JsonObject(delivery.payload()).encode();
             }
 
+            if (settings.logTraffic() && gauss) {
+                logTrafficRequest(delivery, body, false);
+            }
+
             HttpResponse<String> response = httpClient.send(
                     req.POST(HttpRequest.BodyPublishers.ofString(body)).build(),
                     HttpResponse.BodyHandlers.ofString());
             int code = response.statusCode();
+
+            if (settings.logTraffic() && gauss) {
+                logTrafficResponse(delivery, code, response.body(), false);
+            }
 
             // One retry after re-auth on 401 for Gauss (OAuth/bearer; API-key mode is static)
             if (gauss && code == 401) {
@@ -107,10 +117,16 @@ public class RetransmitDeliveryJob {
                         .header("User-Agent", "ModularIoT-Retransmit/1.0")
                         .header("X-Miot-Retransmit-Config", delivery.configId());
                 gaussAuth.applyAuthHeaders(retry);
+                if (settings.logTraffic()) {
+                    logTrafficRequest(delivery, body, true);
+                }
                 response = httpClient.send(
                         retry.POST(HttpRequest.BodyPublishers.ofString(body)).build(),
                         HttpResponse.BodyHandlers.ofString());
                 code = response.statusCode();
+                if (settings.logTraffic()) {
+                    logTrafficResponse(delivery, code, response.body(), true);
+                }
             }
 
             handleResponse(delivery, id, code, response.body(), gauss);
@@ -205,5 +221,42 @@ public class RetransmitDeliveryJob {
             return null;
         }
         return error.length() > 1000 ? error.substring(0, 1000) : error;
+    }
+
+    /**
+     * Traffic capture for Gauss POSTs. Never logs Authorization / API-key values —
+     * only URL, delivery metadata, and JSON bodies.
+     */
+    private void logTrafficRequest(RetransmitDelivery delivery, String body, boolean retry) {
+        LOG.infof(
+                "Gauss traffic REQUEST%s id=%s config=%s asset=%s url=%s body=%s",
+                retry ? " (retry-after-401)" : "",
+                delivery.id(),
+                delivery.configId(),
+                delivery.assetId(),
+                delivery.destinationUrl(),
+                truncateTraffic(body));
+    }
+
+    private void logTrafficResponse(
+            RetransmitDelivery delivery, int statusCode, String responseBody, boolean retry) {
+        LOG.infof(
+                "Gauss traffic RESPONSE%s id=%s config=%s asset=%s status=%d body=%s",
+                retry ? " (retry-after-401)" : "",
+                delivery.id(),
+                delivery.configId(),
+                delivery.assetId(),
+                statusCode,
+                truncateTraffic(responseBody));
+    }
+
+    private static String truncateTraffic(String body) {
+        if (body == null) {
+            return "";
+        }
+        if (body.length() <= TRAFFIC_BODY_MAX) {
+            return body;
+        }
+        return body.substring(0, TRAFFIC_BODY_MAX) + "...[truncated " + body.length() + " chars]";
     }
 }

@@ -74,9 +74,11 @@ confirm means the calendar API is down, not that the data was rejected).
 | `template_name` / `language` | optional Meta template; absent ⇒ free-form TEXT (needs an open 24h session — fine for ops numbers that talk to the bot) |
 
 The throttle is claimed at *enqueue* time (observer side): a burst of parks
-within the window produces one notification job, not a queue of them. Rules for
-`job_failure_notification` itself are never matched (no notify-about-notify
-loops).
+within the window produces one notification job, not a queue of them. If the
+enqueue then fails, the claim is released again (CAS on the exact claimed
+stamp, so it can only undo itself) — a claim that produced no job must not
+suppress the window's next park. Rules for `job_failure_notification` itself
+are never matched (no notify-about-notify loops).
 
 ### The WhatsApp handler lives in miot-conversational
 

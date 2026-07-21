@@ -15,6 +15,8 @@ import com.microboxlabs.miot.integrations.events.JobEventEmitter;
 import com.microboxlabs.miot.integrations.events.JobParkedEvent;
 import com.microboxlabs.miot.integrations.persistence.JobNotificationRuleRepository;
 import com.microboxlabs.miot.integrations.service.AsyncJobService;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -109,12 +111,43 @@ class JobFailureNotifyOnParkTest {
         assertNull(jobService.lastRequest);
     }
 
+    @Test
+    void failedEnqueueReleasesTheClaimedThrottleSlot() {
+        rules.enabled = List.of(rule(List.of("+56911111111"), null, null));
+        jobService.enqueueThrows = new IllegalStateException("db down");
+
+        hook.onParked(new JobParkedEvent(parked("alerce_assignment")));
+
+        // The claim produced no job — it must not suppress the window.
+        assertEquals(List.of("rule-1"), rules.releasedRuleIds);
+        assertEquals(FakeRules.CLAIMED_AT, rules.releasedAt);
+    }
+
+    @Test
+    void oneRuleFailingDoesNotSkipTheOthers() {
+        rules.enabled = List.of(
+                ruleWithId("rule-1", List.of("+56911111111")),
+                ruleWithId("rule-2", List.of("+56922222222")));
+        jobService.enqueueThrowsOnce = new IllegalStateException("transient");
+
+        hook.onParked(new JobParkedEvent(parked("alerce_assignment")));
+
+        assertEquals(List.of("rule-1"), rules.releasedRuleIds);
+        assertEquals("notify:rule-2:job-1:5", jobService.lastRequest.jobs().get(0).dedupeKey());
+    }
+
     // -----------------------------------------------------------------------
 
     private static JobNotificationRule rule(List<String> recipients, String templateName, String language) {
         return new JobNotificationRule("rule-1", "tenant-1", "alerce_assignment",
                 JobNotificationRule.CHANNEL_WHATSAPP, recipients, true, 300,
                 templateName, language, null, null, null);
+    }
+
+    private static JobNotificationRule ruleWithId(String id, List<String> recipients) {
+        return new JobNotificationRule(id, "tenant-1", "alerce_assignment",
+                JobNotificationRule.CHANNEL_WHATSAPP, recipients, true, 300,
+                null, null, null, null, null);
     }
 
     private static AsyncJob parked(String jobType) {
@@ -125,11 +158,16 @@ class JobFailureNotifyOnParkTest {
     }
 
     private static class FakeRules extends JobNotificationRuleRepository {
+        static final OffsetDateTime CLAIMED_AT =
+                OffsetDateTime.of(2026, 7, 21, 12, 0, 0, 0, ZoneOffset.UTC);
+
         List<JobNotificationRule> enabled = List.of();
         boolean claimWins = true;
         RuntimeException findThrows;
         String lookedUpJobType;
         final List<String> claimedRuleIds = new java.util.ArrayList<>();
+        final List<String> releasedRuleIds = new java.util.ArrayList<>();
+        OffsetDateTime releasedAt;
 
         FakeRules() {
             super(null);
@@ -145,9 +183,16 @@ class JobFailureNotifyOnParkTest {
         }
 
         @Override
-        public boolean claimThrottleSlot(String ruleId) {
+        public OffsetDateTime claimThrottleSlot(String ruleId) {
             claimedRuleIds.add(ruleId);
-            return claimWins;
+            return claimWins ? CLAIMED_AT : null;
+        }
+
+        @Override
+        public boolean releaseThrottleSlot(String ruleId, OffsetDateTime claimedAt) {
+            releasedRuleIds.add(ruleId);
+            releasedAt = claimedAt;
+            return true;
         }
     }
 
@@ -155,6 +200,8 @@ class JobFailureNotifyOnParkTest {
     private static class RecordingJobService extends AsyncJobService {
         String enqueuedTenant;
         EnqueueJobsRequest lastRequest;
+        RuntimeException enqueueThrows;
+        RuntimeException enqueueThrowsOnce;
 
         RecordingJobService() {
             super(null, new JobEventEmitter(Optional.empty()), null, 60, 3600);
@@ -162,6 +209,14 @@ class JobFailureNotifyOnParkTest {
 
         @Override
         public EnqueueJobsResponse enqueue(String tenantCode, EnqueueJobsRequest request) {
+            if (enqueueThrows != null) {
+                throw enqueueThrows;
+            }
+            if (enqueueThrowsOnce != null) {
+                RuntimeException once = enqueueThrowsOnce;
+                enqueueThrowsOnce = null;
+                throw once;
+            }
             this.enqueuedTenant = tenantCode;
             this.lastRequest = request;
             return new EnqueueJobsResponse(List.of(), 0);

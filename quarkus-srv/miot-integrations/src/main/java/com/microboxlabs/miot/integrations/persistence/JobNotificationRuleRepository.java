@@ -8,6 +8,7 @@ import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,7 +53,8 @@ public class JobNotificationRuleRepository {
      * Atomic throttle claim: stamps {@code last_notified_at} only when the rule
      * is enabled and its window has elapsed, so concurrent parks across pods
      * race for one slot and exactly one wins ({@code throttle_seconds = 0}
-     * always passes).
+     * always passes). Returns the stamp so a caller whose follow-up work fails
+     * can hand it back to {@link #releaseThrottleSlot}.
      */
     private static final String CLAIM_SLOT = """
             UPDATE miot_integrations.job_notification_rules
@@ -61,7 +63,18 @@ public class JobNotificationRuleRepository {
               AND enabled
               AND (last_notified_at IS NULL
                    OR last_notified_at <= now() - make_interval(secs => throttle_seconds))
-            RETURNING id""";
+            RETURNING last_notified_at""";
+
+    /**
+     * Compensation for a claim whose follow-up enqueue failed: reopen the
+     * window so the claim doesn't suppress notifications it never produced.
+     * CAS on the exact claimed stamp — a newer claim's stamp never matches, so
+     * this can only undo its own claim.
+     */
+    private static final String RELEASE_SLOT = """
+            UPDATE miot_integrations.job_notification_rules
+            SET last_notified_at = NULL, updated_at = now()
+            WHERE id = $1::uuid AND last_notified_at = $2""";
 
     private final Instance<Pool> clientInstance;
 
@@ -111,12 +124,28 @@ public class JobNotificationRuleRepository {
                 .rowCount() > 0;
     }
 
-    /** @return true when this call won the rule's throttle slot. See {@link #CLAIM_SLOT}. */
-    public boolean claimThrottleSlot(String ruleId) {
-        return client().preparedQuery(CLAIM_SLOT)
+    /**
+     * @return the claimed {@code last_notified_at} stamp when this call won the
+     *         rule's throttle slot, null when throttled. See {@link #CLAIM_SLOT}.
+     */
+    public OffsetDateTime claimThrottleSlot(String ruleId) {
+        RowSet<Row> rows = client().preparedQuery(CLAIM_SLOT)
                 .execute(Tuple.of(ruleId))
+                .await().indefinitely();
+        return rows.iterator().hasNext()
+                ? rows.iterator().next().getOffsetDateTime("last_notified_at")
+                : null;
+    }
+
+    /**
+     * Reverts a {@link #claimThrottleSlot} whose follow-up enqueue failed.
+     * @return true when the claim was still in place and got released
+     */
+    public boolean releaseThrottleSlot(String ruleId, OffsetDateTime claimedAt) {
+        return client().preparedQuery(RELEASE_SLOT)
+                .execute(Tuple.of(ruleId, claimedAt))
                 .await().indefinitely()
-                .iterator().hasNext();
+                .rowCount() > 0;
     }
 
     private Pool client() {

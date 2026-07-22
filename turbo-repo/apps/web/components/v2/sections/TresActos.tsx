@@ -1,7 +1,7 @@
 import { Reveal } from "../Reveal";
 import { Section, SectionHeader, ArrowRight } from "./shared";
 
-// Núcleo narrativo disruptivo. Cada acto abre su módulo nativo en el sitio.
+// Núcleo narrativo. Cada acto abre su módulo nativo en el sitio con datos reales.
 const actos = (base: string) => [
   {
     n: "Acto 1",
@@ -38,29 +38,29 @@ export function TresActos({ base }: { base: string }) {
         title="Detectar es barato, pero reducir es el negocio."
         subtitle="El mismo motor de inteligencia, aplicado en tres momentos distintos de tu operación."
       />
-      <div className="mt-10 grid gap-6 md:grid-cols-3">
+      <div className="mt-12 grid gap-4 md:grid-cols-3">
         {ACTOS.map((a, i) => (
           <Reveal
             key={a.n}
             delay={i * 0.08}
-            className="flex flex-col rounded-xl border border-gray-200 bg-white p-8 transition-shadow hover:shadow-md"
+            className="flex flex-col rounded-[14px] border border-hairline bg-surface p-6 transition-colors hover:border-hairline-strong"
           >
-            <p className="text-xs font-bold tracking-widest text-blue-600 uppercase">
+            <p className="font-mono text-[11px] tracking-[0.12em] text-accent uppercase">
               {a.n} · {a.tag}
             </p>
-            <h3 className="mt-3 text-xl font-bold text-gray-950">{a.title}</h3>
-            <p className="mt-3 flex-1 leading-relaxed text-gray-600">{a.body}</p>
+            <h3 className="mt-3 text-lg font-semibold tracking-[-0.01em] text-ink-1">{a.title}</h3>
+            <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-2">{a.body}</p>
             <a
               href={a.href}
-              className="mt-6 inline-flex items-center gap-1.5 font-semibold text-blue-700 transition-colors hover:text-blue-900"
+              className="group mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition-colors hover:text-accent-strong"
             >
               {a.cta} <ArrowRight className="transition-transform group-hover:translate-x-0.5" />
             </a>
           </Reveal>
         ))}
       </div>
-      <Reveal className="mx-auto mt-10 max-w-2xl text-center">
-        <p className="text-sm text-gray-500">
+      <Reveal className="mt-8">
+        <p className="text-sm text-ink-3">
           Lo que ves en el explorador es una operación real (junio 2026), no una maqueta.
         </p>
       </Reveal>

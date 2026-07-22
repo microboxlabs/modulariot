@@ -125,7 +125,7 @@ const CAP_ICON: Record<CapKey, React.ReactNode> = {
 };
 function Chevron({ open }: { open: boolean }) {
   return (
-    <svg className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className={`h-4 w-4 shrink-0 text-ink-3 transition-transform ${open ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M9 6l6 6-6 6" />
     </svg>
   );
@@ -178,10 +178,10 @@ export default function PricingTiers({ lang = "es", base }: { lang?: Lang; base:
     <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
       {/* Toggle */}
       <div className="flex justify-center">
-        <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+        <div className="inline-flex rounded-lg border border-hairline bg-surface p-1">
           {(["nivel", "medida"] as const).map((v) => (
             <button key={v} onClick={() => setView(v)}
-              className={`rounded-md px-5 py-2 text-sm font-semibold transition-colors ${view === v ? "bg-gray-950 text-white" : "text-gray-600 hover:text-gray-950"}`}>
+              className={`rounded-md px-5 py-2 text-sm font-semibold transition-colors ${view === v ? "bg-ink-1 text-page" : "text-ink-2 hover:text-ink-1"}`}>
               {v === "nivel" ? t.toggleNivel : t.toggleMedida}
             </button>
           ))}
@@ -193,17 +193,17 @@ export default function PricingTiers({ lang = "es", base }: { lang?: Lang; base:
       ) : (
         <>
           {/* Observabilidad de datos — línea base fija */}
-          <div className="mx-auto mt-8 max-w-3xl rounded-xl border border-gray-200 bg-gray-50 p-5">
+          <div className="mx-auto mt-8 max-w-3xl rounded-xl border border-hairline bg-surface-2 p-5">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-white">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
                   <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z M12 15a3 3 0 100-6 3 3 0 000 6Z" />
                 </svg>
               </span>
               <div>
-                <p className="text-sm font-bold text-gray-950">{t.obsTitle}</p>
-                <p className="mt-1 text-sm leading-relaxed text-gray-600">{t.obsDesc}</p>
-                <a href={`${base}/proveedores-gps`} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900">
+                <p className="text-sm font-semibold text-ink-1">{t.obsTitle}</p>
+                <p className="mt-1 text-sm leading-relaxed text-ink-2">{t.obsDesc}</p>
+                <a href={`${base}/proveedores-gps`} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:text-accent-strong">
                   {t.obsLink}
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m0 0l-6-6m6 6l-6 6" /></svg>
                 </a>
@@ -211,14 +211,14 @@ export default function PricingTiers({ lang = "es", base }: { lang?: Lang; base:
             </div>
           </div>
 
-          <p className="mt-8 text-center text-sm text-gray-500">{t.selHint}</p>
+          <p className="mt-8 text-center text-sm text-ink-3">{t.selHint}</p>
 
           {/* Activos a monitorear */}
-          <div className="mx-auto mt-6 flex max-w-xl flex-col items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:flex-row sm:gap-5">
-            <label htmlFor="pt-activos" className="shrink-0 text-sm font-semibold text-gray-800">{t.assets}</label>
+          <div className="mx-auto mt-6 flex max-w-xl flex-col items-center gap-3 rounded-xl border border-hairline bg-surface-2 p-4 sm:flex-row sm:gap-5">
+            <label htmlFor="pt-activos" className="shrink-0 text-sm font-semibold text-ink-2">{t.assets}</label>
             <input id="pt-activos" type="number" min={1} value={activos}
               onChange={(e) => setActivos(clampAssets(+e.target.value))}
-              className="w-28 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20" />
+              className="w-28 rounded-lg border border-hairline-strong bg-surface px-3 py-2 text-sm font-semibold text-ink-1 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
             <input type="range" min={100} max={5000} step={50} value={Math.min(Math.max(activos, 100), 5000)}
               onChange={(e) => setActivos(+e.target.value)} className="w-full flex-1 accent-blue-600" />
           </div>
@@ -233,8 +233,8 @@ export default function PricingTiers({ lang = "es", base }: { lang?: Lang; base:
               </colgroup>
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-10 bg-white px-4 py-3 text-left align-bottom">
-                    <span className="text-xs font-bold uppercase tracking-wide text-gray-400">{t.colSintomas}</span>
+                  <th className="sticky left-0 z-10 bg-surface px-4 py-3 text-left align-bottom">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-ink-3">{t.colSintomas}</span>
                   </th>
                   {CAP_ORDER.map((key, ci) => {
                     const active = ci === sel;
@@ -242,21 +242,21 @@ export default function PricingTiers({ lang = "es", base }: { lang?: Lang; base:
                     return (
                       <th key={key}
                         onClick={() => { if (!soon) setSel(ci); }}
-                        className={`px-4 py-4 text-left align-top transition-colors ${soon ? "opacity-45" : "cursor-pointer"} ${active ? "bg-blue-50" : soon ? "" : "hover:bg-gray-50"} ${ci === sel ? "rounded-t-xl border-x-2 border-t-2 border-blue-600" : "border-x border-t border-transparent"}`}
+                        className={`px-4 py-4 text-left align-top transition-colors ${soon ? "opacity-45" : "cursor-pointer"} ${active ? "bg-accent-soft" : soon ? "" : "hover:bg-surface-2"} ${ci === sel ? "rounded-t-xl border-x-2 border-t-2 border-accent" : "border-x border-t border-transparent"}`}
                       >
                         <div className="flex items-center gap-2">
-                          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${active ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600"}`}>
+                          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${active ? "bg-accent text-white" : "bg-accent-soft text-accent"}`}>
                             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">{CAP_ICON[key]}</svg>
                           </span>
-                          <span className="text-base font-bold text-gray-950">{t.caps[key].name}</span>
+                          <span className="text-base font-semibold text-ink-1">{t.caps[key].name}</span>
                         </div>
-                        <p className="mt-2 text-xs font-normal leading-relaxed text-gray-500">{t.caps[key].desc}</p>
+                        <p className="mt-2 text-xs font-normal leading-relaxed text-ink-3">{t.caps[key].desc}</p>
                         {soon ? (
-                          <span className="mt-3 inline-block rounded-full bg-gray-200 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">{t.soon}</span>
+                          <span className="mt-3 inline-block rounded-full bg-surface-3 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">{t.soon}</span>
                         ) : (
                           <div className="mt-3 flex items-baseline gap-1">
-                            <span className="text-xl font-extrabold text-gray-950">{fmtUSD(capPrices[ci])}</span>
-                            <span className="text-[11px] font-normal text-gray-500">{t.perUnit}</span>
+                            <span className="text-xl font-semibold tracking-[-0.02em] text-ink-1">{fmtUSD(capPrices[ci])}</span>
+                            <span className="text-[11px] font-normal text-ink-3">{t.perUnit}</span>
                           </div>
                         )}
                       </th>
@@ -279,19 +279,19 @@ export default function PricingTiers({ lang = "es", base }: { lang?: Lang; base:
               </tbody>
               <tfoot>
                 <tr>
-                  <td className="sticky left-0 bg-white px-4 py-4 text-sm text-gray-500">
+                  <td className="sticky left-0 bg-surface px-4 py-4 text-sm text-ink-3">
                     {t.baseNote(fmtUSD(BASE))}
                   </td>
                   {CAP_ORDER.map((key, ci) => {
                     const active = ci === sel;
                     return (
-                      <td key={key} className={`px-4 py-4 align-top ${active ? "rounded-b-xl border-x-2 border-b-2 border-blue-600 bg-blue-50" : ""}`}>
+                      <td key={key} className={`px-4 py-4 align-top ${active ? "rounded-b-xl border-x-2 border-b-2 border-accent bg-accent-soft" : ""}`}>
                         {active && (
                           <div>
-                            <p className="text-[11px] text-gray-400">{activos.toLocaleString("es-CL")} activos</p>
-                            <p className="text-2xl font-extrabold tabular-nums text-blue-700">{fmtTotal(selPrice * activos)}<span className="text-xs font-medium text-gray-500">{t.totalMo}</span></p>
+                            <p className="text-[11px] text-ink-3">{activos.toLocaleString("es-CL")} activos</p>
+                            <p className="text-2xl font-semibold tracking-[-0.02em] tabular-nums text-accent">{fmtTotal(selPrice * activos)}<span className="text-xs font-medium text-ink-3">{t.totalMo}</span></p>
                             <a href={`${base}/contacto?intent=cotizar`}
-                              className="mt-3 block rounded-lg bg-blue-600 px-4 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-blue-700">
+                              className="mt-3 block rounded-lg border border-ink-1 bg-ink-1 px-4 py-2 text-center text-xs font-medium text-page transition-colors hover:bg-ink-2 hover:border-ink-2">
                               {t.cta} {t.caps[key].name}
                             </a>
                           </div>
@@ -304,23 +304,23 @@ export default function PricingTiers({ lang = "es", base }: { lang?: Lang; base:
             </table>
           </div>
 
-          <p className="mt-4 text-center text-xs text-gray-400">{t.msgNote}</p>
+          <p className="mt-4 text-center text-xs text-ink-3">{t.msgNote}</p>
 
           {/* Tooltip del cuadrante */}
           {tip && (
             <div
-              className="pointer-events-none fixed z-50 w-72 rounded-xl border border-gray-200 bg-white p-4 shadow-xl"
+              className="pointer-events-none fixed z-50 w-72 rounded-xl border border-hairline bg-surface p-4 shadow-xl"
               style={{
                 left: Math.min(tip.x + 16, (typeof window !== "undefined" ? window.innerWidth : 1200) - 304),
                 top: tip.y + 16,
               }}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-blue-700">{tip.level}</span>
-                <span className="text-sm font-bold text-blue-700">{tip.price}{tip.price.startsWith("+") && <span className="text-[11px] font-normal text-gray-500"> al total</span>}</span>
+                <span className="rounded-md bg-accent-soft px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-accent">{tip.level}</span>
+                <span className="text-sm font-semibold text-accent">{tip.price}{tip.price.startsWith("+") && <span className="text-[11px] font-normal text-ink-3"> al total</span>}</span>
               </div>
-              <p className="mt-2 text-sm font-semibold text-gray-900">{tip.title}</p>
-              <p className="mt-1 text-sm leading-relaxed text-gray-600">{tip.desc}</p>
+              <p className="mt-2 text-sm font-semibold text-ink-1">{tip.title}</p>
+              <p className="mt-1 text-sm leading-relaxed text-ink-2">{tip.desc}</p>
             </div>
           )}
         </>
@@ -334,10 +334,10 @@ type TipData = { title: string; level: string; desc: string; price: string; x: n
 
 // Ícono de la capacidad en la celda (ojo/campana/robot), coloreado hasta el nivel.
 function QuadIcon({ ci, on, sel }: { ci: number; on: boolean; sel: number }) {
-  if (!on) return <span className="text-gray-200">—</span>;
+  if (!on) return <span className="text-hairline">—</span>;
   const reached = ci <= sel;
   return (
-    <svg className={`mx-auto h-[18px] w-[18px] ${reached ? "text-blue-600" : "text-gray-300"}`}
+    <svg className={`mx-auto h-[18px] w-[18px] ${reached ? "text-accent" : "text-hairline-strong"}`}
       viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {CAP_ICON[CAP_ORDER[ci]]}
     </svg>
@@ -365,7 +365,7 @@ function FamilyRows({ fi, fam, items, isOpen, sel, famAll, famNone, isOn, cols, 
   return (
     <>
       <tr className={famNone ? "opacity-50" : ""}>
-        <td className="sticky left-0 z-10 border-t border-gray-100 bg-white px-4 py-2.5">
+        <td className="sticky left-0 z-10 border-t border-hairline bg-surface px-4 py-2.5">
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -377,15 +377,15 @@ function FamilyRows({ fi, fam, items, isOpen, sel, famAll, famNone, isOn, cols, 
             />
             <button onClick={onToggleOpen} className="flex items-start gap-1.5 text-left">
               <span className="mt-0.5"><Chevron open={isOpen} /></span>
-              <span className="text-sm font-semibold text-gray-950">
-                {fam} <span className="font-normal text-gray-400">· {selCount}/{items.length}</span>
+              <span className="text-sm font-semibold text-ink-1">
+                {fam} <span className="font-normal text-ink-3">· {selCount}/{items.length}</span>
               </span>
             </button>
           </div>
         </td>
         {[0, 1, 2].map((ci) => (
           <td key={ci} {...tipHandlers(fam, ci, cols[ci].desc, true)}
-            className={`cursor-help border-t border-gray-100 px-3 py-2.5 ${ci === sel ? "border-x-2 border-blue-600 bg-blue-50/60" : ""}`}>
+            className={`cursor-help border-t border-hairline px-3 py-2.5 ${ci === sel ? "border-x-2 border-accent bg-accent-soft/60" : ""}`}>
             <QuadIcon ci={ci} on={!famNone} sel={sel} />
           </td>
         ))}
@@ -395,16 +395,16 @@ function FamilyRows({ fi, fam, items, isOpen, sel, famAll, famNone, isOn, cols, 
         const descs = [s.see, s.act, s.solve];
         return (
           <tr key={s.id} className={on ? "" : "opacity-50"}>
-            <td className="sticky left-0 z-10 border-t border-gray-100 bg-white py-2 pl-8 pr-4">
+            <td className="sticky left-0 z-10 border-t border-hairline bg-surface py-2 pl-8 pr-4">
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={on} onChange={() => onToggleSym(s.id)} aria-label={s.name}
                   className="h-3.5 w-3.5 shrink-0 accent-blue-600" />
-                <span className="text-sm text-gray-600">{s.name}</span>
+                <span className="text-sm text-ink-2">{s.name}</span>
               </label>
             </td>
             {[0, 1, 2].map((ci) => (
               <td key={ci} {...tipHandlers(s.name, ci, descs[ci] || cols[ci].desc, false)}
-                className={`cursor-help border-t border-gray-100 px-3 py-2 ${ci === sel ? "border-x-2 border-blue-600 bg-blue-50/60" : ""}`}>
+                className={`cursor-help border-t border-hairline px-3 py-2 ${ci === sel ? "border-x-2 border-accent bg-accent-soft/60" : ""}`}>
                 <QuadIcon ci={ci} on={on} sel={sel} />
               </td>
             ))}

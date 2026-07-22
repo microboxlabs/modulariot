@@ -7,23 +7,23 @@ export function Architecture({ lang }: { lang: string }) {
   return (
     <Section id="arquitectura" tone="gray">
       <SectionHeader kicker={c.kicker} title={c.title} subtitle={c.subtitle} />
-      <div className="mt-16 grid gap-6 md:grid-cols-3">
+      <div className="mt-12 grid gap-4 md:grid-cols-3">
         {c.steps.map((s, i) => (
-          <Reveal key={s.n} delay={i * 0.12} className="relative rounded-xl border border-gray-200 bg-white p-8">
-            <span className="text-5xl font-extrabold text-gray-200">{s.n}</span>
-            <h3 className="mt-4 text-xl font-bold text-gray-950">{s.title}</h3>
-            <p className="mt-3 leading-relaxed text-gray-600">{s.body}</p>
+          <Reveal key={s.n} delay={i * 0.12} className="relative rounded-[14px] border border-hairline bg-surface p-7">
+            <span className="font-mono text-xs tracking-[0.12em] text-ink-4">{s.n}</span>
+            <h3 className="mt-3 text-lg font-semibold tracking-[-0.01em] text-ink-1">{s.title}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-ink-2">{s.body}</p>
             {i < c.steps.length - 1 && (
-              <svg className="absolute top-1/2 -right-5 hidden h-6 w-6 -translate-y-1/2 text-gray-300 md:block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <svg className="absolute top-1/2 -right-4 z-10 hidden h-5 w-5 -translate-y-1/2 text-ink-4 md:block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
               </svg>
             )}
           </Reveal>
         ))}
       </div>
-      <Reveal className="mx-auto mt-10 max-w-2xl rounded-xl bg-gray-950 p-8 text-center">
-        <p className="text-2xl font-bold text-blue-600">{c.latency}</p>
-        <p className="mt-2 text-sm text-gray-400">{c.latencySubtitle}</p>
+      <Reveal className="mt-8 max-w-2xl rounded-[14px] border border-ink-1 bg-ink-1 p-8 dark:border-hairline dark:bg-surface">
+        <p className="font-mono text-2xl font-medium text-page tabular-nums dark:text-ink-1">{c.latency}</p>
+        <p className="mt-2 text-sm text-page/60 dark:text-ink-3">{c.latencySubtitle}</p>
       </Reveal>
     </Section>
   );

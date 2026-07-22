@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;700&display=swap");
 @import "tailwindcss";
 @plugin "flowbite-react/plugin/tailwindcss";
 @source "../.flowbite-react/class-list.json";
@@ -6,10 +5,86 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ============================================================
-   ModularIoT Design System tokens (Flowbite base).
-   Azul primario #1C64F2 · gris Flowbite · amarillo Mintral escaso.
-   Ver design-system/colors_and_type.css para la fuente completa.
+   ModularIoT — tokens del Design System (landing).
+   Fuente: design-system landing/tokens.css + landing.css.
+   Claro por defecto; .dark activa la superficie nocturna.
+   Azul Flowbite #1C64F2 como acento (nunca protagonista),
+   CTA primaria en tinta, ámbar de marca reservado al Lynx.
    ============================================================ */
+
+:root {
+  /* Superficies y tinta (claro) */
+  --page-bg: #ffffff;
+  --page-bg-alt: #f9fafb;
+  --surface: #ffffff;
+  --surface-2: #f9fafb;
+  --surface-3: #f3f4f6;
+  --hairline: #e5e7eb;
+  --hairline-strong: #d1d5db;
+  --ink-1: #0b1220;
+  --ink-2: #374151;
+  --ink-3: #6b7280;
+  --ink-4: #9ca3af;
+
+  /* Acento y semánticos */
+  --accent: #1c64f2;
+  --accent-soft: #ebf5ff;
+  --accent-strong: #1a56db;
+  --signal: #3f83f8; /* señales */
+  --symptom: #f59e0b; /* síntomas */
+  --action: #0e9f6e; /* acción */
+  --urgent: #e11d48; /* urgente */
+
+  /* Marca Lynx — el ámbar se profundiza en claro para sostener contraste */
+  --brand-ink: #13273d;
+  --brand-amber: #e08a28;
+}
+
+.dark {
+  --page-bg: #0a0f1c;
+  --page-bg-alt: #0e1525;
+  --surface: #111a2e;
+  --surface-2: #0e1525;
+  --surface-3: #18223a;
+  --hairline: #1f2a44;
+  --hairline-strong: #283454;
+  --ink-1: #f4f6fb;
+  --ink-2: #c2cadd;
+  --ink-3: #8b96ae;
+  --ink-4: #5c6884;
+
+  --accent: #3f83f8;
+  --accent-soft: rgba(63, 131, 248, 0.12);
+  --accent-strong: #76a9fa;
+
+  --brand-ink: #e8eff7;
+  --brand-amber: #f5ae55;
+}
+
+@theme inline {
+  /* Semánticos del landing — utilizables como bg-surface, text-ink-1, etc. */
+  --color-page: var(--page-bg);
+  --color-page-alt: var(--page-bg-alt);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-ink-1: var(--ink-1);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-strong: var(--accent-strong);
+  --color-signal: var(--signal);
+  --color-symptom: var(--symptom);
+  --color-action: var(--action);
+  --color-urgent: var(--urgent);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-amber: var(--brand-amber);
+}
+
 @theme {
   /* Primario — Flowbite blue */
   --color-blue-50: #ebf5ff;
@@ -18,18 +93,18 @@
   --color-blue-300: #a4cafe;
   --color-blue-400: #76a9fa;
   --color-blue-500: #3f83f8;
-  --color-blue-600: #1c64f2; /* CTA primaria */
-  --color-blue-700: #1a56db; /* hover */
+  --color-blue-600: #1c64f2;
+  --color-blue-700: #1a56db;
   --color-blue-800: #1e429f;
   --color-blue-900: #233876;
   --color-blue-950: #172554;
 
-  /* Amarillo Mintral — escaso (logo / warning), nunca fondo de botón */
+  /* Amarillo Mintral — escaso (warning), nunca fondo de botón */
   --color-yellow-50: #fffbeb;
   --color-yellow-100: #fef3c7;
   --color-yellow-200: #fde68a;
   --color-yellow-300: #fcd34d;
-  --color-yellow-400: #ffb017; /* Selective Yellow */
+  --color-yellow-400: #ffb017;
   --color-yellow-500: #f59e0b;
   --color-yellow-600: #d97706;
   --color-yellow-700: #b45309;
@@ -47,7 +122,7 @@
   --color-gray-600: #4b5563;
   --color-gray-700: #374151;
   --color-gray-800: #1f2a37;
-  --color-gray-900: #111928; /* ink */
+  --color-gray-900: #111928;
   --color-gray-950: #0b1220;
 
   /* Éxito — Flowbite green */
@@ -67,16 +142,28 @@
   --color-orange-600: #c54600;
   --color-orange-700: #9e2c0e;
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-display: "DM Sans", "Inter", sans-serif;
+  /* Inter self-hosted vía next/font (--font-inter); sin CDN */
+  --font-sans:
+    var(--font-inter), "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   html,
   body {
     font-family: var(--font-sans);
     font-feature-settings: "cv02", "cv03", "cv11";
     -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background: var(--page-bg);
+    color: var(--ink-1);
   }
 
   button {
@@ -86,21 +173,63 @@
   button:disabled {
     cursor: default;
   }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Titulares display del DS: Inter semibold, tracking apretado */
+  .display {
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    color: var(--ink-1);
+    text-wrap: pretty;
+  }
+
+  /* Retícula sutil del hero — el lienzo celado del Lynx */
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, var(--hairline) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--hairline) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse at top, black 0%, transparent 70%);
+    -webkit-mask-image: radial-gradient(ellipse at top, black 0%, transparent 70%);
+    opacity: 0.4;
+  }
+
+  /* Subrayado de firma: la cinta del pico del Lynx (chevrón 1:2, a/16). */
+  .amber-chevron {
+    position: relative;
+    white-space: nowrap;
+  }
+  .amber-chevron > svg {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -0.12em;
+    width: 100%;
+    height: 0.14em;
+    color: var(--brand-amber);
+  }
 }
 
 @layer utilities {
-  /* Los botones de Flowbite traen focus:ring (focus:ring-4, focus:ring-*-300,
-     etc.), con más especificidad que un selector de elemento plano; !important
-     es necesario para ganarles sin tener que igualar esa especificidad.
-     Quitamos el ring en focus y mostramos un borde solo mientras el botón
-     está presionado. */
+  /* Flowbite trae focus:ring en sus botones; se apaga el ring y se deja el
+     foco visible al :focus-visible global. !important necesario para ganar
+     la especificidad de las clases focus:ring-* de Flowbite. */
   button:focus {
     outline: none !important;
     box-shadow: none !important;
   }
 
-  button:active {
-    border-width: 1px !important;
-    border-color: currentColor !important;
+  button:focus-visible {
+    outline: 2px solid var(--accent) !important;
+    outline-offset: 2px;
   }
 }

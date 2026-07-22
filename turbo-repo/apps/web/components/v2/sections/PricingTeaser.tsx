@@ -1,17 +1,19 @@
 import { getContent } from "../content";
-import { Section } from "./shared";
+import { Section, Eyebrow } from "./shared";
 
 export function PricingTeaser({ base, lang }: { base: string; lang: string }) {
   const c = getContent(lang).pricingTeaser;
   return (
     <Section tone="white">
-      <div className="rounded-2xl bg-gray-950 p-10 text-center sm:p-16">
-        <p className="mb-4 text-sm font-semibold tracking-widest text-blue-400 uppercase">{c.kicker}</p>
-        <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">{c.title}</h2>
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-300">{c.subtitle}</p>
+      <div className="rounded-2xl border border-ink-1 bg-ink-1 p-10 text-center sm:p-14 dark:border-hairline dark:bg-surface">
+        <Eyebrow>{c.kicker}</Eyebrow>
+        <h2 className="mt-4 text-3xl font-semibold tracking-[-0.025em] text-page sm:text-4xl dark:text-ink-1">
+          {c.title}
+        </h2>
+        <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-page/70 dark:text-ink-2">{c.subtitle}</p>
         <a
           href={`${base}/precios`}
-          className="mt-8 inline-block rounded-lg bg-blue-600 px-8 py-3.5 text-base font-bold text-white transition-colors hover:bg-blue-700"
+          className="mt-8 inline-flex items-center justify-center rounded-lg bg-white px-6 py-3.5 text-[15px] font-medium text-gray-950 transition-colors hover:bg-gray-100"
         >
           {c.cta}
         </a>

@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack --port 4329",
+    "dev": "next dev --turbopack --port 3041",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --port 3041",
     "check-types": "tsc --noEmit",
     "format": "prettier . --write",
     "format:check": "prettier . --check",

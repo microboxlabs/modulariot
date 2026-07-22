@@ -1,3 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-146 -158 292 292" role="img" aria-label="ModularIoT">
-<path d="M0 -71.78 A77.67 77.67 0 1 1 0 71.78 A77.67 77.67 0 1 1 0 -71.78 Z M12 -72 L96 -137 L84 -60 L107.33 -60 L84 -36 Z M-84 -36 L-107.33 -60 L-84 -60 L-96 -137 L-12 -72 Z M-77.67 0 A29.67 29.67 0 1 0 -18.33 0 A29.67 29.67 0 1 0 -77.67 0 Z M18.33 0 A29.67 29.67 0 1 0 77.67 0 A29.67 29.67 0 1 0 18.33 0 Z M0 -18.33 A44.5 44.5 0 0 0 0 41 A44.5 44.5 0 0 0 0 -18.33 Z" fill="#13273D" fill-rule="nonzero"/><circle cx="-48" cy="0" r="18.33" fill="#FFB017"/><circle cx="48" cy="0" r="18.33" fill="#FFB017"/><circle cx="-48" cy="0" r="11.33" fill="#13273D"/><circle cx="48" cy="0" r="11.33" fill="#13273D"/><path d="M-12 18 L0 24 L12 18 L12 21 L0 27 L-12 21 Z" fill="#13273D"/>
+<!-- ModularIoT "Lynx" (the Golden Owl, horns re-pinned to a 2-root-5 frame).
+     Every measure is a power of phi times a=48; phi^3 + phi^-3 = 2*sqrt(5),
+     so the mark closes an exact square by horn angle alone.
+     Regenerate with: node scripts/generate-logo.mjs -->
+  <style>.ink{fill:#13273D}.amb{fill:#E08A28}@media (prefers-color-scheme:dark){.ink{fill:#E8EFF7}.amb{fill:#F5AE55}}</style>
+  <path class="ink" fill-rule="nonzero" d="M0 -71.78 A77.67 77.67 0 1 1 0 71.78 A77.67 77.67 0 1 1 0 -71.78 Z M12 -72 L96 -137 L84 -60 L107.33 -60 L84 -36 Z M-84 -36 L-107.33 -60 L-84 -60 L-96 -137 L-12 -72 Z M-77.67 0 A29.67 29.67 0 1 0 -18.33 0 A29.67 29.67 0 1 0 -77.67 0 Z M18.33 0 A29.67 29.67 0 1 0 77.67 0 A29.67 29.67 0 1 0 18.33 0 Z M0 -18.33 A44.5 44.5 0 0 0 0 41 A44.5 44.5 0 0 0 0 -18.33 Z"/>
+  <circle class="amb" cx="-48" cy="0" r="18.33"/>
+  <circle class="amb" cx="48" cy="0" r="18.33"/>
+  <circle class="ink" cx="-48" cy="0" r="11.33"/>
+  <circle class="ink" cx="48" cy="0" r="11.33"/>
+  <path class="ink" d="M-12 18 L0 24 L12 18 L12 21 L0 27 L-12 21 Z"/>
 </svg>

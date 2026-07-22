@@ -21,9 +21,9 @@ tomadores de decisión de monitoreo de flota. Tesis: **"De detectar desviaciones
 ```bash
 cd app
 npm install
-npm run dev        # http://localhost:4329
+npm run dev        # http://localhost:3041 (puerto oficial de apps/web)
 npm run build      # build de producción
-npm run start      # servir el build
+npm run start      # servir el build (también :3041)
 npm run check-types
 ```
 Docker: hay `Dockerfile` listo en `app/`.
@@ -68,9 +68,22 @@ app/
 ## 5. Design System
 
 Basado en el **ModularIoT/Mintral DS** (ver carpeta `design-system/` del repo). Aplicado
-globalmente vía tokens en `globals.css` (`@theme`): azul primario Flowbite `#1C64F2`,
-gris Flowbite, **Selective Yellow `#FFB017` escaso** (logo/acento, nunca fondo de botón),
-verde/ámbar/rosa semánticos, tipografía Inter. Sin gradientes; íconos SVG (sin emoji).
+globalmente vía tokens semánticos en `globals.css` (`@theme inline`): `bg-page/surface/
+surface-2/surface-3`, `border-hairline(-strong)`, `text-ink-1..4`, `accent(-soft/-strong)`
+y los semánticos `signal/symptom/action/urgent`. Claro por defecto, **modo oscuro completo**
+vía clase `.dark` (Flowbite `ThemeModeScript` + `DarkThemeToggle`). CTA primaria **en tinta**
+(nunca azul: el azul Flowbite `#1C64F2` es acento), titulares Inter semibold con tracking
+`-0.025em`, mono para vocabulario operacional. Sin gradientes; íconos SVG (sin emoji).
+
+### Logo "the Lynx"
+
+Assets generados desde geometría (razón áurea) con `node scripts/generate-logo.mjs`:
+`public/headlogo.svg` (adaptativo `prefers-color-scheme`), `public/headlogo-dark.svg`,
+`public/logo.svg` / `logo-dark.svg` (lockup kerneado, "IoT" en ámbar), `app/icon.svg`
+y `components/v2/brand/lynx-geometry.ts` (datos para los componentes React
+`LynxMark` / `LynxWordmark` / `LynxLockup` en `components/v2/brand/Logo.tsx`, que siguen
+el tema vía `currentColor` + `--brand-amber`: ámbar `#E08A28` claro / `#F5AE55` oscuro,
+tinta `#13273D` / `#E8EFF7`).
 
 ## 6. Datos
 

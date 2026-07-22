@@ -46,9 +46,9 @@ const INTRO: Record<Lang, string> = {
 export default function ModuleTabs({ base, active, lang = "es" }: { base: string; active: ModuleKey; lang?: Lang }) {
   const L = LABELS[lang] || LABELS.es;
   return (
-    <div className="sticky top-16 z-30 border-b border-gray-200 bg-white/90 backdrop-blur">
+    <div className="sticky top-16 z-30 border-b border-hairline bg-page/90 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center gap-3 overflow-x-auto px-4 py-3 sm:px-6">
-        <span className="hidden shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-400 md:inline">
+        <span className="hidden shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-3 md:inline">
           {INTRO[lang] || INTRO.es}
         </span>
         <div className="flex items-center gap-2">
@@ -57,15 +57,15 @@ export default function ModuleTabs({ base, active, lang = "es" }: { base: string
             const l = L[m.key];
             return (
               <div key={m.key} className="flex items-center gap-2">
-                {i > 0 && <span className="text-gray-300" aria-hidden>·</span>}
+                {i > 0 && <span className="text-hairline-strong" aria-hidden>·</span>}
                 <Link
                   href={`${base}${m.href}`}
                   aria-current={on ? "page" : undefined}
                   className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
-                    on ? "border-blue-600 bg-blue-600 text-white" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                    on ? "border-accent bg-accent text-white" : "border-hairline bg-surface text-ink-2 hover:border-hairline-strong"
                   }`}
                 >
-                  <span className={`text-[11px] font-bold uppercase ${on ? "text-blue-100" : "text-gray-400"}`}>{l.step}</span>
+                  <span className={`text-[11px] font-semibold uppercase ${on ? "text-blue-100" : "text-ink-3"}`}>{l.step}</span>
                   {l.name}
                 </Link>
               </div>

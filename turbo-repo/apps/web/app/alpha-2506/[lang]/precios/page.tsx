@@ -28,24 +28,24 @@ export default async function PreciosPage({
       <Nav />
       <main>
         {/* Header */}
-        <section className="border-b border-gray-100">
+        <section className="border-b border-hairline">
           <div className="mx-auto max-w-4xl px-4 pt-20 pb-16 text-center sm:px-6 lg:pt-24">
-            <h1 className="text-5xl font-extrabold tracking-tight text-gray-950 sm:text-6xl">{c.title}</h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-600">{c.subtitle}</p>
+            <h1 className="text-5xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-6xl">{c.title}</h1>
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-ink-2">{c.subtitle}</p>
           </div>
         </section>
 
         {/* Filosofía de precios */}
-        <section className="border-b border-gray-100 bg-gray-50">
+        <section className="border-b border-hairline bg-surface-2">
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
             <div className="grid gap-10 md:grid-cols-3">
               {c.philosophy.map((p, i) => (
                 <div key={p.title} className="text-center">
-                  <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-extrabold text-white">
+                  <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
                     {i + 1}
                   </span>
-                  <h2 className="mt-4 text-lg font-bold text-gray-950">{p.title}</h2>
-                  <p className="mt-2 leading-relaxed text-gray-600">{p.body}</p>
+                  <h2 className="mt-4 text-lg font-semibold text-ink-1">{p.title}</h2>
+                  <p className="mt-2 leading-relaxed text-ink-2">{p.body}</p>
                 </div>
               ))}
             </div>
@@ -60,12 +60,12 @@ export default async function PreciosPage({
 
         {/* CTA caso complejo */}
         <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6">
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-10 text-center sm:p-12">
-            <h2 className="text-2xl font-bold text-gray-950 sm:text-3xl">{c.cta.title}</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-gray-600">{c.cta.body}</p>
+          <div className="rounded-2xl border border-hairline bg-surface-2 p-10 text-center sm:p-12">
+            <h2 className="text-2xl font-semibold text-ink-1 sm:text-3xl">{c.cta.title}</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-ink-2">{c.cta.body}</p>
             <a
               href={`${base}/contacto?intent=cotizar`}
-              className="mt-8 inline-block rounded-lg bg-gray-950 px-8 py-3.5 font-semibold text-white transition-colors hover:bg-gray-800"
+              className="mt-8 inline-block rounded-lg border border-ink-1 bg-ink-1 px-8 py-3.5 font-medium text-page transition-colors hover:bg-ink-2 hover:border-ink-2"
             >
               {c.cta.button}
             </a>

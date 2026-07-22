@@ -5,12 +5,14 @@ import { usePathname } from "next/navigation";
 import { DarkThemeToggle } from "flowbite-react";
 import { getContent } from "./content";
 import { Flag } from "./flags";
+import { LynxLockup } from "./brand/Logo";
 
 const COUNTRY_KEY = "miot_country";
 
+// Toggle de tema con la piel del DS (mismo trato que .gh-btn del header).
 const themeToggleStyle = {
   root: {
-    base: "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-transparent text-gray-200 transition-colors hover:bg-white/5 hover:text-white focus:outline-none focus:ring-0 focus:border-white/20 dark:text-gray-600 dark:hover:bg-black/5 dark:hover:text-gray-900 dark:focus:border-black/20",
+    base: "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-hairline bg-surface text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink-1 focus:outline-none focus:ring-0",
   },
 };
 
@@ -55,7 +57,7 @@ const navIcons: Record<string, React.ReactNode> = {
 
 function ExternalIcon() {
   return (
-    <svg className="h-3 w-3 shrink-0 text-gray-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+    <svg className="h-3 w-3 shrink-0 text-ink-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
     </svg>
   );
@@ -63,18 +65,19 @@ function ExternalIcon() {
 
 function Chevron() {
   return (
-    <svg className="h-3 w-3 text-gray-500 transition-transform duration-200 group-hover:rotate-180" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+    <svg className="h-3 w-3 text-ink-4 transition-transform duration-200 group-hover:rotate-180" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
     </svg>
   );
 }
 
-// Panel animado estilo ClickHouse: scale-95 + opacity-0 → visible en hover del grupo.
+// Panel flotante: superficie del DS con hairline y sombra; scale+fade al hover.
 const panelBase =
   "pointer-events-none absolute top-full z-50 origin-top-left scale-95 pt-2 opacity-0 transition-all duration-150 group-hover:pointer-events-auto group-hover:scale-100 group-hover:opacity-100";
+const panelCard = "rounded-xl border border-hairline bg-surface shadow-xl";
 
 const topItem =
-  "flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-white/5 hover:text-white";
+  "flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink-1";
 
 export default function Nav() {
   const [open, setOpen] = useState(false);
@@ -104,15 +107,11 @@ export default function Nav() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-gray-800 backdrop-blur transition-colors dark:border-black/5 dark:bg-white">
-      
-      <nav className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:px-6">
-        {/* Logo */}
-        <a href={`${base}/`} className="mr-4 flex shrink-0 items-center gap-2">
-          <img src="/headlogo-dark.svg" alt="ModularIoT" className="h-7 w-auto" />
-          <span className="text-lg font-bold tracking-tight text-white">
-            Modular<span className="text-yellow-400">IoT</span>
-          </span>
+    <header className="sticky top-0 z-50 w-full border-b border-hairline bg-page/85 backdrop-blur-md">
+      <nav className="mx-auto flex h-[60px] max-w-7xl items-center gap-2 px-6">
+        {/* Marca: lockup Lynx (tinta de marca + ámbar), consciente del tema */}
+        <a href={`${base}/`} className="mr-4 flex shrink-0 items-center text-brand-ink" aria-label="ModularIoT">
+          <LynxLockup className="h-7 w-auto" />
         </a>
 
         {/* Desktop */}
@@ -124,24 +123,24 @@ export default function Nav() {
               <Chevron />
             </button>
             <div className={`${panelBase} left-0 ${nav.mega.sections.length >= 3 ? "w-[900px]" : "w-[720px]"}`}>
-              <div className={`grid ${nav.mega.sections.length >= 3 ? "grid-cols-3" : "grid-cols-2"} rounded-xl bg-[#1b1b1e] p-5 shadow-2xl ring-1 ring-white/10`}>
+              <div className={`grid ${nav.mega.sections.length >= 3 ? "grid-cols-3" : "grid-cols-2"} ${panelCard} p-5`}>
                 {nav.mega.sections.map((section, si) => (
-                  <div key={section.title} className={si === 0 ? "pr-6" : "border-l border-white/10 px-6"}>
-                    <p className="mb-2 px-2 text-sm font-semibold text-white">{section.title}</p>
+                  <div key={section.title} className={si === 0 ? "pr-6" : "border-l border-hairline px-6"}>
+                    <p className="mb-2 px-2 text-xs font-semibold tracking-[0.08em] text-ink-3 uppercase">{section.title}</p>
                     {section.items.map((item) => (
                       <a
                         key={item.label}
                         href={resolveHref(base, item.href)}
-                        className="group/item flex items-start gap-3.5 rounded-lg px-2 py-2.5 transition-colors hover:bg-white/5"
+                        className="group/item flex items-start gap-3.5 rounded-lg px-2 py-2.5 transition-colors hover:bg-surface-3"
                       >
-                        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5 text-blue-400 transition-colors group-hover/item:bg-blue-400/10">
+                        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
                           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                             {navIcons[item.icon]}
                           </svg>
                         </span>
                         <span>
-                          <span className="block text-[15px] font-semibold text-white">{item.label}</span>
-                          <span className="mt-0.5 block text-[13px] leading-snug text-gray-400">{item.desc}</span>
+                          <span className="block text-[15px] font-semibold text-ink-1">{item.label}</span>
+                          <span className="mt-0.5 block text-[13px] leading-snug text-ink-3">{item.desc}</span>
                         </span>
                       </a>
                     ))}
@@ -159,16 +158,16 @@ export default function Nav() {
                 <Chevron />
               </button>
               <div className={`${panelBase} left-0 w-[520px]`}>
-                <div className="grid grid-cols-2 rounded-xl bg-[#1b1b1e] p-5 shadow-2xl ring-1 ring-white/10">
+                <div className={`grid grid-cols-2 ${panelCard} p-5`}>
                   {menu.columns.map((col, ci) => (
-                    <div key={col.title} className={`flex flex-col ${ci === 1 ? "border-l border-white/10 pl-6" : "pr-6"}`}>
-                      <p className="mb-2 px-2 text-sm font-semibold text-white">{col.title}</p>
+                    <div key={col.title} className={`flex flex-col ${ci === 1 ? "border-l border-hairline pl-6" : "pr-6"}`}>
+                      <p className="mb-2 px-2 text-xs font-semibold tracking-[0.08em] text-ink-3 uppercase">{col.title}</p>
                       {col.links.map((link) => (
                         <a
                           key={link.label}
                           href={resolveHref(base, link.href)}
                           {...("external" in link && link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                          className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-[15px] text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
+                          className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-sm text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink-1"
                         >
                           {link.label}
                           {"external" in link && link.external && <ExternalIcon />}
@@ -177,7 +176,7 @@ export default function Nav() {
                       {"footer" in col && col.footer && (
                         <a
                           href={resolveHref(base, col.footer.href)}
-                          className="mt-2 border-t border-white/10 px-2 pt-3 text-[15px] font-medium text-blue-400 transition-colors hover:text-blue-300"
+                          className="mt-2 border-t border-hairline px-2 pt-3 text-sm font-medium text-accent transition-colors hover:text-accent-strong"
                         >
                           {col.footer.label}
                           <svg className="ml-1.5 inline h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -205,25 +204,23 @@ export default function Nav() {
           ))}
         </div>
 
-        {/* Derecha: GitHub badge + idioma + CTA */}
+        {/* Derecha: GitHub + tema + idioma + acciones */}
         <div className="ml-auto hidden shrink-0 items-center gap-2 lg:flex">
           <a
             href={nav.github.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-white/5 hover:text-white"
+            aria-label="GitHub"
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-hairline bg-surface px-2.5 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink-1"
           >
             <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-            </svg>
-            <svg className="h-3.5 w-3.5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
             </svg>
           </a>
 
           <DarkThemeToggle theme={themeToggleStyle} />
 
-          {/* Selector de país → idioma (region selector de ClickHouse) */}
+          {/* Selector de país → idioma */}
           <div className="group relative">
             <button className={topItem} aria-label="Cambiar país / idioma">
               <Flag code={activeRegion.flag} />
@@ -231,7 +228,7 @@ export default function Nav() {
               <Chevron />
             </button>
             <div className={`${panelBase} right-0 w-48 origin-top-right`}>
-              <div className="rounded-xl border border-white/10 bg-gray-900 p-2 shadow-2xl">
+              <div className={`${panelCard} p-2`}>
                 {regions.map((r, i) => {
                   const active = r.flag === activeRegion.flag;
                   const divider = i > 0 && regions[i - 1].lang !== r.lang;
@@ -240,9 +237,9 @@ export default function Nav() {
                       key={r.flag}
                       href={`/alpha-2506/${r.lang}`}
                       onClick={() => pickRegion(r.flag)}
-                      className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-white/5 ${
-                        divider ? "mt-1 border-t border-white/10 pt-2.5" : ""
-                      } ${active ? "font-semibold text-blue-400" : "text-gray-200"}`}
+                      className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface-3 ${
+                        divider ? "mt-1 border-t border-hairline pt-2.5" : ""
+                      } ${active ? "font-semibold text-accent" : "text-ink-2"}`}
                     >
                       <Flag code={r.flag} />
                       <span>{r.country}</span>
@@ -254,20 +251,20 @@ export default function Nav() {
           </div>
 
           <a
-            href={resolveHref(base, nav.actions.demo.href)}
-            className="ml-1 rounded-lg border border-white/15 bg-white/5 px-3.5 py-2 text-sm font-medium text-gray-100 transition-colors hover:bg-white/10"
-          >
-            {nav.actions.demo.label}
-          </a>
-          <a
             href={resolveHref(base, nav.actions.login.href)}
-            className="rounded-lg border border-white/15 bg-white/5 px-3.5 py-2 text-sm font-medium text-gray-100 transition-colors hover:bg-white/10"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:text-ink-1"
           >
             {nav.actions.login.label}
           </a>
           <a
+            href={resolveHref(base, nav.actions.demo.href)}
+            className="rounded-lg border border-hairline-strong bg-surface px-3.5 py-2 text-sm font-medium text-ink-1 transition-colors hover:bg-surface-3"
+          >
+            {nav.actions.demo.label}
+          </a>
+          <a
             href={resolveHref(base, nav.actions.signup.href)}
-            className="rounded-lg bg-white px-3.5 py-2 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-200"
+            className="rounded-lg border border-ink-1 bg-ink-1 px-3.5 py-2 text-sm font-medium text-page transition-colors hover:bg-ink-2 hover:border-ink-2"
           >
             {nav.actions.signup.label}
           </a>
@@ -275,15 +272,9 @@ export default function Nav() {
 
         {/* Mobile: toggle de tema + hamburguesa */}
         <div className="ml-auto flex items-center gap-1 lg:hidden">
-          <DarkThemeToggle
-            theme={{
-              root: {
-                base: "flex h-10 w-10 items-center justify-center rounded-lg border border-transparent text-gray-200 focus:outline-none focus:ring-0 focus:border-white/20 dark:text-gray-600 dark:focus:border-black/20",
-              },
-            }}
-          />
+          <DarkThemeToggle theme={themeToggleStyle} />
           <button
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-200 dark:text-gray-600"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-2"
             onClick={() => setOpen(!open)}
             aria-label="Abrir menú"
           >
@@ -298,9 +289,9 @@ export default function Nav() {
         </div>
       </nav>
 
-      {/* Mobile: acordeón oscuro */}
+      {/* Mobile: acordeón sobre superficie */}
       {open && (
-        <div className="max-h-[80vh] overflow-y-auto border-t border-white/5 bg-gray-950 px-4 pb-4 lg:hidden">
+        <div className="max-h-[80vh] overflow-y-auto border-t border-hairline bg-page px-6 pb-6 lg:hidden">
           {[
             { label: nav.mega.label, links: nav.mega.sections.flatMap((s) => s.items.map((i) => ({ label: i.label, href: i.href }))) },
             ...nav.columnMenus.map((m) => ({
@@ -308,13 +299,13 @@ export default function Nav() {
               links: m.columns.flatMap((c) => c.links.map((l) => ({ label: l.label, href: l.href }))),
             })),
           ].map((group) => (
-            <div key={group.label} className="border-b border-white/5">
+            <div key={group.label} className="border-b border-hairline">
               <button
                 onClick={() => setOpenGroup(openGroup === group.label ? null : group.label)}
-                className="flex w-full items-center justify-between py-3 text-sm font-semibold text-white"
+                className="flex w-full items-center justify-between py-3 text-sm font-semibold text-ink-1"
               >
                 {group.label}
-                <svg className="h-5 w-5 shrink-0 text-gray-500" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" aria-hidden="true">
+                <svg className="h-5 w-5 shrink-0 text-ink-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" aria-hidden="true">
                   <path d="M4 10h12" />
                   {openGroup !== group.label && <path d="M10 4v12" />}
                 </svg>
@@ -326,7 +317,7 @@ export default function Nav() {
                       key={link.label}
                       href={resolveHref(base, link.href)}
                       onClick={() => setOpen(false)}
-                      className="block py-2 pl-4 text-sm text-gray-300"
+                      className="block py-2 pl-4 text-sm text-ink-2"
                     >
                       {link.label}
                     </a>
@@ -340,7 +331,7 @@ export default function Nav() {
               key={item.label}
               href={resolveHref(base, item.href)}
               onClick={() => setOpen(false)}
-              className="block border-b border-white/5 py-3 text-sm font-semibold text-white"
+              className="block border-b border-hairline py-3 text-sm font-semibold text-ink-1"
             >
               {item.label}
             </a>
@@ -355,8 +346,8 @@ export default function Nav() {
                   onClick={() => pickRegion(r.flag)}
                   className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm transition-colors ${
                     active
-                      ? "border-blue-400/40 bg-blue-400/10 font-semibold text-blue-400"
-                      : "border-white/10 text-gray-300"
+                      ? "border-accent/40 bg-accent-soft font-semibold text-accent"
+                      : "border-hairline text-ink-2"
                   }`}
                 >
                   <Flag code={r.flag} className="h-3 w-[18px]" />
@@ -369,21 +360,21 @@ export default function Nav() {
             <a
               href={resolveHref(base, nav.actions.demo.href)}
               onClick={() => setOpen(false)}
-              className="block rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-center text-sm font-medium text-gray-100"
+              className="block rounded-lg border border-hairline-strong bg-surface px-4 py-2.5 text-center text-sm font-medium text-ink-1"
             >
               {nav.actions.demo.label}
             </a>
             <a
               href={resolveHref(base, nav.actions.login.href)}
               onClick={() => setOpen(false)}
-              className="block rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-center text-sm font-medium text-gray-100"
+              className="block rounded-lg px-4 py-2.5 text-center text-sm font-medium text-ink-2"
             >
               {nav.actions.login.label}
             </a>
             <a
               href={resolveHref(base, nav.actions.signup.href)}
               onClick={() => setOpen(false)}
-              className="block rounded-lg bg-white px-4 py-2.5 text-center text-sm font-semibold text-gray-900"
+              className="block rounded-lg border border-ink-1 bg-ink-1 px-4 py-2.5 text-center text-sm font-medium text-page"
             >
               {nav.actions.signup.label}
             </a>

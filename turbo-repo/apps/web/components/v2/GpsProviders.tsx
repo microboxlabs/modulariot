@@ -172,15 +172,15 @@ export default function GpsProviders() {
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
-      <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">{t.eyebrow}</p>
-      <h1 className="mt-4 max-w-4xl text-4xl font-extrabold tracking-tight text-gray-950 sm:text-5xl">
+      <p className="text-sm font-semibold uppercase tracking-widest text-accent">{t.eyebrow}</p>
+      <h1 className="mt-4 max-w-4xl text-4xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-5xl">
         {t.h1}
       </h1>
-      <p className="mt-6 max-w-3xl text-lg leading-relaxed text-gray-600">
+      <p className="mt-6 max-w-3xl text-lg leading-relaxed text-ink-2">
         {t.introP1}<b>{t.introB1}</b>{t.introP2}<b>{t.introB2}</b>{t.introP3}<b>{t.introB3}</b>{t.introP4}
       </p>
-      <p className="mt-2 font-mono text-xs text-gray-400">{GPS_DATA.meta.source} · {GPS_DATA.meta.window}</p>
-      <p className="mt-1 text-xs text-gray-400">{t.measured}</p>
+      <p className="mt-2 font-mono text-xs text-ink-3">{GPS_DATA.meta.source} · {GPS_DATA.meta.window}</p>
+      <p className="mt-1 text-xs text-ink-3">{t.measured}</p>
 
       {/* Resumen de flota */}
       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -190,9 +190,9 @@ export default function GpsProviders() {
           [t.nOfM(cumplenMin, tot.proveedores), t.statMining(STD_MIN), cumplenMin ? "text-green-700" : "text-rose-600"],
           [fmt(tot.assets), t.statDevices, null],
         ].map(([v, l, cls]) => (
-          <div key={l as string} className="rounded-xl border border-gray-200 bg-white p-4">
-            <p className={`text-2xl font-extrabold tabular-nums tracking-tight ${cls || "text-gray-950"}`}>{v}</p>
-            <p className="mt-1 text-xs font-medium text-gray-500">{l}</p>
+          <div key={l as string} className="rounded-xl border border-hairline bg-surface p-4">
+            <p className={`text-2xl font-semibold tabular-nums tracking-[-0.02em] ${cls || "text-ink-1"}`}>{v}</p>
+            <p className="mt-1 text-xs font-medium text-ink-3">{l}</p>
           </div>
         ))}
       </div>
@@ -200,42 +200,42 @@ export default function GpsProviders() {
       <div className="mt-8 grid gap-6 lg:grid-cols-5">
         {/* Detalle del proveedor seleccionado */}
         <div className="lg:col-span-2">
-          <div className="rounded-xl border border-gray-200 bg-white p-6">
+          <div className="rounded-xl border border-hairline bg-surface p-6">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-lg font-bold text-gray-950">{p.name}</h3>
+              <h3 className="text-lg font-semibold text-ink-1">{p.name}</h3>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${sp[1]} ${sp[2]}`}>{sp[0]}</span>
             </div>
-            <p className="mt-1 text-xs text-gray-500">{t.rankOf(rankPos, provs.length)} · {fmt(p.assets)} {t.devices} · {t.shareOfSignal(pct(p.signals, tot.signals))}</p>
+            <p className="mt-1 text-xs text-ink-3">{t.rankOf(rankPos, provs.length)} · {fmt(p.assets)} {t.devices} · {t.shareOfSignal(pct(p.signals, tot.signals))}</p>
 
             <div className="mt-5">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-4xl font-extrabold tabular-nums tracking-tight text-gray-950">{(p.ppm || 0).toFixed(1)}</span>
-                <span className="text-sm text-gray-500">{t.pulsesMin}</span>
+                <span className="text-4xl font-semibold tabular-nums tracking-[-0.02em] text-ink-1">{(p.ppm || 0).toFixed(1)}</span>
+                <span className="text-sm text-ink-3">{t.pulsesMin}</span>
               </div>
               {/* Gauge */}
-              <div className="relative mt-3 h-6 overflow-hidden rounded-lg bg-gray-100">
+              <div className="relative mt-3 h-6 overflow-hidden rounded-lg bg-surface-3">
                 <div className="absolute inset-y-0 left-0 rounded-lg" style={{ width: `${px(p.ppm || 0)}%`, background: sp[3], opacity: 0.9 }} />
                 <div className="absolute inset-y-[-2px] w-0.5 bg-green-700" style={{ left: `${px(STD_MBL)}%` }} />
                 <div className="absolute inset-y-[-2px] w-0.5 bg-green-900" style={{ left: `${px(STD_MIN)}%` }} />
               </div>
-              <div className="relative mt-1 h-4 text-[10px] text-gray-400">
+              <div className="relative mt-1 h-4 text-[10px] text-ink-3">
                 <span className="absolute -translate-x-1/2" style={{ left: `${px(STD_MBL)}%` }}>{t.gaugePrecision}</span>
                 <span className="absolute -translate-x-1/2" style={{ left: `${px(STD_MIN)}%` }}>{t.gaugeMining}</span>
               </div>
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="text-lg font-extrabold tabular-nums text-gray-950">{demora(p.prov_latency_s)}</p>
-                <p className="text-[11px] text-gray-500">{t.providerLatency}</p>
+              <div className="rounded-lg border border-hairline bg-surface-2 p-3">
+                <p className="text-lg font-semibold tracking-[-0.02em] tabular-nums text-ink-1">{demora(p.prov_latency_s)}</p>
+                <p className="text-[11px] text-ink-3">{t.providerLatency}</p>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="text-lg font-extrabold tabular-nums text-gray-950">{fmt(p.signals)}</p>
-                <p className="text-[11px] text-gray-500">{t.signalsMoving}</p>
+              <div className="rounded-lg border border-hairline bg-surface-2 p-3">
+                <p className="text-lg font-semibold tracking-[-0.02em] tabular-nums text-ink-1">{fmt(p.signals)}</p>
+                <p className="text-[11px] text-ink-3">{t.signalsMoving}</p>
               </div>
             </div>
 
-            <p className="mt-5 rounded-lg border-l-4 border-blue-600 bg-blue-50/60 px-4 py-3 text-sm leading-relaxed text-gray-700">
+            <p className="mt-5 rounded-lg border-l-4 border-accent bg-accent-soft/60 px-4 py-3 text-sm leading-relaxed text-ink-2">
               {cumpleTxt}
             </p>
           </div>
@@ -243,10 +243,10 @@ export default function GpsProviders() {
 
         {/* Ranking */}
         <div className="lg:col-span-3">
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <div className="overflow-hidden rounded-xl border border-hairline bg-surface">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 text-[11px] uppercase tracking-wide text-gray-400">
+                <tr className="border-b border-hairline text-[11px] uppercase tracking-wide text-ink-3">
                   <th className="px-4 py-2.5 text-left font-semibold">{t.thProvider}</th>
                   <th className="px-3 py-2.5 text-right font-semibold">{t.thDevices}</th>
                   <th className="px-3 py-2.5 text-right font-semibold">{t.thPulses}</th>
@@ -262,12 +262,12 @@ export default function GpsProviders() {
                     <tr
                       key={pp.name}
                       onClick={() => setSel(pp.name)}
-                      className={`cursor-pointer border-t border-gray-100 transition-colors ${on ? "bg-blue-50" : "hover:bg-gray-50"}`}
+                      className={`cursor-pointer border-t border-hairline transition-colors ${on ? "bg-accent-soft" : "hover:bg-surface-2"}`}
                     >
-                      <td className="max-w-[180px] truncate px-4 py-2.5 font-semibold text-gray-800" title={pp.name}>{pp.name}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-gray-500">{fmt(pp.assets)}</td>
-                      <td className={`px-3 py-2.5 text-right font-bold tabular-nums ${e[1]}`}>{(pp.ppm || 0).toFixed(1)}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-gray-500">{demora(pp.prov_latency_s)}</td>
+                      <td className="max-w-[180px] truncate px-4 py-2.5 font-semibold text-ink-2" title={pp.name}>{pp.name}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-ink-3">{fmt(pp.assets)}</td>
+                      <td className={`px-3 py-2.5 text-right font-semibold tabular-nums ${e[1]}`}>{(pp.ppm || 0).toFixed(1)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-ink-3">{demora(pp.prov_latency_s)}</td>
                       <td className="px-4 py-2.5">
                         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${e[1]} ${e[2]}`}>
                           <span className="h-1.5 w-1.5 rounded-full" style={{ background: e[3] }} />{e[0]}
@@ -279,7 +279,7 @@ export default function GpsProviders() {
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-gray-400">{t.tapHint}</p>
+          <p className="mt-3 text-xs text-ink-3">{t.tapHint}</p>
         </div>
       </div>
     </section>

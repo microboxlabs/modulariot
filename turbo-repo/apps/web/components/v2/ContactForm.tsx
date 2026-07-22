@@ -101,14 +101,14 @@ const SUBJECT: Record<Intent, string> = { demo: "[Demo]", cotizar: "[Cotización
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-semibold text-gray-800">{label}</span>
+      <span className="mb-1.5 block text-sm font-semibold text-ink-2">{label}</span>
       {children}
     </label>
   );
 }
 
 const inputCls =
-  "w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20";
+  "w-full rounded-lg border border-hairline-strong bg-surface px-3.5 py-2.5 text-sm text-ink-1 placeholder:text-ink-4 transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20";
 
 export default function ContactForm({ lang = "es", initialIntent = "demo", base }: { lang?: Lang; initialIntent?: Intent; base: string }) {
   const t = COPY[lang] || COPY.es;
@@ -149,22 +149,22 @@ export default function ContactForm({ lang = "es", initialIntent = "demo", base 
   return (
     <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
       <div className="max-w-2xl">
-        <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">{t.eyebrow}</p>
-        <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-gray-950 sm:text-5xl">{t.title}</h1>
-        <p className="mt-5 text-lg leading-relaxed text-gray-600">{t.subtitle}</p>
+        <p className="text-sm font-semibold uppercase tracking-widest text-accent">{t.eyebrow}</p>
+        <h1 className="mt-4 text-4xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-5xl">{t.title}</h1>
+        <p className="mt-5 text-lg leading-relaxed text-ink-2">{t.subtitle}</p>
       </div>
 
       <div className="mt-10 grid gap-10 lg:grid-cols-3">
         {/* Formulario */}
         <div className="lg:col-span-2">
           {/* Segmentos de intención */}
-          <div className="inline-flex flex-wrap gap-1 rounded-lg border border-gray-200 bg-white p-1">
+          <div className="inline-flex flex-wrap gap-1 rounded-lg border border-hairline bg-surface p-1">
             {(["demo", "cotizar", "general"] as Intent[]).map((it) => (
               <button
                 key={it}
                 type="button"
                 onClick={() => setIntent(it)}
-                className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors ${intent === it ? "bg-blue-600 text-white" : "text-gray-600 hover:text-gray-950"}`}
+                className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors ${intent === it ? "bg-accent text-white" : "text-ink-2 hover:text-ink-1"}`}
               >
                 {t.tabs[it]}
               </button>
@@ -190,7 +190,7 @@ export default function ContactForm({ lang = "es", initialIntent = "demo", base 
 
             {intent === "cotizar" && (
               <fieldset>
-                <legend className="mb-2 text-sm font-semibold text-gray-800">{t.f.interes}</legend>
+                <legend className="mb-2 text-sm font-semibold text-ink-2">{t.f.interes}</legend>
                 <div className="flex flex-wrap gap-2">
                   {t.interes.map((o) => {
                     const on = interes.includes(o);
@@ -199,7 +199,7 @@ export default function ContactForm({ lang = "es", initialIntent = "demo", base 
                         key={o}
                         type="button"
                         onClick={() => toggleInteres(o)}
-                        className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${on ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"}`}
+                        className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${on ? "border-accent bg-accent-soft text-accent" : "border-hairline-strong bg-surface text-ink-2 hover:border-ink-4"}`}
                       >
                         {o}
                       </button>
@@ -225,29 +225,29 @@ export default function ContactForm({ lang = "es", initialIntent = "demo", base 
             {err && <p className="text-sm font-medium text-rose-600">{t.required}</p>}
 
             <div className="flex flex-wrap items-center gap-4">
-              <button type="submit" className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700">
+              <button type="submit" className="rounded-lg border border-ink-1 bg-ink-1 px-6 py-3 text-sm font-medium text-page transition-colors hover:bg-ink-2 hover:border-ink-2">
                 {t.submit}
               </button>
-              <p className="text-sm text-gray-500">{t.note}</p>
+              <p className="text-sm text-ink-3">{t.note}</p>
             </div>
           </form>
         </div>
 
         {/* Contexto: los módulos */}
         <aside className="lg:col-span-1">
-          <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-6">
-            <p className="text-sm font-bold text-gray-950">{t.ctxTitle}</p>
+          <div className="rounded-xl border border-hairline bg-surface-2/60 p-6">
+            <p className="text-sm font-semibold text-ink-1">{t.ctxTitle}</p>
             <ul className="mt-4 space-y-4">
               {t.ctx.map((c) => (
                 <li key={c.t}>
                   <a href={`${base}${c.href}`} className="group block">
-                    <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 group-hover:text-blue-700">
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-ink-1 group-hover:text-accent">
                       {c.t}
-                      <svg className="h-3.5 w-3.5 text-blue-600 opacity-0 transition-opacity group-hover:opacity-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <svg className="h-3.5 w-3.5 text-accent opacity-0 transition-opacity group-hover:opacity-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M4 12h15m0 0l-6-6m6 6l-6 6" />
                       </svg>
                     </span>
-                    <span className="mt-0.5 block text-sm leading-relaxed text-gray-500">{c.d}</span>
+                    <span className="mt-0.5 block text-sm leading-relaxed text-ink-3">{c.d}</span>
                   </a>
                 </li>
               ))}

@@ -121,9 +121,9 @@ export default function PricingCalculator({ base = "" }: { base?: string }) {
   return (
     <section id="precios" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-24 scroll-mt-16">
       <div className="mx-auto max-w-3xl text-center">
-        <p className="mb-3 text-sm font-semibold tracking-widest text-blue-600 uppercase">Arma tu plan</p>
-        <h2 className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">Precio por caja de procesamiento</h2>
-        <p className="mt-5 text-lg text-gray-600">
+        <p className="mb-3 text-sm font-semibold tracking-widest text-accent uppercase">Arma tu plan</p>
+        <h2 className="text-3xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-4xl">Precio por caja de procesamiento</h2>
+        <p className="mt-5 text-lg text-ink-2">
           Filtra por familia operacional y elige las cajas que necesitas. La base de ingesta GPS siempre va; el
           precio nace del costo real de infraestructura.
         </p>
@@ -134,10 +134,10 @@ export default function PricingCalculator({ base = "" }: { base?: string }) {
         <button
           onClick={() => pickFam("all")}
           className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
-            fam === "all" ? "border-gray-950 bg-gray-950 text-white" : "border-gray-200 bg-white text-gray-800 hover:border-gray-300"
+            fam === "all" ? "border-ink-1 bg-ink-1 text-page" : "border-hairline bg-surface text-ink-2 hover:border-hairline-strong"
           }`}
         >
-          Todas <span className={fam === "all" ? "text-blue-300" : "text-gray-400"}>{totalCajas}</span>
+          Todas <span className={fam === "all" ? "text-page/60" : "text-ink-3"}>{totalCajas}</span>
         </button>
         {FAMILIES.map((fn, fi) =>
           famCount[fi] ? (
@@ -145,10 +145,10 @@ export default function PricingCalculator({ base = "" }: { base?: string }) {
               key={fi}
               onClick={() => pickFam(fi)}
               className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
-                fam === fi ? "border-gray-950 bg-gray-950 text-white" : "border-gray-200 bg-white text-gray-800 hover:border-gray-300"
+                fam === fi ? "border-ink-1 bg-ink-1 text-page" : "border-hairline bg-surface text-ink-2 hover:border-hairline-strong"
               }`}
             >
-              {fn} <span className={fam === fi ? "text-blue-300" : "text-gray-400"}>{famCount[fi]}</span>
+              {fn} <span className={fam === fi ? "text-page/60" : "text-ink-3"}>{famCount[fi]}</span>
             </button>
           ) : null,
         )}
@@ -173,7 +173,7 @@ export default function PricingCalculator({ base = "" }: { base?: string }) {
             const pv = (pilarCosto * mk) / REF_FLOTA;
             const exp = !!expanded[p.id];
             return (
-              <div key={p.id} className={`overflow-hidden rounded-xl border ${noneSel ? "border-gray-200" : "border-blue-500"} bg-white`}>
+              <div key={p.id} className={`overflow-hidden rounded-xl border ${noneSel ? "border-hairline" : "border-accent"} bg-surface`}>
                 <div className="flex items-center gap-3 p-4">
                   <button
                     onClick={() => toggleAll(p)}
@@ -181,43 +181,43 @@ export default function PricingCalculator({ base = "" }: { base?: string }) {
                     aria-label="Seleccionar todas del pilar"
                     className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 text-white ${
                       locked
-                        ? "cursor-default border-gray-400 bg-gray-400"
+                        ? "cursor-default border-ink-4 bg-ink-4"
                         : allSel
-                          ? "border-blue-600 bg-blue-600"
+                          ? "border-accent bg-accent"
                           : noneSel
-                            ? "border-gray-300 bg-white"
-                            : "border-blue-300 bg-blue-300"
+                            ? "border-hairline-strong bg-surface"
+                            : "border-accent/60 bg-accent/60"
                     }`}
                   >
                     {locked || allSel ? <IconCheck className="h-4 w-4" /> : noneSel ? null : <IconMinus className="h-4 w-4" />}
                   </button>
                   <button onClick={() => setExpanded((e) => ({ ...e, [p.id]: !exp }))} className="flex-1 text-left">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold text-gray-950">{p.nombre}</span>
+                      <span className="font-semibold text-ink-1">{p.nombre}</span>
                       {locked && (
-                        <span className="rounded-full bg-gray-950 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                        <span className="rounded-full bg-ink-1 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-page">
                           Base · incluido
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-sm text-gray-500">{p.desc}</p>
+                    <p className="mt-0.5 text-sm text-ink-3">{p.desc}</p>
                   </button>
                   <div className="shrink-0 text-right">
-                    <p className="text-lg font-extrabold text-gray-950">{fmtUSD(pv)}</p>
-                    <p className="text-[11px] text-gray-500">/activo · mes</p>
+                    <p className="text-lg font-semibold tracking-[-0.02em] text-ink-1">{fmtUSD(pv)}</p>
+                    <p className="text-[11px] text-ink-3">/activo · mes</p>
                   </div>
                   <button
                     onClick={() => setExpanded((e) => ({ ...e, [p.id]: !exp }))}
-                    className="flex shrink-0 items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-bold text-gray-700 hover:border-gray-300"
+                    className="flex shrink-0 items-center gap-1 rounded-lg border border-hairline bg-surface-2 px-2.5 py-1.5 text-xs font-semibold text-ink-2 hover:border-hairline-strong"
                   >
                     {selCount}/{vitems.length} <IconChevron open={exp} />
                   </button>
                 </div>
                 {exp && (
-                  <div className="max-h-80 overflow-auto border-t border-gray-100 bg-gray-50/60">
+                  <div className="max-h-80 overflow-auto border-t border-hairline bg-surface-2/60">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="text-[11px] uppercase tracking-wide text-gray-400">
+                        <tr className="text-[11px] uppercase tracking-wide text-ink-3">
                           <th className="w-8 px-3 py-2"></th>
                           <th className="px-3 py-2 text-left font-semibold">Caja interna</th>
                           <th className="px-3 py-2 text-right font-semibold">Vol/mes</th>
@@ -232,25 +232,25 @@ export default function PricingCalculator({ base = "" }: { base?: string }) {
                             <tr
                               key={idx}
                               onClick={() => toggleItem(p.id, idx, locked)}
-                              className={`border-t border-gray-100 ${locked ? "cursor-default" : "cursor-pointer hover:bg-white"} ${on ? "" : "opacity-40"}`}
+                              className={`border-t border-hairline ${locked ? "cursor-default" : "cursor-pointer hover:bg-surface"} ${on ? "" : "opacity-40"}`}
                             >
                               <td className="px-3 py-2">
                                 <span
                                   className={`flex h-[18px] w-[18px] items-center justify-center rounded border-2 text-white ${
-                                    !on ? "border-gray-300 bg-white" : locked ? "border-gray-400 bg-gray-400" : "border-blue-600 bg-blue-600"
+                                    !on ? "border-hairline-strong bg-surface" : locked ? "border-ink-4 bg-ink-4" : "border-accent bg-accent"
                                   }`}
                                 >
                                   {on ? <IconCheck className="h-3 w-3" /> : null}
                                 </span>
                               </td>
                               <td className="px-3 py-2">
-                                <span className="text-gray-800">{it.label}</span>
-                                {it.tecnico && <span className="block font-mono text-[11px] text-gray-400">{it.tecnico}</span>}
+                                <span className="text-ink-2">{it.label}</span>
+                                {it.tecnico && <span className="block font-mono text-[11px] text-ink-3">{it.tecnico}</span>}
                               </td>
-                              <td className="px-3 py-2 text-right tabular-nums text-gray-500">
+                              <td className="px-3 py-2 text-right tabular-nums text-ink-3">
                                 {it.volMes == null ? "—" : fmtN(it.volMes)}
                               </td>
-                              <td className="px-3 py-2 text-right font-bold tabular-nums text-blue-700">{fmtUSD(ipv)}</td>
+                              <td className="px-3 py-2 text-right font-semibold tabular-nums text-accent">{fmtUSD(ipv)}</td>
                             </tr>
                           );
                         })}
@@ -265,35 +265,35 @@ export default function PricingCalculator({ base = "" }: { base?: string }) {
 
         {/* Resumen */}
         <div className="lg:col-span-2">
-          <div className="sticky top-24 rounded-xl border border-gray-800 bg-gray-950 p-7 text-white">
-            <p className="text-sm text-gray-400">
+          <div className="sticky top-24 rounded-xl border border-ink-1 bg-ink-1 p-7 text-page dark:border-hairline dark:bg-surface">
+            <p className="text-sm text-page/60 dark:text-ink-3">
               Precio por activo · <span className="font-semibold text-blue-300">{famLabel}</span>
             </p>
-            <p className="mt-1 text-5xl font-extrabold tracking-tight text-blue-300">{fmtUSD(calc.precioVeh)}</p>
-            <p className="text-sm text-gray-400">USD / activo · mes</p>
+            <p className="mt-1 text-5xl font-semibold tracking-[-0.02em] text-blue-300">{fmtUSD(calc.precioVeh)}</p>
+            <p className="text-sm text-page/60 dark:text-ink-3">USD / activo · mes</p>
 
-            <div className="mt-6 space-y-2 border-t border-gray-800 pt-5 text-sm">
+            <div className="mt-6 space-y-2 border-t border-white/15 pt-5 dark:border-hairline text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-400">Cajas seleccionadas</span>
+                <span className="text-page/60 dark:text-ink-3">Cajas seleccionadas</span>
                 <span className="font-semibold">
                   {calc.nSel} de {calc.nItems}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Flota del cliente</span>
+                <span className="text-page/60 dark:text-ink-3">Flota del cliente</span>
                 <span className="font-semibold">{fmtN(flota)} activos</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Total mensual</span>
+                <span className="text-page/60 dark:text-ink-3">Total mensual</span>
                 <span className="font-semibold">{fmtUSD(calc.mensual, 0)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Total anual</span>
+                <span className="text-page/60 dark:text-ink-3">Total anual</span>
                 <span className="font-semibold">{fmtUSD(calc.anual, 0)}</span>
               </div>
               {calc.filtered && (
-                <div className="flex justify-between border-t border-gray-800 pt-3">
-                  <span className="text-gray-400">Plan completo · todas</span>
+                <div className="flex justify-between border-t border-white/15 pt-3 dark:border-hairline">
+                  <span className="text-page/60 dark:text-ink-3">Plan completo · todas</span>
                   <span className="font-semibold">
                     {fmtUSD(calc.precioVehAll)}/activo · {fmtUSD(calc.mensualAll, 0)}/mes
                   </span>
@@ -301,7 +301,7 @@ export default function PricingCalculator({ base = "" }: { base?: string }) {
               )}
             </div>
 
-            <label htmlFor="flota" className="mt-6 block text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <label htmlFor="flota" className="mt-6 block text-xs font-semibold uppercase tracking-wide text-page/60 dark:text-ink-3">
               Tamaño de flota del cliente
             </label>
             <input
@@ -314,19 +314,19 @@ export default function PricingCalculator({ base = "" }: { base?: string }) {
               onChange={(e) => setFlota(Number(e.target.value))}
               className="mt-3 w-full accent-blue-600"
             />
-            <div className="mt-1 flex items-baseline justify-between text-xs text-gray-500">
+            <div className="mt-1 flex items-baseline justify-between text-xs text-page/60 dark:text-ink-3">
               <span>100</span>
-              <span className="text-lg font-bold text-white">{fmtN(flota)} activos</span>
+              <span className="text-lg font-semibold text-page dark:text-ink-1">{fmtN(flota)} activos</span>
               <span>5.000</span>
             </div>
 
             <a
               href={`${base}/contacto?intent=cotizar`}
-              className="mt-6 block rounded-lg bg-blue-600 px-6 py-3 text-center font-bold text-white transition-colors hover:bg-blue-700"
+              className="mt-6 block rounded-lg bg-white px-6 py-3 text-center font-medium text-gray-950 transition-colors hover:bg-gray-100"
             >
               Agendar diagnóstico gratuito
             </a>
-            <p className="mt-4 text-center text-xs leading-relaxed text-gray-500">
+            <p className="mt-4 text-center text-xs leading-relaxed text-page/60 dark:text-ink-3">
               Precios referenciales en USD, basados en costos reales de infraestructura. La propuesta final se
               entrega tras el diagnóstico gratuito.
             </p>

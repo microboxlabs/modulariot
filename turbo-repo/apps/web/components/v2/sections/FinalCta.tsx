@@ -1,26 +1,34 @@
 import { getContent } from "../content";
 
+// Cierre del DS: panel en tinta dentro de la página (no banda a sangre),
+// botón blanco, cifras tabulares.
 export function FinalCta({ lang }: { lang: string }) {
   const c = getContent(lang).finalCta;
   return (
-    <section id="contacto" className="scroll-mt-16 bg-gray-950">
-      <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6 lg:py-28">
-        <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">{c.title}</h2>
-        <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-300">{c.body}</p>
-        <a
-          href={`/alpha-2506/${lang}/contacto?intent=demo`}
-          className="mt-10 inline-block rounded-lg bg-blue-600 px-8 py-4 text-base font-bold text-white transition-colors hover:bg-blue-700"
-        >
-          {c.cta}
-        </a>
-        <p className="mt-5 text-sm text-gray-400">{c.note}</p>
-        <div className="mt-12 grid grid-cols-3 gap-6 border-t border-gray-800 pt-10">
-          {c.stats.map((s) => (
-            <div key={s.label}>
-              <p className="text-2xl font-extrabold text-white sm:text-3xl">{s.value}</p>
-              <p className="mt-1 text-xs text-gray-400 sm:text-sm">{s.label}</p>
-            </div>
-          ))}
+    <section id="contacto" className="scroll-mt-16 bg-page">
+      <div className="mx-auto max-w-7xl px-6 py-16 sm:py-20 lg:py-24">
+        <div className="rounded-2xl border border-ink-1 bg-ink-1 px-8 py-14 text-center sm:px-16 dark:border-hairline dark:bg-surface">
+          <h2 className="mx-auto max-w-3xl text-3xl font-semibold tracking-[-0.025em] text-page sm:text-4xl dark:text-ink-1">
+            {c.title}
+          </h2>
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-page/70 dark:text-ink-2">{c.body}</p>
+          <a
+            href={`/alpha-2506/${lang}/contacto?intent=demo`}
+            className="mt-8 inline-flex items-center justify-center rounded-lg bg-white px-6 py-3.5 text-[15px] font-medium text-gray-950 transition-colors hover:bg-gray-100"
+          >
+            {c.cta}
+          </a>
+          <p className="mt-4 text-sm text-page/60 dark:text-ink-3">{c.note}</p>
+          <div className="mx-auto mt-12 grid max-w-2xl grid-cols-3 gap-6 border-t border-white/15 pt-10 dark:border-hairline">
+            {c.stats.map((s) => (
+              <div key={s.label}>
+                <p className="text-2xl font-semibold tracking-[-0.02em] text-page tabular-nums sm:text-3xl dark:text-ink-1">
+                  {s.value}
+                </p>
+                <p className="mt-1 text-xs text-page/60 sm:text-sm dark:text-ink-3">{s.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

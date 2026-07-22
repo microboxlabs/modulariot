@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getContent } from "./content";
 import { useLang } from "./useLang";
+import { Eyebrow } from "./sections/shared";
 
-// Stepper interactivo autoreproducido (estilo "5 simples pasos" de luuk.cl):
-// fila de indicadores con el activo resaltado + tarjeta-mockup que cambia sola.
-// La fila de indicadores es la única fuente de "en qué paso vas" — la tarjeta
-// solo muestra el contenido del paso activo, sin duplicar esa información.
+// Stepper interactivo autoreproducido: fila de indicadores con el activo
+// resaltado + tarjeta que cambia sola. El pipeline es una secuencia real
+// (ingesta → stream → síntoma → workflow → evidencia), así que los números
+// y tags portan información, no decoración.
 
 const stepIcons: React.ReactNode[] = [
   // 01 captura de señal (antena)
@@ -24,8 +25,7 @@ const stepIcons: React.ReactNode[] = [
 ];
 
 // Variants direccionales: la tarjeta se mueve en el mismo sentido que la fila
-// de indicadores (izquierda→derecha). Avanzando, la vieja sale por la
-// izquierda y la nueva entra por la derecha; al retroceder, al revés.
+// de indicadores (izquierda→derecha).
 const cardVariants = {
   enter: (direction: number) => ({ opacity: 0, x: direction >= 0 ? 48 : -48 }),
   center: { opacity: 1, x: 0 },
@@ -56,23 +56,23 @@ export default function StepsInteractive() {
   const step = steps[active];
 
   return (
-    <section id="como-funciona" className="scroll-mt-16 border-y border-gray-100 bg-gray-50">
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:py-32">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="mb-4 text-sm font-semibold tracking-widest text-blue-600 uppercase">{c.kicker}</p>
-          <h2 className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl lg:text-5xl">{c.title}</h2>
-          <p className="mt-6 text-lg leading-relaxed text-gray-600">{c.subtitle}</p>
+    <section id="como-funciona" className="scroll-mt-16 border-y border-hairline bg-page-alt">
+      <div className="mx-auto max-w-7xl px-6 py-16 sm:py-20 lg:py-24">
+        <div className="max-w-[720px]">
+          <Eyebrow>{c.kicker}</Eyebrow>
+          <h2 className="display mt-4 text-[clamp(30px,3.8vw,46px)] leading-[1.1]">{c.title}</h2>
+          <p className="mt-4 max-w-[56ch] text-[17px] leading-relaxed text-ink-2">{c.subtitle}</p>
         </div>
 
         <div
-          className="mt-10"
+          className="mt-12"
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
         >
           {/* Fila de indicadores */}
           <div className="relative mx-auto grid max-w-5xl grid-cols-5 gap-2">
             {/* línea base */}
-            <div className="absolute top-7 right-[10%] left-[10%] -z-0 hidden h-0.5 bg-gray-200 sm:block" />
+            <div className="absolute top-7 right-[10%] left-[10%] -z-0 hidden h-px bg-hairline-strong sm:block" />
             {steps.map((s, i) => {
               const isActive = i === active;
               const isDone = i < active;
@@ -80,16 +80,16 @@ export default function StepsInteractive() {
                 <button
                   key={s.n}
                   onClick={() => goTo(i)}
-                  className="group relative z-10 flex flex-col items-center gap-2 focus:outline-none"
+                  className="group relative z-10 flex flex-col items-center gap-2"
                   aria-label={`Paso ${i + 1}: ${s.title}`}
                 >
                   <span
                     className={`flex h-14 w-14 items-center justify-center rounded-full border-2 transition-all duration-300 ${
                       isActive
-                        ? "border-blue-600 bg-blue-600 text-white shadow-blue-600/25 scale-110"
+                        ? "scale-110 border-accent bg-accent text-white"
                         : isDone
-                          ? "border-blue-500 bg-white text-blue-500 group-hover:border-blue-600 group-hover:text-blue-600 group-hover:scale-105"
-                          : "border-gray-300 bg-white text-gray-400 group-hover:border-blue-400 group-hover:text-blue-500 group-hover:scale-105"
+                          ? "border-accent bg-surface text-accent group-hover:scale-105"
+                          : "border-hairline-strong bg-surface text-ink-4 group-hover:scale-105 group-hover:border-accent group-hover:text-accent"
                     }`}
                   >
                     <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
@@ -102,7 +102,7 @@ export default function StepsInteractive() {
                   </span>
                   <span
                     className={`text-center text-xs font-medium transition-colors duration-300 sm:text-sm ${
-                      isActive ? "text-blue-600 font-bold!" : "text-gray-500 group-hover:text-blue-500"
+                      isActive ? "text-accent" : "text-ink-3 group-hover:text-accent"
                     }`}
                   >
                     {s.title}
@@ -112,7 +112,7 @@ export default function StepsInteractive() {
             })}
           </div>
 
-          {/* Tarjeta-mockup que cambia */}
+          {/* Tarjeta del paso activo */}
           <div className="mx-auto mt-12 max-w-xl overflow-hidden">
             <AnimatePresence mode="wait" custom={direction}>
               <motion.div
@@ -123,9 +123,12 @@ export default function StepsInteractive() {
                 animate="center"
                 exit="exit"
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                className="rounded-xl border border-gray-200 bg-white p-8 text-center"
+                className="rounded-[14px] border border-hairline bg-surface p-8"
               >
-                <p className="mx-auto max-w-md text-lg leading-relaxed text-gray-600">{step.body}</p>
+                <p className="font-mono text-[11px] tracking-[0.12em] text-ink-4 uppercase">
+                  {step.n} · {step.tag}
+                </p>
+                <p className="mt-3 text-base leading-relaxed text-ink-2">{step.body}</p>
               </motion.div>
             </AnimatePresence>
           </div>

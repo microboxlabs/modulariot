@@ -357,7 +357,7 @@ function confOf(total: number): "high" | "medium" | "low" {
 
 function Bar({ value, max, color = "bg-blue-500" }: { value: number; max: number; color?: string }) {
   return (
-    <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+    <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
       <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.max(3, pct(value, max))}%` }} />
     </div>
   );
@@ -394,13 +394,13 @@ function ProfileCard({
   const validPct = e.con_tratamiento ? pct(e.validos, e.con_tratamiento) : 0;
 
   return (
-    <div className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
+    <div className="mt-6 overflow-hidden rounded-xl border border-hairline bg-surface">
       {/* Cabecera del perfil */}
-      <div className="flex flex-col gap-5 border-b border-gray-100 bg-gray-50/60 p-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-5 border-b border-hairline bg-surface-2/60 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">SuperProfile · {isC ? t.spCarrier : t.spDriver}</p>
-          <h3 className="mt-1 text-xl font-bold text-gray-950">{e.name}</h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">SuperProfile · {isC ? t.spCarrier : t.spDriver}</p>
+          <h3 className="mt-1 text-xl font-semibold text-ink-1">{e.name}</h3>
+          <p className="mt-1 text-sm text-ink-3">
             {isC
               ? `${fmt(e.conductores || 0)} ${t.wConductores} · ${fmt(e.assets)} ${t.wActivos} · ${fmt(e.viajes)} ${t.wViajesMes}`
               : `${e.carrier || "—"} · ${fmt(e.assets)} ${t.wActivos} · ${fmt(e.viajes)} ${t.wViajes}`}
@@ -408,9 +408,9 @@ function ProfileCard({
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[[t.kpiLevel, level], [t.kpiConf, conf], [t.kpiRisk, risk], [t.kpiEval, t.evalValue]].map(([k, v]) => (
-            <div key={k} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-center">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">{k}</p>
-              <p className="mt-0.5 text-base font-extrabold text-gray-950">{v}</p>
+            <div key={k} className="rounded-lg border border-hairline bg-surface px-3 py-2 text-center">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-ink-3">{k}</p>
+              <p className="mt-0.5 text-base font-semibold tracking-[-0.02em] text-ink-1">{v}</p>
             </div>
           ))}
         </div>
@@ -419,55 +419,55 @@ function ProfileCard({
       {/* Módulos */}
       <div className="grid gap-5 p-6 md:grid-cols-2 lg:grid-cols-3">
         <div>
-          <h4 className="text-sm font-bold text-gray-950">{t.hIdentidad}</h4>
-          <p className="mt-2 text-sm leading-relaxed text-gray-600">
+          <h4 className="text-sm font-semibold text-ink-1">{t.hIdentidad}</h4>
+          <p className="mt-2 text-sm leading-relaxed text-ink-2">
             {isC ? t.idCarrier : t.idDriver}{" "}
             {isC ? `${fmt(e.conductores || 0)} ${t.idCarrierMid1} ${fmt(e.assets)} ${t.idCarrierMid2}` : `${t.idPertenece} ${e.carrier || "—"}.`}{" "}
             {t.evidenceLabel} <b>{fmt(e.total)}</b> {t.evidenceTail}
           </p>
         </div>
         <div>
-          <h4 className="text-sm font-bold text-gray-950">{t.hEstado}</h4>
+          <h4 className="text-sm font-semibold text-ink-1">{t.hEstado}</h4>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${riskCls}`}>{t.riskWord} {risk}</span>
-            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">{t.levelWord} {level}</span>
+            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent">{t.levelWord} {level}</span>
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-gray-600">
+          <p className="mt-2 text-sm leading-relaxed text-ink-2">
             <b>{fmt(e.total)}</b> {t.stSintomas} · <b className="text-rose-600">{negro}%</b> {t.stCodigoNegro} · <b>{validPct}%</b> {t.stTratValidos}
           </p>
         </div>
         <div>
-          <h4 className="text-sm font-bold text-gray-950">{t.hPatrones}</h4>
-          <p className="mt-2 text-sm leading-relaxed text-gray-600">
+          <h4 className="text-sm font-semibold text-ink-1">{t.hPatrones}</h4>
+          <p className="mt-2 text-sm leading-relaxed text-ink-2">
             {t.patLead} <b>{nice(top.name)}</b> ({pct(top.c, e.total)}% {t.patParenA} {fmt(top.icu4)} {t.patParenB}).{" "}
             {isC ? t.patCarrier : t.patDriver}
           </p>
         </div>
         <div>
-          <h4 className="text-sm font-bold text-gray-950">{t.hHistoria}</h4>
+          <h4 className="text-sm font-semibold text-ink-1">{t.hHistoria}</h4>
           <div className="mt-3 space-y-2">
             {hist.map((s) => (
               <div key={s.name}>
-                <div className="flex justify-between text-xs text-gray-600"><span>{nice(s.name)}</span><span className="tabular-nums text-gray-400">{fmt(s.c)}</span></div>
+                <div className="flex justify-between text-xs text-ink-2"><span>{nice(s.name)}</span><span className="tabular-nums text-ink-3">{fmt(s.c)}</span></div>
                 <div className="mt-1"><Bar value={s.c} max={hmax} /></div>
               </div>
             ))}
           </div>
         </div>
         <div>
-          <h4 className="text-sm font-bold text-gray-950">{t.hComport}</h4>
+          <h4 className="text-sm font-semibold text-ink-1">{t.hComport}</h4>
           <div className="mt-3 space-y-2">
             {dims.map(([dim, val]) => (
               <div key={dim}>
-                <div className="flex justify-between text-xs text-gray-600"><span>{dim}</span><span className="tabular-nums text-gray-400">{pct(val, e.total)}%</span></div>
+                <div className="flex justify-between text-xs text-ink-2"><span>{dim}</span><span className="tabular-nums text-ink-3">{pct(val, e.total)}%</span></div>
                 <div className="mt-1"><Bar value={val} max={e.total} color={DIM_COLOR[dim]} /></div>
               </div>
             ))}
           </div>
         </div>
         <div>
-          <h4 className="text-sm font-bold text-gray-950">{t.hPlan}</h4>
-          <div className="mt-2 space-y-1 text-sm leading-relaxed text-gray-600">
+          <h4 className="text-sm font-semibold text-ink-1">{t.hPlan}</h4>
+          <div className="mt-2 space-y-1 text-sm leading-relaxed text-ink-2">
             <p><b>{t.planActionLabel}</b> {cat?.action || t.planActionFallback}.</p>
             <p><b>{t.planOwnerLabel}</b> {cat?.owner || t.planOwnerFallback}.</p>
             <p><b>{t.planMetaLabel}</b> {t.planMetaA} {nice(top.name)} {t.planMetaB}</p>
@@ -477,8 +477,8 @@ function ProfileCard({
       </div>
 
       {/* Cierre */}
-      <div className="border-t border-gray-100 bg-blue-50/50 px-6 py-4">
-        <p className="text-sm leading-relaxed text-gray-700">
+      <div className="border-t border-hairline bg-accent-soft/50 px-6 py-4">
+        <p className="text-sm leading-relaxed text-ink-2">
           {t.clSpOf} <b>{e.name}</b> {t.clBuilds} {fmt(e.total)} {t.clSymJune} {t.clLevelW} <b>{level}</b>, {t.clRiskW} <b>{risk}</b>, {t.clFocus} <b>{nice(top.name)}</b>.
           {t.clMgmtLead}<b>{cat?.action || "—"}</b>{t.clToOwner}<b>{cat?.owner || t.planOwnerFallback}</b>{t.clTail}
         </p>
@@ -504,29 +504,29 @@ export default function SuperProfile() {
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
-      <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">{t.actLabel}</p>
-      <h1 className="mt-4 max-w-4xl text-4xl font-extrabold tracking-tight text-gray-950 sm:text-5xl">
+      <p className="text-sm font-semibold uppercase tracking-widest text-accent">{t.actLabel}</p>
+      <h1 className="mt-4 max-w-4xl text-4xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-5xl">
         {t.title}
       </h1>
-      <p className="mt-6 max-w-3xl text-lg leading-relaxed text-gray-600">
+      <p className="mt-6 max-w-3xl text-lg leading-relaxed text-ink-2">
         {t.intro1}<b>{t.introB1}</b>{t.intro2}<b>{t.introB2}</b>{t.intro3}
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
         {t.chips.map((c) => (
-          <span key={c} className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600">{c}</span>
+          <span key={c} className="rounded-full border border-hairline bg-surface-2 px-3 py-1 text-xs font-medium text-ink-2">{c}</span>
         ))}
       </div>
 
       {/* Ciclo de valor */}
       <div className="mt-16">
-        <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">{t.cycleLabel}</p>
-        <h2 className="mt-2 text-2xl font-bold text-gray-950">{t.cycleTitle}</h2>
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent">{t.cycleLabel}</p>
+        <h2 className="mt-2 text-2xl font-semibold text-ink-1">{t.cycleTitle}</h2>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {t.CYCLE.map(([c, d], i) => (
-            <div key={c} className="rounded-xl border border-gray-200 bg-white p-5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">{i + 1}</span>
-              <h5 className="mt-3 font-bold text-gray-950">{c}</h5>
-              <p className="mt-1 text-sm leading-relaxed text-gray-600">{d}</p>
+            <div key={c} className="rounded-xl border border-hairline bg-surface p-5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">{i + 1}</span>
+              <h5 className="mt-3 font-semibold text-ink-1">{c}</h5>
+              <p className="mt-1 text-sm leading-relaxed text-ink-2">{d}</p>
             </div>
           ))}
         </div>
@@ -534,13 +534,13 @@ export default function SuperProfile() {
 
       {/* Arquitectura común */}
       <div className="mt-16">
-        <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">{t.archLabel}</p>
-        <h2 className="mt-2 text-2xl font-bold text-gray-950">{t.archTitle}</h2>
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent">{t.archLabel}</p>
+        <h2 className="mt-2 text-2xl font-semibold text-ink-1">{t.archTitle}</h2>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {t.ARCH.map(([c, d]) => (
-            <div key={c} className="rounded-xl border border-gray-200 bg-white p-5">
-              <h4 className="font-bold text-gray-950">{c}</h4>
-              <p className="mt-1.5 text-sm leading-relaxed text-gray-600">{d}</p>
+            <div key={c} className="rounded-xl border border-hairline bg-surface p-5">
+              <h4 className="font-semibold text-ink-1">{c}</h4>
+              <p className="mt-1.5 text-sm leading-relaxed text-ink-2">{d}</p>
             </div>
           ))}
         </div>
@@ -548,14 +548,14 @@ export default function SuperProfile() {
 
       {/* Entidades */}
       <div className="mt-16">
-        <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">{t.entsLabel}</p>
-        <h2 className="mt-2 text-2xl font-bold text-gray-950">{t.entsTitle}</h2>
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent">{t.entsLabel}</p>
+        <h2 className="mt-2 text-2xl font-semibold text-ink-1">{t.entsTitle}</h2>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {t.ENTS.map(([c, sub, q]) => (
-            <div key={c} className="rounded-xl border border-gray-200 bg-white p-5">
-              <h4 className="font-bold text-gray-950">{c}</h4>
-              <span className="mt-2 inline-block rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">{sub}</span>
-              <p className="mt-2 text-sm leading-relaxed text-gray-600">{q}</p>
+            <div key={c} className="rounded-xl border border-hairline bg-surface p-5">
+              <h4 className="font-semibold text-ink-1">{c}</h4>
+              <span className="mt-2 inline-block rounded-md bg-surface-3 px-2 py-0.5 text-[11px] font-semibold text-ink-2">{sub}</span>
+              <p className="mt-2 text-sm leading-relaxed text-ink-2">{q}</p>
             </div>
           ))}
         </div>
@@ -563,20 +563,20 @@ export default function SuperProfile() {
 
       {/* Demo en vivo */}
       <div className="mt-16">
-        <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">{t.demoLabel}</p>
-        <h2 className="mt-2 text-2xl font-bold text-gray-950">{t.demoTitle}</h2>
-        <p className="mt-3 max-w-3xl leading-relaxed text-gray-600">
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent">{t.demoLabel}</p>
+        <h2 className="mt-2 text-2xl font-semibold text-ink-1">{t.demoTitle}</h2>
+        <p className="mt-3 max-w-3xl leading-relaxed text-ink-2">
           {t.demo1}
           <b>{t.demoB}</b>
         </p>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+          <div className="inline-flex rounded-lg border border-hairline bg-surface p-1">
             {(["carrier", "driver"] as const).map((bt) => (
               <button
                 key={bt}
                 onClick={() => { setType(bt); setIdx(0); }}
-                className={`rounded-md px-4 py-1.5 text-sm font-semibold transition-colors ${type === bt ? "bg-blue-600 text-white" : "text-gray-600 hover:text-gray-950"}`}
+                className={`rounded-md px-4 py-1.5 text-sm font-semibold transition-colors ${type === bt ? "bg-accent text-white" : "text-ink-2 hover:text-ink-1"}`}
               >
                 {bt === "carrier" ? t.carriers : t.drivers}
               </button>
@@ -585,7 +585,7 @@ export default function SuperProfile() {
           <select
             value={Math.min(idx, list.length - 1)}
             onChange={(ev) => setIdx(+ev.target.value)}
-            className="max-w-sm rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+            className="max-w-sm rounded-lg border border-hairline-strong bg-surface px-3.5 py-2 text-sm text-ink-1 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           >
             {list.map((it, i) => (
               <option key={it.name} value={i}>{it.name} — {fmt(it.total)} {t.symptomsWord}</option>
@@ -598,8 +598,8 @@ export default function SuperProfile() {
 
       {/* Principio de comunicación */}
       <div className="mt-10 rounded-xl border-l-4 border-amber-400 bg-amber-50 px-5 py-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-amber-700">{t.commLabel}</p>
-        <p className="mt-1.5 text-sm font-medium leading-relaxed text-gray-700">
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">{t.commLabel}</p>
+        <p className="mt-1.5 text-sm font-medium leading-relaxed text-ink-2">
           {t.commA}<b>{t.commB}</b>{t.commC}
         </p>
       </div>

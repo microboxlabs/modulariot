@@ -58,24 +58,24 @@ function DIcon({ name, className }: { name: string; className?: string }) {
 }
 
 function Kicker({ children, dark }: { children: React.ReactNode; dark?: boolean }) {
-  return <p className={`mb-4 text-sm font-semibold tracking-widest uppercase ${dark ? "text-blue-400" : "text-blue-600"}`}>{children}</p>;
+  return <p className={`mb-4 text-sm font-semibold tracking-widest uppercase ${dark ? "text-blue-400" : "text-accent"}`}>{children}</p>;
 }
 
 const Check = () => (
-  <svg className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+  <svg className="mt-0.5 h-4 w-4 shrink-0 text-accent" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
   </svg>
 );
 
 function BlockView({ block, tone, base }: { block: Block; tone: "white" | "gray"; base: string }) {
-  const wrap = `scroll-mt-16 ${tone === "gray" ? "bg-gray-50 border-y border-gray-100" : "bg-white"}`;
+  const wrap = `scroll-mt-16 ${tone === "gray" ? "bg-surface-2 border-y border-hairline" : "bg-surface"}`;
   const inner = "mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-24";
 
   const Header = ({ kicker, title, subtitle }: { kicker?: string; title: string; subtitle?: string }) => (
     <Reveal className="mx-auto max-w-3xl text-center">
       {kicker && <Kicker>{kicker}</Kicker>}
-      <h2 className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">{title}</h2>
-      {subtitle && <p className="mt-6 text-lg text-gray-600">{subtitle}</p>}
+      <h2 className="text-3xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-4xl">{title}</h2>
+      {subtitle && <p className="mt-6 text-lg text-ink-2">{subtitle}</p>}
     </Reveal>
   );
 
@@ -85,16 +85,16 @@ function BlockView({ block, tone, base }: { block: Block; tone: "white" | "gray"
         <div className={`${inner} grid items-start gap-10 lg:grid-cols-2`}>
           <Reveal>
             {block.kicker && <Kicker>{block.kicker}</Kicker>}
-            <h2 className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">{block.title}</h2>
-            <p className="mt-6 text-lg leading-relaxed text-gray-600">{block.body}</p>
+            <h2 className="text-3xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-4xl">{block.title}</h2>
+            <p className="mt-6 text-lg leading-relaxed text-ink-2">{block.body}</p>
           </Reveal>
-          <Reveal delay={0.12} className="rounded-xl border border-gray-200 bg-white p-8">
+          <Reveal delay={0.12} className="rounded-xl border border-hairline bg-surface p-8">
             {block.code ? (
               <pre className="overflow-x-auto rounded-lg bg-gray-950 p-5 font-mono text-xs leading-relaxed text-gray-100">{block.code}</pre>
             ) : (
               <ul className="space-y-4">
                 {block.bullets.map((b) => (
-                  <li key={b} className="flex items-start gap-3 text-gray-800">
+                  <li key={b} className="flex items-start gap-3 text-ink-2">
                     <Check />
                     <span>{b}</span>
                   </li>
@@ -114,14 +114,14 @@ function BlockView({ block, tone, base }: { block: Block; tone: "white" | "gray"
           <Header kicker={block.kicker} title={block.title} subtitle={block.subtitle} />
           <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {block.cards.map((card, i) => (
-              <Reveal key={card.title} delay={i * 0.07} className="rounded-xl border border-gray-200 bg-white p-8 transition-shadow hover:shadow-md">
+              <Reveal key={card.title} delay={i * 0.07} className="rounded-xl border border-hairline bg-surface p-8 transition-shadow hover:shadow-md">
                 {card.icon && (
-                  <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-lg bg-accent-soft text-accent">
                     <DIcon name={card.icon} className="h-6 w-6" />
                   </div>
                 )}
-                <h3 className="text-lg font-bold text-gray-950">{card.title}</h3>
-                <p className="mt-3 leading-relaxed text-gray-600">{card.body}</p>
+                <h3 className="text-lg font-semibold text-ink-1">{card.title}</h3>
+                <p className="mt-3 leading-relaxed text-ink-2">{card.body}</p>
               </Reveal>
             ))}
           </div>
@@ -137,11 +137,11 @@ function BlockView({ block, tone, base }: { block: Block; tone: "white" | "gray"
           <Header kicker={block.kicker} title={block.title} subtitle={block.subtitle} />
           <div className="mx-auto mt-14 max-w-3xl space-y-4">
             {block.steps.map((s, i) => (
-              <Reveal key={s.n} delay={i * 0.06} className="flex gap-5 rounded-xl border border-gray-200 bg-white p-6">
-                <span className="text-2xl font-extrabold text-gray-200">{s.n}</span>
+              <Reveal key={s.n} delay={i * 0.06} className="flex gap-5 rounded-xl border border-hairline bg-surface p-6">
+                <span className="text-2xl font-semibold tracking-[-0.02em] text-hairline">{s.n}</span>
                 <div>
-                  <h3 className="text-base font-bold text-gray-950">{s.title}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-gray-600">{s.body}</p>
+                  <h3 className="text-base font-semibold text-ink-1">{s.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-2">{s.body}</p>
                 </div>
               </Reveal>
             ))}
@@ -158,8 +158,8 @@ function BlockView({ block, tone, base }: { block: Block; tone: "white" | "gray"
           <Header kicker={block.kicker} title={block.title} subtitle={block.subtitle} />
           <div className="mt-14 grid gap-6 lg:grid-cols-2">
             {block.cards.map((card, i) => (
-              <Reveal key={card.title} delay={i * 0.1} className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
-                <h3 className="px-6 pt-6 text-lg font-bold text-gray-950">{card.title}</h3>
+              <Reveal key={card.title} delay={i * 0.1} className="flex flex-col overflow-hidden rounded-xl border border-hairline bg-surface">
+                <h3 className="px-6 pt-6 text-lg font-semibold text-ink-1">{card.title}</h3>
                 <pre className="mt-4 flex-1 overflow-x-auto bg-gray-950 p-5 font-mono text-xs leading-relaxed text-gray-100">{card.code}</pre>
               </Reveal>
             ))}
@@ -171,13 +171,13 @@ function BlockView({ block, tone, base }: { block: Block; tone: "white" | "gray"
 
   if (block.type === "stats") {
     return (
-      <section className="bg-gray-950">
+      <section className="border-y border-ink-1 bg-ink-1 dark:border-hairline dark:bg-surface">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
           <div className="grid grid-cols-2 gap-x-8 gap-y-10 lg:grid-cols-4">
             {block.items.map((s, i) => (
               <Reveal key={s.label} delay={i * 0.08} className="text-center">
-                <p className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl">{s.value}</p>
-                <p className="mt-2 text-sm text-gray-300">{s.label}</p>
+                <p className="text-3xl font-semibold tracking-[-0.02em] text-page sm:text-5xl dark:text-ink-1">{s.value}</p>
+                <p className="mt-2 text-sm text-page/60 dark:text-ink-3">{s.label}</p>
               </Reveal>
             ))}
           </div>
@@ -197,15 +197,15 @@ function BlockView({ block, tone, base }: { block: Block; tone: "white" | "gray"
               <a
                 href={link.external || link.href.startsWith("http") ? link.href : `${base}${link.href}`}
                 {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                className="group block h-full rounded-xl border border-gray-200 bg-white p-8 transition-shadow hover:shadow-md"
+                className="group block h-full rounded-xl border border-hairline bg-surface p-8 transition-shadow hover:shadow-md"
               >
-                <h3 className="flex items-center gap-2 text-lg font-bold text-gray-950">
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-ink-1">
                   {link.title}
-                  <svg className="h-4 w-4 shrink-0 text-blue-600 transition-transform group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg className="h-4 w-4 shrink-0 text-accent transition-transform group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M4 12h15m0 0l-6-6m6 6l-6 6" />
                   </svg>
                 </h3>
-                <p className="mt-3 leading-relaxed text-gray-600">{link.body}</p>
+                <p className="mt-3 leading-relaxed text-ink-2">{link.body}</p>
               </a>
             </Reveal>
           ))}
@@ -223,28 +223,28 @@ export default function DetailPage({ data, base }: { data: DetailPageData; base:
       <Nav />
       <main>
         {/* Hero de la página de detalle */}
-        <section className="border-b border-gray-100 bg-white">
+        <section className="border-b border-hairline bg-surface">
           <Reveal className="mx-auto max-w-4xl px-4 pt-20 pb-16 text-center sm:px-6 lg:pt-24">
-            <p className="mb-5 inline-block rounded-full border border-gray-200 bg-gray-50 px-4 py-1.5 text-xs font-semibold tracking-widest text-blue-600 uppercase">
+            <p className="mb-5 inline-block rounded-full border border-hairline bg-surface-2 px-4 py-1.5 text-xs font-semibold tracking-widest text-accent uppercase">
               {data.eyebrow}
             </p>
             {data.icon && !data.graphic && (
-              <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+              <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-accent-soft text-accent">
                 <DIcon name={data.icon} className="h-7 w-7" />
               </div>
             )}
-            <h1 className="text-4xl font-extrabold tracking-tight text-gray-950 sm:text-5xl lg:text-6xl">{data.title}</h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-600">{data.subtitle}</p>
+            <h1 className="text-4xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-5xl lg:text-6xl">{data.title}</h1>
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-ink-2">{data.subtitle}</p>
             {data.graphic && (
-              <div className="mx-auto mt-10 max-w-lg overflow-hidden rounded-xl border border-gray-200">
+              <div className="mx-auto mt-10 max-w-lg overflow-hidden rounded-xl border border-hairline">
                 <ConceptGraphic id={data.graphic} />
               </div>
             )}
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <a href={`${base}/#contacto`} className="w-full rounded-lg bg-blue-600 px-8 py-3.5 text-base font-semibold text-white transition-colors hover:bg-blue-700 sm:w-auto">
+              <a href={`${base}/#contacto`} className="w-full rounded-lg border border-ink-1 bg-ink-1 px-8 py-3.5 text-base font-medium text-page transition-colors hover:bg-ink-2 hover:border-ink-2 sm:w-auto">
                 {t.nav.cta}
               </a>
-              <a href={`${base}/precios`} className="w-full rounded-lg border border-gray-300 bg-white px-8 py-3.5 text-base font-semibold text-gray-950 transition-colors hover:border-gray-950 sm:w-auto">
+              <a href={`${base}/precios`} className="w-full rounded-lg border border-hairline-strong bg-surface px-8 py-3.5 text-base font-medium text-ink-1 transition-colors hover:border-ink-1 sm:w-auto">
                 {t.hero.ctaSecondary}
               </a>
             </div>
@@ -256,11 +256,11 @@ export default function DetailPage({ data, base }: { data: DetailPageData; base:
         ))}
 
         {/* CTA final */}
-        <section className="bg-gray-950">
+        <section className="border-y border-ink-1 bg-ink-1 dark:border-hairline dark:bg-surface">
           <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6">
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{t.finalCta.title}</h2>
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-300">{t.finalCta.body}</p>
-            <a href={`${base}/contacto?intent=demo`} className="mt-10 inline-block rounded-lg bg-blue-600 px-8 py-4 text-base font-bold text-white transition-colors hover:bg-blue-700">
+            <h2 className="text-3xl font-semibold tracking-[-0.02em] text-page sm:text-4xl dark:text-ink-1">{t.finalCta.title}</h2>
+            <p className="mx-auto mt-6 max-w-2xl text-lg text-page/70 dark:text-ink-2">{t.finalCta.body}</p>
+            <a href={`${base}/contacto?intent=demo`} className="mt-10 inline-block rounded-lg bg-white px-8 py-4 text-base font-medium text-gray-950 transition-colors hover:bg-gray-100">
               {t.finalCta.cta}
             </a>
           </div>

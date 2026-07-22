@@ -1,16 +1,23 @@
 import { Reveal } from "../Reveal";
 
 // ============================================================
-// Helpers de layout — separación visual consistente entre secciones.
-// tone: "white" | "gray" | "dark" define el fondo y crea el ritmo alternado.
+// Primitivas del Design System para la landing.
+// tone: "white" | "gray" define el ritmo alternado de superficies;
+// ambos tonos resuelven claro/oscuro vía tokens semánticos.
 // ============================================================
-export type Tone = "white" | "gray" | "dark";
+export type Tone = "white" | "gray";
 
 export const toneClasses: Record<Tone, string> = {
-  white: "bg-white",
-  gray: "bg-gray-50 border-y border-gray-100",
-  dark: "bg-gray-800",
+  white: "bg-page",
+  gray: "bg-page-alt border-y border-hairline",
 };
+
+// Botones del DS: primaria en tinta (nunca azul), secundaria en superficie.
+export const btnPrimary =
+  "inline-flex items-center justify-center gap-2 rounded-lg border border-ink-1 bg-ink-1 px-5 py-3 text-sm font-medium text-page transition-colors hover:bg-ink-2 hover:border-ink-2";
+export const btnSecondary =
+  "inline-flex items-center justify-center gap-2 rounded-lg border border-hairline-strong bg-surface px-5 py-3 text-sm font-medium text-ink-1 transition-colors hover:bg-surface-3";
+export const btnLg = "px-6 py-3.5 text-[15px]";
 
 export function Section({
   id,
@@ -25,37 +32,35 @@ export function Section({
 }) {
   return (
     <section id={id} className={`scroll-mt-16 ${toneClasses[tone]} ${className}`}>
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:py-32">{children}</div>
+      <div className="mx-auto max-w-7xl px-6 py-16 sm:py-20 lg:py-24">{children}</div>
     </section>
   );
 }
 
+export function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.1em] text-accent uppercase">
+      <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
+      {children}
+    </p>
+  );
+}
+
+// Cabecera de sección del DS: alineada a la izquierda, ancho de lectura.
 export function SectionHeader({
   kicker,
   title,
   subtitle,
-  dark = false,
 }: {
   kicker: string;
   title: React.ReactNode;
   subtitle?: string;
-  dark?: boolean;
 }) {
   return (
-    <Reveal className="mx-auto max-w-3xl text-center">
-      <p className="mb-4 text-sm font-semibold tracking-widest text-blue-600 uppercase">{kicker}</p>
-      <h2
-        className={`text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl ${
-          dark ? "text-white" : "text-gray-950"
-        }`}
-      >
-        {title}
-      </h2>
-      {subtitle && (
-        <p className={`mt-6 text-lg leading-relaxed ${dark ? "text-gray-300" : "text-gray-600"}`}>
-          {subtitle}
-        </p>
-      )}
+    <Reveal className="max-w-[720px]">
+      <Eyebrow>{kicker}</Eyebrow>
+      <h2 className="display mt-4 text-[clamp(30px,3.8vw,46px)] leading-[1.1]">{title}</h2>
+      {subtitle && <p className="mt-4 max-w-[56ch] text-[17px] leading-relaxed text-ink-2">{subtitle}</p>}
     </Reveal>
   );
 }

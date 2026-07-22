@@ -1,41 +1,39 @@
 import type { Metadata } from "next";
+import { ThemeModeScript } from "flowbite-react";
 import { Inter } from "next/font/google";
 import "../../globals.css";
 import DemoFab from "../../../components/v2/DemoFab";
 
 const inter = Inter({
   subsets: ["latin"],
-  display: 'swap',
-  variable: '--font-inter',
+  display: "swap",
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
-  title: "ModularIoT — Sabemos lo que pasa. Antes de que te pase a ti.",
-  description: "Plataforma de monitoreo operacional en tiempo real. Supervisamos tus activos y procesos para que actúes antes de que ocurra el problema. Código abierto, sin dependencia de proveedores.",
+  metadataBase: new URL("https://modulariot.com"),
+  title: "ModularIoT — De detectar desviaciones a reducirlas",
+  description:
+    "Plataforma de monitoreo operacional en tiempo real. Convertimos cada señal de tu flota en menos desviaciones repetidas. Código abierto, sin dependencia de proveedores.",
   keywords: ["fleet management", "IoT", "real-time data", "streaming", "telematics", "GPS tracking", "sensor data", "open source", "Apache-2.0"],
   authors: [{ name: "MicroboxLabs" }],
   creator: "MicroboxLabs",
   publisher: "MicroboxLabs",
   openGraph: {
-    title: "ModularIoT - Own Your Fleet Data in Real Time",
-    description: "ModularIoT is an open-source real-time monitoring platform for fleet data. Stream every GPS ping, sensor value and driver event through your cloud in milliseconds.",
+    title: "ModularIoT — De detectar desviaciones a reducirlas",
+    description:
+      "Plataforma open-source de monitoreo operacional en tiempo real: cada ping GPS, valor de sensor y evento del conductor fluye por tu nube en milisegundos.",
     url: "https://modulariot.com",
     siteName: "ModularIoT",
     type: "website",
-    images: [
-      {
-        url: "/hero-pipeline.svg",
-        width: 400,
-        height: 300,
-        alt: "ModularIoT Real-time Data Pipeline",
-      },
-    ],
+    images: [{ url: "/logo.svg", width: 1052, height: 256, alt: "ModularIoT" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "ModularIoT - Own Your Fleet Data in Real Time",
-    description: "ModularIoT is an open-source real-time monitoring platform for fleet data. Stream every GPS ping, sensor value and driver event through your cloud in milliseconds.",
-    images: ["/hero-pipeline.svg"],
+    title: "ModularIoT — De detectar desviaciones a reducirlas",
+    description:
+      "Plataforma open-source de monitoreo operacional en tiempo real para datos de flota.",
+    images: ["/logo.svg"],
     creator: "@microboxlabs",
   },
   robots: {
@@ -49,13 +47,10 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  verification: {
-    google: "your-google-verification-code",
-  },
 };
 
 export async function generateStaticParams() {
-  return [{ lang: 'en' }, { lang: 'es' }, { lang: 'pt' }];
+  return [{ lang: "en" }, { lang: "es" }, { lang: "pt" }];
 }
 
 export default async function RootLayout({
@@ -66,15 +61,15 @@ export default async function RootLayout({
   params: Promise<{ lang: string }>;
 }>) {
   const { lang } = await params;
-  
+
   return (
     <html lang={lang} suppressHydrationWarning className={inter.variable}>
       <head>
+        <ThemeModeScript />
         <link rel="canonical" href="https://modulariot.com" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
       </head>
-      <body className="min-h-screen bg-gray-950 font-sans text-white antialiased">
+      <body className="min-h-screen bg-page font-sans text-ink-1 antialiased">
         {children}
         <DemoFab lang={lang} />
       </body>

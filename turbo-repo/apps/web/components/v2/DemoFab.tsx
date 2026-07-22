@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 // ============================================================
 // Botón flotante "Solicitar demo" — persistente en toda la navegación.
 // Acordado en revisión comercial: CTA prominente a demo técnica (no autoservicio).
-// Se oculta en la propia página de contacto.
+// Se oculta en la propia página de contacto. Piel del DS: primaria en tinta.
 // ============================================================
 
 const LABEL: Record<string, string> = {
@@ -22,7 +22,7 @@ export default function DemoFab({ lang = "es" }: { lang?: string }) {
   return (
     <a
       href={`${base}/contacto?intent=demo`}
-      className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg ring-1 ring-black/5 transition-colors hover:bg-blue-700 sm:bottom-6 sm:right-6"
+      className="fixed right-5 bottom-5 z-40 flex items-center gap-2 rounded-full border border-ink-1 bg-ink-1 px-5 py-3 text-sm font-medium text-page shadow-lg transition-colors hover:bg-ink-2 hover:border-ink-2 sm:right-6 sm:bottom-6"
       aria-label={LABEL[lang] || LABEL.es}
     >
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

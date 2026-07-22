@@ -209,10 +209,10 @@ function Channel({ color, tag, caption, t, children }: { color: string; tag: str
     <div className="flex flex-col">
       <div className="mb-2 flex items-center gap-2">
         <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
-        <span className="text-sm font-bold text-gray-950">{tag}</span>
+        <span className="text-sm font-semibold text-ink-1">{tag}</span>
       </div>
-      <div className="flex-1 overflow-hidden rounded-xl border border-gray-200 bg-white">{children}</div>
-      <p className="mt-2 text-xs leading-relaxed text-gray-500"><b className="text-gray-700">{t.cuando}</b> {caption}</p>
+      <div className="flex-1 overflow-hidden rounded-xl border border-hairline bg-surface">{children}</div>
+      <p className="mt-2 text-xs leading-relaxed text-ink-3"><b className="text-ink-2">{t.cuando}</b> {caption}</p>
     </div>
   );
 }
@@ -220,27 +220,27 @@ function Channel({ color, tag, caption, t, children }: { color: string; tag: str
 function EmailMock({ p, t }: { p: Payload; t: Dict }) {
   return (
     <div className="text-sm">
-      <div className="flex items-center gap-2 border-b border-gray-100 p-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-600 text-xs font-bold text-white">MB</span>
+      <div className="flex items-center gap-2 border-b border-hairline p-3">
+        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-accent text-xs font-semibold text-white">MB</span>
         <div className="leading-tight">
-          <p className="font-semibold text-gray-950">{t.emailSender}</p>
-          <p className="text-[11px] text-gray-400">alertas@modulariot.com</p>
+          <p className="font-semibold text-ink-1">{t.emailSender}</p>
+          <p className="text-[11px] text-ink-3">alertas@modulariot.com</p>
         </div>
       </div>
-      <div className="border-b border-gray-100 px-3 py-2 text-xs font-semibold text-gray-700">
+      <div className="border-b border-hairline px-3 py-2 text-xs font-semibold text-ink-2">
         [SuperProfile] {p.tipo} · {t.nivel} {p.nivel} · {t.riesgo} {p.riesgo}
       </div>
-      <div className="space-y-3 p-3 text-gray-600">
+      <div className="space-y-3 p-3 text-ink-2">
         <p>{t.emailResumenPre} <b>{p.name}</b> {t.emailResumenPost}</p>
         <div className="grid grid-cols-3 gap-2">
           {[[fmt(p.total), t.sintomas], [`${p.negro}%`, t.codigoNegro], [p.nivel, t.nivelOper]].map(([v, l]) => (
-            <div key={l} className="rounded-lg border border-gray-200 bg-gray-50 p-2 text-center">
-              <p className="text-base font-extrabold text-gray-950">{v}</p><p className="text-[10px] text-gray-500">{l}</p>
+            <div key={l} className="rounded-lg border border-hairline bg-surface-2 p-2 text-center">
+              <p className="text-base font-semibold tracking-[-0.02em] text-ink-1">{v}</p><p className="text-[10px] text-ink-3">{l}</p>
             </div>
           ))}
         </div>
         <p>{t.focoMesLabel} <b>{p.foco}</b> ({p.focoPct}%). {t.planAsignadoLabel} {p.plan} — {t.duenoLabel} {p.owner}.</p>
-        <span className="inline-block font-semibold text-blue-700">{t.verSuperProfileCompleto}</span>
+        <span className="inline-block font-semibold text-accent">{t.verSuperProfileCompleto}</span>
       </div>
     </div>
   );
@@ -250,7 +250,7 @@ function WhatsAppMock({ p, t }: { p: Payload; t: Dict }) {
   return (
     <div className="text-sm">
       <div className="flex items-center gap-2 bg-[#075e54] p-3 text-white">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-xs font-bold">MB</span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-xs font-semibold">MB</span>
         <div className="leading-tight"><p className="font-semibold">{t.waTitle}</p><p className="text-[11px] text-white/70">{t.enLinea}</p></div>
       </div>
       <div className="space-y-2 bg-[#e5ddd5] p-3">
@@ -270,25 +270,25 @@ function WhatsAppMock({ p, t }: { p: Payload; t: Dict }) {
 function TeamsMock({ p, t }: { p: Payload; t: Dict }) {
   return (
     <div className="text-sm">
-      <div className="flex items-center gap-2 border-b border-gray-100 p-3 text-xs font-semibold text-gray-600">
-        <span className="flex h-6 w-6 items-center justify-center rounded bg-[#6264a7] text-[11px] font-bold text-white">T</span>
+      <div className="flex items-center gap-2 border-b border-hairline p-3 text-xs font-semibold text-ink-2">
+        <span className="flex h-6 w-6 items-center justify-center rounded bg-[#6264a7] text-[11px] font-semibold text-white">T</span>
         {t.teamsChannel}
       </div>
       <div className="p-3">
-        <div className="overflow-hidden rounded-lg border border-gray-200">
+        <div className="overflow-hidden rounded-lg border border-hairline">
           <div className="h-1 bg-[#6264a7]" />
           <div className="p-3">
-            <p className="text-xs font-semibold text-gray-500">SuperProfile · {p.tipo}</p>
-            <h5 className="mt-0.5 font-bold text-gray-950">{p.name}</h5>
+            <p className="text-xs font-semibold text-ink-3">SuperProfile · {p.tipo}</p>
+            <h5 className="mt-0.5 font-semibold text-ink-1">{p.name}</h5>
             <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-              <dt className="text-gray-400">{t.nivel}</dt><dd className="font-semibold text-gray-800">{p.nivel}</dd>
-              <dt className="text-gray-400">{t.riesgo}</dt><dd className="font-semibold text-gray-800">{p.riesgo}</dd>
-              <dt className="text-gray-400">{t.foco}</dt><dd className="font-semibold text-gray-800">{p.foco} ({p.focoPct}%)</dd>
-              <dt className="text-gray-400">{t.base}</dt><dd className="font-semibold text-gray-800">{fmt(p.total)} {t.sintomas}</dd>
+              <dt className="text-ink-3">{t.nivel}</dt><dd className="font-semibold text-ink-2">{p.nivel}</dd>
+              <dt className="text-ink-3">{t.riesgo}</dt><dd className="font-semibold text-ink-2">{p.riesgo}</dd>
+              <dt className="text-ink-3">{t.foco}</dt><dd className="font-semibold text-ink-2">{p.foco} ({p.focoPct}%)</dd>
+              <dt className="text-ink-3">{t.base}</dt><dd className="font-semibold text-ink-2">{fmt(p.total)} {t.sintomas}</dd>
             </dl>
             <div className="mt-3 flex gap-2">
               <span className="rounded-md bg-[#6264a7] px-3 py-1 text-xs font-semibold text-white">{t.verPerfil}</span>
-              <span className="rounded-md border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700">{t.asignarPlan}</span>
+              <span className="rounded-md border border-hairline-strong px-3 py-1 text-xs font-semibold text-ink-2">{t.asignarPlan}</span>
             </div>
           </div>
         </div>
@@ -300,18 +300,18 @@ function TeamsMock({ p, t }: { p: Payload; t: Dict }) {
 function WebexMock({ p, t }: { p: Payload; t: Dict }) {
   return (
     <div className="text-sm">
-      <div className="flex items-center gap-2 border-b border-gray-100 p-3 text-xs font-semibold text-gray-600">
+      <div className="flex items-center gap-2 border-b border-hairline p-3 text-xs font-semibold text-ink-2">
         <span className="h-2.5 w-2.5 rounded-full bg-[#087f8c]" /> {t.webexSpace}
       </div>
       <div className="flex gap-2 p-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#087f8c] text-xs font-bold text-white">MB</span>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#087f8c] text-xs font-semibold text-white">MB</span>
         <div className="flex-1">
-          <p className="text-xs"><span className="font-semibold text-gray-950">ModularIoT</span> <span className="text-gray-400">09:24</span></p>
-          <p className="mt-1 font-semibold text-gray-950">{t.webexAlerta} {p.name}</p>
-          <div className="mt-1.5 rounded-lg bg-gray-50 p-2.5 text-[13px] text-gray-700">
+          <p className="text-xs"><span className="font-semibold text-ink-1">ModularIoT</span> <span className="text-ink-3">09:24</span></p>
+          <p className="mt-1 font-semibold text-ink-1">{t.webexAlerta} {p.name}</p>
+          <div className="mt-1.5 rounded-lg bg-surface-2 p-2.5 text-[13px] text-ink-2">
             {t.nivel} <b>{p.nivel}</b> · {t.riesgo} <b>{p.riesgo}</b> · {t.foco} <b>{p.foco}</b> ({p.focoPct}%). {t.planLabel} {p.plan}.
           </div>
-          <span className="mt-2 inline-block rounded-md border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700">{t.abrirSuperProfile}</span>
+          <span className="mt-2 inline-block rounded-md border border-hairline-strong px-3 py-1 text-xs font-semibold text-ink-2">{t.abrirSuperProfile}</span>
         </div>
       </div>
     </div>
@@ -322,12 +322,12 @@ function SmsMock({ p, t }: { p: Payload; t: Dict }) {
   const nm = p.name.length > 22 ? p.name.slice(0, 22) + "…" : p.name;
   return (
     <div className="text-sm">
-      <div className="border-b border-gray-100 p-3 text-center text-xs font-semibold text-gray-600">{t.mensajes}</div>
+      <div className="border-b border-hairline p-3 text-center text-xs font-semibold text-ink-2">{t.mensajes}</div>
       <div className="p-3">
-        <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-gray-100 p-2.5 text-[13px] text-gray-800">
+        <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-surface-3 p-2.5 text-[13px] text-ink-2">
           ModularIoT: {nm} {t.nivel} {p.nivel}. {p.foco} {p.focoPct}%. {t.codNegroShort} {p.negro}%. {t.verLink}
         </div>
-        <p className="mt-1 text-[10px] text-gray-400">{t.entregado} · 09:24</p>
+        <p className="mt-1 text-[10px] text-ink-3">{t.entregado} · 09:24</p>
       </div>
     </div>
   );
@@ -363,21 +363,21 @@ export default function Canales() {
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
-      <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">{t.eyebrow}</p>
-      <h1 className="mt-4 max-w-4xl text-4xl font-extrabold tracking-tight text-gray-950 sm:text-5xl">
+      <p className="text-sm font-semibold uppercase tracking-widest text-accent">{t.eyebrow}</p>
+      <h1 className="mt-4 max-w-4xl text-4xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-5xl">
         {t.heading}
       </h1>
-      <p className="mt-6 max-w-3xl text-lg leading-relaxed text-gray-600">
+      <p className="mt-6 max-w-3xl text-lg leading-relaxed text-ink-2">
         {t.introPre} <b>{t.introBold}</b> {t.introPost}
       </p>
 
       <div className="mt-8 flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+        <div className="inline-flex rounded-lg border border-hairline bg-surface p-1">
           {(["carrier", "driver"] as const).map((tp) => (
             <button
               key={tp}
               onClick={() => { setType(tp); setIdx(0); }}
-              className={`rounded-md px-4 py-1.5 text-sm font-semibold transition-colors ${type === tp ? "bg-blue-600 text-white" : "text-gray-600 hover:text-gray-950"}`}
+              className={`rounded-md px-4 py-1.5 text-sm font-semibold transition-colors ${type === tp ? "bg-accent text-white" : "text-ink-2 hover:text-ink-1"}`}
             >
               {tp === "carrier" ? t.transportistas : t.conductores}
             </button>
@@ -386,7 +386,7 @@ export default function Canales() {
         <select
           value={Math.min(idx, list.length - 1)}
           onChange={(ev) => setIdx(+ev.target.value)}
-          className="max-w-sm rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+          className="max-w-sm rounded-lg border border-hairline-strong bg-surface px-3.5 py-2 text-sm text-ink-1 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
         >
           {list.map((it, i) => (<option key={it.name} value={i}>{it.name}</option>))}
         </select>
@@ -400,9 +400,9 @@ export default function Canales() {
         <Channel color="#34c759" tag="SMS" caption={t.capSms} t={t}><SmsMock p={p} t={t} /></Channel>
       </div>
 
-      <div className="mt-8 rounded-xl border-l-4 border-blue-600 bg-blue-50/60 px-5 py-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-blue-700">{t.elPunto}</p>
-        <p className="mt-1.5 text-sm leading-relaxed text-gray-700">
+      <div className="mt-8 rounded-xl border-l-4 border-accent bg-accent-soft/60 px-5 py-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-accent">{t.elPunto}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-ink-2">
           {t.puntoPre} <b>{t.puntoBold}</b>{t.puntoPost}
         </p>
       </div>

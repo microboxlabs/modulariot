@@ -35,8 +35,8 @@ const STEP_ICON: Record<string, React.ReactNode> = {
 };
 
 const STEP_META = [
-  { key: "see", tint: "text-blue-600 bg-blue-50" },
-  { key: "understand", tint: "text-blue-600 bg-blue-50" },
+  { key: "see", tint: "text-accent bg-accent-soft" },
+  { key: "understand", tint: "text-accent bg-accent-soft" },
   { key: "act", tint: "text-green-600 bg-green-50" },
   { key: "solve", tint: "text-amber-600 bg-amber-50" },
   { key: "improve", tint: "text-rose-600 bg-rose-50" },
@@ -175,7 +175,7 @@ const UI = {
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-block rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+    <span className="inline-block rounded-full border border-hairline bg-surface-2 px-2.5 py-0.5 text-xs font-medium text-ink-2">
       {children}
     </span>
   );
@@ -183,10 +183,10 @@ function Chip({ children }: { children: React.ReactNode }) {
 
 function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: string }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <p className="text-2xl font-extrabold tabular-nums tracking-tight text-gray-950">{value}</p>
-      <p className="mt-1 text-xs font-medium text-gray-500">{label}</p>
-      {sub && <p className="text-[11px] text-gray-400">{sub}</p>}
+    <div className="rounded-lg border border-hairline bg-surface p-4">
+      <p className="text-2xl font-semibold tabular-nums tracking-[-0.02em] text-ink-1">{value}</p>
+      <p className="mt-1 text-xs font-medium text-ink-3">{label}</p>
+      {sub && <p className="text-[11px] text-ink-3">{sub}</p>}
     </div>
   );
 }
@@ -221,15 +221,15 @@ function DimBars({ title, rows }: { title: string; rows: ProdEntry["route"] }) {
   if (!rows.length) return null;
   return (
     <div>
-      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">{title}</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-3">{title}</p>
       <div className="space-y-1.5">
         {rows.slice(0, 5).map((r) => (
           <div key={r.dim} className="flex items-center gap-2 text-sm">
-            <span className="w-40 shrink-0 truncate text-gray-700" title={r.dim}>{r.dim}</span>
-            <div className="h-4 flex-1 overflow-hidden rounded bg-gray-100">
+            <span className="w-40 shrink-0 truncate text-ink-2" title={r.dim}>{r.dim}</span>
+            <div className="h-4 flex-1 overflow-hidden rounded bg-surface-3">
               <div className="h-full rounded bg-blue-500/80" style={{ width: `${Math.max(6, pct(r.total, max))}%` }} />
             </div>
-            <span className="w-12 shrink-0 text-right tabular-nums text-gray-500">{fmtN(r.total)}</span>
+            <span className="w-12 shrink-0 text-right tabular-nums text-ink-3">{fmtN(r.total)}</span>
           </div>
         ))}
       </div>
@@ -246,28 +246,28 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-gray-950/50 p-4 sm:p-8" onClick={onClose}>
       <div
-        className="my-4 w-full max-w-3xl rounded-xl border border-gray-200 bg-white shadow-lg"
+        className="my-4 w-full max-w-3xl rounded-xl border border-hairline bg-surface shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-gray-100 p-6">
+        <div className="flex items-start justify-between gap-4 border-b border-hairline p-6">
           <div>
             <div className="mb-2 flex items-center gap-2">
               <span className={`h-2.5 w-2.5 rounded-full ${FAMILY_DOT[s.family]}`} />
-              <span className="text-xs font-medium text-gray-500">{FAMILIES[s.family]}</span>
+              <span className="text-xs font-medium text-ink-3">{FAMILIES[s.family]}</span>
               {data && (
-                <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-700">
+                <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-700">
                   {t.realDataBadge}
                 </span>
               )}
             </div>
-            <h3 className="text-2xl font-bold tracking-tight text-gray-950">{s.name}</h3>
-            <p className="mt-0.5 font-mono text-xs text-gray-400">{s.technicalName}</p>
+            <h3 className="text-2xl font-semibold tracking-[-0.02em] text-ink-1">{s.name}</h3>
+            <p className="mt-0.5 font-mono text-xs text-ink-3">{s.technicalName}</p>
           </div>
           <button
             onClick={onClose}
             aria-label={t.close}
-            className="shrink-0 rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
+            className="shrink-0 rounded-lg border border-hairline p-1.5 text-ink-3 hover:bg-surface-2"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
               <path d="M6 6l12 12M18 6L6 18" />
@@ -277,7 +277,7 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
 
         <div className="space-y-8 p-6">
           {/* Riesgo */}
-          <p className="rounded-lg border-l-4 border-rose-500 bg-rose-50 px-4 py-3 text-sm text-gray-700">
+          <p className="rounded-lg border-l-4 border-rose-500 bg-rose-50 px-4 py-3 text-sm text-ink-2">
             <span className="font-semibold text-rose-700">{t.riskLabel}</span>{s.risk}
           </p>
 
@@ -291,8 +291,8 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
                   </svg>
                 </span>
                 <div>
-                  <p className="text-sm font-bold text-gray-950">{t[st.key]}</p>
-                  <p className="text-sm leading-relaxed text-gray-600">{s[st.key as keyof Symptom] as string}</p>
+                  <p className="text-sm font-semibold text-ink-1">{t[st.key]}</p>
+                  <p className="text-sm leading-relaxed text-ink-2">{s[st.key as keyof Symptom] as string}</p>
                 </div>
               </div>
             ))}
@@ -301,12 +301,12 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
           {/* Entidades + evidencia */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">{t.crossedEntities}</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-3">{t.crossedEntities}</p>
               <div className="flex flex-wrap gap-1.5">{s.entities.map((e) => <Chip key={e}>{e}</Chip>)}</div>
             </div>
             {s.evidence && (
               <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">{t.evidence}</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-3">{t.evidence}</p>
                 <div className="flex flex-wrap gap-1.5">{s.evidence.map((e) => <Chip key={e}>{e}</Chip>)}</div>
               </div>
             )}
@@ -314,10 +314,10 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
 
           {/* Datos reales */}
           {data && k && (
-            <div className="space-y-5 rounded-xl border border-gray-200 bg-gray-50/60 p-5">
+            <div className="space-y-5 rounded-xl border border-hairline bg-surface-2/60 p-5">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-bold text-gray-950">{t.realOperation}{META.month}</p>
-                <span className="text-[11px] text-gray-400">{META.total_trips.toLocaleString("es-CL")} {t.trips}</span>
+                <p className="text-sm font-semibold text-ink-1">{t.realOperation}{META.month}</p>
+                <span className="text-[11px] text-ink-3">{META.total_trips.toLocaleString("es-CL")} {t.trips}</span>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Stat label={t.symptomsDetected} value={fmtN(k.total)} />
@@ -334,8 +334,8 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs font-bold uppercase tracking-wide text-gray-400">{t.dailyDetection}</p>
-                  <span className="flex items-center gap-3 text-[11px] text-gray-400">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-3">{t.dailyDetection}</p>
+                  <span className="flex items-center gap-3 text-[11px] text-ink-3">
                     <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-blue-500/80" />{t.legendTotal}</span>
                     <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-rose-500" />{t.legendBlackCode}</span>
                   </span>
@@ -351,7 +351,7 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
           )}
 
           {!data && (
-            <p className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+            <p className="rounded-lg border border-dashed border-hairline-strong bg-surface-2 px-4 py-3 text-sm text-ink-3">
               {t.notConnected}
             </p>
           )}
@@ -387,15 +387,15 @@ export default function TorreDeControl() {
     <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
       {/* Encabezado */}
       <div className="max-w-3xl">
-        <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-blue-600">{t.towerEyebrow}</p>
-        <h1 className="text-4xl font-extrabold tracking-tight text-gray-950 sm:text-5xl">
+        <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-accent">{t.towerEyebrow}</p>
+        <h1 className="text-4xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-5xl">
           {SYMPTOMS.length} {t.headlineSuffix}
         </h1>
-        <p className="mt-6 text-lg leading-relaxed text-gray-600">
+        <p className="mt-6 text-lg leading-relaxed text-ink-2">
           {t.lede}
-          {" "}<span className="font-semibold text-gray-950">{withData} {t.haveRealData}</span> ({META.month}).
+          {" "}<span className="font-semibold text-ink-1">{withData} {t.haveRealData}</span> ({META.month}).
         </p>
-        <p className="mt-2 font-mono text-xs text-gray-400">{META.source}</p>
+        <p className="mt-2 font-mono text-xs text-ink-3">{META.source}</p>
       </div>
 
       {/* Controles */}
@@ -403,7 +403,7 @@ export default function TorreDeControl() {
         <button
           onClick={() => setFam("all")}
           className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-            fam === "all" ? "border-gray-950 bg-gray-950 text-white" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+            fam === "all" ? "border-ink-1 bg-ink-1 text-page" : "border-hairline bg-surface text-ink-2 hover:border-hairline-strong"
           }`}
         >
           {t.allFilter} <span className="opacity-60">{SYMPTOMS.length}</span>
@@ -413,7 +413,7 @@ export default function TorreDeControl() {
             key={f}
             onClick={() => setFam(i)}
             className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-              fam === i ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+              fam === i ? "border-accent bg-accent-soft text-accent" : "border-hairline bg-surface text-ink-2 hover:border-hairline-strong"
             }`}
           >
             <span className={`h-2 w-2 rounded-full ${FAMILY_DOT[i]}`} />
@@ -427,7 +427,7 @@ export default function TorreDeControl() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t.searchPlaceholder}
-          className="w-full max-w-sm rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+          className="w-full max-w-sm rounded-lg border border-hairline-strong bg-surface px-3.5 py-2 text-sm text-ink-1 placeholder:text-ink-4 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
         />
       </div>
 
@@ -439,24 +439,24 @@ export default function TorreDeControl() {
             <button
               key={s.id}
               onClick={() => setSel(s)}
-              className="group flex flex-col rounded-xl border border-gray-200 bg-white p-5 text-left transition-all hover:border-blue-300 hover:shadow-md"
+              className="group flex flex-col rounded-xl border border-hairline bg-surface p-5 text-left transition-all hover:border-accent hover:shadow-md"
             >
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                <span className="flex items-center gap-1.5 text-xs font-medium text-ink-3">
                   <span className={`h-2 w-2 rounded-full ${FAMILY_DOT[s.family]}`} />
                   {FAMILIES[s.family]}
                 </span>
                 {data && (
-                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-700">
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-700">
                     {t.realBadge}
                   </span>
                 )}
               </div>
-              <h3 className="text-base font-bold leading-snug text-gray-950">{s.name}</h3>
-              <p className="mt-0.5 font-mono text-[11px] text-gray-400">{s.technicalName}</p>
-              <p className="mt-3 flex-1 text-sm leading-relaxed text-gray-600 line-clamp-2">{s.see}</p>
+              <h3 className="text-base font-semibold leading-snug text-ink-1">{s.name}</h3>
+              <p className="mt-0.5 font-mono text-[11px] text-ink-3">{s.technicalName}</p>
+              <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-2 line-clamp-2">{s.see}</p>
               {s.kpiChip && (
-                <span className="mt-4 inline-block self-start rounded-md bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600">
+                <span className="mt-4 inline-block self-start rounded-md bg-surface-3 px-2 py-1 text-[11px] font-semibold text-ink-2">
                   {s.kpiChip}
                 </span>
               )}
@@ -466,7 +466,7 @@ export default function TorreDeControl() {
       </div>
 
       {shown.length === 0 && (
-        <p className="mt-10 text-center text-gray-500">{t.noResults}</p>
+        <p className="mt-10 text-center text-ink-3">{t.noResults}</p>
       )}
 
       {sel && <DetailModal s={sel} onClose={() => setSel(null)} />}

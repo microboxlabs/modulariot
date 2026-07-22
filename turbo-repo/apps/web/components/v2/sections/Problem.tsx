@@ -7,11 +7,15 @@ export function Problem({ lang }: { lang: string }) {
   return (
     <Section tone="white">
       <SectionHeader kicker={c.kicker} title={c.title} subtitle={c.subtitle} />
-      <div className="mt-10 grid gap-6 md:grid-cols-3">
+      <div className="mt-12 grid gap-4 md:grid-cols-3">
         {c.pains.map((p, i) => (
-          <Reveal key={p.title} delay={i * 0.1} className="rounded-xl border border-gray-200 bg-white p-4">
-            <blockquote className="text-xl font-semibold italic leading-snug text-gray-950">{p.title}</blockquote>
-            <p className="mt-2 text-sm leading-relaxed text-gray-500">{p.body}</p>
+          <Reveal
+            key={p.title}
+            delay={i * 0.1}
+            className="rounded-xl border border-hairline bg-surface p-6 transition-colors hover:border-hairline-strong"
+          >
+            <blockquote className="text-lg leading-snug font-semibold text-ink-1 italic">{p.title}</blockquote>
+            <p className="mt-3 text-sm leading-relaxed text-ink-3">{p.body}</p>
           </Reveal>
         ))}
       </div>

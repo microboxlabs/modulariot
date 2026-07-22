@@ -3,7 +3,7 @@
 import { useState, type ComponentProps, type FC } from "react";
 import Link from "next/link";
 import { twMerge } from "tailwind-merge";
-import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import { motion } from "motion/react";
 
 interface IconBarItemProps {
   icon?: FC<ComponentProps<"svg">>;
@@ -13,8 +13,7 @@ interface IconBarItemProps {
   hasChildren: boolean;
   isActive: boolean;
   isPanelOpen: boolean;
-  requiredGroups?: string[];
-  blockedGroups?: string[];
+  index: number;
   onClick: () => void;
 }
 
@@ -26,18 +25,10 @@ export default function IconBarItem({
   hasChildren,
   isActive,
   isPanelOpen,
-  requiredGroups = [],
-  blockedGroups = [],
+  index,
   onClick,
 }: Readonly<IconBarItemProps>) {
-  const { hasPermission, userGroups } = usePermissions();
   const [isHovered, setIsHovered] = useState(false);
-
-  const hasBlockedGroup = blockedGroups.some((group) =>
-    userGroups.includes(group)
-  );
-  if (hasBlockedGroup) return null;
-  if (!hasPermission(requiredGroups)) return null;
 
   const showLabel = isHovered && !isPanelOpen;
 
@@ -85,9 +76,15 @@ export default function IconBarItem({
     </div>
   );
 
+  const entranceAnimation = {
+    initial: { opacity: 0, x: -20 },
+    animate: { opacity: 1, x: 0 },
+    transition: { duration: 0.3, delay: index * 0.05, ease: "easeOut" as const },
+  };
+
   if (hasChildren) {
     return (
-      <li>
+      <motion.li {...entranceAnimation}>
         <button
           type="button"
           aria-label={translatedLabel}
@@ -97,12 +94,12 @@ export default function IconBarItem({
         >
           {content}
         </button>
-      </li>
+      </motion.li>
     );
   }
 
   return (
-    <li>
+    <motion.li {...entranceAnimation}>
       <Link
         href={href ?? "#"}
         aria-label={translatedLabel}
@@ -111,6 +108,6 @@ export default function IconBarItem({
       >
         {content}
       </Link>
-    </li>
+    </motion.li>
   );
 }

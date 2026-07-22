@@ -1777,6 +1777,8 @@
         "settings": "Settings",
         "organizations": "Organizations",
         "dataSources": "Data Sources",
+        "vitalSigns": "Vital Signs",
+        "gpsProviders": "GPS Providers",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",
@@ -3518,7 +3520,12 @@
     "assignment": "Assignment",
     "unassigned": "Unassigned",
     "partial": "Partial",
-    "assigned": "Assigned"
+    "assigned": "Assigned",
+    "state": "State",
+    "status": "Status",
+    "organizationName": "Organization Name",
+    "provider": "Provider",
+    "sort": "Sort"
   },
   "comments": {
     "title": "Comments",

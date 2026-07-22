@@ -63,6 +63,7 @@
     "jspdf": "^4.2.1",
     "lottie-web": "^5.12.2",
     "mapbox-gl": "^3.9.3",
+    "motion": "^12.42.2",
     "negotiator": "^0.6.3",
     "next": "16.2.6",
     "next-auth": "^5.0.0-beta.30",

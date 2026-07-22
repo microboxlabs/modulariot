@@ -6,6 +6,7 @@ import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import { useSidebarNavigation } from "../../context/sidebar-navigation-context";
 import { pathNameWithoutLanguage, isSegmentPrefix } from "../../utils/utils";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { usePermissions } from "@/features/auth/hooks/use-permissions";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
 import IconBarItem from "./icon-bar-item";
@@ -27,6 +28,7 @@ export default function IconBar({ dict }: Readonly<PropsWithI18nDict>) {
   const { items } = useSidebarNavigation();
   const { desktop } = useSidebarContext();
   const { activeSection, setActiveSection, toggleSection } = desktop;
+  const { hasPermission, userGroups, isLoading } = usePermissions();
   const settingsItem = items.find(
     (item) => item.label === SETTINGS_SECTION_LABEL
   );
@@ -40,6 +42,22 @@ export default function IconBar({ dict }: Readonly<PropsWithI18nDict>) {
     }
   }
 
+  // Wait for permissions to resolve before rendering any icon: items with no
+  // requiredGroups would otherwise mount instantly while gated ones pop in
+  // later once userGroups loads, making the entrance animation look
+  // inconsistent/out of order instead of a single coordinated reveal.
+  const visibleItems = isLoading
+    ? []
+    : items
+        .filter((item) => item.label !== SETTINGS_SECTION_LABEL)
+        .filter((item) => {
+          const hasBlockedGroup = (item.blockedGroups ?? []).some((group) =>
+            userGroups.includes(group)
+          );
+          if (hasBlockedGroup) return false;
+          return hasPermission(item.requiredGroups ?? []);
+        });
+
   return (
     <nav
       aria-label="Main navigation"
@@ -49,31 +67,28 @@ export default function IconBar({ dict }: Readonly<PropsWithI18nDict>) {
       )}
     >
       <ul className="flex flex-1 flex-col items-center gap-0.5">
-        {items
-          .filter((item) => item.label !== SETTINGS_SECTION_LABEL)
-          .map((item) => {
-            const hasChildren = Boolean(
-              (item.items && item.items.length > 0) || item.dynamicItemsSource
-            );
-            const active = isItemActive(item, pathname);
-            const isPanelOpen = activeSection === item.label;
+        {visibleItems.map((item, index) => {
+          const hasChildren = Boolean(
+            (item.items && item.items.length > 0) || item.dynamicItemsSource
+          );
+          const active = isItemActive(item, pathname);
+          const isPanelOpen = activeSection === item.label;
 
-            return (
-              <IconBarItem
-                key={item.label}
-                icon={item.icon}
-                label={item.label}
-                translatedLabel={trDynamic(item.label, dict)}
-                href={item.href}
-                hasChildren={hasChildren}
-                isActive={active}
-                isPanelOpen={isPanelOpen}
-                requiredGroups={item.requiredGroups}
-                blockedGroups={item.blockedGroups}
-                onClick={() => handleItemClick(item)}
-              />
-            );
-          })}
+          return (
+            <IconBarItem
+              key={item.label}
+              icon={item.icon}
+              label={item.label}
+              translatedLabel={trDynamic(item.label, dict)}
+              href={item.href}
+              hasChildren={hasChildren}
+              isActive={active}
+              isPanelOpen={isPanelOpen}
+              index={index}
+              onClick={() => handleItemClick(item)}
+            />
+          );
+        })}
       </ul>
 
       {/* Bottom icons */}

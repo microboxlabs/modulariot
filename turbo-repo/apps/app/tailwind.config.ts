@@ -33,8 +33,13 @@ const config: Config = {
         "hide-scale": "hide-scale 0.2s ease-in-out forwards",
         "show-scale": "show-scale 0.2s ease-in-out forwards",
         "carousel-progress": "carousel-progress linear forwards",
+        "step-complete": "step-complete 0.4s ease-out forwards",
       },
       keyframes: {
+        "step-complete": {
+          "0%": { transform: "rotate(-180deg) scale(0.4)", opacity: "0" },
+          "100%": { transform: "rotate(0deg) scale(1)", opacity: "1" },
+        },
         "hide-scale": {
           "0%": ANIMATION_PROPS.SCALE_VISIBLE,
           "50%": ANIMATION_PROPS.SCALE_HIDDEN,

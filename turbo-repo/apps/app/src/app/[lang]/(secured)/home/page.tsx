@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { DashboardLanding } from "@/features/dashboard/components/dashboard-landing/dashboard-landing";
+import OnboardingArrivalOverlay from "@/features/onboarding/onboarding-arrival-overlay";
 
 export default async function HomePage(props: ParamsWithLang) {
   const { lang } = await props.params;
@@ -17,6 +18,7 @@ export default async function HomePage(props: ParamsWithLang) {
 
   return (
     <div className="h-full w-full overflow-y-auto flex flex-col">
+      <OnboardingArrivalOverlay />
       <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full z-10">
         <Breadcrumb
           path={["home"]}

@@ -2,6 +2,8 @@
 
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { CATS } from "@/features/vital-signs/vital-signs-data";
+import { GPS_PROVIDER_OPTIONS } from "@/features/gps-providers/gps-provider-options";
 
 export type NavParam = {
   label: string;
@@ -93,6 +95,55 @@ const collaborators_management_params: ParamType[] = [
   setParam("rut", "text"),
 ];
 
+const vital_signs_params: ParamType[] = [
+  setParam("name", "text"),
+  setParam(
+    "state",
+    "selector",
+    Object.values(CATS)
+      .sort((a, b) => a.order - b.order)
+      .map((cat) => ({ value: cat.id, label: cat.label }))
+  ),
+  setParam("status", "selector", [
+    { value: "on", label: "On" },
+    { value: "off", label: "Off" },
+  ]),
+];
+
+const gps_providers_params: ParamType[] = [
+  setParam("organizationName", "text"),
+  setParam(
+    "provider",
+    "selector",
+    GPS_PROVIDER_OPTIONS.map((option) => ({
+      value: option.id,
+      label: option.name,
+    }))
+  ),
+  setParam("status", "selector", [
+    { value: "pending", label: "Waiting for permission" },
+    { value: "accepted", label: "Accepted" },
+    { value: "rejected", label: "Rejected" },
+  ]),
+];
+
+export interface SortToggleParam {
+  key: string;
+  label: string;
+}
+
+const SORT_TOGGLE_PARAMS: Record<string, SortToggleParam> = {
+  "gps-providers": { key: "sort", label: "Request date" },
+};
+
+/** Tri-state (unactive/asc/desc) sort toggle config for a route, if any. */
+export function getSortToggleParam(
+  finalPath: string | undefined
+): SortToggleParam | null {
+  if (!finalPath) return null;
+  return SORT_TOGGLE_PARAMS[finalPath] ?? null;
+}
+
 const symptoms_params: ParamType[] = [
   setParam("asset_id", "text"),
   setParam("trip_id", "text"),
@@ -147,6 +198,8 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
       dict,
       true
     ),
+    "vital-signs": getParamsFixed(vital_signs_params, dict),
+    "gps-providers": getParamsFixed(gps_providers_params, dict),
   };
 }
 

@@ -7,6 +7,7 @@ interface OrgScopeItem {
   slug: string;
   displayName: string;
   taxId: string | null;
+  role: string;
   isParent: boolean;
 }
 
@@ -51,7 +52,7 @@ export function useOrgScopes() {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       dedupingInterval: 60_000,
-    },
+    }
   );
 
   const switchOrg = async (slug: string) => {
@@ -64,13 +65,15 @@ export function useOrgScopes() {
       });
     } catch (error) {
       console.error("Failed to switch active organization", error);
-      throw new Error("No se pudo cambiar la organización. Revisa tu conexión.");
+      throw new Error(
+        "No se pudo cambiar la organización. Revisa tu conexión."
+      );
     }
 
     if (!response.ok) {
       const message = await getErrorMessage(response);
       const error = new Error(
-        message ?? `No se pudo cambiar la organización (${response.status})`,
+        message ?? `No se pudo cambiar la organización (${response.status})`
       );
       console.error("Failed to switch active organization", error);
       throw error;

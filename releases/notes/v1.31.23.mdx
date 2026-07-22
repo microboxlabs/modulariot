@@ -1,0 +1,36 @@
+# 🔔 Release Notes v1.31.23 — ModularIoT
+
+### Fecha: 14/07/2026
+
+**Objetivo**: Esta versión consolida una mejora integral de autenticación en la app para ofrecer un acceso más claro, escalable y consistente entre flujos de credenciales, proveedores y SSO. También alinea la configuración de visibilidad de búsqueda en páginas seguras con el stack `0.5.24`.
+
+## 🚀 Evolutivos
+
+- **📍 Rediseño de la experiencia de inicio de sesión**
+  - **Key point**: Se renovó la UI de sign-in con una estructura más clara, se extrajo el marco compartido en `AuthPageShell`, se ajustó el formulario de credenciales/proveedores y se incorporó un flujo dedicado de SSO con identificador de equipo y validación.
+  - **Technical detail**: Se ampliaron traducciones en inglés y español, se eliminó la implementación anterior de team slug, y se añadió soporte en layouts seguros para configurar disponibilidad de búsqueda con su correspondiente cableado de build/env. *(Integración OSS — MIOT-0.5.24)*
+
+## 📊 Beneficios
+
+- Mejor experiencia de acceso para usuarios con distintos métodos de autenticación.
+- Base reutilizable para futuras pantallas de autenticación mediante `AuthPageShell`.
+- Menor fricción en flujos SSO gracias a una entrada de identificador de equipo dedicada.
+- Mayor consistencia visual en navbar, botones, divisor, campos y modo oscuro.
+- Mejor cobertura multilenguaje (ES/EN) para la interfaz de autenticación.
+- Más control operativo en páginas seguras al poder habilitar/ocultar búsqueda por configuración.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.24`
+- **App**: `app@v0.5.24` *(actualizado en esta release)*
+- **Modulith**: `modulith@v0.5.17` *(sin cambios)*
+- **Harness**: `harness@v0.1.3` *(sin cambios)*
+- Los digests exactos de imágenes desplegadas están disponibles en el diálogo de información de build dentro de la app y en el asset `stack-manifest.json` de la release.
+
+## 📌 Conclusión
+
+La release `1.31.23` prioriza una modernización tangible del acceso a la plataforma, enfocada en claridad de uso y preparación para crecimiento de los flujos de autenticación.
+
+Con esta base, ModularIoT fortalece la mantenibilidad del frontend de auth y reduce acoplamientos en implementaciones futuras, especialmente en escenarios con SSO y configuración de páginas seguras.
+
+El resultado es una experiencia más coherente para usuarios finales y una superficie técnica más ordenada para evolución continua del producto.

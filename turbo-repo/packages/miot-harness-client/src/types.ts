@@ -41,6 +41,7 @@ export const HARNESS_EVENT_TYPES = [
   "usage.recorded",
   "freshness.warning",
   "verification.completed",
+  "grounding.gap",
   "answer.delta",
   "answer.completed",
   "run.completed",
@@ -134,6 +135,25 @@ export interface HarnessEvent {
   created_at: string;
 }
 
+/**
+ * A ground-or-flag assumption: the synthesizer answered using a business term
+ * it could not ground in an authoritative knowledge card, and is declaring the
+ * interpretation it assumed (semantic-layer continual learning). Mirrors the
+ * Python record persisted on the run.
+ */
+export interface HarnessAssumption {
+  term: string;
+  interpretation: string;
+  predicate: string;
+  grounded: boolean;
+  /**
+   * The connection the run resolved against (e.g. "acs"), stamped by the harness
+   * so a review surface can stage a candidate against the right connection.
+   * Optional for back-compat with records predating the field.
+   */
+  connection?: string;
+}
+
 export interface HarnessRunRecord {
   run_id: string;
   status: string;
@@ -141,6 +161,11 @@ export interface HarnessRunRecord {
   artifacts: Array<Record<string, unknown>>;
   answer: string | null;
   conversation_id: string | null;
+  /**
+   * Ground-or-flag assumptions declared by the synthesizer. Optional for
+   * back-compat with harness versions / persisted records predating the field.
+   */
+  assumptions?: HarnessAssumption[];
 }
 
 /**

@@ -531,7 +531,7 @@ function ContainerGridStyles() {
         opacity: 1 !important;
       }
       .container-grid .react-grid-item.react-draggable-dragging {
-        z-index: 100;
+        z-index: 40;
         opacity: 0.9;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
         user-select: none;

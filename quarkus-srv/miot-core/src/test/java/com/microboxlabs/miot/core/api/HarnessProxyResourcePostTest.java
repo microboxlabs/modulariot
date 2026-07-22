@@ -44,6 +44,8 @@ class HarnessProxyResourcePostTest {
     private static final String RUNS_PATH = "/api/v1/orgs/" + ORG_SLUG + "/harness/runs";
     private static final String RUNS_START_PATH =
             "/api/v1/orgs/" + ORG_SLUG + "/harness/runs:start";
+    private static final String KNOWLEDGE_PATH =
+            "/api/v1/orgs/" + ORG_SLUG + "/harness/connections/acs/knowledge";
 
     @Inject
     AgroalDataSource ds;
@@ -71,6 +73,13 @@ class HarnessProxyResourcePostTest {
                         .withStatus(202)
                         .withHeader("Content-Type", "application/json")
                         .withBody("{\"run_id\":\"run_fake_start\"}")));
+        WireMockLifecycle.server().stubFor(
+                WireMock.post(WireMock.urlEqualTo("/connections/acs/knowledge"))
+                        .willReturn(WireMock.aResponse()
+                                .withStatus(201)
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("{\"connection\":\"acs\",\"card_id\":\"entregas\","
+                                        + "\"status\":\"approved\"}")));
     }
 
     @AfterEach
@@ -116,6 +125,26 @@ class HarnessProxyResourcePostTest {
         assertThat("upstream 202 must pass through the proxy", status, is(202));
         WireMockLifecycle.server().verify(
                 WireMock.postRequestedFor(WireMock.urlEqualTo("/runs:start"))
+                        .withHeader("X-Miot-Tenant-Client-Id", WireMock.equalTo(ORG_TENANT))
+                        .withHeader("X-Miot-User-Email",
+                                WireMock.equalTo(StubAlfrescoMembershipClient.MEMBER_EMAIL))
+                        .withHeader("X-Miot-Auth-Mode", WireMock.equalTo("web"))
+                        .withHeader("Authorization", WireMock.equalTo("Bearer " + token)));
+    }
+
+    @Test
+    void memberPostConnectionKnowledgeHits201AndForwardsTenantHeader() {
+        String token = TestTokenFactory.signWebToken(StubAlfrescoMembershipClient.MEMBER_EMAIL);
+        int status = given()
+                .header("Authorization", "Bearer " + token)
+                .contentType("application/json")
+                .body("{\"term\":\"entregas\",\"body\":\"solo confirmDelivery\",\"scope\":\"tenant\"}")
+                .when()
+                .post(KNOWLEDGE_PATH)
+                .statusCode();
+        assertThat("upstream 201 must pass through the proxy", status, is(201));
+        WireMockLifecycle.server().verify(
+                WireMock.postRequestedFor(WireMock.urlEqualTo("/connections/acs/knowledge"))
                         .withHeader("X-Miot-Tenant-Client-Id", WireMock.equalTo(ORG_TENANT))
                         .withHeader("X-Miot-User-Email",
                                 WireMock.equalTo(StubAlfrescoMembershipClient.MEMBER_EMAIL))

@@ -9,6 +9,11 @@ import { logger } from "@/lib/logger";
 import { z } from "zod";
 import { extractCalendarBindingPayload } from "../../binding-extractor";
 import { runCalendarBinding } from "../../binding-helpers";
+import {
+  isOriginTaskDriven,
+  parseTaskDrivenOrigins,
+  readBookingOrigin,
+} from "@/features/calendar/services/task-driven-origin";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
 
@@ -168,9 +173,32 @@ export async function POST(
   const snapshot = await snapshotBooking(client, bookingId);
   if (!snapshot.ok) return snapshot.error;
 
-  const move = await executeMove(client, bookingId, body.value);
+  // Task-driven origins: ECM owns the calendar binding AND the booking's
+  // resource payload (the assign chain patches the tuple onto the booking via
+  // the async-job ledger), so a move is slot-only. The request body's
+  // resource blob is the planner's frozen drag payload — after a workflow
+  // revert it can still carry an assignment tuple nobody holds, and merging
+  // it would both corrupt the booking and (below) fire a stage=assigned
+  // Alerce push for a stale assignment. Dropping it also makes the binding
+  // call and its reverse-move compensation dead for this path. Flag-off
+  // origins keep today's behavior byte-for-byte. The origin is read from the
+  // persisted booking first, falling back to the request body.
+  const enabledOrigins = parseTaskDrivenOrigins(
+    process.env.TASK_DRIVEN_ORIGINS
+  );
+  const originCode =
+    readBookingOrigin(snapshot.value.resource.data) ??
+    readBookingOrigin(body.value.resource?.data);
+  const taskDriven = isOriginTaskDriven(originCode, enabledOrigins);
+
+  const move = await executeMove(
+    client,
+    bookingId,
+    taskDriven ? { slot: body.value.slot } : body.value
+  );
   if (!move.ok) return move.error;
   const moved = move.value;
+  if (taskDriven) return NextResponse.json(moved);
 
   // Notify the coordinator about the (possibly refreshed) calendar binding.
   // Stage is derived from `resource.data` exactly like the create path — the

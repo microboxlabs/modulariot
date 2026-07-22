@@ -7,8 +7,11 @@ import com.microboxlabs.miot.integrations.dto.ClaimJobsRequest;
 import com.microboxlabs.miot.integrations.dto.EnqueueJobsRequest;
 import com.microboxlabs.miot.integrations.dto.EnqueueJobsResponse;
 import com.microboxlabs.miot.integrations.dto.ReportJobRequest;
+import com.microboxlabs.miot.integrations.events.JobEventEmitter;
+import com.microboxlabs.miot.integrations.events.JobParkedEvent;
 import com.microboxlabs.miot.integrations.persistence.AsyncJobRepository;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -35,15 +38,21 @@ public class AsyncJobService {
     private static final int MAX_CLAIM_LIMIT = 50;
 
     private final AsyncJobRepository repository;
+    private final JobEventEmitter eventEmitter;
+    private final Event<JobParkedEvent> parkedEvent;
     private final int retryBaseSeconds;
     private final int retryMaxSeconds;
 
     @Inject
     public AsyncJobService(
             AsyncJobRepository repository,
+            JobEventEmitter eventEmitter,
+            Event<JobParkedEvent> parkedEvent,
             @ConfigProperty(name = "miot.integrations.jobs.retry-base-seconds", defaultValue = "60") int retryBaseSeconds,
             @ConfigProperty(name = "miot.integrations.jobs.retry-max-seconds", defaultValue = "3600") int retryMaxSeconds) {
         this.repository = repository;
+        this.eventEmitter = eventEmitter;
+        this.parkedEvent = parkedEvent;
         this.retryBaseSeconds = retryBaseSeconds;
         this.retryMaxSeconds = retryMaxSeconds;
     }
@@ -68,6 +77,7 @@ public class AsyncJobService {
                 duplicates++;
             } else {
                 created.add(row);
+                eventEmitter.emit(row, "enqueued");
             }
         }
         logEnqueueOutcome(tenantCode, enqueuedBy, created, duplicates);
@@ -118,8 +128,30 @@ public class AsyncJobService {
         }
         int limit = request.limit() == null ? DEFAULT_CLAIM_LIMIT : Math.min(request.limit(), MAX_CLAIM_LIMIT);
         int lease = request.leaseSeconds() == null ? DEFAULT_LEASE_SECONDS : request.leaseSeconds();
-        return repository.claim(tenantCode, request.executor(), request.workerId(), limit, lease,
+        List<AsyncJob> claimed = repository.claim(tenantCode, request.executor(), request.workerId(), limit, lease,
                 request.chainKey());
+        claimed.forEach(job -> eventEmitter.emit(job, "claimed"));
+        return claimed;
+    }
+
+    /**
+     * Tenant-agnostic lane claim for an in-process worker (no request/tenant
+     * scope) — e.g. the modulith job worker draining the
+     * {@code "modulith"} executor across all tenants. Same lease/backoff/CAS
+     * ledger semantics as {@link #claim}; only the tenant filter is dropped.
+     */
+    public List<AsyncJob> claimForExecutor(String executor, String workerId, int limit, int leaseSeconds) {
+        if (executor == null || executor.isBlank()) {
+            throw new IllegalArgumentException("executor is required");
+        }
+        if (workerId == null || workerId.isBlank()) {
+            throw new IllegalArgumentException("workerId is required");
+        }
+        int lim = Math.min(Math.max(limit, 1), MAX_CLAIM_LIMIT);
+        int lease = leaseSeconds < 1 ? DEFAULT_LEASE_SECONDS : leaseSeconds;
+        List<AsyncJob> claimed = repository.claimForExecutor(executor, workerId, lim, lease);
+        claimed.forEach(job -> eventEmitter.emit(job, "claimed"));
+        return claimed;
     }
 
     /**
@@ -161,7 +193,13 @@ public class AsyncJobService {
         if (newState == JobState.FAILED) {
             LOG.errorf("Job %s (%s, correlation=%s) parked as FAILED after %d attempt(s): %s",
                     jobId, job.jobType(), job.correlationKey(), job.attempts(), request.detail());
+            fireParked(updated);
         }
+        eventEmitter.emit(updated, switch (newState) {
+            case SUCCEEDED -> "succeeded";
+            case PENDING -> "retry_scheduled";
+            default -> "failed";
+        });
         return updated;
     }
 
@@ -181,21 +219,48 @@ public class AsyncJobService {
             throw new IllegalStateException(
                     "Job " + jobId + " is " + job.state() + " and cannot be manually retried");
         }
-        return repository.retry(jobId, attemptEntry("RETRY_REQUESTED", "Manual retry", actor));
+        AsyncJob updated = repository.retry(jobId, attemptEntry("RETRY_REQUESTED", "Manual retry", actor));
+        eventEmitter.emit(updated, "retried");
+        return updated;
     }
 
     public AsyncJob get(String tenantCode, String jobId) {
         return repository.findByTenantAndId(tenantCode, jobId);
     }
 
-    public List<AsyncJob> list(String tenantCode, String state, String correlationKey, String jobType, int limit) {
+    public List<AsyncJob> list(String tenantCode, String state, String correlationKey, String jobType,
+            String chainKey, int limit) {
         if (limit < 1) {
             throw new IllegalArgumentException("limit must be >= 1");
         }
         if (state != null) {
             JobState.valueOf(state); // validate
         }
-        return repository.list(tenantCode, state, correlationKey, jobType, limit);
+        return repository.list(tenantCode, state, correlationKey, jobType, chainKey, limit);
+    }
+
+    /** Whole-ledger per-state counts for the console's summary tiles (zero-filled). */
+    public Map<String, Integer> counts(String tenantCode) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (JobState state : JobState.values()) {
+            counts.put(state.name(), 0);
+        }
+        counts.putAll(repository.countByState(tenantCode));
+        return counts;
+    }
+
+    /**
+     * Notifies park observers (REJECTED stamp, failure notifications). Fired
+     * after the ledger write is durable; a misbehaving observer must never fail
+     * the worker's report, so everything thrown is swallowed here.
+     */
+    private void fireParked(AsyncJob job) {
+        try {
+            parkedEvent.fire(new JobParkedEvent(job));
+        } catch (Exception e) {
+            LOG.errorf(e, "JobParkedEvent observer failed for job %s (%s) — park already recorded",
+                    job.id(), job.jobType());
+        }
     }
 
     private static void requireBody(Object request) {

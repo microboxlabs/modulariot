@@ -1,12 +1,14 @@
 import { render } from "ink";
 import { createElement } from "react";
 import type { ResolvedConfig } from "../config.js";
+import type { EpisodeRecorder } from "../episodes.js";
 import { App } from "./App.js";
 import type { HarnessClientLike } from "./useSession.js";
 
 export interface RunTuiOptions {
   config: ResolvedConfig;
   client: HarnessClientLike;
+  recordEpisode?: EpisodeRecorder;
 }
 
 export interface RunTuiHandle {
@@ -19,6 +21,7 @@ export function runTui(opts: RunTuiOptions): RunTuiHandle {
     createElement(App, {
       config: opts.config,
       client: opts.client,
+      recordEpisode: opts.recordEpisode,
       onExit: () => instance.unmount(),
     }),
   );

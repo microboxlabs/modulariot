@@ -33,6 +33,7 @@ from typing import Any
 import yaml
 
 from miot_harness.datasource.knowledge.models import (
+    ConnectionCardsResult,
     KnowledgeCard,
     KnowledgePack,
     PackLoadResult,
@@ -121,6 +122,60 @@ def load_packs(packs_dir: Path) -> PackLoadResult:
             continue
         packs.append(pack)
     return PackLoadResult(tuple(packs), tuple(diagnostics))
+
+
+def _parse_connection_card(text: str, *, default_id: str) -> KnowledgeCard:
+    """Parse ONE connection-authored card file — frontmatter + body (the whole
+    body is the card, unlike a pack's `## card:` sections). Frontmatter is
+    optional-valued but the fences are required (so a stray non-card `.md` is
+    rejected as a diagnostic rather than served as knowledge)."""
+    front, body = _split_frontmatter(text)
+    term = str(front.get("term") or "").strip()
+    card_id = str(front.get("id") or term or default_id).strip()
+    if not card_id:
+        raise ValueError("card has no id, term, or filename to derive an id from")
+    if not body:
+        raise ValueError("card body is empty")
+    confidence_raw = front.get("confidence")
+    if confidence_raw is None:
+        confidence: float | None = None
+    else:
+        try:
+            confidence = float(confidence_raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"confidence must be a number, got {confidence_raw!r}") from exc
+    return KnowledgeCard(
+        id=card_id,
+        title=str(front.get("title") or term or card_id).strip(),
+        body=body,
+        kind=str(front.get("kind") or "").strip(),
+        term=term,
+        scope=str(front.get("scope") or "tenant").strip(),
+        status=str(front.get("status") or "approved").strip(),
+        confidence=confidence,
+        source="connection",
+    )
+
+
+def load_connection_cards(cards_dir: Path) -> ConnectionCardsResult:
+    """Load a connection's AUTHORED cards — one card per `*.md` file under
+    `cards_dir` (the continual-learning write target). Never raises: a missing
+    dir yields nothing; a bad card becomes a diagnostic and is skipped (mirrors
+    `load_packs`), so one malformed learned fact can't break the connection."""
+    if not cards_dir.exists():
+        return ConnectionCardsResult((), ())
+    cards: list[KnowledgeCard] = []
+    diagnostics: list[str] = []
+    for path in sorted(cards_dir.glob("*.md")):
+        try:
+            card = _parse_connection_card(
+                path.read_text(encoding="utf-8"), default_id=path.stem
+            )
+        except (ValueError, OSError, yaml.YAMLError) as exc:
+            diagnostics.append(f"{path}: {exc}")
+            continue
+        cards.append(card)
+    return ConnectionCardsResult(tuple(cards), tuple(diagnostics))
 
 
 def detect_packs(

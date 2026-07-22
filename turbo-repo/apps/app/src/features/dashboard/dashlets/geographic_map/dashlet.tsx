@@ -89,7 +89,7 @@ interface EditModeOverlayProps {
 
 function EditModeOverlay({ dictionary }: Readonly<EditModeOverlayProps>) {
   return (
-    <div className="absolute inset-0 z-[55] flex items-center justify-center bg-black/30 backdrop-blur-[1px]">
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/30 backdrop-blur-[1px]">
       <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 pointer-events-none">
         <p className="text-lg font-semibold text-gray-900 dark:text-white">
           {tr("dashboard.editMode", dictionary)}

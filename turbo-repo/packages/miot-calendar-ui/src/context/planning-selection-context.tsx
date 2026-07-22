@@ -8,8 +8,11 @@ import {
   useMemo,
   useRef,
   useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from "react";
+import useSWR from "swr";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
@@ -42,6 +45,7 @@ import {
   buildResource,
   rollbackPlannedService,
 } from "../services/booking-persistence";
+import { mergeWorkflowStages } from "../services/workflow-stage-merge";
 
 dayjs.extend(isoWeek);
 dayjs.extend(isSameOrAfter);
@@ -114,6 +118,24 @@ export interface PlanningSelectionContextValue<
   inspectPlannedService: (plannedService: PlannedService<TItem>) => void;
   isChipSelected: (serviceId: string) => boolean;
   clearChipSelection: () => void;
+  /**
+   * Ids matching the active search, or `null` when no search is running.
+   *
+   * The distinction matters: `null` is "no search, show everything normally",
+   * while an *empty set* is "a search is running and nothing in this calendar
+   * matched" — which must dim every chip, not none of them.
+   *
+   * Kept separate from `selectedChipServiceId` so a right-click selection and a
+   * search highlight compose instead of clobbering each other.
+   */
+  searchMatchIds: ReadonlySet<string> | null;
+  setSearchMatchIds: (ids: ReadonlySet<string> | null) => void;
+  isItemHighlighted: (serviceId: string) => boolean;
+  /** A search is running and this item is not one of its matches. */
+  isItemDimmed: (serviceId: string) => boolean;
+  /** The single match the search navigator is currently parked on. */
+  focusedItemId: string | null;
+  setFocusedItemId: (serviceId: string | null) => void;
   updateServiceAssignment: (
     serviceId: string,
     patch: Partial<TItem>
@@ -210,21 +232,125 @@ export function PlanningSelectionProvider<
   const [selectedChipServiceId, setSelectedChipServiceId] = useState<
     string | null
   >(null);
-  const [plannedServices, setPlannedServices] = useState<
-    PlannedService<TItem>[]
-  >([]);
+  // Search highlight. null = no active search (see `searchMatchIds` on the
+  // context type for why null and the empty set must stay distinguishable).
+  const [searchMatchIds, setSearchMatchIds] = useState<ReadonlySet<
+    string
+  > | null>(null);
+  const [focusedItemId, setFocusedItemId] = useState<string | null>(null);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [andenesCount, setAndenesCount] = useState<number>(1);
   const [reassigningService, setReassigningService] =
     useState<ReassigningService<TItem> | null>(null);
   const [assigningService, setAssigningService] =
     useState<AssigningService<TItem> | null>(null);
-  // Map of item.id -> booking.id from the calendar backend.
-  const [bookingIds, setBookingIds] = useState<Map<string, string>>(new Map());
-  const [bookingsLoadError, setBookingsLoadError] = useState<string | null>(
-    null
-  );
   const [bookingVersion, setBookingVersion] = useState(0);
+
+  // ── booking data (SWR-backed) ────────────────────────────────────────────
+  // Loading the grid's bookings through SWR — rather than a mount-time fetch —
+  // means its module-global cache survives the provider remount that a
+  // cross-calendar route change forces: revisiting a calendar+window paints
+  // from cache instead of blanking and refetching. `keepPreviousData` likewise
+  // holds the current grid on screen while a new window loads.
+  //
+  // `plannedServices` (the array the grid draws) and `bookingIds` (item.id ->
+  // booking.id) are derived from the SWR cache. The two setters below are
+  // adapters, NOT React state: they route the exact `(prev) => next` updaters
+  // the mutation code already uses into SWR's cache via `mutate`, so optimistic
+  // add / remove / reassign / rollback stay byte-for-byte unchanged while their
+  // backing store moves to SWR.
+  const loadBookingsRef = useRef(loadBookings);
+  loadBookingsRef.current = loadBookings;
+  const notifyRef = useRef(host.notify);
+  notifyRef.current = host.notify;
+  // Stable fetcher: SWR fetches only on key change, so a host-identity change
+  // (permissions, i18n) that rebuilds `loadBookings` never triggers a reload —
+  // preserving the old ref-based guard for free. The throwaway signal is unused
+  // (SWR drops responses for a no-longer-current key on its own).
+  const fetchBookings = useCallback(
+    () => loadBookingsRef.current(new AbortController().signal),
+    []
+  );
+  const {
+    data: bookingsData,
+    error: bookingsError,
+    mutate: mutateBookings,
+  } = useSWR(calendarId ? bookingsKey : null, fetchBookings, {
+    keepPreviousData: true,
+    // No involuntary refetches: the old loader only reloaded on key change, and
+    // a background revalidation could overwrite an in-flight optimistic mutation
+    // that hasn't persisted yet. Stale-while-revalidate on mount (the default)
+    // still refreshes a revisited calendar after painting it from cache.
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+
+  // Stable empties so the derived values keep identity across renders while
+  // there is no data (downstream memos key off these references).
+  const emptyPlannedRef = useRef<PlannedService<TItem>[]>([]);
+  const emptyBookingIdsRef = useRef<Map<string, string>>(new Map());
+  const rawPlannedServices = bookingsData?.planned ?? emptyPlannedRef.current;
+  // Booking payloads are planning-time snapshots; the host's live workflow
+  // index is the source of truth for stage. Overlaying here — a derive over
+  // the SWR cache — instead of inside `loadBookings` keeps the stage
+  // reactive: a live-index refresh re-labels chips without refetching
+  // bookings (the fetcher is deliberately identity-stable, see above).
+  const resolveWorkflowStage = host.resolveWorkflowStage;
+  const plannedServices = useMemo(
+    () => mergeWorkflowStages(rawPlannedServices, resolveWorkflowStage),
+    [rawPlannedServices, resolveWorkflowStage]
+  );
+  const bookingIds = bookingsData?.ids ?? emptyBookingIdsRef.current;
+  const bookingsLoadError = bookingsError ? bookingsLoadErrorMessage : null;
+
+  const setPlannedServices: Dispatch<
+    SetStateAction<PlannedService<TItem>[]>
+  > = useCallback(
+    (update) => {
+      mutateBookings(
+        (cache) => {
+          const prev = cache?.planned ?? [];
+          const next =
+            typeof update === "function" ? update(prev) : update;
+          return {
+            planned: next,
+            ids: cache?.ids ?? new Map<string, string>(),
+          };
+        },
+        { revalidate: false }
+      );
+    },
+    [mutateBookings]
+  );
+
+  const setBookingIds: Dispatch<
+    SetStateAction<Map<string, string>>
+  > = useCallback(
+    (update) => {
+      mutateBookings(
+        (cache) => {
+          const prev = cache?.ids ?? new Map<string, string>();
+          const next =
+            typeof update === "function" ? update(prev) : update;
+          return { planned: cache?.planned ?? [], ids: next };
+        },
+        { revalidate: false }
+      );
+    },
+    [mutateBookings]
+  );
+
+  // Surface a load failure once per new error. SWR keeps the last good data, so
+  // unlike the old fetch a transient error no longer blanks the grid.
+  const notifiedErrorRef = useRef(false);
+  useEffect(() => {
+    if (bookingsError && !notifiedErrorRef.current) {
+      notifiedErrorRef.current = true;
+      notifyRef.current({ type: "error", message: bookingsLoadErrorMessage });
+    } else if (!bookingsError) {
+      notifiedErrorRef.current = false;
+    }
+  }, [bookingsError, bookingsLoadErrorMessage]);
 
   const bookingApi = useMemo<BookingApi>(
     () => host.bookingApi ?? buildDefaultBookingApi(host.client),
@@ -262,40 +388,6 @@ export function PlanningSelectionProvider<
   useEffect(() => {
     onSelectedDateChange?.(selectedDateStr);
   }, [selectedDateStr, onSelectedDateChange]);
-
-  // Load existing bookings whenever the calendar or query window changes.
-  // Latest host callbacks are read through refs so an unrelated host identity
-  // change (permissions, i18n) doesn't trigger a reload.
-  const loadBookingsRef = useRef(loadBookings);
-  loadBookingsRef.current = loadBookings;
-  const notifyRef = useRef(host.notify);
-  notifyRef.current = host.notify;
-  const errorMessageRef = useRef(bookingsLoadErrorMessage);
-  errorMessageRef.current = bookingsLoadErrorMessage;
-  useEffect(() => {
-    if (!calendarId) return;
-    const controller = new AbortController();
-    loadBookingsRef
-      .current(controller.signal)
-      .then(({ planned, ids }) => {
-        if (controller.signal.aborted) return;
-        setPlannedServices(planned);
-        setBookingIds(ids);
-        setBookingsLoadError(null);
-      })
-      .catch((err: unknown) => {
-        if (controller.signal.aborted) return;
-        if (err instanceof Error && err.name === "AbortError") return;
-        setPlannedServices([]);
-        setBookingIds(new Map());
-        const message = errorMessageRef.current;
-        setBookingsLoadError(message);
-        notifyRef.current({ type: "error", message });
-      });
-    return () => {
-      controller.abort();
-    };
-  }, [calendarId, bookingsKey]);
 
   // Re-fetch live tasks after a booking change (stage/task ids likely moved).
   useEffect(() => {
@@ -743,6 +835,17 @@ export function PlanningSelectionProvider<
     [selectedChipServiceId]
   );
 
+  const isItemHighlighted = useCallback(
+    (serviceId: string) => searchMatchIds?.has(serviceId) ?? false,
+    [searchMatchIds]
+  );
+
+  const isItemDimmed = useCallback(
+    (serviceId: string) =>
+      searchMatchIds !== null && !searchMatchIds.has(serviceId),
+    [searchMatchIds]
+  );
+
   const updateServiceAssignment = useCallback(
     (serviceId: string, patch: Partial<TItem>) => {
       setPlannedServices((prev) =>
@@ -801,6 +904,12 @@ export function PlanningSelectionProvider<
       inspectPlannedService,
       isChipSelected,
       clearChipSelection,
+      searchMatchIds,
+      setSearchMatchIds,
+      isItemHighlighted,
+      isItemDimmed,
+      focusedItemId,
+      setFocusedItemId,
       updateServiceAssignment,
       bookingsLoadError,
       backendSlots,
@@ -850,6 +959,10 @@ export function PlanningSelectionProvider<
       inspectPlannedService,
       isChipSelected,
       clearChipSelection,
+      searchMatchIds,
+      isItemHighlighted,
+      isItemDimmed,
+      focusedItemId,
       updateServiceAssignment,
       bookingsLoadError,
       backendSlots,

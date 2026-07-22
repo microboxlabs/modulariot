@@ -9,11 +9,11 @@ export interface OrgSummary {
   slug: string;
   displayName: string;
   taxId: string | null;
+  role: string;
   isParent: boolean;
 }
 
 export interface ActiveOrg extends OrgSummary {
-  role: string;
   /** Open set — backend may add modules we don't yet know about. */
   modules: string[];
 }
@@ -24,4 +24,16 @@ export interface OrgMember {
   firstName: string;
   lastName: string;
   displayName: string;
+}
+
+export interface ContentReviewPermission {
+  enabled: boolean;
+  permissionCode: string;
+  roleCode: string;
+  assigneeIds: string[];
+}
+
+export interface SetContentReviewPermission {
+  enabled: boolean;
+  assigneeIds: string[];
 }

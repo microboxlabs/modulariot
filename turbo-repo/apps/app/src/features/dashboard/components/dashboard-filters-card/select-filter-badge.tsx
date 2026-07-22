@@ -19,9 +19,10 @@ export function SelectFilterBadge({ filter, values, onApply, onClear, dictionary
   const [open, setOpen] = useState(false);
   const [localValues, setLocalValues] = useState<string[]>(values);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setLocalValues(values); }, [values]);
-  useOutsideClick(containerRef, () => setOpen(false), open);
+  useOutsideClick(containerRef, () => setOpen(false), open, panelRef);
 
   const hasValue = localValues.length > 0;
   const displayLabel = hasValue
@@ -53,6 +54,7 @@ export function SelectFilterBadge({ filter, values, onApply, onClear, dictionary
       onClear={handleClear}
       panelClassName="min-w-40 py-1"
       containerRef={containerRef}
+      panelRef={panelRef}
     >
       <button
         type="button"

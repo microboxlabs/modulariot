@@ -7,5 +7,7 @@ public enum ProviderType {
     AUTH0,
     ECM,
     CUSTOM_HTTP,
-    WHATSAPP
+    WHATSAPP,
+    /** Tenant-owned outbound GPS position webhooks with filter criteria. */
+    GPS_WEBHOOK
 }

@@ -5,10 +5,12 @@ export type LoginDividerProps = Readonly<{
 
 export default function LoginDivider({ text }: LoginDividerProps) {
   return (
-    <div className="flex justify-center">
-      <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+    <div className="flex items-center gap-3">
+      <div className="h-px flex-1 bg-gray-200 dark:bg-gray-600" />
+      <span className="text-sm font-light text-gray-400 dark:text-gray-600">
         {text}
       </span>
+      <div className="h-px flex-1 bg-gray-200 dark:bg-gray-600" />
     </div>
   );
 }

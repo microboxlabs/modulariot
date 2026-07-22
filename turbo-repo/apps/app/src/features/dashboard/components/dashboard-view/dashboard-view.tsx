@@ -501,7 +501,7 @@ export function DashboardView() {
         }
 
         .dashboard-root-grid .react-grid-item.react-draggable-dragging {
-          z-index: 100;
+          z-index: 40;
           box-shadow:
             0 20px 25px -5px rgba(0, 0, 0, 0.1),
             0 10px 10px -5px rgba(0, 0, 0, 0.04);
@@ -513,7 +513,7 @@ export function DashboardView() {
           opacity: 0;
           transition: opacity 0.15s ease;
           transform: none !important;
-          z-index: 60;
+          z-index: 20;
         }
 
         .dashboard-root-grid .react-grid-item > .react-resizable-handle::after {

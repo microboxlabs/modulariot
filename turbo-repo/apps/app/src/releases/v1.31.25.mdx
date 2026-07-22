@@ -1,0 +1,54 @@
+# 🔔 Release Notes v1.31.25 — ModularIoT
+
+### Fecha: 22/07/2026
+
+**Objetivo**: Fortalecer la coordinación entre flujo operativo, calendario y notificaciones externas para que los cambios de estado sean más trazables, resilientes y consistentes. Además, reducir fricción operativa automatizando decisiones de revisión en ECM bajo políticas configurables.
+
+## 🚀 Evolutivos
+
+- **📍 Autoaprobación de revisiones multimedia por grupos**
+  - **Key point**: Se incorporó una política de autoaprobación al momento en que el contenido pasa a estado revisable, usando grupos configurados y contemplando membresías anidadas.
+  - **Technical detail**: La decisión se aplica del lado servidor en `ContentReviewableBehavior`, con exclusión explícita de usuarios de sistema/invitado y comportamiento de resguardo a `PENDING` ante fallas de resolución de grupos.
+
+- **📍 Cadena asíncrona calendario–Alerce y confirmación de sincronización**
+  - **Key point**: Se consolidó el flujo asíncrono para `calendar_sync` y su encadenamiento con la notificación a Alerce, incluyendo estado de confirmación de sincronización en reservas.
+  - **Technical detail**: Se habilitó en ECM la selección de lane ejecutor para `calendar_sync`, se migró el ciclo de vida de reservas a operaciones asíncronas `ensure/cancel`, y se extendió el modelo con `sync_status`, `sync_detail` y `sync_at`; además, quedó trabajo planificado para completar el encadenamiento total de notificación posterior al booking en fases abiertas.
+
+## 🔧 Integraciones
+
+- **🔌 Clasificación de rechazo y retry en confirmaciones Alerce**
+  - **Scope**: Se diferenció rechazo permanente vs. reintento en respuestas de Alerce (aunque HTTP sea 200), se añadió una tercera pierna de cadena `calendar_confirm` con activación por flag, y se reforzó la semántica de “planificado pero no confirmado” en sincronización de reservas.
+
+- **🔌 Enrutamiento de jobs `calendar_sync` al lane modulith**
+  - **Scope**: Se agregó configuración para dirigir nuevos jobs al ejecutor `modulith` sin perder compatibilidad con jobs existentes en `ecm`, permitiendo rollout progresivo y reversión por configuración.
+
+## 🐛 Correcciones
+
+- **🐛 Transición de asignación abortada por recursos no acreditados**
+  - **Impacto**: Una falla de resolución de conductor/recursos podía abortar la transición de workflow en `assignDriver -> presentDriver`.
+  - **Solución**: Se ajustó a estrategia fail-soft en la asignación, manteniendo el avance operativo y registrando el estado local para evitar que un efecto de integración bloquee el proceso principal.
+
+## 📊 Beneficios
+
+- Menor dependencia de acciones manuales para revisión de contenido en perfiles confiables.
+- Mayor robustez ante rechazos de integración, con mejor separación entre errores recuperables y permanentes.
+- Mejor consistencia entre estado de kanban y proyección en calendario mediante ejecución asíncrona durable.
+- Reducción de riesgos de desincronización silenciosa en notificaciones de asignación/unasignación.
+- Rollouts de integración más seguros gracias a flags y cambio progresivo de lanes.
+- Mejor observabilidad operativa del estado de confirmación externa en reservas.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.26`
+- **App**: `app@v0.5.26` (actualizada en este release)
+- **Modulith**: `modulith@v0.5.17` (sin cambios)
+- **Harness**: `harness@v0.1.3` (sin cambios)
+- **Referencia de build desplegada**: los digests exactos de imágenes están disponibles en el diálogo de información de build dentro de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión refuerza un eje crítico de ModularIoT: que los eventos operativos tengan proyección confiable y controlada en sistemas externos sin comprometer la continuidad del flujo de trabajo.
+
+El avance en calendarización asíncrona, encadenamiento de jobs y estado de confirmación mejora la gobernanza técnica del proceso completo, desde la planificación hasta la confirmación externa.
+
+En paralelo, la autoaprobación por grupos en ECM reduce tiempos de gestión para casos confiables, manteniendo reglas centrales y comportamiento seguro ante fallas de integración o directorio.

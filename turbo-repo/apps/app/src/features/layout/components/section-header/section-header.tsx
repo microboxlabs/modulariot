@@ -25,7 +25,7 @@ export function SectionHeader({
   rightContent,
 }: Readonly<SectionHeaderProps>) {
   return (
-    <div className="sticky top-0 bg-white dark:bg-gray-900 w-full">
+    <div className="sticky top-0 z-40 bg-white dark:bg-gray-900 w-full">
       <div className="px-5 h-[60px] flex items-center justify-between dark:text-white border-b border-gray-200 dark:border-gray-700">
         {leftContent ?? (
           path && breadcrumbDict ? (

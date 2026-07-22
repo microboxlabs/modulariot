@@ -16,6 +16,12 @@ export interface ChipRenderContext<TItem extends { id: string } = CalendarItem> 
   selected: boolean;
   /** This chip is the one being reassigned (pulsing ring). */
   reassigning: boolean;
+  /** This chip matches the active search. */
+  highlighted: boolean;
+  /** A search is active and this chip does *not* match it — render it faded. */
+  dimmed: boolean;
+  /** This chip is the match the search navigator is parked on. */
+  focused: boolean;
   /** Left-click handler — undefined for read-only (viewer) callers. */
   onClick?: (ps: PlannedService<TItem>) => void;
   onContextMenu: (e: MouseEvent, ps: PlannedService<TItem>) => void;
@@ -44,6 +50,16 @@ export interface ShiftOverlayLayerProps<
   readonly reassigningServiceId?: string;
   /** Predicate driving the chip's right-click highlight ring. */
   readonly isChipSelected?: (serviceId: string) => boolean;
+  /** Predicate driving the chip's search-match ring. */
+  readonly isChipHighlighted?: (serviceId: string) => boolean;
+  /**
+   * Predicate driving the faded state for chips that miss the active search.
+   * Distinct from `!isChipHighlighted` so "no search running" (nothing dims)
+   * stays distinguishable from "search ran, nothing here matched" (all dim).
+   */
+  readonly isChipDimmed?: (serviceId: string) => boolean;
+  /** The match the search navigator is parked on — scrolled into view. */
+  readonly focusedServiceId?: string;
   /**
    * Host chip override. When omitted, each chip renders via the package default
    * {@link ItemChip} from the item's id. Hosts pass a renderer to keep their
@@ -81,6 +97,9 @@ export function ShiftOverlayLayer<
   onChipContextMenu,
   reassigningServiceId,
   isChipSelected,
+  isChipHighlighted,
+  isChipDimmed,
+  focusedServiceId,
   renderChip,
   windowFullTooltip,
 }: ShiftOverlayLayerProps<TItem>) {
@@ -182,12 +201,19 @@ export function ShiftOverlayLayer<
                   const chipSelected = isChipSelected?.(ps.service.id) ?? false;
                   const chipReassigning =
                     reassigningServiceId === ps.service.id;
+                  const chipHighlighted =
+                    isChipHighlighted?.(ps.service.id) ?? false;
+                  const chipDimmed = isChipDimmed?.(ps.service.id) ?? false;
+                  const chipFocused = focusedServiceId === ps.service.id;
                   return (
                     <Fragment key={ps.service.id}>
                       {renderChip ? (
                         renderChip(ps, {
                           selected: chipSelected,
                           reassigning: chipReassigning,
+                          highlighted: chipHighlighted,
+                          dimmed: chipDimmed,
+                          focused: chipFocused,
                           onClick: onChipClick,
                           onContextMenu: onChipCtx,
                         })
@@ -196,6 +222,9 @@ export function ShiftOverlayLayer<
                           item={{ id: ps.service.id, title: ps.service.id }}
                           selected={chipSelected}
                           reassigning={chipReassigning}
+                          highlighted={chipHighlighted}
+                          dimmed={chipDimmed}
+                          focused={chipFocused}
                           onClick={
                             onChipClick ? () => onChipClick(ps) : undefined
                           }

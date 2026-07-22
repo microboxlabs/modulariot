@@ -40,11 +40,13 @@ from miot_harness.agents.data_fetcher import invoke_step
 from miot_harness.agents.freshness_judge import freshness_judge_node
 from miot_harness.agents.native_tools import build_native_tools
 from miot_harness.config import HarnessSettings
+from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.agent_prompt import (
     build_agent_system_prompt,
     cached_system_message,
+    render_skills_index,
 )
 from miot_harness.runtime.agentic_graph import _provenance_entry
 from miot_harness.runtime.context import HarnessContext
@@ -60,6 +62,31 @@ from miot_harness.utils.truncation import truncate_for_trace
 logger = logging.getLogger(__name__)
 
 _EPHEMERAL_CACHE = {"type": "ephemeral"}
+
+_LOAD_SKILL_TOOL = "load_skill"
+
+# Static schema — part of the cached tool prefix, so it must not vary with
+# the skill set. The available ids live in the system prompt's skills index.
+_LOAD_SKILL_SCHEMA = {
+    "name": _LOAD_SKILL_TOOL,
+    "description": (
+        "Load the full playbook body of a skill from the Skills index in "
+        "your instructions. Call it BEFORE planning queries for a question "
+        "that matches a skill's trigger, then follow the loaded "
+        "instructions. Each skill needs loading at most once per "
+        "conversation."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "skill_id": {
+                "type": "string",
+                "description": "Skill id exactly as shown in the Skills index.",
+            }
+        },
+        "required": ["skill_id"],
+    },
+}
 
 _TURN_CAP_NUDGE = (
     "Turn cap reached. Answer now from the evidence you already collected; "
@@ -140,8 +167,11 @@ class AgentLoopRunner:
 
     Prefix (system prompt + native tool list) is built ONCE here and never
     varies per request — that is the prompt-cache contract. Per-request
-    dynamics (skill bodies, JSON-block contract) arrive via prior_messages
-    and are demoted into the user turn by _split_prior/_compose_human.
+    dynamics (user-invoked skill bodies, JSON-block contract) arrive via
+    prior_messages and are demoted into the user turn by
+    _split_prior/_compose_human. Model-pulled skills are the lazy variant:
+    the frozen prefix carries only the one-line index, and `load_skill`
+    returns the body mid-transcript as a tool result.
     """
 
     def __init__(
@@ -152,13 +182,25 @@ class AgentLoopRunner:
         settings: HarnessSettings,
         profile: DataSourceProfile,
         provenance_log: ProvenanceLog | None = None,
+        context_skills: ContextSkillsBundle | None = None,
     ) -> None:
         self.registry = registry
         self.settings = settings
         self.profile = profile
         self.provenance_log = provenance_log
+        self.context_skills = context_skills
+        skills_index = render_skills_index(context_skills, profile)
         self.native_tools = build_native_tools(registry, profile=profile)
-        self.system_message = cached_system_message(build_agent_system_prompt(profile))
+        if skills_index:
+            # Re-sort so the tool list stays deterministically ordered — the
+            # same byte-stability contract build_native_tools guarantees.
+            self.native_tools = sorted(
+                [*self.native_tools, _LOAD_SKILL_SCHEMA],
+                key=lambda t: t["name"],
+            )
+        self.system_message = cached_system_message(
+            build_agent_system_prompt(profile, skills_index=skills_index)
+        )
         # Bind once — adding/removing/reordering tools mid-conversation
         # invalidates the whole cache (tools render at position 0).
         self.bound_model = model.bind_tools(self.native_tools)
@@ -199,6 +241,7 @@ class AgentLoopRunner:
         ]
         evidence: list[DataEvidence] = []
         usage_log: list[dict[str, Any]] = []
+        loaded_skills: set[str] = set()
         answer: str | None = None
         max_turns = self.settings.agents_agentic_max_turns
 
@@ -237,6 +280,14 @@ class AgentLoopRunner:
                 answer = response_text(response).strip()
                 break
             for call in tool_calls:
+                if call.get("name") == _LOAD_SKILL_TOOL:
+                    messages.append(
+                        self._load_skill(
+                            call, ctx=ctx, loaded_skills=loaded_skills,
+                            progress=progress,
+                        )
+                    )
+                    continue
                 messages.append(
                     await self._execute_tool_call(
                         call, ctx=ctx, user_message=user_message,
@@ -312,6 +363,113 @@ class AgentLoopRunner:
         return ToolMessage(
             content=self._render_tool_result(ev), tool_call_id=call_id
         )
+
+    def _load_skill(
+        self,
+        call: dict[str, Any],
+        *,
+        ctx: HarnessContext,
+        loaded_skills: set[str],
+        progress: Progress,
+    ) -> ToolMessage:
+        """Return a skill's playbook body as a tool result.
+
+        Handled outside invoke_step on purpose: a skill body is guidance,
+        not data — it must not become DataEvidence, be freshness-judged, or
+        land in the provenance log. Resolution uses the requesting tenant so
+        tenant-scoped overrides apply even though the advertised index was
+        resolved against the profile's tenant_lock at boot, and re-applies
+        this profile's connection filter so a guessed id cannot pull a
+        playbook the index never offered.
+        """
+        call_id = str(call.get("id", ""))
+        skill_id = str((call.get("args") or {}).get("skill_id", "")).strip()
+        progress(
+            HarnessEvent(
+                run_id=ctx.run_id,
+                type="tool.started",
+                message=f"Starting {_LOAD_SKILL_TOOL}",
+                data={
+                    "tool": _LOAD_SKILL_TOOL,
+                    "source": "skills",
+                    "input_keys": ["skill_id"],
+                    "skill_id": skill_id,
+                },
+            )
+        )
+        if skill_id in loaded_skills:
+            # Token guard: the body is already in the transcript; a short
+            # pointer beats re-sending it.
+            return self._skill_result(
+                ctx, call_id, skill_id,
+                f"Skill '{skill_id}' is already loaded in this conversation; "
+                "follow the instructions you already received.",
+                progress=progress, loaded=False,
+            )
+        activated = (
+            self.context_skills.activate_skill(
+                ctx.tenant_id, skill_id, connection=self.profile.name
+            )
+            if self.context_skills is not None
+            else None
+        )
+        if activated is None:
+            progress(
+                HarnessEvent(
+                    run_id=ctx.run_id,
+                    type="tool.failed",
+                    message=f"Tool {_LOAD_SKILL_TOOL} failed",
+                    data={
+                        "tool": _LOAD_SKILL_TOOL,
+                        "error": f"unknown skill: {skill_id}",
+                        "error_type": "SkillNotFound",
+                        "reason": f"unknown skill: {skill_id}",
+                    },
+                )
+            )
+            return ToolMessage(
+                content=json.dumps(
+                    {
+                        "error": (
+                            f"Unknown or bodyless skill '{skill_id}'. Use an "
+                            "id from the Skills index exactly as written."
+                        )
+                    }
+                ),
+                tool_call_id=call_id,
+                status="error",
+            )
+        loaded_skills.add(skill_id)
+        name, body = activated
+        return self._skill_result(
+            ctx, call_id, skill_id, f"# Skill: {name}\n\n{body}",
+            progress=progress, loaded=True,
+        )
+
+    def _skill_result(
+        self,
+        ctx: HarnessContext,
+        call_id: str,
+        skill_id: str,
+        content: str,
+        *,
+        progress: Progress,
+        loaded: bool,
+    ) -> ToolMessage:
+        progress(
+            HarnessEvent(
+                run_id=ctx.run_id,
+                type="tool.completed",
+                message=f"Completed {_LOAD_SKILL_TOOL}",
+                data={
+                    "tool": _LOAD_SKILL_TOOL,
+                    "skill_id": skill_id,
+                    "loaded": loaded,
+                    "result_shape": {"type": "str", "length": len(content)},
+                },
+            )
+        )
+        return ToolMessage(content=content, tool_call_id=call_id)
 
     def _render_tool_result(self, ev: DataEvidence) -> str:
         payload, _info = truncate_for_trace(

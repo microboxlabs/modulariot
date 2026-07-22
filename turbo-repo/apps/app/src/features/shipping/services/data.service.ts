@@ -95,7 +95,13 @@ function toKanbanBoardTask(task: Record<string, unknown>): KanbanBoardTask {
     name,
     mintral_serviceCode:
       task.mintral_serviceCode == null ? undefined : String(serviceCode),
-    description: task.bpm_description as string,
+    // The calendar planning "Obs" field must show the observations the
+    // external service (Alerce) sends via the ext-service feed — persisted as
+    // the `mintral_observations` process variable (feed key
+    // `service_definitions_oservations`) — not the generic workflow
+    // description ("Shipping Coordination for <key>"). Falls back to empty
+    // when a service carries no observations.
+    description: (task.mintral_observations as string) ?? "",
     completed: task.state === "COMPLETED",
     daysLeft: 2,
     origin,

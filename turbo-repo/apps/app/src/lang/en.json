@@ -1298,8 +1298,6 @@
           "readOnlyHelp": "You have read-only access. The site manager role is required to change these permissions.",
           "noMembers": "Add members to the organization before assigning this role.",
           "unavailableMember": "No longer an organization member; uncheck to remove",
-          "projectionFailed": "The setting was saved, but Alfresco synchronization failed. Saving again will retry it.",
-          "projectionSynced": "Synchronized with Alfresco.",
           "saveError": "Couldn't save the permission.",
           "save": "Save permission",
           "saving": "Saving…"

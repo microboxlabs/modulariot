@@ -61,8 +61,17 @@ export function fetchOrgModules(orgSlug: string): Promise<string[]> {
   );
 }
 
+const CONTENT_REVIEW_PERMISSION_CODE = "CONTENT_MULTIMEDIA_REVIEW_AUTO_APPROVE";
+
+function organizationPermissionUrl(
+  orgSlug: string,
+  permissionCode: string
+): string {
+  return `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/permissions/${encodeURIComponent(permissionCode)}`;
+}
+
 function contentReviewPermissionUrl(orgSlug: string): string {
-  return `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/permissions/content-review-auto-approval`;
+  return organizationPermissionUrl(orgSlug, CONTENT_REVIEW_PERMISSION_CODE);
 }
 
 export function fetchContentReviewPermission(

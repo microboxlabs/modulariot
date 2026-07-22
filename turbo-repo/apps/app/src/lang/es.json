@@ -1298,8 +1298,6 @@
           "readOnlyHelp": "Tienes acceso de solo lectura. Se requiere el rol de administrador del sitio para modificar estos permisos.",
           "noMembers": "Agrega miembros a la organización antes de asignar este rol.",
           "unavailableMember": "Ya no pertenece a la organización; desmarca para eliminar",
-          "projectionFailed": "La configuración se guardó, pero falló la sincronización con Alfresco. Guardar nuevamente volverá a intentarlo.",
-          "projectionSynced": "Sincronizado con Alfresco.",
           "saveError": "No se pudo guardar el permiso.",
           "save": "Guardar permiso",
           "saving": "Guardando…"

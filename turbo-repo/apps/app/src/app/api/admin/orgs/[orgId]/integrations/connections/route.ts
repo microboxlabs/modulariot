@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { forwardToQuarkus } from "@/app/api/utils/quarkus-proxy";
+import { requireOrganizationSettingsAdmin } from "@/app/api/utils/organization-settings-admin";
 
 /**
  * GET  /api/admin/orgs/[orgId]/integrations/connections — list connections
@@ -13,6 +14,8 @@ export async function GET(
   { params }: { params: Promise<{ orgId: string }> },
 ) {
   const { orgId } = await params;
+  const denied = await requireOrganizationSettingsAdmin(orgId);
+  if (denied) return denied;
   const safe = encodeURIComponent(orgId);
   return forwardToQuarkus(`/api/v1/orgs/${safe}/integrations/connections`);
 }
@@ -22,6 +25,8 @@ export async function POST(
   { params }: { params: Promise<{ orgId: string }> },
 ) {
   const { orgId } = await params;
+  const denied = await requireOrganizationSettingsAdmin(orgId);
+  if (denied) return denied;
   const safe = encodeURIComponent(orgId);
   let body: unknown;
   try {

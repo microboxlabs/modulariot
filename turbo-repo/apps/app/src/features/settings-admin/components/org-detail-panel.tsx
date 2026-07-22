@@ -13,6 +13,7 @@ import type { OrgSummary } from "../types";
 interface OrgDetailPanelProps {
   readonly organization: OrgSummary | null;
   readonly dict: I18nRecord;
+  readonly isAlfrescoAdministrator: boolean;
 }
 
 /**
@@ -23,6 +24,7 @@ interface OrgDetailPanelProps {
 export default function OrgDetailPanel({
   organization,
   dict,
+  isAlfrescoAdministrator,
 }: OrgDetailPanelProps) {
   const orgSlug = organization?.slug ?? null;
   const {
@@ -44,6 +46,11 @@ export default function OrgDetailPanel({
     );
   }
 
+  const canManageOrganizationSettings =
+    isAlfrescoAdministrator ||
+    organization?.role === "SITE_MANAGER" ||
+    organization?.role === "GROUP_ADMIN";
+
   return (
     <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
       <ModulesList
@@ -52,19 +59,20 @@ export default function OrgDetailPanel({
         error={modulesError}
         dict={dict}
       />
-      <ContentReviewPermissionCard
-        orgSlug={orgSlug}
-        members={members}
-        membersLoading={membersLoading}
-        membersError={membersError}
-        canManage={
-          organization?.role === "SITE_MANAGER" ||
-          organization?.role === "GROUP_ADMIN"
-        }
-        dict={dict}
-      />
-      <WhatsAppChannelCard orgSlug={orgSlug} dict={dict} />
-      <GpsWebhookCard orgSlug={orgSlug} dict={dict} />
+      {canManageOrganizationSettings && (
+        <>
+          <ContentReviewPermissionCard
+            orgSlug={orgSlug}
+            members={members}
+            membersLoading={membersLoading}
+            membersError={membersError}
+            canManage
+            dict={dict}
+          />
+          <WhatsAppChannelCard orgSlug={orgSlug} dict={dict} />
+          <GpsWebhookCard orgSlug={orgSlug} dict={dict} />
+        </>
+      )}
     </div>
   );
 }

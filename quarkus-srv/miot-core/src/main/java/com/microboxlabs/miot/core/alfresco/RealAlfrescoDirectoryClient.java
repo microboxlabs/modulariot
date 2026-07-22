@@ -5,6 +5,7 @@ import com.microboxlabs.miot.core.alfresco.client.AlfrescoCoreApi;
 import com.microboxlabs.miot.core.alfresco.model.AlfrescoGroupMemberEntry;
 import com.microboxlabs.miot.core.alfresco.model.AlfrescoPersonEntry;
 import io.quarkus.arc.lookup.LookupUnlessProperty;
+import io.quarkus.arc.properties.UnlessBuildProperty;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.ArrayList;
@@ -30,6 +31,11 @@ import org.jboss.logging.Logger;
  */
 @ApplicationScoped
 @LookupUnlessProperty(name = "miot.alfresco.auth", stringValue = "stub", lookupIfMissing = false)
+// Fix local dev (rama feature/gemelos-gxc): la exclusión debe ser de BUILD —
+// con inyección directa el bean real siempre ganaba sobre el stub @DefaultBean
+// aunque miot.alfresco.auth=stub, y su fallo de conexión se recuperaba como
+// "no miembro" dejando scopes vacíos sin error visible.
+@UnlessBuildProperty(name = "miot.alfresco.auth", stringValue = "stub", enableIfMissing = true)
 public class RealAlfrescoDirectoryClient implements IAlfrescoDirectoryClient {
 
     private static final Logger LOG = Logger.getLogger(RealAlfrescoDirectoryClient.class);

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.integrations.jobs.JobOutcome;
+import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -395,6 +396,59 @@ class CalendarSyncExecutorTest {
         assertEquals(1, client.createCalls);
     }
 
+    /**
+     * A move into an explicit slot the calendar rejects (409 — e.g. full capacity)
+     * is terminal: retrying the same slot hits the same wall. It must surface as a
+     * NonRetryableJobException so the worker parks it now instead of backing off
+     * through the whole attempt budget.
+     */
+    @Test
+    void ensureMoveToRejectedSlotIsNonRetryable() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of(booking(LocalDate.of(2026, 7, 16))); // existing at 09:00
+        client.moveThrows = new CalendarBookingsHttpException(409, "Slot is at full capacity");
+        var payload = withExplicitSlot(ensurePayload("ASSIGNED"), LocalDate.of(2026, 7, 17), 14, 30);
+        var executor = new CalendarSyncExecutor(client, CLOCK);
+
+        var e = assertThrows(NonRetryableJobException.class, () -> executor.handle(payload));
+        assertTrue(e.getMessage().contains("full capacity"), e.getMessage());
+        assertEquals(1, client.moveCalls);
+        assertEquals(0, client.patchCalls, "a rejected move never reaches the status patch");
+    }
+
+    /** A create rejected by an explicit full slot (409, still no booking) is terminal. */
+    @Test
+    void ensureCreateIntoRejectedSlotIsNonRetryable() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();            // absent → create path
+        client.listResultAfterCreate = List.of(); // still absent after the 409 → capacity, not a race
+        client.createThrows = new CalendarBookingsHttpException(409, "Slot is at full capacity");
+        var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 17), 14, 30);
+        var executor = new CalendarSyncExecutor(client, CLOCK);
+
+        var e = assertThrows(NonRetryableJobException.class, () -> executor.handle(payload));
+        assertTrue(e.getMessage().contains("full capacity"), e.getMessage());
+        assertEquals(1, client.createCalls);
+    }
+
+    /**
+     * A create 409 where a sibling won the race (a booking now exists) stays
+     * retryable — the re-run finds it via listByResource and converges through the
+     * move path, so it must NOT be parked as non-retryable.
+     */
+    @Test
+    void ensureCreate409WhenSiblingWonTheRaceStaysRetryable() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of(); // absent at first list → create path
+        client.listResultAfterCreate = List.of(booking(LocalDate.of(2026, 7, 17))); // sibling created it
+        client.createThrows = new CalendarBookingsHttpException(409, "already exists");
+        var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 17), 14, 30);
+        var executor = new CalendarSyncExecutor(client, CLOCK);
+
+        // Retryable (a plain CalendarBookingsHttpException, not NonRetryableJobException).
+        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle(payload));
+    }
+
     @Test
     void ensureIncompleteExplicitSlotThrows() {
         FakeClient client = new FakeClient();
@@ -464,6 +518,12 @@ class CalendarSyncExecutorTest {
         LocalDate lastMoveDate;
         int lastMoveHour;
         int lastMoveMinutes;
+        RuntimeException moveThrows;
+        RuntimeException createThrows;
+        // What listByResource returns after the first call — lets a test model a
+        // create-409 race (a sibling booking appears) vs a capacity 409 (stays empty).
+        List<CalendarBookingsClient.BookingView> listResultAfterCreate;
+        int listCalls;
 
         @Override
         public boolean isConfigured() {
@@ -484,6 +544,10 @@ class CalendarSyncExecutorTest {
 
         @Override
         public List<CalendarBookingsClient.BookingView> listByResource(String resourceId, UUID calendarId) {
+            listCalls++;
+            if (listCalls > 1 && listResultAfterCreate != null) {
+                return listResultAfterCreate;
+            }
             return listResult;
         }
 
@@ -499,6 +563,9 @@ class CalendarSyncExecutorTest {
             lastCreateDate = slotDate;
             lastCreateHour = slotHour;
             lastCreateMinutes = slotMinutes;
+            if (createThrows != null) {
+                throw createThrows;
+            }
             return createdId;
         }
 
@@ -509,6 +576,9 @@ class CalendarSyncExecutorTest {
             lastMoveDate = slotDate;
             lastMoveHour = slotHour;
             lastMoveMinutes = slotMinutes;
+            if (moveThrows != null) {
+                throw moveThrows;
+            }
         }
 
         @Override

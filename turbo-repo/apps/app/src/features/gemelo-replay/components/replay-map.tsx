@@ -152,6 +152,68 @@ function MapboxDeckOverlay(props: DeckProps) {
   return null;
 }
 
+// Lista de selección MÚLTIPLE con la misma piel que los <select> del panel:
+// botón que abre un popover con checkboxes; vacío = «todos».
+function MultiSel({ placeholder, opciones, valor, onChange, estilo }: {
+  placeholder: string;
+  opciones: { v: string; l: string }[];
+  valor: string[];
+  onChange: (v: string[]) => void;
+  estilo: React.CSSProperties;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const cont = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!abierto) return;
+    const fn = (e: MouseEvent) => {
+      if (cont.current && !cont.current.contains(e.target as Node)) setAbierto(false);
+    };
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, [abierto]);
+  const texto = !valor.length ? placeholder
+    : valor.length === 1 ? (opciones.find((o) => o.v === valor[0])?.l ?? valor[0])
+    : `${valor.length} seleccionados`;
+  return (
+    <div ref={cont} className="relative">
+      <button type="button" onClick={() => setAbierto((a) => !a)}
+              style={{ ...estilo, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, textAlign: "left" }}>
+        <span className="truncate">{texto}</span>
+        <span style={{ fontSize: 9, color: "var(--muted)", flex: "none" }}>▼</span>
+      </button>
+      {abierto && (
+        <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border shadow-2xl overflow-hidden"
+             style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
+          <div className="max-h-[230px] overflow-y-auto py-1">
+            {opciones.map((o) => (
+              <label key={o.v}
+                     className="flex items-center gap-2 px-2.5 py-1 text-[12.5px] cursor-pointer"
+                     style={{ color: "var(--foreground)" }}
+                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--ghost-hover)"; }}
+                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
+                <input type="checkbox" className="accent-[var(--blue-600)]" checked={valor.includes(o.v)}
+                       onChange={(e) => onChange(e.target.checked
+                         ? [...valor, o.v] : valor.filter((x) => x !== o.v))} />
+                <span className="truncate">{o.l}</span>
+              </label>
+            ))}
+            {!opciones.length && (
+              <div className="px-2.5 py-1 text-[12px]" style={{ color: "var(--muted)" }}>Sin opciones</div>
+            )}
+          </div>
+          {valor.length > 0 && (
+            <button type="button" className="w-full text-left px-2.5 py-1.5 text-[12px] border-t"
+                    style={{ color: "var(--blue-700)", borderColor: "var(--border)", background: "transparent" }}
+                    onClick={() => onChange([])}>
+              Limpiar selección ({valor.length})
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const fmtHM = (epoch: number) =>
   new Date(epoch * 1000).toLocaleString("es-CL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
@@ -227,10 +289,10 @@ export function ReplayMapa({ lang }: { lang: string }) {
     const dias = searchParams.get("tele_dias");
     if (dias === "7" || dias === "30") {
       setModo("flota"); setRangoLargo(Number(dias) as 7 | 30);
-      const r = searchParams.get("tele_ruta"); if (r) setFRuta(r);
-      const c = searchParams.get("tele_carrier"); if (c) setFCarrier(c);
-      const co = searchParams.get("tele_conductor"); if (co) setFConductor(co);
-      const ca = searchParams.get("tele_camion"); if (ca) setFCamion(ca);
+      const r = searchParams.get("tele_ruta"); if (r) setFRuta([r]);
+      const c = searchParams.get("tele_carrier"); if (c) setFCarrier([c]);
+      const co = searchParams.get("tele_conductor"); if (co) setFConductor([co]);
+      const ca = searchParams.get("tele_camion"); if (ca) setFCamion([ca]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -250,12 +312,14 @@ export function ReplayMapa({ lang }: { lang: string }) {
   const [verStats, setVerStats] = useState(true);
   const [verHeatmap, setVerHeatmap] = useState(false);
   const [verPlayer, setVerPlayer] = useState(false);
-  const [fRuta, setFRuta] = useState("");
-  const [fCarrier, setFCarrier] = useState("");
-  const [fConductor, setFConductor] = useState("");
-  const [fCamion, setFCamion] = useState("");
-  const [fTipoSint, setFTipoSint] = useState("");
-  const [fIcu, setFIcu] = useState("");
+  // Filtros multi-selección: lista vacía = «todos»
+  const [fRuta, setFRuta] = useState<string[]>([]);
+  const [fCarrier, setFCarrier] = useState<string[]>([]);
+  const [fConductor, setFConductor] = useState<string[]>([]);
+  const [fCamion, setFCamion] = useState<string[]>([]);
+  const [fTipoSint, setFTipoSint] = useState<string[]>([]);
+  const [fIcu, setFIcu] = useState<string[]>([]);
+  const hayFiltroServicio = fRuta.length + fCarrier.length + fConductor.length + fCamion.length > 0;
   const [area, setArea] = useState<Feature<Polygon> | null>(null);
   // Hook de desarrollo para pruebas E2E (el dibujo real usa mapbox-gl-draw)
   useEffect(() => {
@@ -325,12 +389,12 @@ export function ReplayMapa({ lang }: { lang: string }) {
   const { data: grid } = useSWR<{ celda: number; bucket: string; frames: FrameGrid[] }>(
     modo === "flota" && rangoLargo
       ? `/rpc/fn_dx_gol_grid_replay?p_dias=${rangoLargo}&p_bucket=${rangoLargo === 7 ? "hora" : "dia"}&p_celda=0.02`
-        + (fRuta ? `&p_ruta=${encodeURIComponent(fRuta)}` : "")
-        + (fCarrier ? `&p_carrier=${encodeURIComponent(fCarrier)}` : "")
-        + (fConductor ? `&p_conductor=${encodeURIComponent(fConductor)}` : "")
-        + (fCamion ? `&p_camion=${encodeURIComponent(fCamion)}` : "")
-        + (fTipoSint ? `&p_tipo=${encodeURIComponent(fTipoSint)}` : "")
-        + (fIcu ? `&p_icu=${fIcu}` : "")
+        + (fRuta.length ? `&p_ruta=${encodeURIComponent(fRuta.join("||"))}` : "")
+        + (fCarrier.length ? `&p_carrier=${encodeURIComponent(fCarrier.join("||"))}` : "")
+        + (fConductor.length ? `&p_conductor=${encodeURIComponent(fConductor.join("||"))}` : "")
+        + (fCamion.length ? `&p_camion=${encodeURIComponent(fCamion.join("||"))}` : "")
+        + (fTipoSint.length ? `&p_tipo=${encodeURIComponent(fTipoSint.join("||"))}` : "")
+        + (fIcu.length ? `&p_icu=${encodeURIComponent(fIcu.join("||"))}` : "")
       : null,
     fetcher, { revalidateOnFocus: false }
   );
@@ -450,7 +514,8 @@ export function ReplayMapa({ lang }: { lang: string }) {
   const opciones = useMemo(() => {
     // La selección vigente siempre es opción (puede venir por URL desde un
     // perfil y no existir en el catálogo — p.ej. camión de otra flota)
-    const conSel = (xs: string[], val: string) => (val && !xs.includes(val) ? [val, ...xs] : xs);
+    const conSel = (xs: string[], vals: string[]) =>
+      [...vals.filter((v) => !xs.includes(v)), ...xs];
     // Telescopio: las opciones vienen del history de 30 días (no hay trips crudos)
     if (rangoLargo && filtros30d) {
       return {
@@ -489,10 +554,10 @@ export function ReplayMapa({ lang }: { lang: string }) {
     if (modo === "servicio") return trips;   // los filtros de flota no aplican a un viaje individual
     return trips.filter((tr) =>
       (!assetsCircuito || assetsCircuito.has(tr.asset)) &&
-      (!fRuta || `${tr.origen} → ${tr.destino}` === fRuta) &&
-      (!fCarrier || tr.carrier === fCarrier) &&
-      (!fConductor || tr.conductor === fConductor) &&
-      (!fCamion || tr.asset === fCamion) &&
+      (!fRuta.length || fRuta.includes(`${tr.origen} → ${tr.destino}`)) &&
+      (!fCarrier.length || (tr.carrier != null && fCarrier.includes(tr.carrier))) &&
+      (!fConductor.length || (tr.conductor != null && fConductor.includes(tr.conductor))) &&
+      (!fCamion.length || fCamion.includes(tr.asset)) &&
       (!dentroDelArea || dentroDelArea(tr.path))
     );
   }, [modo, trips, fRuta, fCarrier, fConductor, fCamion, dentroDelArea, assetsCircuito]);
@@ -501,8 +566,8 @@ export function ReplayMapa({ lang }: { lang: string }) {
     const assets = new Set(tripsF.map((tr) => tr.asset));
     return sintomas.filter((s) =>
       (!s.asset || assets.has(s.asset)) &&
-      (!fTipoSint || s.tipo === fTipoSint) &&
-      (!fIcu || String(s.icu ?? "") === fIcu) &&
+      (!fTipoSint.length || (s.tipo != null && fTipoSint.includes(s.tipo))) &&
+      (!fIcu.length || fIcu.includes(String(s.icu ?? ""))) &&
       (!dentroDelArea || (s.lng != null && s.lat != null && dentroDelArea([[s.lng, s.lat]])))
     );
   }, [sintomas, tripsF, fTipoSint, fIcu, dentroDelArea]);
@@ -1457,7 +1522,7 @@ export function ReplayMapa({ lang }: { lang: string }) {
                 <div className="space-y-1 text-[12px]">
                   <div style={{ color: "var(--muted)" }}>
                     Vista agregada por {rangoLargo === 7 ? "hora" : "día"}
-                    {(fRuta || fCarrier || fConductor || fCamion)
+                    {hayFiltroServicio
                       ? " — filtrada: el calor muestra solo los síntomas del subconjunto"
                       : " (grilla precalculada)"} —
                     click en una celda roja abre el microscopio (replay crudo) de ese {rangoLargo === 7 ? "momento" : "día"};
@@ -1482,24 +1547,16 @@ export function ReplayMapa({ lang }: { lang: string }) {
         {modo === "flota" && (
           <section className="space-y-2">
             <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Filtros del servicio</div>
-            <select value={fRuta} onChange={(e) => setFRuta(e.target.value)} style={sel}>
-              <option value="">Ruta (todas)</option>
-              {opciones.rutas.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
-            <select value={fCarrier} onChange={(e) => setFCarrier(e.target.value)} style={sel}>
-              <option value="">Transportista (todos)</option>
-              {opciones.carriers.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
-            <select value={fConductor} onChange={(e) => setFConductor(e.target.value)} style={sel}>
-              <option value="">Conductor (todos)</option>
-              {opciones.conductores.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
-            <select value={fCamion} onChange={(e) => setFCamion(e.target.value)} style={sel}>
-              <option value="">Camión (todos)</option>
-              {opciones.camiones.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
-            {(fRuta || fCarrier || fConductor || fCamion) && (
-              <button style={chip(false)} onClick={() => { setFRuta(""); setFCarrier(""); setFConductor(""); setFCamion(""); }}>
+            <MultiSel placeholder="Ruta (todas)" estilo={sel} valor={fRuta} onChange={setFRuta}
+                      opciones={opciones.rutas.map((r) => ({ v: r, l: r }))} />
+            <MultiSel placeholder="Transportista (todos)" estilo={sel} valor={fCarrier} onChange={setFCarrier}
+                      opciones={opciones.carriers.map((r) => ({ v: r, l: r }))} />
+            <MultiSel placeholder="Conductor (todos)" estilo={sel} valor={fConductor} onChange={setFConductor}
+                      opciones={opciones.conductores.map((r) => ({ v: r, l: r }))} />
+            <MultiSel placeholder="Camión (todos)" estilo={sel} valor={fCamion} onChange={setFCamion}
+                      opciones={opciones.camiones.map((r) => ({ v: r, l: r }))} />
+            {hayFiltroServicio && (
+              <button style={chip(false)} onClick={() => { setFRuta([]); setFCarrier([]); setFConductor([]); setFCamion([]); }}>
                 Limpiar filtros
               </button>
             )}
@@ -1508,17 +1565,10 @@ export function ReplayMapa({ lang }: { lang: string }) {
 
         <section className="space-y-2">
           <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Filtros de síntomas</div>
-          <select value={fTipoSint} onChange={(e) => setFTipoSint(e.target.value)} style={sel}>
-            <option value="">Tipo de síntoma (todos)</option>
-            {tiposSintoma.map(([tipo, nombre]) => <option key={tipo} value={tipo}>{nombre}</option>)}
-          </select>
-          <select value={fIcu} onChange={(e) => setFIcu(e.target.value)} style={sel}>
-            <option value="">Criticidad ICU (todas)</option>
-            <option value="1">1 · Observación</option>
-            <option value="2">2 · Comprometido</option>
-            <option value="3">3 · Crítico</option>
-            <option value="4">4 · Código negro</option>
-          </select>
+          <MultiSel placeholder="Tipo de síntoma (todos)" estilo={sel} valor={fTipoSint} onChange={setFTipoSint}
+                    opciones={tiposSintoma.map(([tipo, nombre]) => ({ v: tipo, l: nombre }))} />
+          <MultiSel placeholder="Criticidad ICU (todas)" estilo={sel} valor={fIcu} onChange={setFIcu}
+                    opciones={[1, 2, 3, 4].map((n) => ({ v: String(n), l: `${n} · ${ICU_LABEL[n]}` }))} />
         </section>
 
         <details className="space-y-2">
@@ -1776,7 +1826,7 @@ export function ReplayMapa({ lang }: { lang: string }) {
                             className="hover:underline"
                             style={{ color: "var(--blue-600)" }}
                             title="Ver este camión en el mapa"
-                            onClick={() => { setFCamion(c.asset); setModo("flota"); }}
+                            onClick={() => { setFCamion([c.asset]); setModo("flota"); }}
                           >
                             {c.asset}
                           </button>
@@ -1938,7 +1988,7 @@ export function ReplayMapa({ lang }: { lang: string }) {
             <div className="flex items-center justify-between text-[13px] flex-wrap gap-2">
               <div className="font-semibold">
                 Telescopio · {rangoLargo} días por {rangoLargo === 7 ? "hora" : "día"}
-                {(fRuta || fCarrier || fConductor || fCamion) && (
+                {hayFiltroServicio && (
                   <span className="badge badge-warning ml-2">filtrado</span>
                 )}
               </div>

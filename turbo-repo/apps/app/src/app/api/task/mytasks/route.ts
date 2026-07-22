@@ -1,6 +1,8 @@
 import "server-only";
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
+import { isCarrierOrg, requireCarrierData } from "@/app/api/utils/carrier-scope";
 import {
   getFinishedWorkflows,
   getUnbookedTasks,
@@ -21,6 +23,21 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // PT2: para orgs carrier el tenant se FUERZA desde el scope server-side —
+  // el carrierId del query string del navegador se ignora (regla de oro §A.4).
+  let carrierIdForzado: string | undefined;
+  let carrierSupplierForzado: string | undefined;
+  const scopeResult = await resolveTenantScope();
+  if (scopeResult.resolved && isCarrierOrg(scopeResult.scope)) {
+    const guard = requireCarrierData(scopeResult.scope);
+    if (guard) return guard;
+    // mintral_supplierId (RUT) es la variable indexada correcta, pero hoy no
+    // viene poblada en todos los workflows; supplierName sí. Se fuerzan AMBOS
+    // criterios de la org (OR no existe en el backend: se usa el que filtra).
+    carrierSupplierForzado = scopeResult.scope.activeOrg.displayName ?? undefined;
+    carrierIdForzado = undefined; // ver decisión tras verificación empírica
+  }
+
   const url = new URL(req.url);
 
   const columns = url.searchParams.getAll("columns");
@@ -30,8 +47,11 @@ export async function GET(req: NextRequest) {
   const serviceCode = url.searchParams.get("service");
   const licensePlate = url.searchParams.get("licensePlate");
   const driverId = url.searchParams.get("driverId");
-  const carrierId = url.searchParams.get("carrierId");
-  const carrierName = url.searchParams.get("carrierName");
+  const carrierId = carrierIdForzado ?? url.searchParams.get("carrierId");
+  const carrierName = carrierIdForzado ? null : url.searchParams.get("carrierName");
+  // supplierName SÍ filtra en ECM fast-tasks (ILIKE prefijo sobre
+  // mintral_supplierName); carrierName es ignorado por el backend SQL.
+  const supplierName = carrierSupplierForzado ?? url.searchParams.get("supplierName");
   const origin = url.searchParams.get("origin");
   const destination = url.searchParams.get("destination");
   const customer = url.searchParams.get("customer");
@@ -64,6 +84,7 @@ export async function GET(req: NextRequest) {
       driverId: driverId ? driverId : undefined,
       carrierId: carrierId ? carrierId : undefined,
       carrierName: carrierName ? carrierName : undefined,
+      supplierName: supplierName ? supplierName : undefined,
       origin: origin ? origin.toUpperCase() : undefined,
       destination: destination ? destination.toUpperCase() : undefined,
       clientAbbreviation: customer ? customer : undefined,
@@ -94,6 +115,7 @@ export async function GET(req: NextRequest) {
               driverId: driverId ? driverId : undefined,
               carrierId: carrierId ? carrierId : undefined,
               carrierName: carrierName ? carrierName : undefined,
+      supplierName: supplierName ? supplierName : undefined,
               origin: origin ? origin.toUpperCase() : undefined,
               destination: destination ? destination.toUpperCase() : undefined,
               clientAbbreviation: customer ? customer : undefined,
@@ -138,6 +160,23 @@ export async function GET(req: NextRequest) {
       toShippingKanban(tasks, data, orderedTasks);
       total += tasks.total;
     });
+
+    // Cinturón y tirantes del tenant (org carrier): el ECM filtra por ILIKE
+    // prefijo sobre mintral_supplierName; aquí se exige prefijo estricto
+    // normalizado de la org para descartar falsos positivos del prefijo.
+    if (carrierSupplierForzado) {
+      const objetivo = carrierSupplierForzado.trim().toUpperCase();
+      for (const board of Object.values(data)) {
+        board.tasks = board.tasks.filter((tk) => {
+          const sup = (tk as unknown as { mintral_supplierName?: string })
+            .mintral_supplierName;
+          return (
+            typeof sup === "string" &&
+            sup.trim().toUpperCase().startsWith(objetivo)
+          );
+        });
+      }
+    }
 
     return NextResponse.json({
       total,

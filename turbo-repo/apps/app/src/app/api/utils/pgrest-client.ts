@@ -541,6 +541,42 @@ export async function fetchTrucksCatalog(opts?: {
 }
 
 /**
+ * Patentes (asset_id) de los viajes de un carrier en StreamHub: live_trip
+ * (vivos) + historical_trip acotado por fecha. carrier_id es el RUT del
+ * transportista (mismo invariante de validación que cust_account: RUTs
+ * normalizados server-side — mantenerlo si se refactoriza).
+ */
+export async function fetchCarrierTripAssets(
+  carrierRuts: string[],
+  sinceIso: string
+): Promise<string[]> {
+  if (carrierRuts.length === 0) return [];
+  const token = await bearerToken();
+  const flt =
+    carrierRuts.length === 1
+      ? `eq.${carrierRuts[0]}`
+      : `in.(${carrierRuts.join(",")})`;
+  const urls = [
+    `${pgrestBaseUrl()}/live_trip?select=asset_id&carrier_id=${flt}`,
+    `${pgrestBaseUrl()}/historical_trip?select=asset_id&carrier_id=${flt}&end_time=gte.${encodeURIComponent(sinceIso)}`,
+  ];
+  const out = new Set<string>();
+  for (const url of urls) {
+    const response = await pgrestFetch(url, {
+      headers: { accept: "application/json", Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    // Tolerante por fuente: si una tabla no está expuesta, la otra puede bastar.
+    if (!response.ok) continue;
+    const rows = (await response.json()) as Array<{ asset_id?: string }>;
+    for (const row of rows) {
+      if (row.asset_id) out.add(String(row.asset_id).toUpperCase());
+    }
+  }
+  return [...out];
+}
+
+/**
  * Fetch a single truck catalog row by its numeric `mbl_id` or license plate
  * (`patente`). Returns `null` when no row matches. The caller decides which
  * column to query based on whether the identifier parses as an integer.

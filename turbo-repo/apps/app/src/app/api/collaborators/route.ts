@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveTenantScope } from "../utils/tenant-scope";
+import { requireCarrierData } from "../utils/carrier-scope";
 import {
   driverRowToCollaborator,
   fetchDriversFromView,
@@ -129,6 +130,10 @@ export async function GET(request: Request) {
   const scopeResult = await resolveTenantScope();
   if (!scopeResult.resolved) return scopeResult.response;
   const { scope } = scopeResult;
+
+  // PT2: una org carrier jamás degrada a "sin filtro" (sin tax ids ⇒ 403)
+  const carrierGuard = requireCarrierData(scope);
+  if (carrierGuard) return carrierGuard;
 
   if (process.env.MIOT_COLLABORATORS_SOURCE !== "pgrest") {
     return NextResponse.json(

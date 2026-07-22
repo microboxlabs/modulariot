@@ -1,3 +1,5 @@
+import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
+import { isCarrierOrg } from "@/app/api/utils/carrier-scope";
 import { auth } from "@/auth";
 import { NextResponse, NextRequest } from "next/server";
 
@@ -18,6 +20,16 @@ const config: AuthTokenConfig = {
 const authToken = new AuthToken(config);
 
 export async function GET(req: NextRequest) {
+  // PT2 TODO: falta resolver trip→asset para validar pertenencia; hasta
+  // entonces, fail-closed para orgs carrier (geometría de rutas ajenas).
+  const scopeResult = await resolveTenantScope();
+  if (scopeResult.resolved && isCarrierOrg(scopeResult.scope)) {
+    return NextResponse.json(
+      { error: "Trip geofences are not tenant-validated yet for carrier organizations" },
+      { status: 403 }
+    );
+  }
+
   const session = await auth();
   if (!session) {
     return NextResponse.json({

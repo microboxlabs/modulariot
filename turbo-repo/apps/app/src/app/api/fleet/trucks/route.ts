@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveTenantScope } from "../../utils/tenant-scope";
+import { requireCarrierData } from "../../utils/carrier-scope";
 import { createResourceClient } from "../../utils/miot-resource-api-client";
 import { parsePageParams, isPageParamsError } from "../../utils/page-params";
 import {
@@ -138,6 +139,10 @@ export async function GET(request: Request) {
   const scopeResult = await resolveTenantScope();
   if (!scopeResult.resolved) return scopeResult.response;
   const { scope, session } = scopeResult;
+
+  // PT2: una org carrier jamás degrada a "sin filtro" (sin tax ids ⇒ 403)
+  const carrierGuard = requireCarrierData(scope);
+  if (carrierGuard) return carrierGuard;
 
   const { searchParams } = new URL(request.url);
   const pageParams = parsePageParams(searchParams);

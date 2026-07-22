@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { twMerge } from "tailwind-merge";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
+import { carrierNavAllowed } from "@/features/auth/config/carrier-matrix";
 import { trDynamic } from "@/features/i18n/tr.service";
 import type { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import type { SidebarItem } from "../../types/common.types";
@@ -147,10 +149,13 @@ export default function SecondaryPanelItemList({
   const searchParamsHook = useSearchParams();
   const searchParamsStr = searchParamsHook.toString();
   const { hasPermission, userGroups } = usePermissions();
+  const { carrierMode } = useCarrierMode();
 
   return (
     <ul className="flex-1 space-y-0.5 overflow-y-auto">
       {items.map((item) => {
+        // Modo carrier (PT2): solo la matriz del portal es visible
+        if (carrierMode && item.href && !carrierNavAllowed(item.href)) return null;
         if (!isItemVisible(item, userGroups, hasPermission)) return null;
 
         const translatedLabel = trDynamic(item.label, dict);

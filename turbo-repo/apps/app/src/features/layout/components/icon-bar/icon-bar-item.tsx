@@ -4,6 +4,8 @@ import { useState, type ComponentProps, type FC } from "react";
 import Link from "next/link";
 import { twMerge } from "tailwind-merge";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
+import { carrierNavAllowed } from "@/features/auth/config/carrier-matrix";
 
 interface IconBarItemProps {
   icon?: FC<ComponentProps<"svg">>;
@@ -31,7 +33,13 @@ export default function IconBarItem({
   onClick,
 }: Readonly<IconBarItemProps>) {
   const { hasPermission, userGroups } = usePermissions();
+  const { carrierMode } = useCarrierMode();
   const [isHovered, setIsHovered] = useState(false);
+
+  // Modo carrier (PT2): solo la matriz del portal es visible
+  if (carrierMode && href && !carrierNavAllowed(href)) {
+    return null;
+  }
 
   const hasBlockedGroup = blockedGroups.some((group) =>
     userGroups.includes(group)

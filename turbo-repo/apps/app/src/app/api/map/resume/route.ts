@@ -1,3 +1,5 @@
+import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
+import { isCarrierOrg, requireCarrierData, getCarrierPatentes } from "@/app/api/utils/carrier-scope";
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
@@ -17,7 +19,23 @@ const config: AuthTokenConfig = {
 
 const authToken = new AuthToken(config);
 
+
+// PT2: los contadores vienen PRE-AGREGADOS del RPC (no filtrables por
+// patente). Para org carrier ⇒ 403 fail-closed hasta que el RPC acepte
+// p_carrier_id (pedido al equipo StreamHub).
+async function carrierGuard(): Promise<NextResponse | null> {
+  const scopeResult = await resolveTenantScope();
+  if (!scopeResult.resolved || !isCarrierOrg(scopeResult.scope)) return null;
+  return NextResponse.json(
+    { error: "Map resume is not tenant-filtered yet for carrier organizations" },
+    { status: 403 }
+  );
+}
+
 export async function GET() {
+  const guard = await carrierGuard();
+  if (guard) return guard;
+
   const session = await auth();
   if (!session) {
     return NextResponse.json({

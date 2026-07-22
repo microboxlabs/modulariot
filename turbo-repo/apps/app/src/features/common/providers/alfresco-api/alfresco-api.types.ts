@@ -231,6 +231,8 @@ export type FinishedWorkflowsRequest = {
     trailerLicensePlate?: string;
     carrierId?: string;
     carrierName?: string;
+    /** Filtra por mintral_supplierName (ILIKE prefijo). carrierName es ignorado por fast-tasks SQL. */
+    supplierName?: string;
     origin?: string;
     destination?: string;
     customerCode?: string;

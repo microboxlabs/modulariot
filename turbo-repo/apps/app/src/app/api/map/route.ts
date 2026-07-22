@@ -1,4 +1,6 @@
 import { auth } from "@/auth";
+import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
+import { isCarrierOrg, requireCarrierData, getCarrierPatentes } from "@/app/api/utils/carrier-scope";
 import { NextResponse } from "next/server";
 import { mapLogger } from "@/lib/logger";
 
@@ -105,6 +107,31 @@ async function fetchPositions(): Promise<unknown> {
   throw error;
 }
 
+// PT2: para una org carrier, el payload (cacheado SIN filtrar, global) se
+// filtra POR REQUEST a los activos del carrier con viaje vivo. Nunca se
+// cachea filtrado: el cache global compartido filtraría cruzado entre orgs.
+async function carrierViewOf(data: unknown): Promise<unknown | NextResponse> {
+  const scopeResult = await resolveTenantScope();
+  if (!scopeResult.resolved || !isCarrierOrg(scopeResult.scope)) return data;
+  const guard = requireCarrierData(scopeResult.scope);
+  if (guard) return guard;
+  if (!Array.isArray(data)) {
+    return NextResponse.json(
+      { error: "Map payload not filterable for carrier organizations" },
+      { status: 502 }
+    );
+  }
+  const patentes = await getCarrierPatentes(scopeResult.scope);
+  return data.filter((p) => {
+    const row = p as { assetid?: string; in_trip?: boolean };
+    return (
+      typeof row.assetid === "string" &&
+      patentes.has(row.assetid.toUpperCase()) &&
+      row.in_trip === true
+    );
+  });
+}
+
 export async function GET() {
   const session = await auth();
   if (!session) {
@@ -114,7 +141,9 @@ export async function GET() {
   // Serve a recent payload to collapse request bursts before they reach the
   // concurrency-limited gateway.
   if (cachedPayload && Date.now() - cachedPayload.ts < CACHE_TTL_MS) {
-    return NextResponse.json(cachedPayload.data);
+    const view = await carrierViewOf(cachedPayload.data);
+    if (view instanceof NextResponse) return view;
+    return NextResponse.json(view);
   }
 
   try {
@@ -124,7 +153,9 @@ export async function GET() {
     });
     const data = await inFlight;
     cachedPayload = { data, ts: Date.now() };
-    return NextResponse.json(data);
+    const view = await carrierViewOf(data);
+    if (view instanceof NextResponse) return view;
+    return NextResponse.json(view);
   } catch (error) {
     const status = (error as { status?: number }).status ?? 500;
     const retryable = isRetryableStatus(status);
@@ -134,7 +165,9 @@ export async function GET() {
     // faults — a non-retryable error (e.g. a 4xx contract/auth break) must
     // surface, not hide behind stale data indefinitely.
     if (retryable && cachedPayload) {
-      return NextResponse.json(cachedPayload.data, {
+      const view = await carrierViewOf(cachedPayload.data);
+      if (view instanceof NextResponse) return view;
+      return NextResponse.json(view, {
         headers: { "x-map-stale": "1" },
       });
     }

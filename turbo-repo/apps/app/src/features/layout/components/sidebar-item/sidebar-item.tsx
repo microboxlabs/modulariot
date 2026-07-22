@@ -9,6 +9,8 @@ import { trDynamic } from "@/features/i18n/tr.service";
 import { SidebarItemProps } from "./sidebar-item.types";
 import { PropsWithI18nDict } from "@/features/i18n/i18n.service.types";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
+import { carrierNavAllowed } from "@/features/auth/config/carrier-matrix";
 import { useSearchParams } from "next/navigation";
 
 export default function SidebarItem({
@@ -24,7 +26,15 @@ export default function SidebarItem({
   blockedGroups = [],
 }: PropsWithI18nDict<SidebarItemProps>) {
   const { hasPermission, userGroups } = usePermissions();
+  const { carrierMode } = useCarrierMode();
   const searchParams = useSearchParams();
+
+  // Modo carrier (PT2): la org activa con módulo CARRIER_PORTAL solo ve la
+  // matriz del portal (carrier-matrix). Cortesía de UX — el enforcement real
+  // es server-side en las API routes.
+  if (carrierMode && href && !carrierNavAllowed(href)) {
+    return null;
+  }
 
   // Check if user has any blocked groups
   const hasBlockedGroup = blockedGroups.some((group) =>
@@ -50,6 +60,10 @@ export default function SidebarItem({
         theme={{ list: "space-y-2 py-2 [&>li>div]:w-full" }}
       >
         {items.map((item) => {
+          // Modo carrier: sub-items fuera de la matriz del portal no se muestran
+          if (carrierMode && item.href && !carrierNavAllowed(item.href)) {
+            return null;
+          }
           // Check if user has any blocked groups for this sub-item
           const hasSubItemBlockedGroup = (item.blockedGroups || []).some(
             (group) => userGroups.includes(group)

@@ -1,3 +1,5 @@
+import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
+import { isCarrierOrg, requireCarrierData, getCarrierPatentes } from "@/app/api/utils/carrier-scope";
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { parse } from "csv-parse";
@@ -22,6 +24,23 @@ const config: AuthTokenConfig = {
 
 const authToken = new AuthToken(config);
 
+
+// PT2: una org carrier solo puede consultar SUS patentes (anti-IDOR).
+async function assertCarrierAsset(assetId: string): Promise<NextResponse | null> {
+  const scopeResult = await resolveTenantScope();
+  if (!scopeResult.resolved || !isCarrierOrg(scopeResult.scope)) return null;
+  const guard = requireCarrierData(scopeResult.scope);
+  if (guard) return guard;
+  const patentes = await getCarrierPatentes(scopeResult.scope);
+  if (!patentes.has(assetId.toUpperCase())) {
+    return NextResponse.json(
+      { error: "Asset does not belong to the active organization" },
+      { status: 403 }
+    );
+  }
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth();
 
@@ -35,6 +54,9 @@ export async function GET(req: NextRequest) {
   const assetId = req.nextUrl.searchParams.get("assetId") || "";
   if (!assetId)
     return NextResponse.json({ error: "Missing assetId" }, { status: 400 });
+
+  const carrierDeny = await assertCarrierAsset(assetId);
+  if (carrierDeny) return carrierDeny;
 
   // Create a TransformStream for CSV processing
   const { readable, writable } = new TransformStream();

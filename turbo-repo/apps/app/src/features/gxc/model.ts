@@ -28,27 +28,52 @@ export const CUADRANTE_META: Record<string, { label: string; color: string; expl
     explica: "menos viajes que el piso — no se clasifica" },
 };
 
-// Mix de consecuencias — colores consistentes en todas las vistas.
-// CADA CONSECUENCIA TIENE DUEÑO (corrección Erick 2026-07-22): la carga
-// incumplida es gestión de compromisos de MINTRAL (no conducta del carrier)
-// y el ETA está en BETA (referencial). El relato nunca le factura a un
-// actor palancas ajenas.
+// Mix de consecuencias — MODELO v3 (responsabilidad en cascada, Erick
+// 2026-07-22): cada población tiene SU consecuencia exigible y CADA
+// CONSECUENCIA TIENE DUEÑO. Conductor responde por lo que pasa en ruta
+// (conducción grave, atraso vs plan, cierre/POD tardío); el transportista
+// es la consecuencia de sus recursos + señal/integración; el camión
+// responde por equipo (trazabilidad); la carga al día es responsabilidad
+// de operación (terminales Mintral) y solo se factura por ruta.
 export const MIX_META: Record<string, {
   label: string; color: string;
-  duenio: "mintral" | "proceso" | "beta";
+  duenio: "conductor" | "transportista" | "camion" | "operacion";
   nota: string;
 }> = {
-  atraso: { label: "Atraso ETA >1 h", color: "#F1B300", duenio: "beta",
-    nota: "ETA en fase beta — dato referencial, aún no exigible" },
-  carga: { label: "Carga incumplida", color: "#E11D48", duenio: "mintral",
-    nota: "compromisos de carga: palanca de gestión Mintral, no de conducción" },
-  retrabajo: { label: "Retrabajo (regresión)", color: "#1C64F2", duenio: "proceso",
-    nota: "regresiones del proceso BPM: se gestiona entre torre y carrier" },
+  conduccion: { label: "Conducción grave", color: "#E11D48", duenio: "conductor",
+    nota: "síntomas de conducción ICU≥3 en ruta — responsabilidad directa del conductor" },
+  atraso: { label: "Atraso vs plan >1 h", color: "#F1B300", duenio: "conductor",
+    nota: "llegada real contra la hora comprometida del plan (no el ETA beta)" },
+  cierre: { label: "Cierre / POD tardío", color: "#7E3AF2", duenio: "conductor",
+    nota: "más de 24 h entre fin de monitoreo y cierre: subir y validar el POD" },
+  senal: { label: "Señal / integración", color: "#111928", duenio: "transportista",
+    nota: "viaje sin ventana de monitoreo o señal cortada — estado de integración del transportista" },
+  equipo: { label: "Equipo (trazabilidad)", color: "#1C64F2", duenio: "camion",
+    nota: "síntomas de trazabilidad ICU≥3 — salud del equipo a bordo" },
+  carga: { label: "Carga incumplida", color: "#0E9F6E", duenio: "operacion",
+    nota: "compromiso de carga al día en terminal — responsabilidad de operación Mintral" },
+};
+
+// Dueño de cada consecuencia → cómo se presenta en badges y narrativa.
+export const DUENIO_META: Record<string, { label: string; tono: "rojo" | "negro" | "azul" | "verde" }> = {
+  conductor: { label: "responsabilidad del conductor", tono: "rojo" },
+  transportista: { label: "responsabilidad del transportista", tono: "negro" },
+  camion: { label: "equipo del camión", tono: "azul" },
+  operacion: { label: "operación Mintral", tono: "verde" },
+};
+
+// Claves de mix por población (mismo orden que devuelve el backend en
+// mix_claves — este mapa es solo el fallback si la respuesta no lo trae).
+export const TIPO_MIX: Record<string, string[]> = {
+  conductor: ["conduccion", "atraso", "cierre"],
+  carrier: ["conduccion", "atraso", "cierre", "senal"],
+  camion: ["equipo"],
+  ruta: ["carga"],
 };
 
 export type EntidadGxc = {
   id: string; viajes: number; v_exp: number; v_cons: number; v_exp_cons: number;
-  c_atraso: number; c_retrabajo: number; c_carga: number; peso: number;
+  mix: Record<string, number>; peso: number;
   tasa_cons: number | null; tasa_exp: number | null;
   tasa_cons_con_exp: number | null; tasa_cons_sin_exp: number | null;
   monitoreo_comprometido: boolean; rankeable: boolean;
@@ -62,6 +87,7 @@ export type PoblacionGxc = {
   baseline: {
     tasa_consecuencia: number; tasa_exposicion: number;
     contraste: { con_exposicion: number | null; sin_exposicion: number | null };
+    mix?: Record<string, number>; viajes?: number;
     umbral_cons_alto: number; umbral_exp_alto: number; piso_viajes: number;
   } | null;
   entidades: EntidadGxc[];
@@ -72,9 +98,10 @@ export type PerfilGxc = {
   tipo: string; id: string;
   periodo: { dias: number; fin: number; composicion_equivalente: boolean };
   ultimo_viaje: number | null;
+  mix_claves?: string[];
   capitulos: {
     viajes: number; con_exposicion: number; con_consecuencia: number; exp_y_cons: number;
-    mix: { atraso: number; retrabajo: number; carga: number };
+    mix: Record<string, number>;
     contraste: { con_exposicion: number | null; sin_exposicion: number | null };
   } | null;
   respuesta: {

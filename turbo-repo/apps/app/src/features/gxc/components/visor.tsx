@@ -2,18 +2,19 @@
 
 import "@/features/gemelo-common/gemelo.css";
 
-// GxC v2 · N1 — VISOR: lo general. Una sola pregunta: ¿dónde se están
-// produciendo consecuencias (atraso / carga incumplida / retrabajo) y en
-// qué población conviene entrar? Línea base del período arriba (con el
-// contraste con/sin señal SIEMPRE visible), una fila por población con su
-// mix, sus cuadrantes y sus movers como puertas de entrada a N2/N3.
+// GxC v3 · N1 — VISOR: lo general. Una sola pregunta: ¿dónde se están
+// produciendo consecuencias EXIGIBLES y en qué población conviene entrar?
+// Modelo de responsabilidad en cascada: cada población responde por lo
+// suyo (conductor: conducción/atraso/cierre · carrier: + señal · camión:
+// equipo · ruta: carga al día), así que cada fila trae SU línea base y
+// SU mix. Cuadrantes y movers como puertas de entrada a N2/N3.
 import { useMemo } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { golFetcher as fetcher } from "@/features/gemelo-common/fetcher";
 import { Stat } from "@/features/gemelo-common/ds-widgets";
 import {
-  TIPOS_GXC, TIPO_META, CUADRANTE_META, MIX_META,
+  TIPOS_GXC, TIPO_META, CUADRANTE_META, MIX_META, TIPO_MIX,
   type PoblacionGxc, type EntidadGxc, pct, deltaTasa,
 } from "../model";
 import { usePeriodo, PeriodoChips } from "./periodo";
@@ -21,13 +22,13 @@ import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
 
 const ORDEN_CUADRANTES = ["urgente", "punto_ciego", "monitoreo_roto", "ruido", "sano", "muestra_insuficiente"];
 
-function MixBar({ atraso, carga, retrabajo }: { atraso: number; carga: number; retrabajo: number }) {
-  const tot = Math.max(1, atraso + carga + retrabajo);
+function MixBar({ claves, mix }: { claves: string[]; mix: Record<string, number> }) {
+  const tot = Math.max(1, claves.reduce((a, k) => a + (mix[k] ?? 0), 0));
   return (
     <span className="flex h-2 rounded-full overflow-hidden w-full" style={{ background: "var(--ghost-hover)" }}>
-      <span style={{ width: `${(100 * carga) / tot}%`, background: MIX_META.carga.color }} />
-      <span style={{ width: `${(100 * atraso) / tot}%`, background: MIX_META.atraso.color }} />
-      <span style={{ width: `${(100 * retrabajo) / tot}%`, background: MIX_META.retrabajo.color }} />
+      {claves.map((k) => (
+        <span key={k} style={{ width: `${(100 * (mix[k] ?? 0)) / tot}%`, background: MIX_META[k]?.color }} />
+      ))}
     </span>
   );
 }
@@ -42,13 +43,14 @@ function FilaTipo({ tipo, dias, lang }: { tipo: string; dias: number; lang: stri
   const { data } = usePoblacion(tipo, dias);
   const meta = TIPO_META[tipo];
 
+  const claves = TIPO_MIX[tipo] ?? [];
   const resumen = useMemo(() => {
     const ents = data?.entidades ?? [];
     const porCuadrante: Record<string, number> = {};
-    let atraso = 0, carga = 0, retrabajo = 0;
+    const mix: Record<string, number> = {};
     for (const e of ents) {
       porCuadrante[e.cuadrante] = (porCuadrante[e.cuadrante] ?? 0) + 1;
-      atraso += e.c_atraso; carga += e.c_carga; retrabajo += e.c_retrabajo;
+      for (const k of claves) mix[k] = (mix[k] ?? 0) + (e.mix?.[k] ?? 0);
     }
     const urgentes = ents.filter((e) => e.cuadrante === "urgente").slice(0, 2);
     const movers = ents
@@ -57,8 +59,9 @@ function FilaTipo({ tipo, dias, lang }: { tipo: string; dias: number; lang: stri
       .sort((a, b) => b.d - a.d)
       .filter((x) => x.d > 0.1)
       .slice(0, 2);
-    return { porCuadrante, atraso, carga, retrabajo, urgentes, movers };
-  }, [data]);
+    return { porCuadrante, mix, urgentes, movers };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, tipo]);
 
   const teaser = (e: EntidadGxc, nota: string, color: string) => (
     <Link key={e.id} href={`/${lang}/gxc/${tipo}/${encodeURIComponent(e.id)}?dias=${dias}`}
@@ -79,6 +82,7 @@ function FilaTipo({ tipo, dias, lang }: { tipo: string; dias: number; lang: stri
           <Stat label="Con ranking" value={data ? `${data.n_rankeables}/${data.n}` : "—"} />
           <Stat label="Urgentes"
                 value={<span style={{ color: CUADRANTE_META.urgente.color }}>{resumen.porCuadrante.urgente ?? 0}</span>} />
+          <Stat label="Base" value={pct(data?.baseline?.tasa_consecuencia)} />
         </div>
       </Link>
 
@@ -100,15 +104,15 @@ function FilaTipo({ tipo, dias, lang }: { tipo: string; dias: number; lang: stri
         {!data && <span className="text-[12px]" style={{ color: "var(--muted)" }}>Cargando…</span>}
       </div>
 
-      {/* Mix de consecuencias de la población */}
+      {/* Mix de consecuencias EXIGIBLES de la población (modelo v3) */}
       <div className="flex flex-col gap-1.5 justify-center min-w-0">
-        <MixBar atraso={resumen.atraso} carga={resumen.carga} retrabajo={resumen.retrabajo} />
-        <div className="flex gap-3 text-[11px]" style={{ color: "var(--muted)" }}>
-          {(["carga", "atraso", "retrabajo"] as const).map((k) => (
-            <span key={k} className="inline-flex items-center gap-1">
-              <span className="w-2 h-2 rounded-sm" style={{ background: MIX_META[k].color }} />
-              {MIX_META[k].label.split(" ")[0]} <b style={{ fontVariantNumeric: "tabular-nums" }}>
-                {(k === "carga" ? resumen.carga : k === "atraso" ? resumen.atraso : resumen.retrabajo).toLocaleString()}</b>
+        <MixBar claves={claves} mix={resumen.mix} />
+        <div className="flex gap-3 text-[11px] flex-wrap" style={{ color: "var(--muted)" }}>
+          {claves.map((k) => (
+            <span key={k} className="inline-flex items-center gap-1" title={MIX_META[k]?.nota}>
+              <span className="w-2 h-2 rounded-sm" style={{ background: MIX_META[k]?.color }} />
+              {MIX_META[k]?.label.split(" ")[0]} <b style={{ fontVariantNumeric: "tabular-nums" }}>
+                {(resumen.mix[k] ?? 0).toLocaleString()}</b>
             </span>
           ))}
         </div>
@@ -134,7 +138,7 @@ function FilaTipo({ tipo, dias, lang }: { tipo: string; dias: number; lang: stri
 type BaselineAnonima = {
   viajes: number; tasa_consecuencia: number; tasa_exposicion: number;
   contraste: { con_exposicion: number | null; sin_exposicion: number | null };
-  mix: { atraso: number; retrabajo: number; carga: number };
+  mix: Record<string, number>;
   umbral_cons_alto: number;
 };
 
@@ -152,7 +156,7 @@ export function Visor({ lang }: { lang: string }) {
   // Modo carrier: línea base ANÓNIMA del período completo (solo agregados,
   // fn abierta en el proxy) — la referencia contra la que se compara.
   const { data: blAnon } = useSWR<BaselineAnonima>(
-    carrierMode ? `/rpc/fn_dx_gol_gxc_baseline?p_dias=${dias}` : null,
+    carrierMode ? `/rpc/fn_dx_gol_gxc_baseline?p_dias=${dias}&p_tipo=carrier` : null,
     fetcher, { refreshInterval: 300_000, keepPreviousData: true });
   const yo = carrierMode ? base?.entidades?.[0] : undefined;
 
@@ -162,7 +166,7 @@ export function Visor({ lang }: { lang: string }) {
         <div className="flex items-center gap-3 flex-wrap flex-none">
           <h2 className="text-[17px] font-semibold">{carrierMode ? "Mi cumplimiento" : "GxC · Gestión por consecuencia"}</h2>
           <span className="text-[12px]" style={{ color: "var(--muted)" }}>
-            consecuencia = atraso ETA &gt;1 h · carga incumplida · retrabajo — por viaje cerrado
+            cada población responde por SU consecuencia exigible — conductor: conducción · atraso · cierre — por viaje cerrado
           </span>
           <span className="flex-1" />
           <PeriodoChips dias={dias} onChange={setDias} />
@@ -177,9 +181,10 @@ export function Visor({ lang }: { lang: string }) {
                     ? "var(--rose-600)" : "var(--green-500)" }}>{pct(yo?.tasa_cons)}</span>}
                   sub={blAnon ? `línea base del período: ${pct(blAnon.tasa_consecuencia)} · umbral alto: ${pct(blAnon.umbral_cons_alto)}` : undefined} />
             <div className="flex flex-col gap-1 min-w-[220px]">
-              <MixBar atraso={yo?.c_atraso ?? 0} carga={yo?.c_carga ?? 0} retrabajo={yo?.c_retrabajo ?? 0} />
+              <MixBar claves={TIPO_MIX.carrier} mix={yo?.mix ?? {}} />
               <span className="text-[11px]" style={{ color: "var(--muted)" }}>
-                tu mix: carga {yo?.c_carga ?? 0} · atraso {yo?.c_atraso ?? 0} · retrabajo {yo?.c_retrabajo ?? 0}
+                tu mix: {TIPO_MIX.carrier.map((k) =>
+                  `${MIX_META[k]?.label.split(" ")[0].toLowerCase()} ${yo?.mix?.[k] ?? 0}`).join(" · ")}
               </span>
             </div>
             <span className="text-[12px]" style={{ color: "var(--muted)" }}>
@@ -198,7 +203,8 @@ export function Visor({ lang }: { lang: string }) {
         {!carrierMode && (
         <section className="card px-4 py-2.5 flex-none flex items-center gap-6 flex-wrap">
           <Stat label="Viajes cerrados" value={totViajes ? totViajes.toLocaleString() : "—"} />
-          <Stat label="Tasa de consecuencia" value={pct(bl?.tasa_consecuencia)} />
+          <Stat label="Tasa de consecuencia" value={pct(bl?.tasa_consecuencia)}
+                sub="composición transportista — cada población tiene su propia base" />
           <Stat label="Viajes con señal" value={pct(bl?.tasa_exposicion)}
                 sub="síntomas ICU≥2 durante el viaje" />
           <div className="flex items-center gap-2 text-[12px]">

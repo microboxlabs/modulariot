@@ -13,8 +13,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { EChartsOption } from "echarts";
 import { golFetcher as fetcher } from "@/features/gemelo-common/fetcher";
-import { EChart, Widget, useTemaChart } from "@/features/gemelo-common/ds-widgets";
-import { TIPO_META, MIX_META, type PerfilGxc, pct } from "../model";
+import { EChart, Widget, useTemaChart, tipCard, fmtDur } from "@/features/gemelo-common/ds-widgets";
+import { TIPO_META, MIX_META, TIPO_MIX, DUENIO_META, type PerfilGxc, pct } from "../model";
 import { usePeriodo, PeriodoChips } from "./periodo";
 
 type Tema = ReturnType<typeof useTemaChart>;
@@ -121,22 +121,55 @@ function opcionHistoria(
         const { seriesName, data } = q as { seriesName: string; data: (string | number)[] };
         const f = (ms: number) => fmtTs(ms / 1000);
         if (seriesName === "Viajes") {
-          const hMon = ((Number(data[1]) - Number(data[0])) / 3_600_000).toFixed(1);
-          const hLog = ((Number(data[7]) - Number(data[6])) / 3_600_000).toFixed(1);
-          return `<b>${data[3]}</b>${data[2] ? " · con consecuencia" : ""}<br/>${data[4]}<br/>` +
-                 `${data[5]} · monitoreo ${f(Number(data[0]))} → ${f(Number(data[1]))} (${hMon} h)<br/>` +
-                 `proceso logístico: ${hLog} h${data[8] ? "" : " · sin ventana de monitoreo"}<br/>` +
-                 `<i>clic → microscopio</i>`;
+          const hMon = (Number(data[1]) - Number(data[0])) / 3_600_000;
+          const hLog = (Number(data[7]) - Number(data[6])) / 3_600_000;
+          return tipCard({
+            titulo: `Viaje ${data[3]}`,
+            badge: data[2] ? { texto: "con consecuencia", tono: "rojo" }
+                           : { texto: "sin consecuencia", tono: "verde" },
+            filas: [
+              ["Ruta", String(data[4])],
+              ["Camión", String(data[5])],
+              ["Monitoreo", `${f(Number(data[0]))} → ${f(Number(data[1]))} · ${fmtDur(hMon)}`],
+              ["Proceso", `${fmtDur(hLog)}${data[8] ? "" : " · sin ventana de monitoreo"}`],
+            ],
+            pie: "clic → microscopio del replay",
+          });
         }
-        if (seriesName === "Síntomas")
-          return `<b>${data[1]}</b> · ${f(Number(data[0]))}<br/>${data[2]} síntomas · ICU máx ${data[3]}<br/><i>clic → microscopio</i>`;
-        if (seriesName === "Consecuencias")
-          return `<b>${MIX_META[String(data[2])]?.label ?? data[2]}</b> · ${data[3]}<br/>` +
-                 `${data[4]} · ${f(Number(data[0]))}<br/><i>clic → microscopio</i>`;
+        if (seriesName === "Síntomas") {
+          const icu = Number(data[3]);
+          return tipCard({
+            titulo: `Viaje ${data[1]}`,
+            badge: { texto: `ICU máx ${icu}`, tono: icu >= 4 ? "negro" : icu === 3 ? "rojo" : icu === 2 ? "ambar" : "azul" },
+            filas: [["Momento", f(Number(data[0]))], ["Síntomas", `${data[2]}`]],
+            pie: "clic → microscopio del replay",
+          });
+        }
+        if (seriesName === "Consecuencias") {
+          const k = String(data[2]);
+          const duenio = DUENIO_META[MIX_META[k]?.duenio ?? ""];
+          return tipCard({
+            titulo: MIX_META[k]?.label ?? k,
+            badge: duenio ? { texto: duenio.label, tono: duenio.tono } : undefined,
+            filas: [["Viaje", String(data[3])], ["Detalle", String(data[4])], ["Momento", f(Number(data[0]))]],
+            pie: "clic → microscopio del replay",
+          });
+        }
         if (seriesName === "Cursor") return "";
-        if (data[4] === "día") return `${data[3]}<br/>${f(Number(data[0]))}`;
-        return `${data[4]} (${data[2]})<br/>responsable: ${data[3]}<br/>` +
-               `${data[5]} · ${f(Number(data[0]))}<br/><i>clic → microscopio</i>`;
+        if (data[4] === "día")
+          return tipCard({ titulo: `Viaje ${data[1]}`,
+            filas: [["Tratamientos", String(data[3])], ["Día", f(Number(data[0]))]] });
+        const estado = String(data[2]);
+        return tipCard({
+          titulo: `Tratamiento · ${data[4]}`,
+          badge: ["validated", "invalidated"].includes(estado)
+            ? { texto: "gestionado", tono: "verde" }
+            : ["active", "pending"].includes(estado)
+              ? { texto: "en curso", tono: "azul" }
+              : { texto: "ciclo terminado", tono: "gris" },
+          filas: [["Responsable", String(data[3])], ["Viaje", String(data[5])], ["Momento", f(Number(data[0]))]],
+          pie: "clic → microscopio del replay",
+        });
       },
     },
     grid: { left: 92, right: 18, top: 8, bottom: 46 },
@@ -225,12 +258,12 @@ function opcionHistoria(
         },
         z: 4,
       },
-      ...(cursor ? [{
+      {
         name: "Cursor", type: "line" as const, silent: true, animation: false,
         symbol: "none", z: 10,
         lineStyle: { color: tema.textoFuerte, width: 1.5 },
-        data: [[cursor * 1000, cats[0]], [cursor * 1000, cats[cats.length - 1]]],
-      }] : []),
+        data: cursor ? [[cursor * 1000, cats[0]], [cursor * 1000, cats[cats.length - 1]]] : [],
+      },
     ] as unknown as EChartsOption["series"],
   };
   return { option, filas: cats.length };
@@ -243,8 +276,11 @@ function narrar(p: PerfilGxc): Frase[] {
   const tl = p.timeline;
   const frases: Frase[] = [];
   if (!cap) return frases;
-  const mixTxt = (["carga", "atraso", "retrabajo"] as const)
-    .filter((k) => cap.mix[k] > 0).map((k) => `${k} ${cap.mix[k]}`).join(" · ") || "ninguna";
+  const claves = p.mix_claves ?? TIPO_MIX[p.tipo] ?? Object.keys(cap.mix ?? {});
+  const mixTxt = claves
+    .filter((k) => (cap.mix?.[k] ?? 0) > 0)
+    .map((k) => `${MIX_META[k]?.label.split(" ")[0].toLowerCase() ?? k} ${cap.mix[k]}`)
+    .join(" · ") || "ninguna";
   frases.push({
     texto: `En ${p.periodo.dias} días cerró ${cap.viajes} viajes: ${cap.con_exposicion} con señal y ` +
       `${cap.con_consecuencia} con consecuencia (${mixTxt}). El monitoreo cubrió ` +
@@ -312,13 +348,14 @@ export function Perfil({ lang }: { lang: string }) {
     `/rpc/fn_dx_gol_gxc_perfil?p_tipo=${tipo}&p_id=${encodeURIComponent(id)}&p_dias=${dias}`,
     fetcher, { refreshInterval: 300_000, keepPreviousData: true });
 
-  // Línea base anónima del período (agregados de la operación completa):
+  // Línea base anónima del período (agregados de la operación completa),
+  // con la MISMA composición de consecuencias que este tipo de sujeto:
   // la referencia contra la que se lee el mix propio.
   const { data: blAnon } = useSWR<{
     viajes: number; tasa_consecuencia: number;
-    mix: { atraso: number; retrabajo: number; carga: number };
+    mix: Record<string, number>;
     contraste: { con_exposicion: number | null; sin_exposicion: number | null };
-  }>(`/rpc/fn_dx_gol_gxc_baseline?p_dias=${dias}`,
+  }>(`/rpc/fn_dx_gol_gxc_baseline?p_dias=${dias}&p_tipo=${tipo}`,
     fetcher, { refreshInterval: 300_000, keepPreviousData: true });
 
   const cap = p?.capitulos;
@@ -450,11 +487,12 @@ export function Perfil({ lang }: { lang: string }) {
             </span>
           </div>
           <div className="text-[12px] flex gap-2 flex-wrap">
-            {cap && (["carga", "atraso", "retrabajo"] as const).map((k) => (
-              (cap.mix[k] ?? 0) > 0 && (
-                <span key={k} className="inline-flex items-center gap-1" style={{ color: "var(--muted)" }}>
-                  <span className="w-2 h-2 rounded-sm" style={{ background: MIX_META[k].color }} />
-                  {k} <b>{cap.mix[k]}</b>
+            {cap && (p?.mix_claves ?? TIPO_MIX[tipo] ?? []).map((k) => (
+              (cap.mix?.[k] ?? 0) > 0 && (
+                <span key={k} className="inline-flex items-center gap-1" title={MIX_META[k]?.nota}
+                      style={{ color: "var(--muted)" }}>
+                  <span className="w-2 h-2 rounded-sm" style={{ background: MIX_META[k]?.color }} />
+                  {MIX_META[k]?.label.split(" ")[0].toLowerCase() ?? k} <b>{cap.mix[k]}</b>
                 </span>
               )
             ))}
@@ -590,9 +628,10 @@ export function Perfil({ lang }: { lang: string }) {
             </span>
           </div>
           {cap && blAnon && (() => {
-            const filas = (["carga", "atraso", "retrabajo"] as const).map((k) => {
-              const propia = cap.mix[k] / Math.max(1, cap.viajes);
-              const base = blAnon.mix[k] / Math.max(1, blAnon.viajes);
+            const claves = p?.mix_claves ?? TIPO_MIX[tipo] ?? [];
+            const filas = claves.map((k) => {
+              const propia = (cap.mix?.[k] ?? 0) / Math.max(1, cap.viajes);
+              const base = (blAnon.mix?.[k] ?? 0) / Math.max(1, blAnon.viajes);
               return { k, propia, base, ratio: base > 0 ? propia / base : propia > 0 ? 99 : 1 };
             }).sort((a, b) => b.ratio - a.ratio);
             const palanca = filas[0];
@@ -600,15 +639,15 @@ export function Perfil({ lang }: { lang: string }) {
               <>
                 {filas.map(({ k, propia, base, ratio }) => (
                   <div key={k} className="flex items-center gap-2 text-[12.5px]">
-                    <span className="w-2.5 h-2.5 rounded-sm flex-none" style={{ background: MIX_META[k].color }} />
-                    <span className="w-[150px] flex-none">{MIX_META[k].label}</span>
+                    <span className="w-2.5 h-2.5 rounded-sm flex-none" style={{ background: MIX_META[k]?.color }} />
+                    <span className="w-[150px] flex-none">{MIX_META[k]?.label ?? k}</span>
                     <span className="font-semibold w-[46px] text-right" style={{
                       fontVariantNumeric: "tabular-nums",
                       color: ratio >= 1.25 ? "var(--rose-600)" : ratio <= 0.75 ? "var(--green-500)" : "var(--foreground)",
                     }}>{pct(propia)}</span>
                     <span className="flex-1 h-2 rounded-full overflow-hidden relative" style={{ background: "var(--ghost-hover)" }}>
                       <span className="absolute inset-y-0 left-0 rounded-full"
-                            style={{ width: `${Math.min(100, propia * 100)}%`, background: MIX_META[k].color, opacity: 0.85 }} />
+                            style={{ width: `${Math.min(100, propia * 100)}%`, background: MIX_META[k]?.color, opacity: 0.85 }} />
                       <span className="absolute inset-y-0 w-px" title="operación completa"
                             style={{ left: `${Math.min(100, base * 100)}%`, background: "var(--foreground)" }} />
                     </span>
@@ -618,22 +657,24 @@ export function Perfil({ lang }: { lang: string }) {
                   </div>
                 ))}
                 <div className="text-[12px] pt-1">
-                  {palanca.ratio >= 1.25 ? (
-                    <>Lo que más mueve tu tasa es <b>{MIX_META[palanca.k].label.toLowerCase()}</b>: {pct(palanca.propia)} de
+                  {palanca && palanca.ratio >= 1.25 ? (
+                    <>Lo que más mueve tu tasa es <b>{MIX_META[palanca.k]?.label.toLowerCase() ?? palanca.k}</b>: {pct(palanca.propia)} de
                     tus viajes contra {pct(palanca.base)} de la operación ({palanca.ratio.toFixed(1)}×).{" "}
-                    {MIX_META[palanca.k].duenio === "mintral" &&
-                      <>Ojo: esta palanca es de <b>gestión Mintral</b> (compromisos), no de conducción — la conversación es con la torre.</>}
-                    {MIX_META[palanca.k].duenio === "beta" &&
-                      <>Ojo: el ETA está en <b>beta</b> — úsalo como referencia, no como cargo.</>}
-                    {MIX_META[palanca.k].duenio === "proceso" &&
-                      <>Se gestiona entre torre y transportista (proceso BPM).</>}
+                    {MIX_META[palanca.k]?.duenio === "conductor" &&
+                      <>Es una palanca <b>del conductor</b>: pasa en ruta o en el cierre del servicio — feedback directo a quien conduce.</>}
+                    {MIX_META[palanca.k]?.duenio === "transportista" &&
+                      <>Es una palanca <b>del transportista</b>: integración y continuidad de señal de su flota, no conducta de un conductor.</>}
+                    {MIX_META[palanca.k]?.duenio === "camion" &&
+                      <>Es una palanca de <b>equipo</b>: salud del hardware a bordo — mantención, no conducción.</>}
+                    {MIX_META[palanca.k]?.duenio === "operacion" &&
+                      <>Ojo: esta palanca es de <b>operación Mintral</b> (compromisos de carga en terminal) — la conversación es con la torre.</>}
                   </>) : (
                     <>Ningún tipo destaca sobre la operación (todos bajo 1.25×) — tu mix acompaña al del período.</>
                   )}
                 </div>
                 <div className="flex gap-3 flex-wrap text-[10.5px] pt-0.5" style={{ color: "var(--muted)" }}>
-                  {(["carga", "atraso", "retrabajo"] as const).map((k) => (
-                    <span key={k}>· {MIX_META[k].nota}</span>
+                  {claves.map((k) => (
+                    <span key={k}>· {MIX_META[k]?.nota ?? k}</span>
                   ))}
                 </div>
                 <div className="text-[11px]" style={{ color: "var(--muted)" }}>

@@ -6,6 +6,7 @@ import {
   golRpcPost,
   GolApiError,
   GOL_RPC_CARRIER_FILTERABLE,
+  GOL_RPC_CARRIER_OPEN,
 } from "@/features/common/providers/gol-api/gol-api.provider";
 import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
 import { isCarrierOrg, requireCarrierData } from "@/app/api/utils/carrier-scope";
@@ -32,13 +33,17 @@ export async function GET(
   if (scopeResult.resolved && isCarrierOrg(scopeResult.scope)) {
     const guard = requireCarrierData(scopeResult.scope);
     if (guard) return guard;
-    if (!GOL_RPC_CARRIER_FILTERABLE.has(fn)) {
+    if (GOL_RPC_CARRIER_OPEN.has(fn)) {
+      // agregados anónimos: sin inyección y sin override posible
+      search.delete("p_carrier_rut");
+    } else if (!GOL_RPC_CARRIER_FILTERABLE.has(fn)) {
       return NextResponse.json(
         { error: "Function not tenant-filtered yet for carrier organizations" },
         { status: 403 }
       );
+    } else {
+      search.set("p_carrier_rut", scopeResult.scope.effectiveTaxIds[0]);
     }
-    search.set("p_carrier_rut", scopeResult.scope.effectiveTaxIds[0]);
   }
 
   try {

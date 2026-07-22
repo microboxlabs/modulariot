@@ -17,6 +17,7 @@ import {
   type PoblacionGxc, type EntidadGxc, pct, deltaTasa,
 } from "../model";
 import { usePeriodo, PeriodoChips } from "./periodo";
+import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
 
 const ORDEN_CUADRANTES = ["urgente", "punto_ciego", "monitoreo_roto", "ruido", "sano", "muestra_insuficiente"];
 
@@ -130,20 +131,36 @@ function FilaTipo({ tipo, dias, lang }: { tipo: string; dias: number; lang: stri
   );
 }
 
+type BaselineAnonima = {
+  viajes: number; tasa_consecuencia: number; tasa_exposicion: number;
+  contraste: { con_exposicion: number | null; sin_exposicion: number | null };
+  mix: { atraso: number; retrabajo: number; carga: number };
+  umbral_cons_alto: number;
+};
+
 export function Visor({ lang }: { lang: string }) {
   const { dias, setDias } = usePeriodo();
+  const { carrierMode } = useCarrierMode();
   // La línea base es del PERÍODO (mismos viajes en las 4 poblaciones):
-  // basta leerla de una sola llamada.
+  // basta leerla de una sola llamada. En modo carrier el server filtra todo
+  // a SU mundo, así que esa misma llamada trae su fila propia.
   const { data: base } = usePoblacion("carrier", dias);
   const bl = base?.baseline;
   const totViajes = useMemo(
     () => (base?.entidades ?? []).reduce((a, e) => a + e.viajes, 0), [base]);
 
+  // Modo carrier: línea base ANÓNIMA del período completo (solo agregados,
+  // fn abierta en el proxy) — la referencia contra la que se compara.
+  const { data: blAnon } = useSWR<BaselineAnonima>(
+    carrierMode ? `/rpc/fn_dx_gol_gxc_baseline?p_dias=${dias}` : null,
+    fetcher, { refreshInterval: 300_000, keepPreviousData: true });
+  const yo = carrierMode ? base?.entidades?.[0] : undefined;
+
   return (
     <div className="gemelo-scope h-full w-full overflow-y-auto"><div className="p-4 space-y-4 max-w-[1440px] mx-auto">
       <div className="h-[calc(100vh-64px-40px-48px)] flex flex-col gap-2.5 overflow-hidden">
         <div className="flex items-center gap-3 flex-wrap flex-none">
-          <h2 className="text-[17px] font-semibold">GxC · Gestión por consecuencia</h2>
+          <h2 className="text-[17px] font-semibold">{carrierMode ? "Mi cumplimiento" : "GxC · Gestión por consecuencia"}</h2>
           <span className="text-[12px]" style={{ color: "var(--muted)" }}>
             consecuencia = atraso ETA &gt;1 h · carga incumplida · retrabajo — por viaje cerrado
           </span>
@@ -151,7 +168,34 @@ export function Visor({ lang }: { lang: string }) {
           <PeriodoChips dias={dias} onChange={setDias} />
         </div>
 
+        {/* Modo carrier: TU operación contra la línea base anónima del período */}
+        {carrierMode && (
+          <section className="card px-4 py-2.5 flex-none flex items-center gap-6 flex-wrap">
+            <Stat label="Tus viajes cerrados" value={yo ? yo.viajes.toLocaleString() : "—"} />
+            <Stat label="Tu tasa de consecuencia"
+                  value={<span style={{ color: yo && blAnon && Number(yo.tasa_cons) >= blAnon.umbral_cons_alto
+                    ? "var(--rose-600)" : "var(--green-500)" }}>{pct(yo?.tasa_cons)}</span>}
+                  sub={blAnon ? `línea base del período: ${pct(blAnon.tasa_consecuencia)} · umbral alto: ${pct(blAnon.umbral_cons_alto)}` : undefined} />
+            <div className="flex flex-col gap-1 min-w-[220px]">
+              <MixBar atraso={yo?.c_atraso ?? 0} carga={yo?.c_carga ?? 0} retrabajo={yo?.c_retrabajo ?? 0} />
+              <span className="text-[11px]" style={{ color: "var(--muted)" }}>
+                tu mix: carga {yo?.c_carga ?? 0} · atraso {yo?.c_atraso ?? 0} · retrabajo {yo?.c_retrabajo ?? 0}
+              </span>
+            </div>
+            <span className="text-[12px]" style={{ color: "var(--muted)" }}>
+              La línea base es el agregado anónimo de la operación completa — nunca pares con nombre.
+            </span>
+            <span className="flex-1" />
+            {yo && (
+              <Link className="btn-primary" href={`/${lang}/gxc/carrier/${encodeURIComponent(yo.id)}?dias=${dias}`}>
+                Ver mi historia →
+              </Link>
+            )}
+          </section>
+        )}
+
         {/* Línea base del período — el contraste se muestra siempre */}
+        {!carrierMode && (
         <section className="card px-4 py-2.5 flex-none flex items-center gap-6 flex-wrap">
           <Stat label="Viajes cerrados" value={totViajes ? totViajes.toLocaleString() : "—"} />
           <Stat label="Tasa de consecuencia" value={pct(bl?.tasa_consecuencia)} />
@@ -172,8 +216,10 @@ export function Visor({ lang }: { lang: string }) {
             nivel vs línea base ±25% · piso {bl?.piso_viajes ?? 5} viajes
           </span>
         </section>
+        )}
 
-        {TIPOS_GXC.map((t) => <FilaTipo key={t} tipo={t} dias={dias} lang={lang} />)}
+        {(carrierMode ? TIPOS_GXC.filter((t) => t !== "carrier") : TIPOS_GXC)
+          .map((t) => <FilaTipo key={t} tipo={t} dias={dias} lang={lang} />)}
       </div>
     </div></div>
   );

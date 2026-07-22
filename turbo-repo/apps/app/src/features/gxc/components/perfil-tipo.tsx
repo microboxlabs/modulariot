@@ -8,7 +8,7 @@ import "@/features/gemelo-common/gemelo.css";
 // en el gráfico. Burbujas = volumen de viajes. El ranking es secundario y
 // cada fila entra al perfil (N3). «Ruido» y «Punto ciego» son problemas de
 // REGLAS, no de personas: se señala la salida hacia configuración.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -29,11 +29,15 @@ const colorCuadrante = (c: string, dark: boolean) =>
 // dato: [x%, y%, viajes, id, cuadrante, mixTxt, deltaTxt]
 type Punto = [number, number, number, string, string, string, string];
 
-function opcionCuadrante(p: PoblacionGxc, tema: Tema): EChartsOption | null {
+function opcionCuadrante(
+  p: PoblacionGxc, tema: Tema,
+  framePuntos: Punto[] | null,
+  zoom: { x: [number, number]; y: [number, number] } | null
+): EChartsOption | null {
   const bl = p.baseline;
   if (!bl) return null;
   const filas = p.entidades.filter((e) => e.rankeable && e.tasa_exp != null && e.tasa_cons != null);
-  const puntos: Punto[] = filas.map((e) => {
+  const puntos: Punto[] = framePuntos ?? filas.map((e) => {
     const mix = [
       e.c_carga ? `carga ${e.c_carga}` : "", e.c_atraso ? `atraso ${e.c_atraso}` : "",
       e.c_retrabajo ? `retrabajo ${e.c_retrabajo}` : "",
@@ -53,7 +57,7 @@ function opcionCuadrante(p: PoblacionGxc, tema: Tema): EChartsOption | null {
     tooltip: {
       backgroundColor: tema.tooltipBg, textStyle: { color: tema.textoFuerte, fontSize: 11 },
       formatter: (q: unknown) => {
-        const d = (q as { data: Punto }).data;
+        const d = (q as { data: { value: Punto } }).data.value;
         const m = CUADRANTE_META[d[4]];
         return `<b>${d[3]}</b> · ${m?.label ?? d[4]}<br/>` +
           `${d[2]} viajes — señal ${d[0]}% · consecuencia ${d[1]}%<br/>` +
@@ -61,30 +65,38 @@ function opcionCuadrante(p: PoblacionGxc, tema: Tema): EChartsOption | null {
       },
     },
     grid: { left: 48, right: 24, top: 38, bottom: 40 },
+    dataZoom: [
+      { type: "inside", xAxisIndex: 0, filterMode: "none",
+        start: zoom?.x[0] ?? 0, end: zoom?.x[1] ?? 100 },
+      { type: "inside", yAxisIndex: 0, filterMode: "none",
+        start: zoom?.y[0] ?? 0, end: zoom?.y[1] ?? 100 },
+    ],
     xAxis: {
       type: "value", max: 100, name: "señal — % viajes con síntomas ICU≥2",
       nameLocation: "middle", nameGap: 24, nameTextStyle: { color: tema.texto, fontSize: 10 },
       splitLine: { lineStyle: { color: tema.rejilla } },
-      axisLabel: { color: tema.texto, fontSize: 10, formatter: "{value}%" },
+      axisLabel: { color: tema.texto, fontSize: 10, formatter: (v: number) => `${Math.round(v)}%` },
     },
     yAxis: {
       type: "value", max: 100, name: "resultado — % viajes con consecuencia",
       nameTextStyle: { color: tema.texto, fontSize: 10, align: "left", padding: [0, 0, 6, 0] },
       splitLine: { lineStyle: { color: tema.rejilla } },
-      axisLabel: { color: tema.texto, fontSize: 10, formatter: "{value}%" },
+      axisLabel: { color: tema.texto, fontSize: 10, formatter: (v: number) => `${Math.round(v)}%` },
     },
     series: [{
       type: "scatter" as const,
-      data: puntos,
-      symbolSize: (d: Punto) => 8 + Math.min(26, Math.sqrt(Number(d[2])) * 2.2),
+      animationDurationUpdate: 450,
+      animationEasingUpdate: "linear" as const,
+      data: puntos.map((d) => ({ name: String(d[3]), value: d })),
+      symbolSize: (d: { value?: Punto } | Punto) => { const v = (Array.isArray(d) ? d : d.value) as Punto; return 8 + Math.min(26, Math.sqrt(Number(v[2])) * 2.2); },
       itemStyle: {
-        color: (q: { data: Punto }) => colorCuadrante(q.data[4], tema.dark),
+        color: (q: { data: { value: Punto } }) => colorCuadrante(q.data.value[4], tema.dark),
         opacity: 0.78, borderColor: tema.dark ? "#111928" : "#FFFFFF", borderWidth: 1,
       },
       label: {
         show: true, position: "top", fontSize: 9, color: tema.texto,
-        formatter: (q: { data: Punto }) =>
-          q.data[4] === "urgente" || q.data[4] === "punto_ciego" ? String(q.data[3]).slice(0, 14) : "",
+        formatter: (q: { data: { value: Punto } }) =>
+          q.data.value[4] === "urgente" || q.data.value[4] === "punto_ciego" ? String(q.data.value[3]).slice(0, 14) : "",
       },
       markLine: {
         silent: true, symbol: "none",
@@ -113,13 +125,108 @@ export function PerfilTipo({ lang }: { lang: string }) {
     fetcher, { refreshInterval: 300_000, keepPreviousData: true });
 
   const bl = data?.baseline;
-  const opcion = useMemo(() => (data ? opcionCuadrante(data, tema) : null), [data, tema]);
+
+  // ── Reproducción día a día del cuadrante (motion chart) ──
+  const [playerOn, setPlayerOn] = useState(false);
+  const [cursorIdx, setCursorIdx] = useState<number | null>(null);
+  const [reproduciendo, setReproduciendo] = useState(false);
+  const [velIdx, setVelIdx] = useState(1);
+  const VELS = [1100, 600, 250];
+  const [zoomWin, setZoomWin] = useState<{ x: [number, number]; y: [number, number] } | null>(null);
+
+  type Evolucion = { dias: number[]; entidades: { id: string; serie: [number, number, number, number, number, number][] }[] };
+  const { data: evo } = useSWR<Evolucion>(
+    meta && playerOn ? `/rpc/fn_dx_gol_gxc_poblacion_evolucion?p_tipo=${tipo}&p_dias=${dias}` : null,
+    fetcher, { revalidateOnFocus: false, keepPreviousData: true });
+
+  const cuadranteFinal = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const e of data?.entidades ?? []) m.set(e.id, e.cuadrante);
+    return m;
+  }, [data]);
+
+  useEffect(() => {
+    if (!reproduciendo || !evo) return;
+    const idInt = setInterval(() => {
+      setCursorIdx((i) => {
+        const next = (i ?? 0) + 1;
+        if (next >= evo.dias.length) { setReproduciendo(false); return evo.dias.length - 1; }
+        return next;
+      });
+    }, VELS[velIdx]);
+    return () => clearInterval(idInt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reproduciendo, velIdx, evo?.dias.length]);
+
+  useEffect(() => { setCursorIdx(null); setReproduciendo(false); setPlayerOn(false); setZoomWin(null); },
+    [dias, tipo]);
+
+  // Frame del día: acumulado hasta cursor; la burbuja nace al pasar el piso de 5 viajes
+  const framePuntos = useMemo<Punto[] | null>(() => {
+    if (cursorIdx == null || !evo) return null;
+    const fecha = new Date(evo.dias[cursorIdx] * 1000).toLocaleDateString("es-CL", { day: "2-digit", month: "short" });
+    const pts: Punto[] = [];
+    for (const ent of evo.entidades) {
+      const [v, e, c, mc, ma, mr] = ent.serie[Math.min(cursorIdx, ent.serie.length - 1)] ?? [0, 0, 0, 0, 0, 0];
+      if (v < 5) continue;
+      pts.push([
+        Math.round((e / v) * 100), Math.round((c / v) * 100), v, ent.id,
+        cuadranteFinal.get(ent.id) ?? "sano",
+        `acumulado al ${fecha}: ${v} viajes · carga ${mc} · atraso ${ma} · retrabajo ${mr}`,
+        "color = cuadrante al cierre del período",
+      ]);
+    }
+    return pts;
+  }, [cursorIdx, evo, cuadranteFinal]);
+
+  const onZoomCuadrante = (ev: unknown) => {
+    const e = ev as { batch?: { dataZoomIndex?: number; start: number; end: number }[]; start?: number; end?: number; dataZoomIndex?: number };
+    const items = e.batch ?? [e as { dataZoomIndex?: number; start: number; end: number }];
+    setZoomWin((z) => {
+      const next = { x: z?.x ?? [0, 100] as [number, number], y: z?.y ?? [0, 100] as [number, number] };
+      for (const it of items) {
+        if (typeof it.start !== "number" || typeof it.end !== "number") continue;
+        if ((it.dataZoomIndex ?? 0) === 0) next.x = [it.start, it.end];
+        else next.y = [it.start, it.end];
+      }
+      return next;
+    });
+  };
+
+  const opcion = useMemo(
+    () => (data ? opcionCuadrante(data, tema, framePuntos, zoomWin) : null),
+    [data, tema, framePuntos, zoomWin]);
 
   const ranking = useMemo(() => {
     const q = busca.trim().toLowerCase();
     const ents = (data?.entidades ?? []).filter((e) => e.rankeable);
     return (q.length >= 2 ? ents.filter((e) => e.id.toLowerCase().includes(q)) : ents).slice(0, 40);
   }, [data, busca]);
+
+  // Ranking en REPRODUCCIÓN: el acumulado al día del cursor, mismo orden que
+  // el ranking final (tasa desc). Reutiliza la forma EntidadGxc para que las
+  // filas se rendericen idénticas.
+  const rankingPlay = useMemo<EntidadGxc[] | null>(() => {
+    if (cursorIdx == null || !evo) return null;
+    const q = busca.trim().toLowerCase();
+    const filas: EntidadGxc[] = [];
+    for (const ent of evo.entidades) {
+      const [v, e, c, mc, ma, mr] = ent.serie[Math.min(cursorIdx, ent.serie.length - 1)] ?? [0, 0, 0, 0, 0, 0];
+      if (v < 5) continue;
+      if (q.length >= 2 && !ent.id.toLowerCase().includes(q)) continue;
+      filas.push({
+        id: ent.id, viajes: v, v_exp: e, v_cons: c, v_exp_cons: 0,
+        c_atraso: ma, c_retrabajo: mr, c_carga: mc, peso: 0,
+        tasa_cons: c / v, tasa_exp: e / v,
+        tasa_cons_con_exp: null, tasa_cons_sin_exp: null,
+        monitoreo_comprometido: false, rankeable: true,
+        nivel: null, cuadrante: cuadranteFinal.get(ent.id) ?? "sano",
+        tasa_cons_prev: null, viajes_prev: null,
+      });
+    }
+    filas.sort((a, b) => Number(b.tasa_cons) - Number(a.tasa_cons));
+    return filas.slice(0, 40);
+  }, [cursorIdx, evo, busca, cuadranteFinal]);
   const sinMuestra = (data?.n ?? 0) - (data?.n_rankeables ?? 0);
 
   // Las operaciones (nodos) no participan del modelo por viaje
@@ -171,14 +278,56 @@ export function PerfilTipo({ lang }: { lang: string }) {
                     </div>
                   }>
             <div className="h-full min-h-0 flex flex-col">
+              <div className="flex items-center gap-2 flex-wrap text-[12px] flex-none pb-1">
+                <button className="btn-primary" style={{ paddingTop: 3, paddingBottom: 3 }}
+                  onClick={() => {
+                    if (reproduciendo) { setReproduciendo(false); return; }
+                    setPlayerOn(true);
+                    if (cursorIdx == null || (evo && cursorIdx >= evo.dias.length - 1)) setCursorIdx(0);
+                    setReproduciendo(true);
+                  }}>
+                  {reproduciendo ? "⏸ Pausa" : "▶ Reproducir día a día"}
+                </button>
+                {[0, 1, 2].map((i) => (
+                  <button key={i} onClick={() => setVelIdx(i)}
+                    className="px-2 py-0.5 rounded-full border text-[11px] font-semibold"
+                    style={velIdx === i
+                      ? { background: "var(--blue-600)", color: "#fff", borderColor: "var(--blue-600)" }
+                      : { background: "var(--surface)", color: "var(--muted)", borderColor: "var(--border)" }}>
+                    ×{[1, 2, 5][i]}
+                  </button>
+                ))}
+                {evo && (
+                  <input type="range" className="flex-1 min-w-[140px]"
+                    min={0} max={evo.dias.length - 1} step={1}
+                    value={cursorIdx ?? evo.dias.length - 1}
+                    onChange={(e) => { setReproduciendo(false); setPlayerOn(true); setCursorIdx(Number(e.target.value)); }} />
+                )}
+                <span className="font-semibold w-[58px]" style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {cursorIdx != null && evo
+                    ? new Date(evo.dias[cursorIdx] * 1000).toLocaleDateString("es-CL", { day: "2-digit", month: "short" })
+                    : "hoy"}
+                </span>
+                {cursorIdx != null && (
+                  <button className="text-[11px] hover:underline" style={{ color: "var(--blue-700)" }}
+                    onClick={() => { setReproduciendo(false); setCursorIdx(null); }}>
+                    ver cierre
+                  </button>
+                )}
+                <span className="text-[10.5px]" style={{ color: "var(--muted)" }}>
+                  rueda = zoom · arrastrar = mover · doble clic = restablecer · las burbujas nacen al pasar el piso de 5 viajes
+                </span>
+              </div>
               <div className="flex-1 min-h-0">
                 {opcion
                   ? <EChart option={opcion} height="100%"
                       onEvents={{
                         click: (q) => {
-                          const d = (q as { data?: Punto }).data;
+                          const d = (q as { data?: { value?: Punto } }).data?.value;
                           if (d?.[3]) router.push(`/${lang}/gxc/${tipo}/${encodeURIComponent(d[3])}?${qs}`);
                         },
+                        datazoom: onZoomCuadrante,
+                        dblclick: () => setZoomWin(null),
                       }} />
                   : <div className="h-full flex items-center text-[12px]" style={{ color: "var(--muted)" }}>Calculando cuadrante…</div>}
               </div>
@@ -190,7 +339,7 @@ export function PerfilTipo({ lang }: { lang: string }) {
           </Widget>
 
           {/* Ranking secundario */}
-          <Widget title="Ranking por tasa de consecuencia"
+          <Widget title={rankingPlay ? "Ranking al día del cursor" : "Ranking por tasa de consecuencia"}
                   meta={`urgentes primero · busca entre ${data?.n ?? "…"}`}
                   actions={
                     <input value={busca} onChange={(e) => setBusca(e.target.value)}
@@ -199,7 +348,7 @@ export function PerfilTipo({ lang }: { lang: string }) {
                       style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--foreground)" }} />
                   }>
             <div className="h-full overflow-y-auto space-y-1 pr-1">
-              {ranking.map((e: EntidadGxc) => {
+              {(rankingPlay ?? ranking).map((e: EntidadGxc) => {
                 const d = deltaTasa(e.tasa_cons, e.tasa_cons_prev);
                 const totMix = Math.max(1, e.c_atraso + e.c_carga + e.c_retrabajo);
                 return (

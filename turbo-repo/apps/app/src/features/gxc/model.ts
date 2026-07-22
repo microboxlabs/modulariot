@@ -28,11 +28,22 @@ export const CUADRANTE_META: Record<string, { label: string; color: string; expl
     explica: "menos viajes que el piso — no se clasifica" },
 };
 
-// Mix de consecuencias — colores consistentes en todas las vistas
-export const MIX_META: Record<string, { label: string; color: string }> = {
-  atraso: { label: "Atraso ETA >1 h", color: "#F1B300" },
-  carga: { label: "Carga incumplida", color: "#E11D48" },
-  retrabajo: { label: "Retrabajo (regresión)", color: "#1C64F2" },
+// Mix de consecuencias — colores consistentes en todas las vistas.
+// CADA CONSECUENCIA TIENE DUEÑO (corrección Erick 2026-07-22): la carga
+// incumplida es gestión de compromisos de MINTRAL (no conducta del carrier)
+// y el ETA está en BETA (referencial). El relato nunca le factura a un
+// actor palancas ajenas.
+export const MIX_META: Record<string, {
+  label: string; color: string;
+  duenio: "mintral" | "proceso" | "beta";
+  nota: string;
+}> = {
+  atraso: { label: "Atraso ETA >1 h", color: "#F1B300", duenio: "beta",
+    nota: "ETA en fase beta — dato referencial, aún no exigible" },
+  carga: { label: "Carga incumplida", color: "#E11D48", duenio: "mintral",
+    nota: "compromisos de carga: palanca de gestión Mintral, no de conducción" },
+  retrabajo: { label: "Retrabajo (regresión)", color: "#1C64F2", duenio: "proceso",
+    nota: "regresiones del proceso BPM: se gestiona entre torre y carrier" },
 };
 
 export type EntidadGxc = {
@@ -77,7 +88,7 @@ export type PerfilGxc = {
     // proceso logístico; mon = true si hubo ventana de monitoreo real
     viajes: { s: string; ini: number; fin: number; ini_log: number; fin_log: number;
               mon: boolean; ruta: string; camion: string; cons: boolean }[];
-    sintomas: { t: number; n: number; icu: number }[];
+    sintomas: { t: number; n: number; icu: number; s: string }[];
     consecuencias: { t: number; tipo: string; s: string; detalle: string }[];
     respuesta: { t: number; tipo: string; estado: string; quien: string; s: string }[];
   };

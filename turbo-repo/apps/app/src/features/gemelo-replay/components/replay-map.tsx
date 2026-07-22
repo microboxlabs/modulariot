@@ -1444,6 +1444,15 @@ export function ReplayMapa({ lang }: { lang: string }) {
                 )}
                 {!rangoLargo && <span style={{ color: "var(--muted)" }}>{tripsF.length}/{trips.length} camiones</span>}
               </div>
+              {ventanaMicro && flota && trips.length === 0 && (
+                <div className="text-[11.5px] rounded-lg px-2.5 py-1.5"
+                     style={{ background: "rgba(241,179,0,0.12)", color: "var(--foreground)" }}>
+                  Sin GPS en el gemelo para esta ventana
+                  ({new Date(ventanaMicro.ini * 1000).toLocaleDateString("es-CL")}) — la cobertura
+                  local de posiciones parte el 07-06-2026. Cierra el microscopio (✕) para volver a
+                  la flota en vivo, o elige otra ventana desde el perfil.
+                </div>
+              )}
               {rangoLargo !== 0 && (
                 <div className="space-y-1 text-[12px]">
                   <div style={{ color: "var(--muted)" }}>

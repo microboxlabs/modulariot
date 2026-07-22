@@ -42,6 +42,8 @@ export const GOL_RPC_ALLOWLIST = new Set([
   "fn_dx_gol_superprofile_visor",
   "fn_dx_gol_gxc_poblacion",
   "fn_dx_gol_gxc_perfil",
+  "fn_dx_gol_gxc_baseline",
+  "fn_dx_gol_gxc_poblacion_evolucion",
   "fn_dx_gol_simular",
 ]);
 
@@ -54,7 +56,15 @@ export const GOL_RPC_ALLOWLIST = new Set([
 export const GOL_RPC_CARRIER_FILTERABLE = new Set([
   "fn_dx_gol_gxc_poblacion",
   "fn_dx_gol_gxc_perfil",
+  "fn_dx_gol_gxc_poblacion_evolucion",
 ]);
+
+/**
+ * Fns ABIERTAS para orgs carrier sin inyección de tenant: devuelven SOLO
+ * agregados anónimos del período (sin nombres ni ranking de pares) — la
+ * línea base contra la que el carrier se compara (diseño §A.5).
+ */
+export const GOL_RPC_CARRIER_OPEN = new Set(["fn_dx_gol_gxc_baseline"]);
 
 /** RPCs por POST: cálculo de red y gestión de zonas del usuario (BD del gemelo, no prod). */
 export const GOL_RPC_POST_ALLOWLIST = new Set([

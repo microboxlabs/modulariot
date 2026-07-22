@@ -156,7 +156,7 @@ function MapboxDeckOverlay(props: DeckProps) {
 // botón que abre un popover con checkboxes; vacío = «todos».
 function MultiSel({ placeholder, opciones, valor, onChange, estilo }: {
   placeholder: string;
-  opciones: { v: string; l: string }[];
+  opciones: { v: string; l: string; d?: boolean }[];
   valor: string[];
   onChange: (v: string[]) => void;
   estilo: React.CSSProperties;
@@ -187,11 +187,13 @@ function MultiSel({ placeholder, opciones, valor, onChange, estilo }: {
           <div className="max-h-[230px] overflow-y-auto py-1">
             {opciones.map((o) => (
               <label key={o.v}
-                     className="flex items-center gap-2 px-2.5 py-1 text-[12.5px] cursor-pointer"
-                     style={{ color: "var(--foreground)" }}
-                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--ghost-hover)"; }}
+                     className="flex items-center gap-2 px-2.5 py-1 text-[12.5px]"
+                     style={{ color: "var(--foreground)", opacity: o.d ? 0.45 : 1,
+                              cursor: o.d ? "not-allowed" : "pointer" }}
+                     onMouseEnter={(e) => { if (!o.d) e.currentTarget.style.background = "var(--ghost-hover)"; }}
                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
-                <input type="checkbox" className="accent-[var(--blue-600)]" checked={valor.includes(o.v)}
+                <input type="checkbox" className="accent-[var(--blue-600)]" disabled={o.d}
+                       checked={valor.includes(o.v)}
                        onChange={(e) => onChange(e.target.checked
                          ? [...valor, o.v] : valor.filter((x) => x !== o.v))} />
                 <span className="truncate">{o.l}</span>
@@ -741,19 +743,29 @@ export function ReplayMapa({ lang }: { lang: string }) {
     return () => cancelAnimationFrame(raf);
   }, [playing, speedIdx, trips.length, t1R]);
 
+  // Camión seguible: en «servicio» es el viaje cargado; en «flota» hay uno
+  // cuando el filtro de camión deja exactamente UNO (o el subconjunto es de 1)
+  const tripSeguido = useMemo(() => {
+    if (modo === "servicio") return trips[0] ?? null;
+    if (fCamion.length === 1) return tripsF.find((x) => x.asset === fCamion[0]) ?? null;
+    return tripsF.length === 1 ? tripsF[0] : null;
+  }, [modo, trips, tripsF, fCamion]);
+
   const posActual = useMemo(() => {
-    if (modo !== "servicio" || !trips[0]) return null;
-    const tr = trips[0];
+    if (!tripSeguido) return null;
+    const tr = tripSeguido;
     let i = 0;
     while (i < tr.timestamps.length - 1 && tr.timestamps[i + 1] <= t) i++;
     return tr.path[i] ?? null;
-  }, [modo, trips, t]);
+  }, [tripSeguido, t]);
 
   useEffect(() => {
     if (seguir && posActual && mapRef.current) {
       mapRef.current.easeTo({ center: posActual, duration: 300 });
     }
   }, [posActual, seguir]);
+  // si el subconjunto deja de ser un solo camión, se suelta el seguimiento
+  useEffect(() => { if (!tripSeguido) setSeguir(false); }, [tripSeguido]);
 
   // Paradas reales del servicio: velocidad < 3 km/h sostenida >= 5 min
   const paradas = useMemo((): Parada[] => {
@@ -1681,22 +1693,41 @@ export function ReplayMapa({ lang }: { lang: string }) {
 
         <section className="space-y-2">
           <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>Capas del mapa</div>
-          <div className="flex flex-wrap gap-1">
-            <button style={chip(satelite)} onClick={() => setSatelite(!satelite)} disabled={!MAPBOX_TOKEN}>Satelital</button>
-            <button style={chip(pitch3d)} onClick={() => setPitch3d(!pitch3d)}>2.5D</button>
-            <button style={chip(verHeatmap)} onClick={() => setVerHeatmap(!verHeatmap)}>Heatmap</button>
-            <button style={chip(verZonas)} onClick={() => setVerZonas(!verZonas)}>Zonas</button>
-            <button style={chip(verStats)} onClick={() => setVerStats(!verStats)}>Indicadores</button>
-            {modo === "servicio" && (
-              <button style={chip(seguir)} onClick={() => setSeguir(!seguir)}>Seguir camión</button>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {CATEGORIAS.map((c) => (
-              <button key={c.key} style={chip(cats[c.key])}
-                      onClick={() => setCats({ ...cats, [c.key]: !cats[c.key] })}>{c.label}</button>
-            ))}
-          </div>
+          <MultiSel placeholder="Capas (ninguna activa)" estilo={sel}
+                    valor={[
+                      ...(satelite ? ["satelital"] : []),
+                      ...(pitch3d ? ["2.5d"] : []),
+                      ...(verHeatmap ? ["heatmap"] : []),
+                      ...(verZonas ? ["zonas"] : []),
+                      ...(verStats ? ["indicadores"] : []),
+                      ...CATEGORIAS.filter((c) => cats[c.key]).map((c) => `cat:${c.key}`),
+                    ]}
+                    onChange={(next) => {
+                      setSatelite(next.includes("satelital"));
+                      setPitch3d(next.includes("2.5d"));
+                      setVerHeatmap(next.includes("heatmap"));
+                      setVerZonas(next.includes("zonas"));
+                      setVerStats(next.includes("indicadores"));
+                      setCats(Object.fromEntries(CATEGORIAS.map((c) =>
+                        [c.key, next.includes(`cat:${c.key}`)])) as Record<string, boolean>);
+                    }}
+                    opciones={[
+                      { v: "satelital", l: "Satelital", d: !MAPBOX_TOKEN },
+                      { v: "2.5d", l: "2.5D" },
+                      { v: "heatmap", l: "Heatmap" },
+                      { v: "zonas", l: "Zonas" },
+                      { v: "indicadores", l: "Indicadores" },
+                      ...CATEGORIAS.map((c) => ({ v: `cat:${c.key}`, l: `Geocercas · ${c.label}` })),
+                    ]} />
+          {tripSeguido ? (
+            <button style={chip(seguir)} onClick={() => setSeguir(!seguir)}>
+              {seguir ? "Siguiendo a" : "Seguir camión"} {tripSeguido.asset}
+            </button>
+          ) : (
+            <div className="text-[11px]" style={{ color: "var(--muted)" }}>
+              Para seguir un camión, filtra la flota a uno solo (Camión) o carga un servicio.
+            </div>
+          )}
         </section>
 
         <section className="space-y-2">

@@ -1,5 +1,6 @@
 import { getContent } from "../content";
-import { Section, SectionHeader, Check } from "./shared";
+import { Section, Check } from "./shared";
+import { Reveal } from "../Reveal";
 
 export function PainOutcome({ lang }: { lang: string }) {
   const c = getContent(lang).painOutcome;

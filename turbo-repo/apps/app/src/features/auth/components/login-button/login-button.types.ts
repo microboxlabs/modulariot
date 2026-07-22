@@ -11,6 +11,4 @@ export type LoginButtonProps = Readonly<{
   formAction?: () => Promise<void>;
   /** Whether the button is in loading state */
   isLoading?: boolean;
-  /** Whether this button should be rendered as primary */
-  isPrimary?: boolean;
 }>;

@@ -11,6 +11,7 @@ import OrgDetailPanel from "./org-detail-panel";
 
 interface OrganizationsPageContentProps {
   readonly dict: I18nRecord;
+  readonly isAlfrescoAdministrator: boolean;
 }
 
 /**
@@ -26,6 +27,7 @@ interface OrganizationsPageContentProps {
  */
 export default function OrganizationsPageContent({
   dict,
+  isAlfrescoAdministrator,
 }: OrganizationsPageContentProps) {
   const { activeOrg, availableOrgs, isLoading, error } = useOrgScopes();
 
@@ -39,6 +41,8 @@ export default function OrganizationsPageContent({
 
   const orgsDict = dict?.organizations as I18nRecord;
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
+  const selectedOrganization =
+    availableOrgs.find((org) => org.slug === selectedSlug) ?? null;
 
   return (
     <div className="flex flex-col h-full p-6 gap-4">
@@ -77,7 +81,11 @@ export default function OrganizationsPageContent({
           onSelect={setSelectedSlug}
           dict={orgsDict}
         />
-        <OrgDetailPanel orgSlug={selectedSlug} dict={orgsDict} />
+        <OrgDetailPanel
+          organization={selectedOrganization}
+          dict={orgsDict}
+          isAlfrescoAdministrator={isAlfrescoAdministrator}
+        />
       </div>
     </div>
   );

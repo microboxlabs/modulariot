@@ -2,6 +2,7 @@
   "pages": {
     "login": {
       "welcome": "Welcome back",
+      "subtitle": "Sign in to your ModularIOT account",
       "fields": {
         "email": {
           "label": "Email",
@@ -30,7 +31,8 @@
         "microsoft": "Continue with Microsoft",
         "microsoft-entra-id": "Continue with Microsoft",
         "saml": "Continue with SSO",
-        "credentials": "Continue with external user"
+        "credentials": "Continue with email and password",
+        "ssoSubmit": "Continue"
       },
       "divider": "o",
       "teamSlug": {
@@ -38,6 +40,14 @@
         "placeholder": "your-team-name",
         "required": "Team identifier is required"
       },
+      "requestAccess": {
+        "prompt": "Don't have an account?",
+        "link": "Sign up"
+      },
+      "credentialsTitle": "Sign in",
+      "credentialsSubtitle": "Enter your email and password to access your account",
+      "ssoTitle": "Sign in with SSO",
+      "ssoSubtitle": "Enter your team identifier to continue",
       "errors": {
         "invalidCredentials": "Access denied. Please verify your credentials and try again.",
         "invalidFromData": "Invalid form data. Please verify your credentials and try again.",
@@ -366,7 +376,18 @@
           "assignDriver": "Assign driver",
           "presentDriver": "Present driver",
           "prepareService": "Prepare service",
-          "missionControl": "Mission control"
+          "missionControl": "Mission control",
+          "monitorTrip": "Trip in progress",
+          "confirmArrival": "Confirm arrival",
+          "closeMonitoring": "Close monitoring",
+          "finished": "Finished",
+          "cancelled": "Cancelled"
+        },
+        "syncStatus": {
+          "label": "Sync",
+          "pending": "Sync pending",
+          "confirmed": "Synced",
+          "rejected": "Sync rejected"
         },
         "contextMenu": {
           "service": "Service",
@@ -530,6 +551,16 @@
           },
           "loadingMore": "Loading more…"
         }
+      },
+      "search": {
+        "searching": "Searching…",
+        "noResults": "No results",
+        "counter": "{current} of {total}",
+        "previous": "Previous match",
+        "next": "Next match",
+        "clear": "Clear search",
+        "otherCalendar": "In another calendar: {calendar}",
+        "error": "Search failed"
       }
     },
     "shipping": {
@@ -1233,6 +1264,44 @@
     },
     "userSettings": {
       "organizations": {
+        "title": "Organizations",
+        "description": "Manage organization settings, channels, and GPS webhooks.",
+        "loadError": "Couldn't load your organizations. Check that the local modulith is running and you are signed in.",
+        "empty": "No organizations available for your account.",
+        "loading": "Loading…",
+        "listTitle": "Your organizations",
+        "parentAccount": "Primary account",
+        "noSelection": "Select an organization to view details.",
+        "membersTitle": "Members",
+        "membersDescription": "People with access to this organization.",
+        "membersEmpty": "No members found.",
+        "modulesTitle": "Modules",
+        "modulesDescription": "Enabled product modules for this organization.",
+        "modulesEmpty": "No modules enabled.",
+        "contentReviewPermission": {
+          "accessTitle": "Access and permissions",
+          "accessDescription": "Manage organization members and assign multimedia review permissions.",
+          "memberCount": "{count} members",
+          "loadError": "Couldn't load the organization's members and permissions.",
+          "enabledLabel": "Enable automatic approval",
+          "enabledHelp": "Assigned members receive the Content Review Auto Approver role while this setting is enabled.",
+          "assignedCount": "{count} with automatic approval",
+          "searchLabel": "Search members",
+          "searchPlaceholder": "Search by name or email…",
+          "memberColumn": "Member",
+          "accessColumn": "Access",
+          "permissionColumn": "Automatic approval",
+          "memberAccess": "Member",
+          "memberPermissionLabel": "Automatic approval for {member}",
+          "noSearchResults": "No members match your search.",
+          "readOnly": "Read only",
+          "readOnlyHelp": "You have read-only access. The site manager role is required to change these permissions.",
+          "noMembers": "Add members to the organization before assigning this role.",
+          "unavailableMember": "No longer an organization member; uncheck to remove",
+          "saveError": "Couldn't save the permission.",
+          "save": "Save permission",
+          "saving": "Saving…"
+        },
         "whatsappChannel": {
           "title": "WhatsApp Channel",
           "description": "Configure and test the WhatsApp connection used to reach drivers.",
@@ -1290,11 +1359,69 @@
             "testRecipientsRequired": "Add at least one recipient, or turn test mode off"
           },
           "testModeBadge": "Test mode"
+        },
+        "gpsWebhooks": {
+          "title": "GPS webhooks",
+          "description": "Forward validated GPS positions to external systems with filter criteria.",
+          "loadError": "Couldn't load GPS webhook subscriptions.",
+          "empty": "No GPS webhooks configured yet.",
+          "addButton": "Add webhook",
+          "editButton": "Edit",
+          "testButton": "Test",
+          "deleteButton": "Delete",
+          "filterLabel": "Filter",
+          "filter": {
+            "allVisible": "All visible assets",
+            "rules": "Custom rules"
+          },
+          "status": {
+            "enabled": "Enabled",
+            "disabled": "Disabled"
+          },
+          "modal": {
+            "addTitle": "Add GPS webhook",
+            "editTitle": "Edit GPS webhook",
+            "subtitle": "Register a customer URL and choose which position data to forward.",
+            "editSubtitle": "Update the webhook URL or filter criteria.",
+            "defaultName": "GPS webhook",
+            "name": "Name",
+            "url": "Webhook URL",
+            "urlPlaceholder": "https://customer.example/hooks/gps",
+            "enabledLabel": "Enabled",
+            "filterTitle": "Data selection",
+            "filterHelp": "Choose all assets this org can already see, or define rules. Rules combine with AND across filled dimensions.",
+            "filterAllVisible": "All visible assets",
+            "filterRules": "Custom rules",
+            "assetIds": "Asset IDs (trucks)",
+            "carrierIds": "Carrier IDs",
+            "ingestClientIds": "GPS provider accounts (ingest client IDs)",
+            "gpsProviders": "Device vendors (telecom gps_provider)",
+            "owners": "Owners",
+            "listPlaceholder": "One value per line (or comma-separated)",
+            "cancel": "Cancel",
+            "saving": "Saving...",
+            "createButton": "Create",
+            "saveButton": "Save"
+          },
+          "toast": {
+            "created": "GPS webhook created",
+            "updated": "GPS webhook updated",
+            "deleted": "GPS webhook deleted",
+            "testSuccess": "Webhook test successful",
+            "testFailed": "Webhook test failed",
+            "error": "Something went wrong"
+          },
+          "validation": {
+            "nameRequired": "Name is required",
+            "urlInvalid": "Enter a valid URL",
+            "rulesRequired": "Add at least one filter dimension, or choose all visible assets"
+          }
         }
       },
       "breadcrumb": {
         "user": "User",
         "settings": "Settings",
+        "organizations": "Organizations",
         "dataSources": "Data Sources"
       },
       "symptoms": {
@@ -1305,6 +1432,21 @@
         }
       },
       "dataSources": {
+        "learnedKnowledge": {
+          "title": "Learned knowledge",
+          "description": "Business definitions the assistant learned from your questions. Approve them so it uses them in future answers.",
+          "empty": "No knowledge pending review.",
+          "error": "Couldn't load learned knowledge.",
+          "retry": "Retry",
+          "approve": "Approve",
+          "reject": "Dismiss",
+          "toast": {
+            "approved": "\"{term}\" approved and applied.",
+            "approvedNotApplied": "\"{term}\" approved, but not applied yet. Retry later.",
+            "rejected": "\"{term}\" dismissed.",
+            "reviewError": "Couldn't complete the review."
+          }
+        },
         "title": "Data Sources",
         "description": "Manage your data sources connections.",
         "addButton": "Add Data Source",
@@ -1383,6 +1525,112 @@
         "title": "Settings",
         "general": "General",
         "dataSources": "Data Sources"
+      }
+    },
+    "integrationJobs": {
+      "title": "Job console",
+      "subtitle": "Asynchronous integration jobs, live from the outbox ledger",
+      "refresh": "Refresh",
+      "loadError": "Couldn't load integration jobs.",
+      "live": {
+        "connected": "Live",
+        "disconnected": "Offline",
+        "notConfigured": "Live updates are not configured for this environment"
+      },
+      "states": {
+        "PENDING": "Pending",
+        "RUNNING": "Running",
+        "SUCCEEDED": "Succeeded",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled"
+      },
+      "filters": {
+        "all": "All",
+        "allLanes": "All lanes",
+        "allTypes": "All job types",
+        "searchPlaceholder": "Job id, correlation, chain…"
+      },
+      "table": {
+        "title": "Jobs",
+        "job": "Job",
+        "correlation": "Correlation",
+        "lane": "Lane",
+        "state": "State",
+        "attempts": "Att.",
+        "detail": "Detail",
+        "age": "Age",
+        "chainStep": "chain",
+        "loading": "Loading jobs…",
+        "empty": "No jobs match the current filters."
+      },
+      "detail": {
+        "overview": "Overview",
+        "attempts": "Attempts",
+        "payload": "Payload",
+        "chain": "Chain",
+        "loading": "Loading job…",
+        "loadError": "Couldn't load the job.",
+        "close": "Close",
+        "lastError": "Last error",
+        "attemptsLabel": "Attempts",
+        "attempt": "attempt",
+        "lane": "Executor lane",
+        "created": "Created",
+        "updated": "Updated",
+        "duration": "Duration",
+        "nextRetry": "Next retry",
+        "lease": "Lease",
+        "source": "Source instance",
+        "tenant": "Tenant",
+        "dedupe": "Dedupe key",
+        "step": "step",
+        "chainHint": "Steps run in order — a step is claimed only after the previous one finishes.",
+        "retry": "Retry job",
+        "runNow": "Run now"
+      },
+      "timeline": {
+        "enqueuedBy": "Enqueued by",
+        "manualRetry": "Manual retry — attempts reset",
+        "report": "Report",
+        "running": "Running",
+        "retryScheduled": "Retry scheduled, attempt",
+        "backoff": "exponential backoff"
+      },
+      "bell": {
+        "title": "Notifications",
+        "viewAll": "View all",
+        "integrations": "Integration activity",
+        "empty": "No integration activity yet. Job executions show up here in real time.",
+        "hint": "Streamed from the integrations outbox",
+        "openConsole": "Open job console"
+      },
+      "transitions": {
+        "enqueued": "enqueued",
+        "claimed": "started",
+        "succeeded": "completed",
+        "retry_scheduled": "retry scheduled",
+        "failed": "failed permanently",
+        "retried": "retry queued"
+      },
+      "notifications": {
+        "button": "Notifications",
+        "title": "Failure notifications",
+        "subtitle": "Send a WhatsApp message when jobs of a type are parked as failed.",
+        "empty": "No rules yet — pick a job type below to add one.",
+        "addType": "Job type…",
+        "add": "Add rule",
+        "enabled": "Notify",
+        "recipients": "Recipients",
+        "recipientPlaceholder": "+56912345678",
+        "addRecipient": "Add",
+        "removeRecipient": "Remove",
+        "invalidRecipient": "Use full E.164 format, e.g. +56912345678",
+        "noRecipients": "Add at least one number",
+        "throttle": "Min. seconds between messages",
+        "save": "Save",
+        "delete": "Delete",
+        "saveError": "Could not save the rule",
+        "loadError": "Could not load the notification rules"
       }
     },
     "admin": {
@@ -1525,6 +1773,7 @@
         "others": "Others",
         "reports": "Reports",
         "details": "Service details nº {serviceCode}",
+        "integrations": "Integrations",
         "settings": "Settings",
         "organizations": "Organizations",
         "dataSources": "Data Sources",
@@ -3264,7 +3513,12 @@
     "date": "Date",
     "symptom_name": "Symptom Name",
     "name": "Name",
-    "rut": "RUT"
+    "rut": "RUT",
+    "tipoViaje": "Trip Type",
+    "assignment": "Assignment",
+    "unassigned": "Unassigned",
+    "partial": "Partial",
+    "assigned": "Assigned"
   },
   "comments": {
     "title": "Comments",
@@ -4039,6 +4293,13 @@
     "invalid": "This link is not valid"
   },
   "spotlight": {
+    "elicit": {
+      "prompt": "I read \"{term}\" as {interpretation}. Is that right?",
+      "remember": "Yes, remember",
+      "dismiss": "No",
+      "saved": "I'll remember \"{term}\".",
+      "error": "Couldn't save. Try again."
+    },
     "placeholder": "Ask, build or navigate",
     "sections": {
       "ask": "Ask",

@@ -77,6 +77,47 @@ public class AsyncJobRepository {
             RETURNING %s""".formatted(COLUMNS);
 
     /**
+     * Tenant-agnostic claim for an in-process worker (e.g. the modulith
+     * job worker) that has no request/tenant scope. Identical
+     * runnability + chain-head + lease semantics to {@link #CLAIM}, minus the
+     * {@code tenant_code} filter, so one worker drains the executor's lane
+     * across all tenants. Chain scoping stays per-tenant (the NOT EXISTS still
+     * joins {@code p.tenant_code = j.tenant_code}).
+     */
+    private static final String CLAIM_ANY_TENANT = """
+            WITH runnable AS (
+                SELECT j.id AS job_id
+                FROM miot_integrations.async_jobs j
+                WHERE j.executor = $1
+                  AND j.attempts < j.max_attempts
+                  AND (
+                      (j.state = 'PENDING' AND (j.next_retry_at IS NULL OR j.next_retry_at <= now()))
+                      OR (j.state = 'RUNNING' AND j.locked_until IS NOT NULL AND j.locked_until < now())
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM miot_integrations.async_jobs p
+                      WHERE j.chain_key IS NOT NULL
+                        AND p.tenant_code = j.tenant_code
+                        AND p.chain_key = j.chain_key
+                        AND p.chain_sequence < j.chain_sequence
+                        AND p.state NOT IN ('SUCCEEDED', 'CANCELLED')
+                  )
+                ORDER BY j.created_at
+                LIMIT $2
+                FOR UPDATE OF j SKIP LOCKED
+            )
+            UPDATE miot_integrations.async_jobs a
+            SET state = 'RUNNING',
+                locked_by = $3,
+                locked_until = now() + make_interval(secs => $4::int),
+                attempts = a.attempts + 1,
+                updated_at = now()
+            FROM runnable r
+            WHERE a.id = r.job_id
+            RETURNING %s""".formatted(COLUMNS);
+
+    /**
      * Compare-and-set on the active lease: the update only lands when the row is
      * still RUNNING, held by the reporting worker, and on the attempt the worker
      * claimed. A stale report (lease expired and the job was reclaimed — possibly
@@ -122,8 +163,15 @@ public class AsyncJobRepository {
               AND ($2::varchar IS NULL OR state = $2)
               AND ($3::varchar IS NULL OR correlation_key = $3)
               AND ($4::varchar IS NULL OR job_type = $4)
+              AND ($5::varchar IS NULL OR chain_key = $5)
             ORDER BY created_at DESC
-            LIMIT $5""".formatted(COLUMNS);
+            LIMIT $6""".formatted(COLUMNS);
+
+    private static final String COUNT_BY_STATE = """
+            SELECT state, count(*)::int AS n
+            FROM miot_integrations.async_jobs
+            WHERE tenant_code = $1
+            GROUP BY state""";
 
     private final Instance<Pool> clientInstance;
 
@@ -171,6 +219,21 @@ public class AsyncJobRepository {
                 .toList();
     }
 
+    /** Tenant-agnostic lane claim for in-process workers. See {@link #CLAIM_ANY_TENANT}. */
+    public List<AsyncJob> claimForExecutor(String executor, String workerId, int limit, int leaseSeconds) {
+        Tuple params = Tuple.tuple()
+                .addString(executor)
+                .addInteger(limit)
+                .addString(workerId)
+                .addInteger(leaseSeconds);
+        return client().preparedQuery(CLAIM_ANY_TENANT)
+                .execute(params)
+                .await().indefinitely()
+                .stream()
+                .map(this::mapRow)
+                .toList();
+    }
+
     /**
      * @return the updated job, or null when the lease CAS failed (the job was
      *         reclaimed since this worker's claim — the report is stale)
@@ -208,12 +271,14 @@ public class AsyncJobRepository {
         return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
     }
 
-    public List<AsyncJob> list(String tenantCode, String state, String correlationKey, String jobType, int limit) {
+    public List<AsyncJob> list(String tenantCode, String state, String correlationKey, String jobType,
+            String chainKey, int limit) {
         Tuple params = Tuple.tuple()
                 .addString(tenantCode)
                 .addString(state)
                 .addString(correlationKey)
                 .addString(jobType)
+                .addString(chainKey)
                 .addInteger(limit);
         return client().preparedQuery(LIST)
                 .execute(params)
@@ -221,6 +286,16 @@ public class AsyncJobRepository {
                 .stream()
                 .map(this::mapRow)
                 .toList();
+    }
+
+    /** Per-state row counts for the whole tenant ledger (not window-limited like {@link #list}). */
+    public Map<String, Integer> countByState(String tenantCode) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        client().preparedQuery(COUNT_BY_STATE)
+                .execute(Tuple.of(tenantCode))
+                .await().indefinitely()
+                .forEach(row -> counts.put(row.getString("state"), row.getInteger("n")));
+        return counts;
     }
 
     private Pool client() {

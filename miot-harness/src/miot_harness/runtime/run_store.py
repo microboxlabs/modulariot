@@ -19,6 +19,13 @@ class HarnessRunRecord(BaseModel):
     # Security note: the "html" format is unsanitized Markdown-to-HTML;
     # consumers that inject it into a DOM must sanitize to prevent XSS.
     answer_format: str = "markdown"
+    # Ground-or-flag (semantic-layer continual learning): assumptions the
+    # synthesizer declared because it answered using a business term with no
+    # authoritative knowledge-card definition. Each is a dict
+    # {term, interpretation, predicate, grounded: false}. Empty when every term
+    # was grounded. Default keeps legacy persisted records loadable, and feeds
+    # the capture/distill loop (a labeled hypothesis awaiting confirmation).
+    assumptions: list[dict[str, Any]] = Field(default_factory=list)
     # Phase E (plan 13): the conversation this run belongs to. None for
     # one-shot requests; set when the caller passes `conversation_id`.
     # Langfuse groups runs by this attribute.

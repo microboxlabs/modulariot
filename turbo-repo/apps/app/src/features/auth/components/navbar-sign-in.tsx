@@ -9,7 +9,7 @@ interface NavbarSignInProps {
 
 export default function NavbarSignIn({ orgLogoUrl }: NavbarSignInProps = {}) {
   return (
-    <div className="w-full h-fit">
+    <div className="w-full h-fit dark:bg-gray-800">
       <Navbar fluid className="dark:bg-transparent">
         <NavbarBrand data-testid="login-navbar" href="https://www.mintral.cl/">
           {orgLogoUrl ? (

@@ -110,6 +110,14 @@ export interface CalendarHost<TRaw = unknown> {
   getLiveTask?: (
     serviceCode: string | undefined
   ) => { taskId: string; stage: string } | undefined;
+  /**
+   * Resolve the *live* workflow stage for a planned item (the host owns the
+   * item → business-code mapping, typically delegating to `getLiveTask`).
+   * When set, the provider overlays the result onto each planned service's
+   * `workflowStage` at render time — undefined preserves any load-time value
+   * (e.g. a terminal state read from the booking payload).
+   */
+  resolveWorkflowStage?: (item: TRaw) => string | undefined;
   /** Override the default sidebar card. */
   renderItemCard?: (item: CalendarItem) => ReactNode;
   /** Override the default grid chip. */

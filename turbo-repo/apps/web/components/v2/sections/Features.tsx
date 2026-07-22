@@ -14,7 +14,7 @@ const stageTone: Record<string, { chip: string; check: string }> = {
 export function Features({ lang }: { lang: string }) {
   const c = getContent(lang).features;
   return (
-    <Section id="caracteristicas" tone="white">
+    <Section id="caracteristicas" tone="gray">
       <SectionHeader kicker={c.kicker} title={c.title} subtitle={c.subtitle} />
       <div className="mt-12 grid gap-4 lg:grid-cols-3">
         {c.cards.map((card, i) => {

@@ -133,6 +133,11 @@ export default function StepsInteractive() {
             </AnimatePresence>
           </div>
         </div>
+
+        <div className="mx-auto mt-10 max-w-xl rounded-xl bg-gray-950 px-6 py-5 text-center">
+          <p className="text-lg font-bold text-blue-500">{c.outro.latency}</p>
+          <p className="mt-1 text-sm text-gray-400">{c.outro.subtitle}</p>
+        </div>
       </div>
     </section>
   );

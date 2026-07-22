@@ -7,6 +7,7 @@ import { requireAuth } from "../../../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../../../utils/tenant-scope";
 import { logger } from "@/lib/logger";
 import { toSearchResult } from "../search-blocks";
+import { recordEpisode } from "../../../interactions/episodes/record-episode";
 
 /**
  * Streaming twin of the buffered POST /api/harness/search.
@@ -30,9 +31,14 @@ import { toSearchResult } from "../search-blocks";
 
 const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
 
-/** Same headroom rationale as the buffered route: agentic runs measure
- * ~35-45s; the stream is aborted if the harness never terminates. */
-const HARNESS_STREAM_TIMEOUT_MS = 90_000;
+/** Typical agentic runs measure ~35-45s, but harder questions (per-entity
+ * detail, not a count) replan several times on the Opus planner and can exceed 2
+ * minutes — the run is otherwise cancelled mid-loop and surfaces as a retry
+ * error. This raised ceiling is a STOPGAP; the real fix is the harness
+ * agent-orchestration redesign (move planning off the every-turn Opus seat to an
+ * advisor/orchestrator pattern). The stream is still aborted if the harness never
+ * terminates. */
+const HARNESS_STREAM_TIMEOUT_MS = 180_000;
 
 /** Chain-of-thought events the browser needs. `answer.delta` is excluded on
  * purpose — with answer_format=json the deltas are fragments of a raw JSON
@@ -116,6 +122,33 @@ export async function POST(request: Request) {
   // upstream relay and cancel the run.
   request.signal.addEventListener("abort", abortRelay);
 
+  // Relay a run's SSE events to the browser as they arrive, accumulating the
+  // route + tool names for the interaction episode. Extracted from the stream's
+  // start() so that function stays under the cognitive-complexity budget.
+  async function relayRunEvents(
+    runId: string,
+    send: (event: string, data: unknown, id?: string | number) => void,
+  ): Promise<{ route?: string; tools: string[] }> {
+    let route: string | undefined;
+    const tools: string[] = [];
+    for await (const event of client.runs.stream(runId, {
+      signal: controller.signal,
+    })) {
+      if (FORWARDED_EVENTS.has(event.type)) {
+        send(event.type, event.data, event.seq);
+      }
+      if (event.type === "route.selected") {
+        const r = (event.data as { route?: unknown }).route;
+        if (typeof r === "string") route = r;
+      } else if (event.type === "tool.started") {
+        const t = (event.data as { tool?: unknown }).tool;
+        if (typeof t === "string") tools.push(t);
+      }
+      if (TERMINAL_EVENT_TYPES.has(event.type)) break;
+    }
+    return { route, tools };
+  }
+
   const stream = new ReadableStream<Uint8Array>({
     async start(ctrl) {
       // enqueue() throws once the consumer is gone; treat that as an abort
@@ -142,14 +175,10 @@ export async function POST(request: Request) {
         activeRunId = run_id;
         send("search.accepted", { run_id });
 
-        for await (const event of client.runs.stream(run_id, {
-          signal: controller.signal,
-        })) {
-          if (FORWARDED_EVENTS.has(event.type)) {
-            send(event.type, event.data, event.seq);
-          }
-          if (TERMINAL_EVENT_TYPES.has(event.type)) break;
-        }
+        // Relay the run's events, accumulating the route + tool names for the
+        // interaction episode written on completion (the loop's captured signal).
+        const { route: episodeRoute, tools: episodeTools } =
+          await relayRunEvents(run_id, send);
 
         // Terminal event reached — the run finished on its own; a later
         // disconnect must not fire a pointless cancel.
@@ -159,6 +188,29 @@ export async function POST(request: Request) {
         const record = await client.runs.get(run_id, { signal: controller.signal });
         send("search.result", {
           results: record.answer ? [toSearchResult(run_id, record.answer)] : [],
+          // Ground-or-flag assumptions (with the connection stamped by the
+          // harness) so the spotlight can offer an elicit chip → candidate.
+          assumptions: record.assumptions ?? [],
+        });
+
+        // Fire-and-forget: append the completed search as an interaction episode
+        // (query + route/tools + answer + ground-or-flag assumptions) for the
+        // semantic-layer learning loop. Best-effort — never blocks or fails the
+        // search (recordEpisode swallows its own errors).
+        void recordEpisode({
+          orgSlug,
+          token,
+          body: {
+            surface: "spotlight",
+            runId: run_id,
+            payload: {
+              query,
+              route: episodeRoute,
+              tools: episodeTools,
+              answer: record.answer,
+              assumptions: record.assumptions ?? [],
+            },
+          },
         });
       } catch (err: unknown) {
         const isAbort =

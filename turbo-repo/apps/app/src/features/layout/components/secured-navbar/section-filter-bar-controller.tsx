@@ -3,14 +3,15 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { getNavegationParams } from "./searchbar/navegation_params";
 import ParametrizedFilterBar from "./searchbar/parametrized-filter-bar";
+import { resolveSection, segmentsOf } from "./resolve-section";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 export function SectionFilterBar({ dict }: { readonly dict: I18nRecord }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const segments = pathname.split("/").filter(Boolean);
-  const finalPath = segments.at(-1);
+  const segments = segmentsOf(pathname);
+  const finalPath = resolveSection(segments);
   const parentPath = segments.at(-2);
   const allNavParams = getNavegationParams(dict, searchParams.size);
 

@@ -1,0 +1,62 @@
+{
+  "stack_version": "0.5.24",
+  "stack_tag": "miot-stack@v0.5.24",
+  "milestone": "MIOT-0.5.24",
+  "pull_requests": [
+    {
+      "number": 902,
+      "title": "Based/refactor on style of login",
+      "source_issues": [
+        {
+          "number": 916,
+          "title": "feat(app): redesigned login experience and auth page shell"
+        }
+      ]
+    }
+  ],
+  "changed_files": [
+    "turbo-repo/apps/app/src/app/[lang]/sign-in/page.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/auth-page-shell/auth-page-shell.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/form-sign-in.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/form-sign-in.types.ts",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/sign-in-saml.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/sign-in.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/login-button/login-button.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/login-button/login-button.types.ts",
+    "turbo-repo/apps/app/src/features/auth/components/login-divider/login-divider.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/navbar-sign-in.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/register-link/index.ts",
+    "turbo-repo/apps/app/src/features/auth/components/register-link/register-link.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/team-slug-input/index.ts",
+    "turbo-repo/apps/app/src/features/auth/components/team-slug-input/team-slug-input.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/team-slug-input/team-slug-input.types.ts",
+    "turbo-repo/apps/app/src/features/auth/utils/utils.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-layout.tsx",
+    "turbo-repo/apps/app/src/features/theme/components/CustomThemeToggle.tsx",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/turbo.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.24",
+      "tag": "app@v0.5.24"
+    },
+    "docs": {
+      "changed": false,
+      "version": "0.5.22",
+      "tag": "docs@v0.5.22"
+    },
+    "modulith": {
+      "changed": false,
+      "version": "0.5.17",
+      "tag": "modulith@v0.5.17"
+    },
+    "harness": {
+      "changed": false,
+      "version": "0.1.3",
+      "tag": "harness@v0.1.3"
+    }
+  }
+}

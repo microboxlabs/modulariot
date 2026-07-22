@@ -11,7 +11,7 @@ export function Confiabilidad({ base }: { base: string }) {
     GMAX = 24;
   const px = (v: number) => (v / GMAX) * 100;
   return (
-    <Section id="confiabilidad" tone="white">
+    <Section id="confiabilidad" tone="gray">
       <SectionHeader
         kicker="Confiabilidad de la señal"
         title="12 pulsos por minuto. El estándar de precisión que marca la diferencia."

@@ -2,6 +2,7 @@ import "server-only";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { RouteGuard } from "@/features/auth/components/route-guard";
+import { hasAlfrescoAdminAccess } from "@/features/auth/utils/admin-access";
 import OrganizationsPageContent from "@/features/settings-admin/components/organizations-page-content";
 
 /**
@@ -20,13 +21,17 @@ export default async function OrganizationsPage({ params }: ParamsWithLang) {
   const [, dictionary] = await getDictionary(lang);
   const userSettings = (dictionary.pages as I18nRecord)
     ?.userSettings as I18nRecord;
+  const isAlfrescoAdministrator = await hasAlfrescoAdminAccess();
 
   return (
     <RouteGuard
       path="/users/settings/organizations"
       fallbackPath={`/${lang}/shipping`}
     >
-      <OrganizationsPageContent dict={userSettings} />
+      <OrganizationsPageContent
+        dict={userSettings}
+        isAlfrescoAdministrator={isAlfrescoAdministrator}
+      />
     </RouteGuard>
   );
 }

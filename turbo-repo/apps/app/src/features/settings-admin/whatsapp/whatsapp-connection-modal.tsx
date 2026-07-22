@@ -1,12 +1,17 @@
 "use client";
 
-import { Label, Textarea, TextInput, ToggleSwitch } from "flowbite-react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { Textarea, TextInput, ToggleSwitch } from "flowbite-react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { SettingsFormField } from "@/features/settings-admin/components/settings-form-field";
+import {
+  settingsModalChrome,
+  settingsModalSubmitLabel,
+  useSettingsModalFormOpenReset,
+} from "@/features/settings-admin/hooks/use-settings-modal-form";
 import {
   DEFAULT_BASE_URL,
   DEFAULT_GRAPH_VERSION,
@@ -62,51 +67,35 @@ export function WhatsAppConnectionModal({
 
   const testModeEnabled = watch("testModeEnabled");
 
-  // Initialize the form only when the modal OPENS (false -> true). The card rebuilds
-  // `initial` as a fresh object on every render, so resetting on each `initial` change
-  // would re-run mid-save (setActionLoading triggers a re-render) and snap the form back
-  // to the stored values — wiping the operator's in-progress edits.
-  const wasOpen = useRef(false);
-  useEffect(() => {
-    if (show && !wasOpen.current) {
-      reset(
-        isEdit && initial
-          ? initial
-          : { ...DEFAULTS, name: tr("modal.defaultName", dict) },
-      );
-    }
-    wasOpen.current = show;
-  }, [show, isEdit, initial, reset, dict]);
+  // Initialize only when the modal opens (false → true). See useSettingsModalFormOpenReset.
+  useSettingsModalFormOpenReset({
+    show,
+    isEdit,
+    initial,
+    defaults: DEFAULTS,
+    dict,
+    reset,
+  });
 
-  let submitLabel: string;
-  if (loading) {
-    submitLabel = tr("modal.saving", dict);
-  } else if (isEdit) {
-    submitLabel = tr("modal.saveButton", dict);
-  } else {
-    submitLabel = tr("modal.createButton", dict);
-  }
+  const submitLabel = settingsModalSubmitLabel(loading, isEdit, dict);
+  const chrome = settingsModalChrome(isEdit, dict);
 
   return (
     <FormModal
       isOpen={show}
       onClose={onClose}
-      title={
-        isEdit ? tr("modal.editTitle", dict) : tr("modal.addTitle", dict)
-      }
-      subtitle={
-        isEdit ? tr("modal.editSubtitle", dict) : tr("modal.subtitle", dict)
-      }
+      title={chrome.title}
+      subtitle={chrome.subtitle}
       submitLabel={submitLabel}
       isProcessing={loading}
       error={error}
       onSubmit={handleSubmit(onSubmit)}
       size="2xl"
       showCancelButton
-      cancelLabel={tr("modal.cancel", dict)}
+      cancelLabel={chrome.cancelLabel}
     >
       <div className="flex flex-col gap-4">
-        <Field
+        <SettingsFormField
           id="wa-name"
           label={tr("modal.name", dict)}
           error={trDynamic(errors.name?.message ?? "", dict)}
@@ -116,9 +105,9 @@ export function WhatsAppConnectionModal({
             {...register("name")}
             color={errors.name ? "failure" : undefined}
           />
-        </Field>
+        </SettingsFormField>
 
-        <Field
+        <SettingsFormField
           id="wa-phone"
           label={tr("modal.phoneNumberId", dict)}
           error={trDynamic(errors.phoneNumberId?.message ?? "", dict)}
@@ -129,9 +118,9 @@ export function WhatsAppConnectionModal({
             {...register("phoneNumberId")}
             color={errors.phoneNumberId ? "failure" : undefined}
           />
-        </Field>
+        </SettingsFormField>
 
-        <Field
+        <SettingsFormField
           id="wa-waba"
           label={tr("modal.wabaId", dict)}
           error={trDynamic(errors.wabaId?.message ?? "", dict)}
@@ -142,10 +131,10 @@ export function WhatsAppConnectionModal({
             {...register("wabaId")}
             color={errors.wabaId ? "failure" : undefined}
           />
-        </Field>
+        </SettingsFormField>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field
+          <SettingsFormField
             id="wa-graph"
             label={tr("modal.graphVersion", dict)}
             error={trDynamic(errors.graphVersion?.message ?? "", dict)}
@@ -155,9 +144,9 @@ export function WhatsAppConnectionModal({
               {...register("graphVersion")}
               color={errors.graphVersion ? "failure" : undefined}
             />
-          </Field>
+          </SettingsFormField>
 
-          <Field
+          <SettingsFormField
             id="wa-base"
             label={tr("modal.baseUrl", dict)}
             error={trDynamic(errors.baseUrl?.message ?? "", dict)}
@@ -167,10 +156,10 @@ export function WhatsAppConnectionModal({
               {...register("baseUrl")}
               color={errors.baseUrl ? "failure" : undefined}
             />
-          </Field>
+          </SettingsFormField>
         </div>
 
-        <Field
+        <SettingsFormField
           id="wa-token"
           label={tr("modal.token", dict)}
           error={trDynamic(errors.token?.message ?? "", dict)}
@@ -187,7 +176,7 @@ export function WhatsAppConnectionModal({
             {...register("token")}
             color={errors.token ? "failure" : undefined}
           />
-        </Field>
+        </SettingsFormField>
 
         <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
           <Controller
@@ -206,7 +195,7 @@ export function WhatsAppConnectionModal({
           </p>
 
           <div className="mt-3">
-            <Field
+            <SettingsFormField
               id="wa-test-recipients"
               label={tr("modal.testRecipientsLabel", dict)}
               error={trDynamic(errors.testRecipients?.message ?? "", dict)}
@@ -222,31 +211,10 @@ export function WhatsAppConnectionModal({
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {tr("modal.testRecipientsHelp", dict)}
               </p>
-            </Field>
+            </SettingsFormField>
           </div>
         </div>
       </div>
     </FormModal>
-  );
-}
-
-interface FieldProps {
-  readonly id: string;
-  readonly label: string;
-  readonly error?: string;
-  readonly children: ReactNode;
-}
-
-function Field({ id, label, error, children }: FieldProps) {
-  return (
-    <div>
-      <Label htmlFor={id} className="mb-1 block">
-        {label}
-      </Label>
-      {children}
-      {error && (
-        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
-      )}
-    </div>
   );
 }

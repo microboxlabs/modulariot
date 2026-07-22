@@ -194,6 +194,10 @@ export const pt = {
         tag: "EVIDENCIA",
       },
     ],
+    outro: {
+      latency: "< 56 ms de latência mediana ponta a ponta",
+      subtitle: "Da leitura do sensor até o dado estar no seu próprio banco de dados.",
+    },
   },
 
   painOutcome: {

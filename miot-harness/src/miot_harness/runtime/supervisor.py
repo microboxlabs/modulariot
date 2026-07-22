@@ -37,6 +37,11 @@ from miot_harness.agents.meta_agent import (
     MetaAgentCatalogEntry,
     meta_agent_node,
 )
+from miot_harness.agents.synthesizer import (
+    emit_grounding_gap,
+    extract_assumptions,
+    harden_answer,
+)
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.datasource.provider import DataSourceProfile
@@ -137,6 +142,28 @@ class HarnessSupervisor:
         # block is already folded into `meta_primer` at boot — this bundle
         # supplies the per-request tenant overlay and the queryable facts.
         self.context_skills: ContextSkillsBundle | None = None
+        # Set by the lifespan after boot to the primary connection's name (e.g.
+        # "acs"); None in legacy/dev. Stamped onto ground-or-flag assumptions so
+        # the review surface can stage a candidate against the right connection.
+        self.primary_connection_name: str | None = None
+
+    def _stamp_connection(
+        self, assumptions: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Attach the run's connection to each declared assumption. The
+        synthesizer self-reports term/interpretation/predicate; the connection is
+        the harness's to assign (the LLM can't reliably know it) and defaults to
+        the primary connection this deployment serves. Never overwrites a
+        connection already present, and a no-op when none is configured."""
+        conn = self.primary_connection_name
+        if not conn:
+            return list(assumptions)
+        return [
+            {**a, "connection": conn}
+            if isinstance(a, dict) and not a.get("connection")
+            else a
+            for a in assumptions
+        ]
 
     def _meta_primer_for(self, tenant_id: str) -> str:
         """meta_primer (datasource primer + global context) plus this
@@ -699,7 +726,15 @@ class HarnessSupervisor:
                     prior_messages=prior_messages or [],
                     progress=progress,
                 )
-            record.answer = delta.get("answer") or "(no answer produced by agent loop)"
+            answer = delta.get("answer") or "(no answer produced by agent loop)"
+            record.answer = harden_answer(answer)
+            # Ground-or-flag: the loop path bypasses the synthesizer, so the
+            # assumption blocks must be surfaced here too — otherwise this
+            # route feeds nothing to the capture/distill loop.
+            assumptions = extract_assumptions(record.answer)
+            for assumption in assumptions:
+                emit_grounding_gap(progress, ctx.run_id, assumption)
+            record.assumptions = self._stamp_connection(assumptions)
             return
 
         if self.agentic_graph is None:
@@ -733,6 +768,11 @@ class HarnessSupervisor:
             )
         record.answer = str(
             final_state.get("answer") or "(no answer produced by agentic graph)"
+        )
+        # Ground-or-flag: carry the synthesizer's declared assumptions onto the
+        # persisted record (feeds the capture/distill loop; empty when grounded).
+        record.assumptions = self._stamp_connection(
+            list(final_state.get("assumptions") or [])
         )
 
     async def _run_data_meta(

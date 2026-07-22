@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.microboxlabs.miot</groupId>
         <artifactId>miot-parent</artifactId>
-        <version>0.5.16</version>
+        <version>0.5.17</version>
     </parent>
 
     <artifactId>miot-integrations</artifactId>
@@ -30,6 +30,23 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <!-- Background knowledge distiller (R3): a @Scheduled reconciler that
+             calls the harness /distill endpoint (a REST client) off the request
+             path. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-scheduler</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-client-jackson</artifactId>
+        </dependency>
+        <!-- Enriched-position retransmit worker (asset-positions-enriched → outbox). -->
+        <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>pulsar-client</artifactId>
+            <version>4.0.4</version>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>

@@ -81,6 +81,9 @@ export function buildPlanningGridShellProps(params: {
       onChipContextMenu: pg.handleContextMenu,
       reassigningServiceId: pg.reassigningService?.service.service.id,
       isChipSelected: pg.isChipSelected,
+      isChipHighlighted: pg.isItemHighlighted,
+      isChipDimmed: pg.isItemDimmed,
+      focusedServiceId: pg.focusedItemId ?? undefined,
       windowFullTooltip: tr("pages.planning.grid.windowFullTooltip", dict),
       // Domain chip override — keeps driver icons, urgencia color, route +
       // category badge that the package default ItemChip can't reproduce.
@@ -89,6 +92,9 @@ export function buildPlanningGridShellProps(params: {
           plannedService={ps}
           isBeingReassigned={ctx.reassigning}
           isSelected={ctx.selected}
+          isHighlighted={ctx.highlighted}
+          isDimmed={ctx.dimmed}
+          isFocused={ctx.focused}
           onContextMenu={ctx.onContextMenu}
           onClick={ctx.onClick}
           className="w-full"

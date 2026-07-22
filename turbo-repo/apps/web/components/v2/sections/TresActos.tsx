@@ -32,7 +32,7 @@ const actos = (base: string) => [
 export function TresActos({ base }: { base: string }) {
   const ACTOS = actos(base);
   return (
-    <Section id="tesis" tone="white">
+    <Section id="tesis" tone="gray">
       <SectionHeader
         kicker="La tesis, en 3 actos"
         title="Detectar es barato, pero reducir es el negocio."

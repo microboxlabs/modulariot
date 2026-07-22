@@ -1,4 +1,7 @@
-import React, { useRef } from "react";
+"use client";
+
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export default function AbsoluteModal({
   children,
@@ -20,7 +23,17 @@ export default function AbsoluteModal({
   // Track if mousedown started on backdrop to prevent closing when selecting text
   const mouseDownOnBackdrop = useRef(false);
 
-  return (
+  // Renders in a portal to document.body so its z-800 backdrop escapes any
+  // ancestor with `isolation: isolate` (e.g. the kanban board wrapper) —
+  // isolate unconditionally boxes descendants into a local stacking context,
+  // capping z-800 there and letting anything portaled straight to <body>
+  // (like the filter bar's dropdown, z-50) render on top of it regardless.
+  // Portal calls need `document`, so this only runs once mounted client-side.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       className={`fixed top-0 right-0 left-0 bottom-0 flex justify-center items-center text-white transition-all duration-300 z-800 w-full h-full backdrop-blur-[10px] gap-2 px-4 ${selected ? "opacity-100 visible" : "opacity-0 invisible"}`}
       role="button"
@@ -55,6 +68,7 @@ export default function AbsoluteModal({
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

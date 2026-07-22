@@ -1,8 +1,11 @@
 package com.microboxlabs.miot.integrations;
 
 import com.microboxlabs.miot.core.config.IMiotComponent;
+import com.microboxlabs.miot.integrations.retransmit.EnrichedPositionRetransmitConsumer;
+import com.microboxlabs.miot.integrations.retransmit.StreamhubGpsClient;
 import io.quarkus.arc.lookup.LookupIfProperty;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.jboss.logging.Logger;
@@ -12,6 +15,16 @@ import org.jboss.logging.Logger;
 public class IntegrationsComponent implements IMiotComponent {
 
     private static final Logger LOG = Logger.getLogger(IntegrationsComponent.class);
+
+    private final Instance<EnrichedPositionRetransmitConsumer> retransmitConsumer;
+    private final StreamhubGpsClient gpsClient;
+
+    IntegrationsComponent(
+            Instance<EnrichedPositionRetransmitConsumer> retransmitConsumer,
+            StreamhubGpsClient gpsClient) {
+        this.retransmitConsumer = retransmitConsumer;
+        this.gpsClient = gpsClient;
+    }
 
     @Override
     public String name() {
@@ -26,6 +39,20 @@ public class IntegrationsComponent implements IMiotComponent {
     @Override
     public void onStart() {
         LOG.info("Integrations component started");
+        if (!retransmitConsumer.isResolvable()) {
+            // Native builds omit the Pulsar consumer bean (see EnrichedPositionRetransmitConsumer).
+            LOG.debug("Retransmit Pulsar consumer not available in this build");
+            return;
+        }
+        EnrichedPositionRetransmitConsumer consumer = retransmitConsumer.get();
+        if (consumer.isEnabled()) {
+            if (!gpsClient.isConfigured()) {
+                LOG.warn(
+                        "Retransmit worker enabled but GPS datasource is not configured "
+                                + "(miot.integrations.retransmit.gps.reactive-url / username)");
+            }
+            consumer.start();
+        }
     }
 
     @Override

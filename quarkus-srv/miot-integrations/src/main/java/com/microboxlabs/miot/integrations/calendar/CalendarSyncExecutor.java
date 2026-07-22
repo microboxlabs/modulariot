@@ -2,6 +2,7 @@ package com.microboxlabs.miot.integrations.calendar;
 
 import com.microboxlabs.miot.integrations.jobs.JobOutcome;
 import com.microboxlabs.miot.integrations.jobs.ModulithJobHandler;
+import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Clock;
@@ -33,6 +34,16 @@ import org.jboss.logging.Logger;
  * carry that revert, and it reads 409 the opposite way: not "this job is late"
  * but "the booking has run ahead of the workflow". See
  * {@code executeUnassign}.
+ *
+ * <p><b>Slot 409s on ensure are different again.</b> A 409 on an
+ * <b>ensure move/create into an explicit slot</b> means that slot rejected the
+ * placement (e.g. it is at full capacity) — retrying the same slot cannot
+ * converge, so it is thrown as a {@link NonRetryableJobException} and parked
+ * immediately (alerting the planner) rather than retried. The one exception is a
+ * create 409 where a sibling won the race and a booking now exists: that re-runs
+ * (retryable) and converges via the move path. The ETD <b>auto-pick</b>
+ * no-capacity case stays retryable and self-heals separately (see
+ * {@code pickSlotFromEtd}).
  */
 @ApplicationScoped
 public class CalendarSyncExecutor implements ModulithJobHandler {
@@ -181,8 +192,16 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         }
         String resourceType = strOr(payload, CalendarSyncFeature.PAYLOAD_RESOURCE_TYPE,
                 CalendarSyncFeature.DEFAULT_RESOURCE_TYPE);
-        UUID bookingId = client.create(calendarId, slot.date(), slot.hour(), slot.minutes(),
-                resourceId, resourceType, resourceData);
+        UUID bookingId;
+        try {
+            bookingId = client.create(calendarId, slot.date(), slot.hour(), slot.minutes(),
+                    resourceId, resourceType, resourceData);
+        } catch (CalendarBookingsHttpException e) {
+            if (e.getStatus() == 409) {
+                throw createConflict(e, resourceId, calendarId, slot);
+            }
+            throw e;
+        }
         applyStatus(resourceId, calendarId, targetStatus);
         LOG.infof("calendar_sync ensure created booking %s for %s at %s %02d:%02d -> %s",
                 bookingId, resourceId, slot.date(), slot.hour(), slot.minutes(), targetStatus);
@@ -196,7 +215,19 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         boolean moved = false;
         SlotInfo explicit = resolveExplicitSlot(payload, calendarId);
         if (explicit != null && slotDiffers(booking, explicit)) {
-            client.move(booking.id(), explicit.date(), explicit.hour(), explicit.minutes());
+            try {
+                client.move(booking.id(), explicit.date(), explicit.hour(), explicit.minutes());
+            } catch (CalendarBookingsHttpException e) {
+                if (e.getStatus() == 409) {
+                    // The chosen slot rejected the move (e.g. it is at full capacity).
+                    // Retrying the same explicit slot cannot converge, so park now —
+                    // the planner is alerted — instead of backing off to the same 409.
+                    throw new NonRetryableJobException("Cannot move booking " + booking.id() + " for "
+                            + resourceId + " to " + slotLabel(explicit) + " — rejected by calendar (409): "
+                            + e.getMessage(), e);
+                }
+                throw e;
+            }
             moved = true;
         }
         // Forward-only status, plus a shallow resource-data merge so a re-plan keeps
@@ -331,6 +362,28 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             LOG.infof("Booking %s already gone while cancelling %s", booking.id(), resourceId);
             return 0;
         }
+    }
+
+    /**
+     * Classify a 409 from an ensure-create. Either the explicit slot rejected the
+     * booking (e.g. full capacity) — terminal, since a retry hits the same wall —
+     * or a sibling won the race and a booking now exists, in which case a re-run
+     * converges via the move path. Re-list to tell them apart instead of coupling
+     * to the calendar's error text. Returns the exception to throw.
+     */
+    private RuntimeException createConflict(CalendarBookingsHttpException e, String resourceId,
+                                            UUID calendarId, SlotInfo slot) {
+        if (client.listByResource(resourceId, calendarId).isEmpty()) {
+            return new NonRetryableJobException("Cannot create booking for " + resourceId + " at "
+                    + slotLabel(slot) + " — rejected by calendar (409): " + e.getMessage(), e);
+        }
+        LOG.infof("calendar_sync ensure: create 409 for %s but a booking now exists — a sibling won the "
+                + "race; retrying to converge via the existing booking", resourceId);
+        return e;
+    }
+
+    private static String slotLabel(SlotInfo slot) {
+        return String.format("%s %02d:%02d", slot.date(), slot.hour(), slot.minutes());
     }
 
     /** 404/409 are benign for status pushes; anything else is not ours to absorb. */

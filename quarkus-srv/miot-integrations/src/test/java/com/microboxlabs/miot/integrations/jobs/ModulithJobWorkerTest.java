@@ -105,6 +105,20 @@ class ModulithJobWorkerTest {
         assertFalse(service.reports.get(0).retryable());
     }
 
+    @Test
+    void drainParksNonRetryableWhenHandlerSignalsTerminal() {
+        var service = new RecordingService();
+        service.claimResults.add(List.of(job("job-1", ModulithJobHandler.EXECUTOR, CALENDAR, 1)));
+        service.claimResults.add(List.of());
+        var handler = new FakeHandler(CALENDAR);
+        handler.throwWith = new NonRetryableJobException("slot at full capacity");
+        worker(service, true, handler).drain();
+
+        assertEquals("FAILED", service.reports.get(0).outcome());
+        assertFalse(service.reports.get(0).retryable(),
+                "a terminal failure parks now, no backoff");
+    }
+
     // --- gating --------------------------------------------------------------
 
     @Test

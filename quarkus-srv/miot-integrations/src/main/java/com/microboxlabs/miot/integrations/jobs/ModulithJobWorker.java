@@ -170,6 +170,15 @@ public class ModulithJobWorker {
                 outcome = result.outcome();
                 detail = result.detail();
             }
+        } catch (NonRetryableJobException e) {
+            // A retry cannot fix this (e.g. the chosen slot is full) — park now so
+            // the babysitter/notification fires immediately, rather than backing off
+            // through the whole attempt budget to the same terminal failure.
+            outcome = OUTCOME_FAILED;
+            detail = e.getMessage();
+            retryable = false;
+            LOG.warnf("modulith job %s (%s, service %s) failed non-retryably — parking now: %s",
+                    job.id(), job.jobType(), job.correlationKey(), e.getMessage());
         } catch (Exception e) {
             outcome = OUTCOME_FAILED;
             detail = e.getMessage();

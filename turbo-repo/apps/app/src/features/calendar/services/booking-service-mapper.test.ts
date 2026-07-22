@@ -83,3 +83,35 @@ describe("mapBookingToPlannedService — sync status", () => {
     expect(mapped?.planned.syncStatus).toBe("PENDING");
   });
 });
+
+describe("mapBookingToPlannedService — service type recovery", () => {
+  // Without this, a task-driven assign silently downgrades to the legacy
+  // GET-endTask path: the assigned tuple is dropped and nothing is pushed to
+  // Alerce. ECM-written booking rows do not persist mintral_serviceType, so it
+  // must be recovered from the `${code}-${type}` resource id.
+  it("recovers mintral_serviceType from the resource id when not stored", () => {
+    // fixture id is 1658427-V, data carries no mintral_serviceType
+    const mapped = mapBookingToPlannedService(booking());
+    expect(mapped?.planned.service.mintral_serviceType).toBe("V");
+  });
+
+  it("prefers a stored mintral_serviceType over the id suffix", () => {
+    const mapped = mapBookingToPlannedService(
+      booking({
+        resource: {
+          id: "1658427-V",
+          type: "service",
+          data: { mintral_serviceType: "R" },
+        },
+      })
+    );
+    expect(mapped?.planned.service.mintral_serviceType).toBe("R");
+  });
+
+  it("leaves mintral_serviceType unset when the id has no suffix and none is stored", () => {
+    const mapped = mapBookingToPlannedService(
+      booking({ resource: { id: "1658427", type: "service", data: {} } })
+    );
+    expect(mapped?.planned.service.mintral_serviceType).toBeUndefined();
+  });
+});

@@ -79,3 +79,20 @@
     -webkit-font-smoothing: antialiased;
   }
 }
+
+@layer utilities {
+  /* Los botones de Flowbite traen focus:ring (focus:ring-4, focus:ring-*-300,
+     etc.), con más especificidad que un selector de elemento plano; !important
+     es necesario para ganarles sin tener que igualar esa especificidad.
+     Quitamos el ring en focus y mostramos un borde solo mientras el botón
+     está presionado. */
+  button:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  button:active {
+    border-width: 1px !important;
+    border-color: currentColor !important;
+  }
+}

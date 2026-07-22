@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Nav from "../../../../components/v2/Nav";
 import PricingTiers from "../../../../components/v2/PricingTiers";
 import PricingFaq from "../../../../components/v2/PricingFaq";
-import { Footer, FinalCta } from "../../../../components/v2/Sections";
+import { Footer } from "../../../../components/v2/sections/Footer";
+import { FinalCta } from "../../../../components/v2/sections/FinalCta";
 import { getContent } from "../../../../components/v2/content";
 
 export const metadata: Metadata = {

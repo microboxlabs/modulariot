@@ -120,11 +120,11 @@ export const content = {
 
   hero: {
     kicker: "Código Abierto · Apache-2.0",
-    titlePre: "De detectar desviaciones a ",
-    titleHighlight: "reducirlas",
-    titlePost: ", en tu operación real.",
+    titlePre: "De detectar a ",
+    titleHighlight: "reducir",
+    titlePost: ".",
     subtitle:
-      "No vendemos más alertas: convertimos cada señal en menos problemas repetidos. Y los datos y las decisiones son tuyos.",
+      "Convertimos tus alertas en mejoras reales para tu operación.",
     ctaPrimary: "Agenda demo técnico de 20 min",
     ctaSecondary: "Ver precios",
     livePanel: {
@@ -142,12 +142,11 @@ export const content = {
   },
 
   stats: {
-    title: "Una operación real, corriendo hoy — no una demo",
     items: [
-      { value: "55.847", label: "síntomas gestionados en un mes real" },
-      { value: "65%", label: "de las alertas tratadas se invalidan: cerrar ≠ resolver" },
-      { value: "+28", label: "proveedores GPS integrados" },
-      { value: "1.900+", label: "activos en operación real" },
+      { prefix: "Hasta", value: "55.847", label: "síntomas gestionados en un mes" },
+      { prefix: "Un", value: "65%", label: "de las alertas tratadas se invalidan" },
+      { prefix: "Con", value: "+28", label: "proveedores GPS integrados" },
+      { prefix: "Y con", value: "1.900+", label: "activos en operación" },
     ],
   },
 
@@ -155,9 +154,9 @@ export const content = {
   // engancha antes de presentar la solución.
   problem: {
     kicker: "El problema",
-    title: "Tratas cada alerta. Las desviaciones vuelven igual.",
+    title: "¿Tratas las alertas, pero vuelven a aparecer igual?",
     subtitle:
-      "Casi todo se atiende: el 97% de los síntomas recibe tratamiento. Pero la mayoría se invalida — se cierra el ticket, no se resuelve la causa. Por eso las mismas desviaciones se repiten mes a mes.",
+      "El 97% de los síntomas se trata, pero tratar no resuelve la causa — por eso las mismas desviaciones vuelven mes a mes.",
     pains: [
       {
         title: "“Me avisaron al día siguiente”",
@@ -169,7 +168,7 @@ export const content = {
       },
       {
         title: "“No podemos probar nada”",
-        body: "Cuando llega una auditoría, una fiscalización o un reclamo, reconstruir lo que ocurrió es un trabajo de días. Si es que los datos existen.",
+        body: "Llega una auditoría, una fiscalización o un reclamo. Reconstruir lo que pasó toma días. Si es que los datos existen.",
       },
     ],
   },

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { getContent } from "./content";
 import { useLang } from "./useLang";
 
@@ -53,7 +53,7 @@ export default function HeroTerminal() {
   }, [events.length]);
 
   return (
-    <div className="mx-auto mt-16 max-w-2xl">
+    <div className="mx-auto mt-16 max-w-2xl lg:mx-0 lg:mt-0 lg:max-w-[92%]">
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-gray-950 shadow-xl">
         {/* Encabezado del panel */}
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-3.5">
@@ -77,33 +77,32 @@ export default function HeroTerminal() {
           </span>
         </div>
 
-        {/* Feed de eventos */}
-        <div className="min-h-[196px] space-y-2.5 px-5 py-5">
-          <AnimatePresence>
-            {events.slice(0, count).map((e) => {
-              const k = KIND[e.kind] || KIND.record;
-              return (
-                <motion.div
-                  key={e.title}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="flex items-start gap-3"
-                >
-                  <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${k.bg} ${k.color}`}>
-                    <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor">
-                      {k.icon}
-                    </svg>
-                  </span>
-                  <div className="leading-snug">
-                    <p className="text-sm font-semibold text-white">{e.title}</p>
-                    <p className="text-[13px] text-gray-400">{e.detail}</p>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+        {/* Feed de eventos — todos los items quedan montados (visibilidad vía
+            opacity) para que el alto del panel no salte cuando el ciclo reinicia. */}
+        <div className="space-y-2.5 px-5 py-5">
+          {events.map((e, i) => {
+            const k = KIND[e.kind] || KIND.record;
+            const visible = i < count;
+            return (
+              <motion.div
+                key={e.title}
+                initial={false}
+                animate={{ opacity: visible ? 1 : 0, x: visible ? 0 : -8 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-start gap-3"
+              >
+                <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${k.bg} ${k.color}`}>
+                  <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor">
+                    {k.icon}
+                  </svg>
+                </span>
+                <div className="leading-snug">
+                  <p className="text-sm font-semibold text-white">{e.title}</p>
+                  <p className="text-[13px] text-gray-400">{e.detail}</p>
+                </div>
+              </motion.div>
+            );
+          })}
           <div className="flex items-center gap-2 pt-1 text-[12px] text-gray-500">
             <span className="inline-block h-3.5 w-1.5 animate-pulse rounded-sm bg-gray-500" />
             <span>{count >= events.length ? p.done : p.live}</span>

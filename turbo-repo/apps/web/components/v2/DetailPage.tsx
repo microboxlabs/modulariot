@@ -1,5 +1,5 @@
 import Nav from "./Nav";
-import { Footer } from "./Sections";
+import { Footer } from "./sections/Footer";
 import { getContent } from "./content";
 import { Reveal } from "./Reveal";
 import { ConceptGraphic } from "./ConceptGraphic";

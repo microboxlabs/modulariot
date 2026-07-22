@@ -90,9 +90,15 @@ verde/ámbar/rosa semánticos, tipografía Inter. Sin gradientes; íconos SVG (s
 | Opciones de implementación (SaaS / tu nube / on-premise) | ✅ |
 | Nota "datos GPS reales, no simulados" | ✅ |
 | Prueba social (testimonios anónimos + banda de métricas) | ✅ |
+| Precios: calculadora síntomas×capacidades (Detección·Gestión·Automatización) | ✅ |
+| Logo nuevo "the Lynx" (nav/footer/splash/lockup) + favicon | ✅ |
+| Reemplazar snippets de código dev por visuales de negocio (hero + home + detalle) | ✅ |
+| i18n total de módulos (Torre/SuperProfile/Canales/GPS + PricingTiers) en es·en·pt | ✅ |
+| Implementación: de "3 opciones" a "qué incluye" (edge/híbrido → integración vía API) | ✅ |
+| Recursos / Blog (teaser "próximamente") | ✅ |
 | Íconos de producto | ⏳ (Rodrigo) |
-| POC QR (Abastible) | ⏳ track técnico aparte |
-| Recursos / Blog | ⬜ backlog |
+| POC QR (Abastible) | ⏳ track técnico aparte (fuera de la web) |
+| `<title>`/metadata de páginas en ES fijo · locale numérico es-CL en módulos | ⬜ pulido menor |
 
 ## 8. TODOs para fábrica (backend / integración)
 
@@ -100,9 +106,13 @@ verde/ámbar/rosa semánticos, tipografía Inter. Sin gradientes; íconos SVG (s
    Reemplazar por **webhook n8n / CRM** para captura real de leads.
 2. **Precios** → montos derivados de `pricing-boxes.ts` (márgenes: base 92.8 %,
    síntomas 95.5 %, `REF_FLOTA=5000`). Definir si se publican o se ocultan tras "cotizar".
-3. **i18n de módulos** → el texto interno de Torre/SuperProfile/Canales/GPS está en
-   **español fijo**; `en`/`pt` muestran ES en esos módulos. Traducir si se necesita.
-4. **Logo/favicon** → `headlogo-dark.svg` ya recoloreado al DS; `headlogo.svg`/`logo.svg`
-   (fondo claro) y `favicon.ico` pendientes de recolorear.
+3. **i18n de módulos** → ✅ resuelto: datos traducidos en `torre-data.{en,pt}.ts` /
+   `torre-modules-data.{en,pt}.ts` (mismos números, solo strings), resueltos por
+   `module-i18n.ts` (`getTorre`/`getModules`) y cableados con `useLang` en los 5
+   componentes. Pendiente menor: `<title>`/metadata de cada `page.tsx` sigue en ES;
+   el formato numérico usa locale `es-CL` en todos los idiomas.
+4. **Logo/favicon** → ✅ resuelto: logo "the Lynx" (búho golden-ratio) generado desde
+   geometría en `headlogo-dark.svg` (dark), `headlogo.svg` (light), `logo.svg` (lockup),
+   `app/icon.svg` + `app/favicon.ico` + `public/apple-icon.png`.
 5. **Deploy** → Vercel o Docker. Revisar `metadata` y `canonical` en
    `alpha-2506/[lang]/layout.tsx` antes de producción.

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Nav from "../../../../components/v2/Nav";
 import ModuleTabs from "../../../../components/v2/ModuleTabs";
 import SuperProfile from "../../../../components/v2/SuperProfile";
-import { Footer, FinalCta } from "../../../../components/v2/Sections";
+import { Footer } from "../../../../components/v2/sections/Footer";
+import { FinalCta } from "../../../../components/v2/sections/FinalCta";
 
 export const metadata: Metadata = {
   title: "SuperProfile — ModularIoT",

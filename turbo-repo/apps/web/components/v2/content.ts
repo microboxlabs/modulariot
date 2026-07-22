@@ -20,7 +20,7 @@ export const content = {
         {
           title: "Plataforma",
           items: [
-            { icon: "signal", label: "Ingesta GPS Core", href: "/producto/ingesta-gps-core", desc: "Pipeline de señales GPS y sensores en tiempo real" },
+            { icon: "signal", label: "Ingesta GPS Core", href: "/producto/ingesta-gps-core", desc: "Señales GPS y sensores en tiempo real hacia tu base de datos" },
             { icon: "radar", label: "Síntomas / Torre de Control", href: "/producto/sintomas-torre-control", desc: "30+ reglas de detección con trazabilidad" },
             { icon: "plug", label: "Integraciones", href: "/producto/integraciones", desc: "Workflows, webhooks y bóveda de evidencia" },
             { icon: "video", label: "Video en Vivo / HLS", href: "/producto/video-en-vivo", desc: "Streaming continuo desde cámaras y dashcams" },
@@ -99,39 +99,54 @@ export const content = {
       { label: "Contacto", href: "/contacto" },
     ],
     github: { label: "GitHub", href: "https://github.com/microboxlabs" },
+    // Selector de país → idioma. Varios países LatAm comparten la misma
+    // traducción (es). `flag` = código de bandera SVG en flags.tsx.
     languages: [
-      { code: "es", label: "Español" },
-      { code: "en", label: "English" },
-      { code: "pt", label: "Português" },
+      { lang: "es", country: "Chile", flag: "cl" },
+      { lang: "es", country: "Perú", flag: "pe" },
+      { lang: "es", country: "Colombia", flag: "co" },
+      { lang: "es", country: "México", flag: "mx" },
+      { lang: "pt", country: "Brasil", flag: "br" },
+      { lang: "en", country: "Global", flag: "gl" },
     ],
     cta: "Solicitar demo",
+    // Tres acciones del nav (estilo SaaS): demo + login + signup.
+    actions: {
+      demo: { label: "Solicitar demo", href: "/contacto?intent=demo" },
+      login: { label: "Iniciar sesión", href: "/contacto?intent=login" },
+      signup: { label: "Crear cuenta", href: "/contacto?intent=signup" },
+    },
   },
 
   hero: {
     kicker: "Código Abierto · Apache-2.0",
-    titlePre: "De detectar desviaciones a ",
-    titleHighlight: "reducirlas",
-    titlePost: ", en tu operación real.",
+    titlePre: "De detectar a ",
+    titleHighlight: "reducir",
+    titlePost: ".",
     subtitle:
-      "No vendemos más alertas: convertimos cada señal en menos problemas repetidos. Y los datos y las decisiones son tuyos.",
+      "Convertimos tus alertas en mejoras reales para tu operación.",
     ctaPrimary: "Agenda demo técnico de 20 min",
     ctaSecondary: "Ver precios",
-    terminalTitle: "modulariot — flujo en vivo",
-    terminalLines: [
-      { time: "14:02:11", tag: "INGESTA", text: "2,847 señales GPS/s · latencia p50 42ms" },
-      { time: "14:02:36", tag: "SINTOMA", text: "Exceso de velocidad · Ruta interna A2 · severidad alta" },
-      { time: "14:02:37", tag: "WORKFLOW", text: "Evento #48210 → SMS supervisor + evidencia capturada" },
-      { time: "14:02:39", tag: "SINK", text: "asset_data ← 2,847 filas · tu PostgreSQL, tu nube" },
-    ],
+    livePanel: {
+      title: "Operación en vivo",
+      subtitle: "una operación real, ahora mismo",
+      live: "recibiendo eventos…",
+      done: "todo queda en tu operación",
+      events: [
+        { kind: "signal", title: "Señales llegando", detail: "2.847 activos reportando en tiempo real" },
+        { kind: "symptom", title: "Síntoma detectado", detail: "Exceso de velocidad · ruta interna · severidad alta" },
+        { kind: "action", title: "Escalado al responsable", detail: "supervisor notificado por SMS, con evidencia" },
+        { kind: "record", title: "Queda registrado", detail: "en tu base de datos, en tu nube" },
+      ],
+    },
   },
 
   stats: {
-    title: "Una operación real, corriendo hoy — no una demo",
     items: [
-      { value: "55.847", label: "síntomas gestionados en un mes real" },
-      { value: "65%", label: "de las alertas tratadas se invalidan: cerrar ≠ resolver" },
-      { value: "+28", label: "proveedores GPS integrados" },
-      { value: "1.900+", label: "activos en operación real" },
+      { prefix: "Hasta", value: "55.847", label: "síntomas gestionados en un mes" },
+      { prefix: "Un", value: "65%", label: "de las alertas tratadas se invalidan" },
+      { prefix: "Con", value: "+28", label: "proveedores GPS integrados" },
+      { prefix: "Y con", value: "1.900+", label: "activos en operación" },
     ],
   },
 
@@ -139,9 +154,9 @@ export const content = {
   // engancha antes de presentar la solución.
   problem: {
     kicker: "El problema",
-    title: "Tratas cada alerta. Las desviaciones vuelven igual.",
+    title: "¿Tratas las alertas, pero vuelven a aparecer igual?",
     subtitle:
-      "Casi todo se atiende: el 97% de los síntomas recibe tratamiento. Pero la mayoría se invalida — se cierra el ticket, no se resuelve la causa. Por eso las mismas desviaciones se repiten mes a mes.",
+      "El 97% de los síntomas se trata, pero tratar no resuelve la causa — por eso las mismas desviaciones vuelven mes a mes.",
     pains: [
       {
         title: "“Me avisaron al día siguiente”",
@@ -153,7 +168,7 @@ export const content = {
       },
       {
         title: "“No podemos probar nada”",
-        body: "Cuando llega una auditoría, una fiscalización o un reclamo, reconstruir lo que ocurrió es un trabajo de días. Si es que los datos existen.",
+        body: "Llega una auditoría, una fiscalización o un reclamo. Reconstruir lo que pasó toma días. Si es que los datos existen.",
       },
     ],
   },
@@ -161,9 +176,9 @@ export const content = {
   // Demostración paso a paso (estilo luuk.cl): el pipeline real convertido en una
   // historia de 5 pasos, de la señal cruda a la evidencia auditable.
   steps: {
-    kicker: "Cómo funciona en la práctica",
-    title: "De una señal cruda a una decisión, en menos de un segundo",
-    subtitle: "El mismo evento que ves en el flujo en vivo, contado paso a paso.",
+    kicker: "En la práctica",
+    title: "Transforma una señal cruda en una decisión auditable",
+    subtitle: "Sigue el flujo de tus alertas, paso a paso.",
     items: [
       {
         n: "01",
@@ -229,48 +244,22 @@ export const content = {
     subtitle: "Todo lo que necesitas para procesar, analizar y actuar sobre datos de flota en tiempo real",
     cards: [
       {
-        title: "Pipeline de transmisión en tiempo real",
-        code: `// Transmisión de datos GPS y sensores
-const pipeline = new StreamProcessor({
-  source: 'fleet-telemetry',
-  processors: [
-    new GPSProcessor(),
-    new SensorProcessor(),
-    new EventProcessor()
-  ],
-  sink: 'your-cloud-storage',
-  latency: '< 56ms'
-});
-
-pipeline.start();
-// Stream activo: 10K+ eventos/seg`,
+        icon: "signal",
+        title: "Procesamiento en tiempo real",
+        body: "Cada señal GPS, sensor y evento del conductor se procesa a medida que llega, con latencia mediana bajo 56 ms.",
+        bullets: ["Una sola fuente para toda la telemetría", "Enriquecimiento y evaluación al instante", "Miles de eventos por segundo, sin batch"],
       },
       {
-        title: "Alertas basadas en síntomas",
-        code: `// Reglas de alerta inteligentes
-const alertRules = {
-  driverFatigue: {
-    triggers: ['eye_closure > 3s',
-               'lane_deviation > 2'],
-    actions: ['sms_supervisor',
-              'audio_alert'],
-    priority: 'critical'
-  }
-};
-
-AlertManager.configure(alertRules);
-// 32% menos incidentes en 2 semanas`,
+        icon: "radar",
+        title: "Alertas por síntoma",
+        body: "Más de 30 reglas detectan la desviación —fatiga, exceso de velocidad, zonas de riesgo— y generan un evento clasificado, no una notificación genérica más.",
+        bullets: ["Severidad y responsable automáticos", "Exclusión inteligente de ruido", "Acción disparada: SMS, panel u orden de trabajo"],
       },
       {
+        icon: "plug",
         title: "Escalamiento según el síntoma",
-        code: `// Escalamiento por síntoma
-const escalamiento = new Escalation({
-  onSymptom: 'código negro',
-  notify: ['email', 'whatsapp', 'teams'],
-  conversation: true,   // ciclo bidireccional
-  owner: 'jefe_operaciones'
-});
-// Cada alerta llega con plan y dueño`,
+        body: "Cada síntoma se escala al canal donde vive la operación —correo, WhatsApp, Teams— con conversación bidireccional, plan y dueño.",
+        bullets: ["Canal según el tipo de síntoma", "Ciclo bidireccional, no solo notificar", "Cada alerta llega con plan y dueño"],
       },
     ],
   },
@@ -298,28 +287,28 @@ const escalamiento = new Escalation({
         id: "ingesta",
         icon: "signal",
         title: "Ingesta GPS Core",
-        body: "Cada ping GPS, señal de sensor y evento del conductor fluye a tus sistemas en milisegundos. API de última señal, tracking AVL y captura de cambios hacia tus sistemas.",
+        body: "Cada ping GPS, señal de sensor y evento del conductor fluye a tus sistemas en milisegundos.",
         bullets: ["API de última señal por activo", "Tracking AVL en tiempo real", "CDC hacia tus sistemas downstream"],
       },
       {
         id: "sintomas",
         icon: "radar",
         title: "Síntomas / Torre de Control",
-        body: "Más de 30 reglas de detección: velocidad por tramo, conducción continua, zonas de riesgo, fatiga, telemetría mecánica. Cada evento con severidad, responsable y trazabilidad completa.",
+        body: "Más de 30 reglas de detección: velocidad por tramo, conducción continua, zonas de riesgo, fatiga, telemetría mecánica.",
         bullets: ["Severidad y responsable automáticos", "Ciclo de vida: abrir → tratar → cerrar", "Exclusión inteligente de ruido"],
       },
       {
         id: "integraciones",
         icon: "plug",
         title: "Integraciones",
-        body: "Automatización de flujos con n8n, gestor documental para evidencia, API gateway y webhooks. Tu operación conectada con los sistemas que ya usas.",
+        body: "Automatización con n8n, gestor documental para evidencia, API gateway y webhooks. Tu operación conectada con los sistemas que ya usas.",
         bullets: ["Workflows y webhooks (n8n)", "Bóveda de evidencia documental", "APIs y gateway para tus sistemas"],
       },
       {
         id: "video",
         icon: "video",
         title: "Video en Vivo / HLS",
-        body: "Streams de video continuos de 24 horas desde las cámaras a bordo de tus activos. Contexto visual para cada evento detectado.",
+        body: "Streams de video continuos de 24 horas desde las cámaras a bordo de tus activos como referencia visual para cada evento detectado.",
         bullets: ["Streaming HLS 24h continuo", "Frames desde cámaras y dashcams", "Contexto visual de cada alerta"],
       },
     ],
@@ -365,27 +354,16 @@ const escalamiento = new Escalation({
 
   deployment: {
     kicker: "Implementación",
-    title: "Opciones de implementación",
-    subtitle: "Elige el modelo que mejor se adapte a tus requisitos y necesidades de cumplimiento",
-    options: [
-      {
-        title: "SaaS · gestionado por MBL",
-        highlight: "Más popular",
-        description: "Nosotros operamos la infraestructura en la nube; tú te enfocas en la operación. La puesta en marcha más rápida.",
-        features: ["Cero overhead de DevOps", "Monitoreo y soporte", "Actualizaciones automáticas", "Garantías SLA"],
-      },
-      {
-        title: "En tu nube",
-        highlight: "Soberanía de datos",
-        description: "Se despliega en tu propia infraestructura (AWS, Azure o GCP). Los datos nunca salen de tu control.",
-        features: ["Soberanía completa de datos", "Políticas de seguridad propias", "Escalado ilimitado", "Acceso directo a base de datos"],
-      },
-      {
-        title: "On-premise · edge",
-        highlight: "En tus instalaciones",
-        description: "Procesamiento en tus instalaciones para baja latencia, con respaldo y analítica en nube.",
-        features: ["Procesamiento edge de baja latencia", "Capacidad offline", "Sincronización con la nube", "Cumplimiento regional"],
-      },
+    title: "Implementación",
+    subtitle: "Una puesta en marcha gestionada por MicroBox Labs sobre tu propia nube: nosotros operamos la infraestructura, tú te enfocas en la operación. En vivo en días, no meses.",
+    soonLabel: "Próximamente",
+    includes: [
+      { title: "Configuración a tu operación", body: "Umbrales, zonas y reglas ajustados a cómo trabajas, no una plantilla genérica." },
+      { title: "Despliegue en tu nube", body: "Corre en tu infraestructura (AWS, Azure o GCP); tus datos nunca salen de tu control.", soon: true },
+      { title: "Conectado a tus sistemas", body: "Integración vía API con las plataformas que ya usas (despacho, mantención, ERP); se suma a tu operación, no la reemplaza." },
+      { title: "Canales de tu operación", body: "Correo, WhatsApp, Teams, Webex y SMS conectados para que la alerta llegue donde vive el equipo." },
+      { title: "Puesta en marcha gestionada", body: "MicroBox Labs opera y acompaña la operación, sin overhead de DevOps de tu lado." },
+      { title: "Monitoreo, soporte y actualizaciones", body: "La plataforma se mantiene al día y monitoreada sin que te ocupes." },
     ],
   },
 

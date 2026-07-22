@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FAMILIES, SYMPTOMS, META, PRODDATA, type Symptom, type ProdEntry } from "./torre-data";
+import { type Symptom, type ProdEntry } from "./torre-data";
+import { getTorre } from "./module-i18n";
+import { useLang } from "./useLang";
 
 // ============================================================
 // Torre de Control — explorador nativo de síntomas.
@@ -33,12 +35,143 @@ const STEP_ICON: Record<string, React.ReactNode> = {
 };
 
 const STEP_META = [
-  { key: "see", label: "Ver", tint: "text-blue-600 bg-blue-50" },
-  { key: "understand", label: "Entender", tint: "text-blue-600 bg-blue-50" },
-  { key: "act", label: "Actuar", tint: "text-green-600 bg-green-50" },
-  { key: "solve", label: "Resolver", tint: "text-amber-600 bg-amber-50" },
-  { key: "improve", label: "Mejorar", tint: "text-rose-600 bg-rose-50" },
+  { key: "see", tint: "text-blue-600 bg-blue-50" },
+  { key: "understand", tint: "text-blue-600 bg-blue-50" },
+  { key: "act", tint: "text-green-600 bg-green-50" },
+  { key: "solve", tint: "text-amber-600 bg-amber-50" },
+  { key: "improve", tint: "text-rose-600 bg-rose-50" },
 ] as const;
+
+// Diccionario trilingüe de strings de UI (los datos ya vienen traducidos por getTorre).
+const UI = {
+  es: {
+    // Pasos Ver→Entender→Actuar→Resolver→Mejorar
+    see: "Ver",
+    understand: "Entender",
+    act: "Actuar",
+    solve: "Resolver",
+    improve: "Mejorar",
+    // Encabezado
+    towerEyebrow: "Torre de control",
+    headlineSuffix: "síntomas, una misma inteligencia",
+    lede: "Cada síntoma se ve, se entiende, se actúa, se resuelve y se mejora. Explora el catálogo real de detección:",
+    haveRealData: "tienen datos de una operación real",
+    // Controles
+    allFilter: "Todas",
+    searchPlaceholder: "Buscar síntoma…",
+    realBadge: "Real",
+    noResults: "Sin síntomas para ese filtro.",
+    // Modal de detalle
+    realDataBadge: "Datos reales",
+    close: "Cerrar",
+    riskLabel: "Riesgo · ",
+    crossedEntities: "Entidades que cruza",
+    evidence: "Evidencia",
+    realOperation: "Operación real · ",
+    trips: "viajes",
+    symptomsDetected: "Síntomas detectados",
+    manageable: "Gestionables",
+    ofTotal: "del total",
+    withTreatment: "Con tratamiento",
+    ofManageable: "de los gestionables",
+    invalidated: "Se invalidan",
+    closeNotResolve: "cerrar ≠ resolver",
+    drivers: "Conductores",
+    carriers: "Transportistas",
+    blackCode: "Código negro",
+    maxSeverity: "severidad máxima",
+    slaP50: "SLA gestión p50",
+    dailyDetection: "Detección diaria",
+    legendTotal: "total",
+    legendBlackCode: "código negro",
+    topRoutes: "Top rutas",
+    topCarriers: "Top transportistas",
+    notConnected:
+      "Este síntoma está desplegado en la plataforma; el dashboard con datos reales se activa al conectar tu operación.",
+  },
+  en: {
+    see: "See",
+    understand: "Understand",
+    act: "Act",
+    solve: "Resolve",
+    improve: "Improve",
+    towerEyebrow: "Control tower",
+    headlineSuffix: "symptoms, one shared intelligence",
+    lede: "Every symptom is seen, understood, acted on, resolved and improved. Explore the real detection catalog:",
+    haveRealData: "have data from a real operation",
+    allFilter: "All",
+    searchPlaceholder: "Search symptom…",
+    realBadge: "Real",
+    noResults: "No symptoms for that filter.",
+    realDataBadge: "Real data",
+    close: "Close",
+    riskLabel: "Risk · ",
+    crossedEntities: "Entities it crosses",
+    evidence: "Evidence",
+    realOperation: "Real operation · ",
+    trips: "trips",
+    symptomsDetected: "Symptoms detected",
+    manageable: "Manageable",
+    ofTotal: "of total",
+    withTreatment: "With treatment",
+    ofManageable: "of manageable",
+    invalidated: "Invalidated",
+    closeNotResolve: "close ≠ resolve",
+    drivers: "Drivers",
+    carriers: "Carriers",
+    blackCode: "Black code",
+    maxSeverity: "max severity",
+    slaP50: "Handling SLA p50",
+    dailyDetection: "Daily detection",
+    legendTotal: "total",
+    legendBlackCode: "black code",
+    topRoutes: "Top routes",
+    topCarriers: "Top carriers",
+    notConnected:
+      "This symptom is deployed on the platform; the dashboard with real data activates when you connect your operation.",
+  },
+  pt: {
+    see: "Ver",
+    understand: "Entender",
+    act: "Atuar",
+    solve: "Resolver",
+    improve: "Melhorar",
+    towerEyebrow: "Torre de controle",
+    headlineSuffix: "sintomas, uma mesma inteligência",
+    lede: "Cada sintoma se vê, se entende, se atua, se resolve e se melhora. Explore o catálogo real de detecção:",
+    haveRealData: "têm dados de uma operação real",
+    allFilter: "Todas",
+    searchPlaceholder: "Buscar sintoma…",
+    realBadge: "Real",
+    noResults: "Nenhum sintoma para esse filtro.",
+    realDataBadge: "Dados reais",
+    close: "Fechar",
+    riskLabel: "Risco · ",
+    crossedEntities: "Entidades que cruza",
+    evidence: "Evidência",
+    realOperation: "Operação real · ",
+    trips: "viagens",
+    symptomsDetected: "Sintomas detectados",
+    manageable: "Gerenciáveis",
+    ofTotal: "do total",
+    withTreatment: "Com tratamento",
+    ofManageable: "dos gerenciáveis",
+    invalidated: "São invalidados",
+    closeNotResolve: "fechar ≠ resolver",
+    drivers: "Motoristas",
+    carriers: "Transportadoras",
+    blackCode: "Código preto",
+    maxSeverity: "severidade máxima",
+    slaP50: "SLA de gestão p50",
+    dailyDetection: "Detecção diária",
+    legendTotal: "total",
+    legendBlackCode: "código preto",
+    topRoutes: "Top rotas",
+    topCarriers: "Top transportadoras",
+    notConnected:
+      "Este sintoma está implantado na plataforma; o painel com dados reais é ativado ao conectar sua operação.",
+  },
+} as const;
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
@@ -105,6 +238,9 @@ function DimBars({ title, rows }: { title: string; rows: ProdEntry["route"] }) {
 }
 
 function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
+  const lang = useLang();
+  const { FAMILIES, META, PRODDATA } = getTorre(lang);
+  const t = UI[(lang as "es" | "en" | "pt")] ?? UI.es;
   const data: ProdEntry | undefined = PRODDATA[s.technicalName];
   const k = data?.kpis;
   return (
@@ -121,7 +257,7 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
               <span className="text-xs font-medium text-gray-500">{FAMILIES[s.family]}</span>
               {data && (
                 <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-700">
-                  Datos reales
+                  {t.realDataBadge}
                 </span>
               )}
             </div>
@@ -130,7 +266,7 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
           </div>
           <button
             onClick={onClose}
-            aria-label="Cerrar"
+            aria-label={t.close}
             className="shrink-0 rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
@@ -142,7 +278,7 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
         <div className="space-y-8 p-6">
           {/* Riesgo */}
           <p className="rounded-lg border-l-4 border-rose-500 bg-rose-50 px-4 py-3 text-sm text-gray-700">
-            <span className="font-semibold text-rose-700">Riesgo · </span>{s.risk}
+            <span className="font-semibold text-rose-700">{t.riskLabel}</span>{s.risk}
           </p>
 
           {/* Modelo 5 pasos */}
@@ -155,7 +291,7 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
                   </svg>
                 </span>
                 <div>
-                  <p className="text-sm font-bold text-gray-950">{st.label}</p>
+                  <p className="text-sm font-bold text-gray-950">{t[st.key]}</p>
                   <p className="text-sm leading-relaxed text-gray-600">{s[st.key as keyof Symptom] as string}</p>
                 </div>
               </div>
@@ -165,12 +301,12 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
           {/* Entidades + evidencia */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Entidades que cruza</p>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">{t.crossedEntities}</p>
               <div className="flex flex-wrap gap-1.5">{s.entities.map((e) => <Chip key={e}>{e}</Chip>)}</div>
             </div>
             {s.evidence && (
               <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Evidencia</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">{t.evidence}</p>
                 <div className="flex flex-wrap gap-1.5">{s.evidence.map((e) => <Chip key={e}>{e}</Chip>)}</div>
               </div>
             )}
@@ -180,43 +316,43 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
           {data && k && (
             <div className="space-y-5 rounded-xl border border-gray-200 bg-gray-50/60 p-5">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-bold text-gray-950">Operación real · {META.month}</p>
-                <span className="text-[11px] text-gray-400">{META.total_trips.toLocaleString("es-CL")} viajes</span>
+                <p className="text-sm font-bold text-gray-950">{t.realOperation}{META.month}</p>
+                <span className="text-[11px] text-gray-400">{META.total_trips.toLocaleString("es-CL")} {t.trips}</span>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Stat label="Síntomas detectados" value={fmtN(k.total)} />
-                <Stat label="Gestionables" value={fmtN(k.gestionables)} sub={`${pct(k.gestionables, k.total)}% del total`} />
-                <Stat label="Con tratamiento" value={`${pct(k.con_tratamiento, k.gestionables)}%`} sub="de los gestionables" />
-                <Stat label="Se invalidan" value={`${pct(k.invalidados, k.con_tratamiento)}%`} sub="cerrar ≠ resolver" />
+                <Stat label={t.symptomsDetected} value={fmtN(k.total)} />
+                <Stat label={t.manageable} value={fmtN(k.gestionables)} sub={`${pct(k.gestionables, k.total)}% ${t.ofTotal}`} />
+                <Stat label={t.withTreatment} value={`${pct(k.con_tratamiento, k.gestionables)}%`} sub={t.ofManageable} />
+                <Stat label={t.invalidated} value={`${pct(k.invalidados, k.con_tratamiento)}%`} sub={t.closeNotResolve} />
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Stat label="Conductores" value={fmtN(k.conductores)} />
-                <Stat label="Transportistas" value={fmtN(k.transportistas)} />
-                <Stat label="Código negro" value={fmtN(k.blackcode)} sub="severidad máxima" />
-                <Stat label="SLA gestión p50" value={k.sla_p50_min != null ? `${k.sla_p50_min}m` : "—"} sub={k.sla_p90_min != null ? `p90 ${k.sla_p90_min}m` : undefined} />
+                <Stat label={t.drivers} value={fmtN(k.conductores)} />
+                <Stat label={t.carriers} value={fmtN(k.transportistas)} />
+                <Stat label={t.blackCode} value={fmtN(k.blackcode)} sub={t.maxSeverity} />
+                <Stat label={t.slaP50} value={k.sla_p50_min != null ? `${k.sla_p50_min}m` : "—"} sub={k.sla_p90_min != null ? `p90 ${k.sla_p90_min}m` : undefined} />
               </div>
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Detección diaria</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-gray-400">{t.dailyDetection}</p>
                   <span className="flex items-center gap-3 text-[11px] text-gray-400">
-                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-blue-500/80" />total</span>
-                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-rose-500" />código negro</span>
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-blue-500/80" />{t.legendTotal}</span>
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-rose-500" />{t.legendBlackCode}</span>
                   </span>
                 </div>
                 <DailyChart daily={data.daily} />
               </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
-                <DimBars title="Top rutas" rows={data.route} />
-                <DimBars title="Top transportistas" rows={data.carrier} />
+                <DimBars title={t.topRoutes} rows={data.route} />
+                <DimBars title={t.topCarriers} rows={data.carrier} />
               </div>
             </div>
           )}
 
           {!data && (
             <p className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-              Este síntoma está desplegado en la plataforma; el dashboard con datos reales se activa al conectar tu operación.
+              {t.notConnected}
             </p>
           )}
         </div>
@@ -226,6 +362,10 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
 }
 
 export default function TorreDeControl() {
+  const lang = useLang();
+  const { FAMILIES, SYMPTOMS, META, PRODDATA } = getTorre(lang);
+  const t = UI[(lang as "es" | "en" | "pt")] ?? UI.es;
+
   const [fam, setFam] = useState<number | "all">("all");
   const [query, setQuery] = useState("");
   const [sel, setSel] = useState<Symptom | null>(null);
@@ -233,13 +373,13 @@ export default function TorreDeControl() {
   const counts = useMemo(() => {
     const c = FAMILIES.map((_, i) => SYMPTOMS.filter((s) => s.family === i).length);
     return c;
-  }, []);
+  }, [FAMILIES, SYMPTOMS]);
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return SYMPTOMS.filter((s) => (fam === "all" || s.family === fam) &&
       (!q || s.name.toLowerCase().includes(q) || s.technicalName.toLowerCase().includes(q)));
-  }, [fam, query]);
+  }, [SYMPTOMS, fam, query]);
 
   const withData = SYMPTOMS.filter((s) => PRODDATA[s.technicalName]).length;
 
@@ -247,13 +387,13 @@ export default function TorreDeControl() {
     <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
       {/* Encabezado */}
       <div className="max-w-3xl">
-        <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-blue-600">Torre de control</p>
+        <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-blue-600">{t.towerEyebrow}</p>
         <h1 className="text-4xl font-extrabold tracking-tight text-gray-950 sm:text-5xl">
-          {SYMPTOMS.length} síntomas, una misma inteligencia
+          {SYMPTOMS.length} {t.headlineSuffix}
         </h1>
         <p className="mt-6 text-lg leading-relaxed text-gray-600">
-          Cada síntoma se ve, se entiende, se actúa, se resuelve y se mejora. Explora el catálogo real de detección:
-          {" "}<span className="font-semibold text-gray-950">{withData} tienen datos de una operación real</span> ({META.month}).
+          {t.lede}
+          {" "}<span className="font-semibold text-gray-950">{withData} {t.haveRealData}</span> ({META.month}).
         </p>
         <p className="mt-2 font-mono text-xs text-gray-400">{META.source}</p>
       </div>
@@ -266,7 +406,7 @@ export default function TorreDeControl() {
             fam === "all" ? "border-gray-950 bg-gray-950 text-white" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
           }`}
         >
-          Todas <span className="opacity-60">{SYMPTOMS.length}</span>
+          {t.allFilter} <span className="opacity-60">{SYMPTOMS.length}</span>
         </button>
         {FAMILIES.map((f, i) => (
           <button
@@ -286,7 +426,7 @@ export default function TorreDeControl() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar síntoma…"
+          placeholder={t.searchPlaceholder}
           className="w-full max-w-sm rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
         />
       </div>
@@ -308,7 +448,7 @@ export default function TorreDeControl() {
                 </span>
                 {data && (
                   <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-700">
-                    Real
+                    {t.realBadge}
                   </span>
                 )}
               </div>
@@ -326,7 +466,7 @@ export default function TorreDeControl() {
       </div>
 
       {shown.length === 0 && (
-        <p className="mt-10 text-center text-gray-500">Sin síntomas para ese filtro.</p>
+        <p className="mt-10 text-center text-gray-500">{t.noResults}</p>
       )}
 
       {sel && <DetailModal s={sel} onClose={() => setSel(null)} />}

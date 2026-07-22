@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Nav from "../../../../components/v2/Nav";
 import ContactForm from "../../../../components/v2/ContactForm";
-import { Footer } from "../../../../components/v2/Sections";
+import { Footer } from "../../../../components/v2/sections/Footer";
 
 export const metadata: Metadata = {
   title: "Contacto — ModularIoT",

@@ -8,17 +8,17 @@ export function UseCases({ lang }: { lang: string }) {
   return (
     <Section id="casos-de-uso" tone="gray">
       <SectionHeader kicker={c.kicker} title={c.title} subtitle={c.subtitle} />
-      <div className="mt-16 grid gap-6 md:grid-cols-2">
+      <div className="mt-10 grid gap-6 md:grid-cols-2">
         {c.cards.map((card, i) => (
           <Reveal key={card.id} delay={i * 0.08} className="group flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md">
             <div className="overflow-hidden">
-              <div className="transition-transform duration-500 group-hover:scale-[1.03]">
+              <div className="transition-transform duration-500">
                 <ConceptGraphic id={card.id} />
               </div>
             </div>
-            <div className="flex-1 p-8">
+            <div className="flex-1 p-6">
               <h3 className="text-xl font-bold text-gray-950">{card.title}</h3>
-              <p className="mt-3 leading-relaxed text-gray-600">{card.body}</p>
+              <p className="leading-relaxed text-gray-600">{card.body}</p>
               <ul className="mt-5 space-y-2">
                 {card.bullets.map((b) => (
                   <li key={b} className="flex items-start gap-2 text-sm text-gray-700">

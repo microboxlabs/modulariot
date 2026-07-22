@@ -78,6 +78,14 @@
     font-feature-settings: "cv02", "cv03", "cv11";
     -webkit-font-smoothing: antialiased;
   }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
 }
 
 @layer utilities {

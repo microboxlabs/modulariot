@@ -176,9 +176,9 @@ export const content = {
   // Demostración paso a paso (estilo luuk.cl): el pipeline real convertido en una
   // historia de 5 pasos, de la señal cruda a la evidencia auditable.
   steps: {
-    kicker: "Cómo funciona en la práctica",
-    title: "De una señal cruda a una decisión, en menos de un segundo",
-    subtitle: "El mismo evento que ves en el flujo en vivo, contado paso a paso.",
+    kicker: "En la práctica",
+    title: "Transforma una señal cruda en una decisión auditable",
+    subtitle: "Sigue el flujo de tus alertas, paso a paso.",
     items: [
       {
         n: "01",
@@ -287,28 +287,28 @@ export const content = {
         id: "ingesta",
         icon: "signal",
         title: "Ingesta GPS Core",
-        body: "Cada ping GPS, señal de sensor y evento del conductor fluye a tus sistemas en milisegundos. API de última señal, tracking AVL y captura de cambios hacia tus sistemas.",
+        body: "Cada ping GPS, señal de sensor y evento del conductor fluye a tus sistemas en milisegundos.",
         bullets: ["API de última señal por activo", "Tracking AVL en tiempo real", "CDC hacia tus sistemas downstream"],
       },
       {
         id: "sintomas",
         icon: "radar",
         title: "Síntomas / Torre de Control",
-        body: "Más de 30 reglas de detección: velocidad por tramo, conducción continua, zonas de riesgo, fatiga, telemetría mecánica. Cada evento con severidad, responsable y trazabilidad completa.",
+        body: "Más de 30 reglas de detección: velocidad por tramo, conducción continua, zonas de riesgo, fatiga, telemetría mecánica.",
         bullets: ["Severidad y responsable automáticos", "Ciclo de vida: abrir → tratar → cerrar", "Exclusión inteligente de ruido"],
       },
       {
         id: "integraciones",
         icon: "plug",
         title: "Integraciones",
-        body: "Automatización de flujos con n8n, gestor documental para evidencia, API gateway y webhooks. Tu operación conectada con los sistemas que ya usas.",
+        body: "Automatización con n8n, gestor documental para evidencia, API gateway y webhooks. Tu operación conectada con los sistemas que ya usas.",
         bullets: ["Workflows y webhooks (n8n)", "Bóveda de evidencia documental", "APIs y gateway para tus sistemas"],
       },
       {
         id: "video",
         icon: "video",
         title: "Video en Vivo / HLS",
-        body: "Streams de video continuos de 24 horas desde las cámaras a bordo de tus activos. Contexto visual para cada evento detectado.",
+        body: "Streams de video continuos de 24 horas desde las cámaras a bordo de tus activos como referencia visual para cada evento detectado.",
         bullets: ["Streaming HLS 24h continuo", "Frames desde cámaras y dashcams", "Contexto visual de cada alerta"],
       },
     ],

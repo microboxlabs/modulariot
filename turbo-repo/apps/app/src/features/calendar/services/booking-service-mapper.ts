@@ -85,6 +85,17 @@ export interface MappedBooking {
 }
 
 /**
+ * Recover the service-type suffix from the canonical `${code}-${type}` resource
+ * id — the same rule the bookings BFF uses (`binding-extractor.ts`
+ * `serviceTypeFromResourceId`). `undefined` when the id has no `-` suffix, so
+ * the optional field stays unset rather than becoming "".
+ */
+function serviceTypeFromResourceId(id: string): string | undefined {
+  const dash = id.lastIndexOf("-");
+  return dash >= 0 ? id.slice(dash + 1) || undefined : undefined;
+}
+
+/**
  * Canonical booking → planned-service transform.
  *
  * Shared by the grid loader and the calendar search on purpose: if search
@@ -128,6 +139,13 @@ export function mapBookingToPlannedService(
     // legacy bookings written before mintral_serviceCode was persisted.
     mintral_serviceCode:
       storedService.mintral_serviceCode ?? booking.resource.id.split("-")[0],
+    // Recover the type suffix the same way. ECM-written booking rows don't
+    // persist mintral_serviceType, and without it a task-driven assign silently
+    // downgrades to the legacy GET-endTask path — dropping the assigned tuple
+    // and never pushing to Alerce (booking sync_status stays null).
+    mintral_serviceType:
+      storedService.mintral_serviceType ??
+      serviceTypeFromResourceId(booking.resource.id),
   };
 
   // Terminal stages ride the booking row itself (ECM writes the status);

@@ -4,7 +4,6 @@ import com.microboxlabs.miot.core.api.dto.AuthorizationCheckRequest;
 import com.microboxlabs.miot.core.api.dto.AuthorizationDecisionDto;
 import com.microboxlabs.miot.core.api.dto.OrganizationPermissionDto;
 import com.microboxlabs.miot.core.api.dto.SetOrganizationPermissionRequest;
-import com.microboxlabs.miot.core.auth.WriteAuthorizer;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.model.OrganizationPermissionSetting;
 import com.microboxlabs.miot.core.model.OrganizationRoleAssignment;
@@ -27,11 +26,11 @@ import java.util.Set;
 @ApplicationScoped
 public class OrganizationPermissionService {
 
-    private final WriteAuthorizer writeAuthorizer;
+    private final OrganizationRoleService roleService;
 
     @Inject
-    public OrganizationPermissionService(WriteAuthorizer writeAuthorizer) {
-        this.writeAuthorizer = writeAuthorizer;
+    public OrganizationPermissionService(OrganizationRoleService roleService) {
+        this.roleService = roleService;
     }
 
     public Uni<OrganizationPermissionDto> get(
@@ -39,7 +38,8 @@ public class OrganizationPermissionService {
         OrganizationPermissionDefinition permission =
                 OrganizationPermissionDefinition.fromCode(permissionCode);
         return Panache.withSession(() -> findOrganization(organizationSlug)
-                .flatMap(org -> loadDto(org.id, permission)));
+                .flatMap(org -> roleService.requireOwner(org)
+                        .flatMap(ignored -> loadDto(org.id, permission))));
     }
 
     public Uni<OrganizationPermissionDto> replace(
@@ -75,7 +75,7 @@ public class OrganizationPermissionService {
 
     private Uni<Long> authorizeAndResolve(String organizationSlug) {
         return Panache.withSession(() -> findOrganization(organizationSlug)
-                .flatMap(org -> writeAuthorizer.requireParentSiteManager(org)
+                .flatMap(org -> roleService.requireOwner(org)
                         .replaceWith(org.id)));
     }
 

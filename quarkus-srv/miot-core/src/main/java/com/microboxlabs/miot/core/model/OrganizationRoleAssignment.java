@@ -11,7 +11,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
 
-/** A role granted to an Alfresco person within an organization. */
+/** An application role granted to an external subject within an organization. */
 @Entity
 @Table(name = "organization_role_assignments", schema = "miot_core")
 public class OrganizationRoleAssignment extends PanacheEntityBase {
@@ -29,6 +29,16 @@ public class OrganizationRoleAssignment extends PanacheEntityBase {
     public static Uni<List<OrganizationRoleAssignment>> findAssignments(
             Long organizationId, String roleCode) {
         return find("id.organizationId = ?1 and id.roleCode = ?2", organizationId, roleCode).list();
+    }
+
+    public static Uni<Boolean> hasAssignment(
+            Long organizationId, String roleCode, String personId) {
+        return count(
+                "id.organizationId = ?1 and id.roleCode = ?2 and id.personId = ?3",
+                organizationId,
+                roleCode,
+                personId)
+                .map(count -> count > 0);
     }
 
     @Embeddable

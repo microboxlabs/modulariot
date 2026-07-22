@@ -16,11 +16,7 @@ describe("content review permission data service", () => {
     enabled: true,
     permissionCode: "CONTENT_MULTIMEDIA_REVIEW_AUTO_APPROVE",
     roleCode: "CONTENT_REVIEW_AUTO_APPROVER",
-    alfrescoGroupId: "GROUP_MINTRAL_AUTO_APPROVERS_77856310K",
     assigneeIds: ["reviewer@example.com"],
-    projectionStatus: "SYNCED",
-    projectionError: null,
-    projectedAt: "2026-07-21T12:00:00Z",
   };
 
   it("loads the organization-scoped setting", async () => {
@@ -30,7 +26,7 @@ describe("content review permission data service", () => {
       response
     );
     expect(fetchMock).toHaveBeenCalledWith(
-      "/app/api/admin/orgs/acme%20chile/permissions/content-review-auto-approval"
+      "/app/api/admin/orgs/acme%20chile/permissions/CONTENT_MULTIMEDIA_REVIEW_AUTO_APPROVE"
     );
   });
 
@@ -43,7 +39,7 @@ describe("content review permission data service", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/app/api/admin/orgs/acme/permissions/content-review-auto-approval",
+      "/app/api/admin/orgs/acme/permissions/CONTENT_MULTIMEDIA_REVIEW_AUTO_APPROVE",
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },

@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  HiCheckCircle,
-  HiExclamationCircle,
   HiLockClosed,
   HiSearch,
   HiShieldCheck,
@@ -88,8 +86,7 @@ export default function ContentReviewPermissionCard({
   );
   const hasChanges =
     permission != null &&
-    (permission.projectionStatus === "FAILED" ||
-      enabled !== permission.enabled ||
+    (enabled !== permission.enabled ||
       assigneeIds.size !== permission.assigneeIds.length ||
       permission.assigneeIds.some((personId) => !assigneeIds.has(personId)));
 
@@ -290,19 +287,6 @@ export default function ContentReviewPermissionCard({
 
             <div className="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                {permission?.projectionStatus === "FAILED" && (
-                  <p className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
-                    <HiExclamationCircle className="h-4 w-4 shrink-0" />
-                    {tr("projectionFailed", permissionDict)}
-                  </p>
-                )}
-                {permission?.projectionStatus === "SYNCED" &&
-                  permission.projectedAt && (
-                    <p className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300">
-                      <HiCheckCircle className="h-4 w-4 shrink-0" />
-                      {tr("projectionSynced", permissionDict)}
-                    </p>
-                  )}
                 {saveError && (
                   <p className="text-sm text-red-600 dark:text-red-400">
                     {tr("saveError", permissionDict)}

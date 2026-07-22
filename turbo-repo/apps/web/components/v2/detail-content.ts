@@ -44,38 +44,15 @@ export const detailPages: Record<string, DetailPageData> = {
         ],
       },
       {
-        type: "code",
-        kicker: "Así se ve",
-        title: "Configura el pipeline en minutos",
-        cards: [
-          {
-            title: "Pipeline de ingesta",
-            code: `const pipeline = new StreamProcessor({
-  source: 'fleet-telemetry',
-  processors: [
-    new GPSProcessor(),
-    new SensorProcessor(),
-    new EventProcessor()
-  ],
-  sink: 'your-cloud-storage',
-  latency: '< 56ms'
-});
-
-pipeline.start();`,
-          },
-          {
-            title: "Última señal por activo",
-            code: `GET /api/v1/lastsignal/{assetId}
-
-{
-  "assetId": "TRK-48210",
-  "lat": -33.4489,
-  "lng": -70.6693,
-  "speed": 62,
-  "ts": "2026-07-02T14:02:11Z",
-  "source": "your-postgres"
-}`,
-          },
+        type: "steps",
+        kicker: "Cómo funciona",
+        title: "De la señal a tu base de datos, en tiempo real",
+        subtitle: "Sin polling ni trabajos batch: cada señal fluye y aterriza lista para consultar.",
+        steps: [
+          { n: "01", title: "Llega la señal", body: "GPS, sensores y eventos de cualquier hardware entran de forma continua, sin esperar." },
+          { n: "02", title: "Se procesa al instante", body: "Cada señal se normaliza y evalúa con latencia mediana bajo 56 ms." },
+          { n: "03", title: "Aterriza en tu nube", body: "Los datos quedan en tu propia base de datos: soberanía completa, cumplimiento sin esfuerzo." },
+          { n: "04", title: "Consultas cuando quieras", body: "Última posición y estado de cada activo por API abierta o consulta directa a la base." },
         ],
       },
     ],
@@ -225,37 +202,17 @@ pipeline.start();`,
       "Todo lo que necesitas para procesar, analizar y actuar sobre datos de flota en tiempo real, sobre una arquitectura abierta que controlas tú.",
     blocks: [
       {
-        type: "code",
+        type: "split",
         kicker: "Streaming",
-        title: "Pipeline de transmisión en tiempo real",
-        subtitle: "Procesa cada señal a medida que llega, con latencia subsegundo.",
-        cards: [
-          {
-            title: "StreamProcessor",
-            code: `const pipeline = new StreamProcessor({
-  source: 'fleet-telemetry',
-  processors: [
-    new GPSProcessor(),
-    new SensorProcessor(),
-    new EventProcessor()
-  ],
-  sink: 'your-cloud-storage',
-  latency: '< 56ms'
-});
-pipeline.start();`,
-          },
-          {
-            title: "Alertas por síntomas",
-            code: `const alertRules = {
-  driverFatigue: {
-    triggers: ['eye_closure > 3s',
-               'lane_deviation > 2'],
-    actions: ['sms_supervisor'],
-    priority: 'critical'
-  }
-};
-AlertManager.configure(alertRules);`,
-          },
+        title: "Procesa cada señal a medida que llega",
+        body:
+          "El motor evalúa la telemetría en tiempo real contra las reglas de tu operación. Cuando algo se desvía, dispara la acción —notificar, escalar, registrar— con latencia subsegundo. Todo configurable, sin escribir código.",
+        bullets: [
+          "Una fuente: toda la telemetría de la flota en un solo flujo",
+          "Reglas por síntoma: fatiga, exceso de velocidad, zonas y más",
+          "Acciones automáticas: SMS al supervisor, con evidencia guardada",
+          "Prioridad y severidad por regla, ajustadas a tu operación",
+          "Latencia mediana extremo a extremo bajo 56 ms",
         ],
       },
       {
@@ -412,6 +369,17 @@ AlertManager.configure(alertRules);`,
           { title: "GitHub", body: "Plataforma de código abierto bajo licencia Apache-2.0. Explora, contribuye, danos una estrella.", href: "https://github.com/microboxlabs", external: true },
           { title: "MicroBox Labs", body: "Conoce a la empresa detrás de ModularIoT y el resto del portafolio.", href: "https://microboxlabs.com", external: true },
           { title: "Hablar con nosotros", body: "Agenda un diagnóstico gratuito de 30 minutos para tu operación.", href: "/#contacto" },
+        ],
+      },
+      {
+        type: "grid",
+        kicker: "Blog",
+        title: "Novedades y notas técnicas",
+        subtitle: "Próximamente: artículos, casos y aprendizajes de operaciones reales. Mientras tanto, la documentación y los casos ya están disponibles.",
+        cards: [
+          { icon: "radar", title: "Cómo funciona la Torre de Control", body: "Un recorrido por las reglas que convierten señales en decisiones." },
+          { icon: "chart", title: "Los 36 síntomas, explicados", body: "Qué detecta cada regla y por qué importa para tu operación." },
+          { icon: "shield", title: "Tus datos, tu nube", body: "Cómo funciona la plataforma sin vendor lock-in, con soberanía completa." },
         ],
       },
     ],

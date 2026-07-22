@@ -11,7 +11,7 @@ const inter = Inter({
 export const metadata = {
   title: "ModularIoT — De detectar desviaciones a reducirlas",
   description:
-    "Convertimos cada señal de tu flota en menos desviaciones repetidas. El pipeline, los datos y las decisiones son tuyos.",
+    "Convertimos cada señal de tu flota en menos desviaciones repetidas. Los datos y las decisiones son tuyos.",
   robots: { index: false, follow: false },
 };
 
@@ -48,7 +48,7 @@ export default function ComingSoon() {
 
             <p className="mx-auto mt-6 max-w-lg text-lg leading-relaxed text-gray-300">
               No vendemos más alertas: convertimos cada señal de tu flota en menos problemas repetidos.
-              El pipeline, los datos y las decisiones son tuyos.
+              Los datos y las decisiones son tuyos.
             </p>
 
             <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">

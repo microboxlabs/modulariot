@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { SYMPTOMS } from "./torre-data";
-import { ENTITY_DATA, type Entity } from "./torre-modules-data";
+import { getTorre, getModules } from "./module-i18n";
+import { type Entity } from "./torre-modules-data";
+import { useLang } from "./useLang";
 
 // ============================================================
 // Acto 3 · Canales de escalamiento — la misma inteligencia, en el canal
@@ -12,29 +13,198 @@ import { ENTITY_DATA, type Entity } from "./torre-modules-data";
 
 const fmt = (n: number) => n.toLocaleString("es-CL");
 const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
-const byTech = Object.fromEntries(SYMPTOMS.map((s) => [s.technicalName, s]));
-const nice = (t: string) => byTech[t]?.name || t;
+
+// Diccionario trilingüe de strings de UI (es/en/pt). Los valores de datos
+// (nombres de síntomas, planes, dueños, entidades) los provee el resolver por idioma.
+const UI = {
+  es: {
+    transportista: "Transportista",
+    conductor: "Conductor",
+    riesgoAlto: "Alto",
+    riesgoMedio: "Medio",
+    riesgoBajo: "Bajo",
+    planFallback: "Corrección estructural",
+    ownerFallback: "Operaciones",
+    cuando: "Cuándo:",
+    nivel: "Nivel",
+    riesgo: "Riesgo",
+    foco: "Foco",
+    focoLabel: "Foco:",
+    planLabel: "Plan:",
+    base: "Base",
+    sintomas: "síntomas",
+    verPerfil: "Ver perfil",
+    asignarPlan: "Asignar plan",
+    alerta: "Alerta",
+    emailSender: "ModularIoT · Torre de Control",
+    codigoNegro: "código negro",
+    nivelOper: "nivel oper.",
+    emailResumenPre: "Resumen operacional de",
+    emailResumenPost: "— junio 2026:",
+    focoMesLabel: "Foco del mes:",
+    planAsignadoLabel: "Plan asignado:",
+    duenoLabel: "dueño",
+    verSuperProfileCompleto: "Ver SuperProfile completo →",
+    waTitle: "ModularIoT Torre",
+    enLinea: "en línea",
+    teamsChannel: "ModularIoT · canal Torre Mintral",
+    webexSpace: "Webex · espacio «Torre ↔ Mintral»",
+    webexAlerta: "Alerta SuperProfile —",
+    abrirSuperProfile: "Abrir SuperProfile",
+    mensajes: "Mensajes · ModularIoT",
+    codNegroShort: "Cód.negro",
+    verLink: "Ver mdl.io/sp",
+    entregado: "Entregado",
+    eyebrow: "Acto 3 · Canales de escalamiento",
+    heading: "La misma inteligencia, en el canal donde vive la operación",
+    introPre: "El SuperProfile no se queda en una pantalla. La misma alerta —",
+    introBold: "nivel, riesgo, foco y plan",
+    introPost:
+      "— se entrega donde cada actor ya trabaja: correo, WhatsApp, Teams, Webex y SMS. Elige una entidad y mira cómo se ve en cada canal.",
+    transportistas: "Transportistas",
+    conductores: "Conductores",
+    tagCorreo: "Correo electrónico",
+    capCorreo: "resumen y gestión para la Torre y jefaturas.",
+    capWhatsApp: "alerta directa al conductor o transportista en terreno.",
+    capTeams: "flujo interno de la Torre (Entra ID), con acciones inline.",
+    capWebex: "colaboración con el mandante o cliente en su espacio.",
+    capSms: "respaldo sin datos ni app — llega incluso en zonas ciegas.",
+    elPunto: "El punto",
+    puntoPre:
+      "Un solo motor de reglas, cinco canales. La notificación no es genérica: nace del SuperProfile y lleva el",
+    puntoBold: "plan y el dueño",
+    puntoPost:
+      ", para que comunicar sea el primer paso de la gestión — no solo un aviso.",
+  },
+  en: {
+    transportista: "Carrier",
+    conductor: "Driver",
+    riesgoAlto: "High",
+    riesgoMedio: "Medium",
+    riesgoBajo: "Low",
+    planFallback: "Structural correction",
+    ownerFallback: "Operations",
+    cuando: "When:",
+    nivel: "Level",
+    riesgo: "Risk",
+    foco: "Focus",
+    focoLabel: "Focus:",
+    planLabel: "Plan:",
+    base: "Base",
+    sintomas: "symptoms",
+    verPerfil: "View profile",
+    asignarPlan: "Assign plan",
+    alerta: "Alert",
+    emailSender: "ModularIoT · Control Tower",
+    codigoNegro: "black code",
+    nivelOper: "oper. level",
+    emailResumenPre: "Operational summary of",
+    emailResumenPost: "— June 2026:",
+    focoMesLabel: "Focus of the month:",
+    planAsignadoLabel: "Assigned plan:",
+    duenoLabel: "owner",
+    verSuperProfileCompleto: "View full SuperProfile →",
+    waTitle: "ModularIoT Tower",
+    enLinea: "online",
+    teamsChannel: "ModularIoT · Torre Mintral channel",
+    webexSpace: "Webex · «Torre ↔ Mintral» space",
+    webexAlerta: "SuperProfile alert —",
+    abrirSuperProfile: "Open SuperProfile",
+    mensajes: "Messages · ModularIoT",
+    codNegroShort: "Black code",
+    verLink: "View mdl.io/sp",
+    entregado: "Delivered",
+    eyebrow: "Act 3 · Escalation channels",
+    heading: "The same intelligence, in the channel where operations live",
+    introPre: "The SuperProfile doesn't stay on a screen. The same alert —",
+    introBold: "level, risk, focus and plan",
+    introPost:
+      "— is delivered where each actor already works: email, WhatsApp, Teams, Webex and SMS. Pick an entity and see how it looks in each channel.",
+    transportistas: "Carriers",
+    conductores: "Drivers",
+    tagCorreo: "Email",
+    capCorreo: "summary and management for the Tower and leadership.",
+    capWhatsApp: "direct alert to the driver or carrier in the field.",
+    capTeams: "internal Tower flow (Entra ID), with inline actions.",
+    capWebex: "collaboration with the principal or client in their space.",
+    capSms: "backup with no data or app — arrives even in blind spots.",
+    elPunto: "The point",
+    puntoPre:
+      "A single rules engine, five channels. The notification isn't generic: it's born from the SuperProfile and carries the",
+    puntoBold: "plan and the owner",
+    puntoPost:
+      ", so that communicating becomes the first step of management — not just a notice.",
+  },
+  pt: {
+    transportista: "Transportadora",
+    conductor: "Motorista",
+    riesgoAlto: "Alto",
+    riesgoMedio: "Médio",
+    riesgoBajo: "Baixo",
+    planFallback: "Correção estrutural",
+    ownerFallback: "Operações",
+    cuando: "Quando:",
+    nivel: "Nível",
+    riesgo: "Risco",
+    foco: "Foco",
+    focoLabel: "Foco:",
+    planLabel: "Plano:",
+    base: "Base",
+    sintomas: "sintomas",
+    verPerfil: "Ver perfil",
+    asignarPlan: "Atribuir plano",
+    alerta: "Alerta",
+    emailSender: "ModularIoT · Torre de Controle",
+    codigoNegro: "código preto",
+    nivelOper: "nível oper.",
+    emailResumenPre: "Resumo operacional de",
+    emailResumenPost: "— junho 2026:",
+    focoMesLabel: "Foco do mês:",
+    planAsignadoLabel: "Plano atribuído:",
+    duenoLabel: "responsável",
+    verSuperProfileCompleto: "Ver SuperProfile completo →",
+    waTitle: "ModularIoT Torre",
+    enLinea: "online",
+    teamsChannel: "ModularIoT · canal Torre Mintral",
+    webexSpace: "Webex · espaço «Torre ↔ Mintral»",
+    webexAlerta: "Alerta SuperProfile —",
+    abrirSuperProfile: "Abrir SuperProfile",
+    mensajes: "Mensagens · ModularIoT",
+    codNegroShort: "Cód.preto",
+    verLink: "Ver mdl.io/sp",
+    entregado: "Entregue",
+    eyebrow: "Ato 3 · Canais de escalonamento",
+    heading: "A mesma inteligência, no canal onde a operação vive",
+    introPre: "O SuperProfile não fica em uma tela. O mesmo alerta —",
+    introBold: "nível, risco, foco e plano",
+    introPost:
+      "— é entregue onde cada ator já trabalha: e-mail, WhatsApp, Teams, Webex e SMS. Escolha uma entidade e veja como fica em cada canal.",
+    transportistas: "Transportadoras",
+    conductores: "Motoristas",
+    tagCorreo: "E-mail",
+    capCorreo: "resumo e gestão para a Torre e as chefias.",
+    capWhatsApp: "alerta direto ao motorista ou transportadora em campo.",
+    capTeams: "fluxo interno da Torre (Entra ID), com ações inline.",
+    capWebex: "colaboração com o mandante ou cliente no seu espaço.",
+    capSms: "respaldo sem dados nem app — chega até em zonas cegas.",
+    elPunto: "O ponto",
+    puntoPre:
+      "Um único motor de regras, cinco canais. A notificação não é genérica: nasce do SuperProfile e leva o",
+    puntoBold: "plano e o responsável",
+    puntoPost:
+      ", para que comunicar seja o primeiro passo da gestão — não apenas um aviso.",
+  },
+};
+
+type Dict = typeof UI.es;
 
 interface Payload {
   isC: boolean; tipo: string; name: string; nivel: string; riesgo: string;
   negro: number; total: number; foco: string; focoPct: number; plan: string; owner: string;
 }
 
-function payloadOf(e: Entity, isC: boolean): Payload {
-  const negro = pct(e.icu4, e.total);
-  const nivel = negro < 8 ? "A" : negro < 15 ? "B" : negro < 25 ? "C" : "D";
-  const riesgo = negro >= 15 ? "Alto" : negro >= 8 ? "Medio" : "Bajo";
-  const top = e.symptoms[0];
-  const cat = byTech[top.name];
-  return {
-    isC, tipo: isC ? "Transportista" : "Conductor", name: e.name, nivel, riesgo, negro,
-    total: e.total, foco: nice(top.name), focoPct: pct(top.c, e.total),
-    plan: cat?.action || "Corrección estructural", owner: cat?.owner || "Operaciones",
-  };
-}
-
 // Envoltorio de canal: etiqueta + mock + caption.
-function Channel({ color, tag, caption, children }: { color: string; tag: string; caption: string; children: React.ReactNode }) {
+function Channel({ color, tag, caption, t, children }: { color: string; tag: string; caption: string; t: Dict; children: React.ReactNode }) {
   return (
     <div className="flex flex-col">
       <div className="mb-2 flex items-center gap-2">
@@ -42,67 +212,67 @@ function Channel({ color, tag, caption, children }: { color: string; tag: string
         <span className="text-sm font-bold text-gray-950">{tag}</span>
       </div>
       <div className="flex-1 overflow-hidden rounded-xl border border-gray-200 bg-white">{children}</div>
-      <p className="mt-2 text-xs leading-relaxed text-gray-500"><b className="text-gray-700">Cuándo:</b> {caption}</p>
+      <p className="mt-2 text-xs leading-relaxed text-gray-500"><b className="text-gray-700">{t.cuando}</b> {caption}</p>
     </div>
   );
 }
 
-function EmailMock({ p }: { p: Payload }) {
+function EmailMock({ p, t }: { p: Payload; t: Dict }) {
   return (
     <div className="text-sm">
       <div className="flex items-center gap-2 border-b border-gray-100 p-3">
         <span className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-600 text-xs font-bold text-white">MB</span>
         <div className="leading-tight">
-          <p className="font-semibold text-gray-950">ModularIoT · Torre de Control</p>
+          <p className="font-semibold text-gray-950">{t.emailSender}</p>
           <p className="text-[11px] text-gray-400">alertas@modulariot.com</p>
         </div>
       </div>
       <div className="border-b border-gray-100 px-3 py-2 text-xs font-semibold text-gray-700">
-        [SuperProfile] {p.tipo} · Nivel {p.nivel} · Riesgo {p.riesgo}
+        [SuperProfile] {p.tipo} · {t.nivel} {p.nivel} · {t.riesgo} {p.riesgo}
       </div>
       <div className="space-y-3 p-3 text-gray-600">
-        <p>Resumen operacional de <b>{p.name}</b> — junio 2026:</p>
+        <p>{t.emailResumenPre} <b>{p.name}</b> {t.emailResumenPost}</p>
         <div className="grid grid-cols-3 gap-2">
-          {[[fmt(p.total), "síntomas"], [`${p.negro}%`, "código negro"], [p.nivel, "nivel oper."]].map(([v, l]) => (
+          {[[fmt(p.total), t.sintomas], [`${p.negro}%`, t.codigoNegro], [p.nivel, t.nivelOper]].map(([v, l]) => (
             <div key={l} className="rounded-lg border border-gray-200 bg-gray-50 p-2 text-center">
               <p className="text-base font-extrabold text-gray-950">{v}</p><p className="text-[10px] text-gray-500">{l}</p>
             </div>
           ))}
         </div>
-        <p>Foco del mes: <b>{p.foco}</b> ({p.focoPct}%). Plan asignado: {p.plan} — dueño {p.owner}.</p>
-        <span className="inline-block font-semibold text-blue-700">Ver SuperProfile completo →</span>
+        <p>{t.focoMesLabel} <b>{p.foco}</b> ({p.focoPct}%). {t.planAsignadoLabel} {p.plan} — {t.duenoLabel} {p.owner}.</p>
+        <span className="inline-block font-semibold text-blue-700">{t.verSuperProfileCompleto}</span>
       </div>
     </div>
   );
 }
 
-function WhatsAppMock({ p }: { p: Payload }) {
+function WhatsAppMock({ p, t }: { p: Payload; t: Dict }) {
   return (
     <div className="text-sm">
       <div className="flex items-center gap-2 bg-[#075e54] p-3 text-white">
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-xs font-bold">MB</span>
-        <div className="leading-tight"><p className="font-semibold">ModularIoT Torre</p><p className="text-[11px] text-white/70">en línea</p></div>
+        <div className="leading-tight"><p className="font-semibold">{t.waTitle}</p><p className="text-[11px] text-white/70">{t.enLinea}</p></div>
       </div>
       <div className="space-y-2 bg-[#e5ddd5] p-3">
         <div className="max-w-[85%] rounded-lg rounded-tl-none bg-white p-2.5 text-[13px] text-gray-800 shadow-sm">
-          <b>Alerta {p.tipo}</b><br />{p.name}<br />Nivel <b>{p.nivel}</b> · Riesgo <b>{p.riesgo}</b><br />Foco: {p.foco} ({p.focoPct}%)<br />Plan: {p.plan}
+          <b>{t.alerta} {p.tipo}</b><br />{p.name}<br />{t.nivel} <b>{p.nivel}</b> · {t.riesgo} <b>{p.riesgo}</b><br />{t.focoLabel} {p.foco} ({p.focoPct}%)<br />{t.planLabel} {p.plan}
           <span className="mt-1 block text-right text-[10px] text-gray-400">09:24 ✓✓</span>
         </div>
         <div className="flex gap-2">
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-green-700 shadow-sm">Ver perfil</span>
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-green-700 shadow-sm">Asignar plan</span>
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-green-700 shadow-sm">{t.verPerfil}</span>
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-green-700 shadow-sm">{t.asignarPlan}</span>
         </div>
       </div>
     </div>
   );
 }
 
-function TeamsMock({ p }: { p: Payload }) {
+function TeamsMock({ p, t }: { p: Payload; t: Dict }) {
   return (
     <div className="text-sm">
       <div className="flex items-center gap-2 border-b border-gray-100 p-3 text-xs font-semibold text-gray-600">
         <span className="flex h-6 w-6 items-center justify-center rounded bg-[#6264a7] text-[11px] font-bold text-white">T</span>
-        ModularIoT · canal Torre Mintral
+        {t.teamsChannel}
       </div>
       <div className="p-3">
         <div className="overflow-hidden rounded-lg border border-gray-200">
@@ -111,14 +281,14 @@ function TeamsMock({ p }: { p: Payload }) {
             <p className="text-xs font-semibold text-gray-500">SuperProfile · {p.tipo}</p>
             <h5 className="mt-0.5 font-bold text-gray-950">{p.name}</h5>
             <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-              <dt className="text-gray-400">Nivel</dt><dd className="font-semibold text-gray-800">{p.nivel}</dd>
-              <dt className="text-gray-400">Riesgo</dt><dd className="font-semibold text-gray-800">{p.riesgo}</dd>
-              <dt className="text-gray-400">Foco</dt><dd className="font-semibold text-gray-800">{p.foco} ({p.focoPct}%)</dd>
-              <dt className="text-gray-400">Base</dt><dd className="font-semibold text-gray-800">{fmt(p.total)} síntomas</dd>
+              <dt className="text-gray-400">{t.nivel}</dt><dd className="font-semibold text-gray-800">{p.nivel}</dd>
+              <dt className="text-gray-400">{t.riesgo}</dt><dd className="font-semibold text-gray-800">{p.riesgo}</dd>
+              <dt className="text-gray-400">{t.foco}</dt><dd className="font-semibold text-gray-800">{p.foco} ({p.focoPct}%)</dd>
+              <dt className="text-gray-400">{t.base}</dt><dd className="font-semibold text-gray-800">{fmt(p.total)} {t.sintomas}</dd>
             </dl>
             <div className="mt-3 flex gap-2">
-              <span className="rounded-md bg-[#6264a7] px-3 py-1 text-xs font-semibold text-white">Ver perfil</span>
-              <span className="rounded-md border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700">Asignar plan</span>
+              <span className="rounded-md bg-[#6264a7] px-3 py-1 text-xs font-semibold text-white">{t.verPerfil}</span>
+              <span className="rounded-md border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700">{t.asignarPlan}</span>
             </div>
           </div>
         </div>
@@ -127,43 +297,64 @@ function TeamsMock({ p }: { p: Payload }) {
   );
 }
 
-function WebexMock({ p }: { p: Payload }) {
+function WebexMock({ p, t }: { p: Payload; t: Dict }) {
   return (
     <div className="text-sm">
       <div className="flex items-center gap-2 border-b border-gray-100 p-3 text-xs font-semibold text-gray-600">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#087f8c]" /> Webex · espacio «Torre ↔ Mintral»
+        <span className="h-2.5 w-2.5 rounded-full bg-[#087f8c]" /> {t.webexSpace}
       </div>
       <div className="flex gap-2 p-3">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#087f8c] text-xs font-bold text-white">MB</span>
         <div className="flex-1">
           <p className="text-xs"><span className="font-semibold text-gray-950">ModularIoT</span> <span className="text-gray-400">09:24</span></p>
-          <p className="mt-1 font-semibold text-gray-950">Alerta SuperProfile — {p.name}</p>
+          <p className="mt-1 font-semibold text-gray-950">{t.webexAlerta} {p.name}</p>
           <div className="mt-1.5 rounded-lg bg-gray-50 p-2.5 text-[13px] text-gray-700">
-            Nivel <b>{p.nivel}</b> · Riesgo <b>{p.riesgo}</b> · Foco <b>{p.foco}</b> ({p.focoPct}%). Plan: {p.plan}.
+            {t.nivel} <b>{p.nivel}</b> · {t.riesgo} <b>{p.riesgo}</b> · {t.foco} <b>{p.foco}</b> ({p.focoPct}%). {t.planLabel} {p.plan}.
           </div>
-          <span className="mt-2 inline-block rounded-md border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700">Abrir SuperProfile</span>
+          <span className="mt-2 inline-block rounded-md border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700">{t.abrirSuperProfile}</span>
         </div>
       </div>
     </div>
   );
 }
 
-function SmsMock({ p }: { p: Payload }) {
+function SmsMock({ p, t }: { p: Payload; t: Dict }) {
   const nm = p.name.length > 22 ? p.name.slice(0, 22) + "…" : p.name;
   return (
     <div className="text-sm">
-      <div className="border-b border-gray-100 p-3 text-center text-xs font-semibold text-gray-600">Mensajes · ModularIoT</div>
+      <div className="border-b border-gray-100 p-3 text-center text-xs font-semibold text-gray-600">{t.mensajes}</div>
       <div className="p-3">
         <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-gray-100 p-2.5 text-[13px] text-gray-800">
-          ModularIoT: {nm} Nivel {p.nivel}. {p.foco} {p.focoPct}%. Cód.negro {p.negro}%. Ver mdl.io/sp
+          ModularIoT: {nm} {t.nivel} {p.nivel}. {p.foco} {p.focoPct}%. {t.codNegroShort} {p.negro}%. {t.verLink}
         </div>
-        <p className="mt-1 text-[10px] text-gray-400">Entregado · 09:24</p>
+        <p className="mt-1 text-[10px] text-gray-400">{t.entregado} · 09:24</p>
       </div>
     </div>
   );
 }
 
 export default function Canales() {
+  const lang = useLang();
+  const { SYMPTOMS } = getTorre(lang);
+  const { ENTITY_DATA } = getModules(lang);
+  const t = UI[(lang as "es" | "en" | "pt")] ?? UI.es;
+
+  const byTech = Object.fromEntries(SYMPTOMS.map((s) => [s.technicalName, s]));
+  const nice = (tn: string) => byTech[tn]?.name || tn;
+
+  const payloadOf = (e: Entity, isC: boolean): Payload => {
+    const negro = pct(e.icu4, e.total);
+    const nivel = negro < 8 ? "A" : negro < 15 ? "B" : negro < 25 ? "C" : "D";
+    const riesgo = negro >= 15 ? t.riesgoAlto : negro >= 8 ? t.riesgoMedio : t.riesgoBajo;
+    const top = e.symptoms[0];
+    const cat = byTech[top.name];
+    return {
+      isC, tipo: isC ? t.transportista : t.conductor, name: e.name, nivel, riesgo, negro,
+      total: e.total, foco: nice(top.name), focoPct: pct(top.c, e.total),
+      plan: cat?.action || t.planFallback, owner: cat?.owner || t.ownerFallback,
+    };
+  };
+
   const [type, setType] = useState<"carrier" | "driver">("carrier");
   const [idx, setIdx] = useState(0);
   const list = type === "carrier" ? ENTITY_DATA.carriers : ENTITY_DATA.drivers;
@@ -172,24 +363,23 @@ export default function Canales() {
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
-      <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">Acto 3 · Canales de escalamiento</p>
+      <p className="text-sm font-semibold uppercase tracking-widest text-blue-600">{t.eyebrow}</p>
       <h1 className="mt-4 max-w-4xl text-4xl font-extrabold tracking-tight text-gray-950 sm:text-5xl">
-        La misma inteligencia, en el canal donde vive la operación
+        {t.heading}
       </h1>
       <p className="mt-6 max-w-3xl text-lg leading-relaxed text-gray-600">
-        El SuperProfile no se queda en una pantalla. La misma alerta — <b>nivel, riesgo, foco y plan</b> — se entrega donde cada actor ya trabaja:
-        correo, WhatsApp, Teams, Webex y SMS. Elige una entidad y mira cómo se ve en cada canal.
+        {t.introPre} <b>{t.introBold}</b> {t.introPost}
       </p>
 
       <div className="mt-8 flex flex-wrap items-center gap-3">
         <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
-          {(["carrier", "driver"] as const).map((t) => (
+          {(["carrier", "driver"] as const).map((tp) => (
             <button
-              key={t}
-              onClick={() => { setType(t); setIdx(0); }}
-              className={`rounded-md px-4 py-1.5 text-sm font-semibold transition-colors ${type === t ? "bg-blue-600 text-white" : "text-gray-600 hover:text-gray-950"}`}
+              key={tp}
+              onClick={() => { setType(tp); setIdx(0); }}
+              className={`rounded-md px-4 py-1.5 text-sm font-semibold transition-colors ${type === tp ? "bg-blue-600 text-white" : "text-gray-600 hover:text-gray-950"}`}
             >
-              {t === "carrier" ? "Transportistas" : "Conductores"}
+              {tp === "carrier" ? t.transportistas : t.conductores}
             </button>
           ))}
         </div>
@@ -203,18 +393,17 @@ export default function Canales() {
       </div>
 
       <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Channel color="#2563eb" tag="Correo electrónico" caption="resumen y gestión para la Torre y jefaturas."><EmailMock p={p} /></Channel>
-        <Channel color="#25d366" tag="WhatsApp" caption="alerta directa al conductor o transportista en terreno."><WhatsAppMock p={p} /></Channel>
-        <Channel color="#6264a7" tag="Microsoft Teams" caption="flujo interno de la Torre (Entra ID), con acciones inline."><TeamsMock p={p} /></Channel>
-        <Channel color="#087f8c" tag="Cisco Webex" caption="colaboración con el mandante o cliente en su espacio."><WebexMock p={p} /></Channel>
-        <Channel color="#34c759" tag="SMS" caption="respaldo sin datos ni app — llega incluso en zonas ciegas."><SmsMock p={p} /></Channel>
+        <Channel color="#2563eb" tag={t.tagCorreo} caption={t.capCorreo} t={t}><EmailMock p={p} t={t} /></Channel>
+        <Channel color="#25d366" tag="WhatsApp" caption={t.capWhatsApp} t={t}><WhatsAppMock p={p} t={t} /></Channel>
+        <Channel color="#6264a7" tag="Microsoft Teams" caption={t.capTeams} t={t}><TeamsMock p={p} t={t} /></Channel>
+        <Channel color="#087f8c" tag="Cisco Webex" caption={t.capWebex} t={t}><WebexMock p={p} t={t} /></Channel>
+        <Channel color="#34c759" tag="SMS" caption={t.capSms} t={t}><SmsMock p={p} t={t} /></Channel>
       </div>
 
       <div className="mt-8 rounded-xl border-l-4 border-blue-600 bg-blue-50/60 px-5 py-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-blue-700">El punto</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-blue-700">{t.elPunto}</p>
         <p className="mt-1.5 text-sm leading-relaxed text-gray-700">
-          Un solo motor de reglas, cinco canales. La notificación no es genérica: nace del SuperProfile y lleva el <b>plan y el dueño</b>,
-          para que comunicar sea el primer paso de la gestión — no solo un aviso.
+          {t.puntoPre} <b>{t.puntoBold}</b>{t.puntoPost}
         </p>
       </div>
     </section>

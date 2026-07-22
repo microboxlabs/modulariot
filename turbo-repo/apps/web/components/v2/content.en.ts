@@ -9,7 +9,7 @@ export const en = {
         {
           title: "Platform",
           items: [
-            { icon: "signal", label: "GPS Core Ingestion", href: "/producto/ingesta-gps-core", desc: "Real-time GPS and sensor signal pipeline" },
+            { icon: "signal", label: "GPS Core Ingestion", href: "/producto/ingesta-gps-core", desc: "Real-time GPS and sensor signals into your database" },
             { icon: "radar", label: "Symptoms / Control Tower", href: "/producto/sintomas-torre-control", desc: "30+ detection rules with full traceability" },
             { icon: "plug", label: "Integrations", href: "/producto/integraciones", desc: "Workflows, webhooks and evidence vault" },
             { icon: "video", label: "Live Video / HLS", href: "/producto/video-en-vivo", desc: "Continuous streaming from cameras and dashcams" },
@@ -89,11 +89,19 @@ export const en = {
     ],
     github: { label: "GitHub", href: "https://github.com/microboxlabs" },
     languages: [
-      { code: "es", label: "Español" },
-      { code: "en", label: "English" },
-      { code: "pt", label: "Português" },
+      { lang: "es", country: "Chile", flag: "cl" },
+      { lang: "es", country: "Peru", flag: "pe" },
+      { lang: "es", country: "Colombia", flag: "co" },
+      { lang: "es", country: "Mexico", flag: "mx" },
+      { lang: "pt", country: "Brazil", flag: "br" },
+      { lang: "en", country: "Global", flag: "gl" },
     ],
     cta: "Request a demo",
+    actions: {
+      demo: { label: "Get a Demo", href: "/contacto?intent=demo" },
+      login: { label: "Log In", href: "/contacto?intent=login" },
+      signup: { label: "Sign Up", href: "/contacto?intent=signup" },
+    },
   },
 
   hero: {
@@ -105,13 +113,18 @@ export const en = {
       "We don't sell more alerts: we turn every signal into fewer repeated problems. And the data and the decisions are yours.",
     ctaPrimary: "Book a 20-min technical demo",
     ctaSecondary: "See pricing",
-    terminalTitle: "modulariot — live flow",
-    terminalLines: [
-      { time: "14:02:11", tag: "INGESTA", text: "2,847 GPS signals/s · p50 latency 42ms" },
-      { time: "14:02:36", tag: "SINTOMA", text: "Speeding · Internal route A2 · high severity" },
-      { time: "14:02:37", tag: "WORKFLOW", text: "Event #48210 → SMS supervisor + evidence captured" },
-      { time: "14:02:39", tag: "SINK", text: "asset_data ← 2,847 rows · your PostgreSQL, your cloud" },
-    ],
+    livePanel: {
+      title: "Live operation",
+      subtitle: "a real operation, right now",
+      live: "receiving events…",
+      done: "it all stays in your operation",
+      events: [
+        { kind: "signal", title: "Signals arriving", detail: "2,847 assets reporting in real time" },
+        { kind: "symptom", title: "Symptom detected", detail: "Speeding · internal route · high severity" },
+        { kind: "action", title: "Escalated to the owner", detail: "supervisor notified by SMS, with evidence" },
+        { kind: "record", title: "Recorded", detail: "in your database, in your cloud" },
+      ],
+    },
   },
 
   stats: {
@@ -214,48 +227,22 @@ export const en = {
     subtitle: "Everything you need to process, analyze and act on fleet data in real time",
     cards: [
       {
-        title: "Real-time streaming pipeline",
-        code: `// Real-time GPS and sensor streaming
-const pipeline = new StreamProcessor({
-  source: 'fleet-telemetry',
-  processors: [
-    new GPSProcessor(),
-    new SensorProcessor(),
-    new EventProcessor()
-  ],
-  sink: 'your-cloud-storage',
-  latency: '< 56ms'
-});
-
-pipeline.start();
-// Active stream: 10K+ events/sec`,
+        icon: "signal",
+        title: "Real-time processing",
+        body: "Every GPS signal, sensor and driver event is processed as it arrives, with median latency under 56 ms.",
+        bullets: ["One source for all telemetry", "Enriched and evaluated instantly", "Thousands of events per second, no batch"],
       },
       {
+        icon: "radar",
         title: "Symptom-based alerts",
-        code: `// Smart alert rules
-const alertRules = {
-  driverFatigue: {
-    triggers: ['eye_closure > 3s',
-               'lane_deviation > 2'],
-    actions: ['sms_supervisor',
-              'audio_alert'],
-    priority: 'critical'
-  }
-};
-
-AlertManager.configure(alertRules);
-// 32% fewer incidents in 2 weeks`,
+        body: "Over 30 rules detect the deviation —fatigue, speeding, risk zones— and generate a classified event, not one more generic notification.",
+        bullets: ["Automatic severity and owner", "Smart noise exclusion", "Action fired: SMS, dashboard or work order"],
       },
       {
+        icon: "plug",
         title: "Escalation by symptom",
-        code: `// Escalation by symptom
-const escalation = new Escalation({
-  onSymptom: 'black code',
-  notify: ['email', 'whatsapp', 'teams'],
-  conversation: true,   // two-way loop
-  owner: 'ops_manager'
-});
-// Every alert arrives with plan and owner`,
+        body: "Each symptom is escalated to the channel where the operation lives —email, WhatsApp, Teams— with a two-way conversation, a plan and an owner.",
+        bullets: ["Channel by symptom type", "Two-way loop, not just notify", "Every alert arrives with a plan and an owner"],
       },
     ],
   },
@@ -349,27 +336,16 @@ const escalation = new Escalation({
 
   deployment: {
     kicker: "Deployment",
-    title: "Deployment options",
-    subtitle: "Choose the model that best fits your requirements and compliance needs",
-    options: [
-      {
-        title: "SaaS · MBL-managed",
-        highlight: "Most popular",
-        description: "We run the cloud infrastructure; you focus on the operation. The fastest way to get started.",
-        features: ["Zero DevOps overhead", "Monitoring and support", "Automatic updates", "SLA guarantees"],
-      },
-      {
-        title: "In your cloud",
-        highlight: "Data sovereignty",
-        description: "Deployed on your own infrastructure (AWS, Azure or GCP). Your data never leaves your control.",
-        features: ["Complete data sovereignty", "Your own security policies", "Unlimited scaling", "Direct database access"],
-      },
-      {
-        title: "On-premise · edge",
-        highlight: "On your premises",
-        description: "Processing on your premises for low latency, with cloud backup and analytics.",
-        features: ["Low-latency edge processing", "Offline capability", "Cloud sync", "Regional compliance"],
-      },
+    title: "Deployment",
+    subtitle: "A rollout managed by MicroBox Labs on your own cloud: we run the infrastructure, you focus on the operation. Live in days, not months.",
+    soonLabel: "Coming soon",
+    includes: [
+      { title: "Configured to your operation", body: "Thresholds, zones and rules tuned to how you work — not a generic template." },
+      { title: "Deployed in your cloud", body: "Runs on your own infrastructure (AWS, Azure or GCP); your data never leaves your control.", soon: true },
+      { title: "Connected to your systems", body: "API integration with the platforms you already use (dispatch, maintenance, ERP); it adds to your operation, doesn't replace it." },
+      { title: "Your operation's channels", body: "Email, WhatsApp, Teams, Webex and SMS connected so the alert reaches where the team lives." },
+      { title: "Managed rollout", body: "MicroBox Labs runs and supports the operation, with zero DevOps overhead on your side." },
+      { title: "Monitoring, support and updates", body: "The platform stays current and monitored without you having to deal with it." },
     ],
   },
 

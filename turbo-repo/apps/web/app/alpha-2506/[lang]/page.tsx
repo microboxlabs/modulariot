@@ -1,20 +1,18 @@
 import Nav from "../../../components/v2/Nav";
-import {
-  Hero,
-  Stats,
-  Problem,
-  TresActos,
-  Features,
-  Architecture,
-  UseCases,
-  Confiabilidad,
-  PainOutcome,
-  Deployment,
-  Stories,
-  PricingTeaser,
-  FinalCta,
-  Footer,
-} from "../../../components/v2/Sections";
+import { Hero } from "../../../components/v2/sections/Hero";
+import { Stats } from "../../../components/v2/sections/Stats";
+import { Problem } from "../../../components/v2/sections/Problem";
+import { TresActos } from "../../../components/v2/sections/TresActos";
+import { Features } from "../../../components/v2/sections/Features";
+import { Architecture } from "../../../components/v2/sections/Architecture";
+import { UseCases } from "../../../components/v2/sections/UseCases";
+import { Confiabilidad } from "../../../components/v2/sections/Confiabilidad";
+import { PainOutcome } from "../../../components/v2/sections/PainOutcome";
+import { Deployment } from "../../../components/v2/sections/Deployment";
+import { Stories } from "../../../components/v2/sections/Stories";
+import { PricingTeaser } from "../../../components/v2/sections/PricingTeaser";
+import { FinalCta } from "../../../components/v2/sections/FinalCta";
+import { Footer } from "../../../components/v2/sections/Footer";
 import StepsInteractive from "../../../components/v2/StepsInteractive";
 import FAQ from "../../../components/v2/FAQ";
 

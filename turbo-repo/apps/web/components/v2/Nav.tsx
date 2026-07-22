@@ -2,10 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { DarkThemeToggle } from "flowbite-react";
 import { getContent } from "./content";
 import { Flag } from "./flags";
 
 const COUNTRY_KEY = "miot_country";
+
+const themeToggleStyle = {
+  root: {
+    base: "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-transparent text-gray-200 transition-colors hover:bg-white/5 hover:text-white focus:outline-none focus:ring-0 focus:border-white/20 dark:text-gray-600 dark:hover:bg-black/5 dark:hover:text-gray-900 dark:focus:border-black/20",
+  },
+};
 
 // Abreviatura compacta para el botón colapsado (el dropdown usa nombre completo).
 const ABBR: Record<string, string> = { cl: "CL", pe: "PE", co: "CO", mx: "MX", br: "BR", gl: "INT" };
@@ -97,7 +104,8 @@ export default function Nav() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-gray-950/85 backdrop-blur transition-colors">
+    <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-gray-800 backdrop-blur transition-colors dark:border-black/5 dark:bg-white">
+      
       <nav className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:px-6">
         {/* Logo */}
         <a href={`${base}/`} className="mr-4 flex shrink-0 items-center gap-2">
@@ -213,6 +221,8 @@ export default function Nav() {
             </svg>
           </a>
 
+          <DarkThemeToggle theme={themeToggleStyle} />
+
           {/* Selector de país → idioma (region selector de ClickHouse) */}
           <div className="group relative">
             <button className={topItem} aria-label="Cambiar país / idioma">
@@ -263,20 +273,29 @@ export default function Nav() {
           </a>
         </div>
 
-        {/* Mobile: hamburguesa */}
-        <button
-          className="ml-auto flex h-10 w-10 items-center justify-center rounded-lg text-gray-200 lg:hidden"
-          onClick={() => setOpen(!open)}
-          aria-label="Abrir menú"
-        >
-          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            {open ? (
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            )}
-          </svg>
-        </button>
+        {/* Mobile: toggle de tema + hamburguesa */}
+        <div className="ml-auto flex items-center gap-1 lg:hidden">
+          <DarkThemeToggle
+            theme={{
+              root: {
+                base: "flex h-10 w-10 items-center justify-center rounded-lg border border-transparent text-gray-200 focus:outline-none focus:ring-0 focus:border-white/20 dark:text-gray-600 dark:focus:border-black/20",
+              },
+            }}
+          />
+          <button
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-200 dark:text-gray-600"
+            onClick={() => setOpen(!open)}
+            aria-label="Abrir menú"
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              {open ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
       </nav>
 
       {/* Mobile: acordeón oscuro */}

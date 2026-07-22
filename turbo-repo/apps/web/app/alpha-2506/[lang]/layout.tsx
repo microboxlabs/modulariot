@@ -74,7 +74,7 @@ export default async function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </head>
-      <body className="font-sans antialiased bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+      <body className="min-h-screen bg-gray-950 font-sans text-white antialiased">
         {children}
         <DemoFab lang={lang} />
       </body>

@@ -1798,7 +1798,19 @@
         "collaboratorsManagement": "Colaboradores",
         "searchPlaceholder": "Buscar...",
         "createDashboard": "Nuevo dashboard",
-        "closePanel": "Cerrar panel"
+        "closePanel": "Cerrar panel",
+        "gemeloDigital": "Gemelo digital",
+        "gemeloReplay": "Replay",
+        "gemeloProceso": "Proceso",
+        "gemeloCarga": "Carga",
+        "gemeloSimulador": "Simulador de escenarios",
+        "gxc": "GxC",
+        "gxcVisor": "Visor",
+        "gxcFlota": "Flota",
+        "gxcConductores": "Conductores",
+        "gxcTransportistas": "Transportistas",
+        "gxcRutas": "Rutas",
+        "gxcOperaciones": "Operaciones"
       }
     },
     "calendar": {
@@ -4340,5 +4352,8 @@
     },
     "harnessError": "Algo salió mal al buscar la respuesta.",
     "harnessRetry": "Reintentar"
+  },
+  "moduleNames": {
+    "CARRIER_PORTAL": "Portal transportista"
   }
 }

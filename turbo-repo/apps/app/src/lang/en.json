@@ -1798,7 +1798,19 @@
         "subtitle1": "Consolidation",
         "subtitle2": "Document Separation",
         "subtitle3": "Client System Validation",
-        "subtitle4": "GPS Validation"
+        "subtitle4": "GPS Validation",
+        "gemeloDigital": "Digital twin",
+        "gemeloReplay": "Replay",
+        "gemeloProceso": "Process",
+        "gemeloCarga": "Freight",
+        "gemeloSimulador": "Scenario simulator",
+        "gxc": "GxC",
+        "gxcVisor": "Overview",
+        "gxcFlota": "Fleet",
+        "gxcConductores": "Drivers",
+        "gxcTransportistas": "Carriers",
+        "gxcRutas": "Routes",
+        "gxcOperaciones": "Operations"
       }
     },
     "calendar": {
@@ -4340,5 +4352,8 @@
     },
     "harnessError": "Something went wrong while searching.",
     "harnessRetry": "Retry"
+  },
+  "moduleNames": {
+    "CARRIER_PORTAL": "Carrier portal"
   }
 }

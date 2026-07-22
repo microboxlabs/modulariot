@@ -8,7 +8,7 @@ import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
 import { FaTruckLoading } from "react-icons/fa";
 import { HiCog, HiLightningBolt } from "react-icons/hi";
-import { LuTowerControl } from "react-icons/lu";
+import { LuTowerControl, LuLayers, LuTarget } from "react-icons/lu";
 import type { FC, ComponentProps } from "react";
 import pagesConfig from "./pages-config.json";
 
@@ -18,6 +18,8 @@ const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   kanban: ClipboardIcon,
   tasks: FaBookIcon,
   controlTower: LuTowerControl as FC<ComponentProps<"svg">>,
+  gemeloDigital: LuLayers as FC<ComponentProps<"svg">>,
+  gxc: LuTarget as FC<ComponentProps<"svg">>,
   liveStreams: VideoCameraIcon,
   collaboratorsManagement: PeopleIcon,
   fleetManagement: TruckIcon,

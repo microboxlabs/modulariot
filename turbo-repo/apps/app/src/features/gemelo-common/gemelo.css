@@ -1,0 +1,73 @@
+/* Tokens del design-system (colors_and_type.css) en el scope del Gemelo
+   Digital. El componente portado usa var(--*); este puente los define para
+   claro y oscuro usando el mecanismo .dark del app. */
+.gemelo-scope {
+  color-scheme: light;
+  --background: #f9fafb;
+  --foreground: #111928;
+  --surface: #ffffff;
+  --border: #e5e7eb;
+  --muted: #6b7280;
+  --nav-active: #f3f4f6;
+  --ghost-hover: #f3f4f6;
+  --gray-100: #f3f4f6;
+  --gray-300: #d1d5db;
+  --gray-900: #111928;
+  --blue-50: #ebf5ff;
+  --blue-600: #1c64f2;
+  --blue-700: #1a56db;
+  --green-100: #def7ec;
+  --green-500: #0e9f6e;
+  --green-700: #046c4e;
+  --amber-100: #fef3c7;
+  --amber-500: #f59e0b;
+  --amber-600: #d97706;
+  --rose-100: #ffe4e6;
+  --rose-600: #e11d48;
+  --rose-700: #be123c;
+  height: 100%;
+  background: var(--background);
+  color: var(--foreground);
+}
+.dark .gemelo-scope {
+  color-scheme: dark;
+  --background: #111928;
+  --foreground: #f9fafb;
+  --surface: #1f2a37;
+  --border: #374151;
+  --muted: #9ca3af;
+  --nav-active: #374151;
+  --ghost-hover: #374151;
+  --gray-100: #374151;
+  --gray-300: #4b5563;
+  --gray-900: #f9fafb;
+  --blue-50: rgba(28, 100, 242, 0.15);
+}
+.gemelo-scope .card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.gemelo-scope .badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 9999px; padding: 2px 10px;
+  font-size: 12px; font-weight: 500; white-space: nowrap;
+}
+.gemelo-scope .badge-warning { background: var(--amber-100); color: var(--amber-600); }
+.gemelo-scope .badge-critical { background: var(--rose-100); color: var(--rose-700); }
+.gemelo-scope .badge-ok { background: var(--green-100); color: var(--green-700); }
+.dark .gemelo-scope .badge-warning { background: rgba(245,158,11,0.15); color: #faca15; }
+.dark .gemelo-scope .badge-critical { background: rgba(225,29,72,0.15); color: #f98080; }
+.dark .gemelo-scope .badge-ok { background: rgba(14,159,110,0.15); color: #31c48d; }
+.gemelo-scope .dot { width: 6px; height: 6px; border-radius: 9999px; flex: none; }
+.gemelo-scope .counter-red {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 24px; padding: 0 6px; border-radius: 9999px;
+  background: #f05252; color: #fff; font-size: 12px; font-weight: 700;
+}
+.gemelo-scope .btn-primary {
+  display: inline-flex; align-items: center; border-radius: 8px;
+  background: var(--blue-600); color: #fff; padding: 6px 12px;
+  font-size: 12px; font-weight: 600;
+}
+.gemelo-scope .btn-primary:hover { background: var(--blue-700); }

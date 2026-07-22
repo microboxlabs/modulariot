@@ -56,7 +56,7 @@ export default function StepsInteractive() {
   const step = steps[active];
 
   return (
-    <section id="como-funciona" className="scroll-mt-16 border-y border-gray-100 bg-gray-50">
+    <section id="como-funciona" className="scroll-mt-16 border-y border-gray-100 bg-white">
       <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:py-32">
         <div className="mx-auto max-w-3xl text-center">
           <p className="mb-4 text-sm font-semibold tracking-widest text-blue-600 uppercase">{c.kicker}</p>
@@ -129,6 +129,11 @@ export default function StepsInteractive() {
               </motion.div>
             </AnimatePresence>
           </div>
+        </div>
+
+        <div className="mx-auto mt-10 max-w-xl rounded-xl bg-gray-950 px-6 py-5 text-center">
+          <p className="text-lg font-bold text-blue-500">{c.outro.latency}</p>
+          <p className="mt-1 text-sm text-gray-400">{c.outro.subtitle}</p>
         </div>
       </div>
     </section>

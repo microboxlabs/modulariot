@@ -6,7 +6,7 @@ import { Section, SectionHeader, Check } from "./shared";
 export function UseCases({ lang }: { lang: string }) {
   const c = getContent(lang).useCases;
   return (
-    <Section id="casos-de-uso" tone="gray">
+    <Section id="casos-de-uso" tone="white">
       <SectionHeader kicker={c.kicker} title={c.title} subtitle={c.subtitle} />
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         {c.cards.map((card, i) => (

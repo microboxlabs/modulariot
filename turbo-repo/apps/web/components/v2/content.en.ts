@@ -194,6 +194,10 @@ export const en = {
         tag: "EVIDENCIA",
       },
     ],
+    outro: {
+      latency: "< 56 ms median end-to-end latency",
+      subtitle: "From sensor reading to the data sitting in your own database.",
+    },
   },
 
   painOutcome: {

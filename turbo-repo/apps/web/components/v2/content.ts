@@ -211,6 +211,10 @@ export const content = {
         tag: "EVIDENCIA",
       },
     ],
+    outro: {
+      latency: "< 56 ms latencia mediana extremo a extremo",
+      subtitle: "Desde la lectura del sensor hasta que el dato está en tu propia base de datos.",
+    },
   },
 
   painOutcome: {

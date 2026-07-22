@@ -9,7 +9,7 @@ export default function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="scroll-mt-16 border-y border-gray-100 bg-gray-50">
+    <section id="faq" className="scroll-mt-16 bg-gray-50">
       <div className="mx-auto max-w-3xl px-4 py-20 sm:px-6 sm:py-24 lg:py-32">
         <div className="text-center">
           <p className="mb-4 text-sm font-semibold tracking-widest text-blue-600 uppercase">{c.kicker}</p>

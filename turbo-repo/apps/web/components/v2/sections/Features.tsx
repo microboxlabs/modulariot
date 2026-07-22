@@ -5,7 +5,7 @@ import { Section, SectionHeader, Icon, Check } from "./shared";
 export function Features({ lang }: { lang: string }) {
   const c = getContent(lang).features;
   return (
-    <Section id="caracteristicas" tone="white">
+    <Section id="caracteristicas" tone="gray">
       <SectionHeader kicker={c.kicker} title={c.title} subtitle={c.subtitle} />
       <div className="mt-16 grid gap-6 lg:grid-cols-3">
         {c.cards.map((card, i) => (

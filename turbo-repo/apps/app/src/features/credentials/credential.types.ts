@@ -5,8 +5,8 @@ import { z } from "zod";
  * and referenced from anywhere that talks to an external system (data sources,
  * integration connections, async jobs, channels).
  *
- * UI MOCKUP: these types describe the intended shape of the capability so the
- * screen can be reviewed before any backend exists. Nothing here is persisted.
+ * The screen's own model. `credentials-data-service.ts` maps the API's shape onto
+ * it, which is why the two differ in a few names.
  */
 
 /** Credential kinds the picker offers. Only some are implemented. */
@@ -16,17 +16,6 @@ export type CredentialTypeId =
   | "API_KEY"
   | "BEARER_TOKEN"
   | "BASIC_AUTH";
-
-/**
- * Which deployment a credential is meant for. External providers issue one
- * client_id/secret pair per environment, so the environment is part of the
- * credential's identity rather than a deployment-time detail.
- *
- * Open-ended on purpose: three environments are seeded, but teams run staging,
- * sandbox, per-customer stacks and the like, so the field accepts any label the
- * user creates rather than a closed enum.
- */
-export type CredentialEnvironment = string;
 
 /** Where a credential is referenced from — the "configure once, reuse" payoff. */
 export type CredentialUsageKind =
@@ -45,7 +34,16 @@ export interface CredentialListItem {
   readonly id: string;
   readonly name: string;
   readonly typeId: CredentialTypeId;
-  readonly environment: CredentialEnvironment;
+  /**
+   * Which deployment this credential is meant for. Providers issue one
+   * client_id/secret pair per environment, so it is part of the credential's
+   * identity rather than a deployment-time detail.
+   *
+   * Free text on purpose: three environments are seeded, but teams run staging,
+   * sandbox, per-customer stacks and the like, so any label the user creates is
+   * accepted rather than a closed enum.
+   */
+  readonly environment: string;
   /** Non-secret identifying detail shown in the list (e.g. masked client id). */
   readonly summary: string;
   readonly lastTestedAt?: string;
@@ -192,7 +190,7 @@ export function findCredentialType(
  * Seeded environments. These have translated labels and fixed badge colours;
  * anything a user creates is shown verbatim.
  */
-export const BUILT_IN_ENVIRONMENTS: readonly CredentialEnvironment[] = [
+export const BUILT_IN_ENVIRONMENTS: readonly string[] = [
   "DEVELOPMENT",
   "QA",
   "PRODUCTION",

@@ -5,7 +5,6 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
   isBuiltInEnvironment,
-  type CredentialEnvironment,
 } from "../credential.types";
 
 /**
@@ -17,7 +16,7 @@ import {
 const CHIP = "bg-gray-100 dark:bg-gray-700";
 
 interface EnvironmentBadgeProps {
-  readonly environment: CredentialEnvironment;
+  readonly environment: string;
   readonly dict: I18nRecord;
 }
 
@@ -26,7 +25,7 @@ interface EnvironmentBadgeProps {
  * ones are shown exactly as they were typed (there is no key to translate).
  */
 export function environmentLabel(
-  environment: CredentialEnvironment,
+  environment: string,
   dict: I18nRecord
 ): string {
   return isBuiltInEnvironment(environment)

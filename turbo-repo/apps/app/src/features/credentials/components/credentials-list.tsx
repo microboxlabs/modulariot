@@ -1,6 +1,5 @@
 "use client";
 
-import type { KeyboardEvent } from "react";
 import { Dropdown, DropdownItem } from "flowbite-react";
 import { HiDotsVertical, HiPencil, HiTrash } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -81,31 +80,25 @@ function CredentialRow({
     ? trDynamic(descriptor.nameKey, dict)
     : credential.typeId.toLowerCase();
 
-  // The row can't be a <button> — it contains the kebab's own button, which
-  // would be invalid nesting — so it takes the keyboard contract by hand.
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onOpen();
-    }
-  }
-
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={credential.name}
-      onClick={onOpen}
-      onKeyDown={onKeyDown}
-      className="flex cursor-pointer items-center gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3 transition hover:border-gray-300 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-700"
-    >
+    <div className="relative flex cursor-pointer items-center gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3 transition focus-within:ring-2 focus-within:ring-blue-500 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-700">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center">
         <CredentialTypeLogo logo={descriptor?.logo} alt={typeName} size={40} />
       </span>
 
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium text-gray-900 dark:text-white">
-          {credential.name}
+          {/* A real button, so Enter/Space and assistive tech come for free. The
+              row can't itself be one — it contains the kebab's button, which
+              would be invalid nesting — so this stretches its hit area across
+              the row with an overlay instead. */}
+          <button
+            type="button"
+            onClick={onOpen}
+            className="cursor-pointer text-left after:absolute after:inset-0 after:rounded-lg focus:outline-none"
+          >
+            {credential.name}
+          </button>
         </div>
         <div className={SUBLINE}>
           {typeName}
@@ -140,14 +133,10 @@ function CredentialRow({
         )}
       </div>
 
-      {/* Menu events stay in the menu: without this, opening it (or moving
-          through it with the keyboard) would also trigger the row. */}
-      <div
-        role="presentation"
-        className="shrink-0"
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => event.stopPropagation()}
-      >
+      {/* Positioned, so it stacks above the row-wide overlay and stays clickable.
+          Nothing needs to stop propagation any more: the menu is a sibling of the
+          row's button rather than a child of it. */}
+      <div className="relative shrink-0">
         <Dropdown
           inline
           arrowIcon={false}

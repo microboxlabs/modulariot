@@ -49,12 +49,52 @@ that build before the Turbo test graph.
 The alert counts in the table sum to 77. No alert is planned for dismissal,
 risk acceptance, or `not_used` treatment.
 
-## Planned verification
+## Final resolution evidence
 
-1. Verify every installed version against its advisory range with `npm ls`,
-   lockfile inspection, and `uv tree`.
-2. Run clean installs, lint, TypeScript checks, targeted tests, the complete
-   test graph, and affected production builds.
-3. Require `npm audit --audit-level=low` to report zero vulnerabilities.
-4. Push the branch and poll the Dependabot API until GitHub reconciles the
-   open alert set.
+All 20 bootstrap package families now resolve outside their GitHub advisory
+ranges:
+
+| Package family | Final installed resolution |
+|---|---|
+| `@babel/core` | 7.29.7 |
+| `brace-expansion` | 1.1.16, 2.1.2, and 5.0.8 |
+| `cookie` | vulnerable 0.6.0 removed; remaining 1.1.1 is safe |
+| `dompurify` | 3.4.12 |
+| `echarts` | 6.1.0 |
+| `esbuild` | 0.28.1 |
+| `fast-jwt` | 6.2.4 |
+| `fast-uri` | 3.1.4 |
+| `form-data` | 4.0.6 |
+| `js-yaml` | 4.3.0 |
+| `next` | 15.5.21 and 16.2.11 |
+| `postcss` | 8.5.22 |
+| `pyasn1` | 0.6.4 |
+| `qs` | 6.15.3 |
+| `sharp` | 0.35.3 |
+| `tmp` | 0.2.7 |
+| `uuid` | 11.1.1 and 14.0.0 |
+| `vite` | 7.3.6 and 8.0.16 |
+| `ws` | 8.21.1 |
+| `xlsx` | official SheetJS 0.20.3 tarball |
+
+Verification completed on `codex/fix-dependabot-alerts`:
+
+- npm 10 clean install: passed.
+- `npm audit --audit-level=low`: **0 vulnerabilities**.
+- Root lint: passed with existing warnings.
+- Root type checks: 20/20 tasks passed.
+- Maintained JavaScript test graph: 9/9 tasks and 1,480 tests passed, with one
+  skip. The pre-existing BFF fixture-contract suite remains excluded: it has
+  118 passing and 39 failing assertions unrelated to these dependency changes;
+  BFF type checks and production build pass.
+- Affected app/docs/web production builds: passed.
+- SheetJS integration test against a generated workbook: passed.
+- `uv lock --check`: passed.
+- Python: 1,021 tests passed, 4 skipped.
+
+After the branch push, the Dependabot API still returned the same 77 open
+alerts because alert state tracks the default branch and the fixes have not
+been merged. No alert was dismissed or risk-accepted. The zero-audit result,
+lockfile versions above, and clean-install gates prove the branch resolves
+every bootstrap advisory; GitHub can close the alerts after merge and default
+branch scanning.

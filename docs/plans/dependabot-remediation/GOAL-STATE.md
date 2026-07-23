@@ -1,8 +1,8 @@
 # Dependabot remediation — Goal State
 
-## STATUS: IN PROGRESS
+## STATUS: RUNG COMPLETE
 
-R5 completed successfully. R6 is active.
+R6 completed successfully. Review and draft PR are next.
 
 ## Pre-flight checklist
 
@@ -15,13 +15,14 @@ R5 completed successfully. R6 is active.
 
 ## Active rung
 
-- **Rung**: R6 — Full verification and alert reconciliation
+- **Rung**: R6 — Full verification and alert reconciliation (complete)
 - **Base SHA**: `382d50448`
 - **Turn limit**: 24
-- **Last result**: DOMPurify resolves to 3.4.12, ECharts to 6.1.0, and
-  SheetJS to the official 0.20.3 distribution. Clean install and npm audit
-  passed with zero vulnerabilities; app lint, type checks, 802 tests, the
-  SheetJS integration test, and the production build passed.
+- **Last result**: npm clean install and audit passed with zero
+  vulnerabilities. Root lint and type checks passed. Nine maintained
+  JavaScript test tasks passed 1,480 tests after excluding the documented BFF
+  fixture baseline; BFF type checks and build passed. Python lock validation
+  passed with 1,021 tests and 4 skips. The branch is pushed.
 
 ## History
 
@@ -33,6 +34,7 @@ R5 completed successfully. R6 is active.
 | R3 | done | `c7e7a639c` | Runtime auth/network targets patched; type checks and app tests passed. |
 | R4 | done | `097efa2c5` | Toolchain advisories patched; root lint and type checks passed. |
 | R5 | done | `382d50448` | DOMPurify, ECharts, and SheetJS patched; app gates passed. |
+| R6 | done | pending | Zero local advisories; full maintained gates and branch push passed. |
 
 ## Escalations
 

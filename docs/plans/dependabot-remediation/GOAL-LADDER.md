@@ -28,7 +28,7 @@
 | R3 | Runtime auth and networking dependencies | done |
 | R4 | Build and development toolchain dependencies | done |
 | R5 | Browser rendering and spreadsheet dependencies | done |
-| R6 | Full verification and alert reconciliation | in_progress |
+| R6 | Full verification and alert reconciliation | done |
 
 ---
 
@@ -158,7 +158,7 @@ turns if not achieved.
 
 ## R6 — Full verification and alert reconciliation
 
-- **Status**: in_progress
+- **Status**: done
 - **Base SHA**: —
 
 ```text

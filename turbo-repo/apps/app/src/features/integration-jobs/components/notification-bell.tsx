@@ -15,7 +15,7 @@ import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useLoadNotifications } from "@/features/notifications/hooks/use-load-notifications";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
-import { jobTypeLabel, relativeAge, shortJobId, type JobEventPayload } from "../integration-job.types";
+import { jobLabel, relativeAge, shortJobId, type JobEventPayload } from "../integration-job.types";
 import { useJobEvents } from "../use-job-events";
 
 /**
@@ -139,7 +139,7 @@ export default function NotificationBell({ dict }: NotificationBellProps) {
             )}
             {shown.map((entry) => {
               const { icon: Icon, className } = TRANSITION_ICON[entry.payload.transition];
-              const title = `${jobTypeLabel(entry.payload.jobType)} — ${tr(
+              const title = `${jobLabel(entry.payload.jobType, entry.payload.jobOp)} — ${tr(
                 `pages.integrationJobs.transitions.${entry.payload.transition}`,
                 bellDict,
               )}`;

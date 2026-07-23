@@ -6,7 +6,9 @@ import {
   formatDateTime,
   jobContextLine,
   jobDurationMs,
+  jobLabel,
   jobTypeLabel,
+  readJobOp,
   relativeAge,
   shortJobId,
   sortChain,
@@ -48,6 +50,35 @@ describe("integration-job.types", () => {
     expect(jobTypeLabel("calendar_sync")).toBe("Calendar sync");
     expect(jobTypeLabel("alerce_arrival")).toBe("Alerce arrival");
     expect(jobTypeLabel("my_custom-type")).toBe("My custom type");
+    // ECM mints these; they must not read as ALL-CAPS shouting in the table.
+    expect(jobTypeLabel("WHATSAPP_POD_NOTIFY")).toBe("WhatsApp POD notice");
+    expect(jobTypeLabel("SOME_NEW_JOB")).toBe("Some new job");
+    expect(jobTypeLabel("calendar_confirm")).toBe("Calendar confirm");
+    expect(jobTypeLabel("alerce_assignment")).toBe("Alerce assignment");
+  });
+
+  it("readJobOp reads a non-blank string op and nothing else", () => {
+    expect(readJobOp({ op: "ensure" })).toBe("ensure");
+    expect(readJobOp({ op: "  unassign  " })).toBe("unassign");
+    expect(readJobOp({ op: "   " })).toBeNull();
+    expect(readJobOp({ op: 42 })).toBeNull();
+    expect(readJobOp({})).toBeNull();
+    expect(readJobOp(undefined)).toBeNull();
+  });
+
+  it("labels each calendar_sync op distinctly", () => {
+    expect(jobLabel("calendar_sync", "ensure")).toBe("Calendar ensure");
+    expect(jobLabel("calendar_sync", "patch")).toBe("Calendar status");
+    expect(jobLabel("calendar_sync", "unassign")).toBe("Calendar unassign");
+    expect(jobLabel("calendar_sync", "cancel")).toBe("Calendar cancel");
+  });
+
+  it("jobLabel falls back to the type label without an op, and shows unknown ops verbatim", () => {
+    expect(jobLabel("calendar_sync")).toBe("Calendar sync");
+    expect(jobLabel("calendar_sync", null)).toBe("Calendar sync");
+    expect(jobLabel("calendar_confirm", null)).toBe("Calendar confirm");
+    expect(jobLabel("calendar_sync", "rebook")).toBe("Calendar sync · rebook");
+    expect(jobLabel("alerce_arrival", "notify")).toBe("Alerce arrival · notify");
   });
 
   it("shortJobId keeps the first uuid segment", () => {

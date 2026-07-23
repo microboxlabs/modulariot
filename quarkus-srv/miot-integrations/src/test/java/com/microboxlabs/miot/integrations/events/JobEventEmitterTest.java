@@ -53,11 +53,30 @@ class JobEventEmitterTest {
         assertEquals("chain-1", payload.getString("chainKey"));
         assertEquals("409 conflict", payload.getString("lastError"));
         assertNull(payload.getString("updatedAt"));
+        assertNull(payload.getString("jobOp"), "a payload with no op emits none");
+    }
+
+    @Test
+    void eventDataLiftsThePayloadOpOntoTheFrame() {
+        var emitter = new JobEventEmitter(Optional.of("http://quarkus-sse:8080"));
+
+        assertEquals("unassign",
+                emitter.eventData(job(Map.of("op", "unassign")), "enqueued")
+                        .getJsonObject("payload").getString("jobOp"));
+        // Blank / non-string ops are not ops.
+        assertNull(emitter.eventData(job(Map.of("op", "  ")), "enqueued")
+                .getJsonObject("payload").getString("jobOp"));
+        assertNull(emitter.eventData(job(Map.of("op", 42)), "enqueued")
+                .getJsonObject("payload").getString("jobOp"));
     }
 
     private static AsyncJob job() {
+        return job(Map.of());
+    }
+
+    private static AsyncJob job(Map<String, Object> payload) {
         return new AsyncJob("job-1", "tenant-code-1", "ecm-1", "modulith", "calendar_sync", "VJ-26-0001",
-                "chain-1", 0, "dk-1", Map.of(), JobState.PENDING, 2, 5,
+                "chain-1", 0, "dk-1", payload, JobState.PENDING, 2, 5,
                 OffsetDateTime.now(ZoneOffset.UTC), null, null, "409 conflict", List.of(), "listener",
                 null, null);
     }

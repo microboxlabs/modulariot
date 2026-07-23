@@ -59,6 +59,13 @@ export interface JobsOverview {
 export interface JobEventPayload {
   readonly jobId: string;
   readonly jobType: string;
+  /**
+   * The job payload's `op`, lifted onto the frame by `JobEventEmitter` so the
+   * bell can label a job as precisely as the console table does (the frame
+   * carries no payload). Absent on job types that have no ops — and on frames
+   * emitted by a backend older than that change.
+   */
+  readonly jobOp?: string | null;
   readonly executor: string;
   readonly state: JobState;
   readonly transition:
@@ -141,10 +148,55 @@ export function jobTypeLabel(jobType: string): string {
     calendar_sync: "Calendar sync",
     alerce_arrival: "Alerce arrival",
     whatsapp_send: "WhatsApp message",
+    WHATSAPP_POD_NOTIFY: "WhatsApp POD notice",
   };
   if (known[jobType]) return known[jobType];
-  const words = jobType.replaceAll(/[_-]+/g, " ").trim();
+  // Job types are free-form and the enqueuers do not agree on a case: most are
+  // snake_case, a few are SCREAMING_CASE. Lowercase the shouting ones first so
+  // an unknown type reads as a sentence rather than as an alarm.
+  const cased = /[a-z]/.test(jobType) ? jobType : jobType.toLowerCase();
+  const words = cased.replaceAll(/[_-]+/g, " ").trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * Per-op labels, because a job type is not always one operation.
+ *
+ * `calendar_sync` is a single type carrying four unrelated writes (see
+ * `CalendarSyncFeature.OP_*`), so labelling by type alone renders a whole
+ * chain as an indistinguishable stack of "Calendar sync" rows and the operator
+ * has to open each one to learn what it did.
+ */
+const JOB_OP_LABELS: Record<string, Record<string, string>> = {
+  calendar_sync: {
+    // Upsert: create-if-absent at the slot / re-slot, then set the stage status.
+    ensure: "Calendar ensure",
+    // Status-only push (plus a resource-data merge) — no slot decision.
+    patch: "Calendar status",
+    unassign: "Calendar unassign",
+    cancel: "Calendar cancel",
+  },
+};
+
+/** The `op` a job payload carries, when it has one. */
+export function readJobOp(
+  payload: Record<string, unknown> | null | undefined
+): string | null {
+  const op = payload?.op;
+  if (typeof op !== "string") return null;
+  const trimmed = op.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+/**
+ * Human label for a job, op included. Falls back to {@link jobTypeLabel} when
+ * the job carries no op, and to `"<Type> · <op>"` for an op we have no label
+ * for — so a new backend op shows up as itself instead of collapsing into its
+ * siblings.
+ */
+export function jobLabel(jobType: string, op?: string | null): string {
+  if (!op) return jobTypeLabel(jobType);
+  return JOB_OP_LABELS[jobType]?.[op] ?? `${jobTypeLabel(jobType)} · ${op}`;
 }
 
 export function shortJobId(id: string): string {

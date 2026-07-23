@@ -2053,6 +2053,9 @@
           "destinationPlaceholder": "Select a destination",
           "hint": "Only tasks matching the selected filters will be shown.",
           "save": "Save",
+          "defaultLabel": "Default calendar for this origin",
+          "defaultHint": "Services created automatically (outside the planner) for this origin will be booked into this calendar. If no calendar for the origin is marked, those services move on with no booking.",
+          "defaultNeedsOrigin": "With no origin, this calendar receives the services of every origin that has none of its own.",
           "saveSuccess": "Task filter saved successfully",
           "saveError": "Error saving the task filter"
         }
@@ -3840,6 +3843,7 @@
       "timezoneLabel": "Timezone",
       "groupLabel": "Group",
       "activeLabel": "Active",
+      "isDefaultLabel": "Default calendar for the origin",
       "submit": "Create Calendar",
       "group": {
         "searchPlaceholder": "Search or create a group...",

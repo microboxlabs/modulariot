@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -65,6 +67,34 @@ class CredentialProfileSqlIntegrityTest {
         assertTrue(
                 sql.contains("encrypted_secret_json = COALESCE($6::text, encrypted_secret_json)"),
                 "UPDATE_PROFILE must keep the stored ciphertext when none is bound:\n" + sql);
+    }
+
+    /**
+     * A text block strips trailing spaces from every line, so {@code RETURNING """ + COLUMNS}
+     * emits {@code RETURNINGid, tenant_code, ...} — PostgreSQL answers
+     * {@code syntax error at or near "RETURNINGid"} and every write fails. It reached
+     * production once: create, update, secret rotation and test-result recording were all
+     * broken, while the reads (which build their projection differently) kept working, so
+     * the screen listed credentials perfectly and refused to save one.
+     *
+     * <p>This walks every SQL constant rather than the four known clauses, so the next
+     * keyword glued to an identifier is caught wherever it appears.
+     */
+    @Test
+    void noKeywordIsGluedToTheColumnListItPrecedes() throws Exception {
+        for (Field field : CredentialProfileRepository.class.getDeclaredFields()) {
+            if (!field.getType().equals(String.class) || !Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
+            field.setAccessible(true);
+            String sql = (String) field.get(null);
+            for (String keyword : List.of("RETURNING", "SELECT", "FROM", "WHERE", "SET", "VALUES")) {
+                assertFalse(
+                        Pattern.compile(keyword + "\\w").matcher(sql).find(),
+                        field.getName() + " has " + keyword + " glued to what follows it — a text block "
+                                + "dropped the separating space:\n" + sql);
+            }
+        }
     }
 
     /** Recording a test result is not an edit — see the comment on the query itself. */

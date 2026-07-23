@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, TextInput, Label } from "flowbite-react";
+import { Button, Checkbox, TextInput, Label } from "flowbite-react";
 import { useCallback, useEffect, useState } from "react";
 import { HiCheck } from "react-icons/hi";
 import type { CalendarFilter } from "@microboxlabs/miot-calendar-client";
@@ -14,6 +14,9 @@ export interface FilterManagerMessages {
   destinationPlaceholder: string;
   hint: string;
   save: string;
+  defaultLabel: string;
+  defaultHint: string;
+  defaultNeedsOrigin: string;
 }
 
 const FILTER_MANAGER_BASE = "layout.planning.calendarRules.taskFilter" as const;
@@ -31,27 +34,38 @@ export function getFilterManagerMessages(
     ),
     hint: tr(`${FILTER_MANAGER_BASE}.hint`, dict),
     save: tr(`${FILTER_MANAGER_BASE}.save`, dict),
+    defaultLabel: tr(`${FILTER_MANAGER_BASE}.defaultLabel`, dict),
+    defaultHint: tr(`${FILTER_MANAGER_BASE}.defaultHint`, dict),
+    defaultNeedsOrigin: tr(`${FILTER_MANAGER_BASE}.defaultNeedsOrigin`, dict),
   };
 }
 
 interface FilterManagerProps {
   messages: FilterManagerMessages;
   initialFilter?: CalendarFilter;
-  onFilterChange?: (filter: CalendarFilter) => void;
+  initialIsDefault?: boolean;
+  onFilterChange?: (filter: CalendarFilter, isDefault: boolean) => void;
 }
 
 /**
  * Task filter manager — lets the user constrain the planning sidebar's
- * task list to a specific origin and/or destination delegate code.
+ * task list to a specific origin and/or destination delegate code, and mark
+ * the calendar as the default for that origin: the one a service created
+ * outside the planner gets booked into. Both live here because the default is
+ * scoped by the very origin the field above sets.
  */
 export default function FilterManager({
   messages,
   initialFilter,
+  initialIsDefault,
   onFilterChange,
 }: Readonly<FilterManagerProps>) {
   const [origin, setOrigin] = useState<string>(initialFilter?.origin ?? "");
   const [destination, setDestination] = useState<string>(
     initialFilter?.destination ?? ""
+  );
+  const [isDefault, setIsDefault] = useState<boolean>(
+    initialIsDefault ?? false
   );
 
   useEffect(() => {
@@ -59,14 +73,22 @@ export default function FilterManager({
     setDestination(initialFilter?.destination ?? "");
   }, [initialFilter?.origin, initialFilter?.destination]);
 
+  useEffect(() => {
+    setIsDefault(initialIsDefault ?? false);
+  }, [initialIsDefault]);
+
+  // A default with no origin is the catch-all for every origin nothing else
+  // claims. Reachable on purpose, but not by leaving a field blank.
+  const defaultWithoutOrigin = isDefault && origin.trim() === "";
+
   const handleSave = useCallback(() => {
     const next: CalendarFilter = {};
     const o = origin.trim();
     const d = destination.trim();
     if (o) next.origin = o;
     if (d) next.destination = d;
-    onFilterChange?.(next);
-  }, [origin, destination, onFilterChange]);
+    onFilterChange?.(next, isDefault);
+  }, [origin, destination, isDefault, onFilterChange]);
 
   return (
     <div className="p-4 space-y-4">
@@ -108,6 +130,28 @@ export default function FilterManager({
 
       <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
         {messages.hint}
+      </div>
+
+      <div className="space-y-2 border-t border-gray-200 dark:border-gray-700 pt-3">
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id="filter-is-default"
+            checked={isDefault}
+            onChange={(e) => setIsDefault(e.target.checked)}
+            className="mt-0.5"
+          />
+          <Label
+            htmlFor="filter-is-default"
+            className="text-xs font-medium text-gray-700 dark:text-gray-300"
+          >
+            {messages.defaultLabel}
+          </Label>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {defaultWithoutOrigin
+            ? messages.defaultNeedsOrigin
+            : messages.defaultHint}
+        </p>
       </div>
 
       <Button color="blue" size="sm" className="w-full" onClick={handleSave}>

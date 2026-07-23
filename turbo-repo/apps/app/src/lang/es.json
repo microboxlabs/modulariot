@@ -2053,6 +2053,9 @@
           "destinationPlaceholder": "Selecciona un destino",
           "hint": "Solo se mostrarán las tareas que coincidan con los filtros seleccionados.",
           "save": "Guardar",
+          "defaultLabel": "Calendario por defecto para este origen",
+          "defaultHint": "Los servicios creados automáticamente (fuera del planificador) para este origen se reservarán en este calendario. Si ningún calendario del origen está marcado, esos servicios avanzan sin reserva.",
+          "defaultNeedsOrigin": "Sin origen, este calendario recibirá los servicios de cualquier origen que no tenga uno propio.",
           "saveSuccess": "Filtro de tareas guardado correctamente",
           "saveError": "Error al guardar el filtro de tareas"
         }
@@ -3840,6 +3843,7 @@
       "timezoneLabel": "Zona Horaria",
       "groupLabel": "Grupo",
       "activeLabel": "Activo",
+      "isDefaultLabel": "Calendario por defecto para el origen",
       "submit": "Crear Calendario",
       "group": {
         "searchPlaceholder": "Buscar o crear un grupo...",

@@ -118,6 +118,7 @@ value you have confirmed; never emit a literal placeholder.
 | `/notifications` | notifications, notificaciones | User notifications | — |
 | `/integrations/jobs` | integration jobs, trabajos de integración, job console, consola de trabajos | Asynchronous integration job activity and status | — |
 | `/users/settings` | settings, configuración, ajustes | User settings; organizations at `/users/settings/organizations`, data sources at `/users/settings/data-sources` | — |
+| `/users/settings/credentials` | credentials, credenciales, API credentials, credenciales API | Reusable organization credentials for data sources, integrations, and jobs | — |
 | `/admin/console/logs` | admin logs, logs, registros (admins only) | Operational logs | — |
 | `/admin/console/message-templates` | message templates, plantillas de mensaje (admins only) | Message templates | — |
 

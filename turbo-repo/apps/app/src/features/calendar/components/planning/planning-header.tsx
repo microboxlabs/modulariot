@@ -198,6 +198,7 @@ export default function PlanningHeader({
           messages={getCalendarRulesMessages(dict)}
           andenesCount={andenesCount}
           taskFilter={activeCalendar?.filter}
+          isDefaultCalendar={activeCalendar?.isDefault}
           onAndenesChange={async (config) => {
             setAndenesCount(config.count);
             if (!calendarId) return;
@@ -215,10 +216,10 @@ export default function PlanningHeader({
               });
             }
           }}
-          onTaskFilterChange={async (filter: CalendarFilter) => {
+          onTaskFilterChange={async (filter: CalendarFilter, isDefault: boolean) => {
             if (!calendarId) return;
             try {
-              await updateCalendar(calendarId, { filter });
+              await updateCalendar(calendarId, { filter, isDefault });
               await refreshCalendars();
               ShowNotification({
                 type: "success",

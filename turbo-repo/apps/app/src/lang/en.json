@@ -1425,7 +1425,8 @@
         "settings": "Settings",
         "organizations": "Organizations",
         "dataSources": "Data Sources",
-        "symptomRules": "Symptom rules"
+        "symptomRules": "Symptom rules",
+        "places": "Places of interest"
       },
       "symptoms": {
         "config": {
@@ -1528,7 +1529,8 @@
         "title": "Settings",
         "general": "General",
         "dataSources": "Data Sources",
-        "symptomRules": "Symptom rules"
+        "symptomRules": "Symptom rules",
+        "places": "Places of interest"
       }
     },
     "integrationJobs": {
@@ -1813,7 +1815,8 @@
         "gxcTransportistas": "Carriers",
         "gxcRutas": "Routes",
         "gxcOperaciones": "Operations",
-        "symptomRules": "Symptom rules"
+        "symptomRules": "Symptom rules",
+        "places": "Places of interest"
       }
     },
     "calendar": {

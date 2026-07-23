@@ -17,6 +17,11 @@ const READ_FNS = new Set([
   "fn_symptom_list",
   "fn_pt4_rule_detail",
   "fn_pt4_my_rules",
+  "fn_pt4_places",
+  "fn_pt4_places_global",
+  "fn_pt4_trayectos",
+  "fn_pt4_trayectos_global",
+  "fn_pt4_categorias",
   "fn_pt4_quota_status",
   "fn_pt4_criticality_scheme",
   "fn_pt4_audit_log",
@@ -29,6 +34,11 @@ const WRITE_FNS = new Set([
   "fn_pt4_update_rule_meta",
   "fn_pt4_delete_rule",
   "fn_pt4_estimate",
+  "fn_pt4_create_place",
+  "fn_pt4_update_place",
+  "fn_pt4_delete_place",
+  "fn_pt4_save_trayecto",
+  "fn_pt4_delete_trayecto",
 ]);
 // Fns donde p_org_id se fuerza al RUT de la org carrier activa.
 const TENANT_PARAM_FNS = new Set([
@@ -41,6 +51,13 @@ const TENANT_PARAM_FNS = new Set([
   "fn_pt4_save_combination",
   "fn_pt4_update_rule_meta",
   "fn_pt4_delete_rule",
+  "fn_pt4_places",
+  "fn_pt4_trayectos",
+  "fn_pt4_create_place",
+  "fn_pt4_update_place",
+  "fn_pt4_delete_place",
+  "fn_pt4_save_trayecto",
+  "fn_pt4_delete_trayecto",
 ]);
 
 async function carrierOrgId(): Promise<{ deny: NextResponse | null; orgId: string | null }> {

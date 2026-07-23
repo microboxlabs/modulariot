@@ -2,7 +2,7 @@
 
 ## STATUS: IN PROGRESS
 
-R4 completed successfully. R5 is active.
+R5 completed successfully. R6 is active.
 
 ## Pre-flight checklist
 
@@ -15,12 +15,13 @@ R4 completed successfully. R5 is active.
 
 ## Active rung
 
-- **Rung**: R5 — Browser rendering and spreadsheet dependencies
-- **Base SHA**: `097efa2c5`
-- **Turn limit**: 20
-- **Last result**: All R4 toolchain targets resolve outside their advisory
-  ranges. A clean install, 14-package lint gate, and 20-task type-check gate
-  passed; tsup builds also passed with the esbuild override.
+- **Rung**: R6 — Full verification and alert reconciliation
+- **Base SHA**: `382d50448`
+- **Turn limit**: 24
+- **Last result**: DOMPurify resolves to 3.4.12, ECharts to 6.1.0, and
+  SheetJS to the official 0.20.3 distribution. Clean install and npm audit
+  passed with zero vulnerabilities; app lint, type checks, 802 tests, the
+  SheetJS integration test, and the production build passed.
 
 ## History
 
@@ -31,6 +32,7 @@ R4 completed successfully. R5 is active.
 | R2 | done | `be7f90bee` | Next 15/16 and sharp patched; supported checks, tests, and builds passed. |
 | R3 | done | `c7e7a639c` | Runtime auth/network targets patched; type checks and app tests passed. |
 | R4 | done | `097efa2c5` | Toolchain advisories patched; root lint and type checks passed. |
+| R5 | done | `382d50448` | DOMPurify, ECharts, and SheetJS patched; app gates passed. |
 
 ## Escalations
 

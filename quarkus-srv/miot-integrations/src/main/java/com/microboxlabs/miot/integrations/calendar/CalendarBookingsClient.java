@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.calendar;
 
+import com.microboxlabs.miot.integrations.jobs.JobHttpTrace;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -224,6 +225,12 @@ public class CalendarBookingsClient {
                 "miot.integrations.calendar-sync.miot-calendar.base-url is not configured"));
     }
 
+    /**
+     * The single point every call leaves through — and therefore the one place
+     * that records the exchange for the job console (see {@link JobHttpTrace}).
+     * Recording is a no-op outside a job's attempt window, so callers that are
+     * not a job pay nothing.
+     */
     private HttpResponse<String> send(String method, String url, String body) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(url))
@@ -235,16 +242,25 @@ public class CalendarBookingsClient {
                 ? HttpRequest.BodyPublishers.noBody()
                 : HttpRequest.BodyPublishers.ofString(body);
         builder.method(method, publisher);
+        long startedAt = System.nanoTime();
         try {
-            return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            JobHttpTrace.record(method, url, response.statusCode(), elapsedMs(startedAt), body, response.body(), null);
+            return response;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new CalendarBookingsHttpException(-1,
-                    "miot-calendar " + method + " " + url + " interrupted: " + e.getMessage());
+            String message = "miot-calendar " + method + " " + url + " interrupted: " + e.getMessage();
+            JobHttpTrace.record(method, url, null, elapsedMs(startedAt), body, null, message);
+            throw new CalendarBookingsHttpException(-1, message);
         } catch (java.io.IOException e) {
-            throw new CalendarBookingsHttpException(-1,
-                    "miot-calendar " + method + " " + url + " io error: " + e.getMessage());
+            String message = "miot-calendar " + method + " " + url + " io error: " + e.getMessage();
+            JobHttpTrace.record(method, url, null, elapsedMs(startedAt), body, null, message);
+            throw new CalendarBookingsHttpException(-1, message);
         }
+    }
+
+    private static long elapsedMs(long startedAtNanos) {
+        return (System.nanoTime() - startedAtNanos) / 1_000_000;
     }
 
     private static JsonObject slotJson(LocalDate date, int hour, int minutes) {

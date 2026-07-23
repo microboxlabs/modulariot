@@ -1,8 +1,8 @@
 # Dependabot remediation — Goal State
 
-## STATUS: IN PROGRESS
+## STATUS: RUNG COMPLETE
 
-The human approved the ladder on 2026-07-23. R0 is active.
+R1 completed successfully. R2 is next.
 
 ## Pre-flight checklist
 
@@ -15,16 +15,17 @@ The human approved the ladder on 2026-07-23. R0 is active.
 
 ## Active rung
 
-- **Rung**: R0 — Inventory and resolution map
-- **Base SHA**: `3804ea88dee4bca6bcb52499cdccc2d8ed6cc615`
-- **Turn limit**: 12
-- **Last result**: Live alert count reconfirmed at 77.
+- **Rung**: R1 — Python lockfile remediation (complete)
+- **Base SHA**: `efa3de274146dc22c6b3f7b2425851f99afb8674`
+- **Turn limit**: 10
+- **Last result**: `pyasn1` updated to 0.6.4; uv lock check passed;
+  1,021 tests passed and 4 skipped.
 
 ## History
 
 | Rung | Result | End SHA | Notes |
 |------|--------|---------|-------|
-| — | — | — | — |
+| R0 | done | `efa3de274146dc22c6b3f7b2425851f99afb8674` | 77 alerts mapped; baseline gates recorded. |
 
 ## Escalations
 

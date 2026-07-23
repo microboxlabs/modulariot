@@ -22,8 +22,8 @@
 
 | Rung | Phase | Status |
 |------|-------|--------|
-| R0 | Inventory and resolution map | in_progress |
-| R1 | Python lockfile remediation | todo |
+| R0 | Inventory and resolution map | done |
+| R1 | Python lockfile remediation | done |
 | R2 | Next.js and native image stack | todo |
 | R3 | Runtime auth and networking dependencies | todo |
 | R4 | Build and development toolchain dependencies | todo |
@@ -34,7 +34,7 @@
 
 ## R0 — Inventory and resolution map
 
-- **Status**: in_progress
+- **Status**: done
 - **Base SHA**: recorded in `GOAL-STATE.md` when the rung starts
 
 ```text
@@ -54,7 +54,7 @@ commit; no secrets. Stop after 12 turns if not achieved.
 
 ## R1 — Python lockfile remediation
 
-- **Status**: todo
+- **Status**: done
 - **Base SHA**: —
 
 ```text

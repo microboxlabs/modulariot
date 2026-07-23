@@ -438,6 +438,27 @@ export function Perfil({ lang }: { lang: string }) {
     ? Number(tend.tasa_act) - Number(tend.tasa_prev) : null;
   const topResp = p?.respuesta?.por_responsable?.[0];
 
+  // Capítulos AL CURSOR: durante la reproducción los contadores acompañan a
+  // la historia (acumulado de viajes cerrados hasta el día del cursor).
+  const capAcum = useMemo(() => {
+    if (cursor == null || !p?.timeline || !cap) return null;
+    const vs = p.timeline.viajes.filter((v) => v.fin_log <= cursor);
+    const conSenal = new Set(p.timeline.sintomas.map((x) => x.s));
+    const ids = new Set(vs.map((v) => v.s));
+    const mix: Record<string, number> = {};
+    for (const c of p.timeline.consecuencias) {
+      if (ids.has(c.s)) mix[c.tipo] = (mix[c.tipo] ?? 0) + 1;
+    }
+    return {
+      viajes: vs.length,
+      con_exposicion: vs.filter((v) => conSenal.has(v.s)).length,
+      con_consecuencia: vs.filter((v) => v.cons).length,
+      mix,
+      respuesta: p.timeline.respuesta.filter((r) => r.t <= cursor).length,
+    };
+  }, [cursor, p, cap]);
+  const alCursor = capAcum != null && cursor != null;
+
   const paramTele: Record<string, string> = {
     camion: "tele_camion", conductor: "tele_conductor", carrier: "tele_carrier", ruta: "tele_ruta",
   };
@@ -464,53 +485,63 @@ export function Perfil({ lang }: { lang: string }) {
       {/* Los 4 capítulos */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="card px-4 py-3">
-          <div className="text-[11px] uppercase tracking-wide" style={{ color: "var(--muted)" }}>1 · Exposición</div>
+          <div className="text-[11px] uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+            1 · Exposición{alCursor && <span style={{ color: "var(--blue-700)" }}> · al {fmtDia(cursor!)}</span>}
+          </div>
           <div className="text-[24px] font-semibold">
-            {cap ? `${cap.con_exposicion}/${cap.viajes}` : "—"}
+            {capAcum ? `${capAcum.con_exposicion}/${capAcum.viajes}` : cap ? `${cap.con_exposicion}/${cap.viajes}` : "—"}
             <span className="text-[13px] font-normal ml-2" style={{ color: "var(--muted)" }}>
-              {cap ? pct(cap.con_exposicion / Math.max(1, cap.viajes)) : ""}
+              {capAcum ? pct(capAcum.con_exposicion / Math.max(1, capAcum.viajes))
+                : cap ? pct(cap.con_exposicion / Math.max(1, cap.viajes)) : ""}
             </span>
           </div>
           <div className="text-[12px]" style={{ color: "var(--muted)" }}>
             viajes con síntomas ICU≥2
-            {p?.cobertura_monitoreo != null && (
+            {!alCursor && p?.cobertura_monitoreo != null && (
               <> · monitoreo cubre {pct(p.cobertura_monitoreo)} del tiempo de proceso</>
             )}
           </div>
         </div>
         <div className="card px-4 py-3">
-          <div className="text-[11px] uppercase tracking-wide" style={{ color: "var(--muted)" }}>2 · Consecuencia</div>
+          <div className="text-[11px] uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+            2 · Consecuencia{alCursor && <span style={{ color: "var(--blue-700)" }}> · al {fmtDia(cursor!)}</span>}
+          </div>
           <div className="text-[24px] font-semibold">
-            {cap ? `${cap.con_consecuencia}/${cap.viajes}` : "—"}
+            {capAcum ? `${capAcum.con_consecuencia}/${capAcum.viajes}` : cap ? `${cap.con_consecuencia}/${cap.viajes}` : "—"}
             <span className="text-[13px] font-normal ml-2" style={{ color: "var(--muted)" }}>
-              {cap ? pct(cap.con_consecuencia / Math.max(1, cap.viajes)) : ""}
+              {capAcum ? pct(capAcum.con_consecuencia / Math.max(1, capAcum.viajes))
+                : cap ? pct(cap.con_consecuencia / Math.max(1, cap.viajes)) : ""}
             </span>
           </div>
           <div className="text-[12px] flex gap-2 flex-wrap">
-            {cap && (p?.mix_claves ?? TIPO_MIX[tipo] ?? []).map((k) => (
-              (cap.mix?.[k] ?? 0) > 0 && (
+            {cap && (p?.mix_claves ?? TIPO_MIX[tipo] ?? []).map((k) => {
+              const n = (capAcum ?? cap).mix?.[k] ?? 0;
+              return n > 0 && (
                 <span key={k} className="inline-flex items-center gap-1" title={MIX_META[k]?.nota}
                       style={{ color: "var(--muted)" }}>
                   <span className="w-2 h-2 rounded-sm" style={{ background: MIX_META[k]?.color }} />
-                  {MIX_META[k]?.label.split(" ")[0].toLowerCase() ?? k} <b>{cap.mix[k]}</b>
+                  {MIX_META[k]?.label.split(" ")[0].toLowerCase() ?? k} <b>{n}</b>
                 </span>
-              )
-            ))}
-            {cap && !cap.con_consecuencia && <span style={{ color: "var(--muted)" }}>sin consecuencias</span>}
+              );
+            })}
+            {cap && !(capAcum ?? cap).con_consecuencia && <span style={{ color: "var(--muted)" }}>sin consecuencias</span>}
           </div>
         </div>
         <div className="card px-4 py-3">
-          <div className="text-[11px] uppercase tracking-wide" style={{ color: "var(--muted)" }}>3 · Respuesta</div>
+          <div className="text-[11px] uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+            3 · Respuesta{alCursor && <span style={{ color: "var(--blue-700)" }}> · al {fmtDia(cursor!)}</span>}
+          </div>
           <div className="text-[24px] font-semibold">
-            {p?.respuesta?.total?.toLocaleString() ?? "—"}
-            {p && p.respuesta.total > 0 && (
+            {capAcum ? capAcum.respuesta.toLocaleString() : p?.respuesta?.total?.toLocaleString() ?? "—"}
+            {!alCursor && p && p.respuesta.total > 0 && (
               <span className="text-[13px] font-normal ml-2" style={{ color: "var(--muted)" }}>
                 {p.respuesta.total - p.respuesta.expirados} en curso
               </span>
             )}
           </div>
           <div className="text-[12px] truncate" style={{ color: "var(--muted)" }}>
-            {topResp ? `mayor volumen asignado: ${topResp.quien} (${topResp.n})` : "tratamientos generados en el período"}
+            {alCursor ? "tratamientos generados hasta el día del cursor"
+              : topResp ? `mayor volumen asignado: ${topResp.quien} (${topResp.n})` : "tratamientos generados en el período"}
           </div>
         </div>
         <div className="card px-4 py-3">

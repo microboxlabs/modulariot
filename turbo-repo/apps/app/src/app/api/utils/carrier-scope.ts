@@ -58,3 +58,34 @@ export async function getCarrierPatentes(scope: TenantScope): Promise<Set<string
   patentesCache.set(key, { set, expiresAt: Date.now() + PATENTES_TTL_MS });
   return set;
 }
+
+/**
+ * Valida que un trip pertenezca a la org carrier activa (trip→carrier_id en
+ * StreamHub). Fail-closed: trip desconocido o de otro carrier ⇒ 403.
+ * Para orgs de torre devuelve null sin consultar nada.
+ */
+const tripCache = new Map<string, { carriers: string[]; expiresAt: number }>();
+const TRIP_TTL_MS = 60_000;
+
+export async function assertCarrierTrip(
+  scope: TenantScope,
+  tripId: string
+): Promise<NextResponse | null> {
+  if (!isCarrierOrg(scope)) return null;
+  const guard = requireCarrierData(scope);
+  if (guard) return guard;
+  let hit = tripCache.get(tripId);
+  if (!hit || hit.expiresAt <= Date.now()) {
+    const { fetchTripCarrierIds } = await import("./pgrest-client");
+    const carriers = await fetchTripCarrierIds(tripId).catch(() => []);
+    hit = { carriers, expiresAt: Date.now() + TRIP_TTL_MS };
+    tripCache.set(tripId, hit);
+  }
+  if (!hit.carriers.some((c) => scope.effectiveTaxIds.includes(c))) {
+    return NextResponse.json(
+      { error: "Trip does not belong to the active organization" },
+      { status: 403 }
+    );
+  }
+  return null;
+}

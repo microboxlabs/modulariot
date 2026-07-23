@@ -1693,3 +1693,29 @@ export function driverDetailResponseToDto(
     },
   };
 }
+
+/**
+ * Carrier ids (RUT) dueños de un trip según StreamHub: live_trip primero,
+ * historical_trip como respaldo. Sirve para validar pertenencia de un viaje
+ * a la org activa (geofences del servicio, PT2).
+ */
+export async function fetchTripCarrierIds(tripId: string): Promise<string[]> {
+  const token = await bearerToken();
+  const flt = `eq.${encodeURIComponent(tripId)}`;
+  const urls = [
+    `${pgrestBaseUrl()}/live_trip?select=carrier_id&trip_id=${flt}`,
+    `${pgrestBaseUrl()}/historical_trip?select=carrier_id&trip_id=${flt}`,
+  ];
+  const out = new Set<string>();
+  for (const url of urls) {
+    const response = await pgrestFetch(url, {
+      headers: { accept: "application/json", Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!response.ok) continue;
+    const rows = (await response.json()) as Array<{ carrier_id?: string }>;
+    for (const row of rows) if (row.carrier_id) out.add(String(row.carrier_id));
+    if (out.size) break; // live ya resolvió: no hace falta el histórico
+  }
+  return [...out];
+}

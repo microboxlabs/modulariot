@@ -1,5 +1,5 @@
 import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
-import { isCarrierOrg } from "@/app/api/utils/carrier-scope";
+import { assertCarrierTrip } from "@/app/api/utils/carrier-scope";
 import { auth } from "@/auth";
 import { NextResponse, NextRequest } from "next/server";
 
@@ -20,16 +20,6 @@ const config: AuthTokenConfig = {
 const authToken = new AuthToken(config);
 
 export async function GET(req: NextRequest) {
-  // PT2 TODO: falta resolver trip→asset para validar pertenencia; hasta
-  // entonces, fail-closed para orgs carrier (geometría de rutas ajenas).
-  const scopeResult = await resolveTenantScope();
-  if (scopeResult.resolved && isCarrierOrg(scopeResult.scope)) {
-    return NextResponse.json(
-      { error: "Trip geofences are not tenant-validated yet for carrier organizations" },
-      { status: 403 }
-    );
-  }
-
   const session = await auth();
   if (!session) {
     return NextResponse.json({
@@ -37,12 +27,19 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  const tripId = req.nextUrl.searchParams.get("tripId");
+  if (!tripId) return NextResponse.error();
+
+  // PT2: para orgs carrier el trip debe ser SUYO (trip→carrier_id en
+  // StreamHub); trip ajeno o desconocido ⇒ 403 fail-closed.
+  const scopeResult = await resolveTenantScope();
+  if (scopeResult.resolved) {
+    const deny = await assertCarrierTrip(scopeResult.scope, tripId);
+    if (deny) return deny;
+  }
+
   try {
     const token = await authToken.getToken();
-
-    const tripId = req.nextUrl.searchParams.get("tripId");
-
-    if (!tripId) return NextResponse.error();
 
     const response = await fetch(SYMPTOMS_API_URL + "?p_trip_id=" + tripId, {
       headers: {

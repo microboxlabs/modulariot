@@ -230,10 +230,11 @@ interface CalendarRulesProps {
   messages: CalendarRulesMessages;
   andenesCount?: number;
   taskFilter?: CalendarFilter;
+  isDefaultCalendar?: boolean;
   onRulesChange?: (windows: TimeWindow[]) => void;
   onBlocksChange?: (blocks: TimeBlock[]) => void;
   onAndenesChange?: (config: PlatformConfig) => void;
-  onTaskFilterChange?: (filter: CalendarFilter) => void;
+  onTaskFilterChange?: (filter: CalendarFilter, isDefault: boolean) => void;
 }
 
 export default function CalendarRules({
@@ -241,6 +242,7 @@ export default function CalendarRules({
   messages,
   andenesCount,
   taskFilter,
+  isDefaultCalendar,
   onRulesChange,
   onBlocksChange,
   onAndenesChange,
@@ -327,8 +329,9 @@ export default function CalendarRules({
             <FilterManager
               messages={getFilterManagerMessages(dict)}
               initialFilter={taskFilter}
-              onFilterChange={(filter) => {
-                onTaskFilterChange?.(filter);
+              initialIsDefault={isDefaultCalendar}
+              onFilterChange={(filter, isDefault) => {
+                onTaskFilterChange?.(filter, isDefault);
                 closePanel();
               }}
             />

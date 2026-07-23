@@ -90,7 +90,7 @@
     "tailwindcss": "^4.1.17",
     "use-debounce": "^10.0.4",
     "wkx": "^0.5.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "xlsx": "file:../../vendor/xlsx-0.20.3.tgz",
     "zod": "^3.23.8"
   },
   "devDependencies": {

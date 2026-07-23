@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { forwardToStreamhubModulith } from "@/app/api/utils/streamhub-modulith-proxy";
-import { requireOrganizationSettingsAdmin } from "@/app/api/utils/organization-settings-admin";
+import { requireOrganizationOwner } from "@/app/api/utils/organization-owner";
 
 /**
  * GET/PATCH/DELETE /api/admin/orgs/[orgId]/integrations/gps-webhooks/[subId]
@@ -8,22 +8,22 @@ import { requireOrganizationSettingsAdmin } from "@/app/api/utils/organization-s
  */
 export async function GET(
   _request: Request,
-  { params }: { params: Promise<{ orgId: string; subId: string }> },
+  { params }: { params: Promise<{ orgId: string; subId: string }> }
 ) {
   const { orgId, subId } = await params;
-  const denied = await requireOrganizationSettingsAdmin(orgId);
+  const denied = await requireOrganizationOwner(orgId);
   if (denied) return denied;
   return forwardToStreamhubModulith(
-    `/api/v1/orgs/${encodeURIComponent(orgId)}/integrations/gps-webhooks/${encodeURIComponent(subId)}`,
+    `/api/v1/orgs/${encodeURIComponent(orgId)}/integrations/gps-webhooks/${encodeURIComponent(subId)}`
   );
 }
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ orgId: string; subId: string }> },
+  { params }: { params: Promise<{ orgId: string; subId: string }> }
 ) {
   const { orgId, subId } = await params;
-  const denied = await requireOrganizationSettingsAdmin(orgId);
+  const denied = await requireOrganizationOwner(orgId);
   if (denied) return denied;
   let body: unknown;
   try {
@@ -33,19 +33,19 @@ export async function PATCH(
   }
   return forwardToStreamhubModulith(
     `/api/v1/orgs/${encodeURIComponent(orgId)}/integrations/gps-webhooks/${encodeURIComponent(subId)}`,
-    { method: "PATCH", body },
+    { method: "PATCH", body }
   );
 }
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: Promise<{ orgId: string; subId: string }> },
+  { params }: { params: Promise<{ orgId: string; subId: string }> }
 ) {
   const { orgId, subId } = await params;
-  const denied = await requireOrganizationSettingsAdmin(orgId);
+  const denied = await requireOrganizationOwner(orgId);
   if (denied) return denied;
   return forwardToStreamhubModulith(
     `/api/v1/orgs/${encodeURIComponent(orgId)}/integrations/gps-webhooks/${encodeURIComponent(subId)}`,
-    { method: "DELETE" },
+    { method: "DELETE" }
   );
 }

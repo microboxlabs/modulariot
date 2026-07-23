@@ -8,12 +8,12 @@ import ModulesList from "./modules-list";
 import GpsWebhookCard from "../gps-webhooks/gps-webhook-card";
 import WhatsAppChannelCard from "../whatsapp/whatsapp-channel-card";
 import ContentReviewPermissionCard from "./content-review-permission-card";
+import OrganizationMembersCard from "./organization-members-card";
 import type { OrgSummary } from "../types";
 
 interface OrgDetailPanelProps {
   readonly organization: OrgSummary | null;
   readonly dict: I18nRecord;
-  readonly isAlfrescoAdministrator: boolean;
 }
 
 /**
@@ -24,7 +24,6 @@ interface OrgDetailPanelProps {
 export default function OrgDetailPanel({
   organization,
   dict,
-  isAlfrescoAdministrator,
 }: OrgDetailPanelProps) {
   const orgSlug = organization?.slug ?? null;
   const {
@@ -46,29 +45,34 @@ export default function OrgDetailPanel({
     );
   }
 
-  const canManageOrganizationSettings =
-    isAlfrescoAdministrator ||
-    organization?.role === "SITE_MANAGER" ||
-    organization?.role === "GROUP_ADMIN";
+  const isOwner = organization?.role === "OWNER";
 
   return (
     <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+      {isOwner ? (
+        <ContentReviewPermissionCard
+          orgSlug={orgSlug}
+          members={members}
+          membersLoading={membersLoading}
+          membersError={membersError}
+          dict={dict}
+        />
+      ) : (
+        <OrganizationMembersCard
+          members={members}
+          isLoading={membersLoading}
+          error={membersError}
+          dict={dict}
+        />
+      )}
       <ModulesList
         modules={modules}
         isLoading={modulesLoading}
         error={modulesError}
         dict={dict}
       />
-      {canManageOrganizationSettings && (
+      {isOwner && (
         <>
-          <ContentReviewPermissionCard
-            orgSlug={orgSlug}
-            members={members}
-            membersLoading={membersLoading}
-            membersError={membersError}
-            canManage
-            dict={dict}
-          />
           <WhatsAppChannelCard orgSlug={orgSlug} dict={dict} />
           <GpsWebhookCard orgSlug={orgSlug} dict={dict} />
         </>

@@ -16,6 +16,10 @@ vi.mock("./content-review-permission-card", () => ({
   ),
 }));
 
+vi.mock("./organization-members-card", () => ({
+  default: () => <div data-testid="organization-members" />,
+}));
+
 vi.mock("./modules-list", () => ({ default: () => null }));
 vi.mock("../gps-webhooks/gps-webhook-card", () => ({
   default: () => <div data-testid="gps-webhooks" />,
@@ -33,11 +37,10 @@ describe("OrgDetailPanel", () => {
           slug: "mintral",
           displayName: "Mintral",
           taxId: null,
-          role: "SITE_MANAGER",
+          role: "OWNER",
           isParent: true,
         }}
         dict={{}}
-        isAlfrescoAdministrator={false}
       />
     );
 
@@ -56,11 +59,10 @@ describe("OrgDetailPanel", () => {
           slug: "mintral",
           displayName: "Mintral",
           taxId: null,
-          role: "SITE_CONSUMER",
+          role: "MEMBER",
           isParent: true,
         }}
         dict={{}}
-        isAlfrescoAdministrator={false}
       />
     );
 
@@ -69,9 +71,10 @@ describe("OrgDetailPanel", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId("whatsapp-channel")).not.toBeInTheDocument();
     expect(screen.queryByTestId("gps-webhooks")).not.toBeInTheDocument();
+    expect(screen.getByTestId("organization-members")).toBeInTheDocument();
   });
 
-  it("shows organization settings to Alfresco administrators", () => {
+  it("does not treat an Alfresco site role as application ownership", () => {
     render(
       <OrgDetailPanel
         organization={{
@@ -79,16 +82,18 @@ describe("OrgDetailPanel", () => {
           slug: "mintral",
           displayName: "Mintral",
           taxId: null,
-          role: "SITE_CONSUMER",
+          role: "SITE_MANAGER",
           isParent: true,
         }}
         dict={{}}
-        isAlfrescoAdministrator
       />
     );
 
-    expect(screen.getByTestId("content-review-permission")).toBeInTheDocument();
-    expect(screen.getByTestId("whatsapp-channel")).toBeInTheDocument();
-    expect(screen.getByTestId("gps-webhooks")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("content-review-permission")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("whatsapp-channel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("gps-webhooks")).not.toBeInTheDocument();
+    expect(screen.getByTestId("organization-members")).toBeInTheDocument();
   });
 });

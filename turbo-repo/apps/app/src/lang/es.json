@@ -1265,7 +1265,7 @@
     "userSettings": {
       "organizations": {
         "title": "Organizaciones",
-        "description": "Administra la configuración de la organización, canales y webhooks GPS.",
+        "description": "Revisa tus organizaciones y sus miembros. Los propietarios pueden administrar accesos e integraciones.",
         "loadError": "No se pudieron cargar tus organizaciones. Verifica que el modulith local esté en ejecución y que hayas iniciado sesión.",
         "empty": "No hay organizaciones disponibles para tu cuenta.",
         "loading": "Cargando…",
@@ -1292,6 +1292,9 @@
           "accessColumn": "Acceso",
           "permissionColumn": "Aprobación automática",
           "memberAccess": "Miembro",
+          "ownerAccess": "Propietario",
+          "memberRoleLabel": "Rol en la organización para {member}",
+          "lastOwnerHelp": "Promueve a otro miembro antes de quitar al último propietario.",
           "memberPermissionLabel": "Aprobación automática para {member}",
           "noSearchResults": "No hay miembros que coincidan con la búsqueda.",
           "readOnly": "Solo lectura",
@@ -1299,6 +1302,7 @@
           "noMembers": "Agrega miembros a la organización antes de asignar este rol.",
           "unavailableMember": "Ya no pertenece a la organización; desmarca para eliminar",
           "saveError": "No se pudo guardar el permiso.",
+          "roleSaveError": "No se pudo actualizar el rol de la organización.",
           "save": "Guardar permiso",
           "saving": "Guardando…"
         },

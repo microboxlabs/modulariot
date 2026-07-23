@@ -1265,7 +1265,7 @@
     "userSettings": {
       "organizations": {
         "title": "Organizations",
-        "description": "Manage organization settings, channels, and GPS webhooks.",
+        "description": "Review your organizations and their members. Organization owners can manage access and integrations.",
         "loadError": "Couldn't load your organizations. Check that the local modulith is running and you are signed in.",
         "empty": "No organizations available for your account.",
         "loading": "Loading…",
@@ -1292,6 +1292,9 @@
           "accessColumn": "Access",
           "permissionColumn": "Automatic approval",
           "memberAccess": "Member",
+          "ownerAccess": "Owner",
+          "memberRoleLabel": "Organization role for {member}",
+          "lastOwnerHelp": "Promote another member before removing the last owner.",
           "memberPermissionLabel": "Automatic approval for {member}",
           "noSearchResults": "No members match your search.",
           "readOnly": "Read only",
@@ -1299,6 +1302,7 @@
           "noMembers": "Add members to the organization before assigning this role.",
           "unavailableMember": "No longer an organization member; uncheck to remove",
           "saveError": "Couldn't save the permission.",
+          "roleSaveError": "Couldn't update the organization role.",
           "save": "Save permission",
           "saving": "Saving…"
         },

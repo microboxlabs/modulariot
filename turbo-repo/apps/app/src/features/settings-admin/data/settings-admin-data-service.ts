@@ -3,7 +3,9 @@
 import type {
   ContentReviewPermission,
   OrgMember,
+  OrganizationRole,
   SetContentReviewPermission,
+  SetOrganizationRole,
 } from "../types";
 
 /**
@@ -88,4 +90,27 @@ export function updateContentReviewPermission(
     contentReviewPermissionUrl(orgSlug),
     value
   );
+}
+
+const ORGANIZATION_OWNER_ROLE_CODE = "ORGANIZATION_OWNER";
+
+function organizationRoleUrl(orgSlug: string, roleCode: string): string {
+  return `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/roles/${encodeURIComponent(roleCode)}`;
+}
+
+function organizationOwnerRoleUrl(orgSlug: string): string {
+  return organizationRoleUrl(orgSlug, ORGANIZATION_OWNER_ROLE_CODE);
+}
+
+export function fetchOrganizationOwnerRole(
+  orgSlug: string
+): Promise<OrganizationRole> {
+  return getJson<OrganizationRole>(organizationOwnerRoleUrl(orgSlug));
+}
+
+export function updateOrganizationOwnerRole(
+  orgSlug: string,
+  value: SetOrganizationRole
+): Promise<OrganizationRole> {
+  return putJson<OrganizationRole>(organizationOwnerRoleUrl(orgSlug), value);
 }

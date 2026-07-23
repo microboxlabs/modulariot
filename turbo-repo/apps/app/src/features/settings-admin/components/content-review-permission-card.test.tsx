@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import ContentReviewPermissionCard from "./content-review-permission-card";
 
-const { permission, save } = vi.hoisted(() => ({
+const { permission, save, ownerRole, saveOwnerRole } = vi.hoisted(() => ({
   permission: {
     enabled: true,
     permissionCode: "CONTENT_MULTIMEDIA_REVIEW_AUTO_APPROVE",
@@ -11,6 +11,21 @@ const { permission, save } = vi.hoisted(() => ({
     assigneeIds: ["antonia"],
   },
   save: vi.fn(),
+  ownerRole: {
+    roleCode: "ORGANIZATION_OWNER",
+    assigneeIds: ["antonia"],
+  },
+  saveOwnerRole: vi.fn(),
+}));
+
+vi.mock("../hooks/use-organization-owner-role", () => ({
+  useOrganizationOwnerRole: () => ({
+    role: ownerRole,
+    isLoading: false,
+    isSaving: false,
+    error: null,
+    save: saveOwnerRole,
+  }),
 }));
 
 vi.mock("../hooks/use-content-review-permission", () => ({
@@ -40,6 +55,9 @@ const dict = {
     accessColumn: "Access",
     permissionColumn: "Automatic approval",
     memberAccess: "Member",
+    ownerAccess: "Owner",
+    memberRoleLabel: "Organization role for {member}",
+    lastOwnerHelp: "Promote another member first.",
     memberPermissionLabel: "Automatic approval for {member}",
     noSearchResults: "No members match your search.",
     readOnly: "Read only",
@@ -47,6 +65,7 @@ const dict = {
     noMembers: "No members",
     unavailableMember: "Unavailable",
     saveError: "Save error",
+    roleSaveError: "Role save error",
     save: "Save permission",
     saving: "Saving",
   },
@@ -78,7 +97,6 @@ describe("ContentReviewPermissionCard", () => {
         members={members}
         membersLoading={false}
         membersError={null}
-        canManage
         dict={dict}
       />
     );
@@ -106,28 +124,28 @@ describe("ContentReviewPermissionCard", () => {
     });
   });
 
-  it("renders permissions as read-only for non-managers", () => {
+  it("promotes a member to organization owner", async () => {
+    const user = userEvent.setup();
     render(
       <ContentReviewPermissionCard
         orgSlug="mintral"
         members={members}
         membersLoading={false}
         membersError={null}
-        canManage={false}
         dict={dict}
       />
     );
 
-    expect(
-      screen.getByText("The site manager role is required.")
-    ).toBeVisible();
-    expect(screen.getByText("Read only")).toBeVisible();
-    expect(
-      screen.getByRole("switch", { name: "Enable automatic approval" })
-    ).toBeDisabled();
-    expect(
-      screen.queryByRole("button", { name: "Save permission" })
-    ).not.toBeInTheDocument();
+    await user.selectOptions(
+      screen.getByRole("combobox", {
+        name: "Organization role for Gabriel Atencio",
+      }),
+      "OWNER"
+    );
+
+    expect(saveOwnerRole).toHaveBeenCalledWith({
+      assigneeIds: ["antonia", "gabriel"],
+    });
   });
 
   it("does not offer a save when the application permission is unchanged", () => {
@@ -137,7 +155,6 @@ describe("ContentReviewPermissionCard", () => {
         members={members}
         membersLoading={false}
         membersError={null}
-        canManage
         dict={dict}
       />
     );

@@ -12,6 +12,8 @@ import java.util.List;
  * <p>{@code modules} lists the enabled product module codes for this org
  * (FLEET_MANAGEMENT, DASHBOARDS, COLLABORATORS_MANAGEMENT, ...).
  * The frontend uses this instead of the legacy {@code requiredGroups} hardcoding.
+ * {@code role} is the modulith-owned application role ({@code OWNER} or {@code MEMBER}),
+ * not an Alfresco site role.
  */
 public record OrganizationScopeDto(
         Long organizationId,

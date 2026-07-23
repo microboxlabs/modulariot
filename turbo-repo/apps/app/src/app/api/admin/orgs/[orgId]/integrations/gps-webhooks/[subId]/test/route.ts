@@ -1,5 +1,5 @@
 import { forwardToStreamhubModulith } from "@/app/api/utils/streamhub-modulith-proxy";
-import { requireOrganizationSettingsAdmin } from "@/app/api/utils/organization-settings-admin";
+import { requireOrganizationOwner } from "@/app/api/utils/organization-owner";
 
 /**
  * POST /api/admin/orgs/[orgId]/integrations/gps-webhooks/[subId]/test
@@ -7,13 +7,13 @@ import { requireOrganizationSettingsAdmin } from "@/app/api/utils/organization-s
  */
 export async function POST(
   _request: Request,
-  { params }: { params: Promise<{ orgId: string; subId: string }> },
+  { params }: { params: Promise<{ orgId: string; subId: string }> }
 ) {
   const { orgId, subId } = await params;
-  const denied = await requireOrganizationSettingsAdmin(orgId);
+  const denied = await requireOrganizationOwner(orgId);
   if (denied) return denied;
   return forwardToStreamhubModulith(
     `/api/v1/orgs/${encodeURIComponent(orgId)}/integrations/gps-webhooks/${encodeURIComponent(subId)}/test`,
-    { method: "POST", body: {} },
+    { method: "POST", body: {} }
   );
 }

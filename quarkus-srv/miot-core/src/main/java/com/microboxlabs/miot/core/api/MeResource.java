@@ -4,6 +4,7 @@ import com.microboxlabs.miot.core.alfresco.IAlfrescoMembershipClient;
 import com.microboxlabs.miot.core.api.dto.OrganizationScopeDto;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.model.OrganizationModule;
+import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.quarkus.runtime.LaunchMode;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -25,8 +26,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
  * "Who am I, and what can I see?" — resolves the caller's Alfresco memberships
- * into a list of {@link OrganizationScopeDto}s. This is the single bridge
- * between Alfresco authorities and the tenant scoping the Next.js app uses
+ * and modulith-owned organization role into a list of {@link OrganizationScopeDto}s.
+ * This is the single bridge between the directory and the tenant scoping the Next.js app uses
  * to filter pgrest queries by {@code cust_account}.
  *
  * <p>The caller is identified by the {@code email} claim on the JWT, or by
@@ -50,12 +51,15 @@ public class MeResource {
 
     private final SecurityIdentity securityIdentity;
     private final IAlfrescoMembershipClient membershipClient;
+    private final OrganizationRoleService roleService;
 
     @Inject
     public MeResource(SecurityIdentity securityIdentity,
-                      IAlfrescoMembershipClient membershipClient) {
+                      IAlfrescoMembershipClient membershipClient,
+                      OrganizationRoleService roleService) {
         this.securityIdentity = securityIdentity;
         this.membershipClient = membershipClient;
+        this.roleService = roleService;
     }
 
     @GET
@@ -102,12 +106,10 @@ public class MeResource {
                     if (!Boolean.TRUE.equals(isMember)) {
                         return Uni.createFrom().nullItem();
                     }
-                    return membershipClient.getRole(email, org.alfrescoGroupId)
-                            .onFailure().recoverWithItem(() -> null)
+                    return roleService.resolveApplicationRole(org, email)
+                            .onFailure().recoverWithItem(
+                                    OrganizationRoleService.MEMBER_ACCESS_ROLE)
                             .flatMap(role -> {
-                                if (role == null) {
-                                    return Uni.createFrom().nullItem();
-                                }
                                 return assembleScope(org, role);
                             });
                 });

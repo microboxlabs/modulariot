@@ -59,6 +59,7 @@ import {
   getTaskDrivenUnassignTransition,
 } from "@/features/calendar/services/task-driven-assign";
 import { decidePlanTaskAdvance } from "@/features/calendar/services/task-driven-plan";
+import { refuseWorkflowlessPlan } from "@/features/calendar/services/task-driven-guard";
 import { useTaskDrivenOrigins } from "@/features/calendar/services/use-task-driven-origins";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
@@ -493,11 +494,24 @@ export function PlanningSelectionProvider({
       hooks: {
         shouldPersistBooking: (item, slot, ctx) => {
           const service = item.raw as SelectedService;
-          const { taskAdvance, reassign } = computeTaskAdvance(
+          const { liveTask, taskAdvance, reassign } = computeTaskAdvance(
             service,
             slot,
             ctx
           );
+          // Refuse before the package writes anything: for a task-driven
+          // service ECM owns the row, so a booking with no workflow move is a
+          // divergence, not a lesser plan (#977). Throwing here rolls back the
+          // optimistic chip and surfaces the reason as an error toast.
+          const refusal = refuseWorkflowlessPlan({
+            stage: liveTask?.stage,
+            origin: service.origen,
+            enabledOrigins: taskDrivenOrigins,
+            hasTaskAdvance: !!taskAdvance,
+            hasReassign: !!reassign,
+            isReassigning: ctx.isReassigning,
+          });
+          if (refusal) throw new Error(refusal);
           // A reassign drives workflow edges only; ECM re-writes the row, so
           // the package must not also PUT a booking (as with the initial assign).
           return !(

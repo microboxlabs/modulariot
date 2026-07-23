@@ -56,3 +56,67 @@ export function refuseWorkflowlessPlan(input: {
     `Use el menú del bloque en el calendario para reasignar o replanificar.`
   );
 }
+
+/**
+ * Assigning IS the `assignDriver → presentDriver` edge: a task at
+ * `assignDriver` takes it forward, one at `presentDriver` re-drives it through
+ * the step-back dance (`decidePresentedReassign`). No other stage has an edge
+ * to carry the resource tuple.
+ */
+const ASSIGNABLE_STAGES: ReadonlySet<string> = new Set([
+  "assignDriver",
+  "presentDriver",
+]);
+
+/**
+ * Whether the assign gesture has anywhere to go — the menu gate. Planning and
+ * assigning are separate steps, so being planned does not make a service
+ * assignable. Fail-open on what we cannot prove (flag-off origin, unknown
+ * stage) so a still-loading task index never hides a legitimate action. Takes
+ * the loose `workflowStage` a planned item carries, which may hold a terminal
+ * value such as `finished` — not assignable either.
+ */
+export function canAssignAtStage(
+  stage: string | undefined,
+  origin: string | undefined,
+  enabledOrigins: ReadonlySet<string>
+): boolean {
+  if (!isOriginTaskDriven(origin, enabledOrigins)) return true;
+  if (!stage) return true;
+  return ASSIGNABLE_STAGES.has(stage);
+}
+
+/**
+ * Persist-boundary counterpart of {@link canAssignAtStage}: the assign gesture
+ * must move the workflow, or it must not write. Reaching a refusal here means
+ * the menu gate was bypassed — or the tuple is incomplete for a stage that
+ * otherwise accepts one.
+ */
+export function refuseAssign(input: {
+  /** The live Alfresco task's stage, or undefined when there is no live task. */
+  stage: TaskStage | undefined;
+  origin: string | undefined;
+  enabledOrigins: ReadonlySet<string>;
+  /** Whether a forward workflow transition resolved for this gesture. */
+  hasTaskAdvance: boolean;
+  /** Whether the presented-service re-assign dance will run instead. */
+  hasReassign: boolean;
+}): string | null {
+  const { stage, origin, enabledOrigins, hasTaskAdvance, hasReassign } = input;
+  if (!isOriginTaskDriven(origin, enabledOrigins)) return null;
+  if (!stage) return null;
+  if (!ASSIGNABLE_STAGES.has(stage)) {
+    return (
+      `No se puede asignar: el servicio ya avanzó a «${stage}». ` +
+      `La asignación de recursos se gestiona desde el proceso.`
+    );
+  }
+  if (hasTaskAdvance || hasReassign) return null;
+  // Assignable stage, nothing to fire: the tuple is incomplete
+  // (`buildAssignProcessVariables` also needs the service type, which is not a
+  // form field), so a write would change the calendar and not the workflow.
+  return (
+    `No se puede asignar: faltan datos de la asignación ` +
+    `(transportista, conductor, camión o tipo de servicio).`
+  );
+}

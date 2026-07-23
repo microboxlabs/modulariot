@@ -13,6 +13,8 @@ import { Button } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
+import { canAssignAtStage } from "@/features/calendar/services/task-driven-guard";
+import { useTaskDrivenOrigins } from "@/features/calendar/services/use-task-driven-origins";
 
 export interface ContextMenuPosition {
   x: number;
@@ -87,14 +89,30 @@ export function ServiceContextMenu({
   // permissions load and while the override is active.
   const { canPlan, canAssign, forceViewer, canTogglePreview } =
     useCalendarViewMode();
+  const taskDrivenOrigins = useTaskDrivenOrigins();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { inspectPlannedService } = usePlanningSelection();
 
+  // Role says who may assign; the workflow stage says whether assigning is
+  // still a move this service can make. Past `presentDriver` there is no edge
+  // to carry a resource change, so offering the action would only produce an
+  // error at the persist boundary — don't offer it. Same rule for its inverse.
+  const stageAllowsAssign =
+    plannedService !== null &&
+    canAssignAtStage(
+      plannedService.workflowStage,
+      plannedService.service.origen,
+      taskDrivenOrigins
+    );
+
+  const canStartAssignment = canAssign && stageAllowsAssign;
+
   const canDeleteAssignment =
     plannedService !== null &&
     canAssign &&
+    stageAllowsAssign &&
     hasRequiredAssignedResources(plannedService);
 
   // Estimated menu dimensions for initial position calculation
@@ -104,7 +122,7 @@ export function ServiceContextMenu({
   const MENU_BUTTON_HEIGHT = 38;
   const MENU_PADDING = 8;
   const buttonCount =
-    (canAssign ? 1 : 0) +
+    (canStartAssignment ? 1 : 0) +
     (canDeleteAssignment ? 1 : 0) +
     (canPlan ? 2 : 0) +
     (canTogglePreview ? 1 : 0);
@@ -235,7 +253,7 @@ export function ServiceContextMenu({
           confirmation that the chip was selected, paired with the sidebar
           opening via inspectPlannedService in use-planning-grid. */}
       <div className="py-1">
-        {canAssign && (
+        {canStartAssignment && (
           <Button
             color={"alternative"}
             type="button"

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { refuseWorkflowlessPlan } from "./task-driven-guard";
+import {
+  canAssignAtStage,
+  refuseAssign,
+  refuseWorkflowlessPlan,
+} from "./task-driven-guard";
 
 const ORIGINS = new Set(["SCL", "ANF"]);
 
@@ -61,5 +65,97 @@ describe("refuseWorkflowlessPlan", () => {
 
   it("is case-sensitive on the origin, like every other task-driven helper", () => {
     expect(refuseWorkflowlessPlan(input({ origin: "scl" }))).toBeNull();
+  });
+});
+
+describe("canAssignAtStage", () => {
+  it("allows the two stages the assign edge connects", () => {
+    expect(canAssignAtStage("assignDriver", "SCL", ORIGINS)).toBe(true);
+    expect(canAssignAtStage("presentDriver", "SCL", ORIGINS)).toBe(true);
+  });
+
+  it("refuses stages with no edge to carry a resource change", () => {
+    // The 1625094 / 1524620 case: planned long ago, now at missionControl —
+    // planning and assigning are different steps, and this one is past both.
+    expect(canAssignAtStage("missionControl", "SCL", ORIGINS)).toBe(false);
+    expect(canAssignAtStage("prepareService", "SCL", ORIGINS)).toBe(false);
+    // Not yet planned: assigning is not the gesture that plans it.
+    expect(canAssignAtStage("planService", "SCL", ORIGINS)).toBe(false);
+  });
+
+  it("refuses the terminal stages a booking row can carry", () => {
+    expect(canAssignAtStage("finished", "SCL", ORIGINS)).toBe(false);
+    expect(canAssignAtStage("cancelled", "SCL", ORIGINS)).toBe(false);
+  });
+
+  it("fails open on what it cannot prove", () => {
+    // Flag-off origin — ECM owns nothing there.
+    expect(canAssignAtStage("missionControl", "IQQ", ORIGINS)).toBe(true);
+    // Stage unknown: the live task index is still loading. Hiding the action
+    // on every chip during that window would be worse than a late refusal.
+    expect(canAssignAtStage(undefined, "SCL", ORIGINS)).toBe(true);
+  });
+});
+
+describe("refuseAssign", () => {
+  function assignInput(
+    overrides: Partial<Parameters<typeof refuseAssign>[0]> = {}
+  ) {
+    return {
+      stage: "assignDriver" as const,
+      origin: "SCL",
+      enabledOrigins: ORIGINS,
+      hasTaskAdvance: true,
+      hasReassign: false,
+      ...overrides,
+    };
+  }
+
+  it("allows the forward assign edge", () => {
+    expect(refuseAssign(assignInput())).toBeNull();
+  });
+
+  it("allows the presented-service re-assign dance", () => {
+    expect(
+      refuseAssign(
+        assignInput({
+          stage: "presentDriver",
+          hasTaskAdvance: false,
+          hasReassign: true,
+        })
+      )
+    ).toBeNull();
+  });
+
+  it("refuses past the assign edge, naming the stage", () => {
+    const reason = refuseAssign(
+      assignInput({ stage: "missionControl", hasTaskAdvance: false })
+    );
+    expect(reason).toContain("missionControl");
+    expect(reason).toContain("No se puede asignar");
+  });
+
+  it("refuses an incomplete tuple at an assignable stage", () => {
+    // presentDriver with nothing resolved: `buildAssignProcessVariables`
+    // returned null, so a write would move no workflow.
+    const reason = refuseAssign(
+      assignInput({ stage: "presentDriver", hasTaskAdvance: false })
+    );
+    expect(reason).toContain("faltan datos");
+  });
+
+  it("leaves flag-off origins and unknown stages alone", () => {
+    expect(
+      refuseAssign(
+        assignInput({
+          stage: "missionControl",
+          origin: "IQQ",
+          hasTaskAdvance: false,
+        })
+      )
+    ).toBeNull();
+    expect(
+      refuseAssign(assignInput({ stage: undefined, hasTaskAdvance: false }))
+    ).toBeNull();
   });
 });

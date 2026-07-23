@@ -293,19 +293,16 @@ export function PlanningSidebarClient({
     return params.join("&");
   }, [searchTags, calendarId, searchQuery]);
 
-  // Fetch tasks from API
+  // The to-plan queue: planning IS the `planService → assignDriver` transition,
+  // so anything beyond it has already been planned (#977). Not the workflow
+  // index — `planning-selection-wrapper` keeps its own `useMyTasks` over every
+  // stage for `getLiveTask`.
   const {
     data: myTasksData,
     isLoading: isLoadingTasks,
     refresh: refreshTasks,
   } = useMyTasks(
-    [
-      "planService",
-      "assignDriver",
-      "presentDriver",
-      "prepareService",
-      "missionControl",
-    ],
+    ["planService"],
     false, // showFinished
     1, // page (1-based, but API uses 0-based internally)
     100, // limit

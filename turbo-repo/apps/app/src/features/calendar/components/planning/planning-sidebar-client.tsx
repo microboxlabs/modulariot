@@ -293,19 +293,31 @@ export function PlanningSidebarClient({
     return params.join("&");
   }, [searchTags, calendarId, searchQuery]);
 
-  // Fetch tasks from API
+  // The to-plan queue: `planService` ONLY.
+  //
+  // Planning *is* the `planService → assignDriver` transition, so a service at
+  // `assignDriver` or beyond has already been planned by definition — it holds
+  // a slot and draws a chip. Listing those made the pool advertise five stages
+  // while `task-stage-transitions.ts` can only act on two, and a drop on the
+  // other three silently wrote a booking row with no workflow move (#977).
+  //
+  // This is NOT the workflow index. `planning-selection-wrapper` keeps its own
+  // `useMyTasks` over every stage to answer "which task represents service X
+  // right now" — that is what `getLiveTask` and the re-assign dance read, and
+  // it is unaffected by this narrowing.
+  //
+  // Nothing else regressed by scoping this down: grid chips render from
+  // `cld_bookings` via `mapBookingToPlannedService`, calendar search sweeps the
+  // same bookings (`use-calendar-search`), and Asignar / Replanificar / Eliminar
+  // on an already-planned service come off the chip's context menu, not a row
+  // here. An advanced service therefore stays visible and actionable on the
+  // grid; it just stops queueing for work it has already had done.
   const {
     data: myTasksData,
     isLoading: isLoadingTasks,
     refresh: refreshTasks,
   } = useMyTasks(
-    [
-      "planService",
-      "assignDriver",
-      "presentDriver",
-      "prepareService",
-      "missionControl",
-    ],
+    ["planService"],
     false, // showFinished
     1, // page (1-based, but API uses 0-based internally)
     100, // limit

@@ -41,12 +41,26 @@ export function FilterBadgeShell({
   // otherwise clip it. Computed here (rather than in an effect that runs
   // after `open` flips) so the first paint already has the right
   // coordinates instead of flashing at (0, 0) for a frame.
-  const [position, setPosition] = useState({ top: 0, left: 0 });
+  //
+  // A badge sitting in the right half of the viewport anchors the panel by its
+  // right edge instead, so the panel grows leftwards and stays on screen. The
+  // panel's width isn't known before it paints, so this uses the trigger's
+  // position rather than measuring — which keeps the pre-paint guarantee above.
+  const [position, setPosition] = useState<{
+    top: number;
+    left?: number;
+    right?: number;
+  }>({ top: 0, left: 0 });
 
   const handleToggle = () => {
     if (!open && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      setPosition({ top: rect.bottom + 4, left: rect.left });
+      const alignRight = rect.left > window.innerWidth / 2;
+      setPosition({
+        top: rect.bottom + 4,
+        left: alignRight ? undefined : rect.left,
+        right: alignRight ? window.innerWidth - rect.right : undefined,
+      });
     }
     onToggle();
   };
@@ -61,19 +75,29 @@ export function FilterBadgeShell({
         <span>{hasValue ? `${filter.label}:` : filter.label}</span>
         {hasValue ? (
           <>
-            <span className={`${valueMaxWidth} truncate font-normal`}>{displayValue}</span>
+            <span className={`${valueMaxWidth} truncate font-normal`}>
+              {displayValue}
+            </span>
             <span className="w-3.5" aria-hidden />
           </>
         ) : (
-          <HiChevronDown className={`h-3 w-3 opacity-50 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
+          <HiChevronDown
+            className={`h-3 w-3 opacity-50 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+          />
         )}
       </button>
       {hasValue && (
         <button
           type="button"
-          onMouseDown={(e) => { e.stopPropagation(); onClear(); }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            onClear();
+          }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onClear(); }
+            if (e.key === "Enter" || e.key === " ") {
+              e.stopPropagation();
+              onClear();
+            }
           }}
           className="absolute right-1.5 top-1/2 -translate-y-1/2 shrink-0 cursor-pointer rounded-full p-0.5 text-blue-700 hover:bg-blue-200 dark:text-blue-300 dark:hover:bg-blue-800"
         >
@@ -85,7 +109,11 @@ export function FilterBadgeShell({
           <div
             ref={panelRef}
             className={`fixed z-50 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700 ${panelClassName}`}
-            style={{ top: position.top, left: position.left }}
+            style={{
+              top: position.top,
+              left: position.left,
+              right: position.right,
+            }}
           >
             {children}
           </div>,

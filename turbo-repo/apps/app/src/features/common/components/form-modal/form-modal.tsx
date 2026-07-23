@@ -1,13 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import {
-  Modal,
-  ModalBody,
-  ModalFooter,
-  Button,
-  Alert,
-} from "flowbite-react";
+import { Modal, ModalBody, ModalFooter, Button, Alert } from "flowbite-react";
 import { ErrorWithAlfrescoError } from "@/features/task-forms/components/task-confirm-modal/task-confirm-modal.types";
 import { ErrorAlert } from "@/features/task-forms/components/error-alert";
 
@@ -20,6 +14,10 @@ export type FormModalProps = Readonly<{
   title: string;
   /** Modal subtitle (optional) */
   subtitle?: string;
+  /** Optional mark shown to the left of the title (e.g. a provider logo) */
+  icon?: ReactNode;
+  /** Optional controls shown at the right of the header (e.g. a delete action) */
+  headerActions?: ReactNode;
   /** Modal content */
   children: ReactNode;
   /** Submit button label */
@@ -72,6 +70,8 @@ export default function FormModal({
   onClose,
   title,
   subtitle,
+  icon,
+  headerActions,
   children,
   submitLabel,
   cancelLabel = "Cancelar",
@@ -96,40 +96,46 @@ export default function FormModal({
             unless `showHeaderClose` is set. The dark: classes restore the
             contrast that ModalHeader provided implicitly. */}
         <div className="flex items-start justify-between p-4 md:p-5">
-          <div className="flex flex-col items-start">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              {title}
-            </h2>
-            {subtitle && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {subtitle}
-              </p>
+          <div className="flex items-center gap-3">
+            {icon && <span className="flex shrink-0 items-center">{icon}</span>}
+            <div className="flex flex-col items-start">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                {title}
+              </h2>
+              {subtitle && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  {subtitle}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="ms-auto flex shrink-0 items-center gap-1">
+            {headerActions}
+            {showHeaderClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white"
+              >
+                <svg
+                  aria-hidden="true"
+                  className="h-3 w-3"
+                  fill="none"
+                  viewBox="0 0 14 14"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"
+                  />
+                </svg>
+              </button>
             )}
           </div>
-          {showHeaderClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              className="ms-auto inline-flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white"
-            >
-              <svg
-                aria-hidden="true"
-                className="h-3 w-3"
-                fill="none"
-                viewBox="0 0 14 14"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"
-                />
-              </svg>
-            </button>
-          )}
         </div>
         <ModalBody className="max-h-[70vh] overflow-y-auto">
           <div className="flex flex-col my-4">{children}</div>
@@ -150,11 +156,7 @@ export default function FormModal({
                 {cancelLabel}
               </Button>
             )}
-            <Button
-              color="blue"
-              type="submit"
-              disabled={isProcessing}
-            >
+            <Button color="blue" type="submit" disabled={isProcessing}>
               {submitLabel}
             </Button>
           </div>

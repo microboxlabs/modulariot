@@ -58,7 +58,12 @@ public class OAuth2ClientCredentialsStrategy implements AuthStrategy<OAuth2Clien
         }
 
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new AuthResolutionException("OAuth token request failed with HTTP " + response.statusCode());
+            String errorCode = parseErrorCode(response.body());
+            throw new OAuth2TokenException(
+                    "OAuth token request failed with HTTP " + response.statusCode()
+                            + (errorCode == null ? "" : " (" + errorCode + ")"),
+                    response.statusCode(),
+                    errorCode);
         }
 
         OAuthToken token = parseToken(response.body());
@@ -117,6 +122,23 @@ public class OAuth2ClientCredentialsStrategy implements AuthStrategy<OAuth2Clien
             body.append(URLEncoder.encode(value, StandardCharsets.UTF_8));
         });
         return body.toString();
+    }
+
+    /**
+     * The RFC 6749 {@code error} code from a rejection body, best effort. Only the code
+     * is taken: {@code error_description} is free text a provider fills with correlation
+     * ids and echoed request detail, so it is not something to hand back to a caller.
+     */
+    private String parseErrorCode(String body) {
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode error = objectMapper.readTree(body).get("error");
+            return error == null || error.asText().isBlank() ? null : error.asText();
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     private OAuthToken parseToken(String body) {

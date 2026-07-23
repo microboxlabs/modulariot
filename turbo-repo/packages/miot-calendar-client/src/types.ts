@@ -139,6 +139,13 @@ export interface CalendarRequest {
   groups?: string[];
   filter?: CalendarFilter;
   autoSlotManager?: boolean;
+  /**
+   * Mark this calendar as the default for its {@link CalendarFilter.origin} —
+   * the one an integrating system books into when it was given no calendar.
+   * Setting it demotes the previous default for the same origin; omitting it
+   * leaves the current value alone.
+   */
+  isDefault?: boolean;
 }
 
 export interface CalendarResponse {
@@ -154,6 +161,8 @@ export interface CalendarResponse {
   groups?: CalendarGroupResponse[];
   filter?: CalendarFilter;
   hasSlotManager?: boolean;
+  /** Whether this is the default calendar for its filter origin. */
+  isDefault?: boolean;
 }
 
 // --- Time Windows ---

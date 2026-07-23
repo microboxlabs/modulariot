@@ -24,6 +24,7 @@ const CalendarRequestSchema = z.object({
   groups: z.array(z.string()).optional(),
   filter: CalendarFilterSchema,
   autoSlotManager: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
 });
 
 export async function GET() {

@@ -15,17 +15,32 @@ const ATC_PGREST_URL = process.env.ATC_PGREST_URL ?? "http://127.0.0.1:3011";
 // read-only); cuotas y auditoría llevan tenant inyectado.
 const READ_FNS = new Set([
   "fn_symptom_list",
+  "fn_pt4_rule_detail",
+  "fn_pt4_my_rules",
   "fn_pt4_quota_status",
   "fn_pt4_criticality_scheme",
   "fn_pt4_audit_log",
 ]);
 // Escrituras: solo el wrapper con guardas de tenant + cuota.
-const WRITE_FNS = new Set(["fn_pt4_apply_selection"]);
+const WRITE_FNS = new Set([
+  "fn_pt4_apply_selection",
+  "fn_pt4_clone_rule",
+  "fn_pt4_save_combination",
+  "fn_pt4_update_rule_meta",
+  "fn_pt4_delete_rule",
+  "fn_pt4_estimate",
+]);
 // Fns donde p_org_id se fuerza al RUT de la org carrier activa.
 const TENANT_PARAM_FNS = new Set([
   "fn_pt4_quota_status",
   "fn_pt4_audit_log",
   "fn_pt4_apply_selection",
+  "fn_pt4_rule_detail",
+  "fn_pt4_my_rules",
+  "fn_pt4_clone_rule",
+  "fn_pt4_save_combination",
+  "fn_pt4_update_rule_meta",
+  "fn_pt4_delete_rule",
 ]);
 
 async function carrierOrgId(): Promise<{ deny: NextResponse | null; orgId: string | null }> {

@@ -37,13 +37,25 @@ type AuditRow = {
   changed_at: string; reason: string | null;
   new_state: Record<string, unknown> | null;
 };
+type Combo = {
+  level_key: string; display_name: string; color: string; ord: number;
+  floor_channels: string[]; operator_required: boolean;
+  enabled: boolean; criteria: Record<string, unknown> | null; treatment_type: string | null;
+};
+type Detalle = {
+  rule_id: number; is_active: boolean; display_name: string | null; name: string;
+  description: string | null; base_type: string; cloned_from: number | null;
+  org_id: string | null; editable: boolean; combinaciones: Combo[];
+};
+type MiRegla = { rule_id: number; name: string; active: boolean; niveles: number; cost_monthly_usd: number | null };
 type Cuota = { usadas: number; limite: number };
 type Cuotas = { reglas: Cuota; lugares: Cuota; trayectos: Cuota };
 
-const TABS = ["catalogo", "esquema", "auditoria"] as const;
+const TABS = ["catalogo", "constructor", "esquema", "auditoria"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
-  catalogo: "Catálogo de síntomas", esquema: "Esquema de criticidad", auditoria: "Auditoría",
+  catalogo: "Catálogo de síntomas", constructor: "Constructor",
+  esquema: "Esquema de criticidad", auditoria: "Auditoría",
 };
 
 export default function SymptomRulesPageContent() {
@@ -53,6 +65,9 @@ export default function SymptomRulesPageContent() {
   // Cambios pendientes (torre): rule_id → active deseado
   const [pendientes, setPendientes] = useState<Record<number, boolean>>({});
   const [aplicando, setAplicando] = useState(false);
+  const [reglaSel, setReglaSel] = useState<number | null>(null);
+  const [fanout, setFanout] = useState<Record<string, unknown> | null>(null);
+  const [msgCons, setMsgCons] = useState<string | null>(null);
   const [resultado, setResultado] = useState<string | null>(null);
 
   const { data: cat, mutate: refrescar } = useSWR<Catalogo>(
@@ -63,6 +78,11 @@ export default function SymptomRulesPageContent() {
     tab === "auditoria" ? "/app/api/atc/rpc/fn_pt4_audit_log" : null, fetcher);
   const { data: cuotas } = useSWR<Cuotas>(
     carrierMode ? "/app/api/atc/rpc/fn_pt4_quota_status" : null, fetcher);
+  const { data: mias, mutate: refrescarMias } = useSWR<{ reglas: MiRegla[]; cuota: Cuota }>(
+    carrierMode ? "/app/api/atc/rpc/fn_pt4_my_rules" : null, fetcher);
+  const { data: det, mutate: refrescarDet } = useSWR<Detalle>(
+    tab === "constructor" && reglaSel != null
+      ? `/app/api/atc/rpc/fn_pt4_rule_detail?p_rule_id=${reglaSel}` : null, fetcher);
 
   const familias = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -101,6 +121,40 @@ export default function SymptomRulesPageContent() {
   };
 
   const estadoDe = (c: Caja) => (c.rule_id != null ? pendientes[c.rule_id] : undefined) ?? c.active;
+
+  const post = (fn: string, body: Record<string, unknown>) =>
+    fetch(`/app/api/atc/rpc/${fn}`, { method: "POST",
+      headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+    }).then((r) => r.json());
+
+  const clonar = async (ruleId: number, nombre: string) => {
+    const res = await post("fn_pt4_clone_rule", {
+      p_rule_id: ruleId, p_new_name: `${nombre} — copia`, p_actor: "app-settings" });
+    if (res?.ok) {
+      setReglaSel(Number(res.rule_id ?? res.new_rule_id));
+      setTab("constructor"); setFanout(null); setMsgCons("Clon creado (apagado). Ajusta sus niveles y actívalo cuando esté listo.");
+      void refrescarMias();
+    } else setMsgCons(`No se pudo clonar — ${res?.detalle ?? res?.error ?? "error"}`);
+  };
+
+  const guardarCombo = async (cb: Combo, enabled: boolean, treatment: string | null) => {
+    const res = await post("fn_pt4_save_combination", {
+      p_rule_id: reglaSel, p_level_key: cb.level_key, p_enabled: enabled,
+      p_criteria: cb.criteria, p_treatment: treatment, p_actor: "app-settings" });
+    setMsgCons(res?.ok === false ? `No guardado — ${res?.detalle ?? res?.error}` : "Combinación guardada (auditada).");
+    void refrescarDet(); void refrescar();
+  };
+
+  const estimar = async () => {
+    setFanout(await post("fn_pt4_estimate", { p_rule_id: reglaSel }));
+  };
+
+  const activarRegla = async (r: MiRegla) => {
+    const res = await post("fn_pt4_apply_selection", {
+      p_changes: [{ rule_id: r.rule_id, active: !r.active }], p_actor: "app-settings" });
+    setMsgCons(res?.ok === false ? `${res?.detalle ?? res?.error}` : null);
+    void refrescarMias(); void refrescar();
+  };
 
   return (
     <div className="flex flex-col h-full p-6 gap-4 overflow-y-auto">
@@ -168,6 +222,39 @@ export default function SymptomRulesPageContent() {
       {/* ── Catálogo ── */}
       {tab === "catalogo" && (
         <div className="space-y-4 pb-16">
+          {carrierMode && mias && (
+            <section>
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white pb-1.5">
+                Tus reglas <span className="text-xs font-normal text-gray-500">
+                  {mias.cuota.usadas}/{mias.cuota.limite} activas — clona una caja del catálogo para crear la tuya</span>
+              </h2>
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-2">
+                {mias.reglas.map((r) => (
+                  <div key={r.rule_id} className="rounded-lg border border-blue-300 dark:border-blue-800 px-3 py-2.5 flex items-center gap-3">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" checked={r.active}
+                             onChange={() => void activarRegla(r)} />
+                      <span className="w-9 h-5 bg-gray-200 dark:bg-gray-600 rounded-full peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />
+                    </label>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{r.name}</div>
+                      <div className="text-[11px] text-gray-500">{r.niveles} nivel(es)
+                        {r.cost_monthly_usd != null && <> · US$ {r.cost_monthly_usd}/mes</>}</div>
+                    </div>
+                    <button className="text-xs text-blue-600 hover:underline"
+                            onClick={() => { setReglaSel(r.rule_id); setFanout(null); setTab("constructor"); }}>
+                      editar
+                    </button>
+                  </div>
+                ))}
+                {mias.reglas.length === 0 && (
+                  <div className="text-sm text-gray-500 md:col-span-2 xl:col-span-3">
+                    Aún no tienes reglas propias — usa «clonar» en cualquier caja del catálogo.
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
           {!cat && <div className="text-sm text-gray-500">Cargando catálogo…</div>}
           {familias.map((f) => (
             <section key={f.key}>
@@ -215,9 +302,21 @@ export default function SymptomRulesPageContent() {
                             <span className="text-[10px] text-gray-500">custom</span>
                           )}
                         </div>
-                        <div className="text-[11px] text-gray-500 dark:text-gray-400 pt-0.5">
-                          {c.fired_24h} disparos 24 h
-                          {c.cost_monthly_usd != null && <> · US$ {c.cost_monthly_usd}/mes</>}
+                        <div className="text-[11px] text-gray-500 dark:text-gray-400 pt-0.5 flex items-center gap-2">
+                          <span>{c.fired_24h} disparos 24 h
+                            {c.cost_monthly_usd != null && <> · US$ {c.cost_monthly_usd}/mes</>}</span>
+                          {c.rule_id != null && (
+                            <>
+                              <button className="text-blue-600 hover:underline"
+                                      onClick={() => { setReglaSel(c.rule_id); setFanout(null); setTab("constructor"); }}>
+                                abrir
+                              </button>
+                              <button className="text-blue-600 hover:underline"
+                                      onClick={() => void clonar(c.rule_id!, c.name)}>
+                                clonar
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -247,6 +346,66 @@ export default function SymptomRulesPageContent() {
           </button>
           <button onClick={() => setPendientes({})}
                   className="text-sm text-gray-500 hover:underline">Descartar</button>
+        </div>
+      )}
+
+      {/* ── Constructor: combinaciones por nivel + fanout (PT4-b) ── */}
+      {tab === "constructor" && (
+        <div className="space-y-4 pb-16">
+          {reglaSel == null && (
+            <div className="text-sm text-gray-500">
+              Elige una regla desde el catálogo («abrir») o clona una caja para crear la tuya.
+            </div>
+          )}
+          {reglaSel != null && !det && <div className="text-sm text-gray-500">Cargando regla…</div>}
+          {det && (
+            <>
+              <div className="flex items-center gap-3 flex-wrap">
+                <div>
+                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {det.display_name ?? det.name}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {det.base_type}{det.cloned_from != null && <> · clon de #{det.cloned_from}</>}
+                    {det.org_id && <> · org {det.org_id}</>} · {det.is_active ? "encendida" : "apagada"}
+                    {!det.editable && " · solo lectura para tu organización"}
+                  </div>
+                </div>
+                <span className="flex-1" />
+                <button onClick={() => void estimar()}
+                        className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700">
+                  Estimar impacto
+                </button>
+              </div>
+
+              {fanout && (
+                <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm flex items-center gap-4 flex-wrap">
+                  <span className="font-medium text-gray-900 dark:text-white">Fanout (dry-run)</span>
+                  <span>riesgo: <b style={{ color: String(fanout.risk_level) === "low" ? "#0E9F6E"
+                    : String(fanout.risk_level) === "moderate" ? "#D97706"
+                    : String(fanout.risk_level) === "unknown" ? "#6B7280" : "#E11D48" }}>
+                    {String(fanout.risk_level)}</b></span>
+                  <span>{Number(fanout.matches_per_hour ?? 0)} coincidencias/h</span>
+                  <span>US$ {Number(fanout.cost_monthly_usd_estimate ?? 0)}/mes estimado</span>
+                  {typeof fanout.error === "string" && (
+                    <span className="text-gray-500">{fanout.error}</span>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {det.combinaciones.map((cb) => (
+                  <ComboFila key={cb.level_key} cb={cb} editable={det.editable}
+                             onGuardar={(en, tr) => void guardarCombo(cb, en, tr)} />
+                ))}
+              </div>
+              <p className="text-[11px] text-gray-500">
+                Los pisos de notificación del esquema no se pueden rebajar; el código negro
+                exige gestión de operador. Cada guardado queda en la auditoría.
+              </p>
+            </>
+          )}
+          {msgCons && <div className="text-sm text-gray-700 dark:text-gray-300">{msgCons}</div>}
         </div>
       )}
 
@@ -321,6 +480,46 @@ export default function SymptomRulesPageContent() {
           )}
           {!audit && <div className="text-sm text-gray-500">Cargando auditoría…</div>}
         </div>
+      )}
+    </div>
+  );
+}
+
+// Fila de combinación del constructor: nivel + tratamiento + guardar.
+function ComboFila({ cb, editable, onGuardar }: {
+  cb: Combo; editable: boolean;
+  onGuardar: (enabled: boolean, treatment: string | null) => void;
+}) {
+  const [en, setEn] = useState(cb.enabled);
+  const [tr, setTr] = useState(cb.treatment_type ?? "registro");
+  const cambiado = en !== cb.enabled || tr !== (cb.treatment_type ?? "registro");
+  return (
+    <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center gap-4 flex-wrap">
+      <span className="inline-flex items-center gap-2 w-[180px] font-medium text-sm text-gray-900 dark:text-white">
+        <span className="w-2.5 h-2.5 rounded-full" style={{ background: cb.color }} />
+        {cb.display_name}
+      </span>
+      <label className={`relative inline-flex items-center ${editable ? "cursor-pointer" : "opacity-50"}`}>
+        <input type="checkbox" className="sr-only peer" checked={en} disabled={!editable}
+               onChange={() => setEn(!en)} />
+        <span className="w-9 h-5 bg-gray-200 dark:bg-gray-600 rounded-full peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />
+      </label>
+      <select value={tr} disabled={!editable || cb.operator_required}
+              onChange={(e) => setTr(e.target.value)}
+              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-sm text-gray-900 dark:text-white">
+        <option value="registro">Registro</option>
+        <option value="notificacion">Notificación</option>
+        <option value="gestion_operador">Gestión de operador</option>
+      </select>
+      <span className="text-[11px] text-gray-500 flex-1">
+        piso: {cb.floor_channels.join(", ") || "—"}
+        {cb.operator_required && " · operador requerido (no rebajable)"}
+      </span>
+      {editable && cambiado && (
+        <button onClick={() => onGuardar(en, cb.operator_required ? "gestion_operador" : tr)}
+                className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5">
+          Guardar
+        </button>
       )}
     </div>
   );

@@ -46,7 +46,7 @@ const childLogger = createManagedLogger(
 
 ### ✅ 4. Admin Security & Authorization
 
-- Added `GROUP_ALFRESCO_ADMINISTRATOR` and `GROUP_MINTRAL_SYSTEM_ADMIN` to route permissions
+- Added the platform-administrator and tenant system-admin groups to route permissions
 - Server-side authorization checks on all admin endpoints
 - User group validation through existing Alfresco API integration
 
@@ -116,11 +116,8 @@ LOG_HANDLERS_CONFIG='{"payment": "debug", "auth": "warn"}'
 Added to `src/features/auth/config/route-permissions.ts`:
 
 ```typescript
-const ADMIN_ROLES = [
-  "GROUP_ALFRESCO_ADMINISTRATOR",
-  "GROUP_MINTRAL_SYSTEM_ADMIN"
-];
-
+// ADMIN_ROLES lists the platform-administrator and tenant system-admin
+// groups; see the file itself for the current values.
 "/api/admin/logs": ADMIN_ROLES
 ```
 

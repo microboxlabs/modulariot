@@ -5,7 +5,7 @@
 > **flag-off** origin against the dev environment.
 >
 > **Mode**: **manual test plan**. End-to-end execution against the live
-> `dev-mintral.cl` stack requires (i) a browser session signed in to
+> the dev stack requires (i) a browser session signed in to
 > dev with `GROUP_PLANNING` + `GROUP_ASSIGNMENT`, (ii) `ecm-coordinator`
 > trunk (including PR #259 / #265 for issues #257 + #262) deployed on
 > dev ECM, (iii) at least one origin added to the dev

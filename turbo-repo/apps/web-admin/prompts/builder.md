@@ -130,7 +130,7 @@
 
 7. #### Case Study
 
-   - Quote block with company logo placeholder `/public/mintral-logo.svg`.
+   - Quote block with company logo placeholder `/public/customer-logo.svg`.
    - Italic pull-quote: “We cut driver-fatigue incidents by 32 % within two weeks.”
 
 8. #### Pricing Teaser

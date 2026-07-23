@@ -1426,7 +1426,8 @@
         "user": "Usuario",
         "settings": "Ajustes",
         "organizations": "Organizaciones",
-        "dataSources": "Fuentes de Datos"
+        "dataSources": "Fuentes de Datos",
+        "credentials": "Credenciales"
       },
       "symptoms": {
         "config": {
@@ -1528,7 +1529,149 @@
       "settingsNav": {
         "title": "Ajustes",
         "general": "General",
-        "dataSources": "Fuentes de Datos"
+        "dataSources": "Fuentes de Datos",
+        "credentials": "Credenciales"
+      },
+      "credentials": {
+        "title": "Credenciales",
+        "description": "Identidades y secretos reutilizables. Configúralos una vez y referéncialos desde fuentes de datos, integraciones y trabajos.",
+        "addButton": "Agregar credencial",
+        "list": {
+          "usedByCount": "Usada por {count}",
+          "unused": "Sin uso aún",
+          "empty": "Aún no hay credenciales. Agrega una para comenzar.",
+          "loading": "Cargando credenciales"
+        },
+        "filters": {
+          "searchPlaceholder": "Buscar por nombre, tipo o client id",
+          "type": "Tipo",
+          "environment": "Ambiente",
+          "sortLabel": "Ordenar",
+          "sortNameAsc": "Nombre (A-Z)",
+          "sortNameDesc": "Nombre (Z-A)",
+          "sortCreated": "Creación más reciente",
+          "sortUpdated": "Actualización más reciente",
+          "noMatches": "Ninguna credencial coincide con estos filtros."
+        },
+        "menu": {
+          "label": "Acciones de la credencial",
+          "open": "Ver detalles",
+          "delete": "Eliminar"
+        },
+        "environments": {
+          "DEVELOPMENT": "Desarrollo",
+          "QA": "QA",
+          "PRODUCTION": "Producción"
+        },
+        "usageKinds": {
+          "DATA_SOURCE": "Fuente de datos",
+          "INTEGRATION": "Integración",
+          "JOB": "Trabajo",
+          "CHANNEL": "Canal"
+        },
+        "types": {
+          "azureEntra": {
+            "name": "Microsoft Entra ID",
+            "description": "Credenciales de aplicación de Microsoft Entra ID (Azure Active Directory) \u2014 client_id + client_secret + scope."
+          },
+          "oauth2": {
+            "name": "OAuth 2.0 genérico",
+            "description": "Flujo client_credentials contra cualquier endpoint de token OAuth 2.0."
+          },
+          "apiKey": {
+            "name": "API key",
+            "description": "Una llave enviada como header o parámetro de consulta."
+          },
+          "bearer": {
+            "name": "Token Bearer",
+            "description": "Un token de larga duración enviado en el header Authorization."
+          },
+          "basic": {
+            "name": "Autenticación básica",
+            "description": "Usuario y contraseña enviados como HTTP basic."
+          }
+        },
+        "badge": {
+          "notTested": "Sin probar",
+          "connected": "Conectada",
+          "failed": "Falló"
+        },
+        "picker": {
+          "title": "Agregar credencial",
+          "subtitle": "Elige el tipo de credencial que quieres guardar.",
+          "searchPlaceholder": "Buscar tipos de credencial",
+          "comingSoon": "Próximamente",
+          "noMatches": "Ningún tipo de credencial coincide con la búsqueda.",
+          "cancel": "Cancelar"
+        },
+        "modal": {
+          "addTitle": "Nueva credencial Microsoft Entra ID",
+          "editTitle": "Editar credencial Microsoft Entra ID",
+          "subtitle": "Aplicación con client_credentials registrada en Microsoft Entra ID.",
+          "name": "Nombre de la credencial",
+          "namePlaceholder": "ej. Operaciones MINTRAL · QA",
+          "environment": "Ambiente",
+          "environmentPlaceholder": "Elige o crea un ambiente",
+          "environmentCreate": "Crear \"{name}\"",
+          "environmentEmpty": "Escribe un nombre para crear un ambiente",
+          "tenantId": "ID de directorio (tenant)",
+          "tenantIdHelp": "El directorio Entra que emite el token. Está en el resumen del registro de aplicación.",
+          "clientId": "ID de aplicación (cliente)",
+          "clientSecret": "Secreto de cliente",
+          "clientSecretPlaceholder": "Valor del secreto del registro de aplicación",
+          "clientSecretEditPlaceholder": "Déjalo en blanco para mantener el secreto actual",
+          "guidPlaceholder": "00000000-0000-0000-0000-000000000000",
+          "scope": "Scope",
+          "scopePlaceholder": "api://<id-de-aplicación>/.default",
+          "scopeHelp": "Los permisos de aplicación usan el scope /.default de la API destino.",
+          "tokenEndpoint": "Endpoint de token",
+          "advanced": "Avanzado",
+          "tokenRequestFormat": "Formato de la solicitud de token",
+          "tokenFormatForm": "Form encoded (por defecto)",
+          "tokenFormatJson": "Cuerpo JSON",
+          "tokenUrlOverride": "Endpoint de token personalizado",
+          "tokenUrlOverridePlaceholder": "https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token",
+          "tokenUrlOverrideHelp": "Solo se necesita para nubes soberanas o endpoints de políticas B2C.",
+          "delete": "Eliminar credencial",
+          "testConnection": "Probar conexión",
+          "testSuccess": "Token emitido",
+          "testFailed": "La prueba falló",
+          "usedBy": "Usada por",
+          "secretNotice": "Los secretos se guardan cifrados y la API nunca los devuelve — puedes reemplazar un secreto, pero no volver a leerlo.",
+          "cancel": "Cancelar",
+          "saving": "Guardando...",
+          "createButton": "Crear",
+          "saveButton": "Guardar"
+        },
+        "delete": {
+          "title": "¿Eliminar esta credencial?",
+          "inUseWarning": "Todavía la referencian {count} consumidor(es)",
+          "confirmButton": "Eliminar",
+          "deleting": "Eliminando..."
+        },
+        "toast": {
+          "created": "Credencial creada",
+          "updated": "Credencial actualizada",
+          "deleted": "Credencial eliminada",
+          "testSuccess": "Prueba de conexión exitosa",
+          "testFailed": "La prueba de conexión falló",
+          "saveFailed": "No se pudo guardar la credencial",
+          "deleteFailed": "No se pudo eliminar la credencial"
+        },
+        "errors": {
+          "loadFailed": "No se pudieron cargar las credenciales.",
+          "forbidden": "Gestionar credenciales requiere acceso de propietario de la organización."
+        },
+        "validation": {
+          "nameRequired": "El nombre de la credencial es obligatorio",
+          "environmentRequired": "Elige o crea un ambiente",
+          "environmentTooLong": "El nombre del ambiente es demasiado largo",
+          "tenantIdRequired": "El ID de directorio (tenant) es obligatorio",
+          "clientIdRequired": "El ID de aplicación (cliente) es obligatorio",
+          "clientSecretRequired": "El secreto de cliente es obligatorio",
+          "scopeRequired": "El scope es obligatorio",
+          "tokenUrlInvalid": "Ingresa una URL válida"
+        }
       }
     },
     "integrationJobs": {
@@ -1789,6 +1932,7 @@
         "settings": "Ajustes",
         "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos",
+        "credentials": "Credenciales",
         "help": "Ayuda y cómo empezar",
         "controlTower": "Torre de control",
         "whereIsMyLoad": "¿Dónde está mi carga?",

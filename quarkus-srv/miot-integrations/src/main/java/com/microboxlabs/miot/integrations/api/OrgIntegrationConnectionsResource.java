@@ -4,7 +4,6 @@ import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestRequest;
-import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationOperationRequest;
 import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest;
@@ -44,7 +43,7 @@ import java.util.function.Supplier;
 @Path("/api/v1/orgs/{organizationId}/integrations")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Tag(name = "Integration Connections", description = "External API connections, credential profiles, and endpoint operations")
+@Tag(name = "Integration Connections", description = "External API connections and their endpoint operations")
 @SecurityRequirement(name = "oidc")
 @Authenticated
 @IfBuildProperty(name = "miot.component.integrations.enabled", stringValue = "true")
@@ -65,27 +64,6 @@ public class OrgIntegrationConnectionsResource {
         this.organizationContext = organizationContext;
         this.roleService = roleService;
         this.service = service;
-    }
-
-    @GET
-    @Path("/credential-profiles")
-    @Operation(summary = "List credential profiles")
-    public Uni<Response> listCredentialProfiles(@PathParam("organizationId") String organizationId) {
-        String tenant = tenantCode(organizationId);
-        return ownerWork(organizationId,
-                () -> Response.ok(service.listCredentialProfiles(tenant)).build());
-    }
-
-    @POST
-    @Path("/credential-profiles")
-    @Operation(summary = "Create a credential profile")
-    public Uni<Response> createCredentialProfile(
-            @PathParam("organizationId") String organizationId,
-            CreateCredentialProfileRequest req) {
-        String tenant = tenantCode(organizationId);
-        return ownerWork(organizationId, () -> Response.status(Response.Status.CREATED)
-                .entity(service.createCredentialProfile(tenant, req))
-                .build());
     }
 
     @GET

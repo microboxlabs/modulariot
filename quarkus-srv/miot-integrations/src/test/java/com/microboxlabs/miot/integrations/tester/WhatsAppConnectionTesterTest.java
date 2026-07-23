@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.integrations.domain.AuthType;
 import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
+import com.microboxlabs.miot.integrations.domain.CredentialType;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestRequest;
@@ -125,13 +126,19 @@ class WhatsAppConnectionTesterTest {
                 UUID.randomUUID().toString(),
                 "tenant-1",
                 "WhatsApp Cloud Token",
+                CredentialType.BEARER_TOKEN,
                 AuthType.BEARER_TOKEN,
+                "PRODUCTION",
                 Map.of(),
                 encrypted,
                 "****",
                 1,
+                null,
+                null,
                 now,
-                now);
+                now,
+                null,
+                null);
     }
 
     private IntegrationConnection connection(URI baseUrl, Map<String, Object> metadata) {

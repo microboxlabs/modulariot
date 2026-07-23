@@ -6,16 +6,12 @@ import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.IntegrationOperation;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestRequest;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestResponse;
-import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationOperationRequest;
-import com.microboxlabs.miot.integrations.dto.CredentialProfileResponse;
 import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.persistence.CredentialProfileRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
-import com.microboxlabs.miot.integrations.secret.IntegrationSecretCipher;
-import com.microboxlabs.miot.integrations.secret.IntegrationSecretEncryptionException;
 import com.microboxlabs.miot.integrations.tester.ConnectionTesterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -24,63 +20,28 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.jboss.logging.Logger;
 
 @ApplicationScoped
 public class IntegrationConnectionService {
 
-    private static final Logger LOG = Logger.getLogger(IntegrationConnectionService.class);
-
     private final CredentialProfileRepository credentialProfileRepository;
+    private final CredentialProfileService credentialProfileService;
     private final IntegrationConnectionRepository connectionRepository;
     private final IntegrationOperationRepository operationRepository;
-    private final IntegrationSecretCipher secretCipher;
     private final ConnectionTesterRegistry testerRegistry;
 
     @Inject
     public IntegrationConnectionService(
             CredentialProfileRepository credentialProfileRepository,
+            CredentialProfileService credentialProfileService,
             IntegrationConnectionRepository connectionRepository,
             IntegrationOperationRepository operationRepository,
-            IntegrationSecretCipher secretCipher,
             ConnectionTesterRegistry testerRegistry) {
         this.credentialProfileRepository = credentialProfileRepository;
+        this.credentialProfileService = credentialProfileService;
         this.connectionRepository = connectionRepository;
         this.operationRepository = operationRepository;
-        this.secretCipher = secretCipher;
         this.testerRegistry = testerRegistry;
-    }
-
-    public List<CredentialProfileResponse> listCredentialProfiles(String tenantCode) {
-        return credentialProfileRepository.listByTenant(tenantCode).stream()
-                .map(this::toResponse)
-                .toList();
-    }
-
-    public CredentialProfileResponse createCredentialProfile(String tenantCode, CreateCredentialProfileRequest req) {
-        OffsetDateTime now = OffsetDateTime.now();
-        String encryptedSecretJson = encryptSecretConfig(req);
-        CredentialProfile profile = new CredentialProfile(
-                UUID.randomUUID().toString(),
-                tenantCode,
-                req.displayName(),
-                req.authType(),
-                safeMap(req.publicConfig()),
-                encryptedSecretJson,
-                maskSecret(req.secretConfig()),
-                1,
-                now,
-                now);
-        return toResponse(credentialProfileRepository.create(profile));
-    }
-
-    private String encryptSecretConfig(CreateCredentialProfileRequest req) {
-        try {
-            return secretCipher.encrypt(req.secretConfig());
-        } catch (IntegrationSecretEncryptionException e) {
-            LOG.errorf(e, "Failed to encrypt secret config for credential profile '%s'", req.displayName());
-            throw e;
-        }
     }
 
     public List<IntegrationConnection> listConnections(String tenantCode) {
@@ -122,9 +83,9 @@ public class IntegrationConnectionService {
     }
 
     /**
-     * Rotates the linked credential profile's secret when a non-blank token is supplied.
-     * Fails (does not silently drop the token) when there is no resolvable credential
-     * profile, so the rotation is part of the update's success contract.
+     * Rotates the linked credential's secret when a non-blank token is supplied.
+     * Fails (does not silently drop the token) when there is no resolvable credential,
+     * so the rotation is part of the update's success contract.
      */
     private void rotateTokenIfPresent(String tenantCode, IntegrationConnection existing, String token) {
         if (token == null || token.isBlank()) {
@@ -132,23 +93,11 @@ public class IntegrationConnectionService {
         }
         CredentialProfile rotated = existing.credentialProfileId() == null
                 ? null
-                : credentialProfileRepository.updateSecret(
-                        tenantCode,
-                        existing.credentialProfileId(),
-                        encryptToken(token),
-                        maskSecret(Map.of("token", token)));
+                : credentialProfileService.rotateSecret(
+                        tenantCode, existing.credentialProfileId(), Map.of("token", token));
         if (rotated == null) {
             throw new IllegalStateException(
                     "Cannot rotate the access token: the connection has no resolvable credential profile");
-        }
-    }
-
-    private String encryptToken(String token) {
-        try {
-            return secretCipher.encrypt(Map.of("token", token));
-        } catch (IntegrationSecretEncryptionException e) {
-            LOG.errorf(e, "Failed to encrypt rotated token during connection update");
-            throw e;
         }
     }
 
@@ -201,27 +150,7 @@ public class IntegrationConnectionService {
         return response;
     }
 
-    private CredentialProfileResponse toResponse(CredentialProfile profile) {
-        return new CredentialProfileResponse(
-                profile.id(),
-                profile.tenantCode(),
-                profile.displayName(),
-                profile.authType(),
-                profile.publicConfig(),
-                profile.secretPreview(),
-                profile.secretVersion(),
-                profile.createdAt(),
-                profile.updatedAt());
-    }
-
     private Map<String, Object> safeMap(Map<String, Object> map) {
         return map == null ? Map.of() : new LinkedHashMap<>(map);
-    }
-
-    private String maskSecret(Map<String, Object> secretConfig) {
-        if (secretConfig == null || secretConfig.isEmpty()) {
-            return "none";
-        }
-        return "****";
     }
 }

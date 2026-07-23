@@ -11,9 +11,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import java.net.URI;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import org.jboss.logging.Logger;
 
@@ -68,6 +70,17 @@ public class IntegrationConnectionRepository {
             LIMIT 2
             """;
 
+    // Reverse index for the credentials screen: which connections reference these
+    // profiles. Takes the whole id set at once so listing N credentials stays one query
+    // instead of N.
+    private static final String SELECT_BY_CREDENTIAL_PROFILES = """
+            SELECT id, tenant_code, name, provider_type, base_url, credential_profile_id,
+                   status, last_tested_at, last_test_result, metadata
+            FROM miot_integrations.integration_connections
+            WHERE tenant_code = $1 AND credential_profile_id = ANY($2) AND active
+            ORDER BY name
+            """;
+
     private static final String INSERT = """
             INSERT INTO miot_integrations.integration_connections (
                 id, tenant_code, name, provider_type, base_url, credential_profile_id,
@@ -100,7 +113,8 @@ public class IntegrationConnectionRepository {
 
     private final Instance<Pool> clientInstance;
 
-    IntegrationConnectionRepository(Instance<Pool> clientInstance) {
+    // Protected so tests can subclass it with a null pool, as AsyncJobRepository allows.
+    protected IntegrationConnectionRepository(Instance<Pool> clientInstance) {
         this.clientInstance = clientInstance;
     }
 
@@ -182,6 +196,32 @@ public class IntegrationConnectionRepository {
             return null;
         }
         return matches.isEmpty() ? null : matches.get(0);
+    }
+
+    /**
+     * Connections referencing any of {@code credentialProfileIds}, for the "used by"
+     * panel and the delete guard. Blank ids are dropped and an empty set short-circuits
+     * before the pool, so a credential with no id to check costs no query.
+     */
+    public List<IntegrationConnection> listByCredentialProfiles(
+            String tenantCode, Collection<String> credentialProfileIds) {
+        if (credentialProfileIds == null || credentialProfileIds.isEmpty()) {
+            return List.of();
+        }
+        UUID[] ids = credentialProfileIds.stream()
+                .map(this::toUuid)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toArray(UUID[]::new);
+        if (ids.length == 0) {
+            return List.of();
+        }
+        return client().preparedQuery(SELECT_BY_CREDENTIAL_PROFILES)
+                .execute(Tuple.of(tenantCode, ids))
+                .await().indefinitely()
+                .stream()
+                .map(this::mapRow)
+                .toList();
     }
 
     public IntegrationConnection update(

@@ -91,7 +91,7 @@ export function buildTaskDrivenMoveBody(
       id,
       ...(type == null ? {} : { type }),
       ...(label == null ? {} : { label }),
-      data: { ...(data ?? {}), ...plannerFields },
+      data: { ...data, ...plannerFields },
     },
   };
 }

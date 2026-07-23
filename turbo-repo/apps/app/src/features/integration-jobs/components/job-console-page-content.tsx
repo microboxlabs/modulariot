@@ -10,7 +10,9 @@ import {
   JOB_STATE_DOT,
   formatDateTime,
   jobContextLine,
+  jobLabel,
   jobTypeLabel,
+  readJobOp,
   relativeAge,
   shortJobId,
   type AsyncJob,
@@ -296,7 +298,7 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
                         className="block text-left"
                       >
                         <span className="block text-[13px] font-semibold text-gray-900 dark:text-white">
-                          {jobTypeLabel(job.jobType)}
+                          {jobLabel(job.jobType, readJobOp(job.payload))}
                         </span>
                         <span className="block font-mono text-[10px] text-gray-400 dark:text-gray-500">
                           {shortJobId(job.id)}

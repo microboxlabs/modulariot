@@ -13,7 +13,8 @@ import {
   formatDateTime,
   formatDurationMs,
   jobDurationMs,
-  jobTypeLabel,
+  jobLabel,
+  readJobOp,
   relativeAge,
   shortJobId,
   sortChain,
@@ -170,7 +171,7 @@ export default function JobDetailPanel({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-base font-semibold text-gray-900 dark:text-white">
-                {jobTypeLabel(job.jobType)}
+                {jobLabel(job.jobType, readJobOp(job.payload))}
               </span>
               <JobStateBadge state={job.state} label={stateLabel} />
             </div>
@@ -342,7 +343,7 @@ export default function JobDetailPanel({
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-xs font-semibold text-gray-900 dark:text-white">
-                      {jobTypeLabel(member.jobType)}
+                      {jobLabel(member.jobType, readJobOp(member.payload))}
                     </span>
                     <span className="block truncate font-mono text-[10px] text-gray-400 dark:text-gray-500">
                       {shortJobId(member.id)}

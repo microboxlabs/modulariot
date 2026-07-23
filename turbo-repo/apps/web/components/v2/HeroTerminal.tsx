@@ -2,8 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { getContent } from "./content";
-import { useLang } from "./useLang";
+import { useTranslations } from "next-intl";
 
 // Tarjeta "pipeline" del DS: la operación en vivo contada en el vocabulario
 // del producto — señal → síntoma → acción → registro — cada etapa con su
@@ -40,9 +39,15 @@ const KIND: Record<string, { color: string; bg: string; icon: React.ReactNode }>
   },
 };
 
+// Orden fijo, alineado por índice con hero.livePanel.events en los JSON de
+// traducción — el "kind" no es texto, así que vive en código, no en i18n.
+const EVENT_KINDS = ["signal", "symptom", "action", "record"];
+
+type LiveEvent = { title: string; detail: string };
+
 export default function HeroTerminal() {
-  const p = getContent(useLang()).hero.livePanel;
-  const events = p.events;
+  const t = useTranslations("hero.livePanel");
+  const events = t.raw("events") as LiveEvent[];
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -63,14 +68,14 @@ export default function HeroTerminal() {
               <span className="h-2.5 w-2.5 rounded-full bg-hairline-strong" />
               <span className="h-2.5 w-2.5 rounded-full bg-hairline-strong" />
             </span>
-            <p className="font-mono text-xs text-ink-3">modulariot · {p.title.toLowerCase()}</p>
+            <p className="font-mono text-xs text-ink-3">modulariot · {t("title").toLowerCase()}</p>
           </div>
           <span className="flex items-center gap-1.5 font-mono text-[11px] text-ink-3">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-action opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-action" />
             </span>
-            {p.subtitle}
+            {t("subtitle")}
           </span>
         </div>
 
@@ -78,7 +83,7 @@ export default function HeroTerminal() {
             opacity) para que el alto del panel no salte cuando el ciclo reinicia. */}
         <div className="space-y-2 px-4 py-4">
           {events.map((e, i) => {
-            const k = KIND[e.kind] || KIND.record;
+            const k = KIND[EVENT_KINDS[i]] || KIND.record;
             const visible = i < count;
             return (
               <motion.div
@@ -102,7 +107,7 @@ export default function HeroTerminal() {
           })}
           <div className="flex items-center gap-2 pt-1 font-mono text-xs text-ink-4">
             <span className="inline-block h-3.5 w-1.5 animate-pulse rounded-sm bg-ink-4" />
-            <span>{count >= events.length ? p.done : p.live}</span>
+            <span>{count >= events.length ? t("done") : t("live")}</span>
           </div>
         </div>
       </div>

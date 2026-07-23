@@ -219,48 +219,12 @@ export default function Nav() {
           </a>
 
           <DarkThemeToggle theme={themeToggleStyle} />
-
-          {/* Selector de país → idioma */}
-          <div className="group relative">
-            <button className={topItem} aria-label="Cambiar país / idioma">
-              <Flag code={activeRegion.flag} />
-              <span>{ABBR[activeRegion.flag] ?? activeRegion.country}</span>
-              <Chevron />
-            </button>
-            <div className={`${panelBase} right-0 w-48 origin-top-right`}>
-              <div className={`${panelCard} p-2`}>
-                {regions.map((r, i) => {
-                  const active = r.flag === activeRegion.flag;
-                  const divider = i > 0 && regions[i - 1].lang !== r.lang;
-                  return (
-                    <a
-                      key={r.flag}
-                      href={`/alpha-2506/${r.lang}`}
-                      onClick={() => pickRegion(r.flag)}
-                      className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface-3 ${
-                        divider ? "mt-1 border-t border-hairline pt-2.5" : ""
-                      } ${active ? "font-semibold text-accent" : "text-ink-2"}`}
-                    >
-                      <Flag code={r.flag} />
-                      <span>{r.country}</span>
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
+          
           <a
             href={resolveHref(base, nav.actions.login.href)}
             className="rounded-lg px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:text-ink-1"
           >
             {nav.actions.login.label}
-          </a>
-          <a
-            href={resolveHref(base, nav.actions.demo.href)}
-            className="rounded-lg border border-hairline-strong bg-surface px-3.5 py-2 text-sm font-medium text-ink-1 transition-colors hover:bg-surface-3"
-          >
-            {nav.actions.demo.label}
           </a>
           <a
             href={resolveHref(base, nav.actions.signup.href)}
@@ -336,34 +300,7 @@ export default function Nav() {
               {item.label}
             </a>
           ))}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {regions.map((r) => {
-              const active = r.flag === activeRegion.flag;
-              return (
-                <a
-                  key={r.flag}
-                  href={`/alpha-2506/${r.lang}`}
-                  onClick={() => pickRegion(r.flag)}
-                  className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm transition-colors ${
-                    active
-                      ? "border-accent/40 bg-accent-soft font-semibold text-accent"
-                      : "border-hairline text-ink-2"
-                  }`}
-                >
-                  <Flag code={r.flag} className="h-3 w-[18px]" />
-                  <span>{r.country}</span>
-                </a>
-              );
-            })}
-          </div>
           <div className="mt-4 space-y-2">
-            <a
-              href={resolveHref(base, nav.actions.demo.href)}
-              onClick={() => setOpen(false)}
-              className="block rounded-lg border border-hairline-strong bg-surface px-4 py-2.5 text-center text-sm font-medium text-ink-1"
-            >
-              {nav.actions.demo.label}
-            </a>
             <a
               href={resolveHref(base, nav.actions.login.href)}
               onClick={() => setOpen(false)}

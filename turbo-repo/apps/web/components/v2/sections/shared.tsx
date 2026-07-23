@@ -57,9 +57,9 @@ export function SectionHeader({
   subtitle?: string;
 }) {
   return (
-    <Reveal className="max-w-[720px]">
+    <Reveal className="max-w-[800px]">
       <Eyebrow>{kicker}</Eyebrow>
-      <h2 className="display mt-4 text-[clamp(30px,3.8vw,46px)] leading-[1.1]">{title}</h2>
+      <h2 className="display mt-4 text-[clamp(30px,3.8vw,46px)] leading-[1.1] whitespace-pre-line">{title}</h2>
       {subtitle && <p className="mt-4 max-w-[56ch] text-[17px] leading-relaxed text-ink-2">{subtitle}</p>}
     </Reveal>
   );

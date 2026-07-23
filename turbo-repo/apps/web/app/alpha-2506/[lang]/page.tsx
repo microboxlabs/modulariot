@@ -34,13 +34,12 @@ export default async function Home({
         <Hero base={base} lang={lang} />   {/* Gancho */}
         <Stats lang={lang} />              {/* Validación / cuantificación (banda oscura) */}
         <Problem lang={lang} />            {/* Problema emocional (We Got You) */}
-        <TresActos base={base} />          {/* La tesis en 3 actos → explorador nativo */}
+        <TresActos base={base} lang={lang} /> {/* La tesis en 3 actos → explorador nativo */}
         <StepsInteractive />               {/* Demostración paso a paso (autoreproducida) */}
         <Features lang={lang} />           {/* Solución: 3 capacidades */}
         <UseCases lang={lang} />           {/* Las 4 cajas de procesamiento */}
         <Confiabilidad base={base} />      {/* Precisión de señal: 12/20 pulsos/min (minería) */}
         <PainOutcome lang={lang} />        {/* Diferenciación: rentar vs poseer */}
-        <Architecture lang={lang} />       {/* Cómo fluye la data */}
         <Deployment lang={lang} />         {/* Opciones de implementación */}
         <Stories lang={lang} />            {/* Prueba social: casos reales */}
         <PricingTeaser base={base} lang={lang} /> {/* Precios */}

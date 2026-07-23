@@ -3,6 +3,7 @@ import { Footer } from "./sections/Footer";
 import { getContent } from "./content";
 import { Reveal } from "./Reveal";
 import { ConceptGraphic } from "./ConceptGraphic";
+import { btnPrimary, btnSecondary, btnLg } from "./sections/shared";
 
 // ============================================================
 // Renderizador de páginas de detalle basado en datos.
@@ -241,10 +242,10 @@ export default function DetailPage({ data, base }: { data: DetailPageData; base:
               </div>
             )}
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <a href={`${base}/#contacto`} className="w-full rounded-lg border border-ink-1 bg-ink-1 px-8 py-3.5 text-base font-medium text-page transition-colors hover:bg-ink-2 hover:border-ink-2 sm:w-auto">
+              <a href={`${base}/#contacto`} className={`w-full sm:w-auto ${btnPrimary} ${btnLg}`}>
                 {t.nav.cta}
               </a>
-              <a href={`${base}/precios`} className="w-full rounded-lg border border-hairline-strong bg-surface px-8 py-3.5 text-base font-medium text-ink-1 transition-colors hover:border-ink-1 sm:w-auto">
+              <a href={`${base}/precios`} className={`w-full sm:w-auto ${btnSecondary} ${btnLg}`}>
                 {t.hero.ctaSecondary}
               </a>
             </div>

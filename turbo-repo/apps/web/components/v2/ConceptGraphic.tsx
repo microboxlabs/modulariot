@@ -28,9 +28,9 @@ export function ConceptGraphic({ id }: { id: string }) {
         {/* base de datos */}
         <g transform="translate(287 52)">
           <path d="M0 14v52c0 7 17 13 40 13s40-6 40-13V14" fill="var(--accent)" />
-          <ellipse cx="40" cy="40" rx="40" ry="13" fill="var(--accent-strong)" opacity="0.5" />
-          <ellipse cx="40" cy="14" rx="40" ry="14" fill="var(--accent-soft)" />
-          <ellipse cx="40" cy="14" rx="40" ry="14" fill="none" stroke="var(--accent)" strokeOpacity="0.5" strokeWidth="1.5" />
+          <path d="M0 40c0 7 17 13 40 13s40-6 40-13" fill="none" stroke="var(--accent-strong)" strokeWidth="2" opacity="0.6" />
+          <ellipse cx="40" cy="14" rx="40" ry="14" fill="var(--accent)" />
+          <ellipse cx="40" cy="14" rx="40" ry="14" fill="none" stroke="var(--accent-strong)" strokeWidth="1.5" />
         </g>
       </svg>
     );

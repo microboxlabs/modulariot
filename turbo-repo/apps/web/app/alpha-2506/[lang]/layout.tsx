@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { ThemeModeScript } from "flowbite-react";
+import { NextIntlClientProvider } from "next-intl";
 import { Inter } from "next/font/google";
 import "../../globals.css";
 import DemoFab from "../../../components/v2/DemoFab";
+import { getMessages } from "../../../i18n/request";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -61,6 +63,7 @@ export default async function RootLayout({
   params: Promise<{ lang: string }>;
 }>) {
   const { lang } = await params;
+  const messages = getMessages(lang);
 
   return (
     <html lang={lang} suppressHydrationWarning className={inter.variable}>
@@ -70,7 +73,9 @@ export default async function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className="min-h-screen bg-page font-sans text-ink-1 antialiased">
-        {children}
+        <NextIntlClientProvider locale={lang} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
         <DemoFab lang={lang} />
       </body>
     </html>

@@ -1,4 +1,4 @@
-import { getContent } from "../content";
+import { getTranslations } from "next-intl/server";
 import HeroTerminal from "../HeroTerminal";
 import { Eyebrow, btnPrimary, btnSecondary, btnLg } from "./shared";
 
@@ -15,27 +15,27 @@ function AmberChevron({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function Hero({ base, lang }: { base: string; lang: string }) {
-  const c = getContent(lang).hero;
+export async function Hero({ base, lang }: { base: string; lang: string }) {
+  const t = await getTranslations({ locale: lang, namespace: "hero" });
   return (
     <section className="relative overflow-hidden bg-page">
       <div className="hero-bg" aria-hidden />
       <div className="relative mx-auto max-w-7xl px-6 pt-16 pb-16 lg:pt-21 lg:pb-24">
         <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-16">
           <div>
-            <Eyebrow>{c.kicker}</Eyebrow>
-            <h1 className="display mt-5 text-[clamp(40px,5.6vw,64px)] leading-[1.05]">
-              {c.titlePre}
-              <AmberChevron>{c.titleHighlight}</AmberChevron>
-              {c.titlePost}
+            <Eyebrow>{t("kicker")}</Eyebrow>
+            <h1 className="display mt-5 text-[clamp(40px,3.5vw,64px)] leading-[1.05]">
+              {t("titlePre")}
+              <AmberChevron>{t("titleHighlight")}</AmberChevron>
+              {t("titlePost")}
             </h1>
-            <p className="mt-5 max-w-[56ch] text-lg leading-[1.55] text-ink-2">{c.subtitle}</p>
+            <p className="mt-5 max-w-[56ch] text-lg leading-[1.55] text-ink-2">{t("subtitle")}</p>
             <div className="mt-8 flex flex-wrap gap-2.5">
               <a href="#contacto" className={`${btnPrimary} ${btnLg}`}>
-                {c.ctaPrimary}
+                {t("ctaPrimary")}
               </a>
               <a href={`${base}/precios`} className={`${btnSecondary} ${btnLg}`}>
-                {c.ctaSecondary}
+                {t("ctaSecondary")}
               </a>
             </div>
           </div>

@@ -1,31 +1,31 @@
-import { getContent } from "../content";
+import { getTranslations } from "next-intl/server";
+import { btnPrimary, btnLg } from "./shared";
 
-// Cierre del DS: panel en tinta dentro de la página (no banda a sangre),
-// botón blanco, cifras tabulares.
-export function FinalCta({ lang }: { lang: string }) {
-  const c = getContent(lang).finalCta;
+type FinalCtaStat = { value: string; label: string };
+
+// Cierre del DS: panel claro dentro de la página (no banda a sangre), cifras tabulares.
+export async function FinalCta({ lang }: { lang: string }) {
+  const t = await getTranslations({ locale: lang, namespace: "finalCta" });
+  const stats = t.raw("stats") as FinalCtaStat[];
   return (
     <section id="contacto" className="scroll-mt-16 bg-page">
       <div className="mx-auto max-w-7xl px-6 py-16 sm:py-20 lg:py-24">
-        <div className="rounded-2xl border border-ink-1 bg-ink-1 px-8 py-14 text-center sm:px-16 dark:border-hairline dark:bg-surface">
-          <h2 className="mx-auto max-w-3xl text-3xl font-semibold tracking-[-0.025em] text-page sm:text-4xl dark:text-ink-1">
-            {c.title}
+        <div className="rounded-2xl border border-hairline bg-surface px-8 py-14 text-center sm:px-16">
+          <h2 className="mx-auto max-w-3xl text-3xl font-semibold tracking-[-0.025em] text-ink-1 sm:text-4xl">
+            {t("title")}
           </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-page/70 dark:text-ink-2">{c.body}</p>
-          <a
-            href={`/alpha-2506/${lang}/contacto?intent=demo`}
-            className="mt-8 inline-flex items-center justify-center rounded-lg bg-white px-6 py-3.5 text-[15px] font-medium text-gray-950 transition-colors hover:bg-gray-100"
-          >
-            {c.cta}
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ink-2">{t("body")}</p>
+          <a href={`/alpha-2506/${lang}/contacto?intent=demo`} className={`mt-8 ${btnPrimary} ${btnLg}`}>
+            {t("cta")}
           </a>
-          <p className="mt-4 text-sm text-page/60 dark:text-ink-3">{c.note}</p>
-          <div className="mx-auto mt-12 grid max-w-2xl grid-cols-3 gap-6 border-t border-white/15 pt-10 dark:border-hairline">
-            {c.stats.map((s) => (
+          <p className="mt-4 text-sm text-ink-3">{t("note")}</p>
+          <div className="mx-auto mt-12 grid max-w-2xl grid-cols-3 gap-6 border-t border-hairline pt-10">
+            {stats.map((s) => (
               <div key={s.label}>
-                <p className="text-2xl font-semibold tracking-[-0.02em] text-page tabular-nums sm:text-3xl dark:text-ink-1">
+                <p className="text-2xl font-semibold tracking-[-0.02em] text-ink-1 tabular-nums sm:text-3xl">
                   {s.value}
                 </p>
-                <p className="mt-1 text-xs text-page/60 sm:text-sm dark:text-ink-3">{s.label}</p>
+                <p className="mt-1 text-xs text-ink-3 sm:text-sm">{s.label}</p>
               </div>
             ))}
           </div>

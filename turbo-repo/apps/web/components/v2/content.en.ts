@@ -83,7 +83,6 @@ export const en = {
       },
     ],
     direct: [
-      { label: "Docs", href: "https://docs.modulariot.com", external: true },
       { label: "Pricing", href: "/precios" },
       { label: "Contact", href: "/contacto" },
     ],

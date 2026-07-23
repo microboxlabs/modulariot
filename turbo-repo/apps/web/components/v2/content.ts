@@ -94,10 +94,9 @@ export const content = {
       },
     ],
     direct: [
-      { label: "Docs", href: "https://docs.modulariot.com", external: true },
       { label: "Precios", href: "/precios" },
       { label: "Contacto", href: "/contacto" },
-    ],
+    ] as { label: string; href: string; external?: boolean }[],
     github: { label: "GitHub", href: "https://github.com/microboxlabs" },
     // Selector de país → idioma. Varios países LatAm comparten la misma
     // traducción (es). `flag` = código de bandera SVG en flags.tsx.
@@ -154,9 +153,9 @@ export const content = {
   // engancha antes de presentar la solución.
   problem: {
     kicker: "El problema",
-    title: "¿Tratas las alertas, pero vuelven a aparecer igual?",
+    title: "¿Tratas las alertas,\npero vuelven a aparecer igual?",
     subtitle:
-      "El 97% de los síntomas se trata, pero tratar no resuelve la causa — por eso las mismas desviaciones vuelven mes a mes.",
+      "El 97% de los síntomas se trata, pero tratar no resuelve la causa, por eso las mismas desviaciones vuelven mes a mes.",
     pains: [
       {
         title: "“Me avisaron al día siguiente”",
@@ -256,13 +255,13 @@ export const content = {
       {
         icon: "radar",
         title: "Alertas por síntoma",
-        body: "Más de 30 reglas detectan la desviación —fatiga, exceso de velocidad, zonas de riesgo— y generan un evento clasificado, no una notificación genérica más.",
+        body: "Más de 30 reglas detectan la desviación, fatiga, exceso de velocidad, zonas de riesgo y generan un evento clasificado, no una notificación genérica.",
         bullets: ["Severidad y responsable automáticos", "Exclusión inteligente de ruido", "Acción disparada: SMS, panel u orden de trabajo"],
       },
       {
         icon: "plug",
         title: "Escalamiento según el síntoma",
-        body: "Cada síntoma se escala al canal donde vive la operación —correo, WhatsApp, Teams— con conversación bidireccional, plan y dueño.",
+        body: "Cada síntoma se escala al canal donde vive la operación, ya sea correo, WhatsApp, Teams con conversación bidireccional, plan y dueño.",
         bullets: ["Canal según el tipo de síntoma", "Ciclo bidireccional, no solo notificar", "Cada alerta llega con plan y dueño"],
       },
     ],
@@ -358,8 +357,8 @@ export const content = {
 
   deployment: {
     kicker: "Implementación",
-    title: "Implementación",
-    subtitle: "Una puesta en marcha gestionada por MicroBox Labs sobre tu propia nube: nosotros operamos la infraestructura, tú te enfocas en la operación. En vivo en días, no meses.",
+    title: "En vivo en días, no meses.",
+    subtitle: "Una puesta en marcha gestionada por MicroBox Labs: nosotros operamos la infraestructura, tú te enfocas en la operación.",
     soonLabel: "Próximamente",
     includes: [
       { title: "Configuración a tu operación", body: "Umbrales, zonas y reglas ajustados a cómo trabajas, no una plantilla genérica." },

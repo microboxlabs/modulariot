@@ -1,15 +1,22 @@
-import { getContent } from "../content";
+import { getTranslations } from "next-intl/server";
 import { Reveal } from "../Reveal";
 import { Section, SectionHeader, Check } from "./shared";
 
-export function Deployment({ lang }: { lang: string }) {
-  const c = getContent(lang).deployment;
+type Include = { title: string; body: string };
+
+// El flag "soon" no es texto, así que queda en código: es el índice del item
+// "Despliegue en tu nube" dentro de "includes" en los JSON de i18n.
+const SOON_INDEX = 1;
+
+export async function Deployment({ lang }: { lang: string }) {
+  const t = await getTranslations({ locale: lang, namespace: "deployment" });
+  const includes = t.raw("includes") as Include[];
   return (
-    <Section id="implementacion" tone="white">
-      <SectionHeader kicker={c.kicker} title={c.title} subtitle={c.subtitle} />
+    <Section id="implementacion" tone="gray">
+      <SectionHeader kicker={t("kicker")} title={t("title")} subtitle={t("subtitle")} />
       <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {c.includes.map((it, i) => {
-          const soon = "soon" in it && it.soon;
+        {includes.map((it, i) => {
+          const soon = i === SOON_INDEX;
           return (
             <Reveal
               key={it.title}
@@ -28,7 +35,7 @@ export function Deployment({ lang }: { lang: string }) {
                 </div>
                 {soon && (
                   <span className="rounded-full bg-surface-3 px-2.5 py-1 font-mono text-[10px] font-medium tracking-[0.08em] text-ink-3 uppercase">
-                    {c.soonLabel}
+                    {t("soonLabel")}
                   </span>
                 )}
               </div>

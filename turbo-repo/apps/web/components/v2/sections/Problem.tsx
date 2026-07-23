@@ -1,14 +1,17 @@
-import { getContent } from "../content";
+import { getTranslations } from "next-intl/server";
 import { Reveal } from "../Reveal";
 import { Section, SectionHeader } from "./shared";
 
-export function Problem({ lang }: { lang: string }) {
-  const c = getContent(lang).problem;
+type Pain = { title: string; body: string };
+
+export async function Problem({ lang }: { lang: string }) {
+  const t = await getTranslations({ locale: lang, namespace: "problem" });
+  const pains = t.raw("pains") as Pain[];
   return (
     <Section tone="white">
-      <SectionHeader kicker={c.kicker} title={c.title} subtitle={c.subtitle} />
+      <SectionHeader kicker={t("kicker")} title={t("title")} subtitle={t("subtitle")} />
       <div className="mt-12 grid gap-4 md:grid-cols-3">
-        {c.pains.map((p, i) => (
+        {pains.map((p, i) => (
           <Reveal
             key={p.title}
             delay={i * 0.1}

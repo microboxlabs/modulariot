@@ -19,7 +19,7 @@ const fetcher = (url: string) => fetch(url).then((r) => {
 type Nivel = { name: string; color: string; level: string; treatment: string | null };
 type Caja = {
   name: string; slug: string; active: boolean; levels: Nivel[] | null;
-  rule_id: number; operable: boolean; base_type: string; fired_24h: number;
+  rule_id: number | null; operable: boolean; base_type: string; fired_24h: number;
   cost_monthly_usd: number | null;
 };
 type Familia = { key: string; ord: number; name: string; color: string; items: Caja[] };
@@ -100,7 +100,7 @@ export default function SymptomRulesPageContent() {
     }
   };
 
-  const estadoDe = (c: Caja) => pendientes[c.rule_id] ?? c.active;
+  const estadoDe = (c: Caja) => (c.rule_id != null ? pendientes[c.rule_id] : undefined) ?? c.active;
 
   return (
     <div className="flex flex-col h-full p-6 gap-4 overflow-y-auto">
@@ -177,22 +177,26 @@ export default function SymptomRulesPageContent() {
                 <span className="text-xs text-gray-500">{f.items.length}</span>
               </div>
               <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-2">
-                {f.items.map((c) => {
+                {f.items.map((c, i) => {
                   const on = estadoDe(c);
-                  const cambiado = c.rule_id in pendientes;
+                  // Cajas del catálogo comercial sin regla materializada aún
+                  // (rule_id nulo): no se pueden operar desde aquí.
+                  const operable = !carrierMode && c.operable && c.rule_id != null;
+                  const cambiado = c.rule_id != null && c.rule_id in pendientes;
                   return (
-                    <div key={c.rule_id}
+                    <div key={c.slug ?? c.rule_id ?? `${f.key}-${i}`}
                          className={`rounded-lg border px-3 py-2.5 flex items-start gap-3 ${
                            cambiado ? "border-blue-500" : "border-gray-200 dark:border-gray-700"}`}>
                       <label className={`relative inline-flex items-center mt-0.5 ${
-                        carrierMode || !c.operable ? "opacity-50" : "cursor-pointer"}`}>
+                        operable ? "cursor-pointer" : "opacity-50"}`}>
                         <input type="checkbox" className="sr-only peer" checked={on}
-                               disabled={carrierMode || !c.operable}
+                               disabled={!operable}
                                onChange={() => setPendientes((p) => {
+                                 if (c.rule_id == null) return p;
+                                 const id = c.rule_id;
                                  const next = { ...p };
-                                 if (c.rule_id in next && next[c.rule_id] === c.active) delete next[c.rule_id];
-                                 else if (c.rule_id in next) delete next[c.rule_id];
-                                 else next[c.rule_id] = !c.active;
+                                 if (id in next) delete next[id];
+                                 else next[id] = !c.active;
                                  return next;
                                })} />
                         <span className="w-9 h-5 bg-gray-200 dark:bg-gray-600 rounded-full peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />
@@ -200,8 +204,8 @@ export default function SymptomRulesPageContent() {
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{c.name}</div>
                         <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                          {(c.levels ?? []).map((n) => (
-                            <span key={n.level} title={n.treatment ?? undefined}
+                          {(c.levels ?? []).map((n, i) => (
+                            <span key={`${n.level ?? n.name ?? "nivel"}-${i}`} title={n.treatment ?? undefined}
                                   className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
                                   style={{ background: `${n.color}1A`, color: n.color }}>
                               {n.name}

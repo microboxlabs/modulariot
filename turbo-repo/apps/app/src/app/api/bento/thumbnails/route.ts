@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { logError } from "@/lib/logger";
+import { alfrescoNodeIdSchema } from "@/features/common/providers/alfresco-api/alfresco-identifiers";
 import { prepareAlfrescoAuth } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -17,9 +18,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing nodeId" }, { status: 400 });
   }
 
+  const parsedNodeId = alfrescoNodeIdSchema.safeParse(nodeId);
+  if (!parsedNodeId.success) {
+    return NextResponse.json({ error: "Invalid nodeId" }, { status: 400 });
+  }
+  const safeNodeId = encodeURIComponent(parsedNodeId.data);
+
   try {
-    const nodeRef = `workspace://SpacesStore/${nodeId}`;
-    const path = nodeRef.replace(/:\//, "");
+    const path = `workspace/SpacesStore/${safeNodeId}`;
 
     let userAgent: Record<string, string> = {};
     if (process.env.USER_AGENT) {

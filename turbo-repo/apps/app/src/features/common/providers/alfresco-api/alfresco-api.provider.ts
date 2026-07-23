@@ -44,12 +44,10 @@ import { GetEntityInfoResponse } from "../microboxlabs-api/microboxlabs-api.type
 import type { Session } from "next-auth";
 import { createManagedLogger, logError } from "@/lib/logger";
 import { z } from "zod";
-
-/** Alfresco node IDs are UUIDs or well-known aliases like -root-, -my-, -shared-. */
-const alfrescoNodeIdSchema = z.string().regex(
-  /^(-root-|-my-|-shared-|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
-  "Invalid Alfresco node ID"
-);
+import {
+  alfrescoNodeIdSchema,
+  normalizeAlfrescoTaskId,
+} from "./alfresco-identifiers";
 
 function validateNodeId(nodeId: string): string {
   return alfrescoNodeIdSchema.parse(nodeId);
@@ -634,11 +632,12 @@ export async function getChildrenNodes(
   nodeId: string,
   options: NodeChildrenRequest
 ): Promise<NodeChildAssociationPaging> {
+  const safeNodeId = encodeURIComponent(validateNodeId(nodeId));
   const queryParams = new URLSearchParams();
   Object.entries(options).forEach(([key, value]) => {
     queryParams.set(key, value.toString());
   });
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/children?${queryParams.toString()}`;
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${safeNodeId}/children?${queryParams.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const children = await fetcher(url, {
     method: "GET",
@@ -651,10 +650,11 @@ export async function getContentNode(
   session: Session,
   nodeId: string
 ): Promise<string> {
+  const safeNodeId = encodeURIComponent(validateNodeId(nodeId));
   const queryParams = new URLSearchParams({
     attachment: "true",
   });
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/content?${queryParams.toString()}`;
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${safeNodeId}/content?${queryParams.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetch(url, {
     method: "GET",
@@ -668,10 +668,11 @@ export async function getPlainTextNode(
   session: Session,
   nodeId: string
 ): Promise<string> {
+  const safeNodeId = encodeURIComponent(validateNodeId(nodeId));
   const queryParams = new URLSearchParams({
     attachment: "true",
   });
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}/content?${queryParams.toString()}`;
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${safeNodeId}/content?${queryParams.toString()}`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
   const result = await fetch(url, {
     method: "GET",
@@ -774,15 +775,11 @@ export async function getStatisticsTasks(
 
 export async function formProcessor(
   session: Session,
-  itemKind: string,
   itemId: string,
   data: Record<string, unknown>
 ): Promise<TaskResponse> {
-  const normalizedItemId =
-    itemKind === "task" && !itemId.startsWith("activiti$")
-      ? `activiti$${itemId}`
-      : itemId;
-  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/${itemKind}/${normalizedItemId}/formprocessor`;
+  const normalizedItemId = encodeURIComponent(normalizeAlfrescoTaskId(itemId));
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/api/task/${normalizedItemId}/formprocessor`;
   const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
 
   const result = await fetcher(url, {
@@ -801,7 +798,7 @@ export async function updateTask(
   taskId: string,
   data: Record<string, unknown>
 ): Promise<TaskResponse> {
-  return formProcessor(session, "task", taskId, data);
+  return formProcessor(session, taskId, data);
 }
 
 export async function getServiceValidation(
@@ -861,7 +858,8 @@ export async function checkDocumentExists(
   nodeId: string
 ): Promise<boolean> {
   try {
-    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${nodeId}`;
+    const safeNodeId = encodeURIComponent(validateNodeId(nodeId));
+    const baseUrl = `${process.env.ECM_API_URL}/alfresco/api/-default-/public/alfresco/versions/1/nodes/${safeNodeId}`;
     const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
     // This will throw an error if the node doesn't exist
     const node = (await fetcher(url, {
@@ -1976,7 +1974,7 @@ export async function updateTaskServiceCategory(
   taskId: string,
   serviceTypeCode: string
 ): Promise<void> {
-  await formProcessor(session, "task", taskId, {
+  await formProcessor(session, taskId, {
     prop_mintral_serviceCategory: serviceTypeCode,
   });
 }

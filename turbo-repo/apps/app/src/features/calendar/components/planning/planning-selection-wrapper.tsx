@@ -30,7 +30,9 @@ import {
   advanceWorkflowTask,
   notifyCalendarBinding,
   type BookingTaskAdvance,
+  type AssignProcessVariables,
 } from "@/features/common/providers/client-api.provider";
+import type { KanbanBoardTaskResponse } from "@/features/shipping/types/common.types";
 import {
   parseUrlDate,
   isValidViewMode,
@@ -53,6 +55,7 @@ import {
 } from "@/features/calendar/services/task-driven-binding-gate";
 import {
   decideAssignTaskAdvance,
+  decidePresentedReassign,
   getTaskDrivenUnassignTransition,
 } from "@/features/calendar/services/task-driven-assign";
 import { decidePlanTaskAdvance } from "@/features/calendar/services/task-driven-plan";
@@ -66,6 +69,35 @@ import { ServiceEvent } from "./service-event";
 import { mapBookingToPlannedService } from "@/features/calendar/services/booking-service-mapper";
 import { CALENDAR_LIVE_TASK_COLUMNS } from "@/features/calendar/services/workflow-stage";
 
+
+/** The live Alfresco task representing a service right now. */
+type LiveTask = { taskId: string; stage: TaskStage };
+
+/** A pending re-assign of an already-presented service (the two-step dance). */
+type ReassignPlan = { presentTaskId: string; tuple: AssignProcessVariables };
+
+/**
+ * Build the `mintral_serviceCode → live task` index from a kanban board
+ * response. Extracted from the provider memo so the same mapping can be run
+ * against a *freshly refreshed* board — the reassign dance re-resolves the
+ * newly-minted `assignDriver` task from `refreshLiveTasks()`'s return value,
+ * which the memo (bound to the previous render's data) cannot see in time.
+ */
+function buildLiveTaskIndex(
+  data: KanbanBoardTaskResponse | undefined
+): Map<string, LiveTask> {
+  const map = new Map<string, LiveTask>();
+  if (!data?.data) return map;
+  for (const [columnKey, board] of Object.entries(data.data)) {
+    const stage = asTaskStageFromColumn(columnKey);
+    if (!stage) continue;
+    for (const task of board.tasks) {
+      const code = task.mintral_serviceCode;
+      if (code) map.set(code, { taskId: task.id, stage });
+    }
+  }
+  return map;
+}
 
 async function cancelBookingWithWarning(
   bookingId: string,
@@ -283,21 +315,10 @@ export function PlanningSelectionProvider({
     500
   );
 
-  const serviceCodeToLiveTask = useMemo<
-    Map<string, { taskId: string; stage: TaskStage }>
-  >(() => {
-    const map = new Map<string, { taskId: string; stage: TaskStage }>();
-    if (!liveTasksData?.data) return map;
-    for (const [columnKey, board] of Object.entries(liveTasksData.data)) {
-      const stage = asTaskStageFromColumn(columnKey);
-      if (!stage) continue;
-      for (const task of board.tasks) {
-        const code = task.mintral_serviceCode;
-        if (code) map.set(code, { taskId: task.id, stage });
-      }
-    }
-    return map;
-  }, [liveTasksData]);
+  const serviceCodeToLiveTask = useMemo<Map<string, LiveTask>>(
+    () => buildLiveTaskIndex(liveTasksData),
+    [liveTasksData]
+  );
 
   const getLiveTask = useCallback(
     (serviceCode: string | undefined) =>
@@ -380,9 +401,64 @@ export function PlanningSelectionProvider({
               ...(processVariables ? { processVariables } : {}),
             }
           : undefined;
-      return { liveTask, taskAdvance };
+      // Re-assign of an ALREADY-presented service: the assign tuple only rides
+      // the assignDriver→presentDriver edge, so `getNextTransition` yields
+      // nothing here and the change would never reach Alerce. Signal the
+      // step-back/step-forward dance (see `reassignPresentedService`) instead.
+      // Excludes slot reassignment (`isReassigning`), which only moves the slot.
+      const reassignTuple = ctx.isReassigning
+        ? null
+        : decidePresentedReassign(
+            liveTask?.stage,
+            service.origen,
+            service,
+            taskDrivenOrigins
+          );
+      const reassign: ReassignPlan | undefined =
+        reassignTuple && liveTask?.taskId
+          ? { presentTaskId: liveTask.taskId, tuple: reassignTuple }
+          : undefined;
+      return { liveTask, taskAdvance, reassign };
     },
     [getLiveTask, calendarId, taskDrivenOrigins]
+  );
+
+  // Re-push a resource change on an already-presented service to Alerce by
+  // driving the two workflow edges the planner would otherwise have to fire by
+  // hand (Eliminar Asignación → Asignar): step back to `assignDriver`, then
+  // re-present with the new tuple. ECM's create-listeners reconcile the booking
+  // and re-enqueue the Alerce assign chain, so the change lands and the booking
+  // `sync_status` re-stamps. Throws (surfaced as an assign error) if the task is
+  // not at `assignDriver` after the step-back, leaving the service recoverable.
+  const reassignPresentedService = useCallback(
+    async (
+      presentTaskId: string,
+      serviceCode: string | undefined,
+      tuple: AssignProcessVariables
+    ) => {
+      // Step back: presentDriver → assignDriver (fires OnCreateAssignDriverBinding:
+      // Alerce unassign placeholder + booking → PLANNED).
+      await advanceWorkflowTask(presentTaskId, "Asignar Conductor/Transporte");
+      // Activiti completes synchronously, so the new assignDriver task is
+      // already committed — re-resolve it from a fresh live index.
+      const fresh = await refreshLiveTasks();
+      const assignTask = serviceCode
+        ? buildLiveTaskIndex(fresh).get(serviceCode)
+        : undefined;
+      if (assignTask?.stage !== "assignDriver") {
+        throw new Error(
+          `Reassignment stalled: service ${serviceCode ?? "?"} is not at assignDriver after step-back`
+        );
+      }
+      // Step forward: assignDriver → presentDriver with the new tuple.
+      await advanceWorkflowTask(
+        assignTask.taskId,
+        "Presentar Conductor",
+        tuple
+      );
+      await refreshLiveTasks();
+    },
+    [refreshLiveTasks]
   );
 
   const host = useMemo<CalendarHost<SelectedService>>(
@@ -417,19 +493,37 @@ export function PlanningSelectionProvider({
       hooks: {
         shouldPersistBooking: (item, slot, ctx) => {
           const service = item.raw as SelectedService;
-          const { taskAdvance } = computeTaskAdvance(service, slot, ctx);
-          return !(
-            isTaskDrivenPlanCreate(ctx.oldBookingId, taskAdvance) ||
-            isTaskDrivenAssignUpdate(taskAdvance)
-          );
-        },
-        afterPlan: async (item, slot, ctx) => {
-          const service = item.raw as SelectedService;
-          const { liveTask, taskAdvance } = computeTaskAdvance(
+          const { taskAdvance, reassign } = computeTaskAdvance(
             service,
             slot,
             ctx
           );
+          // A reassign drives workflow edges only; ECM re-writes the row, so
+          // the package must not also PUT a booking (as with the initial assign).
+          return !(
+            isTaskDrivenPlanCreate(ctx.oldBookingId, taskAdvance) ||
+            isTaskDrivenAssignUpdate(taskAdvance) ||
+            !!reassign
+          );
+        },
+        afterPlan: async (item, slot, ctx) => {
+          const service = item.raw as SelectedService;
+          const { liveTask, taskAdvance, reassign } = computeTaskAdvance(
+            service,
+            slot,
+            ctx
+          );
+          // Re-assign of an already-presented service: run the two-step dance
+          // so the resource change re-pushes to Alerce — no manual
+          // unassign→reassign, and the booking sync badge re-stamps.
+          if (reassign) {
+            await reassignPresentedService(
+              reassign.presentTaskId,
+              service.mintral_serviceCode,
+              reassign.tuple
+            );
+            return;
+          }
           // Task-driven PLAN: ECM writes the row; sync the category onto the
           // live task (best-effort, no booking to roll back) then advance.
           if (isTaskDrivenPlanCreate(ctx.oldBookingId, taskAdvance) && taskAdvance) {
@@ -567,6 +661,7 @@ export function PlanningSelectionProvider({
       calendarId,
       getLiveTask,
       computeTaskAdvance,
+      reassignPresentedService,
       taskDrivenOrigins,
       dict,
       canPlan,

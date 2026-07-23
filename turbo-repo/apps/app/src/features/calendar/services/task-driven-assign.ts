@@ -96,3 +96,34 @@ export function getTaskDrivenUnassignTransition(
   if (stage !== "presentDriver") return undefined;
   return "Asignar Conductor/Transporte";
 }
+
+/**
+ * Returns the assign tuple to RE-PUSH when the planner changes the assigned
+ * driver/transport on a service whose live task is already at `presentDriver`
+ * — i.e. past the initial `assignDriver → presentDriver` assign.
+ *
+ * The assign tuple only rides that one forward edge (see
+ * {@link decideAssignTaskAdvance}), so a resource change on an already-presented
+ * service has no forward transition to carry it to Alerce, and a plain booking
+ * update would silently diverge the calendar from Alerce. The caller instead
+ * runs the tested step-back/step-forward dance — `presentDriver → assignDriver`
+ * (`"Asignar Conductor/Transporte"`, the same edge "Eliminar Asignación" uses)
+ * then `assignDriver → presentDriver` (`"Presentar Conductor"`) carrying THIS
+ * tuple — which re-enqueues the Alerce assign chain and re-stamps the booking
+ * `sync_status`.
+ *
+ * Returns `null` unless the origin is task-driven, the live stage is
+ * `presentDriver`, and the full assign tuple is present — so a first-time
+ * assign (task at `assignDriver`), a flag-off origin, or a partial tuple all
+ * fall through to today's behavior unchanged.
+ */
+export function decidePresentedReassign(
+  stage: string | undefined,
+  origin: string | undefined,
+  service: AssignTupleInput,
+  enabledOrigins: ReadonlySet<string>
+): AssignProcessVariables | null {
+  if (stage !== "presentDriver") return null;
+  if (!isOriginTaskDriven(origin, enabledOrigins)) return null;
+  return buildAssignProcessVariables(service);
+}

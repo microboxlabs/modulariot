@@ -217,6 +217,86 @@ describe("bookings move POST — task-driven flag gating", () => {
     expect(runCalendarBindingMock).not.toHaveBeenCalled();
   });
 
+  // Regression: a task-driven move used to drop the resource blob wholesale, so
+  // the planner's category/andén were written nowhere — ECM never writes them,
+  // and the grid renders from the booking row — and silently vanished on the
+  // next page load. They now ride the move, merged onto the PERSISTED resource
+  // so ECM's fields stay authoritative and no `assigned*` field ever leaks.
+  it("flag ON: merges serviceCategory onto the persisted resource, dropping the tuple", async () => {
+    process.env[ENV_KEY] = TASK_DRIVEN_ORIGIN;
+    const snapshot = makeBooking(TASK_DRIVEN_ORIGIN, {
+      mintral_serviceKind: "rampla",
+    });
+    const body = makeMoveBody(TASK_DRIVEN_ORIGIN, {
+      ...ASSIGNMENT_TUPLE,
+      serviceCategory: "DIRECT_PICKUP",
+    });
+    bookingsGetMock.mockResolvedValue(snapshot);
+    bookingsMoveMock.mockResolvedValue(makeBooking(TASK_DRIVEN_ORIGIN));
+
+    const { POST } = await loadRoute();
+    const response = await POST(makeMoveRequest(body), routeParams);
+
+    expect(response.status).toBe(200);
+    expect(bookingsMoveMock).toHaveBeenCalledWith(BOOKING_ID, {
+      slot: body.slot,
+      resource: {
+        id: snapshot.resource.id,
+        type: snapshot.resource.type,
+        label: snapshot.resource.label,
+        data: {
+          // ECM-owned fields survive untouched...
+          mintral_serviceCode: "1586586",
+          origen: TASK_DRIVEN_ORIGIN,
+          mintral_serviceKind: "rampla",
+          // ...and the planner's choice now persists.
+          serviceCategory: "DIRECT_PICKUP",
+        },
+      },
+    });
+    // The stale tuple must never reach the calendar service.
+    const [, forwarded] = bookingsMoveMock.mock.calls[0];
+    expect(forwarded.resource.data).not.toHaveProperty("assignedCarrier");
+    expect(forwarded.resource.data).not.toHaveProperty("assignedDriver");
+    expect(forwarded.resource.data).not.toHaveProperty("assignedTruck");
+    expect(runCalendarBindingMock).not.toHaveBeenCalled();
+  });
+
+  it("flag ON: merges the andén (_anden) the same way", async () => {
+    process.env[ENV_KEY] = TASK_DRIVEN_ORIGIN;
+    const snapshot = makeBooking(TASK_DRIVEN_ORIGIN);
+    const body = makeMoveBody(TASK_DRIVEN_ORIGIN, { _anden: 1 });
+    bookingsGetMock.mockResolvedValue(snapshot);
+    bookingsMoveMock.mockResolvedValue(makeBooking(TASK_DRIVEN_ORIGIN));
+
+    const { POST } = await loadRoute();
+    await POST(makeMoveRequest(body), routeParams);
+
+    const [, forwarded] = bookingsMoveMock.mock.calls[0];
+    expect(forwarded.resource.data).toMatchObject({
+      _anden: 1,
+      mintral_serviceCode: "1586586",
+    });
+  });
+
+  it("flag ON: a request field that is not planner-owned is still dropped", async () => {
+    process.env[ENV_KEY] = TASK_DRIVEN_ORIGIN;
+    const snapshot = makeBooking(TASK_DRIVEN_ORIGIN);
+    const body = makeMoveBody(TASK_DRIVEN_ORIGIN, {
+      serviceCategory: "DIRECT_PICKUP",
+      destino: "TAMPERED",
+    });
+    bookingsGetMock.mockResolvedValue(snapshot);
+    bookingsMoveMock.mockResolvedValue(makeBooking(TASK_DRIVEN_ORIGIN));
+
+    const { POST } = await loadRoute();
+    await POST(makeMoveRequest(body), routeParams);
+
+    const [, forwarded] = bookingsMoveMock.mock.calls[0];
+    expect(forwarded.resource.data.serviceCategory).toBe("DIRECT_PICKUP");
+    expect(forwarded.resource.data).not.toHaveProperty("destino");
+  });
+
   it("flag ON: reads the origin from the persisted booking when the body has none", async () => {
     process.env[ENV_KEY] = TASK_DRIVEN_ORIGIN;
     const snapshot = makeBooking(TASK_DRIVEN_ORIGIN);

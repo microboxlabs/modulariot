@@ -16,11 +16,33 @@ export const JOB_STATES = [
 
 export type JobState = (typeof JOB_STATES)[number];
 
+/**
+ * One HTTP call an attempt made, as recorded by the backend's `JobHttpTrace`
+ * and stored under `attempt_history[].http`.
+ *
+ * `status` is absent when the call never got a response (timeout, DNS, dropped
+ * connection) — `error` carries the transport failure instead. Headers are
+ * deliberately never recorded: that is where the bearer tokens are.
+ */
+export interface JobHttpExchange {
+  readonly at?: string;
+  readonly method?: string;
+  readonly url?: string;
+  readonly status?: number;
+  readonly durationMs?: number;
+  readonly requestBody?: string;
+  readonly responseBody?: string;
+  readonly error?: string;
+  /** Overflow marker emitted when the per-attempt cap turned exchanges away. */
+  readonly note?: string;
+}
+
 export interface AsyncJobAttempt {
   readonly at?: string;
   readonly outcome?: string;
   readonly detail?: string;
   readonly by?: string;
+  readonly http?: JobHttpExchange[];
   readonly [key: string]: unknown;
 }
 
@@ -201,6 +223,39 @@ export function jobLabel(jobType: string, op?: string | null): string {
 
 export function shortJobId(id: string): string {
   return id.slice(0, 8);
+}
+
+/**
+ * The HTTP exchanges an attempt recorded. `attempt_history` is free-form jsonb
+ * written by more than one worker, so this treats the shape as untrusted rather
+ * than as its declared type: a non-array, or entries that are not objects, read
+ * as "no timeline" instead of crashing the panel.
+ */
+export function readAttemptExchanges(entry: AsyncJobAttempt): JobHttpExchange[] {
+  if (!Array.isArray(entry.http)) return [];
+  return entry.http.filter(
+    (exchange): exchange is JobHttpExchange =>
+      typeof exchange === "object" && exchange !== null
+  );
+}
+
+/** "POST /api/v1/miot-calendar/bookings" — the URL's path, sans origin. */
+export function exchangePath(url: string | undefined): string {
+  if (!url) return "—";
+  try {
+    const parsed = new URL(url);
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return url; // a relative or malformed URL is shown as-is
+  }
+}
+
+/** Tailwind classes for a status pill: 2xx ok, 4xx caller's fault, else bad. */
+export function exchangeStatusTone(status: number | undefined): string {
+  if (status === undefined) return "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300";
+  if (status < 300) return "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300";
+  if (status < 500) return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300";
+  return "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300";
 }
 
 /**

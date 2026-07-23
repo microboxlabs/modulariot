@@ -181,6 +181,38 @@ class AsyncJobServiceTest {
     }
 
     @Test
+    void reportStoresTheHttpTimelineOnTheAttemptEntry() {
+        var repo = new FakeRepository(runningJob(1, 5));
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
+        var exchange = Map.<String, Object>of(
+                "method", "PATCH", "url", "http://calendar/r/1", "status", 409,
+                "responseBody", "{\"error\":\"status regression\"}");
+
+        service.report("t", "job-1",
+                new ReportJobRequest("w", "FAILED", "409 conflict", null, 1, List.of(exchange)));
+
+        @SuppressWarnings("unchecked")
+        var http = (List<Map<String, Object>>) repo.reportedEntry.get("http");
+        assertEquals(1, http.size());
+        assertEquals(409, http.get(0).get("status"));
+        assertEquals("{\"error\":\"status regression\"}", http.get(0).get("responseBody"));
+    }
+
+    @Test
+    void reportOmitsHttpWhenTheWorkerSentNoTimeline() {
+        var repo = new FakeRepository(runningJob(1, 5));
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
+
+        // The pre-tracing report shape, and an explicitly empty one: neither
+        // should leave an empty `http` key behind for the console to render.
+        service.report("t", "job-1", new ReportJobRequest("w", "SUCCEEDED", "ok", null, 1));
+        assertNull(repo.reportedEntry.get("http"));
+
+        service.report("t", "job-1", new ReportJobRequest("w", "SUCCEEDED", "ok", null, 1, List.of()));
+        assertNull(repo.reportedEntry.get("http"));
+    }
+
+    @Test
     void reportEmitsTransitionEvents() {
         var emitter = new RecordingEmitter();
         var service = new AsyncJobService(new FakeRepository(runningJob(1, 5)), emitter, noParked(), BASE_SECONDS, MAX_SECONDS);
@@ -361,6 +393,7 @@ class AsyncJobServiceTest {
         OffsetDateTime reportedNextRetryAt;
         String reportedWorkerId;
         Integer reportedExpectedAttempts;
+        Map<String, Object> reportedEntry;
         String claimedTenant;
         boolean reportStale;
 
@@ -381,6 +414,7 @@ class AsyncJobServiceTest {
             this.reportedNextRetryAt = nextRetryAt;
             this.reportedWorkerId = workerId;
             this.reportedExpectedAttempts = expectedAttempts;
+            this.reportedEntry = attemptEntry;
             return reportStale ? null : existing;
         }
 

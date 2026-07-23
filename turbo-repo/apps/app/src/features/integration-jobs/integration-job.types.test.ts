@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   canRetry,
   countdownTo,
+  exchangePath,
+  exchangeStatusTone,
+  readAttemptExchanges,
   formatClock,
   formatDateTime,
   jobContextLine,
@@ -14,6 +17,7 @@ import {
   sortChain,
   toEpochMs,
   type AsyncJob,
+  type AsyncJobAttempt,
 } from "./integration-job.types";
 
 const NOW = Date.parse("2026-07-19T12:00:00Z");
@@ -79,6 +83,36 @@ describe("integration-job.types", () => {
     expect(jobLabel("calendar_confirm", null)).toBe("Calendar confirm");
     expect(jobLabel("calendar_sync", "rebook")).toBe("Calendar sync · rebook");
     expect(jobLabel("alerce_arrival", "notify")).toBe("Alerce arrival · notify");
+  });
+
+  it("readAttemptExchanges treats the free-form jsonb as untrusted", () => {
+    const exchange = { method: "PATCH", url: "http://calendar/r/1", status: 409 };
+    expect(readAttemptExchanges({ outcome: "FAILED", http: [exchange] })).toEqual([exchange]);
+    expect(readAttemptExchanges({ outcome: "SUCCEEDED" })).toEqual([]);
+    // A worker could write anything into attempt_history — none of it may throw.
+    expect(readAttemptExchanges({ http: "nope" } as unknown as AsyncJobAttempt)).toEqual([]);
+    expect(
+      readAttemptExchanges({ http: [null, 7, exchange] } as unknown as AsyncJobAttempt),
+    ).toEqual([exchange]);
+  });
+
+  it("exchangePath strips the origin and survives a malformed url", () => {
+    expect(exchangePath("https://calendar.test/api/v1/miot-calendar/bookings?calendarId=7")).toBe(
+      "/api/v1/miot-calendar/bookings?calendarId=7",
+    );
+    expect(exchangePath("/relative/path")).toBe("/relative/path");
+    expect(exchangePath(undefined)).toBe("—");
+  });
+
+  it("exchangeStatusTone separates ok, caller error and no-response", () => {
+    const ok = exchangeStatusTone(200);
+    const clientError = exchangeStatusTone(409);
+    const serverError = exchangeStatusTone(500);
+    expect(ok).toContain("green");
+    expect(clientError).toContain("amber");
+    expect(serverError).toContain("rose");
+    // A call that never got a response reads as badly as a 5xx.
+    expect(exchangeStatusTone(undefined)).toBe(serverError);
   });
 
   it("shortJobId keeps the first uuid segment", () => {

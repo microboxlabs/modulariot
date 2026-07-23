@@ -149,6 +149,21 @@ public class ModulithJobWorker {
     }
 
     private void executeAndReport(AsyncJob job) {
+        // Record the attempt's HTTP calls so the report carries what the
+        // downstream actually said, not just our one-line verdict on it. Jobs
+        // run one at a time on this thread, so the window is unambiguous — and
+        // the outer finally guarantees it is closed even on a Throwable the
+        // catches below do not cover, which would otherwise attribute this
+        // job's calls to the next one.
+        JobHttpTrace.begin();
+        try {
+            runAndReport(job);
+        } finally {
+            JobHttpTrace.end();
+        }
+    }
+
+    private void runAndReport(AsyncJob job) {
         String outcome;
         String detail;
         boolean retryable = true;
@@ -185,15 +200,18 @@ public class ModulithJobWorker {
             LOG.warnf("modulith job %s (%s, service %s) failed: %s",
                     job.id(), job.jobType(), job.correlationKey(), e.getMessage());
         }
-        report(job, outcome, detail, retryable);
+        // Read (not closed) here: the window must outlive the catch blocks so a
+        // failed attempt keeps the exchanges that explain the failure.
+        report(job, outcome, detail, retryable, JobHttpTrace.end());
     }
 
-    private void report(AsyncJob job, String outcome, String detail, boolean retryable) {
+    private void report(AsyncJob job, String outcome, String detail, boolean retryable,
+                        List<Map<String, Object>> exchanges) {
         try {
             // Echo the claimed attempt number: the ledger CAS rejects this report
             // if the lease expired and the job was reclaimed meanwhile.
             jobService.report(job.tenantCode(), job.id(),
-                    new ReportJobRequest(workerId, outcome, detail, retryable, job.attempts()));
+                    new ReportJobRequest(workerId, outcome, detail, retryable, job.attempts(), exchanges));
         } catch (Exception e) {
             // The lease expires and the job becomes claimable again; the re-run is
             // safe because handlers are idempotent.

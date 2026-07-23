@@ -1598,7 +1598,11 @@
         "report": "Reporte",
         "running": "En curso",
         "retryScheduled": "Reintento agendado, intento",
-        "backoff": "backoff exponencial"
+        "backoff": "backoff exponencial",
+        "httpBodies": "Ver cuerpos",
+        "httpRequest": "Solicitud",
+        "httpResponse": "Respuesta",
+        "httpNoResponse": "sin resp."
       },
       "bell": {
         "title": "Notificaciones",

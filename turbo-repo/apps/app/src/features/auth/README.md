@@ -25,8 +25,8 @@ This system supports both **allowlist** and **blocklist** approaches for route p
 
 ```typescript
 export const ROUTE_PERMISSIONS = {
-  "/shipping": ["MINTRAL_EJECUTIVO_TORRE_CONTROL", "MINTRAL_OPERADORES"],
-  "/reports": ["MINTRAL_EJECUTIVO_TORRE_CONTROL"],
+  "/shipping": ["CONTROL_TOWER_LEAD", "OPERATORS"],
+  "/reports": ["CONTROL_TOWER_LEAD"],
   "/": [], // Public route
 } as const;
 ```
@@ -35,8 +35,8 @@ export const ROUTE_PERMISSIONS = {
 
 ```typescript
 const BLOCKED_GROUPS = {
-  MINTRAL_REVISOR: ["/reports", "/geographic-view"], // Revisors cannot access reports and geographic view
-  MINTRAL_REVISOR: ["/users/settings", "/api/symptoms"], // Basic operators cannot access settings and symptoms API
+  REVIEWER: ["/reports", "/geographic-view"], // Reviewers cannot access reports and geographic view
+  REVIEWER: ["/users/settings", "/api/symptoms"], // Basic operators cannot access settings and symptoms API
 };
 ```
 
@@ -52,15 +52,15 @@ export const pages: SidebarItem[] = [
       {
         href: "/geographic-view",
         label: "geographicView",
-        blockedGroups: ["MINTRAL_REVISOR"], // Hide from revisors
+        blockedGroups: ["REVIEWER"], // Hide from reviewers
       },
       {
         href: "/symptoms",
         label: "symptoms",
-        blockedGroups: ["MINTRAL_REVISOR"], // Hide from revisors
+        blockedGroups: ["REVIEWER"], // Hide from reviewers
       },
     ],
-    blockedGroups: ["MINTRAL_REVISOR"], // Hide entire reports section from revisors
+    blockedGroups: ["REVIEWER"], // Hide entire reports section from reviewers
   },
 ];
 ```
@@ -86,19 +86,19 @@ export const pages: SidebarItem[] = [
 
 ```tsx
 // Allowlist only
-<RouteGuard requiredGroups={["MINTRAL_EJECUTIVO_TORRE_CONTROL"]}>
+<RouteGuard requiredGroups={["CONTROL_TOWER_LEAD"]}>
   <ReportsPage />
 </RouteGuard>
 
 // Blocklist only
-<RouteGuard blockedGroups={["MINTRAL_REVISOR"]}>
+<RouteGuard blockedGroups={["REVIEWER"]}>
   <ReportsPage />
 </RouteGuard>
 
 // Both allowlist and blocklist
 <RouteGuard
-  requiredGroups={["MINTRAL_EJECUTIVO_TORRE_CONTROL"]}
-  blockedGroups={["MINTRAL_REVISOR"]}
+  requiredGroups={["CONTROL_TOWER_LEAD"]}
+  blockedGroups={["REVIEWER"]}
 >
   <ReportsPage />
 </RouteGuard>
@@ -110,7 +110,7 @@ export const pages: SidebarItem[] = [
 const { hasPermission, hasRoutePermission, userGroups } = usePermissions();
 
 // Check specific groups
-const canAccessReports = hasPermission(["MINTRAL_EJECUTIVO_TORRE_CONTROL"]);
+const canAccessReports = hasPermission(["CONTROL_TOWER_LEAD"]);
 
 // Check route access (includes both allowlist and blocklist logic)
 const canAccessRoute = hasRoutePermission("/reports");
@@ -121,8 +121,8 @@ const canAccessRoute = hasRoutePermission("/reports");
 ```tsx
 import { hasRouteAccess } from "@/features/auth/config/route-permissions";
 
-const userGroups = ["MINTRAL_REVISOR", "MINTRAL_OPERADORES"];
-const canAccess = hasRouteAccess(userGroups, "/reports"); // false (blocked by MINTRAL_REVISOR)
+const userGroups = ["REVIEWER", "OPERATORS"];
+const canAccess = hasRouteAccess(userGroups, "/reports"); // false (blocked by REVIEWER)
 ```
 
 ## Logic Flow
@@ -160,12 +160,12 @@ The sidebar automatically hides items from users with blocked groups:
 {
   href: "/reports",
   label: "controlTower",
-  blockedGroups: ["MINTRAL_REVISOR"], // Entire section hidden from revisors
+  blockedGroups: ["REVIEWER"], // Entire section hidden from reviewers
   items: [
     {
       href: "/geographic-view",
       label: "geographicView",
-      blockedGroups: ["MINTRAL_REVISOR"], // Individual item hidden
+      blockedGroups: ["REVIEWER"], // Individual item hidden
     },
   ],
 }
@@ -183,8 +183,8 @@ Example:
 
 ```typescript
 const BLOCKED_GROUPS = {
-  MINTRAL_REVISOR: ["/reports", "/geographic-view"],
-  MINTRAL_OPERADOR_BASICO: ["/users/settings", "/api/symptoms"],
+  REVIEWER: ["/reports", "/geographic-view"],
+  BASIC_OPERATOR: ["/users/settings", "/api/symptoms"],
   NEW_GROUP: ["/restricted-route"], // Add new restriction
 };
 ```

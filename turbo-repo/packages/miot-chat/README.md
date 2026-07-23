@@ -103,7 +103,7 @@ MIOT_CHAT_NO_TUI=1 miot-chat --tenant demo-tenant
 
 ## TUI features
 
-- **Header bar**: tenant · user · conv (short id) · mode · baseUrl · profile · pending-approvals count. Warns in yellow on `mode=agentic` + non-`mintral` tenant.
+- **Header bar**: tenant · user · conv (short id) · mode · baseUrl · profile · pending-approvals count. Warns in yellow on `mode=agentic` + a tenant other than the configured default.
 - **Multi-line input editor** with bracketed-paste support, cursor movement (arrows, ctrl-arrow word jumps, home/end), backspace + forward-delete, kill-line, and an in-memory history ring (200 entries, file-backed at `~/.miot-chat/history`). Up/Down arrows recall history when the buffer is empty; `Alt-Enter` adds a newline; plain `Enter` submits.
 - **Live transcript** with structured per-event items: tool start/complete collapse to one line with a spinner, freshness warnings show inline, routes/agent turns/plans dim in. Completed turns flush into Ink's `<Static>` so they live in terminal scrollback.
 - **Slash-command palette**: type `/` to filter commands by substring, Tab completes the unique match, Enter dispatches.
@@ -144,7 +144,7 @@ All slash commands work in the TUI palette. The headless REPL supports the legac
   "defaultProfile": "local",
   "profiles": {
     "local":   { "baseUrl": "http://localhost:8000", "token": null, "tenantId": "demo-tenant", "userId": "demo-user" },
-    "staging": { "baseUrl": "https://...",           "token": null, "tenantId": "mintral",     "userId": "ops" }
+    "staging": { "baseUrl": "https://...",           "token": null, "tenantId": "acme",        "userId": "ops" }
   },
   "theme": "dark"
 }

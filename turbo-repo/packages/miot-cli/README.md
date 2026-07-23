@@ -205,7 +205,7 @@ miot harness [--harness-base-url <url>] [--harness-token <token>] <subcommand>
 
 ```bash
 # Dispatch a run and capture the run_id
-miot harness create "what's in stock?" --tenant mintral [--user <id>] [--mode auto|canned|meta|agentic] [--conversation <id>] [--thread <id>]
+miot harness create "what's in stock?" --tenant <tenant> [--user <id>] [--mode auto|canned|meta|agentic] [--conversation <id>] [--thread <id>]
 
 # Fetch a completed run record (events + artifacts + answer)
 miot harness runs get <run_id>
@@ -214,7 +214,7 @@ miot harness runs get <run_id>
 `harness create` prints `{ "run_id": "..." }` and exits; the run continues server-side. `runs get` returns the full `HarnessRunRecord` JSON, including the canonical `answer` once the run completes. Suitable for:
 
 ```bash
-RUN_ID=$(miot harness create "list stock SKUs" --tenant mintral | jq -r .run_id)
+RUN_ID=$(miot harness create "list stock SKUs" --tenant <tenant> | jq -r .run_id)
 miot harness runs get "$RUN_ID" | jq -r .answer
 ```
 

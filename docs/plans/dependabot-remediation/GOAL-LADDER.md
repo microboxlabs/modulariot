@@ -24,8 +24,8 @@
 |------|-------|--------|
 | R0 | Inventory and resolution map | done |
 | R1 | Python lockfile remediation | done |
-| R2 | Next.js and native image stack | todo |
-| R3 | Runtime auth and networking dependencies | todo |
+| R2 | Next.js and native image stack | done |
+| R3 | Runtime auth and networking dependencies | in_progress |
 | R4 | Build and development toolchain dependencies | todo |
 | R5 | Browser rendering and spreadsheet dependencies | todo |
 | R6 | Full verification and alert reconciliation | todo |
@@ -71,7 +71,7 @@ files per commit; no secrets. Stop after 10 turns if not achieved.
 
 ## R2 — Next.js and native image stack
 
-- **Status**: todo
+- **Status**: done
 - **Base SHA**: —
 
 ```text
@@ -92,7 +92,7 @@ files per commit; no secrets. Stop after 20 turns if not achieved.
 
 ## R3 — Runtime auth and networking dependencies
 
-- **Status**: todo
+- **Status**: in_progress
 - **Base SHA**: —
 
 ```text

@@ -1,0 +1,52 @@
+# Brand — The Golden Owl
+
+The platform-default mark for ModularIoT: _Bubo blakistoni_ (Blakiston's fish owl),
+drawn with three instruments — compass, square, celled canvas — under one rule:
+**every measure is a power of φ times the module `a`**.
+
+## Geometry
+
+| Element   | Construction                                                                                                                                                                 |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Head      | union of two circles r = φa centered (±a/φ, 0); the brow and chin creases fall at the circle crossings (0, ±√(φ²−φ⁻²)·a)                                                     |
+| Eyes      | centers (±a, 0) — ring a/φ (knockout), iris a/φ² (amber), pupil a/φ³ (ink, dead center)                                                                                      |
+| Beak      | vesica piscis between the eyes: half-w a/φ³, half-h a/φ, tip rising to −a/φ²                                                                                                 |
+| Beak line | the mouth: a chevron ribbon across the vesica — half a cell down per cell toward the center, vertex (0, a/2), thickness a/16                                                 |
+| Tufts     | the fish owl's wind-blown ear tufts; square-drawn polygons with every vertex on the a/4 lattice: (1, −1.5) (2.25, −2) (1.75, −1.25) (2.75, −0.75) (1.75, −0.5) · a, mirrored |
+
+Source of truth: `apps/app/scripts/generate-logo.mjs` — edit a ratio, run
+`node scripts/generate-logo.mjs`, and `public/logo.svg` + `public/logo2.svg`
+regenerate deterministically.
+
+## Brand tokens
+
+These sit beside — never inside — the functional ramps (Smalt, Nevada, Selective
+Yellow, status):
+
+| Token                 | Value     | Role                                        |
+| --------------------- | --------- | ------------------------------------------- |
+| `--brand-ink`         | `#072444` | the mark on light surfaces                  |
+| `--brand-ink-inverse` | `#E9F0F7` | the mark on dark surfaces                   |
+| `--brand-iris`        | `#FAB55E` | the owl's iris **only** — never a UI accent |
+
+## Usage rules
+
+- **Two voices.** The solid amber-eyed mark is for identity surfaces: auth pages,
+  CLI login, marketing, empty states. Operator shells, topbars and dense screens
+  use the **one-ink mono mark** (no amber), so Selective Yellow keeps its
+  exclusivity for errors and must-act moments.
+- **Never recolor the mark to Smalt** — it would read as an action element.
+- **White-label unchanged.** This mark occupies the platform-default brand slot;
+  tenant overrides (logo-black/logo-white via the site API) take precedence
+  exactly as before. Shipped SVGs self-adapt to dark mode via
+  `prefers-color-scheme`, so a single file serves both themes inside `<img>`.
+- **Geometry may travel; color may not.** Map pins, totems and condition icons
+  may adopt φ-step circle sizing to echo the mark's construction, but they keep
+  their own functional colors.
+
+## Assets
+
+- `public/logo.svg` — horizontal lockup (mark + wordmark), self-adapting.
+- `public/logo2.svg` — square mark, self-adapting.
+- This replaces the previous "Brand — Logo" and "Brand — Logo on Dark" pages:
+  one adaptive SVG covers both.

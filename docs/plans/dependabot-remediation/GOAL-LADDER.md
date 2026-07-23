@@ -26,8 +26,8 @@
 | R1 | Python lockfile remediation | done |
 | R2 | Next.js and native image stack | done |
 | R3 | Runtime auth and networking dependencies | done |
-| R4 | Build and development toolchain dependencies | in_progress |
-| R5 | Browser rendering and spreadsheet dependencies | todo |
+| R4 | Build and development toolchain dependencies | done |
+| R5 | Browser rendering and spreadsheet dependencies | in_progress |
 | R6 | Full verification and alert reconciliation | todo |
 
 ---
@@ -114,7 +114,7 @@ achieved.
 
 ## R4 — Build and development toolchain dependencies
 
-- **Status**: in_progress
+- **Status**: done
 - **Base SHA**: —
 
 ```text
@@ -135,7 +135,7 @@ achieved.
 
 ## R5 — Browser rendering and spreadsheet dependencies
 
-- **Status**: todo
+- **Status**: in_progress
 - **Base SHA**: —
 
 ```text

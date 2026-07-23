@@ -1,6 +1,6 @@
 # Review-channel dispatch — executing a connection operation from a review verdict
 
-**Status:** planned. Nothing implemented yet.
+**Status:** Phase 1 implemented. Phases 2–5 planned.
 
 ## Problem
 
@@ -127,24 +127,51 @@ ECM/Alfresco reads.
 
 Each phase is independently shippable and independently useful.
 
-### Phase 1 — the operation invoker (reusable infrastructure)
+### Phase 1 — the operation invoker (reusable infrastructure) — **DONE**
 
-- `AuthStrategyRegistry` — `AuthStrategy strategyFor(AuthType)`, CDI-indexed over
-  `Instance<AuthStrategy>` via `supportedTypes()`, duplicate = startup failure.
-  Mirrors `ConnectionTesterRegistry`.
-- Extend `ResolvedConnection` with `authType` + the credential's `publicConfig`
-  (the resolver already loads the profile; it just discards these).
-- `IntegrationConnectionResolver.resolve(tenantCode, connectionId)` — the
-  by-id sibling of the existing by-provider resolve.
-- `IntegrationOperationRepository.findByConnectionAndId/Name` — reached only
-  through a tenant-checked connection load.
-- `IntegrationOperationInvoker` — the engine: build `{baseUrl}{path}`,
-  `OutboundUrlGuard.requirePublicHttpUrl`, apply method + JSON body, apply
-  `ResolvedAuth` headers/query, execute (blocking JDK `HttpClient` on the worker
-  pool, per module precedent), record via `JobHttpTrace`, return status + body.
+- `CredentialAuthProvider` + `CredentialAuthRegistry` — a uniform, CDI-indexed
+  face over the auth types, duplicate claim = startup failure (mirrors
+  `ConnectionTesterRegistry`). Six providers ship: none, bearer, basic, api-key
+  (header/query), OAuth2 client-credentials, custom-headers.
+  - *Why a new interface rather than a registry over `AuthStrategy`:* a strategy
+    is generic over a **typed** config record (`AuthStrategy<BearerTokenConfig>`),
+    so nothing can dispatch over strategies by `AuthType` without unchecked casts
+    — and building each config from a credential's two halves is per-type work
+    regardless. A provider owns that construction and delegates the grant to its
+    strategy, which stays untouched.
+  - *No fallback provider.* An unhandled auth type raises rather than quietly
+    sending the request unauthenticated.
+- `ResolvedConnection` now carries `authType` / `credentialType` / `publicConfig`
+  and exposes `authContext()`. A 4-arg back-compat constructor keeps the WhatsApp
+  channel (which hand-builds its own auth) compiling unchanged.
+- `IntegrationConnectionResolver.resolve(tenantCode, connectionId)` — the by-id
+  sibling. Deliberately does **not** require `ACTIVE`: a test probe may exercise a
+  `DRAFT` connection, a production dispatch may not, so the caller decides.
+- `IntegrationOperationRepository.findByConnectionAndId/Name` — both scoped by
+  `connection_id`, because the table has no `tenant_code` and an operation is only
+  tenant-safe when reached through an already-resolved connection.
+- `IntegrationOperationInvoker` — the engine. Joins `{baseUrl}{path}` (tolerating
+  slashes on either side, preserving an existing query string), appends auth query
+  params URL-encoded, SSRF-guards via `OutboundUrlGuard.requirePublicHttpUrl`,
+  sends a JSON body only on POST/PUT/PATCH, and records the exchange through
+  `JobHttpTrace` (never headers — that is where the token is).
+  Timeout: `miot.integrations.operation-invoker.timeout-seconds` (default 20).
+- A completed non-2xx is an `OperationInvocationResult`, not an exception —
+  `retryable()` treats 5xx plus `408`/`429` as "later", every other 4xx as "never".
 
-**Bonus:** `GenericConnectionTester` can finally become a real probe instead of a
-stub, and the `POST /connections/{id}/test` endpoint starts meaning something.
+**Credential shapes this establishes** (the contract for creating one):
+
+| Auth type | non-secret `publicConfig` | decrypted `secret` |
+|---|---|---|
+| `NONE` | — | — |
+| `BEARER_TOKEN` | — | `token` |
+| `BASIC` | `username` | `password` |
+| `API_KEY_HEADER` / `API_KEY_QUERY` | `name` (header/param name) | `value` |
+| `OAUTH2_CLIENT_CREDENTIALS` | `clientId`, `tokenUrl` \| `tenantId`+`scope`, … | `clientSecret` |
+| `CUSTOM_HEADERS` | — | `headers` (object; CRLF rejected) |
+
+**Still open from this phase:** `GenericConnectionTester` can now become a real
+probe instead of a stub — not done here to keep the change reviewable.
 
 ### Phase 2 — payload rendering
 

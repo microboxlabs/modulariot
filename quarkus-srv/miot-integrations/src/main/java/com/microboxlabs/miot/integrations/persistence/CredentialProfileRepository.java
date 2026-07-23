@@ -19,6 +19,11 @@ import java.util.UUID;
 @ApplicationScoped
 public class CredentialProfileRepository {
 
+    /**
+     * Shared projection. Every clause that appends this must leave the keyword before it on
+     * its own line: a text block strips trailing spaces from each line, so {@code RETURNING }
+     * followed by the closing delimiter loses its space and yields {@code RETURNINGid}.
+     */
     private static final String COLUMNS = """
             id, tenant_code, display_name, credential_type, auth_type, environment,
             public_config, encrypted_secret_json, secret_preview, secret_version,
@@ -42,14 +47,16 @@ public class CredentialProfileRepository {
                 public_config, encrypted_secret_json, secret_preview, secret_version,
                 created_at, updated_at, created_by, updated_by
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-            RETURNING """ + COLUMNS;
+            RETURNING
+            """ + COLUMNS;
 
     private static final String UPDATE_SECRET = """
             UPDATE miot_integrations.credential_profiles
             SET encrypted_secret_json = $3, secret_preview = $4,
                 secret_version = secret_version + 1, updated_at = now()
             WHERE tenant_code = $1 AND id = $2 AND active
-            RETURNING """ + COLUMNS;
+            RETURNING
+            """ + COLUMNS;
 
     // Partial update: a null parameter leaves the column unchanged (explicit ::casts so
     // the NULL binds keep their type in the prepared statement). The secret is rotated
@@ -66,7 +73,8 @@ public class CredentialProfileRepository {
                 updated_by = COALESCE($8::text, updated_by),
                 updated_at = now()
             WHERE tenant_code = $1 AND id = $2 AND active
-            RETURNING """ + COLUMNS;
+            RETURNING
+            """ + COLUMNS;
 
     // Testing a credential is not editing it: updated_at stays put so a round of tests
     // does not reshuffle a list sorted by "last updated".
@@ -74,7 +82,8 @@ public class CredentialProfileRepository {
             UPDATE miot_integrations.credential_profiles
             SET last_tested_at = $3, last_test_result = $4
             WHERE tenant_code = $1 AND id = $2 AND active
-            RETURNING """ + COLUMNS;
+            RETURNING
+            """ + COLUMNS;
 
     // Soft delete: the row stays for audit and for anything still holding its id, but
     // drops out of every read path (all of which filter on active) and frees its name.

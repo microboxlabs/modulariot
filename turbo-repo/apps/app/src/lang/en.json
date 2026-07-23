@@ -1424,7 +1424,8 @@
         "user": "User",
         "settings": "Settings",
         "organizations": "Organizations",
-        "dataSources": "Data Sources"
+        "dataSources": "Data Sources",
+        "symptomRules": "Symptom rules"
       },
       "symptoms": {
         "config": {
@@ -1526,7 +1527,8 @@
       "settingsNav": {
         "title": "Settings",
         "general": "General",
-        "dataSources": "Data Sources"
+        "dataSources": "Data Sources",
+        "symptomRules": "Symptom rules"
       }
     },
     "integrationJobs": {
@@ -1810,7 +1812,8 @@
         "gxcConductores": "Drivers",
         "gxcTransportistas": "Carriers",
         "gxcRutas": "Routes",
-        "gxcOperaciones": "Operations"
+        "gxcOperaciones": "Operations",
+        "symptomRules": "Symptom rules"
       }
     },
     "calendar": {

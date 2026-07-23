@@ -1,0 +1,323 @@
+"use client";
+
+// PT4-a · Settings › Reglas de síntomas — el mantenedor F4 portado del
+// laboratorio al patrón del app (mockup validado = contrato: tabs Esquema /
+// Catálogo / Auditoría; constructor y clonado llegan en PT4-b).
+// Torre: enciende/apaga cajas del catálogo global (con barra de pendientes).
+// Carrier: catálogo global READ-ONLY (§C.1) + su cuota visible (75 activas).
+// El tenant JAMÁS viaja desde el cliente: lo inyecta /api/atc/rpc/*.
+import { useMemo, useState } from "react";
+import useSWR from "swr";
+import { HiAdjustments } from "react-icons/hi";
+import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
+
+const fetcher = (url: string) => fetch(url).then((r) => {
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+});
+
+type Nivel = { name: string; color: string; level: string; treatment: string | null };
+type Caja = {
+  name: string; slug: string; active: boolean; levels: Nivel[] | null;
+  rule_id: number; operable: boolean; base_type: string; fired_24h: number;
+  cost_monthly_usd: number | null;
+};
+type Familia = { key: string; ord: number; name: string; color: string; items: Caja[] };
+type Catalogo = {
+  families: Familia[]; custom: Caja[] | null;
+  summary: { activas: number; costo_activas: number };
+};
+type EsquemaNivel = {
+  level_key: string; ord: number; display_name: string; color: string;
+  description: string; floor_channels: string[]; operator_required: boolean;
+  producible: boolean;
+};
+type AuditRow = {
+  id: number; regla: string; operation: string; changed_by: string;
+  changed_at: string; reason: string | null;
+  new_state: Record<string, unknown> | null;
+};
+type Cuota = { usadas: number; limite: number };
+type Cuotas = { reglas: Cuota; lugares: Cuota; trayectos: Cuota };
+
+const TABS = ["catalogo", "esquema", "auditoria"] as const;
+type Tab = (typeof TABS)[number];
+const TAB_LABEL: Record<Tab, string> = {
+  catalogo: "Catálogo de síntomas", esquema: "Esquema de criticidad", auditoria: "Auditoría",
+};
+
+export default function SymptomRulesPageContent() {
+  const { carrierMode } = useCarrierMode();
+  const [tab, setTab] = useState<Tab>("catalogo");
+  const [busca, setBusca] = useState("");
+  // Cambios pendientes (torre): rule_id → active deseado
+  const [pendientes, setPendientes] = useState<Record<number, boolean>>({});
+  const [aplicando, setAplicando] = useState(false);
+  const [resultado, setResultado] = useState<string | null>(null);
+
+  const { data: cat, mutate: refrescar } = useSWR<Catalogo>(
+    "/app/api/atc/rpc/fn_symptom_list?p_org_id=org_demo", fetcher);
+  const { data: esquema } = useSWR<EsquemaNivel[]>(
+    tab === "esquema" ? "/app/api/atc/rpc/fn_pt4_criticality_scheme" : null, fetcher);
+  const { data: audit } = useSWR<AuditRow[]>(
+    tab === "auditoria" ? "/app/api/atc/rpc/fn_pt4_audit_log" : null, fetcher);
+  const { data: cuotas } = useSWR<Cuotas>(
+    carrierMode ? "/app/api/atc/rpc/fn_pt4_quota_status" : null, fetcher);
+
+  const familias = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    const fams = [...(cat?.families ?? [])].sort((a, b) => a.ord - b.ord);
+    if (!q) return fams;
+    return fams
+      .map((f) => ({ ...f, items: f.items.filter((c) => c.name.toLowerCase().includes(q)) }))
+      .filter((f) => f.items.length > 0);
+  }, [cat, busca]);
+
+  const nPend = Object.keys(pendientes).length;
+
+  const aplicar = async () => {
+    setAplicando(true); setResultado(null);
+    try {
+      const cambios = Object.entries(pendientes).map(([rule_id, active]) => ({
+        rule_id: Number(rule_id), active,
+      }));
+      const res = await fetch("/app/api/atc/rpc/fn_pt4_apply_selection", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ p_changes: cambios, p_actor: "app-settings" }),
+      }).then((r) => r.json());
+      if (res?.ok) {
+        setResultado(`Aplicado: ${res.changed} cambio(s) · costo activo US$ ${Number(res.active_cost_monthly_usd ?? 0).toLocaleString()}/mes`);
+        setPendientes({});
+        void refrescar();
+      } else {
+        setResultado(`No aplicado — ${res?.detalle ?? res?.error ?? "error desconocido"}`);
+      }
+    } catch {
+      setResultado("No aplicado — error de conexión con el laboratorio (:3011)");
+    } finally {
+      setAplicando(false);
+    }
+  };
+
+  const estadoDe = (c: Caja) => pendientes[c.rule_id] ?? c.active;
+
+  return (
+    <div className="flex flex-col h-full p-6 gap-4 overflow-y-auto">
+      <div className="flex items-center gap-3">
+        <HiAdjustments className="h-6 w-6 text-gray-500 dark:text-gray-400" />
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            Reglas de síntomas
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {carrierMode
+              ? "Catálogo de la operación (solo lectura). Tus reglas propias se gestionan con plantillas — próximamente el constructor."
+              : "Mantenedor del catálogo: qué cajas están encendidas y con qué criticidad. Todo cambio queda auditado."}
+          </p>
+        </div>
+        <span className="flex-1" />
+        {cat && (
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            <b className="text-gray-900 dark:text-white">{cat.summary.activas}</b> activas ·
+            US$ {Number(cat.summary.costo_activas).toLocaleString()}/mes
+          </div>
+        )}
+      </div>
+
+      {/* Cuotas del tenant — "el límite se muestra en la UI, no se descubre" (§C) */}
+      {carrierMode && cuotas && (
+        <div className="grid grid-cols-3 gap-3">
+          {([["Reglas activas", cuotas.reglas], ["Lugares", cuotas.lugares], ["Trayectos", cuotas.trayectos]] as const)
+            .map(([label, q]) => (
+            <div key={label} className="rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2.5">
+              <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</div>
+              <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                {q.usadas} <span className="text-sm font-normal text-gray-500">/ {q.limite}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                <div className="h-full rounded-full"
+                     style={{ width: `${Math.min(100, (100 * q.usadas) / q.limite)}%`,
+                              background: q.usadas >= q.limite ? "#E11D48" : "#1C64F2" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+        {TABS.map((t) => (
+          <button key={t} onClick={() => setTab(t)}
+                  className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 ${
+                    tab === t
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  }`}>
+            {TAB_LABEL[t]}
+          </button>
+        ))}
+        <span className="flex-1" />
+        {tab === "catalogo" && (
+          <input value={busca} onChange={(e) => setBusca(e.target.value)}
+                 placeholder="Buscar síntoma…"
+                 className="mb-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-900 dark:text-white w-[220px]" />
+        )}
+      </div>
+
+      {/* ── Catálogo ── */}
+      {tab === "catalogo" && (
+        <div className="space-y-4 pb-16">
+          {!cat && <div className="text-sm text-gray-500">Cargando catálogo…</div>}
+          {familias.map((f) => (
+            <section key={f.key}>
+              <div className="flex items-center gap-2 pb-1.5">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: f.color }} />
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{f.name}</h2>
+                <span className="text-xs text-gray-500">{f.items.length}</span>
+              </div>
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-2">
+                {f.items.map((c) => {
+                  const on = estadoDe(c);
+                  const cambiado = c.rule_id in pendientes;
+                  return (
+                    <div key={c.rule_id}
+                         className={`rounded-lg border px-3 py-2.5 flex items-start gap-3 ${
+                           cambiado ? "border-blue-500" : "border-gray-200 dark:border-gray-700"}`}>
+                      <label className={`relative inline-flex items-center mt-0.5 ${
+                        carrierMode || !c.operable ? "opacity-50" : "cursor-pointer"}`}>
+                        <input type="checkbox" className="sr-only peer" checked={on}
+                               disabled={carrierMode || !c.operable}
+                               onChange={() => setPendientes((p) => {
+                                 const next = { ...p };
+                                 if (c.rule_id in next && next[c.rule_id] === c.active) delete next[c.rule_id];
+                                 else if (c.rule_id in next) delete next[c.rule_id];
+                                 else next[c.rule_id] = !c.active;
+                                 return next;
+                               })} />
+                        <span className="w-9 h-5 bg-gray-200 dark:bg-gray-600 rounded-full peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />
+                      </label>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{c.name}</div>
+                        <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                          {(c.levels ?? []).map((n) => (
+                            <span key={n.level} title={n.treatment ?? undefined}
+                                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                  style={{ background: `${n.color}1A`, color: n.color }}>
+                              {n.name}
+                            </span>
+                          ))}
+                          {c.base_type !== "stock" && (
+                            <span className="text-[10px] text-gray-500">custom</span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-gray-500 dark:text-gray-400 pt-0.5">
+                          {c.fired_24h} disparos 24 h
+                          {c.cost_monthly_usd != null && <> · US$ {c.cost_monthly_usd}/mes</>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+          {cat && familias.length === 0 && (
+            <div className="text-sm text-gray-500">Sin resultados para «{busca}»</div>
+          )}
+          {resultado && (
+            <div className="text-sm text-gray-700 dark:text-gray-300">{resultado}</div>
+          )}
+        </div>
+      )}
+
+      {/* Barra de pendientes (torre): el cambio se aplica auditado */}
+      {tab === "catalogo" && !carrierMode && nPend > 0 && (
+        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2.5 shadow-xl">
+          <span className="text-sm text-gray-900 dark:text-white">
+            {nPend} cambio{nPend === 1 ? "" : "s"} pendiente{nPend === 1 ? "" : "s"}
+          </span>
+          <button onClick={aplicar} disabled={aplicando}
+                  className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-1.5 disabled:opacity-50">
+            {aplicando ? "Aplicando…" : "Aplicar"}
+          </button>
+          <button onClick={() => setPendientes({})}
+                  className="text-sm text-gray-500 hover:underline">Descartar</button>
+        </div>
+      )}
+
+      {/* ── Esquema de criticidad (constitución, read-only) ── */}
+      {tab === "esquema" && (
+        <div className="space-y-2 pb-8">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Los pisos de notificación son mínimos que ninguna combinación puede rebajar
+            {carrierMode && " — el esquema lo define la operación, no es configurable por transportista"}.
+          </p>
+          <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800">
+                <tr>
+                  <th className="px-4 py-2.5">Nivel</th>
+                  <th className="px-4 py-2.5">Descripción</th>
+                  <th className="px-4 py-2.5">Piso de notificación</th>
+                  <th className="px-4 py-2.5">Operador</th>
+                  <th className="px-4 py-2.5">Producible</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(esquema ?? []).map((n) => (
+                  <tr key={n.level_key} className="border-t border-gray-100 dark:border-gray-700">
+                    <td className="px-4 py-2.5 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-2 font-medium text-gray-900 dark:text-white">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: n.color }} />
+                        {n.display_name}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{n.description}</td>
+                    <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">
+                      {(n.floor_channels ?? []).join(", ") || "—"}
+                    </td>
+                    <td className="px-4 py-2.5">{n.operator_required ? "Requerido" : "—"}</td>
+                    <td className="px-4 py-2.5">{n.producible ? "Sí" : "No"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {!esquema && <div className="text-sm text-gray-500">Cargando esquema…</div>}
+        </div>
+      )}
+
+      {/* ── Auditoría ── */}
+      {tab === "auditoria" && (
+        <div className="space-y-1.5 pb-8">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Registro append-only: quién cambió qué, cuándo y por qué.
+            {carrierMode && " Ves solo la actividad de tu organización."}
+          </p>
+          {(audit ?? []).map((a) => (
+            <div key={a.id} className="rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center gap-3 text-sm">
+              <span className="font-medium text-gray-900 dark:text-white truncate max-w-[280px]">{a.regla}</span>
+              <span className="text-xs rounded-full px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                {a.operation}
+              </span>
+              {a.new_state && "is_active" in a.new_state && (
+                <span className="text-xs" style={{ color: a.new_state.is_active ? "#0E9F6E" : "#E11D48" }}>
+                  {a.new_state.is_active ? "encendida" : "apagada"}
+                </span>
+              )}
+              <span className="text-gray-500 dark:text-gray-400 truncate flex-1">{a.reason}</span>
+              <span className="text-xs text-gray-500 whitespace-nowrap">
+                {a.changed_by} · {new Date(a.changed_at).toLocaleString("es-CL")}
+              </span>
+            </div>
+          ))}
+          {audit && audit.length === 0 && (
+            <div className="text-sm text-gray-500">Sin actividad registrada.</div>
+          )}
+          {!audit && <div className="text-sm text-gray-500">Cargando auditoría…</div>}
+        </div>
+      )}
+    </div>
+  );
+}

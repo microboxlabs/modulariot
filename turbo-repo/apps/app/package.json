@@ -50,6 +50,7 @@
     "daterangepicker": "^3.1.0",
     "dayjs": "^1.11.12",
     "deck.gl": "9.2.6",
+    "echarts": "6.1.0",
     "echarts-for-react": "^3.0.2",
     "flowbite": "^2.4.1",
     "flowbite-react": "^0.12.10",
@@ -89,7 +90,7 @@
     "tailwindcss": "^4.1.17",
     "use-debounce": "^10.0.4",
     "wkx": "^0.5.0",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^3.23.8"
   },
   "devDependencies": {

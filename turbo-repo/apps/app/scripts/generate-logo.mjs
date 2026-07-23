@@ -18,14 +18,19 @@
  *            (1, −1.5) (2.25, −2) (1.75, −1.25) (2.75, −0.75) (1.75, −0.5) · a,
  *            mirrored.
  *
- * Regenerates public/logo2.svg (square mark) and public/logo.svg (lockup).
+ * Regenerates three artifacts:
+ *   public/logo2.svg                 square mark
+ *   public/logo.svg                  horizontal lockup (mark + wordmark)
+ *   ../../packages/miot-auth/src/logo.ts   the same mark inlined as a string,
+ *                                    so the CLI loopback pages render offline
+ *
  * The wordmark glyphs are read back from the existing public/logo.svg, so the
  * script only owns the bird. Shipped files adapt to dark mode via a
  * prefers-color-scheme rule that works inside plain <img> tags.
  *
  * Usage: node scripts/generate-logo.mjs
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -160,9 +165,57 @@ const logo =
   `  <path class="ink" d="${wordmarkMatch[1]}"/>\n` +
   `</svg>\n`;
 
+// The CLI loopback pages (packages/miot-auth) inline the mark so they render
+// offline, with no network and no /public to fetch from. That copy declares
+// itself generated from this file, so generate it here rather than letting the
+// two drift. Two differences from the shipped asset: the class is namespaced,
+// because an inline <svg><style> in an HTML document is document-scoped and a
+// bare `.ink` would leak onto the host page; and no width/height, so the page's
+// own `.logo svg` rule sizes it.
+const inlineMark =
+  `<svg role="img" aria-label="Organization logo" viewBox="-146 -158 292 292" xmlns="http://www.w3.org/2000/svg">` +
+  `<style>.miot-owl-ink{fill:${NAVY}}@media (prefers-color-scheme:dark){.miot-owl-ink{fill:${PORCELAIN}}}</style>` +
+  markBody
+    .replace(/class="ink"/g, 'class="miot-owl-ink"')
+    .replace(/\n\s*/g, "")
+    .trim() +
+  `</svg>`;
+
+// Single-quoted on purpose: the markup is full of double quotes and has none of
+// its own, so this is the literal prettier would write. Emitting the shape
+// prettier wants keeps `npm run format` and this script from fighting over the
+// file forever.
+const tsLiteral = `'${inlineMark.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+
+const authLogoTs =
+  `// AUTO-GENERATED from apps/app/public/logo2.svg — do not edit by hand.\n` +
+  `// Regenerate with: node scripts/generate-logo.mjs (in apps/app).\n` +
+  `// Inlined so the CLI loopback success/error pages render the org logo offline.\n` +
+  `export const ORG_LOGO_SVG =\n  ${tsLiteral};\n`;
+
+const authLogoPath = join(
+  here,
+  "..",
+  "..",
+  "..",
+  "packages",
+  "miot-auth",
+  "src",
+  "logo.ts"
+);
+if (!existsSync(dirname(authLogoPath))) {
+  throw new Error(
+    `Expected packages/miot-auth/src at ${dirname(authLogoPath)} — the CLI ` +
+      `loopback pages inline this mark, and skipping it silently is how the ` +
+      `two copies drifted apart before. Fix the path or remove this step.`
+  );
+}
+
 writeFileSync(join(pub, "logo2.svg"), logo2);
 writeFileSync(join(pub, "logo.svg"), logo);
+writeFileSync(authLogoPath, authLogoTs);
 console.log(
-  "Regenerated public/logo2.svg and public/logo.svg (Golden Owl, a =",
+  "Regenerated public/logo2.svg, public/logo.svg and",
+  "packages/miot-auth/src/logo.ts (Golden Owl, a =",
   a + ")"
 );

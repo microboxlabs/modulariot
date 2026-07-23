@@ -39,6 +39,8 @@
     "@luma.gl/gltf": "9.2.6",
     "@luma.gl/shadertools": "9.2.6",
     "@luma.gl/webgl": "9.2.6",
+    "esbuild": "0.28.1",
+    "postcss": "8.5.22",
     "sharp": "$sharp"
   },
   "packageManager": "npm@10.2.4",

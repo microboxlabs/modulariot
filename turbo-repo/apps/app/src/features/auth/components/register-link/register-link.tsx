@@ -6,12 +6,15 @@ export type RegisterLinkProps = Readonly<{
   /** Resolved server-side from ENABLE_REGISTER_LINK so the flag never
    * reaches the client bundle; renders null when false. */
   enabled: boolean;
+  /** Switches the parent card to the register view */
+  onClick: () => void;
 }>;
 
 export default function RegisterLink({
   prompt,
   label,
   enabled,
+  onClick,
 }: RegisterLinkProps) {
   if (!enabled) {
     return null;
@@ -22,6 +25,7 @@ export default function RegisterLink({
       <span>{prompt}</span>
       <button
         type="button"
+        onClick={onClick}
         className="bg-transparent border-0 p-0 text-blue-700 hover:underline cursor-pointer dark:text-blue-400"
       >
         {label}

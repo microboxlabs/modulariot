@@ -13,6 +13,7 @@ export default function SignInSaml({
   pending,
   setShowLogin,
   showRegisterLink,
+  onRegisterClick,
 }: Readonly<{
   msg: any;
   samlLabels: any;
@@ -23,6 +24,7 @@ export default function SignInSaml({
   pending: boolean;
   setShowLogin: (show: boolean) => void;
   showRegisterLink: boolean;
+  onRegisterClick: () => void;
 }>) {
   return (
     <div className="space-y-6">
@@ -66,6 +68,7 @@ export default function SignInSaml({
             prompt={msg.requestAccessPrompt}
             label={msg.requestAccessLink}
             enabled={showRegisterLink}
+            onClick={onRegisterClick}
           />
         </div>
       </div>

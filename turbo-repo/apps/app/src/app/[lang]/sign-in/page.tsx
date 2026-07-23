@@ -1,8 +1,7 @@
-import { Alert, Card } from "flowbite-react";
 import React from "react";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import AuthPageShell from "@/features/auth/components/auth-page-shell/auth-page-shell";
-import FormSignIn from "@/features/auth/components/form-sign-in/form-sign-in";
+import AuthCard from "@/features/auth/components/auth-card/auth-card";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getAuthConfig } from "@/features/auth/config/auth-providers.config";
@@ -11,6 +10,7 @@ import type {
   SamlLabels,
 } from "@/features/auth/components/form-sign-in/form-sign-in.types";
 import type { AuthConfig } from "@/features/auth/config/auth-providers.types";
+import { buildRegisterFormMessages } from "@/features/auth/utils/utils";
 
 /**
  * Pre-computes labels for all providers on the server side.
@@ -92,6 +92,7 @@ export default async function SignInPage(
     resolvedSearchParams?.error === "AccessDenied"
       ? dict("pages.login.errors.accessDenied")
       : null;
+  const registerMessages = buildRegisterFormMessages({ messages: dict });
   const orgLogo = await getPublicOrgLogo();
   const authConfig = getAuthConfig();
   // Provider/SAML labels and dividerText come from runtime auth config: the key
@@ -121,30 +122,16 @@ export default async function SignInPage(
   const showRegisterLink = process.env.ENABLE_REGISTER_LINK === "true";
 
   return (
-    <AuthPageShell orgLogoUrl={orgLogo} footerMessages={dict}>
-      <Card
-        data-testid="login-card"
-        horizontal
-        imgAlt=""
-        className="bg-white dark:bg-gray-800 transition-colors duration-200"
-        theme={{
-          root: {
-            base: "flex rounded-lg border border-gray-200 shadow-none dark:border-gray-700",
-            children: "my-auto w-full gap-0 p-10 sm:p-10 lg:p-10",
-          },
-        }}
-      >
-        {accessDeniedMessage && (
-          <Alert
-            color="failure"
-            data-testid="sign-in-access-denied"
-            className="w-full"
-          >
-            {accessDeniedMessage}
-          </Alert>
-        )}
-        <FormSignIn
-          messages={{
+    <AuthPageShell
+      orgLogoUrl={orgLogo}
+      footerMessages={dict}
+      maxWidthClassName="md:max-w-xl"
+    >
+      <AuthCard
+        accessDeniedMessage={accessDeniedMessage}
+        registerMessages={registerMessages}
+        signInProps={{
+          messages: {
             emailPlaceHolder: dict("pages.login.fields.email.placeholder"),
             emailLabel: dict("pages.login.fields.email.label"),
             passwordLabel: dict("pages.login.fields.password.label"),
@@ -168,15 +155,15 @@ export default async function SignInPage(
             ssoTitle: dict("pages.login.ssoTitle"),
             ssoSubtitle: dict("pages.login.ssoSubtitle"),
             ssoSubmitLabel: dict("pages.login.buttons.ssoSubmit"),
-          }}
-          authConfig={authConfig}
-          providerLabels={providerLabels}
-          dividerText={dividerText}
-          samlLabels={samlLabels}
-          callbackUrl={callbackUrl}
-          showRegisterLink={showRegisterLink}
-        />
-      </Card>
+          },
+          authConfig,
+          providerLabels,
+          dividerText,
+          samlLabels,
+          callbackUrl,
+          showRegisterLink,
+        }}
+      />
     </AuthPageShell>
   );
 }

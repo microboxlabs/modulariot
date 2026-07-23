@@ -42,6 +42,66 @@
       },
       "requestAccess": {
         "prompt": "Don't have an account?",
+        "link": "Request access"
+      },
+      "register": {
+        "steps": {
+          "organization": {
+            "title": "Tell us about your organization",
+            "subtitle": "This helps us set up your ModularIOT account"
+          },
+          "profile": {
+            "title": "Create your account",
+            "subtitle": "Sign up with a provider or fill in your details"
+          },
+          "verification": {
+            "title": "Check your email",
+            "message": "We sent an access link to {email}. Open it to confirm your account — the link expires in 15 minutes."
+          }
+        },
+        "fields": {
+          "organizationName": {
+            "label": "Organization name",
+            "placeholder": "Your organization's name"
+          },
+          "teamName": {
+            "label": "Team name",
+            "placeholder": "your-team-name",
+            "sso": "(SSO)",
+            "invalid": "- Lowercase letters and numbers only\n- Single hyphens between words\n- No spaces, uppercase letters, or symbols\n- Can't start or end with a hyphen"
+          },
+          "organizationLocation": {
+            "label": "Location",
+            "placeholder": "country",
+            "noResults": "No countries found"
+          },
+          "organizationPhone": {
+            "label": "Phone number",
+            "placeholder": "Phone"
+          },
+          "organizationSize": {
+            "label": "Organization size"
+          },
+          "industry": {
+            "label": "What does it do?",
+            "otherPlaceholder": "Please specify"
+          },
+          "monitoringInterest": {
+            "label": "What do you want to monitor?",
+            "otherPlaceholder": "Please specify"
+          },
+          "fullName": {
+            "label": "Full name",
+            "placeholder": "Your full name"
+          }
+        },
+        "buttons": {
+          "next": "Next",
+          "back": "Back",
+          "verifyEmail": "Send verification email"
+        },
+        "createAccountWith": "Create account with",
+        "optionalLabel": "(optional)",
         "link": "Sign up"
       },
       "credentialsTitle": "Sign in",

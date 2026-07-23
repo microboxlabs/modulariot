@@ -25,6 +25,7 @@ export default function SignIn({
   getMessages,
   setShowLogin,
   showRegisterLink,
+  onRegisterClick,
 }: {
   msg: any;
   register: any;
@@ -34,6 +35,7 @@ export default function SignIn({
   getMessages: any;
   setShowLogin: any;
   showRegisterLink: boolean;
+  onRegisterClick: () => void;
 }) {
   return (
     <div className="space-y-6">
@@ -111,6 +113,7 @@ export default function SignIn({
             prompt={msg.requestAccessPrompt}
             label={msg.requestAccessLink}
             enabled={showRegisterLink}
+            onClick={onRegisterClick}
           />
         </div>
       </div>

@@ -1,30 +1,22 @@
 import { getTranslations } from "next-intl/server";
-import { Counter } from "../Counter";
 import { Reveal } from "../Reveal";
+import { StatsGrid, type StatItem } from "../StatsGrid";
 import { Section, SectionHeader } from "./shared";
 
-type Metric = { value: string; label: string };
 type Case = { tag: string; before: string; after: string };
 type Quote = { text: string; author: string };
 
 export async function Stories({ lang }: { lang: string }) {
   const t = await getTranslations({ locale: lang, namespace: "stories" });
-  const metrics = t.raw("metrics") as Metric[];
+  const metrics = t.raw("metrics") as StatItem[];
   const cases = t.raw("cases") as Case[];
   const quotes = t.raw("quotes") as Quote[];
   return (
     <Section id="clientes" tone="white">
       <SectionHeader kicker={t("kicker")} title={t("title")} />
-      <Reveal className="mt-12 grid grid-cols-2 gap-6 rounded-[14px] border border-hairline bg-surface px-6 py-7 sm:grid-cols-4">
-        {metrics.map((m) => (
-          <div key={m.label}>
-            <p className="display text-3xl tabular-nums">
-              <Counter value={m.value} />
-            </p>
-            <p className="mt-1 text-xs font-medium tracking-[0.08em] text-ink-3 uppercase">{m.label}</p>
-          </div>
-        ))}
-      </Reveal>
+      <div className="mt-12 gap-6 rounded-[14px] border border-hairline bg-surface px-6 py-7">
+        <StatsGrid items={metrics} size="md" wrapAt="sm" />
+      </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         {cases.map((cs, i) => (
           <Reveal key={cs.tag} delay={i * 0.1} className="rounded-[14px] border border-hairline bg-surface p-7">

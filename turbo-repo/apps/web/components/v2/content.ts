@@ -461,7 +461,8 @@ export const content = {
   // Página /precios — infraestructura tipo clickhouse.com/pricing:
   // header → filosofía → calculadora → FAQ de precios → CTA.
   pricingPage: {
-    title: "Precios",
+    kicker: "Precios",
+    title: "Paga por activo, solo por lo que usas",
     subtitle:
       "Paga basado en uso, no por licencias por asiento. Cada caja de procesamiento tiene precio propio por activo/mes y escala conforme crece tu flota.",
     philosophy: [

@@ -3,6 +3,7 @@ import { Footer } from "./sections/Footer";
 import { getContent } from "./content";
 import { Reveal } from "./Reveal";
 import { ConceptGraphic } from "./ConceptGraphic";
+import { StatsGrid } from "./StatsGrid";
 import { btnPrimary, btnSecondary, btnLg } from "./sections/shared";
 
 // ============================================================
@@ -174,14 +175,7 @@ function BlockView({ block, tone, base }: { block: Block; tone: "white" | "gray"
     return (
       <section className="border-y border-ink-1 bg-ink-1 dark:border-hairline dark:bg-surface">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
-          <div className="grid grid-cols-2 gap-x-8 gap-y-10 lg:grid-cols-4">
-            {block.items.map((s, i) => (
-              <Reveal key={s.label} delay={i * 0.08} className="text-center">
-                <p className="text-3xl font-semibold tracking-[-0.02em] text-page sm:text-5xl dark:text-ink-1">{s.value}</p>
-                <p className="mt-2 text-sm text-page/60 dark:text-ink-3">{s.label}</p>
-              </Reveal>
-            ))}
-          </div>
+          <StatsGrid items={block.items} tone="dark" align="center" />
         </div>
       </section>
     );

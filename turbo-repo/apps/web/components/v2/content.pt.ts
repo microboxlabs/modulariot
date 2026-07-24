@@ -441,7 +441,8 @@ export const pt = {
   },
 
   pricingPage: {
-    title: "Preços",
+    kicker: "Preços",
+    title: "Pague por ativo, só pelo que usa",
     subtitle:
       "Pague com base no uso, não em licenças por assento. Cada caixa de processamento tem preço próprio por ativo/mês e escala conforme sua frota cresce.",
     philosophy: [

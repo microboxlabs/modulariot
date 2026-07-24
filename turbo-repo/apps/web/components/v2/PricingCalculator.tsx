@@ -119,18 +119,9 @@ export default function PricingCalculator({ base = "" }: { base?: string }) {
   const famLabel = fam === "all" ? "Todas las familias" : FAMILIES[fam];
 
   return (
-    <section id="precios" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-24 scroll-mt-16">
-      <div className="mx-auto max-w-3xl text-center">
-        <p className="mb-3 text-sm font-semibold tracking-widest text-accent uppercase">Arma tu plan</p>
-        <h2 className="text-3xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-4xl">Precio por caja de procesamiento</h2>
-        <p className="mt-5 text-lg text-ink-2">
-          Filtra por familia operacional y elige las cajas que necesitas. La base de ingesta GPS siempre va; el
-          precio nace del costo real de infraestructura.
-        </p>
-      </div>
-
+    <section id="precios" className="mx-auto max-w-7xl px-4 mt-6 scroll-mt-16">
       {/* Chips de familia */}
-      <div className="mx-auto mt-10 flex max-w-5xl flex-wrap gap-2">
+      <div className="mx-auto mt-2 flex max-w-5xl flex-wrap gap-2">
         <button
           onClick={() => pickFam("all")}
           className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${

@@ -27,13 +27,9 @@ export default async function PreciosPage({
     <>
       <Nav />
       <main>
-        {/* Header */}
-        <section className="border-b border-hairline">
-          <div className="mx-auto max-w-4xl px-4 pt-20 pb-16 text-center sm:px-6 lg:pt-24">
-            <h1 className="text-5xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-6xl">{c.title}</h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-ink-2">{c.subtitle}</p>
-          </div>
-        </section>
+        {/* Niveles (Ver · Notificar · Autonomía) + calculadora "a medida" — el título vive dentro,
+            en el mismo bloque que el toggle y las tarjetas, en vez de una franja separada arriba */}
+        <PricingTiers lang={lang} base={base} kicker={c.kicker} title={c.title} />
 
         {/* Filosofía de precios */}
         <section className="border-b border-hairline bg-surface-2">
@@ -51,9 +47,6 @@ export default async function PreciosPage({
             </div>
           </div>
         </section>
-
-        {/* Niveles (Ver · Notificar · Autonomía) + calculadora "a medida" */}
-        <PricingTiers lang={lang} base={base} />
 
         {/* FAQ de precios */}
         <PricingFaq />

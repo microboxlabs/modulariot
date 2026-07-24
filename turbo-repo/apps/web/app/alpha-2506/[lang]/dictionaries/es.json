@@ -55,7 +55,7 @@
     "architecture": {
         "title": "Resumen de Arquitectura",
         "subtitle": "Ve cómo fluyen tus datos desde dispositivos edge hasta tu infraestructura en la nube en tiempo real",
-        "latency": "< 56 ms latencia mediana extremo a extremo",
+        "latency": "< 56 ms latencia extremo a extremo",
         "latencySubtitle": "Desde lectura del sensor hasta respuesta de tu aplicación",
         "steps": [
             {

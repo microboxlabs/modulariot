@@ -441,7 +441,8 @@ export const en = {
   },
 
   pricingPage: {
-    title: "Pricing",
+    kicker: "Pricing",
+    title: "Pay per asset, only for what you use",
     subtitle:
       "Pay based on usage, not per-seat licenses. Each processing box has its own per-asset/month price and scales as your fleet grows.",
     philosophy: [

@@ -1,6 +1,6 @@
 # Review-channel dispatch — executing a connection operation from a review verdict
 
-**Status:** Phases 1–2 implemented. Phases 3–5 planned.
+**Status:** Phases 1–3 implemented. Phases 4–5 planned.
 
 ## Problem
 
@@ -283,9 +283,9 @@ storage, so preview and runtime cannot drift. If helpers are wanted later, add a
 real Handlebars dependency and relax the validator — but do not let the two sides
 diverge in the meantime.
 
-### Phase 3 — binding schema + CRUD API
+### Phase 3 — binding schema + CRUD API — **DONE**
 
-- Migration `V0.6.1x__create_integration_event_bindings.sql` (pick the version
+- Migration **`V0.6.11__create_integration_event_bindings.sql`** (0.6.10 was the head on trunk; verify
   against `origin/trunk` at the time — concurrent PRs collide only at app boot).
 - `IntegrationEventBinding` record, repository, service.
 - `OrgIntegrationBindingsResource`, owner-gated, under

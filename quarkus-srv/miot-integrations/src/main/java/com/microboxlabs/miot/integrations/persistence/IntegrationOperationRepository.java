@@ -47,7 +47,8 @@ public class IntegrationOperationRepository {
 
     private final Instance<Pool> clientInstance;
 
-    IntegrationOperationRepository(Instance<Pool> clientInstance) {
+    // Protected so tests can subclass it with a null pool, as the sibling repositories allow.
+    protected IntegrationOperationRepository(Instance<Pool> clientInstance) {
         this.clientInstance = clientInstance;
     }
 

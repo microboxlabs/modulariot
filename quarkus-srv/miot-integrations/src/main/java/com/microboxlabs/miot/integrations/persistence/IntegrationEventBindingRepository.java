@@ -73,6 +73,15 @@ public class IntegrationEventBindingRepository {
             """;
 
     /**
+     * Dispatch-time load by id. Scoped by tenant but not by owning org: the job was enqueued
+     * because this binding matched, and a worker has no organization context to check against.
+     */
+    private static final String SELECT_ACTIVE_BY_ID = "SELECT " + COLUMNS + """
+            FROM miot_integrations.integration_event_bindings
+            WHERE tenant_client_id = $1 AND id = $2 AND active
+            """;
+
+    /**
      * Upsert on the binding's natural key. COALESCE mirrors the unique index, which keys on
      * COALESCE(scope_*, '') so two "every scope" bindings collide instead of both inserting.
      */
@@ -145,6 +154,17 @@ public class IntegrationEventBindingRepository {
                 .stream()
                 .map(this::mapRow)
                 .toList();
+    }
+
+    /** @return the binding, or null when it was unbound between enqueue and dispatch */
+    public IntegrationEventBinding findActiveById(String tenantClientId, String id) {
+        UUID bindingId = toUuid(id);
+        if (bindingId == null) {
+            return null;
+        }
+        return first(client().preparedQuery(SELECT_ACTIVE_BY_ID)
+                .execute(Tuple.of(tenantClientId, bindingId))
+                .await().indefinitely());
     }
 
     public IntegrationEventBinding upsert(IntegrationEventBinding binding, String actor) {

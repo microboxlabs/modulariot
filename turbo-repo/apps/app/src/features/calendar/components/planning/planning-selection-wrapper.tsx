@@ -61,8 +61,13 @@ import {
 import { decidePlanTaskAdvance } from "@/features/calendar/services/task-driven-plan";
 import {
   refuseAssign,
+  refuseReplan,
   refuseWorkflowlessPlan,
 } from "@/features/calendar/services/task-driven-guard";
+import {
+  decideReplan,
+  type ReplanEdge,
+} from "@/features/calendar/services/task-driven-replan";
 import { useTaskDrivenOrigins } from "@/features/calendar/services/use-task-driven-origins";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
@@ -422,7 +427,25 @@ export function PlanningSelectionProvider({
         reassignTuple && liveTask?.taskId
           ? { presentTaskId: liveTask.taskId, tuple: reassignTuple }
           : undefined;
-      return { liveTask, taskAdvance, reassign };
+      // Re-plan of a task-driven service: ECM has no move listener — its
+      // re-plan mechanism is an `assignDriver` re-entry carrying the new slot,
+      // which enqueues ensure(PLANNED, <new slot>) and re-slots the booking.
+      // So the edges ARE the re-plan; the booking write is skipped below.
+      const replanPlan = ctx.isReassigning
+        ? decideReplan({
+            stage: liveTask?.stage,
+            origin: service.origen,
+            calendarId,
+            slot,
+            enabledOrigins: taskDrivenOrigins,
+            serviceCategory: service.serviceCategory,
+          })
+        : null;
+      const replan =
+        replanPlan && liveTask?.taskId
+          ? { taskId: liveTask.taskId, edges: replanPlan.edges }
+          : undefined;
+      return { liveTask, taskAdvance, reassign, replan };
     },
     [getLiveTask, calendarId, taskDrivenOrigins]
   );
@@ -465,6 +488,37 @@ export function PlanningSelectionProvider({
     [refreshLiveTasks]
   );
 
+  // Drive a re-plan through the workflow. Each edge fires from a known stage;
+  // between edges the live index is re-read, because Activiti commits
+  // synchronously and the next task is a different id. A stage mismatch throws
+  // rather than firing blind, leaving the service recoverable — the same
+  // posture as `reassignPresentedService`.
+  const runReplan = useCallback(
+    async (
+      plan: { taskId: string; edges: ReplanEdge[] },
+      serviceCode: string | undefined
+    ) => {
+      let taskId = plan.taskId;
+      for (const [index, edge] of plan.edges.entries()) {
+        if (index > 0) {
+          const fresh = await refreshLiveTasks();
+          const next = serviceCode
+            ? buildLiveTaskIndex(fresh).get(serviceCode)
+            : undefined;
+          if (next?.stage !== edge.fromStage) {
+            throw new Error(
+              `Replanificación detenida: el servicio ${serviceCode ?? "?"} no está en ${edge.fromStage}`
+            );
+          }
+          taskId = next.taskId;
+        }
+        await advanceWorkflowTask(taskId, edge.transition, edge.processVariables);
+      }
+      await refreshLiveTasks();
+    },
+    [refreshLiveTasks]
+  );
+
   const host = useMemo<CalendarHost<SelectedService>>(
     () => ({
       client: { baseUrl: "/app/api/calendar" },
@@ -497,11 +551,23 @@ export function PlanningSelectionProvider({
       hooks: {
         shouldPersistBooking: (item, slot, ctx) => {
           const service = item.raw as SelectedService;
-          const { liveTask, taskAdvance, reassign } = computeTaskAdvance(
+          const { liveTask, taskAdvance, reassign, replan } = computeTaskAdvance(
             service,
             slot,
             ctx
           );
+          // Re-plan is its own gesture with its own rule: allowed until the
+          // trip starts, and driven through the workflow rather than written
+          // here — ECM's assignDriver re-entry re-slots the booking.
+          if (ctx.isReassigning) {
+            const replanRefusal = refuseReplan({
+              stage: liveTask?.stage,
+              origin: service.origen,
+              enabledOrigins: taskDrivenOrigins,
+            });
+            if (replanRefusal) throw new Error(replanRefusal);
+            if (replan) return false;
+          }
           // Refuse before the package writes anything: for a task-driven
           // service ECM owns the row, so a booking with no workflow move is a
           // divergence, not a lesser plan (#977). Plan and assign are separate
@@ -534,11 +600,18 @@ export function PlanningSelectionProvider({
         },
         afterPlan: async (item, slot, ctx) => {
           const service = item.raw as SelectedService;
-          const { liveTask, taskAdvance, reassign } = computeTaskAdvance(
+          const { liveTask, taskAdvance, reassign, replan } = computeTaskAdvance(
             service,
             slot,
             ctx
           );
+          // Re-plan: drive the edges back into `assignDriver` carrying the new
+          // slot. ECM's create-listener enqueues ensure(PLANNED, <new slot>)
+          // and the worker re-slots the booking — nothing to write here.
+          if (replan) {
+            await runReplan(replan, service.mintral_serviceCode);
+            return;
+          }
           // Re-assign of an already-presented service: run the two-step dance
           // so the resource change re-pushes to Alerce — no manual
           // unassign→reassign, and the booking sync badge re-stamps.
@@ -688,6 +761,7 @@ export function PlanningSelectionProvider({
       getLiveTask,
       computeTaskAdvance,
       reassignPresentedService,
+      runReplan,
       taskDrivenOrigins,
       dict,
       canPlan,

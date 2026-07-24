@@ -87,6 +87,56 @@ export function canAssignAtStage(
 }
 
 /**
+ * Stages the calendar may still re-plan from. Planning is the calendar's job
+ * right up until the trip starts — `missionControl` is that start, so it and
+ * everything after belong to the process, not the planner.
+ *
+ * Re-planning past `presentDriver` costs the assignment: the only way back into
+ * `assignDriver` is the same edge "Eliminar Asignación" uses, so the driver is
+ * dropped and the planner re-assigns. That is the intended trade, not a side
+ * effect — moving the date means re-confirming who drives it.
+ */
+const REPLANNABLE_STAGES: ReadonlySet<string> = new Set([
+  "planService",
+  "assignDriver",
+  "presentDriver",
+  "prepareService",
+]);
+
+/**
+ * Whether the calendar may still re-plan (or un-plan) this service — the menu
+ * gate for "Volver a planificar" / "Eliminar planificación". Same fail-open
+ * stance as {@link canAssignAtStage}: a flag-off origin or an unknown stage
+ * answers `true`, so a loading task index never hides a legitimate action.
+ */
+export function canReplanAtStage(
+  stage: string | undefined,
+  origin: string | undefined,
+  enabledOrigins: ReadonlySet<string>
+): boolean {
+  if (!isOriginTaskDriven(origin, enabledOrigins)) return true;
+  if (!stage) return true;
+  return REPLANNABLE_STAGES.has(stage);
+}
+
+/**
+ * Persist-boundary backstop for a re-plan whose stage the menu should already
+ * have refused. Reaching this means the gate was bypassed.
+ */
+export function refuseReplan(input: {
+  stage: TaskStage | undefined;
+  origin: string | undefined;
+  enabledOrigins: ReadonlySet<string>;
+}): string | null {
+  const { stage, origin, enabledOrigins } = input;
+  if (canReplanAtStage(stage, origin, enabledOrigins)) return null;
+  return (
+    `No se puede replanificar: el viaje ya inició («${stage}»). ` +
+    `Gestione el cambio desde el proceso.`
+  );
+}
+
+/**
  * Persist-boundary counterpart of {@link canAssignAtStage}: the assign gesture
  * must move the workflow, or it must not write. Reaching a refusal here means
  * the menu gate was bypassed — or the tuple is incomplete for a stage that

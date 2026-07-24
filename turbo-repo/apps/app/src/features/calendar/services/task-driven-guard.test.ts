@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   canAssignAtStage,
+  canReplanAtStage,
   refuseAssign,
+  refuseReplan,
   refuseWorkflowlessPlan,
 } from "./task-driven-guard";
 
@@ -157,5 +159,66 @@ describe("refuseAssign", () => {
     expect(
       refuseAssign(assignInput({ stage: undefined, hasTaskAdvance: false }))
     ).toBeNull();
+  });
+});
+
+describe("canReplanAtStage", () => {
+  it("allows re-planning right up to the trip start", () => {
+    // Erick's rule: replan until missionControl. prepareService still counts —
+    // the trip has not started there.
+    for (const stage of [
+      "planService",
+      "assignDriver",
+      "presentDriver",
+      "prepareService",
+    ]) {
+      expect(canReplanAtStage(stage, "SCL", ORIGINS), stage).toBe(true);
+    }
+  });
+
+  it("refuses once the trip has started", () => {
+    // missionControl is the trip start ("Iniciar Viaje") — past it there is no
+    // edge back into assignDriver, so a re-plan has nowhere to go.
+    for (const stage of [
+      "missionControl",
+      "monitorTrip",
+      "confirmArrival",
+      "closeMonitoring",
+    ]) {
+      expect(canReplanAtStage(stage, "SCL", ORIGINS), stage).toBe(false);
+    }
+  });
+
+  it("refuses the terminal states a booking row can carry", () => {
+    expect(canReplanAtStage("finished", "SCL", ORIGINS)).toBe(false);
+    expect(canReplanAtStage("cancelled", "SCL", ORIGINS)).toBe(false);
+  });
+
+  it("fails open on what it cannot prove", () => {
+    expect(canReplanAtStage("missionControl", "IQQ", ORIGINS)).toBe(true);
+    expect(canReplanAtStage(undefined, "SCL", ORIGINS)).toBe(true);
+  });
+});
+
+describe("refuseReplan", () => {
+  const base = { origin: "SCL", enabledOrigins: ORIGINS };
+
+  it("allows the replannable stages", () => {
+    expect(refuseReplan({ ...base, stage: "presentDriver" })).toBeNull();
+    expect(refuseReplan({ ...base, stage: "prepareService" })).toBeNull();
+  });
+
+  it("refuses past the trip start, naming the stage", () => {
+    // Service 1625094: the case that started this.
+    const reason = refuseReplan({ ...base, stage: "missionControl" });
+    expect(reason).toContain("missionControl");
+    expect(reason).toContain("No se puede replanificar");
+  });
+
+  it("leaves flag-off origins and unknown stages alone", () => {
+    expect(
+      refuseReplan({ ...base, origin: "IQQ", stage: "missionControl" })
+    ).toBeNull();
+    expect(refuseReplan({ ...base, stage: undefined })).toBeNull();
   });
 });

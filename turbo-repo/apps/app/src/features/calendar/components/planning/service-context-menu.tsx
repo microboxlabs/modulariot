@@ -13,7 +13,10 @@ import { Button } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
-import { canAssignAtStage } from "@/features/calendar/services/task-driven-guard";
+import {
+  canAssignAtStage,
+  canReplanAtStage,
+} from "@/features/calendar/services/task-driven-guard";
 import { useTaskDrivenOrigins } from "@/features/calendar/services/use-task-driven-origins";
 
 export interface ContextMenuPosition {
@@ -109,6 +112,21 @@ export function ServiceContextMenu({
 
   const canStartAssignment = canAssign && stageAllowsAssign;
 
+  // Planning authority ends where the trip starts: past `missionControl` there
+  // is no edge back into `assignDriver`, so neither re-planning nor un-planning
+  // has anywhere to go. Un-planning is gated with re-planning because it is the
+  // same authority — its transition would otherwise walk an in-flight trip all
+  // the way back to `planService` from a right-click.
+  const stageAllowsReplan =
+    plannedService !== null &&
+    canReplanAtStage(
+      plannedService.workflowStage,
+      plannedService.service.origen,
+      taskDrivenOrigins
+    );
+
+  const canReplan = canPlan && stageAllowsReplan;
+
   const canDeleteAssignment =
     plannedService !== null &&
     canAssign &&
@@ -124,7 +142,7 @@ export function ServiceContextMenu({
   const buttonCount =
     (canStartAssignment ? 1 : 0) +
     (canDeleteAssignment ? 1 : 0) +
-    (canPlan ? 2 : 0) +
+    (canReplan ? 2 : 0) +
     (canTogglePreview ? 1 : 0);
   const MENU_HEIGHT =
     MENU_HEADER_HEIGHT + MENU_PADDING + buttonCount * MENU_BUTTON_HEIGHT;
@@ -279,7 +297,7 @@ export function ServiceContextMenu({
           </Button>
         )}
 
-        {canPlan && (
+        {canReplan && (
           <Button
             color={"alternative"}
             type="button"
@@ -291,7 +309,7 @@ export function ServiceContextMenu({
           </Button>
         )}
 
-        {canPlan && (
+        {canReplan && (
           <Button
             color={"alternative"}
             type="button"

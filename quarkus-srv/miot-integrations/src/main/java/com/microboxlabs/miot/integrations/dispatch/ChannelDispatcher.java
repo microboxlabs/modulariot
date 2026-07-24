@@ -2,7 +2,6 @@ package com.microboxlabs.miot.integrations.dispatch;
 
 import com.microboxlabs.miot.integrations.domain.IntegrationEventBinding;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
-import java.util.Map;
 
 /**
  * Delivers a rendered payload to one kind of channel.
@@ -39,10 +38,11 @@ public interface ChannelDispatcher {
     /**
      * Delivers the payload.
      *
-     * @param payload the rendered body, already coerced to the channel's declared types
+     * @param payload the rendered body, already coerced to the channel's declared types — a
+     *        {@code Map} for an object contract, a {@code List} for an array one
      * @throws com.microboxlabs.miot.integrations.service.OperationInvocationException when the
      *         call could not be completed at all
      */
     DispatchOutcome dispatch(
-            String tenantClientId, IntegrationEventBinding binding, Map<String, Object> payload);
+            String tenantClientId, IntegrationEventBinding binding, Object payload);
 }

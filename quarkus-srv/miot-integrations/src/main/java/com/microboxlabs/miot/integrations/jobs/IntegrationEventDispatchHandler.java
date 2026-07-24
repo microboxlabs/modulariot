@@ -79,7 +79,7 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
                     "Connection " + binding.connectionId() + " no longer exists");
         }
 
-        Map<String, Object> body = render(binding, contractFor(binding), contextOf(payload));
+        Object body = renderBody(binding, contractFor(binding), contextOf(payload));
         ChannelDispatcher dispatcher = dispatchers.dispatcherFor(connection.providerType());
 
         DispatchOutcome outcome = dispatcher.dispatch(tenantClientId, binding, body);
@@ -102,10 +102,10 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
         return operation == null ? PayloadSchema.empty() : PayloadSchema.of(operation.requestSchema());
     }
 
-    private Map<String, Object> render(
+    private Object renderBody(
             IntegrationEventBinding binding, PayloadSchema contract, Map<String, Object> context) {
         try {
-            return renderer.render(binding.fieldTemplates(), contract, context);
+            return renderer.renderBody(binding.fieldTemplates(), contract, context);
         } catch (PayloadRenderException e) {
             // The same binding and the same snapshot will fail identically forever.
             throw new NonRetryableJobException("Payload could not be built: " + e.getMessage());

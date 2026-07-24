@@ -89,6 +89,60 @@ public class PayloadRenderer {
     }
 
     /**
+     * The body to send: a JSON object for an object contract, a JSON array for an array one.
+     *
+     * <p>An array contract renders its declared fields once per element of the context
+     * collection it names ({@link PayloadSchema#itemsFrom()}, e.g. {@code content}), binding
+     * that name to each element in turn — so {@code {{content.mediaId}}} means "this element's
+     * media id". Shared roots ({@code task}, {@code session}) stay visible to every element.
+     * The object case is unchanged: it delegates to {@link #render}.
+     *
+     * @throws PayloadRenderException listing every element/field that could not be produced
+     */
+    public Object renderBody(
+            Map<String, String> templates, PayloadSchema schema, Map<String, Object> context) {
+        if (!schema.array()) {
+            return render(templates, schema, context);
+        }
+        Map<String, Object> safeContext = context == null ? Map.of() : context;
+        Object collection = safeContext.get(schema.itemsFrom());
+        if (collection == null) {
+            // Nothing to report is a valid empty array, not a fault. In practice the producer
+            // skips emitting at all in this case; rendering stays total regardless.
+            return List.of();
+        }
+        if (!(collection instanceof List<?> elements)) {
+            throw new PayloadRenderException(List.of(
+                    "context '" + schema.itemsFrom() + "' must be an array to render an array body"));
+        }
+
+        PayloadSchema itemSchema = schema.itemSchema();
+        List<Object> rendered = new ArrayList<>(elements.size());
+        List<String> problems = new ArrayList<>();
+        for (int i = 0; i < elements.size(); i++) {
+            if (!(elements.get(i) instanceof Map<?, ?> element)) {
+                problems.add(schema.itemsFrom() + "[" + i + "] is not an object");
+                continue;
+            }
+            Map<String, Object> itemContext = new LinkedHashMap<>(safeContext);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> asMap = (Map<String, Object>) element;
+            itemContext.put(schema.itemsFrom(), asMap);
+            try {
+                rendered.add(render(templates, itemSchema, itemContext));
+            } catch (PayloadRenderException e) {
+                int index = i;
+                e.problems().forEach(problem ->
+                        problems.add(schema.itemsFrom() + "[" + index + "]: " + problem));
+            }
+        }
+        if (!problems.isEmpty()) {
+            throw new PayloadRenderException(problems);
+        }
+        return rendered;
+    }
+
+    /**
      * Checks a mapping before it is stored: templates parse, read known variables, and cover
      * every required field.
      *

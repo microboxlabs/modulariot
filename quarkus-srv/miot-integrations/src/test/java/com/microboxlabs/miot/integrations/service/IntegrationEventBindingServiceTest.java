@@ -192,8 +192,9 @@ class IntegrationEventBindingServiceTest {
                         "review", Map.of("verdict", false)));
 
         assertTrue(preview.valid(), preview.problems().toString());
-        assertEquals("19f8-a8ad", preview.payload().get("guidMultimedia"));
-        assertEquals(Boolean.FALSE, preview.payload().get("aprobado"));
+        Map<?, ?> payload = (Map<?, ?>) preview.payload();
+        assertEquals("19f8-a8ad", payload.get("guidMultimedia"));
+        assertEquals(Boolean.FALSE, payload.get("aprobado"));
     }
 
     @Test

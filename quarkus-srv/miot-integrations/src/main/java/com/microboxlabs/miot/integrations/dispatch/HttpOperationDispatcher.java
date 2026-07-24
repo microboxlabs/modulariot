@@ -6,7 +6,6 @@ import com.microboxlabs.miot.integrations.service.IntegrationOperationInvoker;
 import com.microboxlabs.miot.integrations.service.OperationInvocationResult;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import java.util.Map;
 
 /**
  * The default channel: call the binding's operation over HTTP.
@@ -36,7 +35,7 @@ public class HttpOperationDispatcher implements ChannelDispatcher {
 
     @Override
     public DispatchOutcome dispatch(
-            String tenantClientId, IntegrationEventBinding binding, Map<String, Object> payload) {
+            String tenantClientId, IntegrationEventBinding binding, Object payload) {
         OperationInvocationResult result = invoker.invoke(
                 tenantClientId, binding.connectionId(), binding.operationId(), payload);
 

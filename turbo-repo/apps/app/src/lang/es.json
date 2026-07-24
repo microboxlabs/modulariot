@@ -37,7 +37,7 @@
       },
       "mapping": {
         "title": "Mapeo de datos",
-        "help": "Usa plantillas Handlebars para construir cada campo del canal a partir de los objetos disponibles.",
+        "help": "Asocia cada campo del canal a una variable. Escribe {{ para autocompletar.",
         "noChannel": "Selecciona un canal en la pestaña Revisión para configurar el mapeo.",
         "required": "Requerido",
         "optional": "Opcional",
@@ -50,6 +50,17 @@
           "string": "texto",
           "boolean": "booleano",
           "datetime": "fecha/hora"
+        },
+        "errors": {
+          "unescaped": "No se admite '{{{ }}}'. Usa '{{ }}'.",
+          "unclosed": "Falta cerrar la variable con '}}'.",
+          "empty": "'{{}}' está vacío: indica una variable.",
+          "notPlain": "'{expression}' no está permitido. Este campo acepta solo variables simples como task.serviceCode, no bloques, parciales ni comentarios.",
+          "helperCall": "'{expression}' parece una llamada a un helper. Solo se admiten variables simples como content.verdict.",
+          "badPath": "'{expression}' no es una ruta de variable válida.",
+          "badChar": "'{expression}' contiene un carácter no admitido: '{char}'.",
+          "unknownRoot": "'{path}' no existe: '{root}' no es uno de {roots}.",
+          "wholeObject": "'{path}' es un objeto completo: usa uno de sus campos (por ejemplo, .mediaId)."
         }
       },
       "job": {
@@ -84,7 +95,9 @@
           "destination": "Destino",
           "driver": "Conductor",
           "truckPlate": "Patente camión",
-          "departureDate": "Fecha de salida"
+          "departureDate": "Fecha de salida",
+          "formKey": "Clave de tarea (formKey)",
+          "outcome": "Resultado de la tarea"
         },
         "content": {
           "mediaId": "ID multimedia",
@@ -92,7 +105,12 @@
           "reasonCode": "Código de motivo",
           "integratedAt": "Fecha de integración",
           "fileName": "Nombre de archivo",
-          "mimeType": "Tipo de archivo"
+          "mimeType": "Tipo de archivo",
+          "verdict": "Veredicto (booleano)",
+          "reviewStatus": "Estado de revisión",
+          "comment": "Comentario de revisión",
+          "contentType": "Tipo de contenido",
+          "reviewedBy": "Revisado por"
         },
         "review": {
           "verdict": "Veredicto (booleano)",
@@ -104,7 +122,8 @@
         "session": {
           "user": "Usuario de sesión",
           "email": "Correo del usuario",
-          "fullName": "Nombre completo"
+          "fullName": "Nombre completo",
+          "reviewer": "Revisor"
         }
       }
     },

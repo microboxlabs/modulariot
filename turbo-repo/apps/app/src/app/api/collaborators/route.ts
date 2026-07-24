@@ -3,10 +3,25 @@ import { resolveTenantScope } from "../utils/tenant-scope";
 import { requireCarrierData } from "../utils/carrier-scope";
 import {
   driverRowToCollaborator,
+  fetchAmsDriversMaster,
   fetchDriversFromView,
 } from "../utils/pgrest-client";
 import type { Collaborator } from "@/features/collaborators-management/types/collaborators.types";
 import { logger } from "@/lib/logger";
+import { isCarrierOrg } from "../utils/carrier-scope";
+
+/** Merge con el maestro AMS: nombres ya presentes no se duplican. */
+async function conMaestroAms(
+  xs: Collaborator[], orgRut: string | null
+): Promise<Collaborator[]> {
+  try {
+    const ams = await fetchAmsDriversMaster(orgRut);
+    const vistos = new Set(xs.map((c) => c.name?.toUpperCase()));
+    return xs.concat(ams.filter((a) => !vistos.has(a.name?.toUpperCase())));
+  } catch {
+    return xs;
+  }
+}
 
 /**
  * GET /api/collaborators
@@ -134,6 +149,7 @@ export async function GET(request: Request) {
   // PT2: una org carrier jamás degrada a "sin filtro" (sin tax ids ⇒ 403)
   const carrierGuard = requireCarrierData(scope);
   if (carrierGuard) return carrierGuard;
+  const amsOrgRut = isCarrierOrg(scope) ? scope.effectiveTaxIds[0] : null;
 
   if (process.env.MIOT_COLLABORATORS_SOURCE !== "pgrest") {
     return NextResponse.json(
@@ -161,14 +177,14 @@ export async function GET(request: Request) {
     const ageMs = now - cacheEntry.fetchedAt;
 
     if (ageMs <= COLLABORATORS_CACHE_TTL_MS) {
-      return buildJsonResponse(cacheEntry.data, "HIT");
+      return buildJsonResponse(await conMaestroAms(cacheEntry.data, amsOrgRut), "HIT");
     }
 
     if (ageMs <= COLLABORATORS_CACHE_STALE_TTL_MS) {
       void refreshCollaboratorsCache(cacheKey, query, custAccounts).catch(
         () => undefined,
       );
-      return buildJsonResponse(cacheEntry.data, "STALE");
+      return buildJsonResponse(await conMaestroAms(cacheEntry.data, amsOrgRut), "STALE");
     }
 
     // Entry is older than the stale TTL — evict it so memory doesn't stay
@@ -182,10 +198,10 @@ export async function GET(request: Request) {
       query,
       custAccounts,
     );
-    return buildJsonResponse(collaborators, "MISS");
+    return buildJsonResponse(await conMaestroAms(collaborators, amsOrgRut), "MISS");
   } catch (error) {
     if (cacheEntry) {
-      return buildJsonResponse(cacheEntry.data, "STALE_IF_ERROR");
+      return buildJsonResponse(await conMaestroAms(cacheEntry.data, amsOrgRut), "STALE_IF_ERROR");
     }
     logger.error({ err: error }, "Failed to fetch collaborators");
     return NextResponse.json(

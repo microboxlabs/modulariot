@@ -1784,3 +1784,35 @@ export async function fetchAmsTrucksMaster(
     latestMetrics: undefined,
   }) as unknown as Truck);
 }
+
+/** Maestro AMS: conductores del mantenedor mapeados al shape Collaborator
+ * (merge de la lista — rd_* es el maestro, la fuente externa es afluente). */
+export async function fetchAmsDriversMaster(
+  orgRut: string | null
+): Promise<Collaborator[]> {
+  const base = process.env.ATC_PGREST_URL ?? "http://127.0.0.1:3011";
+  const qs = orgRut ? `?p_org_id=${encodeURIComponent(orgRut)}` : "";
+  const r = await fetch(`${base}/rpc/fn_ams_drivers${qs}`, {
+    headers: { accept: "application/json", "Accept-Profile": "public" },
+    cache: "no-store",
+  });
+  if (!r.ok) return [];
+  const rows = (await r.json()) as Array<{
+    id: string; full_name: string; rut: string; status: string;
+    carrier_rut: string | null; camion: { patente: string } | null;
+  }>;
+  return rows.map((row) => ({
+    id: `ams:${row.id}`,
+    externalId: row.rut,
+    name: row.full_name,
+    email: "",
+    rank: "conductor",
+    department: row.carrier_rut ?? "",
+    score: 0,
+    employmentStatus: row.status === "active" ? "activo" : "suspendido",
+    punctuality: 0,
+    safety: 0,
+    incidentsCount: 0,
+    assignedVehiclePlate: row.camion?.patente ?? "",
+  }) as Collaborator);
+}

@@ -277,6 +277,7 @@ export function FichaAms({ tipo, matchId, matchName, defaults }: {
 
       {rec && <SeccionDocs tipo={tipo} rec={rec} onChange={() => void mutate()} />}
       {rec && <SeccionDupla tipo={tipo} rec={rec} onChange={() => void mutate()} />}
+      {rec && <SeccionGxc tipo={tipo} rec={rec} />}
       {rec && <SeccionAuditoria tipo={tipo} recId={rec.id} />}
     </div>
   );
@@ -515,6 +516,35 @@ function SeccionAuditoria({ tipo, recId }: { tipo: "TRUCK" | "DRIVER"; recId: st
             <span className="text-gray-500">{new Date(e.created_at).toLocaleString("es-CL")}</span>
           </div>
         ))}
+      </div>
+    </Seccion>
+  );
+}
+
+// ── Costura GxC: el standing del recurso alimenta el mantenedor ──
+function SeccionGxc({ tipo, rec }: { tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | AmsDriver }) {
+  const gxcTipo = tipo === "TRUCK" ? "camion" : "conductor";
+  const gxcId = tipo === "TRUCK" ? (rec as AmsTruck).license_plate : (rec as AmsDriver).full_name;
+  const { data } = useSWR<{ capitulos: { viajes: number; con_consecuencia: number;
+    mix: Record<string, number> } | null; tendencia: { tasa_act: number | null } | null }>(
+    `/app/api/gemelo/rpc/fn_dx_gol_gxc_perfil?p_tipo=${gxcTipo}&p_id=${encodeURIComponent(gxcId)}&p_dias=28`,
+    fetcher);
+  const cap = data?.capitulos;
+  if (!cap || !cap.viajes) return null;   // sin historia GxC aún: no se muestra
+  const tasa = Math.round((cap.con_consecuencia / Math.max(1, cap.viajes)) * 100);
+  return (
+    <Seccion titulo="Gestión por consecuencia (28 días)"
+      extra={<a className="text-xs text-blue-600 hover:underline"
+                href={`/app/es/gxc/${gxcTipo}/${encodeURIComponent(gxcId)}?dias=28`}>
+        ver perfil completo →</a>}>
+      <div className="flex items-center gap-4 text-sm flex-wrap">
+        <span className="text-gray-900 dark:text-white">
+          <b className={tasa >= 50 ? "text-rose-600" : "text-green-600"}>{tasa}%</b> de {cap.viajes} viajes con consecuencia
+        </span>
+        <span className="text-xs text-gray-500">
+          {Object.entries(cap.mix ?? {}).filter(([, v]) => v > 0)
+            .map(([k, v]) => `${k} ${v}`).join(" · ") || "sin consecuencias"}
+        </span>
       </div>
     </Seccion>
   );

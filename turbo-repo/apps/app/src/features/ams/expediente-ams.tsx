@@ -16,7 +16,6 @@
 //   └────────────────────────────────────────────────┘
 import { useState } from "react";
 import useSWR from "swr";
-import { KpiStat } from "@/features/common/components/kpi-stat";
 import {
   HiOutlineShieldCheck, HiOutlineDocumentCheck, HiOutlineUserCircle, HiOutlineChartBar,
   HiOutlineIdentification, HiOutlineClock, HiCheckCircle, HiXCircle, HiExclamationTriangle,
@@ -93,9 +92,9 @@ function BarraCompletitud({ ok, total }: { ok: number; total: number }) {
  *  kpisExtra/panelesMedio: el gestor anfitrión inyecta sus indicadores y
  *  paneles (salud, telemetría, uso) para que TODO viva en la misma grilla
  *  bento — un solo SuperProfile, no dos mundos apilados (doc rector). */
-export function ExpedienteAms({ tipo, matchId, matchName, kpisExtra, panelesMedio }: {
+export function ExpedienteAms({ tipo, matchId, matchName, panelesMedio }: {
   tipo: "TRUCK" | "DRIVER"; matchId?: string; matchName?: string;
-  kpisExtra?: React.ReactNode; panelesMedio?: React.ReactNode;
+  panelesMedio?: React.ReactNode;
 }) {
   const { rec, cargando, mutate } = useAmsRecord(tipo, matchId, matchName);
   if (cargando) return null;
@@ -114,49 +113,11 @@ export function ExpedienteAms({ tipo, matchId, matchName, kpisExtra, panelesMedi
   const docs = a.documentos;
   const extOk = !a.bloqueada_por.includes("fuente_externa");
 
-  const docsReq = docs.docs.filter((d) => d.required);
-  const docsOk = docsReq.filter((d) => d.estado === "vigente" || d.estado === "sin_vencimiento").length;
-  const docsPorVencer = docsReq.filter((d) => d.estado === "por_vencer" || d.estado === "urgente").length;
-  const reqTotal = docsReq.length + docs.faltantes.length;
-  const asignado = tipo === "TRUCK"
-    ? (rec as AmsTruck).conductor?.nombre : (rec as AmsDriver).camion?.patente;
-  const desde = tipo === "TRUCK"
-    ? (rec as AmsTruck).conductor?.desde : (rec as AmsDriver).camion?.desde;
 
   return (
     <div className="flex flex-col gap-3">
-      {/* nivel 1 — el estado del recurso de un vistazo (sin scroll) */}
-      <div className={`grid grid-cols-2 gap-3 ${kpisExtra ? "xl:grid-cols-3 2xl:grid-cols-6" : "xl:grid-cols-4"}`}>
-        <KpiStat variant="horizontal"
-          icon={{ icon: HiOutlineShieldCheck,
-            className: a.acreditado ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400" }}
-          title={{ text: "Acreditación" }}
-          value={{ text: a.acreditado ? "Acreditado" : "No acreditado",
-            className: a.acreditado ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400" }}
-          description={{ text: a.acreditado
-            ? "todas las fuentes avalan"
-            : `bloqueada por ${a.bloqueada_por.map((b) => b === "documentos" ? "documentos" : "fuente externa").join(" + ")}` }} />
-        <KpiStat variant="horizontal"
-          icon={{ icon: HiOutlineDocumentCheck,
-            className: docs.faltantes.length || docsOk < docsReq.length
-              ? "text-red-600 dark:text-red-400"
-              : docsPorVencer ? "text-yellow-500" : "text-green-600 dark:text-green-400" }}
-          title={{ text: "Documentos obligatorios" }}
-          value={{ text: `${docsOk}/${reqTotal}` }}
-          description={{ text: docs.faltantes.length
-            ? `faltan ${docs.faltantes.length}`
-            : docsPorVencer ? `${docsPorVencer} por vencer` : "al día" }} />
-        <KpiStat variant="horizontal"
-          icon={{ icon: HiOutlineUserCircle,
-            className: asignado ? "text-blue-600 dark:text-blue-400" : "text-yellow-500" }}
-          title={{ text: tipo === "TRUCK" ? "Conductor asignado" : "Camión asignado" }}
-          value={{ text: asignado ?? "Sin asignar" }}
-          description={{ text: desde
-            ? `desde ${new Date(desde).toLocaleDateString("es-CL")}` : "asigna desde el panel" }} />
-        <KpiGxc tipo={tipo} rec={rec} />
-        {kpisExtra}
-      </div>
-
+      {/* la lectura de un vistazo vive en el HEADER (estado operacional,
+          salud, conectividad, conductor) — sin fila KPI duplicada */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 auto-rows-min">
       {/* fila 1 — bento: info (6) · acreditación (3) · asignación (3) */}
       <Panel className="xl:col-span-6" icono={HiOutlineIdentification} titulo={tipo === "TRUCK" ? "Información del camión" : "Información del colaborador"}>
@@ -225,29 +186,6 @@ export function ExpedienteAms({ tipo, matchId, matchName, kpisExtra, panelesMedi
       <PanelHistoria tipo={tipo} rec={rec} />
       </div>
     </div>
-  );
-}
-
-// KPI de GxC (comparte el fetch del strip)
-function KpiGxc({ tipo, rec }: { tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | AmsDriver }) {
-  const gxcTipo = tipo === "TRUCK" ? "camion" : "conductor";
-  const gxcId = tipo === "TRUCK" ? (rec as AmsTruck).license_plate : (rec as AmsDriver).full_name;
-  const { data } = useSWR<{ capitulos: { viajes: number; con_consecuencia: number } | null }>(
-    `/app/api/gemelo/rpc/fn_dx_gol_gxc_perfil?p_tipo=${gxcTipo}&p_id=${encodeURIComponent(gxcId)}&p_dias=28`,
-    fetcher);
-  const cap = data?.capitulos;
-  const tasa = cap && cap.viajes > 0
-    ? Math.round((cap.con_consecuencia / Math.max(1, cap.viajes)) * 100) : null;
-  return (
-    <KpiStat variant="horizontal"
-      icon={{ icon: HiOutlineChartBar,
-        className: tasa == null ? "text-gray-400"
-          : tasa >= 50 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400" }}
-      title={{ text: "GxC · 28 días" }}
-      value={{ text: tasa == null ? "—" : `${tasa}%`,
-        className: tasa == null ? "text-gray-400" : undefined }}
-      description={{ text: cap && cap.viajes > 0
-        ? `${cap.viajes} viajes cerrados` : "sin historia operacional" }} />
   );
 }
 

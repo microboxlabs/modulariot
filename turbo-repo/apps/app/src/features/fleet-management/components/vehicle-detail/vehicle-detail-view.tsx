@@ -4,7 +4,8 @@ import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import VehicleDetailHeader from "./vehicle-detail-header";
 import { ExpedienteAms } from "@/features/ams/expediente-ams";
-import { KpisSaludVehiculo, PanelesSaludVehiculo } from "./super-profile-salud";
+import { PanelesSaludVehiculo } from "./super-profile-salud";
+import { PanelUbicacionCamion } from "./panel-ubicacion";
 
 interface VehicleDetailViewProps {
   readonly vehicle: Vehicle;
@@ -37,8 +38,14 @@ export default function VehicleDetailView({
             como KPIs y paneles del mismo bento (ya no hay acordeón aparte) */}
         <div className="w-full py-4">
           <ExpedienteAms tipo="TRUCK" matchId={vehicle.plate}
-            kpisExtra={<KpisSaludVehiculo vehicle={vehicle} />}
-            panelesMedio={<PanelesSaludVehiculo vehicle={vehicle} dict={dict} />} />
+            panelesMedio={<>
+              <div className="xl:col-span-6 min-w-0">
+                <PanelUbicacionCamion latitude={vehicle.latitude}
+                  longitude={vehicle.longitude} lastSignal={vehicle.lastSignal}
+                  etiqueta={vehicle.lastLocation} />
+              </div>
+              <PanelesSaludVehiculo vehicle={vehicle} dict={dict} />
+            </>} />
         </div>
       </div>
     </div>

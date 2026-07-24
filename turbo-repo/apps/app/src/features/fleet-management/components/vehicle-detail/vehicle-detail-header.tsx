@@ -11,6 +11,8 @@ import VehicleStatusBadge from "../vehicle-grid/vehicle-status-badge";
 import { useEstadoOperacional, EstadoOperacionalChip } from "@/features/ams/estado-operacional";
 import { AccionesRapidas } from "@/features/ams/acciones-rapidas";
 import { SiluetaCamion } from "@/features/ams/silueta-activo";
+import { useAmsRecord, type AmsTruck } from "@/features/ams/ficha-ams";
+import { useSaludVehiculo } from "./super-profile-salud";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { HiClipboardList } from "react-icons/hi";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
@@ -38,6 +40,13 @@ export default function VehicleDetailHeader({
   // Estado operacional VIVO (doc rector §1/§4): En viaje / Disponible /
   // En taller / Bloqueado / Inactivo, derivado de maestro + live_trip.
   const { estado } = useEstadoOperacional("TRUCK", vehicle.plate);
+  // El header ES el resumen ejecutivo (decisión 2026-07-24: la fila KPI
+  // duplicaba esta lectura): conductor, salud y conectividad viven aquí.
+  const { rec } = useAmsRecord("TRUCK", vehicle.plate);
+  const conductor = (rec as AmsTruck | undefined)?.conductor?.nombre;
+  const { statuses, healthScore, telemetry } = useSaludVehiculo(vehicle.plate);
+  const alertas = Object.values(statuses).filter((x) => x !== "ok").length;
+  const freshness = telemetry?.signal.freshness ?? "SIN_SENAL";
   return (
     <div className="bg-white dark:bg-gray-800 p-4 flex flex-col gap-3 border-b border-gray-200 dark:border-gray-700 w-full">
       <ClientBreadcrumb
@@ -88,6 +97,37 @@ export default function VehicleDetailHeader({
             <div className="flex flex-col shrink-0">
               <span className="text-xs text-gray-500 dark:text-gray-400">Ahora</span>
               <EstadoOperacionalChip estado={estado} />
+            </div>
+
+            {/* Conductor asignado (dupla del maestro) */}
+            <div className="flex flex-col shrink-0">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Conductor</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                {conductor ?? "Sin asignar"}
+              </span>
+            </div>
+
+            {/* Salud (score del acordeón, ahora señal del header) */}
+            <div className="flex flex-col shrink-0" title={alertas
+              ? `${alertas} ${alertas === 1 ? "sección requiere" : "secciones requieren"} atención`
+              : "todas las secciones al día"}>
+              <span className="text-xs text-gray-500 dark:text-gray-400">Salud</span>
+              <span className={`text-sm font-bold ${alertas
+                ? "text-yellow-600 dark:text-yellow-400"
+                : "text-green-600 dark:text-green-400"}`}>
+                {healthScore}
+              </span>
+            </div>
+
+            {/* Conectividad (frescura de señal) */}
+            <div className="flex flex-col shrink-0">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Conectividad</span>
+              <span className={`text-sm font-medium ${
+                freshness === "ACTIVO" ? "text-green-600 dark:text-green-400"
+                : freshness === "REZAGADO" ? "text-yellow-600 dark:text-yellow-400"
+                : "text-gray-400"}`}>
+                {freshness === "ACTIVO" ? "Online" : freshness === "REZAGADO" ? "Rezagado" : "Sin señal"}
+              </span>
             </div>
 
             {/* Client */}

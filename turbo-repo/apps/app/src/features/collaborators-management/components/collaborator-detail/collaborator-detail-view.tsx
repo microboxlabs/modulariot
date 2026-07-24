@@ -17,6 +17,7 @@ import { trDynamic } from "@/features/i18n/tr.service";
 import BehaviorHistory from "./behavior-history";
 import { ExpedienteAms } from "@/features/ams/expediente-ams";
 import CollaboratorSummary from "./collaborator-summary";
+import { PanelUbicacionConductor } from "@/features/fleet-management/components/vehicle-detail/panel-ubicacion";
 
 // ─── Static UI config (does NOT come from backend) ───────────────────
 
@@ -155,7 +156,10 @@ export default function CollaboratorDetailView({
         <div className="pt-1">
           <ExpedienteAms tipo="DRIVER" matchName={collaborator.name}
             panelesMedio={<>
-              <div className="xl:col-span-12 grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3">
+              <div className="xl:col-span-6 min-w-0">
+                <PanelUbicacionConductor patente={collaborator.assignedVehiclePlate} />
+              </div>
+              <div className="xl:col-span-6 grid grid-cols-2 gap-3 content-start">
                 {resolvedCards.map((card) => (
                   <button
                     key={card.titleKey}

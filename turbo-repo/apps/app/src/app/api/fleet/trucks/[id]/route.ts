@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "../../../utils/alfresco-crud-client";
 import { createResourceClient } from "../../../utils/miot-resource-api-client";
 import {
+  fetchAmsTrucksMaster,
   fetchLastPositions,
   fetchTruckCatalogByIdOrPlate,
   getPgrestClientId,
@@ -104,6 +105,12 @@ export async function GET(
     }
 
     if (!truck) {
+      // Fallback al maestro AMS (mantenedores): el recurso puede existir
+      // en el maestro aunque la fuente externa aún no lo traiga.
+      const ams = await fetchAmsTrucksMaster(null).catch(() => []);
+      const delMaestro = ams.find(
+        (t) => t.licensePlate?.toUpperCase() === idOrPlate.toUpperCase());
+      if (delMaestro) return NextResponse.json(delMaestro);
       return NextResponse.json({ error: "Truck not found" }, { status: 404 });
     }
     return NextResponse.json(truck);

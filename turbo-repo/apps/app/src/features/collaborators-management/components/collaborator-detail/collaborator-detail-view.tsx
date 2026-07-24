@@ -15,6 +15,7 @@ import { HiClock, HiBolt, HiDocumentText, HiTruck } from "react-icons/hi2";
 import { IoShieldOutline, IoPulseOutline } from "react-icons/io5";
 import { trDynamic } from "@/features/i18n/tr.service";
 import BehaviorHistory from "./behavior-history";
+import { FichaAms } from "@/features/ams/ficha-ams";
 import CollaboratorSummary from "./collaborator-summary";
 
 // ─── Static UI config (does NOT come from backend) ───────────────────
@@ -174,6 +175,9 @@ export default function CollaboratorDetailView({
             dict={dict}
             events={detailData.behaviorEvents}
           />
+        </div>
+        <div className="pb-6">
+          <FichaAms tipo="DRIVER" matchName={collaborator.name} />
         </div>
       </div>
     </div>

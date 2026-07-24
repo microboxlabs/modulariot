@@ -4,6 +4,7 @@ import { requireCarrierData } from "../../utils/carrier-scope";
 import { createResourceClient } from "../../utils/miot-resource-api-client";
 import { parsePageParams, isPageParamsError } from "../../utils/page-params";
 import {
+  fetchAmsTrucksMaster,
   fetchLastPositions,
   fetchTrucksCatalog,
   getPgrestClientId,
@@ -39,6 +40,20 @@ function buildCacheKey(searchParams: URLSearchParams, userId: string, activeOrgS
   }
   relevant.sort();
   return `${userId}:${activeOrgSlug}:${relevant.toString()}`;
+}
+
+import { isCarrierOrg } from "../../utils/carrier-scope";
+
+/** Merge con el maestro AMS (mantenedores): agrega los recursos creados en
+ * el app que la fuente externa aún no trae — rd_* es el maestro. */
+async function conMaestroAms(trucks: Truck[], orgRut: string | null): Promise<Truck[]> {
+  try {
+    const ams = await fetchAmsTrucksMaster(orgRut);
+    const vistos = new Set(trucks.map((t) => t.licensePlate?.toUpperCase()));
+    return trucks.concat(ams.filter((a) => !vistos.has(a.licensePlate?.toUpperCase())));
+  } catch {
+    return trucks; // maestro local caído: la lista externa sigue sirviendo
+  }
 }
 
 function buildJsonResponse(
@@ -143,6 +158,7 @@ export async function GET(request: Request) {
   // PT2: una org carrier jamás degrada a "sin filtro" (sin tax ids ⇒ 403)
   const carrierGuard = requireCarrierData(scope);
   if (carrierGuard) return carrierGuard;
+  const amsOrgRut = isCarrierOrg(scope) ? scope.effectiveTaxIds[0] : null;
 
   const { searchParams } = new URL(request.url);
   const pageParams = parsePageParams(searchParams);
@@ -178,7 +194,7 @@ export async function GET(request: Request) {
     const ageMs = now - cacheEntry.fetchedAt;
 
     if (ageMs <= FLEET_TRUCKS_CACHE_TTL_MS) {
-      return buildJsonResponse(cacheEntry.data, "HIT");
+      return buildJsonResponse(await conMaestroAms(cacheEntry.data, amsOrgRut), "HIT");
     }
 
     if (ageMs <= FLEET_TRUCKS_CACHE_STALE_TTL_MS) {
@@ -188,7 +204,7 @@ export async function GET(request: Request) {
         truckQuery,
         custAccounts,
       ).catch(() => undefined);
-      return buildJsonResponse(cacheEntry.data, "STALE");
+      return buildJsonResponse(await conMaestroAms(cacheEntry.data, amsOrgRut), "STALE");
     }
   }
 
@@ -205,7 +221,7 @@ export async function GET(request: Request) {
       truckQuery,
       custAccounts,
     );
-    return buildJsonResponse(trucks, "MISS");
+    return buildJsonResponse(await conMaestroAms(trucks, amsOrgRut), "MISS");
   } catch (error) {
     const status = error instanceof MiotResourceApiError ? error.status : 500;
     logger.error({ err: error }, "Failed to fetch trucks");

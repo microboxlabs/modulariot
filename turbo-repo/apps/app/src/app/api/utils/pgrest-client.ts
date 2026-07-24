@@ -1719,3 +1719,68 @@ export async function fetchTripCarrierIds(tripId: string): Promise<string[]> {
   }
   return [...out];
 }
+
+/**
+ * Viaje EN CURSO de un activo (live_trip por asset_id = patente).
+ * Sostiene la regla "manda el viaje" (AMS): con viaje vivo no se
+ * reasigna conductor↔camión. Devuelve null si no hay viaje en curso.
+ */
+export async function fetchLiveTripByAsset(
+  assetId: string
+): Promise<{ trip_id: string; eta?: string } | null> {
+  const token = await bearerToken();
+  const url = `${pgrestBaseUrl()}/live_trip?select=trip_id,eta&asset_id=eq.${encodeURIComponent(assetId.toUpperCase())}&limit=1`;
+  const response = await pgrestFetch(url, {
+    headers: { accept: "application/json", Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  const rows = (await response.json()) as Array<{ trip_id?: string; eta?: string }>;
+  if (!rows.length || !rows[0].trip_id) return null;
+  return { trip_id: String(rows[0].trip_id), eta: rows[0].eta };
+}
+
+/**
+ * Maestro AMS local (mantenedores): camiones del laboratorio :3011.
+ * La lista de flota hace MERGE con esto — un recurso creado en el
+ * mantenedor existe aunque la fuente externa aún no lo traiga
+ * (rd_* es el maestro; las fuentes son afluentes).
+ */
+export async function fetchAmsTrucksMaster(
+  orgRut: string | null
+): Promise<Truck[]> {
+  const base = process.env.ATC_PGREST_URL ?? "http://127.0.0.1:3011";
+  const qs = orgRut ? `?p_org_id=${encodeURIComponent(orgRut)}` : "";
+  const r = await fetch(`${base}/rpc/fn_ams_trucks${qs}`, {
+    headers: { accept: "application/json", "Accept-Profile": "public" },
+    cache: "no-store",
+  });
+  if (!r.ok) return [];
+  const rows = (await r.json()) as Array<{
+    id: string; license_plate: string; vin: string | null; truck_type: string | null;
+    max_weight: number | null; description: string | null; status: string;
+    updated_at: string;
+  }>;
+  return rows.map((row) => ({
+    id: 0,
+    tenant: PGREST_TENANT_STUB,
+    clientId: getPgrestClientId(),
+    entityId: `ams:${row.id}`,
+    externalId: row.license_plate,
+    status: row.status === "active" ? "AVAILABLE" : "OUT_OF_SERVICE",
+    alfrescoNodeId: "",
+    active: row.status === "active",
+    createdAt: row.updated_at,
+    updatedAt: row.updated_at,
+    licensePlate: row.license_plate,
+    vin: row.vin ?? "",
+    brand: "",
+    model: row.description ?? "",
+    year: 0,
+    maxWeight: Number(row.max_weight ?? 0),
+    volume: 0,
+    truckType: row.truck_type ?? "",
+    assetId: row.license_plate,
+    latestMetrics: undefined,
+  }) as unknown as Truck);
+}

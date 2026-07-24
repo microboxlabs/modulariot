@@ -150,34 +150,38 @@ export default function CollaboratorDetailView({
           monthlyData={detailData.monthlyEvolution}
           scores={detailData.scores}
         />
+        {/* SuperProfile: scores y comportamiento entran a la MISMA grilla
+            bento del expediente (P2), ya no como bloques apilados aparte */}
         <div className="pt-1">
-          <ExpedienteAms tipo="DRIVER" matchName={collaborator.name} />
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          {resolvedCards.map((card) => (
-            <button
-              key={card.titleKey}
-              type="button"
-              onClick={() => handleCardClick(card.id)}
-              className="cursor-pointer rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-500 dark:hover:border-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-left"
-            >
-              <KpiStat
-                icon={{ icon: card.icon, className: card.iconClass }}
-                title={{ text: trDynamic(card.titleKey, dict) }}
-                value={{ text: String(card.score), className: card.valueClass }}
-                variant="horizontal"
-                className="border-0"
-              />
-            </button>
-          ))}
-        </div>
-        <div>
-          <BehaviorHistory
-            activeFilter={behaviorFilter}
-            onFilterChange={setBehaviorFilter}
-            dict={dict}
-            events={detailData.behaviorEvents}
-          />
+          <ExpedienteAms tipo="DRIVER" matchName={collaborator.name}
+            panelesMedio={<>
+              <div className="xl:col-span-12 grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3">
+                {resolvedCards.map((card) => (
+                  <button
+                    key={card.titleKey}
+                    type="button"
+                    onClick={() => handleCardClick(card.id)}
+                    className="cursor-pointer rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-500 dark:hover:border-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-left"
+                  >
+                    <KpiStat
+                      icon={{ icon: card.icon, className: card.iconClass }}
+                      title={{ text: trDynamic(card.titleKey, dict) }}
+                      value={{ text: String(card.score), className: card.valueClass }}
+                      variant="horizontal"
+                      className="border-0"
+                    />
+                  </button>
+                ))}
+              </div>
+              <div className="xl:col-span-12 min-w-0">
+                <BehaviorHistory
+                  activeFilter={behaviorFilter}
+                  onFilterChange={setBehaviorFilter}
+                  dict={dict}
+                  events={detailData.behaviorEvents}
+                />
+              </div>
+            </>} />
         </div>
       </div>
     </div>

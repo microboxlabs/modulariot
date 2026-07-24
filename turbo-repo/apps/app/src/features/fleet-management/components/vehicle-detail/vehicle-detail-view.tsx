@@ -3,8 +3,8 @@
 import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import VehicleDetailHeader from "./vehicle-detail-header";
-import VehicleDetailAccordion from "./vehicle-detail-accordion";
 import { ExpedienteAms } from "@/features/ams/expediente-ams";
+import { KpisSaludVehiculo, PanelesSaludVehiculo } from "./super-profile-salud";
 
 interface VehicleDetailViewProps {
   readonly vehicle: Vehicle;
@@ -33,10 +33,13 @@ export default function VehicleDetailView({
         hasNext={next?.hasNext ?? false}
       />
       <div className="flex flex-col flex-1 min-h-0 overflow-y-auto w-full bg-gray-50 dark:bg-gray-900 px-4 xl:px-8">
-        <div className="w-full pt-4">
-          <ExpedienteAms tipo="TRUCK" matchId={vehicle.plate} />
+        {/* SuperProfile: UNA grilla — el gestor inyecta salud/telemetría/uso
+            como KPIs y paneles del mismo bento (ya no hay acordeón aparte) */}
+        <div className="w-full py-4">
+          <ExpedienteAms tipo="TRUCK" matchId={vehicle.plate}
+            kpisExtra={<KpisSaludVehiculo vehicle={vehicle} />}
+            panelesMedio={<PanelesSaludVehiculo vehicle={vehicle} dict={dict} />} />
         </div>
-        <VehicleDetailAccordion vehicle={vehicle} dict={dict} />
       </div>
     </div>
   );

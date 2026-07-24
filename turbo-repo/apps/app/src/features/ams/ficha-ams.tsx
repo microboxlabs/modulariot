@@ -7,7 +7,7 @@
 // (semáforo + faltantes) · Asignación (tarjeta de dupla, no-elegibles
 // atenuados CON MOTIVO, regla "manda el viaje") · Auditoría.
 // Tenant server-side vía /api/ams/rpc/*; sin marcas de fuente (agnóstico).
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { mutate as swrMutate } from "swr";
 import { Label, TextInput, Select as DsSelect } from "flowbite-react";
 import { HiOutlineDocumentText, HiOutlineArrowDownTray, HiOutlineXMark } from "react-icons/hi2";
@@ -305,6 +305,7 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear, onCreado, 
   }, [lista, matchId, matchName, tipo]);
 
   const [editando, setEditando] = useState(false);
+  const idRef = useRef<HTMLDivElement>(null);
   const [creando, setCreando] = useState(!!crear);
   const [form, setForm] = useState<Record<string, string>>({});
   const [errores, setErrores] = useState<Record<string, string>>({});
@@ -340,6 +341,19 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear, onCreado, 
       : { full_name: defaults?.full_name ?? matchName ?? "", rut: matchId ?? "", status: "active", ...(defaults ?? {}) });
     setCreando(true); setMsg(null);
   };
+
+  // Acción rápida del header: Editar → abrir edición in-place y traer a la
+  // vista. Registrado ANTES de los returns condicionales (rules-of-hooks).
+  useEffect(() => {
+    if (!rec) return;
+    const h = () => {
+      abrirEdicion();
+      idRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+    window.addEventListener("sp:editar", h);
+    return () => window.removeEventListener("sp:editar", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rec]);
 
   const validar = (): boolean => {
     const e: Record<string, string> = {};
@@ -421,6 +435,7 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear, onCreado, 
     <div className={plano ? "" : "space-y-3"}>
       {/* ── Identificación (editable) ── */}
       {ver("identificacion") && (
+      <div ref={idRef}>
       <Seccion plano={plano}
         titulo={tipo === "TRUCK" ? "Ficha del camión (mantenedor)" : "Ficha del colaborador (mantenedor)"}
         extra={<>
@@ -574,6 +589,7 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear, onCreado, 
         )}
         {msg && <div className="text-xs pt-2 text-gray-600 dark:text-gray-300">{msg}</div>}
       </Seccion>
+      </div>
       )}
 
       {rec && ver("docs") && <SeccionDocs tipo={tipo} rec={rec} plano={variante === "plano"} onChange={() => void mutate()} />}
@@ -593,6 +609,15 @@ export function SeccionDocs({ tipo, rec, onChange, plano }: {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState<AmsDoc | null>(null);
+  const registroRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = () => {
+      registroRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      registroRef.current?.querySelector("select")?.focus();
+    };
+    window.addEventListener("sp:doc", h);
+    return () => window.removeEventListener("sp:doc", h);
+  }, []);
 
   const subir = async () => {
     if (!dt) { setMsg("Elige el tipo de documento."); return; }
@@ -658,7 +683,7 @@ export function SeccionDocs({ tipo, rec, onChange, plano }: {
           onDelete={() => { void borrar(preview.doc_id); setPreview(null); }} />
       )}
       {/* registrar: fila compacta al pie (estilo «Subir» del panel Multimedia) */}
-      <div className="pt-3 mt-3 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center gap-2">
+      <div ref={registroRef} className="pt-3 mt-3 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center gap-2">
         <DsSelect id="doc-tipo" sizing="sm" className="min-w-[190px]"
                   value={dt} onChange={(e) => setDt(e.target.value)}>
           <option value="">Registrar documento…</option>
@@ -688,6 +713,15 @@ export function SeccionDupla({ tipo, rec, onChange, plano }: {
 }) {
   const [reasignando, setReasignando] = useState(false);
   const [busca, setBusca] = useState("");
+  const duplaRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = () => {
+      setReasignando(true);
+      duplaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+    window.addEventListener("sp:asignar", h);
+    return () => window.removeEventListener("sp:asignar", h);
+  }, []);
   const [msg, setMsg] = useState<string | null>(null);
   const otroFn = tipo === "TRUCK" ? "fn_ams_drivers" : "fn_ams_trucks";
   const { data: candidatos } = useSWR<(AmsTruck | AmsDriver)[]>(
@@ -750,6 +784,7 @@ export function SeccionDupla({ tipo, rec, onChange, plano }: {
   });
 
   return (
+    <div ref={duplaRef}>
     <Seccion titulo={tipo === "TRUCK" ? "Conductor asignado" : "Camión asignado"} plano={plano}
       extra={<span className="text-[11px] text-gray-500">con viaje en curso, manda el viaje</span>}>
       {actual ? (
@@ -872,6 +907,7 @@ export function SeccionDupla({ tipo, rec, onChange, plano }: {
         </div>
       )}
     </Seccion>
+    </div>
   );
 }
 

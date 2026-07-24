@@ -4,6 +4,8 @@ import type { Collaborator } from "../../types/collaborators.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
+import { useEstadoOperacional, EstadoOperacionalChip } from "@/features/ams/estado-operacional";
+import { AccionesRapidas } from "@/features/ams/acciones-rapidas";
 import { 
   HiClipboardList, 
   HiOutlineChevronLeft, 
@@ -45,6 +47,8 @@ export default function CollaboratorDetailHeader({
     .slice(0, 2)
     .join("")
     .toUpperCase();
+  // Estado operacional vivo del colaborador (maestro AMS + viaje del camión asignado)
+  const { estado } = useEstadoOperacional("DRIVER", undefined, collaborator.name);
 
   return (
     <div className="bg-white dark:bg-gray-800 p-4 flex flex-col gap-3 border-b border-gray-200 dark:border-gray-700 w-full">
@@ -96,6 +100,12 @@ export default function CollaboratorDetailHeader({
               </span>
             </div>
 
+            {/* Estado operacional (ahora mismo) */}
+            <div className="flex flex-col shrink-0">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Ahora</span>
+              <EstadoOperacionalChip estado={estado} />
+            </div>
+
             {/* Vehicle (if assigned) */}
             {collaborator.assignedVehiclePlate && (
               <div className="flex flex-col shrink-0">
@@ -135,8 +145,10 @@ export default function CollaboratorDetailHeader({
             </span>
           ))}
         </div>
-        {/* Right: Navigation buttons */}
-        <div className="flex items-center gap-1 shrink-0">
+        {/* Right: acciones rápidas + navegación */}
+        <div className="flex items-center gap-3 shrink-0">
+          <AccionesRapidas tipo="DRIVER" gxcId={collaborator.name} lang="es" />
+          <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={previous.onPrevious}
@@ -155,6 +167,7 @@ export default function CollaboratorDetailHeader({
           >
             <HiOutlineChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
+          </div>
         </div>
       </div>
     </div>

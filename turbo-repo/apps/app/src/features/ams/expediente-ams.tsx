@@ -14,6 +14,7 @@
 //   ├─────────────────────────────┴──────────────────┤
 //   │ GxC del recurso · Historial de cambios (tabla) │
 //   └────────────────────────────────────────────────┘
+import { useState } from "react";
 import useSWR from "swr";
 import { KpiStat } from "@/features/common/components/kpi-stat";
 import {
@@ -88,9 +89,13 @@ function BarraCompletitud({ ok, total }: { ok: number; total: number }) {
   );
 }
 
-/** Expediente distribuido del recurso AMS (camión o colaborador). */
-export function ExpedienteAms({ tipo, matchId, matchName }: {
+/** Expediente distribuido del recurso AMS (camión o colaborador).
+ *  kpisExtra/panelesMedio: el gestor anfitrión inyecta sus indicadores y
+ *  paneles (salud, telemetría, uso) para que TODO viva en la misma grilla
+ *  bento — un solo SuperProfile, no dos mundos apilados (doc rector). */
+export function ExpedienteAms({ tipo, matchId, matchName, kpisExtra, panelesMedio }: {
   tipo: "TRUCK" | "DRIVER"; matchId?: string; matchName?: string;
+  kpisExtra?: React.ReactNode; panelesMedio?: React.ReactNode;
 }) {
   const { rec, cargando, mutate } = useAmsRecord(tipo, matchId, matchName);
   if (cargando) return null;
@@ -121,7 +126,7 @@ export function ExpedienteAms({ tipo, matchId, matchName }: {
   return (
     <div className="flex flex-col gap-3">
       {/* nivel 1 — el estado del recurso de un vistazo (sin scroll) */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className={`grid grid-cols-2 gap-3 ${kpisExtra ? "xl:grid-cols-3 2xl:grid-cols-6" : "xl:grid-cols-4"}`}>
         <KpiStat variant="horizontal"
           icon={{ icon: HiOutlineShieldCheck,
             className: a.acreditado ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400" }}
@@ -149,6 +154,7 @@ export function ExpedienteAms({ tipo, matchId, matchName }: {
           description={{ text: desde
             ? `desde ${new Date(desde).toLocaleDateString("es-CL")}` : "asigna desde el panel" }} />
         <KpiGxc tipo={tipo} rec={rec} />
+        {kpisExtra}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 auto-rows-min">
@@ -197,6 +203,9 @@ export function ExpedienteAms({ tipo, matchId, matchName }: {
         <SeccionDupla tipo={tipo} rec={rec} plano onChange={() => void mutate()} />
       </Panel>
 
+      {/* P2 — paneles del gestor anfitrión (salud, telemetría, eventos, uso) */}
+      {panelesMedio}
+
       {/* fila 2 — documentos (8) · foro (4): gestión documental y conversación
           del recurso, mismos ciudadanos que en el expediente de servicio */}
       <Panel className="xl:col-span-8" icono={HiOutlineDocumentCheck} titulo="Documentos"
@@ -211,9 +220,9 @@ export function ExpedienteAms({ tipo, matchId, matchName }: {
         <SeccionForo tipo={tipo} recId={rec.id} />
       </Panel>
 
-      {/* fila 3 — comportamiento (6) · auditoría (6) */}
+      {/* fila 3 — comportamiento (6) · historia del activo (6) */}
       <Comportamiento tipo={tipo} rec={rec} />
-      <HistorialTabla tipo={tipo} recId={rec.id} />
+      <PanelHistoria tipo={tipo} rec={rec} />
       </div>
     </div>
   );
@@ -363,7 +372,7 @@ function detalleEvento(e: EventoAms): string {
 
 function HistorialTabla({ tipo, recId }: { tipo: "TRUCK" | "DRIVER"; recId: string }) {
   const { data } = useSWR<EventoAms[]>(
-    `/app/api/ams/rpc/fn_ams_events?p_entity_type=${tipo}&p_entity_id=${recId}&p_limit=12`, fetcher);
+    `/app/api/ams/rpc/fn_ams_events?p_entity_type=${tipo}&p_entity_id=${recId}&p_limit=20`, fetcher);
   const OP: Record<string, { l: string; cls: string }> = {
     CREATE: { l: "Creación", cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" },
     UPDATE: { l: "Edición", cls: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300" },
@@ -373,8 +382,7 @@ function HistorialTabla({ tipo, recId }: { tipo: "TRUCK" | "DRIVER"; recId: stri
     UNASSIGN: { l: "Desasignación", cls: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300" },
   };
   return (
-    <Panel className="xl:col-span-6" icono={HiOutlineClock} titulo="Auditoría del maestro"
-      extra={<span className="text-[11px] text-gray-500">quién cambió qué y cuándo</span>}>
+    <>
       {data?.length ? (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -405,6 +413,101 @@ function HistorialTabla({ tipo, recId }: { tipo: "TRUCK" | "DRIVER"; recId: stri
         </div>
       ) : (
         <div className="text-sm text-gray-500">Sin cambios registrados.</div>
+      )}
+    </>
+  );
+}
+
+// ── F4 · Historia del activo (doc rector §14): timeline VIVO como cara
+// principal — hitos del maestro + documentos + viajes cerrados (con sus
+// síntomas agregados) en una sola línea; la tabla de auditoría queda como
+// vista secundaria del mismo panel. Datos: fn_ams_events + el timeline del
+// perfil GxC (solo lectura de datos, el módulo GxC no se toca).
+type Hito = {
+  t: number; tipo: string; titulo: string; detalle?: string;
+  color: string; href?: string;
+};
+
+function PanelHistoria({ tipo, rec }: { tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | AmsDriver }) {
+  const [vista, setVista] = useState<"timeline" | "auditoria">("timeline");
+  const { data: eventos } = useSWR<EventoAms[]>(
+    `/app/api/ams/rpc/fn_ams_events?p_entity_type=${tipo}&p_entity_id=${rec.id}&p_limit=20`, fetcher);
+  const gxcTipo = tipo === "TRUCK" ? "camion" : "conductor";
+  const gxcId = tipo === "TRUCK" ? (rec as AmsTruck).license_plate : (rec as AmsDriver).full_name;
+  const { data: perfil } = useSWR<PerfilGxc>(
+    `/app/api/gemelo/rpc/fn_dx_gol_gxc_perfil?p_tipo=${gxcTipo}&p_id=${encodeURIComponent(gxcId)}&p_dias=28`,
+    fetcher);
+
+  const COLOR_OP: Record<string, string> = {
+    CREATE: "#1C64F2", UPDATE: "#6B7280", DOC_UPLOAD: "#0E9F6E",
+    DOC_DELETE: "#E11D48", ASSIGN: "#7E3AF2", UNASSIGN: "#F1B300",
+  };
+  const OP_TITULO: Record<string, string> = {
+    CREATE: "Alta en el maestro", UPDATE: "Edición de la ficha",
+    DOC_UPLOAD: "Documento registrado", DOC_DELETE: "Documento eliminado",
+    ASSIGN: "Dupla formada", UNASSIGN: "Dupla deshecha",
+  };
+
+  const hitos: Hito[] = [];
+  for (const e of eventos ?? []) {
+    hitos.push({
+      t: new Date(e.created_at).getTime(),
+      tipo: e.event_type,
+      titulo: OP_TITULO[e.event_type] ?? e.event_type,
+      detalle: [detalleEvento(e), e.payload?.actor].filter(Boolean).join(" · "),
+      color: COLOR_OP[e.event_type] ?? "#6B7280",
+    });
+  }
+  // viajes cerrados con sus síntomas agregados (últimos 28 días del perfil)
+  const sintomasPorViaje = new Map<string, number>();
+  for (const x of perfil?.timeline?.sintomas ?? []) {
+    sintomasPorViaje.set(x.s, (sintomasPorViaje.get(x.s) ?? 0) + x.n);
+  }
+  for (const v of perfil?.timeline?.viajes ?? []) {
+    const n = sintomasPorViaje.get(v.s) ?? 0;
+    hitos.push({
+      t: v.fin_log * 1000, tipo: "VIAJE",
+      titulo: `Viaje ${v.s} cerrado${v.cons ? " con consecuencia" : ""}`,
+      detalle: `${v.ruta}${n ? ` · ${n} ${n === 1 ? "síntoma" : "síntomas"}` : ""}`,
+      color: v.cons ? "#E11D48" : "#0E9F6E",
+    });
+  }
+  hitos.sort((a, b) => b.t - a.t);
+  const visibles = hitos.slice(0, 25);
+
+  const tabBtn = (activa: boolean) =>
+    `rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${activa
+      ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900"
+      : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"}`;
+
+  return (
+    <Panel className="xl:col-span-6" icono={HiOutlineClock} titulo="Historia del activo"
+      extra={<div className="flex items-center gap-1">
+        <button className={tabBtn(vista === "timeline")} onClick={() => setVista("timeline")}>Timeline</button>
+        <button className={tabBtn(vista === "auditoria")} onClick={() => setVista("auditoria")}>Auditoría</button>
+      </div>}>
+      {vista === "auditoria" ? (
+        <HistorialTabla tipo={tipo} recId={rec.id} />
+      ) : visibles.length ? (
+        <ol className="relative border-s border-gray-200 dark:border-gray-700 ms-1.5">
+          {visibles.map((h, i) => (
+            <li key={i} className="ms-4 pb-3 last:pb-0">
+              <span className="absolute -start-[5px] mt-1.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-800"
+                    style={{ background: h.color }} />
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{h.titulo}</span>
+                <span className="text-[11px] text-gray-400 whitespace-nowrap">
+                  {new Date(h.t).toLocaleString("es-CL", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+              {h.detalle && (
+                <div className="text-xs text-gray-500 dark:text-gray-400">{h.detalle}</div>
+              )}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <div className="text-sm text-gray-500">Sin historia registrada todavía.</div>
       )}
     </Panel>
   );

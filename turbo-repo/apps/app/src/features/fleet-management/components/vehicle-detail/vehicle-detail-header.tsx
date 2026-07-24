@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  HiOutlineTruck,
   HiOutlineChevronLeft,
   HiOutlineChevronRight,
 } from "react-icons/hi2";
@@ -9,6 +8,9 @@ import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import VehicleStatusBadge from "../vehicle-grid/vehicle-status-badge";
+import { useEstadoOperacional, EstadoOperacionalChip } from "@/features/ams/estado-operacional";
+import { AccionesRapidas } from "@/features/ams/acciones-rapidas";
+import { SiluetaCamion } from "@/features/ams/silueta-activo";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { HiClipboardList } from "react-icons/hi";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
@@ -33,6 +35,9 @@ export default function VehicleDetailHeader({
   hasNext = true,
   onBack,
 }: VehicleDetailHeaderProps) {
+  // Estado operacional VIVO (doc rector §1/§4): En viaje / Disponible /
+  // En taller / Bloqueado / Inactivo, derivado de maestro + live_trip.
+  const { estado } = useEstadoOperacional("TRUCK", vehicle.plate);
   return (
     <div className="bg-white dark:bg-gray-800 p-4 flex flex-col gap-3 border-b border-gray-200 dark:border-gray-700 w-full">
       <ClientBreadcrumb
@@ -46,10 +51,8 @@ export default function VehicleDetailHeader({
       <div className="flex items-center justify-between gap-4 ">
         {/* Left: Vehicle info */}
         <div className="flex items-center gap-4 flex-1 min-w-0">
-          {/* Truck icon */}
-          <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 shrink-0">
-            <HiOutlineTruck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-          </div>
+          {/* Silueta según tipo de equipo del maestro (F5) */}
+          <SiluetaCamion plate={vehicle.plate} />
 
           {/* Details row */}
           <div className="flex items-center gap-6 flex-1 min-w-0 overflow-x-auto">
@@ -73,12 +76,18 @@ export default function VehicleDetailHeader({
               </span>
             </div>
 
-            {/* Status */}
+            {/* Status maestro */}
             <div className="flex flex-col shrink-0">
               <span className="text-xs text-gray-500 dark:text-gray-400">
                 {tr("vehicleGrid.status", dict)}
               </span>
               <VehicleStatusBadge status={vehicle.status} dict={dict} />
+            </div>
+
+            {/* Estado operacional (ahora mismo) */}
+            <div className="flex flex-col shrink-0">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Ahora</span>
+              <EstadoOperacionalChip estado={estado} />
             </div>
 
             {/* Client */}
@@ -133,8 +142,10 @@ export default function VehicleDetailHeader({
           </div>
         </div>
 
-        {/* Right: Navigation buttons */}
-        <div className="flex items-center gap-1 shrink-0">
+        {/* Right: acciones rápidas + navegación */}
+        <div className="flex items-center gap-3 shrink-0">
+          <AccionesRapidas tipo="TRUCK" gxcId={vehicle.plate} lang="es" />
+          <div className="flex items-center gap-1">
           <button
             type="button"
             disabled={!hasPrevious}
@@ -153,6 +164,7 @@ export default function VehicleDetailHeader({
           >
             <HiOutlineChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
+          </div>
         </div>
       </div>
     </div>

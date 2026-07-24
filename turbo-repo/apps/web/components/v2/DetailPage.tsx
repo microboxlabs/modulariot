@@ -4,7 +4,7 @@ import { getContent } from "./content";
 import { Reveal } from "./Reveal";
 import { ConceptGraphic } from "./ConceptGraphic";
 import { StatsGrid } from "./StatsGrid";
-import { btnPrimary, btnSecondary, btnLg } from "./sections/shared";
+import { btnPrimary, btnLg } from "./sections/shared";
 
 // ============================================================
 // Renderizador de páginas de detalle basado en datos.
@@ -238,9 +238,6 @@ export default function DetailPage({ data, base }: { data: DetailPageData; base:
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <a href={`${base}/#contacto`} className={`w-full sm:w-auto ${btnPrimary} ${btnLg}`}>
                 {t.nav.cta}
-              </a>
-              <a href={`${base}/precios`} className={`w-full sm:w-auto ${btnSecondary} ${btnLg}`}>
-                {t.hero.ctaSecondary}
               </a>
             </div>
           </Reveal>

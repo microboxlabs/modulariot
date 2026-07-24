@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import HeroTerminal from "../HeroTerminal";
-import { Eyebrow, btnPrimary, btnSecondary, btnLg } from "./shared";
+import { Eyebrow, btnPrimary, btnLg } from "./shared";
 
 // Subrayado de firma: la cinta del pico del Lynx (chevrón 1:2, grosor a/16)
 // tendida bajo el verbo del titular. Ámbar de marca, se adapta al tema.
@@ -15,7 +15,7 @@ function AmberChevron({ children }: { children: React.ReactNode }) {
   );
 }
 
-export async function Hero({ base, lang }: { base: string; lang: string }) {
+export async function Hero({ lang }: { lang: string }) {
   const t = await getTranslations({ locale: lang, namespace: "hero" });
   return (
     <section className="relative overflow-hidden bg-page">
@@ -33,9 +33,6 @@ export async function Hero({ base, lang }: { base: string; lang: string }) {
             <div className="mt-8 flex flex-wrap gap-2.5">
               <a href="#contacto" className={`${btnPrimary} ${btnLg}`}>
                 {t("ctaPrimary")}
-              </a>
-              <a href={`${base}/precios`} className={`${btnSecondary} ${btnLg}`}>
-                {t("ctaSecondary")}
               </a>
             </div>
           </div>

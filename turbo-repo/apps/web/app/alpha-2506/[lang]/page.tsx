@@ -4,13 +4,11 @@ import { Stats } from "../../../components/v2/sections/Stats";
 import { Problem } from "../../../components/v2/sections/Problem";
 import { TresActos } from "../../../components/v2/sections/TresActos";
 import { Features } from "../../../components/v2/sections/Features";
-import { Architecture } from "../../../components/v2/sections/Architecture";
 import { UseCases } from "../../../components/v2/sections/UseCases";
 import { Confiabilidad } from "../../../components/v2/sections/Confiabilidad";
 import { PainOutcome } from "../../../components/v2/sections/PainOutcome";
 import { Deployment } from "../../../components/v2/sections/Deployment";
 import { Stories } from "../../../components/v2/sections/Stories";
-import { PricingTeaser } from "../../../components/v2/sections/PricingTeaser";
 import { FinalCta } from "../../../components/v2/sections/FinalCta";
 import { Footer } from "../../../components/v2/sections/Footer";
 import StepsInteractive from "../../../components/v2/StepsInteractive";
@@ -31,7 +29,7 @@ export default async function Home({
     <>
       <Nav />
       <main>
-        <Hero base={base} lang={lang} />   {/* Gancho */}
+        <Hero lang={lang} />   {/* Gancho */}
         <Stats lang={lang} />              {/* Validación / cuantificación (banda oscura) */}
         <Problem lang={lang} />            {/* Problema emocional (We Got You) */}
         <TresActos base={base} lang={lang} /> {/* La tesis en 3 actos → explorador nativo */}
@@ -42,7 +40,6 @@ export default async function Home({
         <PainOutcome lang={lang} />        {/* Diferenciación: rentar vs poseer */}
         <Deployment lang={lang} />         {/* Opciones de implementación */}
         <Stories lang={lang} />            {/* Prueba social: casos reales */}
-        <PricingTeaser base={base} lang={lang} /> {/* Precios */}
         <FAQ />                            {/* Objeciones */}
         <FinalCta lang={lang} />           {/* Cierre */}
       </main>

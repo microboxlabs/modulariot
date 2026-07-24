@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { LynxMark, LynxWordmark } from "../components/v2/brand/Logo";
+import SplashFlow from "../components/v2/SplashFlow";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -23,48 +23,10 @@ export default function ComingSoon() {
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className="min-h-screen bg-page font-sans text-ink-1 antialiased">
+      <body className="min-h-screen overflow-x-hidden bg-page font-sans text-ink-1 antialiased">
         <div className="flex min-h-screen flex-col items-center justify-center px-4 py-16 text-center sm:px-6">
-          <div className="w-full max-w-xl">
-            {/* Marca */}
-            <div className="flex flex-col items-center gap-5 text-brand-ink">
-              <LynxMark className="h-16 w-16" />
-              <LynxWordmark className="h-6 w-auto" />
-            </div>
-
-            <span className="mt-10 inline-block rounded-full border border-hairline bg-surface px-4 py-1.5 font-mono text-xs font-medium text-ink-2">
-              Código Abierto · Apache-2.0
-            </span>
-
-            <h1 className="display mt-6 text-4xl sm:text-5xl">
-              De detectar desviaciones a{" "}
-              <span className="amber-chevron">
-                reducirlas
-                <svg viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true">
-                  <path d="M0 2 L50 8 L100 2 L100 6 L50 12 L0 6 Z" fill="currentColor" />
-                </svg>
-              </span>
-            </h1>
-
-            <p className="mx-auto mt-6 max-w-lg text-lg leading-relaxed text-ink-2">
-              No vendemos más alertas: convertimos cada señal de tu flota en menos problemas repetidos.
-              Los datos y las decisiones son tuyos.
-            </p>
-
-            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <a
-                href="/alpha-2506/es"
-                className="w-full rounded-lg border border-ink-1 bg-ink-1 px-6 py-3 text-sm font-medium text-page transition-colors hover:bg-ink-2 hover:border-ink-2 sm:w-auto"
-              >
-                Explorar la plataforma
-              </a>
-              <a
-                href="/alpha-2506/es/contacto?intent=demo"
-                className="w-full rounded-lg border border-hairline-strong bg-surface px-6 py-3 text-sm font-medium text-ink-1 transition-colors hover:bg-surface-3 sm:w-auto"
-              >
-                Agenda un demo
-              </a>
-            </div>
+          <div className="w-full max-w-2xl">
+            <SplashFlow />
 
             {/* Social */}
             <div className="mt-14 flex items-center justify-center gap-6">

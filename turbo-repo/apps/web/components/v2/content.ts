@@ -94,7 +94,6 @@ export const content = {
       },
     ],
     direct: [
-      { label: "Precios", href: "/precios" },
       { label: "Contacto", href: "/contacto" },
     ] as { label: string; href: string; external?: boolean }[],
     github: { label: "GitHub", href: "https://github.com/microboxlabs" },
@@ -435,7 +434,6 @@ export const content = {
           { label: "SuperProfile", href: "/superprofile" },
           { label: "Canales de escalamiento", href: "/canales" },
           { label: "Proveedores GPS", href: "/proveedores-gps" },
-          { label: "Precios", href: "/precios" },
         ],
       },
       {

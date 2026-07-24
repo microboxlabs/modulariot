@@ -298,15 +298,15 @@ export default function PricingCalculator({ base = "" }: { base?: string }) {
             <input
               id="flota"
               type="range"
-              min={100}
+              min={1}
               max={5000}
-              step={50}
+              step={1}
               value={flota}
               onChange={(e) => setFlota(Number(e.target.value))}
               className="mt-3 w-full accent-blue-600"
             />
             <div className="mt-1 flex items-baseline justify-between text-xs text-page/60 dark:text-ink-3">
-              <span>100</span>
+              <span>1</span>
               <span className="text-lg font-semibold text-page dark:text-ink-1">{fmtN(flota)} activos</span>
               <span>5.000</span>
             </div>

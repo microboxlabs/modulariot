@@ -1,26 +1,17 @@
-import type { Metadata } from "next";
-import Nav from "../../../../components/v2/Nav";
-import PricingTiers from "../../../../components/v2/PricingTiers";
-import PricingFaq from "../../../../components/v2/PricingFaq";
-import { Footer } from "../../../../components/v2/sections/Footer";
-import { FinalCta } from "../../../../components/v2/sections/FinalCta";
-import { getContent } from "../../../../components/v2/content";
+import Nav from "./Nav";
+import PricingTiers from "./PricingTiers";
+import PricingFaq from "./PricingFaq";
+import { Footer } from "./sections/Footer";
+import { FinalCta } from "./sections/FinalCta";
+import { getContent } from "./content";
 
-export const metadata: Metadata = {
-  title: "Precios — ModularIoT",
-  description:
-    "Paga por activo, solo por lo que usas. Precios transparentes por caja de procesamiento, basados en costos reales de infraestructura.",
-};
-
-// Página de precios dedicada, guiada por clickhouse.com/pricing:
-// header → filosofía → calculadora → FAQ de precios → CTA.
-export default async function PreciosPage({
-  params,
-}: {
-  params: Promise<{ lang: "en" | "es" | "pt" }>;
-}) {
-  const { lang } = await params;
-  const base = `/alpha-2506/${lang}`;
+// Página de precios completa — deliberadamente NO montada bajo app/ como ruta
+// (ver app/alpha-2506/[lang]/precios/). Contiene datos que todavía no deben
+// ser públicos; el componente vive aquí para no perder el trabajo, pero sin
+// un page.tsx que la registre como ruta no hay URL ni bundle de cliente para
+// ella. Para reactivarla: recrear app/alpha-2506/[lang]/precios/page.tsx
+// importando y renderizando <PricingPage lang={lang} base={base} />.
+export default function PricingPage({ lang, base }: { lang: "en" | "es" | "pt"; base: string }) {
   const c = getContent(lang).pricingPage;
 
   return (

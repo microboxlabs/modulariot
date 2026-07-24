@@ -83,7 +83,6 @@ export const en = {
       },
     ],
     direct: [
-      { label: "Pricing", href: "/precios" },
       { label: "Contact", href: "/contacto" },
     ],
     github: { label: "GitHub", href: "https://github.com/microboxlabs" },
@@ -417,7 +416,6 @@ export const en = {
           { label: "SuperProfile", href: "/superprofile" },
           { label: "Escalation channels", href: "/canales" },
           { label: "GPS providers", href: "/proveedores-gps" },
-          { label: "Pricing", href: "/precios" },
         ],
       },
       {

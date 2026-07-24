@@ -210,7 +210,7 @@ export default function PricingTiers({ lang = "es", base, kicker, title }: { lan
                       <input id="pt-activos" type="number" min={1} value={activos}
                         onChange={(e) => setActivos(clampAssets(+e.target.value))}
                         className="w-28 shrink-0 rounded-lg border border-hairline-strong bg-surface px-3 py-2 text-sm font-semibold text-ink-1 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
-                      <input type="range" min={100} max={5000} step={50} value={Math.min(Math.max(activos, 100), 5000)}
+                      <input type="range" min={1} max={5000} step={1} value={Math.min(Math.max(activos, 1), 5000)}
                         onChange={(e) => setActivos(+e.target.value)} className="w-full flex-1 accent-blue-600" />
                     </div>
                   </th>

@@ -1,5 +1,113 @@
 {
   "pages": {
+    "reviewProcess": {
+      "menu": {
+        "settings": "Ajustes",
+        "on": "activo",
+        "enabledBadge": "Revisión activa en esta columna"
+      },
+      "drawer": {
+        "title": "Ajustes de la columna",
+        "subtitle": "Proceso de revisión · {lane}",
+        "tabConfig": "Revisión",
+        "tabMapping": "Mapeo",
+        "save": "Guardar y registrar",
+        "close": "Cerrar",
+        "unsaved": "Cambios sin guardar",
+        "saving": "Guardando…",
+        "readOnly": "Definido por la organización padre"
+      },
+      "config": {
+        "enableLabel": "Activar proceso de revisión en esta columna",
+        "enableHelp": "Cuando un servicio de esta columna sea revisado, su veredicto se enviará al canal seleccionado.",
+        "disabledNotice": "El proceso de revisión está desactivado para esta columna.",
+        "inherited": "Heredado de la organización {org}. Solo lectura aquí."
+      },
+      "channel": {
+        "title": "Canal de integración",
+        "help": "Elige a dónde enviar el veredicto de la revisión.",
+        "selected": "Seleccionado",
+        "empty": "No hay conexiones activas. Créalas y pruébalas en Ajustes › Integraciones."
+      },
+      "trigger": {
+        "title": "Cuándo enviar",
+        "onReject": "Solo rechazos",
+        "onReview": "Aprobados y rechazados",
+        "help": "El origen sólo necesita conocer los rechazos; también puedes enviar ambos."
+      },
+      "mapping": {
+        "title": "Mapeo de datos",
+        "help": "Usa plantillas Handlebars para construir cada campo del canal a partir de los objetos disponibles.",
+        "noChannel": "Selecciona un canal en la pestaña Revisión para configurar el mapeo.",
+        "required": "Requerido",
+        "optional": "Opcional",
+        "templatePlaceholder": "Ej: {{content.integrationMediaId}}",
+        "insertVariable": "Variable",
+        "previewEmpty": "(vacío)",
+        "previewUnset": "Sin mapear",
+        "previewRequired": "Requerido — sin mapear",
+        "types": {
+          "string": "texto",
+          "boolean": "booleano",
+          "datetime": "fecha/hora"
+        }
+      },
+      "job": {
+        "title": "Registro del trabajo",
+        "willRegister": "Al guardar se registrará un trabajo de integración en async_jobs.",
+        "paused": "Trabajo en pausa (revisión desactivada)",
+        "armed": "Activo",
+        "lastUpdated": "Última modificación"
+      },
+      "validation": {
+        "channelRequired": "Selecciona un canal.",
+        "unmapped": "Faltan campos requeridos por mapear: {fields}"
+      },
+      "toast": {
+        "saved": "Proceso de revisión guardado",
+        "disabled": "Proceso de revisión desactivado",
+        "saveFailed": "No se pudo guardar el proceso de revisión"
+      },
+      "variables": {
+        "groups": {
+          "task": "Tarea",
+          "content": "Contenido",
+          "review": "Revisión",
+          "session": "Usuario"
+        },
+        "task": {
+          "serviceCode": "Código de servicio",
+          "priority": "Prioridad",
+          "client": "Cliente",
+          "clientRut": "RUT cliente",
+          "origin": "Origen",
+          "destination": "Destino",
+          "driver": "Conductor",
+          "truckPlate": "Patente camión",
+          "departureDate": "Fecha de salida"
+        },
+        "content": {
+          "mediaId": "ID multimedia",
+          "source": "Origen de integración",
+          "reasonCode": "Código de motivo",
+          "integratedAt": "Fecha de integración",
+          "fileName": "Nombre de archivo",
+          "mimeType": "Tipo de archivo"
+        },
+        "review": {
+          "verdict": "Veredicto (booleano)",
+          "decision": "Decisión",
+          "comment": "Comentario de la revisión",
+          "reviewer": "Usuario revisor",
+          "reviewedAt": "Fecha de revisión"
+        },
+        "session": {
+          "user": "Usuario de sesión",
+          "email": "Correo del usuario",
+          "fullName": "Nombre completo"
+        }
+      }
+    },
     "login": {
       "welcome": "Bienvenido de nuevo",
       "subtitle": "Inicia sesión en tu cuenta de ModularIOT",
@@ -1573,7 +1681,7 @@
         "types": {
           "azureEntra": {
             "name": "Microsoft Entra ID",
-            "description": "Credenciales de aplicación de Microsoft Entra ID (Azure Active Directory) \u2014 client_id + client_secret + scope."
+            "description": "Credenciales de aplicación de Microsoft Entra ID (Azure Active Directory) — client_id + client_secret + scope."
           },
           "oauth2": {
             "name": "OAuth 2.0 genérico",

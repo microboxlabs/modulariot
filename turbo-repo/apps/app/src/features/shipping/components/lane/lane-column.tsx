@@ -1,9 +1,11 @@
 "use client";
 
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 import { ReactSortable } from "react-sortablejs";
+import { toast } from "sonner";
 import {
   Dropdown,
+  DropdownDivider,
   DropdownHeader,
   DropdownItem,
   Tooltip,
@@ -15,6 +17,8 @@ import {
   HiSortAscending,
   HiFilter,
   HiChevronDoubleLeft,
+  HiClipboardCheck,
+  HiCog,
 } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -26,6 +30,8 @@ import {
 } from "../../hooks/use-lane-view-state";
 import KanbanCard from "../kanban-card/kanban-card";
 import { TaskCounter } from "../TaskCounter";
+import { ReviewSettingsDrawer, type BindingDraft } from "./review-settings-drawer";
+import type { DispatchTarget, EventBinding } from "./review-binding.types";
 
 interface LaneColumnProps {
   board: KanbanBoard;
@@ -33,6 +39,13 @@ interface LaneColumnProps {
   showFinishedTasks: boolean;
   isLoading: boolean;
   dict: I18nRecord;
+  /** `pages.reviewProcess` subtree — the review-integration config UI. */
+  reviewDict: I18nRecord;
+  /** The stored binding for this column, own or inherited. */
+  reviewBinding: EventBinding | undefined;
+  reviewTargets: readonly DispatchTarget[];
+  reviewSaving: boolean;
+  onReviewSave: (draft: BindingDraft) => void;
   laneState: LaneViewState;
   onLaneUpdate: (patch: Partial<LaneViewState>) => void;
   setList: Dispatch<SetStateAction<KanbanBoard[]>>;
@@ -83,6 +96,19 @@ function filterTasks(
   }
 }
 
+/*
+ * The menu icon, in its two states. Defined at module scope rather than inline:
+ * a component created during render is a new type on every pass, which remounts
+ * its subtree instead of updating it.
+ */
+const ReviewSettingsIconOn = () => (
+  <HiCog className="h-4 w-4 shrink-0 text-primary-600 dark:text-primary-300" />
+);
+
+const ReviewSettingsIconOff = () => (
+  <HiCog className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
+);
+
 /**
  * A single kanban lane rendered as a visually-separated panel. Columns map 1:1
  * to workflow stages, so the lane is presentation-only: drag is disabled and the
@@ -95,6 +121,11 @@ export function LaneColumn({
   showFinishedTasks,
   isLoading,
   dict,
+  reviewDict,
+  reviewBinding,
+  reviewTargets,
+  reviewSaving,
+  onReviewSave,
   laneState,
   onLaneUpdate,
   setList,
@@ -102,6 +133,27 @@ export function LaneColumn({
   onCardMouseLeave,
   onCardClick,
 }: Readonly<LaneColumnProps>) {
+  const [reviewDrawerOpen, setReviewDrawerOpen] = useState(false);
+  const reviewEnabled = reviewBinding?.enabled ?? false;
+
+  const handleReviewSave = (draft: BindingDraft) => {
+    // The API owns the outcome, so errors surface from it rather than being guessed.
+    Promise.resolve(onReviewSave(draft))
+      .then(() => {
+        toast.success(
+          draft.enabled
+            ? tr("toast.saved", reviewDict)
+            : tr("toast.disabled", reviewDict)
+        );
+        setReviewDrawerOpen(false);
+      })
+      .catch((cause: unknown) => {
+        toast.error(
+          cause instanceof Error ? cause.message : tr("toast.saveFailed", reviewDict)
+        );
+      });
+  };
+
   const compact =
     laneState.density === "inherit"
       ? compactKanbanView
@@ -164,6 +216,13 @@ export function LaneColumn({
           {title}
         </span>
         <div className="flex shrink-0 items-center gap-1.5">
+          {reviewEnabled && (
+            <Tooltip content={tr("menu.enabledBadge", reviewDict)}>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-100 text-primary-600 dark:bg-primary-900/50 dark:text-primary-300">
+                <HiClipboardCheck className="h-3.5 w-3.5" />
+              </span>
+            </Tooltip>
+          )}
           <TaskCounter count={visibleTasks.length} dict={dict} />
           <Dropdown
             inline
@@ -263,6 +322,21 @@ export function LaneColumn({
             >
               {tr("kanban.lane.collapse", dict)}
             </DropdownItem>
+
+            <DropdownDivider />
+            <DropdownItem
+              icon={reviewEnabled ? ReviewSettingsIconOn : ReviewSettingsIconOff}
+              onClick={() => setReviewDrawerOpen(true)}
+            >
+              <span className="flex items-center gap-2">
+                {tr("menu.settings", reviewDict)}
+                {reviewEnabled && (
+                  <span className="rounded-full bg-primary-100 px-1.5 text-[10px] font-medium text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">
+                    {tr("menu.on", reviewDict)}
+                  </span>
+                )}
+              </span>
+            </DropdownItem>
           </Dropdown>
         </div>
       </div>
@@ -303,6 +377,17 @@ export function LaneColumn({
           </div>
         ))}
       </ReactSortable>
+
+      <ReviewSettingsDrawer
+        show={reviewDrawerOpen}
+        onClose={() => setReviewDrawerOpen(false)}
+        laneTitle={title}
+        binding={reviewBinding}
+        targets={reviewTargets}
+        saving={reviewSaving}
+        onSave={handleReviewSave}
+        dict={reviewDict}
+      />
     </div>
   );
 }

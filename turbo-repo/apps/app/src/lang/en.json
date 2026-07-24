@@ -1,5 +1,113 @@
 {
   "pages": {
+    "reviewProcess": {
+      "menu": {
+        "settings": "Settings",
+        "on": "on",
+        "enabledBadge": "Review active on this column"
+      },
+      "drawer": {
+        "title": "Column settings",
+        "subtitle": "Review process · {lane}",
+        "tabConfig": "Review",
+        "tabMapping": "Mapping",
+        "save": "Save and register",
+        "close": "Close",
+        "unsaved": "Unsaved changes",
+        "saving": "Saving…",
+        "readOnly": "Defined by the parent organization"
+      },
+      "config": {
+        "enableLabel": "Enable the review process for this column",
+        "enableHelp": "When a service in this column is reviewed, its verdict is sent to the selected channel.",
+        "disabledNotice": "The review process is disabled for this column.",
+        "inherited": "Inherited from organization {org}. Read-only here."
+      },
+      "channel": {
+        "title": "Integration channel",
+        "help": "Choose where to send the review verdict.",
+        "selected": "Selected",
+        "empty": "No active connections. Create and test them in Settings › Integrations."
+      },
+      "trigger": {
+        "title": "When to send",
+        "onReject": "Rejections only",
+        "onReview": "Approvals and rejections",
+        "help": "The origin only needs to know about rejections; you can also send both."
+      },
+      "mapping": {
+        "title": "Data mapping",
+        "help": "Use Handlebars templates to build each channel field from the available objects.",
+        "noChannel": "Select a channel in the Review tab to configure the mapping.",
+        "required": "Required",
+        "optional": "Optional",
+        "templatePlaceholder": "e.g. {{content.integrationMediaId}}",
+        "insertVariable": "Variable",
+        "previewEmpty": "(empty)",
+        "previewUnset": "Unmapped",
+        "previewRequired": "Required — unmapped",
+        "types": {
+          "string": "text",
+          "boolean": "boolean",
+          "datetime": "date/time"
+        }
+      },
+      "job": {
+        "title": "Job registration",
+        "willRegister": "Saving registers an integration job in async_jobs.",
+        "paused": "Job paused (review disabled)",
+        "armed": "Armed",
+        "lastUpdated": "Last updated"
+      },
+      "validation": {
+        "channelRequired": "Select a channel.",
+        "unmapped": "Required fields still unmapped: {fields}"
+      },
+      "toast": {
+        "saved": "Review process saved",
+        "disabled": "Review process disabled",
+        "saveFailed": "Could not save the review process"
+      },
+      "variables": {
+        "groups": {
+          "task": "Task",
+          "content": "Content",
+          "review": "Review",
+          "session": "User"
+        },
+        "task": {
+          "serviceCode": "Service code",
+          "priority": "Priority",
+          "client": "Client",
+          "clientRut": "Client tax ID",
+          "origin": "Origin",
+          "destination": "Destination",
+          "driver": "Driver",
+          "truckPlate": "Truck plate",
+          "departureDate": "Departure date"
+        },
+        "content": {
+          "mediaId": "Media ID",
+          "source": "Integration source",
+          "reasonCode": "Reason code",
+          "integratedAt": "Integrated at",
+          "fileName": "File name",
+          "mimeType": "MIME type"
+        },
+        "review": {
+          "verdict": "Verdict (boolean)",
+          "decision": "Decision",
+          "comment": "Review comment",
+          "reviewer": "Reviewer user",
+          "reviewedAt": "Review date"
+        },
+        "session": {
+          "user": "Session user",
+          "email": "User email",
+          "fullName": "Full name"
+        }
+      }
+    },
     "login": {
       "welcome": "Welcome back",
       "subtitle": "Sign in to your ModularIOT account",
@@ -1573,7 +1681,7 @@
         "types": {
           "azureEntra": {
             "name": "Microsoft Entra ID",
-            "description": "Microsoft Entra ID (Azure Active Directory) client credentials \u2014 client_id + client_secret + scope."
+            "description": "Microsoft Entra ID (Azure Active Directory) client credentials — client_id + client_secret + scope."
           },
           "oauth2": {
             "name": "Generic OAuth 2.0",

@@ -14,7 +14,10 @@ import type {
  */
 
 function base(orgSlug: string): string {
-  return `/api/admin/orgs/${encodeURIComponent(orgSlug)}/integrations`;
+  // Served under basePath "/app"; fetch() is not auto-prefixed the way <Link>/router
+  // are, so include it explicitly — as every sibling data service does. Without it the
+  // browser hits the origin root and the load balancer 308-redirects the call.
+  return `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/integrations`;
 }
 
 /** Surfaces the API's own message, and keeps the status for the 403 case. */

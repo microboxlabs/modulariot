@@ -26,9 +26,11 @@ import {
   type AmsTruck, type AmsDriver,
 } from "./ficha-ams";
 import { SeccionForo } from "./seccion-foro";
+import { PanelAgenda } from "./panel-agenda";
 import { MIX_META, type PerfilGxc } from "@/features/gxc/model";
 import {
   HiOutlineChatBubbleLeftRight, HiOutlineArrowTrendingUp, HiOutlineArrowTrendingDown,
+  HiOutlineCalendarDays,
 } from "react-icons/hi2";
 
 const fetcher = (url: string) => fetch(url).then((r) => {
@@ -164,6 +166,13 @@ export function ExpedienteAms({ tipo, matchId, matchName, panelesMedio }: {
         <SeccionDupla tipo={tipo} rec={rec} plano onChange={() => void mutate()} />
       </Panel>
 
+      {/* P2 — Agenda C0 (capacity-core: derivada, no declarada) empareja
+          con el primer panel del anfitrión (Ubicación) */}
+      <Panel className="xl:col-span-6" icono={HiOutlineCalendarDays} titulo="Agenda"
+        extra={<span className="text-[11px] text-gray-500">servicios · bloqueos · reservas</span>}>
+        <PanelAgenda tipo={tipo} recId={rec.id} />
+      </Panel>
+
       {/* P2 — paneles del gestor anfitrión (salud, telemetría, eventos, uso) */}
       {panelesMedio}
 
@@ -296,6 +305,13 @@ function detalleEvento(e: EventoAms): string {
       const t = String((b as { doc_type?: string })?.doc_type ?? "");
       return DOC_LABEL[t] ?? t;
     }
+    case "BLOQUEO": {
+      const w = a as { ini?: string; fin?: string; motivo?: string };
+      return [w?.motivo, w?.ini && w?.fin
+        ? `${String(w.ini).slice(0, 16).replace("T", " ")} → ${String(w.fin).slice(0, 16).replace("T", " ")}` : ""]
+        .filter(Boolean).join(" · ");
+    }
+    case "DESBLOQUEO": return "La indisponibilidad se liberó";
     case "ASSIGN": return "Se formó la dupla conductor–camión";
     case "UNASSIGN": return "Se deshizo la dupla conductor–camión";
     case "UPDATE": {
@@ -318,6 +334,8 @@ function HistorialTabla({ tipo, recId }: { tipo: "TRUCK" | "DRIVER"; recId: stri
     DOC_DELETE: { l: "Documento eliminado", cls: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300" },
     ASSIGN: { l: "Asignación", cls: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300" },
     UNASSIGN: { l: "Desasignación", cls: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300" },
+    BLOQUEO: { l: "Bloqueo de agenda", cls: "bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200" },
+    DESBLOQUEO: { l: "Bloqueo liberado", cls: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" },
   };
   return (
     <>
@@ -379,11 +397,13 @@ function PanelHistoria({ tipo, rec }: { tipo: "TRUCK" | "DRIVER"; rec: AmsTruck 
   const COLOR_OP: Record<string, string> = {
     CREATE: "#1C64F2", UPDATE: "#6B7280", DOC_UPLOAD: "#0E9F6E",
     DOC_DELETE: "#E11D48", ASSIGN: "#7E3AF2", UNASSIGN: "#F1B300",
+    BLOQUEO: "#111928", DESBLOQUEO: "#0E9F6E",
   };
   const OP_TITULO: Record<string, string> = {
     CREATE: "Alta en el maestro", UPDATE: "Edición de la ficha",
     DOC_UPLOAD: "Documento registrado", DOC_DELETE: "Documento eliminado",
     ASSIGN: "Dupla formada", UNASSIGN: "Dupla deshecha",
+    BLOQUEO: "Agenda bloqueada", DESBLOQUEO: "Bloqueo liberado",
   };
 
   const hitos: Hito[] = [];

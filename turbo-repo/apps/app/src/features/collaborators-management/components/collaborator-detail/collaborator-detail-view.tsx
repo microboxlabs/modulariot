@@ -159,7 +159,7 @@ export default function CollaboratorDetailView({
               <div className="xl:col-span-6 min-w-0">
                 <PanelUbicacionConductor patente={collaborator.assignedVehiclePlate} />
               </div>
-              <div className="xl:col-span-6 grid grid-cols-2 gap-3 content-start">
+              <div className="xl:col-span-12 grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3">
                 {resolvedCards.map((card) => (
                   <button
                     key={card.titleKey}

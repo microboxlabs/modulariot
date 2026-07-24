@@ -20,6 +20,9 @@ const READ_FNS = new Set([
   "fn_ams_accreditation",
   "fn_ams_link_history",
   "fn_ams_events",
+  // Capacity C0 — agenda del recurso
+  "fn_cap_agenda",
+  "fn_cap_availability",
 ]);
 const WRITE_FNS = new Set([
   "fn_ams_save_truck",
@@ -28,6 +31,10 @@ const WRITE_FNS = new Set([
   "fn_ams_unlink",
   "fn_ams_save_doc",
   "fn_ams_delete_doc",
+  // Capacity C0 — bloqueo por excepción; refresh SOLO torre (ver POST)
+  "fn_cap_block",
+  "fn_cap_unblock",
+  "fn_cap_refresh_agenda",
 ]);
 const TENANT_PARAM_FNS = new Set([
   "fn_ams_trucks",
@@ -38,6 +45,10 @@ const TENANT_PARAM_FNS = new Set([
   "fn_ams_unlink",
   "fn_ams_save_doc",
   "fn_ams_delete_doc",
+  "fn_cap_agenda",
+  "fn_cap_availability",
+  "fn_cap_block",
+  "fn_cap_unblock",
 ]);
 
 async function carrierOrgId(): Promise<{ deny: NextResponse | null; orgId: string | null }> {
@@ -122,6 +133,10 @@ export async function POST(
     payload = (await req.json()) as Record<string, unknown>;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  if (fn === "fn_cap_refresh_agenda" && orgId) {
+    return NextResponse.json(
+      { error: "Refresh de agenda es operación de torre" }, { status: 403 });
   }
   if (TENANT_PARAM_FNS.has(fn)) {
     if (orgId) payload.p_org_id = orgId;

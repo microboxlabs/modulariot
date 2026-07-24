@@ -37,7 +37,7 @@
       },
       "mapping": {
         "title": "Data mapping",
-        "help": "Use Handlebars templates to build each channel field from the available objects.",
+        "help": "Map each channel field to a variable. Type {{ to autocomplete.",
         "noChannel": "Select a channel in the Review tab to configure the mapping.",
         "required": "Required",
         "optional": "Optional",
@@ -50,6 +50,17 @@
           "string": "text",
           "boolean": "boolean",
           "datetime": "date/time"
+        },
+        "errors": {
+          "unescaped": "Unescaped '{{{ }}}' is not supported — use '{{ }}'.",
+          "unclosed": "Unclosed '{{' — every variable must end with '}}'.",
+          "empty": "Empty '{{}}' is not a variable.",
+          "notPlain": "'{expression}' is not supported. This field takes plain variables such as task.serviceCode — not blocks, partials or comments.",
+          "helperCall": "'{expression}' looks like a helper call. Only plain variables such as content.verdict are supported.",
+          "badPath": "'{expression}' is not a valid variable path.",
+          "badChar": "'{expression}' contains an unsupported character: '{char}'.",
+          "unknownRoot": "'{path}' is unknown: '{root}' is not one of {roots}.",
+          "wholeObject": "'{path}' is a whole object — use one of its fields (e.g. .mediaId)."
         }
       },
       "job": {
@@ -84,7 +95,9 @@
           "destination": "Destination",
           "driver": "Driver",
           "truckPlate": "Truck plate",
-          "departureDate": "Departure date"
+          "departureDate": "Departure date",
+          "formKey": "Task form key",
+          "outcome": "Task outcome"
         },
         "content": {
           "mediaId": "Media ID",
@@ -92,7 +105,12 @@
           "reasonCode": "Reason code",
           "integratedAt": "Integrated at",
           "fileName": "File name",
-          "mimeType": "MIME type"
+          "mimeType": "MIME type",
+          "verdict": "Verdict (boolean)",
+          "reviewStatus": "Review status",
+          "comment": "Review comment",
+          "contentType": "Content type",
+          "reviewedBy": "Reviewed by"
         },
         "review": {
           "verdict": "Verdict (boolean)",
@@ -104,7 +122,8 @@
         "session": {
           "user": "Session user",
           "email": "User email",
-          "fullName": "Full name"
+          "fullName": "Full name",
+          "reviewer": "Reviewer"
         }
       }
     },

@@ -1,5 +1,5 @@
 import type { IconType } from "react-icons";
-import { HiChatAlt2, HiMail } from "react-icons/hi";
+import { HiClipboardList, HiPhotograph, HiUser } from "react-icons/hi";
 
 /**
  * Review-process integration — the mockup model.
@@ -50,59 +50,50 @@ export interface VariableGroup {
 }
 
 /**
- * The four objects a mapping can pull from. Samples are deliberately generic —
- * this is a public repo, so no real client, tenant or contact data appears.
+ * The objects a mapping can pull from — the context the producer actually sends.
+ *
+ * `content.*` is **one reviewed item**: an array contract renders the mapped fields
+ * once per element, binding `content` to each in turn, so `{{content.mediaId}}` means
+ * "this item's media id". That is why the verdict lives here rather than under a
+ * `review` object — a single task completion can carry several media with different
+ * outcomes.
+ *
+ * `review` remains a legal root server-side (so a hand-written `{{review.x}}` is not
+ * rejected), but nothing populates it today, which is why it is not offered here.
+ *
+ * Samples are deliberately generic — this is a public repo, so no real client, tenant
+ * or contact data appears.
  */
 export const VARIABLE_GROUPS: readonly VariableGroup[] = [
   {
     id: "task",
     labelKey: "variables.groups.task",
-    icon: HiChatAlt2,
+    icon: HiClipboardList,
     variables: [
-      { path: "task.mintral_serviceCode", labelKey: "variables.task.serviceCode", sample: "SRV-1649906" },
-      { path: "task.mintral_priorityCode", labelKey: "variables.task.priority", sample: "UR" },
-      { path: "task.client", labelKey: "variables.task.client", sample: "Cliente Demo" },
-      { path: "task.mintral_clientRut", labelKey: "variables.task.clientRut", sample: "11.111.111-1" },
-      { path: "task.origin", labelKey: "variables.task.origin", sample: "SCL" },
-      { path: "task.destination", labelKey: "variables.task.destination", sample: "ANF" },
-      { path: "task.mintral_driver1Name", labelKey: "variables.task.driver", sample: "Conductor Demo" },
-      { path: "task.mintral_truckLicensePlate", labelKey: "variables.task.truckPlate", sample: "AA-BB-11" },
-      { path: "task.expectedDepartureDate", labelKey: "variables.task.departureDate", sample: "2026-07-16" },
+      { path: "task.serviceCode", labelKey: "variables.task.serviceCode", sample: "1649906" },
+      { path: "task.formKey", labelKey: "variables.task.formKey", sample: "wfship2:missionControlTask" },
+      { path: "task.outcome", labelKey: "variables.task.outcome", sample: "monitorTripInCourse" },
     ],
   },
   {
     id: "content",
     labelKey: "variables.groups.content",
-    icon: HiMail,
+    icon: HiPhotograph,
     variables: [
-      { path: "content.integrationMediaId", labelKey: "variables.content.mediaId", sample: "19f8f3a89a1-a8ad5969-48944a06" },
-      { path: "content.integrationSource", labelKey: "variables.content.source", sample: "app_operaciones" },
-      { path: "content.integrationReasonCode", labelKey: "variables.content.reasonCode", sample: "Service_Ready_To_Depart_Onsite" },
-      { path: "content.integratedAt", labelKey: "variables.content.integratedAt", sample: "2026-07-16T12:00:00Z" },
-      { path: "content.fileName", labelKey: "variables.content.fileName", sample: "onsite_frontal.jpeg" },
-      { path: "content.mimeType", labelKey: "variables.content.mimeType", sample: "image/jpeg" },
-    ],
-  },
-  {
-    id: "review",
-    labelKey: "variables.groups.review",
-    icon: HiChatAlt2,
-    variables: [
-      { path: "review.verdict", labelKey: "variables.review.verdict", sample: "false" },
-      { path: "review.decision", labelKey: "variables.review.decision", sample: "rechazado" },
-      { path: "review.comment", labelKey: "variables.review.comment", sample: "Falta señalética en la carga" },
-      { path: "review.reviewer", labelKey: "variables.review.reviewer", sample: "revisor.demo" },
-      { path: "review.reviewedAt", labelKey: "variables.review.reviewedAt", sample: "2026-07-16T14:30:00Z" },
+      { path: "content.mediaId", labelKey: "variables.content.mediaId", sample: "19f8f3a89a1-a8ad5969" },
+      { path: "content.verdict", labelKey: "variables.content.verdict", sample: "false" },
+      { path: "content.reviewStatus", labelKey: "variables.content.reviewStatus", sample: "REJECTED" },
+      { path: "content.comment", labelKey: "variables.content.comment", sample: "Falta señalética en la carga" },
+      { path: "content.contentType", labelKey: "variables.content.contentType", sample: "PICKUP_FRONT_IMAGE" },
+      { path: "content.reviewedBy", labelKey: "variables.content.reviewedBy", sample: "revisor.demo" },
     ],
   },
   {
     id: "session",
     labelKey: "variables.groups.session",
-    icon: HiMail,
+    icon: HiUser,
     variables: [
-      { path: "session.user", labelKey: "variables.session.user", sample: "usuario.demo" },
-      { path: "session.email", labelKey: "variables.session.email", sample: "usuario.demo@example.com" },
-      { path: "session.fullName", labelKey: "variables.session.fullName", sample: "Usuario Demo" },
+      { path: "session.reviewer", labelKey: "variables.session.reviewer", sample: "revisor.demo" },
     ],
   },
 ];

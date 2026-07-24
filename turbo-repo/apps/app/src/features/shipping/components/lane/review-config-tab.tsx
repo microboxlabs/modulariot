@@ -2,52 +2,51 @@
 
 import type { ReactNode } from "react";
 import { Alert, Badge, Select, ToggleSwitch } from "flowbite-react";
-import {
-  HiInformationCircle,
-  HiLightningBolt,
-} from "react-icons/hi";
+import { HiInformationCircle, HiLightningBolt } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { tr } from "@/features/i18n/tr.service";
 import {
-  REVIEW_CHANNELS,
-  type ReviewChannelDescriptor,
-  type ReviewChannelId,
-  type ReviewIntegrationConfig,
+  targetKey,
+  type DispatchTarget,
+  type EventBinding,
   type ReviewTrigger,
-} from "./review-integration.types";
-import type { ReviewCredentialOption } from "./review-credentials.mock";
+} from "./review-binding.types";
 
 interface ReviewConfigTabProps {
   readonly enabled: boolean;
   readonly onEnabledChange: (value: boolean) => void;
-  readonly channelId: ReviewChannelId | null;
-  readonly onSelectChannel: (channel: ReviewChannelDescriptor) => void;
-  readonly credentialId: string | null;
-  readonly onCredentialChange: (id: string) => void;
+  /** Channels the org can bind, from `/dispatch-targets`. */
+  readonly targets: readonly DispatchTarget[];
+  readonly selected: DispatchTarget | undefined;
+  readonly onSelectTarget: (target: DispatchTarget) => void;
   readonly trigger: ReviewTrigger;
   readonly onTriggerChange: (trigger: ReviewTrigger) => void;
-  readonly credentials: readonly ReviewCredentialOption[];
-  /** Stored config, for the async-job registration panel. */
-  readonly stored: ReviewIntegrationConfig;
+  /** The stored binding, when this column already has one. */
+  readonly stored: EventBinding | undefined;
   readonly dict: I18nRecord;
 }
 
 export function ReviewConfigTab({
   enabled,
   onEnabledChange,
-  channelId,
-  onSelectChannel,
-  credentialId,
-  onCredentialChange,
+  targets,
+  selected,
+  onSelectTarget,
   trigger,
   onTriggerChange,
-  credentials,
   stored,
   dict,
 }: Readonly<ReviewConfigTabProps>) {
   return (
     <div className="flex flex-col gap-6">
-      {/* Enable */}
+      {stored?.inherited && (
+        <Alert color="info" icon={HiInformationCircle}>
+          <span className="text-xs">
+            {tr("config.inherited", dict, { org: stored.ownerOrgSlug })}
+          </span>
+        </Alert>
+      )}
+
       <div className="flex items-start justify-between gap-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
         <div>
           <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -66,57 +65,41 @@ export function ReviewConfigTab({
         </Alert>
       ) : (
         <>
-          <Section
-            title={tr("channel.title", dict)}
-            help={tr("channel.help", dict)}
-          >
-            <div className="grid grid-cols-1 gap-3">
-              {REVIEW_CHANNELS.map((channel) => (
-                <ChannelCard
-                  key={channel.id}
-                  channel={channel}
-                  selected={channel.id === channelId}
-                  onSelect={() => onSelectChannel(channel)}
-                  dict={dict}
-                />
-              ))}
-            </div>
+          <Section title={tr("channel.title", dict)} help={tr("channel.help", dict)}>
+            {targets.length === 0 ? (
+              <Alert color="gray" icon={HiInformationCircle}>
+                <span className="text-xs">{tr("channel.empty", dict)}</span>
+              </Alert>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {targets.map((target) => (
+                  <TargetCard
+                    key={targetKey(target)}
+                    target={target}
+                    selected={
+                      selected !== undefined && targetKey(selected) === targetKey(target)
+                    }
+                    onSelect={() => onSelectTarget(target)}
+                    dict={dict}
+                  />
+                ))}
+              </div>
+            )}
           </Section>
 
-          {channelId && (
+          {selected && (
             <>
-              <Section
-                title={tr("credential.title", dict)}
-                help={tr("credential.help", dict)}
-              >
-                <CredentialPicker
-                  credentials={credentials}
-                  value={credentialId}
-                  onChange={onCredentialChange}
-                  dict={dict}
-                />
-              </Section>
-
-              <Section
-                title={tr("trigger.title", dict)}
-                help={tr("trigger.help", dict)}
-              >
+              <Section title={tr("trigger.title", dict)} help={tr("trigger.help", dict)}>
                 <Select
                   value={trigger}
-                  onChange={(e) =>
-                    onTriggerChange(e.target.value as ReviewTrigger)
-                  }
+                  onChange={(e) => onTriggerChange(e.target.value as ReviewTrigger)}
                 >
-                  <option value="on_reject">
-                    {tr("trigger.onReject", dict)}
-                  </option>
-                  <option value="on_review">
-                    {tr("trigger.onReview", dict)}
-                  </option>
+                  <option value="on_reject">{tr("trigger.onReject", dict)}</option>
+                  <option value="on_review">{tr("trigger.onReview", dict)}</option>
                 </Select>
               </Section>
 
-              <JobPanel enabled={enabled} stored={stored} dict={dict} />
+              <JobPanel stored={stored} dict={dict} />
             </>
           )}
         </>
@@ -138,146 +121,81 @@ export function Section({
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
           {title}
         </h3>
-        {help && (
-          <p className="text-xs text-gray-500 dark:text-gray-400">{help}</p>
-        )}
+        {help && <p className="text-xs text-gray-500 dark:text-gray-400">{help}</p>}
       </div>
       {children}
     </div>
   );
 }
 
-function ChannelCard({
-  channel,
+/**
+ * A channel is a connection *and* the operation to call on it.
+ *
+ * The credential is deliberately not chosen here, unlike in the mockup: a connection
+ * already carries one, so picking the channel picks how it authenticates. Offering a
+ * second choice would let the two disagree.
+ */
+function TargetCard({
+  target,
   selected,
   onSelect,
   dict,
 }: Readonly<{
-  channel: ReviewChannelDescriptor;
+  target: DispatchTarget;
   selected: boolean;
   onSelect: () => void;
   dict: I18nRecord;
 }>) {
-  const Icon = channel.icon;
-  const base =
-    "flex items-start gap-3 rounded-lg border p-3 text-left transition-all";
-  const state = !channel.available
-    ? "cursor-not-allowed border-gray-200 opacity-60 dark:border-gray-700"
-    : selected
-      ? "cursor-pointer border-primary-500 ring-2 ring-primary-200 dark:border-primary-400 dark:ring-primary-900"
-      : "cursor-pointer border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800";
+  const base = "flex flex-col gap-1 rounded-lg border p-3 text-left transition-all";
+  const state = selected
+    ? "cursor-pointer border-primary-500 ring-2 ring-primary-200 dark:border-primary-400 dark:ring-primary-900"
+    : "cursor-pointer border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800";
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      disabled={!channel.available}
       aria-pressed={selected}
       className={`${base} ${state}`}
     >
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-        <Icon className="h-4 w-4" />
+      <span className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          {target.connectionName}
+        </span>
+        <Badge color="gray">{target.providerType}</Badge>
+        {selected && <Badge color="indigo">{tr("channel.selected", dict)}</Badge>}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {trDynamic(channel.nameKey, dict)}
-          </span>
-          {!channel.available && (
-            <Badge color="gray">{tr("channel.comingSoon", dict)}</Badge>
-          )}
-          {selected && channel.available && (
-            <Badge color="indigo">{tr("channel.selected", dict)}</Badge>
-          )}
-        </span>
-        <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
-          {trDynamic(channel.descriptionKey, dict)}
-        </span>
+      <span className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+        <span>{target.operationName}</span>
+        <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-gray-700">
+          {target.method} {target.path}
+        </code>
       </span>
     </button>
   );
 }
 
-function CredentialPicker({
-  credentials,
-  value,
-  onChange,
-  dict,
-}: Readonly<{
-  credentials: readonly ReviewCredentialOption[];
-  value: string | null;
-  onChange: (id: string) => void;
-  dict: I18nRecord;
-}>) {
-  if (credentials.length === 0) {
-    return (
-      <Alert color="gray" icon={HiInformationCircle}>
-        <span className="text-xs">{tr("credential.empty", dict)}</span>
-      </Alert>
-    );
-  }
-  const selected = credentials.find((credential) => credential.id === value);
-  return (
-    <div className="flex flex-col gap-2">
-      <Select value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
-        <option value="" disabled>
-          {tr("credential.placeholder", dict)}
-        </option>
-        {credentials.map((credential) => (
-          <option key={credential.id} value={credential.id}>
-            {credential.name} · {credential.environment}
-          </option>
-        ))}
-      </Select>
-      {selected && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-          <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono dark:bg-gray-700">
-            {selected.summary}
-          </code>
-          <Badge color={selected.verified ? "success" : "gray"}>
-            {selected.verified
-              ? tr("credential.verified", dict)
-              : tr("credential.unverified", dict)}
-          </Badge>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function JobPanel({
-  enabled,
   stored,
   dict,
-}: Readonly<{
-  enabled: boolean;
-  stored: ReviewIntegrationConfig;
-  dict: I18nRecord;
-}>) {
-  const registered = Boolean(stored.registeredJobId);
+}: Readonly<{ stored: EventBinding | undefined; dict: I18nRecord }>) {
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
       <div className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-gray-100">
         <HiLightningBolt className="h-4 w-4 text-primary-500" />
         {tr("job.title", dict)}
       </div>
-      {registered ? (
+      {stored ? (
         <div className="mt-2 flex flex-col gap-1 text-xs text-gray-600 dark:text-gray-400">
           <span>
-            <Badge color={enabled ? "success" : "gray"}>
-              {enabled ? tr("job.registered", dict) : tr("job.paused", dict)}
+            <Badge color={stored.enabled ? "success" : "gray"}>
+              {stored.enabled ? tr("job.armed", dict) : tr("job.paused", dict)}
             </Badge>
           </span>
           <span>
-            {tr("job.jobId", dict)}:{" "}
-            <code className="font-mono">{stored.registeredJobId}</code>
+            {tr("job.lastUpdated", dict)}: {new Date(stored.updatedAt).toLocaleString()}
+            {stored.updatedBy ? ` · ${stored.updatedBy}` : ""}
           </span>
-          {stored.lastRegisteredAt && (
-            <span>
-              {tr("job.lastRegistered", dict)}:{" "}
-              {new Date(stored.lastRegisteredAt).toLocaleString()}
-            </span>
-          )}
         </div>
       ) : (
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">

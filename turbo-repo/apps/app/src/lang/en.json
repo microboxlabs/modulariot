@@ -13,26 +13,21 @@
         "tabMapping": "Mapping",
         "save": "Save and register",
         "close": "Close",
-        "unsaved": "Unsaved changes"
+        "unsaved": "Unsaved changes",
+        "saving": "Saving…",
+        "readOnly": "Defined by the parent organization"
       },
       "config": {
         "enableLabel": "Enable the review process for this column",
         "enableHelp": "When a service in this column is reviewed, its verdict is sent to the selected channel.",
-        "disabledNotice": "The review process is disabled for this column."
+        "disabledNotice": "The review process is disabled for this column.",
+        "inherited": "Inherited from organization {org}. Read-only here."
       },
       "channel": {
         "title": "Integration channel",
         "help": "Choose where to send the review verdict.",
-        "comingSoon": "Coming soon",
-        "selected": "Selected"
-      },
-      "credential": {
-        "title": "Credential",
-        "help": "Authentication used to call the channel.",
-        "placeholder": "Select a credential",
-        "empty": "No credentials yet. Create them in Settings › Credentials.",
-        "verified": "Verified",
-        "unverified": "Unverified"
+        "selected": "Selected",
+        "empty": "No active connections. Create and test them in Settings › Integrations."
       },
       "trigger": {
         "title": "When to send",
@@ -60,46 +55,18 @@
       "job": {
         "title": "Job registration",
         "willRegister": "Saving registers an integration job in async_jobs.",
-        "registered": "Registered in async_jobs",
-        "jobId": "Job ID",
-        "lastRegistered": "Last registered",
-        "paused": "Job paused (review disabled)"
+        "paused": "Job paused (review disabled)",
+        "armed": "Armed",
+        "lastUpdated": "Last updated"
       },
       "validation": {
         "channelRequired": "Select a channel.",
-        "credentialRequired": "Select a credential.",
         "unmapped": "Required fields still unmapped: {fields}"
       },
       "toast": {
         "saved": "Review process saved",
-        "registered": "Integration registered · {jobId}",
-        "disabled": "Review process disabled"
-      },
-      "channels": {
-        "partnerApi": {
-          "name": "Partner API",
-          "description": "Reports the review verdict back to the origin system.",
-          "fields": {
-            "guidMultimedia": "Media GUID",
-            "serviceCode": "Service code",
-            "aprobado": "Approved",
-            "mensaje": "Message",
-            "fechaRevision": "Review date",
-            "usuarioRevisor": "Reviewer user"
-          }
-        },
-        "n8nWebhook": {
-          "name": "n8n Webhook",
-          "description": "Send the verdict to an n8n flow."
-        },
-        "email": {
-          "name": "Email",
-          "description": "Notify the verdict by email."
-        },
-        "whatsapp": {
-          "name": "WhatsApp",
-          "description": "Notify the verdict over WhatsApp."
-        }
+        "disabled": "Review process disabled",
+        "saveFailed": "Could not save the review process"
       },
       "variables": {
         "groups": {
@@ -1714,7 +1681,7 @@
         "types": {
           "azureEntra": {
             "name": "Microsoft Entra ID",
-            "description": "Microsoft Entra ID (Azure Active Directory) client credentials \u2014 client_id + client_secret + scope."
+            "description": "Microsoft Entra ID (Azure Active Directory) client credentials — client_id + client_secret + scope."
           },
           "oauth2": {
             "name": "Generic OAuth 2.0",

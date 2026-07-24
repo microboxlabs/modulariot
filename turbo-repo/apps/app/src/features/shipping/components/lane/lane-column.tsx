@@ -28,14 +28,10 @@ import {
   LaneSort,
   LaneViewState,
 } from "../../hooks/use-lane-view-state";
-import { registerAsyncJob } from "../../hooks/use-review-integration-config";
 import KanbanCard from "../kanban-card/kanban-card";
 import { TaskCounter } from "../TaskCounter";
-import { ReviewSettingsDrawer } from "./review-settings-drawer";
-import {
-  EMPTY_REVIEW_CONFIG,
-  type ReviewIntegrationConfig,
-} from "./review-integration.types";
+import { ReviewSettingsDrawer, type BindingDraft } from "./review-settings-drawer";
+import type { DispatchTarget, EventBinding } from "./review-binding.types";
 
 interface LaneColumnProps {
   board: KanbanBoard;
@@ -45,8 +41,11 @@ interface LaneColumnProps {
   dict: I18nRecord;
   /** `pages.reviewProcess` subtree — the review-integration config UI. */
   reviewDict: I18nRecord;
-  reviewConfig: ReviewIntegrationConfig;
-  onReviewConfigSave: (config: ReviewIntegrationConfig) => void;
+  /** The stored binding for this column, own or inherited. */
+  reviewBinding: EventBinding | undefined;
+  reviewTargets: readonly DispatchTarget[];
+  reviewSaving: boolean;
+  onReviewSave: (draft: BindingDraft) => void;
   laneState: LaneViewState;
   onLaneUpdate: (patch: Partial<LaneViewState>) => void;
   setList: Dispatch<SetStateAction<KanbanBoard[]>>;
@@ -110,8 +109,10 @@ export function LaneColumn({
   isLoading,
   dict,
   reviewDict,
-  reviewConfig,
-  onReviewConfigSave,
+  reviewBinding,
+  reviewTargets,
+  reviewSaving,
+  onReviewSave,
   laneState,
   onLaneUpdate,
   setList,
@@ -120,24 +121,24 @@ export function LaneColumn({
   onCardClick,
 }: Readonly<LaneColumnProps>) {
   const [reviewDrawerOpen, setReviewDrawerOpen] = useState(false);
-  const reviewEnabled = reviewConfig.enabled;
+  const reviewEnabled = reviewBinding?.enabled ?? false;
 
-  // A saved-and-enabled config is (re)registered as an async job; a disabled one
-  // is persisted as-is so the "paused" state survives. Mirrors what the backend
-  // will do — here it just stamps a job id + timestamp.
-  const handleReviewSave = (draft: ReviewIntegrationConfig) => {
-    const stored = draft.enabled ? registerAsyncJob(draft) : draft;
-    onReviewConfigSave(stored);
-    if (stored.enabled) {
-      toast.success(
-        tr("toast.registered", reviewDict, {
-          jobId: stored.registeredJobId ?? "",
-        })
-      );
-    } else {
-      toast.success(tr("toast.disabled", reviewDict));
-    }
-    setReviewDrawerOpen(false);
+  const handleReviewSave = (draft: BindingDraft) => {
+    // The API owns the outcome, so errors surface from it rather than being guessed.
+    Promise.resolve(onReviewSave(draft))
+      .then(() => {
+        toast.success(
+          draft.enabled
+            ? tr("toast.saved", reviewDict)
+            : tr("toast.disabled", reviewDict)
+        );
+        setReviewDrawerOpen(false);
+      })
+      .catch((cause: unknown) => {
+        toast.error(
+          cause instanceof Error ? cause.message : tr("toast.saveFailed", reviewDict)
+        );
+      });
   };
 
   const compact =
@@ -376,7 +377,9 @@ export function LaneColumn({
         show={reviewDrawerOpen}
         onClose={() => setReviewDrawerOpen(false)}
         laneTitle={title}
-        config={reviewConfig ?? EMPTY_REVIEW_CONFIG}
+        binding={reviewBinding}
+        targets={reviewTargets}
+        saving={reviewSaving}
         onSave={handleReviewSave}
         dict={reviewDict}
       />

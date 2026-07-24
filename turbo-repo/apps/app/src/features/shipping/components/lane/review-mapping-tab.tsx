@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Badge, Button, TextInput } from "flowbite-react";
+import { Alert, Button, TextInput } from "flowbite-react";
 import { HiInformationCircle, HiPlus, HiArrowRight } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -10,28 +10,28 @@ import {
   buildSampleContext,
   renderTemplate,
   VARIABLE_GROUPS,
-  type ChannelField,
-  type ReviewChannelDescriptor,
   type TemplateVariable,
   type VariableGroup,
 } from "./review-integration.types";
+import type { DispatchTarget, DispatchTargetField } from "./review-binding.types";
 
 const SAMPLE_CONTEXT = buildSampleContext();
 
 interface ReviewMappingTabProps {
-  readonly channel: ReviewChannelDescriptor | undefined;
+  /** The chosen channel; its operation contract supplies the fields to map. */
+  readonly target: DispatchTarget | undefined;
   readonly mappings: Record<string, string>;
   readonly onChange: (fieldId: string, template: string) => void;
   readonly dict: I18nRecord;
 }
 
 export function ReviewMappingTab({
-  channel,
+  target,
   mappings,
   onChange,
   dict,
 }: Readonly<ReviewMappingTabProps>) {
-  if (!channel) {
+  if (!target) {
     return (
       <Alert color="gray" icon={HiInformationCircle}>
         <span className="text-xs">{tr("mapping.noChannel", dict)}</span>
@@ -60,7 +60,7 @@ export function ReviewMappingTab({
       </Section>
 
       <div className="flex flex-col gap-3">
-        {channel.fields.map((field) => (
+        {target.fields.map((field) => (
           <MappingField
             key={field.id}
             field={field}
@@ -82,7 +82,7 @@ function MappingField({
   onChange,
   dict,
 }: Readonly<{
-  field: ChannelField;
+  field: DispatchTargetField;
   template: string;
   onChange: (value: string) => void;
   dict: I18nRecord;
@@ -114,14 +114,11 @@ function MappingField({
   return (
     <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
       <div className="mb-1.5 flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-          {trDynamic(field.labelKey, dict)}
-        </span>
-        <Badge color="gray" className="font-mono text-[10px]">
+        <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">
           {field.id}
-        </Badge>
+        </span>
         <span className="text-[10px] text-gray-400">
-          {tr(`mapping.types.${field.type}`, dict)}
+          {trDynamic(`mapping.types.${field.type}`, dict)}
         </span>
         <span
           className={`text-[10px] ${

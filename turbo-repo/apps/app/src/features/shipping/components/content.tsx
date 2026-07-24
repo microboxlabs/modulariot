@@ -10,7 +10,8 @@ import {
 import { KanbanBoard, KanbanPageData, Task } from "../types/common.types";
 import { LaneColumn } from "./lane/lane-column";
 import { useLaneViewState } from "../hooks/use-lane-view-state";
-import { useReviewIntegrationConfig } from "../hooks/use-review-integration-config";
+import { useReviewBindings } from "../hooks/use-review-bindings";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { tr } from "@/features/i18n/tr.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -43,8 +44,13 @@ export default function PageContent({
 }) {
   const { activeView, handleViewChange } = useViewPreference("kanban");
   const { getLaneState, updateLaneState } = useLaneViewState();
-  const { getConfig: getReviewConfig, saveConfig: saveReviewConfig } =
-    useReviewIntegrationConfig();
+  const { activeOrg } = useOrgScopes();
+  const {
+    targets: reviewTargets,
+    bindingForBoard,
+    saving: reviewSaving,
+    save: saveReviewBinding,
+  } = useReviewBindings(activeOrg?.slug ?? null);
   // The review-integration config UI has its own i18n subtree, shared across all
   // boards, rather than being duplicated into each board's kanban block.
   const reviewDict =
@@ -244,10 +250,10 @@ export default function PageContent({
                   isLoading={isLoading}
                   dict={dictionary.base}
                   reviewDict={reviewDict}
-                  reviewConfig={getReviewConfig(board.title)}
-                  onReviewConfigSave={(cfg) =>
-                    saveReviewConfig(board.title, cfg)
-                  }
+                  reviewBinding={bindingForBoard(board.title)}
+                  reviewTargets={reviewTargets}
+                  reviewSaving={reviewSaving}
+                  onReviewSave={(draft) => saveReviewBinding(board.title, draft)}
                   laneState={getLaneState(board.title)}
                   onLaneUpdate={(patch) => updateLaneState(board.title, patch)}
                   setList={setList}

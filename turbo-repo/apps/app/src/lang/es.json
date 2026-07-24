@@ -13,26 +13,21 @@
         "tabMapping": "Mapeo",
         "save": "Guardar y registrar",
         "close": "Cerrar",
-        "unsaved": "Cambios sin guardar"
+        "unsaved": "Cambios sin guardar",
+        "saving": "Guardando…",
+        "readOnly": "Definido por la organización padre"
       },
       "config": {
         "enableLabel": "Activar proceso de revisión en esta columna",
         "enableHelp": "Cuando un servicio de esta columna sea revisado, su veredicto se enviará al canal seleccionado.",
-        "disabledNotice": "El proceso de revisión está desactivado para esta columna."
+        "disabledNotice": "El proceso de revisión está desactivado para esta columna.",
+        "inherited": "Heredado de la organización {org}. Solo lectura aquí."
       },
       "channel": {
         "title": "Canal de integración",
         "help": "Elige a dónde enviar el veredicto de la revisión.",
-        "comingSoon": "Próximamente",
-        "selected": "Seleccionado"
-      },
-      "credential": {
-        "title": "Credencial",
-        "help": "Autenticación usada para llamar al canal.",
-        "placeholder": "Selecciona una credencial",
-        "empty": "No hay credenciales. Créalas en Ajustes › Credenciales.",
-        "verified": "Verificada",
-        "unverified": "Sin verificar"
+        "selected": "Seleccionado",
+        "empty": "No hay conexiones activas. Créalas y pruébalas en Ajustes › Integraciones."
       },
       "trigger": {
         "title": "Cuándo enviar",
@@ -60,46 +55,18 @@
       "job": {
         "title": "Registro del trabajo",
         "willRegister": "Al guardar se registrará un trabajo de integración en async_jobs.",
-        "registered": "Registrado en async_jobs",
-        "jobId": "ID del trabajo",
-        "lastRegistered": "Último registro",
-        "paused": "Trabajo en pausa (revisión desactivada)"
+        "paused": "Trabajo en pausa (revisión desactivada)",
+        "armed": "Activo",
+        "lastUpdated": "Última modificación"
       },
       "validation": {
         "channelRequired": "Selecciona un canal.",
-        "credentialRequired": "Selecciona una credencial.",
         "unmapped": "Faltan campos requeridos por mapear: {fields}"
       },
       "toast": {
         "saved": "Proceso de revisión guardado",
-        "registered": "Integración registrada · {jobId}",
-        "disabled": "Proceso de revisión desactivado"
-      },
-      "channels": {
-        "partnerApi": {
-          "name": "Partner API",
-          "description": "Reporta el veredicto de la revisión al sistema de origen.",
-          "fields": {
-            "guidMultimedia": "GUID multimedia",
-            "serviceCode": "Código de servicio",
-            "aprobado": "Aprobado",
-            "mensaje": "Mensaje",
-            "fechaRevision": "Fecha de revisión",
-            "usuarioRevisor": "Usuario revisor"
-          }
-        },
-        "n8nWebhook": {
-          "name": "Webhook n8n",
-          "description": "Envía el veredicto a un flujo de n8n."
-        },
-        "email": {
-          "name": "Correo",
-          "description": "Notifica el veredicto por correo."
-        },
-        "whatsapp": {
-          "name": "WhatsApp",
-          "description": "Notifica el veredicto por WhatsApp."
-        }
+        "disabled": "Proceso de revisión desactivado",
+        "saveFailed": "No se pudo guardar el proceso de revisión"
       },
       "variables": {
         "groups": {
@@ -1714,7 +1681,7 @@
         "types": {
           "azureEntra": {
             "name": "Microsoft Entra ID",
-            "description": "Credenciales de aplicación de Microsoft Entra ID (Azure Active Directory) \u2014 client_id + client_secret + scope."
+            "description": "Credenciales de aplicación de Microsoft Entra ID (Azure Active Directory) — client_id + client_secret + scope."
           },
           "oauth2": {
             "name": "OAuth 2.0 genérico",

@@ -37,6 +37,7 @@
     "@mdx-js/react": "^3.1.0",
     "@microboxlabs/miot-calendar-client": "*",
     "@microboxlabs/miot-calendar-ui": "*",
+    "@microboxlabs/miot-dashboard-ui": "*",
     "@microboxlabs/miot-harness-client": "*",
     "@microboxlabs/miot-resource-client": "*",
     "@next/mdx": "16.2.11",

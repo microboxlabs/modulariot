@@ -20,8 +20,17 @@ const GLOBAL_RULES = [
   { re: /@modulariot\/app/, why: "app package import (@modulariot/app)" },
   { re: /from\s+["']next(\/|["'])/, why: "Next.js import (framework-agnostic package)" },
   { re: /require\(\s*["']next(\/|["'])/, why: "Next.js require (framework-agnostic package)" },
-  { re: /alfresco/i, why: "Alfresco reference (host persistence must stay behind Seam E)" },
+  // Code references only — doc comments may legitimately explain that
+  // Alfresco stays behind Seam E, so comment lines are skipped for this rule.
+  {
+    re: /alfresco/i,
+    why: "Alfresco reference in code (host persistence must stay behind Seam E)",
+    skipComments: true,
+  },
 ];
+
+/** True for whole-line comments (//, /*, * continuation, */
+const isCommentLine = (line) => /^\s*(\/\/|\/\*|\*)/.test(line.trimStart());
 
 /** Extra rules for the pure-TS core layer */
 const CORE_RULES = [
@@ -46,7 +55,8 @@ for (const file of walk(SRC)) {
     : GLOBAL_RULES;
   const lines = readFileSync(file, "utf8").split("\n");
   lines.forEach((line, i) => {
-    for (const { re, why } of rules) {
+    for (const { re, why, skipComments } of rules) {
+      if (skipComments && isCommentLine(line)) continue;
       if (re.test(line)) violations.push(`src/${rel}:${i + 1} — ${why}\n    ${line.trim()}`);
     }
   });

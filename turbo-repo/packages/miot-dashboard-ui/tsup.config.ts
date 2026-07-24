@@ -4,7 +4,7 @@ export default defineConfig({
   // Two entries by design (plan §8 bundle strategy): "." is the base surface;
   // "./charts" isolates the chart dashlets so echarts (~1 MB) never lands in
   // the bundle of a consumer that doesn't use charts.
-  entry: ["src/index.ts", "src/charts.ts"],
+  entry: ["src/index.ts", "src/charts.ts", "src/schema.ts"],
   format: ["esm"],
   outDir: "dist",
   dts: true,

@@ -18,14 +18,20 @@
       "types": "./dist/charts.d.ts",
       "import": "./dist/charts.js"
     },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js"
+    },
+    "./schema/dashboard-config.schema.json": "./schema/dashboard-config.schema.json",
     "./styles.css": "./styles.css"
   },
   "files": [
     "dist",
+    "schema",
     "styles.css"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/generate-json-schema.mjs",
     "dev": "tsup --watch",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint .",
@@ -37,7 +43,11 @@
     "react-dom": "^19.0.0",
     "swr": "^2.2.5"
   },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
   "devDependencies": {
+    "zod-to-json-schema": "^3.24.5",
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
     "@types/react": "19.2.10",

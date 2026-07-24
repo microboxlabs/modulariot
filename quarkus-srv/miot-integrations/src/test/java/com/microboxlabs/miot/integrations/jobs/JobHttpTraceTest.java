@@ -50,6 +50,39 @@ class JobHttpTraceTest {
     }
 
     @Test
+    void recordsRequestHeadersWhenTheOverloadSuppliesThem() {
+        JobHttpTrace.begin();
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("Authorization", "<redacted>");
+        headers.put("Content-Type", "application/json");
+        headers.put("Accept", "application/json");
+        JobHttpTrace.record("POST", "https://partner/api/photos", null, 3,
+                "{\"aprobada\":false}", null, "connection base URL host could not be resolved", headers);
+
+        Map<String, Object> entry = JobHttpTrace.end().get(0);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> recorded = (Map<String, Object>) entry.get("requestHeaders");
+        assertEquals("<redacted>", recorded.get("Authorization"), "the caller masks credential values");
+        assertEquals("application/json", recorded.get("Content-Type"));
+        assertEquals("application/json", recorded.get("Accept"));
+        // The whole point: a request that never reached the wire is still fully recorded.
+        assertNull(entry.get("status"), "no send happened, so no status");
+        assertEquals("connection base URL host could not be resolved", entry.get("error"));
+        assertEquals("{\"aprobada\":false}", entry.get("requestBody"));
+    }
+
+    @Test
+    void recordsNoHeadersFieldForTheShorterOverloadOrAnEmptyMap() {
+        JobHttpTrace.begin();
+        JobHttpTrace.record("GET", "http://calendar/slots", 200, 1, null, "[]", null);
+        JobHttpTrace.record("GET", "http://calendar/slots", 200, 1, null, "[]", null, Map.of());
+
+        List<Map<String, Object>> exchanges = JobHttpTrace.end();
+        assertFalse(exchanges.get(0).containsKey("requestHeaders"), "shorter overload records none");
+        assertFalse(exchanges.get(1).containsKey("requestHeaders"), "an empty map records none");
+    }
+
+    @Test
     void recordingOutsideAWindowIsANoOp() {
         // The client is shared with non-job traffic; recording must not accumulate
         // anywhere when nobody opened a window.

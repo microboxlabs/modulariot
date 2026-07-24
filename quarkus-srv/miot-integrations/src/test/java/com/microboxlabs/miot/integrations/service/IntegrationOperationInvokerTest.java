@@ -2,20 +2,36 @@ package com.microboxlabs.miot.integrations.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microboxlabs.miot.integrations.domain.IntegrationOperation;
+import com.microboxlabs.miot.integrations.jobs.JobHttpTrace;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * URL assembly and response classification — the two pieces of the invoker that decide
- * where a call goes and what its answer means. The HTTP send itself needs a live socket
- * (no mocking framework in this module) and is covered by the connection test path.
+ * URL assembly, response classification, and how a request is captured for the audit
+ * trail — the pieces of the invoker that decide where a call goes, what its answer means,
+ * and what gets recorded. The successful HTTP send needs a live socket (no mocking
+ * framework in this module) and is covered by the connection test path; the pre-send
+ * guard failure, which is where a request would otherwise go unrecorded, needs none.
  */
 class IntegrationOperationInvokerTest {
+
+    /** No test may leak a trace window onto a reused thread; the guard-path test opens one. */
+    @AfterEach
+    void closeAnyOpenTraceWindow() {
+        JobHttpTrace.end();
+    }
 
     @Test
     void joinsBaseUrlAndPathWithExactlyOneSlash() {
@@ -111,5 +127,76 @@ class IntegrationOperationInvokerTest {
         String summary = new OperationInvocationResult(500, "x".repeat(500)).summary();
         assertTrue(summary.endsWith("…"), summary);
         assertTrue(summary.length() < 350, "summary should be capped, was " + summary.length());
+    }
+
+    @Test
+    void recordedRequestHeadersMaskAuthButKeepTransportHeaders() {
+        Map<String, String> auth = new LinkedHashMap<>();
+        auth.put("Authorization", "Bearer super-secret-token");
+        auth.put("X-Company-Key", "an-operator-named-api-key");
+
+        Map<String, String> recorded =
+                IntegrationOperationInvoker.recordedRequestHeaders(auth, true);
+
+        // Every credential-bearing header is masked — including one whose name we could
+        // not have guessed — while the transport headers we add stay in the clear.
+        assertEquals("<redacted>", recorded.get("Authorization"));
+        assertEquals("<redacted>", recorded.get("X-Company-Key"));
+        assertEquals("application/json", recorded.get("Content-Type"));
+        assertEquals("application/json", recorded.get("Accept"));
+    }
+
+    @Test
+    void recordedRequestHeadersOmitContentTypeWhenThereIsNoBody() {
+        Map<String, String> recorded =
+                IntegrationOperationInvoker.recordedRequestHeaders(Map.of(), false);
+
+        assertFalse(recorded.containsKey("Content-Type"), "a bodyless request sends no Content-Type");
+        assertEquals("application/json", recorded.get("Accept"));
+    }
+
+    @Test
+    void maskValuesKeepsKeysAndRedactsValues() {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("api_key", "k1");
+        params.put("signature", "s1");
+
+        Map<String, String> masked = IntegrationOperationInvoker.maskValues(params);
+
+        assertEquals("<redacted>", masked.get("api_key"));
+        assertEquals("<redacted>", masked.get("signature"));
+    }
+
+    @Test
+    void recordsTheIntendedRequestWhenTheGuardRejectsTheHostBeforeSending() {
+        // The exact production failure: the connection base URL resolves to an address the
+        // SSRF guard refuses, so the request never leaves the process. Before this change the
+        // attempt recorded nothing about the request — only a one-line error. It must now
+        // carry the full (credential-masked) request so the console shows what would have been
+        // sent. A loopback host trips the guard deterministically, with no DNS or socket.
+        IntegrationOperationInvoker invoker = new IntegrationOperationInvoker(
+                null, null, null, HttpClient.newHttpClient(), new ObjectMapper(), Duration.ofSeconds(2));
+        ResolvedConnection connection =
+                new ResolvedConnection("c1", URI.create("http://127.0.0.1"), Map.of(), Map.of());
+        IntegrationOperation operation = new IntegrationOperation(
+                "op1", "c1", "ActualizarEstadoFoto", "POST", "/api/photos", Map.of(), Map.of(), false);
+
+        JobHttpTrace.begin();
+        assertThrows(IllegalArgumentException.class,
+                () -> invoker.execute(connection, operation, Map.of("aprobada", false)));
+        List<Map<String, Object>> exchanges = JobHttpTrace.end();
+
+        assertEquals(1, exchanges.size(), "the failed attempt still records one request");
+        Map<String, Object> entry = exchanges.get(0);
+        assertEquals("POST", entry.get("method"));
+        assertEquals("http://127.0.0.1/api/photos", entry.get("url"));
+        assertEquals("{\"aprobada\":false}", entry.get("requestBody"));
+        assertNull(entry.get("status"), "nothing was sent, so there is no status");
+        assertTrue(((String) entry.get("error")).contains("connection base URL"),
+                "the guard's reason is recorded: " + entry.get("error"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> headers = (Map<String, Object>) entry.get("requestHeaders");
+        assertEquals("application/json", headers.get("Content-Type"));
+        assertEquals("application/json", headers.get("Accept"));
     }
 }

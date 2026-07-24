@@ -19,6 +19,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -50,6 +51,9 @@ public class IntegrationOperationInvoker {
 
     /** Methods that carry a request body; anything else is sent without one. */
     private static final Set<String> BODY_METHODS = Set.of("POST", "PUT", "PATCH");
+
+    /** What a credential-bearing value becomes in the recorded request. */
+    private static final String REDACTED = "<redacted>";
 
     private final IntegrationConnectionResolver connectionResolver;
     private final IntegrationOperationRepository operationRepository;
@@ -116,41 +120,58 @@ public class IntegrationOperationInvoker {
         return execute(connection, operation, body);
     }
 
-    private OperationInvocationResult execute(
+    OperationInvocationResult execute(
             ResolvedConnection connection, IntegrationOperation operation, Object body) {
         ResolvedAuth auth = resolveAuth(connection);
-        URI url = buildUrl(connection.baseUrl(), operation.path(), auth.queryParams());
-        // Resolves the host: a stored base URL is operator input and could point at the
-        // cluster's own metadata service or a private address.
-        OutboundUrlGuard.requirePublicHttpUrl(url, "connection base URL");
-
         String method = method(operation);
         String requestBody = BODY_METHODS.contains(method) ? serialize(body) : null;
+        URI url = buildUrl(connection.baseUrl(), operation.path(), auth.queryParams());
 
-        HttpRequest.Builder builder = HttpRequest.newBuilder(url).timeout(timeout);
-        auth.headers().forEach(builder::header);
-        if (requestBody != null) {
-            builder.header("Content-Type", "application/json");
-            builder.method(method, HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8));
-        } else {
-            builder.method(method, HttpRequest.BodyPublishers.noBody());
-        }
-        builder.header("Accept", "application/json");
+        // The request as it will be recorded for the audit trail: the same call, with every
+        // credential masked — auth header values, and any auth query params folded into the
+        // URL. Computed up front so it is recorded on every outcome below, including a failure
+        // that happens before the request leaves the process (the SSRF guard rejecting an
+        // unresolvable or internal host) — the case that previously recorded nothing at all.
+        Map<String, String> recordedHeaders = recordedRequestHeaders(auth.headers(), requestBody != null);
+        String recordedUrl = auth.queryParams().isEmpty()
+                ? url.toString()
+                : buildUrl(connection.baseUrl(), operation.path(), maskValues(auth.queryParams())).toString();
 
         long startedAt = System.nanoTime();
         try {
+            // Resolves the host: a stored base URL is operator input and could point at the
+            // cluster's own metadata service or a private address.
+            OutboundUrlGuard.requirePublicHttpUrl(url, "connection base URL");
+
+            HttpRequest.Builder builder = HttpRequest.newBuilder(url).timeout(timeout);
+            auth.headers().forEach(builder::header);
+            if (requestBody != null) {
+                builder.header("Content-Type", "application/json");
+                builder.method(method, HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8));
+            } else {
+                builder.method(method, HttpRequest.BodyPublishers.noBody());
+            }
+            builder.header("Accept", "application/json");
+
             HttpResponse<String> response =
                     httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-            trace(method, url, response.statusCode(), startedAt, requestBody, response.body(), null);
+            trace(method, recordedUrl, recordedHeaders, response.statusCode(), startedAt,
+                    requestBody, response.body(), null);
             return new OperationInvocationResult(response.statusCode(), response.body());
         } catch (IOException e) {
-            trace(method, url, null, startedAt, requestBody, null, e.toString());
+            trace(method, recordedUrl, recordedHeaders, null, startedAt, requestBody, null, e.toString());
             throw new OperationInvocationException(
                     "Call to " + operation.name() + " failed: " + e.getMessage(), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            trace(method, url, null, startedAt, requestBody, null, e.toString());
+            trace(method, recordedUrl, recordedHeaders, null, startedAt, requestBody, null, e.toString());
             throw new OperationInvocationException("Call to " + operation.name() + " was interrupted", e);
+        } catch (RuntimeException e) {
+            // A failure before the request left the process — the SSRF guard rejecting an
+            // unresolvable or internal host. Record the intended request (nothing else would
+            // have) and rethrow unchanged so the worker's outcome classification is untouched.
+            trace(method, recordedUrl, recordedHeaders, null, startedAt, requestBody, null, e.getMessage());
+            throw e;
         }
     }
 
@@ -220,10 +241,36 @@ public class IntegrationOperationInvoker {
         }
     }
 
-    private static void trace(String method, URI url, Integer status, long startedAt,
-                              String requestBody, String responseBody, String error) {
+    private static void trace(String method, String url, Map<String, String> requestHeaders,
+                              Integer status, long startedAt, String requestBody, String responseBody,
+                              String error) {
         long durationMs = (System.nanoTime() - startedAt) / 1_000_000;
-        // Headers are deliberately not passed: that is where the token is.
-        JobHttpTrace.record(method, url.toString(), status, durationMs, requestBody, responseBody, error);
+        // Headers are pre-redacted by recordedRequestHeaders — no secret reaches the trace.
+        JobHttpTrace.record(method, url, status, durationMs, requestBody, responseBody, error, requestHeaders);
+    }
+
+    /**
+     * The request's headers as recorded for the audit trail: the transport headers we add
+     * ({@code Accept}, and {@code Content-Type} when there is a body) in the clear, and every
+     * auth-derived header masked. Its value is a bearer token or API key, and only here — where
+     * the header came from the resolved credential rather than the protocol — is that knowable;
+     * an operator-named API-key header could otherwise pass any name-based filter downstream.
+     */
+    static Map<String, String> recordedRequestHeaders(Map<String, String> authHeaders, boolean hasBody) {
+        Map<String, String> headers = new LinkedHashMap<>();
+        authHeaders.forEach((name, value) -> headers.put(name, REDACTED));
+        if (hasBody) {
+            headers.put("Content-Type", "application/json");
+        }
+        headers.put("Accept", "application/json");
+        return headers;
+    }
+
+    /** Same keys, every value masked — so a URL whose query string carries auth secrets can be
+     *  recorded without leaking them. */
+    static Map<String, String> maskValues(Map<String, String> params) {
+        Map<String, String> masked = new LinkedHashMap<>();
+        params.forEach((name, value) -> masked.put(name, REDACTED));
+        return masked;
     }
 }

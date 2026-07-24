@@ -413,7 +413,9 @@ export default function PlacesPageContent() {
       : "border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"}`;
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div className="flex h-full w-full overflow-hidden">
+      {/* mapa: columna flexible; el panel vive AL LADO, no encima */}
+      <div className="relative flex-1 min-w-0 h-full">
       {MAPBOX_TOKEN ? (
         <MapboxMap ref={mapRef} mapboxAccessToken={MAPBOX_TOKEN}
           initialViewState={{ longitude: -70.9, latitude: -33.3, zoom: 6.5 }}
@@ -468,9 +470,10 @@ export default function PlacesPageContent() {
           Falta MAPBOX_API_KEY en la configuración de runtime.
         </div>
       )}
+      </div>
 
-      {/* Panel flotante a la DERECHA (misma lógica del replay) */}
-      <div className="absolute top-4 right-4 bottom-4 w-[360px] flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 shadow-2xl p-4 overflow-y-auto">
+      {/* Panel lateral a la DERECHA del mapa (columna propia, no flotante) */}
+      <div className="w-[380px] flex-none h-full flex flex-col gap-2 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 overflow-y-auto">
         <div>
           <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Lugares de interés</h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">

@@ -7,9 +7,11 @@
 // (semáforo + faltantes) · Asignación (tarjeta de dupla, no-elegibles
 // atenuados CON MOTIVO, regla "manda el viaje") · Auditoría.
 // Tenant server-side vía /api/ams/rpc/*; sin marcas de fuente (agnóstico).
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR, { mutate as swrMutate } from "swr";
 import { Label, TextInput, Select as DsSelect } from "flowbite-react";
+import { HiOutlineDocumentText, HiOutlineArrowDownTray, HiOutlineXMark } from "react-icons/hi2";
+import { useGetNodeThumbnail } from "@/features/common/providers/client-api.provider";
 
 const fetcher = (url: string) => fetch(url).then((r) => {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -61,6 +63,111 @@ const DOC_TYPES: Record<"TRUCK" | "DRIVER", { v: string; l: string }[]> = {
     { v: "licencia", l: "Licencia de conducir" }, { v: "examen_ocupacional", l: "Examen ocupacional" },
     { v: "credencial_faena", l: "Credencial de faena" }, { v: "contrato", l: "Contrato" }],
 };
+
+/** Etiquetas humanas por tipo de documento (auditoría, foro, detalle). */
+export const DOC_LABEL: Record<string, string> = Object.fromEntries(
+  [...DOC_TYPES.TRUCK, ...DOC_TYPES.DRIVER].map((t) => [t.v, t.l]));
+
+type AmsDoc = Acreditacion["documentos"]["docs"][number];
+
+const urlDoc = (d: AmsDoc, inline: boolean) =>
+  `/app/api/ams/docs?nodeId=${encodeURIComponent(d.alfresco_node_id ?? "")}` +
+  `&filename=${encodeURIComponent(d.filename ?? "documento")}${inline ? "&inline=1" : ""}`;
+const esImagen = (d: AmsDoc) =>
+  /\.(jpe?g|png|gif|webp)$/i.test(d.filename ?? "");
+
+// Tarjeta de documento — calcada del Document del expediente de servicio
+// (miniatura + nombre + chips), con el semáforo del mantenedor encima.
+function DocCard({ d, onOpen, onDelete }: {
+  d: AmsDoc; onOpen: () => void; onDelete: () => void;
+}) {
+  const { data: thumb } = useGetNodeThumbnail(d.alfresco_node_id ?? "");
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!thumb) { setThumbUrl(null); return; }
+    const u = URL.createObjectURL(thumb);
+    setThumbUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [thumb]);
+  const est = EST_DOC[d.estado];
+  return (
+    <div className="group w-full rounded-lg flex flex-row items-center overflow-hidden border border-gray-300 dark:border-gray-600 hover:border-gray-600 dark:hover:border-gray-300 p-2 h-[4.5rem] transition-all relative cursor-pointer"
+         onClick={d.alfresco_node_id ? onOpen : undefined} role="button" tabIndex={0}
+         onKeyDown={(e) => { if (e.key === "Enter" && d.alfresco_node_id) onOpen(); }}>
+      <div className="h-full aspect-square bg-gray-200 dark:bg-gray-600 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+        {thumbUrl
+          ? <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+          : <HiOutlineDocumentText className="w-5 h-5 text-gray-500 dark:text-gray-400" />}
+      </div>
+      <div className="flex flex-col justify-center px-2 min-w-0 flex-1 gap-1">
+        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+          {d.required && <span className="text-amber-500" title="obligatorio">★ </span>}
+          {d.label ?? DOC_LABEL[d.doc_type] ?? d.doc_type}
+        </p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {est && (
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${est.cls}`}>{est.label}</span>)}
+          {d.valid_until && (
+            <span className="text-[11px] text-gray-500 whitespace-nowrap">vence {d.valid_until.slice(0, 10)}</span>)}
+          {!d.alfresco_node_id && (
+            <span className="text-[11px] text-gray-400">sin respaldo digital</span>)}
+        </div>
+      </div>
+      <button className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-rose-600 flex-none p-1"
+              title="Eliminar documento"
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}>
+        <HiOutlineXMark className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
+// Visor inline — el documento se revisa SIN salir del expediente (mismo
+// principio del visor multimedia del servicio); descargar queda a un clic.
+function DocPreviewModal({ d, onClose, onDelete }: {
+  d: AmsDoc; onClose: () => void; onDelete: () => void;
+}) {
+  const est = EST_DOC[d.estado];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+         onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[82vh] flex flex-col overflow-hidden"
+           onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 flex-none">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+              {d.label ?? DOC_LABEL[d.doc_type] ?? d.doc_type}
+            </div>
+            <div className="text-xs text-gray-500 truncate">
+              {d.filename} · registrado por {d.uploaded_by}
+              {d.valid_until && ` · vence ${d.valid_until.slice(0, 10)}`}
+            </div>
+          </div>
+          {est && (
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium flex-none ${est.cls}`}>{est.label}</span>)}
+          <a className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 flex-none"
+             title="Descargar" href={urlDoc(d, false)}>
+            <HiOutlineArrowDownTray className="w-5 h-5" />
+          </a>
+          <button className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 flex-none"
+                  title="Cerrar" onClick={onClose}>
+            <HiOutlineXMark className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+          {esImagen(d)
+            ? <img src={urlDoc(d, true)} alt={d.filename ?? ""} className="max-w-full max-h-full object-contain" />
+            : <iframe src={urlDoc(d, true)} title={d.filename ?? "documento"} className="w-full h-full border-0" />}
+        </div>
+        <div className="flex items-center justify-end gap-2 px-4 py-2 border-t border-gray-200 dark:border-gray-700 flex-none">
+          <button className="text-xs text-rose-600 hover:underline" onClick={onDelete}>
+            Eliminar documento
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const inp = "w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-sm text-gray-900 dark:text-white";
 
@@ -321,48 +428,53 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear, onCreado, 
           {!enForma && rec && (
             <button className="text-xs text-blue-600 hover:underline" onClick={abrirEdicion}>✎ editar</button>)}
         </>}>
-        {!enForma && rec && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2 text-sm">
-            {(tipo === "TRUCK" ? [
-              ["Patente", (rec as AmsTruck).license_plate],
-              ["Tipo", (rec as AmsTruck).truck_type ?? "—"],
-              ["VIN/Chasis", (rec as AmsTruck).vin ?? "—"],
-              ["Peso máx.", (rec as AmsTruck).max_weight ? `${(rec as AmsTruck).max_weight} kg` : "—"],
-              ["Descripción", (rec as AmsTruck).description ?? "—"],
-              ["Estado", rec.status],
-              ["Transportista", rec.carrier_rut ?? "operación"],
-            ] : [
-              ["Nombre", (rec as AmsDriver).full_name],
-              ["RUT", (rec as AmsDriver).rut],
-              ["Teléfono", (rec as AmsDriver).phone ?? "—"],
-              ["Licencia", (rec as AmsDriver).license_category ?? "—"],
-              ["Vence", (rec as AmsDriver).license_expires?.slice(0, 10) ?? "—"],
-              ["Estado", rec.status],
-              ["Transportista", rec.carrier_rut ?? "operación"],
-            ]).map(([k, v]) => (
-              <div key={k as string}>
-                <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{k}</div>
-                <div className="text-gray-900 dark:text-white">{v as string}</div>
-              </div>
-            ))}
-            <div>
-              <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">External ID</div>
-              <div className="text-gray-900 dark:text-white truncate">{rec.external_id ?? "—"}</div>
+        {!enForma && rec && (() => {
+          // Specs en filas label → valor (patrón InfoRow del planning),
+          // dos columnas independientes con divide-y, estilo referentes fleet.
+          const ESTADO: Record<string, { l: string; cls: string }> = {
+            active: { l: "Activo", cls: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" },
+            inactive: { l: "Inactivo", cls: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300" },
+            maintenance: { l: "En taller", cls: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300" },
+          };
+          const estado = ESTADO[rec.status] ?? { l: rec.status, cls: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300" };
+          const filas: Array<[string, React.ReactNode]> = tipo === "TRUCK" ? [
+            ["Patente", <span key="v" className="font-mono font-semibold">{(rec as AmsTruck).license_plate}</span>],
+            ["Tipo de equipo", (rec as AmsTruck).truck_type ?? "—"],
+            ["VIN / N° de chasis", (rec as AmsTruck).vin ?? "—"],
+            ["Peso máximo", (rec as AmsTruck).max_weight ? `${Number((rec as AmsTruck).max_weight).toLocaleString("es-CL")} kg` : "—"],
+            ["Descripción", (rec as AmsTruck).description ?? "—"],
+          ] : [
+            ["Nombre completo", (rec as AmsDriver).full_name],
+            ["RUT", <span key="v" className="font-mono">{(rec as AmsDriver).rut}</span>],
+            ["Teléfono", (rec as AmsDriver).phone ?? "—"],
+            ["Licencia", (rec as AmsDriver).license_category ?? "—"],
+            ["Vencimiento licencia", (rec as AmsDriver).license_expires?.slice(0, 10) ?? "—"],
+          ];
+          const filas2: Array<[string, React.ReactNode]> = [
+            ["Estado operacional",
+              <span key="v" className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${estado.cls}`}>{estado.l}</span>],
+            ["Transportista", rec.carrier_rut ?? "Operación"],
+            ["External ID", <span key="v" className="font-mono text-xs truncate max-w-[180px] inline-block align-bottom">{rec.external_id ?? "—"}</span>],
+            ["Origen del dato", rec.source_system === "app" ? "Editado en el app" : "Fuente externa"],
+            ["Última actualización", new Date(rec.updated_at).toLocaleString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })],
+          ];
+          const Col = ({ items }: { items: Array<[string, React.ReactNode]> }) => (
+            <dl className="divide-y divide-gray-100 dark:divide-gray-700/60">
+              {items.map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between gap-4 py-[7px]">
+                  <dt className="text-sm text-gray-500 dark:text-gray-400 flex-none">{k}</dt>
+                  <dd className="text-sm font-medium text-gray-900 dark:text-white text-right min-w-0">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          );
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
+              <Col items={filas} />
+              <Col items={filas2} />
             </div>
-            <div>
-              <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Origen del dato</div>
-              <div className="text-gray-900 dark:text-white">
-                {rec.source_system === "app" ? "Editado en el app" : "Fuente externa"}
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Última actualización</div>
-              <div className="text-gray-900 dark:text-white">
-                {new Date(rec.updated_at).toLocaleString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
         {enForma && (
           <div className="space-y-4">
             <TituloBloque>Identificación</TituloBloque>
@@ -480,6 +592,7 @@ export function SeccionDocs({ tipo, rec, onChange, plano }: {
   const [dt, setDt] = useState(""); const [venc, setVenc] = useState("");
   const [archivo, setArchivo] = useState<File | null>(null);
   const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<string | null>(null);
+  const [preview, setPreview] = useState<AmsDoc | null>(null);
 
   const subir = async () => {
     if (!dt) { setMsg("Elige el tipo de documento."); return; }
@@ -513,56 +626,37 @@ export function SeccionDocs({ tipo, rec, onChange, plano }: {
   return (
     <Seccion titulo="Acreditación y documentos" plano={plano}
       extra={<span className="text-[11px] text-gray-500">obligatorios con ★ · vencimientos 30/15/0</span>}>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              <th className="py-1.5 pr-4 font-medium">Documento</th>
-              <th className="py-1.5 pr-4 font-medium">Estado</th>
-              <th className="py-1.5 pr-4 font-medium">Vencimiento</th>
-              <th className="py-1.5 pr-4 font-medium">Respaldo</th>
-              <th className="py-1.5 pr-4 font-medium">Registrado por</th>
-              <th className="py-1.5 font-medium text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {docs.docs.map((d) => (
-              <tr key={d.doc_id} className="border-t border-gray-100 dark:border-gray-700/60">
-                <td className="py-1.5 pr-4 text-gray-900 dark:text-white whitespace-nowrap">
-                  {d.required && <span title="obligatorio">★ </span>}{d.label ?? d.doc_type}</td>
-                <td className="py-1.5 pr-4">
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${EST_DOC[d.estado]?.cls ?? ""}`}>
-                    {EST_DOC[d.estado]?.label ?? d.estado}</span></td>
-                <td className="py-1.5 pr-4 text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                  {d.valid_until?.slice(0, 10) ?? "—"}</td>
-                <td className="py-1.5 pr-4 text-gray-600 dark:text-gray-300 max-w-[220px] truncate">
-                  {d.alfresco_node_id
-                    ? <a className="text-blue-600 hover:underline"
-                         href={`/app/api/ams/docs?nodeId=${encodeURIComponent(d.alfresco_node_id)}&filename=${encodeURIComponent(d.filename ?? "documento")}`}>
-                        {d.filename ?? "descargar"}</a>
-                    : (d.filename ?? "—")}</td>
-                <td className="py-1.5 pr-4 text-gray-500 dark:text-gray-400 whitespace-nowrap">{d.uploaded_by}</td>
-                <td className="py-1.5 text-right">
-                  <button className="text-[11px] text-rose-600 hover:underline" onClick={() => void borrar(d.doc_id)}>eliminar</button></td>
-              </tr>
-            ))}
-            {docs.faltantes.map((f) => (
-              <tr key={f.doc_type} className="border-t border-gray-100 dark:border-gray-700/60 opacity-75">
-                <td className="py-1.5 pr-4 text-gray-900 dark:text-white whitespace-nowrap">★ {f.label}</td>
-                <td className="py-1.5 pr-4">
-                  <span className="rounded-full px-2 py-0.5 text-[11px] font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Falta</span></td>
-                <td className="py-1.5 pr-4 text-gray-500">—</td>
-                <td className="py-1.5 pr-4 text-gray-500">—</td>
-                <td className="py-1.5 pr-4 text-gray-500">—</td>
-                <td className="py-1.5" />
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!docs.docs.length && !docs.faltantes.length && (
-          <div className="text-xs text-gray-500 py-2">Sin documentos requeridos para este recurso.</div>
-        )}
+      {/* Tarjetas con miniatura + visor inline — mismo lenguaje del panel
+          Multimedia del expediente de servicio, con el semáforo encima */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-2">
+        {docs.docs.map((d) => (
+          <DocCard key={d.doc_id} d={d} onOpen={() => setPreview(d)}
+                   onDelete={() => void borrar(d.doc_id)} />
+        ))}
+        {docs.faltantes.map((f) => (
+          <button key={f.doc_type} onClick={() => setDt(f.doc_type)}
+            className="w-full rounded-lg flex flex-row items-center border border-dashed border-red-300 dark:border-red-800 bg-red-50/40 dark:bg-red-900/10 p-2 h-[4.5rem] text-left hover:border-red-400 transition-colors">
+            <div className="h-full aspect-square rounded-lg bg-red-100/60 dark:bg-red-900/20 flex items-center justify-center flex-shrink-0">
+              <span className="text-red-400 text-lg" aria-hidden>＋</span>
+            </div>
+            <div className="flex flex-col justify-center px-2 min-w-0 gap-1">
+              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                <span className="text-amber-500" title="obligatorio">★ </span>{f.label}
+              </p>
+              <span className="rounded-full px-2 py-0.5 text-[11px] font-medium w-fit bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">
+                Falta — clic para registrar
+              </span>
+            </div>
+          </button>
+        ))}
       </div>
+      {!docs.docs.length && !docs.faltantes.length && (
+        <div className="text-xs text-gray-500 py-2">Sin documentos requeridos para este recurso.</div>
+      )}
+      {preview && (
+        <DocPreviewModal d={preview} onClose={() => setPreview(null)}
+          onDelete={() => { void borrar(preview.doc_id); setPreview(null); }} />
+      )}
       {/* registrar: fila compacta al pie (estilo «Subir» del panel Multimedia) */}
       <div className="pt-3 mt-3 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center gap-2">
         <DsSelect id="doc-tipo" sizing="sm" className="min-w-[190px]"
@@ -597,11 +691,18 @@ export function SeccionDupla({ tipo, rec, onChange, plano }: {
   const [msg, setMsg] = useState<string | null>(null);
   const otroFn = tipo === "TRUCK" ? "fn_ams_drivers" : "fn_ams_trucks";
   const { data: candidatos } = useSWR<(AmsTruck | AmsDriver)[]>(
-    reasignando ? `/app/api/ams/rpc/${otroFn}` : null, fetcher);
+    `/app/api/ams/rpc/${otroFn}`, fetcher);
   const { data: historia } = useSWR<{ driver: string; patente: string; desde: string; hasta: string | null }[]>(
     `/app/api/ams/rpc/fn_ams_link_history?p_resource_type=${tipo}&p_resource_id=${rec.id}`, fetcher);
 
   const actual = tipo === "TRUCK" ? (rec as AmsTruck).conductor : (rec as AmsDriver).camion;
+  // Ficha completa del asignado (licencia, tipo, acreditación) desde el maestro
+  const fichaActual = actual
+    ? (candidatos ?? []).find((c) => c.id === (actual as { id: string }).id) : undefined;
+  const licVence = fichaActual && tipo === "TRUCK"
+    ? (fichaActual as AmsDriver).license_expires?.slice(0, 10) : undefined;
+  const licDias = licVence
+    ? Math.floor((new Date(licVence).getTime() - new Date().getTime()) / 86400000) : null;
 
   const asignar = async (otro: AmsTruck | AmsDriver) => {
     setMsg(null);
@@ -669,6 +770,30 @@ export function SeccionDupla({ tipo, rec, onChange, plano }: {
               </div>
             </div>
           </div>
+          {fichaActual && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                fichaActual.acreditacion.acreditado
+                  ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
+                  : "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"}`}>
+                {fichaActual.acreditacion.acreditado ? "Acreditado" : "No acreditado"}
+              </span>
+              {tipo === "TRUCK" && (fichaActual as AmsDriver).license_category && (
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                  licDias != null && licDias <= 0 ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
+                  : licDias != null && licDias <= 30 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300"
+                  : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"}`}>
+                  Lic. {(fichaActual as AmsDriver).license_category}
+                  {licVence && ` · vence ${licVence}`}
+                </span>
+              )}
+              {tipo === "DRIVER" && (fichaActual as AmsTruck).truck_type && (
+                <span className="rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                  {(fichaActual as AmsTruck).truck_type}
+                </span>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <button className={btnSec + " flex-1"} onClick={() => { setReasignando(!reasignando); setMsg(null); }}>Reasignar</button>
             <button className="text-[11px] text-rose-600 hover:underline flex-none" onClick={() => void soltar()}>quitar</button>
@@ -724,12 +849,23 @@ export function SeccionDupla({ tipo, rec, onChange, plano }: {
 
       {(historia ?? []).length > 0 && (
         <div className="pt-3">
-          <div className="text-[11px] uppercase tracking-wide text-gray-500 pb-1">Historial de asignaciones</div>
-          <div className="space-y-0.5">
+          <div className="text-[11px] uppercase tracking-wide text-gray-500 pb-0.5">
+            {tipo === "TRUCK" ? "Conductores que lo han operado" : "Camiones que ha conducido"}
+          </div>
+          <div className="text-[11px] text-gray-400 pb-1">
+            Cada fila es un período de dupla; «vigente» es la asignación actual.
+          </div>
+          <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
             {(historia ?? []).slice(0, 6).map((h, i) => (
-              <div key={i} className="text-xs text-gray-600 dark:text-gray-300">
-                {h.driver} ↔ {h.patente} · {new Date(h.desde).toLocaleDateString("es-CL")}
-                {h.hasta ? ` → ${new Date(h.hasta).toLocaleDateString("es-CL")}` : " → actual"}
+              <div key={i} className="flex items-center gap-2 py-1 text-xs">
+                <span className="flex-1 truncate text-gray-700 dark:text-gray-300">
+                  {tipo === "TRUCK" ? h.driver : h.patente}</span>
+                <span className="text-gray-500 whitespace-nowrap">
+                  {new Date(h.desde).toLocaleDateString("es-CL")}
+                  {h.hasta ? ` – ${new Date(h.hasta).toLocaleDateString("es-CL")}` : ""}</span>
+                {!h.hasta && (
+                  <span className="rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                    vigente</span>)}
               </div>
             ))}
           </div>

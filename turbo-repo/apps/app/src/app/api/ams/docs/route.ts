@@ -92,19 +92,29 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// content-type por extensión — permite PREVISUALIZAR inline (mismo patrón
+// del visor multimedia del expediente de servicio) además de descargar
+const MIME: Record<string, string> = {
+  pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg",
+  png: "image/png", gif: "image/gif", webp: "image/webp",
+};
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const nodeId = req.nextUrl.searchParams.get("nodeId");
   const filename = req.nextUrl.searchParams.get("filename") ?? "documento";
+  const inline = req.nextUrl.searchParams.get("inline") === "1";
   if (!nodeId) return NextResponse.json({ error: "Missing nodeId" }, { status: 400 });
   try {
     const base64 = await getContentNode(session, nodeId);
     const buffer = Buffer.from(base64, "base64");
+    const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+    const mime = MIME[ext] ?? "application/octet-stream";
     return new NextResponse(buffer, {
       headers: {
-        "content-type": "application/octet-stream",
-        "content-disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
+        "content-type": inline ? mime : "application/octet-stream",
+        "content-disposition": `${inline ? "inline" : "attachment"}; filename="${encodeURIComponent(filename)}"`,
       },
     });
   } catch (error) {

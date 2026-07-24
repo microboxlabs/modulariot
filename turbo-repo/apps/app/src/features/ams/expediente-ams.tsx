@@ -18,23 +18,36 @@ import useSWR from "swr";
 import { KpiStat } from "@/features/common/components/kpi-stat";
 import {
   HiOutlineShieldCheck, HiOutlineDocumentCheck, HiOutlineUserCircle, HiOutlineChartBar,
+  HiOutlineIdentification, HiOutlineClock, HiCheckCircle, HiXCircle, HiExclamationTriangle,
 } from "react-icons/hi2";
+import type { IconType } from "react-icons";
 import {
-  FichaAms, useAmsRecord, SeccionDocs, SeccionDupla,
+  FichaAms, useAmsRecord, SeccionDocs, SeccionDupla, DOC_LABEL,
   type AmsTruck, type AmsDriver,
 } from "./ficha-ams";
+import { SeccionForo } from "./seccion-foro";
+import { MIX_META, type PerfilGxc } from "@/features/gxc/model";
+import {
+  HiOutlineChatBubbleLeftRight, HiOutlineArrowTrendingUp, HiOutlineArrowTrendingDown,
+} from "react-icons/hi2";
 
 const fetcher = (url: string) => fetch(url).then((r) => {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 });
 
-function Panel({ titulo, extra, children, className }: {
-  titulo: string; extra?: React.ReactNode; children: React.ReactNode; className?: string;
+function Panel({ titulo, icono: Icono, extra, children, className }: {
+  titulo: string; icono?: IconType; extra?: React.ReactNode;
+  children: React.ReactNode; className?: string;
 }) {
   return (
     <section className={`rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col min-h-0 ${className ?? ""}`}>
-      <div className="flex items-center gap-2 px-3.5 py-2 border-b border-gray-100 dark:border-gray-700 flex-none">
+      <div className="flex items-center gap-2.5 px-3.5 py-2 border-b border-gray-100 dark:border-gray-700 flex-none">
+        {Icono && (
+          <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-700 flex-none">
+            <Icono className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+          </span>
+        )}
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex-1">{titulo}</h3>
         {extra}
       </div>
@@ -47,12 +60,30 @@ function Panel({ titulo, extra, children, className }: {
 function ItemCheck({ ok, warn, label, detalle }: {
   ok: boolean; warn?: boolean; label: string; detalle?: string;
 }) {
-  const color = ok ? "bg-green-500" : warn ? "bg-yellow-400" : "bg-red-500";
+  const Icon = ok ? HiCheckCircle : warn ? HiExclamationTriangle : HiXCircle;
+  const cls = ok ? "text-green-500" : warn ? "text-yellow-400" : "text-red-500";
   return (
-    <div className="flex items-center gap-2.5 text-sm py-1">
-      <span className={`w-3.5 h-3.5 rounded-full flex-none ${color}`} />
+    <div className="flex items-center gap-2 text-sm py-[5px]">
+      <Icon className={`w-[18px] h-[18px] flex-none ${cls}`} />
       <span className="text-gray-900 dark:text-white flex-1">{label}</span>
-      {detalle && <span className="text-xs text-gray-500 dark:text-gray-400">{detalle}</span>}
+      {detalle && <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{detalle}</span>}
+    </div>
+  );
+}
+
+function BarraCompletitud({ ok, total }: { ok: number; total: number }) {
+  const pctv = total ? Math.round((ok / total) * 100) : 0;
+  return (
+    <div className="pb-2">
+      <div className="flex items-baseline justify-between text-xs pb-1">
+        <span className="text-gray-500 dark:text-gray-400">Requisitos cumplidos</span>
+        <span className="font-semibold text-gray-900 dark:text-white">{ok}/{total}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+        <div className="h-full rounded-full transition-all"
+             style={{ width: `${pctv}%`,
+               background: pctv === 100 ? "#0E9F6E" : pctv >= 50 ? "#D97706" : "#E11D48" }} />
+      </div>
     </div>
   );
 }
@@ -122,12 +153,12 @@ export function ExpedienteAms({ tipo, matchId, matchName }: {
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 auto-rows-min">
       {/* fila 1 — bento: info (6) · acreditación (3) · asignación (3) */}
-      <Panel className="xl:col-span-6" titulo={tipo === "TRUCK" ? "Información del camión" : "Información del colaborador"}>
+      <Panel className="xl:col-span-6" icono={HiOutlineIdentification} titulo={tipo === "TRUCK" ? "Información del camión" : "Información del colaborador"}>
         <FichaAms tipo={tipo} matchId={matchId} matchName={matchName}
                   variante="plano" secciones={["identificacion"]} />
       </Panel>
 
-      <Panel className="xl:col-span-3" titulo="Acreditación"
+      <Panel className="xl:col-span-3" icono={HiOutlineShieldCheck} titulo="Acreditación"
         extra={<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
           a.acreditado
             ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
@@ -135,6 +166,9 @@ export function ExpedienteAms({ tipo, matchId, matchName }: {
           {a.acreditado ? "Acreditado" : "No acreditado"}
         </span>}>
         <div className="flex flex-col">
+          <BarraCompletitud
+            ok={(extOk ? 1 : 0) + docs.docs.filter((d) => d.required && (d.estado === "vigente" || d.estado === "sin_vencimiento")).length}
+            total={1 + docs.docs.filter((d) => d.required).length + docs.faltantes.length} />
           <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 pb-0.5">
             Fuentes
           </div>
@@ -158,22 +192,27 @@ export function ExpedienteAms({ tipo, matchId, matchName }: {
         </div>
       </Panel>
 
-      <Panel className="xl:col-span-3" titulo={tipo === "TRUCK" ? "Conductor" : "Camión"}
+      <Panel className="xl:col-span-3" icono={HiOutlineUserCircle} titulo={tipo === "TRUCK" ? "Conductor" : "Camión"}
         extra={<span className="text-[11px] text-gray-500">manda el viaje</span>}>
         <SeccionDupla tipo={tipo} rec={rec} plano onChange={() => void mutate()} />
       </Panel>
 
-      {/* fila 2 — documentos (8) · gxc (4) */}
-      <Panel className="xl:col-span-9" titulo="Documentos"
+      {/* fila 2 — documentos (8) · foro (4): gestión documental y conversación
+          del recurso, mismos ciudadanos que en el expediente de servicio */}
+      <Panel className="xl:col-span-8" icono={HiOutlineDocumentCheck} titulo="Documentos"
         extra={<span className="text-xs text-gray-500">
           {docs.docs.length} registrados{docs.faltantes.length ? ` · faltan ${docs.faltantes.length}` : ""}
         </span>}>
         <SeccionDocs tipo={tipo} rec={rec} plano onChange={() => void mutate()} />
       </Panel>
 
-      <GxcStrip tipo={tipo} rec={rec} />
+      <Panel className="xl:col-span-4" icono={HiOutlineChatBubbleLeftRight} titulo="Foro"
+        extra={<span className="text-[11px] text-gray-500">conversación del recurso</span>}>
+        <SeccionForo tipo={tipo} recId={rec.id} />
+      </Panel>
 
-      {/* fila 3 — historial (12) */}
+      {/* fila 3 — comportamiento (6) · auditoría (6) */}
+      <Comportamiento tipo={tipo} rec={rec} />
       <HistorialTabla tipo={tipo} recId={rec.id} />
       </div>
     </div>
@@ -203,60 +242,146 @@ function KpiGxc({ tipo, rec }: { tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | AmsDr
   );
 }
 
-function GxcStrip({ tipo, rec }: { tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | AmsDriver }) {
+// Comportamiento del recurso — resumen accionable del standing GxC
+// (trayectoria, síntomas, consecuencias, respuesta) con salto directo al
+// SUPER PERFIL, que es donde vive el análisis completo (historia
+// operacional viaje a viaje, síntomas en el tiempo, tratamientos).
+function Comportamiento({ tipo, rec }: { tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | AmsDriver }) {
   const gxcTipo = tipo === "TRUCK" ? "camion" : "conductor";
   const gxcId = tipo === "TRUCK" ? (rec as AmsTruck).license_plate : (rec as AmsDriver).full_name;
-  const { data } = useSWR<{ capitulos: { viajes: number; con_consecuencia: number;
-    mix: Record<string, number> } | null }>(
+  const { data: p } = useSWR<PerfilGxc>(
     `/app/api/gemelo/rpc/fn_dx_gol_gxc_perfil?p_tipo=${gxcTipo}&p_id=${encodeURIComponent(gxcId)}&p_dias=28`,
     fetcher);
-  const cap = data?.capitulos;
+  const cap = p?.capitulos;
+  const urlPerfil = `/app/es/gxc/${gxcTipo}/${encodeURIComponent(gxcId)}?dias=28`;
+
+  const tasa = cap && cap.viajes > 0
+    ? Math.round((cap.con_consecuencia / Math.max(1, cap.viajes)) * 100) : null;
+  const tasaPrev = p?.tendencia?.tasa_prev != null
+    ? Math.round(Number(p.tendencia.tasa_prev) * 100) : null;
+  const delta = tasa != null && tasaPrev != null ? tasa - tasaPrev : null;
+  const nSintomas = (p?.timeline?.sintomas ?? []).reduce((acc, x) => acc + x.n, 0);
+  const pendientes = p?.respuesta ? p.respuesta.total - p.respuesta.expirados : 0;
+
   return (
-    <Panel className="xl:col-span-3" titulo="Gestión por consecuencia"
+    <Panel className="xl:col-span-6" icono={HiOutlineChartBar}
+      titulo="Comportamiento (GxC · 28 días)"
       extra={cap && cap.viajes > 0 ? (
-        <a className="text-xs text-blue-600 hover:underline"
-           href={`/app/es/gxc/${gxcTipo}/${encodeURIComponent(gxcId)}?dias=28`}>
-          ver perfil →</a>) : undefined}>
+        <a className={
+          "rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5"}
+          href={urlPerfil}>
+          Ver perfil completo →</a>) : undefined}>
       {cap && cap.viajes > 0 ? (
-        <div className="space-y-2">
-          <div className="text-2xl font-semibold text-gray-900 dark:text-white">
-            {Math.round((cap.con_consecuencia / Math.max(1, cap.viajes)) * 100)}%
-            <span className="text-sm font-normal text-gray-500 ml-2">
-              de {cap.viajes} viajes con consecuencia</span>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-baseline gap-3 flex-wrap">
+            <span className="text-3xl font-semibold text-gray-900 dark:text-white">{tasa}%</span>
+            <span className="text-sm text-gray-500">
+              de {cap.viajes} viajes cerró con consecuencia</span>
+            {delta != null && delta !== 0 && (
+              <span className={`inline-flex items-center gap-1 text-xs font-medium ${
+                delta > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+                {delta > 0 ? <HiOutlineArrowTrendingUp className="w-4 h-4" />
+                           : <HiOutlineArrowTrendingDown className="w-4 h-4" />}
+                {delta > 0 ? "+" : ""}{delta} pts vs período anterior
+              </span>
+            )}
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
+            {[
+              ["Viajes", String(cap.viajes)],
+              ["Síntomas", String(nSintomas)],
+              ["Consecuencias", String(cap.con_consecuencia)],
+              ["Respuestas abiertas", String(pendientes)],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <dt className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{k}</dt>
+                <dd className="text-base font-semibold text-gray-900 dark:text-white">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className="flex gap-1.5 flex-wrap">
             {Object.entries(cap.mix ?? {}).filter(([, v]) => v > 0).map(([k, v]) => (
-              <span key={k} className="rounded-full px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                {k} <b>{v}</b>
+              <span key={k} title={MIX_META[k]?.nota}
+                className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                <span className="w-2 h-2 rounded-full" style={{ background: MIX_META[k]?.color ?? "#9CA3AF" }} />
+                {MIX_META[k]?.label ?? k} <b>{v}</b>
               </span>
             ))}
           </div>
+          <p className="text-xs text-gray-500">
+            El análisis completo — historia viaje a viaje, síntomas en el tiempo,
+            tratamientos y contraste con/sin exposición — vive en el perfil.
+          </p>
         </div>
       ) : (
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <span className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 flex-none" />
-          Sin historia operacional todavía — aparece con el primer viaje.
+          Sin historia operacional todavía — el comportamiento aparece con el primer viaje cerrado.
         </div>
       )}
     </Panel>
   );
 }
 
+type EventoAms = {
+  event_type: string;
+  payload: { actor?: string; before?: Record<string, unknown> | null;
+    after?: Record<string, unknown> | null };
+  created_at: string;
+};
+
+// Qué cambió, en palabras — sin esto la auditoría es solo fechas
+const CAMPO_LABEL: Record<string, string> = {
+  status: "estado", phone: "teléfono", license_category: "licencia",
+  license_expires: "vencimiento licencia", truck_type: "tipo", vin: "VIN",
+  max_weight: "peso máx.", description: "descripción", full_name: "nombre",
+};
+function detalleEvento(e: EventoAms): string {
+  const b = e.payload?.before ?? {}; const a = e.payload?.after ?? {};
+  switch (e.event_type) {
+    case "CREATE": return "Alta del recurso en el maestro";
+    case "DOC_UPLOAD": {
+      const t = String(a?.doc_type ?? "");
+      const v = a?.valid_until ? ` · vence ${String(a.valid_until).slice(0, 10)}` : "";
+      return `${DOC_LABEL[t] ?? t}${v}`;
+    }
+    case "DOC_DELETE": {
+      const t = String((b as { doc_type?: string })?.doc_type ?? "");
+      return DOC_LABEL[t] ?? t;
+    }
+    case "ASSIGN": return "Se formó la dupla conductor–camión";
+    case "UNASSIGN": return "Se deshizo la dupla conductor–camión";
+    case "UPDATE": {
+      const cambios = Object.keys(CAMPO_LABEL)
+        .filter((k) => b && a && JSON.stringify((b as Record<string, unknown>)[k]) !== JSON.stringify((a as Record<string, unknown>)[k]))
+        .map((k) => `${CAMPO_LABEL[k]}: ${String((b as Record<string, unknown>)[k] ?? "—")} → ${String((a as Record<string, unknown>)[k] ?? "—")}`);
+      return cambios.slice(0, 3).join(" · ") + (cambios.length > 3 ? ` · +${cambios.length - 3} más` : "");
+    }
+    default: return "";
+  }
+}
+
 function HistorialTabla({ tipo, recId }: { tipo: "TRUCK" | "DRIVER"; recId: string }) {
-  const { data } = useSWR<{ event_type: string; payload: { actor?: string }; created_at: string }[]>(
+  const { data } = useSWR<EventoAms[]>(
     `/app/api/ams/rpc/fn_ams_events?p_entity_type=${tipo}&p_entity_id=${recId}&p_limit=12`, fetcher);
-  const OP: Record<string, string> = {
-    CREATE: "Creación", UPDATE: "Edición", DOC_UPLOAD: "Documento registrado",
-    DOC_DELETE: "Documento eliminado", ASSIGN: "Asignación", UNASSIGN: "Desasignación",
+  const OP: Record<string, { l: string; cls: string }> = {
+    CREATE: { l: "Creación", cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" },
+    UPDATE: { l: "Edición", cls: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300" },
+    DOC_UPLOAD: { l: "Documento registrado", cls: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" },
+    DOC_DELETE: { l: "Documento eliminado", cls: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300" },
+    ASSIGN: { l: "Asignación", cls: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300" },
+    UNASSIGN: { l: "Desasignación", cls: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300" },
   };
   return (
-    <Panel className="xl:col-span-12" titulo="Historial de cambios">
+    <Panel className="xl:col-span-6" icono={HiOutlineClock} titulo="Auditoría del maestro"
+      extra={<span className="text-[11px] text-gray-500">quién cambió qué y cuándo</span>}>
       {data?.length ? (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 <th className="py-1.5 pr-4 font-medium">Operación</th>
+                <th className="py-1.5 pr-4 font-medium">Detalle</th>
                 <th className="py-1.5 pr-4 font-medium">Realizado por</th>
                 <th className="py-1.5 font-medium">Fecha</th>
               </tr>
@@ -264,9 +389,12 @@ function HistorialTabla({ tipo, recId }: { tipo: "TRUCK" | "DRIVER"; recId: stri
             <tbody>
               {data.map((e, i) => (
                 <tr key={i} className="border-t border-gray-100 dark:border-gray-700/60">
-                  <td className="py-1.5 pr-4 text-gray-900 dark:text-white">
-                    {OP[e.event_type] ?? e.event_type}</td>
+                  <td className="py-1.5 pr-4 whitespace-nowrap">
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${OP[e.event_type]?.cls ?? "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"}`}>
+                      {OP[e.event_type]?.l ?? e.event_type}</span></td>
                   <td className="py-1.5 pr-4 text-gray-600 dark:text-gray-300">
+                    {detalleEvento(e) || "—"}</td>
+                  <td className="py-1.5 pr-4 text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     {e.payload?.actor ?? "—"}</td>
                   <td className="py-1.5 text-gray-500 dark:text-gray-400">
                     {new Date(e.created_at).toLocaleString("es-CL")}</td>

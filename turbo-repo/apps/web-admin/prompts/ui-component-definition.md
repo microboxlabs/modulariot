@@ -7,7 +7,7 @@
 
 ### 1. Context & goal
 
-- **Legacy source**: `/Users/korutx/Documents/microboxlabs/projects/mintral/flowbite/coordinador-webclient`
+- **Legacy source**: the pre-monorepo Flowbite web client (outside this repo)
 - **Target project**: `apps/web-admin` (this monorepo)
 - **Objective**: Refactor the legacy `SideBar` pattern (button group + panel content) into two reusable components: `GroupedPanelView` (container) and `PanelItem` (child). Maintain feature parity for Monitoring, Symptoms, and Download content.
 

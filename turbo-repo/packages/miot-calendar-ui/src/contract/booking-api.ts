@@ -37,6 +37,14 @@ export interface BookingPersistContext {
   /** True when the confirm completes an in-progress reassignment. */
   isReassigning: boolean;
   /**
+   * True when the confirm completes an in-progress assignment — the sidebar's
+   * assignment-only mode on an already-planned item, which changes resources
+   * and leaves the slot alone. Planning and assigning are distinct gestures a
+   * host may need to decide on separately; without this the two are
+   * indistinguishable here.
+   */
+  isAssigning: boolean;
+  /**
    * The booking the core just wrote (legacy persist path). Absent when the
    * host's `shouldPersistBooking` returned false, i.e. the row is owned by a
    * task-driven backend listener.

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { forwardToQuarkus } from "@/app/api/utils/quarkus-proxy";
-import { requireOrganizationSettingsAdmin } from "@/app/api/utils/organization-settings-admin";
+import { requireOrganizationOwner } from "@/app/api/utils/organization-owner";
 
 interface PermissionRouteParams {
   readonly orgId: string;
@@ -19,7 +19,7 @@ export async function GET(
   { params }: { params: Promise<PermissionRouteParams> }
 ) {
   const resolvedParams = await params;
-  const denied = await requireOrganizationSettingsAdmin(resolvedParams.orgId);
+  const denied = await requireOrganizationOwner(resolvedParams.orgId);
   if (denied) return denied;
   return forwardToQuarkus(permissionPath(resolvedParams));
 }
@@ -29,7 +29,7 @@ export async function PUT(
   { params }: { params: Promise<PermissionRouteParams> }
 ) {
   const resolvedParams = await params;
-  const denied = await requireOrganizationSettingsAdmin(resolvedParams.orgId);
+  const denied = await requireOrganizationOwner(resolvedParams.orgId);
   if (denied) return denied;
   let body: unknown;
   try {

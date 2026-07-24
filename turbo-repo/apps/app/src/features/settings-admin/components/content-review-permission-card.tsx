@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  HiLockClosed,
-  HiSearch,
-  HiShieldCheck,
-  HiUserCircle,
-} from "react-icons/hi";
+import { HiSearch, HiShieldCheck, HiUserCircle } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useContentReviewPermission } from "../hooks/use-content-review-permission";
+import { useOrganizationOwnerRole } from "../hooks/use-organization-owner-role";
 import type { OrgMember } from "../types";
 
 interface ContentReviewPermissionCardProps {
@@ -17,7 +13,6 @@ interface ContentReviewPermissionCardProps {
   readonly members: OrgMember[];
   readonly membersLoading: boolean;
   readonly membersError: Error | null;
-  readonly canManage: boolean;
   readonly dict: I18nRecord;
 }
 
@@ -26,15 +21,22 @@ export default function ContentReviewPermissionCard({
   members,
   membersLoading,
   membersError,
-  canManage,
   dict,
 }: ContentReviewPermissionCardProps) {
   const permissionDict = dict?.contentReviewPermission as I18nRecord;
   const { permission, isLoading, isSaving, error, save } =
     useContentReviewPermission(orgSlug);
+  const {
+    role: ownerRole,
+    isLoading: ownerRoleLoading,
+    isSaving: ownerRoleSaving,
+    error: ownerRoleError,
+    save: saveOwnerRole,
+  } = useOrganizationOwnerRole(orgSlug);
   const [enabled, setEnabled] = useState(false);
   const [assigneeIds, setAssigneeIds] = useState<Set<string>>(new Set());
   const [saveError, setSaveError] = useState(false);
+  const [roleSaveError, setRoleSaveError] = useState(false);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -66,7 +68,27 @@ export default function ContentReviewPermissionCard({
     }
   };
 
-  const busy = isLoading || membersLoading;
+  const handleRoleChange = async (personId: string, role: string) => {
+    if (!ownerRole) return;
+    const nextOwnerIds = new Set(ownerRole.assigneeIds);
+    if (role === "OWNER") nextOwnerIds.add(personId);
+    else nextOwnerIds.delete(personId);
+
+    setRoleSaveError(false);
+    try {
+      await saveOwnerRole({
+        assigneeIds: [...nextOwnerIds].sort((left, right) =>
+          left.localeCompare(right)
+        ),
+      });
+    } catch {
+      setRoleSaveError(true);
+    }
+  };
+
+  const busy = isLoading || membersLoading || ownerRoleLoading;
+  const loadError = error || membersError || ownerRoleError;
+  const ownerIds = new Set(ownerRole?.assigneeIds ?? []);
   const memberIds = new Set(members.map((member) => member.id));
   const unavailableAssigneeIds = [...assigneeIds]
     .filter((personId) => !memberIds.has(personId))
@@ -117,19 +139,13 @@ export default function ContentReviewPermissionCard({
             {tr("loading", dict)}
           </p>
         )}
-        {!busy && (error || membersError) && (
+        {!busy && loadError && (
           <p className="px-4 py-5 text-sm text-red-600 dark:text-red-400">
             {tr("loadError", permissionDict)}
           </p>
         )}
-        {!busy && !error && !membersError && (
+        {!busy && !loadError && (
           <>
-            {!canManage && (
-              <div className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-                <HiLockClosed className="mt-0.5 h-4 w-4 shrink-0" />
-                <p>{tr("readOnlyHelp", permissionDict)}</p>
-              </div>
-            )}
             <div className="flex items-center justify-between gap-4 border-b border-gray-200 px-4 py-4 dark:border-gray-700">
               <div className="min-w-0">
                 <span
@@ -145,16 +161,11 @@ export default function ContentReviewPermissionCard({
                   {tr("enabledHelp", permissionDict)}
                 </span>
               </div>
-              <label
-                className={`relative inline-flex shrink-0 items-center ${
-                  canManage ? "cursor-pointer" : "cursor-not-allowed opacity-60"
-                }`}
-              >
+              <label className="relative inline-flex shrink-0 cursor-pointer items-center">
                 <input
                   type="checkbox"
                   role="switch"
                   checked={enabled}
-                  disabled={!canManage}
                   onChange={(event) => setEnabled(event.target.checked)}
                   aria-labelledby="content-review-enabled-label"
                   aria-describedby="content-review-enabled-help"
@@ -209,7 +220,7 @@ export default function ContentReviewPermissionCard({
                   {visibleMembers.map((member) => (
                     <div
                       key={member.id}
-                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-gray-100 px-4 py-3 last:border-b-0 dark:border-gray-700 sm:grid-cols-[minmax(0,1fr)_10rem_11rem]"
+                      className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-gray-100 px-4 py-3 last:border-b-0 dark:border-gray-700 sm:grid-cols-[minmax(0,1fr)_10rem_11rem]"
                     >
                       <div className="flex min-w-0 items-center gap-3">
                         <HiUserCircle className="h-8 w-8 shrink-0 text-gray-400 dark:text-gray-500" />
@@ -222,21 +233,37 @@ export default function ContentReviewPermissionCard({
                           </span>
                         </span>
                       </div>
-                      <span className="hidden w-fit rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300 sm:inline-flex">
-                        {tr("memberAccess", permissionDict)}
-                      </span>
-                      <label
-                        className={`relative ml-auto inline-flex items-center ${
-                          canManage
-                            ? "cursor-pointer"
-                            : "cursor-not-allowed opacity-60"
-                        }`}
+                      <select
+                        value={ownerIds.has(member.id) ? "OWNER" : "MEMBER"}
+                        disabled={
+                          ownerRoleSaving ||
+                          (ownerIds.has(member.id) && ownerIds.size === 1)
+                        }
+                        title={
+                          ownerIds.has(member.id) && ownerIds.size === 1
+                            ? tr("lastOwnerHelp", permissionDict)
+                            : undefined
+                        }
+                        onChange={(event) =>
+                          handleRoleChange(member.id, event.target.value)
+                        }
+                        aria-label={tr("memberRoleLabel", permissionDict, {
+                          member: member.displayName || member.email,
+                        })}
+                        className="w-fit rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
                       >
+                        <option value="MEMBER">
+                          {tr("memberAccess", permissionDict)}
+                        </option>
+                        <option value="OWNER">
+                          {tr("ownerAccess", permissionDict)}
+                        </option>
+                      </select>
+                      <label className="relative ml-auto inline-flex cursor-pointer items-center">
                         <input
                           type="checkbox"
                           role="switch"
                           checked={assigneeIds.has(member.id)}
-                          disabled={!canManage}
                           onChange={() => toggleAssignee(member.id)}
                           aria-label={tr(
                             "memberPermissionLabel",
@@ -292,24 +319,22 @@ export default function ContentReviewPermissionCard({
                     {tr("saveError", permissionDict)}
                   </p>
                 )}
+                {roleSaveError && (
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {tr("roleSaveError", permissionDict)}
+                  </p>
+                )}
               </div>
-              {canManage ? (
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={isSaving || !hasChanges}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isSaving
-                    ? tr("saving", permissionDict)
-                    : tr("save", permissionDict)}
-                </button>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 self-end rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                  <HiLockClosed className="h-3.5 w-3.5" />
-                  {tr("readOnly", permissionDict)}
-                </span>
-              )}
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving || !hasChanges}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSaving
+                  ? tr("saving", permissionDict)
+                  : tr("save", permissionDict)}
+              </button>
             </div>
           </>
         )}

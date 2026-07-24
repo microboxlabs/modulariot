@@ -12,6 +12,7 @@ import com.microboxlabs.miot.integrations.dto.GpsWebhookResponse;
 import com.microboxlabs.miot.integrations.dto.GpsWebhookTestResponse;
 import com.microboxlabs.miot.integrations.dto.UpdateGpsWebhookRequest;
 import com.microboxlabs.miot.integrations.dto.WebhookDeliveryResponse;
+import com.microboxlabs.miot.integrations.net.OutboundUrlGuard;
 import com.microboxlabs.miot.integrations.persistence.CreateSubscriptionParams;
 import com.microboxlabs.miot.integrations.persistence.GpsWebhookSubscriptionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
@@ -20,9 +21,7 @@ import com.microboxlabs.miot.integrations.persistence.WebhookDeliveryRepository;
 import com.microboxlabs.miot.integrations.service.WebhookFilterCompiler.CompiledFilter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import java.net.InetAddress;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -266,33 +265,9 @@ public class GpsWebhookSubscriptionService {
         validateUrl(req.url());
     }
 
-    /**
-     * Rejects non-http(s) schemes and resolved internal addresses (SSRF guard for
-     * create / update / test POST). DNS rebinding remains a residual TOCTOU risk.
-     */
+    /** SSRF guard for create / update / test POST — see {@link OutboundUrlGuard}. */
     static void validateUrl(URI url) {
-        if (url == null) {
-            throw new IllegalArgumentException("url is required");
-        }
-        String scheme = url.getScheme();
-        if (scheme == null || !(scheme.equalsIgnoreCase("https") || scheme.equalsIgnoreCase("http"))) {
-            throw new IllegalArgumentException("url must be http or https");
-        }
-        String host = url.getHost();
-        if (host == null || host.isBlank()) {
-            throw new IllegalArgumentException("url host is required");
-        }
-        try {
-            InetAddress addr = InetAddress.getByName(host);
-            if (addr.isLoopbackAddress()
-                    || addr.isAnyLocalAddress()
-                    || addr.isLinkLocalAddress()
-                    || addr.isSiteLocalAddress()) {
-                throw new IllegalArgumentException("url must not point to an internal address");
-            }
-        } catch (UnknownHostException e) {
-            throw new IllegalArgumentException("url host could not be resolved");
-        }
+        OutboundUrlGuard.requirePublicHttpUrl(url, "url");
     }
 
     private static String requireName(String name) {

@@ -46,6 +46,57 @@ type Result<T> =
   | { ok: false; error: NextResponse };
 
 /**
+ * Planner-owned, non-tuple fields that survive a task-driven move.
+ *
+ * A task-driven move is otherwise slot-only (see the POST handler) because the
+ * planner's frozen drag payload can carry a stale assignment tuple. But these
+ * fields are owned by the planner, not by ECM, and ECM never writes them — so
+ * dropping the whole blob silently discarded the user's choice: the category
+ * and andén vanished on the next page load, since the grid renders from the
+ * booking row (`mapBookingToPlannedService`), not from the workflow task.
+ *
+ * Deliberately excludes every `assigned*` field, so the stale-tuple hazard the
+ * slot-only rule guards against is unchanged.
+ */
+const PLANNER_OWNED_FIELDS = ["serviceCategory", "_anden"] as const;
+
+function pickPlannerFields(
+  data: Record<string, unknown> | undefined
+): Record<string, unknown> {
+  if (!data) return {};
+  const picked: Record<string, unknown> = {};
+  for (const key of PLANNER_OWNED_FIELDS) {
+    if (data[key] !== undefined) picked[key] = data[key];
+  }
+  return picked;
+}
+
+/**
+ * Task-driven move body: the requested slot, plus the *persisted* resource with
+ * only {@link PLANNER_OWNED_FIELDS} overlaid. Merging onto the snapshot (rather
+ * than the request) keeps ECM's fields authoritative — the request blob never
+ * clobbers them. Falls back to a slot-only body when the request carries none
+ * of those fields, preserving the previous behavior byte-for-byte.
+ */
+export function buildTaskDrivenMoveBody(
+  body: MoveBody,
+  snapshot: BookingResponse
+): MoveBody {
+  const plannerFields = pickPlannerFields(body.resource?.data);
+  if (Object.keys(plannerFields).length === 0) return { slot: body.slot };
+  const { id, type, label, data } = snapshot.resource;
+  return {
+    slot: body.slot,
+    resource: {
+      id,
+      ...(type == null ? {} : { type }),
+      ...(label == null ? {} : { label }),
+      data: { ...data, ...plannerFields },
+    },
+  };
+}
+
+/**
  * Reverse-move compensation: re-issue a move using the pre-move snapshot so
  * the booking lands back where it started. Only logs on failure — the caller
  * still surfaces the original (binding) error to the user.
@@ -175,13 +226,14 @@ export async function POST(
 
   // Task-driven origins: ECM owns the calendar binding AND the booking's
   // resource payload (the assign chain patches the tuple onto the booking via
-  // the async-job ledger), so a move is slot-only. The request body's
-  // resource blob is the planner's frozen drag payload — after a workflow
-  // revert it can still carry an assignment tuple nobody holds, and merging
-  // it would both corrupt the booking and (below) fire a stage=assigned
-  // Alerce push for a stale assignment. Dropping it also makes the binding
-  // call and its reverse-move compensation dead for this path. Flag-off
-  // origins keep today's behavior byte-for-byte. The origin is read from the
+  // the async-job ledger), so a move is slot-only apart from the planner-owned
+  // fields merged by `buildTaskDrivenMoveBody`. The request body's resource
+  // blob is the planner's frozen drag payload — after a workflow revert it can
+  // still carry an assignment tuple nobody holds, and merging it wholesale
+  // would both corrupt the booking and (below) fire a stage=assigned Alerce
+  // push for a stale assignment. Dropping the rest also makes the binding call
+  // and its reverse-move compensation dead for this path. Flag-off origins
+  // keep today's behavior byte-for-byte. The origin is read from the
   // persisted booking first, falling back to the request body.
   const enabledOrigins = parseTaskDrivenOrigins(
     process.env.TASK_DRIVEN_ORIGINS
@@ -194,7 +246,9 @@ export async function POST(
   const move = await executeMove(
     client,
     bookingId,
-    taskDriven ? { slot: body.value.slot } : body.value
+    taskDriven
+      ? buildTaskDrivenMoveBody(body.value, snapshot.value)
+      : body.value
   );
   if (!move.ok) return move.error;
   const moved = move.value;

@@ -112,9 +112,8 @@ export default function OAuthAppsPage() {
     setSuccess("Client ID copied to clipboard!");
   };
 
-  const deleteApp = async (appId: string) => {
+  const deleteApp = async (_appId: string) => {
     // TODO: Implement DELETE /api/org/[orgId]/oauth-apps/[appId] API call
-    console.log("Delete app:", appId);
   };
 
   return (

@@ -101,6 +101,7 @@ public class JobEventEmitter {
         JsonObject payload = new JsonObject()
                 .put("jobId", job.id())
                 .put("jobType", job.jobType())
+                .put("jobOp", op(job))
                 .put("executor", job.executor())
                 .put("state", job.state() != null ? job.state().name() : null)
                 .put("transition", transition)
@@ -118,5 +119,20 @@ public class JobEventEmitter {
                 .put("tenantId", job.tenantCode())
                 .put("timestamp", Instant.now().toString())
                 .put("payload", payload);
+    }
+
+    /**
+     * The payload's {@code op}, lifted onto the frame. A job type is not always
+     * one operation — {@code calendar_sync} alone carries ensure/patch/unassign/
+     * cancel — and the frame has no room for the whole payload, so without this
+     * the notification bell can only say "Calendar sync" for four different
+     * writes. {@code null} for job types that have no op.
+     */
+    private static String op(AsyncJob job) {
+        Object op = job.payload() == null ? null : job.payload().get("op");
+        if (!(op instanceof String text) || text.isBlank()) {
+            return null;
+        }
+        return text.trim();
     }
 }

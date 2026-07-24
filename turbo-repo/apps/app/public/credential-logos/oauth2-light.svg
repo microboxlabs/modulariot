@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="OAuth 2.0">
+  <path d="M15 21v-5a9 9 0 0 1 18 0v5" fill="none" stroke="#374151" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="10" y="21" width="28" height="21" rx="4" fill="#374151"/>
+  <circle cx="24" cy="29" r="3" fill="#F9FAFB"/>
+  <path d="M24 31.5v4" stroke="#F9FAFB" stroke-width="3" stroke-linecap="round"/>
+</svg>

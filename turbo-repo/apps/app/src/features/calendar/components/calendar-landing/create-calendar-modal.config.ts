@@ -78,6 +78,14 @@ export const CREATE_CALENDAR_FORM_CONFIG: DynamicFormConfig = {
       type: "checkbox",
       defaultValue: true,
     },
+    {
+      // Scoped by filterOrigin above — the calendar that receives services
+      // created for that origin outside the planner.
+      name: "isDefault",
+      labelKey: "create.isDefaultLabel",
+      type: "checkbox",
+      defaultValue: false,
+    },
   ],
 };
 

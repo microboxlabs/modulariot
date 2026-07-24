@@ -73,6 +73,11 @@ export function evictScopeCache(userId: string): void {
   scopeCache.delete(userId);
 }
 
+/** Evict every cached scope after an organization role assignment changes. */
+export function evictAllScopeCaches(): void {
+  scopeCache.clear();
+}
+
 // ---------------------------------------------------------------------------
 // Core resolver
 // ---------------------------------------------------------------------------

@@ -2,6 +2,7 @@ package com.microboxlabs.miot.integrations.api;
 
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.integrations.dto.CreateGpsWebhookRequest;
 import com.microboxlabs.miot.integrations.dto.UpdateGpsWebhookRequest;
 import com.microboxlabs.miot.integrations.service.GpsWebhookSubscriptionService;
@@ -48,15 +49,18 @@ public class OrgGpsWebhooksResource {
 
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
+    private final OrganizationRoleService roleService;
     private final GpsWebhookSubscriptionService service;
 
     @Inject
     public OrgGpsWebhooksResource(
             TenantContext tenantContext,
             OrganizationContext organizationContext,
+            OrganizationRoleService roleService,
             GpsWebhookSubscriptionService service) {
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
+        this.roleService = roleService;
         this.service = service;
     }
 
@@ -64,7 +68,7 @@ public class OrgGpsWebhooksResource {
     @Operation(summary = "List GPS webhook subscriptions")
     public Uni<Response> list(@PathParam("organizationId") String organizationId) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> Response.ok(service.list(tenant)).build());
+        return ownerWork(organizationId, () -> Response.ok(service.list(tenant)).build());
     }
 
     @POST
@@ -73,7 +77,7 @@ public class OrgGpsWebhooksResource {
             @PathParam("organizationId") String organizationId,
             CreateGpsWebhookRequest req) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> {
+        return ownerWork(organizationId, () -> {
             try {
                 return Response.status(Response.Status.CREATED)
                         .entity(service.create(tenant, req))
@@ -91,7 +95,7 @@ public class OrgGpsWebhooksResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("subscriptionId") String subscriptionId) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> {
+        return ownerWork(organizationId, () -> {
             var body = service.get(tenant, subscriptionId);
             return body == null
                     ? Response.status(Response.Status.NOT_FOUND).build()
@@ -107,7 +111,7 @@ public class OrgGpsWebhooksResource {
             @PathParam("subscriptionId") String subscriptionId,
             UpdateGpsWebhookRequest req) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> {
+        return ownerWork(organizationId, () -> {
             try {
                 var body = service.update(tenant, subscriptionId, req);
                 return body == null
@@ -126,7 +130,7 @@ public class OrgGpsWebhooksResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("subscriptionId") String subscriptionId) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> service.delete(tenant, subscriptionId)
+        return ownerWork(organizationId, () -> service.delete(tenant, subscriptionId)
                 ? Response.noContent().build()
                 : Response.status(Response.Status.NOT_FOUND).build());
     }
@@ -138,7 +142,8 @@ public class OrgGpsWebhooksResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("subscriptionId") String subscriptionId) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> Response.ok(service.test(tenant, subscriptionId)).build());
+        return ownerWork(organizationId,
+                () -> Response.ok(service.test(tenant, subscriptionId)).build());
     }
 
     @GET
@@ -149,7 +154,8 @@ public class OrgGpsWebhooksResource {
             @PathParam("subscriptionId") String subscriptionId,
             @QueryParam("limit") @DefaultValue("50") int limit) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> service.listDeliveries(tenant, subscriptionId, limit)
+        return ownerWork(organizationId,
+                () -> service.listDeliveries(tenant, subscriptionId, limit)
                 .map(body -> Response.ok(body).build())
                 .orElseGet(() -> Response.status(Response.Status.NOT_FOUND).build()));
     }
@@ -161,7 +167,7 @@ public class OrgGpsWebhooksResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("subscriptionId") String subscriptionId) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> {
+        return ownerWork(organizationId, () -> {
             try {
                 var body = service.recompile(tenant, subscriptionId);
                 return body == null
@@ -182,6 +188,11 @@ public class OrgGpsWebhooksResource {
 
     private static <T> Uni<T> onWorker(Supplier<T> work) {
         return Uni.createFrom().item(work).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+    }
+
+    private <T> Uni<T> ownerWork(String organizationId, Supplier<T> work) {
+        return roleService.requireOwner(organizationId)
+                .flatMap(ignored -> onWorker(work));
     }
 
     private String tenantCode(String organizationId) {

@@ -9,6 +9,7 @@ import com.microboxlabs.miot.integrations.dto.EnqueueJobsResponse;
 import com.microboxlabs.miot.integrations.dto.ReportJobRequest;
 import com.microboxlabs.miot.integrations.events.JobEventEmitter;
 import com.microboxlabs.miot.integrations.events.JobParkedEvent;
+import com.microboxlabs.miot.integrations.jobs.JobHttpTrace;
 import com.microboxlabs.miot.integrations.persistence.AsyncJobRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
@@ -182,7 +183,8 @@ public class AsyncJobService {
         // workerId via fast path + poller overlap) cannot overwrite the newer
         // attempt's state.
         int expectedAttempts = request.attempts() != null ? request.attempts() : job.attempts();
-        Map<String, Object> entry = attemptEntry(request.outcome(), request.detail(), request.workerId());
+        Map<String, Object> entry = attemptEntry(request.outcome(), request.detail(), request.workerId(),
+                request.exchanges());
         AsyncJob updated = repository.report(jobId, request.workerId(), expectedAttempts, newState, nextRetryAt,
                 lastError, entry);
         if (updated == null) {
@@ -320,6 +322,18 @@ public class AsyncJobService {
     }
 
     private Map<String, Object> attemptEntry(String outcome, String detail, String by) {
+        return attemptEntry(outcome, detail, by, null);
+    }
+
+    /**
+     * One {@code attempt_history} entry. {@code http} carries the attempt's HTTP
+     * timeline when the worker recorded one — the downstream's status and
+     * response body, which is what turns "failed" into a diagnosable failure.
+     * Re-sanitized here because a report can arrive over REST from another
+     * process, so the size caps are ours to enforce rather than the reporter's.
+     */
+    private Map<String, Object> attemptEntry(String outcome, String detail, String by,
+            List<Map<String, Object>> exchanges) {
         Map<String, Object> entry = new LinkedHashMap<>();
         entry.put("at", OffsetDateTime.now(ZoneOffset.UTC).toString());
         entry.put("outcome", outcome);
@@ -328,6 +342,10 @@ public class AsyncJobService {
         }
         if (by != null) {
             entry.put("by", by);
+        }
+        List<Map<String, Object>> http = JobHttpTrace.sanitize(exchanges);
+        if (!http.isEmpty()) {
+            entry.put("http", http);
         }
         return entry;
     }

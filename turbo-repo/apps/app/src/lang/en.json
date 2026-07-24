@@ -1,5 +1,132 @@
 {
   "pages": {
+    "reviewProcess": {
+      "menu": {
+        "settings": "Settings",
+        "on": "on",
+        "enabledBadge": "Review active on this column"
+      },
+      "drawer": {
+        "title": "Column settings",
+        "subtitle": "Review process · {lane}",
+        "tabConfig": "Review",
+        "tabMapping": "Mapping",
+        "save": "Save and register",
+        "close": "Close",
+        "unsaved": "Unsaved changes",
+        "saving": "Saving…",
+        "readOnly": "Defined by the parent organization"
+      },
+      "config": {
+        "enableLabel": "Enable the review process for this column",
+        "enableHelp": "When a service in this column is reviewed, its verdict is sent to the selected channel.",
+        "disabledNotice": "The review process is disabled for this column.",
+        "inherited": "Inherited from organization {org}. Read-only here."
+      },
+      "channel": {
+        "title": "Integration channel",
+        "help": "Choose where to send the review verdict.",
+        "selected": "Selected",
+        "empty": "No active connections. Create and test them in Settings › Integrations."
+      },
+      "trigger": {
+        "title": "When to send",
+        "onReject": "Rejections only",
+        "onReview": "Approvals and rejections",
+        "help": "The origin only needs to know about rejections; you can also send both."
+      },
+      "mapping": {
+        "title": "Data mapping",
+        "help": "Map each channel field to a variable. Type {{ to autocomplete.",
+        "noChannel": "Select a channel in the Review tab to configure the mapping.",
+        "required": "Required",
+        "optional": "Optional",
+        "templatePlaceholder": "e.g. {{content.integrationMediaId}}",
+        "insertVariable": "Variable",
+        "previewEmpty": "(empty)",
+        "previewUnset": "Unmapped",
+        "previewRequired": "Required — unmapped",
+        "types": {
+          "string": "text",
+          "boolean": "boolean",
+          "datetime": "date/time"
+        },
+        "errors": {
+          "unescaped": "Unescaped '{{{ }}}' is not supported — use '{{ }}'.",
+          "unclosed": "Unclosed '{{' — every variable must end with '}}'.",
+          "empty": "Empty '{{}}' is not a variable.",
+          "notPlain": "'{expression}' is not supported. This field takes plain variables such as task.serviceCode — not blocks, partials or comments.",
+          "helperCall": "'{expression}' looks like a helper call. Only plain variables such as content.verdict are supported.",
+          "badPath": "'{expression}' is not a valid variable path.",
+          "badChar": "'{expression}' contains an unsupported character: '{char}'.",
+          "unknownRoot": "'{path}' is unknown: '{root}' is not one of {roots}.",
+          "wholeObject": "'{path}' is a whole object — use one of its fields (e.g. .mediaId)."
+        }
+      },
+      "job": {
+        "title": "Job registration",
+        "willRegister": "Saving registers an integration job in async_jobs.",
+        "paused": "Job paused (review disabled)",
+        "armed": "Armed",
+        "lastUpdated": "Last updated"
+      },
+      "validation": {
+        "channelRequired": "Select a channel.",
+        "unmapped": "Required fields still unmapped: {fields}"
+      },
+      "toast": {
+        "saved": "Review process saved",
+        "disabled": "Review process disabled",
+        "saveFailed": "Could not save the review process"
+      },
+      "variables": {
+        "groups": {
+          "task": "Task",
+          "content": "Content",
+          "review": "Review",
+          "session": "User"
+        },
+        "task": {
+          "serviceCode": "Service code",
+          "priority": "Priority",
+          "client": "Client",
+          "clientRut": "Client tax ID",
+          "origin": "Origin",
+          "destination": "Destination",
+          "driver": "Driver",
+          "truckPlate": "Truck plate",
+          "departureDate": "Departure date",
+          "formKey": "Task form key",
+          "outcome": "Task outcome"
+        },
+        "content": {
+          "mediaId": "Media ID",
+          "source": "Integration source",
+          "reasonCode": "Reason code",
+          "integratedAt": "Integrated at",
+          "fileName": "File name",
+          "mimeType": "MIME type",
+          "verdict": "Verdict (boolean)",
+          "reviewStatus": "Review status",
+          "comment": "Review comment",
+          "contentType": "Content type",
+          "reviewedBy": "Reviewed by"
+        },
+        "review": {
+          "verdict": "Verdict (boolean)",
+          "decision": "Decision",
+          "comment": "Review comment",
+          "reviewer": "Reviewer user",
+          "reviewedAt": "Review date"
+        },
+        "session": {
+          "user": "Session user",
+          "email": "User email",
+          "fullName": "Full name",
+          "reviewer": "Reviewer"
+        }
+      }
+    },
     "login": {
       "welcome": "Welcome back",
       "subtitle": "Sign in to your ModularIOT account",
@@ -376,7 +503,7 @@
           "assignDriver": "Assign driver",
           "presentDriver": "Present driver",
           "prepareService": "Prepare service",
-          "missionControl": "Mission control",
+          "missionControl": "Start trip",
           "monitorTrip": "Trip in progress",
           "confirmArrival": "Confirm arrival",
           "closeMonitoring": "Close monitoring",
@@ -401,7 +528,8 @@
           "deleteConfirmTitle": "Confirm deletion",
           "deleteConfirmMessage": "Are you sure you want to delete the assignment for service {serviceId}?",
           "cancelReassignment": "Cancel reassignment",
-          "previewAsViewer": "Open service (Read-only)",
+          "openReadOnly": "Open service (Read-only)",
+          "previewAsViewer": "Preview as viewer",
           "exitPreview": "Exit preview"
         },
         "notifications": {
@@ -1265,7 +1393,7 @@
     "userSettings": {
       "organizations": {
         "title": "Organizations",
-        "description": "Manage organization settings, channels, and GPS webhooks.",
+        "description": "Review your organizations and their members. Organization owners can manage access and integrations.",
         "loadError": "Couldn't load your organizations. Check that the local modulith is running and you are signed in.",
         "empty": "No organizations available for your account.",
         "loading": "Loading…",
@@ -1292,6 +1420,9 @@
           "accessColumn": "Access",
           "permissionColumn": "Automatic approval",
           "memberAccess": "Member",
+          "ownerAccess": "Owner",
+          "memberRoleLabel": "Organization role for {member}",
+          "lastOwnerHelp": "Promote another member before removing the last owner.",
           "memberPermissionLabel": "Automatic approval for {member}",
           "noSearchResults": "No members match your search.",
           "readOnly": "Read only",
@@ -1299,6 +1430,7 @@
           "noMembers": "Add members to the organization before assigning this role.",
           "unavailableMember": "No longer an organization member; uncheck to remove",
           "saveError": "Couldn't save the permission.",
+          "roleSaveError": "Couldn't update the organization role.",
           "save": "Save permission",
           "saving": "Saving…"
         },
@@ -1422,7 +1554,8 @@
         "user": "User",
         "settings": "Settings",
         "organizations": "Organizations",
-        "dataSources": "Data Sources"
+        "dataSources": "Data Sources",
+        "credentials": "Credentials"
       },
       "symptoms": {
         "config": {
@@ -1524,7 +1657,149 @@
       "settingsNav": {
         "title": "Settings",
         "general": "General",
-        "dataSources": "Data Sources"
+        "dataSources": "Data Sources",
+        "credentials": "Credentials"
+      },
+      "credentials": {
+        "title": "Credentials",
+        "description": "Reusable identities and secrets. Configure once, then reference them from data sources, integrations and jobs.",
+        "addButton": "Add credential",
+        "list": {
+          "usedByCount": "Used by {count}",
+          "unused": "Not used yet",
+          "empty": "No credentials yet. Add one to get started.",
+          "loading": "Loading credentials"
+        },
+        "filters": {
+          "searchPlaceholder": "Search by name, type or client id",
+          "type": "Type",
+          "environment": "Environment",
+          "sortLabel": "Sort",
+          "sortNameAsc": "Name (A-Z)",
+          "sortNameDesc": "Name (Z-A)",
+          "sortCreated": "Last created",
+          "sortUpdated": "Last updated",
+          "noMatches": "No credentials match these filters."
+        },
+        "menu": {
+          "label": "Credential actions",
+          "open": "Open details",
+          "delete": "Delete"
+        },
+        "environments": {
+          "DEVELOPMENT": "Development",
+          "QA": "QA",
+          "PRODUCTION": "Production"
+        },
+        "usageKinds": {
+          "DATA_SOURCE": "Data source",
+          "INTEGRATION": "Integration",
+          "JOB": "Job",
+          "CHANNEL": "Channel"
+        },
+        "types": {
+          "azureEntra": {
+            "name": "Microsoft Entra ID",
+            "description": "Microsoft Entra ID (Azure Active Directory) client credentials — client_id + client_secret + scope."
+          },
+          "oauth2": {
+            "name": "Generic OAuth 2.0",
+            "description": "Client-credentials flow against any OAuth 2.0 token endpoint."
+          },
+          "apiKey": {
+            "name": "API key",
+            "description": "A key sent as a header or query parameter."
+          },
+          "bearer": {
+            "name": "Bearer token",
+            "description": "A long-lived token sent in the Authorization header."
+          },
+          "basic": {
+            "name": "Basic auth",
+            "description": "Username and password sent as HTTP basic authentication."
+          }
+        },
+        "badge": {
+          "notTested": "Not tested",
+          "connected": "Connected",
+          "failed": "Failed"
+        },
+        "picker": {
+          "title": "Add credential",
+          "subtitle": "Choose the type of credential you want to store.",
+          "searchPlaceholder": "Search credential types",
+          "comingSoon": "Coming soon",
+          "noMatches": "No credential type matches that search.",
+          "cancel": "Cancel"
+        },
+        "modal": {
+          "addTitle": "New Microsoft Entra ID credential",
+          "editTitle": "Edit Microsoft Entra ID credential",
+          "subtitle": "Client-credentials application registered in Microsoft Entra ID.",
+          "name": "Credential name",
+          "namePlaceholder": "e.g. Operaciones MINTRAL · QA",
+          "environment": "Environment",
+          "environmentPlaceholder": "Select or create an environment",
+          "environmentCreate": "Create \"{name}\"",
+          "environmentEmpty": "Type a name to create an environment",
+          "tenantId": "Directory (tenant) ID",
+          "tenantIdHelp": "The Entra directory that issues the token. Found in the app registration overview.",
+          "clientId": "Application (client) ID",
+          "clientSecret": "Client secret",
+          "clientSecretPlaceholder": "Secret value from the app registration",
+          "clientSecretEditPlaceholder": "Leave blank to keep the current secret",
+          "guidPlaceholder": "00000000-0000-0000-0000-000000000000",
+          "scope": "Scope",
+          "scopePlaceholder": "api://<application-id>/.default",
+          "scopeHelp": "Application permissions use the /.default scope of the target API.",
+          "tokenEndpoint": "Token endpoint",
+          "advanced": "Advanced",
+          "tokenRequestFormat": "Token request format",
+          "tokenFormatForm": "Form encoded (default)",
+          "tokenFormatJson": "JSON body",
+          "tokenUrlOverride": "Token endpoint override",
+          "tokenUrlOverridePlaceholder": "https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token",
+          "tokenUrlOverrideHelp": "Only needed for sovereign clouds or B2C policy endpoints.",
+          "delete": "Delete credential",
+          "testConnection": "Test connection",
+          "testSuccess": "Token issued",
+          "testFailed": "Test failed",
+          "usedBy": "Used by",
+          "secretNotice": "Secrets are encrypted at rest and never returned by the API — you can replace a secret, but not read it back.",
+          "cancel": "Cancel",
+          "saving": "Saving...",
+          "createButton": "Create",
+          "saveButton": "Save"
+        },
+        "delete": {
+          "title": "Delete this credential?",
+          "inUseWarning": "Still referenced by {count} consumer(s)",
+          "confirmButton": "Delete",
+          "deleting": "Deleting..."
+        },
+        "toast": {
+          "created": "Credential created",
+          "updated": "Credential updated",
+          "deleted": "Credential deleted",
+          "testSuccess": "Connection test successful",
+          "testFailed": "Connection test failed",
+          "saveFailed": "Couldn't save the credential",
+          "deleteFailed": "Couldn't delete the credential"
+        },
+        "errors": {
+          "loadFailed": "Couldn't load credentials.",
+          "forbidden": "Managing credentials requires organization owner access."
+        },
+        "validation": {
+          "nameRequired": "Credential name is required",
+          "environmentRequired": "Pick or create an environment",
+          "environmentTooLong": "Environment name is too long",
+          "tenantIdRequired": "Directory (tenant) ID is required",
+          "clientIdRequired": "Application (client) ID is required",
+          "clientSecretRequired": "Client secret is required",
+          "scopeRequired": "Scope is required",
+          "tokenUrlInvalid": "Enter a valid URL"
+        }
       }
     },
     "integrationJobs": {
@@ -1594,7 +1869,11 @@
         "report": "Report",
         "running": "Running",
         "retryScheduled": "Retry scheduled, attempt",
-        "backoff": "exponential backoff"
+        "backoff": "exponential backoff",
+        "httpBodies": "Show bodies",
+        "httpRequest": "Request",
+        "httpResponse": "Response",
+        "httpNoResponse": "no resp."
       },
       "bell": {
         "title": "Notifications",
@@ -1777,6 +2056,7 @@
         "settings": "Settings",
         "organizations": "Organizations",
         "dataSources": "Data Sources",
+        "credentials": "Credentials",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",
@@ -1901,6 +2181,9 @@
           "destinationPlaceholder": "Select a destination",
           "hint": "Only tasks matching the selected filters will be shown.",
           "save": "Save",
+          "defaultLabel": "Default calendar for this origin",
+          "defaultHint": "Services created automatically (outside the planner) for this origin will be booked into this calendar. If no calendar for the origin is marked, those services move on with no booking.",
+          "defaultNeedsOrigin": "With no origin, this calendar receives the services of every origin that has none of its own.",
           "saveSuccess": "Task filter saved successfully",
           "saveError": "Error saving the task filter"
         }
@@ -3688,6 +3971,7 @@
       "timezoneLabel": "Timezone",
       "groupLabel": "Group",
       "activeLabel": "Active",
+      "isDefaultLabel": "Default calendar for the origin",
       "submit": "Create Calendar",
       "group": {
         "searchPlaceholder": "Search or create a group...",

@@ -3,8 +3,9 @@ package com.microboxlabs.miot.core.alfresco;
 import io.smallrye.mutiny.Uni;
 
 /**
- * Checks user membership and roles in Alfresco groups/sites.
- * Alfresco is the source of truth for organization membership and permissions.
+ * Checks user membership and directory roles in Alfresco groups/sites.
+ * Alfresco is the source of truth for organization membership only; application
+ * roles and permissions are owned by the modulith.
  *
  * personId  — Alfresco person ID, typically the user's email address
  * groupId   — Alfresco group ID (e.g., "GROUP_acme") or site shortname (e.g., "acme-logistics")

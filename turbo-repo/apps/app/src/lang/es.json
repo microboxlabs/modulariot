@@ -1,5 +1,132 @@
 {
   "pages": {
+    "reviewProcess": {
+      "menu": {
+        "settings": "Ajustes",
+        "on": "activo",
+        "enabledBadge": "Revisión activa en esta columna"
+      },
+      "drawer": {
+        "title": "Ajustes de la columna",
+        "subtitle": "Proceso de revisión · {lane}",
+        "tabConfig": "Revisión",
+        "tabMapping": "Mapeo",
+        "save": "Guardar y registrar",
+        "close": "Cerrar",
+        "unsaved": "Cambios sin guardar",
+        "saving": "Guardando…",
+        "readOnly": "Definido por la organización padre"
+      },
+      "config": {
+        "enableLabel": "Activar proceso de revisión en esta columna",
+        "enableHelp": "Cuando un servicio de esta columna sea revisado, su veredicto se enviará al canal seleccionado.",
+        "disabledNotice": "El proceso de revisión está desactivado para esta columna.",
+        "inherited": "Heredado de la organización {org}. Solo lectura aquí."
+      },
+      "channel": {
+        "title": "Canal de integración",
+        "help": "Elige a dónde enviar el veredicto de la revisión.",
+        "selected": "Seleccionado",
+        "empty": "No hay conexiones activas. Créalas y pruébalas en Ajustes › Integraciones."
+      },
+      "trigger": {
+        "title": "Cuándo enviar",
+        "onReject": "Solo rechazos",
+        "onReview": "Aprobados y rechazados",
+        "help": "El origen sólo necesita conocer los rechazos; también puedes enviar ambos."
+      },
+      "mapping": {
+        "title": "Mapeo de datos",
+        "help": "Asocia cada campo del canal a una variable. Escribe {{ para autocompletar.",
+        "noChannel": "Selecciona un canal en la pestaña Revisión para configurar el mapeo.",
+        "required": "Requerido",
+        "optional": "Opcional",
+        "templatePlaceholder": "Ej: {{content.integrationMediaId}}",
+        "insertVariable": "Variable",
+        "previewEmpty": "(vacío)",
+        "previewUnset": "Sin mapear",
+        "previewRequired": "Requerido — sin mapear",
+        "types": {
+          "string": "texto",
+          "boolean": "booleano",
+          "datetime": "fecha/hora"
+        },
+        "errors": {
+          "unescaped": "No se admite '{{{ }}}'. Usa '{{ }}'.",
+          "unclosed": "Falta cerrar la variable con '}}'.",
+          "empty": "'{{}}' está vacío: indica una variable.",
+          "notPlain": "'{expression}' no está permitido. Este campo acepta solo variables simples como task.serviceCode, no bloques, parciales ni comentarios.",
+          "helperCall": "'{expression}' parece una llamada a un helper. Solo se admiten variables simples como content.verdict.",
+          "badPath": "'{expression}' no es una ruta de variable válida.",
+          "badChar": "'{expression}' contiene un carácter no admitido: '{char}'.",
+          "unknownRoot": "'{path}' no existe: '{root}' no es uno de {roots}.",
+          "wholeObject": "'{path}' es un objeto completo: usa uno de sus campos (por ejemplo, .mediaId)."
+        }
+      },
+      "job": {
+        "title": "Registro del trabajo",
+        "willRegister": "Al guardar se registrará un trabajo de integración en async_jobs.",
+        "paused": "Trabajo en pausa (revisión desactivada)",
+        "armed": "Activo",
+        "lastUpdated": "Última modificación"
+      },
+      "validation": {
+        "channelRequired": "Selecciona un canal.",
+        "unmapped": "Faltan campos requeridos por mapear: {fields}"
+      },
+      "toast": {
+        "saved": "Proceso de revisión guardado",
+        "disabled": "Proceso de revisión desactivado",
+        "saveFailed": "No se pudo guardar el proceso de revisión"
+      },
+      "variables": {
+        "groups": {
+          "task": "Tarea",
+          "content": "Contenido",
+          "review": "Revisión",
+          "session": "Usuario"
+        },
+        "task": {
+          "serviceCode": "Código de servicio",
+          "priority": "Prioridad",
+          "client": "Cliente",
+          "clientRut": "RUT cliente",
+          "origin": "Origen",
+          "destination": "Destino",
+          "driver": "Conductor",
+          "truckPlate": "Patente camión",
+          "departureDate": "Fecha de salida",
+          "formKey": "Clave de tarea (formKey)",
+          "outcome": "Resultado de la tarea"
+        },
+        "content": {
+          "mediaId": "ID multimedia",
+          "source": "Origen de integración",
+          "reasonCode": "Código de motivo",
+          "integratedAt": "Fecha de integración",
+          "fileName": "Nombre de archivo",
+          "mimeType": "Tipo de archivo",
+          "verdict": "Veredicto (booleano)",
+          "reviewStatus": "Estado de revisión",
+          "comment": "Comentario de revisión",
+          "contentType": "Tipo de contenido",
+          "reviewedBy": "Revisado por"
+        },
+        "review": {
+          "verdict": "Veredicto (booleano)",
+          "decision": "Decisión",
+          "comment": "Comentario de la revisión",
+          "reviewer": "Usuario revisor",
+          "reviewedAt": "Fecha de revisión"
+        },
+        "session": {
+          "user": "Usuario de sesión",
+          "email": "Correo del usuario",
+          "fullName": "Nombre completo",
+          "reviewer": "Revisor"
+        }
+      }
+    },
     "login": {
       "welcome": "Bienvenido de nuevo",
       "subtitle": "Inicia sesión en tu cuenta de ModularIOT",
@@ -376,7 +503,7 @@
           "assignDriver": "Asignar conductor",
           "presentDriver": "Presentar conductor",
           "prepareService": "Preparar servicio",
-          "missionControl": "Control de misión",
+          "missionControl": "Iniciar Viaje",
           "monitorTrip": "Viaje en curso",
           "confirmArrival": "Confirmar arribo",
           "closeMonitoring": "Cierre de monitoreo",
@@ -401,7 +528,8 @@
           "deleteConfirmTitle": "Confirmar eliminación",
           "deleteConfirmMessage": "¿Está seguro de eliminar la asignación del servicio {serviceId}?",
           "cancelReassignment": "Cancelar reasignación",
-          "previewAsViewer": "Abrir servicio (Solo Lectura)",
+          "openReadOnly": "Abrir servicio (Solo Lectura)",
+          "previewAsViewer": "Previsualizar como visor",
           "exitPreview": "Salir de previsualización"
         },
         "notifications": {
@@ -1265,7 +1393,7 @@
     "userSettings": {
       "organizations": {
         "title": "Organizaciones",
-        "description": "Administra la configuración de la organización, canales y webhooks GPS.",
+        "description": "Revisa tus organizaciones y sus miembros. Los propietarios pueden administrar accesos e integraciones.",
         "loadError": "No se pudieron cargar tus organizaciones. Verifica que el modulith local esté en ejecución y que hayas iniciado sesión.",
         "empty": "No hay organizaciones disponibles para tu cuenta.",
         "loading": "Cargando…",
@@ -1292,6 +1420,9 @@
           "accessColumn": "Acceso",
           "permissionColumn": "Aprobación automática",
           "memberAccess": "Miembro",
+          "ownerAccess": "Propietario",
+          "memberRoleLabel": "Rol en la organización para {member}",
+          "lastOwnerHelp": "Promueve a otro miembro antes de quitar al último propietario.",
           "memberPermissionLabel": "Aprobación automática para {member}",
           "noSearchResults": "No hay miembros que coincidan con la búsqueda.",
           "readOnly": "Solo lectura",
@@ -1299,6 +1430,7 @@
           "noMembers": "Agrega miembros a la organización antes de asignar este rol.",
           "unavailableMember": "Ya no pertenece a la organización; desmarca para eliminar",
           "saveError": "No se pudo guardar el permiso.",
+          "roleSaveError": "No se pudo actualizar el rol de la organización.",
           "save": "Guardar permiso",
           "saving": "Guardando…"
         },
@@ -1422,7 +1554,8 @@
         "user": "Usuario",
         "settings": "Ajustes",
         "organizations": "Organizaciones",
-        "dataSources": "Fuentes de Datos"
+        "dataSources": "Fuentes de Datos",
+        "credentials": "Credenciales"
       },
       "symptoms": {
         "config": {
@@ -1524,7 +1657,149 @@
       "settingsNav": {
         "title": "Ajustes",
         "general": "General",
-        "dataSources": "Fuentes de Datos"
+        "dataSources": "Fuentes de Datos",
+        "credentials": "Credenciales"
+      },
+      "credentials": {
+        "title": "Credenciales",
+        "description": "Identidades y secretos reutilizables. Configúralos una vez y referéncialos desde fuentes de datos, integraciones y trabajos.",
+        "addButton": "Agregar credencial",
+        "list": {
+          "usedByCount": "Usada por {count}",
+          "unused": "Sin uso aún",
+          "empty": "Aún no hay credenciales. Agrega una para comenzar.",
+          "loading": "Cargando credenciales"
+        },
+        "filters": {
+          "searchPlaceholder": "Buscar por nombre, tipo o client id",
+          "type": "Tipo",
+          "environment": "Ambiente",
+          "sortLabel": "Ordenar",
+          "sortNameAsc": "Nombre (A-Z)",
+          "sortNameDesc": "Nombre (Z-A)",
+          "sortCreated": "Creación más reciente",
+          "sortUpdated": "Actualización más reciente",
+          "noMatches": "Ninguna credencial coincide con estos filtros."
+        },
+        "menu": {
+          "label": "Acciones de la credencial",
+          "open": "Ver detalles",
+          "delete": "Eliminar"
+        },
+        "environments": {
+          "DEVELOPMENT": "Desarrollo",
+          "QA": "QA",
+          "PRODUCTION": "Producción"
+        },
+        "usageKinds": {
+          "DATA_SOURCE": "Fuente de datos",
+          "INTEGRATION": "Integración",
+          "JOB": "Trabajo",
+          "CHANNEL": "Canal"
+        },
+        "types": {
+          "azureEntra": {
+            "name": "Microsoft Entra ID",
+            "description": "Credenciales de aplicación de Microsoft Entra ID (Azure Active Directory) — client_id + client_secret + scope."
+          },
+          "oauth2": {
+            "name": "OAuth 2.0 genérico",
+            "description": "Flujo client_credentials contra cualquier endpoint de token OAuth 2.0."
+          },
+          "apiKey": {
+            "name": "API key",
+            "description": "Una llave enviada como header o parámetro de consulta."
+          },
+          "bearer": {
+            "name": "Token Bearer",
+            "description": "Un token de larga duración enviado en el header Authorization."
+          },
+          "basic": {
+            "name": "Autenticación básica",
+            "description": "Usuario y contraseña enviados como HTTP basic."
+          }
+        },
+        "badge": {
+          "notTested": "Sin probar",
+          "connected": "Conectada",
+          "failed": "Falló"
+        },
+        "picker": {
+          "title": "Agregar credencial",
+          "subtitle": "Elige el tipo de credencial que quieres guardar.",
+          "searchPlaceholder": "Buscar tipos de credencial",
+          "comingSoon": "Próximamente",
+          "noMatches": "Ningún tipo de credencial coincide con la búsqueda.",
+          "cancel": "Cancelar"
+        },
+        "modal": {
+          "addTitle": "Nueva credencial Microsoft Entra ID",
+          "editTitle": "Editar credencial Microsoft Entra ID",
+          "subtitle": "Aplicación con client_credentials registrada en Microsoft Entra ID.",
+          "name": "Nombre de la credencial",
+          "namePlaceholder": "ej. Operaciones MINTRAL · QA",
+          "environment": "Ambiente",
+          "environmentPlaceholder": "Elige o crea un ambiente",
+          "environmentCreate": "Crear \"{name}\"",
+          "environmentEmpty": "Escribe un nombre para crear un ambiente",
+          "tenantId": "ID de directorio (tenant)",
+          "tenantIdHelp": "El directorio Entra que emite el token. Está en el resumen del registro de aplicación.",
+          "clientId": "ID de aplicación (cliente)",
+          "clientSecret": "Secreto de cliente",
+          "clientSecretPlaceholder": "Valor del secreto del registro de aplicación",
+          "clientSecretEditPlaceholder": "Déjalo en blanco para mantener el secreto actual",
+          "guidPlaceholder": "00000000-0000-0000-0000-000000000000",
+          "scope": "Scope",
+          "scopePlaceholder": "api://<id-de-aplicación>/.default",
+          "scopeHelp": "Los permisos de aplicación usan el scope /.default de la API destino.",
+          "tokenEndpoint": "Endpoint de token",
+          "advanced": "Avanzado",
+          "tokenRequestFormat": "Formato de la solicitud de token",
+          "tokenFormatForm": "Form encoded (por defecto)",
+          "tokenFormatJson": "Cuerpo JSON",
+          "tokenUrlOverride": "Endpoint de token personalizado",
+          "tokenUrlOverridePlaceholder": "https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token",
+          "tokenUrlOverrideHelp": "Solo se necesita para nubes soberanas o endpoints de políticas B2C.",
+          "delete": "Eliminar credencial",
+          "testConnection": "Probar conexión",
+          "testSuccess": "Token emitido",
+          "testFailed": "La prueba falló",
+          "usedBy": "Usada por",
+          "secretNotice": "Los secretos se guardan cifrados y la API nunca los devuelve — puedes reemplazar un secreto, pero no volver a leerlo.",
+          "cancel": "Cancelar",
+          "saving": "Guardando...",
+          "createButton": "Crear",
+          "saveButton": "Guardar"
+        },
+        "delete": {
+          "title": "¿Eliminar esta credencial?",
+          "inUseWarning": "Todavía la referencian {count} consumidor(es)",
+          "confirmButton": "Eliminar",
+          "deleting": "Eliminando..."
+        },
+        "toast": {
+          "created": "Credencial creada",
+          "updated": "Credencial actualizada",
+          "deleted": "Credencial eliminada",
+          "testSuccess": "Prueba de conexión exitosa",
+          "testFailed": "La prueba de conexión falló",
+          "saveFailed": "No se pudo guardar la credencial",
+          "deleteFailed": "No se pudo eliminar la credencial"
+        },
+        "errors": {
+          "loadFailed": "No se pudieron cargar las credenciales.",
+          "forbidden": "Gestionar credenciales requiere acceso de propietario de la organización."
+        },
+        "validation": {
+          "nameRequired": "El nombre de la credencial es obligatorio",
+          "environmentRequired": "Elige o crea un ambiente",
+          "environmentTooLong": "El nombre del ambiente es demasiado largo",
+          "tenantIdRequired": "El ID de directorio (tenant) es obligatorio",
+          "clientIdRequired": "El ID de aplicación (cliente) es obligatorio",
+          "clientSecretRequired": "El secreto de cliente es obligatorio",
+          "scopeRequired": "El scope es obligatorio",
+          "tokenUrlInvalid": "Ingresa una URL válida"
+        }
       }
     },
     "integrationJobs": {
@@ -1594,7 +1869,11 @@
         "report": "Reporte",
         "running": "En curso",
         "retryScheduled": "Reintento agendado, intento",
-        "backoff": "backoff exponencial"
+        "backoff": "backoff exponencial",
+        "httpBodies": "Ver cuerpos",
+        "httpRequest": "Solicitud",
+        "httpResponse": "Respuesta",
+        "httpNoResponse": "sin resp."
       },
       "bell": {
         "title": "Notificaciones",
@@ -1781,6 +2060,7 @@
         "settings": "Ajustes",
         "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos",
+        "credentials": "Credenciales",
         "help": "Ayuda y cómo empezar",
         "controlTower": "Torre de control",
         "whereIsMyLoad": "¿Dónde está mi carga?",
@@ -1901,6 +2181,9 @@
           "destinationPlaceholder": "Selecciona un destino",
           "hint": "Solo se mostrarán las tareas que coincidan con los filtros seleccionados.",
           "save": "Guardar",
+          "defaultLabel": "Calendario por defecto para este origen",
+          "defaultHint": "Los servicios creados automáticamente (fuera del planificador) para este origen se reservarán en este calendario. Si ningún calendario del origen está marcado, esos servicios avanzan sin reserva.",
+          "defaultNeedsOrigin": "Sin origen, este calendario recibirá los servicios de cualquier origen que no tenga uno propio.",
           "saveSuccess": "Filtro de tareas guardado correctamente",
           "saveError": "Error al guardar el filtro de tareas"
         }
@@ -3688,6 +3971,7 @@
       "timezoneLabel": "Zona Horaria",
       "groupLabel": "Grupo",
       "activeLabel": "Activo",
+      "isDefaultLabel": "Calendario por defecto para el origen",
       "submit": "Crear Calendario",
       "group": {
         "searchPlaceholder": "Buscar o crear un grupo...",

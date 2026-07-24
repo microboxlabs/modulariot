@@ -19,9 +19,12 @@ import {
 } from "@/app/api/utils/api-error-handler";
 import type { Session } from "next-auth";
 
-// All transition IDs that advance the workflow forward.
+// All transition IDs that can advance the workflow forward.
 // Backward/previous transitions (secondary options) are not in this set,
 // so they remain allowed even when documents are rejected.
+//
+// A label alone is not enough, though: the same target can be an advance from one
+// stage and a return from another. See RETURN_TRANSITIONS_BY_SOURCE.
 const FORWARD_TRANSITION_IDS = new Set([
   "Presentar Conductor",
   "Preparar Servicio",
@@ -38,12 +41,64 @@ const FORWARD_TRANSITION_IDS = new Set([
   "Asignar Conductor/Transporte",
 ]);
 
+/**
+ * Transitions that send a task *back* to an earlier stage, keyed by the stage they are
+ * issued from.
+ *
+ * The same label means different things depending on where it is issued: "Preparar
+ * Servicio" advances a trip out of "Presentar Conductor", but is a **rejection** when
+ * the control tower sends one back from "Iniciar Viaje". Classifying by label alone
+ * made that rejection read as an advance, so the rejected-documents guard blocked the
+ * one move rejected documents are supposed to permit.
+ *
+ * Mirrors each `End*Task`'s own backward transitions in ecm-coordinator.
+ */
+const RETURN_TRANSITIONS_BY_SOURCE: Record<string, ReadonlySet<string>> = {
+  "wfship2:missionControlTask": new Set([
+    "Preparar Servicio",
+    "Presentar Conductor",
+    "Asignar Conductor/Transporte",
+    "Separar Documentos",
+    "Planificar Servicio",
+  ]),
+  "wfship2:prepareServiceTask": new Set([
+    "Presentar Conductor",
+    "Asignar Conductor/Transporte",
+    "Separar Documentos",
+    "Planificar Servicio",
+  ]),
+  "wfship2:presentDriverTask": new Set([
+    "Asignar Conductor/Transporte",
+    "Separar Documentos",
+    "Planificar Servicio",
+  ]),
+};
+
+/**
+ * Whether this transition advances the workflow *from the stage it was issued in*.
+ *
+ * @param sourceTaskType the form key of the task being completed, sent as `reasonId`
+ *        (e.g. `wfship2:missionControlTask`). Without it a label is ambiguous, so an
+ *        unknown source falls back to the label — the previous behaviour.
+ */
+function isForwardTransition(
+  transitionId: string | undefined,
+  sourceTaskType: string | undefined
+): boolean {
+  if (!transitionId || !FORWARD_TRANSITION_IDS.has(transitionId)) return false;
+  const returns = sourceTaskType
+    ? RETURN_TRANSITIONS_BY_SOURCE[sourceTaskType]
+    : undefined;
+  return !returns?.has(transitionId);
+}
+
 type ReviewViolation = { code: string; message: string };
 
 async function checkDocumentReview(
   session: Session,
   bpmPackage: string,
-  transitionId: string | undefined
+  transitionId: string | undefined,
+  sourceTaskType: string | undefined
 ): Promise<ReviewViolation | null> {
   const packageNodeId = bpmPackage.split("/").pop();
   if (!packageNodeId) return null;
@@ -61,12 +116,16 @@ async function checkDocumentReview(
 
     if (reviewable.length === 0) return null;
 
+    // Both gates below exist to stop the workflow *advancing* over unresolved reviews.
+    // Sending a trip back is how an operator resolves them, so a return is never blocked.
+    const isAdvancing = isForwardTransition(transitionId, sourceTaskType);
+
     const hasPending = reviewable.some((e) => {
       const s = e.entry.properties?.["mintral:reviewStatus"];
       return !s || s === "PENDING";
     });
 
-    if (hasPending) {
+    if (hasPending && isAdvancing) {
       return {
         code: "UNREVIEWED_DOCUMENTS",
         message: "Cannot advance: some documents are still pending review.",
@@ -77,7 +136,7 @@ async function checkDocumentReview(
       (e) => e.entry.properties?.["mintral:reviewStatus"] === "REJECTED"
     );
 
-    if (rejectedEntries.length > 0 && transitionId && FORWARD_TRANSITION_IDS.has(transitionId)) {
+    if (rejectedEntries.length > 0 && isAdvancing) {
       return {
         code: "REJECTED_DOCUMENTS",
         message: "Cannot advance: some documents have been rejected.",
@@ -331,7 +390,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (json.bpm_package) {
-      const violation = await checkDocumentReview(session, json.bpm_package, json.transitionId);
+      const violation = await checkDocumentReview(
+        session,
+        json.bpm_package,
+        json.transitionId,
+        json.reasonId
+      );
       if (violation) {
         return NextResponse.json({ success: false, error: violation }, { status: 422 });
       }

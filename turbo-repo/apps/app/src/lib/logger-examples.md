@@ -161,7 +161,8 @@ DELETE /api/admin/logs?handlerId=old-feature
 
 ## Dynamic Log Level Control
 
-Administrators with `GROUP_ALFRESCO_ADMINISTRATOR` or `GROUP_MINTRAL_SYSTEM_ADMIN` groups can:
+Administrators in any group listed in `ADMIN_ROLES`
+(`src/features/auth/config/route-permissions.ts`) can:
 
 1. **Discover all loggers** - See all registered log handlers across the application
 2. **Change levels dynamically** - No need to restart the application
@@ -238,6 +239,6 @@ LOG_HANDLERS_CONFIG='{"payment": "debug", "auth": "warn"}'
 
 ## Security
 
-- Only users in `GROUP_ALFRESCO_ADMINISTRATOR` or `GROUP_MINTRAL_SYSTEM_ADMIN` can manage log levels
+- Only users in an `ADMIN_ROLES` group (see `features/auth/config/route-permissions.ts`) can manage log levels
 - All sensitive data is automatically redacted (passwords, tokens, etc.)
 - Log management actions are logged for audit trail

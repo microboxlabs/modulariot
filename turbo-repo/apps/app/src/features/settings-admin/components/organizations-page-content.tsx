@@ -11,23 +11,16 @@ import OrgDetailPanel from "./org-detail-panel";
 
 interface OrganizationsPageContentProps {
   readonly dict: I18nRecord;
-  readonly isAlfrescoAdministrator: boolean;
 }
 
 /**
- * Settings › Organizations — Phase 3 read-only view.
+ * Settings › Organizations.
  *
- * Two-column layout:
- *  - Left: list of orgs the user can see (from /api/user/scopes)
- *  - Right: selected org's members + modules (from /api/admin/orgs/{id}/*)
- *
- * Defaults to the active org from the top-nav scope on first render.
- * Write flows (create sub-account, add member, toggle modules) land in
- * Phase 5.
+ * All members can inspect their organization roster. Owners additionally
+ * receive the application-role, permission, and integration controls.
  */
 export default function OrganizationsPageContent({
   dict,
-  isAlfrescoAdministrator,
 }: OrganizationsPageContentProps) {
   const { activeOrg, availableOrgs, isLoading, error } = useOrgScopes();
 
@@ -81,11 +74,7 @@ export default function OrganizationsPageContent({
           onSelect={setSelectedSlug}
           dict={orgsDict}
         />
-        <OrgDetailPanel
-          organization={selectedOrganization}
-          dict={orgsDict}
-          isAlfrescoAdministrator={isAlfrescoAdministrator}
-        />
+        <OrgDetailPanel organization={selectedOrganization} dict={orgsDict} />
       </div>
     </div>
   );

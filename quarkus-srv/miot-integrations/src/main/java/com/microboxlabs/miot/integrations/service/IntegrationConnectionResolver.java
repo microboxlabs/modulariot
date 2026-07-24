@@ -44,24 +44,67 @@ public class IntegrationConnectionResolver {
             throw new ConnectionResolutionException(
                     "No usable " + providerType + " connection is configured for this organization");
         }
+        return withCredential(tenantCode, connection, providerType.toString());
+    }
 
-        Map<String, Object> secret = Map.of();
-        if (connection.credentialProfileId() != null) {
-            CredentialProfile credential =
-                    credentialProfileRepository.findByTenantAndId(tenantCode, connection.credentialProfileId());
-            if (credential == null) {
-                throw new ConnectionResolutionException(
-                        "The credential profile linked to the " + providerType
-                                + " connection could not be found");
-            }
-            try {
-                secret = secretCipher.decrypt(credential.encryptedSecretJson());
-            } catch (RuntimeException e) {
-                throw new ConnectionResolutionException(
-                        "Could not read the credential for the " + providerType + " connection", e);
-            }
+    /**
+     * Resolves one specific connection. The by-provider {@link #resolve(String, ProviderType)}
+     * returns <i>the</i> active connection for a provider, which is right for a channel a
+     * tenant has exactly one of (WhatsApp) but wrong once several endpoints share a provider
+     * type — a tenant can have many {@code CUSTOM_HTTP} partners, and a caller that stored a
+     * connection id means that one.
+     *
+     * <p>Unlike the by-provider lookup this does <b>not</b> require {@code ACTIVE}: the caller
+     * decides whether a {@code DRAFT} connection may be exercised (a test probe may, a
+     * production dispatch may not). Check {@link IntegrationConnection#status()} if it matters.
+     *
+     * @throws ConnectionResolutionException if the id is unknown to this tenant, or its
+     *         credential is missing or cannot be decrypted
+     */
+    public ResolvedConnection resolve(String tenantCode, String connectionId) {
+        IntegrationConnection connection = connectionRepository.findByTenantAndId(tenantCode, connectionId);
+        if (connection == null) {
+            throw new ConnectionResolutionException(
+                    "Connection " + connectionId + " does not exist for this organization");
         }
-        return new ResolvedConnection(connection.id(), connection.baseUrl(), connection.metadata(), secret);
+        return withCredential(tenantCode, connection, "connection " + connectionId);
+    }
+
+    /**
+     * Loads and decrypts the attached credential, if any, and describes how to authenticate
+     * with it. A connection without a credential profile resolves with empty auth — legal for
+     * an endpoint that needs none.
+     *
+     * @param label how to name the connection in an error the operator will read
+     */
+    private ResolvedConnection withCredential(
+            String tenantCode, IntegrationConnection connection, String label) {
+        if (connection.credentialProfileId() == null) {
+            return new ResolvedConnection(
+                    connection.id(), connection.baseUrl(), connection.metadata(), Map.of());
+        }
+
+        CredentialProfile credential =
+                credentialProfileRepository.findByTenantAndId(tenantCode, connection.credentialProfileId());
+        if (credential == null) {
+            throw new ConnectionResolutionException(
+                    "The credential profile linked to the " + label + " could not be found");
+        }
+        Map<String, Object> secret;
+        try {
+            secret = secretCipher.decrypt(credential.encryptedSecretJson());
+        } catch (RuntimeException e) {
+            throw new ConnectionResolutionException(
+                    "Could not read the credential for the " + label, e);
+        }
+        return new ResolvedConnection(
+                connection.id(),
+                connection.baseUrl(),
+                connection.metadata(),
+                secret,
+                credential.authType(),
+                credential.credentialType(),
+                credential.publicConfig());
     }
 
     /**

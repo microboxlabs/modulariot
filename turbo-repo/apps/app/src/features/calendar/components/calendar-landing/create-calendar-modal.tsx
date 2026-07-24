@@ -96,6 +96,7 @@ export function CreateCalendarModal({
         groups: selectedGroupCode ? [selectedGroupCode] : [],
         filter,
         autoSlotManager: true,
+        isDefault: (formValues.isDefault as boolean) ?? false,
       };
 
       const calendar = await createCalendar(body);
@@ -196,9 +197,9 @@ export function CreateCalendarModal({
             ))}
         </div>
 
-        {/* active checkbox */}
+        {/* active + default-for-origin checkboxes */}
         {standardFields
-          .filter((f) => f.name === "active")
+          .filter((f) => f.name === "active" || f.name === "isDefault")
           .map((field) => (
             <DynamicFormField
               key={field.name}

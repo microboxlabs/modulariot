@@ -119,6 +119,66 @@ class ModulithJobWorkerTest {
                 "a terminal failure parks now, no backoff");
     }
 
+    // --- http tracing --------------------------------------------------------
+
+    @Test
+    void reportCarriesTheHttpExchangesTheHandlerMade() {
+        var service = new RecordingService();
+        service.claimResults.add(List.of(job("job-1", ModulithJobHandler.EXECUTOR, CALENDAR, 1)));
+        service.claimResults.add(List.of());
+        var handler = new FakeHandler(CALENDAR);
+        handler.onHandle = () -> JobHttpTrace.record("PATCH", "http://calendar/r/1658427", 409, 12,
+                "{\"status\":\"ASSIGNED\"}", "{\"error\":\"regression\"}", null);
+        worker(service, true, handler).drain();
+
+        List<Map<String, Object>> exchanges = service.reports.get(0).exchanges();
+        assertEquals(1, exchanges.size());
+        assertEquals(409, exchanges.get(0).get("status"));
+        assertEquals("{\"error\":\"regression\"}", exchanges.get(0).get("responseBody"));
+    }
+
+    @Test
+    void aFailedAttemptKeepsTheExchangesThatExplainIt() {
+        var service = new RecordingService();
+        service.claimResults.add(List.of(job("job-1", ModulithJobHandler.EXECUTOR, CALENDAR, 1)));
+        service.claimResults.add(List.of());
+        var handler = new FakeHandler(CALENDAR);
+        handler.onHandle = () -> JobHttpTrace.record("POST", "http://alerce/svc", 500, 30,
+                "{}", "ERROR_ACCION: REMOLQUE NO EXISTE", null);
+        handler.throwWith = new RuntimeException("boom");
+        worker(service, true, handler).drain();
+
+        ReportJobRequest report = service.reports.get(0);
+        assertEquals("FAILED", report.outcome());
+        assertEquals("ERROR_ACCION: REMOLQUE NO EXISTE", report.exchanges().get(0).get("responseBody"),
+                "the downstream's reason survives the failure — that is the point");
+    }
+
+    @Test
+    void aJobThatMakesNoCallReportsAnEmptyTimeline() {
+        var service = new RecordingService();
+        service.claimResults.add(List.of(job("job-1", ModulithJobHandler.EXECUTOR, CALENDAR, 1)));
+        service.claimResults.add(List.of());
+        worker(service, true, new FakeHandler(CALENDAR)).drain();
+
+        assertTrue(service.reports.get(0).exchanges().isEmpty());
+    }
+
+    @Test
+    void oneJobsExchangesNeverLeakIntoTheNext() {
+        var service = new RecordingService();
+        service.claimResults.add(List.of(job("job-1", ModulithJobHandler.EXECUTOR, CALENDAR, 1)));
+        service.claimResults.add(List.of(job("job-2", ModulithJobHandler.EXECUTOR, CALENDAR, 1)));
+        service.claimResults.add(List.of());
+        var handler = new FakeHandler(CALENDAR);
+        handler.onHandle = () -> JobHttpTrace.record("GET", "http://calendar/slots", 200, 1, null, "[]", null);
+        worker(service, true, handler).drain();
+
+        assertEquals(2, service.reports.size());
+        assertEquals(1, service.reports.get(0).exchanges().size());
+        assertEquals(1, service.reports.get(1).exchanges().size(), "the window is per attempt, not cumulative");
+    }
+
     // --- gating --------------------------------------------------------------
 
     @Test
@@ -145,6 +205,8 @@ class ModulithJobWorkerTest {
         private final String jobType;
         boolean ready = true;
         RuntimeException throwWith;
+        /** Stands in for the HTTP calls a real handler makes. */
+        Runnable onHandle;
 
         FakeHandler(String jobType) {
             this.jobType = jobType;
@@ -162,6 +224,9 @@ class ModulithJobWorkerTest {
 
         @Override
         public JobOutcome handle(Map<String, Object> payload) {
+            if (onHandle != null) {
+                onHandle.run();
+            }
             if (throwWith != null) {
                 throw throwWith;
             }

@@ -18,6 +18,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildAssignProcessVariables,
   decideAssignTaskAdvance,
+  decidePresentedReassign,
   getTaskDrivenUnassignTransition,
 } from "./task-driven-assign";
 
@@ -152,6 +153,65 @@ describe("decideAssignTaskAdvance — P3 assign flag gating", () => {
           // no truck
           mintral_serviceType: "Sider",
         },
+        FLAG_ON
+      )
+    ).toBeNull();
+  });
+});
+
+describe("decidePresentedReassign — re-push a change on an already-presented service", () => {
+  it("flag ON + stage=presentDriver + full tuple: returns the re-push tuple", () => {
+    expect(
+      decidePresentedReassign(
+        "presentDriver",
+        "ANTOFAGASTA",
+        FULL_TUPLE,
+        FLAG_ON
+      )
+    ).toMatchObject({
+      carrier_id: "carrier-uuid",
+      driver_id: "driver-uuid",
+      truck_id: "truck-uuid",
+      tipo_servicio: "SIDER",
+    });
+  });
+
+  it("stage=assignDriver (first-time assign): returns null — the forward edge already carries it", () => {
+    expect(
+      decidePresentedReassign("assignDriver", "ANTOFAGASTA", FULL_TUPLE, FLAG_ON)
+    ).toBeNull();
+  });
+
+  it("stage=planService: returns null", () => {
+    expect(
+      decidePresentedReassign("planService", "ANTOFAGASTA", FULL_TUPLE, FLAG_ON)
+    ).toBeNull();
+  });
+
+  it("flag OFF origin: returns null (un-migrated origins unchanged)", () => {
+    expect(
+      decidePresentedReassign("presentDriver", "CALAMA", FULL_TUPLE, FLAG_ON)
+    ).toBeNull();
+  });
+
+  it("empty enabled set: every origin is treated as flag-off", () => {
+    expect(
+      decidePresentedReassign("presentDriver", "ANTOFAGASTA", FULL_TUPLE, FLAG_OFF)
+    ).toBeNull();
+  });
+
+  it("missing origin: treated as flag-off", () => {
+    expect(
+      decidePresentedReassign("presentDriver", undefined, FULL_TUPLE, FLAG_ON)
+    ).toBeNull();
+  });
+
+  it("presentDriver but incomplete tuple: returns null (nothing valid to re-push)", () => {
+    expect(
+      decidePresentedReassign(
+        "presentDriver",
+        "ANTOFAGASTA",
+        { assignedCarrier: "c", assignedDriver: "d", mintral_serviceType: "Sider" },
         FLAG_ON
       )
     ).toBeNull();

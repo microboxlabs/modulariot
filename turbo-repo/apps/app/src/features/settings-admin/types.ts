@@ -1,8 +1,4 @@
-/**
- * Settings admin types — Phase 3 (read-only).
- * Mirrors the Quarkus DTOs returned by /api/v1/me/scopes, /orgs/{id}/members
- * and /orgs/{id}/modules.
- */
+/** Settings DTOs mirrored from the org-scoped Quarkus APIs. */
 
 export interface OrgSummary {
   id: number;
@@ -35,5 +31,14 @@ export interface ContentReviewPermission {
 
 export interface SetContentReviewPermission {
   enabled: boolean;
+  assigneeIds: string[];
+}
+
+export interface OrganizationRole {
+  roleCode: string;
+  assigneeIds: string[];
+}
+
+export interface SetOrganizationRole {
   assigneeIds: string[];
 }

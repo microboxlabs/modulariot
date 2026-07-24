@@ -39,6 +39,21 @@ class DualJwtAuthMechanismPathTest {
     }
 
     @Test
+    void eventsResourceIsM2mWithoutDraggingTheSharedBindingsPrefixOntoHs256() {
+        // The events resource opts into HS256/M2M (ECM posts an Auth0 M2M token), but it
+        // shares the /integrations prefix with the RS256 web-user bindings resource. Its
+        // own, more specific path must therefore cover /events only — never /bindings or
+        // /dispatch-targets, which the drawer calls with a web-user token.
+        Pattern p = DualJwtAuthMechanism.templateToPattern(
+                "/api/v1/orgs/{organizationId}/integrations/events");
+
+        assertTrue(p.matcher("/api/v1/orgs/mintral/integrations/events").matches());
+        assertFalse(p.matcher("/api/v1/orgs/mintral/integrations/bindings").matches());
+        assertFalse(p.matcher("/api/v1/orgs/mintral/integrations/dispatch-targets").matches());
+        assertFalse(p.matcher("/api/v1/orgs/mintral/integrations").matches());
+    }
+
+    @Test
     void staticPathKeepsExactOrPrefixSemantics() {
         Pattern p = DualJwtAuthMechanism.templateToPattern("/api/v1/asset/track");
 

@@ -2,8 +2,8 @@ package com.microboxlabs.miot.integrations.api;
 
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestRequest;
-import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationOperationRequest;
 import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest;
@@ -43,7 +43,7 @@ import java.util.function.Supplier;
 @Path("/api/v1/orgs/{organizationId}/integrations")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Tag(name = "Integration Connections", description = "External API connections, credential profiles, and endpoint operations")
+@Tag(name = "Integration Connections", description = "External API connections and their endpoint operations")
 @SecurityRequirement(name = "oidc")
 @Authenticated
 @IfBuildProperty(name = "miot.component.integrations.enabled", stringValue = "true")
@@ -51,36 +51,19 @@ public class OrgIntegrationConnectionsResource {
 
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
+    private final OrganizationRoleService roleService;
     private final IntegrationConnectionService service;
 
     @Inject
     public OrgIntegrationConnectionsResource(
             TenantContext tenantContext,
             OrganizationContext organizationContext,
+            OrganizationRoleService roleService,
             IntegrationConnectionService service) {
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
+        this.roleService = roleService;
         this.service = service;
-    }
-
-    @GET
-    @Path("/credential-profiles")
-    @Operation(summary = "List credential profiles")
-    public Uni<Response> listCredentialProfiles(@PathParam("organizationId") String organizationId) {
-        String tenant = tenantCode(organizationId);
-        return onWorker(() -> Response.ok(service.listCredentialProfiles(tenant)).build());
-    }
-
-    @POST
-    @Path("/credential-profiles")
-    @Operation(summary = "Create a credential profile")
-    public Uni<Response> createCredentialProfile(
-            @PathParam("organizationId") String organizationId,
-            CreateCredentialProfileRequest req) {
-        String tenant = tenantCode(organizationId);
-        return onWorker(() -> Response.status(Response.Status.CREATED)
-                .entity(service.createCredentialProfile(tenant, req))
-                .build());
     }
 
     @GET
@@ -88,7 +71,8 @@ public class OrgIntegrationConnectionsResource {
     @Operation(summary = "List integration connections")
     public Uni<Response> listConnections(@PathParam("organizationId") String organizationId) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> Response.ok(service.listConnections(tenant)).build());
+        return ownerWork(organizationId,
+                () -> Response.ok(service.listConnections(tenant)).build());
     }
 
     @POST
@@ -98,7 +82,7 @@ public class OrgIntegrationConnectionsResource {
             @PathParam("organizationId") String organizationId,
             CreateIntegrationConnectionRequest req) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> Response.status(Response.Status.CREATED)
+        return ownerWork(organizationId, () -> Response.status(Response.Status.CREATED)
                 .entity(service.createConnection(tenant, req))
                 .build());
     }
@@ -110,7 +94,7 @@ public class OrgIntegrationConnectionsResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("connectionId") String connectionId) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> {
+        return ownerWork(organizationId, () -> {
             var connection = service.getConnection(tenant, connectionId);
             return connection == null
                     ? Response.status(Response.Status.NOT_FOUND).build()
@@ -126,7 +110,7 @@ public class OrgIntegrationConnectionsResource {
             @PathParam("connectionId") String connectionId,
             UpdateIntegrationConnectionRequest req) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> {
+        return ownerWork(organizationId, () -> {
             var connection = service.updateConnection(tenant, connectionId, req);
             return connection == null
                     ? Response.status(Response.Status.NOT_FOUND).build()
@@ -142,7 +126,8 @@ public class OrgIntegrationConnectionsResource {
             @PathParam("connectionId") String connectionId,
             ConnectionTestRequest req) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> Response.ok(service.testConnection(tenant, connectionId, req)).build());
+        return ownerWork(organizationId,
+                () -> Response.ok(service.testConnection(tenant, connectionId, req)).build());
     }
 
     @GET
@@ -152,7 +137,8 @@ public class OrgIntegrationConnectionsResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("connectionId") String connectionId) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> Response.ok(service.listOperations(tenant, connectionId)).build());
+        return ownerWork(organizationId,
+                () -> Response.ok(service.listOperations(tenant, connectionId)).build());
     }
 
     @POST
@@ -163,7 +149,7 @@ public class OrgIntegrationConnectionsResource {
             @PathParam("connectionId") String connectionId,
             CreateIntegrationOperationRequest req) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> {
+        return ownerWork(organizationId, () -> {
             var operation = service.addOperation(tenant, connectionId, req);
             return operation == null
                     ? Response.status(Response.Status.NOT_FOUND).build()
@@ -177,6 +163,11 @@ public class OrgIntegrationConnectionsResource {
      */
     private static <T> Uni<T> onWorker(Supplier<T> work) {
         return Uni.createFrom().item(work).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+    }
+
+    private <T> Uni<T> ownerWork(String organizationId, Supplier<T> work) {
+        return roleService.requireOwner(organizationId)
+                .flatMap(ignored -> onWorker(work));
     }
 
     private String tenantCode(String organizationId) {

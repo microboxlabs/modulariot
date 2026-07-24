@@ -22,6 +22,7 @@ const CalendarPatchSchema = z.object({
   active: z.boolean().optional(),
   filter: CalendarFilterSchema,
   autoSlotManager: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
 });
 
 export async function PUT(
@@ -52,6 +53,9 @@ export async function PUT(
       parallelism: parsed.data.parallelism ?? current.parallelism,
       filter: parsed.data.filter ?? current.filter,
       autoSlotManager: parsed.data.autoSlotManager,
+      // Read-modify-write: carry the flag forward so an unrelated edit cannot
+      // silently strip a calendar's default status.
+      isDefault: parsed.data.isDefault ?? current.isDefault,
       groups: current.groups?.map((g) => g.code),
     });
     return NextResponse.json(updated);

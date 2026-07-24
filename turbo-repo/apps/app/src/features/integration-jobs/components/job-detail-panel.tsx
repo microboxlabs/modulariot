@@ -9,17 +9,22 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
   canRetry,
   countdownTo,
+  exchangePath,
+  exchangeStatusTone,
   formatClock,
   formatDateTime,
   formatDurationMs,
   jobDurationMs,
-  jobTypeLabel,
+  jobLabel,
+  readAttemptExchanges,
+  readJobOp,
   relativeAge,
   shortJobId,
   sortChain,
   JOB_STATE_DOT,
   type AsyncJob,
   type AsyncJobAttempt,
+  type JobHttpExchange,
 } from "../integration-job.types";
 import { useIntegrationJob, useIntegrationJobChain, useRetryJob } from "../use-integration-jobs";
 import JobStateBadge from "./job-state-badge";
@@ -66,6 +71,87 @@ interface TimelineNode {
   readonly title: string;
   readonly meta: string;
   readonly error?: string | null;
+  readonly exchanges?: JobHttpExchange[];
+}
+
+/**
+ * One recorded HTTP call: the line an operator scans (method, path, status,
+ * duration) with the bodies folded away behind a native `<details>` — the panel
+ * is 400px wide, so a response body has to be opt-in, and `<details>` keeps
+ * that free of state and keyboard-accessible.
+ */
+function HttpExchangeRow({
+  exchange,
+  dict,
+}: {
+  readonly exchange: JobHttpExchange;
+  readonly dict: I18nRecord;
+}) {
+  if (exchange.note) {
+    return (
+      <li className="py-1 text-[11px] italic text-gray-400 dark:text-gray-500">{exchange.note}</li>
+    );
+  }
+  const hasBody = Boolean(exchange.requestBody || exchange.responseBody || exchange.error);
+  const status = exchange.status;
+  return (
+    <li className="border-t border-gray-100 py-1.5 first:border-t-0 dark:border-gray-700/60">
+      <div className="flex items-center gap-1.5">
+        <span className="font-mono text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+          {exchange.method ?? "—"}
+        </span>
+        <span
+          className="min-w-0 flex-1 truncate font-mono text-[11px] text-gray-700 dark:text-gray-300"
+          title={exchange.url}
+        >
+          {exchangePath(exchange.url)}
+        </span>
+        <span
+          className={`flex-shrink-0 rounded px-1 py-0.5 font-mono text-[10px] font-semibold ${exchangeStatusTone(status)}`}
+        >
+          {status ?? tr("timeline.httpNoResponse", dict)}
+        </span>
+        {exchange.durationMs !== undefined && (
+          <span className="flex-shrink-0 font-mono text-[10px] text-gray-400 dark:text-gray-500">
+            {formatDurationMs(exchange.durationMs)}
+          </span>
+        )}
+      </div>
+      {hasBody && (
+        <details className="mt-1">
+          <summary className="cursor-pointer text-[10px] text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300">
+            {tr("timeline.httpBodies", dict)}
+          </summary>
+          <div className="mt-1 flex flex-col gap-1">
+            {exchange.error && (
+              <div className="rounded bg-red-50 px-2 py-1 text-[11px] text-red-700 dark:bg-red-900/20 dark:text-red-300">
+                {exchange.error}
+              </div>
+            )}
+            {exchange.requestBody && (
+              <Body label={tr("timeline.httpRequest", dict)} value={exchange.requestBody} />
+            )}
+            {exchange.responseBody && (
+              <Body label={tr("timeline.httpResponse", dict)} value={exchange.responseBody} />
+            )}
+          </div>
+        </details>
+      )}
+    </li>
+  );
+}
+
+function Body({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <div>
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+        {label}
+      </div>
+      <pre className="mt-0.5 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-gray-900 p-2 font-mono text-[10px] leading-relaxed text-gray-200">
+        {value}
+      </pre>
+    </div>
+  );
 }
 
 function historyDotClass(outcome: string): string {
@@ -101,6 +187,7 @@ function timelineNodes(job: AsyncJob, dict: I18nRecord, nowMs: number): Timeline
         .filter(Boolean)
         .join(" · "),
       error: isFailure && typeof entry.detail === "string" ? entry.detail : null,
+      exchanges: readAttemptExchanges(entry),
     });
   });
   if (job.state === "RUNNING") {
@@ -170,7 +257,7 @@ export default function JobDetailPanel({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-base font-semibold text-gray-900 dark:text-white">
-                {jobTypeLabel(job.jobType)}
+                {jobLabel(job.jobType, readJobOp(job.payload))}
               </span>
               <JobStateBadge state={job.state} label={stateLabel} />
             </div>
@@ -283,6 +370,17 @@ export default function JobDetailPanel({
                       {node.error}
                     </div>
                   )}
+                  {node.exchanges && node.exchanges.length > 0 && (
+                    <ul className="mt-1.5 rounded-lg border border-gray-200 px-2 dark:border-gray-700">
+                      {node.exchanges.map((exchange, exchangeIndex) => (
+                        <HttpExchangeRow
+                          key={`${node.key}-x-${exchangeIndex}`}
+                          exchange={exchange}
+                          dict={dict}
+                        />
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </li>
             ))}
@@ -342,7 +440,7 @@ export default function JobDetailPanel({
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-xs font-semibold text-gray-900 dark:text-white">
-                      {jobTypeLabel(member.jobType)}
+                      {jobLabel(member.jobType, readJobOp(member.payload))}
                     </span>
                     <span className="block truncate font-mono text-[10px] text-gray-400 dark:text-gray-500">
                       {shortJobId(member.id)}

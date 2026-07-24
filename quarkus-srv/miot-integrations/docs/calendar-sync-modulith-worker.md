@@ -80,7 +80,7 @@ The lanes are decoupled, so a wrong order strands jobs. Deploy in this order:
 1. **Modulith:** deploy, then set
    `MIOT_INTEGRATIONS_MODULITH_WORKER_ENABLED=true` and
    `MIOT_INTEGRATIONS_CALENDAR_SYNC_MIOT_CALENDAR_BASE_URL=<miot-calendar url>`
-   (dev: `http://dev-mintral-calendar-miot-calendar:8083`). Until the base URL is
+   (dev: the in-cluster calendar service, `http://<release>-miot-calendar:8083`). Until the base URL is
    set the calendar handler is not-ready and the worker idles (logs a warn).
 2. **ECM:** flip `mintral.features.integrationOutbox.calendarSync.executor=modulith`.
 

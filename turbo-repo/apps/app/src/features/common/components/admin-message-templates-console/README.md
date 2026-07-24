@@ -29,7 +29,8 @@ A comprehensive admin console for managing message templates and webhook definit
 
 - **Centralized Admin Utility** (`src/features/auth/utils/admin-access.ts`)
   - Reusable `hasAdminAccess()` and `hasAdminAccessForSession()` functions
-  - Supports `GROUP_ALFRESCO_ADMINISTRATORS` and `GROUP_MINTRAL_SYSTEM_ADMIN`
+  - Supports `GROUP_ALFRESCO_ADMINISTRATORS` and the tenant system-admin group
+    (see `ADMIN_ROLES` in `features/auth/config/route-permissions.ts`)
   - Integrated with existing group validation system
 
 ### ✅ 4. SWR Data Fetching Hooks
@@ -84,7 +85,7 @@ Secondary but essential template management capabilities:
 ```typescript
 // 1. Create a message template
 await createMessageTemplateClient({
-  site: "mintral",
+  site: "acme",
   kind: "MS_TEAMS",
   templateId: "TRIP_ALERT",
   engineExt: "ftl",
@@ -106,7 +107,7 @@ await createMessageTemplateClient({
 
 // 2. Create webhook definition
 await createWebhookDefinitionClient({
-  site: "mintral",
+  site: "acme",
   templateId: "TRIP_ALERT",
   webhookKind: "MS_TEAMS",
   webhookUrl: "https://outlook.office.com/webhook/...",
@@ -118,10 +119,10 @@ await createWebhookDefinitionClient({
 
 ```typescript
 // List all webhooks grouped by kind
-const { groupedWebhooks } = useWebhookDefinitions("mintral");
+const { groupedWebhooks } = useWebhookDefinitions("acme");
 
 // Get templates for a specific kind
-const { templates } = useMessageTemplates("mintral", "MS_TEAMS");
+const { templates } = useMessageTemplates("acme", "MS_TEAMS");
 
 // Update webhook URL
 await updateWebhookDefinitionClient({

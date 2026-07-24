@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { normalizeAlfrescoNodeReference } from "@/features/common/providers/alfresco-api/alfresco-identifiers";
 import { prepareAlfrescoAuth } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { NextRequest, NextResponse } from "next/server";
 export async function GET(req: NextRequest) {
@@ -14,14 +15,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing documentId" }, { status: 400 });
   }
 
+  const nodeId = normalizeAlfrescoNodeReference(documentId);
+  if (!nodeId) {
+    return NextResponse.json({ error: "Invalid documentId" }, { status: 400 });
+  }
+
   try {
     // documentId can arrive as:
     // 1. Just the UUID: "1c903be0-..."
     // 2. Full path: "workspace/SpacesStore/1c903be0-..."
     // Normalize to full path format for Alfresco legacy API
-    const nodeContentPath = documentId.includes("/")
-      ? documentId
-      : `workspace/SpacesStore/${documentId}`;
+    const nodeContentPath = `workspace/SpacesStore/${encodeURIComponent(nodeId)}`;
 
     const { url, headers } = prepareAlfrescoAuth(
       `${process.env.ECM_API_URL}/alfresco/s/api/node/content/${nodeContentPath}?a=true`,

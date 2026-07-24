@@ -1761,8 +1761,11 @@ export async function fetchAmsTrucksMaster(
     max_weight: number | null; description: string | null; status: string;
     updated_at: string;
   }>;
+  // id numérico ESTABLE y único derivado del uuid (el grid usa id como key)
+  const hashId = (uuid: string) =>
+    Math.abs([...uuid].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 7));
   return rows.map((row) => ({
-    id: 0,
+    id: hashId(row.id),
     tenant: PGREST_TENANT_STUB,
     clientId: getPgrestClientId(),
     entityId: `ams:${row.id}`,

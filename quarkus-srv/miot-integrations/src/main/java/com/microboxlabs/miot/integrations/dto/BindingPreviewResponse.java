@@ -12,12 +12,12 @@ import java.util.Map;
  */
 public record BindingPreviewResponse(
         boolean valid,
-        /** The rendered body when {@code valid}; empty otherwise. */
-        Map<String, Object> payload,
+        /** The rendered body when {@code valid} — an object, or an array for an array contract; empty otherwise. */
+        Object payload,
         /** Every reason the mapping is not sendable; empty when {@code valid}. */
         List<String> problems) {
 
-    public static BindingPreviewResponse ok(Map<String, Object> payload) {
+    public static BindingPreviewResponse ok(Object payload) {
         return new BindingPreviewResponse(true, payload, List.of());
     }
 

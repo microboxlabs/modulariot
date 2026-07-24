@@ -58,10 +58,10 @@ class IntegrationEventDispatchHandlerTest {
         JobOutcome outcome = handler().handle(payload());
 
         assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
-        assertEquals("19f8-a8ad", dispatcher.lastPayload.get("guidMultimedia"));
+        assertEquals("19f8-a8ad", dispatcher.lastPayloadMap().get("guidMultimedia"));
         // The reviewer, snapshotted at intake — a worker thread has no user to ask.
-        assertEquals("revisor.demo", dispatcher.lastPayload.get("usuarioRevisor"));
-        assertEquals(Boolean.FALSE, dispatcher.lastPayload.get("aprobado"));
+        assertEquals("revisor.demo", dispatcher.lastPayloadMap().get("usuarioRevisor"));
+        assertEquals(Boolean.FALSE, dispatcher.lastPayloadMap().get("aprobado"));
     }
 
     @Test
@@ -194,7 +194,7 @@ class IntegrationEventDispatchHandlerTest {
     }
 
     private static final class RecordingDispatcher implements ChannelDispatcher {
-        private Map<String, Object> lastPayload;
+        private Object lastPayload;
         private DispatchOutcome outcome = DispatchOutcome.succeeded("HTTP 200");
 
         @Override
@@ -204,9 +204,14 @@ class IntegrationEventDispatchHandlerTest {
 
         @Override
         public DispatchOutcome dispatch(
-                String tenantClientId, IntegrationEventBinding binding, Map<String, Object> payload) {
+                String tenantClientId, IntegrationEventBinding binding, Object payload) {
             this.lastPayload = payload;
             return outcome;
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> lastPayloadMap() {
+            return (Map<String, Object>) lastPayload;
         }
     }
 }

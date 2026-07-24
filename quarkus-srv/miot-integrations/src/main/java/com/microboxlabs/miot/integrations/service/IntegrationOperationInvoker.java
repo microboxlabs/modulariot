@@ -85,13 +85,14 @@ public class IntegrationOperationInvoker {
     }
 
     /**
-     * @param body sent as a JSON object on POST/PUT/PATCH; ignored for other methods
+     * @param body sent as a JSON body on POST/PUT/PATCH ({@code Map} → object, {@code List} →
+     *        array); ignored for other methods
      * @throws OperationInvocationException when the operation is unknown to the connection,
      *         the credential is unusable, the URL is not a public HTTP(S) one, or the call
      *         never completed
      */
     public OperationInvocationResult invoke(
-            String tenantCode, String connectionId, String operationId, Map<String, Object> body) {
+            String tenantCode, String connectionId, String operationId, Object body) {
         ResolvedConnection connection = connectionResolver.resolve(tenantCode, connectionId);
         IntegrationOperation operation =
                 operationRepository.findByConnectionAndId(connectionId, operationId);
@@ -116,7 +117,7 @@ public class IntegrationOperationInvoker {
     }
 
     private OperationInvocationResult execute(
-            ResolvedConnection connection, IntegrationOperation operation, Map<String, Object> body) {
+            ResolvedConnection connection, IntegrationOperation operation, Object body) {
         ResolvedAuth auth = resolveAuth(connection);
         URI url = buildUrl(connection.baseUrl(), operation.path(), auth.queryParams());
         // Resolves the host: a stored base URL is operator input and could point at the
@@ -211,7 +212,7 @@ public class IntegrationOperationInvoker {
         return method;
     }
 
-    private String serialize(Map<String, Object> body) {
+    private String serialize(Object body) {
         try {
             return objectMapper.writeValueAsString(body == null ? Map.of() : body);
         } catch (JsonProcessingException e) {

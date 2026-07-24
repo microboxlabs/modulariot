@@ -174,7 +174,7 @@ public class IntegrationEventBindingService {
             return BindingPreviewResponse.invalid(problems);
         }
         try {
-            return BindingPreviewResponse.ok(renderer.render(
+            return BindingPreviewResponse.ok(renderer.renderBody(
                     request.fieldTemplates(), contract, context == null ? Map.of() : context));
         } catch (PayloadRenderException e) {
             return BindingPreviewResponse.invalid(e.problems());

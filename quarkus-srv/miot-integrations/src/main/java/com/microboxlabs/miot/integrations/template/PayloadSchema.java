@@ -22,13 +22,30 @@ import java.util.Set;
  *   "required": ["aprobado"] }
  * }</pre>
  *
- * <p>Anything richer (nested objects, arrays, {@code oneOf}, validation keywords) is ignored
- * rather than rejected — an operator may have pasted a fuller schema, and the parts we do
- * understand are still the parts we act on. A property with no usable {@code type}, including
+ * <p><b>Array bodies.</b> A partner that wants a JSON array — "here are the N media I
+ * reviewed" — declares {@code "type": "array"} with the per-element contract under
+ * {@code items}, and names the context collection to iterate with {@code itemsFrom}
+ * (default {@code content}):
+ *
+ * <pre>{@code
+ * { "type": "array", "itemsFrom": "content",
+ *   "items": { "type": "object",
+ *              "properties": { "guidMultimedia": { "type": "string" } },
+ *              "required": ["guidMultimedia"] } }
+ * }</pre>
+ *
+ * <p>The declared {@link #fields()} are the same either way — the mapping rows an operator
+ * fills in — so the settings UI and save-time validation treat an array contract exactly
+ * like an object one. Only the renderer cares about the difference: it renders those fields
+ * once per element of {@link #itemsFrom()} instead of once total.
+ *
+ * <p>Anything richer (nested objects, {@code oneOf}, validation keywords) is ignored rather
+ * than rejected — an operator may have pasted a fuller schema, and the parts we do understand
+ * are still the parts we act on. A property with no usable {@code type}, including
  * {@code string} with {@code "format": "date-time"}, is treated as {@link FieldType#STRING}
  * and passed through verbatim.
  */
-public record PayloadSchema(List<Field> fields) {
+public record PayloadSchema(List<Field> fields, boolean array, String itemsFrom) {
 
     /** The JSON types a channel field can be sent as. */
     public enum FieldType {
@@ -41,7 +58,15 @@ public record PayloadSchema(List<Field> fields) {
     public record Field(String id, FieldType type, boolean required) {
     }
 
+    /** The context collection an array schema iterates when {@code itemsFrom} is absent. */
+    private static final String DEFAULT_ITEMS_FROM = "content";
+
     private static final PayloadSchema EMPTY = new PayloadSchema(List.of());
+
+    /** An object contract over {@code fields} — the shape every existing caller assumes. */
+    public PayloadSchema(List<Field> fields) {
+        this(fields, false, null);
+    }
 
     /** A schema declaring nothing — every mapped field is then sent as a string. */
     public static PayloadSchema empty() {
@@ -53,18 +78,19 @@ public record PayloadSchema(List<Field> fields) {
         if (requestSchema == null || requestSchema.isEmpty()) {
             return EMPTY;
         }
-        Object rawProperties = requestSchema.get("properties");
-        if (!(rawProperties instanceof Map<?, ?> properties) || properties.isEmpty()) {
-            return EMPTY;
+        if (isArray(requestSchema)) {
+            Object rawItems = requestSchema.get("items");
+            Map<?, ?> items = rawItems instanceof Map<?, ?> map ? map : Map.of();
+            List<Field> fields = fieldsOf(items);
+            return fields.isEmpty() ? EMPTY : new PayloadSchema(fields, true, itemsFrom(requestSchema));
         }
-        Set<String> required = requiredNames(requestSchema.get("required"));
+        List<Field> fields = fieldsOf(requestSchema);
+        return fields.isEmpty() ? EMPTY : new PayloadSchema(fields);
+    }
 
-        List<Field> fields = new ArrayList<>(properties.size());
-        properties.forEach((name, definition) -> {
-            String id = String.valueOf(name);
-            fields.add(new Field(id, typeOf(definition), required.contains(id)));
-        });
-        return new PayloadSchema(List.copyOf(fields));
+    /** The per-element object contract of an array schema, for rendering one element. */
+    public PayloadSchema itemSchema() {
+        return new PayloadSchema(fields);
     }
 
     public Field field(String id) {
@@ -73,6 +99,35 @@ public record PayloadSchema(List<Field> fields) {
 
     public List<Field> requiredFields() {
         return fields.stream().filter(Field::required).toList();
+    }
+
+    /* ---------------------------------------------------------------------- */
+
+    private static boolean isArray(Map<String, Object> requestSchema) {
+        return "array".equalsIgnoreCase(String.valueOf(requestSchema.get("type")));
+    }
+
+    private static String itemsFrom(Map<String, Object> requestSchema) {
+        Object raw = requestSchema.get("itemsFrom");
+        if (raw == null || String.valueOf(raw).isBlank()) {
+            return DEFAULT_ITEMS_FROM;
+        }
+        return String.valueOf(raw).trim();
+    }
+
+    /** Reads {@code properties}/{@code required} of an object schema map into fields. */
+    private static List<Field> fieldsOf(Map<?, ?> schema) {
+        Object rawProperties = schema.get("properties");
+        if (!(rawProperties instanceof Map<?, ?> properties) || properties.isEmpty()) {
+            return List.of();
+        }
+        Set<String> required = requiredNames(schema.get("required"));
+        List<Field> fields = new ArrayList<>(properties.size());
+        properties.forEach((name, definition) -> {
+            String id = String.valueOf(name);
+            fields.add(new Field(id, typeOf(definition), required.contains(id)));
+        });
+        return List.copyOf(fields);
     }
 
     private static Set<String> requiredNames(Object raw) {

@@ -1,9 +1,11 @@
 "use client";
 
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 import { ReactSortable } from "react-sortablejs";
+import { toast } from "sonner";
 import {
   Dropdown,
+  DropdownDivider,
   DropdownHeader,
   DropdownItem,
   Tooltip,
@@ -15,6 +17,8 @@ import {
   HiSortAscending,
   HiFilter,
   HiChevronDoubleLeft,
+  HiClipboardCheck,
+  HiCog,
 } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -24,8 +28,14 @@ import {
   LaneSort,
   LaneViewState,
 } from "../../hooks/use-lane-view-state";
+import { registerAsyncJob } from "../../hooks/use-review-integration-config";
 import KanbanCard from "../kanban-card/kanban-card";
 import { TaskCounter } from "../TaskCounter";
+import { ReviewSettingsDrawer } from "./review-settings-drawer";
+import {
+  EMPTY_REVIEW_CONFIG,
+  type ReviewIntegrationConfig,
+} from "./review-integration.types";
 
 interface LaneColumnProps {
   board: KanbanBoard;
@@ -33,6 +43,10 @@ interface LaneColumnProps {
   showFinishedTasks: boolean;
   isLoading: boolean;
   dict: I18nRecord;
+  /** `pages.reviewProcess` subtree — the review-integration config UI. */
+  reviewDict: I18nRecord;
+  reviewConfig: ReviewIntegrationConfig;
+  onReviewConfigSave: (config: ReviewIntegrationConfig) => void;
   laneState: LaneViewState;
   onLaneUpdate: (patch: Partial<LaneViewState>) => void;
   setList: Dispatch<SetStateAction<KanbanBoard[]>>;
@@ -95,6 +109,9 @@ export function LaneColumn({
   showFinishedTasks,
   isLoading,
   dict,
+  reviewDict,
+  reviewConfig,
+  onReviewConfigSave,
   laneState,
   onLaneUpdate,
   setList,
@@ -102,6 +119,27 @@ export function LaneColumn({
   onCardMouseLeave,
   onCardClick,
 }: Readonly<LaneColumnProps>) {
+  const [reviewDrawerOpen, setReviewDrawerOpen] = useState(false);
+  const reviewEnabled = reviewConfig.enabled;
+
+  // A saved-and-enabled config is (re)registered as an async job; a disabled one
+  // is persisted as-is so the "paused" state survives. Mirrors what the backend
+  // will do — here it just stamps a job id + timestamp.
+  const handleReviewSave = (draft: ReviewIntegrationConfig) => {
+    const stored = draft.enabled ? registerAsyncJob(draft) : draft;
+    onReviewConfigSave(stored);
+    if (stored.enabled) {
+      toast.success(
+        tr("toast.registered", reviewDict, {
+          jobId: stored.registeredJobId ?? "",
+        })
+      );
+    } else {
+      toast.success(tr("toast.disabled", reviewDict));
+    }
+    setReviewDrawerOpen(false);
+  };
+
   const compact =
     laneState.density === "inherit"
       ? compactKanbanView
@@ -164,6 +202,13 @@ export function LaneColumn({
           {title}
         </span>
         <div className="flex shrink-0 items-center gap-1.5">
+          {reviewEnabled && (
+            <Tooltip content={tr("menu.enabledBadge", reviewDict)}>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-100 text-primary-600 dark:bg-primary-900/50 dark:text-primary-300">
+                <HiClipboardCheck className="h-3.5 w-3.5" />
+              </span>
+            </Tooltip>
+          )}
           <TaskCounter count={visibleTasks.length} dict={dict} />
           <Dropdown
             inline
@@ -263,6 +308,29 @@ export function LaneColumn({
             >
               {tr("kanban.lane.collapse", dict)}
             </DropdownItem>
+
+            <DropdownDivider />
+            <DropdownItem
+              icon={() => (
+                <HiCog
+                  className={`h-4 w-4 shrink-0 ${
+                    reviewEnabled
+                      ? "text-primary-600 dark:text-primary-300"
+                      : "text-gray-500 dark:text-gray-400"
+                  }`}
+                />
+              )}
+              onClick={() => setReviewDrawerOpen(true)}
+            >
+              <span className="flex items-center gap-2">
+                {tr("menu.settings", reviewDict)}
+                {reviewEnabled && (
+                  <span className="rounded-full bg-primary-100 px-1.5 text-[10px] font-medium text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">
+                    {tr("menu.on", reviewDict)}
+                  </span>
+                )}
+              </span>
+            </DropdownItem>
           </Dropdown>
         </div>
       </div>
@@ -303,6 +371,15 @@ export function LaneColumn({
           </div>
         ))}
       </ReactSortable>
+
+      <ReviewSettingsDrawer
+        show={reviewDrawerOpen}
+        onClose={() => setReviewDrawerOpen(false)}
+        laneTitle={title}
+        config={reviewConfig ?? EMPTY_REVIEW_CONFIG}
+        onSave={handleReviewSave}
+        dict={reviewDict}
+      />
     </div>
   );
 }

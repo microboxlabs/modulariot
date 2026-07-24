@@ -1,11 +1,11 @@
-export interface FilterItemConfig {
-  /** Column key whose distinct values are used as filter pills */
-  column: string;
-  /** Label shown before the filter pills, e.g. "Estado:" */
-  label: string;
-}
+/**
+ * Filter config types — moved to @microboxlabs/miot-dashboard-ui (P3).
+ *
+ * This shim keeps existing app import paths working during the extraction;
+ * new code should import from the package directly.
+ */
 
-export interface FilterConfig {
-  enabled: boolean;
-  items: FilterItemConfig[];
-}
+export type {
+  FilterItemConfig,
+  FilterConfig,
+} from "@microboxlabs/miot-dashboard-ui";

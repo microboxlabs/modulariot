@@ -234,25 +234,35 @@ export function timeAgoHelper(value: unknown): string {
 }
 
 // ============================================================================
-// Registration
+// Environment
 // ============================================================================
 
-let registered = false;
+export type DashboardHandlebars = typeof Handlebars;
 
-export function registerHandlebarsHelpers(): void {
-  if (registered) return;
-  registered = true;
-
-  Handlebars.registerHelper("formatNumber", formatNumberHelper);
-  Handlebars.registerHelper("extractNumber", extractNumberHelper);
-  Handlebars.registerHelper("toFixed", toFixedHelper);
-  Handlebars.registerHelper("round", roundHelper);
-  Handlebars.registerHelper("multiply", multiplyHelper);
-  Handlebars.registerHelper("divide", divideHelper);
-  Handlebars.registerHelper("formatDate", formatDateHelper);
-  Handlebars.registerHelper("datePart", datePartHelper);
-  Handlebars.registerHelper("timeAgo", timeAgoHelper);
+/**
+ * Build an isolated Handlebars environment with every dashboard helper
+ * registered. The ambient `handlebars` module instance is never mutated, so a
+ * host page with its own Handlebars usage — or a second dashboard with a
+ * different helper set — cannot collide with this one.
+ */
+export function createDashboardHandlebars(): DashboardHandlebars {
+  const instance = Handlebars.create();
+  instance.registerHelper("formatNumber", formatNumberHelper);
+  instance.registerHelper("extractNumber", extractNumberHelper);
+  instance.registerHelper("toFixed", toFixedHelper);
+  instance.registerHelper("round", roundHelper);
+  instance.registerHelper("multiply", multiplyHelper);
+  instance.registerHelper("divide", divideHelper);
+  instance.registerHelper("formatDate", formatDateHelper);
+  instance.registerHelper("datePart", datePartHelper);
+  instance.registerHelper("timeAgo", timeAgoHelper);
+  return instance;
 }
 
-// Auto-register on import
-registerHandlebarsHelpers();
+let defaultInstance: DashboardHandlebars | null = null;
+
+/** Shared default environment used by the template utilities. */
+export function getDashboardHandlebars(): DashboardHandlebars {
+  defaultInstance ??= createDashboardHandlebars();
+  return defaultInstance;
+}

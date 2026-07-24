@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import Handlebars from "handlebars";
+import type { TemplateDelegate } from "handlebars";
 import {
   compileTemplates,
   resolveTemplate,
   resolveHandlebarsField,
   buildDataProviderContext,
-} from "./use-handlebars-templates";
+} from "./handlebars-templates";
 
 describe("compileTemplates", () => {
   it('compiles fields containing "{{"', () => {
@@ -45,6 +45,15 @@ describe("compileTemplates", () => {
     ]);
     expect(map.size).toBe(2);
   });
+
+  it("compiles against the dashboard environment so format helpers resolve", () => {
+    const map = compileTemplates([
+      { id: "t", template: "{{round row.value}}" },
+    ]);
+    expect(resolveTemplate(map, "t", { row: { value: 3.7 } }, "fallback")).toBe(
+      "4",
+    );
+  });
 });
 
 describe("resolveTemplate", () => {
@@ -56,16 +65,16 @@ describe("resolveTemplate", () => {
   });
 
   it("returns fallback when id not in map", () => {
-    const map = new Map<string, Handlebars.TemplateDelegate>();
+    const map = new Map<string, TemplateDelegate>();
     expect(resolveTemplate(map, "missing", {}, "fallback")).toBe("fallback");
   });
 
   it("returns fallback when template execution throws", () => {
     // Manually insert a template that will throw on execution
-    const map = new Map<string, Handlebars.TemplateDelegate>();
+    const map = new Map<string, TemplateDelegate>();
     map.set("t", (() => {
       throw new Error("runtime error");
-    }) as unknown as Handlebars.TemplateDelegate);
+    }) as unknown as TemplateDelegate);
     expect(resolveTemplate(map, "t", {}, "fallback")).toBe("fallback");
   });
 });
@@ -90,6 +99,14 @@ describe("resolveHandlebarsField", () => {
 
   it("returns empty string for missing context key", () => {
     expect(resolveHandlebarsField("{{missing}}", {})).toBe("");
+  });
+
+  it("resolves dashboard format helpers", () => {
+    expect(
+      resolveHandlebarsField("{{toFixed row.value 2}}", {
+        row: { value: 3.14159 },
+      }),
+    ).toBe("3.14");
   });
 });
 

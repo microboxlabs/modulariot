@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { toFilterItems, fromFilterItems, normalizeFilterConfig } from "./filter-helpers";
-import { makeFilterItemConfig, makeFilterConfig } from "../../test-fixtures";
+import { makeFilterItemConfig, makeFilterConfig } from "../test-fixtures";
 
 describe("toFilterItems", () => {
   it("adds _id with format fi-{index}-{column}", () => {

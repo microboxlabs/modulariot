@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { toColumnItems, fromColumnItems } from "./column-helpers";
-import { makeTableColumn } from "../../test-fixtures";
+import { makeTableColumn } from "../test-fixtures";
 
 describe("toColumnItems", () => {
   it("adds _id with format col-{index}-{key}", () => {

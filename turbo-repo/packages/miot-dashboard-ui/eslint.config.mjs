@@ -13,4 +13,19 @@ export default [
       globals: { console: "readonly", process: "readonly", URL: "readonly" },
     },
   },
+  {
+    // Underscore prefix marks intentional discards (rest-destructure omits,
+    // unused args) — same convention the core logic used in apps/app.
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
+  },
 ];

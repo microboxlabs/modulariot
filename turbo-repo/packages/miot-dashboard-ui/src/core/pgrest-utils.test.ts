@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseRows, buildDataSourceParams, buildPgrestFetch } from "./pgrest-utils";
-import { makePgrestParam } from "../../test-fixtures";
+import { makePgrestParam } from "../test-fixtures";
 
 // ============================================================================
 // parseRows

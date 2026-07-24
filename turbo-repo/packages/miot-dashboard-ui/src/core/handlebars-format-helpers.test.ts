@@ -10,7 +10,9 @@ import {
   formatDateHelper,
   datePartHelper,
   timeAgoHelper,
-} from "./register-handlebars-helpers";
+  createDashboardHandlebars,
+  getDashboardHandlebars,
+} from "./handlebars-format-helpers";
 
 // ============================================================================
 // Helpers to build a mock Handlebars options object
@@ -242,12 +244,55 @@ describe("timeAgoHelper", () => {
 });
 
 // ============================================================================
+// Environment isolation
+// ============================================================================
+
+describe("createDashboardHandlebars", () => {
+  it("registers all dashboard helpers on the instance", () => {
+    const hb = createDashboardHandlebars();
+    for (const name of [
+      "formatNumber",
+      "extractNumber",
+      "toFixed",
+      "round",
+      "multiply",
+      "divide",
+      "formatDate",
+      "datePart",
+      "timeAgo",
+    ]) {
+      expect(hb.helpers[name], name).toBeTypeOf("function");
+    }
+  });
+
+  it("never registers helpers on the ambient Handlebars module", () => {
+    createDashboardHandlebars();
+    getDashboardHandlebars();
+    expect(Handlebars.helpers.formatNumber).toBeUndefined();
+    expect(Handlebars.helpers.timeAgo).toBeUndefined();
+  });
+
+  it("creates independent instances", () => {
+    const a = createDashboardHandlebars();
+    const b = createDashboardHandlebars();
+    a.registerHelper("onlyInA", () => "a");
+    expect(b.helpers.onlyInA).toBeUndefined();
+  });
+
+  it("getDashboardHandlebars returns a stable shared instance", () => {
+    expect(getDashboardHandlebars()).toBe(getDashboardHandlebars());
+  });
+});
+
+// ============================================================================
 // Integration tests — compile + resolve templates with helpers
 // ============================================================================
 
 describe("Handlebars integration", () => {
+  const hb = getDashboardHandlebars();
+
   it("formatNumber in template", () => {
-    const tpl = Handlebars.compile(
+    const tpl = hb.compile(
       "Temp: {{formatNumber row.temperature decimals=1}}"
     );
     const result = tpl({ row: { temperature: 25.678 } });
@@ -255,32 +300,32 @@ describe("Handlebars integration", () => {
   });
 
   it("extractNumber in template", () => {
-    const tpl = Handlebars.compile("{{extractNumber row.reading}}");
+    const tpl = hb.compile("{{extractNumber row.reading}}");
     expect(tpl({ row: { reading: "120 rpm" } })).toBe("120");
   });
 
   it("toFixed in template", () => {
-    const tpl = Handlebars.compile("{{toFixed row.value 2}}");
+    const tpl = hb.compile("{{toFixed row.value 2}}");
     expect(tpl({ row: { value: 3.14159 } })).toBe("3.14");
   });
 
   it("round in template", () => {
-    const tpl = Handlebars.compile("{{round row.value}}");
+    const tpl = hb.compile("{{round row.value}}");
     expect(tpl({ row: { value: 3.7 } })).toBe("4");
   });
 
   it("multiply in template", () => {
-    const tpl = Handlebars.compile("{{multiply row.ratio 100}}%");
+    const tpl = hb.compile("{{multiply row.ratio 100}}%");
     expect(tpl({ row: { ratio: 0.85 } })).toBe("85%");
   });
 
   it("divide in template", () => {
-    const tpl = Handlebars.compile("{{divide row.bytes 1024}} KB");
+    const tpl = hb.compile("{{divide row.bytes 1024}} KB");
     expect(tpl({ row: { bytes: 2048 } })).toBe("2 KB");
   });
 
   it("formatDate in template", () => {
-    const tpl = Handlebars.compile(
+    const tpl = hb.compile(
       '{{formatDate row.created_at format="date"}}'
     );
     const result = tpl({ row: { created_at: "2025-06-15T14:30:00Z" } });
@@ -289,23 +334,23 @@ describe("Handlebars integration", () => {
   });
 
   it("datePart in template", () => {
-    const tpl = Handlebars.compile('{{datePart row.created_at "year"}}');
+    const tpl = hb.compile('{{datePart row.created_at "year"}}');
     expect(tpl({ row: { created_at: "2025-06-15T14:30:00Z" } })).toBe("2025");
   });
 
   it("timeAgo in template", () => {
     const recent = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const tpl = Handlebars.compile("{{timeAgo row.ts}}");
+    const tpl = hb.compile("{{timeAgo row.ts}}");
     expect(tpl({ row: { ts: recent } })).toBe("5m ago");
   });
 
   it("handles missing value gracefully", () => {
-    const tpl = Handlebars.compile("{{formatNumber row.missing decimals=2}}");
+    const tpl = hb.compile("{{formatNumber row.missing decimals=2}}");
     expect(tpl({ row: {} })).toBe("-");
   });
 
   it("combines multiple helpers", () => {
-    const tpl = Handlebars.compile(
+    const tpl = hb.compile(
       '{{formatNumber row.temp decimals=1}}°C at {{formatDate row.ts format="time"}}'
     );
     const result = tpl({

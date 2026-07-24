@@ -1,42 +1,13 @@
-import type { DataType } from "./column-types";
+/**
+ * Column filter vocabulary — moved to @microboxlabs/miot-dashboard-ui (P3).
+ *
+ * This shim keeps existing app import paths working during the extraction;
+ * new code should import from the package directly.
+ */
 
-export type FilterOperator =
-  | "contains"
-  | "equals"
-  | "gt"
-  | "lt"
-  | "between"
-  | "dateRange"
-  | "in"
-  | "is"
-  | "isEmpty"
-  | "isNotEmpty";
+export type {
+  FilterOperator,
+  ColumnFilter,
+} from "@microboxlabs/miot-dashboard-ui";
 
-export interface ColumnFilter {
-  columnKey: string;
-  dataType: DataType;
-  operator: FilterOperator;
-  value:
-    | string
-    | number
-    | [number, number]
-    | [string, string]
-    | string[]
-    | boolean
-    | null;
-}
-
-export function getDefaultOperator(dataType: DataType): FilterOperator {
-  switch (dataType) {
-    case "text":
-      return "contains";
-    case "number":
-      return "equals";
-    case "date":
-      return "dateRange";
-    case "enum":
-      return "in";
-    case "boolean":
-      return "is";
-  }
-}
+export { getDefaultOperator } from "@microboxlabs/miot-dashboard-ui";

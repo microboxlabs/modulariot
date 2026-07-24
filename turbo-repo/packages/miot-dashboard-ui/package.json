@@ -18,6 +18,10 @@
       "types": "./dist/charts.d.ts",
       "import": "./dist/charts.js"
     },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js"
+    },
     "./schema": {
       "types": "./dist/schema.d.ts",
       "import": "./dist/schema.js"
@@ -44,6 +48,7 @@
     "swr": "^2.2.5"
   },
   "dependencies": {
+    "handlebars": "^4.7.9",
     "zod": "^3.23.8"
   },
   "devDependencies": {

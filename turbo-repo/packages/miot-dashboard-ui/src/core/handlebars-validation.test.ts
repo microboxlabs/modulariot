@@ -4,7 +4,7 @@ import {
   getHandlebarsStatus,
   getFlowbiteColor,
   resolveDataProperty,
-} from "./handlebars-helpers";
+} from "./handlebars-validation";
 
 describe("findHandlebarsExpressions", () => {
   it("extracts single expression", () => {

@@ -1,10 +1,11 @@
 /**
  * @microboxlabs/miot-dashboard-ui — package entry.
  *
- * P1 surface: contracts (types), the six adapter seams (A–F) with providers
- * and defaults, and the config data contract (re-exported from "./schema",
- * which is also its own React-free entry). Chart dashlets will live in the
- * separate "./charts" entry so echarts never lands in this base bundle.
+ * Surface: contracts (types), the six adapter seams (A–F) with providers
+ * and defaults, the config data contract (re-exported from "./schema"),
+ * and the pure logic core (re-exported from "./core") — both also React-free
+ * entries of their own. Chart dashlets will live in the separate "./charts"
+ * entry so echarts never lands in this base bundle.
  */
 
 // ---- Contracts / types ----
@@ -97,3 +98,6 @@ export {
 
 // ---- Config data contract (also available as the "./schema" entry) ----
 export * from "./schema";
+
+// ---- Pure core (also available as the React-free "./core" entry) ----
+export * from "./core";

@@ -17,11 +17,21 @@ import type { DispatchTarget, DispatchTargetField } from "./review-binding.types
 
 const SAMPLE_CONTEXT = buildSampleContext();
 
+/** One entry in the channel switcher: a stable key and its display name. */
+export interface MappingChannelTab {
+  readonly key: string;
+  readonly label: string;
+}
+
 interface ReviewMappingTabProps {
   /** The chosen channel; its operation contract supplies the fields to map. */
   readonly target: DispatchTarget | undefined;
   readonly mappings: Record<string, string>;
   readonly onChange: (fieldId: string, template: string) => void;
+  /** The column's attached channels, for switching which one is being mapped. */
+  readonly channels?: readonly MappingChannelTab[];
+  readonly activeChannelId?: string | null;
+  readonly onSelectChannel?: (channelKey: string) => void;
   readonly dict: I18nRecord;
 }
 
@@ -29,18 +39,35 @@ export function ReviewMappingTab({
   target,
   mappings,
   onChange,
+  channels,
+  activeChannelId,
+  onSelectChannel,
   dict,
 }: Readonly<ReviewMappingTabProps>) {
+  const switcher =
+    channels && channels.length > 1 && onSelectChannel ? (
+      <ChannelSwitcher
+        channels={channels}
+        activeChannelId={activeChannelId ?? null}
+        onSelectChannel={onSelectChannel}
+        dict={dict}
+      />
+    ) : null;
+
   if (!target) {
     return (
-      <Alert color="gray" icon={HiInformationCircle}>
-        <span className="text-xs">{tr("mapping.noChannel", dict)}</span>
-      </Alert>
+      <div className="flex flex-col gap-4">
+        {switcher}
+        <Alert color="gray" icon={HiInformationCircle}>
+          <span className="text-xs">{tr("mapping.noChannel", dict)}</span>
+        </Alert>
+      </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
+      {switcher}
       <Section title={tr("mapping.title", dict)} help={tr("mapping.help", dict)}>
         <div className="flex flex-wrap gap-1.5">
           {VARIABLE_GROUPS.map((group) => {
@@ -70,6 +97,49 @@ export function ReviewMappingTab({
             dict={dict}
           />
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+
+/** Pills to switch which attached channel's mapping is on screen. */
+function ChannelSwitcher({
+  channels,
+  activeChannelId,
+  onSelectChannel,
+  dict,
+}: Readonly<{
+  channels: readonly MappingChannelTab[];
+  activeChannelId: string | null;
+  onSelectChannel: (channelKey: string) => void;
+  dict: I18nRecord;
+}>) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+        {tr("mapping.channel", dict)}
+      </span>
+      <div className="flex flex-wrap gap-1.5">
+        {channels.map((channel) => {
+          const active = channel.key === activeChannelId;
+          return (
+            <button
+              key={channel.key}
+              type="button"
+              onClick={() => onSelectChannel(channel.key)}
+              aria-pressed={active}
+              className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                active
+                  ? "bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              }`}
+            >
+              {channel.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

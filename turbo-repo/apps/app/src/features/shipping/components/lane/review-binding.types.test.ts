@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
+  attachedChannels,
+  bindingChannelKey,
+  channelKey,
   conditionForTrigger,
   findTarget,
   REVIEW_EVENT_TYPE,
@@ -9,8 +12,29 @@ import {
   triggerFromCondition,
   unmappedRequiredFields,
   type DispatchTarget,
+  type EventBinding,
 } from "./review-binding.types";
 import { renderTemplate } from "./review-integration.types";
+
+/** A stored binding with sensible defaults, overridable per test. */
+function binding(over: Partial<EventBinding>): EventBinding {
+  return {
+    id: "b-1",
+    ownerOrgSlug: "mintral",
+    inherited: false,
+    eventType: REVIEW_EVENT_TYPE,
+    scopeKind: REVIEW_SCOPE_KIND,
+    scopeKey: "wfship:transportValidationTask",
+    connectionId: "c-1",
+    operationId: "o-1",
+    matchCondition: {},
+    fieldTemplates: {},
+    enabled: true,
+    updatedAt: "2026-07-24T00:00:00Z",
+    updatedBy: "someone",
+    ...over,
+  };
+}
 
 const target: DispatchTarget = {
   connectionId: "c-1",
@@ -122,6 +146,76 @@ describe("target identity", () => {
     expect(findTarget([target], "c-1", "o-1")).toBe(target);
     expect(findTarget([target], "c-1", "other")).toBeUndefined();
     expect(findTarget([target], null, "o-1")).toBeUndefined();
+  });
+});
+
+describe("channel identity", () => {
+  it("keys a channel on connection and operation", () => {
+    expect(channelKey("c-1", "o-1")).toBe("c-1::o-1");
+    // A null operation still yields a stable, distinct key.
+    expect(channelKey("c-1", null)).toBe("c-1::");
+  });
+
+  it("derives a binding's channel key from its ids", () => {
+    expect(bindingChannelKey(binding({ connectionId: "c-9", operationId: "o-9" }))).toBe(
+      "c-9::o-9"
+    );
+  });
+});
+
+describe("attachedChannels", () => {
+  it("folds a channel written across a board's task keys into one entry", () => {
+    // monitoringFinalization aggregates several tasks; the same channel is written to
+    // each, but the drawer must show it once.
+    const [taskA, taskB] = taskKeysForBoard("monitoringFinalization");
+    const channels = attachedChannels(
+      [
+        binding({ id: "a", scopeKey: taskA, connectionId: "c-1", operationId: "o-1" }),
+        binding({ id: "b", scopeKey: taskB, connectionId: "c-1", operationId: "o-1" }),
+      ],
+      "monitoringFinalization"
+    );
+
+    expect(channels).toHaveLength(1);
+    expect(bindingChannelKey(channels[0])).toBe("c-1::o-1");
+  });
+
+  it("keeps two distinct channels on the same column", () => {
+    const channels = attachedChannels(
+      [
+        binding({ id: "a", connectionId: "c-1", operationId: "o-1" }),
+        binding({ id: "b", connectionId: "c-2", operationId: "o-2" }),
+      ],
+      "transportValidation"
+    );
+
+    expect(channels.map(bindingChannelKey).sort()).toEqual(["c-1::o-1", "c-2::o-2"]);
+  });
+
+  it("prefers the org's own binding over an inherited one for the same channel", () => {
+    const channels = attachedChannels(
+      [
+        binding({ id: "inh", inherited: true, ownerOrgSlug: "parent" }),
+        binding({ id: "own", inherited: false }),
+      ],
+      "transportValidation"
+    );
+
+    expect(channels).toHaveLength(1);
+    expect(channels[0].id).toBe("own");
+  });
+
+  it("ignores bindings from other events or scopes", () => {
+    const channels = attachedChannels(
+      [
+        binding({ id: "other-event", eventType: "something.else" }),
+        binding({ id: "other-scope", scopeKey: "unrelatedTask" }),
+        binding({ id: "keep" }),
+      ],
+      "transportValidation"
+    );
+
+    expect(channels.map((c) => c.id)).toEqual(["keep"]);
   });
 });
 

@@ -3,12 +3,15 @@
 import { useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
 import {
+  attachedChannels,
+  bindingChannelKey,
+  channelKey,
   REVIEW_EVENT_TYPE,
   REVIEW_SCOPE_KIND,
   taskKeysForBoard,
+  type ChannelBindingDraft,
   type DispatchTarget,
   type EventBinding,
-  type UpsertBindingRequest,
 } from "../components/lane/review-binding.types";
 import {
   deleteBinding,
@@ -27,9 +30,14 @@ const TARGETS_KEY = "integration-dispatch-targets";
  * patching locally, so server-owned fields — who last changed a binding, whether it
  * is inherited from a parent org — come back from the source that decided them.
  *
+ * A column may fan a verdict out to several channels: the backend keys bindings on
+ * `connection_id` on purpose, so one event legitimately drives many. This hook
+ * therefore exposes the *list* of channels a column carries, and `save` commits the
+ * whole set — upserting what is attached and soft-deleting what was detached.
+ *
  * A column maps to one Activiti task per binding. Where a column aggregates several
- * tasks, saving writes one binding each, so every task fires on its own completion
- * rather than one of them silently going unbound.
+ * tasks, saving writes one binding per channel per task, so every task fires on its
+ * own completion rather than one of them silently going unbound.
  */
 export function useReviewBindings(orgSlug: string | null) {
   const {
@@ -51,81 +59,70 @@ export function useReviewBindings(orgSlug: string | null) {
 
   const [saving, setSaving] = useState(false);
 
-  /** Bindings by the Activiti task they listen to, for quick per-column lookup. */
-  const byTaskKey = useMemo(() => {
-    const index = new Map<string, EventBinding>();
-    for (const binding of bindings ?? []) {
-      if (binding.eventType !== REVIEW_EVENT_TYPE || !binding.scopeKey) continue;
-      // An org's own binding wins over one inherited from its parent.
-      const existing = index.get(binding.scopeKey);
-      if (!existing || (existing.inherited && !binding.inherited)) {
-        index.set(binding.scopeKey, binding);
-      }
-    }
-    return index;
-  }, [bindings]);
+  const allBindings = useMemo(() => bindings ?? [], [bindings]);
 
-  /** The binding governing a board column, own or inherited. */
-  const bindingForBoard = useCallback(
-    (boardKey: string): EventBinding | undefined => {
-      for (const taskKey of taskKeysForBoard(boardKey)) {
-        const found = byTaskKey.get(taskKey);
-        if (found) return found;
-      }
-      return undefined;
-    },
-    [byTaskKey]
+  /** The channels attached to a board column, own or inherited, one entry each. */
+  const bindingsForBoard = useCallback(
+    (boardKey: string): EventBinding[] => attachedChannels(allBindings, boardKey),
+    [allBindings]
   );
 
   /**
-   * Writes one binding per Activiti task behind the column. Sequential rather than
-   * concurrent: they share a unique key per task and a failure part-way should stop
-   * rather than race the rest in.
+   * Commits a column's whole set of channels. For every Activiti task behind the
+   * column it upserts each attached channel and soft-deletes the org's own bindings
+   * that are no longer in the set — so detaching a channel in the drawer removes it
+   * everywhere it was written. Inherited bindings belong to a parent org and are left
+   * untouched.
+   *
+   * Sequential rather than concurrent: writes for one task share a unique key and a
+   * failure part-way should stop rather than race the rest in.
    */
   const save = useCallback(
-    async (boardKey: string, draft: Omit<UpsertBindingRequest, "eventType" | "scopeKind" | "scopeKey">) => {
+    async (boardKey: string, channels: readonly ChannelBindingDraft[]) => {
       if (!orgSlug) throw new Error("No organization is selected");
       setSaving(true);
       try {
+        const desired = new Set(
+          channels.map((channel) =>
+            channelKey(channel.connectionId, channel.operationId)
+          )
+        );
         for (const taskKey of taskKeysForBoard(boardKey)) {
-          await upsertBinding(orgSlug, {
-            ...draft,
-            eventType: REVIEW_EVENT_TYPE,
-            scopeKind: REVIEW_SCOPE_KIND,
-            scopeKey: taskKey,
-          });
+          for (const channel of channels) {
+            await upsertBinding(orgSlug, {
+              ...channel,
+              eventType: REVIEW_EVENT_TYPE,
+              scopeKind: REVIEW_SCOPE_KIND,
+              scopeKey: taskKey,
+            });
+          }
+          const stale = allBindings.filter(
+            (binding) =>
+              !binding.inherited &&
+              binding.eventType === REVIEW_EVENT_TYPE &&
+              binding.scopeKey === taskKey &&
+              !desired.has(bindingChannelKey(binding))
+          );
+          for (const binding of stale) {
+            await deleteBinding(orgSlug, binding.id);
+          }
         }
         await mutate();
       } finally {
         setSaving(false);
       }
     },
-    [orgSlug, mutate]
-  );
-
-  const remove = useCallback(
-    async (bindingId: string) => {
-      if (!orgSlug) throw new Error("No organization is selected");
-      setSaving(true);
-      try {
-        await deleteBinding(orgSlug, bindingId);
-        await mutate();
-      } finally {
-        setSaving(false);
-      }
-    },
-    [orgSlug, mutate]
+    [orgSlug, allBindings, mutate]
   );
 
   return {
-    bindings: bindings ?? [],
+    bindings: allBindings,
     targets: targets ?? [],
-    bindingForBoard,
+    bindingsForBoard,
     isLoading,
     error,
     saving,
     save,
-    remove,
     refresh: mutate,
   };
 }

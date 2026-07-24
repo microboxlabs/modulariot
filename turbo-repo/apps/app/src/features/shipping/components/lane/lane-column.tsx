@@ -30,8 +30,12 @@ import {
 } from "../../hooks/use-lane-view-state";
 import KanbanCard from "../kanban-card/kanban-card";
 import { TaskCounter } from "../TaskCounter";
-import { ReviewSettingsDrawer, type BindingDraft } from "./review-settings-drawer";
-import type { DispatchTarget, EventBinding } from "./review-binding.types";
+import { ReviewSettingsDrawer } from "./review-settings-drawer";
+import type {
+  ChannelBindingDraft,
+  DispatchTarget,
+  EventBinding,
+} from "./review-binding.types";
 
 interface LaneColumnProps {
   board: KanbanBoard;
@@ -41,11 +45,11 @@ interface LaneColumnProps {
   dict: I18nRecord;
   /** `pages.reviewProcess` subtree — the review-integration config UI. */
   reviewDict: I18nRecord;
-  /** The stored binding for this column, own or inherited. */
-  reviewBinding: EventBinding | undefined;
+  /** Every channel attached to this column, own or inherited. */
+  reviewBindings: readonly EventBinding[];
   reviewTargets: readonly DispatchTarget[];
   reviewSaving: boolean;
-  onReviewSave: (draft: BindingDraft) => void;
+  onReviewSave: (channels: ChannelBindingDraft[]) => void;
   laneState: LaneViewState;
   onLaneUpdate: (patch: Partial<LaneViewState>) => void;
   setList: Dispatch<SetStateAction<KanbanBoard[]>>;
@@ -122,7 +126,7 @@ export function LaneColumn({
   isLoading,
   dict,
   reviewDict,
-  reviewBinding,
+  reviewBindings,
   reviewTargets,
   reviewSaving,
   onReviewSave,
@@ -134,14 +138,15 @@ export function LaneColumn({
   onCardClick,
 }: Readonly<LaneColumnProps>) {
   const [reviewDrawerOpen, setReviewDrawerOpen] = useState(false);
-  const reviewEnabled = reviewBinding?.enabled ?? false;
+  const reviewEnabled = reviewBindings.some((binding) => binding.enabled);
 
-  const handleReviewSave = (draft: BindingDraft) => {
+  const handleReviewSave = (channels: ChannelBindingDraft[]) => {
+    const anyEnabled = channels.some((channel) => channel.enabled);
     // The API owns the outcome, so errors surface from it rather than being guessed.
-    Promise.resolve(onReviewSave(draft))
+    Promise.resolve(onReviewSave(channels))
       .then(() => {
         toast.success(
-          draft.enabled
+          anyEnabled
             ? tr("toast.saved", reviewDict)
             : tr("toast.disabled", reviewDict)
         );
@@ -382,7 +387,7 @@ export function LaneColumn({
         show={reviewDrawerOpen}
         onClose={() => setReviewDrawerOpen(false)}
         laneTitle={title}
-        binding={reviewBinding}
+        bindings={reviewBindings}
         targets={reviewTargets}
         saving={reviewSaving}
         onSave={handleReviewSave}

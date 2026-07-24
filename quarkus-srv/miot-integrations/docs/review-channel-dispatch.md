@@ -1,6 +1,6 @@
 # Review-channel dispatch — executing a connection operation from a review verdict
 
-**Status:** Phase 1 implemented. Phases 2–5 planned.
+**Status:** Phases 1–2 implemented. Phases 3–5 planned.
 
 ## Problem
 
@@ -248,17 +248,40 @@ Each phase is independently shippable and independently useful.
 **Still open from this phase:** `GenericConnectionTester` can now become a real
 probe instead of a stub — not done here to keep the change reviewable.
 
-### Phase 2 — payload rendering
+### Phase 2 — payload rendering — **DONE**
 
-- `PayloadTemplateRenderer` — renders `fieldId -> template` into a JSON object
-  against a context `{task, content, review, session}`.
-- **Engine decision: a `{{dotted.path}}` substitution subset, not full
-  Handlebars.** No templating dependency exists in `quarkus-srv`, and the UI only
-  emits variable tokens. See the parity risk below.
-- **Type coercion** off `request_schema`: a `boolean` field must leave as JSON
-  `true`, not `"true"`. Render → coerce → fail the field if it can't coerce.
-- `TemplateValidator` — parses a template, rejects unsupported constructs and
-  unknown variable roots, used both on binding save and by a preview endpoint.
+- `PayloadTemplate` — the template language: literal text interleaved with
+  `{{dotted.path}}` over `{task, content, review, session}`. A **strict subset of
+  Handlebars**: blocks, helpers, partials, comments, inverted sections and
+  `{{{unescaped}}}` are all **rejected**, as are unknown variable roots and a bare
+  `{{task}}` (a whole object stringified into the payload is a half-typed path, not
+  an intent). No HTML escaping — Jackson escapes the JSON body, and escaping here
+  would corrupt it.
+- `PayloadSchema` — reads `integration_operations.request_schema` as a JSON-Schema
+  subset (`properties` + `required`). **This is that column's first reader.**
+  Richer schemas are ignored rather than rejected; `string`/`date-time`/unknown all
+  pass through as text.
+- `PayloadRenderer` — render → coerce → decide, collecting **every** problem before
+  throwing so a broken six-field mapping is seen in one pass. Also does the
+  save-time `validate(...)` that backs the binding save and the preview endpoint.
+
+Two behaviours worth knowing:
+
+- **An empty optional field is omitted, not sent blank.** Partners generally treat
+  an absent key and `""` differently, and "no reviewer comment" means the former.
+  An empty *required* field is an error — silently writing a blank into a required
+  slot is worse than failing.
+- **A template that is exactly one variable keeps the context value's own type**, so
+  `{{review.verdict}}` over a real boolean sends JSON `false`, not `"false"`,
+  without depending on a string round-trip. Text forms (`true`/`false`/`1`/`0`) are
+  still accepted; anything else is refused, because treating any non-empty string
+  as true would turn a mapping slip into a wrong verdict.
+
+**How the parity risk is actually closed:** validation runs at **save**, not
+dispatch. A template the UI's Handlebars would render differently never reaches
+storage, so preview and runtime cannot drift. If helpers are wanted later, add a
+real Handlebars dependency and relax the validator — but do not let the two sides
+diverge in the meantime.
 
 ### Phase 3 — binding schema + CRUD API
 

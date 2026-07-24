@@ -4,6 +4,7 @@ import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import VehicleDetailHeader from "./vehicle-detail-header";
 import VehicleDetailAccordion from "./vehicle-detail-accordion";
+import { ExpedienteAms } from "@/features/ams/expediente-ams";
 
 interface VehicleDetailViewProps {
   readonly vehicle: Vehicle;
@@ -32,6 +33,9 @@ export default function VehicleDetailView({
         hasNext={next?.hasNext ?? false}
       />
       <div className="flex flex-col flex-1 min-h-0 overflow-y-auto w-full items-center bg-gray-50 dark:bg-gray-900 px-4 xl:px-0">
+        <div className="w-full max-w-5xl pt-4">
+          <ExpedienteAms tipo="TRUCK" matchId={vehicle.plate} />
+        </div>
         <VehicleDetailAccordion vehicle={vehicle} dict={dict} />
       </div>
     </div>

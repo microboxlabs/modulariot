@@ -164,7 +164,7 @@ export function useAmsRecord(tipo: "TRUCK" | "DRIVER", matchId?: string, matchNa
   return { rec, cargando: !lista, mutate };
 }
 
-export function FichaAms({ tipo, matchId, matchName, defaults, crear, onCreado, variante, secciones }: {
+export function FichaAms({ tipo, matchId, matchName, defaults, crear, onCreado, onCancelar, variante, secciones }: {
   tipo: "TRUCK" | "DRIVER";
   /** modo alta directa (botón «+ Nuevo» de las listas) */
   crear?: boolean;
@@ -176,6 +176,8 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear, onCreado, 
   defaults?: Record<string, string>;
   /** al crear con éxito (página «nuevo»: navegar al expediente) */
   onCreado?: (id: string, identificador: string) => void;
+  /** al cancelar en modo crear (volver a donde fue invocado) */
+  onCancelar?: () => void;
   /** "expediente" = stack de cards (colaborador) · "plano" = solo cuerpos */
   variante?: "expediente" | "plano";
   /** subconjunto de secciones a renderizar (integración en acordeones) */
@@ -291,16 +293,6 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear, onCreado, 
   if (!lista) return <div className="text-sm text-gray-500 p-2">Cargando ficha AMS…</div>;
 
   // Sin registro en el maestro: invitación a crear (prellenado)
-  if (!rec && !creando && crear) {
-    return (
-      <Seccion titulo={tipo === "TRUCK" ? "Nuevo camión" : "Nuevo colaborador"}>
-        <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-          <span className="flex-1">{msg ?? "Listo."}</span>
-          <button className={btnSec} onClick={abrirCreacion}>Crear otro</button>
-        </div>
-      </Seccion>
-    );
-  }
   if (!rec && !creando) {
     return (
       <Seccion titulo={tipo === "TRUCK" ? "Ficha del camión (mantenedor)" : "Ficha del colaborador (mantenedor)"}>
@@ -451,7 +443,10 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear, onCreado, 
               <button className={btnPri} disabled={busy} onClick={() => void guardar()}>
                 {busy ? "Guardando…" : creando ? (tipo === "TRUCK" ? "Crear camión" : "Crear colaborador") : "Guardar cambios"}
               </button>
-              <button className={btnSec} onClick={() => { setEditando(false); setCreando(false); setErrores({}); }}>Cancelar</button>
+              <button className={btnSec} onClick={() => {
+                setEditando(false); setCreando(false); setErrores({});
+                if (crear && onCancelar) onCancelar();
+              }}>Cancelar</button>
             </div>
           </div>
         )}

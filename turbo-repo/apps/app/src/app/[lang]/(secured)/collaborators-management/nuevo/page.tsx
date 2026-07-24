@@ -22,12 +22,13 @@ export default function NuevoColaboradorPage() {
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Nuevo colaborador</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Al guardar vuelve a la lista con el colaborador ya visible
+            Al guardar se abre su expediente para completar documentos y asignación
           </p>
         </div>
       </div>
       <FichaAms tipo="DRIVER" crear
-        onCreado={() => router.push(`/${lang}/collaborators-management`)} />
+        onCreado={(_id, _nombre) => router.push(`/${lang}/collaborators-management`)}
+        onCancelar={() => router.push(`/${lang}/collaborators-management`)} />
     </div>
   );
 }

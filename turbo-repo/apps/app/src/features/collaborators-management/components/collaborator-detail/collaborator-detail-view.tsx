@@ -15,7 +15,7 @@ import { HiClock, HiBolt, HiDocumentText, HiTruck } from "react-icons/hi2";
 import { IoShieldOutline, IoPulseOutline } from "react-icons/io5";
 import { trDynamic } from "@/features/i18n/tr.service";
 import BehaviorHistory from "./behavior-history";
-import { FichaAms } from "@/features/ams/ficha-ams";
+import { ExpedienteAms } from "@/features/ams/expediente-ams";
 import CollaboratorSummary from "./collaborator-summary";
 
 // ─── Static UI config (does NOT come from backend) ───────────────────
@@ -151,7 +151,7 @@ export default function CollaboratorDetailView({
           scores={detailData.scores}
         />
         <div className="pt-1">
-          <FichaAms tipo="DRIVER" matchName={collaborator.name} />
+          <ExpedienteAms tipo="DRIVER" matchName={collaborator.name} />
         </div>
         <div className="grid grid-cols-3 gap-3">
           {resolvedCards.map((card) => (

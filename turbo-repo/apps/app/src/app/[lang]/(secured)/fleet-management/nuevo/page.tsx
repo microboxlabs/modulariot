@@ -28,7 +28,8 @@ export default function NuevoCamionPage() {
         </div>
       </div>
       <FichaAms tipo="TRUCK" crear
-        onCreado={(_id, patente) => router.push(`/${lang}/fleet-management/${encodeURIComponent(patente)}`)} />
+        onCreado={(_id, patente) => router.push(`/${lang}/fleet-management/${encodeURIComponent(patente)}`)}
+        onCancelar={() => router.push(`/${lang}/fleet-management`)} />
     </div>
   );
 }

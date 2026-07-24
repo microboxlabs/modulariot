@@ -36,6 +36,13 @@ export interface DashboardStore {
   list(scopeId: string): Promise<DashboardSummary[]>;
   /** Delete a dashboard. */
   remove(ref: DashboardRef): Promise<void>;
+  /**
+   * Optional fire-and-forget save for page teardown (e.g. fetch with
+   * `keepalive: true` or `navigator.sendBeacon`). Used by the debounced
+   * saver to flush a pending save on unmount; falls back to best-effort
+   * `save()` when absent.
+   */
+  saveBeacon?(ref: DashboardRef, config: DashboardStorageSchema): void;
 }
 
 const StoreContext = createContext<DashboardStore | null>(null);

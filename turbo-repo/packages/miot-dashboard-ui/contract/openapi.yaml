@@ -1,0 +1,320 @@
+# Dashboard wire contract — DRAFT (P2 exit artifact).
+#
+# The HTTP surface every dashboard backend implements. Canonical home will be
+# packages/miot-dashboard-server/contract/ once that package exists; it lives
+# here so the client seams (DashboardStore, DataSourceProvider) and the server
+# adapters are designed against one surface from day one.
+#
+# Terminology matches the client seams: `scopeId` is the host's container
+# concept (site, tenant, folder); tenant isolation is enforced server-side on
+# every operation — the client never constructs tenant-scoped URLs itself.
+openapi: 3.1.0
+info:
+  title: MIOT Dashboard API
+  version: 0.1.0-draft
+  description: >
+    Wire contract between @microboxlabs/miot-dashboard-ui (client seams D/E)
+    and a dashboard backend (reference implementation:
+    @microboxlabs/miot-dashboard-server). All endpoints resolve and validate
+    the caller's tenant server-side; a request can never read or write another
+    tenant's data regardless of the identifiers it carries.
+  x-status: draft
+
+security:
+  - bearerAuth: []
+  - embedToken: []
+
+paths:
+  /scopes/{scopeId}/dashboards:
+    get:
+      operationId: listDashboards
+      summary: List dashboards in a scope (DashboardStore.list)
+      parameters:
+        - $ref: "#/components/parameters/scopeId"
+      responses:
+        "200":
+          description: Dashboard summaries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DashboardSummary"
+
+  /scopes/{scopeId}/dashboards/{slug}:
+    parameters:
+      - $ref: "#/components/parameters/scopeId"
+      - $ref: "#/components/parameters/slug"
+    get:
+      operationId: getDashboardConfig
+      summary: Load a dashboard config (DashboardStore.load)
+      responses:
+        "200":
+          description: The config envelope; data is null when none exists yet.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    oneOf:
+                      - $ref: "#/components/schemas/DashboardConfig"
+                      - type: "null"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      operationId: saveDashboardConfig
+      summary: Create or replace a dashboard config (DashboardStore.save)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DashboardConfig"
+      responses:
+        "204":
+          description: Saved.
+        "400":
+          description: Config failed schema validation.
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Version conflict (reserved for optimistic concurrency).
+    delete:
+      operationId: deleteDashboard
+      summary: Delete a dashboard (DashboardStore.remove)
+      responses:
+        "204":
+          description: Deleted.
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /scopes/{scopeId}/dashboards/{slug}/permissions:
+    parameters:
+      - $ref: "#/components/parameters/scopeId"
+      - $ref: "#/components/parameters/slug"
+    get:
+      operationId: getDashboardPermissions
+      summary: Read role assignments for a dashboard
+      responses:
+        "200":
+          description: Role assignments.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PermissionAssignments"
+    put:
+      operationId: setDashboardPermissions
+      summary: Replace role assignments for a dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PermissionAssignments"
+      responses:
+        "204":
+          description: Updated.
+
+  /scopes/{scopeId}/datasources:
+    get:
+      operationId: listDataSources
+      summary: List datasources visible in a scope (DataSourceProvider.listDataSources)
+      description: Connection details and credentials never appear in responses.
+      parameters:
+        - $ref: "#/components/parameters/scopeId"
+      responses:
+        "200":
+          description: Datasource descriptors.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DataSource"
+
+  /scopes/{scopeId}/datasources/{dataSourceId}/query:
+    post:
+      operationId: queryDataSource
+      summary: Execute a query through a datasource (DataSourceProvider.query)
+      description: >
+        The backend resolves credentials, applies tenant scoping, and proxies
+        to the underlying source (PgREST, BigQuery, ...). `path` identifies
+        the query target in source-native terms (e.g. "rpc/fn_stats").
+      parameters:
+        - $ref: "#/components/parameters/scopeId"
+        - name: dataSourceId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path, method]
+              properties:
+                path: { type: string }
+                method: { type: string, enum: [GET, POST] }
+                params:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Query rows.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rows]
+                properties:
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /embed/tokens:
+    post:
+      operationId: issueEmbedToken
+      summary: Issue a signed embed token for a dashboard
+      description: >
+        Host-app-only endpoint (bearer auth). The token conveys tenant scope
+        and capabilities; embedded viewers present it as `embedToken` auth.
+        Multi-tenant isolation acceptance test: a token for one scope must
+        never resolve data from another.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scopeId, slug]
+              properties:
+                scopeId: { type: string }
+                slug: { type: string }
+                capabilities:
+                  $ref: "#/components/schemas/Capabilities"
+                expiresInSeconds:
+                  type: integer
+                  minimum: 60
+                  default: 3600
+      responses:
+        "201":
+          description: Signed token.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, expiresAt]
+                properties:
+                  token: { type: string }
+                  expiresAt: { type: string, format: date-time }
+
+  /embed/context:
+    get:
+      operationId: getEmbedContext
+      summary: Resolve the presented embed token into scope + capabilities
+      security:
+        - embedToken: []
+      responses:
+        "200":
+          description: What this token may see and do.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [scopeId, slug, capabilities]
+                properties:
+                  scopeId: { type: string }
+                  slug: { type: string }
+                  capabilities:
+                    $ref: "#/components/schemas/Capabilities"
+        "401":
+          description: Invalid or expired token.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Host-app session/JWT auth.
+    embedToken:
+      type: apiKey
+      in: header
+      name: X-Miot-Embed-Token
+      description: Signed embed token carrying tenant scope + capabilities.
+
+  parameters:
+    scopeId:
+      name: scopeId
+      in: path
+      required: true
+      schema: { type: string }
+      description: Host-defined container (site, tenant, folder).
+    slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    Forbidden:
+      description: Caller lacks access to this dashboard/scope.
+
+  schemas:
+    DashboardConfig:
+      description: >
+        Versioned dashboard config. Canonical machine-readable contract:
+        ../schema/dashboard-config.schema.json (generated from the package's
+        zod schema; the AI generation skill validates against it).
+      $ref: "../schema/dashboard-config.schema.json#/definitions/DashboardConfig"
+    DashboardSummary:
+      type: object
+      required: [slug, name]
+      properties:
+        slug: { type: string }
+        name: { type: string }
+    DataSource:
+      type: object
+      required: [id, name, type]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string, description: "e.g. POSTGREST, BIGQUERY" }
+        description: { type: string }
+        isActive: { type: boolean }
+    Capabilities:
+      type: object
+      properties:
+        readOnly: { type: boolean, default: true }
+        canEdit: { type: boolean, default: false }
+        canShare: { type: boolean, default: false }
+        canManagePermissions: { type: boolean, default: false }
+        canDelete: { type: boolean, default: false }
+    PermissionAssignments:
+      type: object
+      required: [assignments]
+      properties:
+        assignments:
+          type: array
+          items:
+            type: object
+            required: [authorityId, role]
+            properties:
+              authorityId:
+                type: string
+                description: Host-defined user/group identifier.
+              role:
+                type: string
+                enum: [Consumer, Contributor, Editor, Coordinator]

@@ -20,7 +20,9 @@ export function createAppDashboardStore(
       );
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`dashboard load failed: ${res.status}`);
-      return (await res.json()) as DashboardStorageSchema | null;
+      // Route envelope: { data: <config> } — { data: null } when absent.
+      const body = (await res.json()) as { data?: DashboardStorageSchema | null };
+      return body?.data ?? null;
     },
 
     async save(ref, config) {
@@ -47,6 +49,19 @@ export function createAppDashboardStore(
         { method: "DELETE" }
       );
       if (!res.ok) throw new Error(`dashboard delete failed: ${res.status}`);
+    },
+
+    saveBeacon(ref, config) {
+      // Page-teardown flush: keepalive survives navigation/unload (the shared
+      // fetcher doesn't support keepalive — same reason as the legacy hook).
+      fetchImpl("/app/api/dashboard/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ site: ref.scopeId, slug: ref.slug, config }),
+        keepalive: true,
+      }).catch(() => {
+        // Best-effort flush
+      });
     },
   };
 }

@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import useSWR from "swr";
 import fetcher from "@/features/common/providers/fetcher";
 import {
+  createDebouncedDashboardSaver,
+  stripEphemeralState,
+} from "@microboxlabs/miot-dashboard-ui";
+import {
   GRID_COLS,
   type Widget,
   type DashboardStorageSchema,
@@ -12,9 +16,14 @@ import {
   type RefreshInterval,
   DEFAULT_STORAGE,
 } from "../types/dashboard.types";
+import { createAppDashboardStore } from "../adapters/store";
 import { getDashlet } from "../dashlets";
 import { useUndoRedo } from "./use-undo-redo";
 import { getNextPosition } from "../utils/get-next-position";
+
+// Persistence normalization moved to the package (P2); re-exported because
+// tests and callers import it from this module.
+export { stripEphemeralState };
 
 /**
  * Ensure widget has all required fields with defaults
@@ -135,20 +144,6 @@ function normalizeAllowedGroups(value: unknown): string[] | undefined {
   return filtered.length > 0 ? filtered : undefined;
 }
 
-/** Strip editMode from config before persisting to Alfresco */
-export function stripEphemeralState(
-  data: DashboardStorageSchema
-): DashboardStorageSchema {
-  return {
-    ...data,
-    preferences: { ...data.preferences, editMode: false },
-  };
-}
-
-const ALFRESCO_DEBOUNCE_MS = 2000;
-const ALFRESCO_MAX_RETRIES = 3;
-const ALFRESCO_RETRY_BASE_MS = 1000;
-
 /**
  * Hook for persisting dashboard data via SWR + Alfresco.
  * @param slug          - Dashboard slug (e.g. "dashboard", "maintenanceStatus")
@@ -197,110 +192,36 @@ export function useDashboardStorage(
   // Edit mode — ephemeral React state only
   const [editMode, setEditMode] = useState(false);
 
-  // Refs for debounced Alfresco save
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingSaveRef = useRef<DashboardStorageSchema | null>(null);
+  // Debounced persistence: package engine (debounce/retry/teardown-beacon)
+  // over the app's DashboardStore adapter. Ref resolved at dispatch time,
+  // matching the legacy siteIdRef semantics.
   const siteIdRef = useRef(siteId);
   siteIdRef.current = siteId;
 
-  /** Save config to Alfresco with retry */
-  const saveToAlfresco = useCallback(
-    async (configData: DashboardStorageSchema, retryCount = 0) => {
-      const currentSiteId = siteIdRef.current;
-      if (!currentSiteId) return;
-
-      try {
-        const res = await fetch("/app/api/dashboard/config", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            site: currentSiteId,
-            slug,
-            config: stripEphemeralState(configData),
-          }),
-        });
-
-        if (!res.ok) {
-          throw new Error(`Alfresco save failed: ${res.status}`);
-        }
-      } catch (error) {
-        if (retryCount < ALFRESCO_MAX_RETRIES - 1) {
-          const delay =
-            ALFRESCO_RETRY_BASE_MS * Math.pow(2, retryCount);
-          console.warn(
-            `Alfresco save failed, retrying in ${delay}ms (attempt ${retryCount + 2}/${ALFRESCO_MAX_RETRIES})`,
-            error
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          return saveToAlfresco(configData, retryCount + 1);
-        }
-        console.error(
-          "Failed to save dashboard config to Alfresco after retries:",
-          error
-        );
-      }
-    },
+  const saver = useMemo(
+    () =>
+      createDebouncedDashboardSaver({
+        store: createAppDashboardStore(),
+        getRef: () =>
+          siteIdRef.current ? { scopeId: siteIdRef.current, slug } : null,
+      }),
     [slug]
   );
 
-  /** Schedule a debounced Alfresco save */
-  const scheduleSaveToAlfresco = useCallback(
-    (configData: DashboardStorageSchema) => {
-      if (!siteIdRef.current) return;
-
-      pendingSaveRef.current = configData;
-
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-
-      debounceTimerRef.current = setTimeout(() => {
-        const pending = pendingSaveRef.current;
-        pendingSaveRef.current = null;
-        debounceTimerRef.current = null;
-        if (pending) {
-          void saveToAlfresco(pending);
-        }
-      }, ALFRESCO_DEBOUNCE_MS);
-    },
-    [saveToAlfresco]
-  );
-
-  // Flush pending Alfresco save on unmount using keepalive fetch
+  // Flush pending save on unmount / slug change (keepalive via saveBeacon)
   useEffect(() => {
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
-      }
-      const pending = pendingSaveRef.current;
-      const currentSiteId = siteIdRef.current;
-      pendingSaveRef.current = null;
-      if (pending && currentSiteId) {
-        // Raw fetch with keepalive for page teardown — shared fetcher doesn't support keepalive
-        fetch("/app/api/dashboard/config", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            site: currentSiteId,
-            slug,
-            config: stripEphemeralState(pending),
-          }),
-          keepalive: true,
-        }).catch(() => {
-          // Best-effort flush
-        });
-      }
+      saver.teardown();
     };
-  }, [slug]);
+  }, [saver]);
 
-  // Raw save: optimistic SWR mutate + debounced Alfresco PUT (no history)
+  // Raw save: optimistic SWR mutate + debounced store save (no history)
   const rawSaveData = useCallback(
     (newData: DashboardStorageSchema) => {
       void mutate({ data: newData }, { revalidate: false });
-      scheduleSaveToAlfresco(newData);
+      saver.schedule(newData);
     },
-    [mutate, scheduleSaveToAlfresco]
+    [mutate, saver]
   );
 
   // Undo/redo history wrapping rawSaveData

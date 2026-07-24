@@ -24,9 +24,32 @@ export interface DashboardDataSource {
   isActive?: boolean;
 }
 
+/**
+ * Draft query contract (P2, aligned with contract/openapi.yaml). `path` is
+ * the backend-side query identifier (for PgREST: "rpc/fn_name" or a table);
+ * BigQuery implementations resolve it server-side. Implemented by hosts from
+ * P5 on, when the dashlet data hooks are rewired against this seam.
+ */
+export interface DataSourceQueryRequest {
+  /** Target datasource; omitted = the scope's default source. */
+  dataSourceId?: string;
+  path: string;
+  method: "GET" | "POST";
+  params?: Record<string, unknown>;
+  signal?: AbortSignal;
+}
+
+export interface DataSourceQueryResult {
+  rows: Record<string, unknown>[];
+  /** Backend-specific payload for dashlets that need more than rows. */
+  raw?: unknown;
+}
+
 export interface DataSourceProvider {
   /** List the datasources available to the current dashboard scope. */
   listDataSources(): Promise<DashboardDataSource[]>;
+  /** Execute a query (optional until P5 rewires the dashlet data hooks). */
+  query?(request: DataSourceQueryRequest): Promise<DataSourceQueryResult>;
 }
 
 /** Config for HTTP-backed implementations (package default ships in P2). */

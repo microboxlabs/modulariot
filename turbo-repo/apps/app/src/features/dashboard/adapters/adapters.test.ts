@@ -65,14 +65,22 @@ describe("capabilitiesForRole (Seam F)", () => {
 describe("createAppDashboardStore (Seam E)", () => {
   const ref = { scopeId: "ops-site", slug: "fleet" };
 
-  it("load GETs config with site+slug and returns the body", async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(DEFAULT_STORAGE));
+  it("load GETs config with site+slug and unwraps the {data} envelope", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ data: DEFAULT_STORAGE }));
     const store = createAppDashboardStore(fetchImpl);
     const config = await store.load(ref);
     expect(fetchImpl).toHaveBeenCalledWith(
       "/app/api/dashboard/config?site=ops-site&slug=fleet"
     );
     expect(config).toEqual(DEFAULT_STORAGE);
+  });
+
+  it("load returns null for {data: null} (no config yet)", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ data: null }));
+    const store = createAppDashboardStore(fetchImpl);
+    expect(await store.load(ref)).toBeNull();
   });
 
   it("load returns null on 404", async () => {
@@ -118,6 +126,18 @@ describe("createAppDashboardStore (Seam E)", () => {
       "/app/api/dashboard/config?site=ops-site&slug=fleet",
       { method: "DELETE" }
     );
+  });
+
+  it("saveBeacon PUTs the legacy payload with keepalive and swallows errors", () => {
+    const fetchImpl = vi.fn().mockRejectedValue(new Error("teardown"));
+    const store = createAppDashboardStore(fetchImpl);
+    expect(() => store.saveBeacon!(ref, DEFAULT_STORAGE)).not.toThrow();
+    expect(fetchImpl).toHaveBeenCalledWith("/app/api/dashboard/config", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ site: "ops-site", slug: "fleet", config: DEFAULT_STORAGE }),
+      keepalive: true,
+    });
   });
 });
 

@@ -52,6 +52,8 @@ export {
   useDashboardDataSources,
   type DashboardDataSource,
   type DataSourceProvider,
+  type DataSourceQueryRequest,
+  type DataSourceQueryResult,
   type DashboardHttpConfig,
   type DashboardDataSourcesProviderProps,
 } from "./adapters/datasource";
@@ -75,6 +77,17 @@ export {
   type DashboardCapabilities,
   type DashboardCapabilitiesProviderProps,
 } from "./adapters/capabilities";
+
+// ---- Persistence engine (Seam E behavior) ----
+export {
+  createDebouncedDashboardSaver,
+  stripEphemeralState,
+  DASHBOARD_SAVE_DEBOUNCE_MS,
+  DASHBOARD_SAVE_MAX_RETRIES,
+  DASHBOARD_SAVE_RETRY_BASE_MS,
+  type DebouncedDashboardSaver,
+  type DebouncedDashboardSaverOptions,
+} from "./persistence/debounced-saver";
 
 // ---- Composed root provider ----
 export {

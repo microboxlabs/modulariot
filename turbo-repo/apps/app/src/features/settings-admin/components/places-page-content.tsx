@@ -71,7 +71,7 @@ function fcLugares(lugares: Lugar[], propios: boolean): FeatureCollection {
   }
   return { type: "FeatureCollection", features };
 }
-const fcLineas = (xs: { pts: [number, number][] }[], _color: string): FeatureCollection => ({
+const fcLineas = (xs: { pts: [number, number][] }[]): FeatureCollection => ({
   type: "FeatureCollection",
   features: xs.filter((x) => x.pts?.length > 1).map((x) => ({
     type: "Feature", properties: {},
@@ -198,9 +198,9 @@ export default function PlacesPageContent() {
 
   const fcPropios = useMemo(() => fcLugares(propios ?? [], true), [propios]);
   const fcGlobales = useMemo(() => fcLugares(globales ?? [], false), [globales]);
-  const fcTray = useMemo(() => fcLineas((trayectos ?? []).map((t) => ({ pts: t.points })), "#7E3AF2"), [trayectos]);
+  const fcTray = useMemo(() => fcLineas((trayectos ?? []).map((t) => ({ pts: t.points }))), [trayectos]);
   const fcCirc = useMemo(() => fcLineas((circuitos ?? [])
-    .map((c) => ({ pts: (c.path_points ?? c.stops.map((s) => s.center).filter(Boolean)) as [number, number][] })), "#0E9F6E"), [circuitos]);
+    .map((c) => ({ pts: (c.path_points ?? c.stops.map((s) => s.center).filter(Boolean)) as [number, number][] }))), [circuitos]);
 
   const FC_VACIA: FeatureCollection = { type: "FeatureCollection", features: [] };
   const linea = (pts: [number, number][]): FeatureCollection =>

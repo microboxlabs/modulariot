@@ -4,7 +4,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,21 +11,28 @@ import java.util.Set;
 /**
  * Builds a channel's outbound JSON body from the binding's field templates.
  *
- * <p>Per field: render the template, coerce the result to the type the channel's
- * {@link PayloadSchema} declares, and decide whether an empty result may be sent. Every
- * problem is collected before throwing, so an operator sees a whole broken mapping at once
+ * <p>Per scalar field: render the template, coerce the result to the type the channel's
+ * {@link PayloadSchema} declares, and decide whether an empty result may be sent. A structural
+ * field (an object, or an array over a context collection) expands into a nested node instead.
+ * Every problem is collected before throwing, so an operator sees a whole broken mapping at once
  * rather than one fault per attempt.
  *
- * <p>Two rules worth knowing:
+ * <p>Rules worth knowing:
  *
  * <ul>
  *   <li><b>An empty optional field is omitted, not sent blank.</b> Most partners treat an
  *       absent key and {@code ""} differently, and "no reviewer comment" means the former.
  *       An empty <i>required</i> field is an error — silently writing a blank into a
- *       required slot is worse than failing.
+ *       required slot is worse than failing. A structural field whose expansion is empty is
+ *       treated the same: omitted when optional, kept when required.
  *   <li><b>A template that is exactly one variable keeps the context value's own type.</b>
  *       {@code {{review.verdict}}} over a real boolean sends JSON {@code false}, not
  *       {@code "false"}, without depending on a string round-trip.
+ *   <li><b>Nested mapping rows are keyed by their dotted path.</b> An {@code array} field
+ *       {@code fotos} whose element declares {@code guidMultimedia} looks up the template
+ *       {@code fotos.guidMultimedia}, so a leaf name reused at two depths ({@code aprobada}
+ *       on the envelope and on each foto) never collides. Only the top level accepts an
+ *       undeclared mapped key as a passthrough.
  * </ul>
  */
 @ApplicationScoped
@@ -40,52 +46,7 @@ public class PayloadRenderer {
      */
     public Map<String, Object> render(
             Map<String, String> templates, PayloadSchema schema, Map<String, Object> context) {
-        Map<String, String> safeTemplates = templates == null ? Map.of() : templates;
-        List<String> problems = new ArrayList<>();
-        Map<String, Object> payload = new LinkedHashMap<>();
-
-        for (String fieldId : fieldOrder(safeTemplates, schema)) {
-            PayloadSchema.Field field = schema.field(fieldId);
-            boolean required = field != null && field.required();
-            String template = safeTemplates.get(fieldId);
-
-            if (template == null || template.isBlank()) {
-                if (required) {
-                    problems.add("'" + fieldId + "' is required but has no mapping");
-                }
-                continue;
-            }
-
-            String rendered;
-            try {
-                rendered = PayloadTemplate.render(template, context);
-            } catch (TemplateSyntaxException e) {
-                // Save-time validation should have caught this; a stored binding can still be
-                // older than the validator, so fail loudly instead of sending the raw template.
-                problems.add("'" + fieldId + "' has an invalid template: " + e.getMessage());
-                continue;
-            }
-
-            if (rendered.isEmpty()) {
-                if (required) {
-                    problems.add("'" + fieldId + "' is required but its mapping produced no value");
-                }
-                continue;
-            }
-
-            PayloadSchema.FieldType type = field == null ? PayloadSchema.FieldType.STRING : field.type();
-            try {
-                payload.put(fieldId, coerce(template, rendered, type, context));
-            } catch (IllegalArgumentException e) {
-                problems.add("'" + fieldId + "' expects " + type.name().toLowerCase()
-                        + " but produced " + excerpt(rendered));
-            }
-        }
-
-        if (!problems.isEmpty()) {
-            throw new PayloadRenderException(problems);
-        }
-        return payload;
+        return renderObject(safeTemplates(templates), schema, safeContext(context), "");
     }
 
     /**
@@ -95,7 +56,8 @@ public class PayloadRenderer {
      * collection it names ({@link PayloadSchema#itemsFrom()}, e.g. {@code content}), binding
      * that name to each element in turn — so {@code {{content.mediaId}}} means "this element's
      * media id". Shared roots ({@code task}, {@code session}) stay visible to every element.
-     * The object case is unchanged: it delegates to {@link #render}.
+     * The object case delegates to {@link #render}, which now also expands nested object and
+     * array fields.
      *
      * @throws PayloadRenderException listing every element/field that could not be produced
      */
@@ -104,62 +66,29 @@ public class PayloadRenderer {
         if (!schema.array()) {
             return render(templates, schema, context);
         }
-        Map<String, Object> safeContext = context == null ? Map.of() : context;
-        Object collection = safeContext.get(schema.itemsFrom());
-        if (collection == null) {
-            // Nothing to report is a valid empty array, not a fault. In practice the producer
-            // skips emitting at all in this case; rendering stays total regardless.
-            return List.of();
-        }
-        if (!(collection instanceof List<?> elements)) {
-            throw new PayloadRenderException(List.of(
-                    "context '" + schema.itemsFrom() + "' must be an array to render an array body"));
-        }
-
-        PayloadSchema itemSchema = schema.itemSchema();
-        List<Object> rendered = new ArrayList<>(elements.size());
-        List<String> problems = new ArrayList<>();
-        for (int i = 0; i < elements.size(); i++) {
-            if (!(elements.get(i) instanceof Map<?, ?> element)) {
-                problems.add(schema.itemsFrom() + "[" + i + "] is not an object");
-                continue;
-            }
-            Map<String, Object> itemContext = new LinkedHashMap<>(safeContext);
-            @SuppressWarnings("unchecked")
-            Map<String, Object> asMap = (Map<String, Object>) element;
-            itemContext.put(schema.itemsFrom(), asMap);
-            try {
-                rendered.add(render(templates, itemSchema, itemContext));
-            } catch (PayloadRenderException e) {
-                int index = i;
-                e.problems().forEach(problem ->
-                        problems.add(schema.itemsFrom() + "[" + index + "]: " + problem));
-            }
-        }
-        if (!problems.isEmpty()) {
-            throw new PayloadRenderException(problems);
-        }
-        return rendered;
+        return renderElements(
+                safeTemplates(templates), schema.itemsFrom(), schema.itemSchema(), safeContext(context), "");
     }
 
     /**
      * Checks a mapping before it is stored: templates parse, read known variables, and cover
-     * every required field.
+     * every required field. Required coverage follows nested structure by the dotted path the
+     * renderer looks a nested field up under.
      *
      * @return every problem found; empty when the mapping is storable
      */
     public List<String> validate(
             Map<String, String> templates, PayloadSchema schema, Set<String> allowedRoots) {
-        Map<String, String> safeTemplates = templates == null ? Map.of() : templates;
+        Map<String, String> mappings = safeTemplates(templates);
         List<String> problems = new ArrayList<>();
 
-        for (PayloadSchema.Field field : schema.requiredFields()) {
-            String template = safeTemplates.get(field.id());
+        for (String requiredPath : requiredLeafPaths(schema, "")) {
+            String template = mappings.get(requiredPath);
             if (template == null || template.isBlank()) {
-                problems.add("'" + field.id() + "' is required but has no mapping");
+                problems.add("'" + requiredPath + "' is required but has no mapping");
             }
         }
-        safeTemplates.forEach((fieldId, template) -> {
+        mappings.forEach((fieldId, template) -> {
             if (template == null || template.isBlank()) {
                 return;
             }
@@ -172,15 +101,186 @@ public class PayloadRenderer {
         return problems;
     }
 
+    /* ---------------------------------------------------------------------- */
+
     /**
-     * Declared fields first, in contract order, then any mapped field the contract does not
-     * declare — an operator may legitimately send an extra key a stale schema omits.
+     * Renders one object level. Scalar fields come from their templates; an {@code array} field
+     * expands into a list over its context collection and an {@code object} field into a nested
+     * map, each keyed for template lookup by {@code prefix + fieldId}. Only the top level (empty
+     * prefix) also emits undeclared, undotted mapped keys as string passthroughs.
      */
-    private static Set<String> fieldOrder(Map<String, String> templates, PayloadSchema schema) {
-        Set<String> order = new LinkedHashSet<>();
-        schema.fields().forEach(field -> order.add(field.id()));
-        order.addAll(templates.keySet());
-        return order;
+    private Map<String, Object> renderObject(
+            Map<String, String> templates, PayloadSchema schema, Map<String, Object> context, String prefix) {
+        List<String> problems = new ArrayList<>();
+        Map<String, Object> payload = new LinkedHashMap<>();
+
+        for (PayloadSchema.Field field : schema.fields()) {
+            String path = prefix + field.id();
+            switch (field.type()) {
+                case ARRAY -> {
+                    try {
+                        List<Object> value =
+                                renderElements(templates, field.itemsFrom(), field.child(), context, path + ".");
+                        if (!value.isEmpty() || field.required()) {
+                            payload.put(field.id(), value);
+                        }
+                    } catch (PayloadRenderException e) {
+                        problems.addAll(e.problems());
+                    }
+                }
+                case OBJECT -> {
+                    try {
+                        Map<String, Object> value = renderObject(templates, field.child(), context, path + ".");
+                        if (!value.isEmpty() || field.required()) {
+                            payload.put(field.id(), value);
+                        }
+                    } catch (PayloadRenderException e) {
+                        problems.addAll(e.problems());
+                    }
+                }
+                default -> renderScalar(payload, problems, field, field.id(), path, templates, context);
+            }
+        }
+
+        if (prefix.isEmpty()) {
+            for (String key : templates.keySet()) {
+                if (!key.contains(".") && schema.field(key) == null) {
+                    renderScalar(payload, problems, null, key, key, templates, context);
+                }
+            }
+        }
+
+        if (!problems.isEmpty()) {
+            throw new PayloadRenderException(problems);
+        }
+        return payload;
+    }
+
+    /**
+     * Renders an array node: one object per element of the {@code itemsFrom} context collection,
+     * with that element bound under the collection's own name so an item template
+     * ({@code {{content.mediaId}}}) reads this element. Used for a top-level array body and for a
+     * nested array field alike.
+     */
+    private List<Object> renderElements(Map<String, String> templates, String itemsFrom,
+            PayloadSchema itemSchema, Map<String, Object> context, String prefix) {
+        Object collection = resolveCollection(context, itemsFrom);
+        if (collection == null) {
+            // Nothing to report is a valid empty array, not a fault. In practice the producer
+            // skips emitting at all in this case; rendering stays total regardless.
+            return List.of();
+        }
+        if (!(collection instanceof List<?> elements)) {
+            throw new PayloadRenderException(List.of(
+                    "context '" + itemsFrom + "' must be an array to render an array body"));
+        }
+
+        String bindName = lastSegment(itemsFrom);
+        List<Object> rendered = new ArrayList<>(elements.size());
+        List<String> problems = new ArrayList<>();
+        for (int i = 0; i < elements.size(); i++) {
+            if (!(elements.get(i) instanceof Map<?, ?> element)) {
+                problems.add(itemsFrom + "[" + i + "] is not an object");
+                continue;
+            }
+            Map<String, Object> itemContext = new LinkedHashMap<>(context);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> asMap = (Map<String, Object>) element;
+            itemContext.put(bindName, asMap);
+            try {
+                rendered.add(renderObject(templates, itemSchema, itemContext, prefix));
+            } catch (PayloadRenderException e) {
+                int index = i;
+                e.problems().forEach(problem -> problems.add(itemsFrom + "[" + index + "]: " + problem));
+            }
+        }
+        if (!problems.isEmpty()) {
+            throw new PayloadRenderException(problems);
+        }
+        return rendered;
+    }
+
+    /**
+     * Renders one scalar field into {@code payload} under {@code jsonKey}, looking its template
+     * up by {@code templateKey} (the dotted path) and reporting problems against that same key.
+     * A null {@code field} is an undeclared passthrough, sent as text.
+     */
+    private void renderScalar(Map<String, Object> payload, List<String> problems,
+            PayloadSchema.Field field, String jsonKey, String templateKey,
+            Map<String, String> templates, Map<String, Object> context) {
+        boolean required = field != null && field.required();
+        String template = templates.get(templateKey);
+
+        if (template == null || template.isBlank()) {
+            if (required) {
+                problems.add("'" + templateKey + "' is required but has no mapping");
+            }
+            return;
+        }
+
+        String rendered;
+        try {
+            rendered = PayloadTemplate.render(template, context);
+        } catch (TemplateSyntaxException e) {
+            // Save-time validation should have caught this; a stored binding can still be
+            // older than the validator, so fail loudly instead of sending the raw template.
+            problems.add("'" + templateKey + "' has an invalid template: " + e.getMessage());
+            return;
+        }
+
+        if (rendered.isEmpty()) {
+            if (required) {
+                problems.add("'" + templateKey + "' is required but its mapping produced no value");
+            }
+            return;
+        }
+
+        PayloadSchema.FieldType type = field == null ? PayloadSchema.FieldType.STRING : field.type();
+        try {
+            payload.put(jsonKey, coerce(template, rendered, type, context));
+        } catch (IllegalArgumentException e) {
+            problems.add("'" + templateKey + "' expects " + type.name().toLowerCase()
+                    + " but produced " + excerpt(rendered));
+        }
+    }
+
+    /** The required scalar leaves of a schema, as the dotted paths they are mapped under. */
+    private static List<String> requiredLeafPaths(PayloadSchema schema, String prefix) {
+        List<String> paths = new ArrayList<>();
+        for (PayloadSchema.Field field : schema.fields()) {
+            String path = prefix + field.id();
+            if (field.structural()) {
+                if (field.child() != null) {
+                    paths.addAll(requiredLeafPaths(field.child(), path + "."));
+                }
+            } else if (field.required()) {
+                paths.add(path);
+            }
+        }
+        return paths;
+    }
+
+    /** Resolves a (possibly dotted) context path to the collection an array field iterates. */
+    private static Object resolveCollection(Map<String, Object> context, String itemsFrom) {
+        if (itemsFrom == null || itemsFrom.isBlank()) {
+            return null;
+        }
+        Object current = context;
+        for (String segment : itemsFrom.split("\\.")) {
+            if (!(current instanceof Map<?, ?> map)) {
+                return null;
+            }
+            current = map.get(segment);
+            if (current == null) {
+                return null;
+            }
+        }
+        return current;
+    }
+
+    private static String lastSegment(String itemsFrom) {
+        int dot = itemsFrom.lastIndexOf('.');
+        return dot < 0 ? itemsFrom : itemsFrom.substring(dot + 1);
     }
 
     private static Object coerce(
@@ -204,7 +304,8 @@ public class PayloadRenderer {
             case BOOLEAN -> toBoolean(text);
             case INTEGER -> Long.valueOf(text);
             case NUMBER -> new BigDecimal(text);
-            case STRING -> rendered;
+            // STRING is handled above; OBJECT/ARRAY never reach coerce (they expand structurally).
+            default -> rendered;
         };
     }
 
@@ -224,5 +325,13 @@ public class PayloadRenderer {
     private static String excerpt(String value) {
         String text = value.strip();
         return "'" + (text.length() <= 60 ? text : text.substring(0, 60) + "…") + "'";
+    }
+
+    private static Map<String, String> safeTemplates(Map<String, String> templates) {
+        return templates == null ? Map.of() : templates;
+    }
+
+    private static Map<String, Object> safeContext(Map<String, Object> context) {
+        return context == null ? Map.of() : context;
     }
 }

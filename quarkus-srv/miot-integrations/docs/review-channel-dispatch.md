@@ -74,32 +74,107 @@ gives it its first reader, rather than adding a parallel concept.
 
 ### The binding
 
-One new table. A binding attaches a reviewed column to a channel:
+An earlier draft of this table keyed on `board_key` + `lane_key` with a
+`trigger_mode` of `ON_REJECT`/`ON_REVIEW`, and was called
+`review_channel_bindings`. That leaked one caller into the schema three times
+over: reviews are only *an* instance of the general shape, which is
+
+> when **event** happens in **scope**, if **condition**, send to
+> **connection**/**operation**, shaped by **templates**.
+
+A WhatsApp notification from the symptoms dashboard is the same sentence with
+different nouns, and would otherwise have needed its own near-identical table.
+So the binding is event-shaped, not kanban-shaped:
 
 ```sql
-CREATE TABLE miot_integrations.review_channel_bindings (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_code     VARCHAR(128) NOT NULL,
-    board_key       VARCHAR(128) NOT NULL,   -- which board
-    lane_key        VARCHAR(255) NOT NULL,   -- the workflow stage (stable lane title)
-    connection_id   UUID NOT NULL REFERENCES miot_integrations.integration_connections(id) ON DELETE RESTRICT,
-    operation_id    UUID NOT NULL REFERENCES miot_integrations.integration_operations(id)  ON DELETE RESTRICT,
-    trigger_mode    VARCHAR(32)  NOT NULL DEFAULT 'ON_REJECT',
-    field_templates JSONB        NOT NULL DEFAULT '{}'::jsonb,  -- fieldId -> template string
-    enabled         BOOLEAN      NOT NULL DEFAULT false,
-    active          BOOLEAN      NOT NULL DEFAULT true,
-    created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    created_by      TEXT,
-    updated_by      TEXT,
-    CONSTRAINT chk_review_channel_bindings_trigger CHECK (trigger_mode IN ('ON_REJECT','ON_REVIEW'))
+CREATE TABLE miot_integrations.integration_event_bindings (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_client_id VARCHAR(128) NOT NULL,   -- the Auth0 M2M client (see Terminology)
+    owner_org_slug   VARCHAR(100) NOT NULL,   -- which org configured it
+    event_type       VARCHAR(128) NOT NULL,   -- 'review.verdict', 'symptom.reported'
+    scope_kind       VARCHAR(64),             -- 'kanban_lane', 'symptom_board'; NULL = every scope
+    scope_key        VARCHAR(255),            -- opaque here; the producer defines its meaning
+    connection_id    UUID NOT NULL REFERENCES miot_integrations.integration_connections(id) ON DELETE RESTRICT,
+    operation_id     UUID     REFERENCES miot_integrations.integration_operations(id) ON DELETE RESTRICT,
+    condition        JSONB        NOT NULL DEFAULT '{}'::jsonb,
+    field_templates  JSONB        NOT NULL DEFAULT '{}'::jsonb,  -- fieldId -> template string
+    enabled          BOOLEAN      NOT NULL DEFAULT false,
+    active           BOOLEAN      NOT NULL DEFAULT true,
+    created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    created_by       TEXT,
+    updated_by       TEXT
 );
-CREATE UNIQUE INDEX idx_review_channel_bindings_lane
-    ON miot_integrations.review_channel_bindings (tenant_code, board_key, lane_key) WHERE active;
+CREATE UNIQUE INDEX idx_integration_event_bindings_target
+    ON miot_integrations.integration_event_bindings
+       (tenant_client_id, owner_org_slug, event_type, scope_kind, scope_key, connection_id)
+    WHERE active;
 ```
+
+Both product cases land on it as **data, not schema**:
+
+| | `event_type` | `scope_kind` / `scope_key` | connection |
+|---|---|---|---|
+| Kanban review | `review.verdict` | `kanban_lane` / `shipping:confirmCierre` | partner HTTP |
+| Symptoms → WhatsApp | `symptom.reported` | `symptom_board` / `<boardId>` or NULL | WhatsApp |
+
+Four things this buys:
+
+- **`scope_kind`/`scope_key` are opaque to this module.** It never parses them.
+  The producer decides what they mean — the discipline that stops the kanban (or
+  the next caller) leaking back into the schema.
+- **`condition` replaces `trigger_mode`.** "Only rejections" is one condition
+  among many, not an enum member. The module already has prior art for a
+  declarative filter in `WebhookFilterCompiler` / `WebhookFilterSpec` (GPS
+  webhooks) rather than inventing a second filter language.
+- **Fan-out is possible.** `connection_id` is in the unique key, so one event can
+  notify WhatsApp *and* the partner API. The old `UNIQUE(tenant, board, lane)`
+  permitted exactly one channel per column.
+- **`operation_id` is nullable** — see the dispatcher SPI below.
 
 `ON DELETE RESTRICT` so a connection still in use by a binding can't be deleted
 out from under it — the same protection credentials already get (409 + `usedBy`).
+
+### Org scoping: who a binding belongs to
+
+`tenant_client_id` is **not an org identifier**. It is an Auth0 M2M client id, and
+several orgs can share one — the seed script creates a child org with the *same*
+`tenant_client_id` as its parent ("shared Auth0 M2M"). Orgs are identified by
+**slug**. Every existing integrations query filters `WHERE tenant_code = $1`, so
+today a child sharing its parent's M2M client already sees all of its connections,
+credentials and jobs, and there is no way to give that child its own.
+
+Bindings therefore carry `owner_org_slug` alongside the tenant key, and reads are
+**parent-inclusive**: an org sees its own bindings plus its parent's.
+
+```
+read(org = traza) → WHERE tenant_client_id = :tenant
+                      AND owner_org_slug IN ('traza', 'gama')
+```
+
+A parent configures once for its children; a child can still add its own. When
+both define a binding for the same event+scope+connection, the child's wins —
+the more specific owner is the more deliberate one.
+
+### Channels other than HTTP: a dispatcher SPI
+
+WhatsApp outbound does not go through `integration_operations` at all — it goes
+through `MetaWhatsAppClient`, with `phone_number_id` in connection metadata and a
+nested template-parameter body that a flat `fieldId -> template` map cannot
+express. Forcing it into an operation row would be jamming it into a shape it
+doesn't have.
+
+So dispatch routes by the connection's `ProviderType` to a `ChannelDispatcher`,
+the module's registry idiom for the third time (after `ConnectionTesterRegistry`
+and `CredentialAuthRegistry`):
+
+- **default** — the generic HTTP dispatcher, `IntegrationOperationInvoker` over the
+  binding's `operation_id` (Phase 1, done).
+- **WHATSAPP** — reuses `WhatsAppMessagingService`; ignores `operation_id`.
+
+The dispatcher also **declares its field contract**, which is what the settings UI
+renders: HTTP reads `integration_operations.request_schema`; WhatsApp declares its
+template parameters. One table, one configuration UX, no per-channel schema.
 
 ### Dispatch flow
 
@@ -187,35 +262,45 @@ probe instead of a stub — not done here to keep the change reviewable.
 
 ### Phase 3 — binding schema + CRUD API
 
-- Migration **`V0.6.11__create_review_channel_bindings.sql`** (0.6.10 is current
-  head; Flyway compares numerically, so 11 > 10).
-- `ReviewChannelBinding` record, repository, service.
-- `OrgReviewChannelBindingsResource`, owner-gated, under
-  `/api/v1/orgs/{organizationId}/integrations/review-bindings`, carrying
+- Migration `V0.6.1x__create_integration_event_bindings.sql` (pick the version
+  against `origin/trunk` at the time — concurrent PRs collide only at app boot).
+- `IntegrationEventBinding` record, repository, service.
+- `OrgIntegrationBindingsResource`, owner-gated, under
+  `/api/v1/orgs/{organizationId}/integrations/bindings`, carrying
   `@IfBuildProperty(name = "miot.component.integrations.enabled", stringValue = "true")`
-  and the `ownerWork` / `tenantCode(organizationId)` idiom copied verbatim.
+  and the `ownerWork` / tenant-resolution idiom copied verbatim.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/review-bindings` | list (UI: which columns are reviewed) |
-| GET | `/review-bindings/{id}` | one |
-| PUT | `/review-bindings` | upsert by `(board, lane)` — matches the drawer's Save |
-| DELETE | `/review-bindings/{id}` | unbind |
-| GET | `/dispatch-targets` | **channel picker feed**: ACTIVE connections × operations, each with its parsed field contract, so the UI doesn't join two endpoints |
-| POST | `/review-bindings/preview` | render the templates against a sample context — the server-side twin of the drawer's live preview |
+| GET | `/bindings?eventType=&scopeKind=` | list (UI: which scopes are bound) |
+| GET | `/bindings/{id}` | one |
+| PUT | `/bindings` | upsert by the unique key — matches the drawer's Save |
+| DELETE | `/bindings/{id}` | unbind |
+| GET | `/dispatch-targets` | **channel picker feed**: eligible connections with each dispatcher's field contract, so the UI doesn't join two endpoints |
+| POST | `/bindings/preview` | render the templates against a sample context — the server-side twin of the drawer's live preview |
 
-Save-time validation: connection exists and is `ACTIVE`, operation belongs to it,
-every `required` field has a non-blank template, all templates parse.
+Reads are parent-inclusive (`owner_org_slug IN (own, parent)`); writes always
+stamp the calling org, so a child can never author a binding on its parent's
+behalf.
 
-### Phase 4 — verdict intake + job handler
+Save-time validation: connection exists and is `ACTIVE`, the dispatcher accepts
+the binding (HTTP requires an `operation_id` belonging to that connection), every
+`required` field in the dispatcher's contract has a non-blank template, and all
+templates parse.
 
-- `ReviewDispatchFeature` — payload key constants (house style, per
+### Phase 4 — event intake + job handler
+
+- `EventDispatchFeature` — payload key constants (house style, per
   `CalendarConfirmFeature` / `JobFailureNotificationFeature`).
-- `POST /review-verdicts` — intake; resolves the binding, applies the trigger
-  filter, enqueues. Returns the job id (or `204` when no binding matches).
-- `ReviewVerdictDispatchHandler implements ModulithJobHandler`,
-  `jobType = "review_verdict_dispatch"` (23 chars, fits `VARCHAR(64)`),
-  `EXECUTOR = "modulith"`; `isReady()` false when the secret key is unconfigured.
+- `POST /integration-events` — generic intake: `{eventType, scope, context}`.
+  Resolves matching bindings, applies each one's `condition`, enqueues one job per
+  surviving binding. Returns the job ids (or `204` when nothing matched).
+  The review verdict is simply `eventType = "review.verdict"`.
+- `IntegrationEventDispatchHandler implements ModulithJobHandler`,
+  `jobType = "integration_event_dispatch"` (26 chars, fits `VARCHAR(64)`),
+  `EXECUTOR = "modulith"`. Loads the binding, renders the templates against the
+  payload's context snapshot, routes to the `ChannelDispatcher` for the
+  connection's provider type.
 - Enqueue with the `JobFailureNotifyOnPark` idiom, including
   `worker.onEnqueued(response)` for the fast-path drain.
 
@@ -227,6 +312,40 @@ every `required` field has a non-blank template, all templates parse.
 Replace the mocked channel catalog with `/dispatch-targets`, the mocked
 credential list with the real profiles, and the localStorage config with the
 binding endpoints.
+
+## Terminology: `tenant_code` is the Auth0 M2M client id
+
+`TenantRequestFilter` resolves one value from the JWT (`aud`/`azp`, or the
+`X-Client-Id` header in dev) and assigns it to both fields:
+
+```java
+tenantContext.setClientId(clientId);
+tenantContext.setTenantCode(clientId);   // the same value
+```
+
+So `tenant_code` across `miot_integrations` **holds the client id**. Nothing
+derives a distinct "tenant code", and the resources' `getTenantCode() != null ?
+… : getClientId()` fallback is unreachable. The vestigial
+`tenant_id BIGINT REFERENCES miot_core.tenants(id)` on these tables is never
+written by any repository — the fossil of a tenants registry that never landed.
+
+The org model already names this value properly:
+
+```sql
+-- miot_core.organizations
+tenant_client_id VARCHAR(255) NOT NULL, -- Auth0 M2M client ID = Tenant.code
+```
+
+**Decision: standardize on `tenant_client_id` / `tenantClientId`**, matching the
+org model and the name `miot-core` already uses (`HarnessProxyResource`). New
+tables in this feature use it from the start.
+
+Renaming the *existing* columns is deliberately **not** part of this feature —
+see "Deferred" below. Note `client_id` was rejected as the target name: in this
+module `clientId` already means the OAuth2 app-registration id
+(`OAuth2CredentialConfigs.require(publicConfig, "clientId")`,
+`params.put("client_id", …)`), so `credential_profiles.client_id` would sit beside
+`public_config->>'clientId'` meaning something else entirely.
 
 ## Decisions
 
@@ -260,6 +379,29 @@ binding endpoints.
   connection load, never by operation id alone.
 - **Partner 4xx semantics.** Parking on all 4xx is right for validation errors but
   wrong for `429`/`408` — treat those as retryable.
+
+## Deferred: renaming the existing `tenant_code` columns
+
+Agreed to do, scoped out of this feature because it is a migration in its own
+right, not a side effect of shipping dispatch. What it touches:
+
+- **~10 tables in two schemas** — `miot_integrations` (credential_profiles,
+  integration_connections, async_jobs, interaction_episodes, knowledge_candidates,
+  gps_webhook_subscriptions, job_notification_rules, …) and `miot_conversational`.
+- **~65 Java files** across `miot-integrations`, `miot-conversational` and
+  `miot-core`. Mechanical and compiler-checked: `tenantCode` and `tenant_code` are
+  distinct tokens that collide with nothing.
+- **The wire contract.** Three response DTOs expose `tenantCode`
+  (`CredentialProfileResponse`, `GpsWebhookResponse`, `WebhookDeliveryResponse`),
+  and the app reads it — the jobs console renders `job.tenantCode`, plus the
+  WhatsApp and GPS-webhook settings types. Responses should emit **both** names
+  for one release so backend and frontend can deploy in either order.
+- **A rolling-deploy hazard.** A bare `RENAME COLUMN` breaks the running image the
+  moment Flyway applies it: old pods still query `tenant_code`. It needs
+  expand/contract — add + backfill + keep in sync, switch reads, drop the old
+  column in a later release — the same lesson as `V0.6.9` → `V0.6.10`.
+- **Ad-hoc SQL.** db-scripts queries and any dashboards against these tables break
+  silently on rename; worth a grep before the contract step.
 
 ## Open questions
 

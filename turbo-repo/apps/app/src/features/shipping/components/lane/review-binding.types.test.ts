@@ -150,6 +150,12 @@ describe("renderTemplate (preview)", () => {
     expect(renderTemplate("{{review.comment}}", context)).toBe("a & b");
   });
 
+  it("leaves a whole-object reference verbatim rather than showing [object Object]", () => {
+    // The server rejects {{task}}; previewing a plausible-looking value for a
+    // template that cannot be stored is exactly the divergence to avoid.
+    expect(renderTemplate("{{task}}", context)).toBe("{{task}}");
+  });
+
   it("leaves unsupported syntax verbatim so the operator sees what will be rejected", () => {
     expect(renderTemplate("{{#if review.verdict}}x{{/if}}", context)).toBe(
       "{{#if review.verdict}}x{{/if}}"

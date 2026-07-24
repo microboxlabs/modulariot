@@ -156,8 +156,14 @@ export function renderTemplate(
     const path = rawPath.trim();
     // Anything that is not a plain path (a helper, a block) is left verbatim, which
     // is what the operator needs to see: the server will reject it on save.
-    if (!/^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$/.test(path)) return whole;
+    if (!/^\w+(\.\w+)*$/.test(path)) return whole;
     const value = resolvePath(path, context);
-    return value === undefined ? "" : String(value);
+    if (value === undefined) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    // A path that lands on a whole object — `{{task}}` rather than `{{task.code}}` —
+    // is left verbatim too. Stringifying it would preview "[object Object]" for a
+    // template the server rejects outright, which is the divergence to avoid.
+    return whole;
   });
 }

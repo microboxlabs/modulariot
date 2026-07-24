@@ -361,6 +361,7 @@ jobs:
   summary:
     name: Build Summary
     runs-on: ubuntu-latest
+    permissions: {}
     needs:
       - lint-and-test
       - image-evals-pre-publish

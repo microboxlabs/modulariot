@@ -1,6 +1,6 @@
 # Review-channel dispatch — executing a connection operation from a review verdict
 
-**Status:** Phases 1–2 implemented. Phases 3–5 planned.
+**Status:** Phases 1–4 implemented (the backend is complete). Phase 5 (frontend swap) planned.
 
 ## Problem
 
@@ -283,9 +283,9 @@ storage, so preview and runtime cannot drift. If helpers are wanted later, add a
 real Handlebars dependency and relax the validator — but do not let the two sides
 diverge in the meantime.
 
-### Phase 3 — binding schema + CRUD API
+### Phase 3 — binding schema + CRUD API — **DONE**
 
-- Migration `V0.6.1x__create_integration_event_bindings.sql` (pick the version
+- Migration **`V0.6.11__create_integration_event_bindings.sql`** (0.6.10 was the head on trunk; verify
   against `origin/trunk` at the time — concurrent PRs collide only at app boot).
 - `IntegrationEventBinding` record, repository, service.
 - `OrgIntegrationBindingsResource`, owner-gated, under
@@ -311,7 +311,7 @@ the binding (HTTP requires an `operation_id` belonging to that connection), ever
 `required` field in the dispatcher's contract has a non-blank template, and all
 templates parse.
 
-### Phase 4 — event intake + job handler
+### Phase 4 — event intake + job handler — **DONE**
 
 - `EventDispatchFeature` — payload key constants (house style, per
   `CalendarConfirmFeature` / `JobFailureNotificationFeature`).
@@ -426,16 +426,31 @@ right, not a side effect of shipping dispatch. What it touches:
 - **Ad-hoc SQL.** db-scripts queries and any dashboards against these tables break
   silently on rename; worth a grep before the contract step.
 
+## Scope identity and the reviewer
+
+Two decisions that Phase 4 needed, now settled.
+
+**A kanban lane is an Activiti task**, addressed by its task form key — so
+`scope_kind = "activiti_task"`, `scope_key = "wfship2:presentDriverTask"`.
+
+The tempting alternative, the board's display title, is wrong twice over. It is a
+*derived* key (`taskShippingBoardMap` maps `wfship:transportValidationTask` →
+`transportValidation`), and it is **many-to-one**: `wfship:tripOutsideInitiatedTask`
+and `tripInitiatedWithoutSovos` both land on `monitoringFinalization`. Binding on
+the form key is therefore both stable under renames and strictly more precise —
+two workflow tasks sharing a visual lane can carry different bindings, which is
+what they are.
+
+**`session.*` is the reviewer**, not the service account that makes the outbound
+call. This has a hard consequence: the producer must put the reviewer's identity
+in the intake context, because dispatch happens later on a worker thread with no
+user. An identity not captured at intake cannot be recovered at all — which is the
+same reason the whole context is snapshotted rather than re-read.
+
 ## Open questions
 
-1. **Lane identity.** `lane_key` as the stable workflow-stage title is what the
-   UI keys on today (`use-lane-view-state`), but titles are display strings. Is
-   there a stable stage id to key on instead?
-2. **Who is `session.*` at dispatch time?** The reviewer (from the verdict) or the
-   service account making the outbound call? They differ, and the mapping UI
-   offers both.
-3. **Verdict source of truth.** Review state currently lives as forum data on the
+1. **Verdict source of truth.** Review state currently lives as forum data on the
    document node, not `mintral:reviewStatus` — the intake contract should carry
    the verdict explicitly rather than have the modulith infer it.
-4. **Per-binding retry budget.** Ride the global default (5 attempts) or make
+2. **Per-binding retry budget.** Ride the global default (5 attempts) or make
    `max_attempts` a binding column?

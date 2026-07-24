@@ -7,48 +7,63 @@ import { HiX, HiClipboardCheck } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
+  channelKey,
   conditionForTrigger,
   findTarget,
   triggerFromCondition,
   unmappedRequiredFields,
+  type ChannelBindingDraft,
+  type ChannelDraft,
   type DispatchTarget,
   type EventBinding,
-  type ReviewTrigger,
-  type UpsertBindingRequest,
 } from "./review-binding.types";
+import { checkTemplate } from "./review-template-validation";
 import { ReviewConfigTab } from "./review-config-tab";
 import { ReviewMappingTab } from "./review-mapping-tab";
 
 type TabId = "config" | "mapping";
-
-/** The half of an upsert the drawer owns; the hook adds event type and scope. */
-export type BindingDraft = Omit<
-  UpsertBindingRequest,
-  "eventType" | "scopeKind" | "scopeKey"
->;
 
 interface ReviewSettingsDrawerProps {
   readonly show: boolean;
   readonly onClose: () => void;
   /** Display title of the column being configured. */
   readonly laneTitle: string;
-  /** The stored binding for this column, own or inherited from a parent org. */
-  readonly binding: EventBinding | undefined;
+  /** Every channel attached to this column, own and inherited from a parent org. */
+  readonly bindings: readonly EventBinding[];
   readonly targets: readonly DispatchTarget[];
-  readonly onSave: (draft: BindingDraft) => void;
+  readonly onSave: (channels: ChannelBindingDraft[]) => void;
   readonly saving?: boolean;
   /** `pages.reviewProcess` subtree. */
   readonly dict: I18nRecord;
 }
 
-function draftKey(draft: BindingDraft): string {
-  return JSON.stringify([
-    draft.enabled,
-    draft.connectionId,
-    draft.operationId,
-    draft.matchCondition,
-    draft.fieldTemplates,
-  ]);
+/** Templates serialized key-order-independently, so a re-keyed map is not "dirty". */
+function stableTemplates(templates: Record<string, string>): [string, string][] {
+  return Object.entries(templates).sort(([a], [b]) => (a < b ? -1 : 1));
+}
+
+/** A signature over the editable set, for the dirty check. */
+function channelsSignature(
+  enabled: boolean,
+  channels: readonly ChannelDraft[]
+): string {
+  const rows = channels
+    .map((channel) => [
+      channelKey(channel.connectionId, channel.operationId),
+      channel.trigger,
+      stableTemplates(channel.templates),
+    ])
+    .sort((a, b) => (String(a[0]) < String(b[0]) ? -1 : 1));
+  return JSON.stringify([enabled, rows]);
+}
+
+function draftFromBinding(binding: EventBinding): ChannelDraft {
+  return {
+    connectionId: binding.connectionId,
+    operationId: binding.operationId,
+    trigger: triggerFromCondition(binding.matchCondition),
+    templates: { ...binding.fieldTemplates },
+  };
 }
 
 /**
@@ -56,103 +71,184 @@ function draftKey(draft: BindingDraft): string {
  * dashlet settings drawer (portal to body, slide-in, tabbed) so it reads the same as
  * the rest of the app.
  *
- * The binding is edited as a draft and committed by Save — unlike the lane's view
- * preferences, which stay inline in the column menu and apply instantly.
+ * A column can fan its verdict out to several channels, so the drawer edits a *list*:
+ * each attached channel carries its own trigger and its own field mapping, and Save
+ * commits the whole set (the hook upserts what is attached and drops what was
+ * detached). The master toggle arms or pauses the column's own channels together;
+ * channels inherited from a parent org are shown for context but not editable here.
  */
 export function ReviewSettingsDrawer({
   show,
   onClose,
   laneTitle,
-  binding,
+  bindings,
   targets,
   onSave,
   saving = false,
   dict,
 }: Readonly<ReviewSettingsDrawerProps>) {
+  const ownBindings = useMemo(
+    () => bindings.filter((binding) => !binding.inherited),
+    [bindings]
+  );
+  const inheritedBindings = useMemo(
+    () => bindings.filter((binding) => binding.inherited),
+    [bindings]
+  );
+
   const [activeTab, setActiveTab] = useState<TabId>("config");
   const [enabled, setEnabled] = useState(false);
-  const [connectionId, setConnectionId] = useState<string | null>(null);
-  const [operationId, setOperationId] = useState<string | null>(null);
-  const [trigger, setTrigger] = useState<ReviewTrigger>("on_reject");
-  const [templates, setTemplates] = useState<Record<string, string>>({});
+  const [channels, setChannels] = useState<ChannelDraft[]>([]);
+  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
 
-  // Re-seed from the stored binding every time the drawer opens, so a reopened form
+  // Re-seed from the stored bindings every time the drawer opens, so a reopened form
   // never shows another column's draft.
   useEffect(() => {
     if (!show) return;
     setActiveTab("config");
-    setEnabled(binding?.enabled ?? false);
-    setConnectionId(binding?.connectionId ?? null);
-    setOperationId(binding?.operationId ?? null);
-    setTrigger(triggerFromCondition(binding?.matchCondition));
-    setTemplates(binding?.fieldTemplates ?? {});
-  }, [show, binding]);
+    setEnabled(ownBindings.some((binding) => binding.enabled));
+    const seeded = ownBindings.map(draftFromBinding);
+    setChannels(seeded);
+    setActiveChannelId(
+      seeded.length > 0
+        ? channelKey(seeded[0].connectionId, seeded[0].operationId)
+        : null
+    );
+  }, [show, ownBindings]);
 
-  const selected = findTarget(targets, connectionId, operationId);
-
-  function selectTarget(next: DispatchTarget) {
-    setConnectionId(next.connectionId);
-    setOperationId(next.operationId);
-    // Seed a blank row per contract field only when nothing is mapped yet, so an
-    // operator returning to an already-mapped channel keeps their work.
-    setTemplates((prev) => {
-      if (Object.keys(prev).length > 0) return prev;
-      const seeded: Record<string, string> = {};
-      next.fields.forEach((field) => {
-        seeded[field.id] = "";
+  function addChannel(target: DispatchTarget) {
+    const key = channelKey(target.connectionId, target.operationId);
+    setChannels((prev) => {
+      if (prev.some((c) => channelKey(c.connectionId, c.operationId) === key)) {
+        return prev;
+      }
+      const templates: Record<string, string> = {};
+      target.fields.forEach((field) => {
+        templates[field.id] = "";
       });
-      return seeded;
+      // New channels default to "both": the safe superset, and the trigger the
+      // producer actually populates today.
+      return [
+        ...prev,
+        {
+          connectionId: target.connectionId,
+          operationId: target.operationId,
+          trigger: "on_review",
+          templates,
+        },
+      ];
+    });
+    setActiveChannelId(key);
+    setActiveTab("mapping");
+  }
+
+  function detachChannel(key: string) {
+    setChannels((prev) =>
+      prev.filter((c) => channelKey(c.connectionId, c.operationId) !== key)
+    );
+    setActiveChannelId((current) => {
+      if (current !== key) return current;
+      const next = channels.find(
+        (c) => channelKey(c.connectionId, c.operationId) !== key
+      );
+      return next ? channelKey(next.connectionId, next.operationId) : null;
     });
   }
 
-  const draft: BindingDraft = useMemo(
-    () => ({
-      connectionId: connectionId ?? "",
-      operationId,
-      matchCondition: conditionForTrigger(trigger),
-      fieldTemplates: templates,
-      enabled,
-    }),
-    [connectionId, operationId, trigger, templates, enabled]
-  );
-
-  const stored: BindingDraft | null = binding
-    ? {
-        connectionId: binding.connectionId,
-        operationId: binding.operationId,
-        matchCondition: binding.matchCondition as Record<string, unknown>,
-        fieldTemplates: binding.fieldTemplates,
-        enabled: binding.enabled,
-      }
-    : null;
-
-  const dirty = stored === null ? enabled : draftKey(draft) !== draftKey(stored);
-
-  // An inherited binding is shown for context but belongs to the parent org.
-  const readOnly = binding?.inherited ?? false;
-
-  const blockingReason = useMemo(() => {
-    if (!enabled) return null;
-    if (!selected) return tr("validation.channelRequired", dict);
-    const missing = unmappedRequiredFields(selected, templates);
-    if (missing.length > 0) {
-      return tr("validation.unmapped", dict, {
-        fields: missing.map((field) => field.id).join(", "),
-      });
-    }
-    return null;
-  }, [enabled, selected, templates, dict]);
-
-  // Whose binding this is, or whether there is anything to save — one line, because
-  // the two states are mutually exclusive and only one can be shown.
-  let footerNote = "";
-  if (readOnly) {
-    footerNote = tr("drawer.readOnly", dict);
-  } else if (!blockingReason && dirty) {
-    footerNote = tr("drawer.unsaved", dict);
+  function patchChannel(key: string, patch: Partial<ChannelDraft>) {
+    setChannels((prev) =>
+      prev.map((c) =>
+        channelKey(c.connectionId, c.operationId) === key ? { ...c, ...patch } : c
+      )
+    );
   }
 
+  function editMapping(key: string) {
+    setActiveChannelId(key);
+    setActiveTab("mapping");
+  }
+
+  const activeChannel = channels.find(
+    (c) => channelKey(c.connectionId, c.operationId) === activeChannelId
+  );
+  const activeTarget = activeChannel
+    ? findTarget(targets, activeChannel.connectionId, activeChannel.operationId)
+    : undefined;
+
+  const committed: ChannelBindingDraft[] = useMemo(
+    () =>
+      channels.map((channel) => ({
+        connectionId: channel.connectionId,
+        operationId: channel.operationId,
+        matchCondition: conditionForTrigger(channel.trigger),
+        fieldTemplates: channel.templates,
+        enabled,
+      })),
+    [channels, enabled]
+  );
+
+  const dirty = useMemo(() => {
+    const storedChannels = ownBindings.map(draftFromBinding);
+    const storedEnabled = ownBindings.some((binding) => binding.enabled);
+    return (
+      channelsSignature(enabled, channels) !==
+      channelsSignature(storedEnabled, storedChannels)
+    );
+  }, [enabled, channels, ownBindings]);
+
+  const blockingReason = useMemo(() => {
+    // A template the server would refuse can never be stored, armed or not.
+    for (const channel of channels) {
+      const target = findTarget(
+        targets,
+        channel.connectionId,
+        channel.operationId
+      );
+      const name = target?.connectionName ?? channel.connectionId;
+      for (const [fieldId, template] of Object.entries(channel.templates)) {
+        if (checkTemplate(template).status === "invalid") {
+          return tr("validation.brokenTemplate", dict, {
+            channel: name,
+            field: fieldId,
+          });
+        }
+      }
+    }
+    if (!enabled) return null;
+    if (channels.length === 0) return tr("validation.noChannels", dict);
+    for (const channel of channels) {
+      const target = findTarget(
+        targets,
+        channel.connectionId,
+        channel.operationId
+      );
+      const missing = unmappedRequiredFields(target, channel.templates);
+      if (missing.length > 0) {
+        return tr("validation.unmapped", dict, {
+          channel: target?.connectionName ?? channel.connectionId,
+          fields: missing.map((field) => field.id).join(", "),
+        });
+      }
+    }
+    return null;
+  }, [enabled, channels, targets, dict]);
+
+  // Whether there is anything to save, shown when nothing blocks it.
+  const footerNote = !blockingReason && dirty ? tr("drawer.unsaved", dict) : "";
+
   if (typeof document === "undefined") return null;
+
+  const mappingChannels = channels.map((channel) => {
+    const target = findTarget(
+      targets,
+      channel.connectionId,
+      channel.operationId
+    );
+    return {
+      key: channelKey(channel.connectionId, channel.operationId),
+      label: target?.connectionName ?? channel.connectionId,
+    };
+  });
 
   const tabs: readonly { id: TabId; label: string }[] = [
     { id: "config", label: tr("drawer.tabConfig", dict) },
@@ -227,21 +323,33 @@ export function ReviewSettingsDrawer({
               enabled={enabled}
               onEnabledChange={setEnabled}
               targets={targets}
-              selected={selected}
-              onSelectTarget={selectTarget}
-              trigger={trigger}
-              onTriggerChange={setTrigger}
-              stored={binding}
+              channels={channels}
+              stored={ownBindings}
+              inherited={inheritedBindings}
+              onAddChannel={addChannel}
+              onDetachChannel={detachChannel}
+              onTriggerChange={(key, trigger) => patchChannel(key, { trigger })}
+              onEditMapping={editMapping}
               dict={dict}
             />
           )}
           {show && activeTab === "mapping" && (
             <ReviewMappingTab
-              target={enabled ? selected : undefined}
-              mappings={templates}
-              onChange={(fieldId, template) =>
-                setTemplates((prev) => ({ ...prev, [fieldId]: template }))
-              }
+              target={enabled ? activeTarget : undefined}
+              mappings={activeChannel?.templates ?? {}}
+              onChange={(fieldId, template) => {
+                if (!activeChannel) return;
+                const key = channelKey(
+                  activeChannel.connectionId,
+                  activeChannel.operationId
+                );
+                patchChannel(key, {
+                  templates: { ...activeChannel.templates, [fieldId]: template },
+                });
+              }}
+              channels={mappingChannels}
+              activeChannelId={activeChannelId}
+              onSelectChannel={setActiveChannelId}
               dict={dict}
             />
           )}
@@ -262,8 +370,8 @@ export function ReviewSettingsDrawer({
               <Button
                 color="blue"
                 size="sm"
-                onClick={() => onSave(draft)}
-                disabled={readOnly || saving || !dirty || Boolean(blockingReason)}
+                onClick={() => onSave(committed)}
+                disabled={saving || !dirty || Boolean(blockingReason)}
               >
                 {saving ? tr("drawer.saving", dict) : tr("drawer.save", dict)}
               </Button>

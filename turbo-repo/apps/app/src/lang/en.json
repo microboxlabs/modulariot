@@ -19,7 +19,7 @@
       },
       "config": {
         "enableLabel": "Enable the review process for this column",
-        "enableHelp": "When a service in this column is reviewed, its verdict is sent to the selected channel.",
+        "enableHelp": "When a service in this column is reviewed, its verdict is sent to the configured channels.",
         "disabledNotice": "The review process is disabled for this column.",
         "inherited": "Inherited from organization {org}. Read-only here."
       },
@@ -27,7 +27,13 @@
         "title": "Integration channel",
         "help": "Choose where to send the review verdict.",
         "selected": "Selected",
-        "empty": "No active connections. Create and test them in Settings › Integrations."
+        "empty": "No active connections. Create and test them in Settings › Integrations.",
+        "none": "No channels attached yet. Add one to send the verdict.",
+        "add": "Add channel",
+        "allAttached": "Every available channel is already attached.",
+        "detach": "Remove channel",
+        "mapping": "Mapping",
+        "unknown": "Connection not found"
       },
       "trigger": {
         "title": "When to send",
@@ -61,18 +67,22 @@
           "badChar": "'{expression}' contains an unsupported character: '{char}'.",
           "unknownRoot": "'{path}' is unknown: '{root}' is not one of {roots}.",
           "wholeObject": "'{path}' is a whole object — use one of its fields (e.g. .mediaId)."
-        }
+        },
+        "channel": "Channel"
       },
       "job": {
         "title": "Job registration",
         "willRegister": "Saving registers an integration job in async_jobs.",
         "paused": "Job paused (review disabled)",
         "armed": "Armed",
-        "lastUpdated": "Last updated"
+        "lastUpdated": "Last updated",
+        "channelSummary": "{count} channel(s) · {armed} armed"
       },
       "validation": {
         "channelRequired": "Select a channel.",
-        "unmapped": "Required fields still unmapped: {fields}"
+        "unmapped": "Channel {channel} has required fields left unmapped: {fields}",
+        "noChannels": "Add at least one channel to arm the review.",
+        "brokenTemplate": "Channel {channel} has an invalid template in field {field}."
       },
       "toast": {
         "saved": "Review process saved",

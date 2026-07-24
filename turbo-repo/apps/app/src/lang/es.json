@@ -19,7 +19,7 @@
       },
       "config": {
         "enableLabel": "Activar proceso de revisión en esta columna",
-        "enableHelp": "Cuando un servicio de esta columna sea revisado, su veredicto se enviará al canal seleccionado.",
+        "enableHelp": "Cuando un servicio de esta columna sea revisado, su veredicto se enviará a los canales configurados.",
         "disabledNotice": "El proceso de revisión está desactivado para esta columna.",
         "inherited": "Heredado de la organización {org}. Solo lectura aquí."
       },
@@ -27,7 +27,13 @@
         "title": "Canal de integración",
         "help": "Elige a dónde enviar el veredicto de la revisión.",
         "selected": "Seleccionado",
-        "empty": "No hay conexiones activas. Créalas y pruébalas en Ajustes › Integraciones."
+        "empty": "No hay conexiones activas. Créalas y pruébalas en Ajustes › Integraciones.",
+        "none": "No hay canales adjuntos. Añade uno para enviar el veredicto.",
+        "add": "Añadir canal",
+        "allAttached": "Todos los canales disponibles ya están adjuntos.",
+        "detach": "Quitar canal",
+        "mapping": "Mapeo",
+        "unknown": "Conexión no encontrada"
       },
       "trigger": {
         "title": "Cuándo enviar",
@@ -61,18 +67,22 @@
           "badChar": "'{expression}' contiene un carácter no admitido: '{char}'.",
           "unknownRoot": "'{path}' no existe: '{root}' no es uno de {roots}.",
           "wholeObject": "'{path}' es un objeto completo: usa uno de sus campos (por ejemplo, .mediaId)."
-        }
+        },
+        "channel": "Canal"
       },
       "job": {
         "title": "Registro del trabajo",
         "willRegister": "Al guardar se registrará un trabajo de integración en async_jobs.",
         "paused": "Trabajo en pausa (revisión desactivada)",
         "armed": "Activo",
-        "lastUpdated": "Última modificación"
+        "lastUpdated": "Última modificación",
+        "channelSummary": "{count} canal(es) · {armed} activo(s)"
       },
       "validation": {
         "channelRequired": "Selecciona un canal.",
-        "unmapped": "Faltan campos requeridos por mapear: {fields}"
+        "unmapped": "El canal {channel} tiene campos requeridos sin mapear: {fields}",
+        "noChannels": "Añade al menos un canal para activar la revisión.",
+        "brokenTemplate": "El canal {channel} tiene una plantilla inválida en el campo {field}."
       },
       "toast": {
         "saved": "Proceso de revisión guardado",

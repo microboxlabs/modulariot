@@ -47,7 +47,7 @@ export default function PageContent({
   const { activeOrg } = useOrgScopes();
   const {
     targets: reviewTargets,
-    bindingForBoard,
+    bindingsForBoard,
     saving: reviewSaving,
     save: saveReviewBinding,
   } = useReviewBindings(activeOrg?.slug ?? null);
@@ -250,10 +250,10 @@ export default function PageContent({
                   isLoading={isLoading}
                   dict={dictionary.base}
                   reviewDict={reviewDict}
-                  reviewBinding={bindingForBoard(board.title)}
+                  reviewBindings={bindingsForBoard(board.title)}
                   reviewTargets={reviewTargets}
                   reviewSaving={reviewSaving}
-                  onReviewSave={(draft) => saveReviewBinding(board.title, draft)}
+                  onReviewSave={(channels) => saveReviewBinding(board.title, channels)}
                   laneState={getLaneState(board.title)}
                   onLaneUpdate={(patch) => updateLaneState(board.title, patch)}
                   setList={setList}

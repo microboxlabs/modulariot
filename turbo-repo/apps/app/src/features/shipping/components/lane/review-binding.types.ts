@@ -55,6 +55,17 @@ export interface UpsertBindingRequest {
   readonly enabled: boolean;
 }
 
+/**
+ * One attached channel as the drawer commits it — an upsert without the event and
+ * scope, which the hook fills in per Activiti task. A column carries a *list* of
+ * these: the backend keys bindings on `connection_id` as part of the natural key
+ * precisely so one event can fan out to several channels.
+ */
+export type ChannelBindingDraft = Omit<
+  UpsertBindingRequest,
+  "eventType" | "scopeKind" | "scopeKey"
+>;
+
 export interface BindingPreview {
   readonly valid: boolean;
   readonly payload: Record<string, unknown>;
@@ -99,6 +110,18 @@ export function taskKeysForBoard(boardKey: string): string[] {
 /** The drawer's friendly two-option trigger, expressed as a match condition. */
 export type ReviewTrigger = "on_reject" | "on_review";
 
+/**
+ * One channel as the drawer edits it: the trigger and mapping kept in their friendly
+ * shapes (a two-option trigger, a field→template map) and turned into a binding's
+ * `matchCondition`/`fieldTemplates` only on save.
+ */
+export interface ChannelDraft {
+  readonly connectionId: string;
+  readonly operationId: string | null;
+  readonly trigger: ReviewTrigger;
+  readonly templates: Record<string, string>;
+}
+
 /** The path the verdict arrives under, and the value that means "rejected". */
 const VERDICT_PATH = "review.verdict";
 
@@ -130,9 +153,29 @@ export function unmappedRequiredFields(
   );
 }
 
+/**
+ * Stable identity for a channel: a connection *and* the operation called on it.
+ * This is the key a column's channels are deduplicated and diffed by — it mirrors
+ * the backend's unique key, which includes `connection_id` so one event can bind to
+ * several channels.
+ */
+export function channelKey(
+  connectionId: string,
+  operationId: string | null
+): string {
+  return `${connectionId}::${operationId ?? ""}`;
+}
+
+/** The channel identity of a stored or drafted binding. */
+export function bindingChannelKey(
+  binding: Pick<EventBinding, "connectionId" | "operationId">
+): string {
+  return channelKey(binding.connectionId, binding.operationId);
+}
+
 /** Stable identity for a channel in the picker: a connection *and* an operation. */
 export function targetKey(target: DispatchTarget): string {
-  return `${target.connectionId}::${target.operationId}`;
+  return channelKey(target.connectionId, target.operationId);
 }
 
 export function findTarget(
@@ -146,4 +189,31 @@ export function findTarget(
       target.connectionId === connectionId &&
       (operationId === null || target.operationId === operationId)
   );
+}
+
+/**
+ * The channels attached to a board column, as one binding each.
+ *
+ * A column may aggregate several Activiti tasks, and a channel attached to it is
+ * written once per task — so the same channel appears under more than one scope key.
+ * This folds those duplicates back to one entry per channel (own binding winning over
+ * one inherited from a parent org), which is what the drawer edits. Ordering is
+ * insertion order, so the list is stable across reopens.
+ */
+export function attachedChannels(
+  bindings: readonly EventBinding[],
+  boardKey: string
+): EventBinding[] {
+  const taskKeys = new Set(taskKeysForBoard(boardKey));
+  const byChannel = new Map<string, EventBinding>();
+  for (const binding of bindings) {
+    if (binding.eventType !== REVIEW_EVENT_TYPE) continue;
+    if (!binding.scopeKey || !taskKeys.has(binding.scopeKey)) continue;
+    const key = bindingChannelKey(binding);
+    const existing = byChannel.get(key);
+    if (!existing || (existing.inherited && !binding.inherited)) {
+      byChannel.set(key, binding);
+    }
+  }
+  return [...byChannel.values()];
 }

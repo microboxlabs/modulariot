@@ -1,7 +1,8 @@
 "use client";
 
 import { useSearchParams, useRouter, useParams } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { FichaAms } from "@/features/ams/ficha-ams";
 import {
   HiOutlineExclamationTriangle,
   HiOutlineInformationCircle,
@@ -146,16 +147,25 @@ export default function CollaboratorsManagementPage({
     );
   };
 
+  const [creandoNuevo, setCreandoNuevo] = useState(false);
+
   return (
     <div className="flex flex-col gap-6 p-4 max-w-screen-2xl mx-auto w-full">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-          {tr("title", collaboratorsDict)}
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {tr("subtitle", collaboratorsDict)}
-        </p>
+      <div className="flex items-start gap-3">
+        <div className="flex flex-col gap-1 flex-1">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            {tr("title", collaboratorsDict)}
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {tr("subtitle", collaboratorsDict)}
+          </p>
+        </div>
+        <button onClick={() => setCreandoNuevo((v) => !v)}
+                className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2">
+          {creandoNuevo ? "Cerrar" : "+ Nuevo colaborador"}
+        </button>
       </div>
+      {creandoNuevo && <FichaAms tipo="DRIVER" crear />}
 
       <KpiCardsRow kpis={collaboratorsKpis} dict={collaboratorsDict} />
 

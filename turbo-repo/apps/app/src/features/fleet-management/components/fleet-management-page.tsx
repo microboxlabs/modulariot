@@ -1,12 +1,13 @@
 "use client";
 
+import { FichaAms } from "@/features/ams/ficha-ams";
 import {
   useParams,
   useRouter,
   usePathname,
   useSearchParams,
 } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { truckToVehicle } from "../data/fleet-adapters";
@@ -167,16 +168,25 @@ export default function FleetManagementPage({
     [router, pathname, searchParams]
   );
 
+  const [creandoNuevo, setCreandoNuevo] = useState(false);
+
   return (
     <div className="flex flex-col gap-4 p-4 max-w-screen-2xl mx-auto w-full">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-          {tr("title", fleetDict)}
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {tr("subtitle", fleetDict)}
-        </p>
+      <div className="flex items-start gap-3">
+        <div className="flex flex-col gap-1 flex-1">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            {tr("title", fleetDict)}
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {tr("subtitle", fleetDict)}
+          </p>
+        </div>
+        <button onClick={() => setCreandoNuevo((v) => !v)}
+                className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2">
+          {creandoNuevo ? "Cerrar" : "+ Nuevo camión"}
+        </button>
       </div>
+      {creandoNuevo && <FichaAms tipo="TRUCK" crear />}
 
       <KpiCardsRow
         kpis={kpis}

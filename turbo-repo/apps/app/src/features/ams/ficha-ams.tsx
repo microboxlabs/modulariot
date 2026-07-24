@@ -8,7 +8,7 @@
 // atenuados CON MOTIVO, regla "manda el viaje") · Auditoría.
 // Tenant server-side vía /api/ams/rpc/*; sin marcas de fuente (agnóstico).
 import { useMemo, useState } from "react";
-import useSWR from "swr";
+import useSWR, { mutate as swrMutate } from "swr";
 
 const fetcher = (url: string) => fetch(url).then((r) => {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -92,8 +92,10 @@ function BadgeAcreditacion({ a }: { a: Acreditacion }) {
     </span>);
 }
 
-export function FichaAms({ tipo, matchId, matchName, defaults }: {
+export function FichaAms({ tipo, matchId, matchName, defaults, crear }: {
   tipo: "TRUCK" | "DRIVER";
+  /** modo alta directa (botón «+ Nuevo» de las listas) */
+  crear?: boolean;
   /** patente (TRUCK) o RUT (DRIVER) para enlazar con el registro AMS */
   matchId?: string;
   /** fallback de enlace por nombre (expedientes sin RUT) */
@@ -115,7 +117,7 @@ export function FichaAms({ tipo, matchId, matchName, defaults }: {
   }, [lista, matchId, matchName, tipo]);
 
   const [editando, setEditando] = useState(false);
-  const [creando, setCreando] = useState(false);
+  const [creando, setCreando] = useState(!!crear);
   const [form, setForm] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -171,6 +173,9 @@ export function FichaAms({ tipo, matchId, matchName, defaults }: {
           : "Creado.")
       : "Guardado (auditado).");
     setEditando(false); setCreando(false); void mutate();
+    // refrescar las listas que hacen merge con el maestro
+    void swrMutate((k) => typeof k === "string" &&
+      (k.includes("/api/fleet/trucks") || k.includes("/api/collaborators") || k.includes("/api/ams/rpc/")));
   };
 
   const enForma = editando || creando;
@@ -178,6 +183,16 @@ export function FichaAms({ tipo, matchId, matchName, defaults }: {
   if (!lista) return <div className="text-sm text-gray-500 p-2">Cargando ficha AMS…</div>;
 
   // Sin registro en el maestro: invitación a crear (prellenado)
+  if (!rec && !creando && crear) {
+    return (
+      <Seccion titulo={tipo === "TRUCK" ? "Nuevo camión" : "Nuevo colaborador"}>
+        <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+          <span className="flex-1">{msg ?? "Listo."}</span>
+          <button className={btnSec} onClick={abrirCreacion}>Crear otro</button>
+        </div>
+      </Seccion>
+    );
+  }
   if (!rec && !creando) {
     return (
       <Seccion titulo={tipo === "TRUCK" ? "Ficha del camión (mantenedor)" : "Ficha del colaborador (mantenedor)"}>

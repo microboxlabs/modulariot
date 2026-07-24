@@ -64,7 +64,7 @@ export default function VehicleDetailHeader({
           <SiluetaCamion plate={vehicle.plate} />
 
           {/* Details row */}
-          <div className="flex items-center gap-6 flex-1 min-w-0 overflow-x-auto">
+          <div className="flex items-center gap-x-6 gap-y-2 flex-1 min-w-0 flex-wrap">
             {/* Plate */}
             <div className="flex flex-col shrink-0">
               <span className="text-xs text-gray-500 dark:text-gray-400">

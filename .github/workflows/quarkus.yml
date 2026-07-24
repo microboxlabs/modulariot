@@ -91,9 +91,15 @@ jobs:
         working-directory: quarkus-srv
 
       - name: SonarCloud Scan
+        # Analysis only — it must never gate the Docker Image publish. On 2026-07-24 the
+        # 'sonar' goal prefix stopped resolving ("No plugin found for prefix 'sonar'") and
+        # failed this job, which skipped `docker-jvm` and stranded every modulith deploy.
+        # continue-on-error keeps a Sonar hiccup from blocking releases; the fully-qualified
+        # goal removes the reliance on prefix resolution that broke.
+        continue-on-error: true
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: >
-          ./mvnw sonar:sonar
+          ./mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
           -Dsonar.projectKey=microboxlabs_modulariot-quarkus
           -Dsonar.organization=microboxlabs
           -Dsonar.host.url=https://sonarcloud.io

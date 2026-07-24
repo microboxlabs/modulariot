@@ -130,9 +130,9 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
   // menu. The highlight is purely visual — `selectChipResource` does not
   // touch slot/service selection, so the sidebar stays as-is. For pure
   // viewers (GROUP_CALENDAR_VIEWER only) we also call `inspectPlannedService`
-  // because right-click is their sole entry to the sidebar; for planners
-  // the sidebar opens via the menu's "Abrir servicio (Solo Lectura)"
-  // action instead, which flips the URL and inspects in one step.
+  // so right-click alone fills the sidebar; planners pick the menu's
+  // "Abrir servicio (Solo Lectura)" instead, keeping right-click from
+  // clobbering a selection they are mid-way through.
   const handleChipContextMenu = useCallback(
     (e: React.MouseEvent, plannedService: PlannedService) => {
       selectChipResource(plannedService);

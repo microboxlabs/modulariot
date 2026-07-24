@@ -73,8 +73,27 @@ export function buildMoveRequest(
 }
 
 /**
+ * The entry a failed confirm must restore: what this item looked like before
+ * the optimistic replace. The reassignment snapshot wins because it alone
+ * carries the pre-move slot; otherwise the item's current entry, which is what
+ * an assignment edits in place. Null only when the item was not planned yet —
+ * there, dropping the optimistic entry IS the restore.
+ *
+ * Getting this wrong erases an item that is still planned: a confirm that
+ * throws has written nothing, so the row survives and only the grid forgets it.
+ */
+export function preEditSnapshot<TItem extends { id: string }>(
+  plannedServices: readonly PlannedService<TItem>[],
+  itemId: string,
+  reassignSnapshot: PlannedService<TItem> | null
+): PlannedService<TItem> | null {
+  if (reassignSnapshot) return reassignSnapshot;
+  return plannedServices.find((p) => p.service.id === itemId) ?? null;
+}
+
+/**
  * Restore plannedServices after a failed persist: drop the optimistic entry
- * and re-add the pre-edit snapshot (the reassignment case) when present.
+ * and re-add the pre-edit snapshot (see {@link preEditSnapshot}) when present.
  */
 export function rollbackPlannedService<TItem extends { id: string }>(
   setPlannedServices: Dispatch<SetStateAction<PlannedService<TItem>[]>>,

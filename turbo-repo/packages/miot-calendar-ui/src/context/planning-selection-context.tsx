@@ -43,6 +43,7 @@ import {
   buildBookingRequest,
   buildMoveRequest,
   buildResource,
+  preEditSnapshot,
   rollbackPlannedService,
 } from "../services/booking-persistence";
 import { mergeWorkflowStages } from "../services/workflow-stage-merge";
@@ -605,7 +606,12 @@ export function PlanningSelectionProvider<
       }
 
       const wasReassigning = reassigningService !== null;
-      const originalPlannedService = reassigningService?.service ?? null;
+      const wasAssigning = assigningService !== null;
+      const originalPlannedService = preEditSnapshot(
+        plannedServices,
+        effectiveItem.id,
+        reassigningService?.service ?? null
+      );
 
       // Optimistic update: replace any existing entry with the new slot.
       setPlannedServices((prev) => [
@@ -619,6 +625,7 @@ export function PlanningSelectionProvider<
         const ctx: BookingPersistContext = {
           oldBookingId,
           isReassigning: wasReassigning,
+          isAssigning: wasAssigning,
         };
         try {
           let booking: BookingResponse | undefined;
@@ -664,7 +671,9 @@ export function PlanningSelectionProvider<
       selectedSlot,
       selectedService,
       getServicesForSlot,
+      plannedServices,
       reassigningService,
+      assigningService,
       calendarId,
       host,
       bookingIds,

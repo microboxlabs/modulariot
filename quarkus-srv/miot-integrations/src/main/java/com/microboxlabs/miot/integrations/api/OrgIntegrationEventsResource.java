@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.api;
 
+import com.microboxlabs.miot.core.auth.M2MAuth;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.integrations.dto.IntegrationEventRequest;
@@ -35,13 +36,20 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
  *
  * <p>The producer stays ignorant of integrations: it says what happened and this decides
  * whether anything listens, so a new channel can be bound without a producer deploy.
+ *
+ * <p>The caller is a machine (ECM) presenting an Auth0 client-credentials token, so this is
+ * an {@link M2MAuth} (HS256) resource like {@code OrgAsyncJobsResource} — not the RS256
+ * web-user path the sibling bindings resource uses. It therefore carries its own, more
+ * specific class path: {@code @M2MAuth} discovery is class-{@code @Path}-based, and the
+ * bindings resource shares the {@code /integrations} prefix but must stay a web-user endpoint.
  */
-@Path("/api/v1/orgs/{organizationId}/integrations")
+@Path("/api/v1/orgs/{organizationId}/integrations/events")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Integration Events", description = "Report an event for bound channels to dispatch")
 @SecurityRequirement(name = "oidc")
 @Authenticated
+@M2MAuth
 @IfBuildProperty(name = "miot.component.integrations.enabled", stringValue = "true")
 public class OrgIntegrationEventsResource {
 
@@ -60,7 +68,6 @@ public class OrgIntegrationEventsResource {
     }
 
     @POST
-    @Path("/events")
     @Operation(summary = "Report an event; enqueues one dispatch job per matching binding")
     public Uni<Response> accept(
             @PathParam("organizationId") String organizationId,

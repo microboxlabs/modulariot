@@ -401,7 +401,8 @@
           "deleteConfirmTitle": "Confirmar eliminación",
           "deleteConfirmMessage": "¿Está seguro de eliminar la asignación del servicio {serviceId}?",
           "cancelReassignment": "Cancelar reasignación",
-          "previewAsViewer": "Abrir servicio (Solo Lectura)",
+          "openReadOnly": "Abrir servicio (Solo Lectura)",
+          "previewAsViewer": "Previsualizar como visor",
           "exitPreview": "Salir de previsualización"
         },
         "notifications": {

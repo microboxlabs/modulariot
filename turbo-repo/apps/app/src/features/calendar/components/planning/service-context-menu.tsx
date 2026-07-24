@@ -143,7 +143,9 @@ export function ServiceContextMenu({
     (canStartAssignment ? 1 : 0) +
     (canDeleteAssignment ? 1 : 0) +
     (canReplan ? 2 : 0) +
-    (canTogglePreview ? 1 : 0);
+    (canTogglePreview ? 1 : 0) +
+    // "Abrir servicio (Solo Lectura)" always renders.
+    1;
   const MENU_HEIGHT =
     MENU_HEADER_HEIGHT + MENU_PADDING + buttonCount * MENU_BUTTON_HEIGHT;
 
@@ -209,6 +211,16 @@ export function ServiceContextMenu({
     onClose();
   };
 
+  // Read the service without acting on it. Always available: looking at a
+  // chip is never an operation the workflow can refuse, and left-click is no
+  // substitute — `selectChipSlot` nulls the selected service to open the slot
+  // for a NEW one. Without this, a service whose actions are all gated (a
+  // trip already under way) has no entry to the sidebar at all.
+  const handleOpenReadOnly = () => {
+    inspectPlannedService(plannedService);
+    onClose();
+  };
+
   // Flip the `?as=viewer` URL param without losing any other params
   // (`date`, `view`, `groupCode`, etc.). Push, don't replace, so back
   // navigates out of the preview. Closes the menu so the click feels
@@ -266,10 +278,10 @@ export function ServiceContextMenu({
         </span>
       </div>
 
-      {/* Menu items. For a pure GROUP_CALENDAR_VIEWER, every gate below is
-          false and only the service-ID header above renders — intentional
-          confirmation that the chip was selected, paired with the sidebar
-          opening via inspectPlannedService in use-planning-grid. */}
+      {/* Menu items. Every action below is gated by role AND workflow stage, so
+          a service far enough along (or a pure viewer) can leave all of them
+          hidden — "Abrir servicio (Solo Lectura)" is deliberately ungated so
+          the menu always offers a way in rather than a dead end. */}
       <div className="py-1">
         {canStartAssignment && (
           <Button
@@ -323,12 +335,24 @@ export function ServiceContextMenu({
           </Button>
         )}
 
+        <Button
+          color={"alternative"}
+          type="button"
+          onClick={handleOpenReadOnly}
+          className="border-0 rounded-none w-full justify-start gap-2 border-t border-gray-200 dark:border-gray-700"
+        >
+          <HiEye className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          <span>
+            {tr("pages.planning.sidebar.contextMenu.openReadOnly", dict)}
+          </span>
+        </Button>
+
         {canTogglePreview && (
           <Button
             color={"alternative"}
             type="button"
             onClick={handleTogglePreview}
-            className="border-0 rounded-none w-full justify-start gap-2 border-t border-gray-200 dark:border-gray-700"
+            className="border-0 rounded-none w-full justify-start gap-2"
           >
             <HiEye className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             <span>

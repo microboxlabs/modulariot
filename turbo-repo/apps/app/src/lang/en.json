@@ -401,7 +401,8 @@
           "deleteConfirmTitle": "Confirm deletion",
           "deleteConfirmMessage": "Are you sure you want to delete the assignment for service {serviceId}?",
           "cancelReassignment": "Cancel reassignment",
-          "previewAsViewer": "Open service (Read-only)",
+          "openReadOnly": "Open service (Read-only)",
+          "previewAsViewer": "Preview as viewer",
           "exitPreview": "Exit preview"
         },
         "notifications": {

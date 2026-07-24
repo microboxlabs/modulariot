@@ -142,7 +142,7 @@ export default function CollaboratorDetailView({
         previous={previous}
         next={next}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto w-[70vw] max-w-screen-2xl p-4 flex flex-col gap-4">
+      <div className="flex-1 min-h-0 overflow-y-auto w-full px-4 xl:px-8 py-4 flex flex-col gap-4">
         <CollaboratorSummary
           collaborator={collaborator}
           dict={dict}

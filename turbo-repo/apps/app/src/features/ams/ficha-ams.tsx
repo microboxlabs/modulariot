@@ -346,10 +346,19 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear, onCreado, 
               </div>
             ))}
             <div>
+              <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">External ID</div>
+              <div className="text-gray-900 dark:text-white truncate">{rec.external_id ?? "—"}</div>
+            </div>
+            <div>
               <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Origen del dato</div>
               <div className="text-gray-900 dark:text-white">
-                {rec.source_system === "app" ? "editado en el app" : "fuente externa"}
-                <span className="text-xs text-gray-500"> · {new Date(rec.updated_at).toLocaleString("es-CL")}</span>
+                {rec.source_system === "app" ? "Editado en el app" : "Fuente externa"}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Última actualización</div>
+              <div className="text-gray-900 dark:text-white">
+                {new Date(rec.updated_at).toLocaleString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
               </div>
             </div>
           </div>
@@ -504,36 +513,54 @@ export function SeccionDocs({ tipo, rec, onChange, plano }: {
   return (
     <Seccion titulo="Acreditación y documentos" plano={plano}
       extra={<span className="text-[11px] text-gray-500">obligatorios con ★ · vencimientos 30/15/0</span>}>
-      <div className="space-y-1.5">
-        {docs.docs.map((d) => (
-          <div key={d.doc_id} className="flex items-center gap-2 text-sm">
-            <span className="flex-none w-[210px] truncate text-gray-900 dark:text-white">
-              {d.required && "★ "}{d.label ?? d.doc_type}
-            </span>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${EST_DOC[d.estado]?.cls ?? ""}`}>
-              {EST_DOC[d.estado]?.label ?? d.estado}
-            </span>
-            <span className="text-xs text-gray-500 flex-1 truncate">
-              {d.valid_until ? `vence ${d.valid_until.slice(0, 10)}` : ""}
-              {d.filename ? ` · ${d.filename}` : ""} · {d.uploaded_by}
-            </span>
-            {d.alfresco_node_id && (
-              <a className="text-[11px] text-blue-600 hover:underline flex-none"
-                 href={`/app/api/ams/docs?nodeId=${encodeURIComponent(d.alfresco_node_id)}&filename=${encodeURIComponent(d.filename ?? "documento")}`}>
-                descargar
-              </a>
-            )}
-            <button className="text-[11px] text-rose-600 hover:underline" onClick={() => void borrar(d.doc_id)}>eliminar</button>
-          </div>
-        ))}
-        {docs.faltantes.map((f) => (
-          <div key={f.doc_type} className="flex items-center gap-2 text-sm opacity-70">
-            <span className="flex-none w-[210px] truncate text-gray-900 dark:text-white">★ {f.label}</span>
-            <span className="rounded-full px-2 py-0.5 text-[11px] font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Falta</span>
-          </div>
-        ))}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              <th className="py-1.5 pr-4 font-medium">Documento</th>
+              <th className="py-1.5 pr-4 font-medium">Estado</th>
+              <th className="py-1.5 pr-4 font-medium">Vencimiento</th>
+              <th className="py-1.5 pr-4 font-medium">Respaldo</th>
+              <th className="py-1.5 pr-4 font-medium">Registrado por</th>
+              <th className="py-1.5 font-medium text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {docs.docs.map((d) => (
+              <tr key={d.doc_id} className="border-t border-gray-100 dark:border-gray-700/60">
+                <td className="py-1.5 pr-4 text-gray-900 dark:text-white whitespace-nowrap">
+                  {d.required && <span title="obligatorio">★ </span>}{d.label ?? d.doc_type}</td>
+                <td className="py-1.5 pr-4">
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${EST_DOC[d.estado]?.cls ?? ""}`}>
+                    {EST_DOC[d.estado]?.label ?? d.estado}</span></td>
+                <td className="py-1.5 pr-4 text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                  {d.valid_until?.slice(0, 10) ?? "—"}</td>
+                <td className="py-1.5 pr-4 text-gray-600 dark:text-gray-300 max-w-[220px] truncate">
+                  {d.alfresco_node_id
+                    ? <a className="text-blue-600 hover:underline"
+                         href={`/app/api/ams/docs?nodeId=${encodeURIComponent(d.alfresco_node_id)}&filename=${encodeURIComponent(d.filename ?? "documento")}`}>
+                        {d.filename ?? "descargar"}</a>
+                    : (d.filename ?? "—")}</td>
+                <td className="py-1.5 pr-4 text-gray-500 dark:text-gray-400 whitespace-nowrap">{d.uploaded_by}</td>
+                <td className="py-1.5 text-right">
+                  <button className="text-[11px] text-rose-600 hover:underline" onClick={() => void borrar(d.doc_id)}>eliminar</button></td>
+              </tr>
+            ))}
+            {docs.faltantes.map((f) => (
+              <tr key={f.doc_type} className="border-t border-gray-100 dark:border-gray-700/60 opacity-75">
+                <td className="py-1.5 pr-4 text-gray-900 dark:text-white whitespace-nowrap">★ {f.label}</td>
+                <td className="py-1.5 pr-4">
+                  <span className="rounded-full px-2 py-0.5 text-[11px] font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Falta</span></td>
+                <td className="py-1.5 pr-4 text-gray-500">—</td>
+                <td className="py-1.5 pr-4 text-gray-500">—</td>
+                <td className="py-1.5 pr-4 text-gray-500">—</td>
+                <td className="py-1.5" />
+              </tr>
+            ))}
+          </tbody>
+        </table>
         {!docs.docs.length && !docs.faltantes.length && (
-          <div className="text-xs text-gray-500">Sin documentos requeridos para este recurso.</div>
+          <div className="text-xs text-gray-500 py-2">Sin documentos requeridos para este recurso.</div>
         )}
       </div>
       {/* registrar: fila compacta al pie (estilo «Subir» del panel Multimedia) */}
@@ -625,23 +652,27 @@ export function SeccionDupla({ tipo, rec, onChange, plano }: {
     <Seccion titulo={tipo === "TRUCK" ? "Conductor asignado" : "Camión asignado"} plano={plano}
       extra={<span className="text-[11px] text-gray-500">con viaje en curso, manda el viaje</span>}>
       {actual ? (
-        <div className="flex items-center gap-3 rounded-lg border border-blue-200 dark:border-blue-900 px-3 py-2.5">
-          <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-700 dark:text-blue-300 font-semibold text-sm flex-none">
-            {tipo === "TRUCK"
-              ? ((actual as AmsTruck["conductor"])!.nombre ?? "?").split(" ").slice(0, 2).map((w) => w[0]).join("")
-              : "🚚"}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-              {tipo === "TRUCK" ? (actual as AmsTruck["conductor"])!.nombre : (actual as AmsDriver["camion"])!.patente}
+        <div className="rounded-lg border border-blue-200 dark:border-blue-900 px-3 py-2.5 space-y-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-700 dark:text-blue-300 font-semibold text-sm flex-none">
+              {tipo === "TRUCK"
+                ? ((actual as AmsTruck["conductor"])!.nombre ?? "?").split(" ").slice(0, 2).map((w) => w[0]).join("")
+                : "🚚"}
             </div>
-            <div className="text-xs text-gray-500">
-              {tipo === "TRUCK" && <>{(actual as AmsTruck["conductor"])!.rut} · </>}
-              desde {new Date(actual.desde).toLocaleDateString("es-CL")}
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                {tipo === "TRUCK" ? (actual as AmsTruck["conductor"])!.nombre : (actual as AmsDriver["camion"])!.patente}
+              </div>
+              <div className="text-xs text-gray-500 truncate">
+                {tipo === "TRUCK" && <>{(actual as AmsTruck["conductor"])!.rut} · </>}
+                desde {new Date(actual.desde).toLocaleDateString("es-CL")}
+              </div>
             </div>
           </div>
-          <button className={btnSec} onClick={() => { setReasignando(!reasignando); setMsg(null); }}>Reasignar</button>
-          <button className="text-[11px] text-rose-600 hover:underline" onClick={() => void soltar()}>quitar</button>
+          <div className="flex items-center gap-2">
+            <button className={btnSec + " flex-1"} onClick={() => { setReasignando(!reasignando); setMsg(null); }}>Reasignar</button>
+            <button className="text-[11px] text-rose-600 hover:underline flex-none" onClick={() => void soltar()}>quitar</button>
+          </div>
         </div>
       ) : (
         <div className="flex items-center gap-3 text-sm text-gray-500">

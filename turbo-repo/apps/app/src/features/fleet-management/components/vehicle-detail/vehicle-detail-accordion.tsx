@@ -252,7 +252,7 @@ export default function VehicleDetailAccordion({
   const healthScore = getOverallHealthScore(statuses);
 
   return (
-    <div className="flex flex-col gap-3 py-4 w-full max-w-6xl">
+    <div className="flex flex-col gap-3 py-4 w-full">
       <HealthSection
         dict={dict}
         healthScore={healthScore}

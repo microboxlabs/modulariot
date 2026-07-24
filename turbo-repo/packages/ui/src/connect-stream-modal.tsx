@@ -39,6 +39,15 @@ const ICON_MAP = {
   Terminal,
 };
 
+function createDevelopmentApiKey(): string {
+  const randomBytes = crypto.getRandomValues(new Uint8Array(16));
+  const suffix = Array.from(randomBytes, (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+
+  return `miot_key_${suffix}`;
+}
+
 export function ConnectStreamModal({ 
   isOpen, 
   onClose, 
@@ -69,12 +78,12 @@ export function ConnectStreamModal({
         setApiKey(data.apiKey);
       } else {
         // Development fallback
-        setApiKey("miot_key_" + Math.random().toString(36).substring(2, 22));
+        setApiKey(createDevelopmentApiKey());
       }
     } catch (error) {
       console.error("Failed to fetch credentials:", error);
       // Fallback for development
-      setApiKey("miot_key_" + Math.random().toString(36).substr(2, 20));
+      setApiKey(createDevelopmentApiKey());
     } finally {
       setLoading(false);
     }

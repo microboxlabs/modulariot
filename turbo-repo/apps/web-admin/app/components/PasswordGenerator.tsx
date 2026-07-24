@@ -8,28 +8,53 @@ interface PasswordGeneratorProps {
   disabled?: boolean;
 }
 
+function getSecureRandomIndex(maxExclusive: number): number {
+  const maxUint32 = 0x1_0000_0000;
+  const limit = maxUint32 - (maxUint32 % maxExclusive);
+  const randomValue = new Uint32Array(1);
+
+  do {
+    crypto.getRandomValues(randomValue);
+  } while (randomValue[0] >= limit);
+
+  return randomValue[0] % maxExclusive;
+}
+
+function shuffleSecurely(characters: string[]): string {
+  for (let index = characters.length - 1; index > 0; index -= 1) {
+    const swapIndex = getSecureRandomIndex(index + 1);
+    [characters[index], characters[swapIndex]] = [
+      characters[swapIndex],
+      characters[index],
+    ];
+  }
+
+  return characters.join("");
+}
+
 function generateSecurePassword(length: number = 32): string {
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-  let password = "";
-  
+  const charset =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+  const password: string[] = [];
+
   // Ensure at least one character from each category
   const lowercase = "abcdefghijklmnopqrstuvwxyz";
   const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const numbers = "0123456789";
   const symbols = "!@#$%^&*";
-  
-  password += lowercase[Math.floor(Math.random() * lowercase.length)];
-  password += uppercase[Math.floor(Math.random() * uppercase.length)];
-  password += numbers[Math.floor(Math.random() * numbers.length)];
-  password += symbols[Math.floor(Math.random() * symbols.length)];
-  
+
+  password.push(lowercase[getSecureRandomIndex(lowercase.length)]);
+  password.push(uppercase[getSecureRandomIndex(uppercase.length)]);
+  password.push(numbers[getSecureRandomIndex(numbers.length)]);
+  password.push(symbols[getSecureRandomIndex(symbols.length)]);
+
   // Fill the rest with random characters
   for (let i = password.length; i < length; i++) {
-    password += charset[Math.floor(Math.random() * charset.length)];
+    password.push(charset[getSecureRandomIndex(charset.length)]);
   }
-  
-  // Shuffle the password to avoid predictable patterns
-  return password.split('').sort(() => Math.random() - 0.5).join('');
+
+  // Shuffle the password to avoid predictable category positions.
+  return shuffleSecurely(password);
 }
 
 export function PasswordGenerator({ onGenerate, disabled = false }: PasswordGeneratorProps) {

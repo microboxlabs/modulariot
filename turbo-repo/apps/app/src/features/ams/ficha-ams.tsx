@@ -26,6 +26,7 @@ type Acreditacion = {
   documentos: {
     docs: { doc_id: number; doc_type: string; label: string | null; required: boolean;
       filename: string | null; valid_until: string | null; estado: string;
+      alfresco_node_id: string | null;
       uploaded_by: string; created_at: string }[];
     faltantes: { doc_type: string; label: string }[];
   };
@@ -468,18 +469,31 @@ export function SeccionDocs({ tipo, rec, onChange, plano }: {
 }) {
   const docs = rec.acreditacion.documentos;
   const [dt, setDt] = useState(""); const [venc, setVenc] = useState("");
-  const [file, setFile] = useState("");
+  const [archivo, setArchivo] = useState<File | null>(null);
   const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<string | null>(null);
 
   const subir = async () => {
     if (!dt) { setMsg("Elige el tipo de documento."); return; }
-    setBusy(true);
-    const { data } = await post("fn_ams_save_doc", {
-      p_resource_type: tipo, p_resource_id: rec.id, p_doc_type: dt,
-      p_filename: file || null, p_valid_until: venc || null, p_actor: "app-mantenedor" });
+    setBusy(true); setMsg(null);
+    let data: Record<string, unknown>;
+    if (archivo) {
+      // binario REAL al ECM + registro en el maestro
+      const fd = new FormData();
+      fd.append("file", archivo);
+      fd.append("resource_type", tipo);
+      fd.append("resource_id", rec.id);
+      fd.append("doc_type", dt);
+      if (venc) fd.append("valid_until", venc);
+      data = await fetch("/app/api/ams/docs", { method: "POST", body: fd })
+        .then((r) => r.json()).catch(() => ({ ok: false, error: "conexión" }));
+    } else {
+      ({ data } = await post("fn_ams_save_doc", {
+        p_resource_type: tipo, p_resource_id: rec.id, p_doc_type: dt,
+        p_filename: null, p_valid_until: venc || null, p_actor: "app-mantenedor" }));
+    }
     setBusy(false);
-    setMsg(data?.ok === false ? `No guardado — ${data?.detalle ?? data?.error}` : null);
-    if (data?.ok) { setDt(""); setVenc(""); setFile(""); onChange(); }
+    setMsg(data?.ok === false ? `No guardado — ${(data as { detalle?: string; error?: string }).detalle ?? (data as { error?: string }).error}` : null);
+    if (data?.ok) { setDt(""); setVenc(""); setArchivo(null); onChange(); }
   };
   const borrar = async (docId: number) => {
     if (!window.confirm("¿Eliminar este documento?")) return;
@@ -503,6 +517,12 @@ export function SeccionDocs({ tipo, rec, onChange, plano }: {
               {d.valid_until ? `vence ${d.valid_until.slice(0, 10)}` : ""}
               {d.filename ? ` · ${d.filename}` : ""} · {d.uploaded_by}
             </span>
+            {d.alfresco_node_id && (
+              <a className="text-[11px] text-blue-600 hover:underline flex-none"
+                 href={`/app/api/ams/docs?nodeId=${encodeURIComponent(d.alfresco_node_id)}&filename=${encodeURIComponent(d.filename ?? "documento")}`}>
+                descargar
+              </a>
+            )}
             <button className="text-[11px] text-rose-600 hover:underline" onClick={() => void borrar(d.doc_id)}>eliminar</button>
           </div>
         ))}
@@ -526,9 +546,12 @@ export function SeccionDocs({ tipo, rec, onChange, plano }: {
         <TextInput id="doc-venc" sizing="sm" type="date" value={venc}
                    title="Fecha de vencimiento — alimenta el semáforo y la acreditación"
                    onChange={(e) => setVenc(e.target.value)} />
-        <TextInput id="doc-file" sizing="sm" placeholder="archivo de respaldo (referencia)"
-                   className="flex-1 min-w-[180px]"
-                   value={file} onChange={(e) => setFile(e.target.value)} />
+        <label className="flex-1 min-w-[200px] flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 cursor-pointer rounded-lg border border-dashed border-gray-300 dark:border-gray-600 px-3 py-1.5">
+          <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png"
+                 onChange={(e) => setArchivo(e.target.files?.[0] ?? null)} />
+          {archivo ? <span className="truncate text-gray-900 dark:text-white">{archivo.name}</span>
+                   : <span>Adjuntar archivo (PDF/imagen) — opcional</span>}
+        </label>
         <button className={btnPri} disabled={busy || !dt} onClick={() => void subir()}>
           {busy ? "Registrando…" : "Registrar"}
         </button>

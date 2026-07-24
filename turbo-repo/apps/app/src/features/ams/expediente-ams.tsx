@@ -30,12 +30,12 @@ function Panel({ titulo, extra, children, className }: {
   titulo: string; extra?: React.ReactNode; children: React.ReactNode; className?: string;
 }) {
   return (
-    <section className={`rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col ${className ?? ""}`}>
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 dark:border-gray-700">
+    <section className={`rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col min-h-0 ${className ?? ""}`}>
+      <div className="flex items-center gap-2 px-3.5 py-2 border-b border-gray-100 dark:border-gray-700 flex-none">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex-1">{titulo}</h3>
         {extra}
       </div>
-      <div className="p-4 flex-1 min-h-0">{children}</div>
+      <div className="p-3.5 flex-1 min-h-0 overflow-y-auto">{children}</div>
     </section>
   );
 }
@@ -76,16 +76,14 @@ export function ExpedienteAms({ tipo, matchId, matchName }: {
   const extOk = !a.bloqueada_por.includes("fuente_externa");
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-      {/* ── Información del recurso (como "Información del viaje") ── */}
-      <Panel className="lg:col-span-2"
-        titulo={tipo === "TRUCK" ? "Información del camión" : "Información del colaborador"}>
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 auto-rows-min">
+      {/* fila 1 — bento: info (6) · acreditación (3) · asignación (3) */}
+      <Panel className="xl:col-span-6" titulo={tipo === "TRUCK" ? "Información del camión" : "Información del colaborador"}>
         <FichaAms tipo={tipo} matchId={matchId} matchName={matchName}
                   variante="plano" secciones={["identificacion"]} />
       </Panel>
 
-      {/* ── Acreditación (checklist estilo "Validaciones") ── */}
-      <Panel titulo="Acreditación"
+      <Panel className="xl:col-span-3" titulo="Acreditación"
         extra={<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
           a.acreditado
             ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
@@ -93,11 +91,11 @@ export function ExpedienteAms({ tipo, matchId, matchName }: {
           {a.acreditado ? "Acreditado" : "No acreditado"}
         </span>}>
         <div className="flex flex-col">
-          <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 pb-1">
+          <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 pb-0.5">
             Fuentes
           </div>
           <ItemCheck ok={extOk} label="Fuente externa" detalle={extOk ? "avala" : "bloquea"} />
-          <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3 pb-1">
+          <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-2 pb-0.5">
             Documentos obligatorios
           </div>
           {docs.docs.filter((d) => d.required).map((d) => (
@@ -116,25 +114,23 @@ export function ExpedienteAms({ tipo, matchId, matchName }: {
         </div>
       </Panel>
 
-      {/* ── Documentos (estilo MULTIMEDIA) ── */}
-      <Panel className="lg:col-span-2" titulo="Documentos"
+      <Panel className="xl:col-span-3" titulo={tipo === "TRUCK" ? "Conductor" : "Camión"}
+        extra={<span className="text-[11px] text-gray-500">manda el viaje</span>}>
+        <SeccionDupla tipo={tipo} rec={rec} plano onChange={() => void mutate()} />
+      </Panel>
+
+      {/* fila 2 — documentos (8) · gxc (4) */}
+      <Panel className="xl:col-span-8" titulo="Documentos"
         extra={<span className="text-xs text-gray-500">
           {docs.docs.length} registrados{docs.faltantes.length ? ` · faltan ${docs.faltantes.length}` : ""}
         </span>}>
         <SeccionDocs tipo={tipo} rec={rec} plano onChange={() => void mutate()} />
       </Panel>
 
-      {/* ── Asignación (estilo panel "Conductores") ── */}
-      <Panel titulo={tipo === "TRUCK" ? "Conductor" : "Camión"}
-        extra={<span className="text-[11px] text-gray-500">manda el viaje</span>}>
-        <SeccionDupla tipo={tipo} rec={rec} plano onChange={() => void mutate()} />
-      </Panel>
+      <GxcStrip tipo={tipo} rec={rec} />
 
-      {/* ── GxC + Historial (tabla estilo "Movimientos de Kanban") ── */}
-      <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <GxcStrip tipo={tipo} rec={rec} />
-        <HistorialTabla tipo={tipo} recId={rec.id} />
-      </div>
+      {/* fila 3 — historial (12) */}
+      <HistorialTabla tipo={tipo} recId={rec.id} />
     </div>
   );
 }
@@ -148,7 +144,7 @@ function GxcStrip({ tipo, rec }: { tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | Ams
     fetcher);
   const cap = data?.capitulos;
   return (
-    <Panel titulo="Gestión por consecuencia (28 días)"
+    <Panel className="xl:col-span-4" titulo="Gestión por consecuencia (28 días)"
       extra={cap && cap.viajes > 0 ? (
         <a className="text-xs text-blue-600 hover:underline"
            href={`/app/es/gxc/${gxcTipo}/${encodeURIComponent(gxcId)}?dias=28`}>
@@ -183,7 +179,7 @@ function HistorialTabla({ tipo, recId }: { tipo: "TRUCK" | "DRIVER"; recId: stri
     DOC_DELETE: "Documento eliminado", ASSIGN: "Asignación", UNASSIGN: "Desasignación",
   };
   return (
-    <Panel className="lg:col-span-2" titulo="Historial de cambios">
+    <Panel className="xl:col-span-12" titulo="Historial de cambios">
       {data?.length ? (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

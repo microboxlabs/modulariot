@@ -316,7 +316,7 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear, onCreado, 
       <Seccion plano={plano}
         titulo={tipo === "TRUCK" ? "Ficha del camión (mantenedor)" : "Ficha del colaborador (mantenedor)"}
         extra={<>
-          {rec && <BadgeAcreditacion a={rec.acreditacion} />}
+          {rec && !plano && <BadgeAcreditacion a={rec.acreditacion} />}
           {!enForma && rec && (
             <button className="text-xs text-blue-600 hover:underline" onClick={abrirEdicion}>✎ editar</button>)}
         </>}>
@@ -516,28 +516,21 @@ export function SeccionDocs({ tipo, rec, onChange, plano }: {
           <div className="text-xs text-gray-500">Sin documentos requeridos para este recurso.</div>
         )}
       </div>
-      <div className="pt-4 space-y-3">
-        <TituloBloque>Registrar documento</TituloBloque>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <Campo id="doc-tipo" label="Tipo de documento" requerido>
-            <DsSelect id="doc-tipo" sizing="sm" value={dt} onChange={(e) => setDt(e.target.value)}>
-              <option value="">Seleccionar…</option>
-              {DOC_TYPES[tipo].map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
-            </DsSelect>
-          </Campo>
-          <Campo id="doc-venc" label="Fecha de vencimiento"
-                 ayuda="Alimenta el semáforo y la acreditación">
-            <TextInput id="doc-venc" sizing="sm" type="date" value={venc}
-                       onChange={(e) => setVenc(e.target.value)} />
-          </Campo>
-          <Campo id="doc-file" label="Archivo de respaldo"
-                 ayuda="Referencia por ahora — la carga a repositorio llega en el siguiente corte">
-            <TextInput id="doc-file" sizing="sm" placeholder="revision_tecnica.pdf"
-                       value={file} onChange={(e) => setFile(e.target.value)} />
-          </Campo>
-        </div>
+      {/* registrar: fila compacta al pie (estilo «Subir» del panel Multimedia) */}
+      <div className="pt-3 mt-3 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center gap-2">
+        <DsSelect id="doc-tipo" sizing="sm" className="min-w-[190px]"
+                  value={dt} onChange={(e) => setDt(e.target.value)}>
+          <option value="">Registrar documento…</option>
+          {DOC_TYPES[tipo].map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
+        </DsSelect>
+        <TextInput id="doc-venc" sizing="sm" type="date" value={venc}
+                   title="Fecha de vencimiento — alimenta el semáforo y la acreditación"
+                   onChange={(e) => setVenc(e.target.value)} />
+        <TextInput id="doc-file" sizing="sm" placeholder="archivo de respaldo (referencia)"
+                   className="flex-1 min-w-[180px]"
+                   value={file} onChange={(e) => setFile(e.target.value)} />
         <button className={btnPri} disabled={busy || !dt} onClick={() => void subir()}>
-          {busy ? "Registrando…" : "Registrar documento"}
+          {busy ? "Registrando…" : "Registrar"}
         </button>
       </div>
       {msg && <div className="text-sm pt-2 text-red-600 dark:text-red-400">{msg}</div>}

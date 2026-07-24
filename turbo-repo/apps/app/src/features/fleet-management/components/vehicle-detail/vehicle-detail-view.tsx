@@ -33,7 +33,7 @@ export default function VehicleDetailView({
         hasNext={next?.hasNext ?? false}
       />
       <div className="flex flex-col flex-1 min-h-0 overflow-y-auto w-full items-center bg-gray-50 dark:bg-gray-900 px-4 xl:px-0">
-        <div className="w-full max-w-5xl pt-4">
+        <div className="w-full max-w-screen-2xl px-2 xl:px-6 pt-4">
           <ExpedienteAms tipo="TRUCK" matchId={vehicle.plate} />
         </div>
         <VehicleDetailAccordion vehicle={vehicle} dict={dict} />

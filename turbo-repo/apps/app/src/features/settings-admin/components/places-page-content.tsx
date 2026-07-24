@@ -93,8 +93,14 @@ async function ajustarACalles(pts: [number, number][], token: string):
   for (const leg of ruta.legs ?? [])
     for (const st of leg.steps ?? [])
       if (st.name) vias.add(st.name);
-  return { pts: ruta.geometry.coordinates.map(([lo, la]: number[]) => [la, lo] as [number, number]),
-           vias: [...vias].slice(0, 12) };
+  // el lab acepta 2..500 puntos: decimar conservando extremos
+  const crudos: [number, number][] = ruta.geometry.coordinates
+    .map(([lo, la]: number[]) => [la, lo] as [number, number]);
+  const MAX = 480;
+  const pts2 = crudos.length <= MAX ? crudos
+    : crudos.filter((_, i) => i % Math.ceil(crudos.length / MAX) === 0)
+        .concat([crudos[crudos.length - 1]]);
+  return { pts: pts2, vias: [...vias].slice(0, 12) };
 }
 
 // CSV/KML/KMZ → filas {name, lat, lon, radius_m?, address?, external_id?}
@@ -168,6 +174,7 @@ export default function PlacesPageContent() {
   // import
   const [imp, setImp] = useState({ filename: "", formato: "", filas: [] as Record<string, unknown>[],
     radioDef: 250, catDef: "", resultado: null as string | null });
+  const [trayPathAjustado, setTrayPathAjustado] = useState<[number, number][] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -194,6 +201,34 @@ export default function PlacesPageContent() {
   const fcTray = useMemo(() => fcLineas((trayectos ?? []).map((t) => ({ pts: t.points })), "#7E3AF2"), [trayectos]);
   const fcCirc = useMemo(() => fcLineas((circuitos ?? [])
     .map((c) => ({ pts: (c.path_points ?? c.stops.map((s) => s.center).filter(Boolean)) as [number, number][] })), "#0E9F6E"), [circuitos]);
+
+  const FC_VACIA: FeatureCollection = { type: "FeatureCollection", features: [] };
+  const linea = (pts: [number, number][]): FeatureCollection =>
+    pts.length > 1 ? { type: "FeatureCollection", features: [{ type: "Feature", properties: {},
+      geometry: { type: "LineString", coordinates: pts.map(([la, lo]) => [lo, la]) } as LineString }] } : FC_VACIA;
+  const prevLugarFC = useMemo<FeatureCollection>(() => {
+    if (modo !== "lugar") return FC_VACIA;
+    if (form.geom === "circle" && form.lat != null)
+      return { type: "FeatureCollection", features: [{ type: "Feature", properties: {},
+        geometry: { type: "Polygon", coordinates: [circuloPoly(form.lat, form.lon!, form.radius_m)] } as Polygon }] };
+    if (form.geom === "polygon" && form.vertices.length >= 2)
+      return { type: "FeatureCollection", features: [{ type: "Feature", properties: {},
+        geometry: { type: "Polygon", coordinates: [[...form.vertices.map(([la, lo]) => [lo, la] as [number, number]),
+          [form.vertices[0][1], form.vertices[0][0]] as [number, number]]] } as Polygon }] };
+    return FC_VACIA;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modo, form.geom, form.lat, form.lon, form.radius_m, form.vertices]);
+  const prevTrayRawFC = useMemo(() => (modo === "trayecto" && !(tray.ajustado && trayPathAjustado)
+    ? linea(tray.pts) : FC_VACIA),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [modo, tray.pts, tray.ajustado, trayPathAjustado]);
+  const prevTrayAdjFC = useMemo(() => (modo === "trayecto" && tray.ajustado && trayPathAjustado
+    ? linea(trayPathAjustado) : FC_VACIA),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [modo, tray.ajustado, trayPathAjustado]);
+  const prevCircFC = useMemo(() => (modo === "circuito" ? linea(circ.path) : FC_VACIA),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [modo, circ.path]);
 
   const onMapClick = (e: { lngLat: { lng: number; lat: number } }) => {
     const la = e.lngLat.lat, lo = e.lngLat.lng;
@@ -271,7 +306,6 @@ export default function PlacesPageContent() {
     setMsg(`Ajustado a calles: ${aj.vias.slice(0, 4).join(", ")}${aj.vias.length > 4 ? "…" : ""}`);
     setTrayPathAjustado(aj.pts);
   };
-  const [trayPathAjustado, setTrayPathAjustado] = useState<[number, number][] | null>(null);
 
   const guardarTrayecto = async () => {
     if (!tray.name || tray.pts.length < 2) { setMsg("Falta nombre o al menos 2 puntos."); return; }
@@ -402,50 +436,32 @@ export default function PlacesPageContent() {
             <Layer id="circ-line" type="line" paint={{ "line-color": "#0E9F6E", "line-width": 2.5, "line-opacity": 0.8, "line-dasharray": [3, 1.5] }} />
           </Source>
 
-          {/* previews en edición */}
-          {modo === "lugar" && form.geom === "circle" && form.lat != null && (
-            <Source id="prev" type="geojson" data={{ type: "Feature", properties: {},
-              geometry: { type: "Polygon", coordinates: [circuloPoly(form.lat, form.lon!, form.radius_m)] } } as Feature}>
-              <Layer id="prev-f" type="fill" paint={{ "fill-color": "#1C64F2", "fill-opacity": 0.25 }} />
-              <Layer id="prev-l" type="line" paint={{ "line-color": "#1C64F2", "line-width": 2 }} />
-            </Source>
-          )}
-          {modo === "lugar" && form.geom === "polygon" && form.vertices.length >= 2 && (
-            <Source id="prevpoly" type="geojson" data={{ type: "Feature", properties: {},
-              geometry: { type: "Polygon", coordinates: [[...form.vertices.map(([la, lo]) => [lo, la]),
-                [form.vertices[0][1], form.vertices[0][0]]]] } } as Feature}>
-              <Layer id="prevp-f" type="fill" paint={{ "fill-color": "#1C64F2", "fill-opacity": 0.2 }} />
-              <Layer id="prevp-l" type="line" paint={{ "line-color": "#1C64F2", "line-width": 2 }} />
-            </Source>
-          )}
+          {/* previews en edición — Sources SIEMPRE montados (react-map-gl no
+              permite que un Source cambie de id entre renders); cuando no
+              aplican, llevan colección vacía */}
+          <Source id="prev-lugar" type="geojson" data={prevLugarFC}>
+            <Layer id="prev-lugar-f" type="fill" paint={{ "fill-color": "#1C64F2", "fill-opacity": 0.22 }} />
+            <Layer id="prev-lugar-l" type="line" paint={{ "line-color": "#1C64F2", "line-width": 2 }} />
+          </Source>
+          <Source id="prev-tray-raw" type="geojson" data={prevTrayRawFC}>
+            <Layer id="prev-tray-raw-l" type="line" paint={{ "line-color": "#7E3AF2", "line-width": 2, "line-dasharray": [2, 2] }} />
+          </Source>
+          <Source id="prev-tray-adj" type="geojson" data={prevTrayAdjFC}>
+            <Layer id="prev-tray-adj-l" type="line" paint={{ "line-color": "#7E3AF2", "line-width": 3 }} />
+          </Source>
+          <Source id="prev-circ" type="geojson" data={prevCircFC}>
+            <Layer id="prev-circ-l" type="line" paint={{ "line-color": "#0E9F6E", "line-width": 3 }} />
+          </Source>
           {modo === "lugar" && form.geom === "polygon" && form.vertices.map((v, i) => (
             <Marker key={i} longitude={v[1]} latitude={v[0]}>
               <span className="block w-2 h-2 rounded-full bg-blue-600 border border-white" />
             </Marker>
           ))}
-          {modo === "trayecto" && (trayPathAjustado && tray.ajustado
-            ? (
-              <Source id="prevtr" type="geojson" data={{ type: "Feature", properties: {},
-                geometry: { type: "LineString", coordinates: trayPathAjustado.map(([la, lo]) => [lo, la]) } } as Feature}>
-                <Layer id="prevtr-l" type="line" paint={{ "line-color": "#7E3AF2", "line-width": 3 }} />
-              </Source>
-            ) : tray.pts.length > 1 && (
-              <Source id="prevtr2" type="geojson" data={{ type: "Feature", properties: {},
-                geometry: { type: "LineString", coordinates: tray.pts.map(([la, lo]) => [lo, la]) } } as Feature}>
-                <Layer id="prevtr2-l" type="line" paint={{ "line-color": "#7E3AF2", "line-width": 2, "line-dasharray": [2, 2] }} />
-              </Source>
-            ))}
           {modo === "trayecto" && tray.pts.map((p, i) => (
             <Marker key={i} longitude={p[1]} latitude={p[0]}>
               <span className="block w-2.5 h-2.5 rounded-full bg-purple-600 border-2 border-white" />
             </Marker>
           ))}
-          {modo === "circuito" && circ.path.length > 1 && (
-            <Source id="prevci" type="geojson" data={{ type: "Feature", properties: {},
-              geometry: { type: "LineString", coordinates: circ.path.map(([la, lo]) => [lo, la]) } } as Feature}>
-              <Layer id="prevci-l" type="line" paint={{ "line-color": "#0E9F6E", "line-width": 3 }} />
-            </Source>
-          )}
         </MapboxMap>
       ) : (
         <div className="h-full flex items-center justify-center text-sm text-gray-500">

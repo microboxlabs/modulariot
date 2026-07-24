@@ -1,0 +1,142 @@
+package com.microboxlabs.miot.integrations.template;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Nested bodies: the Dev-Mentor {@code ActualizarEstadoFoto} contract is an object envelope
+ * ({@code serviceCode}, an overall {@code aprobada}, {@code username}) wrapping a {@code fotos}
+ * array, and each foto may carry its own {@code mensaje} array of reason objects. This proves the
+ * renderer builds that whole shape from one flat template map keyed by dotted path — including the
+ * deepest {@code mensaje} nesting, so once the producer supplies per-photo reasons no further
+ * renderer work is needed.
+ */
+class PayloadNestedRenderingTest {
+
+    private final PayloadRenderer renderer = new PayloadRenderer();
+
+    /** The request_schema as it would be stored for the Dev-Mentor operation. */
+    private static PayloadSchema devMentorSchema() {
+        Map<String, Object> reasonProps = new LinkedHashMap<>();
+        reasonProps.put("codigo", Map.of("type", "string"));
+        reasonProps.put("nombre", Map.of("type", "string"));
+        Map<String, Object> mensaje = Map.of(
+                "type", "array",
+                "itemsFrom", "content.reasons",
+                "items", Map.of("type", "object", "properties", reasonProps,
+                        "required", List.of("codigo", "nombre")));
+
+        Map<String, Object> fotoProps = new LinkedHashMap<>();
+        fotoProps.put("guidMultimedia", Map.of("type", "string"));
+        fotoProps.put("aprobada", Map.of("type", "boolean"));
+        fotoProps.put("mensaje", mensaje);
+        Map<String, Object> fotos = Map.of(
+                "type", "array",
+                "itemsFrom", "content",
+                "items", Map.of("type", "object", "properties", fotoProps,
+                        "required", List.of("guidMultimedia", "aprobada")));
+
+        Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("serviceCode", Map.of("type", "string"));
+        envelope.put("aprobada", Map.of("type", "boolean"));
+        envelope.put("username", Map.of("type", "string"));
+        envelope.put("fotos", fotos);
+        return PayloadSchema.of(Map.of(
+                "type", "object",
+                "properties", envelope,
+                "required", List.of("serviceCode", "aprobada", "username", "fotos")));
+    }
+
+    private static final Map<String, String> TEMPLATES = Map.ofEntries(
+            Map.entry("serviceCode", "{{task.serviceCode}}"),
+            Map.entry("aprobada", "{{task.approved}}"),
+            Map.entry("username", "{{session.reviewer}}"),
+            Map.entry("fotos.guidMultimedia", "{{content.mediaId}}"),
+            Map.entry("fotos.aprobada", "{{content.verdict}}"),
+            Map.entry("fotos.mensaje.codigo", "{{reasons.codigo}}"),
+            Map.entry("fotos.mensaje.nombre", "{{reasons.nombre}}"));
+
+    @Test
+    void schemaParsesTheEnvelopeAndItsNestedArrayAndObjectFields() {
+        PayloadSchema schema = devMentorSchema();
+        assertFalse(schema.array(), "the envelope is an object, not a top-level array");
+
+        PayloadSchema.Field fotos = schema.field("fotos");
+        assertEquals(PayloadSchema.FieldType.ARRAY, fotos.type());
+        assertEquals("content", fotos.itemsFrom());
+
+        PayloadSchema.Field mensaje = fotos.child().field("mensaje");
+        assertEquals(PayloadSchema.FieldType.ARRAY, mensaje.type());
+        assertEquals("content.reasons", mensaje.itemsFrom());
+        assertEquals(List.of("codigo", "nombre"),
+                mensaje.child().fields().stream().map(PayloadSchema.Field::id).toList());
+    }
+
+    @Test
+    void buildsTheFullEnvelopeWithFotosAndPerPhotoReasons() {
+        Object body = renderer.renderBody(TEMPLATES, devMentorSchema(), context());
+
+        Map<?, ?> envelope = assertInstanceOf(Map.class, body);
+        assertEquals("1656793", envelope.get("serviceCode"));
+        assertEquals(Boolean.FALSE, envelope.get("aprobada"), "overall verdict, from the envelope template");
+        assertEquals("mdavid@sitrans.cl", envelope.get("username"));
+
+        List<?> fotos = assertInstanceOf(List.class, envelope.get("fotos"));
+        assertEquals(2, fotos.size());
+
+        // Approved photo: its per-photo verdict wins over the reused leaf name, and with no
+        // reasons the optional mensaje array is omitted, not sent empty.
+        Map<?, ?> approved = (Map<?, ?>) fotos.get(0);
+        assertEquals("g1", approved.get("guidMultimedia"));
+        assertEquals(Boolean.TRUE, approved.get("aprobada"));
+        assertFalse(approved.containsKey("mensaje"), "no reasons → no mensaje key");
+
+        // Rejected photo: mensaje is an array of {codigo, nombre} reason objects.
+        Map<?, ?> rejected = (Map<?, ?>) fotos.get(1);
+        assertEquals("g2", rejected.get("guidMultimedia"));
+        assertEquals(Boolean.FALSE, rejected.get("aprobada"));
+        List<?> mensaje = assertInstanceOf(List.class, rejected.get("mensaje"));
+        assertEquals(1, mensaje.size());
+        Map<?, ?> reason = (Map<?, ?>) mensaje.get(0);
+        assertEquals("wrong_format", reason.get("codigo"));
+        assertEquals("Formato incorrecto", reason.get("nombre"));
+    }
+
+    @Test
+    void reusedLeafNameDoesNotCollideAcrossDepths() {
+        // Both the envelope and each foto declare "aprobada"; the dotted template keys keep them
+        // apart — the envelope's overall verdict must not be overwritten by a photo's.
+        Object body = renderer.renderBody(TEMPLATES, devMentorSchema(), context());
+        Map<?, ?> envelope = (Map<?, ?>) body;
+
+        assertEquals(Boolean.FALSE, envelope.get("aprobada"));
+        List<?> fotos = (List<?>) envelope.get("fotos");
+        assertEquals(Boolean.TRUE, ((Map<?, ?>) fotos.get(0)).get("aprobada"));
+        assertTrue(((Map<?, ?>) fotos.get(1)).get("aprobada") == Boolean.FALSE);
+    }
+
+    private static Map<String, Object> context() {
+        Map<String, Object> approvedPhoto = new LinkedHashMap<>();
+        approvedPhoto.put("mediaId", "g1");
+        approvedPhoto.put("verdict", true);
+
+        Map<String, Object> rejectedPhoto = new LinkedHashMap<>();
+        rejectedPhoto.put("mediaId", "g2");
+        rejectedPhoto.put("verdict", false);
+        rejectedPhoto.put("reasons", List.of(
+                Map.of("codigo", "wrong_format", "nombre", "Formato incorrecto")));
+
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("task", Map.of("serviceCode", "1656793", "approved", false));
+        context.put("session", Map.of("reviewer", "mdavid@sitrans.cl"));
+        context.put("content", List.of(approvedPhoto, rejectedPhoto));
+        return context;
+    }
+}

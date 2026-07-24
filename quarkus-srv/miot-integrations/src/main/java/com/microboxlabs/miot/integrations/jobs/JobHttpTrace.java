@@ -25,12 +25,17 @@ import java.util.Map;
  * which is what makes it safe to call unconditionally from a shared HTTP client
  * that also serves non-job traffic.
  *
- * <p><b>What is deliberately not recorded: headers.</b> That is where the
- * bearer tokens live, and this data is rendered in a browser console and kept
- * as long as the job row. Bodies are capped at {@link #MAX_BODY_CHARS} and the
- * list at {@link #MAX_EXCHANGES} so one chatty job cannot bloat the row; both
- * caps announce themselves in the recorded data rather than truncating
- * silently.
+ * <p><b>Request headers are recorded only as the caller hands them over.</b>
+ * Header values are where bearer tokens and API keys live, and this data is
+ * rendered in a browser console and kept as long as the job row — so the trace
+ * stores what it is given verbatim and never guesses which headers are secret.
+ * Only the caller knows a header's provenance (an operator-named API-key header
+ * can be called anything), so the caller masks every credential-bearing value
+ * before passing the map here; see {@code IntegrationOperationInvoker}. The older
+ * {@code record(...)} overload without a header map keeps recording none. Bodies
+ * are capped at {@link #MAX_BODY_CHARS} and the list at {@link #MAX_EXCHANGES} so
+ * one chatty job cannot bloat the row; both caps announce themselves in the
+ * recorded data rather than truncating silently.
  */
 public final class JobHttpTrace {
 
@@ -70,12 +75,25 @@ public final class JobHttpTrace {
      */
     public static void record(String method, String url, Integer status, long durationMs,
                               String requestBody, String responseBody, String error) {
+        record(method, url, status, durationMs, requestBody, responseBody, error, null);
+    }
+
+    /**
+     * As {@link #record(String, String, Integer, long, String, String, String)},
+     * additionally capturing the request headers. Pass them <b>already redacted</b>
+     * — the trace stores header values verbatim (see the class note). A null or
+     * empty map records no {@code requestHeaders} field, exactly like the shorter
+     * overload.
+     */
+    public static void record(String method, String url, Integer status, long durationMs,
+                              String requestBody, String responseBody, String error,
+                              Map<String, String> requestHeaders) {
         Recording recording = ACTIVE.get();
         if (recording == null) {
             return;
         }
         try {
-            recording.add(method, url, status, durationMs, requestBody, responseBody, error);
+            recording.add(method, url, status, durationMs, requestBody, responseBody, error, requestHeaders);
         } catch (RuntimeException e) {
             // Deliberately swallowed: a broken trace is never worth failing a
             // delivery over. The exchange is simply missing from the timeline.
@@ -133,7 +151,8 @@ public final class JobHttpTrace {
         private int dropped;
 
         void add(String method, String url, Integer status, long durationMs,
-                 String requestBody, String responseBody, String error) {
+                 String requestBody, String responseBody, String error,
+                 Map<String, String> requestHeaders) {
             if (exchanges.size() >= MAX_EXCHANGES) {
                 dropped++;
                 return;
@@ -142,6 +161,9 @@ public final class JobHttpTrace {
             entry.put("at", OffsetDateTime.now(ZoneOffset.UTC).toString());
             entry.put("method", method);
             entry.put("url", url);
+            if (requestHeaders != null && !requestHeaders.isEmpty()) {
+                entry.put("requestHeaders", new LinkedHashMap<>(requestHeaders));
+            }
             if (status != null) {
                 entry.put("status", status);
             }

@@ -9,6 +9,7 @@
 // Tenant server-side vía /api/ams/rpc/*; sin marcas de fuente (agnóstico).
 import { useMemo, useState } from "react";
 import useSWR, { mutate as swrMutate } from "swr";
+import { Label, TextInput, Select as DsSelect } from "flowbite-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -61,6 +62,52 @@ const DOC_TYPES: Record<"TRUCK" | "DRIVER", { v: string; l: string }[]> = {
 };
 
 const inp = "w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-sm text-gray-900 dark:text-white";
+
+// ── Estándar de formularios del app: label visible, requerido marcado,
+// ayuda y error POR CAMPO (patrón settings-form-field + FormSection) ──
+function Campo({ id, label, requerido, ayuda, error, children }: {
+  id: string; label: string; requerido?: boolean; ayuda?: string;
+  error?: string; children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <Label htmlFor={id} className="mb-1 block text-sm">
+        {label}{requerido && <span className="text-red-600 ml-0.5">*</span>}
+      </Label>
+      {children}
+      {ayuda && !error && (
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{ayuda}</p>)}
+      {error && (
+        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>)}
+    </div>
+  );
+}
+
+function TituloBloque({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 pt-1">
+      <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+        {children}
+      </span>
+      <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+    </div>
+  );
+}
+
+// Validaciones de dominio (calidad: se valida ANTES de llamar al backend)
+function rutValido(rut: string): boolean {
+  const limpio = rut.replace(/\./g, "").replace("-", "").toUpperCase();
+  if (!/^\d{7,8}[0-9K]$/.test(limpio)) return false;
+  const cuerpo = limpio.slice(0, -1); const dv = limpio.slice(-1);
+  let suma = 0, mul = 2;
+  for (let i = cuerpo.length - 1; i >= 0; i--) {
+    suma += Number(cuerpo[i]) * mul; mul = mul === 7 ? 2 : mul + 1;
+  }
+  const res = 11 - (suma % 11);
+  const dvCalc = res === 11 ? "0" : res === 10 ? "K" : String(res);
+  return dv === dvCalc;
+}
+const patenteValida = (p: string) => /^[A-Z0-9]{5,8}$/.test(p.trim().toUpperCase());
 const btnPri = "rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-1.5 disabled:opacity-50";
 const btnSec = "rounded-lg border border-gray-300 dark:border-gray-600 text-sm px-3 py-1.5 text-gray-900 dark:text-white";
 
@@ -119,8 +166,13 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear }: {
   const [editando, setEditando] = useState(false);
   const [creando, setCreando] = useState(!!crear);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [errores, setErrores] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const setCampo = (k: string, v: string) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setErrores((e) => { const n = { ...e }; delete n[k]; return n; });
+  };
 
   const abrirEdicion = () => {
     if (!rec) return;
@@ -148,7 +200,27 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear }: {
     setCreando(true); setMsg(null);
   };
 
+  const validar = (): boolean => {
+    const e: Record<string, string> = {};
+    if (tipo === "TRUCK") {
+      if (!form.license_plate?.trim()) e.license_plate = "La patente es obligatoria.";
+      else if (!patenteValida(form.license_plate)) e.license_plate = "Patente inválida (5-8 caracteres alfanuméricos).";
+      if (form.max_weight && (Number(form.max_weight) <= 0 || Number.isNaN(Number(form.max_weight))))
+        e.max_weight = "Debe ser un número positivo.";
+    } else {
+      if (!form.full_name?.trim()) e.full_name = "El nombre es obligatorio.";
+      if (!form.rut?.trim()) e.rut = "El RUT es obligatorio.";
+      else if (!rutValido(form.rut)) e.rut = "RUT inválido — revisa el dígito verificador.";
+      if (form.license_expires && form.license_expires < new Date().toISOString().slice(0, 10) && creando)
+        e.license_expires = "La licencia ya está vencida — el recurso nacerá no acreditado.";
+    }
+    setErrores(e);
+    // el aviso de licencia vencida no bloquea (advertencia), el resto sí
+    return Object.keys(e).filter((k) => k !== "license_expires").length === 0;
+  };
+
   const guardar = async () => {
+    if (!validar()) return;
     setBusy(true); setMsg(null);
     const fn = tipo === "TRUCK" ? "fn_ams_save_truck" : "fn_ams_save_driver";
     const body: Record<string, unknown> = tipo === "TRUCK" ? {
@@ -248,42 +320,96 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear }: {
           </div>
         )}
         {enForma && (
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {(tipo === "TRUCK" ? [
-                ["license_plate", "Patente *"], ["truck_type", "Tipo"], ["vin", "VIN/Chasis"],
-                ["max_weight", "Peso máx. (kg)"], ["description", "Descripción"],
-              ] : [
-                ["full_name", "Nombre *"], ["rut", "RUT *"], ["phone", "Teléfono"],
-                ["license_category", "Categoría licencia"],
-              ]).map(([k, l]) => (
-                <input key={k} className={inp} placeholder={l}
-                       value={form[k] ?? ""} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
-              ))}
-              {tipo === "DRIVER" && (
-                <label className="text-xs text-gray-500 flex items-center gap-2">
-                  Vencimiento licencia
-                  <input type="date" className={inp} value={form.license_expires ?? ""}
-                         onChange={(e) => setForm({ ...form, license_expires: e.target.value })} />
-                </label>
-              )}
-              <select className={inp} value={form.status ?? "active"}
-                      onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                <option value="active">Activo</option>
-                <option value="inactive">Inactivo (fuera de planificación)</option>
-                {tipo === "TRUCK" && <option value="maintenance">En taller</option>}
-              </select>
+          <div className="space-y-4">
+            <TituloBloque>Identificación</TituloBloque>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {tipo === "TRUCK" ? (<>
+                <Campo id="ams-plate" label="Patente" requerido error={errores.license_plate}
+                       ayuda="Formato chileno, sin guiones (p. ej. ABCD12)">
+                  <TextInput id="ams-plate" sizing="sm" color={errores.license_plate ? "failure" : "gray"}
+                    value={form.license_plate ?? ""} disabled={!creando}
+                    onChange={(e) => setCampo("license_plate", e.target.value.toUpperCase())} />
+                </Campo>
+                <Campo id="ams-type" label="Tipo de equipo">
+                  <DsSelect id="ams-type" sizing="sm" value={form.truck_type ?? ""}
+                    onChange={(e) => setCampo("truck_type", e.target.value)}>
+                    <option value="">Seleccionar…</option>
+                    <option value="rampla">Rampla</option>
+                    <option value="tolva">Tolva</option>
+                    <option value="cama_baja">Cama baja</option>
+                    <option value="sider">Sider</option>
+                    <option value="tracto">Tracto</option>
+                    <option value="otro">Otro</option>
+                  </DsSelect>
+                </Campo>
+                <Campo id="ams-vin" label="VIN / N° de chasis">
+                  <TextInput id="ams-vin" sizing="sm" value={form.vin ?? ""}
+                    onChange={(e) => setCampo("vin", e.target.value)} />
+                </Campo>
+                <Campo id="ams-weight" label="Peso máximo (kg)" error={errores.max_weight}>
+                  <TextInput id="ams-weight" sizing="sm" type="number" min="0"
+                    color={errores.max_weight ? "failure" : "gray"}
+                    value={form.max_weight ?? ""}
+                    onChange={(e) => setCampo("max_weight", e.target.value)} />
+                </Campo>
+                <Campo id="ams-desc" label="Descripción" ayuda="Marca, modelo u observación operacional">
+                  <TextInput id="ams-desc" sizing="sm" value={form.description ?? ""}
+                    onChange={(e) => setCampo("description", e.target.value)} />
+                </Campo>
+              </>) : (<>
+                <Campo id="ams-name" label="Nombre completo" requerido error={errores.full_name}>
+                  <TextInput id="ams-name" sizing="sm" color={errores.full_name ? "failure" : "gray"}
+                    value={form.full_name ?? ""}
+                    onChange={(e) => setCampo("full_name", e.target.value)} />
+                </Campo>
+                <Campo id="ams-rut" label="RUT" requerido error={errores.rut}
+                       ayuda="Con guion y dígito verificador (p. ej. 12345678-5)">
+                  <TextInput id="ams-rut" sizing="sm" color={errores.rut ? "failure" : "gray"}
+                    value={form.rut ?? ""} disabled={!creando}
+                    onChange={(e) => setCampo("rut", e.target.value)} />
+                </Campo>
+                <Campo id="ams-phone" label="Teléfono de contacto">
+                  <TextInput id="ams-phone" sizing="sm" type="tel" placeholder="+56 9 …"
+                    value={form.phone ?? ""}
+                    onChange={(e) => setCampo("phone", e.target.value)} />
+                </Campo>
+                <Campo id="ams-lic" label="Categoría de licencia">
+                  <DsSelect id="ams-lic" sizing="sm" value={form.license_category ?? ""}
+                    onChange={(e) => setCampo("license_category", e.target.value)}>
+                    <option value="">Seleccionar…</option>
+                    <option value="A2">A2</option><option value="A3">A3</option>
+                    <option value="A4">A4</option><option value="A5">A5</option>
+                    <option value="B">B</option>
+                  </DsSelect>
+                </Campo>
+                <Campo id="ams-lic-exp" label="Vencimiento de licencia" error={errores.license_expires}
+                       ayuda="Alimenta el semáforo de acreditación (30/15/0 días)">
+                  <TextInput id="ams-lic-exp" sizing="sm" type="date"
+                    color={errores.license_expires ? "failure" : "gray"}
+                    value={form.license_expires ?? ""}
+                    onChange={(e) => setCampo("license_expires", e.target.value)} />
+                </Campo>
+              </>)}
+              <Campo id="ams-status" label="Estado operacional">
+                <DsSelect id="ams-status" sizing="sm" value={form.status ?? "active"}
+                  onChange={(e) => setCampo("status", e.target.value)}>
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo (fuera de planificación)</option>
+                  {tipo === "TRUCK" && <option value="maintenance">En taller</option>}
+                </DsSelect>
+              </Campo>
             </div>
             {creando && (
-              <div className="text-xs rounded-lg px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300">
-                Al crear este recurso se suma al monitoreo y a la facturación del servicio.
+              <div className="flex items-start gap-2 text-sm rounded-lg px-3 py-2.5 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                <span aria-hidden>ⓘ</span>
+                <span>Al crear este recurso se suma al monitoreo y a la <b>facturación del servicio</b>.</span>
               </div>
             )}
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-1">
               <button className={btnPri} disabled={busy} onClick={() => void guardar()}>
-                {busy ? "Guardando…" : "Guardar"}
+                {busy ? "Guardando…" : creando ? (tipo === "TRUCK" ? "Crear camión" : "Crear colaborador") : "Guardar cambios"}
               </button>
-              <button className={btnSec} onClick={() => { setEditando(false); setCreando(false); }}>Cancelar</button>
+              <button className={btnSec} onClick={() => { setEditando(false); setCreando(false); setErrores({}); }}>Cancelar</button>
             </div>
           </div>
         )}
@@ -352,20 +478,31 @@ function SeccionDocs({ tipo, rec, onChange }: {
           <div className="text-xs text-gray-500">Sin documentos requeridos para este recurso.</div>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-2 pt-3">
-        <select className={inp + " max-w-[220px]"} value={dt} onChange={(e) => setDt(e.target.value)}>
-          <option value="">Agregar documento…</option>
-          {DOC_TYPES[tipo].map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
-        </select>
-        <input type="date" className={inp + " max-w-[160px]"} value={venc}
-               onChange={(e) => setVenc(e.target.value)} title="Vencimiento" />
-        <input className={inp + " max-w-[220px]"} placeholder="archivo.pdf (referencia)"
-               value={file} onChange={(e) => setFile(e.target.value)} />
+      <div className="pt-4 space-y-3">
+        <TituloBloque>Registrar documento</TituloBloque>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <Campo id="doc-tipo" label="Tipo de documento" requerido>
+            <DsSelect id="doc-tipo" sizing="sm" value={dt} onChange={(e) => setDt(e.target.value)}>
+              <option value="">Seleccionar…</option>
+              {DOC_TYPES[tipo].map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
+            </DsSelect>
+          </Campo>
+          <Campo id="doc-venc" label="Fecha de vencimiento"
+                 ayuda="Alimenta el semáforo y la acreditación">
+            <TextInput id="doc-venc" sizing="sm" type="date" value={venc}
+                       onChange={(e) => setVenc(e.target.value)} />
+          </Campo>
+          <Campo id="doc-file" label="Archivo de respaldo"
+                 ayuda="Referencia por ahora — la carga a repositorio llega en el siguiente corte">
+            <TextInput id="doc-file" sizing="sm" placeholder="revision_tecnica.pdf"
+                       value={file} onChange={(e) => setFile(e.target.value)} />
+          </Campo>
+        </div>
         <button className={btnPri} disabled={busy || !dt} onClick={() => void subir()}>
-          {busy ? "Guardando…" : "Registrar"}
+          {busy ? "Registrando…" : "Registrar documento"}
         </button>
       </div>
-      {msg && <div className="text-xs pt-2 text-gray-600 dark:text-gray-300">{msg}</div>}
+      {msg && <div className="text-sm pt-2 text-red-600 dark:text-red-400">{msg}</div>}
     </Seccion>
   );
 }

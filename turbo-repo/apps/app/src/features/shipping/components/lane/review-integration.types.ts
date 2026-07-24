@@ -1,6 +1,5 @@
 import type { IconType } from "react-icons";
 import { HiChatAlt2, HiMail } from "react-icons/hi";
-import Handlebars from "handlebars";
 
 /**
  * Review-process integration — the mockup model.
@@ -126,19 +125,39 @@ export function buildSampleContext(): Record<string, Record<string, string>> {
   return context;
 }
 
+/** Resolves a dotted path such as `content.mediaId` against the context. */
+function resolvePath(path: string, context: Record<string, unknown>): unknown {
+  let current: unknown = context;
+  for (const segment of path.split(".")) {
+    if (typeof current !== "object" || current === null) return undefined;
+    current = (current as Record<string, unknown>)[segment];
+    if (current === undefined || current === null) return undefined;
+  }
+  return current;
+}
+
 /**
- * Renders a Handlebars template against a context. Plain substitution for now
- * (no helpers registered); returns the raw template on a compile error so the
- * operator still sees what they typed.
+ * Renders a template for the preview: literal text with `{{dotted.path}}` variables
+ * substituted from the context. A path that resolves to nothing becomes empty.
+ *
+ * Deliberately the same substitution subset the backend implements, rather than a
+ * full Handlebars engine. Previewing with more power than the server has would let
+ * the drawer show `{{#if}}` working on a template the server then refuses to store —
+ * the exact divergence this feature exists to prevent. It also means no escaping
+ * decision arises here: the value is inserted as text and React escapes it on render,
+ * whereas HTML-escaping it would misreport the JSON the partner actually receives.
  */
 export function renderTemplate(
   template: string,
   context: Record<string, unknown>
 ): string {
   if (!template) return "";
-  try {
-    return Handlebars.compile(template, { noEscape: true })(context);
-  } catch {
-    return template;
-  }
+  return template.replace(/\{\{([^{}]*)\}\}/g, (whole, rawPath: string) => {
+    const path = rawPath.trim();
+    // Anything that is not a plain path (a helper, a block) is left verbatim, which
+    // is what the operator needs to see: the server will reject it on save.
+    if (!/^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$/.test(path)) return whole;
+    const value = resolvePath(path, context);
+    return value === undefined ? "" : String(value);
+  });
 }

@@ -143,6 +143,15 @@ export function ReviewSettingsDrawer({
     return null;
   }, [enabled, selected, templates, dict]);
 
+  // Whose binding this is, or whether there is anything to save — one line, because
+  // the two states are mutually exclusive and only one can be shown.
+  let footerNote = "";
+  if (readOnly) {
+    footerNote = tr("drawer.readOnly", dict);
+  } else if (!blockingReason && dirty) {
+    footerNote = tr("drawer.unsaved", dict);
+  }
+
   if (typeof document === "undefined") return null;
 
   const tabs: readonly { id: TabId; label: string }[] = [
@@ -245,13 +254,7 @@ export function ReviewSettingsDrawer({
             </p>
           )}
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs text-gray-400">
-              {readOnly
-                ? tr("drawer.readOnly", dict)
-                : !blockingReason && dirty
-                  ? tr("drawer.unsaved", dict)
-                  : ""}
-            </span>
+            <span className="text-xs text-gray-400">{footerNote}</span>
             <div className="flex gap-2">
               <Button color="gray" size="sm" onClick={onClose}>
                 {tr("drawer.close", dict)}

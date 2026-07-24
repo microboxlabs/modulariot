@@ -10,6 +10,7 @@ import {
   unmappedRequiredFields,
   type DispatchTarget,
 } from "./review-binding.types";
+import { renderTemplate } from "./review-integration.types";
 
 const target: DispatchTarget = {
   connectionId: "c-1",
@@ -121,5 +122,37 @@ describe("target identity", () => {
     expect(findTarget([target], "c-1", "o-1")).toBe(target);
     expect(findTarget([target], "c-1", "other")).toBeUndefined();
     expect(findTarget([target], null, "o-1")).toBeUndefined();
+  });
+});
+
+describe("renderTemplate (preview)", () => {
+  const context = {
+    content: { mediaId: "19f8-a8ad" },
+    review: { verdict: false, comment: "a & b" },
+    task: { serviceCode: "SRV-1" },
+  };
+
+  it("substitutes a variable and interpolates around it", () => {
+    expect(renderTemplate("{{content.mediaId}}", context)).toBe("19f8-a8ad");
+    expect(renderTemplate("svc {{task.serviceCode}}!", context)).toBe("svc SRV-1!");
+  });
+
+  it("tolerates whitespace and renders non-strings by value", () => {
+    expect(renderTemplate("{{  review.verdict  }}", context)).toBe("false");
+  });
+
+  it("renders a missing path as empty", () => {
+    expect(renderTemplate("{{task.nope}}", context)).toBe("");
+  });
+
+  it("does not HTML-escape — the payload is JSON, not markup", () => {
+    // Escaping here would misreport what the partner actually receives.
+    expect(renderTemplate("{{review.comment}}", context)).toBe("a & b");
+  });
+
+  it("leaves unsupported syntax verbatim so the operator sees what will be rejected", () => {
+    expect(renderTemplate("{{#if review.verdict}}x{{/if}}", context)).toBe(
+      "{{#if review.verdict}}x{{/if}}"
+    );
   });
 });

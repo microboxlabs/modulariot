@@ -96,6 +96,19 @@ function filterTasks(
   }
 }
 
+/*
+ * The menu icon, in its two states. Defined at module scope rather than inline:
+ * a component created during render is a new type on every pass, which remounts
+ * its subtree instead of updating it.
+ */
+const ReviewSettingsIconOn = () => (
+  <HiCog className="h-4 w-4 shrink-0 text-primary-600 dark:text-primary-300" />
+);
+
+const ReviewSettingsIconOff = () => (
+  <HiCog className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
+);
+
 /**
  * A single kanban lane rendered as a visually-separated panel. Columns map 1:1
  * to workflow stages, so the lane is presentation-only: drag is disabled and the
@@ -312,15 +325,7 @@ export function LaneColumn({
 
             <DropdownDivider />
             <DropdownItem
-              icon={() => (
-                <HiCog
-                  className={`h-4 w-4 shrink-0 ${
-                    reviewEnabled
-                      ? "text-primary-600 dark:text-primary-300"
-                      : "text-gray-500 dark:text-gray-400"
-                  }`}
-                />
-              )}
+              icon={reviewEnabled ? ReviewSettingsIconOn : ReviewSettingsIconOff}
               onClick={() => setReviewDrawerOpen(true)}
             >
               <span className="flex items-center gap-2">

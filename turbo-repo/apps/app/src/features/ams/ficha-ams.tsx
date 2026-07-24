@@ -111,9 +111,17 @@ const patenteValida = (p: string) => /^[A-Z0-9]{5,8}$/.test(p.trim().toUpperCase
 const btnPri = "rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-1.5 disabled:opacity-50";
 const btnSec = "rounded-lg border border-gray-300 dark:border-gray-600 text-sm px-3 py-1.5 text-gray-900 dark:text-white";
 
-function Seccion({ titulo, extra, children }: {
-  titulo: string; extra?: React.ReactNode; children: React.ReactNode;
+function Seccion({ titulo, extra, plano, children }: {
+  titulo: string; extra?: React.ReactNode; plano?: boolean; children: React.ReactNode;
 }) {
+  if (plano) {
+    return (
+      <div>
+        {extra && <div className="flex items-center justify-end gap-2 pb-2">{extra}</div>}
+        {children}
+      </div>
+    );
+  }
   return (
     <section className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 dark:border-gray-700">
@@ -139,7 +147,24 @@ function BadgeAcreditacion({ a }: { a: Acreditacion }) {
     </span>);
 }
 
-export function FichaAms({ tipo, matchId, matchName, defaults, crear }: {
+/** Registro del maestro AMS enlazado por patente/RUT/nombre. */
+export function useAmsRecord(tipo: "TRUCK" | "DRIVER", matchId?: string, matchName?: string) {
+  const listFn = tipo === "TRUCK" ? "fn_ams_trucks" : "fn_ams_drivers";
+  const { data: lista, mutate } = useSWR<(AmsTruck | AmsDriver)[]>(
+    `/app/api/ams/rpc/${listFn}`, fetcher);
+  const rec = useMemo(() => {
+    if (!lista) return undefined;
+    const m = matchId?.toUpperCase();
+    const n = matchName?.toUpperCase();
+    return lista.find((r) => (tipo === "TRUCK"
+      ? !!m && (r as AmsTruck).license_plate?.toUpperCase() === m
+      : (!!m && (r as AmsDriver).rut?.toUpperCase() === m)
+        || (!!n && (r as AmsDriver).full_name?.toUpperCase() === n)));
+  }, [lista, matchId, matchName, tipo]);
+  return { rec, cargando: !lista, mutate };
+}
+
+export function FichaAms({ tipo, matchId, matchName, defaults, crear, onCreado, variante, secciones }: {
   tipo: "TRUCK" | "DRIVER";
   /** modo alta directa (botón «+ Nuevo» de las listas) */
   crear?: boolean;
@@ -149,6 +174,12 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear }: {
   matchName?: string;
   /** prellenado al crear (p.ej. nombre desde el expediente) */
   defaults?: Record<string, string>;
+  /** al crear con éxito (página «nuevo»: navegar al expediente) */
+  onCreado?: (id: string, identificador: string) => void;
+  /** "expediente" = stack de cards (colaborador) · "plano" = solo cuerpos */
+  variante?: "expediente" | "plano";
+  /** subconjunto de secciones a renderizar (integración en acordeones) */
+  secciones?: Array<"identificacion" | "docs" | "dupla" | "gxc" | "auditoria">;
 }) {
   const listFn = tipo === "TRUCK" ? "fn_ams_trucks" : "fn_ams_drivers";
   const { data: lista, mutate } = useSWR<(AmsTruck | AmsDriver)[]>(
@@ -244,7 +275,12 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear }: {
           ? "Creado. Este recurso se suma al monitoreo y a la facturación del servicio."
           : "Creado.")
       : "Guardado (auditado).");
+    const fueCreacion = creando;
     setEditando(false); setCreando(false); void mutate();
+    if (fueCreacion && data?.id && onCreado) {
+      onCreado(String(data.id),
+        tipo === "TRUCK" ? (form.license_plate ?? "").toUpperCase() : (form.full_name ?? ""));
+    }
     // refrescar las listas que hacen merge con el maestro
     void swrMutate((k) => typeof k === "string" &&
       (k.includes("/api/fleet/trucks") || k.includes("/api/collaborators") || k.includes("/api/ams/rpc/")));
@@ -277,10 +313,16 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear }: {
     );
   }
 
+  const ver = (k: "identificacion" | "docs" | "dupla" | "gxc" | "auditoria") =>
+    !secciones || secciones.includes(k);
+  const plano = variante === "plano";
+
   return (
-    <div className="space-y-3">
+    <div className={plano ? "" : "space-y-3"}>
       {/* ── Identificación (editable) ── */}
-      <Seccion titulo={tipo === "TRUCK" ? "Ficha del camión (mantenedor)" : "Ficha del colaborador (mantenedor)"}
+      {ver("identificacion") && (
+      <Seccion plano={plano}
+        titulo={tipo === "TRUCK" ? "Ficha del camión (mantenedor)" : "Ficha del colaborador (mantenedor)"}
         extra={<>
           {rec && <BadgeAcreditacion a={rec.acreditacion} />}
           {!enForma && rec && (
@@ -415,18 +457,19 @@ export function FichaAms({ tipo, matchId, matchName, defaults, crear }: {
         )}
         {msg && <div className="text-xs pt-2 text-gray-600 dark:text-gray-300">{msg}</div>}
       </Seccion>
+      )}
 
-      {rec && <SeccionDocs tipo={tipo} rec={rec} onChange={() => void mutate()} />}
-      {rec && <SeccionDupla tipo={tipo} rec={rec} onChange={() => void mutate()} />}
-      {rec && <SeccionGxc tipo={tipo} rec={rec} />}
-      {rec && <SeccionAuditoria tipo={tipo} recId={rec.id} />}
+      {rec && ver("docs") && <SeccionDocs tipo={tipo} rec={rec} plano={variante === "plano"} onChange={() => void mutate()} />}
+      {rec && ver("dupla") && <SeccionDupla tipo={tipo} rec={rec} plano={plano} onChange={() => void mutate()} />}
+      {rec && ver("gxc") && <SeccionGxc tipo={tipo} rec={rec} plano={plano} />}
+      {rec && ver("auditoria") && <SeccionAuditoria tipo={tipo} recId={rec.id} plano={plano} />}
     </div>
   );
 }
 
 // ── Documentos: semáforo + faltantes + alta tipada ──
-function SeccionDocs({ tipo, rec, onChange }: {
-  tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | AmsDriver; onChange: () => void;
+export function SeccionDocs({ tipo, rec, onChange, plano }: {
+  tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | AmsDriver; onChange: () => void; plano?: boolean;
 }) {
   const docs = rec.acreditacion.documentos;
   const [dt, setDt] = useState(""); const [venc, setVenc] = useState("");
@@ -450,7 +493,7 @@ function SeccionDocs({ tipo, rec, onChange }: {
   };
 
   return (
-    <Seccion titulo="Acreditación y documentos"
+    <Seccion titulo="Acreditación y documentos" plano={plano}
       extra={<span className="text-[11px] text-gray-500">obligatorios con ★ · vencimientos 30/15/0</span>}>
       <div className="space-y-1.5">
         {docs.docs.map((d) => (
@@ -508,8 +551,8 @@ function SeccionDocs({ tipo, rec, onChange }: {
 }
 
 // ── Asignación: tarjeta de dupla + reasignar con candidatos ricos ──
-function SeccionDupla({ tipo, rec, onChange }: {
-  tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | AmsDriver; onChange: () => void;
+export function SeccionDupla({ tipo, rec, onChange, plano }: {
+  tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | AmsDriver; onChange: () => void; plano?: boolean;
 }) {
   const [reasignando, setReasignando] = useState(false);
   const [busca, setBusca] = useState("");
@@ -568,7 +611,7 @@ function SeccionDupla({ tipo, rec, onChange }: {
   });
 
   return (
-    <Seccion titulo={tipo === "TRUCK" ? "Conductor asignado" : "Camión asignado"}
+    <Seccion titulo={tipo === "TRUCK" ? "Conductor asignado" : "Camión asignado"} plano={plano}
       extra={<span className="text-[11px] text-gray-500">con viaje en curso, manda el viaje</span>}>
       {actual ? (
         <div className="flex items-center gap-3 rounded-lg border border-blue-200 dark:border-blue-900 px-3 py-2.5">
@@ -654,12 +697,12 @@ function SeccionDupla({ tipo, rec, onChange }: {
   );
 }
 
-function SeccionAuditoria({ tipo, recId }: { tipo: "TRUCK" | "DRIVER"; recId: string }) {
+export function SeccionAuditoria({ tipo, recId, plano }: { tipo: "TRUCK" | "DRIVER"; recId: string; plano?: boolean }) {
   const { data } = useSWR<{ event_type: string; payload: { actor?: string }; created_at: string }[]>(
     `/app/api/ams/rpc/fn_ams_events?p_entity_type=${tipo}&p_entity_id=${recId}&p_limit=15`, fetcher);
   if (!data?.length) return null;
   return (
-    <Seccion titulo="Historial de cambios">
+    <Seccion titulo="Historial de cambios" plano={plano}>
       <div className="space-y-1">
         {data.map((e, i) => (
           <div key={i} className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
@@ -674,7 +717,7 @@ function SeccionAuditoria({ tipo, recId }: { tipo: "TRUCK" | "DRIVER"; recId: st
 }
 
 // ── Costura GxC: el standing del recurso alimenta el mantenedor ──
-function SeccionGxc({ tipo, rec }: { tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | AmsDriver }) {
+export function SeccionGxc({ tipo, rec, plano }: { tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | AmsDriver; plano?: boolean }) {
   const gxcTipo = tipo === "TRUCK" ? "camion" : "conductor";
   const gxcId = tipo === "TRUCK" ? (rec as AmsTruck).license_plate : (rec as AmsDriver).full_name;
   const { data } = useSWR<{ capitulos: { viajes: number; con_consecuencia: number;
@@ -685,7 +728,7 @@ function SeccionGxc({ tipo, rec }: { tipo: "TRUCK" | "DRIVER"; rec: AmsTruck | A
   if (!cap || !cap.viajes) return null;   // sin historia GxC aún: no se muestra
   const tasa = Math.round((cap.con_consecuencia / Math.max(1, cap.viajes)) * 100);
   return (
-    <Seccion titulo="Gestión por consecuencia (28 días)"
+    <Seccion titulo="Gestión por consecuencia (28 días)" plano={plano}
       extra={<a className="text-xs text-blue-600 hover:underline"
                 href={`/app/es/gxc/${gxcTipo}/${encodeURIComponent(gxcId)}?dias=28`}>
         ver perfil completo →</a>}>

@@ -31,6 +31,7 @@ import {
   EventsSection,
   UsageSection,
 } from "./sections";
+import { AmsVehicleSections } from "@/features/ams/ams-vehicle-sections";
 
 interface VehicleDetailAccordionProps {
   readonly vehicle: Vehicle;
@@ -263,6 +264,7 @@ export default function VehicleDetailAccordion({
       <TelemetrySection vehicle={vehicle} dict={dict} />
       <EventsSection vehicle={vehicle} dict={dict} />
       <UsageSection vehicle={vehicle} dict={dict} />
+      <AmsVehicleSections plate={vehicle.plate} />
     </div>
   );
 }

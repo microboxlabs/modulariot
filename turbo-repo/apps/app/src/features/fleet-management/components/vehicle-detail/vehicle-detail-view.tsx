@@ -4,7 +4,6 @@ import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import VehicleDetailHeader from "./vehicle-detail-header";
 import VehicleDetailAccordion from "./vehicle-detail-accordion";
-import { FichaAms } from "@/features/ams/ficha-ams";
 
 interface VehicleDetailViewProps {
   readonly vehicle: Vehicle;
@@ -34,9 +33,6 @@ export default function VehicleDetailView({
       />
       <div className="flex flex-col flex-1 min-h-0 overflow-y-auto w-full items-center bg-gray-50 dark:bg-gray-900 px-4 xl:px-0">
         <VehicleDetailAccordion vehicle={vehicle} dict={dict} />
-        <div className="w-full max-w-5xl pb-6 pt-2">
-          <FichaAms tipo="TRUCK" matchId={vehicle.plate} />
-        </div>
       </div>
     </div>
   );

@@ -150,6 +150,9 @@ export default function CollaboratorDetailView({
           monthlyData={detailData.monthlyEvolution}
           scores={detailData.scores}
         />
+        <div className="pt-1">
+          <FichaAms tipo="DRIVER" matchName={collaborator.name} />
+        </div>
         <div className="grid grid-cols-3 gap-3">
           {resolvedCards.map((card) => (
             <button
@@ -175,9 +178,6 @@ export default function CollaboratorDetailView({
             dict={dict}
             events={detailData.behaviorEvents}
           />
-        </div>
-        <div className="pb-6">
-          <FichaAms tipo="DRIVER" matchName={collaborator.name} />
         </div>
       </div>
     </div>

@@ -6,6 +6,21 @@ import {
   fetchDriverDetailByCodDriver,
 } from "../../utils/pgrest-client";
 import type { CollaboratorDetailDto } from "@/features/collaborators-management/types/collaborators.types";
+import { fetchAmsDriversMaster } from "../../utils/pgrest-client";
+
+/** Fallback al maestro AMS: expediente mínimo para recursos creados en el
+ * mantenedor que la fuente externa aún no conoce (rd_* es el maestro). */
+async function expedienteDesdeMaestro(codDriver: string): Promise<CollaboratorDetailDto | null> {
+  const ams = await fetchAmsDriversMaster(null).catch(() => []);
+  const c = ams.find((x) =>
+    x.externalId?.toUpperCase() === codDriver.toUpperCase()
+    || x.name?.toUpperCase() === codDriver.toUpperCase());
+  if (!c) return null;
+  return {
+    collaborator: c,
+    detailData: { collaboratorId: c.id, scores: [], monthlyEvolution: [], behaviorEvents: [] },
+  };
+}
 import { logger } from "@/lib/logger";
 
 /**
@@ -160,6 +175,8 @@ export async function GET(
     return buildJsonResponse(dto, "MISS");
   } catch (error) {
     if (error instanceof DriverNotFoundError) {
+      const delMaestro = await expedienteDesdeMaestro(codDriver);
+      if (delMaestro) return buildJsonResponse(delMaestro, "MISS");
       return NextResponse.json({ error: "driver not found" }, { status: 404 });
     }
     if (cacheEntry) {

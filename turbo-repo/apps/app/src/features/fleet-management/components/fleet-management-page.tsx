@@ -1,6 +1,5 @@
 "use client";
 
-import { FichaAms } from "@/features/ams/ficha-ams";
 import {
   useParams,
   useRouter,
@@ -168,8 +167,6 @@ export default function FleetManagementPage({
     [router, pathname, searchParams]
   );
 
-  const [creandoNuevo, setCreandoNuevo] = useState(false);
-
   return (
     <div className="flex flex-col gap-4 p-4 max-w-screen-2xl mx-auto w-full">
       <div className="flex items-start gap-3">
@@ -181,12 +178,11 @@ export default function FleetManagementPage({
             {tr("subtitle", fleetDict)}
           </p>
         </div>
-        <button onClick={() => setCreandoNuevo((v) => !v)}
+        <button onClick={() => router.push(`/${lang}/fleet-management/nuevo`)}
                 className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2">
-          {creandoNuevo ? "Cerrar" : "+ Nuevo camión"}
+          + Nuevo camión
         </button>
       </div>
-      {creandoNuevo && <FichaAms tipo="TRUCK" crear />}
 
       <KpiCardsRow
         kpis={kpis}

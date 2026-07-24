@@ -7,7 +7,6 @@ import {
 import type { Vehicle } from "../../types/fleet.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import VehicleStatusBadge from "../vehicle-grid/vehicle-status-badge";
 import { useEstadoOperacional, EstadoOperacionalChip } from "@/features/ams/estado-operacional";
 import { AccionesRapidas } from "@/features/ams/acciones-rapidas";
 import { SiluetaCamion } from "@/features/ams/silueta-activo";
@@ -75,25 +74,20 @@ export default function VehicleDetailHeader({
               </span>
             </div>
 
-            {/* Model + Brand */}
-            <div className="flex flex-col shrink-0">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {tr("vehicleGrid.model", dict)}
-              </span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                {vehicle.brand} {vehicle.model}
-              </span>
-            </div>
+            {/* Modelo — solo cuando hay dato (sin «—» de relleno) */}
+            {[vehicle.brand, vehicle.model].some((x) => x && x !== "—") && (
+              <div className="flex flex-col shrink-0">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {tr("vehicleGrid.model", dict)}
+                </span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {[vehicle.brand, vehicle.model].filter((x) => x && x !== "—").join(" ")}
+                </span>
+              </div>
+            )}
 
-            {/* Status maestro */}
-            <div className="flex flex-col shrink-0">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {tr("vehicleGrid.status", dict)}
-              </span>
-              <VehicleStatusBadge status={vehicle.status} dict={dict} />
-            </div>
-
-            {/* Estado operacional (ahora mismo) */}
+            {/* Estado operacional (ahora mismo) — absorbe al estado maestro:
+                taller/inactivo derivan de él y el maestro vive en Información */}
             <div className="flex flex-col shrink-0">
               <span className="text-xs text-gray-500 dark:text-gray-400">Ahora</span>
               <EstadoOperacionalChip estado={estado} />
@@ -130,25 +124,27 @@ export default function VehicleDetailHeader({
               </span>
             </div>
 
-            {/* Client */}
-            <div className="flex flex-col shrink-0">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {tr("vehicleGrid.transportist", dict)}
-              </span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                {vehicle.transportist}
-              </span>
-            </div>
+            {vehicle.transportist && vehicle.transportist !== "—" && (
+              <div className="flex flex-col shrink-0">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {tr("vehicleGrid.transportist", dict)}
+                </span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {vehicle.transportist}
+                </span>
+              </div>
+            )}
 
-            {/* Km totales */}
-            <div className="flex flex-col shrink-0">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {tr("vehicleGrid.kmTraveled", dict)}
-              </span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                {vehicle.kmTraveled.toLocaleString()} km
-              </span>
-            </div>
+            {vehicle.kmTraveled > 0 && (
+              <div className="flex flex-col shrink-0">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {tr("vehicleGrid.kmTraveled", dict)}
+                </span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {vehicle.kmTraveled.toLocaleString()} km
+                </span>
+              </div>
+            )}
 
             {/* Last signal — clickable when lat/lng are available. */}
             {vehicle.lastSignal && (

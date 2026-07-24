@@ -90,15 +90,18 @@ export default function CollaboratorDetailHeader({
               </span>
             </div>
 
-            {/* Status */}
-            <div className="flex flex-col shrink-0">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {tr("detail.status", dict)}
-              </span>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusStyles[collaborator.employmentStatus]}`}>
-                {tr(`employmentStatus.${collaborator.employmentStatus}`, dict)}
-              </span>
-            </div>
+            {/* Estado laboral: solo cuando dice algo (vacaciones/suspendido);
+                «activo» es ruido — el estado vivo es «Ahora» */}
+            {collaborator.employmentStatus !== "activo" && (
+              <div className="flex flex-col shrink-0">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {tr("detail.status", dict)}
+                </span>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusStyles[collaborator.employmentStatus]}`}>
+                  {tr(`employmentStatus.${collaborator.employmentStatus}`, dict)}
+                </span>
+              </div>
+            )}
 
             {/* Estado operacional (ahora mismo) */}
             <div className="flex flex-col shrink-0">

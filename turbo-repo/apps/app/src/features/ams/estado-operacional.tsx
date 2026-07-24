@@ -77,18 +77,13 @@ export function useEstadoOperacional(tipo: "TRUCK" | "DRIVER", matchId?: string,
   };
 }
 
-/** Chip del estado operacional para headers (grande, con detalle al lado). */
+/** Chip del estado operacional para headers — el motivo vive en el
+ *  tooltip (decisión 2026-07-24: textos largos fuera del header). */
 export function EstadoOperacionalChip({ estado }: { estado: EstadoOperacional }) {
   return (
-    <span className="inline-flex items-center gap-2" title={estado.detalle}>
-      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${estado.cls}`}>
-        {estado.etiqueta}
-      </span>
-      {estado.detalle && (
-        <span className="text-xs text-gray-500 dark:text-gray-400 hidden md:inline">
-          {estado.detalle}
-        </span>
-      )}
+    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold cursor-default ${estado.cls}`}
+          title={estado.detalle ?? estado.etiqueta}>
+      {estado.etiqueta}
     </span>
   );
 }

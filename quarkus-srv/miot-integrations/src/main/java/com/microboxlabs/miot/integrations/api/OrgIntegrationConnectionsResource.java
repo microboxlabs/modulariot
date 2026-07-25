@@ -14,6 +14,7 @@ import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
@@ -115,6 +116,28 @@ public class OrgIntegrationConnectionsResource {
             return connection == null
                     ? Response.status(Response.Status.NOT_FOUND).build()
                     : Response.ok(connection).build();
+        });
+    }
+
+    @DELETE
+    @Path("/connections/{connectionId}")
+    @Operation(summary = "Delete an integration connection (refused while bindings use it)")
+    public Uni<Response> deleteConnection(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("connectionId") String connectionId) {
+        String tenant = tenantCode(organizationId);
+        return ownerWork(organizationId, () -> {
+            try {
+                return service.deleteConnection(tenant, connectionId)
+                        ? Response.noContent().build()
+                        : Response.status(Response.Status.NOT_FOUND).build();
+            } catch (IllegalStateException e) {
+                // A connection still backing review bindings cannot be removed without orphaning them.
+                return Response.status(Response.Status.CONFLICT)
+                        .type(MediaType.APPLICATION_JSON)
+                        .entity(Map.of("error", e.getMessage()))
+                        .build();
+            }
         });
     }
 

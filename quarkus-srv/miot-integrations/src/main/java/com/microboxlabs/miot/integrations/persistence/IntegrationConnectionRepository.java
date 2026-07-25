@@ -112,10 +112,19 @@ public class IntegrationConnectionRepository {
             SET name = COALESCE($3::text, name),
                 base_url = COALESCE($4::text, base_url),
                 metadata = COALESCE($5::jsonb, metadata),
+                credential_profile_id = COALESCE($6::uuid, credential_profile_id),
                 updated_at = now()
             WHERE tenant_code = $1 AND id = $2 AND active
             RETURNING
             """ + COLUMNS;
+
+    // Soft delete: the row stays for audit and drops out of every "AND active" query,
+    // so a removed instance disappears from listings and dispatch-targets alike.
+    private static final String SOFT_DELETE = """
+            UPDATE miot_integrations.integration_connections
+            SET active = false, updated_at = now()
+            WHERE tenant_code = $1 AND id = $2 AND active
+            """;
 
     private final Instance<Pool> clientInstance;
 
@@ -254,17 +263,31 @@ public class IntegrationConnectionRepository {
             String connectionId,
             String name,
             String baseUrl,
+            String credentialProfileId,
             Map<String, Object> metadata) {
         Tuple params = Tuple.tuple()
                 .addString(tenantCode)
                 .addUUID(UUID.fromString(connectionId))
                 .addString(name)
                 .addString(baseUrl)
-                .addValue(metadata == null ? null : new JsonObject(metadata));
+                .addValue(metadata == null ? null : new JsonObject(metadata))
+                .addUUID(toUuid(credentialProfileId));
         var rows = client().preparedQuery(UPDATE_CONNECTION)
                 .execute(params)
                 .await().indefinitely();
         return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
+    }
+
+    /** @return {@code true} when a row was deactivated, {@code false} when nothing matched. */
+    public boolean softDelete(String tenantCode, String connectionId) {
+        UUID id = parseUuidOrNull(connectionId);
+        if (id == null) {
+            return false;
+        }
+        return client().preparedQuery(SOFT_DELETE)
+                .execute(Tuple.of(tenantCode, id))
+                .await().indefinitely()
+                .rowCount() > 0;
     }
 
     public IntegrationConnection updateTestResult(

@@ -122,3 +122,10 @@ export function testConnection(
     {}
   );
 }
+
+export function deleteConnection(orgSlug: string, id: string): Promise<void> {
+  return sendJson<void>(
+    "DELETE",
+    `${base(orgSlug)}/connections/${encodeURIComponent(id)}`
+  );
+}

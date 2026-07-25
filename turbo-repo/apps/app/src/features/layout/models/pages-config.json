@@ -81,6 +81,20 @@
   {
     "label": "integrations",
     "href": "/integrations/jobs",
+    "items": [
+      {
+        "href": "/integrations/jobs",
+        "label": "integrationJobs",
+        "requiredGroups": [],
+        "blockedGroups": []
+      },
+      {
+        "href": "/integrations/connections",
+        "label": "integrationConnections",
+        "requiredGroups": [],
+        "blockedGroups": []
+      }
+    ],
     "requiredGroups": [],
     "blockedGroups": []
   },

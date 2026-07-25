@@ -2028,6 +2028,79 @@
           "deleted": "Successfully deleted"
         }
       }
+    },
+    "integrationConnections": {
+      "page": {
+        "title": "Integrations",
+        "subtitle": "Define integration types and create connections from them."
+      },
+      "templates": {
+        "title": "Templates",
+        "help": "A reusable type: define the data contract (method, path and fields) once.",
+        "new": "New template",
+        "empty": "No templates yet. Create one to start adding connections.",
+        "instanceCount": "{count} connection(s)",
+        "confirmDelete": "Delete this template?"
+      },
+      "connections": {
+        "title": "Connections",
+        "help": "An instance of a template, with its own URL and credential.",
+        "new": "New connection",
+        "empty": "No connections yet.",
+        "test": "Test"
+      },
+      "status": {
+        "active": "Active",
+        "failed": "Failed",
+        "draft": "Draft"
+      },
+      "common": {
+        "edit": "Edit",
+        "delete": "Delete",
+        "cancel": "Cancel",
+        "save": "Save",
+        "saving": "Saving…",
+        "saveFailed": "Could not save"
+      },
+      "toast": {
+        "templateDeleted": "Template deleted",
+        "actionFailed": "Could not complete the action",
+        "testOk": "Connection tested successfully",
+        "testFailed": "Connection test failed"
+      },
+      "template": {
+        "form": {
+          "createTitle": "New template",
+          "editTitle": "Edit template",
+          "name": "Name",
+          "namePlaceholder": "e.g. Partner API",
+          "providerType": "Provider type",
+          "method": "Method",
+          "path": "Path",
+          "operationName": "Operation name",
+          "operationNamePlaceholder": "e.g. Report verdict",
+          "requestSchema": "Payload schema (JSON Schema)",
+          "requestSchemaHelp": "The fields the review process will map. An object with properties; nested objects and arrays are supported.",
+          "schemaInvalid": "The schema is not a valid JSON object.",
+          "fieldsDetected": "Detected fields"
+        }
+      },
+      "connection": {
+        "form": {
+          "createTitle": "New connection",
+          "editTitle": "Edit connection",
+          "template": "Template",
+          "noTemplate": "No template",
+          "needTemplate": "Create a template first.",
+          "name": "Name",
+          "namePlaceholder": "e.g. Partner API · QA",
+          "baseUrl": "Base URL",
+          "credential": "Credential",
+          "noCredential": "No credential",
+          "noCredentials": "No credentials. Create them in Settings › Credentials.",
+          "credentialFixed": "(not editable here)"
+        }
+      }
     }
   },
   "layout": {
@@ -2086,7 +2159,9 @@
         "subtitle1": "Consolidation",
         "subtitle2": "Document Separation",
         "subtitle3": "Client System Validation",
-        "subtitle4": "GPS Validation"
+        "subtitle4": "GPS Validation",
+        "integrationJobs": "Activity",
+        "integrationConnections": "Connections"
       }
     },
     "calendar": {

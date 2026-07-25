@@ -48,6 +48,7 @@
         "required": "Requerido",
         "optional": "Opcional",
         "templatePlaceholder": "Ej: {example}",
+        "templatePlaceholderUnknown": "Ej: {{grupo.campo}}",
         "scopedHelp": "Estas variables existen solo dentro del arreglo que las aporta; úsalas en los campos de ese arreglo.",
         "insertVariable": "Variable",
         "previewEmpty": "(vacío)",

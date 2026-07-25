@@ -13,10 +13,14 @@ import {
   GLOBAL_VARIABLE_GROUPS,
   VARIABLE_GROUPS,
 } from "./review-integration.types";
-import { ALLOWED_ROOTS, checkTemplate } from "./review-template-validation";
+import { checkTemplate } from "./review-template-validation";
 import { ReviewTemplateInput } from "./review-template-input";
 import type { VariableGroup } from "./review-integration.types";
-import type { DispatchTarget, DispatchTargetField } from "./review-binding.types";
+import {
+  contractRoots,
+  type DispatchTarget,
+  type DispatchTargetField,
+} from "./review-binding.types";
 
 const SAMPLE_CONTEXT = buildSampleContext();
 
@@ -68,12 +72,13 @@ export function ReviewMappingTab({
     );
   }
 
-  // The contract's own roots when the server sent them: a nested array introduces roots
-  // (`{{reasons.*}}`) that save-time validation accepts, so validating against only the
-  // static four would paint the one correct mapping red.
-  const roots = target.templateRoots?.length ? target.templateRoots : ALLOWED_ROOTS;
+  // The contract's own roots, or null when this modulith does not report them. Null is
+  // "unknown", not "the static four": a nested array introduces roots (`{{reasons.*}}`) that
+  // save-time validation accepts, so enforcing the static set would paint the one correct
+  // mapping red.
+  const roots = contractRoots(target);
   const scopedGroups = VARIABLE_GROUPS.filter(
-    (group) => group.scoped && roots.includes(group.id)
+    (group) => group.scoped && roots?.includes(group.id)
   );
 
   return (
@@ -109,6 +114,7 @@ export function ReviewMappingTab({
             template={mappings[field.id] ?? ""}
             onChange={(value) => onChange(field.id, value)}
             roots={roots}
+            scopesKnown={roots !== null}
             dict={dict}
           />
         ))}
@@ -189,13 +195,16 @@ function MappingField({
   template,
   onChange,
   roots,
+  scopesKnown,
   dict,
 }: Readonly<{
   field: DispatchTargetField;
   template: string;
   onChange: (value: string) => void;
   /** The roots this contract accepts, so the row agrees with what the server would store. */
-  roots: readonly string[];
+  roots: readonly string[] | null;
+  /** Whether the server told us which root this row renders under. */
+  scopesKnown: boolean;
   dict: I18nRecord;
 }>) {
   const check = useMemo(() => checkTemplate(template, roots), [template, roots]);
@@ -237,13 +246,19 @@ function MappingField({
       </div>
 
       {/* A worked example for *this* row: a leaf inside an array renders under that array's
-          bind name, so a single global example would name a path that resolves nowhere here. */}
+          bind name, so a single global example would name a path that resolves nowhere here.
+          Without the row's scope, a nested leaf gets the shape rather than a concrete path —
+          naming an envelope variable there would be confidently wrong. */}
       <ReviewTemplateInput
         value={template}
         onChange={onChange}
-        placeholder={tr("mapping.templatePlaceholder", dict, {
-          example: sampleTemplateFor(field.contextRoot),
-        })}
+        placeholder={
+          scopesKnown || !field.id.includes(".")
+            ? tr("mapping.templatePlaceholder", dict, {
+                example: sampleTemplateFor(field.contextRoot),
+              })
+            : tr("mapping.templatePlaceholderUnknown", dict)
+        }
         color={color}
       />
 

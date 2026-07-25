@@ -15,6 +15,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
   channelKey,
+  contractRoots,
   findTarget,
   targetKey,
   unmappedRequiredFields,
@@ -173,7 +174,7 @@ function ChannelRow({
 }>) {
   const key = channelKey(channel.connectionId, channel.operationId);
   const broken = Object.values(channel.templates).some(
-    (template) => checkTemplate(template).status === "invalid"
+    (template) => checkTemplate(template, contractRoots(target)).status === "invalid"
   );
   const missing = unmappedRequiredFields(target, channel.templates).length;
   const mappingReady = Boolean(target) && missing === 0 && !broken;

@@ -11,6 +11,7 @@ import {
   conditionForTrigger,
   findTarget,
   triggerFromCondition,
+  contractRoots,
   unmappedRequiredFields,
   type ChannelBindingDraft,
   type ChannelDraft,
@@ -206,7 +207,9 @@ export function ReviewSettingsDrawer({
       );
       const name = target?.connectionName ?? channel.connectionId;
       for (const [fieldId, template] of Object.entries(channel.templates)) {
-        if (checkTemplate(template).status === "invalid") {
+        // Against the contract's own roots: a nested array's `{{reasons.*}}` is legal here,
+        // and blocking the save over it would refuse a mapping the server accepts.
+        if (checkTemplate(template, contractRoots(target)).status === "invalid") {
           return tr("validation.brokenTemplate", dict, {
             channel: name,
             field: fieldId,

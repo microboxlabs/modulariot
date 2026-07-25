@@ -170,15 +170,76 @@ public record PayloadSchema(List<Field> fields, boolean array, String itemsFrom)
         return List.copyOf(leaves);
     }
 
+    /** As {@link #arrayBindNames(Map)} with no binding — the contract's own view. */
+    public List<String> arrayBindNames() {
+        return arrayBindNames(Map.of());
+    }
+
     /**
      * The extra template roots this contract's arrays introduce, beyond the always-present ones.
      * Save-time validation accepts these, so the UI must offer them too or it would reject a
      * mapping the server stores happily.
+     *
+     * @param templates the binding's rows, so an array whose source the binding declares
+     *     contributes the root that source implies rather than the schema's
      */
-    public List<String> arrayBindNames() {
+    public List<String> arrayBindNames(Map<String, String> templates) {
         List<String> names = new ArrayList<>();
-        collectArrayBindNames(fields, names);
+        collectArrayBindNames("", templates, fields, names);
         return List.copyOf(names);
+    }
+
+    /**
+     * The dotted paths of this contract's array fields — the rows that name *where* elements come
+     * from rather than a value. Callers use it to tell a collection row from a value row.
+     */
+    public List<String> arrayPaths() {
+        List<String> paths = new ArrayList<>();
+        collectArrayPaths("", fields, paths);
+        return List.copyOf(paths);
+    }
+
+    /**
+     * The context collection an array renders from, in precedence order: the row the **binding**
+     * declares for it, then the schema's own {@code itemsFrom}, then the default collection.
+     *
+     * <p>Binding first because *where the data comes from* is a mapping decision, not part of the
+     * target's contract — a partner's schema describes the shape they accept and knows nothing of
+     * our event snapshot. The schema fallback keeps every contract stored before that separation
+     * rendering exactly as it did.
+     */
+    public static String collectionSourceOf(
+            Map<String, String> templates, String path, Field field) {
+        String declared = collectionPathOf(templates == null ? null : templates.get(path));
+        if (declared != null) {
+            return declared;
+        }
+        return field.itemsFrom() == null ? DEFAULT_ITEMS_FROM : field.itemsFrom();
+    }
+
+    /**
+     * The context path a collection row names, or null when it declares none usably.
+     *
+     * <p>A collection row is a single {@code {{path}}} stash: it points at a collection rather
+     * than producing a value, so unlike a scalar template a bare root ({@code {{content}}}) is
+     * exactly right here. Anything else — literal text, several stashes, a helper call — returns
+     * null so the caller can fall back and report it.
+     */
+    public static String collectionPathOf(String template) {
+        if (template == null) {
+            return null;
+        }
+        String trimmed = template.trim();
+        if (!trimmed.startsWith("{{") || !trimmed.endsWith("}}") || trimmed.length() < 5) {
+            return null;
+        }
+        String inner = trimmed.substring(2, trimmed.length() - 2).trim();
+        boolean usable = !inner.isEmpty()
+                && inner.chars().allMatch(c -> Character.isLetterOrDigit(c) || c == '_' || c == '.')
+                && !inner.startsWith(".")
+                && !inner.endsWith(".")
+                && !inner.contains("..");
+        return usable ? inner : null;
     }
 
     private static void collectLeaves(String prefix, String scope, List<Field> fields, List<Leaf> out) {
@@ -191,31 +252,45 @@ public record PayloadSchema(List<Field> fields, boolean array, String itemsFrom)
             if (field.child() != null) {
                 // An array rebinds its elements, so its leaves see a new root; an object only
                 // nests the payload and keeps whatever scope it inherited.
-                String childScope = field.type() == FieldType.ARRAY ? bindNameOf(field) : scope;
+                String childScope = field.type() == FieldType.ARRAY ? bindNameOf(Map.of(), id, field) : scope;
                 collectLeaves(id + ".", childScope, field.child().fields(), out);
             }
         }
     }
 
-    private static void collectArrayBindNames(List<Field> fields, List<String> out) {
+    private static void collectArrayBindNames(
+            String prefix, Map<String, String> templates, List<Field> fields, List<String> out) {
         for (Field field : fields) {
+            String path = prefix + field.id();
             if (field.type() == FieldType.ARRAY) {
-                String name = bindNameOf(field);
+                String name = bindNameOf(templates, path, field);
                 if (!out.contains(name)) {
                     out.add(name);
                 }
             }
             if (field.child() != null) {
-                collectArrayBindNames(field.child().fields(), out);
+                collectArrayBindNames(path + ".", templates, field.child().fields(), out);
             }
         }
     }
 
-    /** The root an array's elements are bound under: the last segment of its {@code itemsFrom}. */
-    private static String bindNameOf(Field field) {
-        String itemsFrom = field.itemsFrom() == null ? DEFAULT_ITEMS_FROM : field.itemsFrom();
-        int dot = itemsFrom.lastIndexOf('.');
-        return dot < 0 ? itemsFrom : itemsFrom.substring(dot + 1);
+    private static void collectArrayPaths(String prefix, List<Field> fields, List<String> out) {
+        for (Field field : fields) {
+            String path = prefix + field.id();
+            if (field.type() == FieldType.ARRAY) {
+                out.add(path);
+            }
+            if (field.child() != null) {
+                collectArrayPaths(path + ".", field.child().fields(), out);
+            }
+        }
+    }
+
+    /** The root an array's elements are bound under: the last segment of its resolved source. */
+    private static String bindNameOf(Map<String, String> templates, String path, Field field) {
+        String source = collectionSourceOf(templates, path, field);
+        int dot = source.lastIndexOf('.');
+        return dot < 0 ? source : source.substring(dot + 1);
     }
 
     /* ---------------------------------------------------------------------- */

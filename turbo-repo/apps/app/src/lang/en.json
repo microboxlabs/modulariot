@@ -48,6 +48,7 @@
         "required": "Required",
         "optional": "Optional",
         "templatePlaceholder": "e.g. {example}",
+        "templatePlaceholderUnknown": "e.g. {{group.field}}",
         "scopedHelp": "These variables exist only inside the array that supplies them; use them on that array's fields.",
         "insertVariable": "Variable",
         "previewEmpty": "(empty)",

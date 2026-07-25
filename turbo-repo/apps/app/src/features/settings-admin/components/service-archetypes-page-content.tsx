@@ -83,7 +83,8 @@ export default function ServiceArchetypesPageContent() {
   };
 
   return (
-    <div className="p-4 xl:px-8 flex flex-col gap-3 w-full max-w-5xl">
+    <div className="h-full overflow-y-auto w-full">
+    <div className="p-4 xl:px-8 flex flex-col gap-3 w-full max-w-5xl pb-10">
       <div className="flex items-center gap-3">
         <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-700">
           <HiOutlineCubeTransparent className="w-5 h-5 text-gray-600 dark:text-gray-300" />
@@ -206,6 +207,7 @@ export default function ServiceArchetypesPageContent() {
         {!(arquetipos ?? []).length && (
           <div className="p-4 text-sm text-gray-500">Sin arquetipos definidos.</div>)}
       </section>
+    </div>
     </div>
   );
 }

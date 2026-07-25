@@ -134,7 +134,7 @@ export function CapacityDesk() {
   const [reservando, setReservando] = useState<string | null>(null);
   const [sync, setSync] = useState(false);
   const [verNo, setVerNo] = useState(false);
-  const [verAgenda, setVerAgenda] = useState(false);
+  const [verAgenda, setVerAgenda] = useState(true);
   const [verCumplimiento, setVerCumplimiento] = useState(false);
 
   const fr = FRANJAS.find((f) => f.id === franja) ?? FRANJAS[2];
@@ -233,7 +233,8 @@ export function CapacityDesk() {
   const ahora = Date.now() / 1000;
 
   return (
-    <div className="flex flex-col gap-4 p-4 xl:px-8 w-full max-w-6xl mx-auto">
+    <div className="h-full overflow-y-auto w-full">
+    <div className="flex flex-col gap-4 p-4 xl:px-8 w-full pb-10">
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex-1 min-w-[260px]">
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Capacidad</h1>
@@ -298,6 +299,44 @@ export function CapacityDesk() {
           </div>
         </div>
       </div>
+
+      {/* ════ 2 · AGENDA DE LA FLOTA — el calendario manda (feedback Erick) ════ */}
+      <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <button className="w-full flex items-center gap-2.5 px-4 py-3 text-left"
+                onClick={() => setVerAgenda(!verAgenda)}>
+          <HiOutlineCalendarDays className="w-5 h-5 text-gray-500 flex-none" />
+          <span className="text-sm font-semibold text-gray-900 dark:text-white flex-1">
+            Agenda completa de la flota (7 días)
+          </span>
+          {verAgenda ? <HiOutlineChevronUp className="w-4 h-4 text-gray-400" />
+                     : <HiOutlineChevronDown className="w-4 h-4 text-gray-400" />}
+        </button>
+        {verAgenda && (
+          <div className="px-4 pb-4">
+            <div className="flex items-center gap-3 pb-1">
+              <div className="w-40 flex-none" />
+              <div className="flex-1 grid grid-cols-7 text-[10px] uppercase tracking-wide text-gray-400">
+                {[...Array(7)].map((_, i) => {
+                  const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i);
+                  return <span key={i}>{d.toLocaleDateString("es-CL", { weekday: "short", day: "2-digit" })}</span>;
+                })}
+              </div>
+            </div>
+            {recursos.map((r) => (
+              <FilaAgenda key={r.id} {...r} />
+            ))}
+            <div className="flex items-center gap-3 pt-2 text-[11px] text-gray-500">
+              {Object.entries(KIND_COLOR).map(([k, c]) => (
+                <span key={k} className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-sm" style={{ background: c }} />
+                  {KIND_HUMANO[k]}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
 
       {/* ════ 2 · ¿PUEDES TOMAR UN SERVICIO? — diálogo, no formulario ════ */}
       <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 flex flex-col gap-4">
@@ -513,43 +552,6 @@ export function CapacityDesk() {
         </section>
       )}
 
-      {/* ════ 4 · PROFUNDIDAD PLEGADA (para el versado) ════ */}
-      <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        <button className="w-full flex items-center gap-2.5 px-4 py-3 text-left"
-                onClick={() => setVerAgenda(!verAgenda)}>
-          <HiOutlineCalendarDays className="w-5 h-5 text-gray-500 flex-none" />
-          <span className="text-sm font-semibold text-gray-900 dark:text-white flex-1">
-            Agenda completa de la flota (7 días)
-          </span>
-          {verAgenda ? <HiOutlineChevronUp className="w-4 h-4 text-gray-400" />
-                     : <HiOutlineChevronDown className="w-4 h-4 text-gray-400" />}
-        </button>
-        {verAgenda && (
-          <div className="px-4 pb-4">
-            <div className="flex items-center gap-3 pb-1">
-              <div className="w-40 flex-none" />
-              <div className="flex-1 grid grid-cols-7 text-[10px] uppercase tracking-wide text-gray-400">
-                {[...Array(7)].map((_, i) => {
-                  const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i);
-                  return <span key={i}>{d.toLocaleDateString("es-CL", { weekday: "short", day: "2-digit" })}</span>;
-                })}
-              </div>
-            </div>
-            {recursos.map((r) => (
-              <FilaAgenda key={r.id} {...r} />
-            ))}
-            <div className="flex items-center gap-3 pt-2 text-[11px] text-gray-500">
-              {Object.entries(KIND_COLOR).map(([k, c]) => (
-                <span key={k} className="inline-flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-sm" style={{ background: c }} />
-                  {KIND_HUMANO[k]}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </section>
-
       <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <button className="w-full flex items-center gap-2.5 px-4 py-3 text-left"
                 onClick={() => setVerCumplimiento(!verCumplimiento)}>
@@ -606,6 +608,7 @@ export function CapacityDesk() {
           </div>
         )}
       </section>
+    </div>
     </div>
   );
 }

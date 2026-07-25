@@ -2033,7 +2033,7 @@
     "integrationConnections": {
       "page": {
         "title": "Conexiones",
-        "subtitle": "Sistemas externos a los que este espacio de trabajo envía datos. Define un tipo una vez y crea tantas conexiones como necesites, cada una con su URL y su credencial."
+        "subtitle": "Sistemas externos a los que este espacio de trabajo envía datos. Define un tipo una vez y crea tantas conexiones como necesites."
       },
       "templates": {
         "title": "Plantillas",

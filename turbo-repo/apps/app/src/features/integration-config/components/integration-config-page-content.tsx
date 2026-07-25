@@ -174,19 +174,24 @@ export function IntegrationConfigPageContent({
 
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pt-2 pb-6 dark:bg-gray-900">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <HiOutlineLink className="h-6 w-6 text-gray-500 dark:text-gray-400" />
-            <div>
+          <div className="flex min-w-0 items-center gap-3">
+            <HiOutlineLink className="h-6 w-6 shrink-0 text-gray-500 dark:text-gray-400" />
+            <div className="min-w-0">
               <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
                 {tr("page.title", dict)}
               </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              {/* Capped, so the description wraps at a readable measure instead of
+                  running the full width of a wide monitor. */}
+              <p className="max-w-3xl text-sm text-gray-500 dark:text-gray-400">
                 {tr("page.subtitle", dict)}
               </p>
             </div>
           </div>
+          {/* shrink-0: the description is the flexible side of this row. Without it a
+              long one squeezes the button until its label breaks across lines. */}
           <Button
             color="blue"
+            className="shrink-0 whitespace-nowrap"
             onClick={handleAddConnection}
             disabled={!orgSlug || templates.length === 0}
           >
@@ -236,6 +241,7 @@ export function IntegrationConfigPageContent({
                 <Button
                   size="sm"
                   color="light"
+                  className="shrink-0 whitespace-nowrap"
                   onClick={() => setTemplateModal({ open: true })}
                   disabled={!orgSlug}
                 >
@@ -331,11 +337,13 @@ function SectionHeader({
 }: Readonly<{ title: string; help: string; action: React.ReactNode }>) {
   return (
     <div className="flex items-end justify-between gap-4 border-t border-gray-200 pt-5 dark:border-gray-700">
-      <div>
+      <div className="min-w-0">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
           {title}
         </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400">{help}</p>
+        <p className="max-w-3xl text-sm text-gray-500 dark:text-gray-400">
+          {help}
+        </p>
       </div>
       {action}
     </div>

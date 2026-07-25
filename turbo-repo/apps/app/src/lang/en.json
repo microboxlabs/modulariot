@@ -2033,7 +2033,7 @@
     "integrationConnections": {
       "page": {
         "title": "Connections",
-        "subtitle": "External systems this workspace sends data to. Define a type once, then create as many connections as you need — each with its own URL and credential."
+        "subtitle": "External systems this workspace sends data to. Define a type once, then create as many connections as you need."
       },
       "templates": {
         "title": "Templates",

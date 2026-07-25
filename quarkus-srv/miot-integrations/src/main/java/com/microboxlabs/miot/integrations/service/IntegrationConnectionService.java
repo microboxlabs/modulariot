@@ -13,6 +13,7 @@ import com.microboxlabs.miot.integrations.dto.CreateIntegrationOperationRequest;
 import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.persistence.CredentialProfileRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
+import com.microboxlabs.miot.integrations.persistence.IntegrationEventBindingRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationTemplateRepository;
 import com.microboxlabs.miot.integrations.tester.ConnectionTesterRegistry;
@@ -32,6 +33,7 @@ public class IntegrationConnectionService {
     private final IntegrationConnectionRepository connectionRepository;
     private final IntegrationOperationRepository operationRepository;
     private final IntegrationTemplateRepository templateRepository;
+    private final IntegrationEventBindingRepository bindingRepository;
     private final ConnectionTesterRegistry testerRegistry;
 
     @Inject
@@ -41,12 +43,14 @@ public class IntegrationConnectionService {
             IntegrationConnectionRepository connectionRepository,
             IntegrationOperationRepository operationRepository,
             IntegrationTemplateRepository templateRepository,
+            IntegrationEventBindingRepository bindingRepository,
             ConnectionTesterRegistry testerRegistry) {
         this.credentialProfileRepository = credentialProfileRepository;
         this.credentialProfileService = credentialProfileService;
         this.connectionRepository = connectionRepository;
         this.operationRepository = operationRepository;
         this.templateRepository = templateRepository;
+        this.bindingRepository = bindingRepository;
         this.testerRegistry = testerRegistry;
     }
 
@@ -123,7 +127,23 @@ public class IntegrationConnectionService {
         }
         rotateTokenIfPresent(tenantCode, existing, req.token());
         String baseUrl = req.baseUrl() == null ? null : req.baseUrl().toString();
-        return connectionRepository.update(tenantCode, connectionId, req.name(), baseUrl, req.metadata());
+        return connectionRepository.update(
+                tenantCode, connectionId, req.name(), baseUrl, req.credentialProfileId(), req.metadata());
+    }
+
+    /**
+     * Soft-deletes a connection. Refuses ({@link IllegalStateException}) while review bindings
+     * still point at it, so a channel in use is never pulled out from under its dispatches.
+     *
+     * @return {@code false} when the connection did not exist
+     */
+    public boolean deleteConnection(String tenantCode, String connectionId) {
+        int bindings = bindingRepository.countByConnection(connectionId);
+        if (bindings > 0) {
+            throw new IllegalStateException(
+                    "Cannot delete a connection with " + bindings + " active binding(s) using it");
+        }
+        return connectionRepository.softDelete(tenantCode, connectionId);
     }
 
     /**

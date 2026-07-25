@@ -17,5 +17,7 @@ public record UpdateIntegrationConnectionRequest(
         String name,
         URI baseUrl,
         Map<String, Object> metadata,
+        /** Swaps the linked credential when non-null; a null leaves the current one in place. */
+        String credentialProfileId,
         String token) {
 }

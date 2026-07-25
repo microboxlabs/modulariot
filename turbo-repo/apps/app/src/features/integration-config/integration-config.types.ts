@@ -57,6 +57,8 @@ export interface CreateConnectionRequest {
 export interface UpdateConnectionRequest {
   readonly name?: string;
   readonly baseUrl?: string;
+  /** Swaps the linked credential; omit to leave it unchanged. */
+  readonly credentialProfileId?: string | null;
 }
 
 export interface ConnectionTestResult {

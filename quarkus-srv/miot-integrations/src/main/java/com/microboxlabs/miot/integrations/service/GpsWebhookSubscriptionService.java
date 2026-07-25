@@ -238,11 +238,11 @@ public class GpsWebhookSubscriptionService {
         if (url != null) {
             validateUrl(url);
             String nextUrl = url.toString();
-            connectionRepository.update(tenantCode, existing.connectionId(), nextName, nextUrl, null);
+            connectionRepository.update(tenantCode, existing.connectionId(), nextName, nextUrl, null, null);
             return nextUrl;
         }
         if (nextName != null) {
-            connectionRepository.update(tenantCode, existing.connectionId(), nextName, null, null);
+            connectionRepository.update(tenantCode, existing.connectionId(), nextName, null, null, null);
         }
         return null;
     }

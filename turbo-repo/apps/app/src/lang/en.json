@@ -2047,7 +2047,8 @@
         "help": "An instance of a template, with its own URL and credential.",
         "new": "New connection",
         "empty": "No connections yet.",
-        "test": "Test"
+        "test": "Test",
+        "confirmDelete": "Delete this connection?"
       },
       "status": {
         "active": "Active",
@@ -2066,7 +2067,8 @@
         "templateDeleted": "Template deleted",
         "actionFailed": "Could not complete the action",
         "testOk": "Connection tested successfully",
-        "testFailed": "Connection test failed"
+        "testFailed": "Connection test failed",
+        "connectionDeleted": "Connection deleted"
       },
       "template": {
         "form": {

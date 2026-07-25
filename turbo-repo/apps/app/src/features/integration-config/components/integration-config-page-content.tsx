@@ -36,6 +36,7 @@ export function IntegrationConfigPageContent({ dict }: Readonly<{ dict: I18nReco
     saveTemplate,
     removeTemplate,
     saveConnection,
+    removeConnection,
     testInstance,
   } = useIntegrationConfig(orgSlug);
 
@@ -48,6 +49,7 @@ export function IntegrationConfigPageContent({ dict }: Readonly<{ dict: I18nReco
     connection?: IntegrationConnection;
   }>({ open: false });
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [confirmingDeleteConn, setConfirmingDeleteConn] = useState<string | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
 
   const instanceCount = (templateId: string) =>
@@ -61,6 +63,17 @@ export function IntegrationConfigPageContent({ dict }: Readonly<{ dict: I18nReco
       toast.error(cause instanceof Error ? cause.message : tr("toast.actionFailed", dict));
     } finally {
       setConfirmingDelete(null);
+    }
+  }
+
+  async function handleDeleteConnection(id: string) {
+    try {
+      await removeConnection(id);
+      toast.success(tr("toast.connectionDeleted", dict));
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : tr("toast.actionFailed", dict));
+    } finally {
+      setConfirmingDeleteConn(null);
     }
   }
 
@@ -206,44 +219,72 @@ export function IntegrationConfigPageContent({ dict }: Readonly<{ dict: I18nReco
             {connections.map((connection) => (
               <div
                 key={connection.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700"
+                className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700"
               >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {connection.name}
-                    </span>
-                    <StatusBadge connection={connection} dict={dict} />
-                    {connection.templateId && (
-                      <span className="text-[11px] text-gray-400">
-                        {templates.find((t) => t.id === connection.templateId)?.name ??
-                          connection.providerType}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {connection.name}
                       </span>
-                    )}
+                      <StatusBadge connection={connection} dict={dict} />
+                      {connection.templateId && (
+                        <span className="text-[11px] text-gray-400">
+                          {templates.find((t) => t.id === connection.templateId)?.name ??
+                            connection.providerType}
+                        </span>
+                      )}
+                    </div>
+                    <code className="mt-0.5 block truncate font-mono text-[11px] text-gray-500 dark:text-gray-400">
+                      {connection.baseUrl}
+                    </code>
                   </div>
-                  <code className="mt-0.5 block truncate font-mono text-[11px] text-gray-500 dark:text-gray-400">
-                    {connection.baseUrl}
-                  </code>
+                  <div className="flex shrink-0 gap-1">
+                    <IconButton
+                      label={tr("connections.test", dict)}
+                      onClick={() => handleTest(connection.id)}
+                      disabled={testing === connection.id}
+                    >
+                      {testing === connection.id ? (
+                        <Spinner size="sm" />
+                      ) : (
+                        <HiPlay className="h-4 w-4" />
+                      )}
+                    </IconButton>
+                    <IconButton
+                      label={tr("common.edit", dict)}
+                      onClick={() => setConnectionModal({ open: true, connection })}
+                    >
+                      <HiPencil className="h-4 w-4" />
+                    </IconButton>
+                    <IconButton
+                      label={tr("common.delete", dict)}
+                      danger
+                      onClick={() => setConfirmingDeleteConn(connection.id)}
+                    >
+                      <HiTrash className="h-4 w-4" />
+                    </IconButton>
+                  </div>
                 </div>
-                <div className="flex shrink-0 gap-1">
-                  <IconButton
-                    label={tr("connections.test", dict)}
-                    onClick={() => handleTest(connection.id)}
-                    disabled={testing === connection.id}
-                  >
-                    {testing === connection.id ? (
-                      <Spinner size="sm" />
-                    ) : (
-                      <HiPlay className="h-4 w-4" />
-                    )}
-                  </IconButton>
-                  <IconButton
-                    label={tr("common.edit", dict)}
-                    onClick={() => setConnectionModal({ open: true, connection })}
-                  >
-                    <HiPencil className="h-4 w-4" />
-                  </IconButton>
-                </div>
+                {confirmingDeleteConn === connection.id && (
+                  <div className="flex items-center justify-between gap-2 rounded bg-red-50 px-2 py-1 dark:bg-red-900/20">
+                    <span className="text-[11px] text-red-700 dark:text-red-300">
+                      {tr("connections.confirmDelete", dict)}
+                    </span>
+                    <div className="flex gap-1">
+                      <Button size="xs" color="gray" onClick={() => setConfirmingDeleteConn(null)}>
+                        {tr("common.cancel", dict)}
+                      </Button>
+                      <Button
+                        size="xs"
+                        color="failure"
+                        onClick={() => handleDeleteConnection(connection.id)}
+                      >
+                        {tr("common.delete", dict)}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

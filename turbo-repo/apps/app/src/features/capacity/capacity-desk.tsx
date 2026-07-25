@@ -12,7 +12,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { TextInput, Select as DsSelect } from "flowbite-react";
 import {
-  HiOutlineCalendarDays, HiOutlineMagnifyingGlass, HiOutlineBookmark,
+  HiOutlineCalendarDays, HiOutlineMagnifyingGlass, HiOutlineBookmark, HiOutlineScale,
 } from "react-icons/hi2";
 import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
 import type { AmsTruck, AmsDriver } from "@/features/ams/ficha-ams";
@@ -47,6 +47,14 @@ type UnidadReservada = {
   unit_id: string; estado: string; ini: number; fin: number;
   expira_at: number | null;
   miembros: { rol: string; etiqueta: string | null }[];
+};
+type Confiabilidad = {
+  total: number; vivas: number; cerradas: number;
+  estabilidad: number | null; puntualidad: number | null;
+  caidas: { expiradas: number; liberadas: number; rebotes: number };
+  ultimas_cerradas: { unit_id: string; service_code: string | null; ini: number;
+    resultado: { estable: boolean; puntual: boolean | null;
+      sustituciones: { rol: string; prometido: string; ejecuto: string }[] } }[];
 };
 
 const KIND_COLOR: Record<string, string> = {
@@ -126,6 +134,8 @@ export function CapacityDesk() {
     "/app/api/ams/rpc/fn_cap_units", fetcher);
   const { data: arquetipos } = useSWR<Arquetipo[]>(
     "/app/api/ams/rpc/fn_cap_archetypes", fetcher);
+  const { data: confiabilidad, mutate: mutConf } = useSWR<Confiabilidad>(
+    "/app/api/ams/rpc/fn_cap_reliability", fetcher);
 
   // ventana de la línea temporal: hoy 00:00 + 7 días
   const t0 = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime() / 1000; }, []);
@@ -188,12 +198,23 @@ export function CapacityDesk() {
   const liberar = async (unitId: string) => {
     if (!window.confirm("¿Liberar esta reserva? Se suelta la agenda de todos los miembros.")) return;
     await post("fn_cap_release", { p_unit_id: unitId, p_actor: "capacity-desk" });
-    void mutUnidades();
+    void mutUnidades(); void mutConf();
+  };
+
+  const comprometer = async (unitId: string) => {
+    const sc = window.prompt("Código de servicio al que se compromete (opcional):") ?? undefined;
+    const { data } = await post("fn_cap_commit", {
+      p_unit_id: unitId, p_service_code: sc || null, p_actor: "capacity-desk" });
+    if (data?.ok === false) setMsg(`No comprometida — ${data.detalle ?? data.error}`);
+    void mutUnidades(); void mutConf();
   };
 
   const sincronizar = async () => {
     setSync(true);
+    // agenda + barrido de reservas vencidas + cierre plan-vs-realidad
     await post("fn_cap_refresh_agenda", {});
+    await post("fn_cap_maintain", {});
+    await post("fn_cap_close_units", {});
     setSync(false);
     window.location.reload();
   };
@@ -375,6 +396,12 @@ export function CapacityDesk() {
                       ` · expira ${new Date(u.expira_at * 1000).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}`}
                   </div>
                 </div>
+                {u.estado === "RESERVADA" && (
+                  <button className="text-[11px] font-medium text-blue-600 hover:underline flex-none"
+                          onClick={() => void comprometer(u.unit_id)}>
+                    comprometer
+                  </button>
+                )}
                 {(u.estado === "RESERVADA" || u.estado === "COMPROMETIDA") && (
                   <button className="text-[11px] text-rose-600 hover:underline flex-none"
                           onClick={() => void liberar(u.unit_id)}>
@@ -386,6 +413,60 @@ export function CapacityDesk() {
           </div>
         ) : (
           <div className="text-sm text-gray-500">Sin reservas vivas.</div>
+        )}
+      </Panel>
+
+      {/* 4 · plan vs realidad — la realidad mejora el modelo (C3) */}
+      <Panel titulo="Plan vs realidad" icono={HiOutlineScale}
+        extra={<span className="text-[11px] text-gray-500">
+          cada cierre alimenta la confiabilidad publicada
+        </span>}>
+        {confiabilidad && confiabilidad.cerradas > 0 ? (
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
+              {[
+                ["UO cerradas", String(confiabilidad.cerradas)],
+                ["Estabilidad", confiabilidad.estabilidad != null
+                  ? `${Math.round(confiabilidad.estabilidad * 100)}%` : "—"],
+                ["Puntualidad", confiabilidad.puntualidad != null
+                  ? `${Math.round(confiabilidad.puntualidad * 100)}%` : "sin dato"],
+                ["Caídas", `${confiabilidad.caidas.expiradas} exp · ${confiabilidad.caidas.liberadas} lib · ${confiabilidad.caidas.rebotes} reb`],
+              ].map(([k, v]) => (
+                <div key={k}>
+                  <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{k}</div>
+                  <div className="text-base font-semibold text-gray-900 dark:text-white">{v}</div>
+                </div>
+              ))}
+            </div>
+            <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+              {confiabilidad.ultimas_cerradas.map((c) => (
+                <div key={c.unit_id} className="py-1.5 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                      c.resultado.estable
+                        ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
+                        : "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"}`}>
+                      {c.resultado.estable ? "Estable" : "Con sustituciones"}
+                    </span>
+                    <span className="text-gray-700 dark:text-gray-300">
+                      servicio {c.service_code ?? "—"}</span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(c.ini * 1000).toLocaleDateString("es-CL")}</span>
+                  </div>
+                  {c.resultado.sustituciones.map((sx, i) => (
+                    <div key={i} className="text-xs text-gray-500 pl-1">
+                      {sx.rol.toLowerCase()}: prometido {sx.prometido} → ejecutó {sx.ejecuto}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500">
+            Aún sin cierres — cuando una UO comprometida ejecute, aquí se compara
+            la promesa contra la realidad.
+          </div>
         )}
       </Panel>
     </div>

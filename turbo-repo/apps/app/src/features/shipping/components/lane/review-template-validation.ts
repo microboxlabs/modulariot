@@ -51,13 +51,19 @@ const FAIL = (
 ): TemplateCheck => ({ status: "invalid", problem: { code, params }, paths: [] });
 
 /**
- * @param allowedRoots the context objects in scope; defaults to {@link ALLOWED_ROOTS}
+ * @param allowedRoots the context objects in scope, or **null** when the contract's set is
+ *        unknown. A contract's arrays introduce roots the static list cannot predict
+ *        (`{{reasons.*}}` inside a `content.reasons` array), and only the server derives
+ *        them from the schema. With null the unknown-root rule is skipped rather than
+ *        guessed, because guessing rejects mappings the server stores — and the server
+ *        validates on save regardless, so nothing unsafe gets through. Every other rule is
+ *        pure syntax and still applies.
  * @returns `none` for a template with no variables (plain literal text is legal), and
  *          the first reason the server would reject it otherwise
  */
 export function checkTemplate(
   template: string,
-  allowedRoots: readonly string[] = ALLOWED_ROOTS
+  allowedRoots: readonly string[] | null = ALLOWED_ROOTS
 ): TemplateCheck {
   if (!template) return OK([]);
 
@@ -87,7 +93,7 @@ export function checkTemplate(
 /** Validates one `{{…}}` stash, pushing its path when usable. */
 function checkStash(
   raw: string,
-  allowedRoots: readonly string[],
+  allowedRoots: readonly string[] | null,
   paths: string[]
 ): TemplateCheck | null {
   const inner = raw.trim();
@@ -107,7 +113,7 @@ function checkStash(
 
   const dot = inner.indexOf(".");
   const root = dot < 0 ? inner : inner.slice(0, dot);
-  if (!allowedRoots.includes(root)) {
+  if (allowedRoots && !allowedRoots.includes(root)) {
     return FAIL("unknownRoot", {
       path: inner,
       root,

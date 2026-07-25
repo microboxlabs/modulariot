@@ -99,3 +99,23 @@ describe("checkTemplate with a contract's own roots", () => {
     );
   });
 });
+
+describe("checkTemplate when the contract's roots are unknown", () => {
+  // A modulith older than `templateRoots` reports no root set. Enforcing the static four
+  // then rejects `{{reasons.code}}` — a mapping that same server stores happily — which is
+  // how the drawer came to block the only correct mapping for a nested contract. Null means
+  // "do not guess"; the server still validates on save.
+  it("does not call an array-bound root unknown", () => {
+    const check = checkTemplate("{{reasons.code}}", null);
+    expect(check.status).toBe("valid");
+    expect(check.paths).toEqual(["reasons.code"]);
+  });
+
+  it("still enforces every rule that is pure syntax", () => {
+    expect(checkTemplate("{{{reasons.code}}}", null).problem?.code).toBe("unescaped");
+    expect(checkTemplate("{{reasons.code", null).problem?.code).toBe("unclosed");
+    expect(checkTemplate("{{#if x}}", null).problem?.code).toBe("notPlain");
+    expect(checkTemplate("{{reasons..code}}", null).problem?.code).toBe("badPath");
+    expect(checkTemplate("{{reasons}}", null).problem?.code).toBe("wholeObject");
+  });
+});

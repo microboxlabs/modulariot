@@ -39,6 +39,19 @@ export interface DispatchTargetField {
   readonly contextRoot?: string | null;
 }
 
+/**
+ * The template roots a target's contract accepts, or null when the server did not report
+ * them (a modulith older than the field). Null means "unknown", not "the static four": a
+ * contract's arrays introduce roots that cannot be derived client-side, so callers pass this
+ * straight to `checkTemplate`, which then skips the unknown-root rule instead of rejecting a
+ * mapping the server would store.
+ */
+export function contractRoots(
+  target: DispatchTarget | undefined
+): readonly string[] | null {
+  return target?.templateRoots?.length ? target.templateRoots : null;
+}
+
 export interface EventBinding {
   readonly id: string;
   readonly ownerOrgSlug: string;

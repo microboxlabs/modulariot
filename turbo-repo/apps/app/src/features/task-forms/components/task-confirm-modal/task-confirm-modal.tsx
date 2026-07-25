@@ -35,6 +35,7 @@ import {
   TYPE_WFDELIVERY_RECEIVE_DELIVERY_TASK,
   OUTCOME_TO_CONFIRM_DELIVERY_V2,
   OUTCOME_TO_CLOSE_MONITORING_V2,
+  OUTCOME_PREPARE_SERVICE_V2,
 } from "../../services/form.service";
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -52,6 +53,7 @@ import {
   ShippingCoordinatorProcessTaskV2,
 } from "../../services/form.service.types";
 import { ReviewedItemCard } from "../task-actions/review-items";
+import { rejectionReasonsFrom } from "./review-rejection-reasons";
 import { SidebarSection } from "../task-bento-form/components/side-data/multimedia-manager.tsx/viewer/sidebar/sidebar-section";
 import { HiCheckCircle, HiDocumentText } from "react-icons/hi2";
 
@@ -97,6 +99,22 @@ export default function TaskConfirmModal({
   }, [taskType, outcome]);
 
   const hasReviewItems = approvedItems.length > 0 || rejectedItems.length > 0;
+
+  // Sending a service back for control is a rejection the reviewer has already made,
+  // document by document. Re-asking for the motives here duplicates that verdict and lets
+  // the two disagree, so when the review carries the rejection the modal shows only its
+  // summary and derives the codes the backend needs from it.
+  const reviewCarriesRejection =
+    taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK &&
+    outcome === OUTCOME_PREPARE_SERVICE_V2 &&
+    rejectedItems.length > 0;
+
+  const derivedReasons = useMemo(
+    () => (reviewCarriesRejection ? rejectionReasonsFrom(rejectedItems) : []),
+    [reviewCarriesRejection, rejectedItems]
+  );
+
+  const hideMotiveInputs = suppressMotiveInputs || reviewCarriesRejection;
 
   // Use consolidated state management for select/reason fields
   const {
@@ -160,7 +178,7 @@ export default function TaskConfirmModal({
         outcome: outcome!,
         comments,
         taskType: taskType ?? "",
-        selectedValues,
+        selectedValues: reviewCarriesRejection ? derivedReasons : selectedValues,
         selectConfig,
         extraData,
         customFormValues: formValues,
@@ -245,7 +263,7 @@ export default function TaskConfirmModal({
         </ModalHeader>
         <ModalBody>
           <div className="flex flex-col gap-4">
-            {selectConfig && !suppressMotiveInputs && (
+            {selectConfig && !hideMotiveInputs && (
               <div className="flex flex-col gap-2">
                 <Label>
                   {(dict.modal as I18nRecord).title2 as string}
@@ -290,7 +308,7 @@ export default function TaskConfirmModal({
               </div>
             )}
 
-            {commentsFieldEnabled && !suppressMotiveInputs && (
+            {commentsFieldEnabled && !hideMotiveInputs && (
               <div className="flex flex-col gap-y-2">
                 <Label htmlFor="comments">{tr("modal.reason", dict)}:</Label>
                 <Textarea
@@ -304,8 +322,8 @@ export default function TaskConfirmModal({
               </div>
             )}
 
-            {((!commentsFieldEnabled && !suppressMotiveInputs && !taskFormConfig?.customFormConfig) ||
-              suppressMotiveInputs) &&
+            {((!commentsFieldEnabled && !hideMotiveInputs && !taskFormConfig?.customFormConfig) ||
+              hideMotiveInputs) &&
               !hasReviewItems && (
                 <div className="flex items-center justify-center py-4">
                   <KanbanMove />

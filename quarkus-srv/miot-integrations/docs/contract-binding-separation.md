@@ -119,6 +119,13 @@ Settled while building it:
   has no field name, so binding a row to it means inventing a key (`""`, `"[]"`) and a label for
   a shape nothing in use has. `itemsFrom` stays meaningful for that one case, so P3's "drop the
   fallback" is really "drop it for array *fields*".
+- **`contextRoot` on a collection row means the scope it sits *in*, not the one it creates.**
+  Two different questions, and conflating them is a live bug source: the row's own template is
+  validated against the *enclosing* scope, while the echo beneath it needs this collection's own
+  default source. They coincide only because everything defaults to `content`, so the confusion
+  hides on nested arrays and shows on a top-level one, which sits in no scope at all. The drawer
+  derives the echo's value client-side (`collectionFallbackRoot`, off a value row the collection
+  scopes) rather than adding a second DTO field that P3 would only have to remove.
 
 
 - `DispatchTargetResponse.Field` gains a kind (`value` | `collection`); `fieldsOf` stops

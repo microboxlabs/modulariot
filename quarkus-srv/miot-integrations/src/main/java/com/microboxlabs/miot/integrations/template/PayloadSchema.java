@@ -138,6 +138,31 @@ public record PayloadSchema(List<Field> fields, boolean array, String itemsFrom)
         return fields.stream().filter(Field::required).toList();
     }
 
+    /**
+     * Every scalar leaf as a field whose id is its dotted path — the mapping rows an operator
+     * actually fills in. A structural field contributes its leaves ({@code fotos.guidMultimedia},
+     * {@code fotos.mensaje.codigo}), not itself: an array/object is a container, not a value to
+     * template. Used by the settings UI so it renders one editable row per leaf.
+     */
+    public List<Field> leafFields() {
+        List<Field> leaves = new ArrayList<>();
+        collectLeaves("", fields, leaves);
+        return List.copyOf(leaves);
+    }
+
+    private static void collectLeaves(String prefix, List<Field> fields, List<Field> out) {
+        for (Field field : fields) {
+            String id = prefix + field.id();
+            if (field.structural()) {
+                if (field.child() != null) {
+                    collectLeaves(id + ".", field.child().fields(), out);
+                }
+            } else {
+                out.add(new Field(id, field.type(), field.required()));
+            }
+        }
+    }
+
     /* ---------------------------------------------------------------------- */
 
     private static boolean isArray(Map<?, ?> schema) {

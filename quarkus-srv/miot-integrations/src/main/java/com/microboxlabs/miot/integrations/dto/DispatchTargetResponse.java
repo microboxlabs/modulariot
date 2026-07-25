@@ -19,9 +19,16 @@ public record DispatchTargetResponse(
         String operationName,
         String method,
         String path,
-        List<Field> fields) {
+        List<Field> fields,
+        List<String> templateRoots) {
 
-    /** A single field of the channel's contract. */
-    public record Field(String id, String type, boolean required) {
+    /**
+     * A single field of the channel's contract.
+     *
+     * @param contextRoot the template root this row must read from, or null for an envelope
+     *     field that sees the whole context. Sent because it cannot be derived from the dotted
+     *     path alone — it comes from the array's {@code itemsFrom}, which only the schema knows.
+     */
+    public record Field(String id, String type, boolean required, String contextRoot) {
     }
 }

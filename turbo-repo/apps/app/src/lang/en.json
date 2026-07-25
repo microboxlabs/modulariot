@@ -47,7 +47,8 @@
         "noChannel": "Select a channel in the Review tab to configure the mapping.",
         "required": "Required",
         "optional": "Optional",
-        "templatePlaceholder": "e.g. {{content.integrationMediaId}}",
+        "templatePlaceholder": "e.g. {example}",
+        "scopedHelp": "These variables exist only inside the array that supplies them; use them on that array's fields.",
         "insertVariable": "Variable",
         "previewEmpty": "(empty)",
         "previewUnset": "Unmapped",
@@ -94,7 +95,13 @@
           "task": "Task",
           "content": "Content",
           "review": "Review",
-          "session": "User"
+          "session": "User",
+          "reasons": "Rejection reasons"
+        },
+        "reasons": {
+          "code": "Reason code",
+          "name": "Reason name",
+          "description": "Reviewer comment"
         },
         "task": {
           "serviceCode": "Service code",

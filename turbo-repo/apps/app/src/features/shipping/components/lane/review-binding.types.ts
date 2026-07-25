@@ -18,6 +18,12 @@ export interface DispatchTarget {
   readonly method: string;
   readonly path: string;
   readonly fields: readonly DispatchTargetField[];
+  /**
+   * Every template root this contract accepts: the always-present ones plus the bind names
+   * its arrays introduce. Absent on a response from a modulith older than this field —
+   * callers fall back to the static roots.
+   */
+  readonly templateRoots?: readonly string[];
 }
 
 export interface DispatchTargetField {
@@ -25,6 +31,12 @@ export interface DispatchTargetField {
   /** `string` | `boolean` | `integer` | `number`, from the operation's contract. */
   readonly type: string;
   readonly required: boolean;
+  /**
+   * The root this row's template must read from, or null for an envelope field that sees the
+   * whole context. Comes from the server because it is decided by the array's `itemsFrom`,
+   * which the dotted path alone does not reveal.
+   */
+  readonly contextRoot?: string | null;
 }
 
 export interface EventBinding {

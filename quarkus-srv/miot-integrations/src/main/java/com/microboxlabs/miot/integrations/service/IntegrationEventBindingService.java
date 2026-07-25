@@ -139,6 +139,7 @@ public class IntegrationEventBindingService {
                 continue;
             }
             for (IntegrationOperation operation : operationRepository.listByConnection(connection.id())) {
+                PayloadSchema contract = contractOf(operation);
                 targets.add(new DispatchTargetResponse(
                         connection.id(),
                         connection.name(),
@@ -147,7 +148,8 @@ public class IntegrationEventBindingService {
                         operation.name(),
                         operation.method(),
                         operation.path(),
-                        fieldsOf(contractOf(operation))));
+                        fieldsOf(contract),
+                        templateRootsOf(contract)));
             }
         }
         return targets;
@@ -228,10 +230,27 @@ public class IntegrationEventBindingService {
     private static List<DispatchTargetResponse.Field> fieldsOf(PayloadSchema schema) {
         // Leaf fields (dotted paths) so a nested contract renders one editable mapping row per
         // value — fotos.guidMultimedia, fotos.mensaje.codigo — never an array/object container.
-        return schema.leafFields().stream()
-                .map(field -> new DispatchTargetResponse.Field(
-                        field.id(), field.type().name().toLowerCase(), field.required()))
+        // Each carries the root it renders under, so the drawer can suggest and accept the right
+        // one per row instead of offering the envelope's roots everywhere.
+        return schema.leaves().stream()
+                .map(leaf -> new DispatchTargetResponse.Field(
+                        leaf.id(), leaf.type().name().toLowerCase(), leaf.required(), leaf.contextRoot()))
                 .toList();
+    }
+
+    /**
+     * Every root a template for this contract may read — the always-present ones plus the bind
+     * names its arrays introduce. The same set {@link PayloadRenderer#validate} accepts, so the
+     * drawer cannot call a mapping invalid that the server would store.
+     */
+    private static List<String> templateRootsOf(PayloadSchema schema) {
+        List<String> roots = new ArrayList<>(PayloadTemplate.DEFAULT_ROOTS);
+        for (String bindName : schema.arrayBindNames()) {
+            if (!roots.contains(bindName)) {
+                roots.add(bindName);
+            }
+        }
+        return List.copyOf(roots);
     }
 
     private static void require(boolean condition, String message) {

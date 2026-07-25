@@ -9,10 +9,13 @@ import { Section } from "./review-config-tab";
 import {
   buildSampleContext,
   renderTemplate,
+  sampleTemplateFor,
+  GLOBAL_VARIABLE_GROUPS,
   VARIABLE_GROUPS,
 } from "./review-integration.types";
-import { checkTemplate } from "./review-template-validation";
+import { ALLOWED_ROOTS, checkTemplate } from "./review-template-validation";
 import { ReviewTemplateInput } from "./review-template-input";
+import type { VariableGroup } from "./review-integration.types";
 import type { DispatchTarget, DispatchTargetField } from "./review-binding.types";
 
 const SAMPLE_CONTEXT = buildSampleContext();
@@ -65,26 +68,37 @@ export function ReviewMappingTab({
     );
   }
 
+  // The contract's own roots when the server sent them: a nested array introduces roots
+  // (`{{reasons.*}}`) that save-time validation accepts, so validating against only the
+  // static four would paint the one correct mapping red.
+  const roots = target.templateRoots?.length ? target.templateRoots : ALLOWED_ROOTS;
+  const scopedGroups = VARIABLE_GROUPS.filter(
+    (group) => group.scoped && roots.includes(group.id)
+  );
+
   return (
     <div className="flex flex-col gap-4">
       {switcher}
       <Section title={tr("mapping.title", dict)} help={tr("mapping.help", dict)}>
         <div className="flex flex-wrap gap-1.5">
-          {VARIABLE_GROUPS.map((group) => {
-            const Icon = group.icon;
-            return (
-              <span
-                key={group.id}
-                className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-              >
-                <Icon className="h-3 w-3" />
-                {trDynamic(group.labelKey, dict)}
-                {/* `.*` because a bare {{task}} is a whole object, which the server rejects. */}
-                <code className="font-mono opacity-70">{`{{${group.id}.*}}`}</code>
-              </span>
-            );
-          })}
+          {GLOBAL_VARIABLE_GROUPS.map((group) => (
+            <VariableChip key={group.id} group={group} dict={dict} />
+          ))}
         </div>
+        {/* Roots that exist only inside the array that supplies them. Listing them beside the
+            global ones would suggest they resolve anywhere, which is why they are called out. */}
+        {scopedGroups.length > 0 && (
+          <div className="mt-2 flex flex-col gap-1">
+            <div className="flex flex-wrap gap-1.5">
+              {scopedGroups.map((group) => (
+                <VariableChip key={group.id} group={group} dict={dict} scoped />
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+              {tr("mapping.scopedHelp", dict)}
+            </p>
+          </div>
+        )}
       </Section>
 
       <div className="flex flex-col gap-3">
@@ -94,11 +108,34 @@ export function ReviewMappingTab({
             field={field}
             template={mappings[field.id] ?? ""}
             onChange={(value) => onChange(field.id, value)}
+            roots={roots}
             dict={dict}
           />
         ))}
       </div>
     </div>
+  );
+}
+
+function VariableChip({
+  group,
+  scoped,
+  dict,
+}: Readonly<{ group: VariableGroup; scoped?: boolean; dict: I18nRecord }>) {
+  const Icon = group.icon;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${
+        scoped
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+          : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+      }`}
+    >
+      <Icon className="h-3 w-3" />
+      {trDynamic(group.labelKey, dict)}
+      {/* `.*` because a bare {{task}} is a whole object, which the server rejects. */}
+      <code className="font-mono opacity-70">{`{{${group.id}.*}}`}</code>
+    </span>
   );
 }
 
@@ -151,14 +188,17 @@ function MappingField({
   field,
   template,
   onChange,
+  roots,
   dict,
 }: Readonly<{
   field: DispatchTargetField;
   template: string;
   onChange: (value: string) => void;
+  /** The roots this contract accepts, so the row agrees with what the server would store. */
+  roots: readonly string[];
   dict: I18nRecord;
 }>) {
-  const check = useMemo(() => checkTemplate(template), [template]);
+  const check = useMemo(() => checkTemplate(template, roots), [template, roots]);
   const preview = useMemo(
     () => renderTemplate(template, SAMPLE_CONTEXT),
     [template]
@@ -196,10 +236,14 @@ function MappingField({
         </span>
       </div>
 
+      {/* A worked example for *this* row: a leaf inside an array renders under that array's
+          bind name, so a single global example would name a path that resolves nowhere here. */}
       <ReviewTemplateInput
         value={template}
         onChange={onChange}
-        placeholder={tr("mapping.templatePlaceholder", dict)}
+        placeholder={tr("mapping.templatePlaceholder", dict, {
+          example: sampleTemplateFor(field.contextRoot),
+        })}
         color={color}
       />
 

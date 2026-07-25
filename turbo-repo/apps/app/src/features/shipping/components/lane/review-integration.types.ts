@@ -1,5 +1,10 @@
 import type { IconType } from "react-icons";
-import { HiClipboardList, HiPhotograph, HiUser } from "react-icons/hi";
+import {
+  HiAnnotation,
+  HiClipboardList,
+  HiPhotograph,
+  HiUser,
+} from "react-icons/hi";
 
 /**
  * Review-process integration — the mockup model.
@@ -30,7 +35,12 @@ import { HiClipboardList, HiPhotograph, HiUser } from "react-icons/hi";
 /* Variable catalog — the objects a template can read                          */
 /* -------------------------------------------------------------------------- */
 
-export type VariableGroupId = "task" | "content" | "review" | "session";
+export type VariableGroupId =
+  | "task"
+  | "content"
+  | "review"
+  | "session"
+  | "reasons";
 
 export interface TemplateVariable {
   /** Dotted path without braces, e.g. `task.mintral_serviceCode`. */
@@ -47,6 +57,12 @@ export interface VariableGroup {
   readonly labelKey: string;
   readonly icon: IconType;
   readonly variables: readonly TemplateVariable[];
+  /**
+   * True when the group exists only while an array field renders, rather than for the whole
+   * payload. A contract declares these by iterating a collection, so they are offered per
+   * row rather than listed as always available.
+   */
+  readonly scoped?: boolean;
 }
 
 /**
@@ -96,7 +112,43 @@ export const VARIABLE_GROUPS: readonly VariableGroup[] = [
       { path: "session.reviewer", labelKey: "variables.session.reviewer", sample: "revisor.demo" },
     ],
   },
+  {
+    // In scope only inside an array that iterates a reviewed item's reasons: the renderer
+    // rebinds each element under the last segment of `itemsFrom`, so `content.reasons`
+    // becomes `{{reasons.*}}` — *this* item's reasons rather than a list across the task.
+    // Present only when a rejection carried reasons, so a template reading it renders empty
+    // for an approved item.
+    id: "reasons",
+    labelKey: "variables.groups.reasons",
+    icon: HiAnnotation,
+    scoped: true,
+    variables: [
+      { path: "reasons.code", labelKey: "variables.reasons.code", sample: "poor_image_quality" },
+      { path: "reasons.name", labelKey: "variables.reasons.name", sample: "Calidad de imagen deficiente" },
+      {
+        path: "reasons.description",
+        labelKey: "variables.reasons.description",
+        sample: "La foto no permite verificar el sello",
+      },
+    ],
+  },
 ];
+
+/** The always-available groups — the ones a template may read anywhere in the payload. */
+export const GLOBAL_VARIABLE_GROUPS: readonly VariableGroup[] = VARIABLE_GROUPS.filter(
+  (group) => !group.scoped
+);
+
+/**
+ * A worked example for one contract row: the first variable of the root that row renders
+ * under, so the hint names a path that actually resolves there. Envelope rows see the whole
+ * context, so they get the most common starting point instead.
+ */
+export function sampleTemplateFor(contextRoot: string | null | undefined): string {
+  const group = VARIABLE_GROUPS.find((candidate) => candidate.id === contextRoot);
+  const path = group?.variables[0]?.path ?? "task.serviceCode";
+  return `{{${path}}}`;
+}
 
 /**
  * The context a template renders against, built from every variable's sample and

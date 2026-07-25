@@ -47,7 +47,8 @@
         "noChannel": "Selecciona un canal en la pestaña Revisión para configurar el mapeo.",
         "required": "Requerido",
         "optional": "Opcional",
-        "templatePlaceholder": "Ej: {{content.integrationMediaId}}",
+        "templatePlaceholder": "Ej: {example}",
+        "scopedHelp": "Estas variables existen solo dentro del arreglo que las aporta; úsalas en los campos de ese arreglo.",
         "insertVariable": "Variable",
         "previewEmpty": "(vacío)",
         "previewUnset": "Sin mapear",
@@ -94,7 +95,13 @@
           "task": "Tarea",
           "content": "Contenido",
           "review": "Revisión",
-          "session": "Usuario"
+          "session": "Usuario",
+          "reasons": "Motivos de rechazo"
+        },
+        "reasons": {
+          "code": "Código del motivo",
+          "name": "Nombre del motivo",
+          "description": "Comentario del revisor"
         },
         "task": {
           "serviceCode": "Código de servicio",

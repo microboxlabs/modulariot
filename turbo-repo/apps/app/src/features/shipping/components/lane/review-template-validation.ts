@@ -9,6 +9,8 @@
  * helpers, say), relax this in the same change.
  */
 
+import { collectionPathOf } from "./review-binding.types";
+
 /** The context objects a template may read — mirrors `PayloadTemplate.DEFAULT_ROOTS`. */
 export const ALLOWED_ROOTS: readonly string[] = ["task", "content", "review", "session"];
 
@@ -28,7 +30,8 @@ export interface TemplateProblem {
     | "badPath"
     | "badChar"
     | "unknownRoot"
-    | "wholeObject";
+    | "wholeObject"
+    | "notCollection";
   readonly params?: Readonly<Record<string, string>>;
 }
 
@@ -88,6 +91,35 @@ export function checkTemplate(
   }
 
   return OK(paths);
+}
+
+/**
+ * Validates a **collection** row — one that names where an array's elements come from rather
+ * than producing a value. Mirrors `PayloadRenderer.collectionRowProblems`: exactly one stash
+ * holding a path, and a bare root is legal here. `checkTemplate` would refuse `{{content}}` as
+ * a whole object, which is right for a value and wrong for a collection.
+ *
+ * @param allowedRoots as in {@link checkTemplate} — null skips the root check.
+ */
+export function checkCollectionTemplate(
+  template: string,
+  allowedRoots: readonly string[] | null = ALLOWED_ROOTS
+): TemplateCheck {
+  if (!template.trim()) return OK([]);
+
+  const path = collectionPathOf(template);
+  if (!path) return FAIL("notCollection", { expression: template.trim() });
+
+  const dot = path.indexOf(".");
+  const root = dot < 0 ? path : path.slice(0, dot);
+  if (allowedRoots && !allowedRoots.includes(root)) {
+    return FAIL("unknownRoot", {
+      path,
+      root,
+      roots: [...allowedRoots].sort((a, b) => a.localeCompare(b)).join(", "),
+    });
+  }
+  return OK([path]);
 }
 
 /** Validates one `{{…}}` stash, pushing its path when usable. */

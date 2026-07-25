@@ -1,7 +1,6 @@
 # Separating the target contract from the binding — moving `itemsFrom` out of `request_schema`
 
-**Status:** P1 implemented (the renderer prefers the binding). P2 and P3 planned; each lands on
-its own.
+**Status:** P1 and P2 implemented. P3 planned.
 
 ## Problem
 
@@ -103,7 +102,24 @@ Implemented as described below. Settled while building it:
 Nothing is authorable through the UI yet — this phase only makes the binding *authoritative
 when present*.
 
-### P2 — feed and drawer
+### P2 — feed and drawer — **DONE**
+
+Settled while building it:
+
+- **A collection row is never `required`.** Leaving its source unmapped falls back to the
+  contract's, so demanding one would block a save for nothing —
+  `unmappedRequiredFields` skips them and `PayloadSchema.Row.required` is false for them.
+- **The drawer prefers its own draft over the server's `contextRoot`.** `scopeOfRow` finds the
+  innermost enclosing collection row and reads its bind name from the draft mapping, so naming a
+  collection re-scopes the rows under it immediately, without a round trip.
+- **Unknown roots stay unknown.** When a modulith reports no `templateRoots`, adding only the
+  roots the draft happens to declare would look authoritative while still rejecting whatever the
+  contract introduces — `contractRoots` returns null and the unknown-root rule is skipped.
+- **A top-level array body still reads `schema.itemsFrom()`** — decided, not deferred again: it
+  has no field name, so binding a row to it means inventing a key (`""`, `"[]"`) and a label for
+  a shape nothing in use has. `itemsFrom` stays meaningful for that one case, so P3's "drop the
+  fallback" is really "drop it for array *fields*".
+
 
 - `DispatchTargetResponse.Field` gains a kind (`value` | `collection`); `fieldsOf` stops
   filtering containers out.

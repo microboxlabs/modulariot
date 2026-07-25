@@ -1565,7 +1565,8 @@
         "settings": "Ajustes",
         "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos",
-        "credentials": "Credenciales"
+        "credentials": "Credenciales",
+        "connections": "Conexiones"
       },
       "symptoms": {
         "config": {
@@ -2031,8 +2032,8 @@
     },
     "integrationConnections": {
       "page": {
-        "title": "Integraciones",
-        "subtitle": "Define tipos de integración y crea conexiones a partir de ellos."
+        "title": "Conexiones",
+        "subtitle": "Sistemas externos a los que este espacio de trabajo envía datos. Define un tipo una vez y crea tantas conexiones como necesites, cada una con su URL y su credencial."
       },
       "templates": {
         "title": "Plantillas",
@@ -2040,20 +2041,40 @@
         "new": "Nueva plantilla",
         "empty": "Aún no hay plantillas. Crea una para poder añadir conexiones.",
         "instanceCount": "{count} conexión(es)",
-        "confirmDelete": "¿Eliminar esta plantilla?"
+        "fields": "{count} campo(s)"
       },
       "connections": {
         "title": "Conexiones",
         "help": "Una instancia de una plantilla, con su propia URL y credencial.",
         "new": "Nueva conexión",
         "empty": "Aún no hay conexiones.",
+        "emptyNoTemplates": "Crea primero una plantilla; después podrás añadir conexiones a partir de ella.",
         "test": "Probar",
-        "confirmDelete": "¿Eliminar esta conexión?"
+        "credential": "Credencial",
+        "noCredential": "Sin credencial",
+        "neverTested": "Sin probar",
+        "testedOn": "Probada el {date}"
       },
       "status": {
         "active": "Activa",
         "failed": "Falló",
         "draft": "Borrador"
+      },
+      "menu": {
+        "label": "Acciones"
+      },
+      "list": {
+        "loading": "Cargando conexiones…"
+      },
+      "delete": {
+        "connectionTitle": "¿Eliminar conexión?",
+        "templateTitle": "¿Eliminar plantilla?",
+        "templateInUse": "{count} conexión(es) usan esta plantilla; elimínalas primero.",
+        "deleting": "Eliminando…"
+      },
+      "errors": {
+        "forbidden": "Necesitas ser propietario de la organización para administrar conexiones.",
+        "loadFailed": "No se pudieron cargar las conexiones."
       },
       "common": {
         "edit": "Editar",
@@ -2146,6 +2167,7 @@
         "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos",
         "credentials": "Credenciales",
+        "connections": "Conexiones",
         "help": "Ayuda y cómo empezar",
         "controlTower": "Torre de control",
         "whereIsMyLoad": "¿Dónde está mi carga?",
@@ -2161,9 +2183,7 @@
         "collaboratorsManagement": "Colaboradores",
         "searchPlaceholder": "Buscar...",
         "createDashboard": "Nuevo dashboard",
-        "closePanel": "Cerrar panel",
-        "integrationJobs": "Actividad",
-        "integrationConnections": "Conexiones"
+        "closePanel": "Cerrar panel"
       }
     },
     "calendar": {

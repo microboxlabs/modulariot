@@ -1565,7 +1565,8 @@
         "settings": "Settings",
         "organizations": "Organizations",
         "dataSources": "Data Sources",
-        "credentials": "Credentials"
+        "credentials": "Credentials",
+        "connections": "Connections"
       },
       "symptoms": {
         "config": {
@@ -2031,8 +2032,8 @@
     },
     "integrationConnections": {
       "page": {
-        "title": "Integrations",
-        "subtitle": "Define integration types and create connections from them."
+        "title": "Connections",
+        "subtitle": "External systems this workspace sends data to. Define a type once, then create as many connections as you need — each with its own URL and credential."
       },
       "templates": {
         "title": "Templates",
@@ -2040,20 +2041,40 @@
         "new": "New template",
         "empty": "No templates yet. Create one to start adding connections.",
         "instanceCount": "{count} connection(s)",
-        "confirmDelete": "Delete this template?"
+        "fields": "{count} field(s)"
       },
       "connections": {
         "title": "Connections",
         "help": "An instance of a template, with its own URL and credential.",
         "new": "New connection",
         "empty": "No connections yet.",
+        "emptyNoTemplates": "Create a template first; then you can add connections from it.",
         "test": "Test",
-        "confirmDelete": "Delete this connection?"
+        "credential": "Credential",
+        "noCredential": "No credential",
+        "neverTested": "Never tested",
+        "testedOn": "Tested on {date}"
       },
       "status": {
         "active": "Active",
         "failed": "Failed",
         "draft": "Draft"
+      },
+      "menu": {
+        "label": "Actions"
+      },
+      "list": {
+        "loading": "Loading connections…"
+      },
+      "delete": {
+        "connectionTitle": "Delete connection?",
+        "templateTitle": "Delete template?",
+        "templateInUse": "{count} connection(s) use this template; delete them first.",
+        "deleting": "Deleting…"
+      },
+      "errors": {
+        "forbidden": "You need to be an organization owner to manage connections.",
+        "loadFailed": "Connections could not be loaded."
       },
       "common": {
         "edit": "Edit",
@@ -2142,6 +2163,7 @@
         "organizations": "Organizations",
         "dataSources": "Data Sources",
         "credentials": "Credentials",
+        "connections": "Connections",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",
@@ -2161,9 +2183,7 @@
         "subtitle1": "Consolidation",
         "subtitle2": "Document Separation",
         "subtitle3": "Client System Validation",
-        "subtitle4": "GPS Validation",
-        "integrationJobs": "Activity",
-        "integrationConnections": "Connections"
+        "subtitle4": "GPS Validation"
       }
     },
     "calendar": {

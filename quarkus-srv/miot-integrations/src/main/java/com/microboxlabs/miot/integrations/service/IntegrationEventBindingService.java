@@ -228,13 +228,18 @@ public class IntegrationEventBindingService {
     }
 
     private static List<DispatchTargetResponse.Field> fieldsOf(PayloadSchema schema) {
-        // Leaf fields (dotted paths) so a nested contract renders one editable mapping row per
-        // value — fotos.guidMultimedia, fotos.mensaje.codigo — never an array/object container.
-        // Each carries the root it renders under, so the drawer can suggest and accept the right
-        // one per row instead of offering the envelope's roots everywhere.
-        return schema.leaves().stream()
-                .map(leaf -> new DispatchTargetResponse.Field(
-                        leaf.id(), leaf.type().name().toLowerCase(), leaf.required(), leaf.contextRoot()))
+        // Dotted paths, in contract order: a collection row for each array naming where its
+        // elements come from, then the value rows it scopes. The array row is what used to be
+        // answered by itemsFrom inside the schema — mapping knowledge that belongs to the binding.
+        return schema.mappingRows().stream()
+                .map(row -> new DispatchTargetResponse.Field(
+                        row.id(),
+                        row.type().name().toLowerCase(),
+                        row.required(),
+                        row.contextRoot(),
+                        row.collection()
+                                ? DispatchTargetResponse.Field.COLLECTION
+                                : DispatchTargetResponse.Field.VALUE))
                 .toList();
     }
 

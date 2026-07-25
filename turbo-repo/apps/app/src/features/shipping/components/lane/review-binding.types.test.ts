@@ -1,8 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { checkTemplate } from "./review-template-validation";
+import {
+  ALLOWED_ROOTS,
+  checkCollectionTemplate,
+  checkTemplate,
+} from "./review-template-validation";
 import {
   attachedChannels,
+  bindNameOf,
+  collectionFallbackRoot,
   contractRoots,
+  scopeOfRow,
   bindingChannelKey,
   channelKey,
   conditionForTrigger,
@@ -291,5 +298,146 @@ describe("contractRoots", () => {
     expect(
       checkTemplate("{{reasons.code}}", contractRoots(target)).status
     ).toBe("valid");
+  });
+});
+
+describe("collection rows drive the drawer's scopes", () => {
+  // The contract as P2's feed sends it: a collection row per array, then the rows it scopes.
+  const target = {
+    connectionId: "c1",
+    connectionName: "Partner API",
+    providerType: "CUSTOM_HTTP",
+    operationId: "o1",
+    operationName: "Report verdict",
+    method: "POST",
+    path: "/verdict",
+    templateRoots: ["task", "content", "review", "session"],
+    fields: [
+      { id: "reference", type: "string", required: true, contextRoot: null, kind: "value" },
+      { id: "items", type: "array", required: false, contextRoot: null, kind: "collection" },
+      {
+        id: "items.mediaId",
+        type: "string",
+        required: true,
+        contextRoot: "content",
+        kind: "value",
+      },
+      {
+        id: "items.notes",
+        type: "array",
+        required: false,
+        contextRoot: "content",
+        kind: "collection",
+      },
+      {
+        id: "items.notes.code",
+        type: "string",
+        required: true,
+        // The contract alone cannot know better: with no itemsFrom it says content.
+        contextRoot: "content",
+        kind: "value",
+      },
+    ],
+  } as const satisfies DispatchTarget;
+
+  const mapped = {
+    items: "{{content}}",
+    "items.notes": "{{content.reasons}}",
+  };
+
+  it("reads a nested row's scope from the collection the draft names", () => {
+    const nested = target.fields[4];
+    // Without a mapping we can only repeat the contract's guess…
+    expect(scopeOfRow(nested, target, {})).toBe("content");
+    // …and once the operator names the collection, that decides it.
+    expect(scopeOfRow(nested, target, mapped)).toBe("reasons");
+  });
+
+  it("picks the innermost enclosing collection, not the outermost", () => {
+    expect(scopeOfRow(target.fields[2], target, mapped)).toBe("content");
+    expect(scopeOfRow(target.fields[4], target, mapped)).toBe("reasons");
+  });
+
+  it("leaves an envelope row unscoped", () => {
+    expect(scopeOfRow(target.fields[0], target, mapped)).toBeNull();
+  });
+
+  // The echo under a collection row states what its fields will read while it is unmapped.
+  // Its own contextRoot is the scope it sits IN, which is null for a top-level array — using
+  // that would drop the explanation exactly where an operator first meets one.
+  it("tells a top-level collection what its fields read, though it sits in no scope", () => {
+    const items = target.fields[1];
+    expect(items.contextRoot).toBeNull();
+    expect(collectionFallbackRoot(items, target)).toBe("content");
+  });
+
+  it("reads a nested collection's fallback off the rows it scopes, not the ones its parent does", () => {
+    expect(collectionFallbackRoot(target.fields[3], target)).toBe("content");
+  });
+
+  it("returns null for a collection with no value rows of its own", () => {
+    const empty = {
+      ...target,
+      fields: [{ id: "items", type: "array", required: false, kind: "collection" }],
+    } as const satisfies DispatchTarget;
+    expect(collectionFallbackRoot(empty.fields[0], empty)).toBeNull();
+  });
+
+  it("adds the draft's bind names to the roots the rows may read", () => {
+    expect(contractRoots(target, {})).toEqual([
+      "task",
+      "content",
+      "review",
+      "session",
+    ]);
+    expect(contractRoots(target, mapped)).toContain("reasons");
+  });
+
+  it("keeps unknown roots unknown even when the draft declares some", () => {
+    // Half-knowledge would look authoritative while still rejecting what the contract adds.
+    const older = { ...target, templateRoots: undefined };
+    expect(contractRoots(older, mapped)).toBeNull();
+  });
+
+  it("never demands a mapping for a collection row", () => {
+    // Its source falls back to the contract's, so blocking a save on it would refuse a
+    // mapping the server stores.
+    const missing = unmappedRequiredFields(target, {}).map((field) => field.id);
+    expect(missing).toEqual(["reference", "items.mediaId", "items.notes.code"]);
+  });
+
+  it("reads a collection row's bind name off its path's last segment", () => {
+    expect(bindNameOf("{{content.reasons}}")).toBe("reasons");
+    expect(bindNameOf("{{content}}")).toBe("content");
+    expect(bindNameOf("content.reasons")).toBeNull();
+    expect(bindNameOf(undefined)).toBeNull();
+  });
+});
+
+describe("checkCollectionTemplate", () => {
+  it("accepts a bare root, which a value row refuses", () => {
+    expect(checkCollectionTemplate("{{content}}", ALLOWED_ROOTS).status).toBe("valid");
+    expect(checkTemplate("{{content}}", ALLOWED_ROOTS).problem?.code).toBe("wholeObject");
+  });
+
+  it("accepts a dotted collection path", () => {
+    const check = checkCollectionTemplate("{{content.reasons}}", ALLOWED_ROOTS);
+    expect(check.status).toBe("valid");
+    expect(check.paths).toEqual(["content.reasons"]);
+  });
+
+  it("refuses anything that is not a single path stash", () => {
+    for (const bad of ["content.reasons", "{{a}} {{b}}", "{{helper x}}", "text", "{{}}"]) {
+      expect(checkCollectionTemplate(bad, ALLOWED_ROOTS).problem?.code).toBe(
+        "notCollection"
+      );
+    }
+  });
+
+  it("refuses a root the contract does not offer, and skips the check when unknown", () => {
+    expect(checkCollectionTemplate("{{nope.things}}", ALLOWED_ROOTS).problem?.code).toBe(
+      "unknownRoot"
+    );
+    expect(checkCollectionTemplate("{{nope.things}}", null).status).toBe("valid");
   });
 });

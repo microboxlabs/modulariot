@@ -18,7 +18,10 @@ import {
   type DispatchTarget,
   type EventBinding,
 } from "./review-binding.types";
-import { checkTemplate } from "./review-template-validation";
+import {
+  checkCollectionTemplate,
+  checkTemplate,
+} from "./review-template-validation";
 import { ReviewConfigTab } from "./review-config-tab";
 import { ReviewMappingTab } from "./review-mapping-tab";
 
@@ -207,9 +210,17 @@ export function ReviewSettingsDrawer({
       );
       const name = target?.connectionName ?? channel.connectionId;
       for (const [fieldId, template] of Object.entries(channel.templates)) {
-        // Against the contract's own roots: a nested array's `{{reasons.*}}` is legal here,
-        // and blocking the save over it would refuse a mapping the server accepts.
-        if (checkTemplate(template, contractRoots(target)).status === "invalid") {
+        // Against the contract's own roots, and by the rule that fits the row: a collection
+        // row names where elements come from, so a bare {{content}} is right there and wrong
+        // in a value. Blocking the save on either would refuse what the server accepts.
+        const roots = contractRoots(target, channel.templates);
+        const isCollection = target?.fields.some(
+          (row) => row.id === fieldId && row.kind === "collection"
+        );
+        const check = isCollection
+          ? checkCollectionTemplate(template, roots)
+          : checkTemplate(template, roots);
+        if (check.status === "invalid") {
           return tr("validation.brokenTemplate", dict, {
             channel: name,
             field: fieldId,

@@ -1,6 +1,8 @@
 package com.microboxlabs.miot.integrations.template;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -135,6 +137,33 @@ class PayloadCollectionRowTest {
         assertTrue(renderer.validate(WITH_COLLECTION_ROWS, pureContract(),
                         PayloadTemplate.DEFAULT_ROOTS).isEmpty(),
                 "a pasted contract plus collection rows must be storable");
+    }
+
+    @Test
+    void mappingRowsInterleaveEachCollectionWithTheRowsItScopes() {
+        // Contract order, and a collection row immediately before the rows it governs — the
+        // operator has to answer "where do these come from" before the fields that read it.
+        assertEquals(
+                List.of("reference", "items", "items.mediaId", "items.notes", "items.notes.code"),
+                pureContract().mappingRows().stream().map(PayloadSchema.Row::id).toList());
+
+        Map<String, PayloadSchema.Row> byId = new LinkedHashMap<>();
+        pureContract().mappingRows().forEach(row -> byId.put(row.id(), row));
+
+        assertTrue(byId.get("items").collection());
+        assertTrue(byId.get("items.notes").collection());
+        assertFalse(byId.get("items.mediaId").collection());
+
+        // A collection row is read in the scope its array sits in, not the one its elements get.
+        assertNull(byId.get("items").contextRoot(), "the outer array sits at the envelope");
+        assertEquals("content", byId.get("items.notes").contextRoot(),
+                "the nested array sits inside an element of the outer one");
+        assertEquals("content", byId.get("items.mediaId").contextRoot());
+
+        // Never required: an unmapped source falls back, so demanding one would block a save.
+        assertFalse(byId.get("items").required());
+        assertFalse(byId.get("items.notes").required());
+        assertTrue(byId.get("items.mediaId").required(), "a required value is still required");
     }
 
     @Test

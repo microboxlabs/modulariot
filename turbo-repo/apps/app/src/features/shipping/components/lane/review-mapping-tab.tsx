@@ -2,7 +2,12 @@
 
 import { useMemo } from "react";
 import { Alert } from "flowbite-react";
-import { HiInformationCircle, HiArrowRight, HiExclamationCircle } from "react-icons/hi";
+import {
+  HiInformationCircle,
+  HiArrowRight,
+  HiExclamationCircle,
+  HiCollection,
+} from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { Section } from "./review-config-tab";
@@ -13,11 +18,17 @@ import {
   GLOBAL_VARIABLE_GROUPS,
   VARIABLE_GROUPS,
 } from "./review-integration.types";
-import { checkTemplate } from "./review-template-validation";
+import {
+  checkCollectionTemplate,
+  checkTemplate,
+} from "./review-template-validation";
 import { ReviewTemplateInput } from "./review-template-input";
 import type { VariableGroup } from "./review-integration.types";
 import {
+  bindNameOf,
+  collectionFallbackRoot,
   contractRoots,
+  scopeOfRow,
   type DispatchTarget,
   type DispatchTargetField,
 } from "./review-binding.types";
@@ -76,7 +87,7 @@ export function ReviewMappingTab({
   // "unknown", not "the static four": a nested array introduces roots (`{{reasons.*}}`) that
   // save-time validation accepts, so enforcing the static set would paint the one correct
   // mapping red.
-  const roots = contractRoots(target);
+  const roots = contractRoots(target, mappings);
   const scopedGroups = VARIABLE_GROUPS.filter(
     (group) => group.scoped && roots?.includes(group.id)
   );
@@ -107,18 +118,108 @@ export function ReviewMappingTab({
       </Section>
 
       <div className="flex flex-col gap-3">
-        {target.fields.map((field) => (
-          <MappingField
-            key={field.id}
-            field={field}
-            template={mappings[field.id] ?? ""}
-            onChange={(value) => onChange(field.id, value)}
-            roots={roots}
-            scopesKnown={roots !== null}
-            dict={dict}
-          />
-        ))}
+        {target.fields.map((field) =>
+          field.kind === "collection" ? (
+            <CollectionField
+              key={field.id}
+              field={field}
+              template={mappings[field.id] ?? ""}
+              onChange={(value) => onChange(field.id, value)}
+              roots={roots}
+              fallback={collectionFallbackRoot(field, target)}
+              dict={dict}
+            />
+          ) : (
+            <MappingField
+              key={field.id}
+              field={field}
+              template={mappings[field.id] ?? ""}
+              onChange={(value) => onChange(field.id, value)}
+              roots={roots}
+              scope={scopeOfRow(field, target, mappings)}
+              scopesKnown={roots !== null}
+              dict={dict}
+            />
+          )
+        )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * An array row: it names the context collection the array iterates, not a value.
+ *
+ * Rendered ahead of the rows it scopes, because answering it is what gives them their
+ * variables — each element is bound under the last segment of this path, so pointing at
+ * `content.reasons` is what makes the rows below read `{{reasons.*}}`.
+ */
+function CollectionField({
+  field,
+  template,
+  onChange,
+  roots,
+  fallback,
+  dict,
+}: Readonly<{
+  field: DispatchTargetField;
+  template: string;
+  onChange: (value: string) => void;
+  roots: readonly string[] | null;
+  /** The contract's own source, used while this row is unmapped. */
+  fallback: string | null;
+  dict: I18nRecord;
+}>) {
+  const check = useMemo(
+    () => checkCollectionTemplate(template, roots),
+    [template, roots]
+  );
+  const bound = bindNameOf(template) ?? fallback;
+
+  return (
+    <div className="rounded-lg border border-dashed border-primary-300 bg-primary-50/40 p-3 dark:border-primary-800 dark:bg-primary-900/10">
+      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+        <HiCollection className="h-3.5 w-3.5 text-primary-500" />
+        <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">
+          {field.id}
+        </span>
+        <span className="text-[10px] text-primary-600 dark:text-primary-400">
+          {tr("mapping.collection", dict)}
+        </span>
+      </div>
+
+      <p className="mb-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+        {tr("mapping.collectionHelp", dict)}
+      </p>
+
+      <ReviewTemplateInput
+        value={template}
+        onChange={onChange}
+        placeholder={tr("mapping.collectionPlaceholder", dict)}
+        color={check.status === "invalid" ? "failure" : "gray"}
+      />
+
+      {check.problem && (
+        <p className="mt-1.5 flex items-start gap-1.5 text-[11px] text-red-600 dark:text-red-400">
+          <HiExclamationCircle className="mt-px h-3 w-3 shrink-0" />
+          <span>
+            {trDynamic(
+              `mapping.errors.${check.problem.code}`,
+              dict,
+              check.problem.params
+            )}
+          </span>
+        </p>
+      )}
+
+      {/* What the rows below will read, so the consequence of this row is visible where it is
+          decided rather than only in the rows it governs. */}
+      {!check.problem && bound && (
+        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+          <HiArrowRight className="h-3 w-3 shrink-0" />
+          {trDynamic("mapping.collectionBinds", dict, { root: bound })}
+        </p>
+      )}
     </div>
   );
 }
@@ -195,6 +296,7 @@ function MappingField({
   template,
   onChange,
   roots,
+  scope,
   scopesKnown,
   dict,
 }: Readonly<{
@@ -203,6 +305,8 @@ function MappingField({
   onChange: (value: string) => void;
   /** The roots this contract accepts, so the row agrees with what the server would store. */
   roots: readonly string[] | null;
+  /** The root this row is read under, as the draft mapping decides it. */
+  scope: string | null;
   /** Whether the server told us which root this row renders under. */
   scopesKnown: boolean;
   dict: I18nRecord;
@@ -253,9 +357,9 @@ function MappingField({
         value={template}
         onChange={onChange}
         placeholder={
-          scopesKnown || !field.id.includes(".")
+          scopesKnown || scope !== null || !field.id.includes(".")
             ? tr("mapping.templatePlaceholder", dict, {
-                example: sampleTemplateFor(field.contextRoot),
+                example: sampleTemplateFor(scope),
               })
             : tr("mapping.templatePlaceholderUnknown", dict)
         }

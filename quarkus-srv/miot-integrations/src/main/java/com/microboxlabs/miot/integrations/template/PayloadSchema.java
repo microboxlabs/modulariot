@@ -163,6 +163,53 @@ public record PayloadSchema(List<Field> fields, boolean array, String itemsFrom)
     public record Leaf(String id, FieldType type, boolean required, String contextRoot) {
     }
 
+    /**
+     * One row an operator fills in.
+     *
+     * <p>Two kinds, because a contract asks two different questions. A **value** row produces a
+     * scalar from a template. A **collection** row names the context collection an array iterates —
+     * it is the row that used to be answered by {@code itemsFrom} inside the schema, moved to where
+     * the decision belongs.
+     *
+     * @param contextRoot the root this row is read under; null at the envelope. For a collection
+     *     row it is the *enclosing* scope, since the collection path is resolved in the context the
+     *     array sits in, not in the one its own elements get.
+     * @param required whether the contract demands the value. Always false for a collection row: a
+     *     source can be left unmapped and fall back, so demanding one would block a save for
+     *     nothing.
+     */
+    public record Row(
+            String id, FieldType type, boolean required, String contextRoot, boolean collection) {
+    }
+
+    /**
+     * Every row the mapping UI shows, in the order the contract declares them: a collection row for
+     * each array, then the rows it scopes. Objects contribute no row of their own — they only nest.
+     */
+    public List<Row> mappingRows() {
+        List<Row> rows = new ArrayList<>();
+        collectRows("", null, fields, rows);
+        return List.copyOf(rows);
+    }
+
+    private static void collectRows(String prefix, String scope, List<Field> fields, List<Row> out) {
+        for (Field field : fields) {
+            String id = prefix + field.id();
+            if (!field.structural()) {
+                out.add(new Row(id, field.type(), field.required(), scope, false));
+                continue;
+            }
+            if (field.type() == FieldType.ARRAY) {
+                out.add(new Row(id, FieldType.ARRAY, false, scope, true));
+            }
+            if (field.child() != null) {
+                String childScope =
+                        field.type() == FieldType.ARRAY ? bindNameOf(Map.of(), id, field) : scope;
+                collectRows(id + ".", childScope, field.child().fields(), out);
+            }
+        }
+    }
+
     /** Every scalar leaf, dotted path and rendering scope — see {@link Leaf}. */
     public List<Leaf> leaves() {
         List<Leaf> leaves = new ArrayList<>();

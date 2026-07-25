@@ -24,7 +24,10 @@ import {
   type EventBinding,
   type ReviewTrigger,
 } from "./review-binding.types";
-import { checkTemplate } from "./review-template-validation";
+import {
+  checkCollectionTemplate,
+  checkTemplate,
+} from "./review-template-validation";
 
 interface ReviewConfigTabProps {
   readonly enabled: boolean;
@@ -173,9 +176,16 @@ function ChannelRow({
   dict: I18nRecord;
 }>) {
   const key = channelKey(channel.connectionId, channel.operationId);
-  const broken = Object.values(channel.templates).some(
-    (template) => checkTemplate(template, contractRoots(target)).status === "invalid"
-  );
+  const broken = Object.entries(channel.templates).some(([fieldId, template]) => {
+    const roots = contractRoots(target, channel.templates);
+    const isCollection = target?.fields.some(
+      (row) => row.id === fieldId && row.kind === "collection"
+    );
+    const check = isCollection
+      ? checkCollectionTemplate(template, roots)
+      : checkTemplate(template, roots);
+    return check.status === "invalid";
+  });
   const missing = unmappedRequiredFields(target, channel.templates).length;
   const mappingReady = Boolean(target) && missing === 0 && !broken;
 

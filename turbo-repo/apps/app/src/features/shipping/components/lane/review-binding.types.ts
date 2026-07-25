@@ -32,11 +32,15 @@ export interface DispatchTargetField {
   readonly type: string;
   readonly required: boolean;
   /**
-   * The root this row's template must read from, or null for an envelope field that sees the
-   * whole context. Comes from the server because it is decided by the array's `itemsFrom`,
-   * which the dotted path alone does not reveal.
+   * The contract's own view of the root this row is read under, or null at the envelope. Once
+   * the draft names an array's collection, `scopeOfRow` knows better — prefer it.
    */
   readonly contextRoot?: string | null;
+  /**
+   * `collection` for an array row naming where its elements come from, `value` for a scalar.
+   * Absent on a response from a modulith older than the field, where every row is a value.
+   */
+  readonly kind?: "value" | "collection";
 }
 
 /**
@@ -47,9 +51,111 @@ export interface DispatchTargetField {
  * mapping the server would store.
  */
 export function contractRoots(
-  target: DispatchTarget | undefined
+  target: DispatchTarget | undefined,
+  /** The draft mapping, whose collection rows introduce roots the server has not seen. */
+  templates?: Record<string, string>
 ): readonly string[] | null {
-  return target?.templateRoots?.length ? target.templateRoots : null;
+  const reported = target?.templateRoots?.length ? target.templateRoots : null;
+  // Unknown stays unknown: adding the few roots the draft happens to declare would make the
+  // check look authoritative while it still cannot see what the contract itself introduces.
+  if (!reported) return null;
+  const declared = templates ? declaredBindNames(target, templates) : [];
+  return declared.length ? [...new Set([...reported, ...declared])] : reported;
+}
+
+/** The array rows of a contract — the ones that name where their elements come from. */
+export function collectionFields(
+  target: DispatchTarget | undefined
+): readonly DispatchTargetField[] {
+  return target?.fields.filter((field) => field.kind === "collection") ?? [];
+}
+
+/** The root a collection row's mapping binds its elements under: its path's last segment. */
+export function bindNameOf(template: string | undefined): string | null {
+  const path = collectionPathOf(template);
+  if (!path) return null;
+  const dot = path.lastIndexOf(".");
+  return dot < 0 ? path : path.slice(dot + 1);
+}
+
+/**
+ * The context path a collection row names, or null when it names none usably. Mirrors the
+ * server's `PayloadSchema.collectionPathOf`: exactly one stash holding a dotted path, where a
+ * bare root is legal — a collection row points at a collection rather than producing a value.
+ */
+export function collectionPathOf(template: string | undefined): string | null {
+  const trimmed = template?.trim() ?? "";
+  if (!trimmed.startsWith("{{") || !trimmed.endsWith("}}") || trimmed.length < 5) {
+    return null;
+  }
+  const inner = trimmed.slice(2, -2).trim();
+  const usable =
+    inner.length > 0 &&
+    /^[A-Za-z0-9_.]+$/.test(inner) &&
+    !inner.startsWith(".") &&
+    !inner.endsWith(".") &&
+    !inner.includes("..");
+  return usable ? inner : null;
+}
+
+function declaredBindNames(
+  target: DispatchTarget | undefined,
+  templates: Record<string, string>
+): string[] {
+  return collectionFields(target)
+    .map((field) => bindNameOf(templates[field.id]))
+    .filter((name): name is string => name !== null);
+}
+
+/**
+ * The root a row's templates are read under, preferring what the **draft mapping** says over the
+ * contract's own view: once the operator names an array's collection, that decides the scope of
+ * every row inside it, and the server's value was only ever the schema's guess.
+ */
+export function scopeOfRow(
+  field: DispatchTargetField,
+  target: DispatchTarget | undefined,
+  templates: Record<string, string>
+): string | null {
+  const enclosing = enclosingCollection(field.id, target);
+  if (!enclosing) return field.contextRoot ?? null;
+  return bindNameOf(templates[enclosing.id]) ?? field.contextRoot ?? null;
+}
+
+/**
+ * The innermost collection row enclosing a path — `items.notes` beats `items` for
+ * `items.notes.code`.
+ */
+function enclosingCollection(
+  id: string,
+  target: DispatchTarget | undefined
+): DispatchTargetField | undefined {
+  return collectionFields(target)
+    .filter((row) => id.startsWith(`${row.id}.`))
+    .sort((a, b) => b.id.length - a.id.length)[0];
+}
+
+/**
+ * What a collection row's fields read while the row itself is unmapped, read off a value row
+ * this collection directly scopes — that row carries the contract's own answer.
+ *
+ * Deliberately not the collection row's own `contextRoot`: that is the scope the row sits
+ * *in*, not the one it *creates*. The two coincide only because everything defaults to
+ * `content`; they part company on a top-level array, which sits in no scope at all and would
+ * otherwise explain itself to the operator with silence.
+ */
+export function collectionFallbackRoot(
+  row: DispatchTargetField,
+  target: DispatchTarget | undefined
+): string | null {
+  const prefix = `${row.id}.`;
+  for (const field of target?.fields ?? []) {
+    if (field.kind === "collection" || !field.id.startsWith(prefix)) continue;
+    if (enclosingCollection(field.id, target)?.id === row.id) {
+      return field.contextRoot ?? null;
+    }
+  }
+  return null;
 }
 
 export interface EventBinding {
@@ -173,8 +279,13 @@ export function unmappedRequiredFields(
   templates: Record<string, string>
 ): DispatchTargetField[] {
   if (!target) return [];
+  // A collection row is never demanded: leaving its source unmapped falls back to the contract's
+  // own, so blocking a save on it would refuse a mapping the server stores.
   return target.fields.filter(
-    (field) => field.required && !templates[field.id]?.trim()
+    (field) =>
+      field.required &&
+      field.kind !== "collection" &&
+      !templates[field.id]?.trim()
   );
 }
 

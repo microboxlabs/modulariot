@@ -1,7 +1,6 @@
 # Separating the target contract from the binding — moving `itemsFrom` out of `request_schema`
 
-**Status:** P1 implemented (the renderer prefers the binding). P2 and P3 planned; each lands on
-its own.
+**Status:** P1 and P2 implemented. P3 planned.
 
 ## Problem
 
@@ -103,7 +102,31 @@ Implemented as described below. Settled while building it:
 Nothing is authorable through the UI yet — this phase only makes the binding *authoritative
 when present*.
 
-### P2 — feed and drawer
+### P2 — feed and drawer — **DONE**
+
+Settled while building it:
+
+- **A collection row is never `required`.** Leaving its source unmapped falls back to the
+  contract's, so demanding one would block a save for nothing —
+  `unmappedRequiredFields` skips them and `PayloadSchema.Row.required` is false for them.
+- **The drawer prefers its own draft over the server's `contextRoot`.** `scopeOfRow` finds the
+  innermost enclosing collection row and reads its bind name from the draft mapping, so naming a
+  collection re-scopes the rows under it immediately, without a round trip.
+- **Unknown roots stay unknown.** When a modulith reports no `templateRoots`, adding only the
+  roots the draft happens to declare would look authoritative while still rejecting whatever the
+  contract introduces — `contractRoots` returns null and the unknown-root rule is skipped.
+- **A top-level array body still reads `schema.itemsFrom()`** — decided, not deferred again: it
+  has no field name, so binding a row to it means inventing a key (`""`, `"[]"`) and a label for
+  a shape nothing in use has. `itemsFrom` stays meaningful for that one case, so P3's "drop the
+  fallback" is really "drop it for array *fields*".
+- **`contextRoot` on a collection row means the scope it sits *in*, not the one it creates.**
+  Two different questions, and conflating them is a live bug source: the row's own template is
+  validated against the *enclosing* scope, while the echo beneath it needs this collection's own
+  default source. They coincide only because everything defaults to `content`, so the confusion
+  hides on nested arrays and shows on a top-level one, which sits in no scope at all. The drawer
+  derives the echo's value client-side (`collectionFallbackRoot`, off a value row the collection
+  scopes) rather than adding a second DTO field that P3 would only have to remove.
+
 
 - `DispatchTargetResponse.Field` gains a kind (`value` | `collection`); `fieldsOf` stops
   filtering containers out.

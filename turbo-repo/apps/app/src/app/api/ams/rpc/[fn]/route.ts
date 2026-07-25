@@ -35,6 +35,10 @@ const WRITE_FNS = new Set([
   "fn_cap_block",
   "fn_cap_unblock",
   "fn_cap_refresh_agenda",
+  // Capacity C1 — motor de factibilidad y ciclo de la UO
+  "fn_capacity_match",
+  "fn_cap_reserve",
+  "fn_cap_release",
 ]);
 const TENANT_PARAM_FNS = new Set([
   "fn_ams_trucks",
@@ -49,6 +53,9 @@ const TENANT_PARAM_FNS = new Set([
   "fn_cap_availability",
   "fn_cap_block",
   "fn_cap_unblock",
+  "fn_capacity_match",
+  "fn_cap_reserve",
+  "fn_cap_release",
 ]);
 
 async function carrierOrgId(): Promise<{ deny: NextResponse | null; orgId: string | null }> {

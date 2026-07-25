@@ -12,15 +12,13 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * Phase 1 of separating the target contract from the binding: an array's element source is the
- * binding's to declare, on a row keyed by the array's own dotted path.
+ * Separating the target contract from the binding: an array's element source is the binding's to
+ * declare, on a row keyed by the array's own dotted path.
  *
  * <p>{@code itemsFrom} in a {@code request_schema} is a mapping decision stored in the contract —
  * a partner's schema describes the shape they accept and knows nothing of our event snapshot. So a
  * pasted, unannotated partner schema plus two collection rows must render exactly what the
  * annotated schema rendered, and every contract stored before the split must keep working.
- *
- * <p>See {@code docs/contract-binding-separation.md}.
  */
 class PayloadCollectionRowTest {
 
@@ -78,7 +76,7 @@ class PayloadCollectionRowTest {
                 "required", List.of("reference", "items")));
     }
 
-    /** Value rows, plus a collection row per array — what the binding will carry after P2. */
+    /** Value rows, plus a collection row per array — a binding that names its own sources. */
     private static final Map<String, String> WITH_COLLECTION_ROWS = Map.of(
             "reference", "{{task.serviceCode}}",
             "items", "{{content}}",

@@ -26,6 +26,7 @@ import { ReviewTemplateInput } from "./review-template-input";
 import type { VariableGroup } from "./review-integration.types";
 import {
   bindNameOf,
+  collectionFallbackRoot,
   contractRoots,
   scopeOfRow,
   type DispatchTarget,
@@ -125,7 +126,7 @@ export function ReviewMappingTab({
               template={mappings[field.id] ?? ""}
               onChange={(value) => onChange(field.id, value)}
               roots={roots}
-              fallback={field.contextRoot ?? null}
+              fallback={collectionFallbackRoot(field, target)}
               dict={dict}
             />
           ) : (

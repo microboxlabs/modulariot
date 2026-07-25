@@ -117,13 +117,45 @@ export function scopeOfRow(
   target: DispatchTarget | undefined,
   templates: Record<string, string>
 ): string | null {
-  // The innermost collection row that encloses this one — `items.notes` beats `items` for
-  // `items.notes.code`.
-  const enclosing = collectionFields(target)
-    .filter((row) => field.id.startsWith(`${row.id}.`))
-    .sort((a, b) => b.id.length - a.id.length)[0];
+  const enclosing = enclosingCollection(field.id, target);
   if (!enclosing) return field.contextRoot ?? null;
   return bindNameOf(templates[enclosing.id]) ?? field.contextRoot ?? null;
+}
+
+/**
+ * The innermost collection row enclosing a path — `items.notes` beats `items` for
+ * `items.notes.code`.
+ */
+function enclosingCollection(
+  id: string,
+  target: DispatchTarget | undefined
+): DispatchTargetField | undefined {
+  return collectionFields(target)
+    .filter((row) => id.startsWith(`${row.id}.`))
+    .sort((a, b) => b.id.length - a.id.length)[0];
+}
+
+/**
+ * What a collection row's fields read while the row itself is unmapped, read off a value row
+ * this collection directly scopes — that row carries the contract's own answer.
+ *
+ * Deliberately not the collection row's own `contextRoot`: that is the scope the row sits
+ * *in*, not the one it *creates*. The two coincide only because everything defaults to
+ * `content`; they part company on a top-level array, which sits in no scope at all and would
+ * otherwise explain itself to the operator with silence.
+ */
+export function collectionFallbackRoot(
+  row: DispatchTargetField,
+  target: DispatchTarget | undefined
+): string | null {
+  const prefix = `${row.id}.`;
+  for (const field of target?.fields ?? []) {
+    if (field.kind === "collection" || !field.id.startsWith(prefix)) continue;
+    if (enclosingCollection(field.id, target)?.id === row.id) {
+      return field.contextRoot ?? null;
+    }
+  }
+  return null;
 }
 
 export interface EventBinding {

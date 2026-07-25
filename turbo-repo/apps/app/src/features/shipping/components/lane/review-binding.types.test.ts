@@ -7,6 +7,7 @@ import {
 import {
   attachedChannels,
   bindNameOf,
+  collectionFallbackRoot,
   contractRoots,
   scopeOfRow,
   bindingChannelKey,
@@ -359,6 +360,27 @@ describe("collection rows drive the drawer's scopes", () => {
 
   it("leaves an envelope row unscoped", () => {
     expect(scopeOfRow(target.fields[0], target, mapped)).toBeNull();
+  });
+
+  // The echo under a collection row states what its fields will read while it is unmapped.
+  // Its own contextRoot is the scope it sits IN, which is null for a top-level array — using
+  // that would drop the explanation exactly where an operator first meets one.
+  it("tells a top-level collection what its fields read, though it sits in no scope", () => {
+    const items = target.fields[1];
+    expect(items.contextRoot).toBeNull();
+    expect(collectionFallbackRoot(items, target)).toBe("content");
+  });
+
+  it("reads a nested collection's fallback off the rows it scopes, not the ones its parent does", () => {
+    expect(collectionFallbackRoot(target.fields[3], target)).toBe("content");
+  });
+
+  it("returns null for a collection with no value rows of its own", () => {
+    const empty = {
+      ...target,
+      fields: [{ id: "items", type: "array", required: false, kind: "collection" }],
+    } as const satisfies DispatchTarget;
+    expect(collectionFallbackRoot(empty.fields[0], empty)).toBeNull();
   });
 
   it("adds the draft's bind names to the roots the rows may read", () => {

@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { checkTemplate } from "./review-template-validation";
 import {
   attachedChannels,
+  contractRoots,
   bindingChannelKey,
   channelKey,
   conditionForTrigger,
@@ -254,5 +256,40 @@ describe("renderTemplate (preview)", () => {
     expect(renderTemplate("{{#if review.verdict}}x{{/if}}", context)).toBe(
       "{{#if review.verdict}}x{{/if}}"
     );
+  });
+});
+
+describe("contractRoots", () => {
+  const target = {
+    connectionId: "c1",
+    connectionName: "Partner API",
+    providerType: "CUSTOM_HTTP",
+    operationId: "o1",
+    operationName: "Report verdict",
+    method: "POST",
+    path: "/verdict",
+    fields: [],
+  } as const;
+
+  it("is null when the modulith does not report the contract's roots", () => {
+    // Null is "unknown", never "the static four": guessing here is what made the drawer
+    // reject {{reasons.code}} while the server accepted it.
+    expect(contractRoots(target)).toBeNull();
+    expect(contractRoots({ ...target, templateRoots: [] })).toBeNull();
+    expect(contractRoots(undefined)).toBeNull();
+  });
+
+  it("is the reported set once the modulith sends it", () => {
+    expect(
+      contractRoots({ ...target, templateRoots: ["task", "content", "reasons"] })
+    ).toEqual(["task", "content", "reasons"]);
+  });
+
+  it("lets a nested array's root through the check the save gate runs", () => {
+    // The end-to-end path: no roots reported → the row and the gate both accept the
+    // template the server would store.
+    expect(
+      checkTemplate("{{reasons.code}}", contractRoots(target)).status
+    ).toBe("valid");
   });
 });

@@ -8,7 +8,7 @@
 //     (Gantt) y el detalle de cumplimiento, colapsados.
 // Regla del doc rector: cada pantalla alrededor de una necesidad y una
 // ventana; centro de control, no formulario. Backend intacto (C0–C3).
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { TextInput } from "flowbite-react";
 import {
@@ -125,6 +125,8 @@ export function CapacityDesk() {
   const [fechaLibre, setFechaLibre] = useState(false);
   const [franja, setFranja] = useState<string>("dia");
   const [origenId, setOrigenId] = useState("");
+  // origen escrito a mano (geocoding directo Mapbox): {nombre, center[lat,lon]}
+  const [origenLibre, setOrigenLibre] = useState<Lugar | null>(null);
   const [arq, setArq] = useState<number | null>(null);
   const [buscando, setBuscando] = useState(false);
   const [resultado, setResultado] = useState<Unidad[] | null>(null);
@@ -136,6 +138,8 @@ export function CapacityDesk() {
   const [verCumplimiento, setVerCumplimiento] = useState(false);
 
   const fr = FRANJAS.find((f) => f.id === franja) ?? FRANJAS[2];
+  const origen: Lugar | null = origenLibre
+    ?? (lugares ?? []).find((l) => l.place_id === origenId) ?? null;
 
   const buscar = async (arqId: number | null) => {
     setArq(arqId); setBuscando(true); setMsg(null); setResultado(null);
@@ -322,15 +326,22 @@ export function CapacityDesk() {
           ))}
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-gray-500 w-16">¿Desde dónde?</span>
-          <select className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-sm text-gray-900 dark:text-white"
-                  value={origenId} onChange={(e) => setOrigenId(e.target.value)}>
-            <option value="">Da lo mismo</option>
-            {(lugares ?? []).filter((l) => l.center).map((l) => (
-              <option key={l.place_id} value={l.place_id}>{l.name}</option>
-            ))}
-          </select>
+        <div className="flex items-start gap-2 flex-wrap">
+          <span className="text-sm text-gray-500 w-16 pt-2">¿Desde dónde?</span>
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[240px]">
+            <select className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-sm text-gray-900 dark:text-white max-w-xs"
+                    value={origenLibre ? "" : origenId}
+                    onChange={(e) => { setOrigenLibre(null); setOrigenId(e.target.value); }}>
+              <option value="">Da lo mismo</option>
+              <optgroup label="Tus lugares">
+                {(lugares ?? []).filter((l) => l.center).map((l) => (
+                  <option key={l.place_id} value={l.place_id}>{l.name}</option>
+                ))}
+              </optgroup>
+            </select>
+            <BuscadorDireccion token={mapboxToken} elegido={origenLibre}
+              onElegir={(lug) => { setOrigenId(""); setOrigenLibre(lug); }} />
+          </div>
         </div>
 
         <div className="flex items-start gap-2 flex-wrap">
@@ -393,7 +404,7 @@ export function CapacityDesk() {
                             {u.dupla_vigente && (
                               <div className="text-xs text-gray-500">su pareja de siempre</div>)}
                             <GeoLinea patente={u.camion.patente} token={mapboxToken}
-                              origen={(lugares ?? []).find((l) => l.place_id === origenId) ?? null} />
+                              origen={origen} />
                           </div>
                           <button className={btnPri + " flex-none"}
                                   disabled={reservando === key}
@@ -677,6 +688,68 @@ function GeoLinea({ patente, origen, token }: {
             ruta al origen
           </a>
         </>
+      )}
+    </div>
+  );
+}
+
+// ── Escribir la dirección: geocoding DIRECTO de Mapbox (dirección →
+// coordenada), la operación inversa del reverse que ya usamos. Debounce
+// para no disparar en cada tecla; el resultado es un "lugar" con center. ──
+function BuscadorDireccion({ token, elegido, onElegir }: {
+  token?: string; elegido: Lugar | null; onElegir: (l: Lugar | null) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [abierto, setAbierto] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(q), 350);
+    return () => clearTimeout(t);
+  }, [q]);
+  const { data } = useSWR<{ features?: { id: string; place_name: string;
+    center: [number, number] }[] }>(
+    debounced.trim().length >= 4 && token
+      ? `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(debounced)}.json?country=cl&language=es&limit=5&access_token=${token}`
+      : null, fetcher, { dedupingInterval: 300000 });
+
+  if (elegido) {
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2.5 py-1">
+          📍 {elegido.name}
+        </span>
+        <button className="text-xs text-gray-500 hover:underline"
+                onClick={() => { onElegir(null); setQ(""); setDebounced(""); }}>
+          cambiar
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="relative max-w-xs">
+      <input
+        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-sm text-gray-900 dark:text-white"
+        placeholder="…o escribe una dirección"
+        value={q}
+        onChange={(e) => { setQ(e.target.value); setAbierto(true); }}
+        onFocus={() => setAbierto(true)} />
+      {!token && q && (
+        <div className="text-[11px] text-amber-600 pt-0.5">falta el mapa configurado</div>)}
+      {abierto && (data?.features?.length ?? 0) > 0 && (
+        <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+          {data!.features!.map((f) => (
+            <button key={f.id}
+              className="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+              onClick={() => {
+                // Mapbox devuelve [lon,lat]; el resto del Desk usa [lat,lon]
+                onElegir({ place_id: "addr:" + f.id, name: f.place_name.split(",").slice(0, 2).join(","),
+                  center: [f.center[1], f.center[0]] });
+                setAbierto(false);
+              }}>
+              {f.place_name}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );

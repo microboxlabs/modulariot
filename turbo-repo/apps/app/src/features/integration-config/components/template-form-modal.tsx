@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Select, Textarea, TextInput } from "flowbite-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { HiOutlineTemplate, HiTrash } from "react-icons/hi";
-import FormModal from "@/features/common/components/form-modal/form-modal";
+import { HiOutlineTemplate } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { SettingsFormField } from "@/features/settings-admin/components/settings-form-field";
@@ -19,7 +18,7 @@ import {
   type IntegrationTemplate,
   type TemplateFormData,
 } from "../integration-config.types";
-import { ModalGlyph } from "./modal-glyph";
+import { IntegrationFormModal } from "./integration-form-modal";
 
 interface TemplateFormModalProps {
   readonly show: boolean;
@@ -138,52 +137,25 @@ export function TemplateFormModal({
     }
   }
 
-  let submitLabel: string;
-  if (saving) {
-    submitLabel = tr("common.saving", dict);
-  } else if (isEdit) {
-    submitLabel = tr("common.save", dict);
-  } else {
-    submitLabel = tr("common.create", dict);
-  }
-
   return (
-    <FormModal
-      isOpen={show}
-      onClose={onClose}
-      size="3xl"
+    <IntegrationFormModal
+      show={show}
+      isEdit={isEdit}
       title={
         isEdit
           ? tr("template.form.editTitle", dict)
           : tr("template.form.createTitle", dict)
       }
       subtitle={tr("template.form.subtitle", dict)}
-      icon={
-        <ModalGlyph>
-          <HiOutlineTemplate className="h-5 w-5" />
-        </ModalGlyph>
-      }
-      headerActions={
-        isEdit && onDelete ? (
-          <button
-            type="button"
-            onClick={onDelete}
-            aria-label={tr("common.delete", dict)}
-            title={tr("common.delete", dict)}
-            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-          >
-            <HiTrash className="h-4 w-4" />
-          </button>
-        ) : null
-      }
-      submitLabel={submitLabel}
-      isProcessing={saving}
-      error={error}
+      glyph={<HiOutlineTemplate className="h-5 w-5" />}
+      onClose={onClose}
+      onDelete={onDelete}
       onSubmit={handleSubmit(submit)}
-      showCancelButton
-      cancelLabel={tr("common.cancel", dict)}
+      error={error}
+      saving={saving}
+      dict={dict}
     >
-      <div className="flex flex-col gap-4">
+      <>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_200px]">
           <SettingsFormField
             id="template-name"
@@ -295,7 +267,7 @@ export function TemplateFormModal({
             </div>
           </div>
         )}
-      </div>
-    </FormModal>
+      </>
+    </IntegrationFormModal>
   );
 }

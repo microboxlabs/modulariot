@@ -8,10 +8,8 @@ import {
   HiCheckCircle,
   HiLockClosed,
   HiOutlineLink,
-  HiTrash,
   HiXCircle,
 } from "react-icons/hi";
-import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { SettingsFormField } from "@/features/settings-admin/components/settings-form-field";
@@ -26,7 +24,7 @@ import {
   type IntegrationTemplate,
   type UpdateConnectionRequest,
 } from "../integration-config.types";
-import { ModalGlyph } from "./modal-glyph";
+import { IntegrationFormModal } from "./integration-form-modal";
 
 interface ConnectionFormModalProps {
   readonly show: boolean;
@@ -145,53 +143,25 @@ export function ConnectionFormModal({
     }
   }
 
-  let submitLabel: string;
-  if (saving) {
-    submitLabel = tr("common.saving", dict);
-  } else if (isEdit) {
-    submitLabel = tr("common.save", dict);
-  } else {
-    submitLabel = tr("common.create", dict);
-  }
-
   return (
-    <FormModal
-      isOpen={show}
-      onClose={onClose}
-      size="3xl"
+    <IntegrationFormModal
+      show={show}
+      isEdit={isEdit}
       title={
         isEdit
           ? tr("connection.form.editTitle", dict)
           : tr("connection.form.createTitle", dict)
       }
       subtitle={tr("connection.form.subtitle", dict)}
-      icon={
-        <ModalGlyph>
-          <HiOutlineLink className="h-5 w-5" />
-        </ModalGlyph>
-      }
-      headerActions={
-        isEdit && onDelete ? (
-          <button
-            type="button"
-            onClick={onDelete}
-            aria-label={tr("common.delete", dict)}
-            title={tr("common.delete", dict)}
-            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-          >
-            <HiTrash className="h-4 w-4" />
-          </button>
-        ) : null
-      }
-      submitLabel={submitLabel}
-      isProcessing={saving}
-      error={error}
+      glyph={<HiOutlineLink className="h-5 w-5" />}
+      onClose={onClose}
+      onDelete={onDelete}
       onSubmit={handleSubmit(submit)}
-      showCancelButton
-      cancelLabel={tr("common.cancel", dict)}
+      error={error}
+      saving={saving}
+      dict={dict}
     >
-      <div className="flex flex-col gap-4">
-        <ContractPanel template={template} dict={dict} />
+      <ContractPanel template={template} dict={dict} />
 
         <SettingsFormField
           id="connection-name"
@@ -259,13 +229,12 @@ export function ConnectionFormModal({
           </div>
         )}
 
-        <Alert color="gray" icon={HiLockClosed}>
-          <span className="text-xs">
-            {tr("connection.form.secretNotice", dict)}
-          </span>
-        </Alert>
-      </div>
-    </FormModal>
+      <Alert color="gray" icon={HiLockClosed}>
+        <span className="text-xs">
+          {tr("connection.form.secretNotice", dict)}
+        </span>
+      </Alert>
+    </IntegrationFormModal>
   );
 }
 

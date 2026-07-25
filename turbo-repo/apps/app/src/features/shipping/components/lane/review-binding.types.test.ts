@@ -302,7 +302,7 @@ describe("contractRoots", () => {
 });
 
 describe("collection rows drive the drawer's scopes", () => {
-  // The contract as P2's feed sends it: a collection row per array, then the rows it scopes.
+  // The contract as the feed sends it: a collection row per array, then the rows it scopes.
   const target = {
     connectionId: "c1",
     connectionName: "Partner API",

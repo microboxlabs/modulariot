@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * Integration configuration — the operator-facing layer over miot-integrations.
  *
@@ -131,3 +133,41 @@ function walk(node: unknown, prefix: string, out: string[]): void {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Form schemas — messages are dictionary keys, resolved by the modals.        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A connection's own fields. The template is not among them: it is chosen in the
+ * picker before the form opens and fixed for the instance's life, since changing
+ * it would change the payload contract under the bindings already mapping it.
+ */
+export const ConnectionFormSchema = z.object({
+  name: z.string().min(1, "validation.nameRequired").max(100),
+  baseUrl: z
+    .string()
+    .min(1, "validation.baseUrlRequired")
+    .url("validation.baseUrlInvalid"),
+  /** Empty string means "no credential" — the field is a select, not a secret. */
+  credentialProfileId: z.string(),
+});
+
+export type ConnectionFormData = z.infer<typeof ConnectionFormSchema>;
+
+/** The payload contract a template owns. Held as text so invalid JSON is a field error. */
+export const TemplateFormSchema = z.object({
+  name: z.string().min(1, "validation.nameRequired").max(100),
+  providerType: z.string().min(1),
+  operationName: z.string(),
+  method: z.string().min(1),
+  path: z.string().min(1, "validation.pathRequired"),
+  requestSchemaText: z
+    .string()
+    .refine(
+      (text) => !("error" in parseJsonObject(text)),
+      "validation.schemaInvalid"
+    ),
+});
+
+export type TemplateFormData = z.infer<typeof TemplateFormSchema>;

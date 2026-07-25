@@ -2081,8 +2081,23 @@
         "delete": "Eliminar",
         "cancel": "Cancelar",
         "save": "Guardar",
+        "create": "Crear",
         "saving": "Guardando…",
         "saveFailed": "No se pudo guardar"
+      },
+      "picker": {
+        "title": "Nueva conexión",
+        "subtitle": "Elige la plantilla que esta conexión va a instanciar.",
+        "searchPlaceholder": "Buscar plantillas",
+        "noMatches": "Ninguna plantilla coincide con la búsqueda.",
+        "empty": "Aún no hay plantillas. Crea una primero."
+      },
+      "validation": {
+        "nameRequired": "El nombre es obligatorio",
+        "baseUrlRequired": "La URL base es obligatoria",
+        "baseUrlInvalid": "Ingresa una URL válida",
+        "pathRequired": "La ruta es obligatoria",
+        "schemaInvalid": "El esquema no es un objeto JSON válido."
       },
       "toast": {
         "templateDeleted": "Plantilla eliminada",
@@ -2095,16 +2110,17 @@
         "form": {
           "createTitle": "Nueva plantilla",
           "editTitle": "Editar plantilla",
+          "subtitle": "El contrato que copiará cada conexión creada a partir de esta plantilla.",
           "name": "Nombre",
           "namePlaceholder": "Ej: Partner API",
           "providerType": "Tipo de proveedor",
           "method": "Método",
           "path": "Ruta",
+          "pathHelp": "Se añade a la URL base de cada conexión.",
           "operationName": "Nombre de la operación",
           "operationNamePlaceholder": "Ej: Reportar veredicto",
           "requestSchema": "Esquema de la carga (JSON Schema)",
           "requestSchemaHelp": "Los campos que el proceso de revisión mapeará. Un objeto con propiedades; admite objetos y arreglos anidados.",
-          "schemaInvalid": "El esquema no es un objeto JSON válido.",
           "fieldsDetected": "Campos detectados"
         }
       },
@@ -2112,16 +2128,16 @@
         "form": {
           "createTitle": "Nueva conexión",
           "editTitle": "Editar conexión",
+          "subtitle": "Dónde vive esta instancia y con qué credencial habla.",
           "template": "Plantilla",
-          "noTemplate": "Sin plantilla",
-          "needTemplate": "Crea una plantilla primero.",
           "name": "Nombre",
           "namePlaceholder": "Ej: Partner API · QA",
           "baseUrl": "URL base",
+          "baseUrlHelp": "Solo el host; la ruta la aporta la plantilla.",
           "credential": "Credencial",
           "noCredential": "Sin credencial",
           "noCredentials": "No hay credenciales. Créalas en Ajustes › Credenciales.",
-          "credentialFixed": "(no editable aquí)"
+          "secretNotice": "Los secretos viven en la credencial, no aquí: esta conexión solo la referencia."
         }
       }
     }

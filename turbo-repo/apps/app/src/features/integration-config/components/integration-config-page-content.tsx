@@ -16,6 +16,7 @@ import type {
 import { ConnectionsList } from "./connections-list";
 import { TemplatesList } from "./templates-list";
 import { TemplateFormModal } from "./template-form-modal";
+import { TemplatePickerModal } from "./template-picker-modal";
 import { ConnectionFormModal } from "./connection-form-modal";
 import { IntegrationDeleteDialog } from "./integration-delete-dialog";
 
@@ -33,6 +34,9 @@ interface IntegrationConfigPageContentProps {
  * review process maps against. A **connection** is an instance of one, with its own
  * endpoint and credential — so the same partner can exist twice, QA and production,
  * speaking the same payload.
+ *
+ * Adding a connection runs the same two steps as adding a credential: pick the type,
+ * then fill its form.
  *
  * Backed by miot-integrations through the org admin proxy, which requires organization-
  * owner access and answers 403 to everyone else — hence the forbidden state below.
@@ -61,9 +65,11 @@ export function IntegrationConfigPageContent({
     open: boolean;
     template?: IntegrationTemplate;
   }>({ open: false });
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [connectionModal, setConnectionModal] = useState<{
     open: boolean;
     connection?: IntegrationConnection;
+    template?: IntegrationTemplate;
   }>({ open: false });
   const [deletingTemplate, setDeletingTemplate] =
     useState<IntegrationTemplate | null>(null);
@@ -74,6 +80,38 @@ export function IntegrationConfigPageContent({
   const instanceCount = (templateId: string) =>
     connections.filter((connection) => connection.templateId === templateId)
       .length;
+
+  /** Step 1 of adding a connection: choose the type it will instance. */
+  function handleAddConnection() {
+    setConnectionModal({ open: false });
+    setPickerOpen(true);
+  }
+
+  function handleTemplatePicked(template: IntegrationTemplate) {
+    setPickerOpen(false);
+    setConnectionModal({ open: true, template });
+  }
+
+  function handleEditConnection(connection: IntegrationConnection) {
+    setConnectionModal({
+      open: true,
+      connection,
+      template: templates.find(
+        (template) => template.id === connection.templateId
+      ),
+    });
+  }
+
+  /** Deleting from the record: close it first, then confirm. */
+  function handleDeleteConnectionFromModal(connection: IntegrationConnection) {
+    setConnectionModal({ open: false });
+    setDeletingConnection(connection);
+  }
+
+  function handleDeleteTemplateFromModal(template: IntegrationTemplate) {
+    setTemplateModal({ open: false });
+    setDeletingTemplate(template);
+  }
 
   async function handleDeleteTemplate() {
     if (!deletingTemplate) return;
@@ -97,6 +135,11 @@ export function IntegrationConfigPageContent({
     }
   }
 
+  /**
+   * Test from the row. Unlike credentials — where only some types can be verified at
+   * all — every connection is testable, so the action is worth having without opening
+   * the record; the same button lives inside the form for the record being edited.
+   */
   async function handleTest(connection: IntegrationConnection) {
     setTesting(connection.id);
     try {
@@ -121,7 +164,11 @@ export function IntegrationConfigPageContent({
       <div className="sticky top-0 z-10 flex w-full items-center justify-between bg-white p-5 dark:bg-gray-900 dark:text-white">
         <ClientBreadcrumb
           dict={breadcrumbDict}
-          path={[{ label: "user" }, { label: "settings" }, { label: "connections" }]}
+          path={[
+            { label: "user" },
+            { label: "settings" },
+            { label: "connections" },
+          ]}
         />
       </div>
 
@@ -140,7 +187,7 @@ export function IntegrationConfigPageContent({
           </div>
           <Button
             color="blue"
-            onClick={() => setConnectionModal({ open: true })}
+            onClick={handleAddConnection}
             disabled={!orgSlug || templates.length === 0}
           >
             <HiPlus className="mr-2 h-4 w-4" />
@@ -168,9 +215,7 @@ export function IntegrationConfigPageContent({
               connections={connections}
               templates={templates}
               credentials={credentials}
-              onOpen={(connection) =>
-                setConnectionModal({ open: true, connection })
-              }
+              onOpen={handleEditConnection}
               onTest={handleTest}
               onDelete={setDeletingConnection}
               testing={testing}
@@ -216,16 +261,40 @@ export function IntegrationConfigPageContent({
         template={templateModal.template}
         onClose={() => setTemplateModal({ open: false })}
         onSave={saveTemplate}
+        onDelete={
+          templateModal.template
+            ? () => handleDeleteTemplateFromModal(templateModal.template!)
+            : undefined
+        }
         saving={saving}
         dict={dict}
       />
+
+      <TemplatePickerModal
+        show={pickerOpen}
+        templates={templates}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handleTemplatePicked}
+        dict={dict}
+      />
+
       <ConnectionFormModal
         show={connectionModal.open}
         connection={connectionModal.connection}
-        templates={templates}
+        template={connectionModal.template}
         credentials={credentials}
         onClose={() => setConnectionModal({ open: false })}
         onSave={saveConnection}
+        onDelete={
+          connectionModal.connection
+            ? () => handleDeleteConnectionFromModal(connectionModal.connection!)
+            : undefined
+        }
+        onTest={
+          connectionModal.connection
+            ? () => testInstance(connectionModal.connection!.id)
+            : undefined
+        }
         saving={saving}
         dict={dict}
       />

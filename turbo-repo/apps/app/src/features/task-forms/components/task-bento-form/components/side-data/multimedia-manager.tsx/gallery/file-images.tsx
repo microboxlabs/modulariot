@@ -522,7 +522,8 @@ export default function FileImages({
         const observations = lastRejection?.kind === "state_change"
           ? lastRejection.observations
           : [];
-        return { fileName, observations };
+        const contentType = file?.file?.entry?.properties?.["mintral:contentType"];
+        return { fileName, contentType, observations };
       });
   }, [allIds, reviewableIds, reviewStatuses, images, documents, committedTimeline]);
 

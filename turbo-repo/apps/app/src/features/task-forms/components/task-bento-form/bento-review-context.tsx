@@ -4,7 +4,10 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from "re
 import type { ObservationEntry } from "./components/side-data/multimedia-manager.tsx/viewer/observations/observation.types";
 
 export type { ObservationEntry };
-export type RejectedItem = { fileName: string; observations: ObservationEntry[] };
+// `contentType` is the item's `mintral:contentType`. It travels with the verdict so a
+// consumer can tell *which kind* of document was rejected without re-reading the node —
+// the confirm modal turns it into the rejection codes the backend expects.
+export type RejectedItem = { fileName: string; contentType?: string; observations: ObservationEntry[] };
 export type ApprovedItem = { fileName: string; observations: ObservationEntry[] };
 type BentoReviewState = { pending: number; rejected: number; rejectedItems: RejectedItem[]; approvedItems: ApprovedItem[] };
 

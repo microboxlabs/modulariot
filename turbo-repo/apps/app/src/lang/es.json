@@ -2028,6 +2028,79 @@
           "deleted": "Eliminado exitosamente"
         }
       }
+    },
+    "integrationConnections": {
+      "page": {
+        "title": "Integraciones",
+        "subtitle": "Define tipos de integración y crea conexiones a partir de ellos."
+      },
+      "templates": {
+        "title": "Plantillas",
+        "help": "Un tipo reutilizable: define el contrato de datos (método, ruta y campos) una sola vez.",
+        "new": "Nueva plantilla",
+        "empty": "Aún no hay plantillas. Crea una para poder añadir conexiones.",
+        "instanceCount": "{count} conexión(es)",
+        "confirmDelete": "¿Eliminar esta plantilla?"
+      },
+      "connections": {
+        "title": "Conexiones",
+        "help": "Una instancia de una plantilla, con su propia URL y credencial.",
+        "new": "Nueva conexión",
+        "empty": "Aún no hay conexiones.",
+        "test": "Probar"
+      },
+      "status": {
+        "active": "Activa",
+        "failed": "Falló",
+        "draft": "Borrador"
+      },
+      "common": {
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "saveFailed": "No se pudo guardar"
+      },
+      "toast": {
+        "templateDeleted": "Plantilla eliminada",
+        "actionFailed": "No se pudo completar la acción",
+        "testOk": "Conexión probada correctamente",
+        "testFailed": "La prueba de conexión falló"
+      },
+      "template": {
+        "form": {
+          "createTitle": "Nueva plantilla",
+          "editTitle": "Editar plantilla",
+          "name": "Nombre",
+          "namePlaceholder": "Ej: Partner API",
+          "providerType": "Tipo de proveedor",
+          "method": "Método",
+          "path": "Ruta",
+          "operationName": "Nombre de la operación",
+          "operationNamePlaceholder": "Ej: Reportar veredicto",
+          "requestSchema": "Esquema de la carga (JSON Schema)",
+          "requestSchemaHelp": "Los campos que el proceso de revisión mapeará. Un objeto con propiedades; admite objetos y arreglos anidados.",
+          "schemaInvalid": "El esquema no es un objeto JSON válido.",
+          "fieldsDetected": "Campos detectados"
+        }
+      },
+      "connection": {
+        "form": {
+          "createTitle": "Nueva conexión",
+          "editTitle": "Editar conexión",
+          "template": "Plantilla",
+          "noTemplate": "Sin plantilla",
+          "needTemplate": "Crea una plantilla primero.",
+          "name": "Nombre",
+          "namePlaceholder": "Ej: Partner API · QA",
+          "baseUrl": "URL base",
+          "credential": "Credencial",
+          "noCredential": "Sin credencial",
+          "noCredentials": "No hay credenciales. Créalas en Ajustes › Credenciales.",
+          "credentialFixed": "(no editable aquí)"
+        }
+      }
     }
   },
   "layout": {
@@ -2086,7 +2159,9 @@
         "collaboratorsManagement": "Colaboradores",
         "searchPlaceholder": "Buscar...",
         "createDashboard": "Nuevo dashboard",
-        "closePanel": "Cerrar panel"
+        "closePanel": "Cerrar panel",
+        "integrationJobs": "Actividad",
+        "integrationConnections": "Conexiones"
       }
     },
     "calendar": {

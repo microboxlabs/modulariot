@@ -64,6 +64,10 @@ export const ROUTE_PERMISSIONS = {
   // enforces org membership per request.
   "/integrations/jobs": [],
 
+  // Integrations config (templates + connections) — any authenticated member;
+  // the backend owner-gates every mutation per request.
+  "/integrations/connections": [],
+
   // Admin console routes
   "/admin/console/message-templates": ADMIN_ROLES,
 } as const;

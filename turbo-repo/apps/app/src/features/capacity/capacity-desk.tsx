@@ -32,9 +32,16 @@ type Unidad = {
   veredicto: string; confianza: number; dupla_vigente: boolean;
   camion: { id: string; patente: string; tipo: string | null };
   conductor: { id: string; nombre: string; licencia: string | null };
+  conductor2?: { id: string; nombre: string; licencia: string | null } | null;
+  remolque?: { id: string; patente: string } | null;
   causas: string[]; condiciones: string[]; acciones_recuperan: string[];
   gxc: { camion_tasa: number | null; camion_viajes: number | null;
     conductor_tasa: number | null; conductor_viajes: number | null };
+};
+type Arquetipo = {
+  archetype_id: number; nombre: string; descripcion: string | null;
+  truck_type: string | null; license_cat: string | null;
+  n_conductores: number; remolque: string;
 };
 type UnidadReservada = {
   unit_id: string; estado: string; ini: number; fin: number;
@@ -117,6 +124,8 @@ export function CapacityDesk() {
   const { data: drivers } = useSWR<AmsDriver[]>("/app/api/ams/rpc/fn_ams_drivers", fetcher);
   const { data: unidades, mutate: mutUnidades } = useSWR<UnidadReservada[]>(
     "/app/api/ams/rpc/fn_cap_units", fetcher);
+  const { data: arquetipos } = useSWR<Arquetipo[]>(
+    "/app/api/ams/rpc/fn_cap_archetypes", fetcher);
 
   // ventana de la línea temporal: hoy 00:00 + 7 días
   const t0 = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime() / 1000; }, []);
@@ -129,6 +138,7 @@ export function CapacityDesk() {
   const [fecha, setFecha] = useState(hoy.toISOString().slice(0, 10));
   const [hIni, setHIni] = useState("08:00");
   const [hFin, setHFin] = useState("18:00");
+  const [arq, setArq] = useState("");           // archetype_id o "" = personalizado
   const [tipoEq, setTipoEq] = useState("");
   const [lic, setLic] = useState("");
   const [buscando, setBuscando] = useState(false);
@@ -142,7 +152,9 @@ export function CapacityDesk() {
     const { data } = await post("fn_capacity_match", {
       p_ini: new Date(`${fecha}T${hIni}`).toISOString(),
       p_fin: new Date(`${fecha}T${hFin}`).toISOString(),
-      p_truck_type: tipoEq || null, p_license_cat: lic || null,
+      p_archetype_id: arq ? Number(arq) : null,
+      p_truck_type: arq ? null : (tipoEq || null),
+      p_license_cat: arq ? null : (lic || null),
     });
     setBuscando(false);
     if (!data?.ok) { setMsg(`No se pudo calcular — ${data?.error ?? "error"}`); return; }
@@ -152,11 +164,14 @@ export function CapacityDesk() {
   const reservar = async (u: Unidad) => {
     setReservando(u.camion.id + u.conductor.id); setMsg(null);
     const { data } = await post("fn_cap_reserve", {
-      p_truck_id: u.camion.id, p_driver_ids: [u.conductor.id],
+      p_truck_id: u.camion.id,
+      p_driver_ids: [u.conductor.id, ...(u.conductor2 ? [u.conductor2.id] : [])],
+      p_trailer_id: u.remolque?.id ?? null,
       p_ini: new Date(`${fecha}T${hIni}`).toISOString(),
       p_fin: new Date(`${fecha}T${hFin}`).toISOString(),
       p_ttl_minutes: 30,
-      p_necesidad: { fecha, ini: hIni, fin: hFin, tipo: tipoEq || null },
+      p_necesidad: { fecha, ini: hIni, fin: hFin,
+        arquetipo: arq ? Number(arq) : null, tipo: tipoEq || null },
       p_snapshot: u as unknown as Record<string, unknown>,
       p_actor: "capacity-desk",
     });
@@ -244,6 +259,18 @@ export function CapacityDesk() {
             <TextInput sizing="sm" type="time" value={hFin} onChange={(e) => setHFin(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1">
+            <span className="text-xs text-gray-500">Tipo de servicio</span>
+            <DsSelect sizing="sm" value={arq} onChange={(e) => setArq(e.target.value)}>
+              <option value="">Personalizado</option>
+              {(arquetipos ?? []).map((a) => (
+                <option key={a.archetype_id} value={a.archetype_id}>
+                  {a.nombre}
+                </option>
+              ))}
+            </DsSelect>
+          </div>
+          {!arq && (<>
+          <div className="flex flex-col gap-1">
             <span className="text-xs text-gray-500">Tipo de equipo</span>
             <DsSelect sizing="sm" value={tipoEq} onChange={(e) => setTipoEq(e.target.value)}>
               <option value="">Cualquiera</option>
@@ -260,6 +287,12 @@ export function CapacityDesk() {
               <option value="A4">A4</option><option value="A5">A5</option>
             </DsSelect>
           </div>
+          </>)}
+          {arq && (
+            <span className="text-[11px] text-gray-500 pb-2 max-w-[260px]">
+              {(arquetipos ?? []).find((a) => String(a.archetype_id) === arq)?.descripcion}
+            </span>
+          )}
           <button className={btnPri} disabled={buscando} onClick={() => void buscar()}>
             {buscando ? "Calculando…" : "Calcular capacidad"}
           </button>
@@ -297,6 +330,9 @@ export function CapacityDesk() {
                       {u.camion.patente}
                       <span className="text-gray-400 font-normal"> {u.camion.tipo ?? ""} · </span>
                       {u.conductor.nombre}
+                      {u.conductor2 && <span> + {u.conductor2.nombre}</span>}
+                      {u.remolque && (
+                        <span className="text-gray-500 font-normal"> + remolque {u.remolque.patente}</span>)}
                     </div>
                     {u.causas.map((c, i) => (
                       <div key={i} className="text-xs text-red-600 dark:text-red-400">✕ {c}</div>))}

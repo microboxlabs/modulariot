@@ -44,6 +44,7 @@ const DENY_PREFIXES = [
   "/live-streams",
   "/integrations",
   "/users/settings/data-sources", // plataforma
+  "/users/settings/service-archetypes", // molde de la UO: define la torre (v1)
   "/admin",
 ];
 

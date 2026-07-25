@@ -226,7 +226,9 @@ public class IntegrationEventBindingService {
     }
 
     private static List<DispatchTargetResponse.Field> fieldsOf(PayloadSchema schema) {
-        return schema.fields().stream()
+        // Leaf fields (dotted paths) so a nested contract renders one editable mapping row per
+        // value — fotos.guidMultimedia, fotos.mensaje.codigo — never an array/object container.
+        return schema.leafFields().stream()
                 .map(field -> new DispatchTargetResponse.Field(
                         field.id(), field.type().name().toLowerCase(), field.required()))
                 .toList();

@@ -91,11 +91,17 @@ public class PayloadRenderer {
         }
         // A nested array binds each element under its collection's own name, so a template inside
         // it legitimately reads a root the caller never declared ({{reasons.code}} within a
-        // content.reasons array). Those roots come from the schema, not the caller, so add them.
+        // content.reasons array). Those roots come from the contract and the binding's own
+        // collection rows, not from the caller, so add them.
         Set<String> roots = new LinkedHashSet<>(allowedRoots);
-        roots.addAll(schema.arrayBindNames());
+        roots.addAll(schema.arrayBindNames(mappings));
+        Set<String> collectionRows = new LinkedHashSet<>(schema.arrayPaths());
         mappings.forEach((fieldId, template) -> {
             if (template == null || template.isBlank()) {
+                return;
+            }
+            if (collectionRows.contains(fieldId)) {
+                problems.addAll(collectionRowProblems(fieldId, template, roots));
                 return;
             }
             try {
@@ -105,6 +111,28 @@ public class PayloadRenderer {
             }
         });
         return problems;
+    }
+
+    /**
+     * A row keyed on an array's path names the collection its elements come from, so it is held
+     * to a different rule than a value: exactly one {@code {{path}}} stash, and a bare root is
+     * legal — {@code PayloadTemplate.validate} would reject {@code {{content}}} as a whole object,
+     * which is right for a value and wrong here.
+     */
+    private static List<String> collectionRowProblems(
+            String fieldId, String template, Set<String> roots) {
+        String path = PayloadSchema.collectionPathOf(template);
+        if (path == null) {
+            return List.of("'" + fieldId + "': a collection row must be a single {{path}}"
+                    + " naming a context collection");
+        }
+        int dot = path.indexOf('.');
+        String root = dot < 0 ? path : path.substring(0, dot);
+        if (!roots.contains(root)) {
+            return List.of("'" + fieldId + "': '" + path + "' does not exist: '" + root
+                    + "' is not one of " + roots.stream().sorted().toList());
+        }
+        return List.of();
     }
 
     /* ---------------------------------------------------------------------- */
@@ -125,8 +153,11 @@ public class PayloadRenderer {
             switch (field.type()) {
                 case ARRAY -> {
                     try {
+                        // Where the elements come from is the binding's to say; the schema's
+                        // itemsFrom is the fallback for contracts stored before that split.
+                        String source = PayloadSchema.collectionSourceOf(templates, path, field);
                         List<Object> value =
-                                renderElements(templates, field.itemsFrom(), field.child(), context, path + ".");
+                                renderElements(templates, source, field.child(), context, path + ".");
                         if (!value.isEmpty() || field.required()) {
                             payload.put(field.id(), value);
                         }

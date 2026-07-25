@@ -1,6 +1,7 @@
 # Separating the target contract from the binding — moving `itemsFrom` out of `request_schema`
 
-**Status:** Planned. Nothing implemented; phases below are independent and land one at a time.
+**Status:** P1 implemented (the renderer prefers the binding). P2 and P3 planned; each lands on
+its own.
 
 ## Problem
 
@@ -70,7 +71,19 @@ Two consequences worth stating up front:
 
 Independent; each ships on its own and leaves the system working.
 
-### P1 — renderer prefers the binding (backend only, no behaviour change)
+### P1 — renderer prefers the binding (backend only, no behaviour change) — **DONE**
+
+Implemented as described below. Settled while building it:
+
+- **Collection-row syntax is `{{path}}`** — one syntax across every row, and a bare root
+  (`{{content}}`) is legal on a collection row where a value row still refuses it as a whole
+  object. Reversible: nothing authors these through the UI yet.
+- **A top-level array *body* still reads `schema.itemsFrom()`.** It has no field name, so no
+  dotted key to bind a row to; deciding that key is P2's problem. Array *fields* — the shape in
+  use — are covered.
+- **`leaves()`/`fieldsOf` remain schema-only**, so a pure contract bound only through collection
+  rows would still hint the wrong `contextRoot`. Unreachable today (the drawer cannot author
+  collection rows), and P2 threads the binding through.
 
 - `PayloadRenderer.renderObject`, `ARRAY` branch: resolve the source as
   **binding template for the container path → schema `itemsFrom` → `content`**, instead of

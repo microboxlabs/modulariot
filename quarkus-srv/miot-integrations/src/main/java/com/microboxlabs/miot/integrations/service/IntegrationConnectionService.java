@@ -4,6 +4,8 @@ import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.IntegrationOperation;
+import com.microboxlabs.miot.integrations.domain.IntegrationTemplate;
+import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestRequest;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestResponse;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
@@ -12,6 +14,7 @@ import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest
 import com.microboxlabs.miot.integrations.persistence.CredentialProfileRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
+import com.microboxlabs.miot.integrations.persistence.IntegrationTemplateRepository;
 import com.microboxlabs.miot.integrations.tester.ConnectionTesterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -28,6 +31,7 @@ public class IntegrationConnectionService {
     private final CredentialProfileService credentialProfileService;
     private final IntegrationConnectionRepository connectionRepository;
     private final IntegrationOperationRepository operationRepository;
+    private final IntegrationTemplateRepository templateRepository;
     private final ConnectionTesterRegistry testerRegistry;
 
     @Inject
@@ -36,11 +40,13 @@ public class IntegrationConnectionService {
             CredentialProfileService credentialProfileService,
             IntegrationConnectionRepository connectionRepository,
             IntegrationOperationRepository operationRepository,
+            IntegrationTemplateRepository templateRepository,
             ConnectionTesterRegistry testerRegistry) {
         this.credentialProfileRepository = credentialProfileRepository;
         this.credentialProfileService = credentialProfileService;
         this.connectionRepository = connectionRepository;
         this.operationRepository = operationRepository;
+        this.templateRepository = templateRepository;
         this.testerRegistry = testerRegistry;
     }
 
@@ -48,19 +54,57 @@ public class IntegrationConnectionService {
         return connectionRepository.listByTenant(tenantCode);
     }
 
+    /**
+     * Creates a connection. When {@code templateId} is set, the connection is an instance of
+     * that template: its provider type comes from the template, and the template's contract is
+     * copied onto a freshly-provisioned operation so the dispatch path (connection + operation)
+     * needs no template awareness. Without a template it is an ad-hoc connection.
+     */
     public IntegrationConnection createConnection(String tenantCode, CreateIntegrationConnectionRequest req) {
+        IntegrationTemplate template = req.templateId() == null
+                ? null
+                : templateRepository.findByTenantAndId(tenantCode, req.templateId());
+        if (req.templateId() != null && template == null) {
+            throw new IllegalArgumentException("Unknown integration template: " + req.templateId());
+        }
+
+        ProviderType providerType = template != null ? template.providerType() : req.providerType();
         IntegrationConnection connection = new IntegrationConnection(
                 UUID.randomUUID().toString(),
                 tenantCode,
                 req.name(),
-                req.providerType(),
+                providerType,
                 req.baseUrl(),
                 req.credentialProfileId(),
                 ConnectionStatus.DRAFT,
                 null,
                 null,
-                safeMap(req.metadata()));
-        return connectionRepository.create(connection);
+                safeMap(req.metadata()),
+                template != null ? template.id() : null);
+        IntegrationConnection created = connectionRepository.create(connection);
+
+        if (template != null) {
+            provisionTemplateOperation(created.id(), template);
+        }
+        return created;
+    }
+
+    /**
+     * Copies a template's contract onto a new instance as its operation. The instance keeps its
+     * own copy (so dispatch stays connection-scoped and the UI can hold it read-only), which is
+     * why a later template edit reaches only connections created after it.
+     */
+    private void provisionTemplateOperation(String connectionId, IntegrationTemplate template) {
+        IntegrationOperation operation = new IntegrationOperation(
+                UUID.randomUUID().toString(),
+                connectionId,
+                template.operationName(),
+                template.method(),
+                template.path(),
+                safeMap(template.requestSchema()),
+                safeMap(template.responseSchema()),
+                false);
+        operationRepository.create(operation);
     }
 
     public IntegrationConnection getConnection(String tenantCode, String connectionId) {

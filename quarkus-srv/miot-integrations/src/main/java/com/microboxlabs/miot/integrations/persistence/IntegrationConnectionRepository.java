@@ -24,17 +24,21 @@ public class IntegrationConnectionRepository {
 
     private static final Logger LOG = Logger.getLogger(IntegrationConnectionRepository.class);
 
-    private static final String SELECT_BY_TENANT = """
-            SELECT id, tenant_code, name, provider_type, base_url, credential_profile_id,
-                   status, last_tested_at, last_test_result, metadata
+    // Shared read/return column list, so template_id is threaded through every query that
+    // feeds mapRow without repeating (and mis-indenting) it.
+    private static final String COLUMNS = """
+            id, tenant_code, name, provider_type, base_url, credential_profile_id,
+            status, last_tested_at, last_test_result, metadata, template_id""";
+
+    private static final String SELECT_BY_TENANT = "SELECT " + COLUMNS + """
+
             FROM miot_integrations.integration_connections
             WHERE tenant_code = $1 AND active
             ORDER BY name
             """;
 
-    private static final String SELECT_BY_TENANT_AND_ID = """
-            SELECT id, tenant_code, name, provider_type, base_url, credential_profile_id,
-                   status, last_tested_at, last_test_result, metadata
+    private static final String SELECT_BY_TENANT_AND_ID = "SELECT " + COLUMNS + """
+
             FROM miot_integrations.integration_connections
             WHERE tenant_code = $1 AND id = $2 AND active
             """;
@@ -42,9 +46,8 @@ public class IntegrationConnectionRepository {
     // Best connection of a provider for a tenant: prefer ACTIVE, then a passing test,
     // then the most recently tested. Lets a caller send through whichever connection the
     // operator most recently validated.
-    private static final String SELECT_ACTIVE_BY_PROVIDER = """
-            SELECT id, tenant_code, name, provider_type, base_url, credential_profile_id,
-                   status, last_tested_at, last_test_result, metadata
+    private static final String SELECT_ACTIVE_BY_PROVIDER = "SELECT " + COLUMNS + """
+
             FROM miot_integrations.integration_connections
             WHERE tenant_code = $1 AND provider_type = $2 AND active
             ORDER BY (status = 'ACTIVE') DESC,
@@ -60,9 +63,8 @@ public class IntegrationConnectionRepository {
     // at most one such row, but we deliberately fetch LIMIT 2: the read path fails closed in
     // findActiveWhatsAppByPhoneNumberId if the invariant is ever violated, so inbound is never
     // silently routed to an arbitrary tenant (a cross-tenant leak).
-    private static final String SELECT_ACTIVE_WHATSAPP_BY_PHONE_NUMBER_ID = """
-            SELECT id, tenant_code, name, provider_type, base_url, credential_profile_id,
-                   status, last_tested_at, last_test_result, metadata
+    private static final String SELECT_ACTIVE_WHATSAPP_BY_PHONE_NUMBER_ID = "SELECT " + COLUMNS + """
+
             FROM miot_integrations.integration_connections
             WHERE provider_type = 'WHATSAPP'
               AND active
@@ -73,30 +75,35 @@ public class IntegrationConnectionRepository {
     // Reverse index for the credentials screen: which connections reference these
     // profiles. Takes the whole id set at once so listing N credentials stays one query
     // instead of N.
-    private static final String SELECT_BY_CREDENTIAL_PROFILES = """
-            SELECT id, tenant_code, name, provider_type, base_url, credential_profile_id,
-                   status, last_tested_at, last_test_result, metadata
+    private static final String SELECT_BY_CREDENTIAL_PROFILES = "SELECT " + COLUMNS + """
+
             FROM miot_integrations.integration_connections
             WHERE tenant_code = $1 AND credential_profile_id = ANY($2) AND active
+            ORDER BY name
+            """;
+
+    // Instances of a template, for the "used by" panel and the template delete guard.
+    private static final String SELECT_BY_TEMPLATE = "SELECT " + COLUMNS + """
+
+            FROM miot_integrations.integration_connections
+            WHERE tenant_code = $1 AND template_id = $2 AND active
             ORDER BY name
             """;
 
     private static final String INSERT = """
             INSERT INTO miot_integrations.integration_connections (
                 id, tenant_code, name, provider_type, base_url, credential_profile_id,
-                status, last_tested_at, last_test_result, metadata
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            RETURNING id, tenant_code, name, provider_type, base_url, credential_profile_id,
-                      status, last_tested_at, last_test_result, metadata
-            """;
+                status, last_tested_at, last_test_result, metadata, template_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            RETURNING
+            """ + COLUMNS;
 
     private static final String UPDATE_TEST_RESULT = """
             UPDATE miot_integrations.integration_connections
             SET status = $3, last_tested_at = $4, last_test_result = $5, updated_at = $4
             WHERE tenant_code = $1 AND id = $2 AND active
-            RETURNING id, tenant_code, name, provider_type, base_url, credential_profile_id,
-                      status, last_tested_at, last_test_result, metadata
-            """;
+            RETURNING
+            """ + COLUMNS;
 
     // Partial update: a null parameter leaves the column unchanged (explicit ::casts so the
     // NULL binds keep their type in the prepared statement). metadata is replaced wholesale.
@@ -107,9 +114,8 @@ public class IntegrationConnectionRepository {
                 metadata = COALESCE($5::jsonb, metadata),
                 updated_at = now()
             WHERE tenant_code = $1 AND id = $2 AND active
-            RETURNING id, tenant_code, name, provider_type, base_url, credential_profile_id,
-                      status, last_tested_at, last_test_result, metadata
-            """;
+            RETURNING
+            """ + COLUMNS;
 
     private final Instance<Pool> clientInstance;
 
@@ -138,7 +144,8 @@ public class IntegrationConnectionRepository {
                 .addString(connection.status().name())
                 .addOffsetDateTime(connection.lastTestedAt())
                 .addBoolean(connection.lastTestResult())
-                .addJsonObject(toJson(connection.metadata()));
+                .addJsonObject(toJson(connection.metadata()))
+                .addUUID(toUuid(connection.templateId()));
         return mapRow(client().preparedQuery(INSERT)
                 .execute(params)
                 .await().indefinitely()
@@ -224,6 +231,24 @@ public class IntegrationConnectionRepository {
                 .toList();
     }
 
+    /**
+     * Connections that are instances of {@code templateId}. Blank or non-UUID ids
+     * short-circuit before the pool, so they never reach the DB (and are safe with a null
+     * pool in unit tests).
+     */
+    public List<IntegrationConnection> listByTemplate(String tenantCode, String templateId) {
+        UUID id = parseUuidOrNull(templateId);
+        if (id == null) {
+            return List.of();
+        }
+        return client().preparedQuery(SELECT_BY_TEMPLATE)
+                .execute(Tuple.of(tenantCode, id))
+                .await().indefinitely()
+                .stream()
+                .map(this::mapRow)
+                .toList();
+    }
+
     public IntegrationConnection update(
             String tenantCode,
             String connectionId,
@@ -265,6 +290,7 @@ public class IntegrationConnectionRepository {
 
     private IntegrationConnection mapRow(Row row) {
         UUID credentialProfileId = row.getUUID("credential_profile_id");
+        UUID templateId = row.getUUID("template_id");
         return new IntegrationConnection(
                 row.getUUID("id").toString(),
                 row.getString("tenant_code"),
@@ -275,7 +301,8 @@ public class IntegrationConnectionRepository {
                 ConnectionStatus.valueOf(row.getString("status")),
                 row.getOffsetDateTime("last_tested_at"),
                 row.getBoolean("last_test_result"),
-                toMap(row.getJsonObject("metadata")));
+                toMap(row.getJsonObject("metadata")),
+                templateId == null ? null : templateId.toString());
     }
 
     private UUID toUuid(String value) {

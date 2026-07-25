@@ -110,6 +110,24 @@ class PayloadCollectionRowTest {
     }
 
     @Test
+    void aCollectionRowAgreeingWithTheSchemaChangesNothing() {
+        // The ordinary case once the drawer can author these: a contract that still carries
+        // itemsFrom, and an operator who names the same collection on the row. Both sources are
+        // then present and agree, and that must cost nothing — "the binding wins" only proves
+        // the two are read in the right order, not that agreeing is free.
+        Object schemaOnly = renderer.renderBody(VALUES_ONLY, annotatedContract(), context());
+
+        Map<String, String> alsoDeclared = new LinkedHashMap<>(VALUES_ONLY);
+        alsoDeclared.put("items", "{{content}}");
+        alsoDeclared.put("items.notes", "{{content.reasons}}");
+
+        assertEquals(
+                schemaOnly,
+                renderer.renderBody(alsoDeclared, annotatedContract(), context()),
+                "the row states what the schema already said; the payload must not move");
+    }
+
+    @Test
     void aBindingDeclaredSourceWinsOverTheSchemas() {
         // The schema says the nested array iterates content; the binding says content.reasons.
         // The binding is the mapping layer, so it decides — otherwise the fallback would be

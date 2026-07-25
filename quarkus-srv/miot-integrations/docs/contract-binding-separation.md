@@ -137,14 +137,43 @@ Settled while building it:
 - Required-field summary and the save gate must treat a collection row as satisfied by its
   default, or the drawer will block on rows that need no mapping.
 
-### P3 — deprecate the schema's copy
+### P3 — no backfill: there is nothing to migrate
 
-- Migration: for stored bindings whose operation schema carries `itemsFrom`, write the
-  equivalent container rows into `field_templates`. Idempotent, and leaves the schema
-  untouched so a rollback still renders.
-- Then drop the schema fallback, stop parsing `itemsFrom`, and remove `contextRoot` /
-  `templateRoots` from the DTO.
-- New templates are authored as pure JSON Schema; a pasted partner schema is complete.
+Two decisions were settled first:
+
+- **An unmapped array keeps defaulting to `content`.** The footgun was never the default, it was
+  that the default was *invisible*; P2's echo now states it on every collection row. Making it an
+  error would break every binding that relies on it, in exchange for nothing an operator can see.
+- **Keep the fallback.** So `itemsFrom` parsing stays, and `contextRoot` / `templateRoots` stay
+  with it — they are how the fallback reaches the drawer.
+
+That left a backfill of stored bindings. **It was written and then dropped**, because checking the
+population after building it is the wrong order: prod holds no bindings and no operations at all,
+and dev holds exactly one, on a single disposable connection that is quicker to recreate than to
+migrate. A Flyway version is permanent in every environment that ever runs it; paying that
+forever to fix one throwaway row is a bad trade.
+
+So P3 is empty by evidence, not by omission. **The separation is already delivered by P1 + P2**:
+the renderer prefers the binding, the drawer can author it, and any binding created from here on
+carries its own collection rows. The schema fallback covers the rest, which is why keeping it was
+the right call rather than a concession.
+
+What survived the deletion is the invariant the backfill would have depended on, and which the
+ordinary path now relies on anyway —
+`PayloadCollectionRowTest.aCollectionRowAgreeingWithTheSchemaChangesNothing`: when the contract
+still carries `itemsFrom` and an operator names the same collection, both sources are present and
+agree, and that must cost nothing.
+
+**If a real population ever accumulates**, the backfill is a recursive CTE over `request_schema`
+writing `{dotted.path: "{{itemsFrom}}"}` into `field_templates`, with the binding's own rows
+winning and a `@>` guard for idempotency. Write it then, against the data that exists.
+
+### Beyond P3 — if the fallback is ever dropped
+
+Not scheduled. It would mean stripping `itemsFrom` parsing for array *fields* (a top-level array
+body still needs it, see above) and removing `contextRoot` / `templateRoots`. Note that
+`collectionFallbackRoot` in the drawer derives the echo from a value row's `contextRoot`, so that
+derivation needs a replacement before those fields go.
 
 ## Decisions to confirm before P1
 

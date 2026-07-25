@@ -26,6 +26,7 @@ const READ_FNS = new Set([
   "fn_cap_units",
   "fn_cap_archetypes",
   "fn_cap_reliability",
+  "fn_cap_position",
 ]);
 const WRITE_FNS = new Set([
   "fn_ams_save_truck",
@@ -69,6 +70,7 @@ const TENANT_PARAM_FNS = new Set([
   "fn_cap_save_archetype",
   "fn_cap_reliability",
   "fn_cap_commit",
+  "fn_cap_position",
 ]);
 
 async function carrierOrgId(): Promise<{ deny: NextResponse | null; orgId: string | null }> {

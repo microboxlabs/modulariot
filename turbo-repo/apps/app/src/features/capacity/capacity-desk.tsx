@@ -17,6 +17,7 @@ import {
   HiOutlineTruck, HiOutlineSun, HiOutlineExclamationTriangle,
 } from "react-icons/hi2";
 import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
+import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import type { AmsTruck, AmsDriver } from "@/features/ams/ficha-ams";
 
 const fetcher = (url: string) => fetch(url).then((r) => {
@@ -76,6 +77,24 @@ const fmtHora = (e: number) =>
 const fmtDia = (e: number) =>
   new Date(e * 1000).toLocaleDateString("es-CL", { weekday: "long", day: "2-digit", month: "2-digit" });
 
+type Lugar = { place_id: string; name: string; center: [number, number] | null };
+
+// distancia haversine en km (suficiente para "a cuántos km del origen")
+function kmEntre(aLat: number, aLon: number, bLat: number, bLon: number): number {
+  const R = 6371, rad = Math.PI / 180;
+  const dLat = (bLat - aLat) * rad, dLon = (bLon - aLon) * rad;
+  const h = Math.sin(dLat / 2) ** 2 +
+    Math.cos(aLat * rad) * Math.cos(bLat * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const hace = (ts: number) => {
+  const m = Math.round((Date.now() / 1000 - ts) / 60);
+  if (m < 60) return `hace ${m} min`;
+  if (m < 60 * 24) return `hace ${Math.round(m / 60)} h`;
+  const d = Math.round(m / 1440);
+  return `hace ${d} ${d === 1 ? "día" : "días"}`;
+};
+
 // franja horaria en lenguaje de operación
 const FRANJAS = [
   { id: "manana", l: "Mañana (08–14)", ini: "08:00", fin: "14:00" },
@@ -93,6 +112,10 @@ export function CapacityDesk() {
     "/app/api/ams/rpc/fn_cap_archetypes", fetcher);
   const { data: confiabilidad, mutate: mutConf } = useSWR<Confiabilidad>(
     "/app/api/ams/rpc/fn_cap_reliability", fetcher);
+  const { data: lugares } = useSWR<Lugar[]>(
+    "/app/api/atc/rpc/fn_pt4_places_global", fetcher);
+  const runtimeConfig = useRuntimeConfig();
+  const mapboxToken: string | undefined = runtimeConfig?.MAPBOX_API_KEY;
 
   // ── diálogo: ¿cuándo? ¿qué tipo? ──
   const hoyStr = new Date().toISOString().slice(0, 10);
@@ -101,6 +124,7 @@ export function CapacityDesk() {
   const [fecha, setFecha] = useState(mananaStr);
   const [fechaLibre, setFechaLibre] = useState(false);
   const [franja, setFranja] = useState<string>("dia");
+  const [origenId, setOrigenId] = useState("");
   const [arq, setArq] = useState<number | null>(null);
   const [buscando, setBuscando] = useState(false);
   const [resultado, setResultado] = useState<Unidad[] | null>(null);
@@ -298,6 +322,17 @@ export function CapacityDesk() {
           ))}
         </div>
 
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-gray-500 w-16">¿Desde dónde?</span>
+          <select className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-sm text-gray-900 dark:text-white"
+                  value={origenId} onChange={(e) => setOrigenId(e.target.value)}>
+            <option value="">Da lo mismo</option>
+            {(lugares ?? []).filter((l) => l.center).map((l) => (
+              <option key={l.place_id} value={l.place_id}>{l.name}</option>
+            ))}
+          </select>
+        </div>
+
         <div className="flex items-start gap-2 flex-wrap">
           <span className="text-sm text-gray-500 w-16 pt-2">¿Qué tipo?</span>
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
@@ -357,6 +392,8 @@ export function CapacityDesk() {
                                 solo si: {c}</div>))}
                             {u.dupla_vigente && (
                               <div className="text-xs text-gray-500">su pareja de siempre</div>)}
+                            <GeoLinea patente={u.camion.patente} token={mapboxToken}
+                              origen={(lugares ?? []).find((l) => l.place_id === origenId) ?? null} />
                           </div>
                           <button className={btnPri + " flex-none"}
                                   disabled={reservando === key}
@@ -595,6 +632,52 @@ function FilaAgenda({ etiqueta, id, tipo }: {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ── "¿Dónde está ahora?" — posición real + reverse geocoding (Mapbox,
+// nuestro proveedor validado) + comparación con el origen elegido ──
+function GeoLinea({ patente, origen, token }: {
+  patente: string; origen: Lugar | null; token?: string;
+}) {
+  const { data: pos } = useSWR<{ ok: boolean; posicion: { lat: number; lon: number; ts: number } | null }>(
+    `/app/api/ams/rpc/fn_cap_position?p_plate=${encodeURIComponent(patente)}`, fetcher,
+    { dedupingInterval: 60000 });
+  const p = pos?.posicion;
+  const { data: geo } = useSWR<{ features?: { place_name?: string }[] }>(
+    p && token
+      ? `https://api.mapbox.com/geocoding/v5/mapbox.places/${p.lon.toFixed(5)},${p.lat.toFixed(5)}.json?language=es&types=address,place,locality&limit=1&access_token=${token}`
+      : null, fetcher, { dedupingInterval: 300000 });
+
+  if (!p) {
+    return <div className="text-xs text-gray-400">📍 sin señal de posición reciente</div>;
+  }
+  const lugarTxt = geo?.features?.[0]?.place_name?.split(",").slice(0, 2).join(",")
+    ?? `${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}`;
+  const dist = origen?.center
+    ? kmEntre(p.lat, p.lon, origen.center[0], origen.center[1]) : null;
+  return (
+    <div className="text-xs text-gray-600 dark:text-gray-300 pt-0.5">
+      📍 Está en {lugarTxt}
+      <span className="text-gray-400"> · {hace(p.ts)}</span>
+      {dist != null && origen && (
+        <span className={dist > 120 ? "text-amber-600 dark:text-amber-400 font-medium" : ""}>
+          {" "}· a {dist < 10 ? dist.toFixed(1) : Math.round(dist)} km de {origen.name}
+        </span>
+      )}
+      {" "}
+      <a className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer"
+         href={`https://www.google.com/maps?q=${p.lat},${p.lon}`}>mapa</a>
+      {origen?.center && (
+        <>
+          {" · "}
+          <a className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer"
+             href={`https://www.google.com/maps/dir/${p.lat},${p.lon}/${origen.center[0]},${origen.center[1]}`}>
+            ruta al origen
+          </a>
+        </>
+      )}
     </div>
   );
 }

@@ -1,0 +1,543 @@
+{
+  "hero": {
+    "kicker": "Open Source · Apache-2.0",
+    "titlePre": "From detecting to ",
+    "titleHighlight": "reducing",
+    "titlePost": ".",
+    "subtitle": "We turn your alerts into real improvements for your operation.",
+    "ctaPrimary": "Book a 20-min technical demo",
+    "ctaSecondary": "See pricing",
+    "livePanel": {
+      "title": "Live operation",
+      "subtitle": "a real operation, right now",
+      "live": "receiving events…",
+      "done": "it all stays in your operation",
+      "events": [
+        { "title": "Signals coming in", "detail": "2,847 assets reporting in real time" },
+        { "title": "Symptom detected", "detail": "Speeding · internal route · high severity" },
+        { "title": "Escalated to the owner", "detail": "supervisor notified by SMS, with evidence" },
+        { "title": "Logged", "detail": "in your database, in your cloud" }
+      ]
+    }
+  },
+
+  "stats": {
+    "items": [
+      { "prefix": "Up to", "value": "55,847", "label": "symptoms handled in a month" },
+      { "prefix": "A", "value": "65%", "label": "of treated alerts get invalidated" },
+      { "prefix": "With", "value": "+28", "label": "GPS providers integrated" },
+      { "prefix": "And with", "value": "1,900+", "label": "assets in operation" }
+    ]
+  },
+
+  "problem": {
+    "kicker": "The problem",
+    "title": "Do you handle alerts,\nonly to see them come back the same way?",
+    "subtitle": "97% of symptoms get handled, but handling isn't solving the cause — so the same deviations come back month after month.",
+    "pains": [
+      { "title": "“I found out the next day”", "body": "The event had already happened. The system logged everything. But no one saw it until it was too late to act." },
+      { "title": "“We have alerts, but they're noise”", "body": "The system fires hundreds of notifications a day. The team ignores them. The critical ones get lost among the irrelevant ones." },
+      { "title": "“We can't prove anything”", "body": "An audit, an inspection, or a complaint comes in. Reconstructing what happened takes days — if the data even exists." }
+    ]
+  },
+
+  "tresActos": {
+    "kicker": "The thesis, in 3 acts",
+    "title": "Detecting is cheap; reducing is the business.",
+    "subtitle": "The same intelligence engine, applied at three different moments of your operation.",
+    "actos": [
+      { "n": "Act 1", "tag": "See and reduce", "title": "You handle every alert, but the deviations come back the same.", "body": "97% of symptoms get handled… and most get invalidated. Closing isn't solving: we attack the cause generating them in series, not the ticket.", "cta": "Explore the control tower" },
+      { "n": "Act 2", "tag": "Understand every actor", "title": "Not a score. A living profile.", "body": "The operational identity of every driver, carrier and asset — their history, their level and their plan. One engine for any entity.", "cta": "See SuperProfile" },
+      { "n": "Act 3", "tag": "Manage where the operation lives", "title": "The alert arrives with a plan and an owner.", "body": "Email, WhatsApp, Teams, Webex or SMS. Escalating stops being just a notice and becomes the first step of the handling.", "cta": "See escalation channels" }
+    ],
+    "disclaimer": "What you see in the explorer is a real operation (June 2026), not a mockup."
+  },
+
+  "steps": {
+    "kicker": "How it works",
+    "title": "Turn a raw signal into an auditable decision",
+    "subtitle": "Follow the flow of your alerts, step by step.",
+    "items": [
+      { "n": "01", "title": "The signal is captured", "body": "Every GPS ping, sensor value and driver event enters your flow in milliseconds, no matter the hardware vendor.", "tag": "INGEST" },
+      { "n": "02", "title": "Processed in real time", "body": "The streaming engine enriches and evaluates the signal against 30+ rules, with median latency under 56 ms.", "tag": "STREAM" },
+      { "n": "03", "title": "The symptom is detected", "body": "If something deviates from your operation's standard, a severity-classified event is generated — not just another generic notification.", "tag": "SYMPTOM" },
+      { "n": "04", "title": "The response is triggered", "body": "The event is assigned to an owner and fires the flow you defined: SMS, panel alert, work order or webhook.", "tag": "WORKFLOW" },
+      { "n": "05", "title": "The evidence remains", "body": "Everything is logged with a timestamp, owner and resolution in your own database. Audit-ready in seconds, not days.", "tag": "EVIDENCE" }
+    ],
+    "outro": {
+      "latency": "< 56 ms median end-to-end latency",
+      "subtitle": "From the sensor reading to the data sitting in your own database."
+    },
+    "stepAriaLabel": "Step"
+  },
+
+  "painOutcome": {
+    "kicker": "The real shift",
+    "title": "The difference between alerting and reducing",
+    "left": {
+      "title": "Just alerting",
+      "items": [
+        "The inbox fills up with notifications the team ends up ignoring",
+        "The ticket gets closed, but the cause behind it is still there",
+        "The same deviations repeat month after month",
+        "No one knows whether the handling actually reduced the problem",
+        "The data stays locked in a third-party system"
+      ]
+    },
+    "right": {
+      "title": "With ModularIoT",
+      "items": [
+        "Every symptom arrives with an owner, context and an action plan",
+        "We attack the root cause, not just today's event",
+        "We measure the real reduction in deviations month over month",
+        "SuperProfile shows whether each actor is improving or repeating",
+        "The data and the decisions stay under your control"
+      ]
+    }
+  },
+
+  "features": {
+    "kicker": "Features",
+    "title": "Three core capabilities",
+    "subtitle": "Everything you need to process, analyze and act on fleet data in real time",
+    "cards": [
+      { "title": "Real-time processing", "body": "Every GPS signal, sensor and driver event is processed as it arrives, with median latency under 56 ms.", "bullets": ["A single source for all telemetry", "Instant enrichment and evaluation", "Thousands of events per second, no batching"] },
+      { "title": "Symptom-based alerts", "body": "30+ rules detect the deviation — fatigue, speeding, risk zones — and generate a classified event, not another generic notification.", "bullets": ["Automatic severity and owner assignment", "Smart noise exclusion", "Action triggered: SMS, panel or work order"] },
+      { "title": "Escalation by symptom", "body": "Each symptom escalates to the channel where the operation actually lives — email, WhatsApp, Teams with two-way conversation, plan and owner.", "bullets": ["Channel based on the type of symptom", "Two-way cycle, not just a notification", "Every alert arrives with a plan and an owner"] }
+    ]
+  },
+
+  "architecture": {
+    "kicker": "Architecture",
+    "title": "From the edge device to your infrastructure",
+    "subtitle": "See how your data flows from edge devices to your cloud in real time",
+    "steps": [
+      { "n": "01", "title": "Data ingestion", "body": "Collects GPS, sensor and event data from your fleet in real time" },
+      { "n": "02", "title": "Stream processing", "body": "Processes and analyzes data streams with sub-second latency" },
+      { "n": "03", "title": "Your infrastructure", "body": "Data flows directly into your database, analytics and applications" }
+    ],
+    "latency": "< 56 ms median end-to-end latency",
+    "latencySubtitle": "From sensor reading to your application's response"
+  },
+
+  "useCases": {
+    "kicker": "Use cases",
+    "title": "Four processing boxes. Only pay for what you need.",
+    "subtitle": "Modular architecture with no vendor lock-in: each box is an independent service, priced per asset.",
+    "cards": [
+      { "title": "GPS Core Ingestion", "body": "Every GPS ping, sensor signal and driver event flows into your systems in milliseconds.", "bullets": ["Latest-signal API per asset", "Real-time AVL tracking", "CDC into your downstream systems"] },
+      { "title": "Symptoms / Control Tower", "body": "30+ detection rules: speed by segment, continuous driving, risk zones, fatigue, mechanical telemetry.", "bullets": ["Automatic severity and owner assignment", "Lifecycle: open → treat → close", "Smart noise exclusion"] },
+      { "title": "Integrations", "body": "Automation with n8n, a document manager for evidence, API gateway and webhooks. Your operation connected to the systems you already use.", "bullets": ["Workflows and webhooks (n8n)", "Document evidence vault", "APIs and gateway for your systems"] },
+      { "title": "Live Video / HLS", "body": "Continuous 24-hour video streams from onboard cameras as visual reference for every detected event.", "bullets": ["24h continuous HLS streaming", "Frames from cameras and dashcams", "Visual context for every alert"] }
+    ]
+  },
+
+  "confiabilidad": {
+    "kicker": "Signal reliability",
+    "title": "12 pulses per minute. \nThe standard that makes the difference.",
+    "subtitle": "Precision depends on how often the signal reports while moving. We integrate 28+ GPS providers and raise their signal to that standard.",
+    "rows": [
+      { "label": "Fleet today", "caption": "Average pulses/min across your fleet" },
+      { "label": "ModularIoT", "caption": "The precision standard we build in" },
+      { "label": "Mining", "caption": "The standard the mining industry requires" }
+    ],
+    "pulsesUnit": "pulses/min",
+    "cta": "Analyze your GPS providers",
+    "disclaimer": "Real data from GPS providers in operation — measured, not simulated."
+  },
+
+  "stories": {
+    "kicker": "Customers",
+    "title": "Operations that stopped finding out late",
+    "caseLabel": "Real case",
+    "beforeLabel": "Before",
+    "afterLabel": "With ModularIoT",
+    "metrics": [
+      { "value": "+1,900", "label": "assets in real operation" },
+      { "value": "97%", "label": "of symptoms under management" },
+      { "value": "36", "label": "detection rules in production" },
+      { "value": "5", "label": "escalation channels" }
+    ],
+    "cases": [
+      { "tag": "Transport & Mining", "before": "Company with its own fleet in a mining operation. No evidence of speeding on internal routes. Audits that took days.", "after": "Speeding detection with automatic severity from month one. Limits by internal segment, stricter than the official map. Evidence ready for any inspection, in seconds." },
+      { "tag": "Distribution Fleet", "before": "Fleet of 390 light vehicles. Vehicles left stranded on the road with no warning. No mechanical-condition data until the driver called the boss.", "after": "Mechanical telemetry active across the whole fleet. Check Engine, battery limit and alternator failure detected before the breakdown." }
+    ],
+    "quotes": [
+      { "text": "Now when something happens, the first thing my team does is open the system and look up the event. Before, they'd call the driver.", "author": "Head of Operations, Freight Transport Company, Chile" },
+      { "text": "I had GPS on all my vehicles. The truck went through a risk zone at night and no one told me. I found out the next day. That doesn't happen anymore.", "author": "Fleet Manager, Logistics Company, Northern Chile" }
+    ]
+  },
+
+  "deployment": {
+    "kicker": "Deployment",
+    "title": "Live in days, not months.",
+    "subtitle": "A rollout managed by MicroBox Labs: we run the infrastructure, you focus on the operation.",
+    "soonLabel": "Coming soon",
+    "includes": [
+      { "title": "Configured to your operation", "body": "Thresholds, zones and rules tuned to how you work, not a generic template." },
+      { "title": "Deployed on your cloud", "body": "Runs on your infrastructure (AWS, Azure or GCP); your data never leaves your control." },
+      { "title": "Connected to your systems", "body": "API integration with the platforms you already use (dispatch, maintenance, ERP); it adds to your operation, it doesn't replace it." },
+      { "title": "Your operation's channels", "body": "Email, WhatsApp, Teams, Webex and SMS connected so the alert reaches wherever the team actually is." },
+      { "title": "Managed rollout", "body": "MicroBox Labs operates and supports the rollout, with no DevOps overhead on your side." },
+      { "title": "Monitoring, support and updates", "body": "The platform stays up to date and monitored without you having to worry about it." }
+    ]
+  },
+
+  "pricingTeaser": {
+    "kicker": "Pricing",
+    "title": "Pay per asset, only for what you use",
+    "subtitle": "No per-seat licenses, no setup fees. Each processing box is priced independently per asset/month. Build your plan with the calculator.",
+    "cta": "Calculate your fleet's price"
+  },
+
+  "faq": {
+    "kicker": "FAQ",
+    "title": "Frequently asked questions",
+    "items": [
+      { "q": "What's the difference between ModularIoT and traditional telematics providers?", "a": "Traditional providers stop at alerting: they notify you and that's it. ModularIoT interprets every symptom, assigns an owner and a plan, and measures whether the deviation actually drops month over month. On top of that, your data and processing logic stay under your control, with no per-asset pricing lock-in. It's the difference between alerting and reducing." },
+      { "q": "How does ModularIoT compare to Apache Kafka or Apache Pulsar?", "a": "Kafka and Pulsar are excellent message brokers; ModularIoT is a complete fleet data processing platform. We use Pulsar under the hood, but we add fleet-specific processors, detection rules and ready-to-use integrations. Enterprise-grade streaming without building everything from scratch." },
+      { "q": "Do I need to change my current technology?", "a": "No. We integrate with the sensors, GPS, cameras and systems you already have installed. During the diagnostic we review your current technology and confirm compatibility." },
+      { "q": "What about GDPR and data sovereignty?", "a": "Data sovereignty is a core principle: all processing happens in your chosen region/cloud, and we never store your fleet's data in our systems. We include anonymization, retention policies and audit trails. Your data stays under your control at all times." },
+      { "q": "How fast can we get started?", "a": "For managed deployments, you can be processing live data within 48 hours. On-your-cloud deployments typically take 1-2 weeks, including infrastructure setup and integration testing." },
+      { "q": "Does the system generate a lot of alerts the team ends up ignoring?", "a": "That's exactly what we avoid. Alerts have smart exclusion rules: no notification is generated unless it meets the conditions configured for your operation. Your operators only see what matters and requires action." },
+      { "q": "What kind of support do you offer?", "a": "All plans include technical support through our portal. Higher-tier plans include a dedicated Customer Success Manager and priority response times, up to 24/7 support with guaranteed SLAs." }
+    ]
+  },
+
+  "finalCta": {
+    "title": "Ready to reduce your operation's deviations?",
+    "body": "No more alerts piling up. Turn every signal into fewer repeated problems — with your data and your decisions under your control. See it working in 20 minutes.",
+    "cta": "Schedule an integration call",
+    "note": "No commitment · Response in under 24 hours",
+    "stats": [
+      { "value": "48hr", "label": "managed deployment setup" },
+      { "value": "0%", "label": "data vendor dependency" },
+      { "value": "100%", "label": "your data, your control" }
+    ]
+  },
+
+  "detail": {
+    "producto/ingesta-gps-core": {
+      "eyebrow": "Product · GPS Core Ingestion",
+      "title": "Every signal from your fleet, in your cloud, in milliseconds",
+      "subtitle": "ModularIoT's base box. It receives every GPS ping, sensor value and driver event —regardless of the hardware vendor— and delivers it to your own infrastructure in real time.",
+      "blocks": [
+        {
+          "kicker": "What it does",
+          "title": "The pipeline everything else runs on",
+          "body": "GPS Core Ingestion normalizes and streams your fleet's raw telemetry into your systems. It's the foundation: symptoms, integrations and video are built on top of this flow. No vendor lock-in and your data always under your control.",
+          "bullets": [
+            "Last-signal API per asset (lastsignal)",
+            "Real-time AVL tracking",
+            "Change data capture (CDC) into your downstream systems",
+            "Messaging backbone with Apache Pulsar",
+            "Direct writes to your PostgreSQL / storage"
+          ]
+        },
+        {
+          "kicker": "Capabilities",
+          "title": "Production-ready ingestion",
+          "cards": [
+            { "title": "Any hardware", "body": "Universal adapters for GPS providers (Redd, Samtech, GAMA and more). You don't change your devices." },
+            { "title": "Latency < 56 ms", "body": "From sensor reading to your application, with low-latency stream processing." },
+            { "title": "High volume", "body": "Built for millions of signals per month: 2.9M+ in real operation today, with room to grow." },
+            { "title": "Your data, your cloud", "body": "Data lands in your infrastructure. Full sovereignty, effortless GDPR compliance." },
+            { "title": "Built-in CDC", "body": "Debezium captures changes and propagates them to your systems: no polling, no batch jobs." },
+            { "title": "Open APIs", "body": "REST and direct database access to build whatever you need on top of the flow." }
+          ]
+        },
+        {
+          "kicker": "How it works",
+          "title": "From signal to your database, in real time",
+          "subtitle": "No polling, no batch jobs: every signal flows in and lands ready to query.",
+          "steps": [
+            { "n": "01", "title": "The signal arrives", "body": "GPS, sensors and events from any hardware stream in continuously, no waiting." },
+            { "n": "02", "title": "Processed instantly", "body": "Every signal is normalized and evaluated with median latency under 56 ms." },
+            { "n": "03", "title": "Lands in your cloud", "body": "Data stays in your own database: full sovereignty, effortless compliance." },
+            { "n": "04", "title": "Query anytime", "body": "Latest position and status of each asset via open API or direct SQL." }
+          ]
+        }
+      ]
+    },
+
+    "producto/sintomas-torre-control": {
+      "eyebrow": "Product · Symptoms / Control Tower",
+      "title": "Over 30 rules that turn data into decisions",
+      "subtitle": "No more raw data or noisy alerts. Every signal is evaluated against your operation's rules and, if something deviates, a severity-classified event is generated, with an owner and full traceability.",
+      "blocks": [
+        {
+          "kicker": "What it does",
+          "title": "It interprets, not just logs",
+          "body": "The difference between a GPS and ModularIoT is the same as between a security camera and a trained guard. The control tower interprets each event in its operational context: is it a risk zone? how long has it been active? who should handle it?",
+          "bullets": [
+            "Severity and owner assigned automatically",
+            "Event lifecycle: open → handle → close",
+            "Smart noise exclusion: only what requires action",
+            "Thresholds and zones configured for your operation",
+            "Full traceability for audits"
+          ]
+        },
+        {
+          "kicker": "Detection rules",
+          "title": "A rule for every risk that matters to you",
+          "subtitle": "Over 30 rules active in production, each an independent microservice.",
+          "cards": [
+            { "title": "Driving", "body": "Speeding by segment, continuous driving without rest, movement in unauthorized hours, dual driver." },
+            { "title": "Safety", "body": "Panic button (SOS), roadside assistance, PPE use, man-machine, harsh braking and turning, fatigue and drowsiness." },
+            { "title": "Cargo and assets", "body": "Missing and deficient load securing, engine overheating, Check Engine, low battery, charging failure." },
+            { "title": "Zones and routes", "body": "Crossing a restricted area, stopping in a risk zone, overnight stay in an unauthorized zone, ETA deviation." }
+          ]
+        },
+        {
+          "kicker": "Lifecycle",
+          "title": "The cycle doesn't end at closing: it ends at reducing",
+          "subtitle": "Closing the ticket doesn't solve the cause. That's why the cycle adds one more step: reducing recurrence.",
+          "steps": [
+            { "n": "01", "title": "The symptom is detected", "body": "The rule evaluates the signal in context and generates an event with severity." },
+            { "n": "02", "title": "An owner is assigned", "body": "The event enters your operational team's panel and is assigned to be handled." },
+            { "n": "03", "title": "It gets handled", "body": "The operator handles the event with the context and evidence needed to act." },
+            { "n": "04", "title": "It closes with traceability", "body": "It's logged with timestamp, owner and resolution. Nothing gets lost." },
+            { "n": "05", "title": "Recurrence is reduced", "body": "The SuperProfile aggregates history by entity and attacks the cause: fewer repeated events month over month, not just closed tickets." }
+          ]
+        },
+        {
+          "kicker": "Live, with real data",
+          "title": "Explore it on a real operation",
+          "subtitle": "The same symptoms, running on June 2026 data — not a mockup.",
+          "links": [
+            { "title": "Control tower", "body": "All 36 symptoms, their history and their dashboards with real data." },
+            { "title": "SuperProfile", "body": "The living profile of every carrier and driver: level, risk and plan." },
+            { "title": "Escalation channels", "body": "The same alert across email, WhatsApp, Teams, Webex and SMS." }
+          ]
+        }
+      ]
+    },
+
+    "producto/integraciones": {
+      "eyebrow": "Product · Integrations",
+      "title": "Your operation connected to what you already use",
+      "subtitle": "Workflow automation, document evidence vault, API gateway and webhooks. ModularIoT doesn't replace your systems: it connects and empowers them.",
+      "blocks": [
+        {
+          "kicker": "What it does",
+          "title": "From event to action, automatically",
+          "body": "When a symptom is detected, seeing it isn't enough: you have to act. Integrations fires the flow you defined —notify, create a work order, store evidence, alert an external system— with no manual intervention.",
+          "bullets": [
+            "Workflows and webhooks with n8n",
+            "Document evidence vault (ECM manager)",
+            "API gateway to expose and consume services",
+            "MCP server for AI agents",
+            "GAMA, RFID and custom process automation"
+          ]
+        },
+        {
+          "kicker": "Connectors",
+          "title": "Integrate with your real stack",
+          "cards": [
+            { "title": "n8n", "body": "Orchestrate visual flows: when X happens, do Y. Without writing integration code." },
+            { "title": "Evidence vault", "body": "Every event keeps its documentation, ready for inspections and audits." },
+            { "title": "API Gateway", "body": "Expose your services securely and consume third-party APIs from a single point." },
+            { "title": "Webhooks", "body": "Notify any external system in real time when a relevant event occurs." },
+            { "title": "MCP Server", "body": "Connect AI agents to your operation for assisted queries and actions." },
+            { "title": "GAMA / RFID", "body": "Provider ingestion and RFID tag validation via automated flows." }
+          ]
+        }
+      ]
+    },
+
+    "producto/video-en-vivo": {
+      "eyebrow": "Product · Live Video / HLS",
+      "title": "Visual context for every event you detect",
+      "subtitle": "Continuous 24-hour video streams from cameras on board your assets. When a symptom fires, you don't just know what happened: you can see it.",
+      "blocks": [
+        {
+          "kicker": "What it does",
+          "title": "From device frames to live video",
+          "body": "The stream processor consumes your camera frames and generates continuous HLS streams with FFmpeg. A 24-hour rolling video that gives visual context to every alert, without relying on an external video-surveillance vendor.",
+          "bullets": [
+            "Continuous 24-hour HLS streaming",
+            "Frames processed from cameras and dashcams",
+            "Visual context tied to each detected event",
+            "Storage on your own infrastructure",
+            "Offline frame verification and recovery"
+          ]
+        },
+        {
+          "kicker": "Capabilities",
+          "title": "Operational video, not just recording",
+          "cards": [
+            { "title": "24h HLS", "body": "Continuous rolling streams: there's always video available for the period you need to review." },
+            { "title": "FFmpeg", "body": "Frame-to-video processing with the industry standard, in your pipeline." },
+            { "title": "Linked to symptoms", "body": "Every control-tower event can link the video of the exact moment." },
+            { "title": "Your storage", "body": "Frames and video live in your bucket. No external video-surveillance licenses." }
+          ]
+        }
+      ]
+    },
+
+    "producto/caracteristicas": {
+      "eyebrow": "Product · Features",
+      "title": "Three core capabilities",
+      "subtitle": "Everything you need to process, analyze and act on fleet data in real time, on an open architecture you control.",
+      "blocks": [
+        {
+          "kicker": "Streaming",
+          "title": "Process every signal as it arrives",
+          "body": "The engine evaluates telemetry in real time against your operation's rules. When something deviates, it fires the action —notify, escalate, record— with sub-second latency. All configurable, no code required.",
+          "bullets": [
+            "One source: all fleet telemetry in a single stream",
+            "Rules per symptom: fatigue, speeding, zones and more",
+            "Automatic actions: SMS to the supervisor, with evidence saved",
+            "Priority and severity per rule, tuned to your operation",
+            "Median end-to-end latency under 56 ms"
+          ]
+        },
+        {
+          "kicker": "Why it matters",
+          "title": "Capabilities that translate into operations",
+          "cards": [
+            { "title": "Real time", "body": "Act while the event is happening, not the next day. Median latency under 56 ms." },
+            { "title": "Smart detection", "body": "Over 30 rules with noise exclusion: your team sees only what matters." },
+            { "title": "Evidence vault", "body": "Automated workflows with 7-year traceability, compliance-ready." }
+          ]
+        }
+      ]
+    },
+
+    "producto/arquitectura": {
+      "eyebrow": "Product · Architecture",
+      "title": "From the edge device to your infrastructure",
+      "subtitle": "See how your data flows from devices to your cloud in real time, with median end-to-end latency under 56 ms.",
+      "blocks": [
+        {
+          "kicker": "The flow",
+          "title": "Three stages, one pipeline",
+          "steps": [
+            { "n": "01", "title": "Data ingestion", "body": "Collect GPS, sensor and event data from your fleet in real time, from any hardware." },
+            { "n": "02", "title": "Stream processing", "body": "Enrich and evaluate data streams with sub-second latency against your operation's rules." },
+            { "n": "03", "title": "Your infrastructure", "body": "Data flows straight into your database, analytics and applications. You own it." }
+          ]
+        },
+        {
+          "items": [
+            { "value": "<56ms", "label": "median end-to-end latency" },
+            { "value": "2.9M+", "label": "signals processed per month" },
+            { "value": "99.9%", "label": "event processing accuracy" },
+            { "value": "24/7", "label": "continuous operation" }
+          ]
+        },
+        {
+          "kicker": "Design principles",
+          "title": "Open, modular and yours",
+          "cards": [
+            { "title": "Modular", "body": "Each box is an independent service. You contract and scale only what you use." },
+            { "title": "Sovereign", "body": "Processing happens in your region/cloud. We never store your data." },
+            { "title": "No lock-in", "body": "Open technologies (Pulsar, PostgreSQL, n8n). You can swap components." }
+          ]
+        }
+      ]
+    },
+
+    "producto/implementacion": {
+      "eyebrow": "Product · Deployment",
+      "title": "Choose the model that fits your operation",
+      "subtitle": "Your cloud, MBL-managed or hybrid edge. The same platform, the level of control and compliance you need.",
+      "blocks": [
+        {
+          "kicker": "Options",
+          "title": "Three ways to deploy ModularIoT",
+          "cards": [
+            { "title": "Your Cloud", "body": "Full control on your AWS, Azure or GCP infrastructure: data sovereignty, security your way, unlimited scaling and direct database access." },
+            { "title": "MBL-Managed", "body": "We handle the infrastructure while you focus on your insights: zero DevOps overhead, 24/7 monitoring, automatic updates and SLA." },
+            { "title": "Hybrid Edge", "body": "Edge processing for ultra-low latency with cloud backup: sub-10 ms, offline capability, sync and regional compliance." }
+          ]
+        },
+        {
+          "kicker": "Getting started",
+          "title": "From signing to production",
+          "steps": [
+            { "n": "01", "title": "Assessment", "body": "We review your operation, current hardware and the events that concern you. Free." },
+            { "n": "02", "title": "Integration and setup", "body": "We connect your technology, define thresholds and rules, and activate the panel. 5 to 10 business days (48h in managed mode)." },
+            { "n": "03", "title": "Operating with visibility", "body": "Your team operates with real-time data and gets an impact report every month." }
+          ]
+        }
+      ]
+    },
+
+    "soluciones": {
+      "eyebrow": "Solutions",
+      "title": "Real visibility for your operation, whatever it is",
+      "subtitle": "ModularIoT is configured for what matters in your specific operation. These are the use cases and industries where it already delivers impact.",
+      "blocks": [
+        {
+          "kicker": "Use cases",
+          "title": "What you can monitor today",
+          "cards": [
+            { "title": "Drivers and vehicles", "body": "Speed by segment, continuous driving without rest, risk zones and mechanical state. Each event classified and with an owner." },
+            { "title": "Telemetry and maintenance", "body": "Temperature, pressure, consumption and usage cycles. We know when an asset is about to fail before it does." },
+            { "title": "Compliance and audits", "body": "Was the procedure done as defined? Real-execution monitoring with evidence ready for inspection." },
+            { "title": "Control tower", "body": "A unified view for your operational team: alerts with lifecycle and full traceability." }
+          ]
+        },
+        {
+          "kicker": "Industries",
+          "title": "Operations that already trust ModularIoT",
+          "cards": [
+            { "title": "Freight transport", "body": "Speeding on route, rest compliance and evidence for demanding clients." },
+            { "title": "Mining", "body": "Limits by internal segment, stricter than the official map. Evidence ready for any inspection." },
+            { "title": "Distribution and last mile", "body": "Mechanical telemetry across the whole fleet: failures detected before the vehicle stops." },
+            { "title": "Industrial logistics", "body": "Centralized visibility of critical assets and processes, with traceability of every event." }
+          ]
+        },
+        {
+          "kicker": "How we start",
+          "title": "Configured for your operation, not a generic system",
+          "body": "We don't install a one-size-fits-all solution. We configure the thresholds, zones, processes and alerts based on how your specific operation works. We start with a free 30-minute assessment.",
+          "bullets": [
+            "Free assessment: what you can monitor today",
+            "Integration with your current hardware and systems",
+            "Rules and thresholds defined for your operation",
+            "Active panel for your team in 5 to 10 days",
+            "Monthly impact report"
+          ]
+        }
+      ]
+    },
+
+    "recursos": {
+      "eyebrow": "Resources",
+      "title": "Everything to learn and build with ModularIoT",
+      "subtitle": "Documentation, real stories and community. Learn how the platform works and join the open-source project.",
+      "blocks": [
+        {
+          "kicker": "Learn",
+          "title": "Documentation and content",
+          "links": [
+            { "title": "Documentation", "body": "Guides, API reference and integrations to build on ModularIoT." },
+            { "title": "Real stories", "body": "Operations that stopped finding out too late: transport, mining and distribution." },
+            { "title": "FAQ", "body": "What people always ask us before starting, answered." }
+          ]
+        },
+        {
+          "kicker": "Community",
+          "title": "Open source and contact",
+          "links": [
+            { "title": "GitHub", "body": "Open-source platform under Apache-2.0 license. Explore, contribute, give us a star." },
+            { "title": "MicroBox Labs", "body": "Meet the company behind ModularIoT and the rest of the portfolio." },
+            { "title": "Talk to us", "body": "Book a free 30-minute assessment for your operation." }
+          ]
+        },
+        {
+          "kicker": "Blog",
+          "title": "News and technical notes",
+          "subtitle": "Coming soon: articles, cases and lessons from real operations. In the meantime, the docs and cases are already available.",
+          "cards": [
+            { "title": "How the Control Tower works", "body": "A walkthrough of the rules that turn signals into decisions." },
+            { "title": "The 36 symptoms, explained", "body": "What each rule detects and why it matters for your operation." },
+            { "title": "Your data, your cloud", "body": "How the platform works without vendor lock-in, with full sovereignty." }
+          ]
+        }
+      ]
+    }
+  }
+}

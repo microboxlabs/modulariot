@@ -189,25 +189,11 @@ export function TemplateFormModal({
               placeholder={SCHEMA_PLACEHOLDER}
               color={schemaBroken ? "failure" : "gray"}
             />
-            {schemaBroken ? (
-              <p className="text-[11px] text-red-600 dark:text-red-400">
-                {tr("template.form.schemaInvalid", dict)}
-              </p>
-            ) : leaves.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
-                <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                  {tr("template.form.fieldsDetected", dict)}:
-                </span>
-                {leaves.map((leaf) => (
-                  <code
-                    key={leaf}
-                    className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                  >
-                    {leaf}
-                  </code>
-                ))}
-              </div>
-            ) : null}
+            <SchemaFeedback
+              schemaBroken={schemaBroken}
+              leaves={leaves}
+              dict={dict}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
@@ -221,6 +207,40 @@ export function TemplateFormModal({
         </div>
       </ModalBody>
     </Modal>
+  );
+}
+
+function SchemaFeedback({
+  schemaBroken,
+  leaves,
+  dict,
+}: Readonly<{
+  schemaBroken: boolean;
+  leaves: readonly string[];
+  dict: I18nRecord;
+}>) {
+  if (schemaBroken) {
+    return (
+      <p className="text-[11px] text-red-600 dark:text-red-400">
+        {tr("template.form.schemaInvalid", dict)}
+      </p>
+    );
+  }
+  if (leaves.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1">
+      <span className="text-[11px] text-gray-500 dark:text-gray-400">
+        {tr("template.form.fieldsDetected", dict)}:
+      </span>
+      {leaves.map((leaf) => (
+        <code
+          key={leaf}
+          className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+        >
+          {leaf}
+        </code>
+      ))}
+    </div>
   );
 }
 

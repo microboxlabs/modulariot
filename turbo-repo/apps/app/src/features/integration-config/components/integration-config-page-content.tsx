@@ -110,11 +110,11 @@ export function IntegrationConfigPageContent({ dict }: Readonly<{ dict: I18nReco
             </Button>
           }
         />
-        {isLoading ? (
-          <Loading />
-        ) : templates.length === 0 ? (
-          <EmptyNotice text={tr("templates.empty", dict)} />
-        ) : (
+        <ContentState
+          isLoading={isLoading}
+          isEmpty={templates.length === 0}
+          emptyText={tr("templates.empty", dict)}
+        >
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {templates.map((template) => (
               <div
@@ -176,7 +176,7 @@ export function IntegrationConfigPageContent({ dict }: Readonly<{ dict: I18nReco
               </div>
             ))}
           </div>
-        )}
+        </ContentState>
       </section>
 
       {/* Connections — the instances */}
@@ -197,11 +197,11 @@ export function IntegrationConfigPageContent({ dict }: Readonly<{ dict: I18nReco
             </Button>
           }
         />
-        {isLoading ? (
-          <Loading />
-        ) : connections.length === 0 ? (
-          <EmptyNotice text={tr("connections.empty", dict)} />
-        ) : (
+        <ContentState
+          isLoading={isLoading}
+          isEmpty={connections.length === 0}
+          emptyText={tr("connections.empty", dict)}
+        >
           <div className="flex flex-col gap-2">
             {connections.map((connection) => (
               <div
@@ -247,7 +247,7 @@ export function IntegrationConfigPageContent({ dict }: Readonly<{ dict: I18nReco
               </div>
             ))}
           </div>
-        )}
+        </ContentState>
       </section>
 
       <TemplateFormModal
@@ -349,6 +349,22 @@ function Loading() {
       <Spinner />
     </div>
   );
+}
+
+function ContentState({
+  isLoading,
+  isEmpty,
+  emptyText,
+  children,
+}: Readonly<{
+  isLoading: boolean;
+  isEmpty: boolean;
+  emptyText: string;
+  children: React.ReactNode;
+}>) {
+  if (isLoading) return <Loading />;
+  if (isEmpty) return <EmptyNotice text={emptyText} />;
+  return children;
 }
 
 function EmptyNotice({ text }: Readonly<{ text: string }>) {

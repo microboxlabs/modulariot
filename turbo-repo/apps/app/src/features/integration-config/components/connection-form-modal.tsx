@@ -110,16 +110,21 @@ export function ConnectionFormModal({
 
           <div className="flex flex-col gap-1">
             <Label className="text-xs">{tr("connection.form.template", dict)}</Label>
-            {editing ? (
-              <span className="text-sm text-gray-700 dark:text-gray-200">
-                {templates.find((t) => t.id === connection.templateId)?.name ??
-                  tr("connection.form.noTemplate", dict)}
-              </span>
-            ) : templates.length === 0 ? (
-              <Alert color="gray" icon={HiInformationCircle}>
-                <span className="text-xs">{tr("connection.form.needTemplate", dict)}</span>
-              </Alert>
-            ) : (
+            <FormFieldState
+              editing={editing}
+              empty={templates.length === 0}
+              editingContent={
+                <span className="text-sm text-gray-700 dark:text-gray-200">
+                  {templates.find((t) => t.id === connection?.templateId)?.name ??
+                    tr("connection.form.noTemplate", dict)}
+                </span>
+              }
+              emptyContent={
+                <Alert color="gray" icon={HiInformationCircle}>
+                  <span className="text-xs">{tr("connection.form.needTemplate", dict)}</span>
+                </Alert>
+              }
+            >
               <Select
                 sizing="sm"
                 value={templateId}
@@ -131,7 +136,7 @@ export function ConnectionFormModal({
                   </option>
                 ))}
               </Select>
-            )}
+            </FormFieldState>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -157,18 +162,23 @@ export function ConnectionFormModal({
 
           <div className="flex flex-col gap-1">
             <Label className="text-xs">{tr("connection.form.credential", dict)}</Label>
-            {editing ? (
-              <span className="text-sm text-gray-700 dark:text-gray-200">
-                {credentialName ?? tr("connection.form.noCredential", dict)}
-                <span className="ml-2 text-[11px] text-gray-400">
-                  {tr("connection.form.credentialFixed", dict)}
+            <FormFieldState
+              editing={editing}
+              empty={credentials.length === 0}
+              editingContent={
+                <span className="text-sm text-gray-700 dark:text-gray-200">
+                  {credentialName ?? tr("connection.form.noCredential", dict)}
+                  <span className="ml-2 text-[11px] text-gray-400">
+                    {tr("connection.form.credentialFixed", dict)}
+                  </span>
                 </span>
-              </span>
-            ) : credentials.length === 0 ? (
-              <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                {tr("connection.form.noCredentials", dict)}
-              </p>
-            ) : (
+              }
+              emptyContent={
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  {tr("connection.form.noCredentials", dict)}
+                </p>
+              }
+            >
               <Select
                 sizing="sm"
                 value={credentialId}
@@ -181,7 +191,7 @@ export function ConnectionFormModal({
                   </option>
                 ))}
               </Select>
-            )}
+            </FormFieldState>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
@@ -196,4 +206,24 @@ export function ConnectionFormModal({
       </ModalBody>
     </Modal>
   );
+}
+
+interface FormFieldStateProps {
+  readonly editing: boolean;
+  readonly empty: boolean;
+  readonly editingContent: React.ReactNode;
+  readonly emptyContent: React.ReactNode;
+  readonly children: React.ReactNode;
+}
+
+function FormFieldState({
+  editing,
+  empty,
+  editingContent,
+  emptyContent,
+  children,
+}: Readonly<FormFieldStateProps>) {
+  if (editing) return editingContent;
+  if (empty) return emptyContent;
+  return children;
 }

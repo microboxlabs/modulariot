@@ -1573,7 +1573,8 @@
         "settings": "Settings",
         "organizations": "Organizations",
         "dataSources": "Data Sources",
-        "credentials": "Credentials"
+        "credentials": "Credentials",
+        "connections": "Connections"
       },
       "symptoms": {
         "config": {
@@ -2039,8 +2040,8 @@
     },
     "integrationConnections": {
       "page": {
-        "title": "Integrations",
-        "subtitle": "Define integration types and create connections from them."
+        "title": "Connections",
+        "subtitle": "External systems this workspace sends data to. Define a type once, then create as many connections as you need."
       },
       "templates": {
         "title": "Templates",
@@ -2048,28 +2049,63 @@
         "new": "New template",
         "empty": "No templates yet. Create one to start adding connections.",
         "instanceCount": "{count} connection(s)",
-        "confirmDelete": "Delete this template?"
+        "fields": "{count} field(s)"
       },
       "connections": {
         "title": "Connections",
         "help": "An instance of a template, with its own URL and credential.",
         "new": "New connection",
         "empty": "No connections yet.",
+        "emptyNoTemplates": "Create a template first; then you can add connections from it.",
         "test": "Test",
-        "confirmDelete": "Delete this connection?"
+        "credential": "Credential",
+        "noCredential": "No credential",
+        "neverTested": "Never tested",
+        "testedOn": "Tested on {date}"
       },
       "status": {
         "active": "Active",
         "failed": "Failed",
         "draft": "Draft"
       },
+      "menu": {
+        "label": "Actions"
+      },
+      "list": {
+        "loading": "Loading connections…"
+      },
+      "delete": {
+        "connectionTitle": "Delete connection?",
+        "templateTitle": "Delete template?",
+        "templateInUse": "{count} connection(s) use this template; delete them first.",
+        "deleting": "Deleting…"
+      },
+      "errors": {
+        "forbidden": "You need to be an organization owner to manage connections.",
+        "loadFailed": "Connections could not be loaded."
+      },
       "common": {
         "edit": "Edit",
         "delete": "Delete",
         "cancel": "Cancel",
         "save": "Save",
+        "create": "Create",
         "saving": "Saving…",
         "saveFailed": "Could not save"
+      },
+      "picker": {
+        "title": "New connection",
+        "subtitle": "Choose the template this connection will instance.",
+        "searchPlaceholder": "Search templates",
+        "noMatches": "No template matches that search.",
+        "empty": "No templates yet. Create one first."
+      },
+      "validation": {
+        "nameRequired": "A name is required",
+        "baseUrlRequired": "A base URL is required",
+        "baseUrlInvalid": "Enter a valid URL",
+        "pathRequired": "A path is required",
+        "schemaInvalid": "The schema is not a valid JSON object."
       },
       "toast": {
         "templateDeleted": "Template deleted",
@@ -2082,16 +2118,17 @@
         "form": {
           "createTitle": "New template",
           "editTitle": "Edit template",
+          "subtitle": "The contract every connection made from this template copies.",
           "name": "Name",
           "namePlaceholder": "e.g. Partner API",
           "providerType": "Provider type",
           "method": "Method",
           "path": "Path",
+          "pathHelp": "Appended to each connection's base URL.",
           "operationName": "Operation name",
           "operationNamePlaceholder": "e.g. Report verdict",
           "requestSchema": "Payload schema (JSON Schema)",
           "requestSchemaHelp": "The fields the review process will map. An object with properties; nested objects and arrays are supported.",
-          "schemaInvalid": "The schema is not a valid JSON object.",
           "fieldsDetected": "Detected fields"
         }
       },
@@ -2099,16 +2136,16 @@
         "form": {
           "createTitle": "New connection",
           "editTitle": "Edit connection",
+          "subtitle": "Where this instance lives, and which credential it speaks with.",
           "template": "Template",
-          "noTemplate": "No template",
-          "needTemplate": "Create a template first.",
           "name": "Name",
           "namePlaceholder": "e.g. Partner API · QA",
           "baseUrl": "Base URL",
+          "baseUrlHelp": "Host only; the path comes from the template.",
           "credential": "Credential",
           "noCredential": "No credential",
           "noCredentials": "No credentials. Create them in Settings › Credentials.",
-          "credentialFixed": "(not editable here)"
+          "secretNotice": "Secrets live in the credential, not here — this connection only references it."
         }
       }
     }
@@ -2150,6 +2187,7 @@
         "organizations": "Organizations",
         "dataSources": "Data Sources",
         "credentials": "Credentials",
+        "connections": "Connections",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",
@@ -2169,9 +2207,7 @@
         "subtitle1": "Consolidation",
         "subtitle2": "Document Separation",
         "subtitle3": "Client System Validation",
-        "subtitle4": "GPS Validation",
-        "integrationJobs": "Activity",
-        "integrationConnections": "Connections"
+        "subtitle4": "GPS Validation"
       }
     },
     "calendar": {

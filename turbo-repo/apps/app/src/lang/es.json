@@ -2047,7 +2047,8 @@
         "help": "Una instancia de una plantilla, con su propia URL y credencial.",
         "new": "Nueva conexión",
         "empty": "Aún no hay conexiones.",
-        "test": "Probar"
+        "test": "Probar",
+        "confirmDelete": "¿Eliminar esta conexión?"
       },
       "status": {
         "active": "Activa",
@@ -2066,7 +2067,8 @@
         "templateDeleted": "Plantilla eliminada",
         "actionFailed": "No se pudo completar la acción",
         "testOk": "Conexión probada correctamente",
-        "testFailed": "La prueba de conexión falló"
+        "testFailed": "La prueba de conexión falló",
+        "connectionDeleted": "Conexión eliminada"
       },
       "template": {
         "form": {

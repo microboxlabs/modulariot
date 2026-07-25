@@ -107,7 +107,7 @@ class IntegrationTemplateServiceTest {
         IntegrationTemplate template = service().createTemplate(TENANT, createRequest("Dev Mentor", "POST"));
         FakeOperations operations = new FakeOperations();
         IntegrationConnectionService connectionService = new IntegrationConnectionService(
-                null, null, connections, operations, templates, null);
+                null, null, connections, operations, templates, null, null);
 
         IntegrationConnection created = connectionService.createConnection(
                 TENANT,
@@ -132,7 +132,7 @@ class IntegrationTemplateServiceTest {
     void creatingAConnectionFromAnUnknownTemplateFails() {
         FakeOperations operations = new FakeOperations();
         IntegrationConnectionService connectionService = new IntegrationConnectionService(
-                null, null, connections, operations, templates, null);
+                null, null, connections, operations, templates, null, null);
 
         assertThrows(IllegalArgumentException.class, () -> connectionService.createConnection(
                 TENANT,
@@ -145,7 +145,7 @@ class IntegrationTemplateServiceTest {
     void creatingAnAdHocConnectionProvisionsNoOperation() {
         FakeOperations operations = new FakeOperations();
         IntegrationConnectionService connectionService = new IntegrationConnectionService(
-                null, null, connections, operations, templates, null);
+                null, null, connections, operations, templates, null, null);
 
         IntegrationConnection created = connectionService.createConnection(
                 TENANT,

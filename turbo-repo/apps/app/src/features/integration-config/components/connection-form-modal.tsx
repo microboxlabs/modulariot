@@ -76,6 +76,7 @@ export function ConnectionFormModal({
         await onSave(null, connection.id, {
           name: name.trim(),
           baseUrl: baseUrl.trim(),
+          credentialProfileId: credentialId || null,
         });
       } else {
         await onSave({
@@ -90,8 +91,6 @@ export function ConnectionFormModal({
       setError(cause instanceof Error ? cause.message : tr("common.saveFailed", dict));
     }
   }
-
-  const credentialName = credentials.find((c) => c.id === credentialId)?.name;
 
   return (
     <Modal show={show} onClose={onClose} size="lg">
@@ -157,14 +156,7 @@ export function ConnectionFormModal({
 
           <div className="flex flex-col gap-1">
             <Label className="text-xs">{tr("connection.form.credential", dict)}</Label>
-            {editing ? (
-              <span className="text-sm text-gray-700 dark:text-gray-200">
-                {credentialName ?? tr("connection.form.noCredential", dict)}
-                <span className="ml-2 text-[11px] text-gray-400">
-                  {tr("connection.form.credentialFixed", dict)}
-                </span>
-              </span>
-            ) : credentials.length === 0 ? (
+            {credentials.length === 0 ? (
               <p className="text-[11px] text-gray-500 dark:text-gray-400">
                 {tr("connection.form.noCredentials", dict)}
               </p>

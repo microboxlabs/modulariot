@@ -7,6 +7,7 @@ import type { CredentialListItem } from "@/features/credentials/credential.types
 import {
   createConnection,
   createTemplate,
+  deleteConnection,
   deleteTemplate,
   fetchConnections,
   fetchTemplates,
@@ -93,6 +94,15 @@ export function useIntegrationConfig(orgSlug: string | null) {
     [orgSlug, connections, withSaving]
   );
 
+  const removeConnection = useCallback(
+    (id: string) =>
+      withSaving(async () => {
+        await deleteConnection(orgSlug as string, id);
+        await connections.mutate();
+      }),
+    [orgSlug, connections, withSaving]
+  );
+
   const testInstance = useCallback(
     async (id: string): Promise<ConnectionTestResult> => {
       const result = await testConnection(orgSlug as string, id);
@@ -112,6 +122,7 @@ export function useIntegrationConfig(orgSlug: string | null) {
     saveTemplate,
     removeTemplate,
     saveConnection,
+    removeConnection,
     testInstance,
     refresh: () => {
       void templates.mutate();

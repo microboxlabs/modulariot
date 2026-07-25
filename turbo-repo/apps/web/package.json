@@ -8,8 +8,7 @@
     "start": "next start --port 3041",
     "check-types": "tsc --noEmit",
     "format": "prettier . --write",
-    "format:check": "prettier . --check",
-    "postinstall": "flowbite-react patch"
+    "format:check": "prettier . --check"
   },
   "dependencies": {
     "flowbite-icons": "^1.5.0",

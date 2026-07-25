@@ -20,9 +20,10 @@ const READ_FNS = new Set([
   "fn_ams_accreditation",
   "fn_ams_link_history",
   "fn_ams_events",
-  // Capacity C0 — agenda del recurso
+  // Capacity C0/C2 — agenda del recurso y UO vivas (Desk)
   "fn_cap_agenda",
   "fn_cap_availability",
+  "fn_cap_units",
 ]);
 const WRITE_FNS = new Set([
   "fn_ams_save_truck",
@@ -56,6 +57,7 @@ const TENANT_PARAM_FNS = new Set([
   "fn_capacity_match",
   "fn_cap_reserve",
   "fn_cap_release",
+  "fn_cap_units",
 ]);
 
 async function carrierOrgId(): Promise<{ deny: NextResponse | null; orgId: string | null }> {

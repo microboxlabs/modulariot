@@ -34,6 +34,7 @@ const ALLOW_PREFIXES = [
   "/gxc",
   "/collaborators-management",
   "/fleet-management",
+  "/capacity", // Capacity Desk (capacity-core C2): su capacidad, su agenda
   "/users/settings", // su organización; los items de plataforma se niegan abajo
 ];
 

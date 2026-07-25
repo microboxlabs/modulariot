@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkTemplate } from "./review-template-validation";
+import { ALLOWED_ROOTS, checkTemplate } from "./review-template-validation";
 
 /**
  * Each case mirrors a rule in the server's PayloadTemplate. If one of these starts
@@ -72,5 +72,30 @@ describe("checkTemplate", () => {
 
   it("still allows review.* — the server accepts the root even though nothing fills it", () => {
     expect(checkTemplate("{{review.verdict}}").status).toBe("valid");
+  });
+});
+
+describe("checkTemplate with a contract's own roots", () => {
+  // A nested array binds each element under its collection's name, so a contract can
+  // legitimately introduce roots beyond the static four. The server derives them from the
+  // schema and accepts them; validating against only the static set would paint the one
+  // correct mapping red — the preview-stricter-than-the-server divergence this file exists
+  // to prevent.
+  const CONTRACT_ROOTS = [...ALLOWED_ROOTS, "reasons"];
+
+  it("rejects an array-bound root when the contract does not declare it", () => {
+    expect(checkTemplate("{{reasons.code}}").problem?.code).toBe("unknownRoot");
+  });
+
+  it("accepts it once the contract declares it", () => {
+    const check = checkTemplate("{{reasons.code}}", CONTRACT_ROOTS);
+    expect(check.status).toBe("valid");
+    expect(check.paths).toEqual(["reasons.code"]);
+  });
+
+  it("still rejects a root no contract declared", () => {
+    expect(checkTemplate("{{fotos.codigo}}", CONTRACT_ROOTS).problem?.code).toBe(
+      "unknownRoot"
+    );
   });
 });

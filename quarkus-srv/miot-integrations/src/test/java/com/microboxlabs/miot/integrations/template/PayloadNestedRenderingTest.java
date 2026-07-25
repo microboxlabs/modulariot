@@ -3,6 +3,7 @@ package com.microboxlabs.miot.integrations.template;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.LinkedHashMap;
@@ -11,19 +12,21 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * Nested bodies: the Dev-Mentor {@code ActualizarEstadoFoto} contract is an object envelope
- * ({@code serviceCode}, an overall {@code aprobada}, {@code username}) wrapping a {@code fotos}
- * array, and each foto may carry its own {@code mensaje} array of reason objects. This proves the
- * renderer builds that whole shape from one flat template map keyed by dotted path — including the
- * deepest {@code mensaje} nesting, so once the producer supplies per-photo reasons no further
- * renderer work is needed.
+ * Nested bodies: a partner's photo-verdict contract is an object envelope ({@code serviceCode},
+ * an overall {@code aprobada}, {@code username}) wrapping a {@code fotos} array, and each foto may
+ * carry its own {@code mensaje} array of reason objects. This proves the renderer builds that whole
+ * shape from one flat template map keyed by dotted path — including the deepest {@code mensaje}
+ * nesting, so once the producer supplies per-photo reasons no further renderer work is needed.
+ *
+ * <p>Doubles as the executable spec of the mapping an operator fills in, which is why the template
+ * map below is the literal set of rows the settings drawer shows.
  */
 class PayloadNestedRenderingTest {
 
     private final PayloadRenderer renderer = new PayloadRenderer();
 
-    /** The request_schema as it would be stored for the Dev-Mentor operation. */
-    private static PayloadSchema devMentorSchema() {
+    /** The request_schema as it would be stored for the partner's operation. */
+    private static PayloadSchema partnerSchema() {
         Map<String, Object> reasonProps = new LinkedHashMap<>();
         reasonProps.put("codigo", Map.of("type", "string"));
         reasonProps.put("nombre", Map.of("type", "string"));
@@ -65,7 +68,7 @@ class PayloadNestedRenderingTest {
 
     @Test
     void schemaParsesTheEnvelopeAndItsNestedArrayAndObjectFields() {
-        PayloadSchema schema = devMentorSchema();
+        PayloadSchema schema = partnerSchema();
         assertFalse(schema.array(), "the envelope is an object, not a top-level array");
 
         PayloadSchema.Field fotos = schema.field("fotos");
@@ -81,12 +84,12 @@ class PayloadNestedRenderingTest {
 
     @Test
     void buildsTheFullEnvelopeWithFotosAndPerPhotoReasons() {
-        Object body = renderer.renderBody(TEMPLATES, devMentorSchema(), context());
+        Object body = renderer.renderBody(TEMPLATES, partnerSchema(), context());
 
         Map<?, ?> envelope = assertInstanceOf(Map.class, body);
         assertEquals("1656793", envelope.get("serviceCode"));
         assertEquals(Boolean.FALSE, envelope.get("aprobada"), "overall verdict, from the envelope template");
-        assertEquals("mdavid@sitrans.cl", envelope.get("username"));
+        assertEquals("revisor.demo", envelope.get("username"));
 
         List<?> fotos = assertInstanceOf(List.class, envelope.get("fotos"));
         assertEquals(2, fotos.size());
@@ -113,7 +116,7 @@ class PayloadNestedRenderingTest {
     void reusedLeafNameDoesNotCollideAcrossDepths() {
         // Both the envelope and each foto declare "aprobada"; the dotted template keys keep them
         // apart — the envelope's overall verdict must not be overwritten by a photo's.
-        Object body = renderer.renderBody(TEMPLATES, devMentorSchema(), context());
+        Object body = renderer.renderBody(TEMPLATES, partnerSchema(), context());
         Map<?, ?> envelope = (Map<?, ?>) body;
 
         assertEquals(Boolean.FALSE, envelope.get("aprobada"));
@@ -124,7 +127,7 @@ class PayloadNestedRenderingTest {
 
     @Test
     void leafFieldsAreTheDottedScalarMappingRowsTheUiRenders() {
-        List<PayloadSchema.Field> leaves = devMentorSchema().leafFields();
+        List<PayloadSchema.Field> leaves = partnerSchema().leafFields();
 
         // One editable row per value, in contract order — never the fotos/mensaje containers.
         assertEquals(
@@ -139,17 +142,48 @@ class PayloadNestedRenderingTest {
     }
 
     @Test
+    void leavesCarryTheTemplateRootEachRowRendersUnder() {
+        // What the drawer needs to hint the right variable per row: the dotted path alone cannot
+        // reveal it, because the root comes from the array's itemsFrom.
+        List<PayloadSchema.Leaf> leaves = partnerSchema().leaves();
+
+        assertNull(rootOf(leaves, "serviceCode"), "an envelope row sees the whole context");
+        assertNull(rootOf(leaves, "username"), "an envelope row sees the whole context");
+        assertEquals("content", rootOf(leaves, "fotos.guidMultimedia"), "fotos iterates content");
+        assertEquals("content", rootOf(leaves, "fotos.aprobada"));
+        // The deepest rows read *this photo's* reasons, not a list across the task.
+        assertEquals("reasons", rootOf(leaves, "fotos.mensaje.codigo"),
+                "mensaje iterates content.reasons, bound as reasons");
+        assertEquals("reasons", rootOf(leaves, "fotos.mensaje.nombre"));
+    }
+
+    @Test
+    void arrayBindNamesAreTheExtraRootsTheContractIntroduces() {
+        // The set the UI must also accept: validating against only the static roots would reject
+        // {{reasons.*}}, which the server stores happily.
+        assertEquals(List.of("content", "reasons"), partnerSchema().arrayBindNames());
+    }
+
+    @Test
     void validateAcceptsTheDynamicPerElementArrayRoot() {
         // {{reasons.code}} reads a root bound only while rendering the content.reasons array — it
         // is derived from the schema, so save-time validation must accept it, not flag it.
         List<String> problems =
-                renderer.validate(TEMPLATES, devMentorSchema(), PayloadTemplate.DEFAULT_ROOTS);
+                renderer.validate(TEMPLATES, partnerSchema(), PayloadTemplate.DEFAULT_ROOTS);
 
         assertTrue(problems.isEmpty(), problems.toString());
     }
 
     private static PayloadSchema.Field leaf(List<PayloadSchema.Field> leaves, String id) {
         return leaves.stream().filter(field -> field.id().equals(id)).findFirst().orElseThrow();
+    }
+
+    private static String rootOf(List<PayloadSchema.Leaf> leaves, String id) {
+        return leaves.stream()
+                .filter(leaf -> leaf.id().equals(id))
+                .findFirst()
+                .orElseThrow()
+                .contextRoot();
     }
 
     private static Map<String, Object> context() {
@@ -165,7 +199,7 @@ class PayloadNestedRenderingTest {
 
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("task", Map.of("serviceCode", "1656793", "approved", false));
-        context.put("session", Map.of("reviewer", "mdavid@sitrans.cl"));
+        context.put("session", Map.of("reviewer", "revisor.demo"));
         context.put("content", List.of(approvedPhoto, rejectedPhoto));
         return context;
     }

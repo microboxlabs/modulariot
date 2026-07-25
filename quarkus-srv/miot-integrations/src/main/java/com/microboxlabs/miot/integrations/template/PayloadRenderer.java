@@ -93,7 +93,7 @@ public class PayloadRenderer {
         // it legitimately reads a root the caller never declared ({{reasons.code}} within a
         // content.reasons array). Those roots come from the schema, not the caller, so add them.
         Set<String> roots = new LinkedHashSet<>(allowedRoots);
-        collectArrayBindNames(schema, roots);
+        roots.addAll(schema.arrayBindNames());
         mappings.forEach((fieldId, template) -> {
             if (template == null || template.isBlank()) {
                 return;
@@ -105,19 +105,6 @@ public class PayloadRenderer {
             }
         });
         return problems;
-    }
-
-    /** The extra template roots a schema's array fields introduce — each element is bound under
-     *  the last segment of its {@code itemsFrom} ({@code content.reasons} → {@code reasons}). */
-    private static void collectArrayBindNames(PayloadSchema schema, Set<String> roots) {
-        for (PayloadSchema.Field field : schema.fields()) {
-            if (field.type() == PayloadSchema.FieldType.ARRAY && field.itemsFrom() != null) {
-                roots.add(lastSegment(field.itemsFrom()));
-            }
-            if (field.child() != null) {
-                collectArrayBindNames(field.child(), roots);
-            }
-        }
     }
 
     /* ---------------------------------------------------------------------- */

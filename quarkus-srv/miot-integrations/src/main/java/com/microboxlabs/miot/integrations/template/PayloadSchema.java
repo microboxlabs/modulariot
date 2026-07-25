@@ -145,22 +145,77 @@ public record PayloadSchema(List<Field> fields, boolean array, String itemsFrom)
      * template. Used by the settings UI so it renders one editable row per leaf.
      */
     public List<Field> leafFields() {
-        List<Field> leaves = new ArrayList<>();
-        collectLeaves("", fields, leaves);
+        return leaves().stream()
+                .map(leaf -> new Field(leaf.id(), leaf.type(), leaf.required()))
+                .toList();
+    }
+
+    /**
+     * A scalar leaf together with the template root in scope where it renders.
+     *
+     * <p>{@code contextRoot} is what an operator's template must read from on that row. It is
+     * null for envelope leaves, which see the whole context ({@code task}, {@code session}, …).
+     * Inside an array it is that array's bind name, because the renderer rebinds each element
+     * under the last segment of {@code itemsFrom}: a leaf of {@code fotos} (iterating
+     * {@code content}) reads {@code content.*}, and a leaf of {@code fotos.mensaje} (iterating
+     * {@code content.reasons}) reads {@code reasons.*} — *this* photo's reasons, not a global list.
+     */
+    public record Leaf(String id, FieldType type, boolean required, String contextRoot) {
+    }
+
+    /** Every scalar leaf, dotted path and rendering scope — see {@link Leaf}. */
+    public List<Leaf> leaves() {
+        List<Leaf> leaves = new ArrayList<>();
+        collectLeaves("", null, fields, leaves);
         return List.copyOf(leaves);
     }
 
-    private static void collectLeaves(String prefix, List<Field> fields, List<Field> out) {
+    /**
+     * The extra template roots this contract's arrays introduce, beyond the always-present ones.
+     * Save-time validation accepts these, so the UI must offer them too or it would reject a
+     * mapping the server stores happily.
+     */
+    public List<String> arrayBindNames() {
+        List<String> names = new ArrayList<>();
+        collectArrayBindNames(fields, names);
+        return List.copyOf(names);
+    }
+
+    private static void collectLeaves(String prefix, String scope, List<Field> fields, List<Leaf> out) {
         for (Field field : fields) {
             String id = prefix + field.id();
-            if (field.structural()) {
-                if (field.child() != null) {
-                    collectLeaves(id + ".", field.child().fields(), out);
-                }
-            } else {
-                out.add(new Field(id, field.type(), field.required()));
+            if (!field.structural()) {
+                out.add(new Leaf(id, field.type(), field.required(), scope));
+                continue;
+            }
+            if (field.child() != null) {
+                // An array rebinds its elements, so its leaves see a new root; an object only
+                // nests the payload and keeps whatever scope it inherited.
+                String childScope = field.type() == FieldType.ARRAY ? bindNameOf(field) : scope;
+                collectLeaves(id + ".", childScope, field.child().fields(), out);
             }
         }
+    }
+
+    private static void collectArrayBindNames(List<Field> fields, List<String> out) {
+        for (Field field : fields) {
+            if (field.type() == FieldType.ARRAY) {
+                String name = bindNameOf(field);
+                if (!out.contains(name)) {
+                    out.add(name);
+                }
+            }
+            if (field.child() != null) {
+                collectArrayBindNames(field.child().fields(), out);
+            }
+        }
+    }
+
+    /** The root an array's elements are bound under: the last segment of its {@code itemsFrom}. */
+    private static String bindNameOf(Field field) {
+        String itemsFrom = field.itemsFrom() == null ? DEFAULT_ITEMS_FROM : field.itemsFrom();
+        int dot = itemsFrom.lastIndexOf('.');
+        return dot < 0 ? itemsFrom : itemsFrom.substring(dot + 1);
     }
 
     /* ---------------------------------------------------------------------- */

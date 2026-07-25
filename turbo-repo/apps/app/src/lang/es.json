@@ -1565,7 +1565,8 @@
         "settings": "Ajustes",
         "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos",
-        "credentials": "Credenciales"
+        "credentials": "Credenciales",
+        "connections": "Conexiones"
       },
       "symptoms": {
         "config": {
@@ -2031,8 +2032,8 @@
     },
     "integrationConnections": {
       "page": {
-        "title": "Integraciones",
-        "subtitle": "Define tipos de integración y crea conexiones a partir de ellos."
+        "title": "Conexiones",
+        "subtitle": "Sistemas externos a los que este espacio de trabajo envía datos. Define un tipo una vez y crea tantas conexiones como necesites."
       },
       "templates": {
         "title": "Plantillas",
@@ -2040,28 +2041,63 @@
         "new": "Nueva plantilla",
         "empty": "Aún no hay plantillas. Crea una para poder añadir conexiones.",
         "instanceCount": "{count} conexión(es)",
-        "confirmDelete": "¿Eliminar esta plantilla?"
+        "fields": "{count} campo(s)"
       },
       "connections": {
         "title": "Conexiones",
         "help": "Una instancia de una plantilla, con su propia URL y credencial.",
         "new": "Nueva conexión",
         "empty": "Aún no hay conexiones.",
+        "emptyNoTemplates": "Crea primero una plantilla; después podrás añadir conexiones a partir de ella.",
         "test": "Probar",
-        "confirmDelete": "¿Eliminar esta conexión?"
+        "credential": "Credencial",
+        "noCredential": "Sin credencial",
+        "neverTested": "Sin probar",
+        "testedOn": "Probada el {date}"
       },
       "status": {
         "active": "Activa",
         "failed": "Falló",
         "draft": "Borrador"
       },
+      "menu": {
+        "label": "Acciones"
+      },
+      "list": {
+        "loading": "Cargando conexiones…"
+      },
+      "delete": {
+        "connectionTitle": "¿Eliminar conexión?",
+        "templateTitle": "¿Eliminar plantilla?",
+        "templateInUse": "{count} conexión(es) usan esta plantilla; elimínalas primero.",
+        "deleting": "Eliminando…"
+      },
+      "errors": {
+        "forbidden": "Necesitas ser propietario de la organización para administrar conexiones.",
+        "loadFailed": "No se pudieron cargar las conexiones."
+      },
       "common": {
         "edit": "Editar",
         "delete": "Eliminar",
         "cancel": "Cancelar",
         "save": "Guardar",
+        "create": "Crear",
         "saving": "Guardando…",
         "saveFailed": "No se pudo guardar"
+      },
+      "picker": {
+        "title": "Nueva conexión",
+        "subtitle": "Elige la plantilla que esta conexión va a instanciar.",
+        "searchPlaceholder": "Buscar plantillas",
+        "noMatches": "Ninguna plantilla coincide con la búsqueda.",
+        "empty": "Aún no hay plantillas. Crea una primero."
+      },
+      "validation": {
+        "nameRequired": "El nombre es obligatorio",
+        "baseUrlRequired": "La URL base es obligatoria",
+        "baseUrlInvalid": "Ingresa una URL válida",
+        "pathRequired": "La ruta es obligatoria",
+        "schemaInvalid": "El esquema no es un objeto JSON válido."
       },
       "toast": {
         "templateDeleted": "Plantilla eliminada",
@@ -2074,16 +2110,17 @@
         "form": {
           "createTitle": "Nueva plantilla",
           "editTitle": "Editar plantilla",
+          "subtitle": "El contrato que copiará cada conexión creada a partir de esta plantilla.",
           "name": "Nombre",
           "namePlaceholder": "Ej: Partner API",
           "providerType": "Tipo de proveedor",
           "method": "Método",
           "path": "Ruta",
+          "pathHelp": "Se añade a la URL base de cada conexión.",
           "operationName": "Nombre de la operación",
           "operationNamePlaceholder": "Ej: Reportar veredicto",
           "requestSchema": "Esquema de la carga (JSON Schema)",
           "requestSchemaHelp": "Los campos que el proceso de revisión mapeará. Un objeto con propiedades; admite objetos y arreglos anidados.",
-          "schemaInvalid": "El esquema no es un objeto JSON válido.",
           "fieldsDetected": "Campos detectados"
         }
       },
@@ -2091,16 +2128,16 @@
         "form": {
           "createTitle": "Nueva conexión",
           "editTitle": "Editar conexión",
+          "subtitle": "Dónde vive esta instancia y con qué credencial habla.",
           "template": "Plantilla",
-          "noTemplate": "Sin plantilla",
-          "needTemplate": "Crea una plantilla primero.",
           "name": "Nombre",
           "namePlaceholder": "Ej: Partner API · QA",
           "baseUrl": "URL base",
+          "baseUrlHelp": "Solo el host; la ruta la aporta la plantilla.",
           "credential": "Credencial",
           "noCredential": "Sin credencial",
           "noCredentials": "No hay credenciales. Créalas en Ajustes › Credenciales.",
-          "credentialFixed": "(no editable aquí)"
+          "secretNotice": "Los secretos viven en la credencial, no aquí: esta conexión solo la referencia."
         }
       }
     }
@@ -2146,6 +2183,7 @@
         "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos",
         "credentials": "Credenciales",
+        "connections": "Conexiones",
         "help": "Ayuda y cómo empezar",
         "controlTower": "Torre de control",
         "whereIsMyLoad": "¿Dónde está mi carga?",
@@ -2161,9 +2199,7 @@
         "collaboratorsManagement": "Colaboradores",
         "searchPlaceholder": "Buscar...",
         "createDashboard": "Nuevo dashboard",
-        "closePanel": "Cerrar panel",
-        "integrationJobs": "Actividad",
-        "integrationConnections": "Conexiones"
+        "closePanel": "Cerrar panel"
       }
     },
     "calendar": {

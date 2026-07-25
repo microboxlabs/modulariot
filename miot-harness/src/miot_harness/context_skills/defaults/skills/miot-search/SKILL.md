@@ -117,9 +117,9 @@ value you have confirmed; never emit a literal placeholder.
 | `/where-is-my-load` | where is my load, dónde está mi carga, expedición, expedition | Load/expedition tracking | `expeditionCode` or `expeditionNumber` (one at a time) |
 | `/notifications` | notifications, notificaciones | User notifications | — |
 | `/integrations/jobs` | integration jobs, trabajos de integración, job console, consola de trabajos | Asynchronous integration job activity and status | — |
-| `/integrations/connections` | integration connections, conexiones de integración, integration templates, plantillas de integración, integration types | Integration templates (types) and the connections created from them | — |
 | `/users/settings` | settings, configuración, ajustes | User settings; organizations at `/users/settings/organizations`, data sources at `/users/settings/data-sources` | — |
 | `/users/settings/credentials` | credentials, credenciales, API credentials, credenciales API | Reusable organization credentials for data sources, integrations, and jobs | — |
+| `/users/settings/connections` | integration connections, conexiones de integración, integration templates, plantillas de integración, integration types | Integration templates (types) and the connections created from them | — |
 | `/admin/console/logs` | admin logs, logs, registros (admins only) | Operational logs | — |
 | `/admin/console/message-templates` | message templates, plantillas de mensaje (admins only) | Message templates | — |
 

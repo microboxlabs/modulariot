@@ -165,6 +165,32 @@ class PayloadNestedRenderingTest {
     }
 
     @Test
+    void aNestedArrayWithoutItemsFromSilentlyBindsToContent() {
+        // The trap this contract exists to avoid, pinned so nobody "fixes" the default away
+        // without knowing what it costs. A plain JSON Schema pasted by an operator carries no
+        // itemsFrom, so `mensaje` falls back to `content` — the same root as its parent. The
+        // payload still renders, but every reason row reads the photo rather than the photo's
+        // reasons, and no `reasons` root is ever offered.
+        Map<String, Object> mensaje = Map.of(
+                "type", "array",
+                "items", Map.of("type", "object", "properties",
+                        Map.of("codigo", Map.of("type", "string"))));
+        Map<String, Object> fotoProps = new LinkedHashMap<>();
+        fotoProps.put("guidMultimedia", Map.of("type", "string"));
+        fotoProps.put("mensaje", mensaje);
+        PayloadSchema schema = PayloadSchema.of(Map.of(
+                "type", "object",
+                "properties", Map.of("fotos", Map.of(
+                        "type", "array",
+                        "items", Map.of("type", "object", "properties", fotoProps)))));
+
+        assertEquals("content", rootOf(schema.leaves(), "fotos.mensaje.codigo"),
+                "no itemsFrom → the nested array binds to content, not to the photo's reasons");
+        assertEquals(List.of("content"), schema.arrayBindNames(),
+                "so no reasons root is offered and {{reasons.*}} reads as unknown");
+    }
+
+    @Test
     void validateAcceptsTheDynamicPerElementArrayRoot() {
         // {{reasons.code}} reads a root bound only while rendering the content.reasons array — it
         // is derived from the schema, so save-time validation must accept it, not flag it.

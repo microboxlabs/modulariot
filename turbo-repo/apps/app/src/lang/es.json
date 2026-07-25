@@ -120,7 +120,8 @@
           "truckPlate": "Patente camión",
           "departureDate": "Fecha de salida",
           "formKey": "Clave de tarea (formKey)",
-          "outcome": "Resultado de la tarea"
+          "outcome": "Resultado de la tarea",
+          "approved": "Veredicto global (aprobado si ningún archivo fue rechazado)"
         },
         "content": {
           "mediaId": "ID multimedia",

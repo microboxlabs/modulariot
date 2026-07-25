@@ -70,12 +70,21 @@ export interface VariableGroup {
  *
  * `content.*` is **one reviewed item**: an array contract renders the mapped fields
  * once per element, binding `content` to each in turn, so `{{content.mediaId}}` means
- * "this item's media id". That is why the verdict lives here rather than under a
+ * "this item's media id". That is why the per-item verdict lives here rather than under a
  * `review` object — a single task completion can carry several media with different
  * outcomes.
  *
+ * An envelope field sits outside that array and so has no "this item" to read. For those,
+ * `task.approved` carries the rollup across the whole task. The mapping language is plain
+ * substitution — no helpers, no folds — so a whole-task answer has to arrive as a whole-task
+ * field; the producer computes it once and every channel reads the same fact.
+ *
  * `review` remains a legal root server-side (so a hand-written `{{review.x}}` is not
  * rejected), but nothing populates it today, which is why it is not offered here.
+ *
+ * **This list must track what the producer emits.** It drifted once already: ECM began
+ * sending `task.approved` and the drawer went on refusing to autocomplete it, so the one
+ * field that answers "was the whole service approved" looked unavailable.
  *
  * Samples are deliberately generic — this is a public repo, so no real client, tenant
  * or contact data appears.
@@ -89,6 +98,10 @@ export const VARIABLE_GROUPS: readonly VariableGroup[] = [
       { path: "task.serviceCode", labelKey: "variables.task.serviceCode", sample: "1649906" },
       { path: "task.formKey", labelKey: "variables.task.formKey", sample: "wfship2:missionControlTask" },
       { path: "task.outcome", labelKey: "variables.task.outcome", sample: "monitorTripInCourse" },
+      // The rollup across every reviewed item: false as soon as one is rejected. Task-scoped
+      // rather than under `content`, because `content.*` is a single item — an envelope field
+      // needs the whole-task answer, and the producer computes it once so every channel agrees.
+      { path: "task.approved", labelKey: "variables.task.approved", sample: "false" },
     ],
   },
   {

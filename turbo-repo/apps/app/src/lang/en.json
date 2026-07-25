@@ -120,7 +120,8 @@
           "truckPlate": "Truck plate",
           "departureDate": "Departure date",
           "formKey": "Task form key",
-          "outcome": "Task outcome"
+          "outcome": "Task outcome",
+          "approved": "Overall verdict (approved when no item was rejected)"
         },
         "content": {
           "mediaId": "Media ID",

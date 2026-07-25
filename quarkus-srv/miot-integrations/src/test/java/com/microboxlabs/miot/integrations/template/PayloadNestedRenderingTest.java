@@ -122,6 +122,36 @@ class PayloadNestedRenderingTest {
         assertTrue(((Map<?, ?>) fotos.get(1)).get("aprobada") == Boolean.FALSE);
     }
 
+    @Test
+    void leafFieldsAreTheDottedScalarMappingRowsTheUiRenders() {
+        List<PayloadSchema.Field> leaves = devMentorSchema().leafFields();
+
+        // One editable row per value, in contract order — never the fotos/mensaje containers.
+        assertEquals(
+                List.of("serviceCode", "aprobada", "username",
+                        "fotos.guidMultimedia", "fotos.aprobada",
+                        "fotos.mensaje.codigo", "fotos.mensaje.nombre"),
+                leaves.stream().map(PayloadSchema.Field::id).toList());
+        // Every leaf is scalar (no ARRAY/OBJECT leaks to the type label the UI shows).
+        assertTrue(leaves.stream().noneMatch(PayloadSchema.Field::structural));
+        assertEquals(PayloadSchema.FieldType.BOOLEAN, leaf(leaves, "fotos.aprobada").type());
+        assertTrue(leaf(leaves, "fotos.mensaje.codigo").required());
+    }
+
+    @Test
+    void validateAcceptsTheDynamicPerElementArrayRoot() {
+        // {{reasons.code}} reads a root bound only while rendering the content.reasons array — it
+        // is derived from the schema, so save-time validation must accept it, not flag it.
+        List<String> problems =
+                renderer.validate(TEMPLATES, devMentorSchema(), PayloadTemplate.DEFAULT_ROOTS);
+
+        assertTrue(problems.isEmpty(), problems.toString());
+    }
+
+    private static PayloadSchema.Field leaf(List<PayloadSchema.Field> leaves, String id) {
+        return leaves.stream().filter(field -> field.id().equals(id)).findFirst().orElseThrow();
+    }
+
     private static Map<String, Object> context() {
         Map<String, Object> approvedPhoto = new LinkedHashMap<>();
         approvedPhoto.put("mediaId", "g1");

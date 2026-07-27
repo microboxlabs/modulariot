@@ -8,6 +8,7 @@ import { SidebarSection } from "./sidebar/sidebar-section";
 import { PropertiesGrid } from "./sidebar/properties-grid";
 import { HistoryGrid } from "./sidebar/history-grid";
 import { ObservationsSection } from "./observations/observations-section";
+import { versionOf } from "./observations/review-version";
 import type { ObservationEntry, ObservationType, TimelineEntry } from "./observations/observation.types";
 import type { ReviewStatus } from "../gallery/media-row";
 import { AlfrescoFileEntry } from "../image.types";
@@ -58,6 +59,9 @@ export default function ViewerMetadataSidebar({
   pendingReplyRef: RefObject<{ text: string; send: () => void }>;
   dictionary: I18nRecord;
 }>) {
+  // The revision on screen. Verdicts given against earlier ones are history, not the state
+  // of this content — see splitByVersion.
+  const currentVersion = versionOf(entry);
   const reviewStatus = entry.properties?.["mintral:reviewStatus"];
   let reviewStatusLabel: string | null = null;
   if (reviewStatus && reviewStatus !== "PENDING") {
@@ -100,6 +104,7 @@ export default function ViewerMetadataSidebar({
               pendingReplyRef={pendingReplyRef}
               mode="full"
               category={currentCategory}
+              currentVersion={currentVersion}
             />
           </div>
         </div>
@@ -137,6 +142,7 @@ export default function ViewerMetadataSidebar({
                 mode="preview"
                 onShowAll={() => setShowAllObservations(true)}
                 category={currentCategory}
+                currentVersion={currentVersion}
               />
             </SidebarSection>
           )}

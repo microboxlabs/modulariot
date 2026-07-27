@@ -195,12 +195,17 @@ export const COLLECTION_VARIABLES: readonly CollectionVariable[] = [
   { path: "content.reasons", labelKey: "variables.collections.reasons", binds: "reasons", within: "content" },
 ];
 
-/** The arrays reachable from a scope, null being the envelope. */
+/**
+ * The arrays reachable from a scope, null being the envelope.
+ *
+ * The default carries the envelope case: an unscoped row reaches here as `undefined` from a
+ * contract that declares no root, and as `null` from `collectionScopeOf`. Both mean the same
+ * thing, and the parameter default collapses them without a second name for it.
+ */
 export function collectionsInScope(
-  scope: string | null | undefined
+  scope: string | null = null
 ): readonly CollectionVariable[] {
-  const within = scope ?? null;
-  return COLLECTION_VARIABLES.filter((collection) => collection.within === within);
+  return COLLECTION_VARIABLES.filter((collection) => collection.within === scope);
 }
 
 /**

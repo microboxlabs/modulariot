@@ -581,3 +581,19 @@ export type LegacyPeopleSearchResponse = {
     organization?: string;
   }>;
 };
+
+/**
+ * One recorded review decision, as the ECM returns it.
+ *
+ * `version` and `round` are null for content reviewed before rounds existed; `reasons` is
+ * empty for an approval.
+ */
+export type ReviewRoundResponse = {
+  seq: number;
+  verdict: "APPROVED" | "REJECTED";
+  version: string | null;
+  reasons: string[];
+  comment: string | null;
+  reviewedBy: string | null;
+  decidedAt: string | null;
+};

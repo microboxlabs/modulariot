@@ -12,13 +12,12 @@ import {
   useOptimisticFileUpload,
   putBentoMultimedia,
   deleteBentoMultimedia,
-  updateBentoReviewState,
-  createContentForumTopic,
+  recordReviewRound,
   replyContentForumPost,
   deleteContentForumPost,
   deleteContentForumTopic,
 } from "@/features/common/providers/client-api.provider";
-import { TaskResponse, ForumDiscussionResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import { TaskResponse, ForumDiscussionResponse, ReviewRoundResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
@@ -209,6 +208,38 @@ function buildObservationEntry(obs: FlatPost): ObservationEntry {
       createdBy: r.author,
     })),
   };
+}
+
+/**
+ * A content node's review rounds as timeline entries, oldest first.
+ *
+ * Each round is one decision, so it becomes one state-change entry carrying a single
+ * observation: its reason codes and the one comment the reviewer wrote. That is the whole
+ * difference from the forum shape, where the codes and the verdict were separate topics and
+ * a reply became another post concatenated into the text.
+ */
+export function roundsToTimeline(rounds: ReviewRoundResponse[]): TimelineEntry[] {
+  return rounds.map((round) => {
+    const decidedAt = round.decidedAt ? new Date(round.decidedAt) : new Date();
+    const reviewer = round.reviewedBy ?? undefined;
+    const hasDetail = round.reasons.length > 0 || !!round.comment;
+    return {
+      kind: "state_change" as const,
+      id: `round-${round.seq}`,
+      status: round.verdict === "APPROVED" ? ("approved" as const) : ("rejected" as const),
+      committedAt: decidedAt,
+      committedBy: reviewer,
+      observations: hasDetail
+        ? [{
+            id: `round-${round.seq}-detail`,
+            types: round.reasons as ObservationType[],
+            description: round.comment ?? "",
+            createdAt: decidedAt,
+            createdBy: reviewer,
+          }]
+        : [],
+    };
+  });
 }
 
 function buildNodeTimeline(data: ForumDiscussionResponse, refMap: Map<string, { topicRef: string; postRef: string }>): TimelineEntry[] {
@@ -614,14 +645,27 @@ export default function FileImages({
   const currentUserName = session?.user?.name ?? session?.user?.email ?? undefined;
 
 
+  /**
+   * Records one decision as a review round: the verdict together with the reasons and the
+   * comment the reviewer staged for this file.
+   *
+   * This used to be two independent writes — the reviewable aspect and a forum topic —
+   * issued under Promise.allSettled. When one failed the UI rolled back its own state and
+   * left the other committed on the server, with nothing to repair the disagreement. One
+   * request, one transaction, so there is no half-state to reconcile.
+   */
   const handleStatusChange = useCallback(async (id: string, status: ReviewStatus) => {
+    if (status === "pending") {
+      // Returning content to review is the absence of a decision, not a decision that says
+      // it is undecided, so it records no round.
+      return;
+    }
     const now = new Date();
-    const ALFRESCO_STATE_MAP: Record<string, "APPROVED" | "REJECTED" | "PENDING"> = { approved: "APPROVED", rejected: "REJECTED", pending: "PENDING" };
-    const alfrescoState = ALFRESCO_STATE_MAP[status] ?? "PENDING";
+    const staged = draftObservations.get(id) ?? [];
+    const reasons = [...new Set(staged.flatMap((obs) => obs.types ?? []))];
+    const comment = staged.map((obs) => obs.description).filter(Boolean).join("\n\n");
 
-    // Capture full-map snapshots inside the updaters before writing optimistic values.
-    // Restored verbatim on any API failure so prior state (including previously committed
-    // decisions) is never lost.
+    // Snapshots for rollback, captured before the optimistic write.
     let snapStatuses: Map<string, ReviewStatus> | undefined;
     let snapTimestamps: Map<string, Date> | undefined;
     let snapUsers: Map<string, string> | undefined;
@@ -642,12 +686,14 @@ export default function FileImages({
     });
     setCommittedTimeline((prev) => { snapTimeline = prev; return prev; });
 
-    const [updateResult, forumResult] = await Promise.allSettled([
-      updateBentoReviewState(id, alfrescoState, currentUserName, now.toISOString()),
-      createContentForumTopic(toNodeRef(id), alfrescoState, alfrescoState),
-    ]);
-
-    if (updateResult.status === "rejected" || forumResult.status === "rejected") {
+    try {
+      await recordReviewRound({
+        contentNodeRef: toNodeRef(id),
+        verdict: status === "approved" ? "APPROVED" : "REJECTED",
+        reasons,
+        comment: comment || undefined,
+      });
+    } catch {
       toast.error(tr("bento.multimedia.review_state_update_error", dictionary));
       if (snapStatuses) setReviewStatuses(() => snapStatuses!);
       if (snapTimestamps) setReviewStatusTimestamps(() => snapTimestamps!);
@@ -656,43 +702,39 @@ export default function FileImages({
       return;
     }
 
+    // The staged observations are now part of the recorded round, so they stop being staged.
+    setDraftObservations((prev) => {
+      const next = new Map(prev); next.delete(id); return next;
+    });
     setCommittedTimeline((prev) => {
       const next = new Map(prev);
       const existing = prev.get(id) ?? [];
-      next.set(id, buildCommittedEntry(existing, status, id, now, currentUserName, []));
+      next.set(id, buildCommittedEntry(existing, status, id, now, currentUserName, staged));
       return next;
     });
-  }, [currentUserName, dictionary]);
+  }, [currentUserName, dictionary, draftObservations]);
 
+  /**
+   * Stages an observation against a file. Nothing is written until the reviewer decides:
+   * a reason with no verdict is what the old forum stored as an unrelated topic, which is
+   * why it could never say which reasons belonged to which decision.
+   */
   const handleAddObservation = useCallback((fileId: string, types: ObservationType[], description: string) => {
     const entry: ObservationEntry = { id: crypto.randomUUID(), types, description, createdAt: new Date(), createdBy: currentUserName };
-    // Always add to committedTimeline immediately (visible right away)
-    setCommittedTimeline((prev) => {
+    setDraftObservations((prev) => {
       const next = new Map(prev);
-      next.set(fileId, [...(prev.get(fileId) ?? []), { kind: "observation" as const, ...entry }]);
+      next.set(fileId, [...(prev.get(fileId) ?? []), entry]);
       return next;
     });
-    // Always persist immediately — store types as comma-separated prefix: [type1,type2] description
-    createContentForumTopic(toNodeRef(fileId), types.join(","), description).catch(() => {});
   }, [currentUserName]);
 
   const handleRemoveDraftObservation = useCallback((fileId: string, obsId: string) => {
-    // Remove from committedTimeline (observations are always added there now)
-    setCommittedTimeline((prev) => {
+    setDraftObservations((prev) => {
       const next = new Map(prev);
       next.set(fileId, (prev.get(fileId) ?? []).filter((e) => e.id !== obsId));
       return next;
     });
-    // If the obsId is a backend ref (not a local temp id), delete the post
-    if (!obsId.startsWith("obs-")) {
-      const refs = forumRefMap.get(obsId);
-      if (refs) {
-        deleteContentForumPost(refs.topicRef, refs.postRef).catch(() => {});
-      } else {
-        deleteContentForumTopic(toNodeRef(obsId)).catch(() => {});
-      }
-    }
-  }, [forumRefMap]);
+  }, []);
 
   const handleRemoveCommittedObservation = useCallback((fileId: string, obsId: string) => {
     setCommittedTimeline((prev) => {
@@ -823,27 +865,35 @@ export default function FileImages({
     }
   }, [documentsData, files]);
 
-  // Hydrate committedTimeline from per-node forum discussions
+  // Hydrate committedTimeline: review rounds where a node has them, its forum discussion
+  // otherwise. Rounds win — the forum kept observations and state changes as unrelated
+  // topics, so it cannot say which reasons belonged to which decision. The forum read stays
+  // for content decided before rounds existed, which is not backfilled.
   const [discussionsLoaded, setDiscussionsLoaded] = useState(false);
   useEffect(() => {
     if (allIds.length === 0 || discussionsLoaded) return;
     let cancelled = false;
-    async function fetchDiscussions() {
+    async function fetchHistories() {
       const results = await Promise.allSettled(
         allIds.map(async (nodeId) => {
-          const res = await fetch(`/app/api/forum/content?contentNodeRef=${encodeURIComponent(toNodeRef(nodeId))}`);
-          if (!res.ok) return { nodeId, data: null };
-          const data = (await res.json()) as ForumDiscussionResponse;
-          return { nodeId, data };
+          const nodeRef = encodeURIComponent(toNodeRef(nodeId));
+          const roundsRes = await fetch(`/app/api/review/rounds?contentNodeRef=${nodeRef}`);
+          if (roundsRes.ok) {
+            const { rounds } = (await roundsRes.json()) as { rounds: ReviewRoundResponse[] };
+            if (rounds?.length) return { nodeId, rounds, data: null };
+          }
+          const res = await fetch(`/app/api/forum/content?contentNodeRef=${nodeRef}`);
+          if (!res.ok) return { nodeId, rounds: null, data: null };
+          return { nodeId, rounds: null, data: (await res.json()) as ForumDiscussionResponse };
         })
       );
       if (cancelled) return;
       const timeline = new Map<string, TimelineEntry[]>();
       const refMap = new Map<string, { topicRef: string; postRef: string }>();
       for (const result of results) {
-        if (result.status !== "fulfilled" || !result.value.data) continue;
-        const { nodeId, data } = result.value;
-        const entries = buildNodeTimeline(data, refMap);
+        if (result.status !== "fulfilled") continue;
+        const { nodeId, rounds, data } = result.value;
+        const entries = rounds ? roundsToTimeline(rounds) : data ? buildNodeTimeline(data, refMap) : [];
         if (entries.length > 0) timeline.set(nodeId, entries);
       }
       setForumRefMap((prev) => new Map([...prev, ...refMap]));
@@ -856,7 +906,7 @@ export default function FileImages({
       });
       setDiscussionsLoaded(true);
     }
-    fetchDiscussions();
+    fetchHistories();
     return () => { cancelled = true; };
   }, [allIds, discussionsLoaded]);
 

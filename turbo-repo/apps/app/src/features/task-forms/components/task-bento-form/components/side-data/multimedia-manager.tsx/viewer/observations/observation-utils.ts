@@ -1,6 +1,25 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import type { ObservationEntry } from "./observation.types";
+import type { ObservationEntry, TimelineEntry } from "./observation.types";
+
+/**
+ * An approval nobody wrote a note on.
+ *
+ * It renders as a card whose entire body reads "no notes attached", and it says nothing the
+ * file's own status badge — which already carries who approved it and when — does not. Several
+ * in a row push the observations panel tall enough to hide what sits under it.
+ *
+ * Only approvals. A rejection cannot be committed without a reason, so an empty one is a bug
+ * worth seeing rather than hiding, and a `pending` entry marks content going back for another
+ * look, which is a real event even with nothing written on it.
+ */
+export function isSilentApproval(entry: TimelineEntry): boolean {
+  return (
+    entry.kind === "state_change" &&
+    entry.status === "approved" &&
+    entry.observations.length === 0
+  );
+}
 
 /**
  * Display label for one observation code, falling back to the raw code.

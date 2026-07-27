@@ -11,6 +11,7 @@ const endTaskMock = vi.fn();
 const updateTaskMock = vi.fn();
 const getChildrenNodesMock = vi.fn();
 const listContentTopicsMock = vi.fn();
+const getReviewRoundsMock = vi.fn();
 
 vi.mock("@/auth", () => ({
   auth: (...args: unknown[]) => authMock(...args),
@@ -21,6 +22,7 @@ vi.mock("@/features/common/providers/alfresco-api/alfresco-api.provider", () => 
   updateTask: (...args: unknown[]) => updateTaskMock(...args),
   getChildrenNodes: (...args: unknown[]) => getChildrenNodesMock(...args),
   listContentTopics: (...args: unknown[]) => listContentTopicsMock(...args),
+  getReviewRounds: (...args: unknown[]) => getReviewRoundsMock(...args),
 }));
 
 vi.mock("@/lib/logger", () => ({
@@ -133,8 +135,12 @@ describe("POST /api/task/end — document-review gating is direction-aware", () 
     authMock.mockResolvedValue({ user: { email: "u@example.com" } });
     endTaskMock.mockResolvedValue({});
     updateTaskMock.mockResolvedValue(undefined);
-    // Every rejected document carries an observation, so REJECTED_WITHOUT_OBSERVATIONS
-    // never fires and the direction logic is what these tests actually exercise.
+    // Every rejected document carries a reason, so REJECTED_WITHOUT_OBSERVATIONS never fires
+    // and the direction logic is what these tests actually exercise. Both sources are stubbed
+    // because the gate reads rounds first and only falls back to the forum.
+    getReviewRoundsMock.mockResolvedValue({
+      rounds: [{ seq: 1, verdict: "REJECTED", reasons: ["wrong_format"], comment: "" }],
+    });
     listContentTopicsMock.mockResolvedValue({
       topics: [{ title: "Prueba de integración" }],
     });
@@ -219,5 +225,110 @@ describe("POST /api/task/end — document-review gating is direction-aware", () 
     const response = await post({ transitionId: "Preparar Servicio" });
 
     expect(response.status).toBe(422);
+  });
+});
+
+/**
+ * Where a rejection's reason is read from.
+ *
+ * A rejection is recorded as a review round, and the forum write that used to accompany it is
+ * gone. This gate went on asking the forum, so every rounds-era rejection looked unexplained
+ * and sending the trip back — the one move a rejection needs — was refused, with the reasons
+ * and the comment on screen in the confirm dialog the whole time.
+ */
+describe("POST /api/task/end — a rejection's reason comes from its round", () => {
+  const BPM_PACKAGE = "workspace://SpacesStore/83c596eb-159a-4037-8596-eb159ab0377a";
+
+  const rejectedDoc = {
+    list: {
+      entries: [
+        {
+          entry: {
+            id: "b",
+            aspectNames: ["mintral:reviewableAspect"],
+            properties: { "mintral:reviewStatus": "REJECTED" },
+          },
+        },
+      ],
+    },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authMock.mockResolvedValue({ user: { email: "u@example.com" } });
+    endTaskMock.mockResolvedValue({});
+    updateTaskMock.mockResolvedValue(undefined);
+    getChildrenNodesMock.mockResolvedValue(rejectedDoc);
+    // No forum topics anywhere: a rounds-era rejection has none, and leaving the old source
+    // empty is what makes these assertions about rounds rather than about the fallback.
+    listContentTopicsMock.mockResolvedValue({ topics: [] });
+  });
+
+  async function sendBack() {
+    const { POST } = await loadRoute();
+    return POST(
+      makePostRequest({
+        taskId: "2986645",
+        bpm_package: BPM_PACKAGE,
+        transitionId: "Preparar Servicio",
+        reasonId: "wfship2:missionControlTask",
+      })
+    );
+  }
+
+  it("allows the return when the latest round carries reason codes", async () => {
+    getReviewRoundsMock.mockResolvedValue({
+      rounds: [{ seq: 1, verdict: "REJECTED", reasons: ["wrong_format"], comment: "" }],
+    });
+
+    expect((await sendBack()).status).toBe(200);
+  });
+
+  it("allows the return when the round carries only a comment", async () => {
+    // Reasons are optional in the picker; a written explanation is an explanation.
+    getReviewRoundsMock.mockResolvedValue({
+      rounds: [{ seq: 1, verdict: "REJECTED", reasons: [], comment: "Se requiere un png" }],
+    });
+
+    expect((await sendBack()).status).toBe(200);
+  });
+
+  it("blocks when the latest round explains nothing", async () => {
+    getReviewRoundsMock.mockResolvedValue({
+      rounds: [{ seq: 1, verdict: "REJECTED", reasons: [], comment: "   " }],
+    });
+
+    const response = await sendBack();
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "REJECTED_WITHOUT_OBSERVATIONS" },
+    });
+  });
+
+  it("judges by the newest round, not by an older one that explained replaced content", async () => {
+    getReviewRoundsMock.mockResolvedValue({
+      rounds: [
+        { seq: 1, verdict: "REJECTED", reasons: ["poor_image_quality"], comment: "Borrosa" },
+        { seq: 2, verdict: "REJECTED", reasons: [], comment: "" },
+      ],
+    });
+
+    expect((await sendBack()).status).toBe(422);
+  });
+
+  it("falls back to the forum for content decided before rounds existed", async () => {
+    getReviewRoundsMock.mockResolvedValue({ rounds: [] });
+    listContentTopicsMock.mockResolvedValue({
+      topics: [{ title: "Calidad de imagen deficiente" }],
+    });
+
+    expect((await sendBack()).status).toBe(200);
+  });
+
+  it("does not count a verdict topic as an observation in that fallback", async () => {
+    getReviewRoundsMock.mockResolvedValue({ rounds: [] });
+    listContentTopicsMock.mockResolvedValue({ topics: [{ title: "REJECTED" }] });
+
+    expect((await sendBack()).status).toBe(422);
   });
 });

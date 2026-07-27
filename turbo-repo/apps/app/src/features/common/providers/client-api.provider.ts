@@ -37,6 +37,7 @@ import {
 import { SendableFile } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/clasification-form";
 import type {
   ForumDiscussionResponse,
+  ReviewRoundResponse,
   UserSiteResponse,
 } from "./alfresco-api/alfresco-api.types";
 import { LoadSearchResponse } from "@/types/load.types";
@@ -2267,4 +2268,35 @@ export async function updateServiceCategory(
   });
   if (!response.ok)
     throw new Error(`updateServiceCategory: ${response.status}`);
+}
+
+/**
+ * Records one review decision: verdict, reason codes and the single comment that goes with
+ * them, in one request.
+ *
+ * Replaces the pair of writes this used to take — the reviewable aspect and a forum topic,
+ * issued independently — where one failing left the other committed with nothing to repair
+ * it. The ECM assigns the sequence, reads the judged version off the node, and takes the
+ * reviewer from the session.
+ */
+export async function recordReviewRound(data: {
+  contentNodeRef: string;
+  verdict: "APPROVED" | "REJECTED";
+  reasons?: string[];
+  comment?: string;
+}): Promise<ReviewRoundResponse> {
+  return fetcher("/app/api/review/rounds", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+/** A content node's review decisions, oldest first. Empty for content reviewed before rounds. */
+export async function getReviewRounds(
+  contentNodeRef: string
+): Promise<{ rounds: ReviewRoundResponse[] }> {
+  return fetcher(
+    `/app/api/review/rounds?contentNodeRef=${encodeURIComponent(contentNodeRef)}`
+  );
 }

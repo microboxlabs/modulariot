@@ -37,6 +37,7 @@ import type {
   MessageTemplatesResponse,
   StatisticsMode,
   StatisticsTasksResponse,
+  ReviewRoundResponse,
 } from "./alfresco-api.types";
 import fetcher from "../fetcher";
 import type { FetcherError } from "../fetcher.types";
@@ -2265,4 +2266,40 @@ export async function searchGroups(
     displayName: group.displayName || group.shortName,
     kind: "group" as const,
   }));
+}
+
+/**
+ * One review decision on one content node: the verdict, its reason codes and the single
+ * comment that goes with it, recorded together.
+ *
+ * <p>The ECM assigns the sequence number, reads the judged version off the node and takes
+ * the reviewer from the authenticated session, so none of those are sent.
+ */
+export async function recordReviewRound(
+  session: Session,
+  data: {
+    contentNodeRef: string;
+    verdict: "APPROVED" | "REJECTED";
+    reasons?: string[];
+    comment?: string;
+  }
+): Promise<ReviewRoundResponse> {
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/review/round`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  return fetcher<ReviewRoundResponse>(url, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+/** A content node's review decisions, oldest first. Empty for content reviewed before rounds. */
+export async function getReviewRounds(
+  session: Session,
+  contentNodeRef: string
+): Promise<{ rounds: ReviewRoundResponse[] }> {
+  const params = new URLSearchParams({ contentNodeRef });
+  const baseUrl = `${process.env.ECM_API_URL}/alfresco/s/mintral/review/rounds?${params.toString()}`;
+  const { url, headers } = prepareAlfrescoAuth(baseUrl, session);
+  return fetcher<{ rounds: ReviewRoundResponse[] }>(url, { method: "GET", headers });
 }

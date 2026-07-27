@@ -120,7 +120,7 @@ async function hasRejectionReason(
   if (rounds.length > 0) {
     // The verdict on record is REJECTED, so the newest round is the one that set it and the
     // one that must explain it. An older round's reasons described content since replaced.
-    const latest = rounds[rounds.length - 1];
+    const latest = rounds.at(-1);
     return (latest?.reasons?.length ?? 0) > 0 || !!latest?.comment?.trim();
   }
 

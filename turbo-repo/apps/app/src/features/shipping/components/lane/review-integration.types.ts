@@ -153,6 +153,57 @@ export const GLOBAL_VARIABLE_GROUPS: readonly VariableGroup[] = VARIABLE_GROUPS.
 );
 
 /**
+ * Roots that exist only as an array element's bind name.
+ *
+ * Legal in a *value* row inside that array, never legal as the array's source: `reasons` is
+ * what an element becomes, not where it came from.
+ */
+export const ELEMENT_ROOTS: readonly string[] = VARIABLE_GROUPS.filter(
+  (group) => group.scoped
+).map((group) => group.id);
+
+/* -------------------------------------------------------------------------- */
+/* Collections — the arrays a collection row can point at                      */
+/* -------------------------------------------------------------------------- */
+
+export interface CollectionVariable {
+  /** Dotted path to the array, written in the scope it is reachable from. */
+  readonly path: string;
+  /** i18n key under `variables.collections`. */
+  readonly labelKey: string;
+  /** The root its elements are rebound under — what the rows inside it read. */
+  readonly binds: VariableGroupId;
+  /** The bind name of the array this one sits inside, or null at the envelope. */
+  readonly within: VariableGroupId | null;
+}
+
+/**
+ * Where an array's elements can come from.
+ *
+ * A collection row asks a different question from every other row — not "what value goes
+ * here" but "which array does this repeat over" — and the answer is a path in the *enclosing*
+ * scope. A separate catalogue is what keeps the two apart: offered the value vocabulary, an
+ * operator picks `{{reasons}}`, which resolves to nothing, renders an empty array, and is then
+ * dropped from the payload altogether, because an unrequired empty array is omitted rather
+ * than reported. That is a live integration shipping no rejection reasons at all, with every
+ * check on screen green.
+ */
+export const COLLECTION_VARIABLES: readonly CollectionVariable[] = [
+  { path: "content", labelKey: "variables.collections.content", binds: "content", within: null },
+  // Reachable only from inside `content`, where the element is bound under that name — which
+  // is also why it is spelled `content.reasons` rather than `reasons`.
+  { path: "content.reasons", labelKey: "variables.collections.reasons", binds: "reasons", within: "content" },
+];
+
+/** The arrays reachable from a scope, null being the envelope. */
+export function collectionsInScope(
+  scope: string | null | undefined
+): readonly CollectionVariable[] {
+  const within = scope ?? null;
+  return COLLECTION_VARIABLES.filter((collection) => collection.within === within);
+}
+
+/**
  * A worked example for one contract row: the first variable of the root that row renders
  * under, so the hint names a path that actually resolves there. Envelope rows see the whole
  * context, so they get the most common starting point instead.

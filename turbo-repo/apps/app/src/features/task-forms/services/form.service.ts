@@ -329,33 +329,18 @@ export const getSecondaryTransitionIdV2 = (
       icon: HiOutlineArrowLeft,
     });
   } else if (taskType === TYPE_WFSHIP2_MISSION_CONTROL_TASK) {
+    // Only one step back is offered: Controlar Servicio. The others this used to
+    // list (Asignar Conductor/Transporte, Presentar Conductor, Requiere Overlord)
+    // skipped over intermediate stages, and the reviewer's actual reason for going
+    // back from here is always the same one — the service documents need reworking.
     otherOptions.push(
-      {
-        id: OUTCOME_ASSIGN_DRIVER_V2,
-        label: (dict.outcome as I18nRecord)[OUTCOME_ASSIGN_DRIVER_V2] as string,
-        icon: HiOutlineArrowLeft,
-  },
-      {
-        id: OUTCOME_PRESENT_DRIVER_V2,
-        label: (dict.outcome as I18nRecord)[
-          OUTCOME_PRESENT_DRIVER_V2
-        ] as string,
-        icon: HiOutlineArrowLeft,
-},
       {
         id: OUTCOME_PREPARE_SERVICE_V2,
         label: (dict.outcome as I18nRecord)[
           OUTCOME_PREPARE_SERVICE_V2
         ] as string,
         icon: HiOutlineArrowLeft,
-},
-      {
-        id: OUTCOME_OVERLORD_REQUIRED_V2,
-        label: (dict.outcome as I18nRecord)[
-          OUTCOME_OVERLORD_REQUIRED_V2
-        ] as string,
-        icon: HiOutlineArrowLeft,
-},
+      },
       {
         id: OUTCOME_MISSION_CONTROL_WITHOUT_SIGNATURE_V2,
         label: (dict.outcome as I18nRecord)[

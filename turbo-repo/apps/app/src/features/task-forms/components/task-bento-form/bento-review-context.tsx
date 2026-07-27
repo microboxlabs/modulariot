@@ -7,8 +7,17 @@ export type { ObservationEntry };
 // `contentType` is the item's `mintral:contentType`. It travels with the verdict so a
 // consumer can tell *which kind* of document was rejected without re-reading the node —
 // the confirm modal turns it into the rejection codes the backend expects.
-export type RejectedItem = { fileName: string; contentType?: string; observations: ObservationEntry[] };
-export type ApprovedItem = { fileName: string; observations: ObservationEntry[] };
+//
+// `reasons` are the observation codes already resolved to display labels. They travel
+// resolved because the labels live under `bento.multimedia.*` in the root dictionary and
+// the confirm modal only ever holds a scoped subtree, so it cannot look them up itself.
+export type RejectedItem = {
+  fileName: string;
+  contentType?: string;
+  observations: ObservationEntry[];
+  reasons: string[];
+};
+export type ApprovedItem = { fileName: string; observations: ObservationEntry[]; reasons: string[] };
 type BentoReviewState = { pending: number; rejected: number; rejectedItems: RejectedItem[]; approvedItems: ApprovedItem[] };
 
 type BentoReviewContextValue = {

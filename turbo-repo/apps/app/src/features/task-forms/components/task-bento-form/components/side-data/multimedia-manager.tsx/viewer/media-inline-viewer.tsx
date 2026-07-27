@@ -151,11 +151,13 @@ export default function MediaInlineViewer({
   ];
   const canReject = fileObservations.length > 0;
 
+  // Deciding hands the reviewer the next file that still needs one, and closes the
+  // viewer when none is left. Revising an earlier decision follows the same path —
+  // it used to close immediately, which stranded the reviewer whenever the queue
+  // still had pending files behind the one they went back to fix.
   const handleDecision = (decision: ReviewStatus) => {
     if (!id || !isCurrentReviewable) return;
     onStatusChange?.(id, decision);
-
-    if (status === "approved" || status === "rejected") { onClose(); return; }
 
     const updatedStatuses = new Map(reviewStatuses ?? new Map());
     updatedStatuses.set(id, decision);

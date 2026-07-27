@@ -45,6 +45,7 @@ const rejected = (contentType: string): RejectedItem => ({
   fileName: `${contentType}.jpg`,
   contentType,
   observations: [],
+  reasons: [],
 });
 
 function renderModal(rejectedItems: RejectedItem[]) {

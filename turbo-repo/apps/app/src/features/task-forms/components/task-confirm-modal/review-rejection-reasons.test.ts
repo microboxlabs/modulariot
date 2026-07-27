@@ -6,6 +6,7 @@ const item = (contentType?: string): RejectedItem => ({
   fileName: `${contentType ?? "unknown"}.jpg`,
   contentType,
   observations: [],
+  reasons: [],
 });
 
 describe("rejectionReasonsFrom", () => {

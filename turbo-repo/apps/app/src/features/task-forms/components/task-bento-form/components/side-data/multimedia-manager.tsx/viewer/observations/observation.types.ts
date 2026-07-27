@@ -46,6 +46,24 @@ export type ObservationEntry = {
   createdAt: Date;
   createdBy?: string;
   replies?: ReplyEntry[];
+  /**
+   * Where this came from, which decides whether it can be edited at all.
+   *
+   * A `round` observation is not a note attached to a decision — it *is* the decision, its
+   * reasons and its comment as the repository recorded them. There is no endpoint to delete
+   * one, and no meaning in doing so: the history would then disagree with the verdict it
+   * explains.
+   *
+   * Stated rather than inferred from the id. The delete path used to read `obs-` as "draft"
+   * and everything else as "a forum topic", which was true only while those were the only two
+   * sources. Rounds became a third, so `round-1-detail` was posted to the forum as a nodeRef
+   * — `topic/delete workspace://SpacesStore/round-1-detail`, a 500 — while the card had
+   * already been stripped locally, leaving the panel and the repository disagreeing.
+   *
+   * Undefined means a draft the reviewer is still staging, which is removable and has never
+   * been sent anywhere.
+   */
+  source?: "forum" | "round";
 };
 
 export type StateChangeTimelineEntry = {

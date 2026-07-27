@@ -30,7 +30,7 @@ import ReplaceImageModal from "@/features/geographic-view/components/image-viewe
 import MediaInlineViewer, { MediaViewerItem } from "../viewer/media-inline-viewer";
 import type { ObservationEntry, ObservationType, TimelineEntry, StateChangeTimelineEntry, LooseObservationTimelineEntry } from "../viewer/media-inline-viewer";
 import MediaRow, { ReviewStatus } from "./media-row";
-import { observationReasonLabels } from "../viewer/observations/observation-utils";
+import { isRoundObservation, observationReasonLabels } from "../viewer/observations/observation-utils";
 import { useBentoReview } from "../../../../bento-review-context";
 
 /** The verdict each UI state records. "pending" is a reversal, not the absence of one. */
@@ -214,6 +214,8 @@ function buildObservationEntry(obs: FlatPost): ObservationEntry {
     description: plainDesc,
     createdAt: obs.created,
     createdBy: obs.author,
+    // A real forum post, so `id` is a ref the forum endpoints can act on.
+    source: "forum" as const,
     replies: obs.replies.map((r) => ({
       id: r.ref,
       description: stripHtmlEntities(r.content ?? r.title ?? ""),
@@ -249,6 +251,8 @@ export function roundsToTimeline(rounds: ReviewRoundResponse[]): TimelineEntry[]
             description: round.comment ?? "",
             createdAt: decidedAt,
             createdBy: reviewer,
+            // Not a note on the decision — the decision itself. Nothing may edit it.
+            source: "round" as const,
           }]
         : [],
     };
@@ -750,6 +754,12 @@ export default function FileImages({
   }, []);
 
   const handleRemoveCommittedObservation = useCallback((fileId: string, obsId: string) => {
+    // A round holds the decision itself and has no delete endpoint, so it is not removable —
+    // the card offers no control for it. Refused here as well, because stripping it from the
+    // panel is the half that always "works": it used to leave the note gone on screen and
+    // still recorded on the round, which read as a rejection that had lost its reasons.
+    if (isRoundObservation(committedTimeline.get(fileId) ?? [], obsId)) return;
+
     setCommittedTimeline((prev) => {
       const next = new Map(prev);
       const entries = (prev.get(fileId) ?? [])
@@ -763,10 +773,13 @@ export default function FileImages({
       if (refs) {
         deleteContentForumPost(refs.topicRef, refs.postRef).catch(() => {});
       } else {
+        // Only when the id really is a forum topic ref. It used to fall through to here for
+        // anything that was not a draft, which turned `round-1-detail` into
+        // `workspace://SpacesStore/round-1-detail` and posted it to topic/delete.
         deleteContentForumTopic(toNodeRef(obsId)).catch(() => {});
       }
     }
-  }, [forumRefMap]);
+  }, [committedTimeline, forumRefMap]);
 
   const handleAddReply = useCallback((fileId: string, obsId: string, description: string) => {
     const reply = { id: `reply-${obsId}-${Date.now()}`, description, createdAt: new Date(), createdBy: currentUserName };

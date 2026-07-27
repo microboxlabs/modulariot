@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { isSilentApproval } from "./observation-utils";
+import {
+  isImmutable,
+  isRoundObservation,
+  isSilentApproval,
+} from "./observation-utils";
 import type {
   ObservationEntry,
   StateChangeTimelineEntry,
@@ -56,5 +60,43 @@ describe("isSilentApproval", () => {
       createdAt: new Date("2026-07-27T15:19:00Z"),
     };
     expect(isSilentApproval(loose)).toBe(false);
+  });
+});
+
+describe("isImmutable", () => {
+  it("locks an observation that came from a review round", () => {
+    expect(isImmutable(note({ source: "round" }))).toBe(true);
+  });
+
+  it("leaves a forum post editable", () => {
+    expect(isImmutable(note({ source: "forum" }))).toBe(false);
+  });
+
+  it("leaves a staged draft editable — it has never been sent anywhere", () => {
+    expect(isImmutable(note())).toBe(false);
+  });
+});
+
+describe("isRoundObservation", () => {
+  const roundDetail = note({ id: "round-1-detail", source: "round" });
+  const forumPost = note({ id: "9f1c-forum-post", source: "forum" });
+  const entries: TimelineEntry[] = [
+    stateChange({ id: "round-1", status: "rejected", observations: [roundDetail] }),
+    stateChange({ id: "sc-forum", status: "rejected", observations: [forumPost] }),
+  ];
+
+  it("recognises a round's own detail", () => {
+    // The id that used to reach the forum as workspace://SpacesStore/round-1-detail.
+    expect(isRoundObservation(entries, "round-1-detail")).toBe(true);
+  });
+
+  it("does not claim a forum post", () => {
+    expect(isRoundObservation(entries, "9f1c-forum-post")).toBe(false);
+  });
+
+  it("does not claim an id it has never seen", () => {
+    // A draft, or an entry from another file: neither is a round, so neither is refused.
+    expect(isRoundObservation(entries, "obs-42")).toBe(false);
+    expect(isRoundObservation([], "round-1-detail")).toBe(false);
   });
 });

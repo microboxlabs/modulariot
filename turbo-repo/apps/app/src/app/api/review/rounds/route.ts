@@ -9,6 +9,28 @@ import { logError } from "@/lib/logger";
 
 const ROUTE = "/app/api/review/rounds";
 
+/**
+ * Turns an upstream failure into a response, keeping the repository's own message when it
+ * rejected the request.
+ *
+ * A blanket 500 here cost a debugging session: the repository answered a `PENDING` verdict
+ * with "verdict must be APPROVED or REJECTED, got: PENDING" — exactly the sentence needed —
+ * and this route replaced it with "Failed to record review decision". A 4xx is the caller
+ * being told what it got wrong, so it is passed through; anything else is ours to own and
+ * stays generic.
+ */
+function upstreamError(e: unknown, fallback: string): NextResponse {
+  const status = (e as { status?: number })?.status;
+  if (status === 401) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (typeof status === "number" && status >= 400 && status < 500) {
+    const message = (e as { message?: string })?.message;
+    return NextResponse.json({ error: message || fallback }, { status });
+  }
+  return NextResponse.json({ error: fallback }, { status: 500 });
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) {
@@ -27,13 +49,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(await getReviewRounds(session, contentNodeRef));
   } catch (e: unknown) {
     logError(e as Error, { route: `GET ${ROUTE}`, contentNodeRef });
-    if ((e as { status?: number })?.status === 401) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    return NextResponse.json(
-      { error: "Failed to fetch review rounds" },
-      { status: 500 }
-    );
+    return upstreamError(e, "Failed to fetch review rounds");
   }
 }
 
@@ -79,12 +95,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(round, { status: 201 });
   } catch (e: unknown) {
     logError(e as Error, { route: `POST ${ROUTE}`, contentNodeRef, verdict });
-    if ((e as { status?: number })?.status === 401) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    return NextResponse.json(
-      { error: "Failed to record review decision" },
-      { status: 500 }
-    );
+    return upstreamError(e, "Failed to record review decision");
   }
 }

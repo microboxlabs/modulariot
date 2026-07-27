@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Dropdown, DropdownItem } from "flowbite-react";
-import { HiChevronDown, HiCheck } from "react-icons/hi2";
+import { HiPlus } from "react-icons/hi2";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import BrandedMultiSelect from "@/features/task-forms/components/task-confirm-modal/branded-multi-select";
 import type { ObservationType, ObservationEntry, TimelineEntry } from "./observation.types";
 import { OBSERVATION_TYPE_KEYS } from "./observation.types";
 import { ObservationCard } from "./observation-card";
@@ -68,22 +68,25 @@ export function ObservationsSection({
     return label === key ? name ?? code : label;
   };
 
-  // Seed with the first option once the catalog loads.
-  useEffect(() => {
-    if (typeOptions.length > 0 && newTypes.length === 0) {
-      setNewTypes([typeOptions[0].code]);
-    }
-  }, [typeOptions]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Drop any selected types that are no longer in the catalog.
+  // The picker opens empty. It used to seed itself with whatever happened to be
+  // first in the catalog and refuse to fall back below one selection, so the
+  // reviewer had to add the reason they wanted before they could drop the one the
+  // form had chosen for them — and an untouched form silently reported that first
+  // reason as if someone had picked it.
   useEffect(() => {
     if (typeOptions.length === 0) return;
     const valid = new Set(typeOptions.map((o) => o.code));
-    setNewTypes((prev) => {
-      const filtered = prev.filter((c) => valid.has(c));
-      return filtered.length > 0 ? filtered : [typeOptions[0].code];
-    });
+    setNewTypes((prev) => prev.filter((c) => valid.has(c)));
   }, [typeOptions]);
+
+  const selectOptions = useMemo(
+    () =>
+      typeOptions.map((opt) => ({
+        value: opt.code as string,
+        label: obsTypeLabel(opt.code, opt.name),
+      })),
+    [typeOptions] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   useEffect(() => {
     if (!pendingReplyRef || !isAdding) return;
@@ -98,21 +101,18 @@ export function ObservationsSection({
     return () => { pendingReplyRef.current = { text: "", send: () => {} }; };
   }, [newDescription, isAdding, pendingReplyRef, onAdd, newTypes]);
 
-  const toggleType = (code: ObservationType) => {
-    setNewTypes((prev) => {
-      if (prev.includes(code)) {
-        return prev.length > 1 ? prev.filter((c) => c !== code) : prev;
-      }
-      return [...prev, code];
-    });
-  };
-
   const handleAdd = () => {
     if (!newDescription.trim() || newTypes.length === 0) return;
     onAdd(newTypes, newDescription.trim());
     setNewDescription("");
-    setNewTypes(typeOptions.length > 0 ? [typeOptions[0].code] : []);
+    setNewTypes([]);
     setIsAdding(false);
+  };
+
+  const handleCancel = () => {
+    setIsAdding(false);
+    setNewDescription("");
+    setNewTypes([]);
   };
 
   const allEntries = useMemo(() => [...committedTimeline].reverse(), [committedTimeline]);
@@ -174,36 +174,19 @@ export function ObservationsSection({
       {/* New observation form — fixed at top */}
       {isAdding ? (
         <div className="flex-shrink-0 flex flex-col gap-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-900/10 p-3">
-          <Dropdown
-            dismissOnClick={false}
-            label=""
-            className="z-50"
-            renderTrigger={() => (
-              <button
-                type="button"
-                className="w-full flex items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2.5 py-1.5 text-xs text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:focus:ring-blue-500 cursor-pointer"
-              >
-                <span className="flex flex-wrap gap-1">
-                  {newTypes.map((code) => (
-                    <span key={code} className="inline-flex items-center rounded bg-blue-100 dark:bg-blue-900/40 px-1.5 py-0.5 text-blue-700 dark:text-blue-300">
-                      {obsTypeLabel(code, typeOptions.find((o) => o.code === code)?.name)}
-                    </span>
-                  ))}
-                </span>
-                <HiChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500 dark:text-gray-400" />
-              </button>
-            )}
-          >
-            {typeOptions.map((opt) => (
-              <DropdownItem
-                key={opt.code}
-                onClick={() => toggleType(opt.code)}
-              >
-                <HiCheck className={`h-3.5 w-3.5 mr-1.5 ${newTypes.includes(opt.code) ? "text-blue-600" : "text-transparent"}`} />
-                <span className="text-xs">{obsTypeLabel(opt.code, opt.name)}</span>
-              </DropdownItem>
-            ))}
-          </Dropdown>
+          <BrandedMultiSelect
+            size="sm"
+            options={selectOptions}
+            selectedValues={newTypes}
+            onSelectionChange={(values) => setNewTypes(values as ObservationType[])}
+            placeholder={tr("bento.multimedia.sidebar_obs_type_placeholder", dictionary)}
+            summaryLabel={(count) =>
+              tr("bento.multimedia.sidebar_obs_type_count", dictionary, {
+                count: String(count),
+              })
+            }
+            emptyLabel={tr("bento.multimedia.sidebar_obs_type_empty", dictionary)}
+          />
           <textarea
             value={newDescription}
             onChange={(e) => setNewDescription(e.target.value)}
@@ -214,7 +197,7 @@ export function ObservationsSection({
           <div className="flex items-center justify-end gap-1.5">
             <button
               type="button"
-              onClick={() => { setIsAdding(false); setNewDescription(""); setNewTypes(typeOptions.length > 0 ? [typeOptions[0].code] : []); }}
+              onClick={handleCancel}
               className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
             >
               {tr("bento.multimedia.sidebar_obs_cancel", dictionary)}
@@ -230,11 +213,15 @@ export function ObservationsSection({
           </div>
         </div>
       ) : (
+        // Adding an observation is the gate on rejecting, so it reads as a real
+        // button — solid border, body-text contrast — not the dashed placeholder
+        // it used to be, which looked like an empty drop zone.
         <button
           type="button"
           onClick={() => setIsAdding(true)}
-          className="flex-shrink-0 w-full text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 border border-dashed border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 rounded-lg py-2 transition-colors cursor-pointer"
+          className="flex-shrink-0 w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2.5 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer"
         >
+          <HiPlus className="h-3.5 w-3.5 shrink-0" />
           {tr("bento.multimedia.sidebar_obs_add", dictionary)}
         </button>
       )}

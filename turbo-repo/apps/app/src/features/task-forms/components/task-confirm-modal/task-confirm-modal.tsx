@@ -52,10 +52,8 @@ import {
   PlanningProcessTask,
   ShippingCoordinatorProcessTaskV2,
 } from "../../services/form.service.types";
-import { ReviewedItemCard } from "../task-actions/review-items";
+import { ReviewSummary } from "../task-actions/review-items";
 import { rejectionReasonsFrom } from "./review-rejection-reasons";
-import { SidebarSection } from "../task-bento-form/components/side-data/multimedia-manager.tsx/viewer/sidebar/sidebar-section";
-import { HiCheckCircle, HiDocumentText } from "react-icons/hi2";
 
 export default function TaskConfirmModal({
   openModal,
@@ -270,11 +268,20 @@ export default function TaskConfirmModal({
                 </Label>
                 {selectConfig.multiSelect ? (
                   <BrandedMultiSelect
-                    options={selectConfig.options}
+                    options={selectConfig.options.map((option) => ({
+                      value: option.value,
+                      label: (dict.modal as I18nRecord)[option.labelKey] as string,
+                      description: option.descriptionKey
+                        ? ((dict.modal as I18nRecord)[option.descriptionKey] as string)
+                        : undefined,
+                    }))}
                     selectedValues={selectedValues}
                     onSelectionChange={setSelectedValues}
-                    triggerText={selectConfig.triggerText || tr("modal.selectOptions", dict)}
-                    dict={dict}
+                    placeholder={selectConfig.triggerText || tr("modal.selectOptions", dict)}
+                    summaryLabel={(count) =>
+                      `${count} ${tr("modal.multipleReasonsSelected", dict)}`
+                    }
+                    emptyLabel={tr("modal.noOptionsAvailable", dict)}
                   />
                 ) : (
                   <Select
@@ -330,56 +337,28 @@ export default function TaskConfirmModal({
                 </div>
               )}
 
-            {/* Document review summary — collapsible, always at the bottom */}
+            {/* Document review summary — always at the bottom */}
             {hasReviewItems && (
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                {approvedItems.length > 0 && (
-                  <SidebarSection
-                    title={trDynamic(
-                      approvedItems.length === 1
-                        ? "outcome.continueModalApprovedCount_one"
-                        : "outcome.continueModalApprovedCount",
-                      dict,
-                      { count: String(approvedItems.length) }
-                    )}
-                    icon={<HiCheckCircle className="w-3.5 h-3.5 text-green-500" />}
-                    titleClassName="text-green-700 dark:text-green-300"
-                    defaultExpanded
-                  >
-                    <ul className="flex flex-col gap-2 list-none ">
-                      {approvedItems.map((item) => (
-                        <ReviewedItemCard key={item.fileName} item={item} status="approved" locale={lang} />
-                      ))}
-                    </ul>
-                  </SidebarSection>
+              <ReviewSummary
+                approvedItems={approvedItems}
+                rejectedItems={rejectedItems}
+                locale={lang}
+                approvedCountLabel={trDynamic(
+                  approvedItems.length === 1
+                    ? "outcome.continueModalApprovedCount_one"
+                    : "outcome.continueModalApprovedCount",
+                  dict,
+                  { count: String(approvedItems.length) }
                 )}
-                {rejectedItems.length > 0 && (
-                  <SidebarSection
-                    title={trDynamic(
-                      rejectedItems.length === 1
-                        ? "outcome.goBackModalRejectedCount_one"
-                        : "outcome.goBackModalRejectedCount",
-                      dict,
-                      { count: String(rejectedItems.length) }
-                    )}
-                    icon={<HiDocumentText className="w-3.5 h-3.5 text-red-500" />}
-                    titleClassName="text-red-700 dark:text-red-300"
-                    defaultExpanded
-                  >
-                    <ul className="flex flex-col gap-2 list-none ">
-                      {rejectedItems.map((item) => (
-                        <ReviewedItemCard
-                          key={item.fileName}
-                          item={item}
-                          status="rejected"
-                          locale={lang}
-                          noObservationsLabel={tr("outcome.goBackModalNoMotives", dict)}
-                        />
-                      ))}
-                    </ul>
-                  </SidebarSection>
+                rejectedCountLabel={trDynamic(
+                  rejectedItems.length === 1
+                    ? "outcome.goBackModalRejectedCount_one"
+                    : "outcome.goBackModalRejectedCount",
+                  dict,
+                  { count: String(rejectedItems.length) }
                 )}
-              </div>
+                noObservationsLabel={tr("outcome.goBackModalNoMotives", dict)}
+              />
             )}
 
             {error && (

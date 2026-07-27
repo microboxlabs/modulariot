@@ -31,6 +31,7 @@ import ReplaceImageModal from "@/features/geographic-view/components/image-viewe
 import MediaInlineViewer, { MediaViewerItem } from "../viewer/media-inline-viewer";
 import type { ObservationEntry, ObservationType, TimelineEntry, StateChangeTimelineEntry, LooseObservationTimelineEntry } from "../viewer/media-inline-viewer";
 import MediaRow, { ReviewStatus } from "./media-row";
+import { observationReasonLabels } from "../viewer/observations/observation-utils";
 import { useBentoReview } from "../../../../bento-review-context";
 
 function toNodeRef(id: string): string {
@@ -523,9 +524,14 @@ export default function FileImages({
           ? lastRejection.observations
           : [];
         const contentType = file?.file?.entry?.properties?.["mintral:contentType"];
-        return { fileName, contentType, observations };
+        return {
+          fileName,
+          contentType,
+          observations,
+          reasons: observationReasonLabels(observations, dictionary),
+        };
       });
-  }, [allIds, reviewableIds, reviewStatuses, images, documents, committedTimeline]);
+  }, [allIds, reviewableIds, reviewStatuses, images, documents, committedTimeline, dictionary]);
 
   const approvedItems = useMemo(() => {
     return allIds
@@ -541,9 +547,13 @@ export default function FileImages({
         const observations = lastApproval?.kind === "state_change"
           ? lastApproval.observations
           : [];
-        return { fileName, observations };
+        return {
+          fileName,
+          observations,
+          reasons: observationReasonLabels(observations, dictionary),
+        };
       });
-  }, [allIds, reviewableIds, reviewStatuses, images, documents, committedTimeline]);
+  }, [allIds, reviewableIds, reviewStatuses, images, documents, committedTimeline, dictionary]);
 
   const { dispatch: dispatchReviewState } = useBentoReview();
   useEffect(() => {

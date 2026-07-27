@@ -1,6 +1,6 @@
 "use client";
 
-import { HiCheckCircle, HiDocumentText } from "react-icons/hi2";
+import { HiCheckCircle, HiXCircle } from "react-icons/hi2";
 import type { RejectedItem, ObservationEntry, ApprovedItem } from "../task-bento-form/bento-review-context";
 
 export function fmt(date: Date, locale: string): string {
@@ -10,53 +10,30 @@ export function fmt(date: Date, locale: string): string {
   });
 }
 
-export const ITEM_STYLES = {
+const ROW_STYLES = {
   approved: {
-    border: "border-green-200 dark:border-green-800",
-    header: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800",
+    rail: "border-l-green-500",
+    tint: "bg-green-50/50 dark:bg-green-900/10",
     text: "text-green-700 dark:text-green-300",
     Icon: HiCheckCircle,
-    iconColor: "text-green-500",
   },
   rejected: {
-    border: "border-red-200 dark:border-red-800",
-    header: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
+    rail: "border-l-red-500",
+    tint: "bg-red-50/50 dark:bg-red-900/10",
     text: "text-red-700 dark:text-red-300",
-    Icon: HiDocumentText,
-    iconColor: "text-red-500",
+    Icon: HiXCircle,
   },
 } as const;
 
-export function ObservationCard({ obs, locale }: Readonly<{ obs: ObservationEntry; locale: string }>) {
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {obs.createdBy && (
-          <span className="text-xs text-gray-400 dark:text-gray-500">{obs.createdBy}</span>
-        )}
-        <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{fmt(obs.createdAt, locale)}</span>
-      </div>
-      <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{obs.description}</p>
-      {obs.replies && obs.replies.length > 0 && (
-        <div className="flex flex-col gap-2 mt-0.5 pl-2 border-l-2 border-gray-100 dark:border-gray-700">
-          {obs.replies.map((reply) => (
-            <div key={reply.id} className="flex flex-col gap-0.5 rounded px-1.5 py-1 -mx-1.5">
-              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{reply.description}</p>
-              <div className="flex items-center gap-1.5">
-                {reply.createdBy && (
-                  <span className="text-xs text-gray-400 dark:text-gray-500">{reply.createdBy}</span>
-                )}
-                <span className="text-xs text-gray-400 dark:text-gray-500">{fmt(reply.createdAt, locale)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function ReviewedItemCard({
+/**
+ * One reviewed document, as a row rather than a card.
+ *
+ * <p>Verdict is carried by a coloured left rail and an icon, so a reviewer scanning
+ * the modal sees the shape of the outcome — a block of red, a block of green —
+ * without reading a word. The nested bordered cards this replaced put three box
+ * outlines between the reader and the file name.
+ */
+export function ReviewedItemRow({
   item,
   status,
   locale,
@@ -67,56 +44,119 @@ export function ReviewedItemCard({
   locale: string;
   noObservationsLabel?: string;
 }>) {
-  const s = ITEM_STYLES[status];
-  const hasBody = item.observations.length > 0 || !!noObservationsLabel;
+  const s = ROW_STYLES[status];
+  // The reasons lead: they are the codes the partner receives. The free text below
+  // is supporting detail, and arrives already resolved to labels.
+  const reasons = item.reasons;
+
   return (
-    <li className={`rounded-lg border ${s.border} overflow-hidden list-none`}>
-      <div className={`flex items-center gap-2 px-3 py-2 ${s.header} ${hasBody ? "border-b" : ""}`}>
-        <s.Icon className={`w-3.5 h-3.5 ${s.iconColor} shrink-0`} />
-        <span className={`text-xs font-medium ${s.text} truncate`}>{item.fileName}</span>
+    <li className={`list-none border-l-2 ${s.rail} ${s.tint} pl-3 pr-2 py-2`}>
+      <div className="flex items-center gap-2">
+        <s.Icon className={`w-4 h-4 shrink-0 ${s.text}`} />
+        <span className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
+          {item.fileName}
+        </span>
       </div>
-      {item.observations.length > 0 ? (
-        <div className="flex flex-col gap-2 p-3">
-          {item.observations.map((obs) => (
-            <ObservationCard key={obs.id} obs={obs} locale={locale} />
+
+      {reasons.length > 0 && (
+        <div className="mt-1.5 ml-6 flex flex-wrap gap-1">
+          {reasons.map((reason) => (
+            <span
+              key={reason}
+              className="inline-flex items-center rounded bg-white/70 dark:bg-gray-800/60 px-1.5 py-0.5 text-[11px] font-medium text-gray-700 dark:text-gray-200 ring-1 ring-inset ring-gray-200 dark:ring-gray-600"
+            >
+              {reason}
+            </span>
           ))}
         </div>
-      ) : (
-        noObservationsLabel && (
-          <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500 italic">
-            {noObservationsLabel}
-          </p>
-        )
+      )}
+
+      {item.observations.map((obs) => (
+        <ObservationNote key={obs.id} obs={obs} locale={locale} />
+      ))}
+
+      {item.observations.length === 0 && noObservationsLabel && (
+        <p className="mt-1 ml-6 text-xs italic text-gray-400 dark:text-gray-500">
+          {noObservationsLabel}
+        </p>
       )}
     </li>
   );
 }
 
-export function ReviewSection({
-  items,
-  status,
-  countLabel,
+function ObservationNote({ obs, locale }: Readonly<{ obs: ObservationEntry; locale: string }>) {
+  return (
+    <div className="mt-1.5 ml-6 flex flex-col gap-0.5">
+      <p className="text-xs leading-relaxed text-gray-700 dark:text-gray-300">{obs.description}</p>
+      <p className="text-[11px] text-gray-400 dark:text-gray-500">
+        {[obs.createdBy, fmt(obs.createdAt, locale)].filter(Boolean).join(" · ")}
+      </p>
+      {obs.replies?.map((reply) => (
+        <div key={reply.id} className="mt-1 border-l-2 border-gray-200 dark:border-gray-600 pl-2">
+          <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-300">{reply.description}</p>
+          <p className="text-[11px] text-gray-400 dark:text-gray-500">
+            {[reply.createdBy, fmt(reply.createdAt, locale)].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The whole review outcome in one container: a count strip, then every document as
+ * a row. Rejected leads, because it is what the reviewer is being asked to confirm.
+ */
+export function ReviewSummary({
+  approvedItems,
+  rejectedItems,
   locale,
+  approvedCountLabel,
+  rejectedCountLabel,
   noObservationsLabel,
 }: Readonly<{
-  items: (ApprovedItem | RejectedItem)[];
-  status: "approved" | "rejected";
-  countLabel: string;
+  approvedItems: ApprovedItem[];
+  rejectedItems: RejectedItem[];
   locale: string;
+  approvedCountLabel: string;
+  rejectedCountLabel: string;
   noObservationsLabel?: string;
 }>) {
-  if (items.length === 0) return null;
+  if (approvedItems.length === 0 && rejectedItems.length === 0) return null;
+
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{countLabel}</p>
-      <ul className="space-y-2 max-h-48 overflow-y-auto">
-        {items.map((item) => (
-          <ReviewedItemCard
+    <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-3 py-2">
+        {rejectedItems.length > 0 && (
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 dark:text-red-300">
+            <HiXCircle className="w-4 h-4" />
+            {rejectedCountLabel}
+          </span>
+        )}
+        {approvedItems.length > 0 && (
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 dark:text-green-300">
+            <HiCheckCircle className="w-4 h-4" />
+            {approvedCountLabel}
+          </span>
+        )}
+      </div>
+
+      <ul className="max-h-64 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+        {rejectedItems.map((item) => (
+          <ReviewedItemRow
             key={item.fileName}
             item={item}
-            status={status}
+            status="rejected"
             locale={locale}
             noObservationsLabel={noObservationsLabel}
+          />
+        ))}
+        {approvedItems.map((item) => (
+          <ReviewedItemRow
+            key={item.fileName}
+            item={item}
+            status="approved"
+            locale={locale}
           />
         ))}
       </ul>

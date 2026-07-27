@@ -272,6 +272,7 @@ function buildInfoFromEnv(): BuildInfo {
     credits: parseCreditsEnv(),
     components: stripEmptyComponentValues({
       app: component("APP"),
+      web: component("WEB"),
       modulith: component("MODULITH"),
       harness: component("HARNESS"),
     }),

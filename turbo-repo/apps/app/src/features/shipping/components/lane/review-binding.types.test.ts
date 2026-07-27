@@ -8,6 +8,7 @@ import {
   attachedChannels,
   bindNameOf,
   collectionFallbackRoot,
+  collectionScopeOf,
   contractRoots,
   scopeOfRow,
   bindingChannelKey,
@@ -23,7 +24,10 @@ import {
   type DispatchTarget,
   type EventBinding,
 } from "./review-binding.types";
-import { renderTemplate } from "./review-integration.types";
+import {
+  collectionsInScope,
+  renderTemplate,
+} from "./review-integration.types";
 
 /** A stored binding with sensible defaults, overridable per test. */
 function binding(over: Partial<EventBinding>): EventBinding {
@@ -412,6 +416,36 @@ describe("collection rows drive the drawer's scopes", () => {
     expect(bindNameOf("content.reasons")).toBeNull();
     expect(bindNameOf(undefined)).toBeNull();
   });
+
+  it("writes a collection's source in the scope it sits in, not the one it creates", () => {
+    // The distinction that cost a live integration: `items.notes` is answered from inside
+    // `items`, where the element is bound as `content` — so `content.reasons`. Reading its own
+    // bind name instead gives `reasons`, which points the row at its own elements.
+    expect(collectionScopeOf(target.fields[3], target, mapped)).toBe("content");
+    expect(collectionScopeOf(target.fields[1], target, mapped)).toBeNull();
+  });
+
+  it("falls back to the contract's own root when the enclosing row is unmapped", () => {
+    expect(collectionScopeOf(target.fields[3], target, {})).toBe("content");
+  });
+});
+
+describe("collectionsInScope", () => {
+  it("offers the reviewed items at the envelope and their reasons inside one", () => {
+    expect(collectionsInScope(null).map((c) => c.path)).toEqual(["content"]);
+    expect(collectionsInScope("content").map((c) => c.path)).toEqual([
+      "content.reasons",
+    ]);
+  });
+
+  it("never offers a scope its own bind name", () => {
+    // `reasons` is what an element becomes, so a row scoped by it has no further array to
+    // iterate — offering `{{reasons}}` is what produced an empty array and a dropped field.
+    expect(collectionsInScope("reasons")).toEqual([]);
+    for (const scope of [null, "content", "reasons"]) {
+      expect(collectionsInScope(scope).map((c) => c.path)).not.toContain(scope);
+    }
+  });
 });
 
 describe("checkCollectionTemplate", () => {
@@ -439,5 +473,24 @@ describe("checkCollectionTemplate", () => {
       "unknownRoot"
     );
     expect(checkCollectionTemplate("{{nope.things}}", null).status).toBe("valid");
+  });
+
+  it("refuses an element bind name as a source, whatever the roots say", () => {
+    // The one this rule exists for. `reasons` is a legal root *inside* the array it names —
+    // the rows there read `{{reasons.code}}` — so the root check waves it through, and the
+    // server does too: it resolves to nothing, renders `[]`, and an unrequired empty array is
+    // dropped from the payload rather than reported. Green everywhere, field never sent.
+    for (const roots of [ALLOWED_ROOTS, ["task", "content", "reasons"], null]) {
+      expect(checkCollectionTemplate("{{reasons}}", roots).problem?.code).toBe(
+        "elementRoot"
+      );
+    }
+    expect(checkCollectionTemplate("{{reasons.code}}", null).problem?.code).toBe(
+      "elementRoot"
+    );
+  });
+
+  it("still accepts the path that names where those elements come from", () => {
+    expect(checkCollectionTemplate("{{content.reasons}}", null).status).toBe("valid");
   });
 });

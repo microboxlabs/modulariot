@@ -53,6 +53,7 @@
         "collectionHelp": "Which collection this array's elements come from. Each element becomes available under the last segment of the path.",
         "collectionPlaceholder": "e.g. {{content.reasons}}",
         "collectionBinds": "Its fields will read {{{root}.*}}",
+        "collectionUnknown": "'{path}' is not a collection available here. At this point you can use: {options}.",
         "scopedHelp": "These variables exist only inside the array that supplies them; use them on that array's fields.",
         "insertVariable": "Variable",
         "previewEmpty": "(empty)",
@@ -73,7 +74,8 @@
           "badChar": "'{expression}' contains an unsupported character: '{char}'.",
           "unknownRoot": "'{path}' is unknown: '{root}' is not one of {roots}.",
           "wholeObject": "'{path}' is a whole object — use one of its fields (e.g. .mediaId).",
-          "notCollection": "'{expression}' does not name a collection. Use a single variable, e.g. {{content.reasons}}."
+          "notCollection": "'{expression}' does not name a collection. Use a single variable, e.g. {{content.reasons}}.",
+          "elementRoot": "'{path}' is the name the elements are given, not where they come from. Name the collection's path, e.g. {{content.reasons}}."
         },
         "channel": "Channel"
       },
@@ -103,6 +105,10 @@
           "review": "Review",
           "session": "User",
           "reasons": "Rejection reasons"
+        },
+        "collections": {
+          "content": "Reviewed files",
+          "reasons": "This file's rejection reasons"
         },
         "reasons": {
           "code": "Reason code",

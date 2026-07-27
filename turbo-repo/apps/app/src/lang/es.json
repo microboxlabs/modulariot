@@ -53,6 +53,7 @@
         "collectionHelp": "De qué colección salen los elementos de este arreglo. Cada elemento queda disponible bajo el último segmento de la ruta.",
         "collectionPlaceholder": "Ej: {{content.reasons}}",
         "collectionBinds": "Sus campos leerán {{{root}.*}}",
+        "collectionUnknown": "'{path}' no es una colección disponible en este punto. Aquí puedes usar: {options}.",
         "scopedHelp": "Estas variables existen solo dentro del arreglo que las aporta; úsalas en los campos de ese arreglo.",
         "insertVariable": "Variable",
         "previewEmpty": "(vacío)",
@@ -73,7 +74,8 @@
           "badChar": "'{expression}' contiene un carácter no admitido: '{char}'.",
           "unknownRoot": "'{path}' no existe: '{root}' no es uno de {roots}.",
           "wholeObject": "'{path}' es un objeto completo: usa uno de sus campos (por ejemplo, .mediaId).",
-          "notCollection": "'{expression}' no nombra una colección. Usa una sola variable, por ejemplo {{content.reasons}}."
+          "notCollection": "'{expression}' no nombra una colección. Usa una sola variable, por ejemplo {{content.reasons}}.",
+          "elementRoot": "'{path}' es el nombre que reciben los elementos, no de dónde salen. Indica la ruta de la colección, por ejemplo {{content.reasons}}."
         },
         "channel": "Canal"
       },
@@ -103,6 +105,10 @@
           "review": "Revisión",
           "session": "Usuario",
           "reasons": "Motivos de rechazo"
+        },
+        "collections": {
+          "content": "Archivos revisados",
+          "reasons": "Motivos de rechazo de este archivo"
         },
         "reasons": {
           "code": "Código del motivo",

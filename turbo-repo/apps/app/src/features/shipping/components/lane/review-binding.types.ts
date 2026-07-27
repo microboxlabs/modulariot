@@ -158,6 +158,24 @@ export function collectionFallbackRoot(
   return null;
 }
 
+/**
+ * The scope a collection row's own source is written in: the bind name of the array it sits
+ * inside, or null at the envelope.
+ *
+ * Deliberately not `scopeOfRow`, which answers for a value row. The scope a collection row
+ * sits *in* is not the one it *creates*, and conflating the two is exactly how a row ends up
+ * pointed at its own elements — `{{reasons}}` where `{{content.reasons}}` was meant.
+ */
+export function collectionScopeOf(
+  row: DispatchTargetField,
+  target: DispatchTarget | undefined,
+  templates: Record<string, string>
+): string | null {
+  const enclosing = enclosingCollection(row.id, target);
+  if (!enclosing) return null;
+  return bindNameOf(templates[enclosing.id]) ?? collectionFallbackRoot(enclosing, target);
+}
+
 export interface EventBinding {
   readonly id: string;
   readonly ownerOrgSlug: string;

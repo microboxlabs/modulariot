@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { HiCheck, HiChevronDown } from "react-icons/hi2";
 
 export type MultiSelectOption = {
@@ -29,6 +30,15 @@ const SIZES = {
 } as const;
 
 /**
+ * The list's height cap, in pixels, and the gap between it and its trigger.
+ *
+ * Numbers rather than `max-h-60`/`mt-2` because the flip decision has to compare them against
+ * the space left in the viewport, and a Tailwind class cannot be measured before it renders.
+ */
+const LIST_MAX_HEIGHT = 240;
+const GAP = 8;
+
+/**
  * Multi-select with checkbox rows, used wherever an operator picks any number of
  * codes from a catalog.
  *
@@ -47,7 +57,10 @@ export default function BrandedMultiSelect({
   size = "md",
 }: Readonly<BrandedMultiSelectProps>) {
   const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0, upward: false });
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
   const s = SIZES[size];
 
@@ -55,7 +68,13 @@ export default function BrandedMultiSelect({
   useEffect(() => {
     if (!isOpen) return;
     const onPointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setIsOpen(false);
+      const target = event.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      // The list is portaled out of the container, so it is no longer "inside" it. Without
+      // this, clicking an option would read as an outside click and close the dropdown on
+      // mousedown — unmounting the row before its own click handler could toggle anything.
+      if (listRef.current?.contains(target)) return;
+      setIsOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setIsOpen(false);
@@ -65,6 +84,40 @@ export default function BrandedMultiSelect({
     return () => {
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isOpen]);
+
+  /**
+   * Places the list against the viewport.
+   *
+   * The panels this select sits in clip their overflow, and `z-index` does not lift anything
+   * out of an ancestor's `overflow: hidden` — the options were simply cut off at the container
+   * edge. A portal escapes the clip, at the cost of the list no longer moving with its trigger,
+   * so the position is recomputed on any scroll (capture phase, to catch scrolling ancestors
+   * rather than only the window) and on resize.
+   */
+  useEffect(() => {
+    if (!isOpen) return;
+    const place = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      // Flip up only when below genuinely cannot hold the list and above is roomier —
+      // escaping the container is no use if the list then runs off the viewport instead.
+      const upward = spaceBelow < LIST_MAX_HEIGHT + GAP && rect.top > spaceBelow;
+      setPosition({
+        top: upward ? rect.top - GAP : rect.bottom + GAP,
+        left: rect.left,
+        width: rect.width,
+        upward,
+      });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
     };
   }, [isOpen]);
 
@@ -87,6 +140,7 @@ export default function BrandedMultiSelect({
   return (
     <div className="relative" ref={containerRef}>
       <button
+        ref={triggerRef}
         type="button"
         className={`w-full flex justify-between items-center gap-2 rounded-lg border border-gray-300 bg-white text-left transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600 ${s.trigger}`}
         onClick={() => setIsOpen((open) => !open)}
@@ -113,13 +167,25 @@ export default function BrandedMultiSelect({
         />
       </button>
 
-      {isOpen && (
-        <div
-          id={listboxId}
-          role="listbox"
-          aria-multiselectable
-          className="absolute z-50 mt-2 w-full max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700"
-        >
+      {isOpen &&
+        createPortal(
+          <div
+            id={listboxId}
+            ref={listRef}
+            role="listbox"
+            aria-multiselectable
+            style={{
+              position: "fixed",
+              top: position.top,
+              left: position.left,
+              width: position.width,
+              // Anchored by its bottom edge when it opens upward, so `top` stays the trigger.
+              transform: position.upward ? "translateY(-100%)" : undefined,
+              maxHeight: LIST_MAX_HEIGHT,
+              zIndex: 9999,
+            }}
+            className="overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700"
+          >
           {options.map((option) => {
             const isSelected = selectedValues.includes(option.value);
             return (
@@ -163,8 +229,9 @@ export default function BrandedMultiSelect({
               {emptyLabel}
             </div>
           )}
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

@@ -132,6 +132,15 @@ const docsChanged = pathStarts([
   "turbo-repo/package-lock.json",
   "turbo-repo/docker/nextjs.standalone-docs.Dockerfile",
 ]);
+const latestWebVersion = latestVersion("web@v*", "web@v");
+const webChanged =
+  pathStarts([
+    "turbo-repo/apps/web/",
+    "turbo-repo/packages/typescript-config/",
+    "turbo-repo/packages/eslint-config/",
+    "turbo-repo/package-lock.json",
+    "turbo-repo/docker/nextjs.standalone.Dockerfile",
+  ]) || !latestWebVersion;
 const modulithChanged = pathStarts(["quarkus-srv/"]);
 
 const latestDocsVersion = latestVersion("docs@v*", "docs@v");
@@ -142,6 +151,7 @@ const harnessBaseVersion = maxVersion(latestHarnessVersion, currentHarnessVersio
 const harnessChanged = pathStarts(["miot-harness/"]) || !latestHarnessVersion;
 const appVersion = stackVersion;
 const docsVersion = docsChanged ? stackVersion : latestDocsVersion;
+const webVersion = webChanged ? stackVersion : latestWebVersion;
 const modulithVersion = modulithChanged ? bumpPatch(latestModulithVersion) : latestModulithVersion;
 const harnessVersion = harnessChanged ? bumpPatch(harnessBaseVersion) : harnessBaseVersion;
 
@@ -150,6 +160,9 @@ if (!appVersion) {
 }
 if (!docsVersion) {
   throw new Error("No docs@v* tag exists and the docs did not change in this milestone.");
+}
+if (!webVersion) {
+  throw new Error("No web@v* tag exists and the web app did not change in this milestone.");
 }
 if (!modulithVersion) {
   throw new Error("No modulith@v* tag exists and the modulith did not change in this milestone.");
@@ -173,6 +186,11 @@ const plan = {
       changed: docsChanged,
       version: docsVersion,
       tag: `docs@v${docsVersion}`,
+    },
+    web: {
+      changed: webChanged,
+      version: webVersion,
+      tag: `web@v${webVersion}`,
     },
     modulith: {
       changed: modulithChanged,
@@ -198,6 +216,9 @@ const outputs = {
   docs_changed: String(docsChanged),
   docs_version: docsVersion,
   docs_tag: plan.components.docs.tag,
+  web_changed: String(webChanged),
+  web_version: webVersion,
+  web_tag: plan.components.web.tag,
   modulith_changed: String(modulithChanged),
   modulith_version: modulithVersion,
   modulith_tag: plan.components.modulith.tag,

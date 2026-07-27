@@ -1,0 +1,112 @@
+name: Web CI
+
+on:
+  push:
+    paths:
+      - "turbo-repo/apps/web/**"
+      - "turbo-repo/packages/typescript-config/**"
+      - "turbo-repo/packages/eslint-config/**"
+      - "turbo-repo/package-lock.json"
+      - "turbo-repo/docker/nextjs.standalone.Dockerfile"
+      - ".github/workflows/web.yml"
+    branches: [trunk, main]
+  pull_request:
+    paths:
+      - "turbo-repo/apps/web/**"
+      - "turbo-repo/packages/typescript-config/**"
+      - "turbo-repo/packages/eslint-config/**"
+      - "turbo-repo/package-lock.json"
+      - "turbo-repo/docker/nextjs.standalone.Dockerfile"
+      - ".github/workflows/web.yml"
+    branches: [trunk, main]
+  workflow_dispatch:
+
+concurrency:
+  group: web-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "24"
+  GHCR_REGISTRY: ghcr.io
+  IMAGE_OWNER: microboxlabs
+  IMAGE_NAME: miot-web
+
+jobs:
+  build:
+    name: Build and publish web image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      image-digest: ${{ steps.docker.outputs.digest }}
+      short-sha: ${{ steps.vars.outputs.short_sha }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: turbo-repo/package-lock.json
+
+      - name: Resolve image metadata
+        id: vars
+        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: turbo-repo
+
+      - name: Build web
+        run: npx turbo run build --filter=@modulariot/web
+        working-directory: turbo-repo
+
+      - name: Prepare Docker context
+        run: |
+          mkdir -p /tmp/build-web/.next
+          cp -r turbo-repo/apps/web/.next/standalone /tmp/build-web/.next/standalone
+          cp -r turbo-repo/apps/web/.next/static /tmp/build-web/.next/static
+          cp -r turbo-repo/apps/web/public /tmp/build-web/public
+          cp turbo-repo/docker/nextjs.standalone.Dockerfile /tmp/build-web/
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        id: docker
+        uses: docker/build-push-action@v6
+        with:
+          context: /tmp/build-web/
+          file: /tmp/build-web/nextjs.standalone.Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:sha-${{ steps.vars.outputs.short_sha }}
+          labels: |
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.description=ModularIoT web site
+            org.opencontainers.image.vendor=MicroboxLabs
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          build-args: |
+            APP_NAME=web
+          provenance: true
+          sbom: true
+
+      - name: Image summary
+        run: |
+          {
+            echo "# Web Image"
+            echo ""
+            echo "- Digest: \`${{ steps.docker.outputs.digest }}\`"
+            echo "- Tags: \`latest\`, \`sha-${{ steps.vars.outputs.short_sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

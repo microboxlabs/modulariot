@@ -94,9 +94,10 @@ export function statusForCurrentVersion(
   if (stamped.length === 0) return null;
 
   const forThisVersion = stamped.filter((entry) => judgedCurrentVersion(entry, currentVersion));
+  // `.at(-1)` is undefined when every round judged a revision since replaced — the whole point
+  // of this function. The `kind` narrowing is for the type only; `stamped` holds state changes.
   const newest = forThisVersion.at(-1);
-  if (!newest || newest.kind !== "state_change") return "pending";
-  return newest.status;
+  return newest?.kind === "state_change" ? newest.status : "pending";
 }
 
 /** The revision a node is at, as the file list reports it. Null until it is versioned. */

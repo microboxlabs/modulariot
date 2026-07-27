@@ -113,6 +113,24 @@ describe("ObservationsSection — a rejection the content has outlived", () => {
     expect(screen.queryByText("Sin notas adjuntas")).toBeNull();
   });
 
+  it("centres every marker on the rail, not beside it", async () => {
+    // jsdom does no layout, so this asserts the rule that does the centering rather than the
+    // resulting pixels. `-left-5` alone only lands a marker's left edge on the line — which is
+    // what left the dots hanging off its right side — so the translate has to be on all of them.
+    const { container } = renderPanel([rejectionAt("1.0")], "1.1");
+    screen.getByRole("button", { name: /Revisiones de versiones anteriores/ }).click();
+    await vi.waitFor(() => {
+      expect(container.querySelector("ol")).not.toBeNull();
+    });
+
+    const markers = [...container.querySelectorAll("ol > li > span:first-child")];
+    expect(markers).toHaveLength(2); // the revision marker and its one decision
+    for (const marker of markers) {
+      expect(marker.className).toContain("-left-5");
+      expect(marker.className).toContain("-translate-x-1/2");
+    }
+  });
+
   it("runs every revision down one rail, newest decision first", async () => {
     const older: StateChangeTimelineEntry = { ...rejectionAt("1.0"), id: "round-1" };
     const newer: StateChangeTimelineEntry = {

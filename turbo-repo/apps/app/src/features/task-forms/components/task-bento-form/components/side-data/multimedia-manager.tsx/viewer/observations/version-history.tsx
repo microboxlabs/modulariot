@@ -30,6 +30,17 @@ const VERDICT = {
 const muted = "text-xs text-gray-400 dark:text-gray-500";
 
 /**
+ * Puts a marker on the rail rather than beside it.
+ *
+ * `-left-5` cancels the list's `pl-5`, which lands the marker's *left edge* on the line;
+ * `-translate-x-1/2` then pulls it back by half its own width so its *centre* sits there. Both
+ * halves are needed — the offset alone is what left the dots hanging off the right of the line.
+ *
+ * `top-1` centres it on a 16px `text-xs` line: (16 - 8) / 2 = 4px.
+ */
+const MARKER = "absolute -left-5 top-1 h-2 w-2 -translate-x-1/2 rounded-full";
+
+/**
  * One decision, as a point on the rail.
  *
  * Deliberately not an ObservationCard. History is read past-tense and several entries at a
@@ -48,7 +59,7 @@ function DecisionPoint({
   const style = VERDICT[entry.status];
   return (
     <li className="relative">
-      <span className={`absolute -left-5 top-1.5 h-2 w-2 rounded-full ${style.dot}`} />
+      <span className={`${MARKER} ${style.dot}`} />
       <div className="flex flex-wrap items-baseline gap-x-2">
         <span className={`text-xs font-semibold ${style.label}`}>
           {tr(style.key, dictionary)}
@@ -126,7 +137,7 @@ export function VersionHistory({
             <Fragment key={group.version ?? "unversioned"}>
               <li className="relative">
                 {/* Hollow, so a revision marker never reads as a decision. */}
-                <span className="absolute -left-5 top-1 h-2 w-2 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" />
+                <span className={`${MARKER} border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800`} />
                 <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
                   {group.version
                     ? tr("bento.multimedia.sidebar_obs_history_version", dictionary, {

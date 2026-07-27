@@ -8,6 +8,7 @@ import BrandedMultiSelect from "@/features/task-forms/components/task-confirm-mo
 import type { ObservationType, ObservationEntry, TimelineEntry } from "./observation.types";
 import { OBSERVATION_TYPE_KEYS } from "./observation.types";
 import { ObservationCard } from "./observation-card";
+import { isSilentApproval } from "./observation-utils";
 import { StateChangeEntry } from "./state-change-entry";
 import { LooseObservationEntry } from "./loose-observation-entry";
 import { useObservationTypes } from "@/features/common/providers/client-api.provider";
@@ -115,7 +116,12 @@ export function ObservationsSection({
     setNewTypes([]);
   };
 
-  const allEntries = useMemo(() => [...committedTimeline].reverse(), [committedTimeline]);
+  // Filtered here rather than skipped while rendering, so the empty state, the preview limit
+  // and the infinite-scroll total all count the entries the panel actually shows.
+  const allEntries = useMemo(
+    () => [...committedTimeline].reverse().filter((entry) => !isSilentApproval(entry)),
+    [committedTimeline]
+  );
   const hasContent = allEntries.length > 0 || draftObservations.length > 0;
 
   // Preview mode: show last 3 entries

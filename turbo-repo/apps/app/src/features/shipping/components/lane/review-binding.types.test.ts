@@ -432,6 +432,9 @@ describe("collection rows drive the drawer's scopes", () => {
 
 describe("collectionsInScope", () => {
   it("offers the reviewed items at the envelope and their reasons inside one", () => {
+    // An unscoped row arrives as null from collectionScopeOf and as undefined from a contract
+    // that declares no root; both are the envelope.
+    expect(collectionsInScope().map((c) => c.path)).toEqual(["content"]);
     expect(collectionsInScope(null).map((c) => c.path)).toEqual(["content"]);
     expect(collectionsInScope("content").map((c) => c.path)).toEqual([
       "content.reasons",

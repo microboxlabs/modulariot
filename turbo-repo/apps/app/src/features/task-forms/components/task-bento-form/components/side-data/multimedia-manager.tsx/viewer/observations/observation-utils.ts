@@ -3,6 +3,35 @@ import { tr } from "@/features/i18n/tr.service";
 import type { ObservationEntry, TimelineEntry } from "./observation.types";
 
 /**
+ * Whether this observation is a record rather than a note — nothing may delete or reply to it.
+ *
+ * True for a review round: its reasons and comment are the decision the repository stored, and
+ * there is no endpoint that could remove one. Everything else is a forum post or a staged draft,
+ * both of which the reviewer owns.
+ */
+export function isImmutable(obs: ObservationEntry): boolean {
+  return obs.source === "round";
+}
+
+/**
+ * Whether an id names an observation that came from a review round.
+ *
+ * Looks the entry up rather than reading its id, so it stays correct if the synthetic
+ * `round-<seq>-detail` shape ever changes — guessing a source from an id prefix is the
+ * mistake this exists to close.
+ */
+export function isRoundObservation(
+  entries: readonly TimelineEntry[],
+  obsId: string
+): boolean {
+  return entries.some(
+    (entry) =>
+      entry.kind === "state_change" &&
+      entry.observations.some((obs) => obs.id === obsId && isImmutable(obs))
+  );
+}
+
+/**
  * An approval nobody wrote a note on.
  *
  * It renders as a card whose entire body reads "no notes attached", and it says nothing the

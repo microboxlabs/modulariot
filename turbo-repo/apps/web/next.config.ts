@@ -10,7 +10,9 @@ const nextConfig: NextConfig = {
   transpilePackages: ["flowbite-react"],
 };
 
-// Cast: the monorepo has two hoisted copies of "next" (root + apps/web) with
-// slightly different NextConfig types; next-intl/plugin resolves the root's.
-// Both are structurally the same config object at runtime.
-export default withNextIntl(withFlowbiteReact(nextConfig) as Parameters<typeof withNextIntl>[0]);
+// Apply Flowbite last so it resolves next-intl's config function before
+// extending it. Applying next-intl last treats the function as an object and
+// drops base settings such as `output: "standalone"`.
+export default withFlowbiteReact(
+  withNextIntl(nextConfig) as Parameters<typeof withFlowbiteReact>[0],
+);

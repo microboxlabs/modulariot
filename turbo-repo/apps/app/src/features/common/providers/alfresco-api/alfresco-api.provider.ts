@@ -2279,7 +2279,7 @@ export async function recordReviewRound(
   session: Session,
   data: {
     contentNodeRef: string;
-    verdict: "APPROVED" | "REJECTED";
+    verdict: "APPROVED" | "REJECTED" | "PENDING";
     reasons?: string[];
     comment?: string;
   }

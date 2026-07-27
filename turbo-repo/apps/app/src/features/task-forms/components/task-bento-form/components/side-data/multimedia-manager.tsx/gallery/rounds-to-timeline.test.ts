@@ -70,4 +70,18 @@ describe("roundsToTimeline", () => {
   it("renders content with no rounds as an empty timeline", () => {
     expect(roundsToTimeline([])).toEqual([]);
   });
+
+  it("shows a return to review as its own entry in the history", () => {
+    // Sending content back is a reversal someone performed, not the absence of a decision.
+    // Treating it as nothing left the reviewer unable to undo at all.
+    const entries = roundsToTimeline([
+      round({ seq: 1, verdict: "REJECTED" }),
+      round({ seq: 2, verdict: "PENDING", reasons: [], comment: null }),
+    ]);
+
+    expect(entries.map((e) => (e.kind === "state_change" ? e.status : null))).toEqual([
+      "rejected",
+      "pending",
+    ]);
+  });
 });

@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   let body: {
     contentNodeRef?: string;
-    verdict?: "APPROVED" | "REJECTED";
+    verdict?: "APPROVED" | "REJECTED" | "PENDING";
     reasons?: string[];
     comment?: string;
   };
@@ -62,10 +62,9 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  // PENDING is not a decision — returning content to review is the absence of a round.
-  if (verdict !== "APPROVED" && verdict !== "REJECTED") {
+  if (verdict !== "APPROVED" && verdict !== "REJECTED" && verdict !== "PENDING") {
     return NextResponse.json(
-      { error: "verdict must be APPROVED or REJECTED" },
+      { error: "verdict must be APPROVED, REJECTED or PENDING" },
       { status: 400 }
     );
   }

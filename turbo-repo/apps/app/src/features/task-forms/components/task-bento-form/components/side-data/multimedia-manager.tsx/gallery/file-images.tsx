@@ -33,6 +33,19 @@ import MediaRow, { ReviewStatus } from "./media-row";
 import { observationReasonLabels } from "../viewer/observations/observation-utils";
 import { useBentoReview } from "../../../../bento-review-context";
 
+/** The verdict each UI state records. "pending" is a reversal, not the absence of one. */
+const VERDICT_BY_STATUS: Record<ReviewStatus, "APPROVED" | "REJECTED" | "PENDING"> = {
+  approved: "APPROVED",
+  rejected: "REJECTED",
+  pending: "PENDING",
+};
+
+const STATUS_BY_VERDICT: Record<"APPROVED" | "REJECTED" | "PENDING", ReviewStatus> = {
+  APPROVED: "approved",
+  REJECTED: "rejected",
+  PENDING: "pending",
+};
+
 function toNodeRef(id: string): string {
   if (id.startsWith("workspace://")) return id;
   return `workspace://SpacesStore/${id}`;
@@ -226,7 +239,7 @@ export function roundsToTimeline(rounds: ReviewRoundResponse[]): TimelineEntry[]
     return {
       kind: "state_change" as const,
       id: `round-${round.seq}`,
-      status: round.verdict === "APPROVED" ? ("approved" as const) : ("rejected" as const),
+      status: STATUS_BY_VERDICT[round.verdict],
       committedAt: decidedAt,
       committedBy: reviewer,
       observations: hasDetail
@@ -655,15 +668,15 @@ export default function FileImages({
    * request, one transaction, so there is no half-state to reconcile.
    */
   const handleStatusChange = useCallback(async (id: string, status: ReviewStatus) => {
-    if (status === "pending") {
-      // Returning content to review is the absence of a decision, not a decision that says
-      // it is undecided, so it records no round.
-      return;
-    }
     const now = new Date();
     const staged = draftObservations.get(id) ?? [];
-    const reasons = [...new Set(staged.flatMap((obs) => obs.types ?? []))];
-    const comment = staged.map((obs) => obs.description).filter(Boolean).join("\n\n");
+    // Sending content back for another look reverses a verdict rather than explaining one,
+    // so it carries neither reasons nor a comment even if some were staged.
+    const isReturnToReview = status === "pending";
+    const reasons = isReturnToReview ? [] : [...new Set(staged.flatMap((obs) => obs.types ?? []))];
+    const comment = isReturnToReview
+      ? ""
+      : staged.map((obs) => obs.description).filter(Boolean).join("\n\n");
 
     // Snapshots for rollback, captured before the optimistic write.
     let snapStatuses: Map<string, ReviewStatus> | undefined;
@@ -689,7 +702,7 @@ export default function FileImages({
     try {
       await recordReviewRound({
         contentNodeRef: toNodeRef(id),
-        verdict: status === "approved" ? "APPROVED" : "REJECTED",
+        verdict: VERDICT_BY_STATUS[status],
         reasons,
         comment: comment || undefined,
       });

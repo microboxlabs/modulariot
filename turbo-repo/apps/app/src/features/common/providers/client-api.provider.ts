@@ -2281,7 +2281,7 @@ export async function updateServiceCategory(
  */
 export async function recordReviewRound(data: {
   contentNodeRef: string;
-  verdict: "APPROVED" | "REJECTED";
+  verdict: "APPROVED" | "REJECTED" | "PENDING";
   reasons?: string[];
   comment?: string;
 }): Promise<ReviewRoundResponse> {

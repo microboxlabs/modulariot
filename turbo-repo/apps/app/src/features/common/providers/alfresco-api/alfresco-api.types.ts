@@ -590,7 +590,7 @@ export type LegacyPeopleSearchResponse = {
  */
 export type ReviewRoundResponse = {
   seq: number;
-  verdict: "APPROVED" | "REJECTED";
+  verdict: "APPROVED" | "REJECTED" | "PENDING";
   version: string | null;
   reasons: string[];
   comment: string | null;

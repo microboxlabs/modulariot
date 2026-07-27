@@ -13,6 +13,7 @@ import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { Section } from "./review-config-tab";
 import {
   buildSampleContext,
+  collectionsInScope,
   renderTemplate,
   sampleTemplateFor,
   GLOBAL_VARIABLE_GROUPS,
@@ -23,10 +24,16 @@ import {
   checkTemplate,
 } from "./review-template-validation";
 import { ReviewTemplateInput } from "./review-template-input";
-import type { VariableGroup } from "./review-integration.types";
+import { ReviewCollectionInput } from "./review-collection-input";
+import type {
+  CollectionVariable,
+  VariableGroup,
+} from "./review-integration.types";
 import {
   bindNameOf,
   collectionFallbackRoot,
+  collectionPathOf,
+  collectionScopeOf,
   contractRoots,
   scopeOfRow,
   type DispatchTarget,
@@ -127,6 +134,9 @@ export function ReviewMappingTab({
               onChange={(value) => onChange(field.id, value)}
               roots={roots}
               fallback={collectionFallbackRoot(field, target)}
+              collections={collectionsInScope(
+                collectionScopeOf(field, target, mappings)
+              )}
               dict={dict}
             />
           ) : (
@@ -160,6 +170,7 @@ function CollectionField({
   onChange,
   roots,
   fallback,
+  collections,
   dict,
 }: Readonly<{
   field: DispatchTargetField;
@@ -168,6 +179,8 @@ function CollectionField({
   roots: readonly string[] | null;
   /** The contract's own source, used while this row is unmapped. */
   fallback: string | null;
+  /** The arrays this row could point at, given the scope it sits in. */
+  collections: readonly CollectionVariable[];
   dict: I18nRecord;
 }>) {
   const check = useMemo(
@@ -175,6 +188,16 @@ function CollectionField({
     [template, roots]
   );
   const bound = bindNameOf(template) ?? fallback;
+
+  // A path that is syntactically fine and still names no array here. Reported rather than
+  // enforced: the catalogue covers the review event, and a contract may iterate a collection
+  // it does not know about, which is the operator's call and not an error.
+  const path = collectionPathOf(template);
+  const unrecognised =
+    !check.problem &&
+    path !== null &&
+    collections.length > 0 &&
+    !collections.some((collection) => collection.path === path);
 
   return (
     <div className="rounded-lg border border-dashed border-primary-300 bg-primary-50/40 p-3 dark:border-primary-800 dark:bg-primary-900/10">
@@ -192,11 +215,13 @@ function CollectionField({
         {tr("mapping.collectionHelp", dict)}
       </p>
 
-      <ReviewTemplateInput
+      <ReviewCollectionInput
         value={template}
         onChange={onChange}
+        collections={collections}
         placeholder={tr("mapping.collectionPlaceholder", dict)}
         color={check.status === "invalid" ? "failure" : "gray"}
+        dict={dict}
       />
 
       {check.problem && (
@@ -212,9 +237,23 @@ function CollectionField({
         </p>
       )}
 
+      {/* Named a path, but not one holding an array here. Without this the row looks settled
+          and the field it feeds simply never reaches the partner. */}
+      {unrecognised && (
+        <p className="mt-1.5 flex items-start gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+          <HiExclamationCircle className="mt-px h-3 w-3 shrink-0" />
+          <span>
+            {trDynamic("mapping.collectionUnknown", dict, {
+              path: path ?? "",
+              options: collections.map((c) => `{{${c.path}}}`).join(", "),
+            })}
+          </span>
+        </p>
+      )}
+
       {/* What the rows below will read, so the consequence of this row is visible where it is
           decided rather than only in the rows it governs. */}
-      {!check.problem && bound && (
+      {!check.problem && !unrecognised && bound && (
         <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
           <HiArrowRight className="h-3 w-3 shrink-0" />
           {trDynamic("mapping.collectionBinds", dict, { root: bound })}

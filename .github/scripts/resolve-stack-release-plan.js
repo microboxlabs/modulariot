@@ -126,9 +126,11 @@ for (const issue of JSON.parse(issueListJson)) {
 
 const prs = [...prByNumber.values()].sort((a, b) => a.number - b.number);
 
+// Not fatal: component versions come from git below, so an unpopulated milestone costs
+// provenance in the plan file, not correctness. Hard-failing here would block hotfixes.
 if (prs.length === 0) {
-  throw new Error(
-    `Milestone ${milestone} has no merged pull requests. Attach the release's PRs, or the issues they closed, to the milestone before running the release train.`,
+  console.log(
+    `::warning::Milestone ${milestone} has no merged pull requests. Component versions still come from git, but this release plan will record no milestone provenance.`,
   );
 }
 

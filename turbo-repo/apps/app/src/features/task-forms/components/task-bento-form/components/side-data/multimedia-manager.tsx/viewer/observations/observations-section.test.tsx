@@ -28,7 +28,8 @@ const dictionary = {
       sidebar_obs_history_unversioned: "Antes del control de versiones",
       sidebar_obs_state_rejected: "Rechazado",
       sidebar_obs_state_approved: "Aprobado",
-      sidebar_obs_state_pending: "Pendiente",
+      // Wording copied from src/lang/es.json, so these assertions read as what ships.
+      sidebar_obs_state_pending: "Devuelto a revisión",
       obs_poor_image_quality: "Calidad de imagen deficiente",
     },
   },
@@ -88,8 +89,70 @@ describe("ObservationsSection — a rejection the content has outlived", () => {
       expect(screen.getByText("no se percibe la patente")).toBeDefined();
     });
     expect(screen.getByText("Versión v1.0")).toBeDefined();
+    // The reason reads as prose on the rail, not as a chip in a card.
+    expect(screen.getByText("Calidad de imagen deficiente")).toBeDefined();
     // A round is the decision as stored, so history offers nothing that edits it.
-    expect(container.querySelectorAll('button[aria-label], button[title]')).toHaveLength(0);
+    expect(container.querySelectorAll("button[aria-label], button[title]")).toHaveLength(0);
+  });
+
+  it("renders a decision nobody wrote on as its line alone", async () => {
+    // "Devuelto a revisión" carries no reasons and no comment by construction. In a card it
+    // filled a bordered box with "Sin notas adjuntas"; four of those was most of the panel.
+    const returned: StateChangeTimelineEntry = {
+      ...rejectionAt("1.0"),
+      id: "round-2",
+      status: "pending",
+      observations: [],
+    };
+    renderPanel([returned], "1.1");
+
+    screen.getByRole("button", { name: /Revisiones de versiones anteriores/ }).click();
+    await vi.waitFor(() => {
+      expect(screen.getByText("Devuelto a revisión")).toBeDefined();
+    });
+    expect(screen.queryByText("Sin notas adjuntas")).toBeNull();
+  });
+
+  it("centres every marker on the rail, not beside it", async () => {
+    // jsdom does no layout, so this asserts the rule that does the centering rather than the
+    // resulting pixels. `-left-5` alone only lands a marker's left edge on the line — which is
+    // what left the dots hanging off its right side — so the translate has to be on all of them.
+    const { container } = renderPanel([rejectionAt("1.0")], "1.1");
+    screen.getByRole("button", { name: /Revisiones de versiones anteriores/ }).click();
+    await vi.waitFor(() => {
+      expect(container.querySelector("ol")).not.toBeNull();
+    });
+
+    const markers = [...container.querySelectorAll("ol > li > span:first-child")];
+    expect(markers).toHaveLength(2); // the revision marker and its one decision
+    for (const marker of markers) {
+      expect(marker.className).toContain("-left-5");
+      expect(marker.className).toContain("-translate-x-1/2");
+    }
+  });
+
+  it("runs every revision down one rail, newest decision first", async () => {
+    const older: StateChangeTimelineEntry = { ...rejectionAt("1.0"), id: "round-1" };
+    const newer: StateChangeTimelineEntry = {
+      ...rejectionAt("1.1"),
+      id: "round-2",
+      committedAt: new Date("2026-07-27T20:32:56Z"),
+    };
+    const { container } = renderPanel([older, newer], "1.2");
+
+    screen.getByRole("button", { name: /Revisiones de versiones anteriores/ }).click();
+    await vi.waitFor(() => {
+      expect(screen.getByText("Versión v1.1")).toBeDefined();
+    });
+
+    // One list, so the line is continuous across revisions rather than restarting per group.
+    expect(container.querySelectorAll("ol")).toHaveLength(1);
+    const markers = [...container.querySelectorAll("ol > li")].map((li) =>
+      li.textContent?.startsWith("Versión") ? "version" : "decision"
+    );
+    expect(markers).toEqual(["version", "decision", "version", "decision"]);
+    // Newest revision reached first.
+    expect(container.querySelector("ol > li")?.textContent).toContain("v1.1");
   });
 
   it("shows the rejection as the live state while it still describes the photo on screen", () => {

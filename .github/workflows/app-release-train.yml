@@ -369,10 +369,10 @@ jobs:
 
           Components:
           - App: ${{ steps.plan.outputs.app_tag }} (changed: ${{ steps.plan.outputs.app_changed }})
-          - Docs: ${{ steps.plan.outputs.docs_tag }} (changed: ${{ steps.plan.outputs.docs_changed }})
-          - Web: ${{ steps.plan.outputs.web_tag }} (changed: ${{ steps.plan.outputs.web_changed }})
-          - Modulith: ${{ steps.plan.outputs.modulith_tag }} (changed: ${{ steps.plan.outputs.modulith_changed }})
-          - Harness: ${{ steps.plan.outputs.harness_tag }} (changed: ${{ steps.plan.outputs.harness_changed }})
+          - Docs: ${{ steps.plan.outputs.docs_tag }} (changed: ${{ steps.plan.outputs.docs_changed }} since ${{ steps.plan.outputs.docs_changed_since }})
+          - Web: ${{ steps.plan.outputs.web_tag }} (changed: ${{ steps.plan.outputs.web_changed }} since ${{ steps.plan.outputs.web_changed_since }})
+          - Modulith: ${{ steps.plan.outputs.modulith_tag }} (changed: ${{ steps.plan.outputs.modulith_changed }} since ${{ steps.plan.outputs.modulith_changed_since }})
+          - Harness: ${{ steps.plan.outputs.harness_tag }} (changed: ${{ steps.plan.outputs.harness_changed }} since ${{ steps.plan.outputs.harness_changed_since }})
 
           Milestones: ${{ steps.version.outputs.private_milestone }}, ${{ steps.version.outputs.oss_milestone }}.
 

@@ -55,6 +55,24 @@ const bumpPatch = (version) => {
   return `${match[1]}.${match[2]}.${Number(match[3]) + 1}`;
 };
 
+// An absent milestone makes every `gh` query below return an empty set, which used to
+// plan a silent no-change release: every component fell back to its last released tag.
+const milestoneTitles = run("gh", [
+  "api",
+  "--paginate",
+  `repos/${repo}/milestones?state=all&per_page=100`,
+  "--jq",
+  ".[].title",
+])
+  .split("\n")
+  .map((title) => title.trim());
+
+if (!milestoneTitles.includes(milestone)) {
+  throw new Error(
+    `Milestone ${milestone} does not exist in ${repo}. Create it and attach this release's issues before running the release train.`,
+  );
+}
+
 const prListJson = run("gh", [
   "pr",
   "list",
@@ -107,6 +125,13 @@ for (const issue of JSON.parse(issueListJson)) {
 }
 
 const prs = [...prByNumber.values()].sort((a, b) => a.number - b.number);
+
+if (prs.length === 0) {
+  throw new Error(
+    `Milestone ${milestone} has no merged pull requests. Attach the release's PRs, or the issues they closed, to the milestone before running the release train.`,
+  );
+}
+
 const changedFiles = new Set();
 
 for (const pr of prs) {
@@ -119,12 +144,29 @@ for (const pr of prs) {
   }
 }
 
-const pathStarts = (prefixes) => [...changedFiles].some((file) => prefixes.some((prefix) => file.startsWith(prefix)));
+// Change detection compares the tree against each component's last released tag rather
+// than against the milestone's file set. Work merged to trunk without being attached to
+// the milestone is invisible to `gh`, and treating that as "unchanged" pins the component
+// to its last tag and reships a stale image.
+const changedSince = (baselineTag, prefixes) => {
+  if (!baselineTag) return true;
+  return run("git", ["diff", "--name-only", `${baselineTag}..HEAD`, "--", ...prefixes]).length > 0;
+};
+
+const latestDocsVersion = latestVersion("docs@v*", "docs@v");
+const latestWebVersion = latestVersion("web@v*", "web@v");
+const latestModulithVersion = latestVersion("modulith@v*", "modulith@v");
+const latestHarnessVersion = latestVersion("harness@v*", "harness@v");
+
+const docsBaseline = latestDocsVersion ? `docs@v${latestDocsVersion}` : "";
+const webBaseline = latestWebVersion ? `web@v${latestWebVersion}` : "";
+const modulithBaseline = latestModulithVersion ? `modulith@v${latestModulithVersion}` : "";
+const harnessBaseline = latestHarnessVersion ? `harness@v${latestHarnessVersion}` : "";
 
 // Stack release notes are bundled into the Next.js app, so the app package,
 // tag, and image intentionally stay in sync with the stack version.
 const appChanged = true;
-const docsChanged = pathStarts([
+const docsChanged = changedSince(docsBaseline, [
   "turbo-repo/apps/docs/",
   "turbo-repo/packages/ui/",
   "turbo-repo/packages/typescript-config/",
@@ -132,23 +174,18 @@ const docsChanged = pathStarts([
   "turbo-repo/package-lock.json",
   "turbo-repo/docker/nextjs.standalone-docs.Dockerfile",
 ]);
-const latestWebVersion = latestVersion("web@v*", "web@v");
-const webChanged =
-  pathStarts([
-    "turbo-repo/apps/web/",
-    "turbo-repo/packages/typescript-config/",
-    "turbo-repo/packages/eslint-config/",
-    "turbo-repo/package-lock.json",
-    "turbo-repo/docker/nextjs.standalone.Dockerfile",
-  ]) || !latestWebVersion;
-const modulithChanged = pathStarts(["quarkus-srv/"]);
+const webChanged = changedSince(webBaseline, [
+  "turbo-repo/apps/web/",
+  "turbo-repo/packages/typescript-config/",
+  "turbo-repo/packages/eslint-config/",
+  "turbo-repo/package-lock.json",
+  "turbo-repo/docker/nextjs.standalone.Dockerfile",
+]);
+const modulithChanged = changedSince(modulithBaseline, ["quarkus-srv/"]);
+const harnessChanged = changedSince(harnessBaseline, ["miot-harness/"]);
 
-const latestDocsVersion = latestVersion("docs@v*", "docs@v");
-const latestModulithVersion = latestVersion("modulith@v*", "modulith@v");
-const latestHarnessVersion = latestVersion("harness@v*", "harness@v");
 const currentHarnessVersion = projectVersion("miot-harness/pyproject.toml");
 const harnessBaseVersion = maxVersion(latestHarnessVersion, currentHarnessVersion);
-const harnessChanged = pathStarts(["miot-harness/"]) || !latestHarnessVersion;
 const appVersion = stackVersion;
 const docsVersion = docsChanged ? stackVersion : latestDocsVersion;
 const webVersion = webChanged ? stackVersion : latestWebVersion;
@@ -156,26 +193,27 @@ const modulithVersion = modulithChanged ? bumpPatch(latestModulithVersion) : lat
 const harnessVersion = harnessChanged ? bumpPatch(harnessBaseVersion) : harnessBaseVersion;
 
 if (!appVersion) {
-  throw new Error("No app@v* tag exists and the app did not change in this milestone.");
+  throw new Error("Could not resolve an app version: no app@v* tag and no stack version.");
 }
 if (!docsVersion) {
-  throw new Error("No docs@v* tag exists and the docs did not change in this milestone.");
+  throw new Error("Could not resolve a docs version: no docs@v* tag and docs reported unchanged.");
 }
 if (!webVersion) {
-  throw new Error("No web@v* tag exists and the web app did not change in this milestone.");
+  throw new Error("Could not resolve a web version: no web@v* tag and the web app reported unchanged.");
 }
 if (!modulithVersion) {
-  throw new Error("No modulith@v* tag exists and the modulith did not change in this milestone.");
+  throw new Error("Could not resolve a modulith version: no modulith@v* tag and the modulith reported unchanged.");
 }
 if (!harnessVersion) {
-  throw new Error("No harness@v* tag exists and the harness did not change in this milestone.");
+  throw new Error("Could not resolve a harness version: no harness@v* tag and the harness reported unchanged.");
 }
 const plan = {
   stack_version: stackVersion,
   stack_tag: `miot-stack@v${stackVersion}`,
   milestone,
   pull_requests: prs,
-  changed_files: [...changedFiles].sort(),
+  // Provenance of the milestone, not the input to change detection: see changedSince.
+  milestone_changed_files: [...changedFiles].sort(),
   components: {
     app: {
       changed: appChanged,
@@ -184,21 +222,25 @@ const plan = {
     },
     docs: {
       changed: docsChanged,
+      changed_since: docsBaseline || null,
       version: docsVersion,
       tag: `docs@v${docsVersion}`,
     },
     web: {
       changed: webChanged,
+      changed_since: webBaseline || null,
       version: webVersion,
       tag: `web@v${webVersion}`,
     },
     modulith: {
       changed: modulithChanged,
+      changed_since: modulithBaseline || null,
       version: modulithVersion,
       tag: `modulith@v${modulithVersion}`,
     },
     harness: {
       changed: harnessChanged,
+      changed_since: harnessBaseline || null,
       version: harnessVersion,
       tag: `harness@v${harnessVersion}`,
     },
@@ -214,15 +256,19 @@ const outputs = {
   app_version: appVersion,
   app_tag: plan.components.app.tag,
   docs_changed: String(docsChanged),
+  docs_changed_since: docsBaseline || "no previous tag",
   docs_version: docsVersion,
   docs_tag: plan.components.docs.tag,
   web_changed: String(webChanged),
+  web_changed_since: webBaseline || "no previous tag",
   web_version: webVersion,
   web_tag: plan.components.web.tag,
   modulith_changed: String(modulithChanged),
+  modulith_changed_since: modulithBaseline || "no previous tag",
   modulith_version: modulithVersion,
   modulith_tag: plan.components.modulith.tag,
   harness_changed: String(harnessChanged),
+  harness_changed_since: harnessBaseline || "no previous tag",
   harness_version: harnessVersion,
   harness_tag: plan.components.harness.tag,
   stack_tag: plan.stack_tag,

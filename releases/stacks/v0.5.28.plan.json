@@ -1,0 +1,38 @@
+{
+  "stack_version": "0.5.28",
+  "stack_tag": "miot-stack@v0.5.28",
+  "milestone": "MIOT-0.5.28",
+  "pull_requests": [],
+  "milestone_changed_files": [],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.28",
+      "tag": "app@v0.5.28"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.22",
+      "version": "0.5.28",
+      "tag": "docs@v0.5.28"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.5.27",
+      "version": "0.5.27",
+      "tag": "web@v0.5.27"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.17",
+      "version": "0.5.18",
+      "tag": "modulith@v0.5.18"
+    },
+    "harness": {
+      "changed": true,
+      "changed_since": "harness@v0.1.3",
+      "version": "0.1.4",
+      "tag": "harness@v0.1.4"
+    }
+  }
+}

@@ -17,6 +17,7 @@ export const GOL_RPC_ALLOWLIST = new Set([
   "fn_dx_gol_replay_ventana",
   "fn_dx_gol_replay_candidatos",
   "fn_dx_gol_replay_servicio",
+  "fn_dx_gol_replay", // el replay por servicio (renombrada en el gemelo; la allowlist quedó atrás)
   "fn_dx_gol_grid_replay",
   "fn_dx_gol_replay_filtros",
   "fn_dx_gol_mapa_geocercas",

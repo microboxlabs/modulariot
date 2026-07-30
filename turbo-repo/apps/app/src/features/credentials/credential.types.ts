@@ -313,7 +313,7 @@ export const OAuth2CredentialSchema = z.object({
     .string()
     .min(1, "validation.tokenUrlRequired")
     .url("validation.tokenUrlInvalid"),
-  clientId: z.string().min(1, "validation.clientIdRequired"),
+  clientId: z.string().min(1, "validation.oauth2ClientIdRequired"),
   clientSecret: z.string().min(1, "validation.clientSecretRequired"),
   audience: z.string().optional(),
   scope: z.string().optional(),

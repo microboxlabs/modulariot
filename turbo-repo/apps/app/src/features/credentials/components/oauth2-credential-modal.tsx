@@ -132,7 +132,11 @@ export function OAuth2CredentialModal({
       isOpen={show}
       onClose={onClose}
       size="3xl"
-      title={isEdit ? tr("modal.editTitle", dict) : tr("modal.addTitle", dict)}
+      title={
+        isEdit
+          ? tr("modal.oauth2EditTitle", dict)
+          : tr("modal.oauth2AddTitle", dict)
+      }
       subtitle={tr("modal.oauth2Subtitle", dict)}
       icon={
         <CredentialTypeLogo
@@ -208,7 +212,7 @@ export function OAuth2CredentialModal({
 
         <SettingsFormField
           id="oauth2-client"
-          label={tr("modal.clientId", dict)}
+          label={tr("modal.oauth2ClientId", dict)}
           error={trDynamic(errors.clientId?.message ?? "", dict)}
         >
           <TextInput
@@ -231,7 +235,7 @@ export function OAuth2CredentialModal({
             placeholder={
               isEdit
                 ? tr("modal.clientSecretEditPlaceholder", dict)
-                : tr("modal.clientSecretPlaceholder", dict)
+                : tr("modal.oauth2ClientSecretPlaceholder", dict)
             }
             {...register("clientSecret")}
             color={errors.clientSecret ? "failure" : undefined}
@@ -261,7 +265,7 @@ export function OAuth2CredentialModal({
         >
           <TextInput
             id="oauth2-scope"
-            placeholder={tr("modal.scopePlaceholder", dict)}
+            placeholder={tr("modal.oauth2ScopePlaceholder", dict)}
             {...register("scope")}
             color={errors.scope ? "failure" : undefined}
           />
@@ -279,7 +283,10 @@ export function OAuth2CredentialModal({
               id="oauth2-token-format"
               label={tr("modal.tokenRequestFormat", dict)}
             >
-              <Select id="oauth2-token-format" {...register("tokenRequestFormat")}>
+              <Select
+                id="oauth2-token-format"
+                {...register("tokenRequestFormat")}
+              >
                 <option value="FORM">
                   {tr("modal.tokenFormatForm", dict)}
                 </option>
@@ -305,7 +312,11 @@ export function OAuth2CredentialModal({
               disabled={testing || loading}
               onClick={handleSubmit(handleTest)}
             >
-              {testing ? <Spinner size="sm" /> : tr("modal.testConnection", dict)}
+              {testing ? (
+                <Spinner size="sm" />
+              ) : (
+                tr("modal.testConnection", dict)
+              )}
             </Button>
             {testResult && <TestResultLine result={testResult} dict={dict} />}
           </div>

@@ -1813,7 +1813,12 @@
           "audienceHelp": "Requerido por Auth0: es el identificador de la API. Sin él, Auth0 devuelve un token opaco que la API no puede validar.",
           "scopeOptional": "Scope (opcional)",
           "scopeOptionalHelp": "Déjalo vacío si el proveedor deriva los permisos del audience, como hace Auth0.",
-          "tokenRequestFormatHelp": "Form encoded sirve para casi todos los proveedores, Auth0 incluido."
+          "tokenRequestFormatHelp": "Form encoded sirve para casi todos los proveedores, Auth0 incluido.",
+          "oauth2AddTitle": "Nueva credencial OAuth 2.0",
+          "oauth2EditTitle": "Editar credencial OAuth 2.0",
+          "oauth2ClientId": "ID de cliente",
+          "oauth2ClientSecretPlaceholder": "Secreto emitido por el proveedor",
+          "oauth2ScopePlaceholder": "openid profile email"
         },
         "delete": {
           "title": "¿Eliminar esta credencial?",
@@ -1843,7 +1848,8 @@
           "clientSecretRequired": "El secreto de cliente es obligatorio",
           "scopeRequired": "El scope es obligatorio",
           "tokenUrlInvalid": "Ingresa una URL válida",
-          "tokenUrlRequired": "El endpoint de token es obligatorio"
+          "tokenUrlRequired": "El endpoint de token es obligatorio",
+          "oauth2ClientIdRequired": "El ID de cliente es obligatorio"
         }
       }
     },

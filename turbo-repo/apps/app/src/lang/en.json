@@ -1739,6 +1739,10 @@
             "name": "Generic OAuth 2.0",
             "description": "Client-credentials flow against any OAuth 2.0 token endpoint."
           },
+          "auth0M2M": {
+            "name": "Auth0 machine-to-machine",
+            "description": "An Auth0 M2M application — pick the client from your tenant, then set the API it calls."
+          },
           "apiKey": {
             "name": "API key",
             "description": "A key sent as a header or query parameter."
@@ -1802,7 +1806,45 @@
           "cancel": "Cancel",
           "saving": "Saving...",
           "createButton": "Create",
-          "saveButton": "Save"
+          "saveButton": "Save",
+          "oauth2Subtitle": "Client-credentials application against any OAuth 2.0 provider.",
+          "tokenUrl": "Token endpoint",
+          "tokenUrlPlaceholder": "https://<your-domain>/oauth/token",
+          "tokenUrlHelp": "Full URL the token is requested from. On Auth0 this is https://<your-domain>/oauth/token.",
+          "clientIdPlaceholder": "Client identifier",
+          "audience": "Audience",
+          "audiencePlaceholder": "https://api.example.com",
+          "audienceHelp": "Required by Auth0: it is the API identifier. Without it Auth0 returns an opaque token the API cannot validate.",
+          "scopeOptional": "Scope (optional)",
+          "scopeOptionalHelp": "Leave empty when the provider derives permissions from the audience, as Auth0 does.",
+          "tokenRequestFormatHelp": "Form encoded works for nearly every provider, Auth0 included.",
+          "oauth2AddTitle": "New OAuth 2.0 credential",
+          "oauth2EditTitle": "Edit OAuth 2.0 credential",
+          "oauth2ClientId": "Client ID",
+          "oauth2ClientSecretPlaceholder": "Secret issued by the provider",
+          "oauth2ScopePlaceholder": "openid profile email",
+          "auth0AddTitle": "New Auth0 M2M credential",
+          "auth0EditTitle": "Edit Auth0 M2M credential",
+          "auth0Subtitle": "A machine-to-machine application from your Auth0 tenant.",
+          "auth0Domain": "Auth0 domain",
+          "auth0DomainPlaceholder": "your-tenant.auth0.com",
+          "auth0DomainHelp": "The tenant that issues the token. Custom domains work too.",
+          "auth0ClientId": "Application (client) ID",
+          "auth0ClientIdHelp": "Pick a machine-to-machine application, or paste a client ID the directory doesn't list yet.",
+          "auth0ClientIdPlaceholder": "Search applications, or paste a client ID",
+          "auth0ClientSecretPlaceholder": "Client secret from the Auth0 application",
+          "auth0ClientInactive": "Inactive",
+          "auth0ClientOwned": "Your organization",
+          "auth0Audience": "API audience",
+          "auth0AudienceHelp": "The API identifier this credential calls. Auth0 issues an opaque token without it, which the target API cannot validate — so it is required here.",
+          "auth0ScopePlaceholder": "read:resources write:resources",
+          "auth0ScopeHelp": "Usually unnecessary: Auth0 derives permissions from the audience's granted scopes.",
+          "auth0TokenUrlOverridePlaceholder": "https://api.example.com/api/v1/login",
+          "auth0TokenUrlOverrideHelp": "Only when a proxy fronts Auth0 instead of calling the tenant directly.",
+          "auth0TokenRequestFormatHelp": "Auth0's own endpoint accepts form encoding. A proxy in front of it may expect a JSON body instead.",
+          "auth0DirectoryLoading": "Loading applications...",
+          "auth0DirectoryEmpty": "No applications match. You can paste a client ID instead.",
+          "auth0DirectoryError": "Couldn't load applications. You can still paste a client ID."
         },
         "delete": {
           "title": "Delete this credential?",
@@ -1831,7 +1873,12 @@
           "clientIdRequired": "Application (client) ID is required",
           "clientSecretRequired": "Client secret is required",
           "scopeRequired": "Scope is required",
-          "tokenUrlInvalid": "Enter a valid URL"
+          "tokenUrlInvalid": "Enter a valid URL",
+          "tokenUrlRequired": "Token endpoint is required",
+          "oauth2ClientIdRequired": "Client ID is required",
+          "auth0DomainRequired": "Auth0 domain is required",
+          "auth0ClientIdRequired": "Pick or enter an application (client) ID",
+          "auth0AudienceRequired": "API audience is required for Auth0"
         }
       }
     },

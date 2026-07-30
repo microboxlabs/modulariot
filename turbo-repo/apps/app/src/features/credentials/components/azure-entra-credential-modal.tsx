@@ -4,12 +4,7 @@ import { useEffect, useState } from "react";
 import { Alert, Button, Select, Spinner, TextInput } from "flowbite-react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  HiCheckCircle,
-  HiLockClosed,
-  HiTrash,
-  HiXCircle,
-} from "react-icons/hi";
+import { HiLockClosed } from "react-icons/hi";
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -27,6 +22,12 @@ import {
 } from "../credential.types";
 import { CredentialTypeLogo } from "./credential-type-logo";
 import { EnvironmentSelect } from "./environment-select";
+import {
+  credentialSubmitLabel,
+  DeleteHeaderAction,
+  TestResultLine,
+  UsedByPanel,
+} from "./credential-modal-parts";
 
 const ENTRA_TYPE = findCredentialType("AZURE_ENTRA_CLIENT_CREDENTIALS");
 
@@ -127,14 +128,7 @@ export function AzureEntraCredentialModal({
     }
   }
 
-  let submitLabel: string;
-  if (loading) {
-    submitLabel = tr("modal.saving", dict);
-  } else if (isEdit) {
-    submitLabel = tr("modal.saveButton", dict);
-  } else {
-    submitLabel = tr("modal.createButton", dict);
-  }
+  const submitLabel = credentialSubmitLabel(loading, isEdit, dict);
 
   return (
     <FormModal
@@ -152,15 +146,7 @@ export function AzureEntraCredentialModal({
       }
       headerActions={
         isEdit && onDelete ? (
-          <button
-            type="button"
-            onClick={onDelete}
-            aria-label={tr("modal.delete", dict)}
-            title={tr("modal.delete", dict)}
-            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-          >
-            <HiTrash className="h-4 w-4" />
-          </button>
+          <DeleteHeaderAction onDelete={onDelete} dict={dict} />
         ) : null
       }
       submitLabel={submitLabel}
@@ -371,59 +357,6 @@ function TokenEndpointPreview({
       <code className="mt-1 block break-all font-mono text-xs text-gray-600 dark:text-gray-400">
         {url}
       </code>
-    </div>
-  );
-}
-
-interface TestResultLineProps {
-  readonly result: CredentialTestResult;
-  readonly dict: I18nRecord;
-}
-
-function TestResultLine({ result, dict }: TestResultLineProps) {
-  if (result.success) {
-    return (
-      <span className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
-        <HiCheckCircle className="h-4 w-4" />
-        {tr("modal.testSuccess", dict)}
-        {result.expiresInSeconds ? ` · ${result.expiresInSeconds}s` : ""}
-      </span>
-    );
-  }
-  return (
-    <span className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
-      <HiXCircle className="h-4 w-4" />
-      {tr("modal.testFailed", dict)}
-      {result.message ? ` · ${result.message}` : ""}
-    </span>
-  );
-}
-
-interface UsedByPanelProps {
-  readonly credential: CredentialListItem;
-  readonly dict: I18nRecord;
-}
-
-/** Edit-time blast radius: what breaks if this credential changes. */
-function UsedByPanel({ credential, dict }: UsedByPanelProps) {
-  return (
-    <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-      <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
-        {tr("modal.usedBy", dict)}
-      </div>
-      <ul className="mt-2 flex flex-col gap-1">
-        {credential.usedBy.map((usage) => (
-          <li
-            key={usage.id}
-            className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
-          >
-            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-              {trDynamic(`usageKinds.${usage.kind}`, dict)}
-            </span>
-            {usage.label}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

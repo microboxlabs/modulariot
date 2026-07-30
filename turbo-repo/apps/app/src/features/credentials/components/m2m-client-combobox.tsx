@@ -178,7 +178,8 @@ export function M2MClientCombobox({
             </div>
           )}
 
-          <ul id={listboxId} role="listbox">
+          {/* A native select/datalist cannot preserve free text and rich results. */}
+          <ul id={listboxId} role={"listbox" /* NOSONAR */}>
             {clients.map((client, index) => (
               <li key={client.clientId} role="none">
                 <button

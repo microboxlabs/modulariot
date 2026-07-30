@@ -1,48 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Alert, Button, Select, Spinner, TextInput } from "flowbite-react";
-import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { HiLockClosed } from "react-icons/hi";
-import FormModal from "@/features/common/components/form-modal/form-modal";
-import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { TextInput } from "flowbite-react";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { SettingsFormField } from "@/features/settings-admin/components/settings-form-field";
 import {
-  BUILT_IN_ENVIRONMENTS,
-  findCredentialType,
   OAuth2CredentialEditSchema,
   OAuth2CredentialSchema,
   type CredentialListItem,
-  type CredentialTestResult,
   type OAuth2Config,
   type OAuth2FormData,
 } from "../credential.types";
-import { CredentialTypeLogo } from "./credential-type-logo";
-import { EnvironmentSelect } from "./environment-select";
 import {
-  credentialSubmitLabel,
-  DeleteHeaderAction,
-  TestResultLine,
-  UsedByPanel,
+  useCredentialForm,
+  type CredentialModalProps,
+} from "../use-credential-form";
+import {
+  CredentialFormShell,
+  type CredentialFormChrome,
+} from "./credential-form-shell";
+import {
+  AdvancedSection,
+  TokenRequestFormatField,
 } from "./credential-modal-parts";
 
-const OAUTH2_TYPE = findCredentialType("OAUTH2_CLIENT_CREDENTIALS");
-
-interface OAuth2CredentialModalProps {
-  readonly show: boolean;
-  readonly onClose: () => void;
-  readonly onSubmit: (data: OAuth2FormData) => void;
-  readonly onTest: (data: OAuth2FormData) => Promise<CredentialTestResult>;
-  /** Delete this credential — surfaced in the header when editing one. */
-  readonly onDelete?: () => void;
-  readonly editing?: CredentialListItem | null;
-  readonly loading?: boolean;
-  /** Selectable environments; users can still create one that isn't listed. */
-  readonly environments?: readonly string[];
-  readonly dict: I18nRecord;
-}
+const CHROME: CredentialFormChrome = {
+  typeId: "OAUTH2_CLIENT_CREDENTIALS",
+  idPrefix: "oauth2",
+  addTitleKey: "modal.oauth2AddTitle",
+  editTitleKey: "modal.oauth2EditTitle",
+  subtitleKey: "modal.oauth2Subtitle",
+  logoAltKey: "types.oauth2.name",
+};
 
 const DEFAULTS: OAuth2FormData = {
   name: "",
@@ -55,6 +43,20 @@ const DEFAULTS: OAuth2FormData = {
   tokenRequestFormat: "FORM",
 };
 
+function toFormValues(editing: CredentialListItem): OAuth2FormData {
+  const config = editing.config as OAuth2Config;
+  return {
+    name: editing.name,
+    environment: editing.environment,
+    tokenUrl: config.tokenUrl ?? "",
+    clientId: config.clientId ?? "",
+    clientSecret: "",
+    audience: config.audience ?? "",
+    scope: config.scope ?? "",
+    tokenRequestFormat: config.tokenRequestFormat ?? "FORM",
+  };
+}
+
 /**
  * Create/edit form for a generic OAuth2 client-credentials credential — any
  * provider that issues a token from a client id/secret pair.
@@ -65,271 +67,114 @@ const DEFAULTS: OAuth2FormData = {
  * grant returns an opaque token unless the API identifier is sent, so a form
  * without it cannot configure the case this type is most often used for.
  */
-export function OAuth2CredentialModal({
-  show,
-  onClose,
-  onSubmit,
-  onTest,
-  onDelete,
-  editing = null,
-  loading = false,
-  environments = BUILT_IN_ENVIRONMENTS,
-  dict,
-}: OAuth2CredentialModalProps) {
-  const isEdit = editing !== null;
-  const [testResult, setTestResult] = useState<CredentialTestResult | null>(
-    null
-  );
-  const [testing, setTesting] = useState(false);
+export function OAuth2CredentialModal(
+  props: CredentialModalProps<OAuth2FormData>
+) {
+  const { dict } = props;
+  const state = useCredentialForm<OAuth2FormData>({
+    ...props,
+    defaults: DEFAULTS,
+    schema: OAuth2CredentialSchema,
+    editSchema: OAuth2CredentialEditSchema,
+    toFormValues,
+  });
 
   const {
     register,
-    handleSubmit,
-    reset,
-    control,
     formState: { errors },
-  } = useForm<OAuth2FormData>({
-    resolver: zodResolver(
-      isEdit ? OAuth2CredentialEditSchema : OAuth2CredentialSchema
-    ),
-    defaultValues: DEFAULTS,
-  });
-
-  // Initialize when the modal opens so a reopened form never shows stale input.
-  useEffect(() => {
-    if (!show) return;
-    setTestResult(null);
-    if (!editing) {
-      reset(DEFAULTS);
-      return;
-    }
-    const config = editing.config as OAuth2Config;
-    reset({
-      name: editing.name,
-      environment: editing.environment,
-      tokenUrl: config.tokenUrl ?? "",
-      clientId: config.clientId ?? "",
-      clientSecret: "",
-      audience: config.audience ?? "",
-      scope: config.scope ?? "",
-      tokenRequestFormat: config.tokenRequestFormat ?? "FORM",
-    });
-  }, [show, editing, reset]);
-
-  async function handleTest(data: OAuth2FormData) {
-    setTesting(true);
-    try {
-      setTestResult(await onTest(data));
-    } finally {
-      setTesting(false);
-    }
-  }
-
-  const submitLabel = credentialSubmitLabel(loading, isEdit, dict);
+  } = state.form;
 
   return (
-    <FormModal
-      isOpen={show}
-      onClose={onClose}
-      size="3xl"
-      title={
-        isEdit
-          ? tr("modal.oauth2EditTitle", dict)
-          : tr("modal.oauth2AddTitle", dict)
-      }
-      subtitle={tr("modal.oauth2Subtitle", dict)}
-      icon={
-        <CredentialTypeLogo
-          logo={OAUTH2_TYPE?.logo}
-          alt={trDynamic("types.oauth2.name", dict)}
-          size={40}
-        />
-      }
-      headerActions={
-        isEdit && onDelete ? (
-          <DeleteHeaderAction onDelete={onDelete} dict={dict} />
-        ) : null
-      }
-      submitLabel={submitLabel}
-      isProcessing={loading}
-      onSubmit={handleSubmit(onSubmit)}
-      showCancelButton
-      cancelLabel={tr("modal.cancel", dict)}
-    >
-      <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_200px]">
-          <SettingsFormField
-            id="oauth2-name"
-            label={tr("modal.name", dict)}
-            error={trDynamic(errors.name?.message ?? "", dict)}
-          >
-            <TextInput
-              id="oauth2-name"
-              placeholder={tr("modal.namePlaceholder", dict)}
-              {...register("name")}
-              color={errors.name ? "failure" : undefined}
-            />
-          </SettingsFormField>
-
-          <SettingsFormField
-            id="oauth2-environment"
-            label={tr("modal.environment", dict)}
-            error={trDynamic(errors.environment?.message ?? "", dict)}
-          >
-            <Controller
-              control={control}
-              name="environment"
-              render={({ field }) => (
-                <EnvironmentSelect
-                  id="oauth2-environment"
-                  value={field.value}
-                  onChange={field.onChange}
-                  options={environments}
-                  invalid={Boolean(errors.environment)}
-                  dict={dict}
-                />
-              )}
-            />
-          </SettingsFormField>
-        </div>
-
-        <SettingsFormField
+    <CredentialFormShell {...props} chrome={CHROME} state={state}>
+      <SettingsFormField
+        id="oauth2-token-url"
+        label={tr("modal.tokenUrl", dict)}
+        error={trDynamic(errors.tokenUrl?.message ?? "", dict)}
+      >
+        <TextInput
           id="oauth2-token-url"
-          label={tr("modal.tokenUrl", dict)}
-          error={trDynamic(errors.tokenUrl?.message ?? "", dict)}
-        >
-          <TextInput
-            id="oauth2-token-url"
-            type="url"
-            placeholder={tr("modal.tokenUrlPlaceholder", dict)}
-            {...register("tokenUrl")}
-            color={errors.tokenUrl ? "failure" : undefined}
-          />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {tr("modal.tokenUrlHelp", dict)}
-          </p>
-        </SettingsFormField>
+          type="url"
+          placeholder={tr("modal.tokenUrlPlaceholder", dict)}
+          {...register("tokenUrl")}
+          color={errors.tokenUrl ? "failure" : undefined}
+        />
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {tr("modal.tokenUrlHelp", dict)}
+        </p>
+      </SettingsFormField>
 
-        <SettingsFormField
+      <SettingsFormField
+        id="oauth2-client"
+        label={tr("modal.oauth2ClientId", dict)}
+        error={trDynamic(errors.clientId?.message ?? "", dict)}
+      >
+        <TextInput
           id="oauth2-client"
-          label={tr("modal.oauth2ClientId", dict)}
-          error={trDynamic(errors.clientId?.message ?? "", dict)}
-        >
-          <TextInput
-            id="oauth2-client"
-            placeholder={tr("modal.clientIdPlaceholder", dict)}
-            {...register("clientId")}
-            color={errors.clientId ? "failure" : undefined}
-          />
-        </SettingsFormField>
+          placeholder={tr("modal.clientIdPlaceholder", dict)}
+          {...register("clientId")}
+          color={errors.clientId ? "failure" : undefined}
+        />
+      </SettingsFormField>
 
-        <SettingsFormField
+      <SettingsFormField
+        id="oauth2-secret"
+        label={tr("modal.clientSecret", dict)}
+        error={trDynamic(errors.clientSecret?.message ?? "", dict)}
+      >
+        <TextInput
           id="oauth2-secret"
-          label={tr("modal.clientSecret", dict)}
-          error={trDynamic(errors.clientSecret?.message ?? "", dict)}
-        >
-          <TextInput
-            id="oauth2-secret"
-            type="password"
-            autoComplete="new-password"
-            placeholder={
-              isEdit
-                ? tr("modal.clientSecretEditPlaceholder", dict)
-                : tr("modal.oauth2ClientSecretPlaceholder", dict)
-            }
-            {...register("clientSecret")}
-            color={errors.clientSecret ? "failure" : undefined}
-          />
-        </SettingsFormField>
+          type="password"
+          autoComplete="new-password"
+          placeholder={
+            state.isEdit
+              ? tr("modal.clientSecretEditPlaceholder", dict)
+              : tr("modal.oauth2ClientSecretPlaceholder", dict)
+          }
+          {...register("clientSecret")}
+          color={errors.clientSecret ? "failure" : undefined}
+        />
+      </SettingsFormField>
 
-        <SettingsFormField
+      <SettingsFormField
+        id="oauth2-audience"
+        label={tr("modal.audience", dict)}
+        error={trDynamic(errors.audience?.message ?? "", dict)}
+      >
+        <TextInput
           id="oauth2-audience"
-          label={tr("modal.audience", dict)}
-          error={trDynamic(errors.audience?.message ?? "", dict)}
-        >
-          <TextInput
-            id="oauth2-audience"
-            placeholder={tr("modal.audiencePlaceholder", dict)}
-            {...register("audience")}
-            color={errors.audience ? "failure" : undefined}
-          />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {tr("modal.audienceHelp", dict)}
-          </p>
-        </SettingsFormField>
+          placeholder={tr("modal.audiencePlaceholder", dict)}
+          {...register("audience")}
+          color={errors.audience ? "failure" : undefined}
+        />
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {tr("modal.audienceHelp", dict)}
+        </p>
+      </SettingsFormField>
 
-        <SettingsFormField
+      <SettingsFormField
+        id="oauth2-scope"
+        label={tr("modal.scopeOptional", dict)}
+        error={trDynamic(errors.scope?.message ?? "", dict)}
+      >
+        <TextInput
           id="oauth2-scope"
-          label={tr("modal.scopeOptional", dict)}
-          error={trDynamic(errors.scope?.message ?? "", dict)}
-        >
-          <TextInput
-            id="oauth2-scope"
-            placeholder={tr("modal.oauth2ScopePlaceholder", dict)}
-            {...register("scope")}
-            color={errors.scope ? "failure" : undefined}
-          />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {tr("modal.scopeOptionalHelp", dict)}
-          </p>
-        </SettingsFormField>
+          placeholder={tr("modal.oauth2ScopePlaceholder", dict)}
+          {...register("scope")}
+          color={errors.scope ? "failure" : undefined}
+        />
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {tr("modal.scopeOptionalHelp", dict)}
+        </p>
+      </SettingsFormField>
 
-        <details className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-          <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">
-            {tr("modal.advanced", dict)}
-          </summary>
-          <div className="mt-3 flex flex-col gap-4">
-            <SettingsFormField
-              id="oauth2-token-format"
-              label={tr("modal.tokenRequestFormat", dict)}
-            >
-              <Select
-                id="oauth2-token-format"
-                {...register("tokenRequestFormat")}
-              >
-                <option value="FORM">
-                  {tr("modal.tokenFormatForm", dict)}
-                </option>
-                <option value="JSON">
-                  {tr("modal.tokenFormatJson", dict)}
-                </option>
-              </Select>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {tr("modal.tokenRequestFormatHelp", dict)}
-              </p>
-            </SettingsFormField>
-          </div>
-        </details>
-
-        {/* Testing lives here rather than on the list row: only some credential
-            types can be verified on their own, so the action belongs with the
-            record that knows whether it means anything. */}
-        {OAUTH2_TYPE?.supportsTest && (
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              color="light"
-              disabled={testing || loading}
-              onClick={handleSubmit(handleTest)}
-            >
-              {testing ? (
-                <Spinner size="sm" />
-              ) : (
-                tr("modal.testConnection", dict)
-              )}
-            </Button>
-            {testResult && <TestResultLine result={testResult} dict={dict} />}
-          </div>
-        )}
-
-        {isEdit && editing.usedBy.length > 0 && (
-          <UsedByPanel credential={editing} dict={dict} />
-        )}
-
-        <Alert color="gray" icon={HiLockClosed}>
-          <span className="text-xs">{tr("modal.secretNotice", dict)}</span>
-        </Alert>
-      </div>
-    </FormModal>
+      <AdvancedSection dict={dict}>
+        <TokenRequestFormatField
+          id="oauth2-token-format"
+          registration={register("tokenRequestFormat")}
+          helpKey="modal.tokenRequestFormatHelp"
+          dict={dict}
+        />
+      </AdvancedSection>
+    </CredentialFormShell>
   );
 }

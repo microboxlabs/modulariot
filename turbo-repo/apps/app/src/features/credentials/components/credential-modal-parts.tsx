@@ -1,8 +1,12 @@
 "use client";
 
+import type { ReactNode } from "react";
+import { Select } from "flowbite-react";
+import type { UseFormRegisterReturn } from "react-hook-form";
 import { HiCheckCircle, HiTrash, HiXCircle } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { SettingsFormField } from "@/features/settings-admin/components/settings-form-field";
 import type {
   CredentialListItem,
   CredentialTestResult,
@@ -76,7 +80,10 @@ interface DeleteHeaderActionProps {
 }
 
 /** Delete affordance in the modal header, shown only when editing a record. */
-export function DeleteHeaderAction({ onDelete, dict }: DeleteHeaderActionProps) {
+export function DeleteHeaderAction({
+  onDelete,
+  dict,
+}: DeleteHeaderActionProps) {
   return (
     <button
       type="button"
@@ -98,4 +105,77 @@ export function credentialSubmitLabel(
 ): string {
   if (loading) return tr("modal.saving", dict);
   return isEdit ? tr("modal.saveButton", dict) : tr("modal.createButton", dict);
+}
+
+interface TokenEndpointPreviewProps {
+  readonly url: string;
+  readonly dict: I18nRecord;
+}
+
+/**
+ * Read-only echo of the endpoint the credential will actually call.
+ *
+ * Shown by the forms that derive the URL from something else — a directory id,
+ * a tenant domain — so a typo in the input is visible before saving rather than
+ * as a failed grant afterwards.
+ */
+export function TokenEndpointPreview({ url, dict }: TokenEndpointPreviewProps) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+      <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
+        {tr("modal.tokenEndpoint", dict)}
+      </div>
+      <code className="mt-1 block break-all font-mono text-xs text-gray-600 dark:text-gray-400">
+        {url}
+      </code>
+    </div>
+  );
+}
+
+interface AdvancedSectionProps {
+  readonly children: ReactNode;
+  readonly dict: I18nRecord;
+}
+
+/** Collapsed container for the fields a correct config rarely needs to touch. */
+export function AdvancedSection({ children, dict }: AdvancedSectionProps) {
+  return (
+    <details className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+      <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">
+        {tr("modal.advanced", dict)}
+      </summary>
+      <div className="mt-3 flex flex-col gap-4">{children}</div>
+    </details>
+  );
+}
+
+interface TokenRequestFormatFieldProps {
+  readonly id: string;
+  /** The caller's `register("tokenRequestFormat")`, so this stays untyped by T. */
+  readonly registration: UseFormRegisterReturn;
+  /** Provider-specific guidance; omitted where the choice needs no explaining. */
+  readonly helpKey?: string;
+  readonly dict: I18nRecord;
+}
+
+/** Whether the token request is form-encoded or JSON — the same two everywhere. */
+export function TokenRequestFormatField({
+  id,
+  registration,
+  helpKey,
+  dict,
+}: TokenRequestFormatFieldProps) {
+  return (
+    <SettingsFormField id={id} label={tr("modal.tokenRequestFormat", dict)}>
+      <Select id={id} {...registration}>
+        <option value="FORM">{tr("modal.tokenFormatForm", dict)}</option>
+        <option value="JSON">{tr("modal.tokenFormatJson", dict)}</option>
+      </Select>
+      {helpKey && (
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {trDynamic(helpKey, dict)}
+        </p>
+      )}
+    </SettingsFormField>
+  );
 }

@@ -1802,7 +1802,18 @@
           "cancel": "Cancel",
           "saving": "Saving...",
           "createButton": "Create",
-          "saveButton": "Save"
+          "saveButton": "Save",
+          "oauth2Subtitle": "Client-credentials application against any OAuth 2.0 provider.",
+          "tokenUrl": "Token endpoint",
+          "tokenUrlPlaceholder": "https://<your-domain>/oauth/token",
+          "tokenUrlHelp": "Full URL the token is requested from. On Auth0 this is https://<your-domain>/oauth/token.",
+          "clientIdPlaceholder": "Client identifier",
+          "audience": "Audience",
+          "audiencePlaceholder": "https://api.example.com",
+          "audienceHelp": "Required by Auth0: it is the API identifier. Without it Auth0 returns an opaque token the API cannot validate.",
+          "scopeOptional": "Scope (optional)",
+          "scopeOptionalHelp": "Leave empty when the provider derives permissions from the audience, as Auth0 does.",
+          "tokenRequestFormatHelp": "Form encoded works for nearly every provider, Auth0 included."
         },
         "delete": {
           "title": "Delete this credential?",
@@ -1831,7 +1842,8 @@
           "clientIdRequired": "Application (client) ID is required",
           "clientSecretRequired": "Client secret is required",
           "scopeRequired": "Scope is required",
-          "tokenUrlInvalid": "Enter a valid URL"
+          "tokenUrlInvalid": "Enter a valid URL",
+          "tokenUrlRequired": "Token endpoint is required"
         }
       }
     },

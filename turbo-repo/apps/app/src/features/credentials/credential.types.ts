@@ -53,7 +53,7 @@ export interface CredentialListItem {
   readonly updatedAt: string;
   readonly updatedBy: string;
   /** Type-specific config, minus secrets (never returned by the API). */
-  readonly config: AzureEntraConfig | Record<string, string>;
+  readonly config: AzureEntraConfig | OAuth2Config | Record<string, string>;
 }
 
 /** Non-secret half of an Azure Entra client-credentials credential. */
@@ -64,6 +64,23 @@ export interface AzureEntraConfig {
   readonly tokenRequestFormat: TokenRequestFormat;
   /** Set only when the default Entra token endpoint is not used. */
   readonly tokenUrlOverride?: string;
+}
+
+/**
+ * Non-secret half of a generic OAuth2 client-credentials credential.
+ *
+ * Unlike Entra, the token endpoint is stated outright rather than derived —
+ * there is no directory id to build it from. `audience` is what makes this
+ * usable against Auth0: its M2M grant returns an opaque token unless the API
+ * identifier is sent, so the field is offered here even though plain RFC 6749
+ * has no such parameter.
+ */
+export interface OAuth2Config {
+  readonly clientId: string;
+  readonly tokenUrl: string;
+  readonly scope?: string;
+  readonly audience?: string;
+  readonly tokenRequestFormat: TokenRequestFormat;
 }
 
 export type TokenRequestFormat = "FORM" | "JSON";
@@ -144,7 +161,7 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     id: "OAUTH2_CLIENT_CREDENTIALS",
     nameKey: "types.oauth2.name",
     descriptionKey: "types.oauth2.description",
-    available: false,
+    available: true,
     supportsTest: true,
     // Monochrome mark, so it needs per-theme ink.
     logo: {
@@ -278,6 +295,44 @@ export const AzureEntraCredentialEditSchema = AzureEntraCredentialSchema.extend(
 );
 
 export type AzureEntraFormData = z.infer<typeof AzureEntraCredentialSchema>;
+
+/**
+ * Generic OAuth2 client-credentials form.
+ *
+ * `scope` is optional here where Entra requires it: Entra rejects a grant with
+ * no scope, but Auth0 derives permissions from the audience and is happy
+ * without one, so demanding it would block the case this form exists for.
+ */
+export const OAuth2CredentialSchema = z.object({
+  name: z.string().min(1, "validation.nameRequired").max(100),
+  environment: z
+    .string()
+    .min(1, "validation.environmentRequired")
+    .max(40, "validation.environmentTooLong"),
+  tokenUrl: z
+    .string()
+    .min(1, "validation.tokenUrlRequired")
+    .url("validation.tokenUrlInvalid"),
+  clientId: z.string().min(1, "validation.clientIdRequired"),
+  clientSecret: z.string().min(1, "validation.clientSecretRequired"),
+  audience: z.string().optional(),
+  scope: z.string().optional(),
+  tokenRequestFormat: z.enum(["FORM", "JSON"]),
+});
+
+/** On edit the secret may be left blank to keep the stored one. */
+export const OAuth2CredentialEditSchema = OAuth2CredentialSchema.extend({
+  clientSecret: z.string().optional(),
+});
+
+export type OAuth2FormData = z.infer<typeof OAuth2CredentialSchema>;
+
+/**
+ * Any credential form's data. The list/create/update paths are type-agnostic —
+ * they carry the payload to the API and let the per-type `toPublicConfig`
+ * branch decide its shape.
+ */
+export type CredentialFormData = AzureEntraFormData | OAuth2FormData;
 
 export interface CredentialTestResult {
   readonly success: boolean;

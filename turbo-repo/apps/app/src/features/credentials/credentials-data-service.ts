@@ -3,6 +3,7 @@
 import { ApiError } from "@/features/settings-admin/data/settings-admin-data-service";
 import type {
   AzureEntraFormData,
+  CredentialFormData,
   CredentialListItem,
   CredentialTestResult,
   CredentialTypeId,
@@ -112,7 +113,28 @@ function toStringConfig(config: Record<string, unknown>): Record<string, string>
   );
 }
 
-function toPublicConfig(form: AzureEntraFormData): Record<string, string> {
+/**
+ * Discriminated on the form's own shape rather than a passed type id, because
+ * the update path only ever has the form to hand — `tenantId` exists on Entra
+ * alone and `tokenUrl` on the generic grant alone, so the narrowing is total.
+ */
+function isEntraForm(form: CredentialFormData): form is AzureEntraFormData {
+  return "tenantId" in form;
+}
+
+function toPublicConfig(form: CredentialFormData): Record<string, string> {
+  if (!isEntraForm(form)) {
+    return {
+      clientId: form.clientId,
+      tokenUrl: form.tokenUrl.trim(),
+      tokenRequestFormat: form.tokenRequestFormat,
+      // Both optional upstream, and both meaningful when blank: sending an
+      // empty scope/audience would have the provider treat it as a request for
+      // none rather than as "unset".
+      ...(form.scope?.trim() ? { scope: form.scope.trim() } : {}),
+      ...(form.audience?.trim() ? { audience: form.audience.trim() } : {}),
+    };
+  }
   return {
     tenantId: form.tenantId,
     clientId: form.clientId,
@@ -146,7 +168,7 @@ export function fetchCredentials(
 export function createCredential(
   orgSlug: string,
   typeId: CredentialTypeId,
-  form: AzureEntraFormData
+  form: CredentialFormData
 ): Promise<CredentialListItem> {
   return sendJson<CredentialProfileResponse>("POST", base(orgSlug), {
     displayName: form.name,
@@ -164,7 +186,7 @@ export function createCredential(
 export function updateCredential(
   orgSlug: string,
   id: string,
-  form: AzureEntraFormData
+  form: CredentialFormData
 ): Promise<CredentialListItem> {
   const secret = form.clientSecret?.trim();
   return sendJson<CredentialProfileResponse>(
@@ -211,7 +233,7 @@ export function testCredential(
 export function testCredentialConfig(
   orgSlug: string,
   typeId: CredentialTypeId,
-  form: AzureEntraFormData
+  form: CredentialFormData
 ): Promise<CredentialTestResult> {
   return sendJson<CredentialTestResponse>("POST", `${base(orgSlug)}/test`, {
     credentialType: typeId,

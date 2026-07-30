@@ -1802,7 +1802,18 @@
           "cancel": "Cancelar",
           "saving": "Guardando...",
           "createButton": "Crear",
-          "saveButton": "Guardar"
+          "saveButton": "Guardar",
+          "oauth2Subtitle": "Aplicación con client_credentials contra cualquier proveedor OAuth 2.0.",
+          "tokenUrl": "Endpoint de token",
+          "tokenUrlPlaceholder": "https://<tu-dominio>/oauth/token",
+          "tokenUrlHelp": "URL completa donde se solicita el token. En Auth0 es https://<tu-dominio>/oauth/token.",
+          "clientIdPlaceholder": "Identificador del cliente",
+          "audience": "Audience",
+          "audiencePlaceholder": "https://api.ejemplo.cl",
+          "audienceHelp": "Requerido por Auth0: es el identificador de la API. Sin él, Auth0 devuelve un token opaco que la API no puede validar.",
+          "scopeOptional": "Scope (opcional)",
+          "scopeOptionalHelp": "Déjalo vacío si el proveedor deriva los permisos del audience, como hace Auth0.",
+          "tokenRequestFormatHelp": "Form encoded sirve para casi todos los proveedores, Auth0 incluido."
         },
         "delete": {
           "title": "¿Eliminar esta credencial?",
@@ -1831,7 +1842,8 @@
           "clientIdRequired": "El ID de aplicación (cliente) es obligatorio",
           "clientSecretRequired": "El secreto de cliente es obligatorio",
           "scopeRequired": "El scope es obligatorio",
-          "tokenUrlInvalid": "Ingresa una URL válida"
+          "tokenUrlInvalid": "Ingresa una URL válida",
+          "tokenUrlRequired": "El endpoint de token es obligatorio"
         }
       }
     },

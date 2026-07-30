@@ -4,6 +4,7 @@ import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.integrations.client.Auth0ApplicationsClient;
 import com.microboxlabs.miot.integrations.dto.Auth0ApplicationRow;
 import com.microboxlabs.miot.integrations.dto.Auth0ClientSummary;
+import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -83,13 +84,20 @@ public class Auth0ClientDirectoryService {
     /**
      * The org's own client plus its active children's.
      *
-     * <p>Queries run one after another rather than in parallel: these are
+     * <p>Opens its own session. The caller reaches this after
+     * {@code OrganizationRoleService.requireOwner}, which wraps its work in its
+     * own {@code Panache.withSession} — that session is closed by the time this
+     * runs, so without one here the query fails with "No current Mutiny.Session
+     * found". Scoping it to just these two queries, rather than annotating
+     * {@link #list} with {@code @WithSession}, also means no database session is
+     * held open across the directory's blocking HTTP call.
+     *
+     * <p>The queries run one after another rather than in parallel: they are
      * Panache reactive calls sharing a session, and racing them is what produces
-     * the intermittent "session already closed" failures elsewhere in this
-     * codebase.
+     * the intermittent session failures seen elsewhere in this codebase.
      */
     private Uni<List<Auth0ClientSummary>> organizationClients(String orgSlug) {
-        return Organization.findBySlug(orgSlug)
+        return Panache.withSession(() -> Organization.findBySlug(orgSlug)
                 .flatMap(org -> {
                     if (org == null) {
                         return Uni.createFrom().item(List.<Auth0ClientSummary>of());
@@ -103,7 +111,7 @@ public class Auth0ClientDirectoryService {
                                 }
                                 return out;
                             });
-                });
+                }));
     }
 
     /**

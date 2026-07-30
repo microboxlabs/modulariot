@@ -1,19 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { getContent } from "./content";
-import { useLang } from "./useLang";
+import { useTranslations } from "next-intl";
+import { Section, type Tone } from "./sections/shared";
 
-export default function PricingFaq() {
-  const c = getContent(useLang()).pricingPage;
+type FaqItem = { q: string; a: string };
+
+export default function PricingFaq({ tone = "white" }: { tone?: Tone }) {
+  const t = useTranslations("pricing.faq");
+  const items = t.raw("items") as FaqItem[];
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section className="border-t border-hairline bg-surface-2">
+    <Section tone={tone}>
       <div className="mx-auto max-w-3xl px-4 py-20 sm:px-6">
-        <h2 className="text-center text-3xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-4xl">{c.faqTitle}</h2>
+        <h2 className="text-center text-3xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-4xl">{t("title")}</h2>
         <div className="mt-12 divide-y divide-hairline rounded-xl border border-hairline bg-surface">
-          {c.faqs.map((item, i) => {
+          {items.map((item, i) => {
             const abierto = open === i;
             return (
               <div key={item.q}>
@@ -34,6 +37,6 @@ export default function PricingFaq() {
           })}
         </div>
       </div>
-    </section>
+    </Section>
   );
 }

@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import Nav from "../../../../components/v2/Nav";
 import ContactForm from "../../../../components/v2/ContactForm";
-import { Footer } from "../../../../components/v2/sections/Footer";
 
 export const metadata: Metadata = {
   title: "Contacto — ModularIoT",
@@ -23,12 +21,8 @@ export default async function ContactoPage({
   const base = `/alpha-2506/${lang}`;
   const initialIntent: Intent = INTENTS.includes(intent as Intent) ? (intent as Intent) : "demo";
   return (
-    <>
-      <Nav />
-      <main>
-        <ContactForm lang={lang} initialIntent={initialIntent} base={base} />
-      </main>
-      <Footer base={base} lang={lang} />
-    </>
+    <main>
+      <ContactForm lang={lang} initialIntent={initialIntent} base={base} />
+    </main>
   );
 }

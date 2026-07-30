@@ -13,56 +13,133 @@
       "live": "recebendo eventos…",
       "done": "tudo fica na sua operação",
       "events": [
-        { "title": "Sinais chegando", "detail": "2.847 ativos reportando em tempo real" },
-        { "title": "Sintoma detectado", "detail": "Excesso de velocidade · rota interna · severidade alta" },
-        { "title": "Escalado ao responsável", "detail": "supervisor notificado por SMS, com evidência" },
-        { "title": "Fica registrado", "detail": "no seu banco de dados, na sua nuvem" }
+        {
+          "title": "Sinais chegando",
+          "detail": "2.847 ativos reportando em tempo real"
+        },
+        {
+          "title": "Sintoma detectado",
+          "detail": "Excesso de velocidade · rota interna · severidade alta"
+        },
+        {
+          "title": "Escalado ao responsável",
+          "detail": "supervisor notificado por SMS, com evidência"
+        },
+        {
+          "title": "Fica registrado",
+          "detail": "no seu banco de dados, na sua nuvem"
+        }
       ]
     }
   },
-
   "stats": {
+    "trustedBy": "A confiança de",
     "items": [
-      { "prefix": "Até", "value": "55.847", "label": "sintomas gerenciados em um mês" },
-      { "prefix": "Um", "value": "65%", "label": "dos alertas tratados são invalidados" },
-      { "prefix": "Com", "value": "+28", "label": "provedores GPS integrados" },
-      { "prefix": "E com", "value": "1.900+", "label": "ativos em operação" }
+      {
+        "prefix": "Até",
+        "value": "55.847",
+        "label": "sintomas gerenciados em um mês"
+      },
+      {
+        "prefix": "Um",
+        "value": "65%",
+        "label": "dos alertas tratados são invalidados"
+      },
+      {
+        "prefix": "Com",
+        "value": "+28",
+        "label": "provedores GPS integrados"
+      },
+      {
+        "prefix": "E com",
+        "value": "1.900+",
+        "label": "ativos em operação"
+      }
     ]
   },
-
   "problem": {
     "kicker": "O problema",
     "title": "Você trata os alertas,\nmas eles voltam do mesmo jeito?",
     "subtitle": "97% dos sintomas são tratados, mas tratar não resolve a causa — por isso os mesmos desvios voltam mês a mês.",
     "pains": [
-      { "title": "“Fiquei sabendo no dia seguinte”", "body": "O evento já tinha acontecido. O sistema registrou tudo. Mas ninguém viu até ser tarde demais para agir." },
-      { "title": "“Temos alertas, mas são ruído”", "body": "O sistema dispara centenas de notificações por dia. A equipe as ignora. As críticas se perdem entre as irrelevantes." },
-      { "title": "“Não conseguimos provar nada”", "body": "Chega uma auditoria, uma fiscalização ou uma reclamação. Reconstruir o que aconteceu leva dias. Se é que os dados existem." }
+      {
+        "title": "“Fiquei sabendo no dia seguinte”",
+        "body": "O evento já tinha acontecido. O sistema registrou tudo. Mas ninguém viu até ser tarde demais para agir."
+      },
+      {
+        "title": "“Temos alertas, mas são ruído”",
+        "body": "O sistema dispara centenas de notificações por dia. A equipe as ignora. As críticas se perdem entre as irrelevantes."
+      },
+      {
+        "title": "“Não conseguimos provar nada”",
+        "body": "Chega uma auditoria, uma fiscalização ou uma reclamação. Reconstruir o que aconteceu leva dias. Se é que os dados existem."
+      }
     ]
   },
-
   "tresActos": {
     "kicker": "A tese, em 3 atos",
     "title": "Detectar é barato; reduzir é o negócio.",
     "subtitle": "O mesmo motor de inteligência, aplicado em três momentos distintos da sua operação.",
     "actos": [
-      { "n": "Ato 1", "tag": "Ver e reduzir", "title": "Você trata cada alerta, mas os desvios voltam do mesmo jeito.", "body": "97% dos sintomas são tratados… e a maioria é invalidada. Fechar não é resolver: atacamos a causa que os gera em série, não o chamado.", "cta": "Explore a torre de controle" },
-      { "n": "Ato 2", "tag": "Entender cada ator", "title": "Não é um score. É um perfil vivo.", "body": "A identidade operacional de cada motorista, transportadora e ativo — sua história, seu nível e seu plano. Um mesmo motor para qualquer entidade.", "cta": "Ver SuperProfile" },
-      { "n": "Ato 3", "tag": "Gerenciar onde a operação vive", "title": "O alerta chega com plano e responsável.", "body": "E-mail, WhatsApp, Teams, Webex ou SMS. Escalar deixa de ser apenas um aviso e passa a ser o primeiro passo da gestão.", "cta": "Ver canais de escalonamento" }
+      {
+        "n": "Ato 1",
+        "tag": "Ver e reduzir",
+        "title": "Você trata cada alerta, mas os desvios voltam do mesmo jeito.",
+        "body": "97% dos sintomas são tratados… e a maioria é invalidada. Fechar não é resolver: atacamos a causa que os gera em série, não o chamado.",
+        "cta": "Explore a torre de controle"
+      },
+      {
+        "n": "Ato 2",
+        "tag": "Entender cada ator",
+        "title": "Não é um score. É um perfil vivo.",
+        "body": "A identidade operacional de cada motorista, transportadora e ativo — sua história, seu nível e seu plano. Um mesmo motor para qualquer entidade.",
+        "cta": "Ver SuperProfile"
+      },
+      {
+        "n": "Ato 3",
+        "tag": "Gerenciar onde a operação vive",
+        "title": "O alerta chega com plano e responsável.",
+        "body": "E-mail, WhatsApp, Teams, Webex ou SMS. Escalar deixa de ser apenas um aviso e passa a ser o primeiro passo da gestão.",
+        "cta": "Ver canais de escalonamento"
+      }
     ],
     "disclaimer": "O que você vê no explorador é uma operação real (junho de 2026), não uma maquete."
   },
-
   "steps": {
     "kicker": "Na prática",
     "title": "Transforme um sinal bruto em uma decisão auditável",
     "subtitle": "Acompanhe o fluxo dos seus alertas, passo a passo.",
     "items": [
-      { "n": "01", "title": "O sinal é capturado", "body": "Cada ping GPS, valor de sensor e evento do motorista entra no seu fluxo em milissegundos, não importa o fornecedor do hardware.", "tag": "INGESTÃO" },
-      { "n": "02", "title": "É processado em tempo real", "body": "O motor de streaming enriquece e avalia o sinal contra mais de 30 regras, com latência mediana abaixo de 56 ms.", "tag": "STREAM" },
-      { "n": "03", "title": "O sintoma é detectado", "body": "Se algo desvia do padrão da sua operação, um evento classificado por severidade é gerado — não apenas mais uma notificação genérica.", "tag": "SINTOMA" },
-      { "n": "04", "title": "A resposta é acionada", "body": "O evento é atribuído a um responsável e dispara o fluxo que você definiu: SMS, alerta no painel, ordem de serviço ou webhook.", "tag": "WORKFLOW" },
-      { "n": "05", "title": "A evidência permanece", "body": "Tudo é registrado com timestamp, responsável e resolução no seu próprio banco de dados. Auditoria pronta em segundos, não em dias.", "tag": "EVIDÊNCIA" }
+      {
+        "n": "01",
+        "title": "O sinal é capturado",
+        "body": "Cada ping GPS, valor de sensor e evento do motorista entra no seu fluxo em milissegundos, não importa o fornecedor do hardware.",
+        "tag": "INGESTÃO"
+      },
+      {
+        "n": "02",
+        "title": "É processado em tempo real",
+        "body": "O motor de streaming enriquece e avalia o sinal contra mais de 30 regras, com latência mediana abaixo de 56 ms.",
+        "tag": "STREAM"
+      },
+      {
+        "n": "03",
+        "title": "O sintoma é detectado",
+        "body": "Se algo desvia do padrão da sua operação, um evento classificado por severidade é gerado — não apenas mais uma notificação genérica.",
+        "tag": "SINTOMA"
+      },
+      {
+        "n": "04",
+        "title": "A resposta é acionada",
+        "body": "O evento é atribuído a um responsável e dispara o fluxo que você definiu: SMS, alerta no painel, ordem de serviço ou webhook.",
+        "tag": "WORKFLOW"
+      },
+      {
+        "n": "05",
+        "title": "A evidência permanece",
+        "body": "Tudo é registrado com timestamp, responsável e resolução no seu próprio banco de dados. Auditoria pronta em segundos, não em dias.",
+        "tag": "EVIDÊNCIA"
+      }
     ],
     "outro": {
       "latency": "< 56 ms de latência mediana ponta a ponta",
@@ -70,7 +147,6 @@
     },
     "stepAriaLabel": "Passo"
   },
-
   "painOutcome": {
     "kicker": "A mudança de fundo",
     "title": "A diferença entre alertar e reduzir",
@@ -95,57 +171,129 @@
       ]
     }
   },
-
   "features": {
     "kicker": "Características",
     "title": "Três capacidades principais",
     "subtitle": "Tudo o que você precisa para processar, analisar e agir sobre dados de frota em tempo real",
     "cards": [
-      { "title": "Processamento em tempo real", "body": "Cada sinal GPS, sensor e evento do motorista é processado assim que chega, com latência mediana abaixo de 56 ms.", "bullets": ["Uma única fonte para toda a telemetria", "Enriquecimento e avaliação instantâneos", "Milhares de eventos por segundo, sem batch"] },
-      { "title": "Alertas por sintoma", "body": "Mais de 30 regras detectam o desvio — fadiga, excesso de velocidade, zonas de risco — e geram um evento classificado, não mais uma notificação genérica.", "bullets": ["Severidade e responsável automáticos", "Exclusão inteligente de ruído", "Ação disparada: SMS, painel ou ordem de serviço"] },
-      { "title": "Escalonamento por sintoma", "body": "Cada sintoma escala para o canal onde a operação realmente vive: e-mail, WhatsApp, Teams com conversa bidirecional, plano e responsável.", "bullets": ["Canal de acordo com o tipo de sintoma", "Ciclo bidirecional, não só notificação", "Cada alerta chega com plano e responsável"] }
+      {
+        "title": "Processamento em tempo real",
+        "body": "Cada sinal GPS, sensor e evento do motorista é processado assim que chega, com latência mediana abaixo de 56 ms.",
+        "bullets": [
+          "Uma única fonte para toda a telemetria",
+          "Enriquecimento e avaliação instantâneos",
+          "Milhares de eventos por segundo, sem batch"
+        ]
+      },
+      {
+        "title": "Alertas por sintoma",
+        "body": "Mais de 30 regras detectam o desvio — fadiga, excesso de velocidade, zonas de risco — e geram um evento classificado, não mais uma notificação genérica.",
+        "bullets": [
+          "Severidade e responsável automáticos",
+          "Exclusão inteligente de ruído",
+          "Ação disparada: SMS, painel ou ordem de serviço"
+        ]
+      },
+      {
+        "title": "Escalonamento por sintoma",
+        "body": "Cada sintoma escala para o canal onde a operação realmente vive: e-mail, WhatsApp, Teams com conversa bidirecional, plano e responsável.",
+        "bullets": [
+          "Canal de acordo com o tipo de sintoma",
+          "Ciclo bidirecional, não só notificação",
+          "Cada alerta chega com plano e responsável"
+        ]
+      }
     ]
   },
-
   "architecture": {
     "kicker": "Arquitetura",
     "title": "Do dispositivo edge à sua infraestrutura",
     "subtitle": "Veja como seus dados fluem de dispositivos edge até a sua nuvem em tempo real",
     "steps": [
-      { "n": "01", "title": "Ingestão de dados", "body": "Coleta dados de GPS, sensores e eventos da sua frota em tempo real" },
-      { "n": "02", "title": "Processamento de streams", "body": "Processa e analisa fluxos de dados com latência de subsegundo" },
-      { "n": "03", "title": "Sua infraestrutura", "body": "Os dados fluem diretamente para o seu banco de dados, analytics e aplicações" }
+      {
+        "n": "01",
+        "title": "Ingestão de dados",
+        "body": "Coleta dados de GPS, sensores e eventos da sua frota em tempo real"
+      },
+      {
+        "n": "02",
+        "title": "Processamento de streams",
+        "body": "Processa e analisa fluxos de dados com latência de subsegundo"
+      },
+      {
+        "n": "03",
+        "title": "Sua infraestrutura",
+        "body": "Os dados fluem diretamente para o seu banco de dados, analytics e aplicações"
+      }
     ],
     "latency": "< 56 ms de latência mediana ponta a ponta",
     "latencySubtitle": "Da leitura do sensor até a resposta da sua aplicação"
   },
-
   "useCases": {
     "kicker": "Casos de uso",
     "title": "Quatro caixas de processamento. Contrate só o que precisa.",
     "subtitle": "Arquitetura modular sem dependência de fornecedor: cada caixa é um serviço independente com preço próprio por ativo.",
     "cards": [
-      { "title": "Ingestão GPS Core", "body": "Cada ping GPS, sinal de sensor e evento do motorista flui para os seus sistemas em milissegundos.", "bullets": ["API do último sinal por ativo", "Rastreamento AVL em tempo real", "CDC para os seus sistemas downstream"] },
-      { "title": "Sintomas / Torre de Controle", "body": "Mais de 30 regras de detecção: velocidade por trecho, condução contínua, zonas de risco, fadiga, telemetria mecânica.", "bullets": ["Severidade e responsável automáticos", "Ciclo de vida: abrir → tratar → fechar", "Exclusão inteligente de ruído"] },
-      { "title": "Integrações", "body": "Automação com n8n, gestor documental para evidências, API gateway e webhooks. Sua operação conectada aos sistemas que você já usa.", "bullets": ["Workflows e webhooks (n8n)", "Cofre de evidências documentais", "APIs e gateway para seus sistemas"] },
-      { "title": "Vídeo ao Vivo / HLS", "body": "Streams de vídeo contínuos de 24 horas das câmeras a bordo dos seus ativos como referência visual para cada evento detectado.", "bullets": ["Streaming HLS contínuo 24h", "Frames de câmeras e dashcams", "Contexto visual de cada alerta"] }
+      {
+        "title": "Ingestão GPS Core",
+        "body": "Cada ping GPS, sinal de sensor e evento do motorista flui para os seus sistemas em milissegundos.",
+        "bullets": [
+          "API do último sinal por ativo",
+          "Rastreamento AVL em tempo real",
+          "CDC para os seus sistemas downstream"
+        ]
+      },
+      {
+        "title": "Sintomas / Torre de Controle",
+        "body": "Mais de 30 regras de detecção: velocidade por trecho, condução contínua, zonas de risco, fadiga, telemetria mecânica.",
+        "bullets": [
+          "Severidade e responsável automáticos",
+          "Ciclo de vida: abrir → tratar → fechar",
+          "Exclusão inteligente de ruído"
+        ]
+      },
+      {
+        "title": "Integrações",
+        "body": "Automação com n8n, gestor documental para evidências, API gateway e webhooks. Sua operação conectada aos sistemas que você já usa.",
+        "bullets": [
+          "Workflows e webhooks (n8n)",
+          "Cofre de evidências documentais",
+          "APIs e gateway para seus sistemas"
+        ]
+      },
+      {
+        "title": "Vídeo ao Vivo / HLS",
+        "body": "Streams de vídeo contínuos de 24 horas das câmeras a bordo dos seus ativos como referência visual para cada evento detectado.",
+        "bullets": [
+          "Streaming HLS contínuo 24h",
+          "Frames de câmeras e dashcams",
+          "Contexto visual de cada alerta"
+        ]
+      }
     ]
   },
-
   "confiabilidad": {
     "kicker": "Confiabilidade do sinal",
     "title": "12 pulsos por minuto. \nO padrão que faz a diferença.",
     "subtitle": "A precisão depende da frequência do sinal em movimento. Integramos mais de 28 provedores GPS e elevamos o sinal deles a esse padrão.",
     "rows": [
-      { "label": "Frota hoje", "caption": "Pulsos/min médios da sua frota" },
-      { "label": "ModularIoT", "caption": "O padrão de precisão que integramos" },
-      { "label": "Mineração", "caption": "O padrão exigido pela indústria de mineração" }
+      {
+        "label": "Frota hoje",
+        "caption": "Pulsos/min médios da sua frota"
+      },
+      {
+        "label": "ModularIoT",
+        "caption": "O padrão de precisão que integramos"
+      },
+      {
+        "label": "Mineração",
+        "caption": "O padrão exigido pela indústria de mineração"
+      }
     ],
     "pulsesUnit": "pulsos/min",
     "cta": "Analise seus provedores GPS",
     "disclaimer": "Dados reais de provedores GPS em operação — medidos, não simulados."
   },
-
   "stories": {
     "kicker": "Clientes",
     "title": "Operações que pararam de descobrir tarde",
@@ -153,66 +301,238 @@
     "beforeLabel": "Antes",
     "afterLabel": "Com a ModularIoT",
     "metrics": [
-      { "value": "+1.900", "label": "ativos em operação real" },
-      { "value": "97%", "label": "dos sintomas com gestão" },
-      { "value": "36", "label": "regras de detecção em produção" },
-      { "value": "5", "label": "canais de escalonamento" }
+      {
+        "value": "+1.900",
+        "label": "ativos em operação real"
+      },
+      {
+        "value": "97%",
+        "label": "dos sintomas com gestão"
+      },
+      {
+        "value": "36",
+        "label": "regras de detecção em produção"
+      },
+      {
+        "value": "5",
+        "label": "canais de escalonamento"
+      }
     ],
     "cases": [
-      { "tag": "Transporte e Mineração", "before": "Empresa com frota própria em operação de mineração. Sem evidência de excesso de velocidade em rotas internas. Auditorias que levavam dias.", "after": "Detecção de excesso de velocidade com severidade automática desde o primeiro mês. Limites por trecho interno, mais restritivos que o mapa oficial. Evidência pronta para qualquer fiscalização, em segundos." },
-      { "tag": "Frota de Distribuição", "before": "Frota de 390 veículos leves. Veículos ficando parados na estrada sem aviso prévio. Sem dados do estado mecânico até o motorista ligar para o chefe.", "after": "Telemetria mecânica ativa em toda a frota. Check Engine, limite de bateria e falha de alternador detectados antes da parada." }
+      {
+        "tag": "Transporte e Mineração",
+        "before": "Empresa com frota própria em operação de mineração. Sem evidência de excesso de velocidade em rotas internas. Auditorias que levavam dias.",
+        "after": "Detecção de excesso de velocidade com severidade automática desde o primeiro mês. Limites por trecho interno, mais restritivos que o mapa oficial. Evidência pronta para qualquer fiscalização, em segundos."
+      },
+      {
+        "tag": "Frota de Distribuição",
+        "before": "Frota de 390 veículos leves. Veículos ficando parados na estrada sem aviso prévio. Sem dados do estado mecânico até o motorista ligar para o chefe.",
+        "after": "Telemetria mecânica ativa em toda a frota. Check Engine, limite de bateria e falha de alternador detectados antes da parada."
+      }
     ],
     "quotes": [
-      { "text": "Agora, quando acontece algo, a primeira coisa que minha equipe faz é abrir o sistema e buscar o evento. Antes, ligavam para o motorista.", "author": "Chefe de Operações, Empresa de Transporte de Carga, Chile" },
-      { "text": "Eu tinha GPS em todos os meus veículos. O caminhão passou por uma zona de risco à noite e ninguém me avisou. Fiquei sabendo só no dia seguinte. Isso não acontece mais.", "author": "Gerente de Frota, Empresa de Logística, Norte do Chile" }
+      {
+        "text": "Agora, quando acontece algo, a primeira coisa que minha equipe faz é abrir o sistema e buscar o evento. Antes, ligavam para o motorista.",
+        "author": "Chefe de Operações, Empresa de Transporte de Carga, Chile"
+      },
+      {
+        "text": "Eu tinha GPS em todos os meus veículos. O caminhão passou por uma zona de risco à noite e ninguém me avisou. Fiquei sabendo só no dia seguinte. Isso não acontece mais.",
+        "author": "Gerente de Frota, Empresa de Logística, Norte do Chile"
+      }
     ]
   },
-
   "deployment": {
     "kicker": "Implantação",
     "title": "No ar em dias, não em meses.",
     "subtitle": "Uma implantação gerenciada pela MicroBox Labs: nós operamos a infraestrutura, você foca na operação.",
     "soonLabel": "Em breve",
     "includes": [
-      { "title": "Configuração para a sua operação", "body": "Limites, zonas e regras ajustados a como você trabalha, não um modelo genérico." },
-      { "title": "Implantação na sua nuvem", "body": "Roda na sua infraestrutura (AWS, Azure ou GCP); seus dados nunca saem do seu controle." },
-      { "title": "Conectado aos seus sistemas", "body": "Integração via API com as plataformas que você já usa (despacho, manutenção, ERP); soma-se à sua operação, não a substitui." },
-      { "title": "Canais da sua operação", "body": "E-mail, WhatsApp, Teams, Webex e SMS conectados para que o alerta chegue onde a equipe está." },
-      { "title": "Implantação gerenciada", "body": "A MicroBox Labs opera e acompanha a operação, sem overhead de DevOps do seu lado." },
-      { "title": "Monitoramento, suporte e atualizações", "body": "A plataforma se mantém atualizada e monitorada sem que você precise se preocupar." }
+      {
+        "title": "Configuração para a sua operação",
+        "body": "Limites, zonas e regras ajustados a como você trabalha, não um modelo genérico."
+      },
+      {
+        "title": "Implantação na sua nuvem",
+        "body": "Roda na sua infraestrutura (AWS, Azure ou GCP); seus dados nunca saem do seu controle."
+      },
+      {
+        "title": "Conectado aos seus sistemas",
+        "body": "Integração via API com as plataformas que você já usa (despacho, manutenção, ERP); soma-se à sua operação, não a substitui."
+      },
+      {
+        "title": "Canais da sua operação",
+        "body": "E-mail, WhatsApp, Teams, Webex e SMS conectados para que o alerta chegue onde a equipe está."
+      },
+      {
+        "title": "Implantação gerenciada",
+        "body": "A MicroBox Labs opera e acompanha a operação, sem overhead de DevOps do seu lado."
+      },
+      {
+        "title": "Monitoramento, suporte e atualizações",
+        "body": "A plataforma se mantém atualizada e monitorada sem que você precise se preocupar."
+      }
     ]
   },
-
   "pricingTeaser": {
     "kicker": "Preços",
     "title": "Pague por ativo, só pelo que usa",
     "subtitle": "Sem licenças por assento, sem custos de instalação. Cada caixa de processamento tem preço próprio por ativo/mês. Monte seu plano com a calculadora.",
     "cta": "Calcule o preço da sua frota"
   },
-
+  "pricing": {
+    "page": {
+      "kicker": "Preços",
+      "title": "Pague por ativo, só pelo que usa"
+    },
+    "tiers": {
+      "toggleNivel": "Por capacidade",
+      "toggleMedida": "Sob medida",
+      "colSintomas": "Sintomas a gerir",
+      "cta": "Cotar",
+      "perUnit": " por ativo/mês",
+      "perUnitHeader": " por ativo",
+      "baseNoteLabel": "Base de ingestão GPS incluída em todas as capacidades",
+      "baseNotePrice": "A partir de {price} por ativo/mês",
+      "assets": "Ativos a monitorar",
+      "assetsDesc": "Ajuste os ativos para estimar o preço total.",
+      "unitAssets": "ativos",
+      "totalMo": "/mês",
+      "soon": "Em breve",
+      "msgNote": "Os envios de WhatsApp e SMS são cobrados à parte (por mensagem).",
+      "obsTitle": "Observabilidade de dados · incluída na base",
+      "obsDesc": "Mede a confiabilidade do sinal GPS, sistemas e sensores em tempo real. É a base sobre a qual tudo o mais se apoia.",
+      "obsLink": "Meça-a sozinha para avaliar seus provedores GPS",
+      "caps": {
+        "ver": {
+          "name": "Detecção",
+          "desc": "Detecta e classifica cada sintoma em tempo real. Cada evento fica visível na Torre de Controle, com severidade, status e evidência."
+        },
+        "notificar": {
+          "name": "Gestão",
+          "desc": "Escalona cada sintoma ao canal onde vive a operação —e-mail, WhatsApp, Teams, Webex, SMS— com seu plano e responsável. Tudo fica registrado."
+        },
+        "autonomia": {
+          "name": "Automação",
+          "desc": "Automatiza a gestão com workflows e vídeo: a operação reduz seus desvios sozinha e mede a melhoria mês a mês."
+        }
+      }
+    },
+    "calculator": {
+      "filterLabel": "Filtre por família operacional e escolha as caixas que você precisa",
+      "allChip": "Todas",
+      "fleetTitle": "Tamanho da frota do cliente",
+      "fleetDesc": "Ajuste a frota para estimar o preço por ativo.",
+      "fleetUnit": "ativos",
+      "allFamilies": "Todas as famílias",
+      "baseIncluded": "Base · incluído",
+      "perAssetMonth": "por ativo/mês",
+      "boxLabel": "Caixa interna",
+      "volMonth": "Vol/mês",
+      "pricePerAsset": "$/ativo",
+      "selectedBoxes": "Caixas selecionadas",
+      "of": "de",
+      "fleetOfClient": "Frota do cliente",
+      "totalMonthly": "Total mensal",
+      "totalAnnual": "Total anual",
+      "fullPlan": "Plano completo · todas",
+      "perAssetSuffix": "/ativo",
+      "perMonthSuffix": "/mês",
+      "scheduleCta": "Agende um diagnóstico gratuito",
+      "disclaimer": "Preços referenciais em USD, baseados em custos reais de infraestrutura. A proposta final é entregue após o diagnóstico gratuito."
+    },
+    "philosophy": [
+      {
+        "title": "Pague só pelo que usa",
+        "body": "Você contrata caixas de processamento independentes. Se não usa vídeo ou integrações, não paga por elas."
+      },
+      {
+        "title": "Preço por ativo, transparente",
+        "body": "Um preço fixo por ativo/mês para cada caixa. Sem surpresas, sem custos de instalação, sem fidelidade mínima."
+      },
+      {
+        "title": "Baseado em custos reais",
+        "body": "Os preços derivam do custo real de infraestrutura por transação da plataforma, não de uma tarifa arbitrária."
+      }
+    ],
+    "faq": {
+      "title": "Perguntas sobre preços",
+      "items": [
+        {
+          "q": "Como o serviço é cobrado?",
+          "a": "Assinatura mensal por ativo monitorado, conforme as caixas de processamento que você contratar. A proposta final é entregue após o diagnóstico gratuito."
+        },
+        {
+          "q": "Os preços da calculadora são finais?",
+          "a": "São indicativos, baseados em custos reais de infraestrutura. A proposta formal pode variar conforme volume, configuração de regras e modelo de implantação (sua nuvem, gerenciado ou edge híbrido)."
+        },
+        {
+          "q": "Há custos de instalação ou fidelidade mínima?",
+          "a": "Não. A integração com sua tecnologia atual está incluída e você pode ajustar ou cancelar as caixas contratadas mês a mês."
+        },
+        {
+          "q": "O que cada caixa inclui?",
+          "a": "Cada caixa é um serviço completo: infraestrutura, processamento, painel de gestão e suporte. A caixa de Ingestão GPS Core é a base sobre a qual as demais operam."
+        }
+      ]
+    },
+    "cta": {
+      "title": "Seu caso é mais complexo?",
+      "body": "Frotas grandes, múltiplas operações ou requisitos específicos de conformidade: vamos conversar e montar uma proposta sob medida.",
+      "button": "Fale conosco"
+    }
+  },
   "faq": {
     "kicker": "FAQ",
     "title": "Perguntas frequentes",
     "items": [
-      { "q": "Qual é a diferença entre a ModularIoT e os provedores tradicionais de telemetria?", "a": "Os provedores tradicionais ficam só no alerta: notificam e pronto. A ModularIoT interpreta cada sintoma, atribui responsável e plano, e mede se o desvio realmente cai mês a mês. Além disso, os dados e a lógica de processamento ficam sob seu controle, sem prisão a tarifas por ativo. É a diferença entre alertar e reduzir." },
-      { "q": "Como a ModularIoT se compara ao Apache Kafka ou Apache Pulsar?", "a": "Kafka e Pulsar são excelentes brokers de mensagens; a ModularIoT é uma plataforma completa de processamento de dados de frota. Usamos o Pulsar por baixo dos panos, mas adicionamos processadores específicos para frotas, regras de detecção e integrações prontas para uso. Streaming de nível empresarial sem construir tudo do zero." },
-      { "q": "Preciso trocar minha tecnologia atual?", "a": "Não. Nos integramos com os sensores, GPS, câmeras e sistemas que você já tem instalados. No diagnóstico, revisamos sua tecnologia atual e confirmamos a compatibilidade." },
-      { "q": "E a LGPD/GDPR e a soberania dos dados?", "a": "A soberania dos dados é um princípio fundamental: todo o processamento ocorre na sua região/nuvem escolhida, e nunca armazenamos os dados da sua frota em nossos sistemas. Incluímos anonimização, políticas de retenção e trilhas de auditoria. Seus dados permanecem sob seu controle o tempo todo." },
-      { "q": "Quão rápido podemos começar?", "a": "Para implantações gerenciadas, você pode estar processando dados ao vivo em 48 horas. Implantações na sua própria nuvem costumam levar de 1 a 2 semanas, incluindo configuração de infraestrutura e testes de integração." },
-      { "q": "O sistema gera muitos alertas que a equipe acaba ignorando?", "a": "É exatamente isso que evitamos. Os alertas têm regras de exclusão inteligente: nenhuma notificação é gerada se não atender às condições configuradas para sua operação. Seus operadores veem só o que importa e exige ação." },
-      { "q": "Que tipo de suporte vocês oferecem?", "a": "Todos os planos incluem suporte técnico através do nosso portal. Os planos superiores incluem Customer Success Manager dedicado e tempos de resposta prioritários, com suporte 24/7 e SLAs garantidos para os planos mais altos." }
+      {
+        "q": "Qual é a diferença entre a ModularIoT e os provedores tradicionais de telemetria?",
+        "a": "Os provedores tradicionais ficam só no alerta: notificam e pronto. A ModularIoT interpreta cada sintoma, atribui responsável e plano, e mede se o desvio realmente cai mês a mês. Além disso, os dados e a lógica de processamento ficam sob seu controle, sem prisão a tarifas por ativo. É a diferença entre alertar e reduzir."
+      },
+      {
+        "q": "Como a ModularIoT se compara ao Apache Kafka ou Apache Pulsar?",
+        "a": "Kafka e Pulsar são excelentes brokers de mensagens; a ModularIoT é uma plataforma completa de processamento de dados de frota. Usamos o Pulsar por baixo dos panos, mas adicionamos processadores específicos para frotas, regras de detecção e integrações prontas para uso. Streaming de nível empresarial sem construir tudo do zero."
+      },
+      {
+        "q": "Preciso trocar minha tecnologia atual?",
+        "a": "Não. Nos integramos com os sensores, GPS, câmeras e sistemas que você já tem instalados. No diagnóstico, revisamos sua tecnologia atual e confirmamos a compatibilidade."
+      },
+      {
+        "q": "E a LGPD/GDPR e a soberania dos dados?",
+        "a": "A soberania dos dados é um princípio fundamental: todo o processamento ocorre na sua região/nuvem escolhida, e nunca armazenamos os dados da sua frota em nossos sistemas. Incluímos anonimização, políticas de retenção e trilhas de auditoria. Seus dados permanecem sob seu controle o tempo todo."
+      },
+      {
+        "q": "Quão rápido podemos começar?",
+        "a": "Para implantações gerenciadas, você pode estar processando dados ao vivo em 48 horas. Implantações na sua própria nuvem costumam levar de 1 a 2 semanas, incluindo configuração de infraestrutura e testes de integração."
+      },
+      {
+        "q": "O sistema gera muitos alertas que a equipe acaba ignorando?",
+        "a": "É exatamente isso que evitamos. Os alertas têm regras de exclusão inteligente: nenhuma notificação é gerada se não atender às condições configuradas para sua operação. Seus operadores veem só o que importa e exige ação."
+      },
+      {
+        "q": "Que tipo de suporte vocês oferecem?",
+        "a": "Todos os planos incluem suporte técnico através do nosso portal. Os planos superiores incluem Customer Success Manager dedicado e tempos de resposta prioritários, com suporte 24/7 e SLAs garantidos para os planos mais altos."
+      }
     ]
   },
-
   "finalCta": {
     "title": "Pronto para reduzir os desvios da sua operação?",
     "body": "Chega de alertas se acumulando. Transforme cada sinal em menos problemas repetidos — com seus dados e suas decisões sob seu controle. Veja funcionando em 20 minutos.",
     "cta": "Agendar chamada de integração",
     "note": "Sem compromisso · Resposta em menos de 24 horas",
     "stats": [
-      { "value": "48hr", "label": "configuração de implantação gerenciada" },
-      { "value": "0%", "label": "dependência de fornecedores de dados" },
-      { "value": "100%", "label": "seus dados, seu controle" }
+      {
+        "value": "48hr",
+        "label": "configuração de implantação gerenciada"
+      },
+      {
+        "value": "0%",
+        "label": "dependência de fornecedores de dados"
+      },
+      {
+        "value": "100%",
+        "label": "seus dados, seu controle"
+      }
     ]
   }
 }

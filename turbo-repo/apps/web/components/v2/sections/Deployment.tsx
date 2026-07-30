@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { Reveal } from "../Reveal";
-import { Section, SectionHeader, Check } from "./shared";
+import { Section, SectionHeader, Check, type Tone } from "./shared";
 
 type Include = { title: string; body: string };
 
@@ -8,11 +8,11 @@ type Include = { title: string; body: string };
 // "Despliegue en tu nube" dentro de "includes" en los JSON de i18n.
 const SOON_INDEX = 1;
 
-export async function Deployment({ lang }: { lang: string }) {
+export async function Deployment({ lang, tone }: { lang: string; tone: Tone }) {
   const t = await getTranslations({ locale: lang, namespace: "deployment" });
   const includes = t.raw("includes") as Include[];
   return (
-    <Section id="implementacion" tone="gray">
+    <Section id="implementacion" tone={tone}>
       <SectionHeader kicker={t("kicker")} title={t("title")} subtitle={t("subtitle")} />
       <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {includes.map((it, i) => {

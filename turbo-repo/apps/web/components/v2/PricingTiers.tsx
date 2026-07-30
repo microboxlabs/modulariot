@@ -1,10 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import PricingCalculator from "./PricingCalculator";
+import { LiveNumber } from "./Counter";
 import { PILARES, REF_FLOTA, markupPilar } from "./pricing-boxes";
 import { SYMPTOMS, FAMILIES } from "./torre-data";
 import { getTorre } from "./module-i18n";
+import { Section, type Tone } from "./sections/shared";
 
 // ============================================================
 // Precios en matriz: síntomas (filas, por familia) × capacidades
@@ -59,61 +62,11 @@ function capPricesFor(nSel: number): number[] {
   return [ver, notificar, autonomia];
 }
 
-const T: Record<Lang, {
-  toggleNivel: string; toggleMedida: string;
-  colSintomas: string; cta: string; from: string; perUnit: string;
-  baseNote: (p: string) => string;
-  assets: string; totalMo: string;
-  soon: string; msgNote: string;
-  obsTitle: string; obsDesc: string; obsLink: string;
-  caps: Record<CapKey, { name: string; tagline: string; desc: string }>;
-}> = {
-  es: {
-    toggleNivel: "Por capacidad", toggleMedida: "A medida",
-    colSintomas: "Síntomas a gestionar", cta: "Cotizar", from: "Desde", perUnit: "/activo · mes",
-    baseNote: (p) => `Base de ingesta GPS incluida en todas las capacidades · desde ${p}/activo·mes`,
-    assets: "Activos a monitorear", totalMo: "/mes",
-    soon: "Próximamente", msgNote: "Los envíos de WhatsApp y SMS se cobran por separado (por mensaje).",
-    obsTitle: "Observabilidad de datos · incluida en la base",
-    obsDesc: "Mide la confiabilidad de la señal GPS, sistemas y sensores en tiempo real. Es la base sobre la que se apoya todo lo demás.",
-    obsLink: "Mídela sola para evaluar tus proveedores GPS",
-    caps: {
-      ver: { name: "Detección", tagline: "Detecta y clasifica", desc: "Detecta y clasifica cada síntoma en tiempo real, con severidad y responsable. La Torre de Control muestra qué pasa sobre tu operación real." },
-      notificar: { name: "Gestión", tagline: "Escala con plan y dueño", desc: "Escala cada síntoma al canal donde vive la operación —correo, WhatsApp, Teams, Webex, SMS— con su plan y su dueño. Todo queda registrado." },
-      autonomia: { name: "Automatización", tagline: "Automatiza y reduce", desc: "Automatiza la gestión con workflows y video: la operación reduce sus desviaciones sola y mide la mejora mes a mes." },
-    },
-  },
-  en: {
-    toggleNivel: "By capability", toggleMedida: "Custom",
-    colSintomas: "Symptoms to manage", cta: "Get a quote", from: "From", perUnit: "/asset · mo",
-    baseNote: (p) => `GPS ingestion base included in every capability · from ${p}/asset·mo`,
-    assets: "Assets to monitor", totalMo: "/mo",
-    soon: "Coming soon", msgNote: "WhatsApp and SMS deliveries are billed separately (per message).",
-    obsTitle: "Data observability · included in the base",
-    obsDesc: "Measures the reliability of GPS signal, systems and sensors in real time. It's the base everything else stands on.",
-    obsLink: "Measure it on its own to evaluate your GPS providers",
-    caps: {
-      ver: { name: "Detection", tagline: "Detect and classify", desc: "Detects and classifies every symptom in real time, with severity and owner. The Control Tower shows what happens on your real operation." },
-      notificar: { name: "Management", tagline: "Escalate with owner and plan", desc: "Escalates every symptom to the channel where the operation lives —email, WhatsApp, Teams, Webex, SMS— with its plan and owner. Everything is logged." },
-      autonomia: { name: "Automation", tagline: "Automate and reduce", desc: "Automates handling with workflows and video: the operation reduces its deviations on its own and measures the improvement month over month." },
-    },
-  },
-  pt: {
-    toggleNivel: "Por capacidade", toggleMedida: "Sob medida",
-    colSintomas: "Sintomas a gerir", cta: "Cotar", from: "A partir de", perUnit: "/ativo · mês",
-    baseNote: (p) => `Base de ingestão GPS incluída em todas as capacidades · a partir de ${p}/ativo·mês`,
-    assets: "Ativos a monitorar", totalMo: "/mês",
-    soon: "Em breve", msgNote: "Os envios de WhatsApp e SMS são cobrados à parte (por mensagem).",
-    obsTitle: "Observabilidade de dados · incluída na base",
-    obsDesc: "Mede a confiabilidade do sinal GPS, sistemas e sensores em tempo real. É a base sobre a qual tudo o mais se apoia.",
-    obsLink: "Meça-a sozinha para avaliar seus provedores GPS",
-    caps: {
-      ver: { name: "Detecção", tagline: "Detecta e classifica", desc: "Detecta e classifica cada sintoma em tempo real, com severidade e responsável. A Torre de Controle mostra o que acontece na sua operação real." },
-      notificar: { name: "Gestão", tagline: "Escalona com plano e responsável", desc: "Escalona cada sintoma ao canal onde vive a operação —e-mail, WhatsApp, Teams, Webex, SMS— com seu plano e responsável. Tudo fica registrado." },
-      autonomia: { name: "Automação", tagline: "Automatiza e reduz", desc: "Automatiza a gestão com workflows e vídeo: a operação reduz seus desvios sozinha e mede a melhoria mês a mês." },
-    },
-  },
-};
+// Tooltip del cuadrante: controlado a mano (no flowbite) para que se
+// cierre apenas el mouse sale del ícono, sin "zona segura" hacia el propio
+// tooltip — solo el ícono dispara el hover, el panel es pointer-events-none.
+const QUAD_TIP_CLASSNAME =
+  "pointer-events-none fixed z-50 w-80 whitespace-nowrap rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-700 shadow-xl dark:border-gray-700 dark:bg-gray-900 dark:text-white";
 
 const CAP_ICON: Record<CapKey, React.ReactNode> = {
   ver: <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z M12 15a3 3 0 100-6 3 3 0 000 6Z" />,
@@ -128,8 +81,8 @@ function Chevron({ open }: { open: boolean }) {
   );
 }
 
-export default function PricingTiers({ lang = "es", base, kicker, title }: { lang?: Lang; base: string; kicker?: string; title?: string }) {
-  const t = T[lang] || T.es;
+export default function PricingTiers({ lang = "es", base, kicker, title, tone = "white" }: { lang?: Lang; base: string; kicker?: string; title?: string; tone?: Tone }) {
+  const t = useTranslations("pricing.tiers");
   // Síntomas y familias del idioma activo (nombres traducidos para el render).
   const { SYMPTOMS: SYM, FAMILIES: FAMS } = getTorre(lang);
   const [view, setView] = useState<"nivel" | "medida">("nivel");
@@ -137,9 +90,10 @@ export default function PricingTiers({ lang = "es", base, kicker, title }: { lan
   // Síntomas deseleccionados (por id). Vacío = todos elegidos.
   const [off, setOff] = useState<Set<string>>(() => new Set());
   const [activos, setActivos] = useState<number>(500);
+  const [editingActivos, setEditingActivos] = useState(false);
   const clampAssets = (n: number) => Math.max(1, Math.min(100000, Math.round(n) || 0));
   // Tooltip del cuadrante (síntoma × nivel).
-  const [tip, setTip] = useState<null | { title: string; level: string; desc: string; price: string; x: number; y: number }>(null);
+  const [tip, setTip] = useState<null | { title: string; level: string; price: string; x: number; y: number }>(null);
 
   const byFamily = useMemo(
     () => FAMS.map((_, fi) => SYM.filter((s) => s.family === fi)),
@@ -167,10 +121,10 @@ export default function PricingTiers({ lang = "es", base, kicker, title }: { lan
   const capPrices = useMemo(() => capPricesFor(nSel), [nSel]);
 
   // Datos de las 3 columnas para el tooltip del cuadrante.
-  const cols = CAP_ORDER.map((k, i) => ({ name: t.caps[k].name, desc: t.caps[k].desc, price: `${fmtUSD(capPrices[i])}${t.perUnit}`, soon: i > MAX_SEL }));
+  const cols = CAP_ORDER.map((k, i) => ({ name: t(`caps.${k}.name`), price: `${fmtUSD(capPrices[i])}${t("perUnit")}`, soon: i > MAX_SEL }));
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
+    <Section tone={tone} contentClassName="py-12 px-4 sm:px-6">
       {title && (
         <div className="mb-8 ">
           {kicker && <p className="text-sm font-semibold uppercase tracking-widest text-accent">{kicker}</p>}
@@ -183,7 +137,7 @@ export default function PricingTiers({ lang = "es", base, kicker, title }: { lan
           {(["nivel", "medida"] as const).map((v) => (
             <button key={v} onClick={() => setView(v)}
               className={`rounded-md px-5 py-2 text-sm font-semibold transition-colors ${view === v ? "bg-ink-1 text-page" : "text-ink-2 hover:text-ink-1"}`}>
-              {v === "nivel" ? t.toggleNivel : t.toggleMedida}
+              {v === "nivel" ? t("toggleNivel") : t("toggleMedida")}
             </button>
           ))}
         </div>
@@ -205,19 +159,51 @@ export default function PricingTiers({ lang = "es", base, kicker, title }: { lan
                 <tr>
                   <th className="sticky left-0 z-10 bg-page" />
                   <th colSpan={3} className="pb-4 text-left font-normal">
-                    <div className="flex flex-col items-stretch gap-3 rounded-xl border border-hairline bg-surface-2 p-4 sm:flex-row sm:items-center sm:gap-5">
-                      <label htmlFor="pt-activos" className="shrink-0 text-sm font-semibold text-ink-2">{t.assets}</label>
-                      <input id="pt-activos" type="number" min={1} value={activos}
-                        onChange={(e) => setActivos(clampAssets(+e.target.value))}
-                        className="w-28 shrink-0 rounded-lg border border-hairline-strong bg-surface px-3 py-2 text-sm font-semibold text-ink-1 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20" />
-                      <input type="range" min={1} max={5000} step={1} value={Math.min(Math.max(activos, 1), 5000)}
-                        onChange={(e) => setActivos(+e.target.value)} className="w-full flex-1 accent-blue-600" />
+                    <div className="flex flex-col gap-1 rounded-xl border border-hairline bg-surface-2 p-4">
+                      <div className="grid grid-cols-[1fr_auto] items-end gap-x-3 gap-y-0.5">
+                        <label htmlFor="pt-activos" className="text-sm font-semibold leading-tight text-ink-1">
+                          {t("assets")}
+                        </label>
+                        <div className="text-right leading-tight">
+                          {editingActivos ? (
+                            <input
+                              id="pt-activos"
+                              type="number"
+                              min={1}
+                              autoFocus
+                              value={activos}
+                              onChange={(e) => setActivos(clampAssets(+e.target.value))}
+                              onBlur={() => setEditingActivos(false)}
+                              onKeyDown={(e) => e.key === "Enter" && setEditingActivos(false)}
+                              className="w-20 leading-tight bg-transparent text-right text-lg font-semibold text-ink-1 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setEditingActivos(true)}
+                              className="cursor-text leading-tight text-lg font-semibold text-ink-1"
+                            >
+                              <LiveNumber value={activos} format={(n) => Math.round(n).toLocaleString("es-CL")} duration={0.4} />
+                            </button>
+                          )}
+                        </div>
+                        <p className="whitespace-nowrap text-xs leading-tight text-ink-3">{t("assetsDesc")}</p>
+                        <p className="text-right text-xs leading-tight text-ink-3">{t("unitAssets")}</p>
+                      </div>
+                      <div className="flex flex-col">
+                        <input type="range" min={1} max={5000} step={1} value={Math.min(Math.max(activos, 1), 5000)}
+                          onChange={(e) => setActivos(+e.target.value)} className="w-full accent-blue-600" />
+                        <div className="flex justify-between text-xs font-light text-ink-3">
+                          <span>1</span>
+                          <span>5.000</span>
+                        </div>
+                      </div>
                     </div>
                   </th>
                 </tr>
                 <tr>
                   <th className="sticky left-0 z-10 bg-page px-4 py-3 text-left align-bottom">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-ink-3">{t.colSintomas}</span>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-ink-3">{t("colSintomas")}</span>
                   </th>
                   {CAP_ORDER.map((key, ci) => {
                     const soon = ci > MAX_SEL; // Automatización aún no disponible
@@ -229,15 +215,17 @@ export default function PricingTiers({ lang = "es", base, kicker, title }: { lan
                           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
                             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">{CAP_ICON[key]}</svg>
                           </span>
-                          <span className="text-base font-semibold text-ink-1">{t.caps[key].name}</span>
+                          <span className="text-base font-semibold text-ink-1">{t(`caps.${key}.name`)}</span>
                         </div>
-                        <p className="mt-2 text-xs font-normal leading-relaxed text-ink-3">{t.caps[key].desc}</p>
+                        <p className="mt-2 text-xs font-normal leading-relaxed text-ink-3">{t(`caps.${key}.desc`)}</p>
                         {soon ? (
-                          <span className="mt-3 inline-block rounded-full bg-surface-3 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">{t.soon}</span>
+                          <span className="mt-3 inline-block rounded-full bg-surface-3 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">{t("soon")}</span>
                         ) : (
                           <div className="mt-3 flex items-baseline gap-1">
-                            <span className="text-xl font-semibold tracking-[-0.02em] text-ink-1">{fmtUSD(capPrices[ci])}</span>
-                            <span className="text-[11px] font-normal text-ink-3">{t.perUnit}</span>
+                            <span className="text-xl font-semibold tracking-[-0.02em] text-ink-1">
+                              <LiveNumber value={capPrices[ci]} format={fmtUSD} />
+                            </span>
+                            <span className="text-[11px] font-normal text-ink-3">{t("perUnitHeader")}</span>
                           </div>
                         )}
                       </th>
@@ -252,7 +240,7 @@ export default function PricingTiers({ lang = "es", base, kicker, title }: { lan
                   const fs = famState(fi);
                   return (
                     <FamilyRows key={fam} fi={fi} fam={fam} items={byFamily[fi]} isOpen={isOpen}
-                      famAll={fs.all} famNone={fs.none} isOn={isOn} cols={cols} perUnit={t.perUnit} soonLabel={t.soon} onTip={setTip}
+                      famAll={fs.all} famNone={fs.none} isOn={isOn} cols={cols} perUnit={t("perUnit")} soonLabel={t("soon")} onTip={setTip}
                       onToggleOpen={() => setOpen((o) => ({ ...o, [fi]: !o[fi] }))}
                       onToggleFam={() => toggleFam(fi)} onToggleSym={toggleSym} />
                   );
@@ -260,22 +248,32 @@ export default function PricingTiers({ lang = "es", base, kicker, title }: { lan
               </tbody>
               <tfoot>
                 <tr>
-                  <td className="sticky left-0 bg-page px-4 py-4 text-sm text-ink-3">
-                    {t.baseNote(fmtUSD(BASE))}
+                  <td className="sticky left-0 bg-page px-4 py-4 align-bottom">
+                    <div className="flex flex-col gap-2 text-xs leading-snug text-ink-3">
+                      <p>
+                        {t("baseNoteLabel")} <span className="font-semibold text-accent">{t("baseNotePrice", { price: fmtUSD(BASE) })}</span>
+                      </p>
+                      <p className="border-t border-hairline pt-2">{t("msgNote")}</p>
+                    </div>
                   </td>
                   {CAP_ORDER.map((key, ci) => {
                     const soon = ci > MAX_SEL;
                     return (
                       <td key={key} className={`rounded-b-xl border-x border-b border-hairline bg-surface px-4 py-4 align-top ${soon ? "opacity-45" : ""}`}>
                         {soon ? (
-                          <p className="text-xs text-ink-3">{t.soon}</p>
+                          <p className="text-xs text-ink-3">{t("soon")}</p>
                         ) : (
                           <div>
-                            <p className="text-[11px] text-ink-3">{activos.toLocaleString("es-CL")} activos</p>
-                            <p className="text-2xl font-semibold tracking-[-0.02em] tabular-nums text-accent">{fmtTotal(capPrices[ci] * activos)}<span className="text-xs font-medium text-ink-3">{t.totalMo}</span></p>
+                            <p className="text-[11px] text-ink-3">
+                              <LiveNumber value={activos} format={(n) => `${Math.round(n).toLocaleString("es-CL")} ${t("unitAssets")}`} duration={0.3} />
+                            </p>
+                            <p className="text-2xl font-semibold tracking-[-0.02em] tabular-nums text-accent">
+                              <LiveNumber value={capPrices[ci] * activos} format={fmtTotal} />
+                              <span className="text-xs font-medium text-ink-3">{t("totalMo")}</span>
+                            </p>
                             <a href={`${base}/contacto?intent=cotizar`}
                               className="mt-3 block rounded-lg border border-ink-1 bg-ink-1 px-4 py-2 text-center text-xs font-medium text-page transition-colors hover:bg-ink-2 hover:border-ink-2">
-                              {t.cta} {t.caps[key].name}
+                              {t("cta")} {t(`caps.${key}.name`)}
                             </a>
                           </div>
                         )}
@@ -287,8 +285,6 @@ export default function PricingTiers({ lang = "es", base, kicker, title }: { lan
             </table>
           </div>
 
-          <p className="mt-4 text-center text-xs text-ink-3">{t.msgNote}</p>
-
           {/* Observabilidad de datos — línea base fija; contexto adicional, no bloquea la decisión de compra */}
           <div className="mx-auto mt-8 max-w-3xl rounded-xl border border-hairline bg-surface-2 p-5">
             <div className="flex items-start gap-3">
@@ -298,10 +294,10 @@ export default function PricingTiers({ lang = "es", base, kicker, title }: { lan
                 </svg>
               </span>
               <div>
-                <p className="text-sm font-semibold text-ink-1">{t.obsTitle}</p>
-                <p className="mt-1 text-sm leading-relaxed text-ink-2">{t.obsDesc}</p>
+                <p className="text-sm font-semibold text-ink-1">{t("obsTitle")}</p>
+                <p className="mt-1 text-sm leading-relaxed text-ink-2">{t("obsDesc")}</p>
                 <a href={`${base}/proveedores-gps`} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:text-accent-strong">
-                  {t.obsLink}
+                  {t("obsLink")}
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m0 0l-6-6m6 6l-6 6" /></svg>
                 </a>
               </div>
@@ -311,28 +307,27 @@ export default function PricingTiers({ lang = "es", base, kicker, title }: { lan
           {/* Tooltip del cuadrante */}
           {tip && (
             <div
-              className="pointer-events-none fixed z-50 w-72 rounded-xl border border-hairline bg-surface p-4 shadow-xl"
+              className={QUAD_TIP_CLASSNAME}
               style={{
-                left: Math.min(tip.x + 16, (typeof window !== "undefined" ? window.innerWidth : 1200) - 304),
+                left: Math.min(tip.x + 16, (typeof window !== "undefined" ? window.innerWidth : 1200) - 336),
                 top: tip.y + 16,
               }}
             >
-              <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold">{tip.title}</p>
+              <div className="mt-1.5 flex items-center justify-between gap-3">
                 <span className="rounded-md bg-accent-soft px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-accent">{tip.level}</span>
-                <span className="text-sm font-semibold text-accent">{tip.price}{tip.price.startsWith("+") && <span className="text-[11px] font-normal text-ink-3"> al total</span>}</span>
+                <span className="text-sm font-semibold text-accent">{tip.price}</span>
               </div>
-              <p className="mt-2 text-sm font-semibold text-ink-1">{tip.title}</p>
-              <p className="mt-1 text-sm leading-relaxed text-ink-2">{tip.desc}</p>
             </div>
           )}
         </>
       )}
-    </section>
+    </Section>
   );
 }
 
-type Col = { name: string; desc: string; price: string; soon: boolean };
-type TipData = { title: string; level: string; desc: string; price: string; x: number; y: number };
+type Col = { name: string; price: string; soon: boolean };
+type TipData = { title: string; level: string; price: string; x: number; y: number };
 
 // Ícono de la capacidad en la celda (ojo/campana/robot): coloreado si el
 // síntoma está incluido, apagado si no. Las 3 capacidades son acumulativas,
@@ -360,9 +355,11 @@ function FamilyRows({ fi, fam, items, isOpen, famAll, famNone, isOn, cols, perUn
     cols[ci].soon
       ? soonLabel
       : `+$${(ci === 0 ? (isFamily ? P_SINT_PER * Math.max(1, selCount) : P_SINT_PER) : APORTE[ci]).toFixed(2)}${perUnit}`;
-  const tipHandlers = (title: string, ci: number, desc: string, isFamily: boolean) => ({
-    onMouseEnter: (e: React.MouseEvent) => onTip({ title, level: cols[ci].name, desc, price: aporte(ci, isFamily), x: e.clientX, y: e.clientY }),
-    onMouseMove: (e: React.MouseEvent) => onTip({ title, level: cols[ci].name, desc, price: aporte(ci, isFamily), x: e.clientX, y: e.clientY }),
+  // Solo el ícono dispara el hover; el tooltip no tiene handlers propios, así
+  // que salir hacia él (en vez de hacia el ícono) lo cierra igual.
+  const tipHandlers = (title: string, ci: number, isFamily: boolean) => ({
+    onMouseEnter: (e: React.MouseEvent) => onTip({ title, level: cols[ci].name, price: aporte(ci, isFamily), x: e.clientX, y: e.clientY }),
+    onMouseMove: (e: React.MouseEvent) => onTip({ title, level: cols[ci].name, price: aporte(ci, isFamily), x: e.clientX, y: e.clientY }),
     onMouseLeave: () => onTip(null),
   });
   return (
@@ -387,7 +384,7 @@ function FamilyRows({ fi, fam, items, isOpen, famAll, famNone, isOn, cols, perUn
           </div>
         </td>
         {[0, 1, 2].map((ci) => (
-          <td key={ci} {...tipHandlers(fam, ci, cols[ci].desc, true)}
+          <td key={ci} {...tipHandlers(fam, ci, true)}
             className={`cursor-help border-x border-t border-hairline bg-surface px-3 py-2.5 ${ci > MAX_SEL ? "opacity-45" : ""}`}>
             <QuadIcon ci={ci} on={!famNone} />
           </td>
@@ -395,7 +392,6 @@ function FamilyRows({ fi, fam, items, isOpen, famAll, famNone, isOn, cols, perUn
       </tr>
       {isOpen && items.map((s) => {
         const on = isOn(s.id);
-        const descs = [s.see, s.act, s.solve];
         return (
           <tr key={s.id} className={on ? "" : "opacity-50"}>
             <td className="sticky left-0 z-10 border-t border-hairline bg-page py-2 pl-8 pr-4">
@@ -406,7 +402,7 @@ function FamilyRows({ fi, fam, items, isOpen, famAll, famNone, isOn, cols, perUn
               </label>
             </td>
             {[0, 1, 2].map((ci) => (
-              <td key={ci} {...tipHandlers(s.name, ci, descs[ci] || cols[ci].desc, false)}
+              <td key={ci} {...tipHandlers(s.name, ci, false)}
                 className={`cursor-help border-x border-t border-hairline bg-surface px-3 py-2 ${ci > MAX_SEL ? "opacity-45" : ""}`}>
                 <QuadIcon ci={ci} on={on} />
               </td>

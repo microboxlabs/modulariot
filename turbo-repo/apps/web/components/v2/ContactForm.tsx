@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Section, type Tone } from "./sections/shared";
 
 // ============================================================
 // Formulario de contacto segmentado por intención.
@@ -110,7 +111,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const inputCls =
   "w-full rounded-lg border border-hairline-strong bg-surface px-3.5 py-2.5 text-sm text-ink-1 placeholder:text-ink-4 transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20";
 
-export default function ContactForm({ lang = "es", initialIntent = "demo", base }: { lang?: Lang; initialIntent?: Intent; base: string }) {
+export default function ContactForm({ lang = "es", initialIntent = "demo", base, tone = "white" }: { lang?: Lang; initialIntent?: Intent; base: string; tone?: Tone }) {
   const t = COPY[lang] || COPY.es;
   const [intent, setIntent] = useState<Intent>(initialIntent);
   const [f, setF] = useState<Record<string, string>>({ nombre: "", email: "", empresa: "", cargo: "", flota: "", mensaje: "", motivo: "" });
@@ -147,7 +148,7 @@ export default function ContactForm({ lang = "es", initialIntent = "demo", base 
   };
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
+    <Section tone={tone} contentClassName="py-12 px-4 sm:px-6">
       <div className="max-w-2xl">
         <p className="text-sm font-semibold uppercase tracking-widest text-accent">{t.eyebrow}</p>
         <h1 className="mt-4 text-4xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-5xl">{t.title}</h1>
@@ -255,6 +256,6 @@ export default function ContactForm({ lang = "es", initialIntent = "demo", base 
           </div>
         </aside>
       </div>
-    </section>
+    </Section>
   );
 }

@@ -1,10 +1,9 @@
-import Nav from "./Nav";
-import { Footer } from "./sections/Footer";
 import { getContent } from "./content";
 import { Reveal } from "./Reveal";
 import { ConceptGraphic } from "./ConceptGraphic";
 import { StatsGrid } from "./StatsGrid";
-import { btnPrimary, btnLg } from "./sections/shared";
+import { FinalCta } from "./sections/FinalCta";
+import { Section, btnPrimary, btnLg, type Tone } from "./sections/shared";
 
 // ============================================================
 // Renderizador de páginas de detalle basado en datos.
@@ -69,10 +68,7 @@ const Check = () => (
   </svg>
 );
 
-function BlockView({ block, tone, base }: { block: Block; tone: "white" | "gray"; base: string }) {
-  const wrap = `scroll-mt-16 ${tone === "gray" ? "bg-surface-2 border-y border-hairline" : "bg-surface"}`;
-  const inner = "mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-24";
-
+function BlockView({ block, tone, base }: { block: Block; tone: Tone; base: string }) {
   const Header = ({ kicker, title, subtitle }: { kicker?: string; title: string; subtitle?: string }) => (
     <Reveal className="mx-auto max-w-3xl text-center">
       {kicker && <Kicker>{kicker}</Kicker>}
@@ -83,91 +79,83 @@ function BlockView({ block, tone, base }: { block: Block; tone: "white" | "gray"
 
   if (block.type === "split") {
     return (
-      <section className={wrap}>
-        <div className={`${inner} grid items-start gap-10 lg:grid-cols-2`}>
-          <Reveal>
-            {block.kicker && <Kicker>{block.kicker}</Kicker>}
-            <h2 className="text-3xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-4xl">{block.title}</h2>
-            <p className="mt-6 text-lg leading-relaxed text-ink-2">{block.body}</p>
-          </Reveal>
-          <Reveal delay={0.12} className="rounded-xl border border-hairline bg-surface p-8">
-            {block.code ? (
-              <pre className="overflow-x-auto rounded-lg bg-gray-950 p-5 font-mono text-xs leading-relaxed text-gray-100">{block.code}</pre>
-            ) : (
-              <ul className="space-y-4">
-                {block.bullets.map((b) => (
-                  <li key={b} className="flex items-start gap-3 text-ink-2">
-                    <Check />
-                    <span>{b}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Reveal>
-        </div>
-      </section>
+      <Section tone={tone} contentClassName="py-16 sm:py-20 lg:py-24 grid items-start gap-10 lg:grid-cols-2">
+        <Reveal>
+          {block.kicker && <Kicker>{block.kicker}</Kicker>}
+          <h2 className="text-3xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-4xl">{block.title}</h2>
+          <p className="mt-6 text-lg leading-relaxed text-ink-2">{block.body}</p>
+        </Reveal>
+        <Reveal delay={0.12} className="rounded-xl border border-hairline bg-surface p-8">
+          {block.code ? (
+            <pre className="overflow-x-auto rounded-lg bg-gray-950 p-5 font-mono text-xs leading-relaxed text-gray-100">{block.code}</pre>
+          ) : (
+            <ul className="space-y-4">
+              {block.bullets.map((b) => (
+                <li key={b} className="flex items-start gap-3 text-ink-2">
+                  <Check />
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Reveal>
+      </Section>
     );
   }
 
   if (block.type === "grid") {
     return (
-      <section id={block.id} className={wrap}>
-        <div className={inner}>
-          <Header kicker={block.kicker} title={block.title} subtitle={block.subtitle} />
-          <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {block.cards.map((card, i) => (
-              <Reveal key={card.title} delay={i * 0.07} className="rounded-xl border border-hairline bg-surface p-8 transition-shadow hover:shadow-md">
-                {card.icon && (
-                  <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-lg bg-accent-soft text-accent">
-                    <DIcon name={card.icon} className="h-6 w-6" />
-                  </div>
-                )}
-                <h3 className="text-lg font-semibold text-ink-1">{card.title}</h3>
-                <p className="mt-3 leading-relaxed text-ink-2">{card.body}</p>
-              </Reveal>
-            ))}
-          </div>
+      <Section id={block.id} tone={tone}>
+        <Header kicker={block.kicker} title={block.title} subtitle={block.subtitle} />
+        <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {block.cards.map((card, i) => (
+            <Reveal key={card.title} delay={i * 0.07} className="rounded-xl border border-hairline bg-surface p-8 transition-shadow hover:shadow-md">
+              {card.icon && (
+                <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-lg bg-accent-soft text-accent">
+                  <DIcon name={card.icon} className="h-6 w-6" />
+                </div>
+              )}
+              <h3 className="text-lg font-semibold text-ink-1">{card.title}</h3>
+              <p className="mt-3 leading-relaxed text-ink-2">{card.body}</p>
+            </Reveal>
+          ))}
         </div>
-      </section>
+      </Section>
     );
   }
 
   if (block.type === "steps") {
     return (
-      <section className={wrap}>
-        <div className={inner}>
-          <Header kicker={block.kicker} title={block.title} subtitle={block.subtitle} />
-          <div className="mx-auto mt-14 max-w-3xl space-y-4">
-            {block.steps.map((s, i) => (
-              <Reveal key={s.n} delay={i * 0.06} className="flex gap-5 rounded-xl border border-hairline bg-surface p-6">
-                <span className="text-2xl font-semibold tracking-[-0.02em] text-hairline">{s.n}</span>
-                <div>
-                  <h3 className="text-base font-semibold text-ink-1">{s.title}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-ink-2">{s.body}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
+      <Section tone={tone}>
+        <Header kicker={block.kicker} title={block.title} subtitle={block.subtitle} />
+        <div className="mx-auto mt-14 max-w-3xl space-y-4">
+          {block.steps.map((s, i) => (
+            <Reveal key={s.n} delay={i * 0.06} className="flex gap-5 rounded-xl border border-hairline bg-surface p-6">
+              <span className="text-2xl font-semibold tracking-[-0.02em] text-hairline">{s.n}</span>
+              <div>
+                <h3 className="text-base font-semibold text-ink-1">{s.title}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-ink-2">{s.body}</p>
+              </div>
+            </Reveal>
+          ))}
         </div>
-      </section>
+      </Section>
     );
   }
 
   if (block.type === "code") {
     return (
-      <section className={wrap}>
-        <div className={inner}>
-          <Header kicker={block.kicker} title={block.title} subtitle={block.subtitle} />
-          <div className="mt-14 grid gap-6 lg:grid-cols-2">
-            {block.cards.map((card, i) => (
-              <Reveal key={card.title} delay={i * 0.1} className="flex flex-col overflow-hidden rounded-xl border border-hairline bg-surface">
-                <h3 className="px-6 pt-6 text-lg font-semibold text-ink-1">{card.title}</h3>
-                <pre className="mt-4 flex-1 overflow-x-auto bg-gray-950 p-5 font-mono text-xs leading-relaxed text-gray-100">{card.code}</pre>
-              </Reveal>
-            ))}
-          </div>
+      <Section tone={tone}>
+        <Header kicker={block.kicker} title={block.title} subtitle={block.subtitle} />
+        <div className="mt-14 grid gap-6 lg:grid-cols-2">
+          {block.cards.map((card, i) => (
+            <Reveal key={card.title} delay={i * 0.1} className="flex flex-col overflow-hidden rounded-xl border border-hairline bg-surface">
+              <h3 className="px-6 pt-6 text-lg font-semibold text-ink-1">{card.title}</h3>
+              <pre className="mt-4 flex-1 overflow-x-auto bg-gray-950 p-5 font-mono text-xs leading-relaxed text-gray-100">{card.code}</pre>
+            </Reveal>
+          ))}
         </div>
-      </section>
+      </Section>
     );
   }
 
@@ -183,82 +171,74 @@ function BlockView({ block, tone, base }: { block: Block; tone: "white" | "gray"
 
   // linkgrid
   return (
-    <section className={wrap}>
-      <div className={inner}>
-        <Header kicker={block.kicker} title={block.title} subtitle={block.subtitle} />
-        <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {block.links.map((link, i) => (
-            <Reveal key={link.title} delay={i * 0.07}>
-              <a
-                href={link.external || link.href.startsWith("http") ? link.href : `${base}${link.href}`}
-                {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                className="group block h-full rounded-xl border border-hairline bg-surface p-8 transition-shadow hover:shadow-md"
-              >
-                <h3 className="flex items-center gap-2 text-lg font-semibold text-ink-1">
-                  {link.title}
-                  <svg className="h-4 w-4 shrink-0 text-accent transition-transform group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M4 12h15m0 0l-6-6m6 6l-6 6" />
-                  </svg>
-                </h3>
-                <p className="mt-3 leading-relaxed text-ink-2">{link.body}</p>
-              </a>
-            </Reveal>
-          ))}
-        </div>
+    <Section tone={tone}>
+      <Header kicker={block.kicker} title={block.title} subtitle={block.subtitle} />
+      <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {block.links.map((link, i) => (
+          <Reveal key={link.title} delay={i * 0.07}>
+            <a
+              href={link.external || link.href.startsWith("http") ? link.href : `${base}${link.href}`}
+              {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              className="group block h-full rounded-xl border border-hairline bg-surface p-8 transition-shadow hover:shadow-md"
+            >
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-ink-1">
+                {link.title}
+                <svg className="h-4 w-4 shrink-0 text-accent transition-transform group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 12h15m0 0l-6-6m6 6l-6 6" />
+                </svg>
+              </h3>
+              <p className="mt-3 leading-relaxed text-ink-2">{link.body}</p>
+            </a>
+          </Reveal>
+        ))}
       </div>
-    </section>
+    </Section>
   );
 }
 
 export default function DetailPage({ data, base }: { data: DetailPageData; base: string }) {
   const lang = base.split("/")[2] || "es";
   const t = getContent(lang);
+
+  // Ritmo de superficies automático (mismo patrón que la home): blanco, gris,
+  // blanco... empezando por el hero — nada que tocar por sección.
+  let toneIndex = 0;
+  const tone = (): Tone => (toneIndex++ % 2 === 0 ? "white" : "gray");
+
   return (
-    <>
-      <Nav />
-      <main>
-        {/* Hero de la página de detalle */}
-        <section className="border-b border-hairline bg-surface">
-          <Reveal className="mx-auto max-w-4xl px-4 pt-20 pb-16 text-center sm:px-6 lg:pt-24">
-            <p className="mb-5 inline-block rounded-full border border-hairline bg-surface-2 px-4 py-1.5 text-xs font-semibold tracking-widest text-accent uppercase">
-              {data.eyebrow}
-            </p>
-            {data.icon && !data.graphic && (
-              <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-accent-soft text-accent">
-                <DIcon name={data.icon} className="h-7 w-7" />
-              </div>
-            )}
-            <h1 className="text-4xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-5xl lg:text-6xl">{data.title}</h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-ink-2">{data.subtitle}</p>
-            {data.graphic && (
-              <div className="mx-auto mt-10 max-w-lg overflow-hidden rounded-xl border border-hairline">
-                <ConceptGraphic id={data.graphic} />
-              </div>
-            )}
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <a href={`${base}/#contacto`} className={`w-full sm:w-auto ${btnPrimary} ${btnLg}`}>
-                {t.nav.cta}
-              </a>
+    <main>
+      {/* Hero de la página de detalle */}
+      <Section tone={tone()} contentClassName="py-20 text-center lg:py-24">
+        <Reveal className="mx-auto max-w-4xl">
+          <p className="mb-5 inline-block rounded-full border border-hairline bg-surface-2 px-4 py-1.5 text-xs font-semibold tracking-widest text-accent uppercase">
+            {data.eyebrow}
+          </p>
+          {data.icon && !data.graphic && (
+            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-accent-soft text-accent">
+              <DIcon name={data.icon} className="h-7 w-7" />
             </div>
-          </Reveal>
-        </section>
-
-        {data.blocks.map((block, i) => (
-          <BlockView key={i} block={block} tone={i % 2 === 0 ? "gray" : "white"} base={base} />
-        ))}
-
-        {/* CTA final */}
-        <section className="border-y border-ink-1 bg-ink-1 dark:border-hairline dark:bg-surface">
-          <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6">
-            <h2 className="text-3xl font-semibold tracking-[-0.02em] text-page sm:text-4xl dark:text-ink-1">{t.finalCta.title}</h2>
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-page/70 dark:text-ink-2">{t.finalCta.body}</p>
-            <a href={`${base}/contacto?intent=demo`} className="mt-10 inline-block rounded-lg bg-white px-8 py-4 text-base font-medium text-gray-950 transition-colors hover:bg-gray-100">
-              {t.finalCta.cta}
+          )}
+          <h1 className="text-4xl font-semibold tracking-[-0.02em] text-ink-1 sm:text-5xl lg:text-6xl">{data.title}</h1>
+          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-ink-2">{data.subtitle}</p>
+          {data.graphic && (
+            <div className="mx-auto mt-10 max-w-lg overflow-hidden rounded-xl border border-hairline">
+              <ConceptGraphic id={data.graphic} />
+            </div>
+          )}
+          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <a href={`${base}/#contacto`} className={`w-full sm:w-auto ${btnPrimary} ${btnLg}`}>
+              {t.nav.cta}
             </a>
           </div>
-        </section>
-      </main>
-      <Footer base={base} lang={lang} />
-    </>
+        </Reveal>
+      </Section>
+
+      {data.blocks.map((block, i) => (
+        <BlockView key={i} block={block} tone={tone()} base={base} />
+      ))}
+
+      {/* CTA final — mismo componente que la home, sigue el ritmo automático */}
+      <FinalCta lang={lang} tone={tone()} />
+    </main>
   );
 }

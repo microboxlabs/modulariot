@@ -3,7 +3,9 @@ import { ThemeModeScript } from "flowbite-react";
 import { NextIntlClientProvider } from "next-intl";
 import { Inter } from "next/font/google";
 import "../../globals.css";
+import Nav from "../../../components/v2/Nav";
 import DemoFab from "../../../components/v2/DemoFab";
+import { Footer } from "../../../components/v2/sections/Footer";
 import { getMessages } from "../../../i18n/request";
 
 const inter = Inter({
@@ -64,6 +66,7 @@ export default async function RootLayout({
 }>) {
   const { lang } = await params;
   const messages = getMessages(lang);
+  const base = `/alpha-2506/${lang}`;
 
   return (
     <html lang={lang} suppressHydrationWarning className={inter.variable}>
@@ -72,9 +75,17 @@ export default async function RootLayout({
         <link rel="canonical" href="https://modulariot.com" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className="min-h-screen bg-page font-sans text-ink-1 antialiased">
+      <body className="bg-page font-sans text-ink-1 antialiased">
         <NextIntlClientProvider locale={lang} messages={messages}>
-          {children}
+          {/* Cascarón compartido: Nav fijo arriba, todo lo demás (contenido de
+              página + Footer) vive en el único panel que hace scroll. */}
+          <div className="flex h-dvh flex-col overflow-hidden">
+            <Nav />
+            <div className="flex-1 overflow-y-auto">
+              {children}
+              <Footer base={base} lang={lang} />
+            </div>
+          </div>
         </NextIntlClientProvider>
         <DemoFab lang={lang} />
       </body>

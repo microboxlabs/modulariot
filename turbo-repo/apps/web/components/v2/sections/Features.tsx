@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { Reveal } from "../Reveal";
-import { Section, SectionHeader, Icon, Check } from "./shared";
+import { Section, SectionHeader, Icon, Check, type Tone } from "./shared";
 
 type FeatureCard = { title: string; body: string; bullets: string[] };
 
@@ -16,11 +16,11 @@ const stageTone: Record<string, { chip: string; check: string }> = {
   plug: { chip: "bg-action/10 text-action", check: "text-action" },
 };
 
-export async function Features({ lang }: { lang: string }) {
+export async function Features({ lang, tone }: { lang: string; tone: Tone }) {
   const t = await getTranslations({ locale: lang, namespace: "features" });
   const cards = t.raw("cards") as FeatureCard[];
   return (
-    <Section id="caracteristicas" tone="gray">
+    <Section id="caracteristicas" tone={tone}>
       <SectionHeader kicker={t("kicker")} title={t("title")} subtitle={t("subtitle")} />
       <div className="mt-12 grid gap-4 lg:grid-cols-3">
         {cards.map((card, i) => {

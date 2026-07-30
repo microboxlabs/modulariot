@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import HeroTerminal from "../HeroTerminal";
-import { Eyebrow, btnPrimary, btnLg } from "./shared";
+import { LynxMark } from "../brand/Logo";
+import { Eyebrow, Section, btnPrimary, btnLg, type Tone } from "./shared";
 
 // Subrayado de firma: la cinta del pico del Lynx (chevrón 1:2, grosor a/16)
 // tendida bajo el verbo del titular. Ámbar de marca, se adapta al tema.
@@ -15,32 +16,37 @@ function AmberChevron({ children }: { children: React.ReactNode }) {
   );
 }
 
-export async function Hero({ lang }: { lang: string }) {
+export async function Hero({ lang, tone }: { lang: string; tone: Tone }) {
   const t = await getTranslations({ locale: lang, namespace: "hero" });
   return (
-    <section className="relative overflow-hidden bg-page">
-      <div className="hero-bg" aria-hidden />
-      <div className="relative mx-auto max-w-7xl px-6 pt-16 pb-16 lg:pt-21 lg:pb-24">
-        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-16">
-          <div>
-            <Eyebrow>{t("kicker")}</Eyebrow>
-            <h1 className="display mt-5 text-[clamp(40px,3.5vw,64px)] leading-[1.05]">
-              {t("titlePre")}
-              <AmberChevron>{t("titleHighlight")}</AmberChevron>
-              {t("titlePost")}
-            </h1>
-            <p className="mt-5 max-w-[56ch] text-lg leading-[1.55] text-ink-2">{t("subtitle")}</p>
-            <div className="mt-8 flex flex-wrap gap-2.5">
-              <a href="#contacto" className={`${btnPrimary} ${btnLg}`}>
-                {t("ctaPrimary")}
-              </a>
-            </div>
+    <Section tone={tone} contentClassName="pt-16 pb-16 lg:pt-21 lg:pb-24">
+      <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-16">
+        <div>
+          <Eyebrow>{t("kicker")}</Eyebrow>
+          <h1 className="display mt-5 text-[clamp(40px,3.5vw,64px)] leading-[1.05]">
+            {t("titlePre")}
+            <AmberChevron>{t("titleHighlight")}</AmberChevron>
+          </h1>
+          <p className="mt-5 max-w-[56ch] text-lg leading-[1.55] text-ink-2">{t("subtitle")}</p>
+          <div className="mt-8 flex flex-wrap gap-2.5">
+            <a href="#contacto" className={`${btnPrimary} ${btnLg}`}>
+              {t("ctaPrimary")}
+            </a>
           </div>
+        </div>
 
-          {/* Pipeline en vivo (animado) */}
-          <HeroTerminal />
+        {/* Pipeline en vivo (animado) — el Lynx asoma detrás, "cortado" por
+            la tarjeta del terminal (que es opaca), centrado en la columna. */}
+        <div className="relative">
+          <LynxMark
+            aria-hidden
+            className="hidden pointer-events-none absolute top-3/5 left-0 -rotate-12 h-[120%] w-[120%] translate-x-[-70%] -translate-y-1/2 text-ink-1 opacity-[0.06]"
+          />
+          <div className="relative z-10">
+            <HeroTerminal />
+          </div>
         </div>
       </div>
-    </section>
+    </Section>
   );
 }

@@ -1,12 +1,12 @@
 import { getTranslations } from "next-intl/server";
-import { Section, SectionHeader, Check } from "./shared";
+import { Section, SectionHeader, Check, type Tone } from "./shared";
 
-export async function PainOutcome({ lang }: { lang: string }) {
+export async function PainOutcome({ lang, tone }: { lang: string; tone: Tone }) {
   const t = await getTranslations({ locale: lang, namespace: "painOutcome" });
   const leftItems = t.raw("left.items") as string[];
   const rightItems = t.raw("right.items") as string[];
   return (
-    <Section tone="white">
+    <Section tone={tone}>
       <SectionHeader kicker={t("kicker")} title={t("title")} />
       <div className="mt-12 order-2 grid overflow-hidden rounded-[14px] border border-hairline bg-surface sm:grid-cols-2 lg:order-1 lg:col-span-2">
         <div className="p-7">

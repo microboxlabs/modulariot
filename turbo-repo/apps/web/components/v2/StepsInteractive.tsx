@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { Eyebrow } from "./sections/shared";
+import { Eyebrow, Section, type Tone } from "./sections/shared";
 
 // Stepper interactivo autoreproducido: fila de indicadores con el activo
 // resaltado + tarjeta que cambia sola. El pipeline es una secuencia real
@@ -33,7 +33,7 @@ const cardVariants = {
 
 type Step = { n: string; title: string; body: string; tag: string };
 
-export default function StepsInteractive() {
+export default function StepsInteractive({ tone }: { tone: Tone }) {
   const t = useTranslations("steps");
   const steps = t.raw("items") as Step[];
   const [active, setActive] = useState(0);
@@ -57,89 +57,87 @@ export default function StepsInteractive() {
   const step = steps[active];
 
   return (
-    <section id="como-funciona" className="scroll-mt-16 border-y border-hairline bg-page">
-      <div className="mx-auto max-w-7xl px-6 py-16 sm:py-20 lg:py-24">
-        <div className="max-w-[720px]">
-          <Eyebrow>{t("kicker")}</Eyebrow>
-          <h2 className="display mt-4 text-[clamp(30px,3.8vw,46px)] leading-[1.1]">{t("title")}</h2>
-          <p className="mt-4 max-w-[56ch] text-[17px] leading-relaxed text-ink-2">{t("subtitle")}</p>
-        </div>
+    <Section id="como-funciona" tone={tone}>
+      <div className="max-w-[720px]">
+        <Eyebrow>{t("kicker")}</Eyebrow>
+        <h2 className="display mt-4 text-[clamp(30px,3.8vw,46px)] leading-[1.1]">{t("title")}</h2>
+        <p className="mt-4 max-w-[56ch] text-[17px] leading-relaxed text-ink-2">{t("subtitle")}</p>
+      </div>
 
-        <div
-          className="mt-12"
-          onMouseEnter={() => setPaused(true)}
-          onMouseLeave={() => setPaused(false)}
-        >
-          {/* Fila de indicadores */}
-          <div className="relative mx-auto grid max-w-5xl grid-cols-5 gap-2">
-            {/* línea base */}
-            <div className="absolute top-7 right-[10%] left-[10%] -z-0 hidden h-px bg-hairline-strong sm:block" />
-            {steps.map((s, i) => {
-              const isActive = i === active;
-              const isDone = i < active;
-              return (
-                <button
-                  key={s.n}
-                  onClick={() => goTo(i)}
-                  className="group relative z-10 flex flex-col items-center gap-2"
-                  aria-label={`${t("stepAriaLabel")} ${i + 1}: ${s.title}`}
-                >
-                  <span
-                    className={`flex h-14 w-14 items-center justify-center rounded-full border-2 transition-all duration-300 ${
-                      isActive
-                        ? "scale-110 border-accent bg-accent text-white"
-                        : isDone
-                          ? "border-accent bg-surface text-accent group-hover:scale-105"
-                          : "border-hairline-strong bg-surface text-ink-4 group-hover:scale-105 group-hover:border-accent group-hover:text-accent"
-                    }`}
-                  >
-                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-                      {isDone ? (
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      ) : (
-                        stepIcons[i]
-                      )}
-                    </svg>
-                  </span>
-                  <span
-                    className={`text-center text-xs font-medium transition-colors duration-300 sm:text-sm ${
-                      isActive ? "text-accent" : "text-ink-3 group-hover:text-accent"
-                    }`}
-                  >
-                    {s.title}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Tarjeta del paso activo */}
-          <div className="mx-auto mt-12 max-w-xl overflow-hidden">
-            <AnimatePresence mode="wait" custom={direction}>
-              <motion.div
-                key={active}
-                custom={direction}
-                variants={cardVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                className="rounded-[14px] border border-hairline bg-surface p-8"
+      <div
+        className="mt-12"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        {/* Fila de indicadores */}
+        <div className="relative mx-auto grid max-w-5xl grid-cols-5 gap-2">
+          {/* línea base */}
+          <div className="absolute top-7 right-[10%] left-[10%] -z-0 hidden h-px bg-hairline-strong sm:block" />
+          {steps.map((s, i) => {
+            const isActive = i === active;
+            const isDone = i < active;
+            return (
+              <button
+                key={s.n}
+                onClick={() => goTo(i)}
+                className="group relative z-10 flex flex-col items-center gap-2"
+                aria-label={`${t("stepAriaLabel")} ${i + 1}: ${s.title}`}
               >
-                <p className="font-mono text-[11px] tracking-[0.12em] text-ink-4 uppercase">
-                  {step.n} · {step.tag}
-                </p>
-                <p className="mt-3 text-base leading-relaxed text-ink-2">{step.body}</p>
-              </motion.div>
-            </AnimatePresence>
-          </div>
+                <span
+                  className={`flex h-14 w-14 items-center justify-center rounded-full border-2 transition-all duration-300 ${
+                    isActive
+                      ? "scale-110 border-accent bg-accent text-white"
+                      : isDone
+                        ? "border-accent bg-surface text-accent group-hover:scale-105"
+                        : "border-hairline-strong bg-surface text-ink-4 group-hover:scale-105 group-hover:border-accent group-hover:text-accent"
+                  }`}
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                    {isDone ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    ) : (
+                      stepIcons[i]
+                    )}
+                  </svg>
+                </span>
+                <span
+                  className={`text-center text-xs font-medium transition-colors duration-300 sm:text-sm ${
+                    isActive ? "text-accent" : "text-ink-3 group-hover:text-accent"
+                  }`}
+                >
+                  {s.title}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="mx-auto mt-10 max-w-xl rounded-[14px] border border-hairline bg-surface px-6 py-5 text-center">
-          <p className="font-mono text-lg font-bold text-accent">{t("outro.latency")}</p>
-          <p className="mt-1 text-sm text-ink-3">{t("outro.subtitle")}</p>
+        {/* Tarjeta del paso activo */}
+        <div className="mx-auto mt-12 max-w-xl overflow-hidden">
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div
+              key={active}
+              custom={direction}
+              variants={cardVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="rounded-[14px] border border-hairline bg-surface p-8"
+            >
+              <p className="font-mono text-[11px] tracking-[0.12em] text-ink-4 uppercase">
+                {step.n} · {step.tag}
+              </p>
+              <p className="mt-3 text-base leading-relaxed text-ink-2">{step.body}</p>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
-    </section>
+
+      <div className="mx-auto mt-10 max-w-xl rounded-[14px] border border-hairline bg-surface px-6 py-5 text-center">
+        <p className="font-mono text-lg font-bold text-accent">{t("outro.latency")}</p>
+        <p className="mt-1 text-sm text-ink-3">{t("outro.subtitle")}</p>
+      </div>
+    </Section>
   );
 }

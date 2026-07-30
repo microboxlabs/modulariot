@@ -2,6 +2,8 @@
 // del DS (var(--…)), así siguen el tema claro/oscuro sin variantes duplicadas.
 // Cada caja usa su color semántico: señal azul, síntoma ámbar, urgente rosa.
 
+import { LYNX_SOLID, LYNX_EYE_X, LYNX_IRIS_R, LYNX_PUPIL_R, LYNX_BEAK_LINE } from "./brand/lynx-geometry";
+
 const banner = "w-full aspect-[400/176]";
 
 export function ConceptGraphic({ id }: { id: string }) {
@@ -51,24 +53,32 @@ export function ConceptGraphic({ id }: { id: string }) {
           <path d="M0 0 L0 -62 A62 62 0 0 1 54 -30 Z" fill="var(--symptom)" opacity="0.3">
             <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="4.5s" repeatCount="indefinite" />
           </path>
-          <circle cx="32" cy="-24" r="7" fill="var(--urgent)" />
+          {/* Blip sincronizado con la barrida (mismo dur="4.5s", sin
+              desfase): el sweep empieza arriba (rotate 0) apuntando justo a
+              este punto, así que el blip aparece rápido en ese instante y se
+              apaga lento el resto de la vuelta, en vez de titilar aparte. */}
+          <circle cx="32" cy="-24" r="7" fill="var(--urgent)">
+            <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.05;0.4;1" dur="4.5s" repeatCount="indefinite" />
+          </circle>
           <circle cx="32" cy="-24" r="7" fill="none" stroke="var(--urgent)" strokeWidth="2">
-            <animate attributeName="r" values="7;16;7" dur="1.6s" repeatCount="indefinite" />
-            <animate attributeName="opacity" values="0.8;0;0.8" dur="1.6s" repeatCount="indefinite" />
+            <animate attributeName="r" values="7;18;18" keyTimes="0;0.4;1" dur="4.5s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0;0.8;0;0" keyTimes="0;0.05;0.4;1" dur="4.5s" repeatCount="indefinite" />
           </circle>
         </g>
         {/* checklist de severidad */}
         <g transform="translate(200 46)">
-          <rect x="-8" y="-10" width="180" height="104" fill="var(--surface)" stroke="var(--hairline)" />
+          <rect x="-8" y="-10" width="180" height="104" rx="14" fill="var(--surface)" stroke="var(--hairline)" />
+          {/* fila destacada: el síntoma urgente que el radar acaba de marcar */}
+          <rect x="-4" y="-2" width="172" height="28" rx="8" fill="var(--urgent)" opacity="0.08" />
           {[
-            { c: "var(--urgent)", w: 140 },
-            { c: "var(--symptom)", w: 104 },
-            { c: "var(--signal)", w: 122 },
+            { c: "var(--urgent)", w: 128 },
+            { c: "var(--symptom)", w: 112 },
+            { c: "var(--signal)", w: 96 },
           ].map((r, i) => (
-            <g key={i} transform={`translate(4 ${i * 30})`}>
+            <g key={i} transform={`translate(4 ${i * 30 + 4})`}>
               <circle cx="8" cy="8" r="9" fill={r.c} />
               <path d="M4 8l2.6 2.6L12.5 5" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              <rect x="26" y="3" width={r.w} height="10" fill={r.c} opacity="0.18" />
+              <rect x="26" y="3" width={r.w} height="10" rx="5" fill={r.c} opacity="0.18" />
             </g>
           ))}
         </g>
@@ -93,10 +103,20 @@ export function ConceptGraphic({ id }: { id: string }) {
               <animate attributeName="r" values="15;17;15" dur="2.2s" repeatCount="indefinite" begin={`${i * 0.25}s`} />
             </circle>
           ))}
-          <circle r="30" fill="var(--accent)" />
+          <circle r="30" fill="#0b1220" />
           <circle r="30" fill="none" stroke="#fff" strokeOpacity="0.3" strokeWidth="1.5" />
-          <path d="M-10 -3a7 7 0 0110-6 7 7 0 0110 6" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" />
-          <path d="M-10 5l5 5M10 5l-5 5" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+          {/* Nodo central = marca Lynx (prueba), disco oscuro fijo (no el
+              acento) para que la marca resalte. Centro vertical real del
+              path (medido con getBBox, no a ojo): y≈-29.665 — ni el centro
+              del viewBox (-12) ni la estimación anterior (-48). */}
+          <g transform="translate(0 4.75) scale(0.16)">
+            <path d={LYNX_SOLID} fill="#fff" fillRule="nonzero" />
+            <circle cx={-LYNX_EYE_X} cy={0} r={LYNX_IRIS_R} fill="var(--brand-amber)" />
+            <circle cx={LYNX_EYE_X} cy={0} r={LYNX_IRIS_R} fill="var(--brand-amber)" />
+            <circle cx={-LYNX_EYE_X} cy={0} r={LYNX_PUPIL_R} fill="#0b1220" />
+            <circle cx={LYNX_EYE_X} cy={0} r={LYNX_PUPIL_R} fill="#0b1220" />
+            <path d={LYNX_BEAK_LINE} fill="#fff" />
+          </g>
         </g>
       </svg>
     );
@@ -106,24 +126,34 @@ export function ConceptGraphic({ id }: { id: string }) {
   return (
     <svg viewBox="0 0 400 176" className={banner} fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Streaming de video en vivo desde cámaras">
       <rect width="400" height="176" fill="var(--surface-2)" />
-      {/* pantalla */}
-      <rect x="40" y="36" width="188" height="112" fill="#13273D" />
-      <rect x="52" y="48" width="164" height="72" fill="#0e1013" />
-      {/* botón play */}
-      <circle cx="134" cy="84" r="24" fill="var(--accent)" />
-      <path d="M126 72l20 12-20 12z" fill="#fff" />
-      {/* etiqueta LIVE */}
-      <rect x="60" y="128" width="42" height="12" fill="var(--urgent)" opacity="0.9" />
-      <circle cx="70" cy="134" r="3" fill="#fff">
-        <animate attributeName="opacity" values="1;0.2;1" dur="1.4s" repeatCount="indefinite" />
-      </circle>
-      <rect x="150" y="129" width="60" height="8" fill="var(--ink-4)" />
-      {/* tira de frames */}
-      {[0, 1, 2, 3].map((i) => (
-        <rect key={i} x={248} y={46 + i * 27} width="116" height="19" fill="var(--signal)">
-          <animate attributeName="opacity" values="0.18;0.6;0.18" dur="2.2s" repeatCount="indefinite" begin={`${i * 0.3}s`} />
-        </rect>
-      ))}
+      {/* reproductor: pantalla tipo TV, con luz de "en vivo" en la esquina */}
+      <g transform="translate(98 88)">
+        <rect x="-64" y="-52" width="128" height="104" rx="14" fill="var(--surface)" stroke="var(--hairline)" />
+        <rect x="-54" y="-44" width="108" height="88" rx="8" fill="#0b0d12" />
+        <circle cx="0" cy="0" r="20" fill="#3a3f47" />
+        <path d="M-6 -10l16 10-16 10z" fill="#fff" opacity="0.8" />
+        {/* mismo patrón de pulso rápido-lento que la grilla de cámaras */}
+        <circle cx="-43" cy="-33" r="4" fill="var(--urgent)">
+          <animate attributeName="opacity" values="1;1;0.25;1" keyTimes="0;0.1;0.55;1" dur="1.8s" repeatCount="indefinite" />
+        </circle>
+      </g>
+      {/* grilla de cámaras: mismo tamaño de tarjeta que el panel de síntomas, más cerca del televisor */}
+      <g transform="translate(188 46)">
+        <rect x="-8" y="-10" width="180" height="104" rx="14" fill="var(--surface)" stroke="var(--hairline)" />
+        {[
+          { x: 0, y: -2 },
+          { x: 86, y: -2 },
+          { x: 0, y: 44 },
+          { x: 86, y: 44 },
+        ].map((tile, i) => (
+          <g key={i} transform={`translate(${tile.x} ${tile.y})`}>
+            <rect width="78" height="40" rx="6" fill="#0b0d12" />
+            <circle cx="10" cy="10" r="3" fill="var(--urgent)">
+              <animate attributeName="opacity" values="1;1;0.25;1" keyTimes="0;0.1;0.55;1" dur="1.8s" repeatCount="indefinite" begin={`${i * 0.35}s`} />
+            </circle>
+          </g>
+        ))}
+      </g>
     </svg>
   );
 }

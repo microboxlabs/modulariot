@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Nav from "../../../../components/v2/Nav";
 import ModuleTabs from "../../../../components/v2/ModuleTabs";
 import GpsProviders from "../../../../components/v2/GpsProviders";
-import { Footer } from "../../../../components/v2/sections/Footer";
 import { FinalCta } from "../../../../components/v2/sections/FinalCta";
 
 export const metadata: Metadata = {
@@ -20,13 +18,11 @@ export default async function ProveedoresGpsPage({
   const base = `/alpha-2506/${lang}`;
   return (
     <>
-      <Nav />
       <ModuleTabs base={base} active="gps" lang={lang} />
       <main>
         <GpsProviders />
         <FinalCta lang={lang} />
       </main>
-      <Footer base={base} lang={lang} />
     </>
   );
 }

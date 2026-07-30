@@ -217,6 +217,25 @@
     height: 0.14em;
     color: var(--brand-amber);
   }
+
+  /* Carrusel de logos "trusted by": tira duplicada que se desliza de
+     derecha a izquierda, lento y sin fin — se pausa con prefers-reduced-motion. */
+  .logo-marquee {
+    animation: logo-marquee 90s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .logo-marquee {
+      animation: none;
+    }
+  }
+  @keyframes logo-marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
 }
 
 @layer utilities {

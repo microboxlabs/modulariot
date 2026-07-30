@@ -1,14 +1,14 @@
 import { getTranslations } from "next-intl/server";
 import { Reveal } from "../Reveal";
-import { Section, SectionHeader } from "./shared";
+import { Section, SectionHeader, type Tone } from "./shared";
 
 type Pain = { title: string; body: string };
 
-export async function Problem({ lang }: { lang: string }) {
+export async function Problem({ lang, tone }: { lang: string; tone: Tone }) {
   const t = await getTranslations({ locale: lang, namespace: "problem" });
   const pains = t.raw("pains") as Pain[];
   return (
-    <Section tone="white">
+    <Section tone={tone}>
       <SectionHeader kicker={t("kicker")} title={t("title")} subtitle={t("subtitle")} />
       <div className="mt-12 grid gap-4 md:grid-cols-3">
         {pains.map((p, i) => (

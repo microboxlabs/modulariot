@@ -35,7 +35,7 @@ export const content = {
           ],
         },
         {
-          title: "Explóralo en vivo · datos reales",
+          title: "En vivo, con datos reales",
           items: [
             { icon: "radar", label: "Torre de control", href: "/torre", desc: "Los 36 síntomas sobre una operación real" },
             { icon: "stack", label: "SuperProfile", href: "/superprofile", desc: "La identidad operacional viva de cada actor" },
@@ -78,7 +78,6 @@ export const content = {
             title: "Aprende",
             links: [
               { label: "Documentación", href: "https://docs.modulariot.com", external: true },
-              { label: "Casos reales", href: "/#clientes" },
               { label: "Preguntas frecuentes", href: "/#faq" },
             ],
             footer: { label: "Todos los recursos", href: "/recursos" },
@@ -454,53 +453,6 @@ export const content = {
       },
     ],
     copyright: `© ${new Date().getFullYear()} MicroBox Labs · Todos los derechos reservados`,
-  },
-
-  // Página /precios — infraestructura tipo clickhouse.com/pricing:
-  // header → filosofía → calculadora → FAQ de precios → CTA.
-  pricingPage: {
-    kicker: "Precios",
-    title: "Paga por activo, solo por lo que usas",
-    subtitle:
-      "Paga basado en uso, no por licencias por asiento. Cada caja de procesamiento tiene precio propio por activo/mes y escala conforme crece tu flota.",
-    philosophy: [
-      {
-        title: "Paga solo por lo que usas",
-        body: "Contratas cajas de procesamiento independientes. Si no usas video o integraciones, no las pagas.",
-      },
-      {
-        title: "Precio por activo, transparente",
-        body: "Un precio fijo por activo/mes por cada caja. Sin sorpresas, sin costos de instalación, sin permanencia mínima.",
-      },
-      {
-        title: "Basado en costos reales",
-        body: "Los precios derivan del costo real de infraestructura por transacción de la plataforma, no de una tarifa arbitraria.",
-      },
-    ],
-    faqTitle: "Preguntas sobre precios",
-    faqs: [
-      {
-        q: "¿Cómo se cobra el servicio?",
-        a: "Suscripción mensual por activo monitoreado, según las cajas de procesamiento que contrates. La propuesta final se entrega después del diagnóstico gratuito.",
-      },
-      {
-        q: "¿Los precios de la calculadora son finales?",
-        a: "Son referenciales, basados en costos reales de infraestructura. La propuesta formal puede variar según volumen, configuración de reglas y modelo de implementación (tu nube, gestionado o edge híbrido).",
-      },
-      {
-        q: "¿Hay costos de instalación o permanencia mínima?",
-        a: "No. La integración con tu tecnología actual está incluida y puedes ajustar o cancelar las cajas contratadas mes a mes.",
-      },
-      {
-        q: "¿Qué incluye cada caja?",
-        a: "Cada caja es un servicio completo: infraestructura, procesamiento, panel de gestión y soporte. La caja de Ingesta GPS Core es la base sobre la que operan las demás.",
-      },
-    ],
-    cta: {
-      title: "¿Tu caso es más complejo?",
-      body: "Flotas grandes, múltiples operaciones o requisitos de cumplimiento específicos: conversemos y armamos una propuesta a medida.",
-      button: "Hablar con nosotros",
-    },
   },
 };
 

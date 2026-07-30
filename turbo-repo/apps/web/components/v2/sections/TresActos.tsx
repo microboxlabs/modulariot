@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { Reveal } from "../Reveal";
-import { Section, SectionHeader, ArrowRight } from "./shared";
+import { Section, SectionHeader, ArrowRight, type Tone } from "./shared";
 
 type Acto = { n: string; tag: string; title: string; body: string; cta: string };
 
@@ -9,12 +9,12 @@ type Acto = { n: string; tag: string; title: string; body: string; cta: string }
 // índice con el array "actos" del namespace tresActos en los JSON de i18n.
 const HREFS = (base: string) => [`${base}/torre`, `${base}/superprofile`, `${base}/canales`];
 
-export async function TresActos({ base, lang }: { base: string; lang: string }) {
+export async function TresActos({ base, lang, tone }: { base: string; lang: string; tone: Tone }) {
   const t = await getTranslations({ locale: lang, namespace: "tresActos" });
   const actos = t.raw("actos") as Acto[];
   const hrefs = HREFS(base);
   return (
-    <Section id="tesis" tone="gray">
+    <Section id="tesis" tone={tone}>
       <SectionHeader kicker={t("kicker")} title={t("title")} subtitle={t("subtitle")} />
       <div className="mt-12 grid gap-4 md:grid-cols-3">
         {actos.map((a, i) => (

@@ -24,7 +24,7 @@ export const pt = {
           ],
         },
         {
-          title: "Explore ao vivo · dados reais",
+          title: "Ao vivo, com dados reais",
           items: [
             { icon: "radar", label: "Torre de controle", href: "/torre", desc: "Os 36 sintomas sobre uma operação real" },
             { icon: "stack", label: "SuperProfile", href: "/superprofile", desc: "A identidade operacional viva de cada ator" },
@@ -67,7 +67,6 @@ export const pt = {
             title: "Aprenda",
             links: [
               { label: "Documentação", href: "https://docs.modulariot.com", external: true },
-              { label: "Casos reais", href: "/#clientes" },
               { label: "Perguntas frequentes", href: "/#faq" },
             ],
             footer: { label: "Todos os recursos", href: "/recursos" },
@@ -436,50 +435,5 @@ export const pt = {
       },
     ],
     copyright: `© ${new Date().getFullYear()} MicroBox Labs · Todos os direitos reservados`,
-  },
-
-  pricingPage: {
-    kicker: "Preços",
-    title: "Pague por ativo, só pelo que usa",
-    subtitle:
-      "Pague com base no uso, não em licenças por assento. Cada caixa de processamento tem preço próprio por ativo/mês e escala conforme sua frota cresce.",
-    philosophy: [
-      {
-        title: "Pague só pelo que usa",
-        body: "Você contrata caixas de processamento independentes. Se não usa vídeo ou integrações, não paga por elas.",
-      },
-      {
-        title: "Preço por ativo, transparente",
-        body: "Um preço fixo por ativo/mês para cada caixa. Sem surpresas, sem custos de instalação, sem fidelidade mínima.",
-      },
-      {
-        title: "Baseado em custos reais",
-        body: "Os preços derivam do custo real de infraestrutura por transação da plataforma, não de uma tarifa arbitrária.",
-      },
-    ],
-    faqTitle: "Perguntas sobre preços",
-    faqs: [
-      {
-        q: "Como o serviço é cobrado?",
-        a: "Assinatura mensal por ativo monitorado, conforme as caixas de processamento que você contratar. A proposta final é entregue após o diagnóstico gratuito.",
-      },
-      {
-        q: "Os preços da calculadora são finais?",
-        a: "São indicativos, baseados em custos reais de infraestrutura. A proposta formal pode variar conforme volume, configuração de regras e modelo de implantação (sua nuvem, gerenciado ou edge híbrido).",
-      },
-      {
-        q: "Há custos de instalação ou fidelidade mínima?",
-        a: "Não. A integração com sua tecnologia atual está incluída e você pode ajustar ou cancelar as caixas contratadas mês a mês.",
-      },
-      {
-        q: "O que cada caixa inclui?",
-        a: "Cada caixa é um serviço completo: infraestrutura, processamento, painel de gestão e suporte. A caixa de Ingestão GPS Core é a base sobre a qual as demais operam.",
-      },
-    ],
-    cta: {
-      title: "Seu caso é mais complexo?",
-      body: "Frotas grandes, múltiplas operações ou requisitos específicos de conformidade: vamos conversar e montar uma proposta sob medida.",
-      button: "Fale conosco",
-    },
   },
 };

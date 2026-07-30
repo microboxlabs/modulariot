@@ -46,6 +46,27 @@ export function LynxWordmark({ className }: { className?: string }) {
   );
 }
 
+// Ícono + wordmark como elementos independientes (no el lockup de un solo
+// SVG): permite ajustar el tamaño del ícono sin afectar el del texto, algo
+// que el viewBox combinado de LynxLockup no permite. Mismo look que el
+// header; reusar aquí en vez de repetir el par LynxMark+LynxWordmark.
+export function LynxBrand({
+  className = "",
+  iconClassName = "h-9 w-9",
+  wordmarkClassName = "h-5 w-auto",
+}: {
+  className?: string;
+  iconClassName?: string;
+  wordmarkClassName?: string;
+}) {
+  return (
+    <span className={`flex shrink-0 items-center gap-2 ${className}`}>
+      <LynxMark className={iconClassName} />
+      <LynxWordmark className={wordmarkClassName} />
+    </span>
+  );
+}
+
 // Lockup completo (marca + wordmark kerneado, Opción B: "Modular" en tinta,
 // "IoT" en ámbar — resuelve la ambigüedad I/l y hace intencional el ámbar).
 export function LynxLockup({ className }: { className?: string }) {

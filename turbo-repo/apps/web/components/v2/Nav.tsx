@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { DarkThemeToggle } from "flowbite-react";
 import { getContent } from "./content";
 import { Flag } from "./flags";
-import { LynxLockup } from "./brand/Logo";
+import { LynxBrand } from "./brand/Logo";
 
 const COUNTRY_KEY = "miot_country";
 
@@ -72,8 +72,18 @@ function Chevron() {
 }
 
 // Panel flotante: superficie del DS con hairline y sombra; scale+fade al hover.
+// Base sin position (absolute y fixed no pueden mezclarse en un mismo string:
+// ambos tocan la misma propiedad CSS y gana el orden interno de Tailwind, no
+// el orden del className). Cada trigger elige su propia variante de anclaje.
 const panelBase =
-  "pointer-events-none absolute top-full z-50 origin-top-left scale-95 pt-2 opacity-0 transition-all duration-150 group-hover:pointer-events-auto group-hover:scale-100 group-hover:opacity-100";
+  "pointer-events-none z-50 scale-95 pt-2 opacity-0 transition-all duration-150 group-hover:pointer-events-auto group-hover:scale-100 group-hover:opacity-100";
+// Anclado a la izquierda del propio botón — para paneles angostos que nunca se desbordan.
+const panelAnchored = `${panelBase} absolute left-0 top-full origin-top-left`;
+// Centrado en el viewport — para el panel ancho de Producto, que se desbordaría anclado al botón.
+// top-[48px]: el fondo real del botón (topItem), no el alto del wrapper del
+// grupo (h-[60px], que existe solo para el hover) — así el hueco visual
+// queda igual al de los paneles anclados (Soluciones/Recursos).
+const panelCentered = `${panelBase} fixed inset-x-0 top-[48px] mx-auto origin-top`;
 const panelCard = "rounded-xl border border-hairline bg-surface shadow-xl";
 
 const topItem =
@@ -109,29 +119,33 @@ export default function Nav() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-hairline bg-page/85 backdrop-blur-md">
       <nav className="mx-auto flex h-[60px] max-w-7xl items-center gap-2 px-6">
-        {/* Marca: lockup Lynx (tinta de marca + ámbar), consciente del tema */}
-        <a href={`${base}/`} className="mr-4 flex shrink-0 items-center text-brand-ink" aria-label="ModularIoT">
-          <LynxLockup className="h-7 w-auto" />
+        {/* Marca: componente compartido (ícono + wordmark independientes) */}
+        <a href={`${base}/`} className="mr-4 text-brand-ink" aria-label="ModularIoT">
+          <LynxBrand iconClassName="h-11 w-11" wordmarkClassName="h-5 w-auto" />
         </a>
 
         {/* Desktop */}
         <div className="hidden flex-1 items-center lg:flex">
-          {/* Producto: mega-menú con items ricos en secciones */}
-          <div className="group relative">
+          {/* Producto: mega-menú con items ricos en secciones. Centrado en el
+              viewport (no anclado al botón) porque es demasiado ancho para
+              quedar pegado a la izquierda sin desbordar. El wrapper mide el
+              alto completo de la barra (no solo el botón) para que no quede
+              una franja muerta que corte el hover al bajar el mouse. */}
+          <div className="group flex h-[60px] items-center">
             <button className={topItem}>
               {nav.mega.label}
               <Chevron />
             </button>
-            <div className={`${panelBase} left-0 ${nav.mega.sections.length >= 3 ? "w-[900px]" : "w-[720px]"}`}>
-              <div className={`grid ${nav.mega.sections.length >= 3 ? "grid-cols-3" : "grid-cols-2"} ${panelCard} p-5`}>
+            <div className={`${panelCentered} w-[92vw] ${nav.mega.sections.length >= 3 ? "max-w-7xl" : "max-w-3xl"}`}>
+              <div className={`grid ${nav.mega.sections.length >= 3 ? "grid-cols-3" : "grid-cols-2"} ${panelCard} p-6`}>
                 {nav.mega.sections.map((section, si) => (
                   <div key={section.title} className={si === 0 ? "pr-6" : "border-l border-hairline px-6"}>
-                    <p className="mb-2 px-2 text-xs font-semibold tracking-[0.08em] text-ink-3 uppercase">{section.title}</p>
+                    <p className="mb-3 px-2 text-xs font-semibold tracking-[0.08em] text-ink-3 uppercase">{section.title}</p>
                     {section.items.map((item) => (
                       <a
                         key={item.label}
                         href={resolveHref(base, item.href)}
-                        className="group/item flex items-start gap-3.5 rounded-lg px-2 py-2.5 transition-colors hover:bg-surface-3"
+                        className="group/item flex items-start gap-3.5 rounded-lg px-2 py-3 transition-colors hover:bg-surface-3"
                       >
                         <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
                           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -157,7 +171,7 @@ export default function Nav() {
                 {menu.label}
                 <Chevron />
               </button>
-              <div className={`${panelBase} left-0 w-[520px]`}>
+              <div className={`${panelAnchored} w-[520px]`}>
                 <div className={`grid grid-cols-2 ${panelCard} p-5`}>
                   {menu.columns.map((col, ci) => (
                     <div key={col.title} className={`flex flex-col ${ci === 1 ? "border-l border-hairline pl-6" : "pr-6"}`}>

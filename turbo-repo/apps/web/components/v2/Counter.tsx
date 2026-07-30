@@ -58,3 +58,32 @@ export function Counter({ value, duration = 1.4 }: { value: string; duration?: n
     </span>
   );
 }
+
+// Mismo efecto "contador mecánico", pero para valores que cambian en vivo
+// (slider, checkboxes) en vez de animar una sola vez al entrar al viewport.
+// Cada cambio anima desde el valor a medio camino (no desde 0), tomando el
+// control de la animación en curso si el usuario sigue moviendo el input.
+export function LiveNumber({ value, format, duration = 0.5 }: { value: number; format: (n: number) => string; duration?: number }) {
+  const reduce = useReducedMotion();
+  const [display, setDisplay] = useState(value);
+  const displayRef = useRef(value);
+
+  useEffect(() => {
+    if (reduce) {
+      displayRef.current = value;
+      setDisplay(value);
+      return;
+    }
+    const controls = animate(displayRef.current, value, {
+      duration,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (v) => {
+        displayRef.current = v;
+        setDisplay(v);
+      },
+    });
+    return () => controls.stop();
+  }, [value, reduce, duration]);
+
+  return <span className="tabular-nums">{format(display)}</span>;
+}

@@ -1834,6 +1834,7 @@
           "auth0ClientIdPlaceholder": "Busca aplicaciones, o pega un ID de cliente",
           "auth0ClientSecretPlaceholder": "Secreto de cliente de la aplicación en Auth0",
           "auth0ClientInactive": "Inactiva",
+          "auth0ClientOwned": "Tu organización",
           "auth0Audience": "Audiencia de la API",
           "auth0AudienceHelp": "El identificador de la API que consume esta credencial. Sin él Auth0 emite un token opaco que la API no puede validar — por eso aquí es obligatorio.",
           "auth0ScopePlaceholder": "read:resources write:resources",

@@ -1834,6 +1834,7 @@
           "auth0ClientIdPlaceholder": "Search applications, or paste a client ID",
           "auth0ClientSecretPlaceholder": "Client secret from the Auth0 application",
           "auth0ClientInactive": "Inactive",
+          "auth0ClientOwned": "Your organization",
           "auth0Audience": "API audience",
           "auth0AudienceHelp": "The API identifier this credential calls. Auth0 issues an opaque token without it, which the target API cannot validate — so it is required here.",
           "auth0ScopePlaceholder": "read:resources write:resources",

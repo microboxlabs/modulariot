@@ -146,6 +146,14 @@ export function M2MClientCombobox({
                       <span className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                         {client.name}
                       </span>
+                      {/* The org's own clients are what an operator is nearly
+                          always after, so they say so rather than sitting
+                          indistinguishable among directory suggestions. */}
+                      {client.source === "ORGANIZATION" && (
+                        <Badge color="info" size="xs">
+                          {tr("modal.auth0ClientOwned", dict)}
+                        </Badge>
+                      )}
                       {!client.active && (
                         <Badge color="gray" size="xs">
                           {tr("modal.auth0ClientInactive", dict)}

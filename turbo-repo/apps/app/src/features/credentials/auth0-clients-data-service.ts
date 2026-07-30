@@ -14,16 +14,29 @@ export interface M2MClientOption {
   readonly name: string;
   readonly description?: string;
   readonly active: boolean;
+  /**
+   * Where the row came from. `ORGANIZATION` means it is this org's own client
+   * or a child's — the entitlement is what put it here, so it is the one an
+   * operator is almost always looking for. `DIRECTORY` rows are suggestions
+   * from the applications service that no org is bound to yet.
+   */
+  readonly source?: "ORGANIZATION" | "DIRECTORY";
 }
 
 export interface M2MClientDirectory {
   readonly data: readonly M2MClientOption[];
   /**
-   * Which backend answered. `stub` means the auth0 service has no live endpoint
-   * yet and the list is fixtures — worth saying out loud in the UI so nobody
-   * saves a fabricated client id believing it resolves.
+   * Only set by the local fixture path (`MIOT_AUTH0_ADMIN_MODE=stub`). Worth
+   * saying out loud in the UI so nobody saves a fabricated client id believing
+   * it resolves.
    */
-  readonly source: "stub" | "service";
+  readonly source?: "stub" | "service";
+  /**
+   * From the modulith: whether the optional applications service is wired up.
+   * False means the list is the organization-derived half only — which is
+   * complete for the common case, so it is context rather than a warning.
+   */
+  readonly directoryEnabled?: boolean;
 }
 
 const base = (orgSlug: string) =>

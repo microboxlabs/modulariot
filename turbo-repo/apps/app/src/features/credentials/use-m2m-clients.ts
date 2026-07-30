@@ -46,7 +46,6 @@ export function useM2MClients(
 
   return {
     clients: data?.data ?? [],
-    source: data?.source ?? null,
     isLoading,
     error,
   };

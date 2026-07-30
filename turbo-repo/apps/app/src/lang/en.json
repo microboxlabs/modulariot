@@ -1842,7 +1842,6 @@
           "auth0TokenUrlOverridePlaceholder": "https://api.example.com/api/v1/login",
           "auth0TokenUrlOverrideHelp": "Only when a proxy fronts Auth0 instead of calling the tenant directly.",
           "auth0TokenRequestFormatHelp": "Auth0's own endpoint accepts form encoding. A proxy in front of it may expect a JSON body instead.",
-          "auth0DirectoryStub": "Sample data — the applications service isn't connected yet, so these client IDs are placeholders.",
           "auth0DirectoryLoading": "Loading applications...",
           "auth0DirectoryEmpty": "No applications match. You can paste a client ID instead.",
           "auth0DirectoryError": "Couldn't load applications. You can still paste a client ID."

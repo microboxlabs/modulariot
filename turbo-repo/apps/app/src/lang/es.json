@@ -1842,7 +1842,6 @@
           "auth0TokenUrlOverridePlaceholder": "https://api.example.com/api/v1/login",
           "auth0TokenUrlOverrideHelp": "Solo cuando un proxy antecede a Auth0 en lugar de llamar al tenant directamente.",
           "auth0TokenRequestFormatHelp": "El endpoint propio de Auth0 acepta form encoding. Un proxy delante puede esperar un cuerpo JSON.",
-          "auth0DirectoryStub": "Datos de ejemplo — el servicio de aplicaciones aún no está conectado, estos ID de cliente son de relleno.",
           "auth0DirectoryLoading": "Cargando aplicaciones...",
           "auth0DirectoryEmpty": "Ninguna aplicación coincide. Puedes pegar un ID de cliente.",
           "auth0DirectoryError": "No se pudieron cargar las aplicaciones. Aún puedes pegar un ID de cliente."

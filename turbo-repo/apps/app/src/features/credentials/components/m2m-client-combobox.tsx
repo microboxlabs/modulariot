@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Badge, Spinner, TextInput } from "flowbite-react";
-import { HiCheck, HiExclamationCircle } from "react-icons/hi";
+import { HiCheck } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useM2MClients } from "../use-m2m-clients";
@@ -39,11 +39,7 @@ export function M2MClientCombobox({
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { clients, source, isLoading, error } = useM2MClients(
-    orgSlug,
-    query,
-    open
-  );
+  const { clients, isLoading, error } = useM2MClients(orgSlug, query, open);
 
   // Close on outside click. Without this the list survives a click into another
   // field and overlaps whatever the operator moved on to.
@@ -98,15 +94,6 @@ export function M2MClientCombobox({
 
       {open && (
         <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-          {source === "stub" && (
-            <div className="flex items-start gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-700">
-              <HiExclamationCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-              <span className="text-xs text-gray-600 dark:text-gray-400">
-                {tr("modal.auth0DirectoryStub", dict)}
-              </span>
-            </div>
-          )}
-
           {isLoading && clients.length === 0 && (
             <div className="flex items-center gap-2 px-3 py-3">
               <Spinner size="sm" />

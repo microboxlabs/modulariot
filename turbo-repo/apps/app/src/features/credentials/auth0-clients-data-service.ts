@@ -26,15 +26,9 @@ export interface M2MClientOption {
 export interface M2MClientDirectory {
   readonly data: readonly M2MClientOption[];
   /**
-   * Only set by the local fixture path (`MIOT_AUTH0_ADMIN_MODE=stub`). Worth
-   * saying out loud in the UI so nobody saves a fabricated client id believing
-   * it resolves.
-   */
-  readonly source?: "stub" | "service";
-  /**
-   * From the modulith: whether the optional applications service is wired up.
-   * False means the list is the organization-derived half only — which is
-   * complete for the common case, so it is context rather than a warning.
+   * Whether the optional applications service is wired up. False means the list
+   * is the organization-derived half only — which is complete for the common
+   * case, so it is context rather than a warning.
    */
   readonly directoryEnabled?: boolean;
 }

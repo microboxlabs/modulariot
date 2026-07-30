@@ -164,15 +164,28 @@ describe("useCredentialForm", () => {
     await waitFor(() => expect(result.current.testResult).toBeNull());
   });
 
-  it("clears the testing flag even when the grant rejects", async () => {
-    const onTest = vi.fn().mockRejectedValue(new Error("network down"));
+  it("clears a prior result and the testing flag when the grant rejects", async () => {
+    const onTest = vi
+      .fn()
+      .mockResolvedValueOnce(ok)
+      .mockRejectedValueOnce(new Error("network down"));
     const { result } = setup({ editing: null, onTest });
 
-    await expect(
-      act(async () => {
+    await act(async () => {
+      await result.current.runTest({ ...DEFAULTS, secret: "x" });
+    });
+    expect(result.current.testResult).toEqual(ok);
+
+    let rejected = false;
+    await act(async () => {
+      try {
         await result.current.runTest({ ...DEFAULTS, secret: "x" });
-      })
-    ).rejects.toThrow("network down");
+      } catch {
+        rejected = true;
+      }
+    });
+    expect(rejected).toBe(true);
+    expect(result.current.testResult).toBeNull();
     expect(result.current.testing).toBe(false);
   });
 

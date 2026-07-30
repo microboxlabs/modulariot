@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import useSWR from "swr";
+import type { ApiError } from "@/features/settings-admin/data/settings-admin-data-service";
 import {
   fetchM2MClients,
   type M2MClientDirectory,
@@ -34,7 +35,7 @@ export function useM2MClients(
     return () => clearTimeout(timer);
   }, [query]);
 
-  const { data, error, isLoading } = useSWR<M2MClientDirectory, Error>(
+  const { data, error, isLoading } = useSWR<M2MClientDirectory, ApiError>(
     orgSlug && enabled ? [M2M_CLIENTS_KEY, orgSlug, debounced] : null,
     () => fetchM2MClients(orgSlug as string, debounced),
     {

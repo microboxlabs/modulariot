@@ -122,6 +122,7 @@ export function useCredentialForm<T extends CredentialBaseFields>(
   }, [show, editing, reset]);
 
   async function runTest(data: T) {
+    setTestResult(null);
     setTesting(true);
     try {
       setTestResult(await onTest(data));

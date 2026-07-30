@@ -408,7 +408,7 @@ export const Auth0M2MCredentialSchema = z.object({
     .string()
     .min(1, "validation.environmentRequired")
     .max(40, "validation.environmentTooLong"),
-  domain: z.string().min(1, "validation.auth0DomainRequired"),
+  domain: z.string().trim().min(1, "validation.auth0DomainRequired"),
   clientId: z.string().min(1, "validation.auth0ClientIdRequired"),
   clientSecret: z.string().min(1, "validation.clientSecretRequired"),
   audience: z.string().min(1, "validation.auth0AudienceRequired"),

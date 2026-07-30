@@ -1,13 +1,16 @@
 "use client";
 
 import { ApiError } from "@/features/settings-admin/data/settings-admin-data-service";
-import type {
-  AzureEntraFormData,
-  CredentialFormData,
-  CredentialListItem,
-  CredentialTestResult,
-  CredentialTypeId,
-  CredentialUsage,
+import {
+  AUTH0_M2M_PROVIDER,
+  buildAuth0TokenUrl,
+  type Auth0M2MFormData,
+  type AzureEntraFormData,
+  type CredentialFormData,
+  type CredentialListItem,
+  type CredentialTestResult,
+  type CredentialTypeId,
+  type CredentialUsage,
 } from "./credential.types";
 
 /**
@@ -85,11 +88,32 @@ async function sendJson<T>(
  * The API's shape into the one the screen renders. Field for field, except that the
  * backend calls a credential's name its display name, and null means absent here.
  */
+/**
+ * Auth0 M2M has no auth type of its own upstream — it is stored as the generic
+ * client-credentials grant, tagged in `publicConfig`. Both directions of that
+ * translation live here so nothing above this layer has to know.
+ */
+function toApiCredentialType(typeId: CredentialTypeId): CredentialTypeId {
+  return typeId === "AUTH0_M2M" ? "OAUTH2_CLIENT_CREDENTIALS" : typeId;
+}
+
+function fromApiCredentialType(
+  response: CredentialProfileResponse
+): CredentialTypeId {
+  if (
+    response.credentialType === "OAUTH2_CLIENT_CREDENTIALS" &&
+    response.publicConfig?.provider === AUTH0_M2M_PROVIDER
+  ) {
+    return "AUTH0_M2M";
+  }
+  return response.credentialType;
+}
+
 function toListItem(response: CredentialProfileResponse): CredentialListItem {
   return {
     id: response.id,
     name: response.displayName,
-    typeId: response.credentialType,
+    typeId: fromApiCredentialType(response),
     environment: response.environment,
     summary: response.summary ?? response.secretPreview ?? "",
     ...(response.lastTestedAt ? { lastTestedAt: response.lastTestedAt } : {}),
@@ -116,13 +140,42 @@ function toStringConfig(config: Record<string, unknown>): Record<string, string>
 /**
  * Discriminated on the form's own shape rather than a passed type id, because
  * the update path only ever has the form to hand — `tenantId` exists on Entra
- * alone and `tokenUrl` on the generic grant alone, so the narrowing is total.
+ * alone, `domain` on Auth0 alone and `tokenUrl` on the generic grant alone, so
+ * the narrowing is total.
  */
 function isEntraForm(form: CredentialFormData): form is AzureEntraFormData {
   return "tenantId" in form;
 }
 
+function isAuth0Form(form: CredentialFormData): form is Auth0M2MFormData {
+  return "domain" in form;
+}
+
+/**
+ * Auth0 stores the *resolved* endpoint like every other OAuth2 credential, so
+ * the backend needs no notion of an Auth0 domain to mint a token. `domain` and
+ * `provider` ride along only so the form can reopen as itself — see
+ * `Auth0M2MConfig`.
+ */
+function auth0PublicConfig(form: Auth0M2MFormData): Record<string, string> {
+  const override = form.tokenUrlOverride?.trim();
+  return {
+    provider: AUTH0_M2M_PROVIDER,
+    domain: form.domain.trim(),
+    clientId: form.clientId.trim(),
+    tokenUrl: override || buildAuth0TokenUrl(form.domain),
+    audience: form.audience.trim(),
+    tokenRequestFormat: form.tokenRequestFormat,
+    // Optional and meaningful when blank: an empty scope reads to the provider
+    // as "grant none" rather than as "unset".
+    ...(form.scope?.trim() ? { scope: form.scope.trim() } : {}),
+  };
+}
+
 function toPublicConfig(form: CredentialFormData): Record<string, string> {
+  if (isAuth0Form(form)) {
+    return auth0PublicConfig(form);
+  }
   if (!isEntraForm(form)) {
     return {
       clientId: form.clientId,
@@ -172,7 +225,7 @@ export function createCredential(
 ): Promise<CredentialListItem> {
   return sendJson<CredentialProfileResponse>("POST", base(orgSlug), {
     displayName: form.name,
-    credentialType: typeId,
+    credentialType: toApiCredentialType(typeId),
     environment: form.environment,
     publicConfig: toPublicConfig(form),
     secretConfig: { clientSecret: form.clientSecret },
@@ -236,7 +289,7 @@ export function testCredentialConfig(
   form: CredentialFormData
 ): Promise<CredentialTestResult> {
   return sendJson<CredentialTestResponse>("POST", `${base(orgSlug)}/test`, {
-    credentialType: typeId,
+    credentialType: toApiCredentialType(typeId),
     publicConfig: toPublicConfig(form),
     secretConfig: { clientSecret: form.clientSecret },
   }).then(toTestResult);

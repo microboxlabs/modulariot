@@ -13,6 +13,7 @@ import { z } from "zod";
 export type CredentialTypeId =
   | "AZURE_ENTRA_CLIENT_CREDENTIALS"
   | "OAUTH2_CLIENT_CREDENTIALS"
+  | "AUTH0_M2M"
   | "API_KEY"
   | "BEARER_TOKEN"
   | "BASIC_AUTH";
@@ -53,7 +54,11 @@ export interface CredentialListItem {
   readonly updatedAt: string;
   readonly updatedBy: string;
   /** Type-specific config, minus secrets (never returned by the API). */
-  readonly config: AzureEntraConfig | OAuth2Config | Record<string, string>;
+  readonly config:
+    | AzureEntraConfig
+    | OAuth2Config
+    | Auth0M2MConfig
+    | Record<string, string>;
 }
 
 /** Non-secret half of an Azure Entra client-credentials credential. */
@@ -81,6 +86,32 @@ export interface OAuth2Config {
   readonly scope?: string;
   readonly audience?: string;
   readonly tokenRequestFormat: TokenRequestFormat;
+}
+
+/**
+ * Non-secret half of an Auth0 machine-to-machine credential.
+ *
+ * Auth0 M2M *is* OAuth2 client-credentials, so this persists as the backend's
+ * `OAUTH2_CLIENT_CREDENTIALS` auth type rather than as a new one — the
+ * `miot_integrations.credential_profiles.auth_type` CHECK constraint has no
+ * `AUTH0_M2M` member and adding one buys nothing at the token layer.
+ * {@link AUTH0_M2M_PROVIDER} on `publicConfig.provider` is what tells the two
+ * apart on the way back, so an Auth0 credential reopens in the Auth0 form
+ * instead of the generic one.
+ *
+ * `domain` is kept alongside the derived `tokenUrl` so the form can round-trip
+ * the field the operator actually typed.
+ */
+export interface Auth0M2MConfig {
+  readonly clientId: string;
+  readonly tokenUrl: string;
+  readonly audience?: string;
+  readonly scope?: string;
+  readonly tokenRequestFormat: TokenRequestFormat;
+  /** Always {@link AUTH0_M2M_PROVIDER} on credentials created by the Auth0 form. */
+  readonly provider?: string;
+  /** Auth0 tenant domain the token endpoint was derived from. */
+  readonly domain?: string;
 }
 
 export type TokenRequestFormat = "FORM" | "JSON";
@@ -167,6 +198,18 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     logo: {
       light: "/credential-logos/oauth2-light.svg",
       dark: "/credential-logos/oauth2-dark.svg",
+    },
+  },
+  {
+    id: "AUTH0_M2M",
+    nameKey: "types.auth0M2M.name",
+    descriptionKey: "types.auth0M2M.description",
+    available: true,
+    supportsTest: true,
+    // Monochrome mark, so it needs per-theme ink.
+    logo: {
+      light: "/credential-logos/auth0-light.svg",
+      dark: "/credential-logos/auth0-dark.svg",
     },
   },
   {
@@ -328,11 +371,70 @@ export const OAuth2CredentialEditSchema = OAuth2CredentialSchema.extend({
 export type OAuth2FormData = z.infer<typeof OAuth2CredentialSchema>;
 
 /**
+ * Marks a generic OAuth2 credential profile as one the Auth0 form created.
+ * Lives in `publicConfig` because the backend has no Auth0 auth type — see
+ * {@link Auth0M2MConfig}.
+ */
+export const AUTH0_M2M_PROVIDER = "auth0";
+
+/**
+ * Auth0's token endpoint is always `/oauth/token` on the tenant domain, so the
+ * form asks for the domain and derives the URL — same trade the Entra form
+ * makes with the directory id. Deployments that front Auth0 with a proxy (ours
+ * does, at `api.microboxlabs.com/api/v1/login`) state the endpoint outright via
+ * `tokenUrlOverride` instead.
+ */
+export function buildAuth0TokenUrl(domain: string): string {
+  const host = domain
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/+$/, "");
+  return `https://${host || "{your-tenant}.auth0.com"}/oauth/token`;
+}
+
+/**
+ * Auth0 machine-to-machine form.
+ *
+ * `audience` is required here where the generic OAuth2 form leaves it optional:
+ * without an API identifier Auth0 issues an opaque token that the target API
+ * cannot validate, so a credential saved without one is guaranteed broken. That
+ * guarantee is most of the reason this preset exists.
+ */
+export const Auth0M2MCredentialSchema = z.object({
+  name: z.string().min(1, "validation.nameRequired").max(100),
+  environment: z
+    .string()
+    .min(1, "validation.environmentRequired")
+    .max(40, "validation.environmentTooLong"),
+  domain: z.string().min(1, "validation.auth0DomainRequired"),
+  clientId: z.string().min(1, "validation.auth0ClientIdRequired"),
+  clientSecret: z.string().min(1, "validation.clientSecretRequired"),
+  audience: z.string().min(1, "validation.auth0AudienceRequired"),
+  scope: z.string().optional(),
+  tokenRequestFormat: z.enum(["FORM", "JSON"]),
+  tokenUrlOverride: z
+    .string()
+    .url("validation.tokenUrlInvalid")
+    .optional()
+    .or(z.literal("")),
+});
+
+/** On edit the secret may be left blank to keep the stored one. */
+export const Auth0M2MCredentialEditSchema = Auth0M2MCredentialSchema.extend({
+  clientSecret: z.string().optional(),
+});
+
+export type Auth0M2MFormData = z.infer<typeof Auth0M2MCredentialSchema>;
+
+/**
  * Any credential form's data. The list/create/update paths are type-agnostic —
  * they carry the payload to the API and let the per-type `toPublicConfig`
  * branch decide its shape.
  */
-export type CredentialFormData = AzureEntraFormData | OAuth2FormData;
+export type CredentialFormData =
+  | AzureEntraFormData
+  | OAuth2FormData
+  | Auth0M2MFormData;
 
 export interface CredentialTestResult {
   readonly success: boolean;

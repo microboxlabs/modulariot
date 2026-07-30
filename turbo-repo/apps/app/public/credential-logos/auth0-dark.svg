@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40" role="img" aria-label="Auth0">
+  <path fill="#f3f4f6" d="M20 3.5 32.6 3.5l-3.9 11.9L20 6.9l-8.7 8.5L7.4 3.5H20z"/>
+  <path fill="#f3f4f6" d="M7.4 3.5 3.5 15.4a13.7 13.7 0 0 0 5.1 15.3L20 39.1 12.6 15.4 7.4 3.5z" opacity=".75"/>
+  <path fill="#f3f4f6" d="M32.6 3.5l3.9 11.9a13.7 13.7 0 0 1-5.1 15.3L20 39.1l7.4-23.7 5.2-11.9z" opacity=".55"/>
+</svg>

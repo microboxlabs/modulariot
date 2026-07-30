@@ -26,6 +26,7 @@ import {
   type CredentialTypeId,
 } from "../credential.types";
 import { useCredentials } from "../use-credentials";
+import { Auth0M2MCredentialModal } from "./auth0-m2m-credential-modal";
 import { AzureEntraCredentialModal } from "./azure-entra-credential-modal";
 import { CredentialDeleteDialog } from "./credential-delete-dialog";
 import { CredentialTypePickerModal } from "./credential-type-picker-modal";
@@ -35,6 +36,7 @@ import { OAuth2CredentialModal } from "./oauth2-credential-modal";
 
 const ENTRA = "AZURE_ENTRA_CLIENT_CREDENTIALS" as const;
 const OAUTH2 = "OAUTH2_CLIENT_CREDENTIALS" as const;
+const AUTH0 = "AUTH0_M2M" as const;
 
 interface CredentialsPageContentProps {
   /** `pages.userSettings` subtree. */
@@ -291,6 +293,22 @@ export default function CredentialsPageContent({
         onDelete={editing ? () => handleDeleteFromModal(editing) : undefined}
         loading={actionLoading}
         environments={environments}
+        dict={credentialsDict}
+      />
+
+      <Auth0M2MCredentialModal
+        show={formOpen && formType === AUTH0}
+        editing={editing}
+        onClose={() => {
+          setFormOpen(false);
+          setEditing(null);
+        }}
+        onSubmit={handleSubmit}
+        onTest={handleFormTest}
+        onDelete={editing ? () => handleDeleteFromModal(editing) : undefined}
+        loading={actionLoading}
+        environments={environments}
+        orgSlug={orgSlug}
         dict={credentialsDict}
       />
 

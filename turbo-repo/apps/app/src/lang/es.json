@@ -1739,6 +1739,10 @@
             "name": "OAuth 2.0 genérico",
             "description": "Flujo client_credentials contra cualquier endpoint de token OAuth 2.0."
           },
+          "auth0M2M": {
+            "name": "Auth0 máquina a máquina",
+            "description": "Una aplicación M2M de Auth0 — elige el cliente de tu tenant y define la API que consume."
+          },
           "apiKey": {
             "name": "API key",
             "description": "Una llave enviada como header o parámetro de consulta."
@@ -1818,7 +1822,29 @@
           "oauth2EditTitle": "Editar credencial OAuth 2.0",
           "oauth2ClientId": "ID de cliente",
           "oauth2ClientSecretPlaceholder": "Secreto emitido por el proveedor",
-          "oauth2ScopePlaceholder": "openid profile email"
+          "oauth2ScopePlaceholder": "openid profile email",
+          "auth0AddTitle": "Nueva credencial M2M de Auth0",
+          "auth0EditTitle": "Editar credencial M2M de Auth0",
+          "auth0Subtitle": "Una aplicación máquina a máquina de tu tenant de Auth0.",
+          "auth0Domain": "Dominio de Auth0",
+          "auth0DomainPlaceholder": "tu-tenant.auth0.com",
+          "auth0DomainHelp": "El tenant que emite el token. También funcionan los dominios personalizados.",
+          "auth0ClientId": "ID de aplicación (cliente)",
+          "auth0ClientIdHelp": "Elige una aplicación máquina a máquina, o pega un ID de cliente que el directorio aún no liste.",
+          "auth0ClientIdPlaceholder": "Busca aplicaciones, o pega un ID de cliente",
+          "auth0ClientSecretPlaceholder": "Secreto de cliente de la aplicación en Auth0",
+          "auth0ClientInactive": "Inactiva",
+          "auth0Audience": "Audiencia de la API",
+          "auth0AudienceHelp": "El identificador de la API que consume esta credencial. Sin él Auth0 emite un token opaco que la API no puede validar — por eso aquí es obligatorio.",
+          "auth0ScopePlaceholder": "read:resources write:resources",
+          "auth0ScopeHelp": "Normalmente innecesario: Auth0 deriva los permisos de los scopes concedidos a la audiencia.",
+          "auth0TokenUrlOverridePlaceholder": "https://api.example.com/api/v1/login",
+          "auth0TokenUrlOverrideHelp": "Solo cuando un proxy antecede a Auth0 en lugar de llamar al tenant directamente.",
+          "auth0TokenRequestFormatHelp": "El endpoint propio de Auth0 acepta form encoding. Un proxy delante puede esperar un cuerpo JSON.",
+          "auth0DirectoryStub": "Datos de ejemplo — el servicio de aplicaciones aún no está conectado, estos ID de cliente son de relleno.",
+          "auth0DirectoryLoading": "Cargando aplicaciones...",
+          "auth0DirectoryEmpty": "Ninguna aplicación coincide. Puedes pegar un ID de cliente.",
+          "auth0DirectoryError": "No se pudieron cargar las aplicaciones. Aún puedes pegar un ID de cliente."
         },
         "delete": {
           "title": "¿Eliminar esta credencial?",
@@ -1849,7 +1875,10 @@
           "scopeRequired": "El scope es obligatorio",
           "tokenUrlInvalid": "Ingresa una URL válida",
           "tokenUrlRequired": "El endpoint de token es obligatorio",
-          "oauth2ClientIdRequired": "El ID de cliente es obligatorio"
+          "oauth2ClientIdRequired": "El ID de cliente es obligatorio",
+          "auth0DomainRequired": "El dominio de Auth0 es obligatorio",
+          "auth0ClientIdRequired": "Elige o ingresa un ID de aplicación (cliente)",
+          "auth0AudienceRequired": "La audiencia de la API es obligatoria en Auth0"
         }
       }
     },

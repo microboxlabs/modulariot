@@ -1,0 +1,38 @@
+# 🔔 Release Notes v1.31.28 — ModularIoT
+
+### Fecha: 30/07/2026
+
+**Objetivo**: Esta versión consolida la estabilidad visual y de navegación de la aplicación Next.js, corrigiendo comportamientos incorrectos en los encabezados de sección. Se actualiza el stack a la versión 0.5.29 con mejoras focalizadas en la experiencia de usuario.
+
+## 🐛 Correcciones
+
+- **🐛 Z-index y comportamiento de scroll en encabezados de sección**
+  - **Impacto**: El encabezado de la sección protegida (`secured section header`) permanecía fijo durante el scroll, interfiriendo con la navegación normal de la página y superponiendo contenido de forma incorrecta. *(Integración OSS — MIOT-0.5.29)*
+  - **Solución**: Se ajustó el estilo del componente de encabezado para que se desplace naturalmente con la página, eliminando el posicionamiento fijo indebido y corrigiendo el z-index, sin alterar la apariencia visual ni la jerarquía del encabezado.
+
+## 📊 Beneficios
+
+- La navegación por las páginas protegidas de la aplicación es ahora fluida y coherente, sin interferencias visuales causadas por encabezados superpuestos.
+- La corrección está acotada al componente `SecuredSectionHeader`, minimizando el riesgo de regresiones en otras áreas de la interfaz.
+- Se preserva íntegramente la jerarquía visual y el diseño existente del encabezado, garantizando continuidad estética para los usuarios.
+- La mejora impacta directamente la usabilidad en flujos de trabajo frecuentes como gestión de viajes, conductores y tareas, donde el scroll es parte habitual de la interacción.
+- La inclusión de esta corrección desde el milestone OSS refuerza la alineación entre el desarrollo interno y la base de código abierta de ModularIoT.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.29`
+- **App** (`app@v0.5.29`): actualizada en esta versión — incluye la corrección de z-index y scroll.
+- **Docs** (`docs@v0.5.28`): sin cambios respecto a la versión anterior.
+- **Web** (`web@v0.5.29`): actualizada en esta versión.
+- **Modulith** (`modulith@v0.5.18`): sin cambios respecto a la versión anterior.
+- **Harness** (`harness@v0.1.4`): sin cambios respecto a la versión anterior.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build dentro de la aplicación y en el artefacto de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.28 representa una entrega puntual y quirúrgica orientada a la calidad de la interfaz de usuario. La corrección del comportamiento de scroll en los encabezados de sección, aunque de alcance reducido, elimina una fricción real en la navegación diaria de los usuarios de la plataforma.
+
+La incorporación de esta corrección desde el milestone OSS MIOT-0.5.29 evidencia el proceso de integración continua entre el repositorio público y los despliegues privados de ModularIoT, asegurando que las mejoras comunitarias se reflejen oportunamente en el producto.
+
+Con este release, el stack queda estabilizado en la versión 0.5.29, sentando una base sólida para las próximas iteraciones de funcionalidades en los módulos de coordinación industrial, dashboards y flujos de entrega.

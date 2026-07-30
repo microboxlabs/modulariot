@@ -385,10 +385,12 @@ export const AUTH0_M2M_PROVIDER = "auth0";
  * `tokenUrlOverride` instead.
  */
 export function buildAuth0TokenUrl(domain: string): string {
-  const host = domain
-    .trim()
-    .replace(/^https?:\/\//i, "")
-    .replace(/\/+$/, "");
+  let host = domain.trim().replace(/^https?:\/\//i, "");
+  let hostEnd = host.length;
+  while (hostEnd > 0 && host[hostEnd - 1] === "/") {
+    hostEnd -= 1;
+  }
+  host = host.slice(0, hostEnd);
   return `https://${host || "{your-tenant}.auth0.com"}/oauth/token`;
 }
 

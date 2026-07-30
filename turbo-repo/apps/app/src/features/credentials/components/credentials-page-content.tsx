@@ -20,12 +20,10 @@ import {
 import {
   BUILT_IN_ENVIRONMENTS,
   mergeEnvironments,
-  type AzureEntraFormData,
   type CredentialFormData,
   type CredentialListItem,
   type CredentialTestResult,
   type CredentialTypeId,
-  type OAuth2FormData,
 } from "../credential.types";
 import { useCredentials } from "../use-credentials";
 import { AzureEntraCredentialModal } from "./azure-entra-credential-modal";

@@ -56,6 +56,29 @@ public class IntegrationConnectionRepository {
             LIMIT 1
             """;
 
+    // Resolution for a caller that knows which contract it needs but not which instance serves
+    // it. A template's id is a per-environment UUID, so the portable coordinate is
+    // (tenant, template name) — that is what a workflow variable or a config value can name.
+    //
+    // The template is matched by subquery rather than JOIN so the shared COLUMNS list stays
+    // usable unqualified. Repeating $1 inside it also confines the match to templates the tenant
+    // owns: a connection whose template_id pointed at another tenant's row resolves to nothing
+    // rather than borrowing that tenant's contract.
+    private static final String SELECT_ACTIVE_BY_TEMPLATE_NAME = "SELECT " + COLUMNS + """
+
+            FROM miot_integrations.integration_connections
+            WHERE tenant_code = $1
+              AND active
+              AND template_id IN (
+                  SELECT id FROM miot_integrations.integration_templates
+                  WHERE tenant_code = $1 AND lower(name) = lower($2) AND active
+              )
+            ORDER BY (status = 'ACTIVE') DESC,
+                     last_test_result DESC NULLS LAST,
+                     last_tested_at DESC NULLS LAST
+            LIMIT 1
+            """;
+
     // Reverse lookup for inbound Meta webhooks: an inbound event carries only the
     // phone_number_id (which of our numbers received it), so we map that back to the org that
     // owns the active WHATSAPP connection advertising it. provider_type is a literal so the
@@ -186,6 +209,29 @@ public class IntegrationConnectionRepository {
     public IntegrationConnection findActiveByProvider(String tenantCode, ProviderType providerType) {
         var rows = client().preparedQuery(SELECT_ACTIVE_BY_PROVIDER)
                 .execute(Tuple.of(tenantCode, providerType.name()))
+                .await().indefinitely();
+        var iterator = rows.iterator();
+        return iterator.hasNext() ? mapRow(iterator.next()) : null;
+    }
+
+    /**
+     * The connection a tenant uses for a named template, or {@code null} when it has none.
+     *
+     * <p>Ordered like {@link #findActiveByProvider}: ACTIVE first, then a connection whose last
+     * test passed, then the most recently tested — so the instance the operator most recently
+     * validated is the one that serves traffic.
+     *
+     * <p>A tenant with no instance of the template is the normal state during rollout, not an
+     * error. The blank guard runs before {@code client()} so an unnamed template never reaches
+     * the database, mirroring {@link #findByTenantAndId}.
+     */
+    public IntegrationConnection findActiveByTemplateName(String tenantCode, String templateName) {
+        if (tenantCode == null || tenantCode.isBlank()
+                || templateName == null || templateName.isBlank()) {
+            return null;
+        }
+        var rows = client().preparedQuery(SELECT_ACTIVE_BY_TEMPLATE_NAME)
+                .execute(Tuple.of(tenantCode, templateName))
                 .await().indefinitely();
         var iterator = rows.iterator();
         return iterator.hasNext() ? mapRow(iterator.next()) : null;

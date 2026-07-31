@@ -1,0 +1,51 @@
+{
+  "stack_version": "0.5.29",
+  "stack_tag": "miot-stack@v0.5.29",
+  "milestone": "MIOT-0.5.29",
+  "pull_requests": [
+    {
+      "number": 1033,
+      "title": "Fixed z index in header",
+      "source_issues": [
+        {
+          "number": 1035,
+          "title": "fix(app): section header z-index and scroll behavior"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "turbo-repo/apps/app/src/features/layout/components/section-header/section-header.tsx"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.29",
+      "tag": "app@v0.5.29"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.28",
+      "version": "0.5.28",
+      "tag": "docs@v0.5.28"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.27",
+      "version": "0.5.29",
+      "tag": "web@v0.5.29"
+    },
+    "modulith": {
+      "changed": false,
+      "changed_since": "modulith@v0.5.18",
+      "version": "0.5.18",
+      "tag": "modulith@v0.5.18"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.4",
+      "version": "0.1.4",
+      "tag": "harness@v0.1.4"
+    }
+  }
+}

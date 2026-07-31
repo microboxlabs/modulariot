@@ -5,6 +5,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { StateChangeTimelineEntry } from "./observation.types";
 import { ObservationCard } from "./observation-card";
+import { isImmutable } from "./observation-utils";
 
 const STATE_CHANGE_STYLES = {
   approved: {
@@ -65,9 +66,25 @@ export function StateChangeEntry({
               <ObservationCard
                 obs={obs}
                 dictionary={dictionary}
-                onDelete={onRemoveCommitted ? () => onRemoveCommitted(obs.id) : undefined}
-                onAddReply={onAddReply ? (desc) => onAddReply(obs.id, desc) : undefined}
-                onRemoveReply={onRemoveReply ? (rid) => onRemoveReply(obs.id, rid) : undefined}
+                // A round is the decision as the repository recorded it, so it offers no edit
+                // controls at all. Withholding them here rather than refusing the write later
+                // is the point: the panel used to strip the note locally and only then fail to
+                // delete it, leaving the card empty while the round still held the comment.
+                onDelete={
+                  onRemoveCommitted && !isImmutable(obs)
+                    ? () => onRemoveCommitted(obs.id)
+                    : undefined
+                }
+                onAddReply={
+                  onAddReply && !isImmutable(obs)
+                    ? (desc) => onAddReply(obs.id, desc)
+                    : undefined
+                }
+                onRemoveReply={
+                  onRemoveReply && !isImmutable(obs)
+                    ? (rid) => onRemoveReply(obs.id, rid)
+                    : undefined
+                }
                 pendingReplyRef={pendingReplyRef}
               />
             </div>

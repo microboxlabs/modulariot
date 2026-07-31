@@ -2147,6 +2147,24 @@ const BookingListResponseSchema = z.object({
           minutes: z.number(),
         })
         .nullable(),
+      // Lifecycle + downstream-ack fields MUST be declared: zod strips
+      // undeclared keys and still reports success, so omitting these silently
+      // dropped `status` on every booking the grid loaded — leaving the
+      // sidebar with no "Etapa" row and the chip with no sync dot even though
+      // the API had answered FINISHED. Declared as the same unions the client
+      // exposes so the `as BookingListResponse` cast below stays sound.
+      status: z
+        .enum([
+          "PLANNED",
+          "ASSIGNED",
+          "IN_TRANSIT",
+          "ARRIVED",
+          "FINISHED",
+          "CANCELLED",
+        ])
+        .optional(),
+      syncStatus: z.enum(["PENDING", "CONFIRMED", "REJECTED"]).optional(),
+      syncDetail: z.string().optional(),
       createdAt: z.string(),
       createdBy: z.string().nullable().optional(),
     })
@@ -2281,7 +2299,7 @@ export async function updateServiceCategory(
  */
 export async function recordReviewRound(data: {
   contentNodeRef: string;
-  verdict: "APPROVED" | "REJECTED";
+  verdict: "APPROVED" | "REJECTED" | "PENDING";
   reasons?: string[];
   comment?: string;
 }): Promise<ReviewRoundResponse> {

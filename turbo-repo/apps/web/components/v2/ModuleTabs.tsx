@@ -18,20 +18,39 @@ const MODULES: { key: ModuleKey; href: string }[] = [
 
 // Un ícono por módulo — el mismo trazo (Heroicons outline) que el resto del DS.
 const ICONS: Record<ModuleKey, React.ReactNode> = {
-  torre: <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z M12 15a3 3 0 100-6 3 3 0 000 6Z" />,
+  torre: (
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z M12 15a3 3 0 100-6 3 3 0 000 6Z" />
+  ),
   superprofile: (
     <path d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
   ),
-  canales: <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9 M13.7 21a2 2 0 01-3.4 0" />,
+  canales: (
+    <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9 M13.7 21a2 2 0 01-3.4 0" />
+  ),
   gps: (
     <path d="M9.348 14.652a3.75 3.75 0 010-5.304m5.304 0a3.75 3.75 0 010 5.304m-7.425 2.121a6.75 6.75 0 010-9.546m9.546 0a6.75 6.75 0 010 9.546M5.106 18.894c-3.808-3.807-3.808-9.98 0-13.788m13.788 0c3.808 3.807 3.808 9.98 0 13.788M12 12h.008v.008H12V12z" />
   ),
 };
 
 const LABELS: Record<Lang, Record<ModuleKey, string>> = {
-  es: { torre: "Ver", superprofile: "Entender", canales: "Gestionar", gps: "Medir" },
-  en: { torre: "See", superprofile: "Understand", canales: "Act", gps: "Measure" },
-  pt: { torre: "Ver", superprofile: "Entender", canales: "Gerir", gps: "Medir" },
+  es: {
+    torre: "Ver",
+    superprofile: "Entender",
+    canales: "Gestionar",
+    gps: "Medir",
+  },
+  en: {
+    torre: "See",
+    superprofile: "Understand",
+    canales: "Act",
+    gps: "Measure",
+  },
+  pt: {
+    torre: "Ver",
+    superprofile: "Entender",
+    canales: "Gerir",
+    gps: "Medir",
+  },
 };
 
 const INTRO: Record<Lang, string> = {
@@ -40,12 +59,20 @@ const INTRO: Record<Lang, string> = {
   pt: "A operação real, em 4 movimentos",
 };
 
-export default function ModuleTabs({ base, active, lang = "es" }: { base: string; active: ModuleKey; lang?: Lang }) {
+export default function ModuleTabs({
+  base,
+  active,
+  lang = "es",
+}: {
+  base: string;
+  active: ModuleKey;
+  lang?: Lang;
+}) {
   const L = LABELS[lang] || LABELS.es;
   return (
-    <div className="sticky top-0 z-30 border-b border-hairline bg-page/90 backdrop-blur">
+    <div className="border-hairline bg-page/90 sticky top-[60px] z-30 border-b backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center gap-3 overflow-x-auto px-4 py-3 sm:px-6">
-        <span className="hidden shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-3 md:inline">
+        <span className="text-ink-3 hidden shrink-0 text-xs font-semibold tracking-wide uppercase md:inline">
           {INTRO[lang] || INTRO.es}
         </span>
         <div className="flex items-center gap-2">
@@ -57,10 +84,21 @@ export default function ModuleTabs({ base, active, lang = "es" }: { base: string
                 href={`${base}${m.href}`}
                 aria-current={on ? "page" : undefined}
                 className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
-                  on ? "border-accent bg-accent text-white" : "border-hairline bg-surface text-ink-2 hover:border-hairline-strong"
+                  on
+                    ? "border-accent bg-accent text-white"
+                    : "border-hairline bg-surface text-ink-2 hover:border-hairline-strong"
                 }`}
               >
-                <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg
+                  className="h-4 w-4 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
                   {ICONS[m.key]}
                 </svg>
                 {L[m.key]}

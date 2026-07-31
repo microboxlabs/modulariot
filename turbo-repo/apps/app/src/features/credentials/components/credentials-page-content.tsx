@@ -20,18 +20,23 @@ import {
 import {
   BUILT_IN_ENVIRONMENTS,
   mergeEnvironments,
-  type AzureEntraFormData,
+  type CredentialFormData,
   type CredentialListItem,
   type CredentialTestResult,
+  type CredentialTypeId,
 } from "../credential.types";
 import { useCredentials } from "../use-credentials";
+import { Auth0M2MCredentialModal } from "./auth0-m2m-credential-modal";
 import { AzureEntraCredentialModal } from "./azure-entra-credential-modal";
 import { CredentialDeleteDialog } from "./credential-delete-dialog";
 import { CredentialTypePickerModal } from "./credential-type-picker-modal";
 import { CredentialsList } from "./credentials-list";
 import { CredentialsToolbar } from "./credentials-toolbar";
+import { OAuth2CredentialModal } from "./oauth2-credential-modal";
 
 const ENTRA = "AZURE_ENTRA_CLIENT_CREDENTIALS" as const;
+const OAUTH2 = "OAUTH2_CLIENT_CREDENTIALS" as const;
+const AUTH0 = "AUTH0_M2M" as const;
 
 interface CredentialsPageContentProps {
   /** `pages.userSettings` subtree. */
@@ -96,6 +101,8 @@ export default function CredentialsPageContent({
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  /** Which type's form is showing — set by the picker, or by the row on edit. */
+  const [formType, setFormType] = useState<CredentialTypeId>(ENTRA);
   const [editing, setEditing] = useState<CredentialListItem | null>(null);
   const [deleting, setDeleting] = useState<CredentialListItem | null>(null);
 
@@ -104,23 +111,27 @@ export default function CredentialsPageContent({
     setPickerOpen(true);
   }
 
-  function handleTypeSelected() {
+  function handleTypeSelected(typeId: CredentialTypeId) {
+    setFormType(typeId);
     setPickerOpen(false);
     setFormOpen(true);
   }
 
   function handleEdit(credential: CredentialListItem) {
+    // Editing opens the form for the type the credential already is; the
+    // picker is only ever consulted when creating a new one.
+    setFormType(credential.typeId);
     setEditing(credential);
     setFormOpen(true);
   }
 
-  async function handleSubmit(form: AzureEntraFormData) {
+  async function handleSubmit(form: CredentialFormData) {
     try {
       if (editing) {
         await update(editing.id, form);
         toast.success(tr("toast.updated", credentialsDict));
       } else {
-        await create(ENTRA, form);
+        await create(formType, form);
         toast.success(tr("toast.created", credentialsDict));
       }
       setFormOpen(false);
@@ -143,10 +154,12 @@ export default function CredentialsPageContent({
    * the dry run instead.
    */
   async function handleFormTest(
-    form: AzureEntraFormData
+    form: CredentialFormData
   ): Promise<CredentialTestResult> {
     try {
-      return editing ? await test(editing.id) : await testConfig(ENTRA, form);
+      return editing
+        ? await test(editing.id)
+        : await testConfig(formType, form);
     } catch (cause) {
       return {
         success: false,
@@ -254,7 +267,7 @@ export default function CredentialsPageContent({
       />
 
       <AzureEntraCredentialModal
-        show={formOpen}
+        show={formOpen && formType === ENTRA}
         editing={editing}
         onClose={() => {
           setFormOpen(false);
@@ -265,6 +278,37 @@ export default function CredentialsPageContent({
         onDelete={editing ? () => handleDeleteFromModal(editing) : undefined}
         loading={actionLoading}
         environments={environments}
+        dict={credentialsDict}
+      />
+
+      <OAuth2CredentialModal
+        show={formOpen && formType === OAUTH2}
+        editing={editing}
+        onClose={() => {
+          setFormOpen(false);
+          setEditing(null);
+        }}
+        onSubmit={handleSubmit}
+        onTest={handleFormTest}
+        onDelete={editing ? () => handleDeleteFromModal(editing) : undefined}
+        loading={actionLoading}
+        environments={environments}
+        dict={credentialsDict}
+      />
+
+      <Auth0M2MCredentialModal
+        show={formOpen && formType === AUTH0}
+        editing={editing}
+        onClose={() => {
+          setFormOpen(false);
+          setEditing(null);
+        }}
+        onSubmit={handleSubmit}
+        onTest={handleFormTest}
+        onDelete={editing ? () => handleDeleteFromModal(editing) : undefined}
+        loading={actionLoading}
+        environments={environments}
+        orgSlug={orgSlug}
         dict={credentialsDict}
       />
 

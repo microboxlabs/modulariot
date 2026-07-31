@@ -31,7 +31,7 @@ export default async function ProveedoresGpsPage({
       <ModuleTabs base={base} active="gps" lang={lang} />
       <main>
         <GpsProviders lang={lang} />
-        <FinalCta lang={lang} />
+        <FinalCta lang={lang} base={base} />
       </main>
     </>
   );

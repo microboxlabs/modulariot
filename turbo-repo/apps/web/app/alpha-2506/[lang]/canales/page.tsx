@@ -31,7 +31,7 @@ export default async function CanalesPage({
       <ModuleTabs base={base} active="canales" lang={lang} />
       <main>
         <Canales lang={lang} />
-        <FinalCta lang={lang} />
+        <FinalCta lang={lang} base={base} />
       </main>
     </>
   );

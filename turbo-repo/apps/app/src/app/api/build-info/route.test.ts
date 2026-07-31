@@ -16,6 +16,9 @@ const ENV_KEYS = [
   "APP_VERSION",
   "APP_TAG",
   "APP_IMAGE_REF",
+  "WEB_VERSION",
+  "WEB_TAG",
+  "WEB_IMAGE_REF",
 ] as const;
 
 describe("build info route", () => {
@@ -118,8 +121,7 @@ describe("build info route", () => {
       {
         name: "Grace Hopper",
         email: "grace@example.com",
-        avatarUrl:
-          "https://www.gravatar.com/avatar/abc123?d=identicon&s=96",
+        avatarUrl: "https://www.gravatar.com/avatar/abc123?d=identicon&s=96",
         profileName: "Amazing Grace",
         company: "US Navy",
         location: "Arlington",
@@ -137,6 +139,9 @@ describe("build info route", () => {
     process.env.APP_VERSION = "0.5.21";
     process.env.APP_TAG = "app@v0.5.21";
     process.env.APP_IMAGE_REF = "ghcr.io/microboxlabs/miot-app@sha256:def";
+    process.env.WEB_VERSION = "0.5.21";
+    process.env.WEB_TAG = "web@v0.5.21";
+    process.env.WEB_IMAGE_REF = "ghcr.io/microboxlabs/miot-web@sha256:abc";
 
     const response = await GET();
     const data = await response.json();
@@ -151,8 +156,7 @@ describe("build info route", () => {
         {
           name: "Grace Hopper",
           email: "grace@example.com",
-          avatarUrl:
-            "https://www.gravatar.com/avatar/abc123?d=identicon&s=96",
+          avatarUrl: "https://www.gravatar.com/avatar/abc123?d=identicon&s=96",
           profileName: "Amazing Grace",
           company: "US Navy",
           location: "Arlington",
@@ -172,6 +176,11 @@ describe("build info route", () => {
           version: "0.5.21",
           tag: "app@v0.5.21",
           imageRef: "ghcr.io/microboxlabs/miot-app@sha256:def",
+        },
+        web: {
+          version: "0.5.21",
+          tag: "web@v0.5.21",
+          imageRef: "ghcr.io/microboxlabs/miot-web@sha256:abc",
         },
       },
     });

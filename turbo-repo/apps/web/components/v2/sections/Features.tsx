@@ -21,26 +21,39 @@ export async function Features({ lang, tone }: { lang: string; tone: Tone }) {
   const cards = t.raw("cards") as FeatureCard[];
   return (
     <Section id="caracteristicas" tone={tone}>
-      <SectionHeader kicker={t("kicker")} title={t("title")} subtitle={t("subtitle")} />
+      <SectionHeader
+        kicker={t("kicker")}
+        title={t("title")}
+        subtitle={t("subtitle")}
+      />
       <div className="mt-12 grid gap-4 lg:grid-cols-3">
         {cards.map((card, i) => {
           const icon = ICONS[i];
-          const tone = stageTone[icon] ?? stageTone.signal;
+          const stage = stageTone[icon] ?? stageTone.signal;
           return (
             <Reveal
               key={card.title}
               delay={i * 0.1}
-              className="flex flex-col rounded-[14px] border border-hairline bg-surface p-6 transition-colors hover:border-hairline-strong"
+              className="border-hairline bg-surface hover:border-hairline-strong flex flex-col rounded-[14px] border p-6 transition-colors"
             >
-              <div className={`mb-5 flex h-10 w-10 items-center justify-center rounded-lg ${tone.chip}`}>
+              <div
+                className={`mb-5 flex h-10 w-10 items-center justify-center rounded-lg ${stage.chip}`}
+              >
                 <Icon name={icon} className="h-5 w-5" />
               </div>
-              <h3 className="text-lg font-semibold tracking-[-0.01em] text-ink-1">{card.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-ink-2">{card.body}</p>
+              <h3 className="text-ink-1 text-lg font-semibold tracking-[-0.01em]">
+                {card.title}
+              </h3>
+              <p className="text-ink-2 mt-2 text-sm leading-relaxed">
+                {card.body}
+              </p>
               <ul className="mt-5 space-y-2">
                 {card.bullets.map((b) => (
-                  <li key={b} className="flex items-start gap-2 text-sm text-ink-2">
-                    <Check className={`mt-0.5 ${tone.check}`} />
+                  <li
+                    key={b}
+                    className="text-ink-2 flex items-start gap-2 text-sm"
+                  >
+                    <Check className={`mt-0.5 ${stage.check}`} />
                     {b}
                   </li>
                 ))}

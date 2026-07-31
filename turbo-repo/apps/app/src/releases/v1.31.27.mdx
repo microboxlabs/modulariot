@@ -1,0 +1,33 @@
+# 🔔 Release Notes v1.31.27 — ModularIoT
+
+### Fecha: 28/07/2026
+
+**Objetivo**: Esta entrega consolida actualizaciones internas de la plataforma ModularIoT, incluyendo mejoras en la aplicación principal, la documentación, el módulo Modulith y el harness de pruebas. Se garantiza la estabilidad del stack en su versión `0.5.28` sin cambios en el componente web.
+
+## 📊 Beneficios
+
+- Actualización coordinada de múltiples componentes del stack para mantener la coherencia entre servicios.
+- La documentación actualizada (`docs@v0.5.28`) refleja el estado actual de la plataforma y facilita la adopción por parte de nuevos equipos.
+- Las mejoras en `modulith@v0.5.18` contribuyen a la estabilidad del núcleo de orquestación de servicios Quarkus.
+- El harness actualizado (`harness@v0.1.4`) fortalece la capacidad de pruebas automatizadas y validación de integraciones.
+- La aplicación Next.js (`app@v0.5.28`) incorpora los ajustes necesarios para alinearse con las versiones actualizadas del stack.
+- El componente web (`web@v0.5.27`) se mantiene estable sin cambios, evitando regresiones en la interfaz de usuario.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.28` — versión de referencia del stack completo.
+- **App** *(actualizada)*: `app@v0.5.28` — aplicación principal Next.js.
+- **Docs** *(actualizada)*: `docs@v0.5.28` — documentación oficial de la plataforma.
+- **Web** *(sin cambios)*: `web@v0.5.27` — componente web estático sin modificaciones en este ciclo.
+- **Modulith** *(actualizado)*: `modulith@v0.5.18` — módulo de orquestación de servicios Quarkus.
+- **Harness** *(actualizado)*: `harness@v0.1.4` — entorno de pruebas y validación de integraciones.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación dentro de la aplicación y en el artefacto de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión `1.31.27` representa un ciclo de mantenimiento y consolidación del stack ModularIoT, enfocado en mantener la coherencia entre los componentes principales de la plataforma. Aunque no se registran issues públicos asociados a este release, los cambios en `app`, `docs`, `modulith` y `harness` reflejan trabajo continuo de evolución interna.
+
+La estabilidad del componente `web` sin modificaciones garantiza continuidad en la experiencia del usuario final, mientras que las actualizaciones en el harness sientan las bases para ciclos de validación más robustos en próximas entregas.
+
+Se recomienda a los equipos de operaciones verificar el `stack-manifest.json` incluido en los artefactos del release para confirmar los digests de imágenes antes del despliegue en entornos productivos.

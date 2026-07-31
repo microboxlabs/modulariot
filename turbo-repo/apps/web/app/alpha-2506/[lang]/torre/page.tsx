@@ -21,7 +21,7 @@ export default async function TorrePage({
       <ModuleTabs base={base} active="torre" lang={lang} />
       <main>
         <TorreDeControl />
-        <FinalCta lang={lang} />
+        <FinalCta lang={lang} base={base} />
       </main>
     </>
   );

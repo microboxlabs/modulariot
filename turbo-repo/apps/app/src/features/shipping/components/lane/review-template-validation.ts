@@ -10,6 +10,7 @@
  */
 
 import { collectionPathOf } from "./review-binding.types";
+import { ELEMENT_ROOTS } from "./review-integration.types";
 
 /** The context objects a template may read — mirrors `PayloadTemplate.DEFAULT_ROOTS`. */
 export const ALLOWED_ROOTS: readonly string[] = ["task", "content", "review", "session"];
@@ -31,7 +32,8 @@ export interface TemplateProblem {
     | "badChar"
     | "unknownRoot"
     | "wholeObject"
-    | "notCollection";
+    | "notCollection"
+    | "elementRoot";
   readonly params?: Readonly<Record<string, string>>;
 }
 
@@ -112,6 +114,16 @@ export function checkCollectionTemplate(
 
   const dot = path.indexOf(".");
   const root = dot < 0 ? path : path.slice(0, dot);
+
+  // Checked ahead of the root rule, which would wave this through: a row inside an array
+  // legitimately has the element bind name among its roots, so `{{reasons}}` passes as a known
+  // root while naming the elements themselves rather than the array they come from. The server
+  // does not catch it either — it resolves to nothing, renders `[]`, and an empty unrequired
+  // array is omitted, so the field simply vanishes from the payload.
+  if (ELEMENT_ROOTS.includes(root)) {
+    return FAIL("elementRoot", { path, root });
+  }
+
   if (allowedRoots && !allowedRoots.includes(root)) {
     return FAIL("unknownRoot", {
       path,

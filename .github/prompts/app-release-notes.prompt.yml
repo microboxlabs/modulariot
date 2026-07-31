@@ -28,6 +28,8 @@ messages:
       Component release plan:
       - Stack tag: {{stack_tag}}
       - App tag: {{app_tag}} (changed: {{app_changed}})
+      - Docs tag: {{docs_tag}} (changed: {{docs_changed}})
+      - Web tag: {{web_tag}} (changed: {{web_changed}})
       - Modulith tag: {{modulith_tag}} (changed: {{modulith_changed}})
       - Harness tag: {{harness_tag}} (changed: {{harness_changed}})
 

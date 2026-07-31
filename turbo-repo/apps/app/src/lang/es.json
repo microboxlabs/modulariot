@@ -53,6 +53,7 @@
         "collectionHelp": "De qué colección salen los elementos de este arreglo. Cada elemento queda disponible bajo el último segmento de la ruta.",
         "collectionPlaceholder": "Ej: {{content.reasons}}",
         "collectionBinds": "Sus campos leerán {{{root}.*}}",
+        "collectionUnknown": "'{path}' no es una colección disponible en este punto. Aquí puedes usar: {options}.",
         "scopedHelp": "Estas variables existen solo dentro del arreglo que las aporta; úsalas en los campos de ese arreglo.",
         "insertVariable": "Variable",
         "previewEmpty": "(vacío)",
@@ -73,7 +74,8 @@
           "badChar": "'{expression}' contiene un carácter no admitido: '{char}'.",
           "unknownRoot": "'{path}' no existe: '{root}' no es uno de {roots}.",
           "wholeObject": "'{path}' es un objeto completo: usa uno de sus campos (por ejemplo, .mediaId).",
-          "notCollection": "'{expression}' no nombra una colección. Usa una sola variable, por ejemplo {{content.reasons}}."
+          "notCollection": "'{expression}' no nombra una colección. Usa una sola variable, por ejemplo {{content.reasons}}.",
+          "elementRoot": "'{path}' es el nombre que reciben los elementos, no de dónde salen. Indica la ruta de la colección, por ejemplo {{content.reasons}}."
         },
         "channel": "Canal"
       },
@@ -103,6 +105,10 @@
           "review": "Revisión",
           "session": "Usuario",
           "reasons": "Motivos de rechazo"
+        },
+        "collections": {
+          "content": "Archivos revisados",
+          "reasons": "Motivos de rechazo de este archivo"
         },
         "reasons": {
           "code": "Código del motivo",
@@ -1733,6 +1739,10 @@
             "name": "OAuth 2.0 genérico",
             "description": "Flujo client_credentials contra cualquier endpoint de token OAuth 2.0."
           },
+          "auth0M2M": {
+            "name": "Auth0 máquina a máquina",
+            "description": "Una aplicación M2M de Auth0 — elige el cliente de tu tenant y define la API que consume."
+          },
           "apiKey": {
             "name": "API key",
             "description": "Una llave enviada como header o parámetro de consulta."
@@ -1796,7 +1806,45 @@
           "cancel": "Cancelar",
           "saving": "Guardando...",
           "createButton": "Crear",
-          "saveButton": "Guardar"
+          "saveButton": "Guardar",
+          "oauth2Subtitle": "Aplicación con client_credentials contra cualquier proveedor OAuth 2.0.",
+          "tokenUrl": "Endpoint de token",
+          "tokenUrlPlaceholder": "https://<tu-dominio>/oauth/token",
+          "tokenUrlHelp": "URL completa donde se solicita el token. En Auth0 es https://<tu-dominio>/oauth/token.",
+          "clientIdPlaceholder": "Identificador del cliente",
+          "audience": "Audiencia de la API",
+          "audiencePlaceholder": "https://api.ejemplo.cl",
+          "audienceHelp": "Requerido por Auth0: es el identificador de la API. Sin él, Auth0 devuelve un token opaco que la API no puede validar.",
+          "scopeOptional": "Scope (opcional)",
+          "scopeOptionalHelp": "Déjalo vacío si el proveedor deriva los permisos del audience, como hace Auth0.",
+          "tokenRequestFormatHelp": "Form encoded sirve para casi todos los proveedores, Auth0 incluido.",
+          "oauth2AddTitle": "Nueva credencial OAuth 2.0",
+          "oauth2EditTitle": "Editar credencial OAuth 2.0",
+          "oauth2ClientId": "ID de cliente",
+          "oauth2ClientSecretPlaceholder": "Secreto emitido por el proveedor",
+          "oauth2ScopePlaceholder": "openid profile email",
+          "auth0AddTitle": "Nueva credencial M2M de Auth0",
+          "auth0EditTitle": "Editar credencial M2M de Auth0",
+          "auth0Subtitle": "Una aplicación máquina a máquina de tu tenant de Auth0.",
+          "auth0Domain": "Dominio de Auth0",
+          "auth0DomainPlaceholder": "tu-tenant.auth0.com",
+          "auth0DomainHelp": "El tenant que emite el token. También funcionan los dominios personalizados.",
+          "auth0ClientId": "ID de aplicación (cliente)",
+          "auth0ClientIdHelp": "Elige una aplicación máquina a máquina, o pega un ID de cliente que el directorio aún no liste.",
+          "auth0ClientIdPlaceholder": "Busca aplicaciones, o pega un ID de cliente",
+          "auth0ClientSecretPlaceholder": "Secreto de cliente de la aplicación en Auth0",
+          "auth0ClientInactive": "Inactiva",
+          "auth0ClientOwned": "Tu organización",
+          "auth0Audience": "Audiencia de la API",
+          "auth0AudienceHelp": "El identificador de la API que consume esta credencial. Sin él Auth0 emite un token opaco que la API no puede validar — por eso aquí es obligatorio.",
+          "auth0ScopePlaceholder": "read:resources write:resources",
+          "auth0ScopeHelp": "Normalmente innecesario: Auth0 deriva los permisos de los scopes concedidos a la audiencia.",
+          "auth0TokenUrlOverridePlaceholder": "https://proxy.ejemplo.cl/oauth/token",
+          "auth0TokenUrlOverrideHelp": "Solo cuando un proxy antecede a Auth0 en lugar de llamar al tenant directamente.",
+          "auth0TokenRequestFormatHelp": "El endpoint propio de Auth0 acepta form encoding. Un proxy delante puede esperar un cuerpo JSON.",
+          "auth0DirectoryLoading": "Cargando aplicaciones...",
+          "auth0DirectoryEmpty": "Ninguna aplicación coincide. Puedes pegar un ID de cliente.",
+          "auth0DirectoryError": "No se pudieron cargar las aplicaciones. Aún puedes pegar un ID de cliente."
         },
         "delete": {
           "title": "¿Eliminar esta credencial?",
@@ -1825,7 +1873,12 @@
           "clientIdRequired": "El ID de aplicación (cliente) es obligatorio",
           "clientSecretRequired": "El secreto de cliente es obligatorio",
           "scopeRequired": "El scope es obligatorio",
-          "tokenUrlInvalid": "Ingresa una URL válida"
+          "tokenUrlInvalid": "Ingresa una URL válida",
+          "tokenUrlRequired": "El endpoint de token es obligatorio",
+          "oauth2ClientIdRequired": "El ID de cliente es obligatorio",
+          "auth0DomainRequired": "El dominio de Auth0 es obligatorio",
+          "auth0ClientIdRequired": "Elige o ingresa un ID de aplicación (cliente)",
+          "auth0AudienceRequired": "La audiencia de la API es obligatoria en Auth0"
         }
       }
     },
@@ -3748,6 +3801,9 @@
       "sidebar_obs_cancel": "Cancelar",
       "sidebar_obs_add_btn": "Añadir",
       "sidebar_obs_show_all": "Ver todas las observaciones",
+      "sidebar_obs_history_title": "Revisiones de versiones anteriores",
+      "sidebar_obs_history_version": "Versión v{version}",
+      "sidebar_obs_history_unversioned": "Antes del control de versiones",
       "sidebar_obs_back": "Volver",
       "obs_value_not_visible": "Valor no visible",
       "obs_bad_lighting": "Iluminación deficiente",

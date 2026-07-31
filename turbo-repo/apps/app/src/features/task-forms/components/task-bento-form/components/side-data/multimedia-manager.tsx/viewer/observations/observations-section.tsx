@@ -8,8 +8,11 @@ import BrandedMultiSelect from "@/features/task-forms/components/task-confirm-mo
 import type { ObservationType, ObservationEntry, TimelineEntry } from "./observation.types";
 import { OBSERVATION_TYPE_KEYS } from "./observation.types";
 import { ObservationCard } from "./observation-card";
+import { isSilentApproval } from "./observation-utils";
+import { splitByVersion } from "./review-version";
 import { StateChangeEntry } from "./state-change-entry";
 import { LooseObservationEntry } from "./loose-observation-entry";
+import { VersionHistory } from "./version-history";
 import { useObservationTypes } from "@/features/common/providers/client-api.provider";
 
 export function ObservationsSection({
@@ -26,6 +29,7 @@ export function ObservationsSection({
   mode = "full",
   onShowAll,
   category,
+  currentVersion,
 }: Readonly<{
   dictionary: I18nRecord;
   draftObservations: ObservationEntry[];
@@ -41,6 +45,12 @@ export function ObservationsSection({
   onShowAll?: () => void;
   /** Document category (mintral:contentType) — scopes which observation reasons are offered. */
   category?: string | null;
+  /**
+   * The `cm:versionLabel` on screen. Decisions taken against earlier revisions move out of the
+   * panel and into the history disclosure, because a re-uploaded photo is unreviewed content
+   * and the verdict on the bytes it replaced is not a verdict on it.
+   */
+  currentVersion?: string | null;
 }>) {
   const [isAdding, setIsAdding] = useState(false);
   const [newTypes, setNewTypes] = useState<ObservationType[]>([]);
@@ -115,7 +125,27 @@ export function ObservationsSection({
     setNewTypes([]);
   };
 
-  const allEntries = useMemo(() => [...committedTimeline].reverse(), [committedTimeline]);
+  // Split before anything else: the panel is about the revision on screen, and the counts,
+  // the preview limit and the empty state all have to agree with what it shows.
+  // Filtered rather than skipped while rendering, for the same reason.
+  const { current, history } = useMemo(
+    () => splitByVersion(committedTimeline, currentVersion),
+    [committedTimeline, currentVersion]
+  );
+  const allEntries = useMemo(
+    () => [...current].reverse().filter((entry) => !isSilentApproval(entry)),
+    [current]
+  );
+  const historyGroups = useMemo(
+    () =>
+      history
+        .map((group) => ({
+          ...group,
+          entries: group.entries.filter((entry) => !isSilentApproval(entry)),
+        }))
+        .filter((group) => group.entries.length > 0),
+    [history]
+  );
   const hasContent = allEntries.length > 0 || draftObservations.length > 0;
 
   // Preview mode: show last 3 entries
@@ -268,6 +298,11 @@ export function ObservationsSection({
       {showEmpty && (
         <p className="text-xs text-gray-400 dark:text-gray-500 px-1 py-1">{tr("bento.multimedia.sidebar_obs_empty", dictionary)}</p>
       )}
+
+      {/* Below the empty state on purpose: a re-uploaded photo has nothing to show for the
+          revision on screen, and "no observations yet" is the honest headline. The history is
+          the answer to "so why was it sent back?", one click away. */}
+      <VersionHistory groups={historyGroups} dictionary={dictionary} />
     </div>
   );
 }

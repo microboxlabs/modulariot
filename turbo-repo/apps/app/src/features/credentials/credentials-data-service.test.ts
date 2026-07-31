@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AzureEntraFormData } from "./credential.types";
+import type { Auth0M2MFormData, AzureEntraFormData } from "./credential.types";
 import {
   createCredential,
   deleteCredential,
@@ -17,6 +17,18 @@ const FORM: AzureEntraFormData = {
   clientId: "66666666-7777-8888-9999-000000000000",
   clientSecret: "s3cret",
   scope: "api://partner-api/.default",
+  tokenRequestFormat: "FORM",
+  tokenUrlOverride: "",
+};
+
+const AUTH0_FORM: Auth0M2MFormData = {
+  name: "Auth0 API",
+  environment: "QA",
+  domain: "  tenant.auth0.com  ",
+  clientId: "client-id",
+  clientSecret: "s3cret",
+  audience: "https://api.example.com",
+  scope: "",
   tokenRequestFormat: "FORM",
   tokenUrlOverride: "",
 };
@@ -115,8 +127,25 @@ describe("credentials data service", () => {
 
     await createCredential(ORG, "AZURE_ENTRA_CLIENT_CREDENTIALS", FORM);
 
-    const publicConfig = bodyOf(fetchMock).publicConfig as Record<string, string>;
+    const publicConfig = bodyOf(fetchMock).publicConfig as Record<
+      string,
+      string
+    >;
     expect(publicConfig).not.toHaveProperty("tokenUrlOverride");
+  });
+
+  it("persists a normalized Auth0 domain and derived token URL", async () => {
+    const fetchMock = stubFetch({ body: apiCredential() });
+
+    await createCredential(ORG, "AUTH0_M2M", AUTH0_FORM);
+
+    expect(bodyOf(fetchMock)).toMatchObject({
+      credentialType: "OAUTH2_CLIENT_CREDENTIALS",
+      publicConfig: {
+        domain: "tenant.auth0.com",
+        tokenUrl: "https://tenant.auth0.com/oauth/token",
+      },
+    });
   });
 
   /**
@@ -162,7 +191,10 @@ describe("credentials data service", () => {
   });
 
   it("carries the 403 status through so the page can explain it", async () => {
-    stubFetch({ status: 403, body: { error: "Organization owner access required" } });
+    stubFetch({
+      status: 403,
+      body: { error: "Organization owner access required" },
+    });
 
     await expect(fetchCredentials(ORG)).rejects.toMatchObject({ status: 403 });
   });

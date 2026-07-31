@@ -21,7 +21,7 @@ export default async function SuperProfilePage({
       <ModuleTabs base={base} active="superprofile" lang={lang} />
       <main>
         <SuperProfile />
-        <FinalCta lang={lang} />
+        <FinalCta lang={lang} base={base} />
       </main>
     </>
   );

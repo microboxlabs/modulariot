@@ -1,5 +1,5 @@
 import { getContent } from "../content";
-import { LynxLockup } from "../brand/Logo";
+import { LynxBrand } from "../brand/Logo";
 
 export function Footer({ base, lang }: { base: string; lang: string }) {
   const c = getContent(lang).footer;
@@ -9,7 +9,7 @@ export function Footer({ base, lang }: { base: string; lang: string }) {
         <div className="grid gap-10 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <a href={`${base}/`} className="inline-flex text-brand-ink" aria-label="ModularIoT">
-              <LynxLockup className="h-7 w-auto" />
+              <LynxBrand iconClassName="h-11 w-11" wordmarkClassName="h-5 w-auto" />
             </a>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-ink-3">{c.description}</p>
           </div>

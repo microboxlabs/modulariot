@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useAnimationFrame, useMotionValue, useReducedMotion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { Reveal } from "../Reveal";
-import { Section, SectionHeader, ArrowRight, btnPrimary } from "./shared";
+import { Section, SectionHeader, ArrowRight, btnPrimary, type Tone } from "./shared";
 
 // Diferenciador de precisión (pulsos/min vs estándar 12/20). Gancho para minería.
 // 3 barras a la misma escala (GMAX) + un pulso animado fuera de la tarjeta que
@@ -115,7 +115,7 @@ const px = (v: number) => (v / GMAX) * 100;
 
 type RowText = { label: string; caption: string };
 
-export function Confiabilidad({ base }: { base: string }) {
+export function Confiabilidad({ base, tone }: { base: string; tone: Tone }) {
   const t = useTranslations("confiabilidad");
   const rowsText = t.raw("rows") as RowText[];
   const rows: PulseRow[] = rowsText.map((r, i) => ({
@@ -139,7 +139,7 @@ export function Confiabilidad({ base }: { base: string }) {
   }, [paused, rows.length]);
 
   return (
-    <Section id="confiabilidad" tone="gray">
+    <Section id="confiabilidad" tone={tone}>
       <SectionHeader kicker={t("kicker")} title={t("title")} subtitle={t("subtitle")} />
       <div
         className="mt-12 grid gap-10 lg:grid-cols-[1fr_auto] lg:items-center lg:gap-16"

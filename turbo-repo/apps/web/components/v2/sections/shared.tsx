@@ -24,15 +24,23 @@ export function Section({
   tone = "white",
   children,
   className = "",
+  contentClassName = "py-16 sm:py-20 lg:py-24",
 }: {
   id?: string;
   tone?: Tone;
   children: React.ReactNode;
   className?: string;
+  /** Padding vertical del contenedor interno — cada sección puede traer su
+   * propio ritmo (Hero, Stats, etc.) en vez del default de "py grande". */
+  contentClassName?: string;
 }) {
   return (
-    <section id={id} className={`scroll-mt-16 ${toneClasses[tone]} ${className}`}>
-      <div className="mx-auto max-w-7xl px-6 py-16 sm:py-20 lg:py-24">{children}</div>
+    <section id={id} className={`relative overflow-hidden scroll-mt-16 ${toneClasses[tone]} ${className}`}>
+      {/* La cuadrícula del hero solo se repite en superficies claras/"no gris"
+          (tone="white") — el tono "gray" ya trae su propio contraste con
+          bg-page-alt + hairlines, así que no la necesita. */}
+      {tone === "white" && <div className="hero-bg" aria-hidden />}
+      <div className={`relative mx-auto max-w-7xl px-6 ${contentClassName}`}>{children}</div>
     </section>
   );
 }

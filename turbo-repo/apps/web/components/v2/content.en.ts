@@ -24,7 +24,7 @@ export const en = {
           ],
         },
         {
-          title: "Explore it live · real data",
+          title: "Live, with real data",
           items: [
             { icon: "radar", label: "Control tower", href: "/torre", desc: "All 36 symptoms on a real operation" },
             { icon: "stack", label: "SuperProfile", href: "/superprofile", desc: "The living operational identity of each actor" },
@@ -67,7 +67,6 @@ export const en = {
             title: "Learn",
             links: [
               { label: "Documentation", href: "https://docs.modulariot.com", external: true },
-              { label: "Real stories", href: "/#clientes" },
               { label: "FAQ", href: "/#faq" },
             ],
             footer: { label: "All resources", href: "/recursos" },
@@ -436,50 +435,5 @@ export const en = {
       },
     ],
     copyright: `© ${new Date().getFullYear()} MicroBox Labs · All rights reserved`,
-  },
-
-  pricingPage: {
-    kicker: "Pricing",
-    title: "Pay per asset, only for what you use",
-    subtitle:
-      "Pay based on usage, not per-seat licenses. Each processing box has its own per-asset/month price and scales as your fleet grows.",
-    philosophy: [
-      {
-        title: "Pay only for what you use",
-        body: "You contract independent processing boxes. If you don't use video or integrations, you don't pay for them.",
-      },
-      {
-        title: "Transparent per-asset price",
-        body: "A fixed per-asset/month price for each box. No surprises, no setup costs, no minimum term.",
-      },
-      {
-        title: "Based on real costs",
-        body: "Prices derive from the platform's real per-transaction infrastructure cost, not an arbitrary rate.",
-      },
-    ],
-    faqTitle: "Pricing questions",
-    faqs: [
-      {
-        q: "How is the service billed?",
-        a: "Monthly subscription per monitored vehicle or asset, based on the processing boxes you contract. The final proposal is delivered after the free assessment.",
-      },
-      {
-        q: "Are the calculator prices final?",
-        a: "They're indicative, based on real infrastructure costs. The formal proposal may vary depending on volume, rule configuration and deployment model (your cloud, managed or hybrid edge).",
-      },
-      {
-        q: "Are there setup costs or a minimum term?",
-        a: "No. Integration with your current technology is included and you can adjust or cancel the contracted boxes month to month.",
-      },
-      {
-        q: "What does each box include?",
-        a: "Each box is a complete service: infrastructure, processing, management panel and support. The GPS Core Ingestion box is the foundation the others run on.",
-      },
-    ],
-    cta: {
-      title: "Is your case more complex?",
-      body: "Large fleets, multiple operations or specific compliance requirements: let's talk and build a tailored proposal.",
-      button: "Talk to us",
-    },
   },
 };

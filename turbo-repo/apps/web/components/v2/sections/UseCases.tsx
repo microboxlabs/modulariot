@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Reveal } from "../Reveal";
 import { ConceptGraphic } from "../ConceptGraphic";
-import { Section, SectionHeader, Check } from "./shared";
+import { Section, SectionHeader, Check, type Tone } from "./shared";
 
 type UseCaseCard = { title: string; body: string; bullets: string[] };
 
@@ -9,11 +9,11 @@ type UseCaseCard = { title: string; body: string; bullets: string[] };
 // por índice con "cards" del namespace useCases en los JSON de i18n.
 const CARD_IDS = ["ingesta", "sintomas", "integraciones", "video"];
 
-export async function UseCases({ lang }: { lang: string }) {
+export async function UseCases({ lang, tone }: { lang: string; tone: Tone }) {
   const t = await getTranslations({ locale: lang, namespace: "useCases" });
   const cards = t.raw("cards") as UseCaseCard[];
   return (
-    <Section id="casos-de-uso" tone="white">
+    <Section id="casos-de-uso" tone={tone}>
       <SectionHeader kicker={t("kicker")} title={t("title")} subtitle={t("subtitle")} />
       <div className="mt-12 grid gap-4 md:grid-cols-2">
         {cards.map((card, i) => (

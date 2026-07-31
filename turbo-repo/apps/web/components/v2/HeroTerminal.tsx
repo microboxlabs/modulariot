@@ -58,7 +58,7 @@ export default function HeroTerminal() {
   }, [events.length]);
 
   return (
-    <div className="mx-auto mt-12 w-full max-w-2xl lg:mx-0 lg:mt-0">
+    <div className="mx-auto mt-12 w-full max-w-2xl lg:mx-0 lg:mt-0 z-10">
       <div className="overflow-hidden rounded-[14px] border border-hairline bg-surface shadow-[0_30px_60px_-30px_rgba(15,23,42,0.18),0_1px_3px_rgba(15,23,42,0.04)] dark:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)]">
         {/* Encabezado del panel — instrumento, no navegador */}
         <div className="flex items-center justify-between border-b border-hairline bg-surface-2 px-4 py-3">

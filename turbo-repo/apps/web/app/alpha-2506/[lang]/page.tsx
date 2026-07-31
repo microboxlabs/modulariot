@@ -1,5 +1,5 @@
-import Nav from "../../../components/v2/Nav";
 import { Hero } from "../../../components/v2/sections/Hero";
+import { TrustedBy } from "../../../components/v2/sections/TrustedBy";
 import { Stats } from "../../../components/v2/sections/Stats";
 import { Problem } from "../../../components/v2/sections/Problem";
 import { TresActos } from "../../../components/v2/sections/TresActos";
@@ -10,7 +10,7 @@ import { PainOutcome } from "../../../components/v2/sections/PainOutcome";
 import { Deployment } from "../../../components/v2/sections/Deployment";
 import { Stories } from "../../../components/v2/sections/Stories";
 import { FinalCta } from "../../../components/v2/sections/FinalCta";
-import { Footer } from "../../../components/v2/sections/Footer";
+import { type Tone } from "../../../components/v2/sections/shared";
 import StepsInteractive from "../../../components/v2/StepsInteractive";
 import FAQ from "../../../components/v2/FAQ";
 
@@ -25,25 +25,36 @@ export default async function Home({
   const { lang } = await params;
   const base = `/alpha-2506/${lang}`;
 
+  // Ritmo de superficies automático: blanco, gris, blanco, gris... en el
+  // orden en que las secciones aparecen abajo. Cambiar el orden de las
+  // secciones reordena los tonos solo — nada que tocar por sección.
+  let toneIndex = 0;
+  const tone = (): Tone => (toneIndex++ % 2 === 0 ? "white" : "gray");
+
   return (
-    <>
-      <Nav />
-      <main>
-        <Hero lang={lang} />   {/* Gancho */}
-        <Stats lang={lang} />              {/* Validación / cuantificación (banda oscura) */}
-        <Problem lang={lang} />            {/* Problema emocional (We Got You) */}
-        <TresActos base={base} lang={lang} /> {/* La tesis en 3 actos → explorador nativo */}
-        <StepsInteractive />               {/* Demostración paso a paso (autoreproducida) */}
-        <Features lang={lang} />           {/* Solución: 3 capacidades */}
-        <UseCases lang={lang} />           {/* Las 4 cajas de procesamiento */}
-        <Confiabilidad base={base} />      {/* Precisión de señal: 12/20 pulsos/min (minería) */}
-        <PainOutcome lang={lang} />        {/* Diferenciación: rentar vs poseer */}
-        <Deployment lang={lang} />         {/* Opciones de implementación */}
-        <Stories lang={lang} />            {/* Prueba social: casos reales */}
-        <FAQ />                            {/* Objeciones */}
-        <FinalCta lang={lang} />           {/* Cierre */}
-      </main>
-      <Footer base={base} lang={lang} />
-    </>
+    <main>
+      <Hero lang={lang} tone={tone()} /> {/* Gancho */}
+      <Stats lang={lang} tone={tone()} />{" "}
+      {/* Validación / cuantificación (banda oscura) */}
+      <Problem lang={lang} tone={tone()} />{" "}
+      {/* Problema emocional (We Got You) */}
+      <TresActos base={base} lang={lang} tone={tone()} />{" "}
+      {/* La tesis en 3 actos → explorador nativo */}
+      <StepsInteractive tone={tone()} />{" "}
+      {/* Demostración paso a paso (autoreproducida) */}
+      <Features lang={lang} tone={tone()} /> {/* Solución: 3 capacidades */}
+      <UseCases lang={lang} tone={tone()} />{" "}
+      {/* Las 4 cajas de procesamiento */}
+      <Confiabilidad base={base} tone={tone()} />{" "}
+      {/* Precisión de señal: 12/20 pulsos/min (minería) */}
+      <PainOutcome lang={lang} tone={tone()} />{" "}
+      {/* Diferenciación: rentar vs poseer */}
+      <Deployment lang={lang} tone={tone()} />{" "}
+      {/* Opciones de implementación */}
+      <TrustedBy lang={lang} tone={tone()} /> {/* Confianza: cliente */}
+      <Stories lang={lang} tone={tone()} /> {/* Prueba social: casos reales */}
+      <FAQ tone={tone()} /> {/* Objeciones */}
+      <FinalCta lang={lang} base={base} tone={tone()} /> {/* Cierre */}
+    </main>
   );
 }

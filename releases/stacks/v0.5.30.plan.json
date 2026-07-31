@@ -1,0 +1,140 @@
+{
+  "stack_version": "0.5.30",
+  "stack_tag": "miot-stack@v0.5.30",
+  "milestone": "MIOT-0.5.30",
+  "pull_requests": [
+    {
+      "number": 1034,
+      "title": "feat(credentials): generic OAuth 2.0 form + fix calendar status being stripped client-side",
+      "source_issues": [
+        {
+          "number": 1037,
+          "title": "feat(credentials): generic OAuth2 form and calendar status schema fix"
+        }
+      ]
+    },
+    {
+      "number": 1038,
+      "title": "Fixes in the main frame for the landing page",
+      "source_issues": [
+        {
+          "number": 1040,
+          "title": "feat(web): landing page UI, legal pages, pricing, and i18n polish"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-core/src/main/resources/application.properties",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgAuth0ClientsResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/client/Auth0ApplicationsClient.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/Auth0ApplicationRow.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/Auth0ClientSummary.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/Auth0ClientDirectoryService.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/Auth0ClientDirectoryServiceTest.java",
+    "turbo-repo/apps/app/public/credential-logos/auth0-dark.svg",
+    "turbo-repo/apps/app/public/credential-logos/auth0-light.svg",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/auth0/m2m-clients/route.ts",
+    "turbo-repo/apps/app/src/features/common/providers/client-api.provider.ts",
+    "turbo-repo/apps/app/src/features/credentials/auth0-clients-data-service.ts",
+    "turbo-repo/apps/app/src/features/credentials/components/auth0-m2m-credential-modal.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/azure-entra-credential-modal.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credential-form-shell.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credential-modal-parts.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credentials-page-content.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/m2m-client-combobox.test.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/m2m-client-combobox.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/oauth2-credential-modal.tsx",
+    "turbo-repo/apps/app/src/features/credentials/credential.types.test.ts",
+    "turbo-repo/apps/app/src/features/credentials/credential.types.ts",
+    "turbo-repo/apps/app/src/features/credentials/credentials-data-service.test.ts",
+    "turbo-repo/apps/app/src/features/credentials/credentials-data-service.ts",
+    "turbo-repo/apps/app/src/features/credentials/use-credential-form.test.ts",
+    "turbo-repo/apps/app/src/features/credentials/use-credential-form.ts",
+    "turbo-repo/apps/app/src/features/credentials/use-credentials.ts",
+    "turbo-repo/apps/app/src/features/credentials/use-m2m-clients.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/canales/page.tsx",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/contacto/page.tsx",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/layout.tsx",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/page.tsx",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/precios/page.tsx",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/proveedores-gps/page.tsx",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/superprofile/page.tsx",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/torre/page.tsx",
+    "turbo-repo/apps/web/app/globals.css",
+    "turbo-repo/apps/web/app/layout.tsx",
+    "turbo-repo/apps/web/app/page.tsx",
+    "turbo-repo/apps/web/app/privacy/page.tsx",
+    "turbo-repo/apps/web/app/terms/page.tsx",
+    "turbo-repo/apps/web/components/legal/LegalPageLayout.tsx",
+    "turbo-repo/apps/web/components/v2/ConceptGraphic.tsx",
+    "turbo-repo/apps/web/components/v2/ContactForm.tsx",
+    "turbo-repo/apps/web/components/v2/Counter.tsx",
+    "turbo-repo/apps/web/components/v2/DetailPage.tsx",
+    "turbo-repo/apps/web/components/v2/FAQ.tsx",
+    "turbo-repo/apps/web/components/v2/HeroTerminal.tsx",
+    "turbo-repo/apps/web/components/v2/ModuleTabs.tsx",
+    "turbo-repo/apps/web/components/v2/Nav.tsx",
+    "turbo-repo/apps/web/components/v2/PricingCalculator.tsx",
+    "turbo-repo/apps/web/components/v2/PricingFaq.tsx",
+    "turbo-repo/apps/web/components/v2/PricingPage.tsx",
+    "turbo-repo/apps/web/components/v2/PricingTiers.tsx",
+    "turbo-repo/apps/web/components/v2/StepsInteractive.tsx",
+    "turbo-repo/apps/web/components/v2/brand/Logo.tsx",
+    "turbo-repo/apps/web/components/v2/content.en.ts",
+    "turbo-repo/apps/web/components/v2/content.pt.ts",
+    "turbo-repo/apps/web/components/v2/content.ts",
+    "turbo-repo/apps/web/components/v2/pricing-utils.ts",
+    "turbo-repo/apps/web/components/v2/sections/Confiabilidad.tsx",
+    "turbo-repo/apps/web/components/v2/sections/Deployment.tsx",
+    "turbo-repo/apps/web/components/v2/sections/Features.tsx",
+    "turbo-repo/apps/web/components/v2/sections/FinalCta.tsx",
+    "turbo-repo/apps/web/components/v2/sections/Footer.tsx",
+    "turbo-repo/apps/web/components/v2/sections/Hero.tsx",
+    "turbo-repo/apps/web/components/v2/sections/PainOutcome.tsx",
+    "turbo-repo/apps/web/components/v2/sections/Problem.tsx",
+    "turbo-repo/apps/web/components/v2/sections/Stats.tsx",
+    "turbo-repo/apps/web/components/v2/sections/Stories.tsx",
+    "turbo-repo/apps/web/components/v2/sections/TresActos.tsx",
+    "turbo-repo/apps/web/components/v2/sections/TrustedBy.tsx",
+    "turbo-repo/apps/web/components/v2/sections/UseCases.tsx",
+    "turbo-repo/apps/web/components/v2/sections/shared.tsx",
+    "turbo-repo/apps/web/messages/br.json",
+    "turbo-repo/apps/web/messages/en.json",
+    "turbo-repo/apps/web/messages/es.json",
+    "turbo-repo/apps/web/public/clients/mintral-logo.png"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.30",
+      "tag": "app@v0.5.30"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.28",
+      "version": "0.5.30",
+      "tag": "docs@v0.5.30"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.29",
+      "version": "0.5.30",
+      "tag": "web@v0.5.30"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.18",
+      "version": "0.5.19",
+      "tag": "modulith@v0.5.19"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.4",
+      "version": "0.1.4",
+      "tag": "harness@v0.1.4"
+    }
+  }
+}

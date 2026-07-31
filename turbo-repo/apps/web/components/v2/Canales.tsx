@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { getTorre, getModules } from "./module-i18n";
 import { type Entity } from "./torre-modules-data";
-import { useLang } from "./useLang";
 
 // ============================================================
 // Acto 3 · Canales de escalamiento — la misma inteligencia, en el canal
@@ -333,8 +332,7 @@ function SmsMock({ p, t }: { p: Payload; t: Dict }) {
   );
 }
 
-export default function Canales() {
-  const lang = useLang();
+export default function Canales({ lang }: { lang: string }) {
   const { SYMPTOMS } = getTorre(lang);
   const { ENTITY_DATA } = getModules(lang);
   const t = UI[(lang as "es" | "en" | "pt")] ?? UI.es;

@@ -1,4 +1,181 @@
 {
+  "nav": {
+    "cta": "Request a demo",
+    "mega": {
+      "label": "Product",
+      "sections": [
+        {
+          "title": "Platform",
+          "items": [
+            {
+              "label": "GPS Core Ingestion",
+              "desc": "Real-time GPS and sensor signals into your database"
+            },
+            {
+              "label": "Symptoms / Control Tower",
+              "desc": "30+ detection rules with full traceability"
+            },
+            {
+              "label": "Integrations",
+              "desc": "Workflows, webhooks and evidence vault"
+            },
+            {
+              "label": "Live Video / HLS",
+              "desc": "Continuous streaming from cameras and dashcams"
+            }
+          ]
+        },
+        {
+          "title": "Technology",
+          "items": [
+            {
+              "label": "Features",
+              "desc": "Streaming, alerts and workflows"
+            },
+            {
+              "label": "Architecture",
+              "desc": "From the edge device to your cloud in <56ms"
+            },
+            {
+              "label": "Deployment",
+              "desc": "Your cloud, MBL-managed or hybrid edge"
+            }
+          ]
+        },
+        {
+          "title": "Live, with real data",
+          "items": [
+            {
+              "label": "Control tower",
+              "desc": "All 36 symptoms on a real operation"
+            },
+            {
+              "label": "SuperProfile",
+              "desc": "The living operational identity of each actor"
+            },
+            {
+              "label": "Escalation channels",
+              "desc": "The alert in email, WhatsApp, Teams, Webex and SMS"
+            },
+            {
+              "label": "GPS providers",
+              "desc": "Signal precision: 12/20 pulses per minute"
+            }
+          ]
+        }
+      ]
+    },
+    "columnMenus": [
+      {
+        "label": "Solutions",
+        "columns": [
+          {
+            "title": "Use cases",
+            "links": [
+              {
+                "label": "Driver and asset monitoring"
+              },
+              {
+                "label": "Mechanical telemetry and maintenance"
+              },
+              {
+                "label": "Compliance and audits"
+              },
+              {
+                "label": "Operational control tower"
+              }
+            ],
+            "footer": {
+              "label": "All solutions"
+            }
+          },
+          {
+            "title": "Industries",
+            "links": [
+              {
+                "label": "Freight transport"
+              },
+              {
+                "label": "Mining"
+              },
+              {
+                "label": "Distribution and last mile"
+              },
+              {
+                "label": "Industrial logistics"
+              }
+            ],
+            "footer": {
+              "label": "Real stories"
+            }
+          }
+        ]
+      },
+      {
+        "label": "Resources",
+        "columns": [
+          {
+            "title": "Learn",
+            "links": [
+              {
+                "label": "Documentation"
+              },
+              {
+                "label": "FAQ"
+              }
+            ],
+            "footer": {
+              "label": "All resources"
+            }
+          },
+          {
+            "title": "Community",
+            "links": [
+              {
+                "label": "GitHub"
+              },
+              {
+                "label": "MicroBox Labs"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "direct": [
+      {
+        "label": "Contact"
+      }
+    ],
+    "languages": [
+      {
+        "country": "Chile"
+      },
+      {
+        "country": "Peru"
+      },
+      {
+        "country": "Colombia"
+      },
+      {
+        "country": "Mexico"
+      },
+      {
+        "country": "Brazil"
+      },
+      {
+        "country": "Global"
+      }
+    ],
+    "actions": {
+      "login": {
+        "label": "Log In"
+      },
+      "signup": {
+        "label": "Sign Up"
+      }
+    }
+  },
   "hero": {
     "kicker": "Open Source · Apache-2.0",
     "titlePre": "From detecting to ",

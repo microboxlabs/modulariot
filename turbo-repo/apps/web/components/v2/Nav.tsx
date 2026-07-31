@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { DarkThemeToggle } from "flowbite-react";
-import { getContent } from "./content";
 import { Flag } from "./flags";
 import { LynxBrand } from "./brand/Logo";
+import { MEGA_SECTIONS, COLUMN_MENUS, DIRECT_LINKS, GITHUB_HREF, LANGUAGE_CODES } from "./nav-data";
 
 const COUNTRY_KEY = "miot_country";
 
@@ -30,6 +31,13 @@ export function useBasePath() {
 function resolveHref(base: string, href: string) {
   return href.startsWith("http") || href.startsWith("mailto:") ? href : `${base}${href}`;
 }
+
+// URL completa (incluye el path de sign-in) de la app real (apps/app, no esta
+// landing) — varía por entorno, así que vive entera en NEXT_PUBLIC_APP_URL
+// (ver .env.example/.env.local), nada de path hardcodeado acá. Iniciar sesión
+// y Crear cuenta abren la misma pantalla por ahora (apps/app todavía no tiene
+// una ruta de registro separada).
+const APP_SIGN_IN_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3050/sign-in";
 
 const navIcons: Record<string, React.ReactNode> = {
   signal: (
@@ -89,12 +97,40 @@ const panelCard = "rounded-xl border border-hairline bg-surface shadow-xl";
 const topItem =
   "flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink-1";
 
+type MegaItemText = { label: string; desc: string };
+type ColumnLinkText = { label: string };
+
 export default function Nav() {
   const [open, setOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [country, setCountry] = useState<string | null>(null);
   const { base, lang } = useBasePath();
-  const nav = getContent(lang).nav;
+  const t = useTranslations("nav");
+
+  // Texto (JSON, vía next-intl) + estructura (código, nav-data.ts) combinados
+  // por índice — mismo split que CARD_IDS en UseCases.tsx: lo no-textual
+  // (íconos/hrefs) no vive en el diccionario de idioma.
+  const megaSections = (t.raw("mega.sections") as { title: string; items: MegaItemText[] }[]).map((section, si) => ({
+    title: section.title,
+    items: section.items.map((item, ii) => ({ ...item, ...MEGA_SECTIONS[si].items[ii] })),
+  }));
+  const columnMenus = (
+    t.raw("columnMenus") as {
+      label: string;
+      columns: { title: string; links: ColumnLinkText[]; footer?: ColumnLinkText }[];
+    }[]
+  ).map((menu, mi) => ({
+    label: menu.label,
+    columns: menu.columns.map((col, ci) => {
+      const colData = COLUMN_MENUS[mi].columns[ci];
+      return {
+        title: col.title,
+        links: col.links.map((link, li) => ({ ...link, ...colData.links[li] })),
+        footer: col.footer && colData.footer ? { ...col.footer, ...colData.footer } : undefined,
+      };
+    }),
+  }));
+  const direct = (t.raw("direct") as ColumnLinkText[]).map((item, i) => ({ ...item, ...DIRECT_LINKS[i] }));
 
   // País elegido persistido; se lee tras montar (evita mismatch SSR).
   useEffect(() => {
@@ -105,7 +141,8 @@ export default function Nav() {
 
   // País activo: el guardado si coincide con el idioma de la ruta, si no el
   // primer país (ancla) de ese idioma.
-  const regions = nav.languages;
+  const countries = t.raw("languages") as { country: string }[];
+  const regions = LANGUAGE_CODES.map((l, i) => ({ ...l, country: countries[i].country }));
   const activeRegion =
     regions.find((r) => r.flag === country && r.lang === lang) ||
     regions.find((r) => r.lang === lang) ||
@@ -133,12 +170,12 @@ export default function Nav() {
               una franja muerta que corte el hover al bajar el mouse. */}
           <div className="group flex h-[60px] items-center">
             <button className={topItem}>
-              {nav.mega.label}
+              {t("mega.label")}
               <Chevron />
             </button>
-            <div className={`${panelCentered} w-[92vw] ${nav.mega.sections.length >= 3 ? "max-w-7xl" : "max-w-3xl"}`}>
-              <div className={`grid ${nav.mega.sections.length >= 3 ? "grid-cols-3" : "grid-cols-2"} ${panelCard} p-6`}>
-                {nav.mega.sections.map((section, si) => (
+            <div className={`${panelCentered} w-[92vw] ${megaSections.length >= 3 ? "max-w-7xl" : "max-w-3xl"}`}>
+              <div className={`grid ${megaSections.length >= 3 ? "grid-cols-3" : "grid-cols-2"} ${panelCard} p-6`}>
+                {megaSections.map((section, si) => (
                   <div key={section.title} className={si === 0 ? "pr-6" : "border-l border-hairline px-6"}>
                     <p className="mb-3 px-2 text-xs font-semibold tracking-[0.08em] text-ink-3 uppercase">{section.title}</p>
                     {section.items.map((item) => (
@@ -165,7 +202,7 @@ export default function Nav() {
           </div>
 
           {/* Soluciones / Recursos: columnas con encabezado */}
-          {nav.columnMenus.map((menu) => (
+          {columnMenus.map((menu) => (
             <div key={menu.label} className="group relative">
               <button className={topItem}>
                 {menu.label}
@@ -180,14 +217,14 @@ export default function Nav() {
                         <a
                           key={link.label}
                           href={resolveHref(base, link.href)}
-                          {...("external" in link && link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                          {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                           className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-sm text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink-1"
                         >
                           {link.label}
-                          {"external" in link && link.external && <ExternalIcon />}
+                          {link.external && <ExternalIcon />}
                         </a>
                       ))}
-                      {"footer" in col && col.footer && (
+                      {col.footer && (
                         <a
                           href={resolveHref(base, col.footer.href)}
                           className="mt-2 border-t border-hairline px-2 pt-3 text-sm font-medium text-accent transition-colors hover:text-accent-strong"
@@ -206,7 +243,7 @@ export default function Nav() {
           ))}
 
           {/* Links directos */}
-          {nav.direct.map((item) => (
+          {direct.map((item) => (
             <a
               key={item.label}
               href={resolveHref(base, item.href)}
@@ -221,7 +258,7 @@ export default function Nav() {
         {/* Derecha: GitHub + tema + idioma + acciones */}
         <div className="ml-auto hidden shrink-0 items-center gap-2 lg:flex">
           <a
-            href={nav.github.href}
+            href={GITHUB_HREF}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub"
@@ -235,16 +272,16 @@ export default function Nav() {
           <DarkThemeToggle theme={themeToggleStyle} />
           
           <a
-            href={resolveHref(base, nav.actions.login.href)}
+            href={APP_SIGN_IN_URL}
             className="rounded-lg px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:text-ink-1"
           >
-            {nav.actions.login.label}
+            {t("actions.login.label")}
           </a>
           <a
-            href={resolveHref(base, nav.actions.signup.href)}
+            href={APP_SIGN_IN_URL}
             className="rounded-lg border border-ink-1 bg-ink-1 px-3.5 py-2 text-sm font-medium text-page transition-colors hover:bg-ink-2 hover:border-ink-2"
           >
-            {nav.actions.signup.label}
+            {t("actions.signup.label")}
           </a>
         </div>
 
@@ -271,8 +308,8 @@ export default function Nav() {
       {open && (
         <div className="max-h-[80vh] overflow-y-auto border-t border-hairline bg-page px-6 pb-6 lg:hidden">
           {[
-            { label: nav.mega.label, links: nav.mega.sections.flatMap((s) => s.items.map((i) => ({ label: i.label, href: i.href }))) },
-            ...nav.columnMenus.map((m) => ({
+            { label: t("mega.label"), links: megaSections.flatMap((s) => s.items.map((i) => ({ label: i.label, href: i.href }))) },
+            ...columnMenus.map((m) => ({
               label: m.label,
               links: m.columns.flatMap((c) => c.links.map((l) => ({ label: l.label, href: l.href }))),
             })),
@@ -304,7 +341,7 @@ export default function Nav() {
               )}
             </div>
           ))}
-          {nav.direct.map((item) => (
+          {direct.map((item) => (
             <a
               key={item.label}
               href={resolveHref(base, item.href)}
@@ -316,18 +353,18 @@ export default function Nav() {
           ))}
           <div className="mt-4 space-y-2">
             <a
-              href={resolveHref(base, nav.actions.login.href)}
+              href={APP_SIGN_IN_URL}
               onClick={() => setOpen(false)}
               className="block rounded-lg px-4 py-2.5 text-center text-sm font-medium text-ink-2"
             >
-              {nav.actions.login.label}
+              {t("actions.login.label")}
             </a>
             <a
-              href={resolveHref(base, nav.actions.signup.href)}
+              href={APP_SIGN_IN_URL}
               onClick={() => setOpen(false)}
               className="block rounded-lg border border-ink-1 bg-ink-1 px-4 py-2.5 text-center text-sm font-medium text-page"
             >
-              {nav.actions.signup.label}
+              {t("actions.signup.label")}
             </a>
           </div>
         </div>

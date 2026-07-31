@@ -32,12 +32,14 @@ function resolveHref(base: string, href: string) {
   return href.startsWith("http") || href.startsWith("mailto:") ? href : `${base}${href}`;
 }
 
-// URL completa (incluye el path de sign-in) de la app real (apps/app, no esta
-// landing) — varía por entorno, así que vive entera en NEXT_PUBLIC_APP_URL
-// (ver .env.example/.env.local), nada de path hardcodeado acá. Iniciar sesión
-// y Crear cuenta abren la misma pantalla por ahora (apps/app todavía no tiene
-// una ruta de registro separada).
-const APP_SIGN_IN_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3050/sign-in";
+// URLs completas (incluyen path/query) de la app real (apps/app, no esta
+// landing) — varían por entorno, así que viven enteras en
+// NEXT_PUBLIC_APP_LOGIN_URL / NEXT_PUBLIC_APP_SIGNUP_URL (ver
+// .env.example/.env.local), nada de path hardcodeado acá. Separadas (aunque
+// hoy apunten al mismo sign-in) para poder cambiar una sin tocar la otra —
+// p.ej. cuando Crear cuenta sume su propio query param.
+const APP_LOGIN_URL = process.env.NEXT_PUBLIC_APP_LOGIN_URL || "http://localhost:3050/sign-in";
+const APP_SIGNUP_URL = process.env.NEXT_PUBLIC_APP_SIGNUP_URL || "http://localhost:3050/sign-in";
 
 const navIcons: Record<string, React.ReactNode> = {
   signal: (
@@ -272,13 +274,13 @@ export default function Nav() {
           <DarkThemeToggle theme={themeToggleStyle} />
           
           <a
-            href={APP_SIGN_IN_URL}
+            href={APP_LOGIN_URL}
             className="rounded-lg px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:text-ink-1"
           >
             {t("actions.login.label")}
           </a>
           <a
-            href={APP_SIGN_IN_URL}
+            href={APP_SIGNUP_URL}
             className="rounded-lg border border-ink-1 bg-ink-1 px-3.5 py-2 text-sm font-medium text-page transition-colors hover:bg-ink-2 hover:border-ink-2"
           >
             {t("actions.signup.label")}
@@ -353,14 +355,14 @@ export default function Nav() {
           ))}
           <div className="mt-4 space-y-2">
             <a
-              href={APP_SIGN_IN_URL}
+              href={APP_LOGIN_URL}
               onClick={() => setOpen(false)}
               className="block rounded-lg px-4 py-2.5 text-center text-sm font-medium text-ink-2"
             >
               {t("actions.login.label")}
             </a>
             <a
-              href={APP_SIGN_IN_URL}
+              href={APP_SIGNUP_URL}
               onClick={() => setOpen(false)}
               className="block rounded-lg border border-ink-1 bg-ink-1 px-4 py-2.5 text-center text-sm font-medium text-page"
             >

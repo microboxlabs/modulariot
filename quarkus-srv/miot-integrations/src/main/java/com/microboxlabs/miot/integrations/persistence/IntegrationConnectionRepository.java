@@ -56,14 +56,11 @@ public class IntegrationConnectionRepository {
             LIMIT 1
             """;
 
-    // Resolution for a caller that knows which contract it needs but not which instance serves
-    // it. A template's id is a per-environment UUID, so the portable coordinate is
-    // (tenant, template name) — that is what a workflow variable or a config value can name.
-    //
-    // The template is matched by subquery rather than JOIN so the shared COLUMNS list stays
-    // usable unqualified. Repeating $1 inside it also confines the match to templates the tenant
-    // owns: a connection whose template_id pointed at another tenant's row resolves to nothing
-    // rather than borrowing that tenant's contract.
+    // Keyed on template *name*, not id: template ids are per-environment UUIDs, so a workflow
+    // variable or config value can only name the template. Subquery rather than JOIN keeps the
+    // shared COLUMNS list usable unqualified, and repeating $1 inside it confines the match to
+    // templates the tenant owns — a template_id pointing at another tenant's row resolves to
+    // nothing rather than borrowing its contract.
     private static final String SELECT_ACTIVE_BY_TEMPLATE_NAME = "SELECT " + COLUMNS + """
 
             FROM miot_integrations.integration_connections
@@ -215,15 +212,10 @@ public class IntegrationConnectionRepository {
     }
 
     /**
-     * The connection a tenant uses for a named template, or {@code null} when it has none.
-     *
-     * <p>Ordered like {@link #findActiveByProvider}: ACTIVE first, then a connection whose last
-     * test passed, then the most recently tested — so the instance the operator most recently
-     * validated is the one that serves traffic.
-     *
-     * <p>A tenant with no instance of the template is the normal state during rollout, not an
-     * error. The blank guard runs before {@code client()} so an unnamed template never reaches
-     * the database, mirroring {@link #findByTenantAndId}.
+     * The connection a tenant uses for a named template, or {@code null} when it has none — the
+     * normal state during rollout, not an error. Ordered like {@link #findActiveByProvider} so
+     * the instance the operator most recently validated serves traffic. Blank guard runs before
+     * {@code client()}, mirroring {@link #findByTenantAndId}.
      */
     public IntegrationConnection findActiveByTemplateName(String tenantCode, String templateName) {
         if (tenantCode == null || tenantCode.isBlank()

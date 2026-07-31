@@ -56,8 +56,7 @@ class TemplateConnectionResolverTest {
     void returnsEmptyWhenTheTenantHasNoInstanceYet() {
         connections.result = null;
 
-        // The normal state during rollout: the caller keeps its previous credential rather than
-        // failing, so an unmigrated tenant is not broken by this lookup existing.
+        // Rollout state: an unmigrated tenant keeps its previous credential rather than failing.
         assertTrue(resolver().resolve(TENANT, TEMPLATE).isEmpty());
     }
 
@@ -67,8 +66,7 @@ class TemplateConnectionResolverTest {
 
         resolver().resolve("other-tenant", TEMPLATE);
 
-        // The tenant is passed straight through: one tenant must never resolve to another's
-        // connection, and the repository's query is what enforces it.
+        // Passed straight through — one tenant must never resolve to another's connection.
         assertEquals(List.of("other-tenant/" + TEMPLATE), connections.lookups);
     }
 
@@ -76,14 +74,14 @@ class TemplateConnectionResolverTest {
     void treatsABlankTemplateNameAsUnresolved() {
         connections.result = connection("conn-1", "cred-1");
 
-        // Guarded in the repository rather than here, so a caller with an unset config value
-        // gets the fallback path instead of an arbitrary connection.
+        // Guarded in the repository, so an unset config value falls back instead of picking
+        // an arbitrary connection.
         assertTrue(new TemplateConnectionResolver(new BlankGuardingConnections())
                 .resolve(TENANT, "")
                 .isEmpty());
     }
 
-    /** Records what was asked for, so tenant scoping can be asserted without a database. */
+    /** Records lookups so tenant scoping can be asserted without a database. */
     private static class FakeConnections extends IntegrationConnectionRepository {
         private final List<String> lookups = new ArrayList<>();
         private IntegrationConnection result;

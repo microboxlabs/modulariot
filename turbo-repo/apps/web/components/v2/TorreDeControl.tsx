@@ -81,6 +81,8 @@ const UI = {
     blackCode: "Código negro",
     maxSeverity: "severidad máxima",
     slaP50: "SLA gestión p50",
+    glossary: "Gestionable: requiere acción · Con tratamiento: alguien lo gestionó · Se invalida: al revisarlo no correspondía (ruido) · Código negro: severidad máxima · SLA p50: la mitad se gestionó dentro de ese tiempo",
+    rankNote: "Valores absolutos: un transportista con más viajes acumula más síntomas.",
     dailyDetection: "Detección diaria",
     legendTotal: "total",
     legendBlackCode: "código negro",
@@ -122,6 +124,8 @@ const UI = {
     blackCode: "Black code",
     maxSeverity: "max severity",
     slaP50: "Handling SLA p50",
+    glossary: "Manageable: requires action · With treatment: someone handled it · Invalidated: on review it didn't apply (noise) · Black code: maximum severity · SLA p50: half were handled within that time",
+    rankNote: "Absolute values: a carrier with more trips accumulates more symptoms.",
     dailyDetection: "Daily detection",
     legendTotal: "total",
     legendBlackCode: "black code",
@@ -163,6 +167,8 @@ const UI = {
     blackCode: "Código preto",
     maxSeverity: "severidade máxima",
     slaP50: "SLA de gestão p50",
+    glossary: "Gerenciável: exige ação · Com tratamento: alguém o geriu · Invalidado: na revisão não procedia (ruído) · Código preto: severidade máxima · SLA p50: metade foi gerida dentro desse tempo",
+    rankNote: "Valores absolutos: uma transportadora com mais viagens acumula mais sintomas.",
     dailyDetection: "Detecção diária",
     legendTotal: "total",
     legendBlackCode: "código preto",
@@ -329,11 +335,12 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
                 <Stat label={t.drivers} value={fmtN(k.conductores)} />
                 <Stat label={t.carriers} value={fmtN(k.transportistas)} />
                 <Stat label={t.blackCode} value={fmtN(k.blackcode)} sub={t.maxSeverity} />
-                <Stat label={t.slaP50} value={k.sla_p50_min != null ? `${k.sla_p50_min}m` : "—"} sub={k.sla_p90_min != null ? `p90 ${k.sla_p90_min}m` : undefined} />
+                <Stat label={t.slaP50} value={k.sla_p50_min != null ? `${k.sla_p50_min} min` : "—"} sub={k.sla_p90_min != null ? `p90 ${k.sla_p90_min} min` : undefined} />
               </div>
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
+                  <p className="mb-3 rounded-lg bg-gray-50 px-3 py-2 text-[11px] leading-relaxed text-gray-500">{t.glossary}</p>
                   <p className="text-xs font-semibold uppercase tracking-wide text-ink-3">{t.dailyDetection}</p>
                   <span className="flex items-center gap-3 text-[11px] text-ink-3">
                     <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-blue-500/80" />{t.legendTotal}</span>
@@ -346,6 +353,7 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
               <div className="grid gap-5 sm:grid-cols-2">
                 <DimBars title={t.topRoutes} rows={data.route} />
                 <DimBars title={t.topCarriers} rows={data.carrier} />
+                <p className="col-span-full text-[11px] text-gray-400">{t.rankNote}</p>
               </div>
             </div>
           )}

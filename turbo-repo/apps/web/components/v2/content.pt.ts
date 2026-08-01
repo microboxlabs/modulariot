@@ -18,7 +18,7 @@ export const pt = {
         {
           title: "Tecnologia",
           items: [
-            { icon: "code", label: "Recursos", href: "/producto/caracteristicas", desc: "Streaming, alertas e fluxos de trabalho" },
+            { icon: "code", label: "Recursos", href: "/producto/caracteristicas", desc: "Streaming, detecção e fluxos de trabalho" },
             { icon: "stack", label: "Arquitetura", href: "/producto/arquitectura", desc: "Do dispositivo edge à sua nuvem em <56ms" },
             { icon: "cloud", label: "Implantação", href: "/producto/implementacion", desc: "Sua nuvem, gerenciado pela MBL ou edge híbrido" },
           ],
@@ -28,8 +28,8 @@ export const pt = {
           items: [
             { icon: "radar", label: "Torre de controle", href: "/torre", desc: "Os 36 sintomas sobre uma operação real" },
             { icon: "stack", label: "SuperProfile", href: "/superprofile", desc: "A identidade operacional viva de cada ator" },
-            { icon: "plug", label: "Canais de escalonamento", href: "/canales", desc: "O alerta em e-mail, WhatsApp, Teams, Webex e SMS" },
-            { icon: "signal", label: "Provedores GPS", href: "/proveedores-gps", desc: "Precisão de sinal: 12/20 pulsos por minuto" },
+            { icon: "plug", label: "Canais de escalonamento", href: "/canales", desc: "O sintoma em e-mail, WhatsApp, Teams, Webex e SMS" },
+            { icon: "signal", label: "Provedores GPS", href: "/proveedores-gps", desc: "Medimos a qualidade de sinal de +28 provedores" },
           ],
         },
       ],
@@ -97,7 +97,6 @@ export const pt = {
     actions: {
       demo: { label: "Agende uma demo", href: "/contacto?intent=demo" },
       login: { label: "Entrar", href: "/contacto?intent=login" },
-      signup: { label: "Criar conta", href: "/contacto?intent=signup" },
     },
   },
 

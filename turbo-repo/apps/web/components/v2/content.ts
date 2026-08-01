@@ -29,7 +29,7 @@ export const content = {
         {
           title: "Tecnología",
           items: [
-            { icon: "code", label: "Características", href: "/producto/caracteristicas", desc: "Streaming, alertas y flujos de trabajo" },
+            { icon: "code", label: "Características", href: "/producto/caracteristicas", desc: "Streaming, detección y flujos de trabajo" },
             { icon: "stack", label: "Arquitectura", href: "/producto/arquitectura", desc: "Del dispositivo edge a tu nube en <56ms" },
             { icon: "cloud", label: "Implementación", href: "/producto/implementacion", desc: "Tu nube, gestionado por MBL o edge híbrido" },
           ],
@@ -39,8 +39,8 @@ export const content = {
           items: [
             { icon: "radar", label: "Torre de control", href: "/torre", desc: "Los 36 síntomas sobre una operación real" },
             { icon: "stack", label: "SuperProfile", href: "/superprofile", desc: "La identidad operacional viva de cada actor" },
-            { icon: "plug", label: "Canales de escalamiento", href: "/canales", desc: "La alerta en correo, WhatsApp, Teams, Webex y SMS" },
-            { icon: "signal", label: "Proveedores GPS", href: "/proveedores-gps", desc: "Precisión de señal: 12/20 pulsos por minuto" },
+            { icon: "plug", label: "Canales de escalamiento", href: "/canales", desc: "El síntoma en correo, WhatsApp, Teams, Webex y SMS" },
+            { icon: "signal", label: "Proveedores GPS", href: "/proveedores-gps", desc: "Medimos la calidad de señal de +28 proveedores" },
           ],
         },
       ],
@@ -107,11 +107,10 @@ export const content = {
       { lang: "en", country: "Global", flag: "gl" },
     ],
     cta: "Solicitar demo",
-    // Tres acciones del nav (estilo SaaS): demo + login + signup.
+    // Acciones del nav (demo-led): demo como única primaria + acceso clientes.
     actions: {
       demo: { label: "Solicitar demo", href: "/contacto?intent=demo" },
       login: { label: "Iniciar sesión", href: "/contacto?intent=login" },
-      signup: { label: "Crear cuenta", href: "/contacto?intent=signup" },
     },
   },
 

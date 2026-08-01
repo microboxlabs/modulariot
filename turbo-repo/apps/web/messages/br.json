@@ -1,6 +1,6 @@
 {
   "hero": {
-    "kicker": "Código Aberto · Apache-2.0",
+    "kicker": "Código aberto — motor e dados auditáveis",
     "titlePre": "De detectar a ",
     "titleHighlight": "reduzir",
     "titlePost": ".",
@@ -9,7 +9,7 @@
     "ctaSecondary": "Ver preços",
     "livePanel": {
       "title": "Operação ao vivo",
-      "subtitle": "uma operação real, agora mesmo",
+      "subtitle": "assim opera, em tempo real",
       "live": "recebendo eventos…",
       "done": "tudo fica na sua operação",
       "events": [
@@ -41,9 +41,9 @@
         "label": "sintomas gerenciados em um mês"
       },
       {
-        "prefix": "Um",
-        "value": "65%",
-        "label": "dos alertas tratados são invalidados"
+        "prefix": "",
+        "value": "9 em 10",
+        "label": "sintomas eram ruído filtrado: sua equipe só vê o que importa"
       },
       {
         "prefix": "Com",
@@ -60,7 +60,7 @@
   "problem": {
     "kicker": "O problema",
     "title": "Você trata os alertas,\nmas eles voltam do mesmo jeito?",
-    "subtitle": "97% dos sintomas são tratados, mas tratar não resolve a causa — por isso os mesmos desvios voltam mês a mês.",
+    "subtitle": "De 55.847 sintomas detectados em um mês, só 5.885 exigiam gestão — o resto é ruído que esconde o urgente. E do que é tratado, metade é invalidada: fecha-se o ticket, não a causa. Por isso os mesmos desvios voltam mês a mês.",
     "pains": [
       {
         "title": "“Fiquei sabendo no dia seguinte”",
@@ -78,14 +78,14 @@
   },
   "tresActos": {
     "kicker": "A tese, em 3 atos",
-    "title": "Detectar é barato; reduzir é o negócio.",
+    "title": "Detectar é commodity; reduzir é o negócio.",
     "subtitle": "O mesmo motor de inteligência, aplicado em três momentos distintos da sua operação.",
     "actos": [
       {
         "n": "Ato 1",
         "tag": "Ver e reduzir",
         "title": "Você trata cada alerta, mas os desvios voltam do mesmo jeito.",
-        "body": "97% dos sintomas são tratados… e a maioria é invalidada. Fechar não é resolver: atacamos a causa que os gera em série, não o chamado.",
+        "body": "De 55.847 sintomas ao mês, 9 em cada 10 eram ruído filtrado — e do que é tratado, metade é invalidada. Fechar não é resolver: atacamos a causa que os gera em série, não o chamado.",
         "cta": "Explore a torre de controle"
       },
       {
@@ -98,7 +98,7 @@
       {
         "n": "Ato 3",
         "tag": "Gerenciar onde a operação vive",
-        "title": "O alerta chega com plano e responsável.",
+        "title": "O sintoma chega com plano e responsável.",
         "body": "E-mail, WhatsApp, Teams, Webex ou SMS. Escalar deixa de ser apenas um aviso e passa a ser o primeiro passo da gestão.",
         "cta": "Ver canais de escalonamento"
       }
@@ -108,7 +108,7 @@
   "steps": {
     "kicker": "Na prática",
     "title": "Transforme um sinal bruto em uma decisão auditável",
-    "subtitle": "Acompanhe o fluxo dos seus alertas, passo a passo.",
+    "subtitle": "Acompanhe o fluxo: do sinal bruto ao sintoma resolvido.",
     "items": [
       {
         "n": "01",
@@ -200,7 +200,7 @@
         "bullets": [
           "Canal de acordo com o tipo de sintoma",
           "Ciclo bidirecional, não só notificação",
-          "Cada alerta chega com plano e responsável"
+          "Cada sintoma chega com plano e responsável"
         ]
       }
     ]
@@ -231,8 +231,8 @@
   },
   "useCases": {
     "kicker": "Casos de uso",
-    "title": "Quatro caixas de processamento. Contrate só o que precisa.",
-    "subtitle": "Arquitetura modular sem dependência de fornecedor: cada caixa é um serviço independente com preço próprio por ativo.",
+    "title": "Quatro módulos. Contrate só o que precisa.",
+    "subtitle": "Arquitetura modular sem dependência de fornecedor: cada módulo é um serviço independente com preço próprio por ativo.",
     "cards": [
       {
         "title": "Ingestão GPS Core",
@@ -306,8 +306,8 @@
         "label": "ativos em operação real"
       },
       {
-        "value": "97%",
-        "label": "dos sintomas com gestão"
+        "value": "3.583",
+        "label": "tratamentos válidos em um mês"
       },
       {
         "value": "36",
@@ -373,10 +373,23 @@
       }
     ]
   },
+  "security": {
+    "kicker": "Segurança & dados",
+    "title": "Seus dados, sob suas regras",
+    "subtitle": "O que tira o risco da decisão: onde os dados vivem, quem os trata e que respaldo existe por trás.",
+    "items": [
+      { "title": "Seus dados, na sua nuvem", "body": "A plataforma roda na sua infraestrutura (AWS, Azure ou GCP). Os dados nunca saem do seu controle." },
+      { "title": "Operador de tratamento", "body": "A MicroBox Labs processa os dados por sua conta: confidencialidade, suboperadores declarados e exclusão na saída." },
+      { "title": "Lei 19.628 e GDPR", "body": "Marco de tratamento alinhado à normativa chilena e europeia de proteção de dados." },
+      { "title": "Código aberto auditável", "body": "O motor é open source (Apache-2.0): você pode auditar o que ele faz com seus dados, linha por linha." },
+      { "title": "Rastreabilidade para auditorias", "body": "Cada sintoma fica registrado com timestamp, responsável e resolução no seu próprio banco." },
+      { "title": "Suporte com SLA", "body": "Severidades e tempos de resposta comprometidos, com monitoramento contínuo da plataforma." }
+    ]
+  },
   "pricingTeaser": {
     "kicker": "Preços",
     "title": "Pague por ativo, só pelo que usa",
-    "subtitle": "Sem licenças por assento, sem custos de instalação. Cada caixa de processamento tem preço próprio por ativo/mês. Monte seu plano com a calculadora.",
+    "subtitle": "Sem licenças por assento, sem custos de instalação. Cada módulo tem preço próprio por ativo/mês. Monte seu plano com a calculadora.",
     "cta": "Calcule o preço da sua frota"
   },
   "pricing": {
@@ -418,7 +431,7 @@
       }
     },
     "calculator": {
-      "filterLabel": "Filtre por família operacional e escolha as caixas que você precisa",
+      "filterLabel": "Filtre por família operacional e escolha os módulos que você precisa",
       "allChip": "Todas",
       "fleetTitle": "Tamanho da frota do cliente",
       "fleetDesc": "Ajuste a frota para estimar o preço por ativo.",
@@ -426,10 +439,10 @@
       "allFamilies": "Todas as famílias",
       "baseIncluded": "Base · incluído",
       "perAssetMonth": "por ativo/mês",
-      "boxLabel": "Caixa interna",
+      "boxLabel": "Módulo interno",
       "volMonth": "Vol/mês",
       "pricePerAsset": "$/ativo",
-      "selectedBoxes": "Caixas selecionadas",
+      "selectedBoxes": "Módulos selecionados",
       "of": "de",
       "fleetOfClient": "Frota do cliente",
       "totalMonthly": "Total mensal",
@@ -443,11 +456,11 @@
     "philosophy": [
       {
         "title": "Pague só pelo que usa",
-        "body": "Você contrata caixas de processamento independentes. Se não usa vídeo ou integrações, não paga por elas."
+        "body": "Você contrata módulos independentes. Se não usa vídeo ou integrações, não paga por elas."
       },
       {
         "title": "Preço por ativo, transparente",
-        "body": "Um preço fixo por ativo/mês para cada caixa. Sem surpresas, sem custos de instalação, sem fidelidade mínima."
+        "body": "Um preço fixo por ativo/mês para cada módulo. Sem surpresas, sem custos de instalação, sem fidelidade mínima."
       },
       {
         "title": "Baseado em custos reais",
@@ -459,7 +472,7 @@
       "items": [
         {
           "q": "Como o serviço é cobrado?",
-          "a": "Assinatura mensal por ativo monitorado, conforme as caixas de processamento que você contratar. A proposta final é entregue após o diagnóstico gratuito."
+          "a": "Assinatura mensal por ativo monitorado, conforme os módulos que você contratar. A proposta final é entregue após o diagnóstico gratuito."
         },
         {
           "q": "Os preços da calculadora são finais?",
@@ -467,11 +480,11 @@
         },
         {
           "q": "Há custos de instalação ou fidelidade mínima?",
-          "a": "Não. A integração com sua tecnologia atual está incluída e você pode ajustar ou cancelar as caixas contratadas mês a mês."
+          "a": "Não. A integração com sua tecnologia atual está incluída e você pode ajustar ou cancelar os módulos contratados mês a mês."
         },
         {
-          "q": "O que cada caixa inclui?",
-          "a": "Cada caixa é um serviço completo: infraestrutura, processamento, painel de gestão e suporte. A caixa de Ingestão GPS Core é a base sobre a qual as demais operam."
+          "q": "O que cada módulo inclui?",
+          "a": "Cada módulo é um serviço completo: infraestrutura, processamento, painel de gestão e suporte. O módulo de Ingestão GPS Core é a base sobre a qual os demais operam."
         }
       ]
     },

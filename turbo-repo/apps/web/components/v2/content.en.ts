@@ -18,7 +18,7 @@ export const en = {
         {
           title: "Technology",
           items: [
-            { icon: "code", label: "Features", href: "/producto/caracteristicas", desc: "Streaming, alerts and workflows" },
+            { icon: "code", label: "Features", href: "/producto/caracteristicas", desc: "Streaming, detection and workflows" },
             { icon: "stack", label: "Architecture", href: "/producto/arquitectura", desc: "From the edge device to your cloud in <56ms" },
             { icon: "cloud", label: "Deployment", href: "/producto/implementacion", desc: "Your cloud, MBL-managed or hybrid edge" },
           ],
@@ -28,8 +28,8 @@ export const en = {
           items: [
             { icon: "radar", label: "Control tower", href: "/torre", desc: "All 36 symptoms on a real operation" },
             { icon: "stack", label: "SuperProfile", href: "/superprofile", desc: "The living operational identity of each actor" },
-            { icon: "plug", label: "Escalation channels", href: "/canales", desc: "The alert in email, WhatsApp, Teams, Webex and SMS" },
-            { icon: "signal", label: "GPS providers", href: "/proveedores-gps", desc: "Signal precision: 12/20 pulses per minute" },
+            { icon: "plug", label: "Escalation channels", href: "/canales", desc: "The symptom in email, WhatsApp, Teams, Webex and SMS" },
+            { icon: "signal", label: "GPS providers", href: "/proveedores-gps", desc: "We measure signal quality across 28+ providers" },
           ],
         },
       ],
@@ -97,7 +97,6 @@ export const en = {
     actions: {
       demo: { label: "Get a Demo", href: "/contacto?intent=demo" },
       login: { label: "Log In", href: "/contacto?intent=login" },
-      signup: { label: "Sign Up", href: "/contacto?intent=signup" },
     },
   },
 

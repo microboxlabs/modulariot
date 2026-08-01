@@ -343,10 +343,10 @@ export default function Nav() {
             {nav.actions.login.label}
           </a>
           <a
-            href={resolveHref(base, nav.actions.signup.href)}
+            href={resolveHref(base, nav.actions.demo.href)}
             className="border-ink-1 bg-ink-1 text-page hover:bg-ink-2 hover:border-ink-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors"
           >
-            {nav.actions.signup.label}
+            {nav.actions.demo.label}
           </a>
         </div>
 
@@ -456,11 +456,11 @@ export default function Nav() {
               {nav.actions.login.label}
             </a>
             <a
-              href={resolveHref(base, nav.actions.signup.href)}
+              href={resolveHref(base, nav.actions.demo.href)}
               onClick={() => setOpen(false)}
               className="border-ink-1 bg-ink-1 text-page block rounded-lg border px-4 py-2.5 text-center text-sm font-medium"
             >
-              {nav.actions.signup.label}
+              {nav.actions.demo.label}
             </a>
           </div>
         </div>

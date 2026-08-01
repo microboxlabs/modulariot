@@ -5,8 +5,6 @@ import { Partners } from "../../../components/v2/sections/Partners";
 import { Problem } from "../../../components/v2/sections/Problem";
 import { TresActos } from "../../../components/v2/sections/TresActos";
 import { Features } from "../../../components/v2/sections/Features";
-import { UseCases } from "../../../components/v2/sections/UseCases";
-import { Confiabilidad } from "../../../components/v2/sections/Confiabilidad";
 import { PainOutcome } from "../../../components/v2/sections/PainOutcome";
 import { Deployment } from "../../../components/v2/sections/Deployment";
 import { Security } from "../../../components/v2/sections/Security";
@@ -47,10 +45,6 @@ export default async function Home({
       <StepsInteractive tone={tone()} />{" "}
       {/* Demostración paso a paso (autoreproducida) */}
       <Features lang={lang} tone={tone()} /> {/* Solución: 3 capacidades */}
-      <UseCases lang={lang} tone={tone()} />{" "}
-      {/* Las 4 cajas de procesamiento */}
-      <Confiabilidad base={base} tone={tone()} />{" "}
-      {/* Precisión de señal: 12/20 pulsos/min (minería) */}
       <PainOutcome lang={lang} tone={tone()} />{" "}
       {/* Diferenciación: rentar vs poseer */}
       <Deployment lang={lang} tone={tone()} />{" "}

@@ -1,0 +1,144 @@
+{
+  "stack_version": "0.5.31",
+  "stack_tag": "miot-stack@v0.5.31",
+  "milestone": "MIOT-0.5.31",
+  "pull_requests": [
+    {
+      "number": 1043,
+      "title": "Based/fixing seo",
+      "source_issues": [
+        {
+          "number": 1046,
+          "title": "Enhance SEO metadata and localized product content"
+        }
+      ]
+    },
+    {
+      "number": 1044,
+      "title": "feat(integrations): resolve a tenant's connection by template name (P2)",
+      "source_issues": [
+        {
+          "number": 1039,
+          "title": "feat(integrations): model ams as an integration template with per-tenant connections (P2)"
+        }
+      ]
+    },
+    {
+      "number": 1047,
+      "title": "feat(integrations): fetch-shaped event bindings + calendar resource enrichment",
+      "source_issues": [
+        {
+          "number": 1048,
+          "title": "Add fetch-shaped event bindings and calendar resource enrichment"
+        }
+      ]
+    },
+    {
+      "number": 1049,
+      "title": "feat(calendar): advanced-settings drawer with enrichment configurator",
+      "source_issues": [
+        {
+          "number": 1050,
+          "title": "feat(calendar): advanced-settings drawer with enrichment configurator"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-conversational/src/main/java/com/microboxlabs/miot/conversational/jobs/JobFailureNotificationHandler.java",
+    "quarkus-srv/miot-conversational/src/test/java/com/microboxlabs/miot/conversational/jobs/JobFailureNotificationHandlerTest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarConfirmExecutor.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarRejectExecutor.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarSyncExecutor.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarSyncFeature.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/AsyncJob.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/IntegrationEventBinding.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/IntegrationEventBindingResponse.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/ReportJobRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/UpsertIntegrationEventBindingRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/jobs/IntegrationEventDispatchHandler.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/jobs/JobOutcome.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/jobs/ModulithJobHandler.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/jobs/ModulithJobWorker.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/AsyncJobRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/IntegrationConnectionRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/IntegrationEventBindingRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/AsyncJobService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/EventBindingFetchService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/IntegrationEventBindingService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/TemplateConnectionResolver.java",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.13__add_binding_response_templates_and_job_result.sql",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/calendar/CalendarConfirmExecutorTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/calendar/CalendarRejectExecutorTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/calendar/CalendarRejectOnParkTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/calendar/CalendarSyncExecutorTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/events/JobEventEmitterTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/jobs/IntegrationEventDispatchHandlerTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/jobs/JobFailureNotifyOnParkTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/jobs/ModulithJobWorkerTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/AsyncJobServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/EventBindingFetchServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/IntegrationEventBindingServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/TemplateConnectionResolverTest.java",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/calendar-rules/calendar-rules.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-header.tsx",
+    "turbo-repo/apps/app/src/features/calendar/enrichment/calendar-enrichment-drawer.tsx",
+    "turbo-repo/apps/app/src/features/calendar/enrichment/enrichment-data-service.ts",
+    "turbo-repo/apps/app/src/features/calendar/enrichment/enrichment.types.ts",
+    "turbo-repo/apps/app/src/features/common/components/settings-drawer/settings-drawer-shell.tsx",
+    "turbo-repo/apps/app/src/features/common/templating/template-input.tsx",
+    "turbo-repo/apps/app/src/features/shipping/components/lane/review-settings-drawer.tsx",
+    "turbo-repo/apps/app/src/features/shipping/components/lane/review-template-input.tsx",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/[...slug]/page.tsx",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/canales/page.tsx",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/contacto/page.tsx",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/layout.tsx",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/proveedores-gps/page.tsx",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/superprofile/page.tsx",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/torre/page.tsx",
+    "turbo-repo/apps/web/components/v2/Canales.tsx",
+    "turbo-repo/apps/web/components/v2/FAQ.tsx",
+    "turbo-repo/apps/web/components/v2/GpsProviders.tsx",
+    "turbo-repo/apps/web/components/v2/Nav.tsx",
+    "turbo-repo/apps/web/components/v2/SuperProfile.tsx",
+    "turbo-repo/apps/web/components/v2/TorreDeControl.tsx",
+    "turbo-repo/apps/web/components/v2/useLang.ts",
+    "turbo-repo/apps/web/lib/seo.ts",
+    "turbo-repo/apps/web/messages/br.json",
+    "turbo-repo/apps/web/next.config.ts",
+    "turbo-repo/apps/web/proxy.ts"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.31",
+      "tag": "app@v0.5.31"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.30",
+      "version": "0.5.30",
+      "tag": "docs@v0.5.30"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.30",
+      "version": "0.5.31",
+      "tag": "web@v0.5.31"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.19",
+      "version": "0.5.20",
+      "tag": "modulith@v0.5.20"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.4",
+      "version": "0.1.4",
+      "tag": "harness@v0.1.4"
+    }
+  }
+}

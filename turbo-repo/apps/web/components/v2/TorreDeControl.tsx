@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { type Symptom, type ProdEntry } from "./torre-data";
 import { getTorre } from "./module-i18n";
-import { useLang } from "./useLang";
 
 // ============================================================
 // Torre de Control — explorador nativo de síntomas.
@@ -237,8 +236,7 @@ function DimBars({ title, rows }: { title: string; rows: ProdEntry["route"] }) {
   );
 }
 
-function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
-  const lang = useLang();
+function DetailModal({ s, onClose, lang }: { s: Symptom; onClose: () => void; lang: string }) {
   const { FAMILIES, META, PRODDATA } = getTorre(lang);
   const t = UI[(lang as "es" | "en" | "pt")] ?? UI.es;
   const data: ProdEntry | undefined = PRODDATA[s.technicalName];
@@ -361,8 +359,7 @@ function DetailModal({ s, onClose }: { s: Symptom; onClose: () => void }) {
   );
 }
 
-export default function TorreDeControl() {
-  const lang = useLang();
+export default function TorreDeControl({ lang }: { lang: string }) {
   const { FAMILIES, SYMPTOMS, META, PRODDATA } = getTorre(lang);
   const t = UI[(lang as "es" | "en" | "pt")] ?? UI.es;
 
@@ -469,7 +466,7 @@ export default function TorreDeControl() {
         <p className="mt-10 text-center text-ink-3">{t.noResults}</p>
       )}
 
-      {sel && <DetailModal s={sel} onClose={() => setSel(null)} />}
+      {sel && <DetailModal s={sel} onClose={() => setSel(null)} lang={lang} />}
     </section>
   );
 }

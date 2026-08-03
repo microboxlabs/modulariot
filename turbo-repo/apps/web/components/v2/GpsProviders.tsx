@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { getModules } from "./module-i18n";
 import { type GpsProvider } from "./torre-modules-data";
-import { useLang } from "./useLang";
 
 // ============================================================
 // Proveedores GPS — ¿qué tan precisa es la señal de cada proveedor?
@@ -135,8 +134,7 @@ const UI = {
   },
 } as const;
 
-export default function GpsProviders() {
-  const lang = useLang();
+export default function GpsProviders({ lang }: { lang: string }) {
   const { GPS_DATA } = getModules(lang);
   const t = UI[(lang as "es" | "en" | "pt")] ?? UI.es;
 

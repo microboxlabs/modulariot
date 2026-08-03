@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import DetailPage from "../../../../components/v2/DetailPage";
 import { getAllDetailSlugs, getDetailPageData } from "../../../../components/v2/detail-content";
+import { pageMetadata, type Lang } from "../../../../lib/seo";
 
 // Catch-all: resuelve todas las páginas de detalle (producto/*, soluciones, recursos).
 // Config estructural en detail-content.ts, texto en messages/{lang}.json (namespace "detail").
@@ -16,12 +17,18 @@ export function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ lang: string; slug: string[] }>;
+  params: Promise<{ lang: Lang; slug: string[] }>;
 }): Promise<Metadata> {
   const { lang, slug } = await params;
-  const data = await getDetailPageData(lang, slug.join("/"));
+  const path = slug.join("/");
+  const data = await getDetailPageData(lang, path);
   if (!data) return {};
-  return { title: `${data.title} — ModularIoT`, description: data.subtitle };
+  return pageMetadata({
+    lang,
+    path: `/${path}`,
+    title: `${data.title} — ModularIoT`,
+    description: data.subtitle,
+  });
 }
 
 export default async function CatchAllDetail({

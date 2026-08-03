@@ -154,7 +154,7 @@ class JobFailureNotifyOnParkTest {
         return new AsyncJob("job-1", "tenant-1", "ecm-1", "ecm", jobType,
                 "87920845", null, 0, "dk-1", Map.of(), JobState.FAILED, 5, 5,
                 null, null, null, "Alerce rejected: CONDUCTOR2 NO EXISTE",
-                List.of(), "listener", null, null);
+                List.of(), "listener", null, null, null);
     }
 
     private static class FakeRules extends JobNotificationRuleRepository {

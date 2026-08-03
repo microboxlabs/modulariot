@@ -54,7 +54,7 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
     }
 
     @Override
-    public JobOutcome handle(Map<String, Object> payload) {
+    public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
         String tenantClientId = string(payload, EventDispatchFeature.PAYLOAD_TENANT_CLIENT_ID);
         String bindingId = string(payload, EventDispatchFeature.PAYLOAD_BINDING_ID);
         if (tenantClientId == null || bindingId == null) {

@@ -119,7 +119,7 @@ class CalendarRejectOnParkTest {
         payload.put(CalendarSyncFeature.PAYLOAD_SERVICE_CODE, "87920845");
         return new AsyncJob("job-0", "tenant-1", "ecm-1", "modulith", CalendarSyncFeature.JOB_TYPE,
                 "87920845", CHAIN, 0, "dk-0", payload, JobState.SUCCEEDED, 1, 5,
-                null, null, null, null, List.of(), "listener", null, null);
+                null, null, null, null, List.of(), "listener", null, null, null);
     }
 
     private static AsyncJob parked(String jobType, String chainKey) {
@@ -129,7 +129,7 @@ class CalendarRejectOnParkTest {
     private static AsyncJob parkedWithError(String jobType, String chainKey, String lastError) {
         return new AsyncJob("job-1", "tenant-1", "ecm-1", "ecm", jobType,
                 "87920845", chainKey, 1, "dk-1", Map.of(), JobState.FAILED, 5, 5,
-                null, null, null, lastError, List.of(), "listener", null, null);
+                null, null, null, lastError, List.of(), "listener", null, null, null);
     }
 
     /** Returns canned chain jobs for the sibling lookup. */

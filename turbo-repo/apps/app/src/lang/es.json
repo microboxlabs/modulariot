@@ -2240,6 +2240,10 @@
         "thisCalendar": "Este calendario",
         "onlyThisCalendar": "Solo este calendario",
         "invalidTemplate": "Plantilla inválida"
+      },
+      "advancedSettings": {
+        "title": "Configuración avanzada",
+        "description": "Enriquecimiento e integraciones de este calendario"
       }
     }
   },

@@ -205,9 +205,9 @@ export default function PlanningHeader({
           onOpenEnrichment={
             calendarId ? () => setEnrichmentOpen(true) : undefined
           }
-          enrichmentTitle={tr("pages.calendar.enrichment.title", dict)}
+          enrichmentTitle={tr("pages.calendar.advancedSettings.title", dict)}
           enrichmentDescription={tr(
-            "pages.calendar.enrichment.description",
+            "pages.calendar.advancedSettings.description",
             dict
           )}
           dict={dict}

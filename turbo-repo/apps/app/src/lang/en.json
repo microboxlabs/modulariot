@@ -2240,6 +2240,10 @@
         "thisCalendar": "This calendar",
         "onlyThisCalendar": "Only this calendar",
         "invalidTemplate": "Invalid template"
+      },
+      "advancedSettings": {
+        "title": "Advanced settings",
+        "description": "Enrichment and integration behaviour for this calendar"
       }
     }
   },

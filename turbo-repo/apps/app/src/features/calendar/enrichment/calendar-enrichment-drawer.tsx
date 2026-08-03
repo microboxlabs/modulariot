@@ -14,7 +14,7 @@ import { HiPlus, HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { checkTemplate } from "@/features/shipping/components/lane/review-template-validation";
-import { EnrichmentTemplateInput } from "./enrichment-template-input";
+import { TemplateInput } from "@/features/common/templating/template-input";
 import {
   deleteEnrichmentBinding,
   fetchEnrichmentBindings,
@@ -131,10 +131,10 @@ export function CalendarEnrichmentDrawer({
         <div className="flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-700">
           <div>
             <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              {tr("enrichment.title", eDict)}
+              {tr("advancedSettings.title", eDict)}
             </h2>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {tr("enrichment.description", eDict)}
+              {tr("advancedSettings.description", eDict)}
             </p>
           </div>
           <button
@@ -148,6 +148,14 @@ export function CalendarEnrichmentDrawer({
         </div>
 
         <div className="flex-1 p-4">
+          {/* First (today: only) advanced section — the enrichment binding.
+              Future advanced settings join as siblings below it. */}
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            {tr("enrichment.title", eDict)}
+          </h3>
+          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+            {tr("enrichment.description", eDict)}
+          </p>
           {view.kind === "list" && (
             <BindingList
               bindings={bindings}
@@ -437,13 +445,17 @@ function BindingForm({
                     {fieldId}
                   </code>
                   <div className="mt-0.5">
-                    <EnrichmentTemplateInput
+                    <TemplateInput
                       value={template}
                       onChange={(next) =>
                         setRequestRows((rows) => ({ ...rows, [fieldId]: next }))
                       }
                       namespaces={REQUEST_NAMESPACES}
-                      color={check.status === "invalid" ? "failure" : "gray"}
+                      color={
+                        { invalid: "failure", valid: "success", none: "gray" }[
+                          check.status
+                        ] as "gray" | "success" | "failure"
+                      }
                     />
                   </div>
                   {check.status === "invalid" && (
@@ -484,7 +496,7 @@ function BindingForm({
                       )
                     }
                   />
-                  <EnrichmentTemplateInput
+                  <TemplateInput
                     value={template}
                     onChange={(next) =>
                       setResponseRows((rows) =>
@@ -494,7 +506,11 @@ function BindingForm({
                       )
                     }
                     namespaces={RESPONSE_NAMESPACES}
-                    color={check.status === "invalid" ? "failure" : "gray"}
+                    color={
+                      { invalid: "failure", valid: "success", none: "gray" }[
+                        check.status
+                      ] as "gray" | "success" | "failure"
+                    }
                   />
                 </div>
                 {check.status === "invalid" && (

@@ -10,7 +10,7 @@ import {
 } from "@/features/dashboard/dashlets/common/use-hb-autocomplete";
 import { DropdownList } from "@/features/dashboard/dashlets/common/dropdown-list";
 
-interface EnrichmentTemplateInputProps {
+export interface TemplateInputProps {
   readonly value: string;
   readonly onChange: (value: string) => void;
   readonly namespaces: readonly { prefix: string; suggestions: string[] }[];
@@ -19,19 +19,19 @@ interface EnrichmentTemplateInputProps {
 }
 
 /**
- * Template field with the dashboard's `{{` autocomplete, parameterized by
- * namespace so the request side offers the payload's keys and the response
- * side the resolver's slots. Validation colour comes from the caller, which
- * runs `checkTemplate` against the enrichment roots — the same
- * mirror-the-server rule the kanban's input follows.
+ * THE mapping-template field: the dashboard's `{{` autocomplete over
+ * caller-supplied namespaces, validation colour from the caller (which runs
+ * `checkTemplate` against its own roots, mirroring the server). One component
+ * behind every binding drawer — kanban review channels and calendar
+ * enrichment alike — so the authoring experience cannot drift between them.
  */
-export function EnrichmentTemplateInput({
+export function TemplateInput({
   value,
   onChange,
   namespaces,
   placeholder,
   color = "gray",
-}: Readonly<EnrichmentTemplateInputProps>) {
+}: Readonly<TemplateInputProps>) {
   const ac = useHbAutocomplete({
     value,
     onChange,

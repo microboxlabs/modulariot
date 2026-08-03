@@ -130,6 +130,7 @@ export function SidebarSection({
   const resolvedTitleClass = titleClassName ?? "text-gray-400 dark:text-gray-500";
   const contentRef = useRef<HTMLDivElement>(null);
   const [maxHeight, setMaxHeight] = useState<string>(defaultExpanded ? "none" : "0px");
+  const releaseCapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track content height with a ResizeObserver so the section grows to fit
   // children added while expanded (e.g. new column rows), instead of clipping them.
@@ -143,15 +144,27 @@ export function SidebarSection({
     return () => observer.disconnect();
   }, [isExpanded]);
 
+  useEffect(() => {
+    return () => {
+      if (releaseCapTimer.current) clearTimeout(releaseCapTimer.current);
+    };
+  }, []);
+
   function toggleExpanded() {
     const el = contentRef.current;
+    // A pending "release the cap" timeout from a prior expand must not fire after a
+    // rapid collapse — it would overwrite maxHeight back to "none" mid-collapse.
+    if (releaseCapTimer.current) {
+      clearTimeout(releaseCapTimer.current);
+      releaseCapTimer.current = null;
+    }
     setIsExpanded((prev) => {
       const next = !prev;
       if (el) {
         if (next) {
           // Expanding: animate from 0 to the measured height, then release the cap.
           setMaxHeight(`${el.scrollHeight}px`);
-          window.setTimeout(() => setMaxHeight("none"), 200);
+          releaseCapTimer.current = setTimeout(() => setMaxHeight("none"), 200);
         } else {
           // Collapsing: pin to the current height first so the transition has a start point.
           setMaxHeight(`${el.scrollHeight}px`);

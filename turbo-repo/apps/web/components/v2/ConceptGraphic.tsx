@@ -2,7 +2,7 @@
 // del DS (var(--…)), así siguen el tema claro/oscuro sin variantes duplicadas.
 // Cada caja usa su color semántico: señal azul, síntoma ámbar, urgente rosa.
 
-import { LYNX_SOLID, LYNX_EYE_X, LYNX_IRIS_R, LYNX_PUPIL_R, LYNX_BEAK_LINE } from "./brand/lynx-geometry";
+import { LYNX_SOLID, LYNX_EYE_X, LYNX_IRIS_R, LYNX_PUPIL_R, LYNX_BEAK_LINE } from "@modulariot/ui/brand/logo";
 
 const banner = "w-full aspect-[400/176]";
 

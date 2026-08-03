@@ -2,18 +2,29 @@ import type { Metadata } from "next";
 import ContactForm from "../../../../components/v2/ContactForm";
 import { pageMetadata, type Lang } from "../../../../lib/seo";
 
+const META: Record<Lang, { title: string; description: string }> = {
+  es: {
+    title: "Contacto — ModularIoT",
+    description: "Agenda un demo, pide una cotización o escríbenos. Te respondemos en menos de 24 horas.",
+  },
+  en: {
+    title: "Contact — ModularIoT",
+    description: "Book a demo, request a quote, or write to us. We reply in under 24 hours.",
+  },
+  pt: {
+    title: "Contato — ModularIoT",
+    description: "Agende uma demo, peça uma cotação ou fale conosco. Respondemos em menos de 24 horas.",
+  },
+};
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ lang: Lang }>;
 }): Promise<Metadata> {
   const { lang } = await params;
-  return pageMetadata({
-    lang,
-    path: "/contacto",
-    title: "Contacto — ModularIoT",
-    description: "Agenda un demo, pide una cotización o escríbenos. Te respondemos en menos de 24 horas.",
-  });
+  const { title, description } = META[lang] ?? META.es;
+  return pageMetadata({ lang, path: "/contacto", title, description });
 }
 
 type Intent = "demo" | "cotizar" | "general";

@@ -4,7 +4,7 @@ interface AppLogoProps {
   className?: string;
 }
 
-export default function AppLogo({ className = "mr-3" }: AppLogoProps) {
+export default function AppLogo({ className = "mr-3" }: Readonly<AppLogoProps>) {
   return (
     <LynxBrand
       className={`${className} text-(--brand-ink)`}

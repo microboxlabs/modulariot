@@ -19,8 +19,18 @@ function MarkBody() {
   return (
     <>
       <path d={LYNX_SOLID} fill="currentColor" fillRule="nonzero" />
-      <circle cx={-LYNX_EYE_X} cy={0} r={LYNX_IRIS_R} fill="var(--brand-amber)" />
-      <circle cx={LYNX_EYE_X} cy={0} r={LYNX_IRIS_R} fill="var(--brand-amber)" />
+      <circle
+        cx={-LYNX_EYE_X}
+        cy={0}
+        r={LYNX_IRIS_R}
+        fill="var(--brand-amber)"
+      />
+      <circle
+        cx={LYNX_EYE_X}
+        cy={0}
+        r={LYNX_IRIS_R}
+        fill="var(--brand-amber)"
+      />
       <circle cx={-LYNX_EYE_X} cy={0} r={LYNX_PUPIL_R} fill="currentColor" />
       <circle cx={LYNX_EYE_X} cy={0} r={LYNX_PUPIL_R} fill="currentColor" />
       <path d={LYNX_BEAK_LINE} fill="currentColor" />
@@ -28,9 +38,18 @@ function MarkBody() {
   );
 }
 
-export function LynxMark({ className }: { className?: string }) {
+export function LynxMark({
+  className,
+  ...props
+}: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox={LYNX_VIEWBOX} className={className} aria-hidden="true" focusable="false">
+    <svg
+      viewBox={LYNX_VIEWBOX}
+      className={className}
+      aria-hidden="true"
+      focusable="false"
+      {...props}
+    >
       <MarkBody />
     </svg>
   );
@@ -39,7 +58,12 @@ export function LynxMark({ className }: { className?: string }) {
 // Solo el wordmark kerneado (sin marca), para cuando el Lynx ya está en escena.
 export function LynxWordmark({ className }: { className?: string }) {
   return (
-    <svg viewBox="330 70 690 120" className={className} role="img" aria-label="ModularIoT">
+    <svg
+      viewBox="330 70 690 120"
+      className={className}
+      role="img"
+      aria-label="ModularIoT"
+    >
       <path d={WORDMARK_MODULAR} fill="currentColor" />
       <path d={WORDMARK_IOT} fill="var(--brand-amber)" />
     </svg>
@@ -71,7 +95,12 @@ export function LynxBrand({
 // "IoT" en ámbar — resuelve la ambigüedad I/l y hace intencional el ámbar).
 export function LynxLockup({ className }: { className?: string }) {
   return (
-    <svg viewBox={LOCKUP_VIEWBOX} className={className} role="img" aria-label="ModularIoT">
+    <svg
+      viewBox={LOCKUP_VIEWBOX}
+      className={className}
+      role="img"
+      aria-label="ModularIoT"
+    >
       <g transform={LOCKUP_MARK_TRANSFORM}>
         <MarkBody />
       </g>

@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.microboxlabs.miot</groupId>
         <artifactId>miot-parent</artifactId>
-        <version>0.5.17</version>
+        <version>0.5.20</version>
     </parent>
 
     <artifactId>miot-resource-core</artifactId>

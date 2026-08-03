@@ -166,6 +166,7 @@ public class ModulithJobWorker {
     private void runAndReport(AsyncJob job) {
         String outcome;
         String detail;
+        Map<String, Object> result = null;
         boolean retryable = true;
         ModulithJobHandler handler = handlers.get(job.jobType());
         try {
@@ -181,9 +182,10 @@ public class ModulithJobWorker {
                 detail = "Handler for " + job.jobType() + " is not configured";
                 LOG.warnf("modulith-worker: %s — job %s will retry after backoff", detail, job.id());
             } else {
-                JobOutcome result = handler.handle(job.payload());
-                outcome = result.outcome();
-                detail = result.detail();
+                JobOutcome handled = handler.handle(job.tenantCode(), job.payload());
+                outcome = handled.outcome();
+                detail = handled.detail();
+                result = handled.result();
             }
         } catch (NonRetryableJobException e) {
             // A retry cannot fix this (e.g. the chosen slot is full) — park now so
@@ -202,16 +204,16 @@ public class ModulithJobWorker {
         }
         // Read (not closed) here: the window must outlive the catch blocks so a
         // failed attempt keeps the exchanges that explain the failure.
-        report(job, outcome, detail, retryable, JobHttpTrace.end());
+        report(job, outcome, detail, result, retryable, JobHttpTrace.end());
     }
 
-    private void report(AsyncJob job, String outcome, String detail, boolean retryable,
-                        List<Map<String, Object>> exchanges) {
+    private void report(AsyncJob job, String outcome, String detail, Map<String, Object> result,
+                        boolean retryable, List<Map<String, Object>> exchanges) {
         try {
             // Echo the claimed attempt number: the ledger CAS rejects this report
             // if the lease expired and the job was reclaimed meanwhile.
             jobService.report(job.tenantCode(), job.id(),
-                    new ReportJobRequest(workerId, outcome, detail, retryable, job.attempts(), exchanges));
+                    new ReportJobRequest(workerId, outcome, detail, retryable, job.attempts(), exchanges, result));
         } catch (Exception e) {
             // The lease expires and the job becomes claimable again; the re-run is
             // safe because handlers are idempotent.

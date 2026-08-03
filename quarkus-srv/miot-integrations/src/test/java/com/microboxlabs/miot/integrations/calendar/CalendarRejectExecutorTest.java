@@ -34,7 +34,7 @@ class CalendarRejectExecutorTest {
     @Test
     void rejectStampsSyncStatusWithDetailOnly() {
         FakeClient client = new FakeClient();
-        var result = new CalendarRejectExecutor(client).handle(payload());
+        var result = new CalendarRejectExecutor(client).handle("tenant-1", payload());
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(1, client.patchCalls);
@@ -53,7 +53,7 @@ class CalendarRejectExecutorTest {
         Map<String, Object> p = payload();
         p.put(CalendarRejectFeature.PAYLOAD_DETAIL, "x".repeat(700));
 
-        new CalendarRejectExecutor(client).handle(p);
+        new CalendarRejectExecutor(client).handle("tenant-1", p);
 
         assertEquals(CalendarRejectFeature.DETAIL_MAX_LENGTH, client.lastSyncDetail.length());
     }
@@ -64,7 +64,7 @@ class CalendarRejectExecutorTest {
         Map<String, Object> p = payload();
         p.remove(CalendarRejectFeature.PAYLOAD_DETAIL);
 
-        new CalendarRejectExecutor(client).handle(p);
+        new CalendarRejectExecutor(client).handle("tenant-1", p);
 
         assertEquals("The external push failed", client.lastSyncDetail);
     }
@@ -74,7 +74,7 @@ class CalendarRejectExecutorTest {
         FakeClient client = new FakeClient();
         client.patchThrows = new CalendarBookingsHttpException(404, "no booking");
 
-        var result = new CalendarRejectExecutor(client).handle(payload());
+        var result = new CalendarRejectExecutor(client).handle("tenant-1", payload());
 
         assertEquals(JobOutcome.SKIPPED, result.outcome());
     }
@@ -85,7 +85,7 @@ class CalendarRejectExecutorTest {
         client.patchThrows = new CalendarBookingsHttpException(-1, "io error");
         var executor = new CalendarRejectExecutor(client);
         var p = payload();
-        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle(p));
+        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle("tenant-1", p));
     }
 
     @Test
@@ -93,7 +93,7 @@ class CalendarRejectExecutorTest {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put(CalendarRejectFeature.PAYLOAD_SERVICE_CODE, "1658427");
         var executor = new CalendarRejectExecutor(new FakeClient());
-        assertThrows(IllegalArgumentException.class, () -> executor.handle(p));
+        assertThrows(IllegalArgumentException.class, () -> executor.handle("tenant-1", p));
     }
 
     private static final class FakeClient extends CalendarBookingsClient {

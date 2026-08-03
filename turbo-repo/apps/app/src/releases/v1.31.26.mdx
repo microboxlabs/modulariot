@@ -1,0 +1,49 @@
+# 🔔 Release Notes v1.31.26 — ModularIoT
+
+### Fecha: 28/07/2026
+
+**Objetivo**: Esta versión consolida la gestión de calendarios por origen en el componente ECM Coordinator y habilita la ingesta de fotos de inspección de vehículos en el paquete BPM de servicios, mejorando la trazabilidad operacional y la consistencia de los flujos de revisión documental.
+
+## 🚀 Evolutivos
+
+- **📍 Resolución dinámica del calendario predeterminado por origen**
+  - **Contexto**: El componente `CalendarOriginResolver` dejará de mantener una copia local del mapeo origen→calendario en `mintral.calendar.<origin>.defaultId` y consultará directamente a `miot-calendar` mediante `GET /calendars/default?origin=X`.
+  - **Precedencia**: Se respeta el orden `calendar_id` del planificador → calendario predeterminado en `miot-calendar` → propiedad legacy (solo ante fallo de comunicación) → sin reserva.
+  - **Comportamiento ante fallas**: Una respuesta `204` indica que no hay calendario configurado y no se crea reserva; errores `5xx`, timeout o `404` activan el fallback a la propiedad legacy con advertencia (`WARN`). Las ausencias se cachean por 60 segundos por origen; los fallos no se cachean.
+  - **Estado**: Trabajo planificado en el alcance del release (issue abierto, #341). Depende de microboxlabs/miot-calendar#42.
+
+- **📍 Ingesta de fotos `Service_Ready_To_Depart_Onsite` en el paquete BPM**
+  - **Contexto**: Un pipeline de n8n sube fotos de inspección de camiones a Alfresco y escribe eventos en `alerce.eventos_miot` con `reason_code = 'Service_Ready_To_Depart_Onsite'`. Hasta ahora ningún componente consumía esos eventos; los nodos permanecían en una carpeta de bandeja de entrada sin ser revisados.
+  - **Implementado**: Se agrega `SERVICE_READY_TO_DEPART_ONSITE` al enum `ReasonCode` y se crea el procesador `ServiceReadyToDepartOnsiteEventProcessor` que **mueve** (no copia) cada nodo desde la bandeja de entrada al paquete BPM del servicio correspondiente, evitando el crecimiento indefinido de la carpeta de origen.
+  - **Registro de origen**: Cada documento queda anotado con el origen (`source`) y el identificador multimedia de origen (`transaction_id`), y el servicio registra el origen para determinar si es reportable sin recorrer nodos hijos.
+  - **Modelo de contenido**: Se agregan aspecto y propiedades al modelo de contenido para soportar los nuevos campos. El `contentType` del evento se mapea directamente a `mintral:contentTypeConstraint`, sin tabla de conversión adicional.
+  - **Idempotencia**: Si el nodo ya pertenece al paquete, se omite. Si existe un nodo distinto con el mismo nombre, se versiona siguiendo el patrón del procesador Offsite existente.
+  - **Estado**: Entregado (issue cerrado, #338).
+
+## 📊 Beneficios
+
+- La consulta centralizada al servicio `miot-calendar` elimina la duplicación del mapeo origen→calendario y reduce el riesgo de inconsistencias entre ambientes.
+- El fallback controlado ante fallos de comunicación garantiza que una interrupción del servicio de calendarios no se interprete erróneamente como una decisión operativa de no agendar.
+- Las fotos de inspección de vehículos quedan disponibles para revisión en el flujo BPM en lugar de acumularse en la bandeja de entrada de Alfresco indefinidamente.
+- El registro del origen y del identificador multimedia en cada documento habilita el futuro ciclo de reporte de veredictos al sistema externo (`ActualizarEstadoFoto`) sin cambios retroactivos al modelo.
+- La operación de mover (en lugar de copiar) mantiene el almacenamiento de Alfresco ordenado y evita la duplicación de nodos.
+- La caché por 60 segundos en la resolución de calendarios limita la carga sobre `miot-calendar` durante transiciones de tareas en transacciones Activiti de alta frecuencia.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.27`
+- **App** (`app@v0.5.27`): actualizada en este release.
+- **Web** (`web@v0.5.27`): actualizada en este release.
+- **Docs** (`docs@v0.5.22`): sin cambios en este release.
+- **Modulith** (`modulith@v0.5.17`): sin cambios en este release.
+- **Harness** (`harness@v0.1.3`): sin cambios en este release.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build dentro de la aplicación y en el artefacto `stack-manifest.json` del release.
+
+## 📌 Conclusión
+
+La versión 1.31.26 avanza en dos frentes complementarios de la plataforma: la gobernanza de calendarios y la trazabilidad documental en flujos de servicio. La delegación de la resolución de calendarios a `miot-calendar` sienta las bases para unificar la configuración en un único lugar de verdad, con un mecanismo de degradación elegante que protege la operación ante fallos de red.
+
+La incorporación del procesador de fotos `Service_Ready_To_Depart_Onsite` cierra un ciclo de integración que permanecía incompleto en producción: los eventos generados por el pipeline de n8n ahora tienen un consumidor activo dentro del ecosistema ECM, y los documentos quedan estructurados para soportar el flujo de aprobación/rechazo de revisores sin trabajo adicional de migración.
+
+Ambas mejoras refuerzan la arquitectura orientada a eventos de ModularIoT y reducen la deuda de sincronización de estado entre servicios, alineándose con el objetivo de largo plazo de eliminar propiedades de configuración redundantes y centralizar la lógica de dominio en los servicios que la poseen.

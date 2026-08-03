@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -9,6 +9,8 @@ import weekOfYear from "dayjs/plugin/weekOfYear";
 import type { PlanningHeaderProps } from "./planning-header.types";
 import type { ViewMode } from "@/features/calendar/services/calendar.service.types";
 import { HiChevronLeft, HiChevronRight } from "react-icons/hi";
+import { CalendarEnrichmentDrawer } from "@/features/calendar/enrichment/calendar-enrichment-drawer";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { Button } from "flowbite-react";
 import {
   CalendarNavigation,
@@ -87,6 +89,8 @@ export default function PlanningHeader({
   const searchParams = useSearchParams();
   const { andenesCount, setAndenesCount } = usePlanningSelection();
   const { calendars, refresh: refreshCalendars } = useCalendars();
+  const { activeOrg } = useOrgScopes();
+  const [enrichmentOpen, setEnrichmentOpen] = useState(false);
   const groupCode = searchParams.get("groupCode");
   const activeCalendar = useMemo(
     () => calendars.find((c) => c.id === calendarId),
@@ -147,7 +151,11 @@ export default function PlanningHeader({
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      <PlanningTitle dict={dict} calendarId={calendarId} groupCode={groupCode} />
+      <PlanningTitle
+        dict={dict}
+        calendarId={calendarId}
+        groupCode={groupCode}
+      />
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-4">
@@ -194,6 +202,16 @@ export default function PlanningHeader({
           }}
         />
         <CalendarRules
+          onOpenEnrichment={
+            // Only once the org scope resolved: the drawer's API calls are
+            // org-keyed, and opening before that means a spinner with no end.
+            calendarId && activeOrg ? () => setEnrichmentOpen(true) : undefined
+          }
+          enrichmentTitle={tr("pages.calendar.advancedSettings.title", dict)}
+          enrichmentDescription={tr(
+            "pages.calendar.advancedSettings.description",
+            dict
+          )}
           dict={dict}
           messages={getCalendarRulesMessages(dict)}
           andenesCount={andenesCount}
@@ -207,32 +225,58 @@ export default function PlanningHeader({
               await refreshCalendars();
               ShowNotification({
                 type: "success",
-                message: tr("layout.planning.calendarRules.platformConfig.saveSuccess", dict),
+                message: tr(
+                  "layout.planning.calendarRules.platformConfig.saveSuccess",
+                  dict
+                ),
               });
             } catch {
               ShowNotification({
                 type: "error",
-                message: tr("layout.planning.calendarRules.platformConfig.saveError", dict),
+                message: tr(
+                  "layout.planning.calendarRules.platformConfig.saveError",
+                  dict
+                ),
               });
             }
           }}
-          onTaskFilterChange={async (filter: CalendarFilter, isDefault: boolean) => {
+          onTaskFilterChange={async (
+            filter: CalendarFilter,
+            isDefault: boolean
+          ) => {
             if (!calendarId) return;
             try {
               await updateCalendar(calendarId, { filter, isDefault });
               await refreshCalendars();
               ShowNotification({
                 type: "success",
-                message: tr("layout.planning.calendarRules.taskFilter.saveSuccess", dict),
+                message: tr(
+                  "layout.planning.calendarRules.taskFilter.saveSuccess",
+                  dict
+                ),
               });
             } catch {
               ShowNotification({
                 type: "error",
-                message: tr("layout.planning.calendarRules.taskFilter.saveError", dict),
+                message: tr(
+                  "layout.planning.calendarRules.taskFilter.saveError",
+                  dict
+                ),
               });
             }
           }}
         />
+
+        {/* Enrichment drawer — opened from the calendar-rules panel entry. */}
+        {calendarId && (
+          <CalendarEnrichmentDrawer
+            show={enrichmentOpen}
+            onClose={() => setEnrichmentOpen(false)}
+            orgSlug={activeOrg?.slug ?? null}
+            calendarId={calendarId}
+            dict={dict}
+          />
+        )}
       </div>
     </div>
   );

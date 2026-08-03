@@ -14,6 +14,7 @@ import com.microboxlabs.miot.integrations.persistence.IntegrationEventBindingRep
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
 import com.microboxlabs.miot.integrations.template.PayloadRenderException;
 import com.microboxlabs.miot.integrations.template.PayloadRenderer;
+import com.microboxlabs.miot.integrations.calendar.CalendarSyncFeature;
 import com.microboxlabs.miot.integrations.template.PayloadSchema;
 import com.microboxlabs.miot.integrations.template.PayloadTemplate;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -21,6 +22,7 @@ import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Reads, validates and stores event bindings.
@@ -90,7 +92,11 @@ public class IntegrationEventBindingService {
         IntegrationOperation operation = resolveOperation(connection, request.operationId());
 
         List<String> problems = renderer.validate(
-                request.fieldTemplates(), contractOf(operation), PayloadTemplate.DEFAULT_ROOTS);
+                request.fieldTemplates(), contractOf(operation), requestRootsFor(request.eventType()));
+        // The return trip renders over {response} alone — response templates reading a request
+        // root would silently produce nothing on every fetch.
+        problems.addAll(renderer.validate(
+                request.responseTemplates(), PayloadSchema.empty(), Set.of("response")));
         if (!problems.isEmpty()) {
             throw new IllegalArgumentException("The field mapping is not usable: "
                     + String.join("; ", problems));
@@ -107,10 +113,26 @@ public class IntegrationEventBindingService {
                 operation == null ? null : operation.id(),
                 request.matchCondition() == null ? Map.of() : request.matchCondition(),
                 request.fieldTemplates() == null ? Map.of() : request.fieldTemplates(),
+                request.responseTemplates() == null ? Map.of() : request.responseTemplates(),
                 request.isEnabled(),
                 null, null, actor, actor);
 
         return IntegrationEventBindingResponse.of(bindingRepository.upsert(binding, actor), orgSlug);
+    }
+
+    /**
+     * Which roots a binding's request templates may read. Notify-shaped events render
+     * over the intake snapshot; a fetch-shaped event renders over its job's payload,
+     * whose vocabulary the producer owns.
+     */
+    private static Set<String> requestRootsFor(String eventType) {
+        // Trimmed here because persistence trims: a padded event type must select
+        // the same roots it will be stored under.
+        String normalized = eventType == null ? "" : eventType.trim();
+        if (CalendarSyncFeature.EVENT_RESOURCE_ENRICHMENT.equals(normalized)) {
+            return CalendarSyncFeature.ENRICHMENT_TEMPLATE_ROOTS;
+        }
+        return PayloadTemplate.DEFAULT_ROOTS;
     }
 
     /**
@@ -164,6 +186,9 @@ public class IntegrationEventBindingService {
             UpsertIntegrationEventBindingRequest request,
             Map<String, Object> context) {
         require(request != null, "A request body is required");
+        // The roots the templates validate against depend on the event type, so a
+        // preview without one would silently validate against the wrong contract.
+        require(notBlank(request.eventType()), "eventType is required");
         require(notBlank(request.connectionId()), "connectionId is required");
 
         IntegrationConnection connection = requireUsableConnection(tenantClientId, request.connectionId());
@@ -171,7 +196,7 @@ public class IntegrationEventBindingService {
         PayloadSchema contract = contractOf(operation);
 
         List<String> problems = renderer.validate(
-                request.fieldTemplates(), contract, PayloadTemplate.DEFAULT_ROOTS);
+                request.fieldTemplates(), contract, requestRootsFor(request.eventType()));
         if (!problems.isEmpty()) {
             return BindingPreviewResponse.invalid(problems);
         }

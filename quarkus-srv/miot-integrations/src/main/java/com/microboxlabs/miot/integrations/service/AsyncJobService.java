@@ -186,7 +186,7 @@ public class AsyncJobService {
         Map<String, Object> entry = attemptEntry(request.outcome(), request.detail(), request.workerId(),
                 request.exchanges());
         AsyncJob updated = repository.report(jobId, request.workerId(), expectedAttempts, newState, nextRetryAt,
-                lastError, entry);
+                lastError, entry, request.result());
         if (updated == null) {
             throw new IllegalStateException(
                     "Stale report for job " + jobId + ": lease no longer held by " + request.workerId()
@@ -318,6 +318,7 @@ public class AsyncJobService {
                 null, null, null, null,
                 List.of(),
                 enqueuedBy,
+                null,
                 null, null);
     }
 

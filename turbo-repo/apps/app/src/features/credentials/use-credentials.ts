@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import useSWR from "swr";
 import type {
-  AzureEntraFormData,
+  CredentialFormData,
   CredentialListItem,
   CredentialTestResult,
   CredentialTypeId,
@@ -55,7 +55,7 @@ export function useCredentials(orgSlug: string | null) {
   );
 
   const create = useCallback(
-    async (typeId: CredentialTypeId, form: AzureEntraFormData) => {
+    async (typeId: CredentialTypeId, form: CredentialFormData) => {
       await run((slug) => createCredential(slug, typeId, form));
       await mutate();
     },
@@ -63,7 +63,7 @@ export function useCredentials(orgSlug: string | null) {
   );
 
   const update = useCallback(
-    async (id: string, form: AzureEntraFormData) => {
+    async (id: string, form: CredentialFormData) => {
       await run((slug) => updateCredential(slug, id, form));
       await mutate();
     },
@@ -90,7 +90,7 @@ export function useCredentials(orgSlug: string | null) {
 
   /** Dry run for a credential that has not been saved. Nothing to revalidate. */
   const testConfig = useCallback(
-    (typeId: CredentialTypeId, form: AzureEntraFormData) =>
+    (typeId: CredentialTypeId, form: CredentialFormData) =>
       run((slug) => testCredentialConfig(slug, typeId, form)),
     [run]
   );

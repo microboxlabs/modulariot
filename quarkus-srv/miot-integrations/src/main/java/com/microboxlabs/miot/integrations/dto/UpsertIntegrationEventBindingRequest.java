@@ -21,6 +21,8 @@ public record UpsertIntegrationEventBindingRequest(
         Map<String, Object> matchCondition,
         /** fieldId → template. */
         Map<String, String> fieldTemplates,
+        /** targetKey → template over {@code {response}}; only fetch-shaped events use it. */
+        Map<String, String> responseTemplates,
         Boolean enabled) {
 
     public boolean isEnabled() {

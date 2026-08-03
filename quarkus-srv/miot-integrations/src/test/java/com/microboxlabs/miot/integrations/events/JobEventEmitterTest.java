@@ -78,6 +78,6 @@ class JobEventEmitterTest {
         return new AsyncJob("job-1", "tenant-code-1", "ecm-1", "modulith", "calendar_sync", "VJ-26-0001",
                 "chain-1", 0, "dk-1", payload, JobState.PENDING, 2, 5,
                 OffsetDateTime.now(ZoneOffset.UTC), null, null, "409 conflict", List.of(), "listener",
-                null, null);
+                null, null, null);
     }
 }

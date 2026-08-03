@@ -1,0 +1,55 @@
+# 🔔 Release Notes v1.31.30 — ModularIoT
+
+### Fecha: 03/08/2026
+
+**Objetivo**: Esta versión fortalece la sincronización operativa entre calendario, workflows e integraciones para que los datos de recursos viajen completos y se configuren de forma segura por organización. Además, mejora la experiencia web pública con avances de SEO y contenido localizado para ampliar alcance y consistencia multilenguaje.
+
+## 🚀 Evolutivos
+
+- **📍 Enriquecimiento de recursos en sincronización de calendario**
+  - **Key point**: Se incorporó enriquecimiento de recursos en flujos de calendario usando bindings tipo fetch, incluyendo plantillas de respuesta para poblar campos del payload y comportamiento fail-closed cuando corresponde.
+  - **Technical detail**: La resolución de bindings considera el contexto del tenant y permite aplicar `calendar.resource_enrichment` antes de operaciones de booking, manteniendo el comportamiento previo cuando no hay binding configurado. *(Integración OSS — MIOT-0.5.31)*
+
+- **📍 Advanced settings para configuración de enrichment en calendario**
+  - **Key point**: Se añadió un drawer de **Advanced settings** en planificación de calendario para administrar la configuración de resource enrichment sin depender de SQL manual.
+  - **Technical detail**: Incluye selección de conexión/operación, mapeos request/response, alcance por calendario o global, validación de templates con feedback visual y convergencia de componentes compartidos con otras superficies de configuración. *(Integración OSS — MIOT-0.5.31)*
+
+- **📍 Modelo de integración `ams` con conexiones por tenant**
+  - **Key point**: Se modeló `ams` como template de integración con instancias por tenant y resolución por `(tenant, template)`.
+  - **Technical detail**: Se mantiene fallback al camino de credenciales por entorno para una transición gradual sin ruptura operativa inmediata. *(Integración OSS — MIOT-0.5.31)*
+
+- **📍 Mejoras SEO y contenido localizado**
+  - **Key point**: Se mejoró metadata SEO, enlaces canónicos, vistas sociales y contenido localizado en páginas de producto.
+  - **Technical detail**: Se incorporaron datos estructurados (FAQ, organización, website), mejoras de navegación por idioma y fallback de locale a español cuando no se detecta idioma. *(Integración OSS — MIOT-0.5.31)*
+
+- **📍 Identidad operativa completa en pushes de booking**
+  - **Key point**: Ahora cada push de booking de calendario transporta identidad raw del workflow (RUT de conductor, patentes de camión/remolque, código de proveedor) y ETD en formato ISO.
+  - **Technical detail**: La propagación aplica en rutas de estado y operaciones de ensure, preserva campos existentes y omite payload de identidad cuando no hay variables disponibles. 
+
+## 📊 Beneficios
+
+- Mayor trazabilidad de recursos en transiciones de viaje y booking al enviar identidad operativa de forma consistente.
+- Menor fricción operativa al habilitar configuración avanzada desde UI para bindings de enriquecimiento.
+- Mejor robustez de integración con resolución tenant-aware y estrategias fail-closed en fetch de bindings.
+- Evolución controlada de credenciales por tenant con fallback para continuidad durante despliegues progresivos.
+- Mejor visibilidad web y descubribilidad orgánica gracias a SEO técnico y datos estructurados.
+- Experiencia multilenguaje más consistente con mejoras de localización y fallback de idioma.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.31`
+- **App**: `app@v0.5.31` (actualizado)
+- **Docs**: `docs@v0.5.30` (sin cambios)
+- **Web**: `web@v0.5.31` (actualizado)
+- **Modulith**: `modulith@v0.5.20` (actualizado)
+- **Harness**: `harness@v0.1.4` (sin cambios)
+
+Los digests exactos de imágenes desplegadas están disponibles en el diálogo de información de build dentro de la aplicación y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión `1.31.30` consolida una mejora clave: que la sincronización de calendario no solo ejecute estados, sino que transporte y resuelva identidad útil para operación en cada transición relevante. Esto reduce vacíos de datos al coordinar recursos en terreno.
+
+En paralelo, se eleva la capacidad de administración de integraciones desde producto, habilitando configuraciones avanzadas de enrichment con validación y alcance por calendario/organización. El resultado es una operación más gobernable y menos dependiente de intervenciones manuales.
+
+Finalmente, los avances de SEO y localización amplían calidad de presencia digital y coherencia de experiencia para audiencias multilenguaje, complementando el foco operativo de esta entrega con impacto de producto hacia afuera.

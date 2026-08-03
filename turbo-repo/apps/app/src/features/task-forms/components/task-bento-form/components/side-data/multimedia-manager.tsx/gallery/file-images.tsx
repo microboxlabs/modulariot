@@ -30,8 +30,22 @@ import ReplaceImageModal from "@/features/geographic-view/components/image-viewe
 import MediaInlineViewer, { MediaViewerItem } from "../viewer/media-inline-viewer";
 import type { ObservationEntry, ObservationType, TimelineEntry, StateChangeTimelineEntry, LooseObservationTimelineEntry } from "../viewer/media-inline-viewer";
 import MediaRow, { ReviewStatus } from "./media-row";
-import { observationReasonLabels } from "../viewer/observations/observation-utils";
+import { isRoundObservation, observationReasonLabels } from "../viewer/observations/observation-utils";
+import { statusForCurrentVersion, versionOf } from "../viewer/observations/review-version";
 import { useBentoReview } from "../../../../bento-review-context";
+
+/** The verdict each UI state records. "pending" is a reversal, not the absence of one. */
+const VERDICT_BY_STATUS: Record<ReviewStatus, "APPROVED" | "REJECTED" | "PENDING"> = {
+  approved: "APPROVED",
+  rejected: "REJECTED",
+  pending: "PENDING",
+};
+
+const STATUS_BY_VERDICT: Record<"APPROVED" | "REJECTED" | "PENDING", ReviewStatus> = {
+  APPROVED: "approved",
+  REJECTED: "rejected",
+  PENDING: "pending",
+};
 
 function toNodeRef(id: string): string {
   if (id.startsWith("workspace://")) return id;
@@ -42,8 +56,8 @@ function isReviewableFile(file: AlfrescoFileEntry): boolean {
   return file.entry.aspectNames?.includes("mintral:reviewableAspect") ?? false;
 }
 
-function getEffectiveStatus(file: AlfrescoFileEntry, reviewStatuses: Map<string, ReviewStatus>): ReviewStatus {
-  return isReviewableFile(file) ? reviewStatuses.get(file.entry.id) ?? "pending" : "approved";
+function getEffectiveStatus(file: AlfrescoFileEntry, statuses: Map<string, ReviewStatus>): ReviewStatus {
+  return isReviewableFile(file) ? statuses.get(file.entry.id) ?? "pending" : "approved";
 }
 
 function statusColorCls(s: string): string {
@@ -118,6 +132,7 @@ function buildCommittedEntry(
   now: Date,
   committedBy: string | undefined,
   extraObs: ObservationEntry[],
+  version: string | null,
 ): TimelineEntry[] {
   const looseObs: ObservationEntry[] = existing
     .filter((e): e is LooseObservationTimelineEntry => e.kind === "observation")
@@ -130,6 +145,10 @@ function buildCommittedEntry(
     committedAt: now,
     committedBy,
     observations: [...looseObs, ...extraObs],
+    // The repository stamps the round with cm:versionLabel as it stood when it recorded the
+    // decision; this mirror has to say the same thing or the entry lands in the wrong group
+    // until the next reload.
+    version,
   };
   return [...withoutLoose, entry];
 }
@@ -201,6 +220,8 @@ function buildObservationEntry(obs: FlatPost): ObservationEntry {
     description: plainDesc,
     createdAt: obs.created,
     createdBy: obs.author,
+    // A real forum post, so `id` is a ref the forum endpoints can act on.
+    source: "forum" as const,
     replies: obs.replies.map((r) => ({
       id: r.ref,
       description: stripHtmlEntities(r.content ?? r.title ?? ""),
@@ -226,9 +247,11 @@ export function roundsToTimeline(rounds: ReviewRoundResponse[]): TimelineEntry[]
     return {
       kind: "state_change" as const,
       id: `round-${round.seq}`,
-      status: round.verdict === "APPROVED" ? ("approved" as const) : ("rejected" as const),
+      status: STATUS_BY_VERDICT[round.verdict],
       committedAt: decidedAt,
       committedBy: reviewer,
+      // The revision this round judged, which is not necessarily the one on screen.
+      version: round.version,
       observations: hasDetail
         ? [{
             id: `round-${round.seq}-detail`,
@@ -236,6 +259,8 @@ export function roundsToTimeline(rounds: ReviewRoundResponse[]): TimelineEntry[]
             description: round.comment ?? "",
             createdAt: decidedAt,
             createdBy: reviewer,
+            // Not a note on the decision — the decision itself. Nothing may edit it.
+            source: "round" as const,
           }]
         : [],
     };
@@ -528,21 +553,62 @@ export default function FileImages({
   // Maps observation/reply IDs to their forum nodeRefs for backend operations
   const [forumRefMap, setForumRefMap] = useState<Map<string, { topicRef: string; postRef: string }>>(new Map());
 
+  /** Each node's current revision, so a verdict can be matched to the bytes it judged. */
+  const versionsById = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const item of [...images, ...documents] as { file: AlfrescoFileEntry }[]) {
+      map.set(item.file.entry.id, versionOf(item.file.entry));
+    }
+    return map;
+  }, [images, documents]);
+
+  /**
+   * Nodes with a decision in flight. The reviewer's click is the most recent fact until the
+   * round comes back, and the rounds held in `committedTimeline` still predate it — so the
+   * derivation below must not overrule it in that window.
+   *
+   * A ref rather than state: both boundaries already re-render. Entering writes
+   * `reviewStatuses` and leaving writes `committedTimeline`, and the memo depends on both, so
+   * it recomputes at exactly the two moments this set changes.
+   */
+  const decidingRef = useRef<Set<string>>(new Set());
+
+  /**
+   * The status shown everywhere: the verdict standing against the revision on screen.
+   *
+   * `reviewStatuses` holds `mintral:reviewStatus`, which is a projection of the newest round
+   * whatever revision that round judged. Re-uploading a rejected photo replaces the content
+   * and the repository resets the property to PENDING — but the rounds still end in REJECTED,
+   * and a reviewer who never reloaded kept seeing the old verdict on a photo nobody had
+   * looked at. Reading the rounds back against the current `cm:versionLabel` answers that
+   * directly; content with no rounds keeps the stored property, which is all the forum era
+   * ever recorded.
+   */
+  const effectiveStatuses = useMemo(() => {
+    const map = new Map(reviewStatuses);
+    for (const id of reviewableIds) {
+      if (decidingRef.current.has(id)) continue;
+      const derived = statusForCurrentVersion(committedTimeline.get(id) ?? [], versionsById.get(id) ?? null);
+      if (derived) map.set(id, derived);
+    }
+    return map;
+  }, [reviewStatuses, reviewableIds, committedTimeline, versionsById]);
+
   const reviewSummary = useMemo(() => {
     // Only reviewable items contribute to review counts; non-reviewable content has no
     // status and must not light up the "Revisión" badge (it would otherwise default to
     // pending).
-    const approved = allIds.filter((id) => reviewableIds.has(id) && reviewStatuses.get(id) === "approved").length;
-    const rejected = allIds.filter((id) => reviewableIds.has(id) && reviewStatuses.get(id) === "rejected").length;
-    const pending = allIds.filter((id) => reviewableIds.has(id) && (reviewStatuses.get(id) ?? "pending") === "pending").length;
+    const approved = allIds.filter((id) => reviewableIds.has(id) && effectiveStatuses.get(id) === "approved").length;
+    const rejected = allIds.filter((id) => reviewableIds.has(id) && effectiveStatuses.get(id) === "rejected").length;
+    const pending = allIds.filter((id) => reviewableIds.has(id) && (effectiveStatuses.get(id) ?? "pending") === "pending").length;
     // Items shown in the "Listos" tab: approved reviewable + all non-reviewable.
     const ready = allIds.length - pending - rejected;
     return { approved, rejected, pending, ready };
-  }, [allIds, reviewStatuses, reviewableIds]);
+  }, [allIds, effectiveStatuses, reviewableIds]);
 
   const rejectedItems = useMemo(() => {
     return allIds
-      .filter((id) => reviewableIds.has(id) && reviewStatuses.get(id) === "rejected")
+      .filter((id) => reviewableIds.has(id) && effectiveStatuses.get(id) === "rejected")
       .map((id) => {
         const file = ([...images, ...documents] as { file: AlfrescoFileEntry }[])
           .find((item) => item.file?.entry?.id === id);
@@ -562,11 +628,11 @@ export default function FileImages({
           reasons: observationReasonLabels(observations, dictionary),
         };
       });
-  }, [allIds, reviewableIds, reviewStatuses, images, documents, committedTimeline, dictionary]);
+  }, [allIds, reviewableIds, effectiveStatuses, images, documents, committedTimeline, dictionary]);
 
   const approvedItems = useMemo(() => {
     return allIds
-      .filter((id) => reviewableIds.has(id) && reviewStatuses.get(id) === "approved")
+      .filter((id) => reviewableIds.has(id) && effectiveStatuses.get(id) === "approved")
       .map((id) => {
         const file = ([...images, ...documents] as { file: AlfrescoFileEntry }[])
           .find((item) => item.file?.entry?.id === id);
@@ -584,7 +650,7 @@ export default function FileImages({
           reasons: observationReasonLabels(observations, dictionary),
         };
       });
-  }, [allIds, reviewableIds, reviewStatuses, images, documents, committedTimeline, dictionary]);
+  }, [allIds, reviewableIds, effectiveStatuses, images, documents, committedTimeline, dictionary]);
 
   const { dispatch: dispatchReviewState } = useBentoReview();
   useEffect(() => {
@@ -595,11 +661,11 @@ export default function FileImages({
     if (viewModeInitialized.current) return;
     if (allIds.length === 0) return;
     const hasReviewItems = allIds.some(
-      (id) => reviewableIds.has(id) && (reviewStatuses.get(id) ?? "pending") !== "approved"
+      (id) => reviewableIds.has(id) && (effectiveStatuses.get(id) ?? "pending") !== "approved"
     );
     if (hasReviewItems) setViewMode("review");
     viewModeInitialized.current = true;
-  }, [allIds, reviewStatuses, reviewableIds]);
+  }, [allIds, effectiveStatuses, reviewableIds]);
 
   // Tab membership for an item id:
   //  - non-reviewable        → Listos ("ready") only
@@ -608,10 +674,10 @@ export default function FileImages({
   const belongsToTab = useCallback(
     (id: string) => {
       if (!reviewableIds.has(id)) return viewMode === "ready";
-      const s = reviewStatuses.get(id) ?? "pending";
+      const s = effectiveStatuses.get(id) ?? "pending";
       return viewMode === "ready" ? s === "approved" : s !== "approved";
     },
-    [reviewableIds, reviewStatuses, viewMode]
+    [reviewableIds, effectiveStatuses, viewMode]
   );
 
   const filteredImages = useMemo(
@@ -655,21 +721,25 @@ export default function FileImages({
    * request, one transaction, so there is no half-state to reconcile.
    */
   const handleStatusChange = useCallback(async (id: string, status: ReviewStatus) => {
-    if (status === "pending") {
-      // Returning content to review is the absence of a decision, not a decision that says
-      // it is undecided, so it records no round.
-      return;
-    }
     const now = new Date();
     const staged = draftObservations.get(id) ?? [];
-    const reasons = [...new Set(staged.flatMap((obs) => obs.types ?? []))];
-    const comment = staged.map((obs) => obs.description).filter(Boolean).join("\n\n");
+    // Sending content back for another look reverses a verdict rather than explaining one,
+    // so it carries neither reasons nor a comment even if some were staged.
+    const isReturnToReview = status === "pending";
+    const reasons = isReturnToReview ? [] : [...new Set(staged.flatMap((obs) => obs.types ?? []))];
+    const comment = isReturnToReview
+      ? ""
+      : staged.map((obs) => obs.description).filter(Boolean).join("\n\n");
 
     // Snapshots for rollback, captured before the optimistic write.
     let snapStatuses: Map<string, ReviewStatus> | undefined;
     let snapTimestamps: Map<string, Date> | undefined;
     let snapUsers: Map<string, string> | undefined;
     let snapTimeline: Map<string, TimelineEntry[]> | undefined;
+
+    // Held until the round is stored, so the version-aware derivation leaves the optimistic
+    // status alone: the rounds it would read from are the ones this decision is replacing.
+    decidingRef.current.add(id);
 
     setReviewStatuses((prev) => {
       snapStatuses = prev;
@@ -689,11 +759,12 @@ export default function FileImages({
     try {
       await recordReviewRound({
         contentNodeRef: toNodeRef(id),
-        verdict: status === "approved" ? "APPROVED" : "REJECTED",
+        verdict: VERDICT_BY_STATUS[status],
         reasons,
         comment: comment || undefined,
       });
     } catch {
+      decidingRef.current.delete(id);
       toast.error(tr("bento.multimedia.review_state_update_error", dictionary));
       if (snapStatuses) setReviewStatuses(() => snapStatuses!);
       if (snapTimestamps) setReviewStatusTimestamps(() => snapTimestamps!);
@@ -702,6 +773,10 @@ export default function FileImages({
       return;
     }
 
+    // Released before the timeline write, so the render that write triggers already derives
+    // from the round just recorded.
+    decidingRef.current.delete(id);
+
     // The staged observations are now part of the recorded round, so they stop being staged.
     setDraftObservations((prev) => {
       const next = new Map(prev); next.delete(id); return next;
@@ -709,10 +784,10 @@ export default function FileImages({
     setCommittedTimeline((prev) => {
       const next = new Map(prev);
       const existing = prev.get(id) ?? [];
-      next.set(id, buildCommittedEntry(existing, status, id, now, currentUserName, staged));
+      next.set(id, buildCommittedEntry(existing, status, id, now, currentUserName, staged, versionsById.get(id) ?? null));
       return next;
     });
-  }, [currentUserName, dictionary, draftObservations]);
+  }, [currentUserName, dictionary, draftObservations, versionsById]);
 
   /**
    * Stages an observation against a file. Nothing is written until the reviewer decides:
@@ -737,6 +812,12 @@ export default function FileImages({
   }, []);
 
   const handleRemoveCommittedObservation = useCallback((fileId: string, obsId: string) => {
+    // A round holds the decision itself and has no delete endpoint, so it is not removable —
+    // the card offers no control for it. Refused here as well, because stripping it from the
+    // panel is the half that always "works": it used to leave the note gone on screen and
+    // still recorded on the round, which read as a rejection that had lost its reasons.
+    if (isRoundObservation(committedTimeline.get(fileId) ?? [], obsId)) return;
+
     setCommittedTimeline((prev) => {
       const next = new Map(prev);
       const entries = (prev.get(fileId) ?? [])
@@ -750,10 +831,13 @@ export default function FileImages({
       if (refs) {
         deleteContentForumPost(refs.topicRef, refs.postRef).catch(() => {});
       } else {
+        // Only when the id really is a forum topic ref. It used to fall through to here for
+        // anything that was not a draft, which turned `round-1-detail` into
+        // `workspace://SpacesStore/round-1-detail` and posted it to topic/delete.
         deleteContentForumTopic(toNodeRef(obsId)).catch(() => {});
       }
     }
-  }, [forumRefMap]);
+  }, [committedTimeline, forumRefMap]);
 
   const handleAddReply = useCallback((fileId: string, obsId: string, description: string) => {
     const reply = { id: `reply-${obsId}-${Date.now()}`, description, createdAt: new Date(), createdBy: currentUserName };
@@ -1035,7 +1119,7 @@ export default function FileImages({
           items={viewerItems}
           initialIndex={viewerIndex}
           onClose={closeViewer}
-          reviewStatuses={reviewStatuses}
+          reviewStatuses={effectiveStatuses}
 
           onStatusChange={handleStatusChange}
           onEdit={(i) => setEditImageIndex(i)}
@@ -1244,7 +1328,7 @@ export default function FileImages({
                     onSelect={() => openViewerByFileId(image.file.entry.id)}
                     isSelected={selectedIds.has(image.file.entry.id)}
                     onToggleSelect={toggleSelect}
-                    status={isReviewableFile(image.file) ? getEffectiveStatus(image.file, reviewStatuses) : "approved"}
+                    status={isReviewableFile(image.file) ? getEffectiveStatus(image.file, effectiveStatuses) : "approved"}
                     statusSetAt={reviewStatusTimestamps.get(image.file.entry.id)}
                     statusSetBy={reviewStatusUsers.get(image.file.entry.id)}
                     hideStatusDot={viewMode === "ready"}
@@ -1274,7 +1358,7 @@ export default function FileImages({
                     onSelect={() => openViewerByFileId(doc.file.entry.id)}
                     isSelected={selectedIds.has(doc.file.entry.id)}
                     onToggleSelect={toggleSelect}
-                    status={isReviewableFile(doc.file) ? getEffectiveStatus(doc.file, reviewStatuses) : "approved"}
+                    status={isReviewableFile(doc.file) ? getEffectiveStatus(doc.file, effectiveStatuses) : "approved"}
                     statusSetAt={reviewStatusTimestamps.get(doc.file.entry.id)}
                     statusSetBy={reviewStatusUsers.get(doc.file.entry.id)}
                     hideStatusDot={viewMode === "ready"}

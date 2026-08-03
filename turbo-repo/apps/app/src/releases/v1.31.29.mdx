@@ -1,0 +1,42 @@
+# 🔔 Release Notes v1.31.29 — ModularIoT
+
+### Fecha: 31/07/2026
+
+**Objetivo**: Esta release consolida mejoras de experiencia en la capa web pública y fortalece flujos funcionales clave del frontend operativo. El foco estuvo en calidad visual, localización multilenguaje y soporte de credenciales OAuth2 para integraciones más flexibles.
+
+## 🚀 Evolutivos
+
+- **📍 Landing pública, legales, pricing e i18n**
+  - **Key point**: Se mejoró de forma transversal la experiencia del sitio de landing con ajustes visuales, secciones con fondos alternados automáticos, bloque `Trusted by` con animación compatible con preferencias de movimiento reducido, y unificación de navegación, footer y espaciados.
+  - **Technical detail**: Se refactorizaron páginas legales (Términos y Privacidad) hacia layouts reutilizables, se amplió contenido multilenguaje (ES/EN/PT-BR), y se robusteció el módulo de pricing con mejor interacción, traducciones y estados explícitos de ruta no disponible. *(Integración OSS — MIOT-0.5.30)*
+
+- **📍 Formulario OAuth2 genérico y consistencia de estados de calendario**
+  - **Key point**: Se incorporó en frontend el formulario de credenciales OAuth2 client-credentials genérico (incluyendo `token URL`, `client id`, `client secret`, `audience`, `scope` opcional y formato de request), habilitando creación, edición, prueba y guardado.
+  - **Technical detail**: Se corrigió el tipado/parsing del listado de reservas para preservar `status`, `syncStatus` y `syncDetail`, reutilizando uniones de estado del cliente de calendario para mantener consistencia entre datos listados y render de UI operativa. *(Integración OSS — MIOT-0.5.30)*
+
+## 📊 Beneficios
+
+- Mejora clara de la percepción visual y coherencia de marca en la experiencia pública web.
+- Mayor accesibilidad en componentes animados al respetar preferencias de movimiento reducido.
+- Menor duplicación técnica en páginas legales y modales de credenciales gracias a reutilización de estructuras.
+- Soporte operativo ampliado para proveedores OAuth2 tipo machine-to-machine con `audience` como campo de primera clase.
+- Mejor trazabilidad funcional en calendario al conservar estados de ciclo de vida y sincronización en frontend.
+- Mayor cobertura multilenguaje en contenidos de marketing y pricing para despliegues internacionales.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.30`
+- **App**: `app@v0.5.30` (con cambios)
+- **Docs**: `docs@v0.5.30` (con cambios)
+- **Web**: `web@v0.5.30` (con cambios)
+- **Modulith**: `modulith@v0.5.19` (con cambios)
+- **Harness**: `harness@v0.1.4` (sin cambios)
+- Los digest exactos de imágenes desplegadas están disponibles en el diálogo de información de build dentro de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.29 refuerza dos frentes estratégicos: la calidad de la capa pública de producto y la capacidad de integración técnica en flujos reales de operación. Esto mejora tanto la primera impresión comercial como la robustez diaria en entornos conectados.
+
+Además, la consolidación de i18n, layouts reutilizables y formularios compartidos reduce deuda de mantenimiento y facilita iteraciones futuras en web y app. En paralelo, la consistencia de estados de calendario mejora la confiabilidad visual y funcional para equipos operativos.
+
+Con `stack` 0.5.30 como base, esta entrega deja una plataforma más consistente, extensible y preparada para nuevas integraciones y ajustes de experiencia en próximas releases.

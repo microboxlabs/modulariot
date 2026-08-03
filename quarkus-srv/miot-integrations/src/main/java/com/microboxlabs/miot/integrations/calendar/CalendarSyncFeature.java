@@ -18,6 +18,15 @@ public final class CalendarSyncFeature {
 
     public static final String JOB_TYPE = "calendar_sync";
 
+    /**
+     * Extension point: before a booking write, an operator-authored fetch binding on this
+     * event may resolve extra {@code resource.data} values from a configured connection
+     * (e.g. workflow identifiers → accredited-resource ids). Scoped by calendar; no binding
+     * means no enrichment, which is the pre-binding behaviour.
+     */
+    public static final String EVENT_RESOURCE_ENRICHMENT = "calendar.resource_enrichment";
+    public static final String SCOPE_CALENDAR = "calendar";
+
     /** Payload field names (self-contained — the worker never re-reads process vars). */
     public static final String PAYLOAD_OP = "op";
     public static final String PAYLOAD_SERVICE_CODE = "serviceCode";
@@ -53,6 +62,17 @@ public final class CalendarSyncFeature {
     public static final String PAYLOAD_SLOT_HOUR = "slotHour";
     public static final String PAYLOAD_SLOT_MINUTES = "slotMinutes";
     public static final String PAYLOAD_ETD = "etd";
+
+    /**
+     * Roots an enrichment binding's request templates may read — the calendar_sync
+     * payload itself. What the authoring API validates against, so an operator can
+     * write {@code {{resourceData.mintral_driver1Rut}}} and cannot write a root the
+     * job will never carry.
+     */
+    public static final java.util.Set<String> ENRICHMENT_TEMPLATE_ROOTS = java.util.Set.of(
+            PAYLOAD_OP, PAYLOAD_SERVICE_CODE, PAYLOAD_CALENDAR_ID, PAYLOAD_RESOURCE_ID,
+            PAYLOAD_RESOURCE_TYPE, PAYLOAD_TARGET_STATUS, PAYLOAD_RESOURCE_DATA, PAYLOAD_ETD,
+            PAYLOAD_SLOT_DATE, PAYLOAD_SLOT_HOUR, PAYLOAD_SLOT_MINUTES, PAYLOAD_SYNC_STATUS);
 
     /** Status-only push (legacy CALSYNC): PATCH, 404 skips. */
     public static final String OP_PATCH = "patch";

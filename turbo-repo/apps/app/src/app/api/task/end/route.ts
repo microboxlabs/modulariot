@@ -3,6 +3,7 @@ import {
   endTask,
   updateTask,
   getChildrenNodes,
+  getReviewRounds,
   listContentTopics,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import {
@@ -94,6 +95,39 @@ function isForwardTransition(
 
 type ReviewViolation = { code: string; message: string };
 
+/** Forum topic titles that record a verdict rather than a reviewer's note. */
+const STATE_CHANGE_TITLES = new Set(["APPROVED", "REJECTED", "PENDING"]);
+
+/**
+ * Whether a rejected document carries the reason it was rejected for.
+ *
+ * Rounds first, the forum only as a fallback — the same order the review panel hydrates in,
+ * and for the same reason. A rejection is recorded as a review round now: its reason codes
+ * and the reviewer's comment are properties of the round, and the forum write that used to
+ * accompany it is gone. This check still asked the forum, so every rounds-era rejection
+ * looked unexplained and the gate refused the very move a rejection needs — with the reasons
+ * and the comment plainly on screen in the confirm dialog, read from the rounds it ignored.
+ *
+ * A node with no rounds at all was decided before they existed. Its reasons are still forum
+ * topics, so that read stays; it is not backfilled.
+ */
+async function hasRejectionReason(
+  session: Session,
+  contentNodeRef: string
+): Promise<boolean> {
+  const { rounds } = await getReviewRounds(session, contentNodeRef);
+
+  if (rounds.length > 0) {
+    // The verdict on record is REJECTED, so the newest round is the one that set it and the
+    // one that must explain it. An older round's reasons described content since replaced.
+    const latest = rounds.at(-1);
+    return (latest?.reasons?.length ?? 0) > 0 || !!latest?.comment?.trim();
+  }
+
+  const { topics } = await listContentTopics(session, contentNodeRef);
+  return (topics ?? []).some((t) => !STATE_CHANGE_TITLES.has(t.title));
+}
+
 async function checkDocumentReview(
   session: Session,
   bpmPackage: string,
@@ -143,31 +177,24 @@ async function checkDocumentReview(
       };
     }
 
-    // Business rule: every rejected document must have at least one observation
-    // (a forum topic that is not a state-change entry).
+    // Business rule: every rejected document must say why.
     if (rejectedEntries.length > 0) {
-      const STATE_CHANGE_TITLES = new Set(["APPROVED", "REJECTED", "PENDING"]);
-
-      const topicChecks = await Promise.allSettled(
-        rejectedEntries.map((e) => {
-          const nodeRef = `workspace://SpacesStore/${e.entry.id}`;
-          return listContentTopics(session, nodeRef);
-        })
+      const checks = await Promise.allSettled(
+        rejectedEntries.map((e) =>
+          hasRejectionReason(session, `workspace://SpacesStore/${e.entry.id}`)
+        )
       );
 
-      const hasDocWithoutObservation = topicChecks.some((result, i) => {
+      const hasDocWithoutObservation = checks.some((result, i) => {
         if (result.status === "rejected") {
           // Fail open for this document — log and skip the check.
           logError(result.reason as Error, {
-            context: "checkDocumentReview:listContentTopics",
+            context: "checkDocumentReview:hasRejectionReason",
             nodeId: rejectedEntries[i]?.entry.id,
           });
           return false;
         }
-        const observationTopics = (result.value.topics ?? []).filter(
-          (t) => !STATE_CHANGE_TITLES.has(t.title)
-        );
-        return observationTopics.length === 0;
+        return !result.value;
       });
 
       if (hasDocWithoutObservation) {

@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { roundsToTimeline } from "./file-images";
+import {
+  splitByVersion,
+  statusForCurrentVersion,
+} from "../viewer/observations/review-version";
 import type { ReviewRoundResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 
 const round = (over: Partial<ReviewRoundResponse> = {}): ReviewRoundResponse => ({
@@ -69,5 +73,78 @@ describe("roundsToTimeline", () => {
 
   it("renders content with no rounds as an empty timeline", () => {
     expect(roundsToTimeline([])).toEqual([]);
+  });
+
+  it("shows a return to review as its own entry in the history", () => {
+    // Sending content back is a reversal someone performed, not the absence of a decision.
+    // Treating it as nothing left the reviewer unable to undo at all.
+    const entries = roundsToTimeline([
+      round({ seq: 1, verdict: "REJECTED" }),
+      round({ seq: 2, verdict: "PENDING", reasons: [], comment: null }),
+    ]);
+
+    expect(entries.map((e) => (e.kind === "state_change" ? e.status : null))).toEqual([
+      "rejected",
+      "pending",
+    ]);
+  });
+
+  it("carries the revision each round judged", () => {
+    const entries = roundsToTimeline([
+      round({ seq: 1, version: "1.0" }),
+      round({ seq: 2, version: null }),
+    ]);
+
+    expect(entries.map((e) => (e.kind === "state_change" ? e.version : undefined))).toEqual([
+      "1.0",
+      null,
+    ]);
+  });
+});
+
+/**
+ * A photo the driver re-sent after it was rejected.
+ *
+ * servicio-1633381 as the repository actually holds it: one REJECTED round against v1.0, and
+ * a node sitting at v1.1 with `mintral:reviewStatus` reset to PENDING by the onsite processor.
+ * The panel read the round as the current state, so the reviewer opened a photo nobody had
+ * looked at and found it marked "Rechazado" with the previous reviewer's reasons attached.
+ */
+describe("a re-uploaded photo, end to end", () => {
+  const rejectedAtV10 = roundsToTimeline([
+    round({
+      seq: 1,
+      verdict: "REJECTED",
+      version: "1.0",
+      reasons: ["poor_image_quality", "wrong_format"],
+      comment: "no se percibe la patente del vehículo con claridad",
+      decidedAt: "2026-07-27T19:19:18.073Z",
+    }),
+  ]);
+
+  it("is pending again once the content it judged has been replaced", () => {
+    expect(statusForCurrentVersion(rejectedAtV10, "1.1")).toBe("pending");
+  });
+
+  it("shows nothing against the new revision, and files the rejection as history", () => {
+    const { current, history } = splitByVersion(rejectedAtV10, "1.1");
+
+    expect(current).toEqual([]);
+    expect(history).toHaveLength(1);
+    expect(history[0].version).toBe("1.0");
+    const [entry] = history[0].entries;
+    if (entry.kind !== "state_change") throw new Error("expected a state change");
+    expect(entry.status).toBe("rejected");
+    // Still readable, so "why was this sent back?" is one click away rather than lost.
+    expect(entry.observations[0].types).toEqual(["poor_image_quality", "wrong_format"]);
+  });
+
+  it("goes back to reading as rejected the moment someone rejects the new revision", () => {
+    const decided = [...rejectedAtV10, ...roundsToTimeline([
+      round({ seq: 2, verdict: "REJECTED", version: "1.1", comment: "Sigue borrosa" }),
+    ])];
+
+    expect(statusForCurrentVersion(decided, "1.1")).toBe("rejected");
+    expect(splitByVersion(decided, "1.1").current).toHaveLength(1);
   });
 });

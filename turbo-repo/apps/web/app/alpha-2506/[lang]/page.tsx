@@ -33,20 +33,28 @@ export default async function Home({
 
   return (
     <main>
-      <Hero lang={lang} tone={tone()} />   {/* Gancho */}
-      <Stats lang={lang} tone={tone()} />              {/* Validación / cuantificación (banda oscura) */}
-      <Problem lang={lang} tone={tone()} />            {/* Problema emocional (We Got You) */}
-      <TresActos base={base} lang={lang} tone={tone()} /> {/* La tesis en 3 actos → explorador nativo */}
-      <StepsInteractive tone={tone()} />               {/* Demostración paso a paso (autoreproducida) */}
-      <Features lang={lang} tone={tone()} />           {/* Solución: 3 capacidades */}
-      <UseCases lang={lang} tone={tone()} />           {/* Las 4 cajas de procesamiento */}
-      <Confiabilidad base={base} tone={tone()} />      {/* Precisión de señal: 12/20 pulsos/min (minería) */}
-      <PainOutcome lang={lang} tone={tone()} />        {/* Diferenciación: rentar vs poseer */}
-      <Deployment lang={lang} tone={tone()} />         {/* Opciones de implementación */}
-      <TrustedBy lang={lang} tone={tone()} />          {/* Confianza: cliente */}
-      <Stories lang={lang} tone={tone()} />            {/* Prueba social: casos reales */}
-      <FAQ tone={tone()} />                            {/* Objeciones */}
-      <FinalCta lang={lang} tone={tone()} />           {/* Cierre */}
+      <Hero lang={lang} tone={tone()} /> {/* Gancho */}
+      <Stats lang={lang} tone={tone()} />{" "}
+      {/* Validación / cuantificación (banda oscura) */}
+      <Problem lang={lang} tone={tone()} />{" "}
+      {/* Problema emocional (We Got You) */}
+      <TresActos base={base} lang={lang} tone={tone()} />{" "}
+      {/* La tesis en 3 actos → explorador nativo */}
+      <StepsInteractive tone={tone()} />{" "}
+      {/* Demostración paso a paso (autoreproducida) */}
+      <Features lang={lang} tone={tone()} /> {/* Solución: 3 capacidades */}
+      <UseCases lang={lang} tone={tone()} />{" "}
+      {/* Las 4 cajas de procesamiento */}
+      <Confiabilidad base={base} tone={tone()} />{" "}
+      {/* Precisión de señal: 12/20 pulsos/min (minería) */}
+      <PainOutcome lang={lang} tone={tone()} />{" "}
+      {/* Diferenciación: rentar vs poseer */}
+      <Deployment lang={lang} tone={tone()} />{" "}
+      {/* Opciones de implementación */}
+      <TrustedBy lang={lang} tone={tone()} /> {/* Confianza: cliente */}
+      <Stories lang={lang} tone={tone()} /> {/* Prueba social: casos reales */}
+      <FAQ tone={tone()} /> {/* Objeciones */}
+      <FinalCta lang={lang} base={base} tone={tone()} /> {/* Cierre */}
     </main>
   );
 }

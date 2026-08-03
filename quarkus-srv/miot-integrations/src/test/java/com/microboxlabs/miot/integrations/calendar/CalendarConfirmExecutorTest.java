@@ -32,7 +32,7 @@ class CalendarConfirmExecutorTest {
     @Test
     void confirmStampsSyncStatusOnly() {
         FakeClient client = new FakeClient();
-        var result = new CalendarConfirmExecutor(client).handle(payload());
+        var result = new CalendarConfirmExecutor(client).handle("tenant-1", payload());
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(1, client.patchCalls);
@@ -49,7 +49,7 @@ class CalendarConfirmExecutorTest {
         FakeClient client = new FakeClient();
         client.patchThrows = new CalendarBookingsHttpException(404, "no booking");
 
-        var result = new CalendarConfirmExecutor(client).handle(payload());
+        var result = new CalendarConfirmExecutor(client).handle("tenant-1", payload());
 
         assertEquals(JobOutcome.SKIPPED, result.outcome());
     }
@@ -60,7 +60,7 @@ class CalendarConfirmExecutorTest {
         client.patchThrows = new CalendarBookingsHttpException(-1, "io error");
         var executor = new CalendarConfirmExecutor(client);
         var p = payload();
-        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle(p));
+        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle("tenant-1", p));
     }
 
     @Test
@@ -68,7 +68,7 @@ class CalendarConfirmExecutorTest {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put(CalendarConfirmFeature.PAYLOAD_SERVICE_CODE, "1658427");
         var executor = new CalendarConfirmExecutor(new FakeClient());
-        assertThrows(IllegalArgumentException.class, () -> executor.handle(p));
+        assertThrows(IllegalArgumentException.class, () -> executor.handle("tenant-1", p));
     }
 
     private static final class FakeClient extends CalendarBookingsClient {

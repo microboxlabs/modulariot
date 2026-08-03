@@ -27,7 +27,9 @@ export async function Hero({ lang, tone }: { lang: string; tone: Tone }) {
             {t("titlePre")}
             <AmberChevron>{t("titleHighlight")}</AmberChevron>
           </h1>
-          <p className="mt-5 max-w-[56ch] text-lg leading-[1.55] text-ink-2">{t("subtitle")}</p>
+          <p className="text-ink-2 mt-5 max-w-[56ch] text-lg leading-[1.55]">
+            {t("subtitle")}
+          </p>
           <div className="mt-8 flex flex-wrap gap-2.5">
             <a href="#contacto" className={`${btnPrimary} ${btnLg}`}>
               {t("ctaPrimary")}
@@ -40,7 +42,7 @@ export async function Hero({ lang, tone }: { lang: string; tone: Tone }) {
         <div className="relative">
           <LynxMark
             aria-hidden
-            className="hidden pointer-events-none absolute top-3/5 left-0 -rotate-12 h-[120%] w-[120%] translate-x-[-70%] -translate-y-1/2 text-ink-1 opacity-[0.06]"
+            className="text-ink-1 pointer-events-none absolute top-3/5 left-0 hidden h-[120%] w-[120%] translate-x-[-70%] -translate-y-1/2 -rotate-12 opacity-[0.06] lg:block"
           />
           <div className="relative z-10">
             <HeroTerminal />

@@ -47,7 +47,7 @@ class JobFailureNotificationHandlerTest {
 
     @Test
     void sendsOneTextPerRecipientWithTheFailureContext() {
-        var result = handler.handle(payload(List.of("+56911111111", "+56922222222")));
+        var result = handler.handle("tenant-1", payload(List.of("+56911111111", "+56922222222")));
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(2, messaging.sent.size());
@@ -69,7 +69,7 @@ class JobFailureNotificationHandlerTest {
         p.put(JobFailureNotificationFeature.PAYLOAD_TEMPLATE_NAME, "job_failed_alert");
         p.put(JobFailureNotificationFeature.PAYLOAD_LANGUAGE, "es_CL");
 
-        handler.handle(p);
+        handler.handle("tenant-1", p);
 
         SendWhatsAppMessageRequest sent = messaging.sent.get(0);
         assertTrue(sent.isTemplate());
@@ -87,7 +87,7 @@ class JobFailureNotificationHandlerTest {
         p.remove(JobFailureNotificationFeature.PAYLOAD_ERROR);
         p.put(JobFailureNotificationFeature.PAYLOAD_TEMPLATE_NAME, "job_failed_alert");
 
-        handler.handle(p);
+        handler.handle("tenant-1", p);
 
         // The messaging service rejects blank param values — "-" keeps them valid.
         assertEquals("-", messaging.sent.get(0).templateParams().get("correlation_key"));
@@ -99,14 +99,14 @@ class JobFailureNotificationHandlerTest {
         messaging.failAll = true;
         Map<String, Object> p = payload(List.of("+56911111111", "+56922222222"));
 
-        assertThrows(IllegalStateException.class, () -> handler.handle(p));
+        assertThrows(IllegalStateException.class, () -> handler.handle("tenant-1", p));
     }
 
     @Test
     void partialFailureSucceedsWithTheFailuresInTheDetail() {
         messaging.failFirst = true;
 
-        var result = handler.handle(payload(List.of("+56911111111", "+56922222222")));
+        var result = handler.handle("tenant-1", payload(List.of("+56911111111", "+56922222222")));
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertTrue(result.detail().contains("1/2"));
@@ -117,7 +117,7 @@ class JobFailureNotificationHandlerTest {
     void thrownSendErrorsCountAsRecipientFailures() {
         messaging.throwFirst = new IllegalArgumentException("not on the test-recipient list");
 
-        var result = handler.handle(payload(List.of("+56911111111", "+56922222222")));
+        var result = handler.handle("tenant-1", payload(List.of("+56911111111", "+56922222222")));
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertTrue(result.detail().contains("not on the test-recipient list"));
@@ -127,10 +127,10 @@ class JobFailureNotificationHandlerTest {
     void missingTenantOrRecipientsIsANonRetryableArgumentError() {
         Map<String, Object> noTenant = payload(List.of("+56911111111"));
         noTenant.remove(JobFailureNotificationFeature.PAYLOAD_TENANT_CODE);
-        assertThrows(IllegalArgumentException.class, () -> handler.handle(noTenant));
+        assertThrows(IllegalArgumentException.class, () -> handler.handle("tenant-1", noTenant));
 
         Map<String, Object> noRecipients = payload(List.of());
-        assertThrows(IllegalArgumentException.class, () -> handler.handle(noRecipients));
+        assertThrows(IllegalArgumentException.class, () -> handler.handle("tenant-1", noRecipients));
     }
 
     // -----------------------------------------------------------------------

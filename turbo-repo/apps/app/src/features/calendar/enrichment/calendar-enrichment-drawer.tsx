@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   Badge,
   Button,
@@ -10,11 +9,12 @@ import {
   TextInput,
   ToggleSwitch,
 } from "flowbite-react";
-import { HiPlus, HiX } from "react-icons/hi";
+import { HiPlus } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { checkTemplate } from "@/features/shipping/components/lane/review-template-validation";
 import { TemplateInput } from "@/features/common/templating/template-input";
+import { SettingsDrawerShell } from "@/features/common/components/settings-drawer/settings-drawer-shell";
 import {
   deleteEnrichmentBinding,
   fetchEnrichmentBindings,
@@ -109,100 +109,68 @@ export function CalendarEnrichmentDrawer({
     });
   }, [show, reload]);
 
-  return createPortal(
-    <div
-      className={`fixed inset-0 z-[800] transition-all duration-300 ${
-        show ? "visible opacity-100" : "invisible opacity-0"
-      }`}
+  return (
+    <SettingsDrawerShell
+      show={show}
+      onClose={onClose}
+      title={tr("advancedSettings.title", eDict)}
+      subtitle={tr("advancedSettings.description", eDict)}
+      closeLabel={tr("enrichment.close", eDict)}
     >
-      <button
-        type="button"
-        aria-label={tr("enrichment.close", eDict)}
-        className={`absolute inset-0 cursor-default bg-black/20 transition-opacity duration-300 ${
-          show ? "opacity-100" : "opacity-0"
-        }`}
-        onClick={onClose}
-      />
-      <aside
-        className={`absolute right-0 top-0 flex h-full w-[30rem] max-w-full flex-col overflow-y-auto border-l border-gray-200 bg-white shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800 ${
-          show ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        <div className="flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-700">
-          <div>
-            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              {tr("advancedSettings.title", eDict)}
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {tr("advancedSettings.description", eDict)}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={tr("enrichment.close", eDict)}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
-          >
-            <HiX className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="flex-1 p-4">
-          {/* First (today: only) advanced section — the enrichment binding.
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        {/* First (today: only) advanced section — the enrichment binding.
               Future advanced settings join as siblings below it. */}
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-            {tr("enrichment.title", eDict)}
-          </h3>
-          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-            {tr("enrichment.description", eDict)}
-          </p>
-          {view.kind === "list" && (
-            <BindingList
-              bindings={bindings}
-              error={error}
-              dict={eDict}
-              onAdd={() => setView({ kind: "edit", binding: null })}
-              onEdit={(binding) => setView({ kind: "edit", binding })}
-              onDelete={async (binding) => {
-                if (!orgSlug) return;
-                await deleteEnrichmentBinding(orgSlug, binding.id);
-                await reload();
-              }}
-            />
-          )}
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          {tr("enrichment.title", eDict)}
+        </h3>
+        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+          {tr("enrichment.description", eDict)}
+        </p>
+        {view.kind === "list" && (
+          <BindingList
+            bindings={bindings}
+            error={error}
+            dict={eDict}
+            onAdd={() => setView({ kind: "edit", binding: null })}
+            onEdit={(binding) => setView({ kind: "edit", binding })}
+            onDelete={async (binding) => {
+              if (!orgSlug) return;
+              await deleteEnrichmentBinding(orgSlug, binding.id);
+              await reload();
+            }}
+          />
+        )}
 
-          {view.kind === "edit" && (
-            <BindingForm
-              targets={targets}
-              editing={view.binding}
-              calendarId={calendarId}
-              saving={saving}
-              error={error}
-              dict={eDict}
-              onCancel={() => {
-                setError(null);
+        {view.kind === "edit" && (
+          <BindingForm
+            targets={targets}
+            editing={view.binding}
+            calendarId={calendarId}
+            saving={saving}
+            error={error}
+            dict={eDict}
+            onCancel={() => {
+              setError(null);
+              setView({ kind: "list" });
+            }}
+            onSave={async (request) => {
+              if (!orgSlug) return;
+              setSaving(true);
+              setError(null);
+              try {
+                await upsertEnrichmentBinding(orgSlug, request);
                 setView({ kind: "list" });
-              }}
-              onSave={async (request) => {
-                if (!orgSlug) return;
-                setSaving(true);
-                setError(null);
-                try {
-                  await upsertEnrichmentBinding(orgSlug, request);
-                  setView({ kind: "list" });
-                  await reload();
-                } catch (failure) {
-                  setError((failure as Error).message);
-                } finally {
-                  setSaving(false);
-                }
-              }}
-            />
-          )}
-        </div>
-      </aside>
-    </div>,
-    document.body
+                await reload();
+              } catch (failure) {
+                setError((failure as Error).message);
+              } finally {
+                setSaving(false);
+              }
+            }}
+          />
+        )}
+      </div>
+    </SettingsDrawerShell>
   );
 }
 

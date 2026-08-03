@@ -13,4 +13,5 @@ export { CTAButtons } from './cta-buttons';
 export { ConnectStreamModal } from './connect-stream-modal';
 export { ConnectionCard } from './connection-card';
 export { PROTOCOLS, getConnectionDetails, buildConnectionUri, type Protocol, type ConnectionDetails } from './protocol-helpers';
-export { DangerZone, type DangerZoneProps } from './danger-zone'; 
+export { DangerZone, type DangerZoneProps } from './danger-zone';
+export { LynxMark, LynxWordmark, LynxBrand, LynxLockup } from './brand/logo'; 

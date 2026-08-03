@@ -2,13 +2,12 @@
 
 import { useSidebarContext } from "@/features/sidebar/context/sidebar-context";
 import { Navbar, NavbarBrand } from "flowbite-react";
-import Image from "next/image";
 import Link from "next/link";
 import { HiMenuAlt1, HiX } from "react-icons/hi";
 import { useMediaQuery } from "../../hooks/use-media-query";
 import UserDropdown from "../user-dropdown/user-dropdown";
 import { SecuredNavBarProps } from "./secured-navbar.types";
-import defaultLogoImage from "@assets/logo.svg";
+import { LynxBrand } from "@modulariot/ui/brand/logo";
 import { twMerge } from "tailwind-merge";
 /* import { useSearch } from "@/features/search/context/search-context"; */
 import { usePathname } from "next/navigation";
@@ -82,21 +81,15 @@ function NavbarLogo({
         )}
         {/* Fallback for light mode if only dark logo exists */}
         {!logoUrlLight && logoUrlDark && (
-          <Image
-            className="mr-3 h-8 block dark:hidden"
-            alt="Mintral logo"
-            src={defaultLogoImage}
-            width={150}
-          />
+          <span className="mr-3 block dark:hidden">
+            <LynxBrand iconClassName="h-11 w-11" wordmarkClassName="h-5 w-auto" className="text-(--brand-ink)" />
+          </span>
         )}
         {/* Fallback for dark mode if only light logo exists */}
         {logoUrlLight && !logoUrlDark && (
-          <Image
-            className="mr-3 h-8 hidden dark:block"
-            alt="Mintral logo"
-            src={defaultLogoImage}
-            width={150}
-          />
+          <span className="mr-3 hidden dark:block">
+            <LynxBrand iconClassName="h-11 w-11" wordmarkClassName="h-5 w-auto" className="text-(--brand-ink)" />
+          </span>
         )}
       </>
     );
@@ -117,12 +110,7 @@ function NavbarLogo({
   }
 
   return (
-    <Image
-      className="mr-3 h-8"
-      alt="Mintral logo"
-      src={defaultLogoImage}
-      width={150}
-    />
+    <LynxBrand className="mr-3 text-(--brand-ink)" iconClassName="h-11 w-11" wordmarkClassName="h-5 w-auto" />
   );
 }
 

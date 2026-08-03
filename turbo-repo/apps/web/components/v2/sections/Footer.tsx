@@ -1,5 +1,5 @@
 import { getContent } from "../content";
-import { LynxBrand } from "../brand/Logo";
+import { LynxBrand } from "@modulariot/ui/brand/logo";
 
 export function Footer({ base, lang }: { base: string; lang: string }) {
   const c = getContent(lang).footer;

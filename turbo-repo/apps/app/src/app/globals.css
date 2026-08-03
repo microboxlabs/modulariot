@@ -73,12 +73,17 @@ a[href^="."]::before {
   --scrollbar-track: transparent;
   --scrollbar-thumb: rgb(168, 178, 195);
   --scrollbar-thumb-hover: rgb(31 41 55);
+  /* Lynx brand mark (@modulariot/ui/brand/logo): ink (currentColor) + iris */
+  --brand-ink: #13273d;
+  --brand-amber: #e08a28;
 }
 
 .dark {
   --scrollbar-track: transparent;
   --scrollbar-thumb: rgb(107 114 128);
   --scrollbar-thumb-hover: #444;
+  --brand-ink: #e8eff7;
+  --brand-amber: #f5ae55;
 }
 
 ::-webkit-scrollbar {

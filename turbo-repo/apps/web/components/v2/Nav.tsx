@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { DarkThemeToggle } from "flowbite-react";
 import { getContent } from "./content";
 import { Flag } from "./flags";
-import { LynxBrand } from "./brand/Logo";
+import { LynxBrand } from "@modulariot/ui/brand/logo";
 
 const COUNTRY_KEY = "miot_country";
 

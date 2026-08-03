@@ -8,7 +8,7 @@ import "dayjs/locale/en";
 import weekOfYear from "dayjs/plugin/weekOfYear";
 import type { PlanningHeaderProps } from "./planning-header.types";
 import type { ViewMode } from "@/features/calendar/services/calendar.service.types";
-import { HiChevronLeft, HiChevronRight, HiCog } from "react-icons/hi";
+import { HiChevronLeft, HiChevronRight } from "react-icons/hi";
 import { CalendarEnrichmentDrawer } from "@/features/calendar/enrichment/calendar-enrichment-drawer";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { Button } from "flowbite-react";
@@ -202,6 +202,14 @@ export default function PlanningHeader({
           }}
         />
         <CalendarRules
+          onOpenEnrichment={
+            calendarId ? () => setEnrichmentOpen(true) : undefined
+          }
+          enrichmentTitle={tr("pages.calendar.enrichment.title", dict)}
+          enrichmentDescription={tr(
+            "pages.calendar.enrichment.description",
+            dict
+          )}
           dict={dict}
           messages={getCalendarRulesMessages(dict)}
           andenesCount={andenesCount}
@@ -257,27 +265,15 @@ export default function PlanningHeader({
           }}
         />
 
-        {/* Enrichment settings — the drawer administers the fetch binding this
-            calendar's sync jobs consult. Owner-gated server-side; the drawer
-            surfaces the 403 rather than hiding the entry point. */}
+        {/* Enrichment drawer — opened from the calendar-rules panel entry. */}
         {calendarId && (
-          <>
-            <Button
-              color="alternative"
-              size="sm"
-              onClick={() => setEnrichmentOpen(true)}
-              title={tr("pages.calendar.enrichment.title", dict)}
-            >
-              <HiCog className="h-4 w-4" />
-            </Button>
-            <CalendarEnrichmentDrawer
-              show={enrichmentOpen}
-              onClose={() => setEnrichmentOpen(false)}
-              orgSlug={activeOrg?.slug ?? null}
-              calendarId={calendarId}
-              dict={dict}
-            />
-          </>
+          <CalendarEnrichmentDrawer
+            show={enrichmentOpen}
+            onClose={() => setEnrichmentOpen(false)}
+            orgSlug={activeOrg?.slug ?? null}
+            calendarId={calendarId}
+            dict={dict}
+          />
         )}
       </div>
     </div>

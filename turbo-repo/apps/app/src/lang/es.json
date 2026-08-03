@@ -2238,7 +2238,8 @@
         "delete": "Eliminar",
         "close": "Cerrar",
         "thisCalendar": "Este calendario",
-        "onlyThisCalendar": "Solo este calendario"
+        "onlyThisCalendar": "Solo este calendario",
+        "invalidTemplate": "Plantilla inválida"
       }
     }
   },

@@ -13,6 +13,8 @@ import {
 import { HiPlus, HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { checkTemplate } from "@/features/shipping/components/lane/review-template-validation";
+import { EnrichmentTemplateInput } from "./enrichment-template-input";
 import {
   deleteEnrichmentBinding,
   fetchEnrichmentBindings,
@@ -23,7 +25,11 @@ import {
   DEFAULT_RESPONSE_TEMPLATES,
   ENRICHMENT_EVENT_TYPE,
   ENRICHMENT_SCOPE_KIND,
+  REQUEST_NAMESPACES,
+  REQUEST_TEMPLATE_ROOTS,
   REQUEST_TEMPLATE_SUGGESTIONS,
+  RESPONSE_NAMESPACES,
+  RESPONSE_TEMPLATE_ROOTS,
   type EnrichmentBinding,
   type EnrichmentTarget,
 } from "./enrichment.types";
@@ -103,17 +109,25 @@ export function CalendarEnrichmentDrawer({
     });
   }, [show, reload]);
 
-  if (!show) return null;
-
   return createPortal(
-    <div className="fixed inset-0 z-[800]">
+    <div
+      className={`fixed inset-0 z-[800] transition-all duration-300 ${
+        show ? "visible opacity-100" : "invisible opacity-0"
+      }`}
+    >
       <button
         type="button"
         aria-label={tr("enrichment.close", eDict)}
-        className="absolute inset-0 cursor-default bg-black/20"
+        className={`absolute inset-0 cursor-default bg-black/20 transition-opacity duration-300 ${
+          show ? "opacity-100" : "opacity-0"
+        }`}
         onClick={onClose}
       />
-      <aside className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
+      <aside
+        className={`absolute right-0 top-0 flex h-full w-[30rem] max-w-full flex-col overflow-y-auto border-l border-gray-200 bg-white shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800 ${
+          show ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
         <div className="flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-700">
           <div>
             <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
@@ -337,6 +351,16 @@ function BindingForm({
     ? target.fields.map((field) => field.id)
     : Object.keys(requestRows);
 
+  const allValid =
+    Object.values(requestRows).every(
+      (template) =>
+        checkTemplate(template, REQUEST_TEMPLATE_ROOTS).status !== "invalid"
+    ) &&
+    responseRows.every(
+      ([, template]) =>
+        checkTemplate(template, RESPONSE_TEMPLATE_ROOTS).status !== "invalid"
+    );
+
   function save() {
     if (!target) return;
     onSave({
@@ -404,24 +428,33 @@ function BindingForm({
             {tr("enrichment.requestMappingHelp", dict)}
           </p>
           <div className="flex flex-col gap-2">
-            {requestFieldIds.map((fieldId) => (
-              <div key={fieldId}>
-                <code className="text-xs text-gray-700 dark:text-gray-300">
-                  {fieldId}
-                </code>
-                <TextInput
-                  sizing="sm"
-                  className="mt-0.5 font-mono"
-                  value={requestRows[fieldId] ?? ""}
-                  onChange={(event) =>
-                    setRequestRows((rows) => ({
-                      ...rows,
-                      [fieldId]: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-            ))}
+            {requestFieldIds.map((fieldId) => {
+              const template = requestRows[fieldId] ?? "";
+              const check = checkTemplate(template, REQUEST_TEMPLATE_ROOTS);
+              return (
+                <div key={fieldId}>
+                  <code className="text-xs text-gray-700 dark:text-gray-300">
+                    {fieldId}
+                  </code>
+                  <div className="mt-0.5">
+                    <EnrichmentTemplateInput
+                      value={template}
+                      onChange={(next) =>
+                        setRequestRows((rows) => ({ ...rows, [fieldId]: next }))
+                      }
+                      namespaces={REQUEST_NAMESPACES}
+                      color={check.status === "invalid" ? "failure" : "gray"}
+                    />
+                  </div>
+                  {check.status === "invalid" && (
+                    <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">
+                      {tr("enrichment.invalidTemplate", dict)} (
+                      {check.problem?.code})
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </fieldset>
       )}
@@ -434,34 +467,45 @@ function BindingForm({
           {tr("enrichment.responseMappingHelp", dict)}
         </p>
         <div className="flex flex-col gap-2">
-          {responseRows.map(([key, template], index) => (
-            <div key={index} className="grid grid-cols-2 gap-2">
-              <TextInput
-                sizing="sm"
-                className="font-mono"
-                value={key}
-                onChange={(event) =>
-                  setResponseRows((rows) =>
-                    rows.map((row, i) =>
-                      i === index ? [event.target.value, row[1]] : row
-                    )
-                  )
-                }
-              />
-              <TextInput
-                sizing="sm"
-                className="font-mono"
-                value={template}
-                onChange={(event) =>
-                  setResponseRows((rows) =>
-                    rows.map((row, i) =>
-                      i === index ? [row[0], event.target.value] : row
-                    )
-                  )
-                }
-              />
-            </div>
-          ))}
+          {responseRows.map(([key, template], index) => {
+            const check = checkTemplate(template, RESPONSE_TEMPLATE_ROOTS);
+            return (
+              <div key={index}>
+                <div className="grid grid-cols-2 gap-2">
+                  <TextInput
+                    sizing="sm"
+                    className="font-mono [&_input]:text-xs"
+                    value={key}
+                    onChange={(event) =>
+                      setResponseRows((rows) =>
+                        rows.map((row, i) =>
+                          i === index ? [event.target.value, row[1]] : row
+                        )
+                      )
+                    }
+                  />
+                  <EnrichmentTemplateInput
+                    value={template}
+                    onChange={(next) =>
+                      setResponseRows((rows) =>
+                        rows.map((row, i) =>
+                          i === index ? [row[0], next] : row
+                        )
+                      )
+                    }
+                    namespaces={RESPONSE_NAMESPACES}
+                    color={check.status === "invalid" ? "failure" : "gray"}
+                  />
+                </div>
+                {check.status === "invalid" && (
+                  <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">
+                    {tr("enrichment.invalidTemplate", dict)} (
+                    {check.problem?.code})
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       </fieldset>
 
@@ -485,7 +529,7 @@ function BindingForm({
           color="blue"
           size="sm"
           onClick={save}
-          disabled={saving || !target}
+          disabled={saving || !target || !allValid}
         >
           {saving ? tr("enrichment.saving", dict) : tr("enrichment.save", dict)}
         </Button>

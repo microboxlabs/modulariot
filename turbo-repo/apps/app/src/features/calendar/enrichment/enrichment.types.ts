@@ -76,3 +76,62 @@ export const DEFAULT_RESPONSE_TEMPLATES: Record<string, string> = {
   assignedTruck: "{{response.truck_id}}",
   assignedTrailer: "{{response.trailer_id}}",
 };
+
+/**
+ * FE mirror of the server's allowed template roots
+ * (`CalendarSyncFeature.ENRICHMENT_TEMPLATE_ROOTS`): what `checkTemplate` may
+ * accept without painting green something the API then refuses.
+ */
+export const REQUEST_TEMPLATE_ROOTS: readonly string[] = [
+  "op",
+  "serviceCode",
+  "calendarId",
+  "resourceId",
+  "resourceType",
+  "targetStatus",
+  "resourceData",
+  "etd",
+  "slotDate",
+  "slotHour",
+  "slotMinutes",
+  "syncStatus",
+];
+
+export const RESPONSE_TEMPLATE_ROOTS: readonly string[] = ["response"];
+
+/**
+ * Autocomplete catalogs. Suggestions, not a whitelist — the identity keys ECM
+ * ships (#355) on the request side, the resolver's slots on the response side.
+ */
+export const REQUEST_NAMESPACES = [
+  {
+    prefix: "resourceData",
+    suggestions: [
+      "mintral_supplierPrveCodigo",
+      "mintral_driver1Rut",
+      "mintral_driver2Rut",
+      "mintral_truckLicensePlate",
+      "mintral_trailerLicensePlate",
+      "mintral_serviceCode",
+      "mintral_serviceKind",
+      "mintral_clientRut",
+      "mintral_delegacionOrigen",
+      "origen",
+      "destino",
+      "expectedDepartureDate",
+    ],
+  },
+];
+
+export const RESPONSE_NAMESPACES = [
+  {
+    prefix: "response",
+    suggestions: [
+      "carrier_id",
+      "driver_id",
+      "driver2_id",
+      "truck_id",
+      "trailer_id",
+    ],
+  },
+];

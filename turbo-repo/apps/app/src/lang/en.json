@@ -2238,7 +2238,8 @@
         "delete": "Delete",
         "close": "Close",
         "thisCalendar": "This calendar",
-        "onlyThisCalendar": "Only this calendar"
+        "onlyThisCalendar": "Only this calendar",
+        "invalidTemplate": "Invalid template"
       }
     }
   },

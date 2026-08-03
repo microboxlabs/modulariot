@@ -235,6 +235,10 @@ interface CalendarRulesProps {
   onBlocksChange?: (blocks: TimeBlock[]) => void;
   onAndenesChange?: (config: PlatformConfig) => void;
   onTaskFilterChange?: (filter: CalendarFilter, isDefault: boolean) => void;
+  /** When set, the panel offers the calendar-enrichment settings as an entry. */
+  onOpenEnrichment?: () => void;
+  enrichmentTitle?: string;
+  enrichmentDescription?: string;
 }
 
 export default function CalendarRules({
@@ -247,6 +251,9 @@ export default function CalendarRules({
   onBlocksChange,
   onAndenesChange,
   onTaskFilterChange,
+  onOpenEnrichment,
+  enrichmentTitle,
+  enrichmentDescription,
 }: Readonly<CalendarRulesProps>) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<SettingOption>(null);
@@ -336,6 +343,27 @@ export default function CalendarRules({
               }}
             />
           </CalendarRulesSection>
+
+          {/* Direct action, not an expandable section: the enrichment settings
+              live in their own drawer. Hidden while a section is expanded, like
+              the section headers themselves. */}
+          {onOpenEnrichment && selected === null && (
+            <button
+              type="button"
+              onClick={() => {
+                closePanel();
+                onOpenEnrichment();
+              }}
+              className="w-full border-t border-gray-200 p-4 text-left hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
+            >
+              <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                {enrichmentTitle}
+              </span>
+              <span className="block text-xs text-gray-500 dark:text-gray-400">
+                {enrichmentDescription}
+              </span>
+            </button>
+          )}
         </div>
       )}
     </div>

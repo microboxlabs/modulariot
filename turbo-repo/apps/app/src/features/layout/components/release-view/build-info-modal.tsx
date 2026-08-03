@@ -248,7 +248,7 @@ export default function BuildInfoModal({
     <Modal dismissible show={isOpen} onClose={onClose} size="3xl">
       <ModalHeader className="border-none">
         <div className="flex items-center gap-4">
-          <AppLogo width={150} height={32} className="shrink-0" priority />
+          <AppLogo className="shrink-0" />
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
             Build deployed
           </p>

@@ -11,10 +11,23 @@ import {
   WORDMARK_IOT,
 } from "./lynx-geometry";
 
+// Re-exported so consumers that need the raw geometry (e.g. custom SVG
+// compositions) can pull it through this .tsx subpath — the package's
+// export map only resolves "./*" to .tsx files.
+export {
+  LYNX_SOLID,
+  LYNX_EYE_X,
+  LYNX_IRIS_R,
+  LYNX_PUPIL_R,
+  LYNX_BEAK_LINE,
+};
+
 // Marca Lynx en línea, consciente del tema: la tinta hereda `currentColor`
 // (la define el texto que la rodea) y el iris usa el ámbar de marca, que
 // cambia con .dark vía --brand-amber. Así el mismo componente sirve en
 // header claro, footer oscuro y cualquier superficie intermedia.
+// The --brand-amber fallback lets consumers use this without defining the
+// CSS variable themselves; define it to match their own light/dark palette.
 function MarkBody() {
   return (
     <>
@@ -23,13 +36,13 @@ function MarkBody() {
         cx={-LYNX_EYE_X}
         cy={0}
         r={LYNX_IRIS_R}
-        fill="var(--brand-amber)"
+        fill="var(--brand-amber, #e08a28)"
       />
       <circle
         cx={LYNX_EYE_X}
         cy={0}
         r={LYNX_IRIS_R}
-        fill="var(--brand-amber)"
+        fill="var(--brand-amber, #e08a28)"
       />
       <circle cx={-LYNX_EYE_X} cy={0} r={LYNX_PUPIL_R} fill="currentColor" />
       <circle cx={LYNX_EYE_X} cy={0} r={LYNX_PUPIL_R} fill="currentColor" />
@@ -65,15 +78,14 @@ export function LynxWordmark({ className }: { className?: string }) {
       aria-label="ModularIoT"
     >
       <path d={WORDMARK_MODULAR} fill="currentColor" />
-      <path d={WORDMARK_IOT} fill="var(--brand-amber)" />
+      <path d={WORDMARK_IOT} fill="var(--brand-amber, #e08a28)" />
     </svg>
   );
 }
 
 // Ícono + wordmark como elementos independientes (no el lockup de un solo
 // SVG): permite ajustar el tamaño del ícono sin afectar el del texto, algo
-// que el viewBox combinado de LynxLockup no permite. Mismo look que el
-// header; reusar aquí en vez de repetir el par LynxMark+LynxWordmark.
+// que el viewBox combinado de LynxLockup no permite.
 export function LynxBrand({
   className = "",
   iconClassName = "h-9 w-9",
@@ -105,7 +117,7 @@ export function LynxLockup({ className }: { className?: string }) {
         <MarkBody />
       </g>
       <path d={WORDMARK_MODULAR} fill="currentColor" />
-      <path d={WORDMARK_IOT} fill="var(--brand-amber)" />
+      <path d={WORDMARK_IOT} fill="var(--brand-amber, #e08a28)" />
     </svg>
   );
 }

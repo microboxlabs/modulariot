@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LynxMark } from "../v2/brand/Logo";
+import { LynxMark } from "@modulariot/ui/brand/logo";
 
 type LegalPageLayoutProps = {
   title: string;

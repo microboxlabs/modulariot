@@ -1,9 +1,8 @@
 import "server-only";
 
 import { Navbar, NavbarBrand, Tooltip } from "flowbite-react";
-import Image from "next/image";
 import Link from "next/link";
-import defaultLogoImage from "@assets/logo.svg";
+import { LynxBrand } from "@modulariot/ui/brand/logo";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 
@@ -29,11 +28,10 @@ export async function SimpleNavbar() {
                   width={150}
                 />
               ) : (
-                <Image
-                  className="mr-3 h-8"
-                  alt="Default Logo"
-                  src={defaultLogoImage}
-                  width={150}
+                <LynxBrand
+                  className="mr-3 text-(--brand-ink)"
+                  iconClassName="h-11 w-11"
+                  wordmarkClassName="h-5 w-auto"
                 />
               )}
             </Link>

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { HiX } from "react-icons/hi";
 
@@ -36,6 +36,17 @@ export function SettingsDrawerShell({
   icon,
   children,
 }: Readonly<SettingsDrawerShellProps>) {
+  // Escape closes, as a modal dialog should; bound only while open so a page
+  // with a closed drawer doesn't swallow the key.
+  useEffect(() => {
+    if (!show) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [show, onClose]);
+
   if (typeof document === "undefined") return null;
 
   return createPortal(
@@ -54,6 +65,8 @@ export function SettingsDrawerShell({
       />
 
       <aside
+        role="dialog"
+        aria-modal="true"
         aria-label={title}
         className={`absolute right-0 top-0 flex h-full w-[30rem] max-w-full flex-col border-l border-gray-200 bg-white shadow-xl transition-transform duration-300 dark:border-gray-700 dark:bg-gray-800 ${
           show ? "translate-x-0" : "translate-x-full"

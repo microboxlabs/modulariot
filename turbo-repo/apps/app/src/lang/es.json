@@ -2215,9 +2215,6 @@
         "title": "Enriquecimiento del calendario",
         "description": "Antes de escribir una reserva, resuelve identificadores del workflow (RUTs, patentes) a ids de recursos a través de una conexión.",
         "add": "Agregar enriquecimiento",
-        "addTitle": "Agregar enriquecimiento del calendario",
-        "editTitle": "Editar enriquecimiento del calendario",
-        "subtitle": "Elige la conexión que responde y mapea los campos en ambas direcciones.",
         "connection": "Conexión · operación",
         "connectionPlaceholder": "Selecciona una conexión…",
         "requestMapping": "Mapeo de solicitud",
@@ -2239,7 +2236,9 @@
         "close": "Cerrar",
         "thisCalendar": "Este calendario",
         "onlyThisCalendar": "Solo este calendario",
-        "invalidTemplate": "Plantilla inválida"
+        "invalidTemplate": "Plantilla inválida",
+        "forbidden": "Solo los administradores de la organización pueden gestionar el enriquecimiento.",
+        "targetMissing": "La conexión u operación guardada ya no existe — vuelve a elegir una conexión antes de guardar."
       },
       "advancedSettings": {
         "title": "Configuración avanzada",

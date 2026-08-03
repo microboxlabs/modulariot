@@ -23,7 +23,8 @@ export interface EnrichmentBinding {
   readonly operationId: string | null;
   readonly matchCondition: Record<string, unknown>;
   readonly fieldTemplates: Record<string, string>;
-  readonly responseTemplates: Record<string, string>;
+  /** Absent on rows written before the fetch-shaped column existed. */
+  readonly responseTemplates?: Record<string, string>;
   readonly enabled: boolean;
   readonly updatedAt: string;
   readonly updatedBy: string;

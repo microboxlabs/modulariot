@@ -2215,9 +2215,6 @@
         "title": "Calendar enrichment",
         "description": "Before a booking is written, resolve workflow identifiers (RUTs, plates) into resource ids through a connection.",
         "add": "Add enrichment",
-        "addTitle": "Add calendar enrichment",
-        "editTitle": "Edit calendar enrichment",
-        "subtitle": "Choose the connection that answers, and map the fields in both directions.",
         "connection": "Connection · operation",
         "connectionPlaceholder": "Select a connection…",
         "requestMapping": "Request mapping",
@@ -2239,7 +2236,9 @@
         "close": "Close",
         "thisCalendar": "This calendar",
         "onlyThisCalendar": "Only this calendar",
-        "invalidTemplate": "Invalid template"
+        "invalidTemplate": "Invalid template",
+        "forbidden": "Only organization administrators can manage enrichment.",
+        "targetMissing": "The stored connection or operation no longer exists — pick a connection again before saving."
       },
       "advancedSettings": {
         "title": "Advanced settings",

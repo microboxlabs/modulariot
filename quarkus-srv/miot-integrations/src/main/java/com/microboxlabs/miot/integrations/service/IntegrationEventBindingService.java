@@ -126,7 +126,10 @@ public class IntegrationEventBindingService {
      * whose vocabulary the producer owns.
      */
     private static Set<String> requestRootsFor(String eventType) {
-        if (CalendarSyncFeature.EVENT_RESOURCE_ENRICHMENT.equals(eventType)) {
+        // Trimmed here because persistence trims: a padded event type must select
+        // the same roots it will be stored under.
+        String normalized = eventType == null ? "" : eventType.trim();
+        if (CalendarSyncFeature.EVENT_RESOURCE_ENRICHMENT.equals(normalized)) {
             return CalendarSyncFeature.ENRICHMENT_TEMPLATE_ROOTS;
         }
         return PayloadTemplate.DEFAULT_ROOTS;
@@ -183,6 +186,9 @@ public class IntegrationEventBindingService {
             UpsertIntegrationEventBindingRequest request,
             Map<String, Object> context) {
         require(request != null, "A request body is required");
+        // The roots the templates validate against depend on the event type, so a
+        // preview without one would silently validate against the wrong contract.
+        require(notBlank(request.eventType()), "eventType is required");
         require(notBlank(request.connectionId()), "connectionId is required");
 
         IntegrationConnection connection = requireUsableConnection(tenantClientId, request.connectionId());

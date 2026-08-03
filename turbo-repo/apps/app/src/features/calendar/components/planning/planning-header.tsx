@@ -203,7 +203,9 @@ export default function PlanningHeader({
         />
         <CalendarRules
           onOpenEnrichment={
-            calendarId ? () => setEnrichmentOpen(true) : undefined
+            // Only once the org scope resolved: the drawer's API calls are
+            // org-keyed, and opening before that means a spinner with no end.
+            calendarId && activeOrg ? () => setEnrichmentOpen(true) : undefined
           }
           enrichmentTitle={tr("pages.calendar.advancedSettings.title", dict)}
           enrichmentDescription={tr(

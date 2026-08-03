@@ -132,8 +132,10 @@ class IntegrationEventBindingServiceTest {
                         "aprobado", "{{review.verdict}}"),
                 Map.of(), true);
 
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
                 () -> service().upsert(TENANT, CHILD_ORG, wrongRoot, ACTOR));
+
+        assertTrue(failure.getMessage().contains("resourceData"), failure.getMessage());
     }
 
     @Test

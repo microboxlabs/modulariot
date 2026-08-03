@@ -10,10 +10,22 @@ function base(orgSlug: string): string {
   return `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/integrations`;
 }
 
+/** A failed bindings call, with the status so the UI can localize (e.g. 403). */
+export class EnrichmentRequestError extends Error {
+  readonly status: number;
+
+  constructor(status: number, body: string) {
+    // The modulith's 400s are operator-readable validation messages; anything
+    // else the caller maps by status instead of echoing.
+    super(body || `Request failed with ${status}`);
+    this.status = status;
+  }
+}
+
 async function unwrap<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(body || `Request failed with ${response.status}`);
+    throw new EnrichmentRequestError(response.status, body);
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;

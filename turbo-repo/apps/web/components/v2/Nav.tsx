@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
 import { DarkThemeToggle } from "flowbite-react";
 import { getContent } from "./content";
 import { Flag } from "./flags";
@@ -25,17 +24,6 @@ const ABBR: Record<string, string> = {
   br: "BR",
   gl: "INT",
 };
-
-// Los hrefs del contenido son relativos a la home ("/#seccion", "/precios");
-// se prefijan con /alpha-2506/{lang} según la ruta actual.
-export function useBasePath() {
-  const pathname = usePathname() || "/alpha-2506/es";
-  const parts = pathname.split("/").filter(Boolean);
-  return {
-    base: `/${parts[0] || "alpha-2506"}/${parts[1] || "es"}`,
-    lang: parts[1] || "es",
-  };
-}
 
 function resolveHref(base: string, href: string) {
   return href.startsWith("http") || href.startsWith("mailto:")
@@ -146,11 +134,11 @@ const panelCard = "rounded-xl border border-hairline bg-surface shadow-xl";
 const topItem =
   "flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink-1";
 
-export default function Nav() {
+export default function Nav({ lang }: { lang: string }) {
   const [open, setOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [country, setCountry] = useState<string | null>(null);
-  const { base, lang } = useBasePath();
+  const base = `/alpha-2506/${lang}`;
   const nav = getContent(lang).nav;
 
   // País elegido persistido; se lee tras montar (evita mismatch SSR).

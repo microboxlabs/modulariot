@@ -97,4 +97,19 @@ public final class CalendarSyncFeature {
 
     /** Terminal booking status pushed for a past-slot cancel (keep history). */
     public static final String STATUS_CANCELLED = "CANCELLED";
+
+    /** Terminal booking status pushed when the trip ends normally. */
+    public static final String STATUS_FINISHED = "FINISHED";
+
+    /**
+     * {@link #PAYLOAD_RESOURCE_DATA} key carrying the workflow's ISO ETD on
+     * every push — the producer writes it alongside the {@code mintral_*}
+     * identity, so a patch holds enough to place a booking that never existed.
+     */
+    public static final String DATA_EXPECTED_DEPARTURE_DATE = "expectedDepartureDate";
+
+    /** After these a booking's lifecycle is over — a missing one must stay missing. */
+    public static boolean isTerminalStatus(String status) {
+        return STATUS_FINISHED.equals(status) || STATUS_CANCELLED.equals(status);
+    }
 }

@@ -225,6 +225,88 @@ class CalendarSyncExecutorTest {
         assertThrows(CalendarBookingsHttpException.class, () -> executor.handle("tenant-1", payload));
     }
 
+    // --- patch 404 materialization (create-then-apply) ------------------------
+
+    /** Payload push data with the ISO ETD the producer writes on every push. */
+    private static Map<String, Object> identityDataWithEtd(String etdIso) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("mintral_truckLicensePlate", "AB1234");
+        data.put(CalendarSyncFeature.DATA_EXPECTED_DEPARTURE_DATE, etdIso);
+        return data;
+    }
+
+    @Test
+    void patch404WithEtdCreatesThenAppliesStatus() {
+        FakeClient client = new FakeClient();
+        client.patchThrowsOnce = new CalendarBookingsHttpException(404, "no booking");
+        client.availableSlots = List.of(slot(LocalDate.of(2026, 7, 15), 14, 0, 1));
+        Map<String, Object> payload = patchPayload("IN_TRANSIT");
+        payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
+                identityDataWithEtd("2026-07-15T10:00:00Z"));
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(1, client.createCalls, "the missing booking is created");
+        assertEquals(LocalDate.of(2026, 7, 15), client.lastCreateDate);
+        assertEquals(14, client.lastCreateHour);
+        assertEquals(2, client.patchCalls, "the 404'd patch, then the post-create status apply");
+        assertEquals("IN_TRANSIT", client.lastPatchStatus);
+    }
+
+    @Test
+    void patch404PastEtdPicksSlotFromNow() {
+        // ETD already behind the fixed clock (12:00Z) — the search window clamps to
+        // now, so an in-flight service lands on the next slot with capacity.
+        FakeClient client = new FakeClient();
+        client.patchThrowsOnce = new CalendarBookingsHttpException(404, "no booking");
+        client.availableSlots = List.of(
+                slot(LocalDate.of(2026, 7, 15), 9, 0, 1),
+                slot(LocalDate.of(2026, 7, 15), 16, 30, 1));
+        Map<String, Object> payload = patchPayload("IN_TRANSIT");
+        payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
+                identityDataWithEtd("2026-07-14T08:00:00Z"));
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(16, client.lastCreateHour, "the 09:00 slot is already past — 16:30 wins");
+        assertEquals(30, client.lastCreateMinutes);
+    }
+
+    @Test
+    void patch404WithTerminalTargetStaysSkipped() {
+        // FINISHED/CANCELLED on a missing booking is usually the cancel's own work
+        // (future-slot cancels DELETE) — creating here would resurrect it.
+        for (String terminal : List.of(CalendarSyncFeature.STATUS_FINISHED,
+                CalendarSyncFeature.STATUS_CANCELLED)) {
+            FakeClient client = new FakeClient();
+            client.patchThrows = new CalendarBookingsHttpException(404, "no booking");
+            Map<String, Object> payload = patchPayload(terminal);
+            payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
+                    identityDataWithEtd("2026-07-15T10:00:00Z"));
+
+            var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+            assertEquals(JobOutcome.SKIPPED, result.outcome(), terminal + " must not create");
+            assertEquals(0, client.createCalls, terminal + " must not create");
+        }
+    }
+
+    @Test
+    void patch404WithoutEtdStaysSkipped() {
+        FakeClient client = new FakeClient();
+        client.patchThrows = new CalendarBookingsHttpException(404, "no booking");
+        Map<String, Object> payload = patchPayload("IN_TRANSIT");
+        payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
+                Map.of("mintral_truckLicensePlate", "AB1234"));
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
+        assertEquals(0, client.createCalls, "no ETD → nothing to place the booking at");
+    }
+
     // --- unassign ------------------------------------------------------------
 
     @Test
@@ -581,6 +663,9 @@ class CalendarSyncExecutorTest {
         List<CalendarBookingsClient.BookingView> listResult = List.of();
         List<CalendarBookingsClient.AvailableSlot> availableSlots = List.of();
         RuntimeException patchThrows;
+        // Thrown by the FIRST patch only — models a 404 whose follow-up
+        // (the post-create status apply) must succeed.
+        RuntimeException patchThrowsOnce;
         int patchCalls;
         String lastPatchStatus;
         Map<String, Object> lastPatchData;
@@ -623,6 +708,11 @@ class CalendarSyncExecutorTest {
             lastPatchStatus = targetStatus;
             lastPatchData = resourceDataPatch;
             lastPatchSyncStatus = syncStatus;
+            if (patchThrowsOnce != null) {
+                RuntimeException once = patchThrowsOnce;
+                patchThrowsOnce = null;
+                throw once;
+            }
             if (patchThrows != null) {
                 throw patchThrows;
             }

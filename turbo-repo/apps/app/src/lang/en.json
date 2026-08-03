@@ -2209,6 +2209,41 @@
           "secretNotice": "Secrets live in the credential, not here — this connection only references it."
         }
       }
+    },
+    "calendar": {
+      "enrichment": {
+        "title": "Calendar enrichment",
+        "description": "Before a booking is written, resolve workflow identifiers (RUTs, plates) into resource ids through a connection.",
+        "add": "Add enrichment",
+        "connection": "Connection · operation",
+        "connectionPlaceholder": "Select a connection…",
+        "requestMapping": "Request mapping",
+        "requestMappingHelp": "Each operation parameter reads a value from the job payload, e.g. {{resourceData.mintral_driver1Rut}}. Blank rows are not sent.",
+        "responseMapping": "Response mapping",
+        "responseMappingHelp": "Booking data key ← response field, e.g. assignedDriver ← {{response.driver_id}}. Empty response fields write nothing.",
+        "enabled": "Enabled",
+        "save": "Save",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "empty": "No enrichment configured. Booking pushes are written exactly as they arrive.",
+        "on": "On",
+        "off": "Off",
+        "inherited": "Inherited",
+        "allCalendars": "All calendars",
+        "mappedFields": "mapped fields",
+        "edit": "Edit",
+        "delete": "Delete",
+        "close": "Close",
+        "thisCalendar": "This calendar",
+        "onlyThisCalendar": "Only this calendar",
+        "invalidTemplate": "Invalid template",
+        "forbidden": "Only organization administrators can manage enrichment.",
+        "targetMissing": "The stored connection or operation no longer exists — pick a connection again before saving."
+      },
+      "advancedSettings": {
+        "title": "Advanced settings",
+        "description": "Enrichment and integration behaviour for this calendar"
+      }
     }
   },
   "layout": {

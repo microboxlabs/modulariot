@@ -2209,6 +2209,41 @@
           "secretNotice": "Los secretos viven en la credencial, no aquí: esta conexión solo la referencia."
         }
       }
+    },
+    "calendar": {
+      "enrichment": {
+        "title": "Enriquecimiento del calendario",
+        "description": "Antes de escribir una reserva, resuelve identificadores del workflow (RUTs, patentes) a ids de recursos a través de una conexión.",
+        "add": "Agregar enriquecimiento",
+        "connection": "Conexión · operación",
+        "connectionPlaceholder": "Selecciona una conexión…",
+        "requestMapping": "Mapeo de solicitud",
+        "requestMappingHelp": "Cada parámetro de la operación lee un valor del payload del job, p. ej. {{resourceData.mintral_driver1Rut}}. Las filas vacías no se envían.",
+        "responseMapping": "Mapeo de respuesta",
+        "responseMappingHelp": "Clave de la reserva ← campo de la respuesta, p. ej. assignedDriver ← {{response.driver_id}}. Campos vacíos no escriben nada.",
+        "enabled": "Habilitado",
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "cancel": "Cancelar",
+        "empty": "Sin enriquecimiento configurado. Las reservas se escriben tal como llegan.",
+        "on": "Activo",
+        "off": "Inactivo",
+        "inherited": "Heredado",
+        "allCalendars": "Todos los calendarios",
+        "mappedFields": "campos mapeados",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "close": "Cerrar",
+        "thisCalendar": "Este calendario",
+        "onlyThisCalendar": "Solo este calendario",
+        "invalidTemplate": "Plantilla inválida",
+        "forbidden": "Solo los administradores de la organización pueden gestionar el enriquecimiento.",
+        "targetMissing": "La conexión u operación guardada ya no existe — vuelve a elegir una conexión antes de guardar."
+      },
+      "advancedSettings": {
+        "title": "Configuración avanzada",
+        "description": "Enriquecimiento e integraciones de este calendario"
+      }
     }
   },
   "layout": {

@@ -235,6 +235,10 @@ interface CalendarRulesProps {
   onBlocksChange?: (blocks: TimeBlock[]) => void;
   onAndenesChange?: (config: PlatformConfig) => void;
   onTaskFilterChange?: (filter: CalendarFilter, isDefault: boolean) => void;
+  /** When set, the panel offers the calendar-enrichment settings as an entry. */
+  onOpenEnrichment?: () => void;
+  enrichmentTitle?: string;
+  enrichmentDescription?: string;
 }
 
 export default function CalendarRules({
@@ -247,6 +251,9 @@ export default function CalendarRules({
   onBlocksChange,
   onAndenesChange,
   onTaskFilterChange,
+  onOpenEnrichment,
+  enrichmentTitle,
+  enrichmentDescription,
 }: Readonly<CalendarRulesProps>) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<SettingOption>(null);
@@ -336,6 +343,32 @@ export default function CalendarRules({
               }}
             />
           </CalendarRulesSection>
+
+          {/* Direct action, not an expandable section: the enrichment settings
+              live in their own drawer. Hidden while a section is expanded, like
+              the section headers themselves. */}
+          {onOpenEnrichment && selected === null && (
+            <button
+              type="button"
+              onClick={() => {
+                closePanel();
+                onOpenEnrichment();
+              }}
+              className="flex w-full cursor-pointer flex-row items-center border-b border-gray-200 text-left hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-700"
+            >
+              {/* Mirrors SectionLayout's collapsed header: the same hidden icon
+                  slot, so the text aligns with the section rows above. */}
+              <span className="ml-3 mr-3 w-0 shrink-0 overflow-hidden" />
+              <span className="min-w-0 flex-1 py-3 pr-3">
+                <h3 className="text-left text-sm font-semibold text-gray-900 dark:text-white">
+                  {enrichmentTitle}
+                </h3>
+                <p className="mt-1 text-left text-xs text-gray-500 dark:text-gray-400">
+                  {enrichmentDescription}
+                </p>
+              </span>
+            </button>
+          )}
         </div>
       )}
     </div>

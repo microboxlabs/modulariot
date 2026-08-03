@@ -103,6 +103,41 @@ class IntegrationEventBindingServiceTest {
         assertTrue(failure.getMessage().contains("operationId"), failure.getMessage());
     }
 
+    /** Enrichment bindings render over the job payload, not the review snapshot. */
+    @Test
+    void enrichmentBindingsMayReadTheJobPayloadRoots() {
+        var enrichment = new UpsertIntegrationEventBindingRequest(
+                "calendar.resource_enrichment", null, null, CONNECTION_ID, OPERATION_ID,
+                Map.of(),
+                Map.of("guidMultimedia", "{{resourceData.mintral_driver1Rut}}",
+                        "aprobado", "{{resourceData.mintral_serviceKind}}"),
+                Map.of("assignedDriver", "{{response.driver_id}}"),
+                true);
+
+        service().upsert(TENANT, CHILD_ORG, enrichment, ACTOR);
+
+        assertEquals("{{resourceData.mintral_driver1Rut}}",
+                bindings.saved.get(0).fieldTemplates().get("guidMultimedia"));
+        assertEquals("{{response.driver_id}}",
+                bindings.saved.get(0).responseTemplates().get("assignedDriver"));
+    }
+
+    /** A review binding still cannot read job-payload roots — the roots are per event. */
+    @Test
+    void reviewBindingsStillCannotReadJobPayloadRoots() {
+        var wrongRoot = new UpsertIntegrationEventBindingRequest(
+                "review.verdict", null, null, CONNECTION_ID, OPERATION_ID,
+                Map.of(),
+                Map.of("guidMultimedia", "{{resourceData.mintral_driver1Rut}}",
+                        "aprobado", "{{review.verdict}}"),
+                Map.of(), true);
+
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service().upsert(TENANT, CHILD_ORG, wrongRoot, ACTOR));
+
+        assertTrue(failure.getMessage().contains("resourceData"), failure.getMessage());
+    }
+
     @Test
     void aWhatsAppBindingNeedsNoOperation() {
         connections.providerType = ProviderType.WHATSAPP;

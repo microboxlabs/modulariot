@@ -21,6 +21,7 @@ import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Reads, validates and stores event bindings.
@@ -91,6 +92,10 @@ public class IntegrationEventBindingService {
 
         List<String> problems = renderer.validate(
                 request.fieldTemplates(), contractOf(operation), PayloadTemplate.DEFAULT_ROOTS);
+        // The return trip renders over {response} alone — response templates reading a request
+        // root would silently produce nothing on every fetch.
+        problems.addAll(renderer.validate(
+                request.responseTemplates(), PayloadSchema.empty(), Set.of("response")));
         if (!problems.isEmpty()) {
             throw new IllegalArgumentException("The field mapping is not usable: "
                     + String.join("; ", problems));
@@ -107,6 +112,7 @@ public class IntegrationEventBindingService {
                 operation == null ? null : operation.id(),
                 request.matchCondition() == null ? Map.of() : request.matchCondition(),
                 request.fieldTemplates() == null ? Map.of() : request.fieldTemplates(),
+                request.responseTemplates() == null ? Map.of() : request.responseTemplates(),
                 request.isEnabled(),
                 null, null, actor, actor);
 

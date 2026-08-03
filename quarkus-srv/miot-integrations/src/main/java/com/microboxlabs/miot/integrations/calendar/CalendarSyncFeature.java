@@ -18,6 +18,15 @@ public final class CalendarSyncFeature {
 
     public static final String JOB_TYPE = "calendar_sync";
 
+    /**
+     * Extension point: before a booking write, an operator-authored fetch binding on this
+     * event may resolve extra {@code resource.data} values from a configured connection
+     * (e.g. workflow identifiers → accredited-resource ids). Scoped by calendar; no binding
+     * means no enrichment, which is the pre-binding behaviour.
+     */
+    public static final String EVENT_RESOURCE_ENRICHMENT = "calendar.resource_enrichment";
+    public static final String SCOPE_CALENDAR = "calendar";
+
     /** Payload field names (self-contained — the worker never re-reads process vars). */
     public static final String PAYLOAD_OP = "op";
     public static final String PAYLOAD_SERVICE_CODE = "serviceCode";

@@ -55,7 +55,7 @@ class IntegrationEventDispatchHandlerTest {
 
     @Test
     void rendersTheSnapshotAndDeliversItToTheChannel() {
-        JobOutcome outcome = handler().handle(payload());
+        JobOutcome outcome = handler().handle(TENANT, payload());
 
         assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
         assertEquals("19f8-a8ad", dispatcher.lastPayloadMap().get("guidMultimedia"));
@@ -68,7 +68,7 @@ class IntegrationEventDispatchHandlerTest {
     void skipsWhenTheBindingWasRemovedBetweenEnqueueAndDispatch() {
         bindings.binding = null;
 
-        JobOutcome outcome = handler().handle(payload());
+        JobOutcome outcome = handler().handle(TENANT, payload());
 
         // The operator's later decision wins over the queued intent.
         assertEquals(JobOutcome.SKIPPED, outcome.outcome());
@@ -78,7 +78,7 @@ class IntegrationEventDispatchHandlerTest {
     void skipsWhenTheBindingWasDisarmed() {
         bindings.binding = binding(false);
 
-        assertEquals(JobOutcome.SKIPPED, handler().handle(payload()).outcome());
+        assertEquals(JobOutcome.SKIPPED, handler().handle(TENANT, payload()).outcome());
     }
 
     @Test
@@ -88,7 +88,7 @@ class IntegrationEventDispatchHandlerTest {
                 "guidMultimedia", "{{content.missing}}", "aprobado", "{{review.verdict}}"));
 
         NonRetryableJobException failure = assertThrows(NonRetryableJobException.class,
-                () -> handler().handle(payload()));
+                () -> handler().handle(TENANT, payload()));
 
         assertTrue(failure.getMessage().contains("guidMultimedia"), failure.getMessage());
     }
@@ -98,7 +98,7 @@ class IntegrationEventDispatchHandlerTest {
         dispatcher.outcome = DispatchOutcome.permanentFailure("HTTP 422: GUID no existe");
 
         NonRetryableJobException failure = assertThrows(NonRetryableJobException.class,
-                () -> handler().handle(payload()));
+                () -> handler().handle(TENANT, payload()));
 
         assertTrue(failure.getMessage().contains("422"), failure.getMessage());
     }
@@ -108,7 +108,7 @@ class IntegrationEventDispatchHandlerTest {
         dispatcher.outcome = DispatchOutcome.transientFailure("HTTP 503");
 
         RuntimeException failure = assertThrows(RuntimeException.class,
-                () -> handler().handle(payload()));
+                () -> handler().handle(TENANT, payload()));
 
         // Anything but NonRetryableJobException means "back off and try again".
         assertTrue(!(failure instanceof NonRetryableJobException), "503 must stay retryable");
@@ -116,7 +116,7 @@ class IntegrationEventDispatchHandlerTest {
 
     @Test
     void parksAPayloadMissingItsIdentifiers() {
-        assertThrows(NonRetryableJobException.class, () -> handler().handle(Map.of()));
+        assertThrows(NonRetryableJobException.class, () -> handler().handle(TENANT, Map.of()));
     }
 
     @Test
@@ -143,7 +143,7 @@ class IntegrationEventDispatchHandlerTest {
         return new IntegrationEventBinding(
                 BINDING_ID, TENANT, "gama", "review.verdict", "activiti_task",
                 "wfship2:presentDriverTask", CONNECTION_ID, OPERATION_ID,
-                Map.of(), templates, enabled,
+                Map.of(), templates, Map.of(), enabled,
                 OffsetDateTime.now(), OffsetDateTime.now(), "a", "a");
     }
 

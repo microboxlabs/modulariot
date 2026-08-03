@@ -44,7 +44,7 @@ public class CalendarRejectExecutor implements ModulithJobHandler {
     }
 
     @Override
-    public JobOutcome handle(Map<String, Object> payload) {
+    public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
         String resourceId = str(payload, CalendarRejectFeature.PAYLOAD_RESOURCE_ID);
         String calendarIdRaw = str(payload, CalendarRejectFeature.PAYLOAD_CALENDAR_ID);
         String serviceCode = str(payload, CalendarRejectFeature.PAYLOAD_SERVICE_CODE);

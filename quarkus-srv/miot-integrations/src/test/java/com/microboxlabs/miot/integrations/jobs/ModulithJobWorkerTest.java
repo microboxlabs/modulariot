@@ -33,7 +33,7 @@ class ModulithJobWorkerTest {
         return new AsyncJob(
                 id, "tenantA", "ecm-coordinador", executor, jobType, "1658427",
                 null, 0, "dk-" + id, Map.of(), JobState.RUNNING, attempts, 5,
-                null, "worker", null, null, List.of(), "listener", null, null);
+                null, "worker", null, null, List.of(), "listener", null, null, null);
     }
 
     private static ModulithJobWorker worker(AsyncJobService service, boolean enabled, ModulithJobHandler... handlers) {
@@ -223,7 +223,7 @@ class ModulithJobWorkerTest {
         }
 
         @Override
-        public JobOutcome handle(Map<String, Object> payload) {
+        public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
             if (onHandle != null) {
                 onHandle.run();
             }

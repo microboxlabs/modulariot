@@ -3,6 +3,7 @@ package com.microboxlabs.miot.integrations.calendar;
 import com.microboxlabs.miot.integrations.jobs.JobOutcome;
 import com.microboxlabs.miot.integrations.jobs.ModulithJobHandler;
 import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
+import com.microboxlabs.miot.integrations.service.EventBindingFetchService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Clock;
@@ -12,8 +13,10 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.jboss.logging.Logger;
 
@@ -58,15 +61,17 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             .thenComparingInt(CalendarBookingsClient.AvailableSlot::minutes);
 
     private final CalendarBookingsClient client;
+    private final EventBindingFetchService enrichment;
     private final Clock clock;
 
     @Inject
-    CalendarSyncExecutor(CalendarBookingsClient client) {
-        this(client, Clock.systemDefaultZone());
+    CalendarSyncExecutor(CalendarBookingsClient client, EventBindingFetchService enrichment) {
+        this(client, enrichment, Clock.systemDefaultZone());
     }
 
-    CalendarSyncExecutor(CalendarBookingsClient client, Clock clock) {
+    CalendarSyncExecutor(CalendarBookingsClient client, EventBindingFetchService enrichment, Clock clock) {
         this.client = client;
+        this.enrichment = enrichment;
         this.clock = clock;
     }
 
@@ -82,7 +87,7 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
     }
 
     @Override
-    public JobOutcome handle(Map<String, Object> payload) {
+    public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
         String op = str(payload, CalendarSyncFeature.PAYLOAD_OP);
         String resourceId = str(payload, CalendarSyncFeature.PAYLOAD_RESOURCE_ID);
         String calendarIdRaw = str(payload, CalendarSyncFeature.PAYLOAD_CALENDAR_ID);
@@ -92,10 +97,12 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         UUID calendarId = calendarIdRaw == null ? null : UUID.fromString(calendarIdRaw);
 
         if (CalendarSyncFeature.OP_PATCH.equals(op)) {
-            return executePatch(payload, resourceId, calendarId);
+            Enriched enriched = enrich(tenantCode, payload, calendarIdRaw);
+            return withResult(executePatch(enriched.payload(), resourceId, calendarId), enriched);
         }
         if (CalendarSyncFeature.OP_ENSURE.equals(op)) {
-            return executeEnsure(payload, resourceId, calendarId);
+            Enriched enriched = enrich(tenantCode, payload, calendarIdRaw);
+            return withResult(executeEnsure(enriched.payload(), resourceId, calendarId), enriched);
         }
         if (CalendarSyncFeature.OP_UNASSIGN.equals(op)) {
             return executeUnassign(payload, resourceId, calendarId);
@@ -104,6 +111,56 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             return executeCancel(resourceId, calendarId);
         }
         throw new IllegalArgumentException("calendar_sync unknown op: " + op);
+    }
+
+    /**
+     * Resolve extra resource-data through the calendar's enrichment binding, when one is
+     * configured — the answer to a workflow that only carries human identifiers (RUTs,
+     * plates) while the booking is keyed on resource ids. No binding, or a payload with
+     * nothing the binding's mapping reads, changes nothing at all.
+     *
+     * <p>Fetched values are merged over the payload's own {@code resourceData} (fresh
+     * resolution beats what rode along), on a copied payload — the original is the ledger's
+     * record of what ECM sent. A configured fetch that fails throws instead, so the job
+     * retries or parks visibly rather than writing a booking with silently missing data.
+     */
+    private Enriched enrich(String tenantCode, Map<String, Object> payload, String calendarIdRaw) {
+        Optional<EventBindingFetchService.FetchedValues> fetched = enrichment.fetch(
+                tenantCode,
+                CalendarSyncFeature.EVENT_RESOURCE_ENRICHMENT,
+                CalendarSyncFeature.SCOPE_CALENDAR,
+                calendarIdRaw,
+                payload);
+        if (fetched.isEmpty() || fetched.get().values().isEmpty()) {
+            return new Enriched(payload, null);
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        Map<String, Object> existing = asMap(payload.get(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA));
+        if (existing != null) {
+            data.putAll(existing);
+        }
+        data.putAll(fetched.get().values());
+
+        Map<String, Object> enrichedPayload = new LinkedHashMap<>(payload);
+        enrichedPayload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA, data);
+        LOG.infof("calendar_sync enrichment resolved %d value(s) via binding %s for %s",
+                fetched.get().values().size(), fetched.get().bindingId(),
+                str(payload, CalendarSyncFeature.PAYLOAD_RESOURCE_ID));
+        return new Enriched(enrichedPayload, Map.of(
+                "enrichment", fetched.get().values(),
+                "bindingId", fetched.get().bindingId()));
+    }
+
+    /** Attach what enrichment resolved to a successful outcome, for the job's result column. */
+    private static JobOutcome withResult(JobOutcome outcome, Enriched enriched) {
+        if (enriched.result() == null || !JobOutcome.SUCCEEDED.equals(outcome.outcome())) {
+            return outcome;
+        }
+        return new JobOutcome(outcome.outcome(), outcome.detail(), enriched.result());
+    }
+
+    /** A payload with enrichment applied, and what was resolved (null when nothing was). */
+    private record Enriched(Map<String, Object> payload, Map<String, Object> result) {
     }
 
     /**

@@ -48,7 +48,7 @@ class IntegrationEventBindingServiceTest {
     private static UpsertIntegrationEventBindingRequest request(Map<String, String> templates) {
         return new UpsertIntegrationEventBindingRequest(
                 "review.verdict", "kanban_lane", "shipping:confirmCierre",
-                CONNECTION_ID, OPERATION_ID, Map.of(), templates, true);
+                CONNECTION_ID, OPERATION_ID, Map.of(), templates, Map.of(), true);
     }
 
     private static Map<String, String> validTemplates() {
@@ -95,7 +95,7 @@ class IntegrationEventBindingServiceTest {
     @Test
     void requiresAnOperationForOperationBasedChannels() {
         var noOperation = new UpsertIntegrationEventBindingRequest(
-                "review.verdict", null, null, CONNECTION_ID, null, Map.of(), validTemplates(), true);
+                "review.verdict", null, null, CONNECTION_ID, null, Map.of(), validTemplates(), Map.of(), true);
 
         IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
                 () -> service().upsert(TENANT, CHILD_ORG, noOperation, ACTOR));
@@ -108,7 +108,7 @@ class IntegrationEventBindingServiceTest {
         connections.providerType = ProviderType.WHATSAPP;
         var noOperation = new UpsertIntegrationEventBindingRequest(
                 "symptom.reported", "symptom_board", "b-1",
-                CONNECTION_ID, null, Map.of(), Map.of("body", "{{task.serviceCode}}"), true);
+                CONNECTION_ID, null, Map.of(), Map.of("body", "{{task.serviceCode}}"), Map.of(), true);
 
         service().upsert(TENANT, CHILD_ORG, noOperation, ACTOR);
 
@@ -212,7 +212,7 @@ class IntegrationEventBindingServiceTest {
     private static IntegrationEventBinding binding(String owner) {
         return new IntegrationEventBinding(
                 "b-" + owner, TENANT, owner, "review.verdict", "kanban_lane", "k",
-                CONNECTION_ID, OPERATION_ID, Map.of(), Map.of(), true,
+                CONNECTION_ID, OPERATION_ID, Map.of(), Map.of(), Map.of(), true,
                 OffsetDateTime.now(), OffsetDateTime.now(), ACTOR, ACTOR);
     }
 
@@ -243,7 +243,7 @@ class IntegrationEventBindingServiceTest {
                     "generated-id", binding.tenantClientId(), binding.ownerOrgSlug(),
                     binding.eventType(), binding.scopeKind(), binding.scopeKey(),
                     binding.connectionId(), binding.operationId(), binding.matchCondition(),
-                    binding.fieldTemplates(), binding.enabled(),
+                    binding.fieldTemplates(), binding.responseTemplates(), binding.enabled(),
                     OffsetDateTime.now(), OffsetDateTime.now(), actor, actor);
         }
 

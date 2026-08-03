@@ -15,7 +15,6 @@ import type {
 } from "../integration-config.types";
 import { ConnectionsList } from "./connections-list";
 import { TemplatesList } from "./templates-list";
-import { EnrichmentSection } from "./enrichment-section";
 import { TemplateFormModal } from "./template-form-modal";
 import { TemplatePickerModal } from "./template-picker-modal";
 import { ConnectionFormModal } from "./connection-form-modal";
@@ -259,21 +258,6 @@ export function IntegrationConfigPageContent({
               emptyMessage={tr("templates.empty", dict)}
               dict={dict}
             />
-
-            {orgSlug && (
-              <EnrichmentSection
-                orgSlug={orgSlug}
-                connectionNames={
-                  new Map(
-                    connections.map((connection) => [
-                      connection.id,
-                      connection.name,
-                    ])
-                  )
-                }
-                dict={dict}
-              />
-            )}
           </>
         )}
       </div>

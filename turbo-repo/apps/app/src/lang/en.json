@@ -2208,7 +2208,9 @@
           "noCredentials": "No credentials. Create them in Settings › Credentials.",
           "secretNotice": "Secrets live in the credential, not here — this connection only references it."
         }
-      },
+      }
+    },
+    "calendar": {
       "enrichment": {
         "title": "Calendar enrichment",
         "description": "Before a booking is written, resolve workflow identifiers (RUTs, plates) into resource ids through a connection.",
@@ -2218,9 +2220,6 @@
         "subtitle": "Choose the connection that answers, and map the fields in both directions.",
         "connection": "Connection · operation",
         "connectionPlaceholder": "Select a connection…",
-        "scope": "Calendar (optional)",
-        "scopePlaceholder": "Calendar id — leave blank for all calendars",
-        "scopeHelp": "Blank applies to every calendar. A calendar-scoped binding beats a blank one.",
         "requestMapping": "Request mapping",
         "requestMappingHelp": "Each operation parameter reads a value from the job payload, e.g. {{resourceData.mintral_driver1Rut}}. Blank rows are not sent.",
         "responseMapping": "Response mapping",
@@ -2233,11 +2232,13 @@
         "on": "On",
         "off": "Off",
         "inherited": "Inherited",
-        "scopedTo": "Calendar {calendar}",
         "allCalendars": "All calendars",
         "mappedFields": "mapped fields",
         "edit": "Edit",
-        "delete": "Delete"
+        "delete": "Delete",
+        "close": "Close",
+        "thisCalendar": "This calendar",
+        "onlyThisCalendar": "Only this calendar"
       }
     }
   },

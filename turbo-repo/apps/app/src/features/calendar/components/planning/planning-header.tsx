@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -8,7 +8,9 @@ import "dayjs/locale/en";
 import weekOfYear from "dayjs/plugin/weekOfYear";
 import type { PlanningHeaderProps } from "./planning-header.types";
 import type { ViewMode } from "@/features/calendar/services/calendar.service.types";
-import { HiChevronLeft, HiChevronRight } from "react-icons/hi";
+import { HiChevronLeft, HiChevronRight, HiCog } from "react-icons/hi";
+import { CalendarEnrichmentDrawer } from "@/features/calendar/enrichment/calendar-enrichment-drawer";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { Button } from "flowbite-react";
 import {
   CalendarNavigation,
@@ -87,6 +89,8 @@ export default function PlanningHeader({
   const searchParams = useSearchParams();
   const { andenesCount, setAndenesCount } = usePlanningSelection();
   const { calendars, refresh: refreshCalendars } = useCalendars();
+  const { activeOrg } = useOrgScopes();
+  const [enrichmentOpen, setEnrichmentOpen] = useState(false);
   const groupCode = searchParams.get("groupCode");
   const activeCalendar = useMemo(
     () => calendars.find((c) => c.id === calendarId),
@@ -147,7 +151,11 @@ export default function PlanningHeader({
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      <PlanningTitle dict={dict} calendarId={calendarId} groupCode={groupCode} />
+      <PlanningTitle
+        dict={dict}
+        calendarId={calendarId}
+        groupCode={groupCode}
+      />
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-4">
@@ -207,32 +215,70 @@ export default function PlanningHeader({
               await refreshCalendars();
               ShowNotification({
                 type: "success",
-                message: tr("layout.planning.calendarRules.platformConfig.saveSuccess", dict),
+                message: tr(
+                  "layout.planning.calendarRules.platformConfig.saveSuccess",
+                  dict
+                ),
               });
             } catch {
               ShowNotification({
                 type: "error",
-                message: tr("layout.planning.calendarRules.platformConfig.saveError", dict),
+                message: tr(
+                  "layout.planning.calendarRules.platformConfig.saveError",
+                  dict
+                ),
               });
             }
           }}
-          onTaskFilterChange={async (filter: CalendarFilter, isDefault: boolean) => {
+          onTaskFilterChange={async (
+            filter: CalendarFilter,
+            isDefault: boolean
+          ) => {
             if (!calendarId) return;
             try {
               await updateCalendar(calendarId, { filter, isDefault });
               await refreshCalendars();
               ShowNotification({
                 type: "success",
-                message: tr("layout.planning.calendarRules.taskFilter.saveSuccess", dict),
+                message: tr(
+                  "layout.planning.calendarRules.taskFilter.saveSuccess",
+                  dict
+                ),
               });
             } catch {
               ShowNotification({
                 type: "error",
-                message: tr("layout.planning.calendarRules.taskFilter.saveError", dict),
+                message: tr(
+                  "layout.planning.calendarRules.taskFilter.saveError",
+                  dict
+                ),
               });
             }
           }}
         />
+
+        {/* Enrichment settings — the drawer administers the fetch binding this
+            calendar's sync jobs consult. Owner-gated server-side; the drawer
+            surfaces the 403 rather than hiding the entry point. */}
+        {calendarId && (
+          <>
+            <Button
+              color="alternative"
+              size="sm"
+              onClick={() => setEnrichmentOpen(true)}
+              title={tr("pages.calendar.enrichment.title", dict)}
+            >
+              <HiCog className="h-4 w-4" />
+            </Button>
+            <CalendarEnrichmentDrawer
+              show={enrichmentOpen}
+              onClose={() => setEnrichmentOpen(false)}
+              orgSlug={activeOrg?.slug ?? null}
+              calendarId={calendarId}
+              dict={dict}
+            />
+          </>
+        )}
       </div>
     </div>
   );

@@ -2208,6 +2208,36 @@
           "noCredentials": "No hay credenciales. Créalas en Ajustes › Credenciales.",
           "secretNotice": "Los secretos viven en la credencial, no aquí: esta conexión solo la referencia."
         }
+      },
+      "enrichment": {
+        "title": "Enriquecimiento del calendario",
+        "description": "Antes de escribir una reserva, resuelve identificadores del workflow (RUTs, patentes) a ids de recursos a través de una conexión.",
+        "add": "Agregar enriquecimiento",
+        "addTitle": "Agregar enriquecimiento del calendario",
+        "editTitle": "Editar enriquecimiento del calendario",
+        "subtitle": "Elige la conexión que responde y mapea los campos en ambas direcciones.",
+        "connection": "Conexión · operación",
+        "connectionPlaceholder": "Selecciona una conexión…",
+        "scope": "Calendario (opcional)",
+        "scopePlaceholder": "Id del calendario — vacío aplica a todos",
+        "scopeHelp": "Vacío aplica a todos los calendarios. Un binding con calendario específico gana sobre uno vacío.",
+        "requestMapping": "Mapeo de solicitud",
+        "requestMappingHelp": "Cada parámetro de la operación lee un valor del payload del job, p. ej. {{resourceData.mintral_driver1Rut}}. Las filas vacías no se envían.",
+        "responseMapping": "Mapeo de respuesta",
+        "responseMappingHelp": "Clave de la reserva ← campo de la respuesta, p. ej. assignedDriver ← {{response.driver_id}}. Campos vacíos no escriben nada.",
+        "enabled": "Habilitado",
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "cancel": "Cancelar",
+        "empty": "Sin enriquecimiento configurado. Las reservas se escriben tal como llegan.",
+        "on": "Activo",
+        "off": "Inactivo",
+        "inherited": "Heredado",
+        "scopedTo": "Calendario {calendar}",
+        "allCalendars": "Todos los calendarios",
+        "mappedFields": "campos mapeados",
+        "edit": "Editar",
+        "delete": "Eliminar"
       }
     }
   },

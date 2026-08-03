@@ -2208,6 +2208,36 @@
           "noCredentials": "No credentials. Create them in Settings › Credentials.",
           "secretNotice": "Secrets live in the credential, not here — this connection only references it."
         }
+      },
+      "enrichment": {
+        "title": "Calendar enrichment",
+        "description": "Before a booking is written, resolve workflow identifiers (RUTs, plates) into resource ids through a connection.",
+        "add": "Add enrichment",
+        "addTitle": "Add calendar enrichment",
+        "editTitle": "Edit calendar enrichment",
+        "subtitle": "Choose the connection that answers, and map the fields in both directions.",
+        "connection": "Connection · operation",
+        "connectionPlaceholder": "Select a connection…",
+        "scope": "Calendar (optional)",
+        "scopePlaceholder": "Calendar id — leave blank for all calendars",
+        "scopeHelp": "Blank applies to every calendar. A calendar-scoped binding beats a blank one.",
+        "requestMapping": "Request mapping",
+        "requestMappingHelp": "Each operation parameter reads a value from the job payload, e.g. {{resourceData.mintral_driver1Rut}}. Blank rows are not sent.",
+        "responseMapping": "Response mapping",
+        "responseMappingHelp": "Booking data key ← response field, e.g. assignedDriver ← {{response.driver_id}}. Empty response fields write nothing.",
+        "enabled": "Enabled",
+        "save": "Save",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "empty": "No enrichment configured. Booking pushes are written exactly as they arrive.",
+        "on": "On",
+        "off": "Off",
+        "inherited": "Inherited",
+        "scopedTo": "Calendar {calendar}",
+        "allCalendars": "All calendars",
+        "mappedFields": "mapped fields",
+        "edit": "Edit",
+        "delete": "Delete"
       }
     }
   },

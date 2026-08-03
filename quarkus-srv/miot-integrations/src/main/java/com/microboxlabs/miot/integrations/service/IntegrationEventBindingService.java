@@ -14,6 +14,7 @@ import com.microboxlabs.miot.integrations.persistence.IntegrationEventBindingRep
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
 import com.microboxlabs.miot.integrations.template.PayloadRenderException;
 import com.microboxlabs.miot.integrations.template.PayloadRenderer;
+import com.microboxlabs.miot.integrations.calendar.CalendarSyncFeature;
 import com.microboxlabs.miot.integrations.template.PayloadSchema;
 import com.microboxlabs.miot.integrations.template.PayloadTemplate;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -91,7 +92,7 @@ public class IntegrationEventBindingService {
         IntegrationOperation operation = resolveOperation(connection, request.operationId());
 
         List<String> problems = renderer.validate(
-                request.fieldTemplates(), contractOf(operation), PayloadTemplate.DEFAULT_ROOTS);
+                request.fieldTemplates(), contractOf(operation), requestRootsFor(request.eventType()));
         // The return trip renders over {response} alone — response templates reading a request
         // root would silently produce nothing on every fetch.
         problems.addAll(renderer.validate(
@@ -117,6 +118,18 @@ public class IntegrationEventBindingService {
                 null, null, actor, actor);
 
         return IntegrationEventBindingResponse.of(bindingRepository.upsert(binding, actor), orgSlug);
+    }
+
+    /**
+     * Which roots a binding's request templates may read. Notify-shaped events render
+     * over the intake snapshot; a fetch-shaped event renders over its job's payload,
+     * whose vocabulary the producer owns.
+     */
+    private static Set<String> requestRootsFor(String eventType) {
+        if (CalendarSyncFeature.EVENT_RESOURCE_ENRICHMENT.equals(eventType)) {
+            return CalendarSyncFeature.ENRICHMENT_TEMPLATE_ROOTS;
+        }
+        return PayloadTemplate.DEFAULT_ROOTS;
     }
 
     /**
@@ -177,7 +190,7 @@ public class IntegrationEventBindingService {
         PayloadSchema contract = contractOf(operation);
 
         List<String> problems = renderer.validate(
-                request.fieldTemplates(), contract, PayloadTemplate.DEFAULT_ROOTS);
+                request.fieldTemplates(), contract, requestRootsFor(request.eventType()));
         if (!problems.isEmpty()) {
             return BindingPreviewResponse.invalid(problems);
         }

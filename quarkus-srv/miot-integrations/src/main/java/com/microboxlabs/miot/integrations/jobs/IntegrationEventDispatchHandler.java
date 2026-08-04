@@ -142,8 +142,11 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
      * binding completes the context — the case is a snapshot carrying opaque resource
      * ids that partner templates cannot use directly, resolved here into the fields
      * they read. Fetched values land under {@code enrichmentMergeKey} (a map, created
-     * if absent) or at the context root when no key is named, and win over the
-     * snapshot's own: a fresh resolution beats what rode along.
+     * if absent) or at the context root when no key is named, and the fetch is
+     * <b>authoritative for every key its mapping declares</b>: a resolved value wins
+     * over the snapshot's own, and a mapped slot the partner resolved to nothing
+     * <i>clears</i> the snapshot's value — otherwise a stale rider (the previous
+     * assignment's identifier, a placeholder) would be dispatched as if fresh.
      *
      * <p>Inherits the fetch contract wholesale: no armed binding, or a context with
      * nothing the fetch's mapping reads, returns the snapshot unchanged (rollout is
@@ -168,16 +171,27 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
         Map<String, Object> enriched = new LinkedHashMap<>(context);
         String mergeKey = string(payload, EventDispatchFeature.PAYLOAD_ENRICHMENT_MERGE_KEY);
         if (mergeKey == null) {
-            enriched.putAll(fetched.get().values());
+            applyFetched(enriched, fetched.get());
             return enriched;
         }
         Map<String, Object> target = new LinkedHashMap<>();
         if (context.get(mergeKey) instanceof Map<?, ?> existing) {
             existing.forEach((k, v) -> target.put(String.valueOf(k), v));
         }
-        target.putAll(fetched.get().values());
+        applyFetched(target, fetched.get());
         enriched.put(mergeKey, target);
         return enriched;
+    }
+
+    /** Merge resolved values in, then drop mapped keys the partner resolved to nothing. */
+    private static void applyFetched(
+            Map<String, Object> target, EventBindingFetchService.FetchedValues fetched) {
+        target.putAll(fetched.values());
+        for (String key : fetched.mappedKeys()) {
+            if (!fetched.values().containsKey(key)) {
+                target.remove(key);
+            }
+        }
     }
 
     private PayloadSchema contractFor(IntegrationEventBinding binding) {

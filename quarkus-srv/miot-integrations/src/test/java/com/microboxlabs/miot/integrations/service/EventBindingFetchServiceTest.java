@@ -14,6 +14,7 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class EventBindingFetchServiceTest {
@@ -86,6 +87,9 @@ class EventBindingFetchServiceTest {
         // Renamed by response_templates; the null trailer slot writes nothing.
         assertEquals(Map.of("assignedDriver", "d-uuid", "assignedTruck", "t-uuid"), fetched.values());
         assertEquals("b-1", fetched.bindingId());
+        // ...but the mapping still owns every key it declares, so a merger can
+        // tell "resolved to nothing" apart from "never spoke for this key".
+        assertEquals(Set.of("assignedDriver", "assignedTruck"), fetched.mappedKeys());
     }
 
     @Test
@@ -169,6 +173,8 @@ class EventBindingFetchServiceTest {
                 .orElseThrow();
 
         assertEquals(Map.of("driver_id", "d-uuid"), fetched.values());
+        // A raw pass-through claims authority over nothing.
+        assertTrue(fetched.mappedKeys().isEmpty());
     }
 
     /* ------------------------------------------------------------------ fakes */

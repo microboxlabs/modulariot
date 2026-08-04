@@ -16,6 +16,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.jboss.logging.Logger;
 
 /**
@@ -64,8 +66,23 @@ public class EventBindingFetchService {
         this.renderer = renderer;
     }
 
-    /** A completed fetch: which binding answered, and the values to merge. */
-    public record FetchedValues(String bindingId, String connectionId, Map<String, Object> values) {
+    /**
+     * A completed fetch: which binding answered, and the values to merge.
+     *
+     * <p>{@code mappedKeys} is the set of keys the binding's {@code response_templates}
+     * declare — the keys the operator made this fetch <b>authoritative</b> for. A mapped
+     * key absent from {@code values} is not "no news": the partner answered and resolved
+     * that slot to nothing. A caller merging over a snapshot that may carry a stale value
+     * under such a key should drop it; a caller accumulating into its own record (where an
+     * unresolved lookup must not erase data) can ignore the set. Empty when the binding has
+     * no response mapping — a raw pass-through claims authority over nothing.
+     */
+    public record FetchedValues(String bindingId, String connectionId,
+            Map<String, Object> values, Set<String> mappedKeys) {
+
+        public FetchedValues(String bindingId, String connectionId, Map<String, Object> values) {
+            this(bindingId, connectionId, values, Set.of());
+        }
     }
 
     /**
@@ -93,7 +110,18 @@ public class EventBindingFetchService {
         OperationInvocationResult response = invoke(binding, request);
         Map<String, Object> parsed = parseObject(binding, response.body());
         return Optional.of(new FetchedValues(binding.id(), binding.connectionId(),
-                renderResponse(binding, parsed)));
+                renderResponse(binding, parsed), mappedKeys(binding)));
+    }
+
+    /** The keys the binding's response mapping owns; see {@link FetchedValues#mappedKeys()}. */
+    private static Set<String> mappedKeys(IntegrationEventBinding binding) {
+        if (binding.responseTemplates() == null) {
+            return Set.of();
+        }
+        return binding.responseTemplates().entrySet().stream()
+                .filter(entry -> entry.getValue() != null && !entry.getValue().isBlank())
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     private Object renderRequest(IntegrationEventBinding binding, Map<String, Object> context) {
@@ -148,8 +176,10 @@ public class EventBindingFetchService {
     /**
      * The write-back. Rendered under root {@code response}, with the renderer's own
      * empty-is-omitted rule — a null slot in the response (no second driver) writes nothing
-     * rather than a blank. No {@code response_templates} means the caller wants the response
-     * as-is.
+     * rather than a blank. What "nothing" means is the caller's call: the omitted key still
+     * appears in {@link FetchedValues#mappedKeys()}, so a merger can distinguish "the partner
+     * resolved this slot to none" from "this fetch never spoke for that key". No
+     * {@code response_templates} means the caller wants the response as-is.
      */
     private Map<String, Object> renderResponse(
             IntegrationEventBinding binding, Map<String, Object> parsed) {

@@ -38,6 +38,7 @@ class IntegrationEventDispatchHandlerTest {
     private IntegrationEventDispatchHandler handler() {
         return new IntegrationEventDispatchHandler(
                 bindings, connections, operations,
+                new com.microboxlabs.miot.integrations.service.EventBindingSelector(bindings),
                 new ChannelDispatcherRegistry(List.of(dispatcher), dispatcher),
                 new PayloadRenderer());
     }
@@ -119,6 +120,44 @@ class IntegrationEventDispatchHandlerTest {
         assertThrows(NonRetryableJobException.class, () -> handler().handle(TENANT, Map.of()));
     }
 
+    // --- event-addressed dispatch (no bindingId: the producer cannot read bindings) ---
+
+    private static Map<String, Object> eventAddressedPayload() {
+        Map<String, Object> payload = payload();
+        payload.remove(EventDispatchFeature.PAYLOAD_BINDING_ID);
+        payload.put(EventDispatchFeature.PAYLOAD_EVENT_TYPE, "review.verdict");
+        payload.put(EventDispatchFeature.PAYLOAD_SCOPE_KIND, "activiti_task");
+        payload.put(EventDispatchFeature.PAYLOAD_SCOPE_KEY, "wfship2:presentDriverTask");
+        return payload;
+    }
+
+    @Test
+    void selectsTheArmedBindingByEventAndDelivers() {
+        bindings.armed = List.of(binding(true));
+
+        JobOutcome outcome = handler().handle(TENANT, eventAddressedPayload());
+
+        assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
+        assertTrue(dispatcher.lastPayload instanceof Map<?, ?>, "the rendered body was delivered");
+    }
+
+    @Test
+    void skipsWhenNothingIsArmedForTheEvent() {
+        bindings.armed = List.of();
+
+        JobOutcome outcome = handler().handle(TENANT, eventAddressedPayload());
+
+        assertEquals(JobOutcome.SKIPPED, outcome.outcome());
+    }
+
+    @Test
+    void parksWhenNeitherBindingNorEventTypeIsNamed() {
+        Map<String, Object> payload = payload();
+        payload.remove(EventDispatchFeature.PAYLOAD_BINDING_ID);
+
+        assertThrows(NonRetryableJobException.class, () -> handler().handle(TENANT, payload));
+    }
+
     @Test
     void claimsTheEventDispatchJobTypeOnTheModulithLane() {
         assertEquals("integration_event_dispatch", handler().jobType());
@@ -143,12 +182,13 @@ class IntegrationEventDispatchHandlerTest {
         return new IntegrationEventBinding(
                 BINDING_ID, TENANT, "gama", "review.verdict", "activiti_task",
                 "wfship2:presentDriverTask", CONNECTION_ID, OPERATION_ID,
-                Map.of(), templates, Map.of(), enabled,
+                Map.of(), templates, Map.of(), Map.of(), Map.of(), enabled,
                 OffsetDateTime.now(), OffsetDateTime.now(), "a", "a");
     }
 
     private static final class FakeBindings extends IntegrationEventBindingRepository {
         private IntegrationEventBinding binding = binding(true);
+        private List<IntegrationEventBinding> armed = List.of();
 
         private FakeBindings() {
             super(null);
@@ -157,6 +197,11 @@ class IntegrationEventDispatchHandlerTest {
         @Override
         public IntegrationEventBinding findActiveById(String tenantClientId, String id) {
             return binding;
+        }
+
+        @Override
+        public List<IntegrationEventBinding> listArmed(String tenantClientId, String eventType) {
+            return armed;
         }
     }
 

@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(git fetch *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(git branch *)"
     ]
   },
   "enabledPlugins": {

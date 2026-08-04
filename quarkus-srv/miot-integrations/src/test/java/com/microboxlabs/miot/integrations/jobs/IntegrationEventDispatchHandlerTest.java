@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class IntegrationEventDispatchHandlerTest {
@@ -239,6 +240,41 @@ class IntegrationEventDispatchHandlerTest {
                 "a partner that may recover must back off and retry, not park");
     }
 
+    /**
+     * The stale snapshot maps an optional body field; the fetch's mapping owns that key
+     * but resolved it to nothing (the new assignment has no such resource). The stale
+     * value must not ride into the body — the field is omitted, exactly as a producer
+     * building the body directly would omit a null slot.
+     */
+    @Test
+    void aMappedKeyTheFetchResolvedToNothingClearsTheStaleValue() {
+        Map<String, Object> payload = enrichedPayload();
+        bindings.binding = bindingWithTemplates(Map.of(
+                "guidMultimedia", "{{resourceData.opaqueId}}",
+                "aprobado", "{{review.verdict}}",
+                "usuarioRevisor", "{{resourceData.identifier}}"));
+        fetch.values = Map.of();
+        fetch.mappedKeys = Set.of("identifier");
+
+        JobOutcome outcome = handler().handle(TENANT, payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
+        assertTrue(!dispatcher.lastPayloadMap().containsKey("usuarioRevisor"),
+                "the stale value under a fetch-owned key must not be dispatched");
+    }
+
+    @Test
+    void aKeyTheFetchMappingDoesNotOwnKeepsItsSnapshotValue() {
+        Map<String, Object> payload = enrichedPayload();
+        fetch.values = Map.of("somethingElse", "resolved");
+        fetch.mappedKeys = Set.of("somethingElse");
+
+        handler().handle(TENANT, payload);
+
+        // "identifier" is not the fetch's to speak for — the snapshot's value stands.
+        assertEquals("stale-value", dispatcher.lastPayloadMap().get("guidMultimedia"));
+    }
+
     @Test
     void enrichmentWithoutAMergeKeyMergesAtTheContextRoot() {
         Map<String, Object> payload = enrichedPayload();
@@ -336,6 +372,7 @@ class IntegrationEventDispatchHandlerTest {
     /** Answers the enrichment fetch: {@code values == null} models "not configured". */
     private static final class FakeFetch extends EventBindingFetchService {
         private Map<String, Object> values;
+        private Set<String> mappedKeys = Set.of();
         private RuntimeException failure;
         private int calls;
         private String lastEvent;
@@ -358,7 +395,8 @@ class IntegrationEventDispatchHandlerTest {
             }
             return values == null
                     ? Optional.empty()
-                    : Optional.of(new FetchedValues("fetch-binding", "fetch-connection", values));
+                    : Optional.of(new FetchedValues(
+                            "fetch-binding", "fetch-connection", values, mappedKeys));
         }
     }
 

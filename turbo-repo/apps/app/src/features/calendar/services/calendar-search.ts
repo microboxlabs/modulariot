@@ -1,7 +1,7 @@
 import type { SelectedService } from "@/features/calendar/components/planning/planning-selection-types";
 
 /**
- * How far either side of **today** the search sweeps, in days.
+ * How far either side of **today** non-resource searches sweep, in days.
  *
  * Sized to match the window the grid already loads for one calendar
  * (planning-selection-wrapper's bookingsRange) — search just sweeps it across
@@ -11,11 +11,39 @@ import type { SelectedService } from "@/features/calendar/components/planning/pl
  * Anchored on today rather than the viewed date so the window holds still while
  * the user steps through matches; see the rationale in use-calendar-search.
  *
- * The cost of that choice: a service planned outside this window is not found.
- * Widening it is a one-line change here, but the honest fix is a server-side
- * query (the bookings API has no `q` param and no pagination today).
+ * Service searches use the backend's date-less generic resource-id filter and
+ * are not constrained by this window. Searches without a service term still
+ * use this bounded fallback because their fields live in the resource payload.
  */
 export const SEARCH_WINDOW_DAYS = 30;
+
+export interface CalendarBookingSearchQuery {
+  startDate?: string;
+  endDate?: string;
+  resourceIdContains?: string;
+}
+
+/**
+ * Translate calendar UI filters into resource-neutral booking API queries.
+ *
+ * The app knows that its service identifier is represented in the booking's
+ * generic resource id; miot-calendar does not need to know what a service code
+ * is. Multiple service chips are OR-ed by issuing one narrow query per term.
+ */
+export function bookingQueriesForCalendarSearch(
+  params: CalendarSearchParams,
+  range: Readonly<{ startDate: string; endDate: string }>
+): CalendarBookingSearchQuery[] {
+  if (params.service.length === 0) return [range];
+
+  const uniqueTerms = new Map<string, string>();
+  for (const term of params.service) {
+    uniqueTerms.set(term.toLowerCase(), term);
+  }
+  return [...uniqueTerms.values()].map((resourceIdContains) => ({
+    resourceIdContains,
+  }));
+}
 
 /**
  * Orders search matches so each calendar's matches are contiguous, sorted by

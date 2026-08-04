@@ -93,6 +93,8 @@ export async function GET(request: Request) {
   const calendarId = searchParams.get("calendarId") ?? undefined;
   const startDate = searchParams.get("startDate") ?? undefined;
   const endDate = searchParams.get("endDate") ?? undefined;
+  const resourceIdContains =
+    searchParams.get("resourceIdContains") ?? undefined;
 
   const client = createMiotCalendarClient({
     baseUrl: MIOT_CALENDAR_URL,
@@ -106,6 +108,7 @@ export async function GET(request: Request) {
       calendarId,
       startDate,
       endDate,
+      resourceIdContains,
     });
     return NextResponse.json(bookings);
   } catch (error) {

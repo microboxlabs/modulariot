@@ -2173,16 +2173,24 @@ const BookingListResponseSchema = z.object({
 });
 
 /**
- * List bookings for a calendar, optionally filtered by date range.
+ * List bookings, optionally filtered by calendar, date range, or resource id.
  */
 export async function listBookings(
-  params?: { calendarId?: string; startDate?: string; endDate?: string },
+  params?: {
+    calendarId?: string;
+    startDate?: string;
+    endDate?: string;
+    resourceIdContains?: string;
+  },
   signal?: AbortSignal
 ): Promise<BookingListResponse> {
   const searchParams = new URLSearchParams();
   if (params?.calendarId) searchParams.set("calendarId", params.calendarId);
   if (params?.startDate) searchParams.set("startDate", params.startDate);
   if (params?.endDate) searchParams.set("endDate", params.endDate);
+  if (params?.resourceIdContains) {
+    searchParams.set("resourceIdContains", params.resourceIdContains);
+  }
   const query = searchParams.toString();
   const url = query
     ? `/app/api/calendar/bookings?${query}`

@@ -46,7 +46,7 @@ public class EventBindingFetchService {
 
     private static final Logger LOG = Logger.getLogger(EventBindingFetchService.class);
 
-    private final IntegrationEventBindingRepository bindingRepository;
+    private final EventBindingSelector selector;
     private final IntegrationOperationRepository operationRepository;
     private final IntegrationOperationInvoker invoker;
     private final PayloadRenderer renderer;
@@ -58,7 +58,7 @@ public class EventBindingFetchService {
             IntegrationOperationRepository operationRepository,
             IntegrationOperationInvoker invoker,
             PayloadRenderer renderer) {
-        this.bindingRepository = bindingRepository;
+        this.selector = bindingRepository == null ? null : new EventBindingSelector(bindingRepository);
         this.operationRepository = operationRepository;
         this.invoker = invoker;
         this.renderer = renderer;
@@ -75,7 +75,7 @@ public class EventBindingFetchService {
     public Optional<FetchedValues> fetch(String tenantClientId, String eventType,
             String scopeKind, String scopeKey, Map<String, Object> context) {
         IntegrationEventBinding binding =
-                selectBinding(tenantClientId, eventType, scopeKind, scopeKey, context);
+                selector.select(tenantClientId, eventType, scopeKind, scopeKey, context);
         if (binding == null) {
             return Optional.empty();
         }
@@ -96,33 +96,6 @@ public class EventBindingFetchService {
                 renderResponse(binding, parsed)));
     }
 
-    /**
-     * The armed bindings for the event, narrowed to scope and condition; scoped beats
-     * every-scope, and a tie at the same specificity parks — for a fetch there is exactly
-     * one truth, and guessing between two configured sources would silently pick one
-     * tenant-visible behaviour over another.
-     */
-    private IntegrationEventBinding selectBinding(String tenantClientId, String eventType,
-            String scopeKind, String scopeKey, Map<String, Object> context) {
-        List<IntegrationEventBinding> matching =
-                bindingRepository.listArmed(tenantClientId, eventType).stream()
-                        .filter(binding -> binding.matchesScope(scopeKind, scopeKey))
-                        .filter(binding -> EventConditionMatcher.matches(binding.matchCondition(), context))
-                        .toList();
-        if (matching.isEmpty()) {
-            return null;
-        }
-        List<IntegrationEventBinding> scoped =
-                matching.stream().filter(binding -> !binding.appliesToEveryScope()).toList();
-        List<IntegrationEventBinding> candidates = scoped.isEmpty() ? matching : scoped;
-        if (candidates.size() > 1) {
-            throw new NonRetryableJobException("Event " + eventType + " has " + candidates.size()
-                    + " bindings at the same specificity for scope " + scopeKind + "/" + scopeKey
-                    + " — a fetch needs exactly one; disable the extras");
-        }
-        return candidates.get(0);
-    }
-
     private Object renderRequest(IntegrationEventBinding binding, Map<String, Object> context) {
         if (binding.operationId() == null) {
             throw new NonRetryableJobException(
@@ -135,8 +108,8 @@ public class EventBindingFetchService {
                     + " no longer exists on connection " + binding.connectionId());
         }
         try {
-            return renderer.renderBody(
-                    binding.fieldTemplates(), PayloadSchema.of(operation.requestSchema()), context);
+            return renderer.renderBody(binding.fieldTemplates(), binding.fieldDefaults(),
+                    PayloadSchema.of(operation.requestSchema()), context);
         } catch (PayloadRenderException e) {
             // The same binding over the same payload fails identically forever.
             throw new NonRetryableJobException(

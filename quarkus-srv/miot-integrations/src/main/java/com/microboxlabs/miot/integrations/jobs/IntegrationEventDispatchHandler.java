@@ -9,6 +9,7 @@ import com.microboxlabs.miot.integrations.domain.IntegrationOperation;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationEventBindingRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
+import com.microboxlabs.miot.integrations.service.EventBindingSelector;
 import com.microboxlabs.miot.integrations.template.PayloadRenderException;
 import com.microboxlabs.miot.integrations.template.PayloadRenderer;
 import com.microboxlabs.miot.integrations.template.PayloadSchema;
@@ -19,6 +20,12 @@ import java.util.Map;
 /**
  * Delivers one bound event: load the binding, render its payload from the context snapshot,
  * hand it to the channel's dispatcher.
+ *
+ * <p>Two addressing modes. A producer that selected the binding at enqueue time names it
+ * ({@code bindingId}); a producer outside this module — one that cannot read bindings —
+ * names the <b>event</b> ({@code eventType} + optional scope) and the winning binding is
+ * selected at execute time, exactly as the fetch path does. No armed binding for the event
+ * is a skip, not a failure: rollout is flipping a row on.
  *
  * <p>Failure handling is the point of running here rather than inline. A partner being down
  * is thrown, so the ledger backs off and retries; a payload that cannot be built, or a partner
@@ -31,6 +38,7 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
     private final IntegrationEventBindingRepository bindingRepository;
     private final IntegrationConnectionRepository connectionRepository;
     private final IntegrationOperationRepository operationRepository;
+    private final EventBindingSelector selector;
     private final ChannelDispatcherRegistry dispatchers;
     private final PayloadRenderer renderer;
 
@@ -39,11 +47,13 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
             IntegrationEventBindingRepository bindingRepository,
             IntegrationConnectionRepository connectionRepository,
             IntegrationOperationRepository operationRepository,
+            EventBindingSelector selector,
             ChannelDispatcherRegistry dispatchers,
             PayloadRenderer renderer) {
         this.bindingRepository = bindingRepository;
         this.connectionRepository = connectionRepository;
         this.operationRepository = operationRepository;
+        this.selector = selector;
         this.dispatchers = dispatchers;
         this.renderer = renderer;
     }
@@ -56,20 +66,15 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
     @Override
     public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
         String tenantClientId = string(payload, EventDispatchFeature.PAYLOAD_TENANT_CLIENT_ID);
-        String bindingId = string(payload, EventDispatchFeature.PAYLOAD_BINDING_ID);
-        if (tenantClientId == null || bindingId == null) {
-            throw new NonRetryableJobException(
-                    "Event dispatch payload is missing its tenant or binding id");
+        if (tenantClientId == null) {
+            throw new NonRetryableJobException("Event dispatch payload is missing its tenant");
         }
 
-        IntegrationEventBinding binding = bindingRepository.findActiveById(tenantClientId, bindingId);
-        // Unbound or disarmed between enqueue and dispatch: the operator's later decision
-        // wins over the queued intent, and that is a skip rather than a failure.
+        IntegrationEventBinding binding = resolveBinding(tenantClientId, payload);
         if (binding == null) {
-            return JobOutcome.skipped("Binding " + bindingId + " no longer exists");
-        }
-        if (!binding.enabled()) {
-            return JobOutcome.skipped("Binding " + bindingId + " is disabled");
+            // Unbound, disarmed, or (event-addressed) never bound: the operator's decision
+            // wins over the queued intent, and that is a skip rather than a failure.
+            return JobOutcome.skipped("No armed binding to deliver this event through");
         }
 
         IntegrationConnection connection =
@@ -82,6 +87,7 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
         Object body = renderBody(binding, contractFor(binding), contextOf(payload));
         ChannelDispatcher dispatcher = dispatchers.dispatcherFor(connection.providerType());
 
+
         DispatchOutcome outcome = dispatcher.dispatch(tenantClientId, binding, body);
         if (outcome.success()) {
             return JobOutcome.succeeded(outcome.detail());
@@ -91,6 +97,32 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
             throw new IllegalStateException(outcome.detail());
         }
         throw new NonRetryableJobException(outcome.detail());
+    }
+
+    /**
+     * The binding this job delivers through: by id when the enqueuer named one, else
+     * selected by event + scope. A named binding that is gone or disabled, like an event
+     * with nothing armed, resolves to null — the caller skips.
+     */
+    private IntegrationEventBinding resolveBinding(
+            String tenantClientId, Map<String, Object> payload) {
+        String bindingId = string(payload, EventDispatchFeature.PAYLOAD_BINDING_ID);
+        if (bindingId != null) {
+            IntegrationEventBinding binding =
+                    bindingRepository.findActiveById(tenantClientId, bindingId);
+            return binding == null || !binding.enabled() ? null : binding;
+        }
+        String eventType = string(payload, EventDispatchFeature.PAYLOAD_EVENT_TYPE);
+        if (eventType == null) {
+            throw new NonRetryableJobException(
+                    "Event dispatch payload names neither a binding nor an event type");
+        }
+        return selector.select(
+                tenantClientId,
+                eventType,
+                string(payload, EventDispatchFeature.PAYLOAD_SCOPE_KIND),
+                string(payload, EventDispatchFeature.PAYLOAD_SCOPE_KEY),
+                contextOf(payload));
     }
 
     private PayloadSchema contractFor(IntegrationEventBinding binding) {
@@ -105,7 +137,8 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
     private Object renderBody(
             IntegrationEventBinding binding, PayloadSchema contract, Map<String, Object> context) {
         try {
-            return renderer.renderBody(binding.fieldTemplates(), contract, context);
+            return renderer.renderBody(
+                    binding.fieldTemplates(), binding.fieldDefaults(), contract, context);
         } catch (PayloadRenderException e) {
             // The same binding and the same snapshot will fail identically forever.
             throw new NonRetryableJobException("Payload could not be built: " + e.getMessage());

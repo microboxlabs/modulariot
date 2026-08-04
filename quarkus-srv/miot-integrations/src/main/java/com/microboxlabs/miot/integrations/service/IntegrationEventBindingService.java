@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.service;
 
+import com.microboxlabs.miot.integrations.dispatch.HttpOperationDispatcher;
 import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.IntegrationEventBinding;
@@ -97,6 +98,8 @@ public class IntegrationEventBindingService {
         // root would silently produce nothing on every fetch.
         problems.addAll(renderer.validate(
                 request.responseTemplates(), PayloadSchema.empty(), Set.of("response")));
+        problems.addAll(fieldDefaultsProblems(request.fieldDefaults(), request.fieldTemplates()));
+        problems.addAll(responseConditionsProblems(request.responseConditions()));
         if (!problems.isEmpty()) {
             throw new IllegalArgumentException("The field mapping is not usable: "
                     + String.join("; ", problems));
@@ -114,6 +117,8 @@ public class IntegrationEventBindingService {
                 request.matchCondition() == null ? Map.of() : request.matchCondition(),
                 request.fieldTemplates() == null ? Map.of() : request.fieldTemplates(),
                 request.responseTemplates() == null ? Map.of() : request.responseTemplates(),
+                request.fieldDefaults() == null ? Map.of() : request.fieldDefaults(),
+                request.responseConditions() == null ? Map.of() : request.responseConditions(),
                 request.isEnabled(),
                 null, null, actor, actor);
 
@@ -197,15 +202,82 @@ public class IntegrationEventBindingService {
 
         List<String> problems = renderer.validate(
                 request.fieldTemplates(), contract, requestRootsFor(request.eventType()));
+        problems.addAll(fieldDefaultsProblems(request.fieldDefaults(), request.fieldTemplates()));
         if (!problems.isEmpty()) {
             return BindingPreviewResponse.invalid(problems);
         }
         try {
             return BindingPreviewResponse.ok(renderer.renderBody(
-                    request.fieldTemplates(), contract, context == null ? Map.of() : context));
+                    request.fieldTemplates(),
+                    request.fieldDefaults() == null ? Map.of() : request.fieldDefaults(),
+                    contract,
+                    context == null ? Map.of() : context));
         } catch (PayloadRenderException e) {
             return BindingPreviewResponse.invalid(e.problems());
         }
+    }
+
+    /**
+     * A default is a stand-in for a mapping that rendered empty, so a default for a field
+     * with no mapping is a mistake to name, not to ignore — the constant the operator
+     * wanted is expressed by making the mapping itself a literal.
+     */
+    private static List<String> fieldDefaultsProblems(
+            Map<String, String> defaults, Map<String, String> fieldTemplates) {
+        if (defaults == null || defaults.isEmpty()) {
+            return List.of();
+        }
+        List<String> problems = new ArrayList<>();
+        Map<String, String> templates = fieldTemplates == null ? Map.of() : fieldTemplates;
+        defaults.forEach((fieldId, value) -> {
+            String template = templates.get(fieldId);
+            if (template == null || template.isBlank()) {
+                problems.add("default for '" + fieldId + "' has no mapping to fall back from"
+                        + " — map the field, or make its mapping the literal itself");
+            }
+            if (value == null || value.isBlank()) {
+                problems.add("default for '" + fieldId + "' is empty; remove it instead");
+            }
+        });
+        return problems;
+    }
+
+    /**
+     * {@code {"success": {...}, "retry": {...}}} — flat matchers over {@code {response}}.
+     * {@code success} is required once any condition exists (without it nothing could ever
+     * be delivered), and every path must read the response, because at classification time
+     * the response is all there is.
+     */
+    private static List<String> responseConditionsProblems(Map<String, Object> conditions) {
+        if (conditions == null || conditions.isEmpty()) {
+            return List.of();
+        }
+        List<String> problems = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : conditions.entrySet()) {
+            if (!HttpOperationDispatcher.CONDITION_SUCCESS.equals(entry.getKey())
+                    && !HttpOperationDispatcher.CONDITION_RETRY.equals(entry.getKey())) {
+                problems.add("response condition '" + entry.getKey() + "' is not supported; "
+                        + "use 'success' and 'retry'");
+                continue;
+            }
+            if (!(entry.getValue() instanceof Map<?, ?> matcher)) {
+                problems.add("response condition '" + entry.getKey()
+                        + "' must be an object of response-path -> expected value");
+                continue;
+            }
+            for (Object path : matcher.keySet()) {
+                String key = String.valueOf(path);
+                if (!key.equals("response") && !key.startsWith("response.")) {
+                    problems.add("response condition '" + entry.getKey() + "' reads '" + key
+                            + "' — conditions can only read the response, e.g. 'response.code'");
+                }
+            }
+        }
+        if (!conditions.containsKey(HttpOperationDispatcher.CONDITION_SUCCESS)) {
+            problems.add("response conditions need a 'success' matcher — without one no"
+                    + " response could ever count as delivered");
+        }
+        return problems;
     }
 
     /* ---------------------------------------------------------------------- */

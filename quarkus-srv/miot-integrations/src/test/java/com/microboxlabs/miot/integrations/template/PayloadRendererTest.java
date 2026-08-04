@@ -189,4 +189,64 @@ class PayloadRendererTest {
 
         assertEquals(new BigDecimal("10.50"), payload.get("monto"));
     }
+
+    // --- field defaults: the operator's stand-in when a mapping renders empty ---
+
+    @Test
+    void aDefaultFillsAFieldWhoseMappingRenderedEmpty() {
+        // review.comment exists but is "" — the classic empty-slot case.
+        Map<String, Object> payload = renderer.render(
+                Map.of("guidMultimedia", "{{content.mediaId}}", "aprobado", "{{review.verdict}}",
+                        "mensaje", "{{review.comment}}"),
+                Map.of("mensaje", "sin comentario"),
+                schema(), CONTEXT);
+
+        assertEquals("sin comentario", payload.get("mensaje"));
+    }
+
+    @Test
+    void aRenderedValueBeatsItsDefault() {
+        Map<String, Object> payload = renderer.render(
+                Map.of("guidMultimedia", "{{content.mediaId}}", "aprobado", "{{review.verdict}}"),
+                Map.of("guidMultimedia", "stand-in"),
+                schema(), CONTEXT);
+
+        assertEquals("19f8-a8ad", payload.get("guidMultimedia"));
+    }
+
+    @Test
+    void aDefaultSatisfiesARequiredField() {
+        // guidMultimedia is required and its variable resolves to nothing; the default is a
+        // chosen value, not an omission, so the render succeeds.
+        Map<String, Object> payload = renderer.render(
+                Map.of("guidMultimedia", "{{content.missing}}", "aprobado", "{{review.verdict}}"),
+                Map.of("guidMultimedia", "00000000-0"),
+                schema(), CONTEXT);
+
+        assertEquals("00000000-0", payload.get("guidMultimedia"));
+    }
+
+    @Test
+    void aDefaultIsCoercedLikeAnyRenderedValue() {
+        PayloadSchema numeric = PayloadSchema.of(Map.of(
+                "type", "object",
+                "properties", Map.of("intentos", Map.of("type", "integer"))));
+
+        Map<String, Object> payload = renderer.render(
+                Map.of("intentos", "{{review.missing}}"), Map.of("intentos", "3"),
+                numeric, CONTEXT);
+
+        assertEquals(3L, payload.get("intentos"));
+    }
+
+    @Test
+    void withoutADefaultAnEmptyOptionalFieldStaysOmitted() {
+        Map<String, Object> payload = renderer.render(
+                Map.of("guidMultimedia", "{{content.mediaId}}", "aprobado", "{{review.verdict}}",
+                        "mensaje", "{{review.comment}}"),
+                Map.of(),
+                schema(), CONTEXT);
+
+        assertFalse(payload.containsKey("mensaje"));
+    }
 }

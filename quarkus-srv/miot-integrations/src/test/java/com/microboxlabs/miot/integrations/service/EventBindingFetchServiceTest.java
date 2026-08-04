@@ -41,6 +41,7 @@ class EventBindingFetchServiceTest {
                         "p_truck_plate", "{{resourceData.mintral_truckLicensePlate}}"),
                 Map.of("assignedDriver", "{{response.driver_id}}",
                         "assignedTruck", "{{response.truck_id}}"),
+                Map.of(), Map.of(),
                 true,
                 OffsetDateTime.now(), OffsetDateTime.now(), "a", "a");
     }
@@ -112,7 +113,7 @@ class EventBindingFetchServiceTest {
                 "b-1", TENANT, "org-1", EVENT, null, null, CONNECTION, OPERATION,
                 Map.of("resourceData.mintral_serviceKind", "rampla"),
                 Map.of("p_driver_rut", "{{resourceData.mintral_driver1Rut}}"),
-                Map.of(), true, OffsetDateTime.now(), OffsetDateTime.now(), "a", "a");
+                Map.of(), Map.of(), Map.of(), true, OffsetDateTime.now(), OffsetDateTime.now(), "a", "a");
         bindings.armed = List.of(gated);
 
         assertTrue(service().fetch(TENANT, EVENT, "calendar", "cal-1", payloadWithIdentity()).isEmpty());
@@ -160,7 +161,7 @@ class EventBindingFetchServiceTest {
         IntegrationEventBinding raw = new IntegrationEventBinding(
                 "b-1", TENANT, "org-1", EVENT, null, null, CONNECTION, OPERATION,
                 Map.of(), Map.of("p_driver_rut", "{{resourceData.mintral_driver1Rut}}"),
-                Map.of(), true, OffsetDateTime.now(), OffsetDateTime.now(), "a", "a");
+                Map.of(), Map.of(), Map.of(), true, OffsetDateTime.now(), OffsetDateTime.now(), "a", "a");
         bindings.armed = List.of(raw);
         invoker.response = new OperationInvocationResult(200, "{\"driver_id\":\"d-uuid\"}");
 

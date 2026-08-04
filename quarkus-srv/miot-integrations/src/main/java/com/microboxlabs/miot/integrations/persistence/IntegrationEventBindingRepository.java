@@ -25,6 +25,7 @@ public class IntegrationEventBindingRepository {
     private static final String COLUMNS = """
             id, tenant_client_id, owner_org_slug, event_type, scope_kind, scope_key,
             connection_id, operation_id, match_condition, field_templates, response_templates,
+            field_defaults, response_conditions,
             enabled, created_at, updated_at, created_by, updated_by
             """;
 
@@ -89,19 +90,22 @@ public class IntegrationEventBindingRepository {
             INSERT INTO miot_integrations.integration_event_bindings (
                 tenant_client_id, owner_org_slug, event_type, scope_kind, scope_key,
                 connection_id, operation_id, match_condition, field_templates,
-                response_templates, enabled, created_by, updated_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
+                response_templates, field_defaults, response_conditions,
+                enabled, created_by, updated_by
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $14)
             ON CONFLICT (tenant_client_id, owner_org_slug, event_type,
                          COALESCE(scope_kind, ''), COALESCE(scope_key, ''), connection_id)
                 WHERE active
             DO UPDATE SET
-                operation_id       = EXCLUDED.operation_id,
-                match_condition    = EXCLUDED.match_condition,
-                field_templates    = EXCLUDED.field_templates,
-                response_templates = EXCLUDED.response_templates,
-                enabled            = EXCLUDED.enabled,
-                updated_by         = EXCLUDED.updated_by,
-                updated_at         = now()
+                operation_id        = EXCLUDED.operation_id,
+                match_condition     = EXCLUDED.match_condition,
+                field_templates     = EXCLUDED.field_templates,
+                response_templates  = EXCLUDED.response_templates,
+                field_defaults      = EXCLUDED.field_defaults,
+                response_conditions = EXCLUDED.response_conditions,
+                enabled             = EXCLUDED.enabled,
+                updated_by          = EXCLUDED.updated_by,
+                updated_at          = now()
             RETURNING
             """ + COLUMNS;
 
@@ -180,6 +184,8 @@ public class IntegrationEventBindingRepository {
                 .addJsonObject(toJson(binding.matchCondition()))
                 .addJsonObject(toJsonFromStrings(binding.fieldTemplates()))
                 .addJsonObject(toJsonFromStrings(binding.responseTemplates()))
+                .addJsonObject(toJsonFromStrings(binding.fieldDefaults()))
+                .addJsonObject(toJson(binding.responseConditions()))
                 .addBoolean(binding.enabled())
                 .addString(actor);
         return mapRow(client().preparedQuery(UPSERT)
@@ -235,6 +241,8 @@ public class IntegrationEventBindingRepository {
                 toMap(row.getJsonObject("match_condition")),
                 toStringMap(row.getJsonObject("field_templates")),
                 toStringMap(row.getJsonObject("response_templates")),
+                toStringMap(row.getJsonObject("field_defaults")),
+                toMap(row.getJsonObject("response_conditions")),
                 row.getBoolean("enabled"),
                 row.getOffsetDateTime("created_at"),
                 row.getOffsetDateTime("updated_at"),

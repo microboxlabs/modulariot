@@ -1,0 +1,55 @@
+{
+  "stack_version": "0.5.35",
+  "stack_tag": "miot-stack@v0.5.35",
+  "milestone": "MIOT-0.5.35",
+  "pull_requests": [
+    {
+      "number": 1079,
+      "title": "fix(calendar): cancel in the calendar's timezone; hide CANCELLED bookings from grid and search",
+      "source_issues": [
+        {
+          "number": 1078,
+          "title": "Unplanned service lingers as a planned card in the calendar grid"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarBookingsClient.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarSyncExecutor.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/calendar/CalendarSyncExecutorTest.java",
+    "turbo-repo/apps/app/src/features/calendar/services/booking-service-mapper.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/booking-service-mapper.ts"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.35",
+      "tag": "app@v0.5.35"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.34",
+      "version": "0.5.34",
+      "tag": "docs@v0.5.34"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.5.34",
+      "version": "0.5.34",
+      "tag": "web@v0.5.34"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.21",
+      "version": "0.5.22",
+      "tag": "modulith@v0.5.22"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.5",
+      "version": "0.1.5",
+      "tag": "harness@v0.1.5"
+    }
+  }
+}

@@ -1,0 +1,60 @@
+# 🔔 Release Notes v1.31.31 — ModularIoT
+
+### Fecha: 04/08/2026
+
+**Objetivo**: Esta versión consolida mejoras de experiencia en calendario y dashboard, y refuerza la confiabilidad del flujo de integraciones para que la operación diaria sea más clara, consistente y segura. También avanza la convergencia hacia despachos configurables por bindings, reduciendo acoplamientos entre lógica de negocio y vocabulario de partners.
+
+## 🚀 Evolutivos
+
+- **📍 Acreditación visual en asignaciones del calendario**
+  - **Key point**: Se reemplazó la etiqueta visible de acreditación por señalización en el icono de conductor, con colores por nivel y tooltip traducido con el detalle por recurso; se cubrieron casos de uno y dos conductores con pruebas. *(Integración OSS — MIOT-0.5.32)*
+  - **Technical detail**: La lógica conserva el color por urgencia para asignaciones legacy sin datos de acreditación, manteniendo compatibilidad con estados previos del flujo de planificación.
+
+- **📍 Despacho por evento y bindings más expresivos**
+  - **Key point**: Se habilitaron defaults de campos y clasificación de respuestas por cuerpo (`response_conditions`) en bindings, además del despacho dirigido por tipo de evento en `integration_event_dispatch`. *(Integración OSS — MIOT-0.5.32)*
+  - **Technical detail**: La selección del binding en ejecución reutiliza reglas compartidas de resolución por alcance; también se registró el evento `calendar.resource_assignment` con raíces de plantillas para mapear `service.*` y `resourceData.*`.
+
+- **📍 Materialización de bookings faltantes desde parches de estado**
+  - **Key point**: Cuando un patch de `calendar_sync` no encuentra booking, ahora puede crear y aplicar estado si el destino no es terminal y existe ETD parseable, evitando servicios “invisibles” en calendario. *(Integración OSS — MIOT-0.5.32)*
+  - **Technical detail**: Se reutiliza la ruta existente de ensure/create con guardas de no-resurrección para estados terminales (`FINISHED`/`CANCELLED`), preservando el comportamiento benigno de skip cuando no corresponde crear.
+
+## 🐛 Correcciones
+
+- **🐛 Pérdida de sello de sincronización en `calendar_sync`**
+  - **Impacto**: En rutas de unassign y ensure de booking existente se perdía o quedaba obsoleto el estado de sincronización, mostrando información desactualizada.
+  - **Solución**: Se corrigió la propagación/actualización del stamp de sync en esos caminos y se alineó el detalle de sincronización para que pueda venir del encolador con fallback genérico. *(Integración OSS — MIOT-0.5.32)*
+
+- **🐛 Validación inconsistente en pruebas de conexiones HTTP**
+  - **Impacto**: Conexiones podían aprobar “Test” y activarse con URLs que luego el dispatcher bloquea por política SSRF (por ejemplo, hosts internos).
+  - **Solución**: El tester genérico aplica ahora la misma validación `OutboundUrlGuard.requirePublicHttpUrl` sobre la base URL, sin enviar requests, fallando temprano con mensaje explícito. *(Integración OSS — MIOT-0.5.32)*
+
+- **🐛 Scroll y comportamiento del sidebar en dashboard + branding Lynx**
+  - **Impacto**: La navegación lateral con muchos orígenes de datos degradaba usabilidad; además había inconsistencias visuales de marca e iconografía.
+  - **Solución**: Se restauró el scroll y el comportamiento expandible del sidebar, se corrigieron favicon/iconos y se aplicó branding Lynx consistente en modos claro/oscuro respetando logos personalizados. *(Integración OSS — MIOT-0.5.32)*
+
+## 📊 Beneficios
+
+- Mayor legibilidad operativa del calendario sin perder detalle funcional de acreditaciones.
+- Menor riesgo de estados de sincronización engañosos tras cambios de asignación.
+- Menos activaciones “falsamente verdes” en conexiones que fallarían en runtime.
+- Base más sólida para integraciones configurables por operadores mediante bindings.
+- Mejor continuidad del flujo en servicios que entran fuera de la etapa típica de planificación.
+- Navegación del dashboard más estable y consistente con la identidad visual actual.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.32`
+- **App**: `app@v0.5.32` (con cambios)
+- **Docs**: `docs@v0.5.32` (con cambios)
+- **Web**: `web@v0.5.32` (con cambios)
+- **Modulith**: `modulith@v0.5.21` (con cambios)
+- **Harness**: `harness@v0.1.4` (sin cambios)
+- **Referencia de despliegue**: los digests exactos de imágenes desplegadas están disponibles en el diálogo de información de build dentro de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La release 1.31.31 prioriza robustez operativa y claridad de uso en dos frentes críticos: coordinación de agenda y confiabilidad de integraciones. El resultado es una plataforma más predecible para equipos que dependen de sincronización y despacho continuo.
+
+También deja preparada una evolución importante: mover decisiones de integración hacia configuración declarativa de bindings, con menor dependencia de implementaciones específicas por módulo. Esto simplifica futuros ajustes con partners y reduce fricción de mantenimiento.
+
+En conjunto, la versión fortalece la experiencia diaria de operación y la base técnica para escalar integraciones con menos riesgo y mayor control.

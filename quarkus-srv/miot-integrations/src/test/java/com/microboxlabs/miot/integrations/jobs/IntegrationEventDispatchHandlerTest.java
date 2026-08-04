@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.jobs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -264,6 +265,29 @@ class IntegrationEventDispatchHandlerTest {
     }
 
     @Test
+    void aNullDefaultTurnsAClearedKeyIntoAnExplicitNull() {
+        // The production shape of a driver de-association: enrichment owns the key and
+        // resolved nothing, and the binding's null default says the partner must hear
+        // "usuarioRevisor": null, not silence — omission keeps its stored value.
+        Map<String, Object> payload = enrichedPayload();
+        Map<String, String> defaults = new LinkedHashMap<>();
+        defaults.put("usuarioRevisor", null);
+        bindings.binding = bindingWith(Map.of(
+                "guidMultimedia", "{{resourceData.opaqueId}}",
+                "aprobado", "{{review.verdict}}",
+                "usuarioRevisor", "{{resourceData.identifier}}"), defaults);
+        fetch.values = Map.of();
+        fetch.mappedKeys = Set.of("identifier");
+
+        JobOutcome outcome = handler().handle(TENANT, payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
+        assertTrue(dispatcher.lastPayloadMap().containsKey("usuarioRevisor"),
+                "the explicit null must keep the key in the body");
+        assertNull(dispatcher.lastPayloadMap().get("usuarioRevisor"));
+    }
+
+    @Test
     void aKeyTheFetchMappingDoesNotOwnKeepsItsSnapshotValue() {
         Map<String, Object> payload = enrichedPayload();
         fetch.values = Map.of("somethingElse", "resolved");
@@ -307,6 +331,15 @@ class IntegrationEventDispatchHandlerTest {
 
     private static IntegrationEventBinding bindingWithTemplates(Map<String, String> templates) {
         return bindingWith(true, templates);
+    }
+
+    private static IntegrationEventBinding bindingWith(
+            Map<String, String> templates, Map<String, String> defaults) {
+        return new IntegrationEventBinding(
+                BINDING_ID, TENANT, "gama", "review.verdict", "activiti_task",
+                "wfship2:presentDriverTask", CONNECTION_ID, OPERATION_ID,
+                Map.of(), templates, Map.of(), defaults, Map.of(), true,
+                OffsetDateTime.now(), OffsetDateTime.now(), "a", "a");
     }
 
     private static IntegrationEventBinding bindingWith(boolean enabled, Map<String, String> templates) {

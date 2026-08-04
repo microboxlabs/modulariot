@@ -1,0 +1,158 @@
+{
+  "stack_version": "0.5.32",
+  "stack_tag": "miot-stack@v0.5.32",
+  "milestone": "MIOT-0.5.32",
+  "pull_requests": [
+    {
+      "number": 1051,
+      "title": "Based/fixing tables in dashboard",
+      "source_issues": [
+        {
+          "number": 1053,
+          "title": "Fix dashboard sidebar scrolling and refresh Lynx branding"
+        }
+      ]
+    },
+    {
+      "number": 1055,
+      "title": "feat(calendar): materialize a missing booking from a status patch",
+      "source_issues": [
+        {
+          "number": 1054,
+          "title": "calendar_sync: materialize a missing booking from a status patch (create-then-apply)"
+        }
+      ]
+    },
+    {
+      "number": 1057,
+      "title": "feat(integrations): binding field defaults, body-verdict classification, event-addressed dispatch",
+      "source_issues": [
+        {
+          "number": 1056,
+          "title": "integrations: binding field defaults, response-body classification, event-addressed dispatch"
+        }
+      ]
+    },
+    {
+      "number": 1059,
+      "title": "feat(integrations): register the resource-assignment dispatch event",
+      "source_issues": [
+        {
+          "number": 1058,
+          "title": "integrations: register calendar.resource_assignment dispatch event"
+        }
+      ]
+    },
+    {
+      "number": 1061,
+      "title": "fix(integrations): fail the connection test on a base URL the dispatcher would refuse",
+      "source_issues": [
+        {
+          "number": 1060,
+          "title": "connections: Test button passes base URLs the dispatcher's SSRF guard rejects"
+        }
+      ]
+    },
+    {
+      "number": 1063,
+      "title": "fix(integrations): carry syncStatus through unassign and existing-booking ensure",
+      "source_issues": [
+        {
+          "number": 1062,
+          "title": "calendar_sync drops the sync-state stamp on unassign and existing-booking ensure"
+        }
+      ]
+    },
+    {
+      "number": 1065,
+      "title": "feat(calendar): show accreditation through the driver icon",
+      "source_issues": [
+        {
+          "number": 1064,
+          "title": "feat(calendar): show accreditation through the driver icon"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarConfirmExecutor.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarConfirmFeature.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarSyncExecutor.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarSyncFeature.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dispatch/HttpOperationDispatcher.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/IntegrationEventBinding.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/IntegrationEventBindingResponse.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/UpsertIntegrationEventBindingRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/jobs/IntegrationEventDispatchHandler.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/IntegrationEventBindingRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/EventBindingFetchService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/EventBindingSelector.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/IntegrationEventBindingService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/template/PayloadRenderer.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/GenericConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.14__add_binding_field_defaults_and_response_conditions.sql",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/calendar/CalendarConfirmExecutorTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/calendar/CalendarSyncExecutorTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/dispatch/HttpOperationDispatcherTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/jobs/IntegrationEventDispatchHandlerTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/EventBindingFetchServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/IntegrationEventBindingServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/template/PayloadRendererTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/tester/GenericConnectionTesterTest.java",
+    "turbo-repo/apps/app/package.json",
+    "turbo-repo/apps/app/src/app/globals.css",
+    "turbo-repo/apps/app/src/app/icon.svg",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planned-service-chip.test.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planned-service-chip.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/sidebar-tabs/assignment/accreditation.tsx",
+    "turbo-repo/apps/app/src/features/common/components/app-logo/app-logo.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/release-view/build-info-modal.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/secured-navbar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/simple-navbar/simple-navbar.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/sidebar/sidebar-section.test.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/sidebar/sidebar-section.tsx",
+    "turbo-repo/apps/app/src/test/setup.ts",
+    "turbo-repo/apps/web/components/legal/LegalPageLayout.tsx",
+    "turbo-repo/apps/web/components/v2/ConceptGraphic.tsx",
+    "turbo-repo/apps/web/components/v2/Nav.tsx",
+    "turbo-repo/apps/web/components/v2/SplashFlow.tsx",
+    "turbo-repo/apps/web/components/v2/sections/Footer.tsx",
+    "turbo-repo/apps/web/components/v2/sections/Hero.tsx",
+    "turbo-repo/apps/web/package.json",
+    "turbo-repo/package-lock.json",
+    "turbo-repo/packages/ui/src/brand/logo.tsx",
+    "turbo-repo/packages/ui/src/brand/lynx-geometry.ts",
+    "turbo-repo/packages/ui/src/index.ts"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.32",
+      "tag": "app@v0.5.32"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.30",
+      "version": "0.5.32",
+      "tag": "docs@v0.5.32"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.31",
+      "version": "0.5.32",
+      "tag": "web@v0.5.32"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.20",
+      "version": "0.5.21",
+      "tag": "modulith@v0.5.21"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.4",
+      "version": "0.1.4",
+      "tag": "harness@v0.1.4"
+    }
+  }
+}

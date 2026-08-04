@@ -1,0 +1,38 @@
+# 🔔 Release Notes v1.31.38 — ModularIoT
+
+### Fecha: 04/08/2026
+
+**Objetivo**: Reforzar la calidad operativa del flujo de asignaciones en calendario para evitar registros incompletos en servicios con camión. Esta iteración del stack prioriza validaciones de captura en la interfaz para proteger la consistencia de datos aguas abajo.
+
+## 🚀 Evolutivos
+
+- **📍 Asignación de remolque obligatoria al seleccionar camión**
+  - **Key point**: Se preparó el ajuste del formulario de asignación para que, al elegir un camión, la sección de remolque se abra automáticamente, quede obligatoria y el botón **Asignar** permanezca deshabilitado hasta seleccionar remolque.
+  - **Technical detail**: La regla compartida de validación pasa a exigir `carrier && driver && truck && (truck → trailer)`, incluyendo rehidratación de asignaciones persistidas con camión sin remolque para mostrarlas como incompletas requeridas en la UI. *(Integración OSS — MIOT-0.5.39)*
+
+## 📊 Beneficios
+
+- Reduce la probabilidad de asignaciones incompletas desde el punto de captura.
+- Mejora la calidad de datos operativos antes de que lleguen a integraciones externas.
+- Disminuye correcciones manuales posteriores por valores de remolque sustitutos.
+- Alinea la experiencia de calendario con la lógica real de operación de servicios con camión.
+- Fortalece la coherencia entre estado visual del formulario y reglas de validación.
+- Facilita auditoría funcional al hacer explícito cuándo una asignación no está lista para enviarse.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.5.39`
+- App: `app@v0.5.39` (con cambios en este release)
+- Docs: `docs@v0.5.38` (sin cambios)
+- Web: `web@v0.5.38` (sin cambios)
+- Modulith: `modulith@v0.5.24` (sin cambios)
+- Harness: `harness@v0.1.5` (sin cambios)
+- Los digest exactos de imágenes desplegadas están disponibles en el diálogo de información de build dentro de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.38 concentra el alcance en una mejora funcional puntual, pero de alto impacto operativo: impedir que una asignación con camión avance sin remolque definido. Con esto, la captura en frontend actúa como primera barrera de calidad.
+
+A nivel de plataforma, este release mantiene estabilidad en los demás componentes y encapsula el cambio en `app`, lo que simplifica despliegue y seguimiento técnico del ajuste.
+
+Dado que el ítem asociado permanece abierto, el contenido se presenta como trabajo planificado/preparado dentro del alcance de la release, con foco en consistencia de operación y trazabilidad de datos.

@@ -1,0 +1,44 @@
+# 🔔 Release Notes v1.31.41 — ModularIoT
+
+### Fecha: 04/08/2026
+
+**Objetivo**: Esta versión consolida ajustes clave de confiabilidad operativa y consistencia visual en la plataforma. El foco está en evitar datos residuales en asignaciones logísticas y mejorar la adaptación de la identidad visual en distintos modos de interfaz.
+
+## 🐛 Correcciones
+
+- **🐛 Corrección de favicon adaptable para modos claro y oscuro**
+  - **Impacto**: La iconografía de la aplicación no se adaptaba de forma óptima a superficies claras y oscuras, afectando legibilidad y consistencia visual.
+  - **Solución**: Se actualizó el ícono a SVG escalable, se incorporó arte transparente adaptable, se generó favicon ICO para mayor compatibilidad y se ajustó la metadata de la app para usar los nuevos assets. *(Integración OSS — MIOT-0.5.42)*
+
+- **🐛 Limpieza correcta de remolque y segundo conductor en asignaciones de calendario**
+  - **Impacto**: En ciertos escenarios se reenviaban valores previos (por ejemplo, remolque o conductor2) aunque ya se hubieran retirado en la asignación actual, generando inconsistencias en despacho.
+  - **Solución**: Se trató la asignación como declaración completa del estado operativo: se limpian explícitamente los campos cuando corresponde y, además, se registró el evento `calendar.resource_release` para separar mejor los flujos de asignación y liberación de recursos. *(Integración OSS — MIOT-0.5.42)*
+
+## 📊 Beneficios
+
+- Mayor precisión en la coordinación de viajes al evitar reenvío de datos obsoletos.
+- Reducción de errores operativos en integraciones de despacho asociadas a recursos.
+- Mejor trazabilidad funcional entre eventos de asignación y liberación.
+- Experiencia visual más consistente de la aplicación en modo claro y oscuro.
+- Compatibilidad ampliada de favicon entre navegadores gracias al formato ICO.
+- Menor fricción para equipos de operación al reflejarse mejor el estado real de recursos.
+
+## 🧾 Versiones del stack
+
+- Versión de release ModularIoT: `1.31.41`
+- Versión de stack: `0.5.42`
+- Stack tag: `miot-stack@v0.5.42`
+- App tag: `app@v0.5.42` (con cambios)
+- Docs tag: `docs@v0.5.42` (con cambios)
+- Web tag: `web@v0.5.42` (con cambios)
+- Modulith tag: `modulith@v0.5.26` (con cambios)
+- Harness tag: `harness@v0.1.5` (sin cambios)
+- Los digest exactos de imágenes desplegadas están disponibles en el diálogo de información de build dentro de la app y en el asset `stack-manifest.json` de la release.
+
+## 📌 Conclusión
+
+La release `1.31.41` fortalece aspectos críticos de calidad en operación logística e interfaz, con impacto directo en la confiabilidad de asignaciones y en la consistencia de la experiencia de uso.
+
+En particular, la separación explícita entre asignación y liberación de recursos mejora el comportamiento de las integraciones en escenarios reales de despacho y reduce ambigüedades en datos enviados a sistemas externos.
+
+Con el stack `0.5.42`, esta entrega mantiene una evolución enfocada en robustez funcional, compatibilidad y mantenimiento predecible del entorno productivo.

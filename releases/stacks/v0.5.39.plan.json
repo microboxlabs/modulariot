@@ -1,0 +1,58 @@
+{
+  "stack_version": "0.5.39",
+  "stack_tag": "miot-stack@v0.5.39",
+  "milestone": "MIOT-0.5.39",
+  "pull_requests": [
+    {
+      "number": 1091,
+      "title": "feat(calendar): trailer slot driven by the truck's trailer_need flag",
+      "source_issues": [
+        {
+          "number": 1090,
+          "title": "feat(calendar): assignment form must require a trailer once a truck is picked"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "turbo-repo/apps/app/src/app/api/utils/pgrest-client.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-sidebar-form.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/sidebar-tabs/assignment/assignment-form.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/sidebar-tabs/assignment/assignment-rules.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/sidebar-tabs/assignment/assignment-rules.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/accredited-resources.service.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.39",
+      "tag": "app@v0.5.39"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.38",
+      "version": "0.5.38",
+      "tag": "docs@v0.5.38"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.5.38",
+      "version": "0.5.38",
+      "tag": "web@v0.5.38"
+    },
+    "modulith": {
+      "changed": false,
+      "changed_since": "modulith@v0.5.24",
+      "version": "0.5.24",
+      "tag": "modulith@v0.5.24"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.5",
+      "version": "0.1.5",
+      "tag": "harness@v0.1.5"
+    }
+  }
+}

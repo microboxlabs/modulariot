@@ -1,0 +1,46 @@
+# 🔔 Release Notes v1.31.36 — ModularIoT
+
+### Fecha: 04/08/2026
+
+**Objetivo**: Fortalecer la estabilidad operativa en coordinación de servicios y mejorar la calidad de los datos enviados a integraciones externas. Esta versión reduce reversiones no deseadas en planificación y habilita despachos de eventos con contexto enriquecido cuando el snapshot no alcanza.
+
+## 🚀 Evolutivos
+
+- **📍 Enriquecimiento opcional de contexto en despacho de eventos**
+  - **Key point**: Se incorporó una capacidad opcional para enriquecer el contexto antes de renderizar plantillas en `integration_event_dispatch`, permitiendo resolver datos faltantes desde un `enrichmentEvent`.
+  - **Technical detail**: El enriquecimiento se resuelve vía `EventBindingFetchService` y puede fusionarse en una clave específica con `enrichmentMergeKey` (o en la raíz). Si el fetch no está configurado, el flujo permanece igual; si falla estando configurado, el proceso falla de forma visible para reintento o estacionamiento. *(Integración OSS — MIOT-0.5.37)*
+
+## 🐛 Correcciones
+
+- **🐛 Reversión de planificación por prioridad `PL` en sincronización externa**
+  - **Impacto**: Servicios recién planificados desde calendario podían volver hacia atrás automáticamente en el siguiente ciclo de sync cuando el partner seguía reportando `PL`, generando ciclos de creación/cancelación de reserva y pushes duplicados.
+  - **Solución**: Se agregó una marca temporal en la transición de calendario y una ventana de gracia configurable para bloquear movimientos hacia atrás (`EC`/`SD`/`PL`) cuando la tarea actual proviene de una acción humana reciente en calendario.
+
+## 📊 Beneficios
+
+- Menos “tira y afloje” entre operador y sincronización automática en etapas de planificación.
+- Mayor consistencia entre acciones de calendario y estado efectivo del workflow.
+- Reducción de efectos colaterales operativos (rebookings/cancelaciones repetidas).
+- Mejor calidad de payloads hacia partners cuando el contexto trae identificadores opacos.
+- Integraciones más seguras al fallar de forma explícita ante enriquecimientos configurados con error.
+- Compatibilidad hacia atrás: productores sin enriquecimiento definido no cambian su comportamiento.
+
+## 🧾 Versiones del stack
+
+- Versión de release: **1.31.36**
+- Versión de stack: **0.5.37**
+- Tag de stack: `miot-stack@v0.5.37`
+- App: `app@v0.5.37` (**con cambios**)
+- Docs: `docs@v0.5.36` (sin cambios)
+- Web: `web@v0.5.36` (sin cambios)
+- Modulith: `modulith@v0.5.23` (**con cambios**)
+- Harness: `harness@v0.1.5` (sin cambios)
+- Los digests exactos de imágenes desplegadas están disponibles en el diálogo de información de build de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.36 se enfoca en confiabilidad operacional y calidad de integración, atacando un problema de reversión de estado con impacto directo en la operación diaria y habilitando un patrón de enriquecimiento que mejora la fidelidad de los datos despachados.
+
+En términos funcionales, el resultado combina una corrección crítica de flujo en coordinación de servicios con una evolución reutilizable para escenarios de integración donde el snapshot no contiene toda la identidad necesaria.
+
+Para los equipos de operación e integración, esto se traduce en menos fricción, mayor trazabilidad de errores y una base más robusta para escalar automatizaciones sin degradar control humano reciente.

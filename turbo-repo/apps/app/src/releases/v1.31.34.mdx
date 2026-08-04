@@ -1,0 +1,38 @@
+# 🔔 Release Notes v1.31.34 — ModularIoT
+
+### Fecha: 04/08/2026
+
+**Objetivo**: Fortalecer la consistencia operativa entre la planificación y desplanificación de servicios en calendario, evitando estados visuales incorrectos. Esta versión también alinea el comportamiento funcional con la lógica temporal real de cada calendario para reducir errores de operación.
+
+## 🐛 Correcciones
+
+- **🐛 Servicio desplanificado permanecía visible como tarjeta planificada en la grilla de calendario**
+  - **Impacto**: Un servicio con reserva en estado `CANCELLED` podía seguir apareciendo como planificado, seleccionable y con acciones de planificación disponibles, generando confusión operativa y riesgo de acciones inválidas. *(Integración OSS — MIOT-0.5.35)*
+  - **Solución**: Se corrige la evaluación de “pasado/futuro” para desplanificación usando la zona horaria del calendario (con fallback a la zona de runtime cuando no esté definida) y se ajusta el mapeo compartido de booking a servicio planificado para excluir reservas `CANCELLED`, evitando que aparezcan en grilla y búsqueda. *(Integración OSS — MIOT-0.5.35)*
+
+## 📊 Beneficios
+
+- Mayor coherencia entre estado real de reservas y representación en UI de planificación.
+- Reducción de “tarjetas fantasma” tras ciclos de plan/desplan en ventanas horarias sensibles.
+- Menor probabilidad de reintentos o acciones de planificación sobre servicios ya cancelados.
+- Comportamiento temporal más robusto en despliegues con zona horaria de contenedor distinta a la del calendario.
+- Mejor trazabilidad funcional entre sincronización de calendario y experiencia de operación diaria.
+- Disminución de ruido operativo en búsqueda de calendario al ocultar estados terminales cancelados.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.5.35`
+- App: `app@v0.5.35` (actualizado)
+- Docs: `docs@v0.5.34` (sin cambios)
+- Web: `web@v0.5.34` (sin cambios)
+- Modulith: `modulith@v0.5.22` (actualizado)
+- Harness: `harness@v0.1.5` (sin cambios)
+- Los digests exactos de imágenes desplegadas están disponibles en el diálogo de información de build dentro de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La release `v1.31.34` prioriza confiabilidad en una ruta crítica de operación: la planificación en calendario. Al corregir la referencia temporal por zona horaria y depurar la representación de estados cancelados, se elimina una fuente concreta de inconsistencia entre backend y UI.
+
+El resultado es una operación más predecible para equipos que planifican servicios en tiempo real, especialmente en escenarios multi-zona o con infraestructura en UTC. Esta mejora fortalece tanto la exactitud funcional como la seguridad operativa del flujo diario.
+
+En conjunto con `Stack v0.5.35`, esta entrega consolida una base más estable para iteraciones futuras sobre planificación y sincronización de calendario.

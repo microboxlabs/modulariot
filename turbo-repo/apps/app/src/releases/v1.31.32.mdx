@@ -1,0 +1,44 @@
+# 🔔 Release Notes v1.31.32 — ModularIoT
+
+### Fecha: 04/08/2026
+
+**Objetivo**: Fortalecer la operación del calendario en ModularIoT, ampliando la configuración avanzada de despacho y corrigiendo riesgos en acciones destructivas. Esta versión prioriza más control funcional para operaciones externas y mayor seguridad en flujos críticos de eliminación.
+
+## 🚀 Evolutivos
+
+- **📍 Configuración avanzada del binding de despacho en calendario**
+  - **Key point**: Se incorporó una nueva sección en la barra lateral de configuración avanzada del calendario para listar y editar el binding de despacho (`calendar.resource_assignment`) sin depender de llamadas manuales a `PUT /bindings`.
+  - **Technical detail**: La configuración permite seleccionar conexión y operación, administrar plantillas por campo con valores por defecto, definir condiciones de respuesta de éxito/reintento, y manejar alcance global con soporte de override por calendario, incluyendo toggle de habilitación. *(Integración OSS — MIOT-0.5.33)*
+
+## 🐛 Correcciones
+
+- **🐛 Prevención de solicitudes duplicadas al eliminar planes y asignaciones en calendario**
+  - **Impacto**: El botón de confirmación podía activarse múltiples veces durante una solicitud asíncrona pendiente, generando potencialmente más de una petición de eliminación para la misma acción.
+  - **Solución**: Se controló el estado de procesamiento por operación (remove-plan y remove-assignment), se deshabilitó la confirmación mientras la solicitud está en curso, se protegió el handler contra invocaciones duplicadas antes del rerender, y se asegura cierre/reset del modal al finalizar la operación, con cobertura automatizada para validar una sola llamada. *(Integración OSS — MIOT-0.5.33)*
+
+## 📊 Beneficios
+
+- Reduce fricción operativa al permitir administrar bindings de despacho desde UI en lugar de depender de configuración por API manual.
+- Mejora la trazabilidad de integraciones al centralizar parámetros de mapeo, defaults y condiciones de respuesta en el panel avanzado del calendario.
+- Disminuye el riesgo de efectos no deseados por dobles confirmaciones en acciones destructivas.
+- Refuerza la consistencia de UX en modales de eliminación con estados de procesamiento explícitos.
+- Aumenta la confiabilidad de procesos asíncronos críticos mediante protección adicional en handlers.
+- Mejora la mantenibilidad funcional al extender capacidades ya existentes del mismo flujo de bindings.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.5.33`
+- App: `app@v0.5.33` (actualizado en esta release)
+- Docs: `docs@v0.5.32` (sin cambios)
+- Web: `web@v0.5.32` (sin cambios)
+- Modulith: `modulith@v0.5.21` (sin cambios)
+- Harness: `harness@v0.1.4` (sin cambios)
+- Los digests exactos de imágenes desplegadas están disponibles en el diálogo de información de build dentro de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.32 entrega mejoras concretas en un punto clave de operación: el calendario. Por un lado, amplía la capacidad de configuración avanzada para integraciones de despacho; por otro, cierra una brecha de seguridad funcional en confirmaciones de eliminación.
+
+En conjunto, esta release aporta más control para equipos funcionales y reduce riesgos de ejecución accidental en flujos críticos, con impacto directo en estabilidad operativa diaria.
+
+Además, mantiene alineado el stack en `0.5.33`, concentrando cambios efectivos en `app` y preservando estabilidad en los demás componentes del plan de publicación.

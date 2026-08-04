@@ -38,10 +38,24 @@ public final class CalendarSyncFeature {
     public static final String EVENT_RESOURCE_ASSIGNMENT = "calendar.resource_assignment";
 
     /**
-     * Context roots for {@link #EVENT_RESOURCE_ASSIGNMENT} bindings: {@code service}
-     * (nested scalars — {@code service.code}, {@code service.kind}) and the same
-     * {@code resourceData} identity map every calendar push carries. Scalars are nested
-     * because a bare root reads as a whole object to the validator.
+     * The clean counterpart of {@link #EVENT_RESOURCE_ASSIGNMENT}: dispatched when a
+     * service leaves its assignment (unassign, unplan) to clear the partner's resource
+     * view. Its context is deliberately empty, so the binding's field defaults render
+     * the whole body — with explicit-null defaults saying "remove this slot" out loud
+     * (a merge-on-missing partner keeps a stored value for an omitted key) and literal
+     * defaults carrying whatever stand-in the partner expects (e.g. a placeholder
+     * provider). Splitting the event is what lets the assignment binding drop its
+     * stand-ins without this flow losing them.
+     */
+    public static final String EVENT_RESOURCE_RELEASE = "calendar.resource_release";
+
+    /**
+     * Context roots for {@link #EVENT_RESOURCE_ASSIGNMENT} and
+     * {@link #EVENT_RESOURCE_RELEASE} bindings: {@code service} (nested scalars —
+     * {@code service.code}, {@code service.kind}) and the same {@code resourceData}
+     * identity map every calendar push carries. Scalars are nested because a bare
+     * root reads as a whole object to the validator. The release event shares the
+     * vocabulary — its context is simply empty at dispatch time.
      */
     public static final java.util.Set<String> ASSIGNMENT_TEMPLATE_ROOTS =
             java.util.Set.of("service", "resourceData");

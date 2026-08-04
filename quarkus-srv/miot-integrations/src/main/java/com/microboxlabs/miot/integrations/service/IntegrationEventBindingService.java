@@ -137,7 +137,8 @@ public class IntegrationEventBindingService {
         if (CalendarSyncFeature.EVENT_RESOURCE_ENRICHMENT.equals(normalized)) {
             return CalendarSyncFeature.ENRICHMENT_TEMPLATE_ROOTS;
         }
-        if (CalendarSyncFeature.EVENT_RESOURCE_ASSIGNMENT.equals(normalized)) {
+        if (CalendarSyncFeature.EVENT_RESOURCE_ASSIGNMENT.equals(normalized)
+                || CalendarSyncFeature.EVENT_RESOURCE_RELEASE.equals(normalized)) {
             return CalendarSyncFeature.ASSIGNMENT_TEMPLATE_ROOTS;
         }
         return PayloadTemplate.DEFAULT_ROOTS;

@@ -1,4 +1,5 @@
 import type { AssignmentFormData } from "./assignment-form";
+import type { SelectedService } from "../../planning-selection-types";
 import type { AccreditedResource } from "@/features/calendar/services/accredited-resources.service";
 
 /**
@@ -30,6 +31,65 @@ export function trailerRequired(
   data: Pick<AssignmentFormData, "truck" | "truckTrailerNeed">
 ): boolean {
   return Boolean(data.truck) && data.truckTrailerNeed !== false;
+}
+
+/**
+ * Build the service-override patch that travels with `confirmService` so the
+ * booking payload reflects the user's current selections. A slot the user
+ * filled is written; a slot that is merely *not yet* filled (trailer still
+ * pending on a trailer-needing truck, second-driver section open but empty)
+ * is left untouched — partial assignments shouldn't wipe previously-saved
+ * fields.
+ *
+ * Two empties are statements, not partial fills, and are written as explicit
+ * `""` clears (ECM's `strVar` reads `""` as absent, so the process variable
+ * and the outbound `trailer_id`/`driver2_id` become null end-to-end):
+ *
+ * - a picked truck whose `trailer_need` says it runs trailerless — otherwise
+ *   the previous assignment's trailer rides the merged service state into the
+ *   dispatch, and the partner rejects a transport-type truck that indicates a
+ *   remolque (prod job 2123fcea);
+ * - a closed second-driver section — otherwise a removed conductor2 keeps
+ *   being re-sent.
+ */
+export function assignmentOverrides(
+  data: AssignmentFormData
+): Partial<SelectedService> {
+  const out: Partial<SelectedService> = {};
+  if (data.carrier) {
+    out.assignedCarrier = data.carrier;
+    // Carry the upstream prve_codigo alongside the UUID so the binding
+    // extractor can ship `carrier_external_id` for the partner's `proveedor`.
+    // `null` is a real value (carrier with no upstream code on file) and
+    // must be preserved — don't gate this on truthiness.
+    out.assignedCarrierExternalId = data.carrierExternalId;
+    // Same lifecycle for the accreditation level the calendar card renders:
+    // `null` (unknown) is a real value too.
+    out.assignedCarrierAccreditation = data.carrierAccreditation;
+  }
+  if (data.driver) {
+    out.assignedDriver = data.driver;
+    out.assignedDriverAccreditation = data.driverAccreditation;
+  }
+  if (data.hasSecondDriver && data.secondDriver) {
+    out.assignedDriver2 = data.secondDriver;
+    out.assignedDriver2Accreditation = data.secondDriverAccreditation;
+  } else if (!data.hasSecondDriver) {
+    out.assignedDriver2 = "";
+    out.assignedDriver2Accreditation = null;
+  }
+  if (data.truck) {
+    out.assignedTruck = data.truck;
+    out.assignedTruckAccreditation = data.truckAccreditation;
+  }
+  if (data.trailer) {
+    out.assignedTrailer = data.trailer;
+    out.assignedTrailerAccreditation = data.trailerAccreditation;
+  } else if (data.truck && !trailerRequired(data)) {
+    out.assignedTrailer = "";
+    out.assignedTrailerAccreditation = null;
+  }
+  return out;
 }
 
 /**

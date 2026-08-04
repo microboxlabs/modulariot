@@ -15,12 +15,14 @@ import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationEventBindingRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
+import com.microboxlabs.miot.integrations.service.EventBindingFetchService;
 import com.microboxlabs.miot.integrations.template.PayloadRenderer;
 import java.net.URI;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class IntegrationEventDispatchHandlerTest {
@@ -34,13 +36,15 @@ class IntegrationEventDispatchHandlerTest {
     private final FakeConnections connections = new FakeConnections();
     private final FakeOperations operations = new FakeOperations();
     private final RecordingDispatcher dispatcher = new RecordingDispatcher();
+    private final FakeFetch fetch = new FakeFetch();
 
     private IntegrationEventDispatchHandler handler() {
         return new IntegrationEventDispatchHandler(
                 bindings, connections, operations,
                 new com.microboxlabs.miot.integrations.service.EventBindingSelector(bindings),
                 new ChannelDispatcherRegistry(List.of(dispatcher), dispatcher),
-                new PayloadRenderer());
+                new PayloadRenderer(),
+                fetch);
     }
 
     private static Map<String, Object> payload() {
@@ -171,6 +175,84 @@ class IntegrationEventDispatchHandlerTest {
         assertThrows(NonRetryableJobException.class, () -> handler().handle(TENANT, payload));
     }
 
+    // --- context enrichment (producer names a fetch event to complete the snapshot) ---
+
+    /**
+     * The snapshot carries an opaque id plus a stale identity field; the named fetch
+     * resolves the id and its value must win over the stale one at the merge key.
+     */
+    private Map<String, Object> enrichedPayload() {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put(EventDispatchFeature.PAYLOAD_TENANT_CLIENT_ID, TENANT);
+        payload.put(EventDispatchFeature.PAYLOAD_BINDING_ID, BINDING_ID);
+        payload.put(EventDispatchFeature.PAYLOAD_SCOPE_KIND, "scope-kind");
+        payload.put(EventDispatchFeature.PAYLOAD_SCOPE_KEY, "scope-key");
+        payload.put(EventDispatchFeature.PAYLOAD_ENRICHMENT_EVENT, "resource.identity");
+        payload.put(EventDispatchFeature.PAYLOAD_ENRICHMENT_MERGE_KEY, "resourceData");
+        payload.put(EventDispatchFeature.PAYLOAD_CONTEXT, Map.of(
+                "resourceData", Map.of("identifier", "stale-value", "opaqueId", "u-1"),
+                "review", Map.of("verdict", true)));
+        bindings.binding = bindingWithTemplates(Map.of(
+                "guidMultimedia", "{{resourceData.identifier}}",
+                "aprobado", "{{review.verdict}}"));
+        return payload;
+    }
+
+    @Test
+    void enrichmentValuesWinOverTheSnapshotAtTheMergeKey() {
+        fetch.values = Map.of("identifier", "fresh-value");
+
+        JobOutcome outcome = handler().handle(TENANT, enrichedPayload());
+
+        assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
+        assertEquals("fresh-value", dispatcher.lastPayloadMap().get("guidMultimedia"));
+        assertEquals("resource.identity", fetch.lastEvent);
+        assertEquals("scope-kind", fetch.lastScopeKind);
+        assertEquals("scope-key", fetch.lastScopeKey);
+    }
+
+    @Test
+    void unconfiguredEnrichmentDispatchesTheSnapshotUnchanged() {
+        fetch.values = null; // no armed binding / nothing mapped to ask
+
+        JobOutcome outcome = handler().handle(TENANT, enrichedPayload());
+
+        assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
+        assertEquals("stale-value", dispatcher.lastPayloadMap().get("guidMultimedia"));
+    }
+
+    @Test
+    void payloadWithoutAnEnrichmentEventNeverFetches() {
+        handler().handle(TENANT, payload());
+
+        assertEquals(0, fetch.calls, "no enrichment named, no fetch made");
+    }
+
+    @Test
+    void aFailingConfiguredEnrichmentStaysRetryable() {
+        fetch.failure = new IllegalStateException("Fetch rejected with 503");
+
+        RuntimeException failure = assertThrows(RuntimeException.class,
+                () -> handler().handle(TENANT, enrichedPayload()));
+
+        assertTrue(!(failure instanceof NonRetryableJobException),
+                "a partner that may recover must back off and retry, not park");
+    }
+
+    @Test
+    void enrichmentWithoutAMergeKeyMergesAtTheContextRoot() {
+        Map<String, Object> payload = enrichedPayload();
+        payload.remove(EventDispatchFeature.PAYLOAD_ENRICHMENT_MERGE_KEY);
+        bindings.binding = bindingWithTemplates(Map.of(
+                "guidMultimedia", "{{identifier}}",
+                "aprobado", "{{review.verdict}}"));
+        fetch.values = Map.of("identifier", "root-value");
+
+        handler().handle(TENANT, payload);
+
+        assertEquals("root-value", dispatcher.lastPayloadMap().get("guidMultimedia"));
+    }
+
     @Test
     void claimsTheEventDispatchJobTypeOnTheModulithLane() {
         assertEquals("integration_event_dispatch", handler().jobType());
@@ -248,6 +330,35 @@ class IntegrationEventDispatchHandlerTest {
                     Map.of("type", "object", "properties", properties,
                             "required", List.of("guidMultimedia", "aprobado")),
                     Map.of(), false);
+        }
+    }
+
+    /** Answers the enrichment fetch: {@code values == null} models "not configured". */
+    private static final class FakeFetch extends EventBindingFetchService {
+        private Map<String, Object> values;
+        private RuntimeException failure;
+        private int calls;
+        private String lastEvent;
+        private String lastScopeKind;
+        private String lastScopeKey;
+
+        private FakeFetch() {
+            super(null, null, null, null);
+        }
+
+        @Override
+        public Optional<FetchedValues> fetch(String tenantClientId, String eventType,
+                String scopeKind, String scopeKey, Map<String, Object> context) {
+            calls++;
+            lastEvent = eventType;
+            lastScopeKind = scopeKind;
+            lastScopeKey = scopeKey;
+            if (failure != null) {
+                throw failure;
+            }
+            return values == null
+                    ? Optional.empty()
+                    : Optional.of(new FetchedValues("fetch-binding", "fetch-connection", values));
         }
     }
 

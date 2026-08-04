@@ -232,13 +232,15 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
      * the status, so the service materializes at whatever stage first touches
      * the calendar.
      *
-     * <p>Returns {@code null} — falling back to the benign skip — in two cases:
+     * <p>Returns {@code null} — falling back to the benign skip — in three cases:
      * <ul>
      *   <li><b>Terminal target.</b> A missing booking on a FINISHED/CANCELLED
      *       push is usually the cancel's own work (a future-slot cancel deletes
      *       the booking); creating one here would resurrect what was just
      *       released, only to close it. The modulith cannot consult the
      *       workflow, so terminal pushes never create.
+     *   <li><b>No target status.</b> A data-only patch names no lifecycle stage
+     *       — there is no "stage the service first touched" to materialize at.
      *   <li><b>No ETD.</b> Patch payloads carry no explicit slot, so without a
      *       parseable ETD there is nothing to place the booking at.
      * </ul>
@@ -246,7 +248,8 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
     private JobOutcome materializeFromPatch(Map<String, Object> payload, String resourceId,
                                             UUID calendarId, String targetStatus,
                                             Map<String, Object> resourceData) {
-        if (calendarId == null || CalendarSyncFeature.isTerminalStatus(targetStatus)) {
+        if (calendarId == null || targetStatus == null
+                || CalendarSyncFeature.isTerminalStatus(targetStatus)) {
             return null;
         }
         String etd = resourceData == null ? null
@@ -307,7 +310,8 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             }
             throw e;
         }
-        applyStatus(resourceId, calendarId, targetStatus);
+        applyStatus(resourceId, calendarId, targetStatus,
+                str(payload, CalendarSyncFeature.PAYLOAD_SYNC_STATUS));
         LOG.infof("calendar_sync ensure created booking %s for %s at %s %02d:%02d -> %s",
                 bookingId, resourceId, slot.date(), slot.hour(), slot.minutes(), targetStatus);
         return JobOutcome.succeeded("Ensured (created) booking " + bookingId + " for " + resourceId
@@ -351,19 +355,21 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
     }
 
     /**
-     * Set the stage status on the booking we just created. Unlike a status-only
-     * push, a 404 here is NOT benign — the booking exists (we just created it), so
-     * a 404 is a visibility-lag anomaly; propagate it so a retry (whose
-     * {@code listByResource} then finds the booking) converges rather than
-     * reporting success with the status unset. Only 409 (the create default
-     * already at/ahead of the target) is benign.
+     * Set the stage status on the booking we just created, carrying the
+     * originating push's {@code syncStatus} (null leaves it untouched) — a
+     * materialized patch must not lose the confirmation window its payload
+     * opened. Unlike a status-only push, a 404 here is NOT benign — the booking
+     * exists (we just created it), so a 404 is a visibility-lag anomaly;
+     * propagate it so a retry (whose {@code listByResource} then finds the
+     * booking) converges rather than reporting success with the status unset.
+     * Only 409 (the create default already at/ahead of the target) is benign.
      */
-    private void applyStatus(String resourceId, UUID calendarId, String targetStatus) {
+    private void applyStatus(String resourceId, UUID calendarId, String targetStatus, String syncStatus) {
         if (targetStatus == null) {
             return;
         }
         try {
-            client.patchByResource(resourceId, calendarId, targetStatus, null);
+            client.patchByResource(resourceId, calendarId, targetStatus, null, syncStatus, null);
         } catch (CalendarBookingsHttpException e) {
             if (e.getStatus() != 409) {
                 throw e;

@@ -275,6 +275,41 @@ class CalendarSyncExecutorTest {
     }
 
     @Test
+    void patch404MaterializationForwardsSyncStatus() {
+        // The assign chain stamps syncStatus=PENDING to open the confirmation
+        // window — a materialized patch must carry it onto the created booking.
+        FakeClient client = new FakeClient();
+        client.patchThrowsOnce = new CalendarBookingsHttpException(404, "no booking");
+        client.availableSlots = List.of(slot(LocalDate.of(2026, 7, 15), 14, 0, 1));
+        Map<String, Object> payload = patchPayload("ASSIGNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
+        payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
+                identityDataWithEtd("2026-07-15T10:00:00Z"));
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(2, client.patchCalls, "the 404'd patch, then the post-create status apply");
+        assertEquals("PENDING", client.lastPatchSyncStatus,
+                "the post-create patch must forward the original syncStatus");
+    }
+
+    @Test
+    void patch404DataOnlyPatchStaysSkipped() {
+        // No target status → no stage to materialize at, even with an ETD.
+        FakeClient client = new FakeClient();
+        client.patchThrows = new CalendarBookingsHttpException(404, "no booking");
+        Map<String, Object> payload = patchPayload(null);
+        payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
+                identityDataWithEtd("2026-07-15T10:00:00Z"));
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
+        assertEquals(0, client.createCalls, "a data-only patch must not create");
+    }
+
+    @Test
     void patch404WithTerminalTargetStaysSkipped() {
         // FINISHED/CANCELLED on a missing booking is usually the cancel's own work
         // (future-slot cancels DELETE) — creating here would resurrect it.

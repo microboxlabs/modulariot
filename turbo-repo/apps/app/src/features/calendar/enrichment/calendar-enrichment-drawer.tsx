@@ -1,28 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Badge,
-  Button,
-  Select,
-  Spinner,
-  TextInput,
-  ToggleSwitch,
-} from "flowbite-react";
-import { HiPlus } from "react-icons/hi";
+import { useEffect, useMemo, useState } from "react";
+import { Button, TextInput, ToggleSwitch } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { checkTemplate } from "@/features/shipping/components/lane/review-template-validation";
 import { TemplateInput } from "@/features/common/templating/template-input";
 import { SettingsDrawerShell } from "@/features/common/components/settings-drawer/settings-drawer-shell";
-import { CalendarDispatchSection } from "../dispatch/calendar-dispatch-section";
 import {
-  deleteEnrichmentBinding,
-  EnrichmentRequestError,
-  fetchEnrichmentBindings,
-  fetchEnrichmentTargets,
-  upsertEnrichmentBinding,
-} from "./enrichment-data-service";
+  BindingListCards,
+  BindingTargetPicker,
+} from "../bindings/binding-section-ui";
+import { useBindingSection } from "../bindings/use-binding-section";
+import { CalendarDispatchSection } from "../dispatch/calendar-dispatch-section";
 import {
   DEFAULT_RESPONSE_TEMPLATES,
   ENRICHMENT_EVENT_TYPE,
@@ -47,10 +37,6 @@ interface CalendarEnrichmentDrawerProps {
   readonly dict: I18nRecord;
 }
 
-type View =
-  | { kind: "list" }
-  | { kind: "edit"; binding: EnrichmentBinding | null };
-
 /**
  * Calendar › settings drawer: the resource-enrichment binding, administered
  * where its effect is felt — the same right-sidebar idiom the kanban uses for
@@ -69,90 +55,14 @@ export function CalendarEnrichmentDrawer({
   calendarId,
   dict,
 }: Readonly<CalendarEnrichmentDrawerProps>) {
-  const [bindings, setBindings] = useState<EnrichmentBinding[] | null>(null);
-  const [targets, setTargets] = useState<EnrichmentTarget[]>([]);
-  const [view, setView] = useState<View>({ kind: "list" });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const reload = useCallback(async () => {
-    if (!orgSlug) return;
-    const [loadedBindings, loadedTargets] = await Promise.all([
-      fetchEnrichmentBindings(orgSlug),
-      fetchEnrichmentTargets(orgSlug),
-    ]);
-    // This calendar's view: global bindings plus the ones scoped to it.
-    setBindings(
-      loadedBindings.filter(
-        (binding) => !binding.scopeKey || binding.scopeKey === calendarId
-      )
-    );
-    setTargets(loadedTargets);
-  }, [orgSlug, calendarId]);
-
-  // Status-aware: a 403 is "you are not an org admin", localized; anything
-  // else keeps the modulith's message, which for 400s is the validation text
-  // the operator needs verbatim.
-  const describeFailure = useCallback(
-    (failure: unknown): string => {
-      if (failure instanceof EnrichmentRequestError && failure.status === 403) {
-        return tr("pages.calendar.enrichment.forbidden", dict);
-      }
-      return (failure as Error).message;
-    },
-    [dict]
-  );
-
-  useEffect(() => {
-    if (!show) return;
-    setView({ kind: "list" });
-    setError(null);
-    setBindings(null);
-    reload().catch((failure: unknown) => {
-      setBindings([]);
-      setError(describeFailure(failure));
-    });
-  }, [show, reload, describeFailure]);
-
-  function handleAdd() {
-    setView({ kind: "edit", binding: null });
-  }
-
-  function handleEdit(binding: EnrichmentBinding) {
-    setView({ kind: "edit", binding });
-  }
-
-  function handleCancel() {
-    setError(null);
-    setView({ kind: "list" });
-  }
-
-  async function handleDelete(binding: EnrichmentBinding) {
-    if (!orgSlug) return;
-    setError(null);
-    try {
-      await deleteEnrichmentBinding(orgSlug, binding.id);
-      await reload();
-    } catch (failure) {
-      // The list stays as-is: a failed delete removed nothing.
-      setError(describeFailure(failure));
-    }
-  }
-
-  async function handleSave(request: UpsertEnrichmentBinding) {
-    if (!orgSlug) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await upsertEnrichmentBinding(orgSlug, request);
-      setView({ kind: "list" });
-      await reload();
-    } catch (failure) {
-      setError(describeFailure(failure));
-    } finally {
-      setSaving(false);
-    }
-  }
+  const section = useBindingSection<EnrichmentBinding>({
+    active: show,
+    orgSlug,
+    calendarId,
+    eventType: ENRICHMENT_EVENT_TYPE,
+    forbiddenKey: "pages.calendar.enrichment.forbidden",
+    dict,
+  });
 
   return (
     <SettingsDrawerShell
@@ -170,27 +80,33 @@ export function CalendarEnrichmentDrawer({
         <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
           {tr("pages.calendar.enrichment.description", dict)}
         </p>
-        {view.kind === "list" && (
-          <BindingList
-            bindings={bindings}
-            error={error}
+        {section.view.kind === "list" && (
+          <BindingListCards
+            bindings={section.bindings}
+            error={section.error}
             dict={dict}
-            onAdd={handleAdd}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
+            keyPrefix="pages.calendar.enrichment"
+            summary={(binding) =>
+              `${Object.keys(binding.fieldTemplates).length}→` +
+              `${Object.keys(binding.responseTemplates ?? {}).length} ` +
+              tr("pages.calendar.enrichment.mappedFields", dict)
+            }
+            onAdd={() => section.setView({ kind: "edit", binding: null })}
+            onEdit={(binding) => section.setView({ kind: "edit", binding })}
+            onDelete={section.handleDelete}
           />
         )}
 
-        {view.kind === "edit" && (
+        {section.view.kind === "edit" && (
           <BindingForm
-            targets={targets}
-            editing={view.binding}
+            targets={section.targets}
+            editing={section.view.binding}
             calendarId={calendarId}
-            saving={saving}
-            error={error}
+            saving={section.saving}
+            error={section.error}
             dict={dict}
-            onCancel={handleCancel}
-            onSave={handleSave}
+            onCancel={section.handleCancel}
+            onSave={section.handleSave}
           />
         )}
 
@@ -204,87 +120,6 @@ export function CalendarEnrichmentDrawer({
         />
       </div>
     </SettingsDrawerShell>
-  );
-}
-
-/* ------------------------------------------------------------------ list */
-
-interface BindingListProps {
-  readonly bindings: EnrichmentBinding[] | null;
-  readonly error: string | null;
-  readonly dict: I18nRecord;
-  readonly onAdd: () => void;
-  readonly onEdit: (binding: EnrichmentBinding) => void;
-  readonly onDelete: (binding: EnrichmentBinding) => void | Promise<void>;
-}
-
-function BindingList({
-  bindings,
-  error,
-  dict,
-  onAdd,
-  onEdit,
-  onDelete,
-}: Readonly<BindingListProps>) {
-  return (
-    <div className="flex flex-col gap-3">
-      <Button color="blue" size="sm" onClick={onAdd}>
-        <HiPlus className="mr-1 h-4 w-4" />
-        {tr("pages.calendar.enrichment.add", dict)}
-      </Button>
-
-      {bindings === null && !error && <Spinner size="sm" />}
-      {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-300">
-          {error}
-        </p>
-      )}
-      {bindings?.length === 0 && !error && (
-        <p className="rounded-lg border border-dashed border-gray-300 p-3 text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
-          {tr("pages.calendar.enrichment.empty", dict)}
-        </p>
-      )}
-
-      {bindings?.map((binding) => (
-        <div
-          key={binding.id}
-          className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
-        >
-          <div className="flex items-center gap-2">
-            <Badge color={binding.enabled ? "success" : "gray"} size="xs">
-              {binding.enabled
-                ? tr("pages.calendar.enrichment.on", dict)
-                : tr("pages.calendar.enrichment.off", dict)}
-            </Badge>
-            {binding.inherited && (
-              <Badge color="indigo" size="xs">
-                {tr("pages.calendar.enrichment.inherited", dict)}
-              </Badge>
-            )}
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {binding.scopeKey
-                ? tr("pages.calendar.enrichment.thisCalendar", dict)
-                : tr("pages.calendar.enrichment.allCalendars", dict)}
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {Object.keys(binding.fieldTemplates).length}→
-            {Object.keys(binding.responseTemplates ?? {}).length}{" "}
-            {tr("pages.calendar.enrichment.mappedFields", dict)}
-          </p>
-          {!binding.inherited && (
-            <div className="mt-2 flex gap-2">
-              <Button color="light" size="xs" onClick={() => onEdit(binding)}>
-                {tr("pages.calendar.enrichment.edit", dict)}
-              </Button>
-              <Button color="light" size="xs" onClick={() => onDelete(binding)}>
-                {tr("pages.calendar.enrichment.delete", dict)}
-              </Button>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -335,11 +170,6 @@ function BindingForm({
     [targets, targetKey]
   );
 
-  // An edit whose stored connection/operation no longer appears among the
-  // targets (deleted or deactivated). Scope and enabled stay editable; saving
-  // needs a re-pick, and silence here would read as an empty selection.
-  const targetMissing = isEdit && targetKey !== "" && !target;
-
   // A newly picked target seeds its parameters with the known suggestions; an
   // edit keeps what the operator stored.
   useEffect(() => {
@@ -386,41 +216,15 @@ function BindingForm({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <label
-          htmlFor="cal-enrich-target"
-          className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-        >
-          {tr("pages.calendar.enrichment.connection", dict)}
-        </label>
-        <Select
-          id="cal-enrich-target"
-          value={targetKey}
-          onChange={(event) => setTargetKey(event.target.value)}
-        >
-          <option value="">
-            {tr("pages.calendar.enrichment.connectionPlaceholder", dict)}
-          </option>
-          {targets.map((t) => (
-            <option
-              key={`${t.connectionId}:${t.operationId}`}
-              value={`${t.connectionId}:${t.operationId}`}
-            >
-              {t.connectionName} · {t.operationName}
-            </option>
-          ))}
-        </Select>
-        {target && (
-          <p className="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400">
-            {target.method} {target.path}
-          </p>
-        )}
-        {targetMissing && (
-          <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-            {tr("pages.calendar.enrichment.targetMissing", dict)}
-          </p>
-        )}
-      </div>
+      <BindingTargetPicker
+        id="cal-enrich-target"
+        targets={targets}
+        value={targetKey}
+        onChange={setTargetKey}
+        missing={isEdit && targetKey !== "" && !target}
+        dict={dict}
+        keyPrefix="pages.calendar.enrichment"
+      />
 
       <ToggleSwitch
         checked={scopeThisCalendar}

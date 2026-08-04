@@ -1,26 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Badge,
-  Button,
-  Select,
-  Spinner,
-  TextInput,
-  ToggleSwitch,
-} from "flowbite-react";
+import { useMemo, useState } from "react";
+import { Button, TextInput, ToggleSwitch } from "flowbite-react";
 import { HiPlus } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { checkTemplate } from "@/features/shipping/components/lane/review-template-validation";
 import { TemplateInput } from "@/features/common/templating/template-input";
 import {
-  deleteBinding,
-  EnrichmentRequestError,
-  fetchBindingsByEvent,
-  fetchEnrichmentTargets,
-  upsertBinding,
-} from "../enrichment/enrichment-data-service";
+  BindingListCards,
+  BindingTargetPicker,
+} from "../bindings/binding-section-ui";
+import { useBindingSection } from "../bindings/use-binding-section";
 import type { EnrichmentTarget } from "../enrichment/enrichment.types";
 import {
   DISPATCH_EVENT_TYPE,
@@ -35,6 +26,8 @@ import {
   type ConditionRow,
 } from "./dispatch-upsert";
 
+const KEY_PREFIX = "pages.calendar.dispatch";
+
 interface CalendarDispatchSectionProps {
   /** Mirrors the drawer's `show` — reload on every open, like the enrichment section. */
   readonly active: boolean;
@@ -42,8 +35,6 @@ interface CalendarDispatchSectionProps {
   readonly calendarId: string;
   readonly dict: I18nRecord;
 }
-
-type View = { kind: "list" } | { kind: "edit"; binding: DispatchBinding | null };
 
 /**
  * A condition row as the form edits it: the pure `ConditionRow` pair plus a
@@ -86,191 +77,54 @@ export function CalendarDispatchSection({
   calendarId,
   dict,
 }: Readonly<CalendarDispatchSectionProps>) {
-  const [bindings, setBindings] = useState<DispatchBinding[] | null>(null);
-  const [targets, setTargets] = useState<EnrichmentTarget[]>([]);
-  const [view, setView] = useState<View>({ kind: "list" });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const reload = useCallback(async () => {
-    if (!orgSlug) return;
-    const [loadedBindings, loadedTargets] = await Promise.all([
-      fetchBindingsByEvent<DispatchBinding>(orgSlug, DISPATCH_EVENT_TYPE),
-      fetchEnrichmentTargets(orgSlug),
-    ]);
-    // This calendar's view: global bindings plus the ones scoped to it.
-    setBindings(
-      loadedBindings.filter(
-        (binding) => !binding.scopeKey || binding.scopeKey === calendarId
-      )
-    );
-    setTargets(loadedTargets);
-  }, [orgSlug, calendarId]);
-
-  const describeFailure = useCallback(
-    (failure: unknown): string => {
-      if (failure instanceof EnrichmentRequestError && failure.status === 403) {
-        return tr("pages.calendar.dispatch.forbidden", dict);
-      }
-      return (failure as Error).message;
-    },
-    [dict]
-  );
-
-  useEffect(() => {
-    if (!active) return;
-    setView({ kind: "list" });
-    setError(null);
-    setBindings(null);
-    reload().catch((requestError: unknown) => {
-      setBindings([]);
-      setError(describeFailure(requestError));
-    });
-  }, [active, reload, describeFailure]);
-
-  async function handleDelete(binding: DispatchBinding) {
-    if (!orgSlug) return;
-    setError(null);
-    try {
-      await deleteBinding(orgSlug, binding.id);
-      await reload();
-    } catch (requestError) {
-      setError(describeFailure(requestError));
-    }
-  }
-
-  async function handleSave(binding: ReturnType<typeof buildDispatchUpsert>) {
-    if (!orgSlug) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await upsertBinding(orgSlug, binding);
-      setView({ kind: "list" });
-      await reload();
-    } catch (requestError) {
-      setError(describeFailure(requestError));
-    } finally {
-      setSaving(false);
-    }
-  }
+  const section = useBindingSection<DispatchBinding>({
+    active,
+    orgSlug,
+    calendarId,
+    eventType: DISPATCH_EVENT_TYPE,
+    forbiddenKey: `${KEY_PREFIX}.forbidden`,
+    dict,
+  });
 
   return (
     <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-        {tr("pages.calendar.dispatch.title", dict)}
+        {tr(`${KEY_PREFIX}.title`, dict)}
       </h3>
       <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-        {tr("pages.calendar.dispatch.description", dict)}
+        {tr(`${KEY_PREFIX}.description`, dict)}
       </p>
 
-      {view.kind === "list" && (
-        <DispatchList
-          bindings={bindings}
-          error={error}
+      {section.view.kind === "list" && (
+        <BindingListCards
+          bindings={section.bindings}
+          error={section.error}
           dict={dict}
-          onAdd={() => setView({ kind: "edit", binding: null })}
-          onEdit={(binding) => setView({ kind: "edit", binding })}
-          onDelete={handleDelete}
+          keyPrefix={KEY_PREFIX}
+          summary={(binding) =>
+            `${Object.keys(binding.fieldTemplates).length} ` +
+            `${tr(`${KEY_PREFIX}.mappedFields`, dict)} · ` +
+            `${Object.keys(binding.fieldDefaults ?? {}).length} ` +
+            tr(`${KEY_PREFIX}.standInValues`, dict)
+          }
+          onAdd={() => section.setView({ kind: "edit", binding: null })}
+          onEdit={(binding) => section.setView({ kind: "edit", binding })}
+          onDelete={section.handleDelete}
         />
       )}
 
-      {view.kind === "edit" && (
+      {section.view.kind === "edit" && (
         <DispatchForm
-          targets={targets}
-          editing={view.binding}
+          targets={section.targets}
+          editing={section.view.binding}
           calendarId={calendarId}
-          saving={saving}
-          error={error}
+          saving={section.saving}
+          error={section.error}
           dict={dict}
-          onCancel={() => {
-            setError(null);
-            setView({ kind: "list" });
-          }}
-          onSave={handleSave}
+          onCancel={section.handleCancel}
+          onSave={section.handleSave}
         />
       )}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ list */
-
-interface DispatchListProps {
-  readonly bindings: DispatchBinding[] | null;
-  readonly error: string | null;
-  readonly dict: I18nRecord;
-  readonly onAdd: () => void;
-  readonly onEdit: (binding: DispatchBinding) => void;
-  readonly onDelete: (binding: DispatchBinding) => void | Promise<void>;
-}
-
-function DispatchList({
-  bindings,
-  error,
-  dict,
-  onAdd,
-  onEdit,
-  onDelete,
-}: Readonly<DispatchListProps>) {
-  return (
-    <div className="flex flex-col gap-3">
-      <Button color="blue" size="sm" onClick={onAdd}>
-        <HiPlus className="mr-1 h-4 w-4" />
-        {tr("pages.calendar.dispatch.add", dict)}
-      </Button>
-
-      {bindings === null && !error && <Spinner size="sm" />}
-      {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-300">
-          {error}
-        </p>
-      )}
-      {bindings?.length === 0 && !error && (
-        <p className="rounded-lg border border-dashed border-gray-300 p-3 text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
-          {tr("pages.calendar.dispatch.empty", dict)}
-        </p>
-      )}
-
-      {bindings?.map((binding) => (
-        <div
-          key={binding.id}
-          className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
-        >
-          <div className="flex items-center gap-2">
-            <Badge color={binding.enabled ? "success" : "gray"} size="xs">
-              {binding.enabled
-                ? tr("pages.calendar.dispatch.on", dict)
-                : tr("pages.calendar.dispatch.off", dict)}
-            </Badge>
-            {binding.inherited && (
-              <Badge color="indigo" size="xs">
-                {tr("pages.calendar.dispatch.inherited", dict)}
-              </Badge>
-            )}
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {binding.scopeKey
-                ? tr("pages.calendar.dispatch.thisCalendar", dict)
-                : tr("pages.calendar.dispatch.allCalendars", dict)}
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {Object.keys(binding.fieldTemplates).length}{" "}
-            {tr("pages.calendar.dispatch.mappedFields", dict)} ·{" "}
-            {Object.keys(binding.fieldDefaults ?? {}).length}{" "}
-            {tr("pages.calendar.dispatch.standInValues", dict)}
-          </p>
-          {!binding.inherited && (
-            <div className="mt-2 flex gap-2">
-              <Button color="light" size="xs" onClick={() => onEdit(binding)}>
-                {tr("pages.calendar.dispatch.edit", dict)}
-              </Button>
-              <Button color="light" size="xs" onClick={() => onDelete(binding)}>
-                {tr("pages.calendar.dispatch.delete", dict)}
-              </Button>
-            </div>
-          )}
-        </div>
-      ))}
     </div>
   );
 }
@@ -333,7 +187,6 @@ function DispatchForm({
       targets.find((t) => `${t.connectionId}:${t.operationId}` === targetKey),
     [targets, targetKey]
   );
-  const targetMissing = isEdit && targetKey !== "" && !target;
 
   const fieldIds = target
     ? target.fields.map((field) => field.id)
@@ -360,55 +213,29 @@ function DispatchForm({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <label
-          htmlFor="cal-dispatch-target"
-          className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-        >
-          {tr("pages.calendar.dispatch.connection", dict)}
-        </label>
-        <Select
-          id="cal-dispatch-target"
-          value={targetKey}
-          onChange={(event) => setTargetKey(event.target.value)}
-        >
-          <option value="">
-            {tr("pages.calendar.dispatch.connectionPlaceholder", dict)}
-          </option>
-          {targets.map((t) => (
-            <option
-              key={`${t.connectionId}:${t.operationId}`}
-              value={`${t.connectionId}:${t.operationId}`}
-            >
-              {t.connectionName} · {t.operationName}
-            </option>
-          ))}
-        </Select>
-        {target && (
-          <p className="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400">
-            {target.method} {target.path}
-          </p>
-        )}
-        {targetMissing && (
-          <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-            {tr("pages.calendar.dispatch.targetMissing", dict)}
-          </p>
-        )}
-      </div>
+      <BindingTargetPicker
+        id="cal-dispatch-target"
+        targets={targets}
+        value={targetKey}
+        onChange={setTargetKey}
+        missing={isEdit && targetKey !== "" && !target}
+        dict={dict}
+        keyPrefix={KEY_PREFIX}
+      />
 
       <ToggleSwitch
         checked={scopeThisCalendar}
-        label={tr("pages.calendar.dispatch.onlyThisCalendar", dict)}
+        label={tr(`${KEY_PREFIX}.onlyThisCalendar`, dict)}
         onChange={setScopeThisCalendar}
       />
 
       {target && (
         <fieldset className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
           <legend className="px-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-            {tr("pages.calendar.dispatch.requestMapping", dict)}
+            {tr(`${KEY_PREFIX}.requestMapping`, dict)}
           </legend>
           <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-            {tr("pages.calendar.dispatch.requestMappingHelp", dict)}
+            {tr(`${KEY_PREFIX}.requestMappingHelp`, dict)}
           </p>
           <div className="flex flex-col gap-3">
             {fieldIds.map((fieldId) => {
@@ -441,10 +268,7 @@ function DispatchForm({
                       sizing="sm"
                       className="font-mono [&_input]:text-xs"
                       value={defaults[fieldId] ?? ""}
-                      placeholder={tr(
-                        "pages.calendar.dispatch.standInPlaceholder",
-                        dict
-                      )}
+                      placeholder={tr(`${KEY_PREFIX}.standInPlaceholder`, dict)}
                       color={orphanDefault ? "failure" : "gray"}
                       onChange={(event) =>
                         setDefaults((rows) => ({
@@ -456,13 +280,13 @@ function DispatchForm({
                   </div>
                   {check.status === "invalid" && (
                     <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">
-                      {tr("pages.calendar.dispatch.invalidTemplate", dict)} (
+                      {tr(`${KEY_PREFIX}.invalidTemplate`, dict)} (
                       {check.problem?.code})
                     </p>
                   )}
                   {orphanDefault && (
                     <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">
-                      {tr("pages.calendar.dispatch.defaultWithoutTemplate", dict)}
+                      {tr(`${KEY_PREFIX}.defaultWithoutTemplate`, dict)}
                     </p>
                   )}
                 </div>
@@ -473,33 +297,33 @@ function DispatchForm({
       )}
 
       <ConditionsFieldset
-        legend={tr("pages.calendar.dispatch.successConditions", dict)}
-        help={tr("pages.calendar.dispatch.successConditionsHelp", dict)}
+        legend={tr(`${KEY_PREFIX}.successConditions`, dict)}
+        help={tr(`${KEY_PREFIX}.successConditionsHelp`, dict)}
         rows={successRows}
         onChange={setSuccessRows}
         dict={dict}
       />
       <ConditionsFieldset
-        legend={tr("pages.calendar.dispatch.retryConditions", dict)}
-        help={tr("pages.calendar.dispatch.retryConditionsHelp", dict)}
+        legend={tr(`${KEY_PREFIX}.retryConditions`, dict)}
+        help={tr(`${KEY_PREFIX}.retryConditionsHelp`, dict)}
         rows={retryRows}
         onChange={setRetryRows}
         dict={dict}
       />
       {problems.some((p) => p.code === "retryWithoutSuccess") && (
         <p className="text-xs text-red-600 dark:text-red-400">
-          {tr("pages.calendar.dispatch.retryWithoutSuccess", dict)}
+          {tr(`${KEY_PREFIX}.retryWithoutSuccess`, dict)}
         </p>
       )}
       {problems.some((p) => p.code === "conditionPathOutsideResponse") && (
         <p className="text-xs text-red-600 dark:text-red-400">
-          {tr("pages.calendar.dispatch.conditionPathOutsideResponse", dict)}
+          {tr(`${KEY_PREFIX}.conditionPathOutsideResponse`, dict)}
         </p>
       )}
 
       <ToggleSwitch
         checked={enabled}
-        label={tr("pages.calendar.dispatch.enabled", dict)}
+        label={tr(`${KEY_PREFIX}.enabled`, dict)}
         onChange={setEnabled}
       />
 
@@ -511,7 +335,7 @@ function DispatchForm({
 
       <div className="flex justify-end gap-2">
         <Button color="gray" size="sm" onClick={onCancel} disabled={saving}>
-          {tr("pages.calendar.dispatch.cancel", dict)}
+          {tr(`${KEY_PREFIX}.cancel`, dict)}
         </Button>
         <Button
           color="blue"
@@ -520,8 +344,8 @@ function DispatchForm({
           disabled={!canSave}
         >
           {saving
-            ? tr("pages.calendar.dispatch.saving", dict)
-            : tr("pages.calendar.dispatch.save", dict)}
+            ? tr(`${KEY_PREFIX}.saving`, dict)
+            : tr(`${KEY_PREFIX}.save`, dict)}
         </Button>
       </div>
     </div>
@@ -574,7 +398,7 @@ function ConditionsFieldset({
               sizing="sm"
               className="font-mono [&_input]:text-xs"
               value={row.value}
-              placeholder={tr("pages.calendar.dispatch.expectedValue", dict)}
+              placeholder={tr(`${KEY_PREFIX}.expectedValue`, dict)}
               onChange={(event) => patchRow(row.id, { value: event.target.value })}
             />
           </div>
@@ -586,7 +410,7 @@ function ConditionsFieldset({
           onClick={() => onChange(withNewRow(rows))}
         >
           <HiPlus className="mr-1 h-3 w-3" />
-          {tr("pages.calendar.dispatch.addCondition", dict)}
+          {tr(`${KEY_PREFIX}.addCondition`, dict)}
         </Button>
       </div>
     </fieldset>

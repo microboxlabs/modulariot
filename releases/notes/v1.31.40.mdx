@@ -1,0 +1,38 @@
+# 🔔 Release Notes v1.31.40 — ModularIoT
+
+### Fecha: 04/08/2026
+
+**Objetivo**: Fortalecer la confiabilidad de las integraciones configurables para que los cambios operativos se reflejen correctamente en sistemas externos. Esta versión se enfoca en mejorar el control de payloads cuando un dato debe limpiarse explícitamente en el partner.
+
+## 🚀 Evolutivos
+
+- **📍 Limpieza explícita de campos nulos en payloads de integración**
+  - **Key point**: Se habilitó, vía configuración, que un `field_default` con valor JSON `null` envíe el campo explícitamente en `null` cuando el mapeo no entrega valor, en lugar de omitir la clave.
+  - **Technical detail**: Esto permite que APIs externas con semántica de merge por ausencia (como Alerce) puedan borrar valores previamente persistidos (por ejemplo `conductor2`) sin agregar lógica específica por partner. *(Integración OSS — MIOT-0.5.41)*
+
+## 📊 Beneficios
+
+- Mejora la consistencia entre el estado operativo en ModularIoT y el estado final en plataformas externas.
+- Reduce errores de datos residuales en integraciones donde omitir una clave no implica borrar su valor.
+- Mantiene el enfoque low-code al resolver el comportamiento desde configuración y no desde código por cliente.
+- Preserva compatibilidad con comportamientos existentes: valor real, default string y omisión sin default.
+- Disminuye retrabajos manuales en casos de desasignaciones o limpiezas de campos opcionales.
+- Refuerza la trazabilidad técnica del envío de payloads en escenarios de integración crítica.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.5.41`
+- App: `app@v0.5.41` (con cambios)
+- Docs: `docs@v0.5.40` (sin cambios)
+- Web: `web@v0.5.40` (sin cambios)
+- Modulith: `modulith@v0.5.25` (con cambios)
+- Harness: `harness@v0.1.5` (sin cambios)
+- Los digests exactos de imágenes desplegadas están disponibles en el diálogo de información de build de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.40 aporta una mejora puntual pero estratégica en el motor de integraciones: ahora los valores nulos intencionales pueden propagarse de forma explícita cuando el caso de negocio lo requiere.
+
+Esto impacta directamente en la calidad de datos compartidos con partners y en la previsibilidad de flujos operativos, especialmente en procesos de asignación/desasignación.
+
+En conjunto con el stack `0.5.41`, la entrega consolida una base más robusta para integraciones configurables sin comprometer el enfoque reusable y escalable de ModularIoT.

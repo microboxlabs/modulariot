@@ -455,7 +455,8 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
     /**
      * Cancel decided from the freshest slot: future slot → DELETE (release
      * capacity); past slot → PATCH CANCELLED (keep history). No matching
-     * booking → SKIPPED.
+     * booking → SKIPPED. The future-vs-past comparison runs in the calendar's
+     * timezone (see {@link #calendarClock}).
      */
     private JobOutcome executeCancel(String resourceId, UUID calendarId) {
         List<CalendarBookingsClient.BookingView> bookings = client.listByResource(resourceId, calendarId);
@@ -463,7 +464,7 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             return JobOutcome.skipped("No booking to cancel for " + resourceId);
         }
 
-        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime now = LocalDateTime.now(calendarClock(calendarId));
         int deleted = 0;
         boolean pastRemains = false;
         for (var booking : bookings) {
@@ -485,6 +486,21 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         }
         return JobOutcome.succeeded(String.format(
                 "Cancel applied for %s (deleted=%d, pastPatched=%b)", resourceId, deleted, pastRemains));
+    }
+
+    /**
+     * Slot times are wall-clock in the calendar's timezone, so the cancel
+     * future-vs-past decision must be taken there — the runtime's own zone
+     * (UTC in the containers) can run hours ahead and misclassify a
+     * still-future slot as past, patching CANCELLED (a ghost row the planning
+     * grid keeps showing) where a delete was due. Falls back to the executor
+     * clock's zone when the calendar has no usable timezone.
+     */
+    private Clock calendarClock(UUID calendarId) {
+        if (calendarId == null) {
+            return clock;
+        }
+        return client.getCalendarTimezone(calendarId).map(clock::withZone).orElse(clock);
     }
 
     private int tryDelete(CalendarBookingsClient.BookingView booking, String resourceId) {

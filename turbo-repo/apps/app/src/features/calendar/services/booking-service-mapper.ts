@@ -103,12 +103,16 @@ function serviceTypeFromResourceId(id: string): string | undefined {
  * a booking the grid then refuses to render, and the highlight would point at
  * nothing. One transform, one notion of a valid planned service.
  *
- * Returns null for bookings with no slot — there is nowhere to place them.
+ * Returns null for bookings with no slot — there is nowhere to place them —
+ * and for CANCELLED bookings: those rows exist only as history (a past-slot
+ * unplan patches CANCELLED instead of deleting), and drawing one would offer
+ * plan actions on a service the workflow already pulled off the calendar.
  */
 export function mapBookingToPlannedService(
   booking: BookingResponse
 ): MappedBooking | null {
   if (!booking.slot) return null;
+  if (booking.status === "CANCELLED") return null;
 
   const storedParse = StoredServiceSchema.safeParse(booking.resource.data);
   const stored = storedParse.success ? storedParse.data : undefined;
@@ -149,9 +153,10 @@ export function mapBookingToPlannedService(
   };
 
   // Terminal stages ride the booking row itself (ECM writes the status);
-  // load-time is fine for them because a FINISHED/CANCELLED booking never
-  // goes live again. Live stages overlay this at render time via the
-  // provider's workflow-stage merge, and win on conflict.
+  // load-time is fine for them because a FINISHED booking never goes live
+  // again (CANCELLED never reaches this point — filtered above). Live stages
+  // overlay this at render time via the provider's workflow-stage merge, and
+  // win on conflict.
   const workflowStage = bookingStatusToWorkflowStage(booking.status);
 
   return {

@@ -191,10 +191,19 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             // with it. The unassign is the one call that succeeds in both
             // directions, and it must also displace whatever sync verdict the
             // previous assignment left behind — a stale REJECTED belongs to a
-            // tuple that no longer exists. Status-only patch: no 409 possible.
+            // tuple that no longer exists. A rejected follow-up does not undo
+            // the successful unassign and must be reported as such.
             String syncStatus = str(payload, CalendarSyncFeature.PAYLOAD_SYNC_STATUS);
             if (syncStatus != null) {
-                client.patchByResource(resourceId, calendarId, null, null, syncStatus, null);
+                try {
+                    client.patchByResource(resourceId, calendarId, null, null, syncStatus, null);
+                } catch (CalendarBookingsHttpException e) {
+                    if (e.getStatus() == 404 || e.getStatus() == 409) {
+                        return JobOutcome.skipped("Booking unassigned for " + resourceId
+                                + "; sync-status patch skipped (" + e.getStatus() + ")");
+                    }
+                    throw e;
+                }
             }
             return JobOutcome.succeeded("Booking unassigned for " + resourceId
                     + " (cleared " + clearDataKeys.size() + " data key(s)"

@@ -60,11 +60,14 @@ class CalendarConfirmExecutorTest {
         assertEquals("TMS accepted the stand-in values", client.lastSyncDetail);
     }
 
-    /** Producers that predate the field keep a generic, partner-neutral detail. */
+    /** Blank producer detail falls back to a generic, partner-neutral value. */
     @Test
     void confirmFallsBackToGenericSyncDetail() {
         FakeClient client = new FakeClient();
-        new CalendarConfirmExecutor(client).handle("tenant-1", payload());
+        var p = payload();
+        p.put(CalendarConfirmFeature.PAYLOAD_SYNC_DETAIL, "   ");
+
+        new CalendarConfirmExecutor(client).handle("tenant-1", p);
 
         assertEquals(CalendarConfirmFeature.DEFAULT_SYNC_DETAIL, client.lastSyncDetail);
     }

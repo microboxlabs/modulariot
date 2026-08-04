@@ -424,6 +424,22 @@ class CalendarSyncExecutorTest {
     }
 
     @Test
+    void unassignSuccessThenSyncStatus409ReportsPatchSkip() {
+        FakeClient client = new FakeClient();
+        client.patchThrows = new CalendarBookingsHttpException(409, "sync patch rejected");
+        var payload = unassignPayload(CLEAR_KEYS);
+        payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
+        assertEquals(1, client.unassignCalls);
+        assertEquals(1, client.patchCalls);
+        assertTrue(result.detail().contains("Booking unassigned"), result.detail());
+        assertTrue(result.detail().contains("sync-status patch skipped (409)"), result.detail());
+    }
+
+    @Test
     void unassignWithoutSyncStatusDoesNotPatch() {
         FakeClient client = new FakeClient();
         var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", unassignPayload(CLEAR_KEYS));
@@ -612,13 +628,14 @@ class CalendarSyncExecutorTest {
     void ensureExistingForwardsSyncStatus() {
         FakeClient client = new FakeClient();
         client.listResult = List.of(booking(LocalDate.of(2026, 7, 16))); // 09:00
-        var payload = withExplicitSlot(ensurePayload("ASSIGNED"), LocalDate.of(2026, 7, 16), 9, 0);
+        var payload = withExplicitSlot(ensurePayload(null), LocalDate.of(2026, 7, 16), 9, 0);
         payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
 
         var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(1, client.patchCalls);
+        assertNull(client.lastPatchStatus);
         assertEquals("PENDING", client.lastPatchSyncStatus);
     }
 

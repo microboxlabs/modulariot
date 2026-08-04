@@ -101,12 +101,13 @@ export function CalendarDispatchSection({
           error={section.error}
           dict={dict}
           keyPrefix={KEY_PREFIX}
-          summary={(binding) =>
-            `${Object.keys(binding.fieldTemplates).length} ` +
-            `${tr(`${KEY_PREFIX}.mappedFields`, dict)} · ` +
-            `${Object.keys(binding.fieldDefaults ?? {}).length} ` +
-            tr(`${KEY_PREFIX}.standInValues`, dict)
-          }
+          summary={(binding) => {
+            const mapped = tr(`${KEY_PREFIX}.mappedFields`, dict);
+            const standIns = tr(`${KEY_PREFIX}.standInValues`, dict);
+            const templateCount = Object.keys(binding.fieldTemplates).length;
+            const defaultCount = Object.keys(binding.fieldDefaults ?? {}).length;
+            return `${templateCount} ${mapped} · ${defaultCount} ${standIns}`;
+          }}
           onAdd={() => section.setView({ kind: "edit", binding: null })}
           onEdit={(binding) => section.setView({ kind: "edit", binding })}
           onDelete={section.handleDelete}

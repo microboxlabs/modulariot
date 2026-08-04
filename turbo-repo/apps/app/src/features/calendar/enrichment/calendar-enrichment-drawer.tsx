@@ -15,6 +15,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { checkTemplate } from "@/features/shipping/components/lane/review-template-validation";
 import { TemplateInput } from "@/features/common/templating/template-input";
 import { SettingsDrawerShell } from "@/features/common/components/settings-drawer/settings-drawer-shell";
+import { CalendarDispatchSection } from "../dispatch/calendar-dispatch-section";
 import {
   deleteEnrichmentBinding,
   EnrichmentRequestError,
@@ -162,8 +163,7 @@ export function CalendarEnrichmentDrawer({
       closeLabel={tr("pages.calendar.enrichment.close", dict)}
     >
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {/* First (today: only) advanced section — the enrichment binding.
-              Future advanced settings join as siblings below it. */}
+        {/* First advanced section — the enrichment binding. */}
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
           {tr("pages.calendar.enrichment.title", dict)}
         </h3>
@@ -193,6 +193,15 @@ export function CalendarEnrichmentDrawer({
             onSave={handleSave}
           />
         )}
+
+        {/* Second advanced section — the assignment dispatch binding.
+            Future advanced settings join as siblings below it. */}
+        <CalendarDispatchSection
+          active={show}
+          orgSlug={orgSlug}
+          calendarId={calendarId}
+          dict={dict}
+        />
       </div>
     </SettingsDrawerShell>
   );

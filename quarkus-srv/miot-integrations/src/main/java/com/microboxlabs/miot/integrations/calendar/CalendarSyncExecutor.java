@@ -185,8 +185,20 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         List<String> clearDataKeys = asStringList(payload.get(CalendarSyncFeature.PAYLOAD_CLEAR_DATA_KEYS));
         try {
             client.unassignByResource(resourceId, calendarId, clearDataKeys);
+            // An optional syncStatus rides the unassign (not the ensure): on the
+            // backward revert the booking is at ASSIGNED, so the ensure leg's
+            // PLANNED patch is refused as a regression and would drop the stamp
+            // with it. The unassign is the one call that succeeds in both
+            // directions, and it must also displace whatever sync verdict the
+            // previous assignment left behind — a stale REJECTED belongs to a
+            // tuple that no longer exists. Status-only patch: no 409 possible.
+            String syncStatus = str(payload, CalendarSyncFeature.PAYLOAD_SYNC_STATUS);
+            if (syncStatus != null) {
+                client.patchByResource(resourceId, calendarId, null, null, syncStatus, null);
+            }
             return JobOutcome.succeeded("Booking unassigned for " + resourceId
-                    + " (cleared " + clearDataKeys.size() + " data key(s))");
+                    + " (cleared " + clearDataKeys.size() + " data key(s)"
+                    + (syncStatus == null ? ")" : ", sync " + syncStatus + ")"));
         } catch (CalendarBookingsHttpException e) {
             if (e.getStatus() == 404) {
                 return JobOutcome.skipped("No booking to unassign for " + resourceId);
@@ -341,9 +353,14 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         }
         // Forward-only status, plus a shallow resource-data merge so a re-plan keeps
         // the row current. 404/409 are benign (raced delete / status regression).
-        if (targetStatus != null || (resourceData != null && !resourceData.isEmpty())) {
+        // The payload's syncStatus rides along (null leaves it untouched) — the
+        // existing-booking path must not drop the confirmation window the push
+        // opened, exactly like applyStatus on the create path.
+        String syncStatus = str(payload, CalendarSyncFeature.PAYLOAD_SYNC_STATUS);
+        if (targetStatus != null || syncStatus != null
+                || (resourceData != null && !resourceData.isEmpty())) {
             try {
-                client.patchByResource(resourceId, calendarId, targetStatus, resourceData);
+                client.patchByResource(resourceId, calendarId, targetStatus, resourceData, syncStatus, null);
             } catch (CalendarBookingsHttpException e) {
                 if (benignSkip(e, resourceId, targetStatus) == null) {
                     throw e;

@@ -401,6 +401,51 @@ class CalendarSyncExecutorTest {
         assertEquals(List.of(), client.lastClearDataKeys);
     }
 
+    /**
+     * The confirmation window opens on the unassign, not the ensure: on the
+     * backward revert the booking is at ASSIGNED, so the ensure's PLANNED
+     * patch 409s away and any stamp riding it is lost. The stamp is a
+     * follow-up status-only patch so it can never regress the lifecycle —
+     * and it displaces a stale sync verdict left by the previous assignment.
+     */
+    @Test
+    void unassignForwardsSyncStatusAsStatusOnlyPatch() {
+        FakeClient client = new FakeClient();
+        var payload = unassignPayload(CLEAR_KEYS);
+        payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(1, client.unassignCalls);
+        assertEquals(1, client.patchCalls);
+        assertNull(client.lastPatchStatus, "sync stamp must not touch the lifecycle status");
+        assertEquals("PENDING", client.lastPatchSyncStatus);
+    }
+
+    @Test
+    void unassignWithoutSyncStatusDoesNotPatch() {
+        FakeClient client = new FakeClient();
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", unassignPayload(CLEAR_KEYS));
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(0, client.patchCalls);
+    }
+
+    /** A refused unassign left the booking assigned — its sync state still describes reality. */
+    @Test
+    void unassign409SkipsTheSyncStamp() {
+        FakeClient client = new FakeClient();
+        client.unassignThrows = new CalendarBookingsHttpException(409, "past ASSIGNED");
+        var payload = unassignPayload(CLEAR_KEYS);
+        payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
+        assertEquals(0, client.patchCalls);
+    }
+
     /** Null and blank entries would silently target nothing — drop them. */
     @Test
     void unassignSkipsNullAndBlankKeys() {
@@ -556,6 +601,25 @@ class CalendarSyncExecutorTest {
         assertEquals(0, client.moveCalls, "ETD auto-pick never re-slots an existing booking");
         assertEquals(0, client.listAvailableCalls);
         assertEquals("IN_TRANSIT", client.lastPatchStatus);
+    }
+
+    /**
+     * The existing-booking path used to drop the payload's syncStatus (only the
+     * create path's applyStatus carried it), silently losing the confirmation
+     * window on any ensure that found its booking already there.
+     */
+    @Test
+    void ensureExistingForwardsSyncStatus() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of(booking(LocalDate.of(2026, 7, 16))); // 09:00
+        var payload = withExplicitSlot(ensurePayload("ASSIGNED"), LocalDate.of(2026, 7, 16), 9, 0);
+        payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(1, client.patchCalls);
+        assertEquals("PENDING", client.lastPatchSyncStatus);
     }
 
     @Test

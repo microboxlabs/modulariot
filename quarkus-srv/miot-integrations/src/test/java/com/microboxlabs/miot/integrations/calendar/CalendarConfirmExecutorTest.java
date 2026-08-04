@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Outcome policy for the calendar_confirm leg: stamp CONFIRMED on success,
  * benign-skip a vanished booking (404), propagate everything else for retry.
- * The chain-ordering guarantees (runs only after alerce_assignment SUCCEEDED)
+ * The chain-ordering guarantees (runs only after the dispatch leg SUCCEEDED)
  * live in the ledger's claim SQL, not here.
  */
 class CalendarConfirmExecutorTest {
@@ -42,6 +42,31 @@ class CalendarConfirmExecutorTest {
         assertNull(client.lastStatus);
         assertEquals(RESOURCE, client.lastResourceId);
         assertEquals(CAL, client.lastCalendarId);
+    }
+
+    /**
+     * The detail text is the enqueuer's: only it knows whether an assignment
+     * tuple or an unassignment's stand-in values were confirmed, and the
+     * partner's name is operator vocabulary this executor must not hardcode.
+     */
+    @Test
+    void confirmWritesThePayloadSyncDetail() {
+        FakeClient client = new FakeClient();
+        var p = payload();
+        p.put(CalendarConfirmFeature.PAYLOAD_SYNC_DETAIL, "TMS accepted the stand-in values");
+
+        new CalendarConfirmExecutor(client).handle("tenant-1", p);
+
+        assertEquals("TMS accepted the stand-in values", client.lastSyncDetail);
+    }
+
+    /** Producers that predate the field keep a generic, partner-neutral detail. */
+    @Test
+    void confirmFallsBackToGenericSyncDetail() {
+        FakeClient client = new FakeClient();
+        new CalendarConfirmExecutor(client).handle("tenant-1", payload());
+
+        assertEquals(CalendarConfirmFeature.DEFAULT_SYNC_DETAIL, client.lastSyncDetail);
     }
 
     @Test
@@ -78,6 +103,7 @@ class CalendarConfirmExecutorTest {
         UUID lastCalendarId;
         String lastStatus;
         String lastSyncStatus;
+        String lastSyncDetail;
 
         @Override
         public boolean isConfigured() {
@@ -93,6 +119,7 @@ class CalendarConfirmExecutorTest {
             lastCalendarId = calendarId;
             lastStatus = targetStatus;
             lastSyncStatus = syncStatus;
+            lastSyncDetail = syncDetail;
             if (patchThrows != null) {
                 throw patchThrows;
             }

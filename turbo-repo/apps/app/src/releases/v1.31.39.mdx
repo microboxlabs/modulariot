@@ -1,0 +1,38 @@
+# 🔔 Release Notes v1.31.39 — ModularIoT
+
+### Fecha: 04/08/2026
+
+**Objetivo**: Esta versión refuerza la calidad operativa del flujo de asignaciones en calendario para evitar despachos incompletos. Se prioriza que la selección de recursos críticos quede validada desde la interfaz antes de enviar la operación.
+
+## 🚀 Evolutivos
+
+- **📍 Remolque obligatorio al seleccionar camión en asignaciones de calendario**
+  - **Key point**: Se actualizó el formulario para que, al elegir un camión, la sección de remolque se abra automáticamente, su checkbox quede bloqueado en activo y el botón **Asignar** permanezca deshabilitado hasta seleccionar remolque.
+  - **Technical detail**: La regla compartida de validación queda en `carrier && driver && truck && (truck → trailer)`, incluyendo rehidratación de asignaciones persistidas con camión sin remolque para forzar visibilidad y completitud del dato. *(Integración OSS — MIOT-0.5.40)*
+
+## 📊 Beneficios
+
+- Reduce asignaciones incompletas desde el origen del flujo operativo.
+- Mejora la consistencia de datos que consumen integraciones y bindings aguas abajo.
+- Disminuye retrabajos manuales del operador para corregir remolques faltantes.
+- Refuerza validaciones de UI con una regla funcional explícita y reutilizable.
+- Alinea el comportamiento del formulario con la realidad de operación camión-remolque.
+- Mejora la confiabilidad de re-apertura de asignaciones persistidas en calendario.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.40`
+- **App**: `app@v0.5.40` (con cambios)
+- **Docs**: `docs@v0.5.40` (con cambios)
+- **Web**: `web@v0.5.40` (con cambios)
+- **Modulith**: `modulith@v0.5.24` (sin cambios)
+- **Harness**: `harness@v0.1.5` (sin cambios)
+- Los digests exactos de imágenes desplegadas están disponibles en el diálogo de información de build dentro de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La release `v1.31.39` consolida una mejora puntual pero de alto impacto en la calidad del proceso de asignación, asegurando que los recursos requeridos se completen antes de confirmar una operación.
+
+Con este ajuste, la plataforma reduce ambigüedad en la captura de datos y evita propagar valores de reemplazo no deseados en etapas posteriores de integración.
+
+En conjunto con el stack `0.5.40`, esta entrega mantiene estabilidad de componentes no modificados y concentra los cambios en superficies de producto y documentación con foco en operación diaria.

@@ -122,6 +122,21 @@ class IntegrationEventBindingServiceTest {
                 bindings.saved.get(0).responseTemplates().get("assignedDriver"));
     }
 
+    @Test
+    void assignmentBindingsMayReadTheDispatchContextRoots() {
+        var assignment = new UpsertIntegrationEventBindingRequest(
+                "calendar.resource_assignment", null, null, CONNECTION_ID, OPERATION_ID,
+                Map.of(),
+                Map.of("guidMultimedia", "{{service.code}}",
+                        "aprobado", "{{resourceData.mintral_serviceKind}}"),
+                Map.of(), null, null, true);
+
+        service().upsert(TENANT, CHILD_ORG, assignment, ACTOR);
+
+        assertEquals("{{service.code}}",
+                bindings.saved.get(0).fieldTemplates().get("guidMultimedia"));
+    }
+
     /** A review binding still cannot read job-payload roots — the roots are per event. */
     @Test
     void reviewBindingsStillCannotReadJobPayloadRoots() {

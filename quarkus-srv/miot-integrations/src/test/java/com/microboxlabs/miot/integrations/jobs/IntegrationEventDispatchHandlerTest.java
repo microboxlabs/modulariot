@@ -142,6 +142,19 @@ class IntegrationEventDispatchHandlerTest {
     }
 
     @Test
+    void aPayloadWithoutATenantUsesTheRowsTenant() {
+        // A producer outside this module enqueues without stamping the tenant into the
+        // payload — the ledger row already knows whose job it is.
+        bindings.armed = List.of(binding(true));
+        Map<String, Object> payload = eventAddressedPayload();
+        payload.remove(EventDispatchFeature.PAYLOAD_TENANT_CLIENT_ID);
+
+        JobOutcome outcome = handler().handle(TENANT, payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
+    }
+
+    @Test
     void skipsWhenNothingIsArmedForTheEvent() {
         bindings.armed = List.of();
 

@@ -1,0 +1,37 @@
+# 🔔 Release Notes v1.31.37 — ModularIoT
+
+### Fecha: 04/08/2026
+
+**Objetivo**: Fortalecer la confiabilidad de los flujos de integración en la versión `1.31.37`, alineada con el stack `0.5.38`. Esta entrega se enfoca en evitar envío de datos residuales en eventos enriquecidos y mantener consistencia en las cargas hacia sistemas externos.
+
+## 🐛 Correcciones
+
+- **🐛 Limpieza de claves mapeadas vacías en enriquecimiento de dispatch**
+  - **Impacto**: En `integration_event_dispatch`, cuando una resolución devolvía valores vacíos o nulos, podían conservarse claves antiguas del snapshot y terminar reenviando identificadores obsoletos en el body.
+  - **Solución**: El mapeo de escritura de enriquecimiento pasó a tratar sus claves como autoritativas: si una clave está mapeada pero no llega en los valores obtenidos, se elimina del contexto fusionado para que el renderizado omita ese campo vacío. *(Integración OSS — MIOT-0.5.38)*
+
+## 📊 Beneficios
+
+- Se reduce el riesgo de enviar identificadores desactualizados a partners externos.
+- Mejora la consistencia entre payloads enriquecidos y payloads construidos directamente por productores.
+- Disminuyen efectos colaterales por estado residual en snapshots de contexto.
+- Se refuerza la calidad operativa de flujos de reasignación con datos opcionales.
+- Se mantiene comportamiento controlado en escenarios donde la semántica de merge debe preservarse.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.38`
+- **App**: `app@v0.5.38` (con cambios)
+- **Docs**: `docs@v0.5.38` (con cambios)
+- **Web**: `web@v0.5.38` (con cambios)
+- **Modulith**: `modulith@v0.5.24` (con cambios)
+- **Harness**: `harness@v0.1.5` (sin cambios)
+- Los digests exactos de imágenes desplegadas están disponibles en el diálogo de información de build dentro de la app y en el asset `stack-manifest.json` de la release.
+
+## 📌 Conclusión
+
+La release `1.31.37` prioriza robustez en integraciones, corrigiendo un caso sensible de contaminación de datos por valores previos en contexto. Con este ajuste, los eventos enriquecidos reflejan mejor el estado real al momento de renderizar y despachar.
+
+A nivel de plataforma, este cambio mejora la confianza en automatizaciones industriales y reduce riesgos de inconsistencias aguas abajo en sistemas conectados.
+
+En conjunto con la actualización de componentes del stack `0.5.38`, la versión consolida una base más segura para operaciones continuas y escalables.

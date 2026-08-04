@@ -1,6 +1,6 @@
 {
   "name": "@modulariot/docs",
-  "version": "0.5.36",
+  "version": "0.5.38",
   "type": "module",
   "private": true,
   "scripts": {

@@ -1,0 +1,54 @@
+{
+  "stack_version": "0.5.38",
+  "stack_tag": "miot-stack@v0.5.38",
+  "milestone": "MIOT-0.5.38",
+  "pull_requests": [
+    {
+      "number": 1088,
+      "title": "fix(integrations): dispatch enrichment clears mapped keys the fetch resolved as empty",
+      "source_issues": [
+        {
+          "number": 1087,
+          "title": "fix(integrations): dispatch enrichment must clear mapped keys the fetch resolved as empty"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/jobs/IntegrationEventDispatchHandler.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/EventBindingFetchService.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/jobs/IntegrationEventDispatchHandlerTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/EventBindingFetchServiceTest.java"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.38",
+      "tag": "app@v0.5.38"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.36",
+      "version": "0.5.38",
+      "tag": "docs@v0.5.38"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.36",
+      "version": "0.5.38",
+      "tag": "web@v0.5.38"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.23",
+      "version": "0.5.24",
+      "tag": "modulith@v0.5.24"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.5",
+      "version": "0.1.5",
+      "tag": "harness@v0.1.5"
+    }
+  }
+}

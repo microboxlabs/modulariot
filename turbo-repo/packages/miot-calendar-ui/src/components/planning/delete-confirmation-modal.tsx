@@ -16,6 +16,7 @@ export interface DeleteConfirmationModalMessages {
 
 interface DeleteConfirmationModalProps<TItem extends { id: string } = CalendarItem> {
   isOpen: boolean;
+  isProcessing: boolean;
   plannedService: PlannedService<TItem> | null;
   messages: DeleteConfirmationModalMessages;
   onConfirm: (plannedService: PlannedService<TItem>) => void;
@@ -65,6 +66,7 @@ export function DeleteConfirmationModal<
   TItem extends { id: string } = CalendarItem,
 >({
   isOpen,
+  isProcessing,
   plannedService,
   messages,
   onConfirm,
@@ -81,6 +83,7 @@ export function DeleteConfirmationModal<
       isOpen={isOpen}
       onClose={onCancel}
       onConfirm={handleConfirm}
+      isProcessing={isProcessing}
       title={messages.title}
       description={
         <>

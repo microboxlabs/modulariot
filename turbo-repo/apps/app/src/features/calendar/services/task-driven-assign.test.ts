@@ -1,18 +1,16 @@
 /**
- * P3 — task-driven ASSIGN / UNASSIGN helper coverage.
+ * Task-driven ASSIGN / UNASSIGN helper coverage.
  *
  * Three pure functions:
  *   - `buildAssignProcessVariables` — maps a `SelectedService`-shaped tuple
  *     to the snake_case `processVariables` payload (P0 spike §2.4).
- *   - `decideAssignTaskAdvance` — flag + transition gate for the assign
- *     move (only fires for task-driven origins on the
- *     `assignDriver → presentDriver` transition).
- *   - `getTaskDrivenUnassignTransition` — flag-aware presentDriver →
- *     assignDriver outcome for the unassign move.
+ *   - `decideAssignTaskAdvance` — transition gate for the assign move
+ *     (fires only on the `assignDriver → presentDriver` transition).
+ *   - `getTaskDrivenUnassignTransition` — presentDriver → assignDriver
+ *     outcome for the unassign move.
  *
- * The enabled-origins set is injected by the caller (planning provider
- * reads `useTaskDrivenOrigins`); tests pass it explicitly to keep the
- * helpers pure.
+ * The per-origin TASK_DRIVEN_ORIGINS rollout gate was removed once every
+ * origin migrated — the workflow move is the only path.
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -21,9 +19,6 @@ import {
   decidePresentedReassign,
   getTaskDrivenUnassignTransition,
 } from "./task-driven-assign";
-
-const FLAG_ON = new Set(["ANTOFAGASTA"]);
-const FLAG_OFF = new Set<string>();
 
 const FULL_TUPLE = {
   assignedCarrier: "carrier-uuid",
@@ -93,14 +88,9 @@ describe("buildAssignProcessVariables", () => {
   });
 });
 
-describe("decideAssignTaskAdvance — P3 assign flag gating", () => {
-  it("flag ON + assignDriver→presentDriver transition: returns the tuple", () => {
-    const vars = decideAssignTaskAdvance(
-      "Presentar Conductor",
-      "ANTOFAGASTA",
-      FULL_TUPLE,
-      FLAG_ON
-    );
+describe("decideAssignTaskAdvance — transition gating", () => {
+  it("assignDriver→presentDriver transition: returns the tuple", () => {
+    const vars = decideAssignTaskAdvance("Presentar Conductor", FULL_TUPLE);
     expect(vars).toMatchObject({
       carrier_id: "carrier-uuid",
       driver_id: "driver-uuid",
@@ -109,66 +99,27 @@ describe("decideAssignTaskAdvance — P3 assign flag gating", () => {
     });
   });
 
-  it("flag ON + non-assign transition (PLAN move): returns null", () => {
+  it("non-assign transition (PLAN move): returns null", () => {
     expect(
-      decideAssignTaskAdvance(
-        "Asignar Conductor/Transporte",
-        "ANTOFAGASTA",
-        FULL_TUPLE,
-        FLAG_ON
-      )
+      decideAssignTaskAdvance("Asignar Conductor/Transporte", FULL_TUPLE)
     ).toBeNull();
   });
 
-  it("flag OFF: returns null even for the assignDriver→presentDriver transition", () => {
+  it("incomplete tuple: returns null (caller falls back to plain GET advance)", () => {
     expect(
-      decideAssignTaskAdvance(
-        "Presentar Conductor",
-        "CALAMA",
-        FULL_TUPLE,
-        FLAG_ON
-      )
-    ).toBeNull();
-  });
-
-  it("empty enabled set: every origin is treated as flag-off", () => {
-    expect(
-      decideAssignTaskAdvance(
-        "Presentar Conductor",
-        "ANTOFAGASTA",
-        FULL_TUPLE,
-        FLAG_OFF
-      )
-    ).toBeNull();
-  });
-
-  it("flag ON + incomplete tuple: returns null (caller falls back to plain GET advance)", () => {
-    expect(
-      decideAssignTaskAdvance(
-        "Presentar Conductor",
-        "ANTOFAGASTA",
-        {
-          assignedCarrier: "c",
-          assignedDriver: "d",
-          // no truck
-          mintral_serviceType: "Sider",
-        },
-        FLAG_ON
-      )
+      decideAssignTaskAdvance("Presentar Conductor", {
+        assignedCarrier: "c",
+        assignedDriver: "d",
+        // no truck
+        mintral_serviceType: "Sider",
+      })
     ).toBeNull();
   });
 });
 
 describe("decidePresentedReassign — re-push a change on an already-presented service", () => {
-  it("flag ON + stage=presentDriver + full tuple: returns the re-push tuple", () => {
-    expect(
-      decidePresentedReassign(
-        "presentDriver",
-        "ANTOFAGASTA",
-        FULL_TUPLE,
-        FLAG_ON
-      )
-    ).toMatchObject({
+  it("stage=presentDriver + full tuple: returns the re-push tuple", () => {
+    expect(decidePresentedReassign("presentDriver", FULL_TUPLE)).toMatchObject({
       carrier_id: "carrier-uuid",
       driver_id: "driver-uuid",
       truck_id: "truck-uuid",
@@ -177,75 +128,32 @@ describe("decidePresentedReassign — re-push a change on an already-presented s
   });
 
   it("stage=assignDriver (first-time assign): returns null — the forward edge already carries it", () => {
-    expect(
-      decidePresentedReassign("assignDriver", "ANTOFAGASTA", FULL_TUPLE, FLAG_ON)
-    ).toBeNull();
+    expect(decidePresentedReassign("assignDriver", FULL_TUPLE)).toBeNull();
   });
 
   it("stage=planService: returns null", () => {
-    expect(
-      decidePresentedReassign("planService", "ANTOFAGASTA", FULL_TUPLE, FLAG_ON)
-    ).toBeNull();
-  });
-
-  it("flag OFF origin: returns null (un-migrated origins unchanged)", () => {
-    expect(
-      decidePresentedReassign("presentDriver", "CALAMA", FULL_TUPLE, FLAG_ON)
-    ).toBeNull();
-  });
-
-  it("empty enabled set: every origin is treated as flag-off", () => {
-    expect(
-      decidePresentedReassign("presentDriver", "ANTOFAGASTA", FULL_TUPLE, FLAG_OFF)
-    ).toBeNull();
-  });
-
-  it("missing origin: treated as flag-off", () => {
-    expect(
-      decidePresentedReassign("presentDriver", undefined, FULL_TUPLE, FLAG_ON)
-    ).toBeNull();
+    expect(decidePresentedReassign("planService", FULL_TUPLE)).toBeNull();
   });
 
   it("presentDriver but incomplete tuple: returns null (nothing valid to re-push)", () => {
     expect(
-      decidePresentedReassign(
-        "presentDriver",
-        "ANTOFAGASTA",
-        { assignedCarrier: "c", assignedDriver: "d", mintral_serviceType: "Sider" },
-        FLAG_ON
-      )
+      decidePresentedReassign("presentDriver", {
+        assignedCarrier: "c",
+        assignedDriver: "d",
+        mintral_serviceType: "Sider",
+      })
     ).toBeNull();
   });
 });
 
-describe("getTaskDrivenUnassignTransition — P3 unassign flag gating", () => {
-  it("flag ON + stage=presentDriver: returns the BPMN outcome", () => {
-    expect(
-      getTaskDrivenUnassignTransition("presentDriver", "ANTOFAGASTA", FLAG_ON)
-    ).toBe("Asignar Conductor/Transporte");
+describe("getTaskDrivenUnassignTransition — unassign stage gating", () => {
+  it("stage=presentDriver: returns the BPMN outcome", () => {
+    expect(getTaskDrivenUnassignTransition("presentDriver")).toBe(
+      "Asignar Conductor/Transporte"
+    );
   });
 
-  it("flag ON + stage=assignDriver: returns undefined (caller uses legacy map)", () => {
-    expect(
-      getTaskDrivenUnassignTransition("assignDriver", "ANTOFAGASTA", FLAG_ON)
-    ).toBeUndefined();
-  });
-
-  it("flag OFF + stage=presentDriver: returns undefined (no change for un-migrated origins)", () => {
-    expect(
-      getTaskDrivenUnassignTransition("presentDriver", "CALAMA", FLAG_ON)
-    ).toBeUndefined();
-  });
-
-  it("empty enabled set: every origin is treated as flag-off", () => {
-    expect(
-      getTaskDrivenUnassignTransition("presentDriver", "ANTOFAGASTA", FLAG_OFF)
-    ).toBeUndefined();
-  });
-
-  it("missing origin: treated as flag-off", () => {
-    expect(
-      getTaskDrivenUnassignTransition("presentDriver", undefined, FLAG_ON)
-    ).toBeUndefined();
+  it("stage=assignDriver: returns undefined (caller uses the stage map)", () => {
+    expect(getTaskDrivenUnassignTransition("assignDriver")).toBeUndefined();
   });
 });

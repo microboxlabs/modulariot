@@ -5,17 +5,13 @@
  *   - `buildPlanProcessVariables` — assembles the slot tuple (calendar_id +
  *     slot_date/hour/minutes as strings) the ECM `OnCreateAssignDriverBinding`
  *     listener consumes to write the `cld_bookings` row.
- *   - `decidePlanTaskAdvance` — flag + transition gate for the plan move
- *     (only fires for task-driven origins on the
- *     `planService → assignDriver` outcome, `Asignar Conductor/Transporte`).
+ *   - `decidePlanTaskAdvance` — transition gate for the plan move (fires
+ *     only on the `planService → assignDriver` outcome,
+ *     `Asignar Conductor/Transporte`).
  *
  * Presence of these vars on the task move is the FE signal to SKIP the BFF
  * `POST /app/api/calendar/bookings` write — verified at the call site in
  * `planning-selection-context.tsx` via `isTaskDrivenPlanCreate`.
- *
- * The enabled-origins set is injected by the caller (planning provider
- * reads `useTaskDrivenOrigins`); tests pass it explicitly to keep the
- * helpers pure.
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -24,8 +20,6 @@ import {
 } from "./task-driven-plan";
 
 const CAL = "4b929627-35a8-4371-9cf1-065bcd6867f0";
-const FLAG_ON = new Set(["SCL"]);
-const FLAG_OFF = new Set<string>();
 
 describe("buildPlanProcessVariables", () => {
   it("formats the slot tuple as strings with YYYY-MM-DD (local) date", () => {
@@ -101,18 +95,12 @@ describe("buildPlanProcessVariables", () => {
   });
 });
 
-describe("decidePlanTaskAdvance — plan-side flag gating", () => {
+describe("decidePlanTaskAdvance — transition gating", () => {
   const slot = { date: new Date(2026, 4, 27, 9, 15), hour: 9, minutes: 15 };
 
-  it("flag ON + planService→assignDriver transition: returns the tuple", () => {
+  it("planService→assignDriver transition: returns the tuple", () => {
     expect(
-      decidePlanTaskAdvance(
-        "Asignar Conductor/Transporte",
-        "SCL",
-        CAL,
-        slot,
-        FLAG_ON
-      )
+      decidePlanTaskAdvance("Asignar Conductor/Transporte", CAL, slot)
     ).toEqual({
       calendar_id: CAL,
       slot_date: "2026-05-27",
@@ -121,14 +109,12 @@ describe("decidePlanTaskAdvance — plan-side flag gating", () => {
     });
   });
 
-  it("flag ON + serviceCategory: includes mintral_serviceCategory in the tuple", () => {
+  it("serviceCategory: includes mintral_serviceCategory in the tuple", () => {
     expect(
       decidePlanTaskAdvance(
         "Asignar Conductor/Transporte",
-        "SCL",
         CAL,
         slot,
-        FLAG_ON,
         "TRUNK_SUPPLY"
       )
     ).toEqual({
@@ -140,57 +126,15 @@ describe("decidePlanTaskAdvance — plan-side flag gating", () => {
     });
   });
 
-  it("flag ON + non-plan transition (ASSIGN move): returns null", () => {
+  it("non-plan transition (ASSIGN move): returns null", () => {
     expect(
-      decidePlanTaskAdvance("Presentar Conductor", "SCL", CAL, slot, FLAG_ON)
+      decidePlanTaskAdvance("Presentar Conductor", CAL, slot)
     ).toBeNull();
   });
 
-  it("flag OFF: returns null even on the plan transition", () => {
+  it("missing calendarId: returns null", () => {
     expect(
-      decidePlanTaskAdvance(
-        "Asignar Conductor/Transporte",
-        "ANTOFAGASTA",
-        CAL,
-        slot,
-        FLAG_ON
-      )
-    ).toBeNull();
-  });
-
-  it("empty enabled set: every origin is treated as flag-off", () => {
-    expect(
-      decidePlanTaskAdvance(
-        "Asignar Conductor/Transporte",
-        "SCL",
-        CAL,
-        slot,
-        FLAG_OFF
-      )
-    ).toBeNull();
-  });
-
-  it("flag ON + missing calendarId: returns null", () => {
-    expect(
-      decidePlanTaskAdvance(
-        "Asignar Conductor/Transporte",
-        "SCL",
-        undefined,
-        slot,
-        FLAG_ON
-      )
-    ).toBeNull();
-  });
-
-  it("flag ON + missing origin: returns null", () => {
-    expect(
-      decidePlanTaskAdvance(
-        "Asignar Conductor/Transporte",
-        undefined,
-        CAL,
-        slot,
-        FLAG_ON
-      )
+      decidePlanTaskAdvance("Asignar Conductor/Transporte", undefined, slot)
     ).toBeNull();
   });
 });

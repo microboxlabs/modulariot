@@ -1,7 +1,6 @@
 import type { PlanProcessVariables } from "@/features/common/providers/client-api.provider";
 import type { TaskStage } from "../components/planning/planning-selection-types";
 import { canReplanAtStage } from "./task-driven-guard";
-import { isOriginTaskDriven } from "./task-driven-origin";
 import {
   buildPlanProcessVariables,
   type PlanSlotInput,
@@ -38,24 +37,19 @@ export type ReplanPlan = { edges: ReplanEdge[] };
  * - `assignDriver` / `prepareService` → out to `planService` first, then back
  *   in carrying the slot.
  *
- * Returns `null` when this is not a task-driven re-plan we can drive: a
- * flag-off origin, a stage past the trip start (see {@link canReplanAtStage}),
- * `planService` (nothing planned yet to re-plan), or a missing calendar. The
- * caller then keeps its legacy behaviour.
+ * Returns `null` when this is not a re-plan we can drive: a stage past the
+ * trip start (see {@link canReplanAtStage}), `planService` (nothing planned
+ * yet to re-plan), or a missing calendar.
  */
 export function decideReplan(input: {
   stage: TaskStage | undefined;
-  origin: string | undefined;
   calendarId: string | undefined;
   slot: PlanSlotInput;
-  enabledOrigins: ReadonlySet<string>;
   serviceCategory?: string;
 }): ReplanPlan | null {
-  const { stage, origin, calendarId, slot, enabledOrigins, serviceCategory } =
-    input;
+  const { stage, calendarId, slot, serviceCategory } = input;
   if (!stage) return null;
-  if (!isOriginTaskDriven(origin, enabledOrigins)) return null;
-  if (!canReplanAtStage(stage, origin, enabledOrigins)) return null;
+  if (!canReplanAtStage(stage)) return null;
 
   const slotVars = buildPlanProcessVariables(calendarId, slot, serviceCategory);
   if (!slotVars) return null;

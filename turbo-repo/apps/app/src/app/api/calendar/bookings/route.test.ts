@@ -1,24 +1,18 @@
 /**
- * P2 — Plan-path flag gating tests for the bookings BFF.
+ * Bookings BFF: the route never notifies ECM synchronously. The legacy
+ * `/mintral/calendar/binding` call (`runCalendarBinding`) and its
+ * cancel-booking compensation were removed with the TASK_DRIVEN_ORIGINS
+ * rollout flag once every origin migrated — ECM's task listeners reconcile
+ * the binding, and the TMS push rides the modulith job ledger, off the
+ * workflow task move alone.
  *
- * Covers the only behavioral change in P2 on this route: when the per-origin
- * task-driven flag is ON for the booking's origin, the call to ECM
- * `/mintral/calendar/binding` (`runCalendarBinding`) is skipped entirely and
- * its compensation branch is dead. When the flag is OFF, the route's
- * behavior is byte-for-byte unchanged from the pre-P2 path.
- *
- * Heavy collaborators (auth, miot-calendar client, the binding helper) are
- * mocked at the module level so the test stays focused on the gating
- * decision; the helpers themselves are exercised by their own unit tests.
+ * Heavy collaborators (auth, miot-calendar client, endTask) are mocked at
+ * the module level so the test stays focused on the route's own behavior.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-
-const ENV_KEY = "TASK_DRIVEN_ORIGINS";
-const ORIGINAL_ENV = process.env[ENV_KEY];
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 const requireAuthMock = vi.fn();
 const requireAnyGroupMock = vi.fn();
-const runCalendarBindingMock = vi.fn();
 const endTaskMock = vi.fn();
 const createMiotCalendarClientMock = vi.fn();
 const bookingsCreateMock = vi.fn();
@@ -29,10 +23,6 @@ const bookingsListMock = vi.fn();
 vi.mock("../../utils/alfresco-crud-client", () => ({
   requireAuth: (...args: unknown[]) => requireAuthMock(...args),
   requireAnyGroup: (...args: unknown[]) => requireAnyGroupMock(...args),
-}));
-
-vi.mock("./binding-helpers", () => ({
-  runCalendarBinding: (...args: unknown[]) => runCalendarBindingMock(...args),
 }));
 
 vi.mock("@/features/common/providers/alfresco-api/alfresco-api.provider", () => ({
@@ -63,16 +53,9 @@ vi.mock("@microboxlabs/miot-calendar-client", () => ({
 }));
 
 async function loadRoute() {
-  // Fresh import so each test picks up the current env state (the route
-  // reads TASK_DRIVEN_ORIGINS per-request via parseTaskDrivenOrigins, but
-  // resetting modules also avoids any cached state from prior tests
-  // bleeding in).
   vi.resetModules();
   return import("./route");
 }
-
-const TASK_DRIVEN_ORIGIN = "ANTOFAGASTA";
-const LEGACY_ORIGIN = "CALAMA";
 
 type WireProcessVariables = {
   carrier_id: string;
@@ -85,7 +68,6 @@ type WireProcessVariables = {
 };
 
 function makeBookingRequest(overrides: {
-  origen?: string;
   taskAdvance?: { taskId: string; transitionId: string };
   processVariables?: WireProcessVariables;
 }) {
@@ -106,10 +88,7 @@ function makeBookingRequest(overrides: {
         id: "svc-001",
         type: "service",
         label: "Cliente Demo",
-        data: {
-          mintral_serviceCode: "SVC-001",
-          origen: overrides.origen ?? LEGACY_ORIGIN,
-        },
+        data: { mintral_serviceCode: "SVC-001", origen: "ANTOFAGASTA" },
       },
       slot: { date: "2026-06-01", hour: 9, minutes: 0 },
       ...(advance ? { taskAdvance: advance } : {}),
@@ -117,10 +96,9 @@ function makeBookingRequest(overrides: {
   });
 }
 
-describe("bookings POST — P2 plan-path task-driven flag gating", () => {
+describe("bookings POST — task-driven only (no synchronous binding call)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env[ENV_KEY] = TASK_DRIVEN_ORIGIN;
 
     requireAnyGroupMock.mockResolvedValue({
       authorized: true,
@@ -140,41 +118,28 @@ describe("bookings POST — P2 plan-path task-driven flag gating", () => {
         list: bookingsListMock,
       },
     });
-    runCalendarBindingMock.mockResolvedValue({ ok: true });
     endTaskMock.mockResolvedValue(undefined);
   });
 
-  afterEach(() => {
-    if (ORIGINAL_ENV === undefined) {
-      delete process.env[ENV_KEY];
-    } else {
-      process.env[ENV_KEY] = ORIGINAL_ENV;
-    }
-  });
-
-  it("flag ON: skips runCalendarBinding for the task-driven origin (plan)", async () => {
+  it("creates the booking with no coordinator notification and no compensation", async () => {
     const { POST } = await loadRoute();
-    const response = await POST(makeBookingRequest({ origen: TASK_DRIVEN_ORIGIN }));
+    const response = await POST(makeBookingRequest({}));
 
     expect(response.status).toBe(201);
     expect(bookingsCreateMock).toHaveBeenCalledTimes(1);
-    expect(runCalendarBindingMock).not.toHaveBeenCalled();
-    // The cancel-booking-on-binding-failure compensation cannot run when no
-    // binding call ran — the booking stays as written.
+    // No binding call exists any more, so no cancel-on-binding-failure either.
     expect(bookingsCancelMock).not.toHaveBeenCalled();
   });
 
-  it("flag ON: still advances the workflow task when taskAdvance is present", async () => {
+  it("advances the workflow task when taskAdvance is present", async () => {
     const { POST } = await loadRoute();
     const response = await POST(
       makeBookingRequest({
-        origen: TASK_DRIVEN_ORIGIN,
         taskAdvance: { taskId: "task-1", transitionId: "Next" },
       })
     );
 
     expect(response.status).toBe(201);
-    expect(runCalendarBindingMock).not.toHaveBeenCalled();
     // No `processVariables` on this taskAdvance: the BFF forwards
     // `undefined` to endTask so the provider stays on the legacy GET.
     expect(endTaskMock).toHaveBeenCalledWith(
@@ -185,77 +150,10 @@ describe("bookings POST — P2 plan-path task-driven flag gating", () => {
     );
   });
 
-  it("flag OFF: keeps calling runCalendarBinding for non-task-driven origin (plan)", async () => {
-    const { POST } = await loadRoute();
-    const response = await POST(makeBookingRequest({ origen: LEGACY_ORIGIN }));
-
-    expect(response.status).toBe(201);
-    expect(bookingsCreateMock).toHaveBeenCalledTimes(1);
-    expect(runCalendarBindingMock).toHaveBeenCalledTimes(1);
-    const payloadArg = runCalendarBindingMock.mock.calls[0][1];
-    expect(payloadArg).toMatchObject({
-      numero_servicio: "SVC-001",
-      calendar_id: "cal-001",
-      stage: "planned",
-    });
-  });
-
-  it("flag OFF: a binding failure still cancels the just-created booking (compensation alive)", async () => {
-    runCalendarBindingMock.mockResolvedValue({
-      ok: false,
-      status: 502,
-      message: "ECM down",
-    });
-    const { POST } = await loadRoute();
-    const response = await POST(makeBookingRequest({ origen: LEGACY_ORIGIN }));
-
-    expect(response.status).toBe(502);
-    expect(bookingsCancelMock).toHaveBeenCalledWith("booking-001");
-    const body = await response.json();
-    expect(body).toMatchObject({
-      error: "ECM down",
-      calendarBindingFailed: true,
-      bookingCompensated: true,
-    });
-  });
-
-  it("env unset: every origin is treated as flag-off (default)", async () => {
-    delete process.env[ENV_KEY];
-    const { POST } = await loadRoute();
-    const response = await POST(makeBookingRequest({ origen: TASK_DRIVEN_ORIGIN }));
-
-    expect(response.status).toBe(201);
-    expect(runCalendarBindingMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("origin missing from resource.data: falls through to today's binding call", async () => {
-    const request = new Request("http://localhost/api/calendar/bookings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        calendarId: "cal-001",
-        resource: {
-          id: "svc-001",
-          type: "service",
-          label: "Cliente Demo",
-          data: { mintral_serviceCode: "SVC-001" },
-        },
-        slot: { date: "2026-06-01", hour: 9, minutes: 0 },
-      }),
-    });
-
-    const { POST } = await loadRoute();
-    const response = await POST(request);
-
-    expect(response.status).toBe(201);
-    expect(runCalendarBindingMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("flag ON + ASSIGN move: forwards processVariables to endTask (POST body), no binding call", async () => {
+  it("ASSIGN move: forwards processVariables to endTask (POST body)", async () => {
     const { POST } = await loadRoute();
     const response = await POST(
       makeBookingRequest({
-        origen: TASK_DRIVEN_ORIGIN,
         taskAdvance: {
           taskId: "task-1",
           transitionId: "Presentar Conductor",
@@ -273,7 +171,6 @@ describe("bookings POST — P2 plan-path task-driven flag gating", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(runCalendarBindingMock).not.toHaveBeenCalled();
     expect(endTaskMock).toHaveBeenCalledTimes(1);
     expect(endTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({ user: expect.any(Object) }),
@@ -291,36 +188,21 @@ describe("bookings POST — P2 plan-path task-driven flag gating", () => {
     );
   });
 
-  it("flag OFF + ASSIGN move: runs binding call AND a GET endTask (no processVariables on the wire)", async () => {
+  it("a failed task advance still compensates the just-created booking", async () => {
+    endTaskMock.mockRejectedValue(new Error("workflow down"));
     const { POST } = await loadRoute();
     const response = await POST(
       makeBookingRequest({
-        origen: LEGACY_ORIGIN,
-        taskAdvance: {
-          taskId: "task-1",
-          transitionId: "Presentar Conductor",
-        },
-        // Even if the caller (defensively) supplies a tuple, the BFF's
-        // gating decision is on origin — for flag-off, the binding call
-        // runs and endTask is called WITHOUT processVariables (today's GET).
-        processVariables: {
-          carrier_id: "carrier-uuid",
-          driver_id: "driver-uuid",
-          driver2_id: null,
-          truck_id: "truck-uuid",
-          trailer_id: null,
-          carrier_external_id: null,
-          tipo_servicio: "SIDER",
-        },
+        taskAdvance: { taskId: "task-1", transitionId: "Next" },
       })
     );
 
-    expect(response.status).toBe(201);
-    expect(runCalendarBindingMock).toHaveBeenCalledTimes(1);
-    // The BFF still threads the processVariables it received onto endTask
-    // (the gate is at the FE — the planner only attaches the tuple when
-    // the origin is task-driven). What's load-bearing here is that the
-    // binding call STILL fires for legacy origins regardless.
-    expect(endTaskMock).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(502);
+    expect(bookingsCancelMock).toHaveBeenCalledWith("booking-001");
+    const body = await response.json();
+    expect(body).toMatchObject({
+      taskAdvanceFailed: true,
+      bookingCompensated: true,
+    });
   });
 });

@@ -1,36 +1,24 @@
 /**
- * Move-path flag gating tests for the bookings move BFF.
+ * Bookings move BFF: every move is slot-only apart from the planner-owned
+ * fields (serviceCategory, _anden) merged onto the PERSISTED resource — ECM
+ * owns the binding and the booking payload via the async-job ledger, so the
+ * legacy full-body move, its `/mintral/calendar/binding` call and the
+ * reverse-move compensation are gone (removed with the ORIGINS
+ * rollout flag once every origin migrated).
  *
- * When the per-origin task-driven flag is ON for the booking's origin, the
- * move is forwarded slot-only (the planner's frozen resource blob is never
- * merged onto the booking) and the ECM `/mintral/calendar/binding` call —
- * with its reverse-move compensation — is skipped entirely: ECM owns both
- * the binding and the booking payload via the async-job ledger. When the
- * flag is OFF, the route's behavior is byte-for-byte unchanged: full-body
- * move, binding call derived from the moved booking, reverse-move
- * compensation on binding failure.
- *
- * Heavy collaborators (auth, miot-calendar client, the binding helper) are
- * mocked at the module level so the test stays focused on the gating
- * decision; the helpers themselves are exercised by their own unit tests.
+ * Heavy collaborators (auth, miot-calendar client) are mocked at the module
+ * level so the test stays focused on the route's own behavior.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
-const ENV_KEY = "TASK_DRIVEN_ORIGINS";
-const ORIGINAL_ENV = process.env[ENV_KEY];
 
 const requireAnyGroupMock = vi.fn();
-const runCalendarBindingMock = vi.fn();
 const createMiotCalendarClientMock = vi.fn();
 const bookingsGetMock = vi.fn();
 const bookingsMoveMock = vi.fn();
 
 vi.mock("../../../../utils/alfresco-crud-client", () => ({
   requireAnyGroup: (...args: unknown[]) => requireAnyGroupMock(...args),
-}));
-
-vi.mock("../../binding-helpers", () => ({
-  runCalendarBinding: (...args: unknown[]) => runCalendarBindingMock(...args),
 }));
 
 vi.mock("@/lib/logger", () => ({
@@ -61,8 +49,7 @@ async function loadRoute() {
   return import("./route");
 }
 
-const TASK_DRIVEN_ORIGIN = "ANF";
-const LEGACY_ORIGIN = "SCL";
+const ORIGIN = "ANF";
 const BOOKING_ID = "bk-001";
 
 const ASSIGNMENT_TUPLE = {
@@ -123,7 +110,7 @@ function makeMoveBody(origen: string, data: Record<string, unknown> = {}) {
 
 const routeParams = { params: Promise.resolve({ bookingId: BOOKING_ID }) };
 
-describe("bookings move POST — task-driven flag gating", () => {
+describe("bookings move POST — slot-only with planner-owned overlays", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAnyGroupMock.mockResolvedValue({
@@ -136,75 +123,16 @@ describe("bookings move POST — task-driven flag gating", () => {
         move: bookingsMoveMock,
       },
     });
-    runCalendarBindingMock.mockResolvedValue({ ok: true });
   });
 
-  afterEach(() => {
-    if (ORIGINAL_ENV === undefined) {
-      delete process.env[ENV_KEY];
-    } else {
-      process.env[ENV_KEY] = ORIGINAL_ENV;
-    }
-  });
 
-  it("flag OFF: forwards the full body and fires the assigned-stage binding", async () => {
-    delete process.env[ENV_KEY];
-    const snapshot = makeBooking(LEGACY_ORIGIN);
-    const body = makeMoveBody(LEGACY_ORIGIN, ASSIGNMENT_TUPLE);
-    const moved = makeBooking(LEGACY_ORIGIN, ASSIGNMENT_TUPLE);
-    bookingsGetMock.mockResolvedValue(snapshot);
-    bookingsMoveMock.mockResolvedValue(moved);
-
-    const { POST } = await loadRoute();
-    const response = await POST(makeMoveRequest(body), routeParams);
-
-    expect(response.status).toBe(200);
-    expect(bookingsMoveMock).toHaveBeenCalledWith(BOOKING_ID, body);
-    expect(runCalendarBindingMock).toHaveBeenCalledTimes(1);
-    const [, payload] = runCalendarBindingMock.mock.calls[0];
-    expect(payload).toMatchObject({
-      numero_servicio: "1586586",
-      stage: "assigned",
-      carrier_id: "carrier-uuid",
-    });
-  });
-
-  it("flag OFF: reverses the move when the binding call fails", async () => {
-    delete process.env[ENV_KEY];
-    const snapshot = makeBooking(LEGACY_ORIGIN);
-    const body = makeMoveBody(LEGACY_ORIGIN, ASSIGNMENT_TUPLE);
-    bookingsGetMock.mockResolvedValue(snapshot);
-    bookingsMoveMock.mockResolvedValue(makeBooking(LEGACY_ORIGIN, ASSIGNMENT_TUPLE));
-    runCalendarBindingMock.mockResolvedValue({
-      ok: false,
-      status: 502,
-      message: "Alerce push failed",
-    });
-
-    const { POST } = await loadRoute();
-    const response = await POST(makeMoveRequest(body), routeParams);
-
-    expect(response.status).toBe(502);
-    await expect(response.json()).resolves.toMatchObject({
-      calendarBindingFailed: true,
-      bookingCompensated: true,
-    });
-    // Second move call is the compensation, restoring the snapshot state.
-    expect(bookingsMoveMock).toHaveBeenCalledTimes(2);
-    expect(bookingsMoveMock).toHaveBeenLastCalledWith(BOOKING_ID, {
-      slot: snapshot.slot,
-      resource: snapshot.resource,
-    });
-  });
-
-  it("flag ON: forwards a slot-only move and never calls the binding", async () => {
-    process.env[ENV_KEY] = TASK_DRIVEN_ORIGIN;
-    const snapshot = makeBooking(TASK_DRIVEN_ORIGIN);
+  it("forwards a slot-only move (stale drag tuple never reaches the calendar)", async () => {
+    const snapshot = makeBooking(ORIGIN);
     // The drag payload still carries a (possibly stale) assignment tuple —
-    // it must not reach the calendar service nor trigger an Alerce push.
-    const body = makeMoveBody(TASK_DRIVEN_ORIGIN, ASSIGNMENT_TUPLE);
+    // it must not reach the calendar service nor trigger a TMS push.
+    const body = makeMoveBody(ORIGIN, ASSIGNMENT_TUPLE);
     bookingsGetMock.mockResolvedValue(snapshot);
-    bookingsMoveMock.mockResolvedValue(makeBooking(TASK_DRIVEN_ORIGIN));
+    bookingsMoveMock.mockResolvedValue(makeBooking(ORIGIN));
 
     const { POST } = await loadRoute();
     const response = await POST(makeMoveRequest(body), routeParams);
@@ -214,7 +142,6 @@ describe("bookings move POST — task-driven flag gating", () => {
     expect(bookingsMoveMock).toHaveBeenCalledWith(BOOKING_ID, {
       slot: body.slot,
     });
-    expect(runCalendarBindingMock).not.toHaveBeenCalled();
   });
 
   // Regression: a task-driven move used to drop the resource blob wholesale, so
@@ -222,17 +149,16 @@ describe("bookings move POST — task-driven flag gating", () => {
   // and the grid renders from the booking row — and silently vanished on the
   // next page load. They now ride the move, merged onto the PERSISTED resource
   // so ECM's fields stay authoritative and no `assigned*` field ever leaks.
-  it("flag ON: merges serviceCategory onto the persisted resource, dropping the tuple", async () => {
-    process.env[ENV_KEY] = TASK_DRIVEN_ORIGIN;
-    const snapshot = makeBooking(TASK_DRIVEN_ORIGIN, {
+  it("merges serviceCategory onto the persisted resource, dropping the tuple", async () => {
+    const snapshot = makeBooking(ORIGIN, {
       mintral_serviceKind: "rampla",
     });
-    const body = makeMoveBody(TASK_DRIVEN_ORIGIN, {
+    const body = makeMoveBody(ORIGIN, {
       ...ASSIGNMENT_TUPLE,
       serviceCategory: "DIRECT_PICKUP",
     });
     bookingsGetMock.mockResolvedValue(snapshot);
-    bookingsMoveMock.mockResolvedValue(makeBooking(TASK_DRIVEN_ORIGIN));
+    bookingsMoveMock.mockResolvedValue(makeBooking(ORIGIN));
 
     const { POST } = await loadRoute();
     const response = await POST(makeMoveRequest(body), routeParams);
@@ -247,7 +173,7 @@ describe("bookings move POST — task-driven flag gating", () => {
         data: {
           // ECM-owned fields survive untouched...
           mintral_serviceCode: "1586586",
-          origen: TASK_DRIVEN_ORIGIN,
+          origen: ORIGIN,
           mintral_serviceKind: "rampla",
           // ...and the planner's choice now persists.
           serviceCategory: "DIRECT_PICKUP",
@@ -259,15 +185,13 @@ describe("bookings move POST — task-driven flag gating", () => {
     expect(forwarded.resource.data).not.toHaveProperty("assignedCarrier");
     expect(forwarded.resource.data).not.toHaveProperty("assignedDriver");
     expect(forwarded.resource.data).not.toHaveProperty("assignedTruck");
-    expect(runCalendarBindingMock).not.toHaveBeenCalled();
   });
 
-  it("flag ON: merges the andén (_anden) the same way", async () => {
-    process.env[ENV_KEY] = TASK_DRIVEN_ORIGIN;
-    const snapshot = makeBooking(TASK_DRIVEN_ORIGIN);
-    const body = makeMoveBody(TASK_DRIVEN_ORIGIN, { _anden: 1 });
+  it("merges the andén (_anden) the same way", async () => {
+    const snapshot = makeBooking(ORIGIN);
+    const body = makeMoveBody(ORIGIN, { _anden: 1 });
     bookingsGetMock.mockResolvedValue(snapshot);
-    bookingsMoveMock.mockResolvedValue(makeBooking(TASK_DRIVEN_ORIGIN));
+    bookingsMoveMock.mockResolvedValue(makeBooking(ORIGIN));
 
     const { POST } = await loadRoute();
     await POST(makeMoveRequest(body), routeParams);
@@ -279,15 +203,14 @@ describe("bookings move POST — task-driven flag gating", () => {
     });
   });
 
-  it("flag ON: a request field that is not planner-owned is still dropped", async () => {
-    process.env[ENV_KEY] = TASK_DRIVEN_ORIGIN;
-    const snapshot = makeBooking(TASK_DRIVEN_ORIGIN);
-    const body = makeMoveBody(TASK_DRIVEN_ORIGIN, {
+  it("a request field that is not planner-owned is still dropped", async () => {
+    const snapshot = makeBooking(ORIGIN);
+    const body = makeMoveBody(ORIGIN, {
       serviceCategory: "DIRECT_PICKUP",
       destino: "TAMPERED",
     });
     bookingsGetMock.mockResolvedValue(snapshot);
-    bookingsMoveMock.mockResolvedValue(makeBooking(TASK_DRIVEN_ORIGIN));
+    bookingsMoveMock.mockResolvedValue(makeBooking(ORIGIN));
 
     const { POST } = await loadRoute();
     await POST(makeMoveRequest(body), routeParams);
@@ -297,11 +220,10 @@ describe("bookings move POST — task-driven flag gating", () => {
     expect(forwarded.resource.data).not.toHaveProperty("destino");
   });
 
-  it("flag ON: reads the origin from the persisted booking when the body has none", async () => {
-    process.env[ENV_KEY] = TASK_DRIVEN_ORIGIN;
-    const snapshot = makeBooking(TASK_DRIVEN_ORIGIN);
+  it("a body with no resource blob moves slot-only", async () => {
+    const snapshot = makeBooking(ORIGIN);
     bookingsGetMock.mockResolvedValue(snapshot);
-    bookingsMoveMock.mockResolvedValue(makeBooking(TASK_DRIVEN_ORIGIN));
+    bookingsMoveMock.mockResolvedValue(makeBooking(ORIGIN));
 
     const { POST } = await loadRoute();
     const response = await POST(
@@ -313,21 +235,6 @@ describe("bookings move POST — task-driven flag gating", () => {
     expect(bookingsMoveMock).toHaveBeenCalledWith(BOOKING_ID, {
       slot: { date: "2026-06-02", hour: 5, minutes: 0 },
     });
-    expect(runCalendarBindingMock).not.toHaveBeenCalled();
   });
 
-  it("flag ON for a different origin: the legacy path still runs", async () => {
-    process.env[ENV_KEY] = TASK_DRIVEN_ORIGIN;
-    const snapshot = makeBooking(LEGACY_ORIGIN);
-    const body = makeMoveBody(LEGACY_ORIGIN, ASSIGNMENT_TUPLE);
-    bookingsGetMock.mockResolvedValue(snapshot);
-    bookingsMoveMock.mockResolvedValue(makeBooking(LEGACY_ORIGIN, ASSIGNMENT_TUPLE));
-
-    const { POST } = await loadRoute();
-    const response = await POST(makeMoveRequest(body), routeParams);
-
-    expect(response.status).toBe(200);
-    expect(bookingsMoveMock).toHaveBeenCalledWith(BOOKING_ID, body);
-    expect(runCalendarBindingMock).toHaveBeenCalledTimes(1);
-  });
 });

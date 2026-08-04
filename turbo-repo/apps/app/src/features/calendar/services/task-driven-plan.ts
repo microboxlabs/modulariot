@@ -1,5 +1,4 @@
 import dayjs from "dayjs";
-import { isOriginTaskDriven } from "./task-driven-origin";
 
 /**
  * Structural subset of `SelectedSlot` consumed by the plan-side helper.
@@ -70,15 +69,13 @@ export function buildPlanProcessVariables(
 }
 
 /**
- * Returns the planner's task-driven PLAN-move processVariables when the
- * origin is task-driven AND the forward transition is the BPMN's
- * `planService → assignDriver` flow (`"Asignar Conductor/Transporte"`).
+ * Returns the planner's PLAN-move processVariables when the forward
+ * transition is the BPMN's `planService → assignDriver` flow
+ * (`"Asignar Conductor/Transporte"`).
  *
- * Returns `null` for every other case — including a task-driven origin
- * whose live task is at `assignDriver` (the ASSIGN move uses the resource
- * tuple via {@link decideAssignTaskAdvance}) or any flag-off origin — and
- * the caller proceeds with the legacy booking-POST flow, preserving
- * today's behavior byte-for-byte.
+ * Returns `null` for every other case — including a live task at
+ * `assignDriver` (the ASSIGN move uses the resource tuple via
+ * {@link decideAssignTaskAdvance}).
  *
  * The presence of these variables on the task move is the FE signal that
  * the booking row should NOT be written by the BFF: ECM's
@@ -87,13 +84,10 @@ export function buildPlanProcessVariables(
  */
 export function decidePlanTaskAdvance(
   transitionId: string | undefined,
-  origin: string | undefined,
   calendarId: string | undefined,
   slot: PlanSlotInput,
-  enabledOrigins: ReadonlySet<string>,
   serviceCategory?: string
 ): PlanProcessVariables | null {
   if (transitionId !== "Asignar Conductor/Transporte") return null;
-  if (!isOriginTaskDriven(origin, enabledOrigins)) return null;
   return buildPlanProcessVariables(calendarId, slot, serviceCategory);
 }

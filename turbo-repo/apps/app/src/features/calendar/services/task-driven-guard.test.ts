@@ -7,13 +7,9 @@ import {
   refuseWorkflowlessPlan,
 } from "./task-driven-guard";
 
-const ORIGINS = new Set(["SCL", "ANF"]);
-
 function input(overrides: Partial<Parameters<typeof refuseWorkflowlessPlan>[0]> = {}) {
   return {
     stage: "presentDriver" as const,
-    origin: "SCL",
-    enabledOrigins: ORIGINS,
     hasTaskAdvance: false,
     hasReassign: false,
     isReassigning: false,
@@ -22,7 +18,7 @@ function input(overrides: Partial<Parameters<typeof refuseWorkflowlessPlan>[0]> 
 }
 
 describe("refuseWorkflowlessPlan", () => {
-  it("refuses a task-driven service whose task sits past the plannable stages", () => {
+  it("refuses a service whose task sits past the plannable stages", () => {
     // The 78265602 case: SCL, live task at presentDriver, no transition
     // resolves — today this silently wrote a booking with no workflow move.
     const reason = refuseWorkflowlessPlan(input());
@@ -49,53 +45,38 @@ describe("refuseWorkflowlessPlan", () => {
     expect(refuseWorkflowlessPlan(input({ isReassigning: true }))).toBeNull();
   });
 
-  it("leaves flag-off origins alone", () => {
-    // ECM does not own the booking lifecycle there, so a direct write is the
-    // correct behaviour, not a divergence.
-    expect(refuseWorkflowlessPlan(input({ origin: "IQQ" }))).toBeNull();
-    expect(refuseWorkflowlessPlan(input({ origin: undefined }))).toBeNull();
-    expect(
-      refuseWorkflowlessPlan(input({ enabledOrigins: new Set() }))
-    ).toBeNull();
-  });
-
   it("leaves a service with no live task alone", () => {
     // We cannot prove it is workflow-backed; refusing would block planning for
     // services whose workflow is genuinely missing, which is a separate bug.
     expect(refuseWorkflowlessPlan(input({ stage: undefined }))).toBeNull();
   });
 
-  it("is case-sensitive on the origin, like every other task-driven helper", () => {
-    expect(refuseWorkflowlessPlan(input({ origin: "scl" }))).toBeNull();
-  });
 });
 
 describe("canAssignAtStage", () => {
   it("allows the two stages the assign edge connects", () => {
-    expect(canAssignAtStage("assignDriver", "SCL", ORIGINS)).toBe(true);
-    expect(canAssignAtStage("presentDriver", "SCL", ORIGINS)).toBe(true);
+    expect(canAssignAtStage("assignDriver")).toBe(true);
+    expect(canAssignAtStage("presentDriver")).toBe(true);
   });
 
   it("refuses stages with no edge to carry a resource change", () => {
     // The 1625094 / 1524620 case: planned long ago, now at missionControl —
     // planning and assigning are different steps, and this one is past both.
-    expect(canAssignAtStage("missionControl", "SCL", ORIGINS)).toBe(false);
-    expect(canAssignAtStage("prepareService", "SCL", ORIGINS)).toBe(false);
+    expect(canAssignAtStage("missionControl")).toBe(false);
+    expect(canAssignAtStage("prepareService")).toBe(false);
     // Not yet planned: assigning is not the gesture that plans it.
-    expect(canAssignAtStage("planService", "SCL", ORIGINS)).toBe(false);
+    expect(canAssignAtStage("planService")).toBe(false);
   });
 
   it("refuses the terminal stages a booking row can carry", () => {
-    expect(canAssignAtStage("finished", "SCL", ORIGINS)).toBe(false);
-    expect(canAssignAtStage("cancelled", "SCL", ORIGINS)).toBe(false);
+    expect(canAssignAtStage("finished")).toBe(false);
+    expect(canAssignAtStage("cancelled")).toBe(false);
   });
 
-  it("fails open on what it cannot prove", () => {
-    // Flag-off origin — ECM owns nothing there.
-    expect(canAssignAtStage("missionControl", "IQQ", ORIGINS)).toBe(true);
-    // Stage unknown: the live task index is still loading. Hiding the action
-    // on every chip during that window would be worse than a late refusal.
-    expect(canAssignAtStage(undefined, "SCL", ORIGINS)).toBe(true);
+  it("fails open on an unknown stage", () => {
+    // The live task index is still loading. Hiding the action on every chip
+    // during that window would be worse than a late refusal.
+    expect(canAssignAtStage(undefined)).toBe(true);
   });
 });
 
@@ -105,8 +86,6 @@ describe("refuseAssign", () => {
   ) {
     return {
       stage: "assignDriver" as const,
-      origin: "SCL",
-      enabledOrigins: ORIGINS,
       hasTaskAdvance: true,
       hasReassign: false,
       ...overrides,
@@ -146,16 +125,7 @@ describe("refuseAssign", () => {
     expect(reason).toContain("faltan datos");
   });
 
-  it("leaves flag-off origins and unknown stages alone", () => {
-    expect(
-      refuseAssign(
-        assignInput({
-          stage: "missionControl",
-          origin: "IQQ",
-          hasTaskAdvance: false,
-        })
-      )
-    ).toBeNull();
+  it("leaves unknown stages alone", () => {
     expect(
       refuseAssign(assignInput({ stage: undefined, hasTaskAdvance: false }))
     ).toBeNull();
@@ -172,7 +142,7 @@ describe("canReplanAtStage", () => {
       "presentDriver",
       "prepareService",
     ]) {
-      expect(canReplanAtStage(stage, "SCL", ORIGINS), stage).toBe(true);
+      expect(canReplanAtStage(stage), stage).toBe(true);
     }
   });
 
@@ -185,40 +155,34 @@ describe("canReplanAtStage", () => {
       "confirmArrival",
       "closeMonitoring",
     ]) {
-      expect(canReplanAtStage(stage, "SCL", ORIGINS), stage).toBe(false);
+      expect(canReplanAtStage(stage), stage).toBe(false);
     }
   });
 
   it("refuses the terminal states a booking row can carry", () => {
-    expect(canReplanAtStage("finished", "SCL", ORIGINS)).toBe(false);
-    expect(canReplanAtStage("cancelled", "SCL", ORIGINS)).toBe(false);
+    expect(canReplanAtStage("finished")).toBe(false);
+    expect(canReplanAtStage("cancelled")).toBe(false);
   });
 
-  it("fails open on what it cannot prove", () => {
-    expect(canReplanAtStage("missionControl", "IQQ", ORIGINS)).toBe(true);
-    expect(canReplanAtStage(undefined, "SCL", ORIGINS)).toBe(true);
+  it("fails open on an unknown stage", () => {
+    expect(canReplanAtStage(undefined)).toBe(true);
   });
 });
 
 describe("refuseReplan", () => {
-  const base = { origin: "SCL", enabledOrigins: ORIGINS };
-
   it("allows the replannable stages", () => {
-    expect(refuseReplan({ ...base, stage: "presentDriver" })).toBeNull();
-    expect(refuseReplan({ ...base, stage: "prepareService" })).toBeNull();
+    expect(refuseReplan({ stage: "presentDriver" })).toBeNull();
+    expect(refuseReplan({ stage: "prepareService" })).toBeNull();
   });
 
   it("refuses past the trip start, naming the stage", () => {
     // Service 1625094: the case that started this.
-    const reason = refuseReplan({ ...base, stage: "missionControl" });
+    const reason = refuseReplan({ stage: "missionControl" });
     expect(reason).toContain("missionControl");
     expect(reason).toContain("No se puede replanificar");
   });
 
-  it("leaves flag-off origins and unknown stages alone", () => {
-    expect(
-      refuseReplan({ ...base, origin: "IQQ", stage: "missionControl" })
-    ).toBeNull();
-    expect(refuseReplan({ ...base, stage: undefined })).toBeNull();
+  it("leaves unknown stages alone", () => {
+    expect(refuseReplan({ stage: undefined })).toBeNull();
   });
 });

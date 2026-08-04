@@ -930,7 +930,7 @@
     "/api/v1/miot-calendar/bookings" : {
       "get" : {
         "summary" : "List bookings",
-        "description" : "Retrieve bookings filtered by calendar and date range. Defaults to the next 30 days if no dates are provided.",
+        "description" : "Retrieve bookings filtered by calendar, date range, lifecycle status, and resource identifier. Date-less resource searches span all booking dates; other date-less searches default to the next 30 days.",
         "operationId" : "listBookings",
         "tags" : [ "Bookings" ],
         "parameters" : [ {
@@ -954,6 +954,13 @@
           },
           "name" : "startDate",
           "in" : "query"
+        }, {
+          "description" : "Case-insensitive substring to match against the generic resource identifier",
+          "name" : "resourceIdContains",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {

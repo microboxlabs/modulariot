@@ -45,12 +45,14 @@ describe("bookings", () => {
         calendarId: "cal-1",
         startDate: "2025-01-01",
         endDate: "2025-12-31",
+        resourceIdContains: "resource-42",
       });
 
       const url = new URL(call.url);
       expect(url.searchParams.get("calendarId")).toBe("cal-1");
       expect(url.searchParams.get("startDate")).toBe("2025-01-01");
       expect(url.searchParams.get("endDate")).toBe("2025-12-31");
+      expect(url.searchParams.get("resourceIdContains")).toBe("resource-42");
     });
 
     it("returns the booking list response", async () => {

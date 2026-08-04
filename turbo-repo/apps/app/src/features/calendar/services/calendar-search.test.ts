@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assignmentStateOf,
+  bookingQueriesForCalendarSearch,
   isCalendarSearchActive,
   matchesCalendarSearch,
   orderMatchesByCalendar,
@@ -89,6 +90,34 @@ describe("isCalendarSearchActive", () => {
     expect(isCalendarSearchActive(params({ assignment: ["unassigned"] }))).toBe(
       true
     );
+  });
+});
+
+describe("bookingQueriesForCalendarSearch", () => {
+  const range = { startDate: "2026-07-05", endDate: "2026-09-03" };
+
+  it("uses an unbounded generic resource query for a service term", () => {
+    expect(
+      bookingQueriesForCalendarSearch(params({ service: ["1584908"] }), range)
+    ).toEqual([{ resourceIdContains: "1584908" }]);
+  });
+
+  it("keeps multiple service chips as OR-ed resource queries", () => {
+    expect(
+      bookingQueriesForCalendarSearch(
+        params({ service: ["1584908", "1626876"] }),
+        range
+      )
+    ).toEqual([
+      { resourceIdContains: "1584908" },
+      { resourceIdContains: "1626876" },
+    ]);
+  });
+
+  it("keeps the bounded fallback for non-service filters", () => {
+    expect(
+      bookingQueriesForCalendarSearch(params({ customer: ["ACME"] }), range)
+    ).toEqual([range]);
   });
 });
 

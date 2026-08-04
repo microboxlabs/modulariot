@@ -11,14 +11,17 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 /**
  * Minimal miot-calendar HTTP client for the two operations {@code calendar_sync}
@@ -35,6 +38,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class CalendarBookingsClient {
 
+    private static final Logger LOG = Logger.getLogger(CalendarBookingsClient.class);
+
     // Paths are pinned by the miot-calendar API contract — not a deployment
     // choice — so hardcoding them (java:S1075) is deliberate: a configurable
     // path would let an operator point at an incompatible endpoint shape.
@@ -42,6 +47,8 @@ public class CalendarBookingsClient {
     private static final String BASE_PATH = "/api/v1/miot-calendar/bookings";
     @SuppressWarnings("java:S1075")
     private static final String SLOTS_PATH = "/api/v1/miot-calendar/slots";
+    @SuppressWarnings("java:S1075")
+    private static final String CALENDARS_PATH = "/api/v1/miot-calendar/calendars";
     private static final String X_USER_ID = "miot-integrations";
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(15);
 
@@ -198,6 +205,26 @@ public class CalendarBookingsClient {
         if (response.statusCode() != 200) {
             throw httpError("move", url, response);
         }
+    }
+
+    /**
+     * The calendar's IANA timezone — the zone its slot wall-clock times live
+     * in, and therefore the zone the cancel future-vs-past decision must be
+     * evaluated in. Empty when the calendar is gone (404) or carries no usable
+     * timezone; transport and 5xx errors throw like every other call, so the
+     * surrounding job retries instead of silently judging slots in the wrong
+     * zone.
+     */
+    public Optional<ZoneId> getCalendarTimezone(UUID calendarId) {
+        String url = base() + CALENDARS_PATH + "/" + calendarId;
+        HttpResponse<String> response = send("GET", url, null);
+        if (response.statusCode() == 404) {
+            return Optional.empty();
+        }
+        if (response.statusCode() != 200) {
+            throw httpError("getCalendarTimezone", url, response);
+        }
+        return parseTimezone(response.body(), url);
     }
 
     /**
@@ -368,6 +395,31 @@ public class CalendarBookingsClient {
         }
         JsonArray data = obj.getJsonArray("data");
         return (data == null || data.isEmpty()) ? null : data;
+    }
+
+    private static Optional<ZoneId> parseTimezone(String body, String url) {
+        if (body == null || body.isBlank()) {
+            return Optional.empty();
+        }
+        String timezone;
+        try {
+            timezone = new JsonObject(body).getString("timezone");
+        } catch (RuntimeException e) {
+            throw new CalendarBookingsHttpException(200,
+                    "miot-calendar calendar response unparseable from " + url + ": " + e.getMessage());
+        }
+        if (timezone == null || timezone.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(ZoneId.of(timezone));
+        } catch (DateTimeException e) {
+            // An unknown zone id must not fail the cancel — but a silent empty
+            // would reintroduce the wrong-zone bug invisibly, so say why.
+            LOG.warnf("miot-calendar calendar at %s has unparseable timezone '%s': %s",
+                    url, timezone, e.getMessage());
+            return Optional.empty();
+        }
     }
 
     private static CalendarBookingsHttpException httpError(String op, String url, HttpResponse<String> response) {

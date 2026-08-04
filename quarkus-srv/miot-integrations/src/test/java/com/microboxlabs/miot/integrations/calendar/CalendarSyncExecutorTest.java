@@ -10,6 +10,7 @@ import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -511,6 +512,41 @@ class CalendarSyncExecutorTest {
         assertEquals(CalendarSyncFeature.STATUS_CANCELLED, client.lastPatchStatus);
     }
 
+    /**
+     * Slot wall-clock times live in the calendar's timezone, not the
+     * runtime's. Clock at 12:00Z, slot today 09:00 — naively past; but the
+     * calendar runs at UTC-4 where it is 08:00, so the slot is still an hour
+     * away and must be DELETED, not patched CANCELLED. A CANCELLED row here is
+     * a ghost the planning grid keeps drawing.
+     */
+    @Test
+    void cancelSlotStillFutureInCalendarZoneDeletes() {
+        FakeClient client = new FakeClient();
+        client.calendarTimezone = ZoneId.of("-04:00");
+        var todaySlot = booking(LocalDate.of(2026, 7, 15)); // 09:00 wall-clock
+        client.listResult = List.of(todaySlot);
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", cancelPayload());
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(List.of(todaySlot.id()), client.cancelled);
+        assertEquals(0, client.patchCalls, "still-future slot in the calendar zone deletes, never patches");
+    }
+
+    /** No usable calendar timezone → the decision stays in the executor clock's zone. */
+    @Test
+    void cancelWithoutCalendarTimezoneFallsBackToClockZone() {
+        FakeClient client = new FakeClient();
+        client.calendarTimezone = null;
+        client.listResult = List.of(booking(LocalDate.of(2026, 7, 15))); // 09:00 < 12:00Z
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", cancelPayload());
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertTrue(client.cancelled.isEmpty(), "09:00 is past 12:00 in the clock's own zone");
+        assertEquals(CalendarSyncFeature.STATUS_CANCELLED, client.lastPatchStatus);
+    }
+
     // --- ensure (Phase 2 upsert) ---------------------------------------------
 
     @Test
@@ -799,6 +835,9 @@ class CalendarSyncExecutorTest {
         int unassignCalls;
         List<String> lastClearDataKeys;
 
+        // Null models a calendar with no usable timezone (fallback path).
+        ZoneId calendarTimezone;
+
         int moveCalls;
         UUID lastMoveBookingId;
         LocalDate lastMoveDate;
@@ -887,6 +926,11 @@ class CalendarSyncExecutorTest {
             if (unassignThrows != null) {
                 throw unassignThrows;
             }
+        }
+
+        @Override
+        public Optional<ZoneId> getCalendarTimezone(UUID calendarId) {
+            return Optional.ofNullable(calendarTimezone);
         }
     }
 }

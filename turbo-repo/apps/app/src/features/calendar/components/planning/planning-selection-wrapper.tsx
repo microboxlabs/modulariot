@@ -28,7 +28,6 @@ import {
   listBookings,
   updateServiceCategory,
   advanceWorkflowTask,
-  notifyCalendarBinding,
   type BookingTaskAdvance,
   type AssignProcessVariables,
 } from "@/features/common/providers/client-api.provider";
@@ -50,10 +49,6 @@ import {
   getUnassignTransition,
 } from "@/features/calendar/services/task-stage-transitions";
 import {
-  decideUnplanBindingNotification,
-  decideUnassignBindingNotification,
-} from "@/features/calendar/services/task-driven-binding-gate";
-import {
   decideAssignTaskAdvance,
   decidePresentedReassign,
   getTaskDrivenUnassignTransition,
@@ -68,7 +63,6 @@ import {
   decideReplan,
   type ReplanEdge,
 } from "@/features/calendar/services/task-driven-replan";
-import { useTaskDrivenOrigins } from "@/features/calendar/services/use-task-driven-origins";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
@@ -201,8 +195,6 @@ export function PlanningSelectionProvider({
   const { canPlan, canAssign, canView, isLoadingPermissions } =
     useCalendarViewMode();
   const canMutateBookings = !isLoadingPermissions && (canPlan || canAssign);
-
-  const taskDrivenOrigins = useTaskDrivenOrigins();
 
   // Calendar parallelism (number of andenes).
   const { calendars } = useCalendars();
@@ -389,17 +381,13 @@ export function PlanningSelectionProvider({
         : getNextTransition(liveTask?.stage);
       const planProcessVariables = decidePlanTaskAdvance(
         transitionId,
-        service.origen,
         calendarId,
         slot,
-        taskDrivenOrigins,
         service.serviceCategory
       );
       const assignProcessVariables = decideAssignTaskAdvance(
         transitionId,
-        service.origen,
-        service,
-        taskDrivenOrigins
+        service
       );
       const processVariables = planProcessVariables ?? assignProcessVariables;
       const taskAdvance: BookingTaskAdvance | undefined =
@@ -417,12 +405,7 @@ export function PlanningSelectionProvider({
       // Excludes slot reassignment (`isReassigning`), which only moves the slot.
       const reassignTuple = ctx.isReassigning
         ? null
-        : decidePresentedReassign(
-            liveTask?.stage,
-            service.origen,
-            service,
-            taskDrivenOrigins
-          );
+        : decidePresentedReassign(liveTask?.stage, service);
       const reassign: ReassignPlan | undefined =
         reassignTuple && liveTask?.taskId
           ? { presentTaskId: liveTask.taskId, tuple: reassignTuple }
@@ -434,10 +417,8 @@ export function PlanningSelectionProvider({
       const replanPlan = ctx.isReassigning
         ? decideReplan({
             stage: liveTask?.stage,
-            origin: service.origen,
             calendarId,
             slot,
-            enabledOrigins: taskDrivenOrigins,
             serviceCategory: service.serviceCategory,
           })
         : null;
@@ -447,7 +428,7 @@ export function PlanningSelectionProvider({
           : undefined;
       return { liveTask, taskAdvance, reassign, replan };
     },
-    [getLiveTask, calendarId, taskDrivenOrigins]
+    [getLiveTask, calendarId]
   );
 
   // Re-push a resource change on an already-presented service to Alerce by
@@ -560,11 +541,7 @@ export function PlanningSelectionProvider({
           // trip starts, and driven through the workflow rather than written
           // here — ECM's assignDriver re-entry re-slots the booking.
           if (ctx.isReassigning) {
-            const replanRefusal = refuseReplan({
-              stage: liveTask?.stage,
-              origin: service.origen,
-              enabledOrigins: taskDrivenOrigins,
-            });
+            const replanRefusal = refuseReplan({ stage: liveTask?.stage });
             if (replanRefusal) throw new Error(replanRefusal);
             if (replan) return false;
           }
@@ -576,15 +553,11 @@ export function PlanningSelectionProvider({
           const refusal = ctx.isAssigning
             ? refuseAssign({
                 stage: liveTask?.stage,
-                origin: service.origen,
-                enabledOrigins: taskDrivenOrigins,
                 hasTaskAdvance: !!taskAdvance,
                 hasReassign: !!reassign,
               })
             : refuseWorkflowlessPlan({
                 stage: liveTask?.stage,
-                origin: service.origen,
-                enabledOrigins: taskDrivenOrigins,
                 hasTaskAdvance: !!taskAdvance,
                 hasReassign: !!reassign,
                 isReassigning: ctx.isReassigning,
@@ -684,48 +657,23 @@ export function PlanningSelectionProvider({
               await advanceWorkflowTask(liveTask.taskId, transition);
             }
           }
-          // Tell the coordinator the service left the calendar (best-effort;
-          // task-driven origins reconcile via the ECM listener and are skipped).
-          const notification = decideUnplanBindingNotification(
-            service.mintral_serviceCode,
-            calendarId,
-            service.origen,
-            taskDrivenOrigins
-          );
-          if (notification) {
-            await notifyCalendarBinding(notification).catch((err) =>
-              console.warn("Failed to notify calendar binding (none):", err)
-            );
-          }
+          // No coordinator notification: the ECM listener on the unplan move
+          // reconciles the binding (and the TMS view, via the modulith chain).
         },
         onUnassign: async (service) => {
           // Reverse the workflow task BEFORE the package rewrites the booking.
           const liveTask = getLiveTask(service.mintral_serviceCode);
           if (liveTask) {
             const transition =
-              getTaskDrivenUnassignTransition(
-                liveTask.stage,
-                service.origen,
-                taskDrivenOrigins
-              ) ?? getUnassignTransition(liveTask.stage);
+              getTaskDrivenUnassignTransition(liveTask.stage) ??
+              getUnassignTransition(liveTask.stage);
             if (transition) {
               await advanceWorkflowTask(liveTask.taskId, transition);
             }
           }
-          const notification = decideUnassignBindingNotification(
-            service.mintral_serviceCode,
-            calendarId,
-            service.origen,
-            taskDrivenOrigins
-          );
-          if (notification) {
-            await notifyCalendarBinding(notification).catch((err) =>
-              console.warn(
-                "Failed to notify calendar binding (unassigned):",
-                err
-              )
-            );
-          }
+          // No coordinator notification: the ECM listener on the unassign
+          // move reconciles the binding (and pushes the TMS placeholders
+          // through the modulith chain).
           // Return the service with its assignment tuple cleared.
           return {
             ...service,
@@ -762,7 +710,6 @@ export function PlanningSelectionProvider({
       computeTaskAdvance,
       reassignPresentedService,
       runReplan,
-      taskDrivenOrigins,
       dict,
       canPlan,
       canAssign,

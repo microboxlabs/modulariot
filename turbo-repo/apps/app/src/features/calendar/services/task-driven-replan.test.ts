@@ -1,16 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { decideReplan } from "./task-driven-replan";
 
-const ORIGINS = new Set(["SCL", "ANF"]);
 const SLOT = { date: "2026-07-30", hour: 14, minutes: 30 };
 
 function input(overrides: Partial<Parameters<typeof decideReplan>[0]> = {}) {
   return {
     stage: "presentDriver" as const,
-    origin: "SCL",
     calendarId: "cal-1",
     slot: SLOT,
-    enabledOrigins: ORIGINS,
     ...overrides,
   };
 }
@@ -73,11 +70,6 @@ describe("decideReplan", () => {
   it("has nothing to re-plan at planService", () => {
     // Not planned yet — there is no booking to re-slot.
     expect(decideReplan(input({ stage: "planService" }))).toBeNull();
-  });
-
-  it("leaves flag-off origins to the legacy move", () => {
-    expect(decideReplan(input({ origin: "IQQ" }))).toBeNull();
-    expect(decideReplan(input({ origin: undefined }))).toBeNull();
   });
 
   it("returns null without a stage or a calendar", () => {

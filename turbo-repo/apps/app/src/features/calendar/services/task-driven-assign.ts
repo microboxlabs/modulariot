@@ -1,4 +1,3 @@
-import { isOriginTaskDriven } from "./task-driven-origin";
 import type { AssignProcessVariables } from "@/features/common/providers/client-api.provider";
 
 /**
@@ -27,8 +26,8 @@ export type AssignTupleInput = {
  *
  * Required (non-empty): `carrier_id`, `driver_id`, `truck_id`, `tipo_servicio`.
  * Nullable (string or JSON `null`): `driver2_id`, `trailer_id`,
- * `carrier_external_id`. `tipo_servicio` is uppercased to mirror the
- * binding payload's stage-assigned shape (see `binding-extractor.ts:61`).
+ * `carrier_external_id`. `tipo_servicio` is uppercased to match the
+ * coordinator's wire shape.
  *
  * See `docs/plans/calendar-task-driven-frontend-P0-spike.md` §2.2–§2.4 for
  * the wire contract and the FE → process-variable field mapping.
@@ -55,44 +54,35 @@ export function buildAssignProcessVariables(
 }
 
 /**
- * Returns the planner's task-driven ASSIGN-move parameters when the origin
- * is task-driven AND the forward transition is the BPMN's
- * `assignDriver → presentDriver` flow (`"Presentar Conductor"`).
+ * Returns the planner's ASSIGN-move parameters when the forward transition
+ * is the BPMN's `assignDriver → presentDriver` flow
+ * (`"Presentar Conductor"`).
  *
- * Returns `null` for every other case — including a task-driven origin
- * whose live task is at `planService` (the PLAN move; no resource tuple
- * required yet) or any flag-off origin — and the caller proceeds with a
- * plain GET task advance, preserving today's behavior byte-for-byte.
+ * Returns `null` for every other case — including a live task at
+ * `planService` (the PLAN move; no resource tuple required yet) — and the
+ * caller proceeds with a plain GET task advance.
  */
 export function decideAssignTaskAdvance(
   transitionId: string | undefined,
-  origin: string | undefined,
-  service: AssignTupleInput,
-  enabledOrigins: ReadonlySet<string>
+  service: AssignTupleInput
 ): AssignProcessVariables | null {
   if (transitionId !== "Presentar Conductor") return null;
-  if (!isOriginTaskDriven(origin, enabledOrigins)) return null;
   return buildAssignProcessVariables(service);
 }
 
 /**
- * Returns the planner's task-driven UNASSIGN-move transition for the live
- * task stage when the origin is task-driven — `"Asignar Conductor/Transporte"`
- * for a service at `presentDriver` (the BPMN's `presentDriver → assignDriver`
- * outcome, so the ECM `OnCreateAssignDriverBinding` listener fires and
- * reconciles the binding to `unassigned`).
+ * Returns the planner's UNASSIGN-move transition for the live task stage —
+ * `"Asignar Conductor/Transporte"` for a service at `presentDriver` (the
+ * BPMN's `presentDriver → assignDriver` outcome, so the ECM
+ * `OnCreateAssignDriverBinding` listener fires and reconciles the binding
+ * to `unassigned`).
  *
- * Returns `undefined` for every other case — flag-off origins, missing
- * origins, and stages other than `presentDriver` — and the caller falls
- * through to the legacy `getUnassignTransition` map, preserving today's
- * behavior byte-for-byte for un-migrated origins.
+ * Returns `undefined` for any other stage — the caller falls through to
+ * the `getUnassignTransition` stage map.
  */
 export function getTaskDrivenUnassignTransition(
-  stage: string | undefined,
-  origin: string | undefined,
-  enabledOrigins: ReadonlySet<string>
+  stage: string | undefined
 ): string | undefined {
-  if (!isOriginTaskDriven(origin, enabledOrigins)) return undefined;
   if (stage !== "presentDriver") return undefined;
   return "Asignar Conductor/Transporte";
 }
@@ -112,18 +102,14 @@ export function getTaskDrivenUnassignTransition(
  * tuple — which re-enqueues the Alerce assign chain and re-stamps the booking
  * `sync_status`.
  *
- * Returns `null` unless the origin is task-driven, the live stage is
- * `presentDriver`, and the full assign tuple is present — so a first-time
- * assign (task at `assignDriver`), a flag-off origin, or a partial tuple all
- * fall through to today's behavior unchanged.
+ * Returns `null` unless the live stage is `presentDriver` and the full
+ * assign tuple is present — so a first-time assign (task at `assignDriver`)
+ * or a partial tuple falls through unchanged.
  */
 export function decidePresentedReassign(
   stage: string | undefined,
-  origin: string | undefined,
-  service: AssignTupleInput,
-  enabledOrigins: ReadonlySet<string>
+  service: AssignTupleInput
 ): AssignProcessVariables | null {
   if (stage !== "presentDriver") return null;
-  if (!isOriginTaskDriven(origin, enabledOrigins)) return null;
   return buildAssignProcessVariables(service);
 }

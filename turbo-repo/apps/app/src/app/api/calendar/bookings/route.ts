@@ -25,13 +25,6 @@ import {
   type EndTaskProcessVariables,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import type { Session } from "next-auth";
-import { extractCalendarBindingPayload } from "./binding-extractor";
-import { runCalendarBinding } from "./binding-helpers";
-import {
-  isOriginTaskDriven,
-  parseTaskDrivenOrigins,
-  readBookingOrigin,
-} from "@/features/calendar/services/task-driven-origin";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
 
@@ -230,57 +223,12 @@ export async function POST(request: Request) {
   const resolved = await resolveBooking(client, body);
   if ("error" in resolved) return resolved.error;
 
-  // Task-driven origins skip the binding call entirely: ECM task listeners
-  // reconcile the calendar binding off the workflow task move alone. With no
-  // binding call, the cancel-booking-on-binding-failure compensation is dead
-  // for this path and is not executed. Flag-off origins keep today's behavior.
-  // Read the rollout set fresh per request — `TASK_DRIVEN_ORIGINS` is mirrored
-  // to the client via the runtime-config provider, and the route is
-  // `force-dynamic`, so flipping an origin in the deploy env takes effect on
-  // the next request with no rebuild.
-  const enabledOrigins = parseTaskDrivenOrigins(
-    process.env.TASK_DRIVEN_ORIGINS
-  );
-  const originCode = readBookingOrigin(body.resource?.data);
-  if (!isOriginTaskDriven(originCode, enabledOrigins)) {
-    // Tell the coordinator about this calendar binding *before* the workflow
-    // advance. The coordinator dispatches based on stage:
-    //   - planned (no full tuple)  → record the binding, no Alerce.
-    //   - assigned (full tuple)    → resolve UUIDs → push to Alerce → record.
-    // A failure on stage=assigned is hard: the binding webscript leaves
-    // process variables untouched on Alerce 4xx/5xx, we cancel the
-    // just-created booking, and the user can retry. Failures on stage=planned
-    // are also hard: an unbacked booking would drift from the trip's
-    // process state, so we cancel and surface the error.
-    // Bookings with no `mintral_serviceCode` (non-planner-driven) skip the
-    // call entirely.
-    const bindingPayload = extractCalendarBindingPayload(body);
-    if (bindingPayload) {
-      const bindingResult = await runCalendarBinding(
-        authResult.session,
-        bindingPayload
-      );
-      if (!bindingResult.ok) {
-        let compensated: boolean | undefined;
-        if (resolved.created) {
-          const compensation = await compensateBooking(
-            client,
-            resolved.booking.id,
-            bindingResult.message
-          );
-          compensated = compensation.compensated;
-        }
-        return NextResponse.json(
-          {
-            error: bindingResult.message,
-            calendarBindingFailed: true,
-            bookingCompensated: compensated,
-          },
-          { status: bindingResult.status }
-        );
-      }
-    }
-  }
+  // No coordinator binding call here: ECM task listeners reconcile the
+  // calendar binding — and dispatch the TMS push through the modulith job
+  // ledger — off the workflow task move alone. The synchronous
+  // `/mintral/calendar/binding` notification (and its cancel-booking
+  // compensation) was the legacy pre-task-driven path, removed with the
+  // TASK_DRIVEN_ORIGINS rollout flag once every origin migrated.
 
   if (!body.taskAdvance) {
     return NextResponse.json(resolved.booking, { status: resolved.status });

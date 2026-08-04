@@ -1,5 +1,4 @@
 import type { TaskStage } from "../components/planning/planning-selection-types";
-import { isOriginTaskDriven } from "./task-driven-origin";
 
 /**
  * Guard for the one thing that must never happen on a task-driven service:
@@ -28,8 +27,6 @@ import { isOriginTaskDriven } from "./task-driven-origin";
 export function refuseWorkflowlessPlan(input: {
   /** The live Alfresco task's stage, or undefined when there is no live task. */
   stage: TaskStage | undefined;
-  origin: string | undefined;
-  enabledOrigins: ReadonlySet<string>;
   /** Whether a forward workflow transition resolved for this gesture. */
   hasTaskAdvance: boolean;
   /** Whether the presented-service re-assign dance will run instead. */
@@ -37,19 +34,11 @@ export function refuseWorkflowlessPlan(input: {
   /** Whether this is a slot-only move of an existing booking. */
   isReassigning: boolean;
 }): string | null {
-  const {
-    stage,
-    origin,
-    enabledOrigins,
-    hasTaskAdvance,
-    hasReassign,
-    isReassigning,
-  } = input;
+  const { stage, hasTaskAdvance, hasReassign, isReassigning } = input;
   // A slot move carries no stage change; the workflow is already where it
   // belongs and the move route handles the row.
   if (isReassigning) return null;
   if (hasTaskAdvance || hasReassign) return null;
-  if (!isOriginTaskDriven(origin, enabledOrigins)) return null;
   if (!stage) return null;
   return (
     `No se puede planificar: el servicio ya avanzó a «${stage}». ` +
@@ -71,17 +60,12 @@ const ASSIGNABLE_STAGES: ReadonlySet<string> = new Set([
 /**
  * Whether the assign gesture has anywhere to go — the menu gate. Planning and
  * assigning are separate steps, so being planned does not make a service
- * assignable. Fail-open on what we cannot prove (flag-off origin, unknown
- * stage) so a still-loading task index never hides a legitimate action. Takes
- * the loose `workflowStage` a planned item carries, which may hold a terminal
- * value such as `finished` — not assignable either.
+ * assignable. Fail-open on what we cannot prove (unknown stage) so a
+ * still-loading task index never hides a legitimate action. Takes the loose
+ * `workflowStage` a planned item carries, which may hold a terminal value
+ * such as `finished` — not assignable either.
  */
-export function canAssignAtStage(
-  stage: string | undefined,
-  origin: string | undefined,
-  enabledOrigins: ReadonlySet<string>
-): boolean {
-  if (!isOriginTaskDriven(origin, enabledOrigins)) return true;
+export function canAssignAtStage(stage: string | undefined): boolean {
   if (!stage) return true;
   return ASSIGNABLE_STAGES.has(stage);
 }
@@ -106,15 +90,10 @@ const REPLANNABLE_STAGES: ReadonlySet<string> = new Set([
 /**
  * Whether the calendar may still re-plan (or un-plan) this service — the menu
  * gate for "Volver a planificar" / "Eliminar planificación". Same fail-open
- * stance as {@link canAssignAtStage}: a flag-off origin or an unknown stage
- * answers `true`, so a loading task index never hides a legitimate action.
+ * stance as {@link canAssignAtStage}: an unknown stage answers `true`, so a
+ * loading task index never hides a legitimate action.
  */
-export function canReplanAtStage(
-  stage: string | undefined,
-  origin: string | undefined,
-  enabledOrigins: ReadonlySet<string>
-): boolean {
-  if (!isOriginTaskDriven(origin, enabledOrigins)) return true;
+export function canReplanAtStage(stage: string | undefined): boolean {
   if (!stage) return true;
   return REPLANNABLE_STAGES.has(stage);
 }
@@ -125,11 +104,9 @@ export function canReplanAtStage(
  */
 export function refuseReplan(input: {
   stage: TaskStage | undefined;
-  origin: string | undefined;
-  enabledOrigins: ReadonlySet<string>;
 }): string | null {
-  const { stage, origin, enabledOrigins } = input;
-  if (canReplanAtStage(stage, origin, enabledOrigins)) return null;
+  const { stage } = input;
+  if (canReplanAtStage(stage)) return null;
   return (
     `No se puede replanificar: el viaje ya inició («${stage}»). ` +
     `Gestione el cambio desde el proceso.`
@@ -145,15 +122,12 @@ export function refuseReplan(input: {
 export function refuseAssign(input: {
   /** The live Alfresco task's stage, or undefined when there is no live task. */
   stage: TaskStage | undefined;
-  origin: string | undefined;
-  enabledOrigins: ReadonlySet<string>;
   /** Whether a forward workflow transition resolved for this gesture. */
   hasTaskAdvance: boolean;
   /** Whether the presented-service re-assign dance will run instead. */
   hasReassign: boolean;
 }): string | null {
-  const { stage, origin, enabledOrigins, hasTaskAdvance, hasReassign } = input;
-  if (!isOriginTaskDriven(origin, enabledOrigins)) return null;
+  const { stage, hasTaskAdvance, hasReassign } = input;
   if (!stage) return null;
   if (!ASSIGNABLE_STAGES.has(stage)) {
     return (

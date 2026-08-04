@@ -5,7 +5,6 @@ const ENV_KEYS = [
   "ECM_PUBLIC_URL",
   "MAPBOX_API_KEY",
   "MAP_DEFAULT_TRIP_FILTER",
-  "TASK_DRIVEN_ORIGINS",
 ] as const;
 
 describe("runtime config route", () => {
@@ -19,7 +18,6 @@ describe("runtime config route", () => {
     process.env[ENV_KEYS[0]] = "https://coordinador.example.com";
     process.env[ENV_KEYS[1]] = "pk.runtime-mapbox-token";
     process.env[ENV_KEYS[2]] = "true";
-    process.env[ENV_KEYS[3]] = "ANTOFAGASTA";
 
     const response = GET();
     const data = await response.json();
@@ -28,7 +26,6 @@ describe("runtime config route", () => {
       ECM_PUBLIC_URL: "https://coordinador.example.com",
       MAPBOX_API_KEY: "pk.runtime-mapbox-token",
       MAP_DEFAULT_TRIP_FILTER: "true",
-      TASK_DRIVEN_ORIGINS: "ANTOFAGASTA",
     });
   });
 

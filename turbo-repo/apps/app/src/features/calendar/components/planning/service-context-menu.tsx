@@ -17,7 +17,6 @@ import {
   canAssignAtStage,
   canReplanAtStage,
 } from "@/features/calendar/services/task-driven-guard";
-import { useTaskDrivenOrigins } from "@/features/calendar/services/use-task-driven-origins";
 
 export interface ContextMenuPosition {
   x: number;
@@ -92,7 +91,6 @@ export function ServiceContextMenu({
   // permissions load and while the override is active.
   const { canPlan, canAssign, forceViewer, canTogglePreview } =
     useCalendarViewMode();
-  const taskDrivenOrigins = useTaskDrivenOrigins();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -103,12 +101,7 @@ export function ServiceContextMenu({
   // to carry a resource change, so offering the action would only produce an
   // error at the persist boundary — don't offer it. Same rule for its inverse.
   const stageAllowsAssign =
-    plannedService !== null &&
-    canAssignAtStage(
-      plannedService.workflowStage,
-      plannedService.service.origen,
-      taskDrivenOrigins
-    );
+    plannedService !== null && canAssignAtStage(plannedService.workflowStage);
 
   const canStartAssignment = canAssign && stageAllowsAssign;
 
@@ -118,12 +111,7 @@ export function ServiceContextMenu({
   // same authority — its transition would otherwise walk an in-flight trip all
   // the way back to `planService` from a right-click.
   const stageAllowsReplan =
-    plannedService !== null &&
-    canReplanAtStage(
-      plannedService.workflowStage,
-      plannedService.service.origen,
-      taskDrivenOrigins
-    );
+    plannedService !== null && canReplanAtStage(plannedService.workflowStage);
 
   const canReplan = canPlan && stageAllowsReplan;
 

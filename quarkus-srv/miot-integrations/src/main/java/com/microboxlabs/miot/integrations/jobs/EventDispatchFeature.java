@@ -33,6 +33,25 @@ public final class EventDispatchFeature {
      */
     public static final String PAYLOAD_CONTEXT = "context";
 
+    /**
+     * Optional: an event type whose <b>fetch-shaped</b> binding completes the context
+     * before rendering — for producers whose snapshot carries opaque resource ids that
+     * partner templates cannot use directly (the fetch resolves them into the fields the
+     * templates read). Resolved through {@code EventBindingFetchService} with the
+     * dispatch's own scope and context, so which connection answers and how fields map
+     * in both directions stays operator-authored binding config. Absent → the snapshot
+     * renders unchanged, exactly as before this key existed.
+     */
+    public static final String PAYLOAD_ENRICHMENT_EVENT = "enrichmentEvent";
+
+    /**
+     * Optional companion to {@link #PAYLOAD_ENRICHMENT_EVENT}: the context key whose
+     * map receives the fetched values (created if absent). Absent → fetched values merge
+     * at the context root. Fetched values win over the snapshot's own — a fresh
+     * resolution beats what rode along.
+     */
+    public static final String PAYLOAD_ENRICHMENT_MERGE_KEY = "enrichmentMergeKey";
+
     private EventDispatchFeature() {
     }
 }

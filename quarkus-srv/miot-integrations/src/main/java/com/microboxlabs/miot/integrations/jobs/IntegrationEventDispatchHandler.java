@@ -9,13 +9,16 @@ import com.microboxlabs.miot.integrations.domain.IntegrationOperation;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationEventBindingRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
+import com.microboxlabs.miot.integrations.service.EventBindingFetchService;
 import com.microboxlabs.miot.integrations.service.EventBindingSelector;
 import com.microboxlabs.miot.integrations.template.PayloadRenderException;
 import com.microboxlabs.miot.integrations.template.PayloadRenderer;
 import com.microboxlabs.miot.integrations.template.PayloadSchema;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Delivers one bound event: load the binding, render its payload from the context snapshot,
@@ -41,6 +44,7 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
     private final EventBindingSelector selector;
     private final ChannelDispatcherRegistry dispatchers;
     private final PayloadRenderer renderer;
+    private final EventBindingFetchService fetchService;
 
     @Inject
     public IntegrationEventDispatchHandler(
@@ -49,13 +53,15 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
             IntegrationOperationRepository operationRepository,
             EventBindingSelector selector,
             ChannelDispatcherRegistry dispatchers,
-            PayloadRenderer renderer) {
+            PayloadRenderer renderer,
+            EventBindingFetchService fetchService) {
         this.bindingRepository = bindingRepository;
         this.connectionRepository = connectionRepository;
         this.operationRepository = operationRepository;
         this.selector = selector;
         this.dispatchers = dispatchers;
         this.renderer = renderer;
+        this.fetchService = fetchService;
     }
 
     @Override
@@ -89,7 +95,8 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
                     "Connection " + binding.connectionId() + " no longer exists");
         }
 
-        Object body = renderBody(binding, contractFor(binding), contextOf(payload));
+        Object body = renderBody(binding, contractFor(binding),
+                enrichContext(tenantClientId, payload, contextOf(payload)));
         ChannelDispatcher dispatcher = dispatchers.dispatcherFor(connection.providerType());
 
 
@@ -128,6 +135,49 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
                 string(payload, EventDispatchFeature.PAYLOAD_SCOPE_KIND),
                 string(payload, EventDispatchFeature.PAYLOAD_SCOPE_KEY),
                 contextOf(payload));
+    }
+
+    /**
+     * Optional pre-render enrichment: the producer names an event whose fetch-shaped
+     * binding completes the context — the case is a snapshot carrying opaque resource
+     * ids that partner templates cannot use directly, resolved here into the fields
+     * they read. Fetched values land under {@code enrichmentMergeKey} (a map, created
+     * if absent) or at the context root when no key is named, and win over the
+     * snapshot's own: a fresh resolution beats what rode along.
+     *
+     * <p>Inherits the fetch contract wholesale: no armed binding, or a context with
+     * nothing the fetch's mapping reads, returns the snapshot unchanged (rollout is
+     * flipping a row on); a configured fetch that cannot deliver throws, so the ledger
+     * retries or parks visibly rather than dispatching silently wrong data.
+     */
+    private Map<String, Object> enrichContext(
+            String tenantClientId, Map<String, Object> payload, Map<String, Object> context) {
+        String enrichmentEvent = string(payload, EventDispatchFeature.PAYLOAD_ENRICHMENT_EVENT);
+        if (enrichmentEvent == null) {
+            return context;
+        }
+        Optional<EventBindingFetchService.FetchedValues> fetched = fetchService.fetch(
+                tenantClientId,
+                enrichmentEvent,
+                string(payload, EventDispatchFeature.PAYLOAD_SCOPE_KIND),
+                string(payload, EventDispatchFeature.PAYLOAD_SCOPE_KEY),
+                context);
+        if (fetched.isEmpty()) {
+            return context;
+        }
+        Map<String, Object> enriched = new LinkedHashMap<>(context);
+        String mergeKey = string(payload, EventDispatchFeature.PAYLOAD_ENRICHMENT_MERGE_KEY);
+        if (mergeKey == null) {
+            enriched.putAll(fetched.get().values());
+            return enriched;
+        }
+        Map<String, Object> target = new LinkedHashMap<>();
+        if (context.get(mergeKey) instanceof Map<?, ?> existing) {
+            existing.forEach((k, v) -> target.put(String.valueOf(k), v));
+        }
+        target.putAll(fetched.get().values());
+        enriched.put(mergeKey, target);
+        return enriched;
     }
 
     private PayloadSchema contractFor(IntegrationEventBinding binding) {

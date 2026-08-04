@@ -17,7 +17,10 @@ import {
   getAssignmentAccreditation,
   assignmentAccreditationTooltip,
 } from "./assignment-accreditation";
-import { ACCREDITATION_ICON_TONE } from "./sidebar-tabs/assignment/accreditation";
+import {
+  ACCREDITATION_ICON_TONE,
+  type AccreditationLevel,
+} from "./sidebar-tabs/assignment/accreditation";
 import { ServiceCategoryBadge } from "@/features/common/components/service-category-badge/service-category-badge";
 
 /**
@@ -144,6 +147,18 @@ function getStageIndicator(
   };
 }
 
+function getDriverIconColor(
+  accreditationLevel: AccreditationLevel | undefined,
+  hasUrgencia: boolean
+): string {
+  if (accreditationLevel) {
+    return ACCREDITATION_ICON_TONE[accreditationLevel];
+  }
+  return hasUrgencia
+    ? "text-purple-700 dark:text-purple-300"
+    : "text-blue-700 dark:text-blue-300";
+}
+
 interface PlannedServiceChipProps {
   readonly plannedService: PlannedService;
   readonly isBeingReassigned?: boolean;
@@ -199,11 +214,10 @@ export function PlannedServiceChip({
   // retains the translated per-resource breakdown. Legacy bookings keep the
   // original urgency-aware driver color.
   const accreditation = getAssignmentAccreditation(plannedService.service);
-  const driverIconColor = accreditation
-    ? ACCREDITATION_ICON_TONE[accreditation.level]
-    : hasUrgencia
-      ? "text-purple-700 dark:text-purple-300"
-      : "text-blue-700 dark:text-blue-300";
+  const driverIconColor = getDriverIconColor(
+    accreditation?.level,
+    hasUrgencia
+  );
   const accreditationTooltip = accreditation
     ? assignmentAccreditationTooltip(accreditation, dict)
     : undefined;

@@ -137,6 +137,22 @@ class IntegrationEventBindingServiceTest {
                 bindings.saved.get(0).fieldTemplates().get("guidMultimedia"));
     }
 
+    /** The release event shares the assignment's context vocabulary. */
+    @Test
+    void releaseBindingsMayReadTheDispatchContextRoots() {
+        var release = new UpsertIntegrationEventBindingRequest(
+                "calendar.resource_release", null, null, CONNECTION_ID, OPERATION_ID,
+                Map.of(),
+                Map.of("guidMultimedia", "{{service.code}}",
+                        "aprobado", "{{resourceData.mintral_serviceKind}}"),
+                Map.of(), null, null, true);
+
+        service().upsert(TENANT, CHILD_ORG, release, ACTOR);
+
+        assertEquals("{{service.code}}",
+                bindings.saved.get(0).fieldTemplates().get("guidMultimedia"));
+    }
+
     /** A review binding still cannot read job-payload roots — the roots are per event. */
     @Test
     void reviewBindingsStillCannotReadJobPayloadRoots() {

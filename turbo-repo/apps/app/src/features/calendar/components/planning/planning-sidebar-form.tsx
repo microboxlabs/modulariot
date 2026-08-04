@@ -33,53 +33,15 @@ import {
   AssignmentForm,
   type AssignmentFormData,
 } from "./sidebar-tabs";
-import { assignmentIncomplete } from "./sidebar-tabs/assignment/assignment-rules";
+import {
+  assignmentIncomplete,
+  assignmentOverrides,
+} from "./sidebar-tabs/assignment/assignment-rules";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import {
   TabButtons,
   type TabItem,
 } from "@/features/common/components/tab-buttons";
-
-/**
- * Build the service-override patch that travels with `confirmService` so the
- * booking payload reflects the user's current selections. Each slot is only
- * written when the user actually filled it in (or kept its conditional
- * section open) — partial assignments shouldn't wipe previously-saved fields
- * with empty strings.
- */
-function assignmentOverrides(
-  data: AssignmentFormData
-): Partial<SelectedService> {
-  const out: Partial<SelectedService> = {};
-  if (data.carrier) {
-    out.assignedCarrier = data.carrier;
-    // Carry the upstream prve_codigo alongside the UUID so the binding
-    // extractor can ship `carrier_external_id` for Alerce `proveedor`.
-    // `null` is a real value (carrier with no upstream code on file) and
-    // must be preserved — don't gate this on truthiness.
-    out.assignedCarrierExternalId = data.carrierExternalId;
-    // Same lifecycle for the accreditation level the calendar card renders:
-    // `null` (unknown) is a real value too.
-    out.assignedCarrierAccreditation = data.carrierAccreditation;
-  }
-  if (data.driver) {
-    out.assignedDriver = data.driver;
-    out.assignedDriverAccreditation = data.driverAccreditation;
-  }
-  if (data.hasSecondDriver && data.secondDriver) {
-    out.assignedDriver2 = data.secondDriver;
-    out.assignedDriver2Accreditation = data.secondDriverAccreditation;
-  }
-  if (data.truck) {
-    out.assignedTruck = data.truck;
-    out.assignedTruckAccreditation = data.truckAccreditation;
-  }
-  if (data.trailer) {
-    out.assignedTrailer = data.trailer;
-    out.assignedTrailerAccreditation = data.trailerAccreditation;
-  }
-  return out;
-}
 
 /**
  * Build the initial `AssignmentFormData` from a service, hydrating the

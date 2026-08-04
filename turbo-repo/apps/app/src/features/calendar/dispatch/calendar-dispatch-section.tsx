@@ -33,7 +33,6 @@ import {
   conditionRowsOf,
   dispatchFormProblems,
   type ConditionRow,
-  type DispatchFormProblem,
 } from "./dispatch-upsert";
 
 interface CalendarDispatchSectionProps {
@@ -45,6 +44,30 @@ interface CalendarDispatchSectionProps {
 }
 
 type View = { kind: "list" } | { kind: "edit"; binding: DispatchBinding | null };
+
+/**
+ * A condition row as the form edits it: the pure `ConditionRow` pair plus a
+ * stable id, so list keys survive edits and row removal (an index key would
+ * re-associate inputs when rows shift).
+ */
+interface EditableConditionRow {
+  readonly id: number;
+  readonly path: string;
+  readonly value: string;
+}
+
+function editableRows(rows: readonly ConditionRow[]): EditableConditionRow[] {
+  return rows.map(([path, value], index) => ({ id: index, path, value }));
+}
+
+function toConditionRows(rows: readonly EditableConditionRow[]): ConditionRow[] {
+  return rows.map(({ path, value }) => [path, value] as const);
+}
+
+function withNewRow(rows: readonly EditableConditionRow[]): EditableConditionRow[] {
+  const nextId = rows.reduce((max, row) => Math.max(max, row.id), -1) + 1;
+  return [...rows, { id: nextId, path: "response.", value: "" }];
+}
 
 /**
  * Calendar › settings drawer, second advanced section: the resource-assignment
@@ -99,9 +122,9 @@ export function CalendarDispatchSection({
     setView({ kind: "list" });
     setError(null);
     setBindings(null);
-    reload().catch((failure: unknown) => {
+    reload().catch((requestError: unknown) => {
       setBindings([]);
-      setError(describeFailure(failure));
+      setError(describeFailure(requestError));
     });
   }, [active, reload, describeFailure]);
 
@@ -111,8 +134,8 @@ export function CalendarDispatchSection({
     try {
       await deleteBinding(orgSlug, binding.id);
       await reload();
-    } catch (failure) {
-      setError(describeFailure(failure));
+    } catch (requestError) {
+      setError(describeFailure(requestError));
     }
   }
 
@@ -124,8 +147,8 @@ export function CalendarDispatchSection({
       await upsertBinding(orgSlug, binding);
       setView({ kind: "list" });
       await reload();
-    } catch (failure) {
-      setError(describeFailure(failure));
+    } catch (requestError) {
+      setError(describeFailure(requestError));
     } finally {
       setSaving(false);
     }
@@ -294,13 +317,15 @@ function DispatchForm({
   const [defaults, setDefaults] = useState<Record<string, string>>(
     editing ? { ...editing.fieldDefaults } : {}
   );
-  const [successRows, setSuccessRows] = useState<ConditionRow[]>(
-    editing
-      ? conditionRowsOf(editing.responseConditions, "success")
-      : [["response.", ""]]
+  const [successRows, setSuccessRows] = useState<EditableConditionRow[]>(
+    editableRows(
+      editing
+        ? conditionRowsOf(editing.responseConditions, "success")
+        : [["response.", ""]]
+    )
   );
-  const [retryRows, setRetryRows] = useState<ConditionRow[]>(
-    editing ? conditionRowsOf(editing.responseConditions, "retry") : []
+  const [retryRows, setRetryRows] = useState<EditableConditionRow[]>(
+    editableRows(editing ? conditionRowsOf(editing.responseConditions, "retry") : [])
   );
 
   const target = useMemo(
@@ -320,8 +345,8 @@ function DispatchForm({
     scopeCalendarId: scopeThisCalendar ? calendarId : null,
     fieldTemplates: templates,
     fieldDefaults: defaults,
-    successRows,
-    retryRows,
+    successRows: toConditionRows(successRows),
+    retryRows: toConditionRows(retryRows),
     enabled,
   };
   const problems = dispatchFormProblems(formState);
@@ -508,8 +533,8 @@ function DispatchForm({
 interface ConditionsFieldsetProps {
   readonly legend: string;
   readonly help: string;
-  readonly rows: readonly ConditionRow[];
-  readonly onChange: (rows: ConditionRow[]) => void;
+  readonly rows: readonly EditableConditionRow[];
+  readonly onChange: (rows: EditableConditionRow[]) => void;
   readonly dict: I18nRecord;
 }
 
@@ -525,6 +550,10 @@ function ConditionsFieldset({
   onChange,
   dict,
 }: Readonly<ConditionsFieldsetProps>) {
+  function patchRow(id: number, patch: Partial<Omit<EditableConditionRow, "id">>) {
+    onChange(rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+  }
+
   return (
     <fieldset className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
       <legend className="px-1 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -532,33 +561,21 @@ function ConditionsFieldset({
       </legend>
       <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">{help}</p>
       <div className="flex flex-col gap-2">
-        {rows.map(([path, value], index) => (
-          <div key={index} className="grid grid-cols-2 gap-2">
+        {rows.map((row) => (
+          <div key={row.id} className="grid grid-cols-2 gap-2">
             <TextInput
               sizing="sm"
               className="font-mono [&_input]:text-xs"
-              value={path}
+              value={row.path}
               placeholder="response.…"
-              onChange={(event) =>
-                onChange(
-                  rows.map((row, i) =>
-                    i === index ? [event.target.value, row[1]] : row
-                  )
-                )
-              }
+              onChange={(event) => patchRow(row.id, { path: event.target.value })}
             />
             <TextInput
               sizing="sm"
               className="font-mono [&_input]:text-xs"
-              value={value}
+              value={row.value}
               placeholder={tr("pages.calendar.dispatch.expectedValue", dict)}
-              onChange={(event) =>
-                onChange(
-                  rows.map((row, i) =>
-                    i === index ? [row[0], event.target.value] : row
-                  )
-                )
-              }
+              onChange={(event) => patchRow(row.id, { value: event.target.value })}
             />
           </div>
         ))}
@@ -566,7 +583,7 @@ function ConditionsFieldset({
           color="light"
           size="xs"
           className="self-start"
-          onClick={() => onChange([...rows, ["response.", ""]])}
+          onClick={() => onChange(withNewRow(rows))}
         >
           <HiPlus className="mr-1 h-3 w-3" />
           {tr("pages.calendar.dispatch.addCondition", dict)}

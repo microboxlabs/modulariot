@@ -12,7 +12,7 @@ import {
   type AccreditedResource,
 } from "@/features/calendar/services/accredited-resources.service";
 import { toAccreditationLevel, type AccreditationLevel } from "./accreditation";
-import { trailerRequired } from "./assignment-rules";
+import { normalizeTrailerNeed, trailerRequired } from "./assignment-rules";
 import { DriverSearchDropdown } from "./driver-search-dropdown";
 import {
   CarrierSearchDropdown,
@@ -294,17 +294,19 @@ function carrierExternalIdFromRows(
 }
 
 /**
- * The `trailer_need` flag of the row backing a just-selected truck. `null`
- * when the selection was cleared, the row is not on the loaded page, or the
- * upstream fn predates the flag — all treated as "trailer required" by
- * `assignment-rules`.
+ * The `trailer_need` flag of the row backing a just-selected truck,
+ * normalized from the wire's `0 | 1`. `null` when the selection was cleared,
+ * the row is not on the loaded page, or the upstream fn predates the flag —
+ * all treated as "trailer required" by `assignment-rules`.
  */
 function trailerNeedFromRows(
   rows: AccreditedResource[],
   resourceId: string | boolean
 ): boolean | null {
   if (typeof resourceId !== "string" || resourceId.length === 0) return null;
-  return rows.find((row) => row.resource_id === resourceId)?.trailer_need ?? null;
+  return normalizeTrailerNeed(
+    rows.find((row) => row.resource_id === resourceId)?.trailer_need
+  );
 }
 
 function clearCarrierScopedAssignment(updated: AssignmentFormData): void {

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { assignmentIncomplete, trailerRequired } from "./assignment-rules";
+import {
+  assignmentIncomplete,
+  normalizeTrailerNeed,
+  trailerRequired,
+} from "./assignment-rules";
 
 function selection(
   overrides: Partial<Parameters<typeof assignmentIncomplete>[0]> = {}
@@ -13,6 +17,23 @@ function selection(
     ...overrides,
   };
 }
+
+describe("normalizeTrailerNeed", () => {
+  it("maps the fn's 0|1 to booleans", () => {
+    expect(normalizeTrailerNeed(1)).toBe(true);
+    expect(normalizeTrailerNeed(0)).toBe(false);
+  });
+
+  it("admits booleans unchanged", () => {
+    expect(normalizeTrailerNeed(true)).toBe(true);
+    expect(normalizeTrailerNeed(false)).toBe(false);
+  });
+
+  it("keeps absent/null as unknown", () => {
+    expect(normalizeTrailerNeed(null)).toBeNull();
+    expect(normalizeTrailerNeed(undefined)).toBeNull();
+  });
+});
 
 describe("trailerRequired", () => {
   it("is required for a truck that needs its trailer", () => {

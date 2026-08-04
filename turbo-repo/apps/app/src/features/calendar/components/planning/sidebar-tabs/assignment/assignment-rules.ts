@@ -1,4 +1,17 @@
 import type { AssignmentFormData } from "./assignment-form";
+import type { AccreditedResource } from "@/features/calendar/services/accredited-resources.service";
+
+/**
+ * The wire flag → the form's `truckTrailerNeed`. The upstream fn emits
+ * `0 | 1`; booleans are admitted too so an fn change can't flip the rule
+ * silently. Absent/null stays `null` — "unknown", which `trailerRequired`
+ * treats as required.
+ */
+export function normalizeTrailerNeed(
+  value: AccreditedResource["trailer_need"] | undefined
+): boolean | null {
+  return value == null ? null : Boolean(value);
+}
 
 /**
  * Whether the current selection makes the trailer slot mandatory — which is

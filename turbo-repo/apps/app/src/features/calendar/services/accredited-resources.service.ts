@@ -37,11 +37,13 @@ export interface AccreditedResource {
   integration: "INTEGRATED" | "NOT INTEGRATED" | null;
   /**
    * Whether this truck runs with a trailer (TRUCK rows only). Drives the
-   * assignment form's trailer slot: hidden when `false`, required when
-   * `true`. Absent/null (older fn deployments) is treated as "required" —
-   * fail closed rather than let an assignment ship an empty trailer slot.
+   * assignment form's trailer slot: hidden when falsy-but-present, required
+   * when truthy. The upstream fn emits `0 | 1` (booleans also admitted —
+   * normalize with `normalizeTrailerNeed`). Absent/null (older fn
+   * deployments) is treated as "required" — fail closed rather than let an
+   * assignment ship an empty trailer slot.
    */
-  trailer_need?: boolean | null;
+  trailer_need?: 0 | 1 | boolean | null;
   symptoms: Record<string, number> | null;
   updated_at: string | null;
   // Server-decoded last-known position for TRUCK rows (from row.location

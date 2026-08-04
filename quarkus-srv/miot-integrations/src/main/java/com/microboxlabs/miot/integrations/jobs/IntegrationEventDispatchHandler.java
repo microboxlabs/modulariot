@@ -65,7 +65,12 @@ public class IntegrationEventDispatchHandler implements ModulithJobHandler {
 
     @Override
     public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
+        // The intake path stamps the tenant into the payload; a producer outside this
+        // module doesn't have to — the ledger row already knows whose job this is.
         String tenantClientId = string(payload, EventDispatchFeature.PAYLOAD_TENANT_CLIENT_ID);
+        if (tenantClientId == null) {
+            tenantClientId = tenantCode;
+        }
         if (tenantClientId == null) {
             throw new NonRetryableJobException("Event dispatch payload is missing its tenant");
         }

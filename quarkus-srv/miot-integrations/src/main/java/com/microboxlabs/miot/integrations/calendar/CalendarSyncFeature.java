@@ -27,6 +27,25 @@ public final class CalendarSyncFeature {
     public static final String EVENT_RESOURCE_ENRICHMENT = "calendar.resource_enrichment";
     public static final String SCOPE_CALENDAR = "calendar";
 
+    /**
+     * Dispatch-shaped sibling of {@link #EVENT_RESOURCE_ENRICHMENT}: when a service's
+     * resource assignment is (re)made, an {@code integration_event_dispatch} job addressed
+     * to this event pushes it to whatever system the operator bound — connection, field
+     * mapping, stand-in defaults and response verdicts are all binding rows. The producer
+     * owns the context vocabulary; this module only registers which roots templates may
+     * read.
+     */
+    public static final String EVENT_RESOURCE_ASSIGNMENT = "calendar.resource_assignment";
+
+    /**
+     * Context roots for {@link #EVENT_RESOURCE_ASSIGNMENT} bindings: {@code service}
+     * (nested scalars — {@code service.code}, {@code service.kind}) and the same
+     * {@code resourceData} identity map every calendar push carries. Scalars are nested
+     * because a bare root reads as a whole object to the validator.
+     */
+    public static final java.util.Set<String> ASSIGNMENT_TEMPLATE_ROOTS =
+            java.util.Set.of("service", "resourceData");
+
     /** Payload field names (self-contained — the worker never re-reads process vars). */
     public static final String PAYLOAD_OP = "op";
     public static final String PAYLOAD_SERVICE_CODE = "serviceCode";

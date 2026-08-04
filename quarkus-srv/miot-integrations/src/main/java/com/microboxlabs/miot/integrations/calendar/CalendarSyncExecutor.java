@@ -25,11 +25,14 @@ import org.jboss.logging.Logger;
  * self-contained payload into miot-calendar calls. Ported verbatim from ECM's
  * {@code CalendarSyncJobExecutor} — the moved runtime is the only change.
  *
- * <p>Outcome policy: 404 (no booking) and 409 (status regression — a newer
- * status already applied by an out-of-order sibling) are benign SKIPs; transport
- * / 5xx / network ({@code -1}) errors are thrown so the worker reports FAILED and
- * the ledger retries with backoff. miot-calendar only moves statuses forward, so
- * unordered jobs converge on the max status.
+ * <p>Outcome policy: 409 (status regression — a newer status already applied by
+ * an out-of-order sibling) is a benign SKIP; transport / 5xx / network
+ * ({@code -1}) errors are thrown so the worker reports FAILED and the ledger
+ * retries with backoff. miot-calendar only moves statuses forward, so unordered
+ * jobs converge on the max status. A patch 404 (no booking) creates the booking
+ * and applies the status when the payload carries an ETD and the target is
+ * non-terminal (see {@code materializeFromPatch}); otherwise it too is a benign
+ * SKIP.
  *
  * <p><b>Except when a regression is the point.</b> The workflow is not
  * monotonic — a service can go back from {@code presentDriver} to
@@ -205,12 +208,60 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             client.patchByResource(resourceId, calendarId, targetStatus, resourceData, syncStatus, null);
             return JobOutcome.succeeded("Booking patched to " + targetStatus + " for " + resourceId);
         } catch (CalendarBookingsHttpException e) {
+            if (e.getStatus() == 404) {
+                JobOutcome materialized = materializeFromPatch(payload, resourceId, calendarId,
+                        targetStatus, resourceData);
+                if (materialized != null) {
+                    return materialized;
+                }
+            }
             JobOutcome benign = benignSkip(e, resourceId, targetStatus);
             if (benign != null) {
                 return benign;
             }
             throw e;
         }
+    }
+
+    /**
+     * A patch that finds no booking used to be a benign skip in every case —
+     * right for a straggler, wrong for a service that entered the workflow
+     * without ever being planned through the calendar: each of its pushes 404'd
+     * and it never appeared at all. When the patch carries an ETD (it rides
+     * {@code resourceData} on every push), create the booking and then apply
+     * the status, so the service materializes at whatever stage first touches
+     * the calendar.
+     *
+     * <p>Returns {@code null} — falling back to the benign skip — in three cases:
+     * <ul>
+     *   <li><b>Terminal target.</b> A missing booking on a FINISHED/CANCELLED
+     *       push is usually the cancel's own work (a future-slot cancel deletes
+     *       the booking); creating one here would resurrect what was just
+     *       released, only to close it. The modulith cannot consult the
+     *       workflow, so terminal pushes never create.
+     *   <li><b>No target status.</b> A data-only patch names no lifecycle stage
+     *       — there is no "stage the service first touched" to materialize at.
+     *   <li><b>No ETD.</b> Patch payloads carry no explicit slot, so without a
+     *       parseable ETD there is nothing to place the booking at.
+     * </ul>
+     */
+    private JobOutcome materializeFromPatch(Map<String, Object> payload, String resourceId,
+                                            UUID calendarId, String targetStatus,
+                                            Map<String, Object> resourceData) {
+        if (calendarId == null || targetStatus == null
+                || CalendarSyncFeature.isTerminalStatus(targetStatus)) {
+            return null;
+        }
+        String etd = resourceData == null ? null
+                : str(resourceData, CalendarSyncFeature.DATA_EXPECTED_DEPARTURE_DATE);
+        if (etd == null) {
+            return null;
+        }
+        Map<String, Object> createPayload = new LinkedHashMap<>(payload);
+        createPayload.put(CalendarSyncFeature.PAYLOAD_ETD, etd);
+        LOG.infof("calendar_sync patch: no booking for %s — materializing one from the patch "
+                + "(etd=%s, target=%s)", resourceId, etd, targetStatus);
+        return ensureCreate(createPayload, resourceId, calendarId, targetStatus, resourceData);
     }
 
     /**
@@ -259,7 +310,8 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             }
             throw e;
         }
-        applyStatus(resourceId, calendarId, targetStatus);
+        applyStatus(resourceId, calendarId, targetStatus,
+                str(payload, CalendarSyncFeature.PAYLOAD_SYNC_STATUS));
         LOG.infof("calendar_sync ensure created booking %s for %s at %s %02d:%02d -> %s",
                 bookingId, resourceId, slot.date(), slot.hour(), slot.minutes(), targetStatus);
         return JobOutcome.succeeded("Ensured (created) booking " + bookingId + " for " + resourceId
@@ -303,19 +355,21 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
     }
 
     /**
-     * Set the stage status on the booking we just created. Unlike a status-only
-     * push, a 404 here is NOT benign — the booking exists (we just created it), so
-     * a 404 is a visibility-lag anomaly; propagate it so a retry (whose
-     * {@code listByResource} then finds the booking) converges rather than
-     * reporting success with the status unset. Only 409 (the create default
-     * already at/ahead of the target) is benign.
+     * Set the stage status on the booking we just created, carrying the
+     * originating push's {@code syncStatus} (null leaves it untouched) — a
+     * materialized patch must not lose the confirmation window its payload
+     * opened. Unlike a status-only push, a 404 here is NOT benign — the booking
+     * exists (we just created it), so a 404 is a visibility-lag anomaly;
+     * propagate it so a retry (whose {@code listByResource} then finds the
+     * booking) converges rather than reporting success with the status unset.
+     * Only 409 (the create default already at/ahead of the target) is benign.
      */
-    private void applyStatus(String resourceId, UUID calendarId, String targetStatus) {
+    private void applyStatus(String resourceId, UUID calendarId, String targetStatus, String syncStatus) {
         if (targetStatus == null) {
             return;
         }
         try {
-            client.patchByResource(resourceId, calendarId, targetStatus, null);
+            client.patchByResource(resourceId, calendarId, targetStatus, null, syncStatus, null);
         } catch (CalendarBookingsHttpException e) {
             if (e.getStatus() != 409) {
                 throw e;

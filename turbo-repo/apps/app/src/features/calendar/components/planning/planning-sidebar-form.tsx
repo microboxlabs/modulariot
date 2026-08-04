@@ -33,6 +33,7 @@ import {
   AssignmentForm,
   type AssignmentFormData,
 } from "./sidebar-tabs";
+import { assignmentIncomplete } from "./sidebar-tabs/assignment/assignment-rules";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import {
   TabButtons,
@@ -73,7 +74,7 @@ function assignmentOverrides(
     out.assignedTruck = data.truck;
     out.assignedTruckAccreditation = data.truckAccreditation;
   }
-  if (data.hasTrailer && data.trailer) {
+  if (data.trailer) {
     out.assignedTrailer = data.trailer;
     out.assignedTrailerAccreditation = data.trailerAccreditation;
   }
@@ -84,8 +85,10 @@ function assignmentOverrides(
  * Build the initial `AssignmentFormData` from a service, hydrating the
  * carrier / driver / truck / trailer slots from the values persisted on the
  * previous `confirmService` call. Missing fields collapse to empty strings;
- * `hasSecondDriver` / `hasTrailer` toggle on when the matching slot is
- * set so the conditional UI opens automatically on reassign.
+ * `hasSecondDriver` toggles on when the matching slot is set so the
+ * conditional UI opens automatically on reassign. `truckTrailerNeed` starts
+ * unknown (null → trailer required, fail closed) and is refreshed from the
+ * truck's accredited row once the feed pins it in (assignment-form effect).
  */
 function assignmentDataFromService(
   service: SelectedService | undefined
@@ -106,7 +109,7 @@ function assignmentDataFromService(
     truckAccreditation: service?.assignedTruckAccreditation ?? null,
     trailer: service?.assignedTrailer ?? "",
     trailerAccreditation: service?.assignedTrailerAccreditation ?? null,
-    hasTrailer: Boolean(service?.assignedTrailer),
+    truckTrailerNeed: null,
   };
 }
 
@@ -772,9 +775,7 @@ export function PlanningSidebarForm({
                   onClick={handleAssign}
                   disabled={
                     !assigningService ||
-                    !assignmentData.carrier ||
-                    !assignmentData.driver ||
-                    !assignmentData.truck ||
+                    assignmentIncomplete(assignmentData) ||
                     isSubmitting
                   }
                 >

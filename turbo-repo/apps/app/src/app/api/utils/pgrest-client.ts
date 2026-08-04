@@ -609,6 +609,15 @@ export interface PgrestAccreditedResourceRow {
    */
   integration: "INTEGRATED" | "NOT INTEGRATED" | null;
   /**
+   * Whether this truck runs with a trailer (TRUCK rows only): drives the
+   * assignment form's trailer slot — hidden when `false`, required when
+   * `true`. Optional because older fn deployments don't emit it yet; the UI
+   * treats absent/null as "required" so an unknown truck can never ship an
+   * assignment whose trailer slot downstream bindings would fill with a
+   * placeholder.
+   */
+  trailer_need?: boolean | null;
+  /**
    * Last-known position as EWKB hex (SRID-prefixed point, 4326) for TRUCK
    * rows. Null when the asset has no position recorded. Decoded server-side
    * by `decodeEwkbPoint`; the calendar route surfaces the resulting

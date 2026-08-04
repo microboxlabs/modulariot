@@ -41,11 +41,6 @@
         "label": "síntomas detectados en un mes"
       },
       {
-        "prefix": "",
-        "value": "9 de 10",
-        "label": "síntomas era ruido filtrado: tu equipo solo ve lo que importa"
-      },
-      {
         "prefix": "Con",
         "value": "+28",
         "label": "proveedores GPS integrados"
@@ -60,7 +55,7 @@
   "problem": {
     "kicker": "El problema",
     "title": "¿Tratas las alertas,\npero vuelven a aparecer igual?",
-    "subtitle": "De 55.847 síntomas detectados en un mes, solo 5.885 requerían gestión — el resto es ruido que tapa lo urgente. Y de lo tratado, la mitad se invalida: se cierra el ticket, no la causa. Por eso las mismas desviaciones vuelven mes a mes.",
+    "subtitle": "En promedio un 10.5% de los síntomas detectados en un mes requieren gestión, el restante solo es ruido que tapa lo urgente.\n\nY los que se tratan, la mitad solo generan un cierre de ticket, pero la desviación vuelve mes a mes.",
     "pains": [
       {
         "title": "“Me avisaron al día siguiente”",
@@ -78,14 +73,14 @@
   },
   "tresActos": {
     "kicker": "La tesis, en 3 actos",
-    "title": "Detectar es commodity; reducir es el negocio.",
+    "title": "Detectar es commodity,\nreducir es el negocio",
     "subtitle": "El mismo motor de inteligencia, aplicado en tres momentos distintos de tu operación.",
     "actos": [
       {
         "n": "Acto 1",
         "tag": "Ver y reducir",
         "title": "Tratas cada alerta, pero las desviaciones vuelven igual.",
-        "body": "De 55.847 síntomas al mes, 9 de cada 10 era ruido filtrado — y de lo tratado, la mitad se invalida. Cerrar no es resolver: atacamos la causa que los genera en serie, no el ticket.",
+        "body": "La Torre de Control agrupa los síntomas por causa raíz, no por ticket: ves los patrones repetidos y mides si la desviación realmente bajó.",
         "cta": "Explora la torre de control"
       },
       {
@@ -102,13 +97,11 @@
         "body": "Correo, WhatsApp, Teams, Webex o SMS. Escalar deja de ser un aviso y pasa a ser el primer paso de la gestión.",
         "cta": "Ver canales de escalamiento"
       }
-    ],
-    "disclaimer": "Lo que ves en el explorador es una operación real (junio 2026), no una maqueta."
+    ]
   },
   "steps": {
     "kicker": "En la práctica",
     "title": "Transforma una señal cruda en una decisión auditable",
-    "subtitle": "Sigue el flujo: de la señal cruda al síntoma resuelto.",
     "items": [
       {
         "n": "01",
@@ -343,7 +336,7 @@
   },
   "deployment": {
     "kicker": "Implementación",
-    "title": "En vivo en días, no meses.",
+    "title": "En vivo en días, no meses",
     "subtitle": "Una puesta en marcha gestionada por MicroBox Labs: nosotros operamos la infraestructura, tú te enfocas en la operación.",
     "soonLabel": "Próximamente",
     "includes": [

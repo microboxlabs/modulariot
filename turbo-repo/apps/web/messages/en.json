@@ -41,11 +41,6 @@
         "label": "symptoms detected in a month"
       },
       {
-        "prefix": "",
-        "value": "9 in 10",
-        "label": "symptoms were filtered noise: your team only sees what matters"
-      },
-      {
         "prefix": "With",
         "value": "+28",
         "label": "GPS providers integrated"
@@ -60,7 +55,7 @@
   "problem": {
     "kicker": "The problem",
     "title": "Do you handle alerts,\nonly to see them come back the same way?",
-    "subtitle": "Of 55,847 symptoms detected in one month, only 5,885 required management — the rest is noise that buries what's urgent. And of what gets handled, half is invalidated: the ticket closes, the cause doesn't. That's why the same deviations return month after month.",
+    "subtitle": "On average, only 10.5% of symptoms detected in a month require management — the rest is just noise that buries what's urgent.\n\nAnd of what does get handled, half only closes a ticket, while the deviation comes back month after month.",
     "pains": [
       {
         "title": "“I found out the next day”",
@@ -78,14 +73,14 @@
   },
   "tresActos": {
     "kicker": "The thesis, in 3 acts",
-    "title": "Detecting is a commodity; reducing is the business.",
+    "title": "Detecting is a commodity,\nreducing is the business",
     "subtitle": "The same intelligence engine, applied at three different moments of your operation.",
     "actos": [
       {
         "n": "Act 1",
         "tag": "See and reduce",
         "title": "You handle every alert, but the deviations come back the same.",
-        "body": "Of 55,847 symptoms a month, 9 in 10 were filtered noise — and half of what's handled gets invalidated. Closing isn't solving: we attack the cause generating them in series, not the ticket.",
+        "body": "The Control Tower groups symptoms by root cause, not by ticket: you see the repeating patterns and measure whether the deviation actually dropped.",
         "cta": "Explore the control tower"
       },
       {
@@ -102,13 +97,11 @@
         "body": "Email, WhatsApp, Teams, Webex or SMS. Escalating stops being just a notice and becomes the first step of the handling.",
         "cta": "See escalation channels"
       }
-    ],
-    "disclaimer": "What you see in the explorer is a real operation (June 2026), not a mockup."
+    ]
   },
   "steps": {
     "kicker": "How it works",
     "title": "Turn a raw signal into an auditable decision",
-    "subtitle": "Follow the flow: from raw signal to solved symptom.",
     "items": [
       {
         "n": "01",
@@ -343,7 +336,7 @@
   },
   "deployment": {
     "kicker": "Deployment",
-    "title": "Live in days, not months.",
+    "title": "Live in days, not months",
     "subtitle": "A rollout managed by MicroBox Labs: we run the infrastructure, you focus on the operation.",
     "soonLabel": "Coming soon",
     "includes": [

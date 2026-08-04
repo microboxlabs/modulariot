@@ -1,5 +1,4 @@
 import { Hero } from "../../../components/v2/sections/Hero";
-import { TrustedBy } from "../../../components/v2/sections/TrustedBy";
 import { Stats } from "../../../components/v2/sections/Stats";
 import { Partners } from "../../../components/v2/sections/Partners";
 import { Problem } from "../../../components/v2/sections/Problem";
@@ -35,8 +34,8 @@ export default async function Home({
     <main>
       <Hero lang={lang} tone={tone()} /> {/* Gancho */}
       <Stats lang={lang} tone={tone()} />{" "}
-      {/* Trust bar: integraciones GPS + stack tecnológico (carruseles) */}
-      <Partners tone={tone()} />{" "}
+      {/* Trust bar: cliente real + proveedores GPS integrados (carrusel) */}
+      <Partners lang={lang} tone={tone()} />{" "}
       {/* Validación / cuantificación (banda oscura) */}
       <Problem lang={lang} tone={tone()} />{" "}
       {/* Problema emocional (We Got You) */}
@@ -51,7 +50,6 @@ export default async function Home({
       {/* Seguridad & datos: de-riesgo de la decisión (motion demo-led) */}
       <Security lang={lang} tone={tone()} />{" "}
       {/* Opciones de implementación */}
-      <TrustedBy lang={lang} tone={tone()} /> {/* Confianza: cliente */}
       <Stories lang={lang} tone={tone()} /> {/* Prueba social: casos reales */}
       <FAQ tone={tone()} /> {/* Objeciones */}
       <FinalCta lang={lang} base={base} tone={tone()} /> {/* Cierre */}

@@ -1,19 +1,28 @@
+import { getTranslations } from "next-intl/server";
 import { Section, type Tone } from "./shared";
-import { GPS_PARTNERS, TECH_PARTNERS, type PartnerLogo } from "../partners-data";
+import { GPS_PARTNERS, type PartnerLogo } from "../partners-data";
 
-// Trust bar de integraciones (motion demo-led): dos carruseles infinitos en
-// contrarrotación — proveedores GPS integrados y plataformas tecnológicas.
-// Solo logos; cada uno linkea al sitio oficial. Los logos blancos (invert)
-// se invierten sobre fondo claro y no revelan color al hover (el filtro
-// distorsionaría sus colores de marca).
+// Trust bar de integraciones (motion demo-led): un carrusel infinito con el
+// cliente real (Mintral) + los proveedores GPS integrados. Solo logos; cada
+// uno linkea al sitio oficial.
 
+// `invert` marca logos de arte blanco/negro puro (no a color): en claro se
+// invierten solo si son blancos (`p.invert`), en oscuro es al revés — los
+// blancos ya se ven bien tal cual (dark:invert-0 cancela el invert) y los
+// negros necesitan invertirse para no quedar negro-sobre-negro
+// (dark:invert). Los logos a color no llevan ninguna de las dos clases, así
+// no se les distorsiona el color de marca en ningún tema.
 function LogoLi({ p }: { p: PartnerLogo }) {
+  const themeInvert = p.invert ? "invert dark:invert-0" : "dark:invert";
+  const height = p.tall ? "h-14" : "h-10";
   const inner = p.img ? (
-    <img src={p.img} alt={p.name} className={`h-8 w-auto ${p.invert ? "invert" : ""}`} />
+    <img src={p.img} alt={p.name} className={`${height} w-auto ${themeInvert}`} />
   ) : (
-    <span className="text-ink-3 text-[17px] font-bold tracking-tight whitespace-nowrap">{p.name}</span>
+    <span className="text-ink-3 text-[19px] font-bold tracking-tight whitespace-nowrap">{p.name}</span>
   );
-  const hover = p.invert ? "hover:opacity-100" : "hover:opacity-100 hover:grayscale-0";
+  const hover = p.invert
+    ? "hover:opacity-100"
+    : "hover:opacity-100 hover:grayscale-0 dark:hover:grayscale";
   return (
     <li className="mx-8 shrink-0">
       {p.href ? (
@@ -63,7 +72,8 @@ function Track({
   );
 }
 
-export function Partners({ tone }: { tone: Tone }) {
+export async function Partners({ lang, tone }: { lang: string; tone: Tone }) {
+  const t = await getTranslations({ locale: lang, namespace: "stats" });
   return (
     <Section tone={tone} contentClassName="space-y-7 py-10">
       <style>{`
@@ -73,8 +83,10 @@ export function Partners({ tone }: { tone: Tone }) {
         @keyframes miot-marquee-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         @media (prefers-reduced-motion: reduce) { .miot-marquee-track { animation: none; } }
       `}</style>
+      <p className="text-ink-3 text-center text-xs font-semibold tracking-widest uppercase">
+        {t("trustedBy")}
+      </p>
       <Track items={GPS_PARTNERS} duration={80} />
-      <Track items={TECH_PARTNERS} reverse duration={36} />
     </Section>
   );
 }

@@ -13,21 +13,25 @@ export function StatsGrid({
   tone = "light",
   align = "left",
   wrapAt = "lg",
+  cols = 4,
 }: {
   items: StatItem[];
   size?: "md" | "lg";
   tone?: "light" | "dark";
   align?: "left" | "center";
   wrapAt?: "sm" | "lg";
+  cols?: 3 | 4;
 }) {
   const valueClass = tone === "dark" ? "text-page dark:text-ink-1" : "text-ink-1";
   const labelClass = tone === "dark" ? "text-page/60 dark:text-ink-3" : "text-ink-3";
   const valueSize = size === "lg" ? "text-4xl sm:text-5xl" : "text-3xl";
+  const colsClass =
+    cols === 3
+      ? "grid-cols-1 sm:grid-cols-3"
+      : `grid-cols-2 ${wrapAt === "sm" ? "sm:grid-cols-4" : "lg:grid-cols-4"}`;
 
   return (
-    <div
-      className={`grid grid-cols-2 gap-x-8 gap-y-10 ${wrapAt === "sm" ? "sm:grid-cols-4" : "lg:grid-cols-4"} ${align === "center" ? "text-center" : ""}`}
-    >
+    <div className={`grid gap-x-8 gap-y-10 ${colsClass} ${align === "center" ? "text-center" : ""}`}>
       {items.map((s, i) => (
         <Reveal key={s.label} delay={i * 0.06}>
           {s.prefix && <p className="text-sm text-ink-3">{s.prefix}</p>}

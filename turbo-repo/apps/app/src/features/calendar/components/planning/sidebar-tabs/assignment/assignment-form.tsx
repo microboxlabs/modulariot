@@ -12,6 +12,7 @@ import {
   type AccreditedResource,
 } from "@/features/calendar/services/accredited-resources.service";
 import { toAccreditationLevel, type AccreditationLevel } from "./accreditation";
+import { normalizeTrailerNeed, trailerRequired } from "./assignment-rules";
 import { DriverSearchDropdown } from "./driver-search-dropdown";
 import {
   CarrierSearchDropdown,
@@ -245,7 +246,14 @@ export interface AssignmentFormData {
   hasSecondDriver: boolean;
   truck: string;
   trailer: string;
-  hasTrailer: boolean;
+  /**
+   * The picked truck's `trailer_need` flag, captured from its accredited row
+   * on every truck change (same lifecycle as the accreditation capture).
+   * Decides the trailer slot's fate — hidden when `false`, shown and required
+   * otherwise (see `assignment-rules`). `null` when no truck is selected, the
+   * row wasn't on the loaded page, or the upstream fn predates the flag.
+   */
+  truckTrailerNeed: boolean | null;
   /**
    * Accreditation level of each selected resource, captured from the
    * accredited-resources row on every change (same lifecycle as
@@ -285,6 +293,22 @@ function carrierExternalIdFromRows(
   );
 }
 
+/**
+ * The `trailer_need` flag of the row backing a just-selected truck,
+ * normalized from the wire's `0 | 1`. `null` when the selection was cleared,
+ * the row is not on the loaded page, or the upstream fn predates the flag —
+ * all treated as "trailer required" by `assignment-rules`.
+ */
+function trailerNeedFromRows(
+  rows: AccreditedResource[],
+  resourceId: string | boolean
+): boolean | null {
+  if (typeof resourceId !== "string" || resourceId.length === 0) return null;
+  return normalizeTrailerNeed(
+    rows.find((row) => row.resource_id === resourceId)?.trailer_need
+  );
+}
+
 function clearCarrierScopedAssignment(updated: AssignmentFormData): void {
   updated.driver = "";
   updated.secondDriver = "";
@@ -294,6 +318,7 @@ function clearCarrierScopedAssignment(updated: AssignmentFormData): void {
   updated.secondDriverAccreditation = null;
   updated.truckAccreditation = null;
   updated.trailerAccreditation = null;
+  updated.truckTrailerNeed = null;
 }
 
 function updateSelectedResourceAccreditation(
@@ -557,8 +582,27 @@ export function AssignmentForm({
     carrierId: value.carrier,
     query: trailerQuery,
     selectedIds: value.trailer ? [value.trailer] : undefined,
-    enabled: Boolean(value.carrier && value.hasTrailer),
+    enabled: Boolean(value.carrier) && trailerRequired(value),
   });
+
+  // A rehydrated assignment carries the truck id but not its trailer_need —
+  // the flag lives on the accredited row, which arrives async (pinned via
+  // selectedIds). Refresh the captured value once the row is on the page so
+  // a trailerless truck's slot hides (and its stale trailer drops) instead of
+  // staying fail-closed-required forever.
+  useEffect(() => {
+    const need = trailerNeedFromRows(accreditedTrucks, value.truck);
+    if (!value.truck || need === null || need === value.truckTrailerNeed) {
+      return;
+    }
+    const updated = { ...value, truckTrailerNeed: need };
+    if (!trailerRequired(updated)) {
+      updated.trailer = "";
+      updated.trailerAccreditation = null;
+      setTrailerQuery("");
+    }
+    onChange(updated);
+  }, [accreditedTrucks, value, onChange]);
 
   const carrierOptions = useMemo(
     () => accreditedCarriers.map(carrierRowToOption),
@@ -629,11 +673,19 @@ export function AssignmentForm({
       updated.secondDriverAccreditation = null;
     }
 
-    // When disabling trailer section, clear the selection and search.
-    if (field === "hasTrailer" && fieldValue === false) {
-      updated.trailer = "";
-      updated.trailerAccreditation = null;
-      setTrailerQuery("");
+    // The truck's own trailer_need decides the trailer slot's fate (see
+    // assignment-rules): capture it with the pick, and drop any trailer that
+    // was chosen for a previous truck when this one runs trailerless.
+    if (field === "truck") {
+      updated.truckTrailerNeed = trailerNeedFromRows(
+        accreditedTrucks,
+        fieldValue
+      );
+      if (!trailerRequired(updated)) {
+        updated.trailer = "";
+        updated.trailerAccreditation = null;
+        setTrailerQuery("");
+      }
     }
 
     onChange(updated);
@@ -722,19 +774,6 @@ export function AssignmentForm({
           onQueryChange={setTruckQuery}
           onReachEnd={loadMoreTrucks}
           isLoadingMore={isLoadingMoreTrucks}
-          labelRightElement={
-            <label className="flex items-center gap-1 cursor-pointer">
-              <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                {tr("pages.planning.sidebar.assignment.trailerLabel", dict)}
-              </span>
-              <Checkbox
-                id="trailer-check"
-                checked={value.hasTrailer}
-                onChange={(e) => handleChange("hasTrailer", e.target.checked)}
-                className="w-3 h-3"
-              />
-            </label>
-          }
         />
         {selectedCamion && (
           <TruckMapDisplay
@@ -746,8 +785,9 @@ export function AssignmentForm({
         )}
       </div>
 
-      {/* Remolque Dropdown (conditional) */}
-      {value.hasTrailer && (
+      {/* Remolque Dropdown — the picked truck's trailer_need decides:
+          hidden for a trailerless vehicle, shown (and required) otherwise. */}
+      {trailerRequired(value) && (
         <TrailerSearchDropdown
           label={tr("pages.planning.sidebar.assignment.trailer", dict)}
           trailers={trailerOptions}

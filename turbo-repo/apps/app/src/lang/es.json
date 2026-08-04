@@ -632,7 +632,6 @@
             "rut": "RUT",
             "status": "Estado"
           },
-          "trailerLabel": "Remolque",
           "trailer": "Remolque",
           "selectTrailer": "Seleccionar remolque...",
           "status": "Estado",

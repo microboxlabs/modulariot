@@ -632,7 +632,6 @@
             "rut": "RUT",
             "status": "Status"
           },
-          "trailerLabel": "Trailer",
           "trailer": "Trailer",
           "selectTrailer": "Select trailer...",
           "status": "Status",

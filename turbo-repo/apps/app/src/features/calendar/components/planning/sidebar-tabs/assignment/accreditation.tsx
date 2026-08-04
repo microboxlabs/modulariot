@@ -70,6 +70,13 @@ const DOT_TONE: Record<AccreditationLevel, string> = {
   superAccredited: "bg-green-200 dark:bg-green-800/50",
 };
 
+/** Text color used when accreditation is communicated by an icon alone. */
+export const ACCREDITATION_ICON_TONE: Record<AccreditationLevel, string> = {
+  accredited: "text-gray-700 dark:text-gray-200",
+  notAccredited: "text-amber-700 dark:text-amber-400",
+  superAccredited: "text-green-700 dark:text-green-400",
+};
+
 interface AccreditationBadgeProps {
   readonly level: AccreditationLevel;
   readonly dict: I18nRecord;

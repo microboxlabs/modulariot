@@ -17,7 +17,10 @@ import {
   getAssignmentAccreditation,
   assignmentAccreditationTooltip,
 } from "./assignment-accreditation";
-import { AccreditationBadge } from "./sidebar-tabs/assignment/accreditation";
+import {
+  ACCREDITATION_ICON_TONE,
+  type AccreditationLevel,
+} from "./sidebar-tabs/assignment/accreditation";
 import { ServiceCategoryBadge } from "@/features/common/components/service-category-badge/service-category-badge";
 
 /**
@@ -144,6 +147,18 @@ function getStageIndicator(
   };
 }
 
+function getDriverIconColor(
+  accreditationLevel: AccreditationLevel | undefined,
+  hasUrgencia: boolean
+): string {
+  if (accreditationLevel) {
+    return ACCREDITATION_ICON_TONE[accreditationLevel];
+  }
+  return hasUrgencia
+    ? "text-purple-700 dark:text-purple-300"
+    : "text-blue-700 dark:text-blue-300";
+}
+
 interface PlannedServiceChipProps {
   readonly plannedService: PlannedService;
   readonly isBeingReassigned?: boolean;
@@ -194,11 +209,18 @@ export function PlannedServiceChip({
   const workflowStage = plannedService.workflowStage;
   const { isTerminal, isFinished, isCancelled, isInCourse, titleSuffix } =
     getStageIndicator(workflowStage, dict);
-  // Weakest accreditation level across the assigned resources — rendered with
-  // the same labelled badge the service card and sidebar show (icon + text),
-  // with the per-resource breakdown as tooltip. Unknown levels (legacy
-  // bookings) render nothing.
+  // Weakest accreditation level across the assigned resources. The compact
+  // calendar chip communicates it through the driver icon color; its tooltip
+  // retains the translated per-resource breakdown. Legacy bookings keep the
+  // original urgency-aware driver color.
   const accreditation = getAssignmentAccreditation(plannedService.service);
+  const driverIconColor = getDriverIconColor(
+    accreditation?.level,
+    hasUrgencia
+  );
+  const accreditationTooltip = accreditation
+    ? assignmentAccreditationTooltip(accreditation, dict)
+    : undefined;
   // Downstream sync ack (grey pending / green confirmed / red rejected).
   // Untracked bookings render no dot. A red dot means the slot is planned but
   // the external system refused its current data — hover shows the reason.
@@ -291,36 +313,29 @@ export function PlannedServiceChip({
             variant="ghost"
             className="shrink-0 px-1 text-[9px] font-semibold leading-none"
           />
-          {accreditation && (
-            <AccreditationBadge
-              level={accreditation.level}
-              dict={dict}
-              title={assignmentAccreditationTooltip(accreditation, dict)}
-              className="cursor-help px-1 py-0 text-[9px] leading-none"
-            />
-          )}
         </div>
       </div>
-      {/* Right: Driver icon centered vertically */}
-      {driverCount === 1 && (
-        <IoPerson
+      {/* Right: accreditation is conveyed by the assigned-driver icon color. */}
+      {driverCount > 0 && (
+        <span
+          title={accreditationTooltip}
           className={twMerge(
-            "ml-1 shrink-0 w-4 h-4",
-            hasUrgencia
-              ? "text-purple-700 dark:text-purple-300"
-              : "text-blue-700 dark:text-blue-300"
+            "ml-1 shrink-0 flex items-center",
+            accreditation && "cursor-help"
           )}
-        />
-      )}
-      {driverCount === 2 && (
-        <IoPeople
-          className={twMerge(
-            "ml-1 shrink-0 w-4 h-4",
-            hasUrgencia
-              ? "text-purple-700 dark:text-purple-300"
-              : "text-blue-700 dark:text-blue-300"
+        >
+          {driverCount === 1 ? (
+            <IoPerson
+              aria-label="assigned-driver"
+              className={twMerge("w-4 h-4", driverIconColor)}
+            />
+          ) : (
+            <IoPeople
+              aria-label="assigned-drivers"
+              className={twMerge("w-4 h-4", driverIconColor)}
+            />
           )}
-        />
+        </span>
       )}
       {isInCourse && (
         <IoNavigate

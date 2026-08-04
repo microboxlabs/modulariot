@@ -1,6 +1,6 @@
 {
   "name": "@modulariot/web",
-  "version": "0.5.34",
+  "version": "0.5.36",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack --port 3041",

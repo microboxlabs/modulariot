@@ -1,0 +1,59 @@
+{
+  "stack_version": "0.5.36",
+  "stack_tag": "miot-stack@v0.5.36",
+  "milestone": "MIOT-0.5.36",
+  "pull_requests": [
+    {
+      "number": 1081,
+      "title": "[calendar] Search planned services beyond date window",
+      "source_issues": [
+        {
+          "number": 1080,
+          "title": "bug: find planned services outside the calendar search window"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/route.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/calendar-search.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/calendar-search.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/use-calendar-search.ts",
+    "turbo-repo/apps/app/src/features/common/providers/client-api.provider.ts",
+    "turbo-repo/packages/miot-calendar-client/openapi.json",
+    "turbo-repo/packages/miot-calendar-client/src/__tests__/bookings.test.ts",
+    "turbo-repo/packages/miot-calendar-client/src/resources/bookings.ts"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.36",
+      "tag": "app@v0.5.36"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.34",
+      "version": "0.5.36",
+      "tag": "docs@v0.5.36"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.34",
+      "version": "0.5.36",
+      "tag": "web@v0.5.36"
+    },
+    "modulith": {
+      "changed": false,
+      "changed_since": "modulith@v0.5.22",
+      "version": "0.5.22",
+      "tag": "modulith@v0.5.22"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.5",
+      "version": "0.1.5",
+      "tag": "harness@v0.1.5"
+    }
+  }
+}

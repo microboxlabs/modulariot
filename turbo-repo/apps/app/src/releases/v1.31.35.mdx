@@ -1,0 +1,44 @@
+# 🔔 Release Notes v1.31.35 — ModularIoT
+
+### Fecha: 04/08/2026
+
+**Objetivo**: Mejorar la capacidad de búsqueda histórica de servicios planificados en calendarios, manteniendo la API de calendario genérica y desacoplada del dominio de negocio. Esta versión también alinea aplicación, web y documentación con el stack `0.5.36`.
+
+## 🚀 Evolutivos
+
+- **📍 Búsqueda de reservas por identificador de recurso sin fechas**
+  - **Key point**: Se incorporó el filtro opcional `resourceIdContains` en el listado de reservas, con coincidencia por subcadena e insensible a mayúsculas/minúsculas.
+  - **Technical detail**: Cuando se usa este filtro sin fechas, la consulta puede abarcar históricos y múltiples calendarios (salvo que se indique uno), preservando la ventana por defecto de 30 días para listados sin filtro. *(Integración OSS — MIOT-0.5.36)*
+
+## 🐛 Correcciones
+
+- **🐛 Búsqueda de servicios planificados fuera de la ventana del calendario**
+  - **Impacto**: La búsqueda cruzada solo traía reservas en una ventana acotada y luego filtraba en cliente, por lo que servicios válidos fuera de ese rango no aparecían ni podían navegarse.
+  - **Solución**: Los términos de servicio se traducen al filtro genérico `resourceIdContains`, omitiendo fechas en consultas por servicio para permitir hallazgos históricos, manteniendo búsqueda cross-calendar, lógica OR entre múltiples chips y deduplicación de respuestas; se conserva el fallback acotado cuando no hay término de servicio. *(Integración OSS — MIOT-0.5.36)*
+
+## 📊 Beneficios
+
+- Mejora la trazabilidad operativa al encontrar servicios históricos que antes quedaban ocultos.
+- Reduce falsas ausencias en búsquedas de planificación y mejora la navegación desde la UI.
+- Mantiene compatibilidad funcional con filtros existentes (cliente, origen, destino, placa, tipo de viaje y asignación).
+- Refuerza el desacoplamiento entre dominio de aplicación y API de calendario con un filtro genérico reutilizable.
+- Conserva comportamiento eficiente por defecto (ventana de 30 días) para listados no filtrados.
+- Mejora la consistencia entre app y servicios al unificar el criterio de búsqueda por identificador de recurso.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.5.36`.
+- App: `app@v0.5.36` (actualizado).
+- Docs: `docs@v0.5.36` (actualizado).
+- Web: `web@v0.5.36` (actualizado).
+- Modulith: `modulith@v0.5.22` (sin cambios).
+- Harness: `harness@v0.1.5` (sin cambios).
+- Los digests exactos de imágenes desplegadas están disponibles en el diálogo de información de build dentro de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta entrega fortalece una capacidad crítica de operación: encontrar servicios planificados más allá de la ventana temporal por defecto, sin romper los filtros actuales ni introducir acoplamientos de dominio en `miot-calendar`.
+
+La combinación entre el ajuste en calendario OSS y su adopción en la búsqueda cross-calendar de la aplicación resuelve una limitación funcional real, especialmente relevante para auditoría operativa y seguimiento histórico.
+
+Con la actualización coordinada de app, web y documentación sobre el stack `0.5.36`, la plataforma queda más consistente para uso diario y más sólida para futuras extensiones de búsqueda.

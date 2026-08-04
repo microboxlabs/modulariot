@@ -224,6 +224,10 @@ public class IntegrationEventBindingService {
      * A default is a stand-in for a mapping that rendered empty, so a default for a field
      * with no mapping is a mistake to name, not to ignore — the constant the operator
      * wanted is expressed by making the mapping itself a literal.
+     *
+     * <p>A JSON-null default is meaningful, not empty: it declares that an empty render
+     * sends an explicit {@code null} — the clear signal a merge-on-missing partner needs
+     * to dissociate a value it already stores. Only blank strings are rejected.
      */
     private static List<String> fieldDefaultsProblems(
             Map<String, String> defaults, Map<String, String> fieldTemplates) {
@@ -238,8 +242,9 @@ public class IntegrationEventBindingService {
                 problems.add("default for '" + fieldId + "' has no mapping to fall back from"
                         + " — map the field, or make its mapping the literal itself");
             }
-            if (value == null || value.isBlank()) {
-                problems.add("default for '" + fieldId + "' is empty; remove it instead");
+            if (value != null && value.isBlank()) {
+                problems.add("default for '" + fieldId + "' is empty; remove it instead,"
+                        + " or use a JSON null to send an explicit null");
             }
         });
         return problems;

@@ -215,6 +215,28 @@ class IntegrationEventBindingServiceTest {
     }
 
     @Test
+    void acceptsANullDefaultAsAnExplicitNull() {
+        // Not an empty value: a JSON-null default declares that an empty render must send
+        // "field": null — the clear signal merge-on-missing partners need.
+        Map<String, String> defaults = new LinkedHashMap<>();
+        defaults.put("guidMultimedia", null);
+
+        var stored = service().upsert(TENANT, CHILD_ORG, requestWith(defaults, Map.of()), ACTOR);
+
+        assertTrue(stored.fieldDefaults().containsKey("guidMultimedia"));
+        assertNull(stored.fieldDefaults().get("guidMultimedia"));
+    }
+
+    @Test
+    void rejectsABlankDefault() {
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service().upsert(TENANT, CHILD_ORG,
+                        requestWith(Map.of("guidMultimedia", "  "), Map.of()), ACTOR));
+
+        assertTrue(failure.getMessage().contains("empty"), failure.getMessage());
+    }
+
+    @Test
     void rejectsResponseConditionsWithoutASuccessMatcher() {
         IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
                 () -> service().upsert(TENANT, CHILD_ORG,

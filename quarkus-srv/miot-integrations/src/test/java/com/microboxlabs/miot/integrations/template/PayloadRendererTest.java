@@ -2,6 +2,7 @@ package com.microboxlabs.miot.integrations.template;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -248,5 +249,50 @@ class PayloadRendererTest {
                 schema(), CONTEXT);
 
         assertFalse(payload.containsKey("mensaje"));
+    }
+
+    @Test
+    void aNullDefaultSendsAnExplicitNullInsteadOfOmitting() {
+        // A merge-on-missing partner keeps its stored value for an absent key; the
+        // operator's JSON-null default says the empty slot must be cleared out loud.
+        Map<String, String> defaults = new LinkedHashMap<>();
+        defaults.put("mensaje", null);
+
+        Map<String, Object> payload = renderer.render(
+                Map.of("guidMultimedia", "{{content.mediaId}}", "aprobado", "{{review.verdict}}",
+                        "mensaje", "{{review.comment}}"),
+                defaults,
+                schema(), CONTEXT);
+
+        assertTrue(payload.containsKey("mensaje"), "explicit null must keep the key");
+        assertNull(payload.get("mensaje"));
+    }
+
+    @Test
+    void aNullDefaultSatisfiesARequiredField() {
+        // Same principle as a literal default: null is a chosen value, not an omission.
+        Map<String, String> defaults = new LinkedHashMap<>();
+        defaults.put("guidMultimedia", null);
+
+        Map<String, Object> payload = renderer.render(
+                Map.of("guidMultimedia", "{{content.missing}}", "aprobado", "{{review.verdict}}"),
+                defaults,
+                schema(), CONTEXT);
+
+        assertTrue(payload.containsKey("guidMultimedia"));
+        assertNull(payload.get("guidMultimedia"));
+    }
+
+    @Test
+    void aRenderedValueBeatsANullDefault() {
+        Map<String, String> defaults = new LinkedHashMap<>();
+        defaults.put("guidMultimedia", null);
+
+        Map<String, Object> payload = renderer.render(
+                Map.of("guidMultimedia", "{{content.mediaId}}", "aprobado", "{{review.verdict}}"),
+                defaults,
+                schema(), CONTEXT);
+
+        assertEquals("19f8-a8ad", payload.get("guidMultimedia"));
     }
 }

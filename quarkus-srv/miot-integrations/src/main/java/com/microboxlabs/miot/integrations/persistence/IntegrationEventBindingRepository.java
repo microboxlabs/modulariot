@@ -241,7 +241,7 @@ public class IntegrationEventBindingRepository {
                 toMap(row.getJsonObject("match_condition")),
                 toStringMap(row.getJsonObject("field_templates")),
                 toStringMap(row.getJsonObject("response_templates")),
-                toStringMap(row.getJsonObject("field_defaults")),
+                toStringMapKeepingNulls(row.getJsonObject("field_defaults")),
                 toMap(row.getJsonObject("response_conditions")),
                 row.getBoolean("enabled"),
                 row.getOffsetDateTime("created_at"),
@@ -269,7 +269,15 @@ public class IntegrationEventBindingRepository {
     private JsonObject toJsonFromStrings(Map<String, String> value) {
         JsonObject json = new JsonObject();
         if (value != null) {
-            value.forEach(json::put);
+            // putNull, not put(key, null): a null field default is a stored fact (an
+            // explicit-null default the renderer honors), and it must survive the trip.
+            value.forEach((key, text) -> {
+                if (text == null) {
+                    json.putNull(key);
+                } else {
+                    json.put(key, text);
+                }
+            });
         }
         return json;
     }
@@ -283,6 +291,20 @@ public class IntegrationEventBindingRepository {
         if (value != null) {
             value.forEach(entry ->
                     map.put(entry.getKey(), entry.getValue() == null ? "" : entry.getValue().toString()));
+        }
+        return map;
+    }
+
+    /**
+     * Like {@link #toStringMap} but a JSON null stays a map null: in {@code field_defaults}
+     * a present-but-null value is an explicit-null default (the renderer sends
+     * {@code "field": null}), not a blank to coalesce away.
+     */
+    private Map<String, String> toStringMapKeepingNulls(JsonObject value) {
+        Map<String, String> map = new LinkedHashMap<>();
+        if (value != null) {
+            value.forEach(entry -> map.put(entry.getKey(),
+                    entry.getValue() == null ? null : entry.getValue().toString()));
         }
         return map;
     }

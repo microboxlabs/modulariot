@@ -26,6 +26,10 @@ import java.util.Set;
  *       An empty <i>required</i> field is an error — silently writing a blank into a
  *       required slot is worse than failing. A structural field whose expansion is empty is
  *       treated the same: omitted when optional, kept when required.
+ *   <li><b>A field default of JSON {@code null} sends an explicit null.</b> To a
+ *       merge-on-missing partner an absent key means "no statement" and keeps whatever it
+ *       stored; a null default is the operator declaring that an empty render must clear
+ *       the slot out loud. Like any default, it satisfies requiredness.
  *   <li><b>A template that is exactly one variable keeps the context value's own type.</b>
  *       {@code {{review.verdict}}} over a real boolean sends JSON {@code false}, not
  *       {@code "false"}, without depending on a string round-trip.
@@ -53,7 +57,8 @@ public class PayloadRenderer {
     /**
      * @param defaults fieldId → literal used when that field's template renders empty; a
      *        default satisfies requiredness, because the operator explicitly chose the
-     *        stand-in over an omission
+     *        stand-in over an omission. A present-but-null value sends an explicit JSON
+     *        null instead of omitting the key.
      */
     public Map<String, Object> render(
             Map<String, String> templates, Map<String, String> defaults,
@@ -295,6 +300,12 @@ public class PayloadRenderer {
             String fallback = defaults.get(templateKey);
             if (fallback != null && !fallback.isBlank()) {
                 rendered = fallback;
+            } else if (fallback == null && defaults.containsKey(templateKey)) {
+                // A JSON-null default is the explicit clear: a merge-on-missing partner
+                // keeps its stored value when the key is absent, so "no value" has to be
+                // said out loud as "field": null rather than by omission.
+                payload.put(jsonKey, null);
+                return;
             } else {
                 if (required) {
                     problems.add("'" + templateKey + "' is required but its mapping produced no value");

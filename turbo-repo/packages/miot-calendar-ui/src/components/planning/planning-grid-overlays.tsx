@@ -13,6 +13,7 @@ import { ReassignmentConnector } from "./reassignment-connector";
 interface DeleteModalState<TItem extends { id: string }> {
   isOpen: boolean;
   plannedService: PlannedService<TItem> | null;
+  isProcessing: boolean;
 }
 
 export interface PlanningGridOverlaysProps<
@@ -73,6 +74,7 @@ export function PlanningGridOverlays<
       {deleteModal.plannedService && (
         <DeleteConfirmationModal
           isOpen={deleteModal.isOpen}
+          isProcessing={deleteModal.isProcessing}
           plannedService={deleteModal.plannedService}
           messages={deleteModalMessages}
           onConfirm={onConfirmDelete}
@@ -84,6 +86,7 @@ export function PlanningGridOverlays<
       {deleteAssignmentModal.plannedService && (
         <DeleteConfirmationModal
           isOpen={deleteAssignmentModal.isOpen}
+          isProcessing={deleteAssignmentModal.isProcessing}
           plannedService={deleteAssignmentModal.plannedService}
           messages={deleteAssignmentMessages}
           onConfirm={onConfirmDeleteAssignment}

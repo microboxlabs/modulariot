@@ -8,6 +8,7 @@ import {
   useMemo,
   type PropsWithChildren,
 } from "react";
+import { mutate as mutateGlobal } from "swr";
 import { useDashboardStorage } from "../hooks/use-dashboard-storage";
 import {
   type Widget,
@@ -359,8 +360,28 @@ export function DashboardProvider({
   const setDashboardName = useCallback(
     (name: string) => {
       setDashboardNameStorage(name);
+
+      // The sidebar's dashboard list is a separate SWR cache
+      // (`/app/api/dashboard/configs`) — patch it optimistically so the
+      // renamed dashboard shows up there without waiting for its own
+      // revalidation.
+      if (siteId) {
+        void mutateGlobal(
+          `/app/api/dashboard/configs?site=${encodeURIComponent(siteId)}`,
+          (
+            current?: { data: { slug: string; name: string; order?: number }[] }
+          ) =>
+            current && {
+              ...current,
+              data: current.data.map((dashboard) =>
+                dashboard.slug === slug ? { ...dashboard, name } : dashboard
+              ),
+            },
+          { revalidate: false }
+        );
+      }
     },
-    [setDashboardNameStorage]
+    [setDashboardNameStorage, siteId, slug]
   );
 
   const setOrder = useCallback(

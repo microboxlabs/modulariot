@@ -2289,6 +2289,7 @@
       "sidebar": {
         "home": "Home",
         "dashboard": "Dashboard",
+        "renameDashboard": "Rename dashboard",
         "maintenanceStatus": "Maintenance Status",
         "vehicleTechnicalHealth": "Vehicle Technical Health",
         "devicesAndTelemetry": "Devices and Telemetry",

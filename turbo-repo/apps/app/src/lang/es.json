@@ -2289,6 +2289,7 @@
       "sidebar": {
         "home": "Home",
         "dashboard": "Dashboard",
+        "renameDashboard": "Renombrar panel",
         "maintenanceStatus": "Estado de Mantención",
         "vehicleTechnicalHealth": "Salud Técnica del Vehículo",
         "devicesAndTelemetry": "Dispositivos y Telemetría",

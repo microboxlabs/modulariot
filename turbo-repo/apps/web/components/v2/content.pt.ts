@@ -75,7 +75,7 @@ export const pt = {
             title: "Comunidade",
             links: [
               { label: "GitHub", href: "https://github.com/microboxlabs", external: true },
-              { label: "MicroBox Labs", href: "https://microboxlabs.com", external: true },
+              { label: "MicroboxLabs", href: "https://microboxlabs.com", external: true },
             ],
           },
         ],
@@ -337,14 +337,14 @@ export const pt = {
   deployment: {
     kicker: "Implantação",
     title: "Implantação",
-    subtitle: "Uma colocação em operação gerenciada pela MicroBox Labs sobre a sua própria nuvem: nós operamos a infraestrutura, você foca na operação. No ar em dias, não meses.",
+    subtitle: "Uma colocação em operação gerenciada pela MicroboxLabs sobre a sua própria nuvem: nós operamos a infraestrutura, você foca na operação. No ar em dias, não meses.",
     soonLabel: "Em breve",
     includes: [
       { title: "Configurado à sua operação", body: "Limites, zonas e regras ajustados a como você trabalha — não um modelo genérico." },
       { title: "Implantado na sua nuvem", body: "Roda na sua própria infraestrutura (AWS, Azure ou GCP); seus dados nunca saem do seu controle.", soon: true },
       { title: "Conectado aos seus sistemas", body: "Integração via API com as plataformas que você já usa (despacho, manutenção, ERP); soma-se à sua operação, não a substitui." },
       { title: "Canais da sua operação", body: "E-mail, WhatsApp, Teams, Webex e SMS conectados para que o alerta chegue onde o time vive." },
-      { title: "Colocação em operação gerenciada", body: "A MicroBox Labs opera e acompanha a operação, sem overhead de DevOps do seu lado." },
+      { title: "Colocação em operação gerenciada", body: "A MicroboxLabs opera e acompanha a operação, sem overhead de DevOps do seu lado." },
       { title: "Monitoramento, suporte e atualizações", body: "A plataforma se mantém atualizada e monitorada sem que você precise se ocupar." },
     ],
   },
@@ -428,11 +428,11 @@ export const pt = {
       {
         title: "Empresa",
         links: [
-          { label: "Sobre a MicroBox Labs", href: "https://microboxlabs.com" },
+          { label: "Sobre a MicroboxLabs", href: "https://microboxlabs.com" },
           { label: "Contato", href: "/contacto" },
         ],
       },
     ],
-    copyright: `© ${new Date().getFullYear()} MicroBox Labs · Todos os direitos reservados`,
+    copyright: `© ${new Date().getFullYear()} MicroboxLabs · Todos os direitos reservados`,
   },
 };

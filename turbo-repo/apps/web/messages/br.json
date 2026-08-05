@@ -337,7 +337,7 @@
   "deployment": {
     "kicker": "Implantação",
     "title": "No ar em dias, não em meses",
-    "subtitle": "Uma implantação gerenciada pela MicroBox Labs: nós operamos a infraestrutura, você foca na operação.",
+    "subtitle": "Uma implantação gerenciada pela MicroboxLabs: nós operamos a infraestrutura, você foca na operação.",
     "soonLabel": "Em breve",
     "includes": [
       {
@@ -358,7 +358,7 @@
       },
       {
         "title": "Implantação gerenciada",
-        "body": "A MicroBox Labs opera e acompanha a operação, sem overhead de DevOps do seu lado."
+        "body": "A MicroboxLabs opera e acompanha a operação, sem overhead de DevOps do seu lado."
       },
       {
         "title": "Monitoramento, suporte e atualizações",
@@ -372,7 +372,7 @@
     "subtitle": "O que tira o risco da decisão: onde os dados vivem, quem os trata e que respaldo existe por trás.",
     "items": [
       { "title": "Seus dados, na sua nuvem", "body": "A plataforma roda na sua infraestrutura (AWS, Azure ou GCP). Os dados nunca saem do seu controle." },
-      { "title": "Operador de tratamento", "body": "A MicroBox Labs processa os dados por sua conta: confidencialidade, suboperadores declarados e exclusão na saída." },
+      { "title": "Operador de tratamento", "body": "A MicroboxLabs processa os dados por sua conta: confidencialidade, suboperadores declarados e exclusão na saída." },
       { "title": "Lei 19.628 e GDPR", "body": "Marco de tratamento alinhado à normativa chilena e europeia de proteção de dados." },
       { "title": "Código aberto auditável", "body": "O motor é open source (Apache-2.0): você pode auditar o que ele faz com seus dados, linha por linha." },
       { "title": "Rastreabilidade para auditorias", "body": "Cada sintoma fica registrado com timestamp, responsável e resolução no seu próprio banco." },

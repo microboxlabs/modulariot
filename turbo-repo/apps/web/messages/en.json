@@ -337,7 +337,7 @@
   "deployment": {
     "kicker": "Deployment",
     "title": "Live in days, not months",
-    "subtitle": "A rollout managed by MicroBox Labs: we run the infrastructure, you focus on the operation.",
+    "subtitle": "A rollout managed by MicroboxLabs: we run the infrastructure, you focus on the operation.",
     "soonLabel": "Coming soon",
     "includes": [
       {
@@ -358,7 +358,7 @@
       },
       {
         "title": "Managed rollout",
-        "body": "MicroBox Labs operates and supports the rollout, with no DevOps overhead on your side."
+        "body": "MicroboxLabs operates and supports the rollout, with no DevOps overhead on your side."
       },
       {
         "title": "Monitoring, support and updates",
@@ -372,7 +372,7 @@
     "subtitle": "What de-risks the decision: where the data lives, who processes it and what backing stands behind it.",
     "items": [
       { "title": "Your data, in your cloud", "body": "The platform runs on your infrastructure (AWS, Azure or GCP). Your data never leaves your control." },
-      { "title": "Data processor", "body": "MicroBox Labs processes data on your behalf: confidentiality, declared sub-processors and deletion on exit." },
+      { "title": "Data processor", "body": "MicroboxLabs processes data on your behalf: confidentiality, declared sub-processors and deletion on exit." },
       { "title": "Law 19.628 and GDPR", "body": "Data-processing framework aligned with Chilean and European data-protection regulations." },
       { "title": "Auditable open source", "body": "The engine is open source (Apache-2.0): you can audit what it does with your data, line by line." },
       { "title": "Audit-ready traceability", "body": "Every symptom is logged with timestamp, owner and resolution in your own database." },
@@ -1045,7 +1045,7 @@
               "body": "Open-source platform under Apache-2.0 license. Explore, contribute, give us a star."
             },
             {
-              "title": "MicroBox Labs",
+              "title": "MicroboxLabs",
               "body": "Meet the company behind ModularIoT and the rest of the portfolio."
             },
             {

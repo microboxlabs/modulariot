@@ -337,7 +337,7 @@
   "deployment": {
     "kicker": "Implementación",
     "title": "En vivo en días, no meses",
-    "subtitle": "Una puesta en marcha gestionada por MicroBox Labs: nosotros operamos la infraestructura, tú te enfocas en la operación.",
+    "subtitle": "Una puesta en marcha gestionada por MicroboxLabs: nosotros operamos la infraestructura, tú te enfocas en la operación.",
     "soonLabel": "Próximamente",
     "includes": [
       {
@@ -358,7 +358,7 @@
       },
       {
         "title": "Puesta en marcha gestionada",
-        "body": "MicroBox Labs opera y acompaña la operación, sin overhead de DevOps de tu lado."
+        "body": "MicroboxLabs opera y acompaña la operación, sin overhead de DevOps de tu lado."
       },
       {
         "title": "Monitoreo, soporte y actualizaciones",
@@ -372,7 +372,7 @@
     "subtitle": "Lo que de-riesga la decisión: dónde viven los datos, quién los trata y qué respaldo hay detrás.",
     "items": [
       { "title": "Tus datos, en tu nube", "body": "La plataforma corre en tu infraestructura (AWS, Azure o GCP). Los datos nunca salen de tu control." },
-      { "title": "Encargado de tratamiento", "body": "MicroBox Labs procesa los datos por cuenta tuya: confidencialidad, sub-encargados declarados y borrado a la salida." },
+      { "title": "Encargado de tratamiento", "body": "MicroboxLabs procesa los datos por cuenta tuya: confidencialidad, sub-encargados declarados y borrado a la salida." },
       { "title": "Ley 19.628 y GDPR", "body": "Marco de tratamiento alineado a la normativa chilena y europea de protección de datos." },
       { "title": "Código abierto auditable", "body": "El motor es open source (Apache-2.0): puedes auditar qué hace con tus datos, línea por línea." },
       { "title": "Trazabilidad para auditorías", "body": "Cada síntoma queda registrado con timestamp, responsable y resolución en tu propia base." },
@@ -907,7 +907,7 @@
     "producto/implementacion": {
       "eyebrow": "Producto · Implementación",
       "title": "Elige el modelo que se adapta a tu operación",
-      "subtitle": "Tu nube, gestionado por MicroBox Labs o edge híbrido. La misma plataforma, el nivel de control y cumplimiento que necesitas.",
+      "subtitle": "Tu nube, gestionado por MicroboxLabs o edge híbrido. La misma plataforma, el nivel de control y cumplimiento que necesitas.",
       "blocks": [
         {
           "kicker": "Opciones",
@@ -1045,7 +1045,7 @@
               "body": "Plataforma de código abierto bajo licencia Apache-2.0. Explora, contribuye, danos una estrella."
             },
             {
-              "title": "MicroBox Labs",
+              "title": "MicroboxLabs",
               "body": "Conoce a la empresa detrás de ModularIoT y el resto del portafolio."
             },
             {

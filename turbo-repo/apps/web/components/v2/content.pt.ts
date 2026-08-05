@@ -17,10 +17,26 @@ export const pt = {
       live: "recebendo eventos…",
       done: "tudo fica na sua operação",
       events: [
-        { kind: "signal", title: "Sinais chegando", detail: "2.847 ativos reportando em tempo real" },
-        { kind: "symptom", title: "Sintoma detectado", detail: "Excesso de velocidade · rota interna · severidade alta" },
-        { kind: "action", title: "Escalonado ao responsável", detail: "supervisor notificado por SMS, com evidência" },
-        { kind: "record", title: "Fica registrado", detail: "no seu banco de dados, na sua nuvem" },
+        {
+          kind: "signal",
+          title: "Sinais chegando",
+          detail: "2.847 ativos reportando em tempo real",
+        },
+        {
+          kind: "symptom",
+          title: "Sintoma detectado",
+          detail: "Excesso de velocidade · rota interna · severidade alta",
+        },
+        {
+          kind: "action",
+          title: "Escalonado ao responsável",
+          detail: "supervisor notificado por SMS, com evidência",
+        },
+        {
+          kind: "record",
+          title: "Fica registrado",
+          detail: "no seu banco de dados, na sua nuvem",
+        },
       ],
     },
   },
@@ -29,7 +45,10 @@ export const pt = {
     title: "Uma operação real, rodando hoje — não uma demo",
     items: [
       { value: "55.847", label: "sintomas geridos em um mês real" },
-      { value: "65%", label: "dos alertas tratados são invalidados: fechar ≠ resolver" },
+      {
+        value: "65%",
+        label: "dos alertas tratados são invalidados: fechar ≠ resolver",
+      },
       { value: "+28", label: "provedores GPS integrados" },
       { value: "1.900+", label: "ativos em operação real" },
     ],
@@ -59,7 +78,8 @@ export const pt = {
   steps: {
     kicker: "Como funciona na prática",
     title: "De um sinal bruto a uma decisão, em menos de um segundo",
-    subtitle: "O mesmo evento que você vê no fluxo ao vivo, contado passo a passo.",
+    subtitle:
+      "O mesmo evento que você vê no fluxo ao vivo, contado passo a passo.",
     items: [
       {
         n: "01",
@@ -94,7 +114,8 @@ export const pt = {
     ],
     outro: {
       latency: "< 56 ms de latência mediana ponta a ponta",
-      subtitle: "Da leitura do sensor até o dado estar no seu próprio banco de dados.",
+      subtitle:
+        "Da leitura do sensor até o dado estar no seu próprio banco de dados.",
     },
   },
 
@@ -126,25 +147,38 @@ export const pt = {
   features: {
     kicker: "Recursos",
     title: "Três capacidades principais",
-    subtitle: "Tudo o que você precisa para processar, analisar e agir sobre dados de frota em tempo real",
+    subtitle:
+      "Tudo o que você precisa para processar, analisar e agir sobre dados de frota em tempo real",
     cards: [
       {
         icon: "signal",
         title: "Processamento em tempo real",
         body: "Cada sinal GPS, sensor e evento do motorista é processado conforme chega, com latência mediana abaixo de 56 ms.",
-        bullets: ["Uma única fonte para toda a telemetria", "Enriquecido e avaliado na hora", "Milhares de eventos por segundo, sem lote"],
+        bullets: [
+          "Uma única fonte para toda a telemetria",
+          "Enriquecido e avaliado na hora",
+          "Milhares de eventos por segundo, sem lote",
+        ],
       },
       {
         icon: "radar",
         title: "Alertas por sintoma",
         body: "Mais de 30 regras detectam o desvio —fadiga, excesso de velocidade, zonas de risco— e geram um evento classificado, não mais uma notificação genérica.",
-        bullets: ["Severidade e responsável automáticos", "Exclusão inteligente de ruído", "Ação disparada: SMS, painel ou ordem de serviço"],
+        bullets: [
+          "Severidade e responsável automáticos",
+          "Exclusão inteligente de ruído",
+          "Ação disparada: SMS, painel ou ordem de serviço",
+        ],
       },
       {
         icon: "plug",
         title: "Escalonamento por sintoma",
         body: "Cada sintoma é escalonado ao canal onde a operação vive —e-mail, WhatsApp, Teams— com conversa bidirecional, plano e responsável.",
-        bullets: ["Canal conforme o tipo de sintoma", "Ciclo bidirecional, não só notificar", "Cada alerta chega com plano e responsável"],
+        bullets: [
+          "Canal conforme o tipo de sintoma",
+          "Ciclo bidirecional, não só notificar",
+          "Cada alerta chega com plano e responsável",
+        ],
       },
     ],
   },
@@ -152,11 +186,24 @@ export const pt = {
   architecture: {
     kicker: "Arquitetura",
     title: "Do dispositivo edge à sua infraestrutura",
-    subtitle: "Veja como seus dados fluem dos dispositivos edge até sua nuvem em tempo real",
+    subtitle:
+      "Veja como seus dados fluem dos dispositivos edge até sua nuvem em tempo real",
     steps: [
-      { n: "01", title: "Ingestão de dados", body: "Colete dados de GPS, sensores e eventos da sua frota em tempo real" },
-      { n: "02", title: "Processamento de streams", body: "Processe e analise fluxos de dados com latência subsegundo" },
-      { n: "03", title: "Sua infraestrutura", body: "Os dados fluem diretamente para seu banco de dados, análise e aplicações" },
+      {
+        n: "01",
+        title: "Ingestão de dados",
+        body: "Colete dados de GPS, sensores e eventos da sua frota em tempo real",
+      },
+      {
+        n: "02",
+        title: "Processamento de streams",
+        body: "Processe e analise fluxos de dados com latência subsegundo",
+      },
+      {
+        n: "03",
+        title: "Sua infraestrutura",
+        body: "Os dados fluem diretamente para seu banco de dados, análise e aplicações",
+      },
     ],
     latency: "< 56 ms de latência mediana ponta a ponta",
     latencySubtitle: "Da leitura do sensor à resposta da sua aplicação",
@@ -173,28 +220,44 @@ export const pt = {
         icon: "signal",
         title: "Ingestão GPS Core",
         body: "Cada ping GPS, sinal de sensor e evento do motorista flui para seus sistemas em milissegundos. API de último sinal, rastreamento AVL e captura de mudanças para seus sistemas.",
-        bullets: ["API de último sinal por ativo", "Rastreamento AVL em tempo real", "CDC para seus sistemas downstream"],
+        bullets: [
+          "API de último sinal por ativo",
+          "Rastreamento AVL em tempo real",
+          "CDC para seus sistemas downstream",
+        ],
       },
       {
         id: "sintomas",
         icon: "radar",
         title: "Sintomas / Torre de Controle",
         body: "Mais de 30 regras de detecção: velocidade por trecho, condução contínua, zonas de risco, fadiga, telemetria mecânica. Cada evento com severidade, responsável e rastreabilidade completa.",
-        bullets: ["Severidade e responsável automáticos", "Ciclo de vida: abrir → tratar → fechar", "Exclusão inteligente de ruído"],
+        bullets: [
+          "Severidade e responsável automáticos",
+          "Ciclo de vida: abrir → tratar → fechar",
+          "Exclusão inteligente de ruído",
+        ],
       },
       {
         id: "integraciones",
         icon: "plug",
         title: "Integrações",
         body: "Automação de fluxos com n8n, gestor documental para evidências, API gateway e webhooks. Sua operação conectada aos sistemas que você já usa.",
-        bullets: ["Workflows e webhooks (n8n)", "Cofre de evidências documental", "APIs e gateway para seus sistemas"],
+        bullets: [
+          "Workflows e webhooks (n8n)",
+          "Cofre de evidências documental",
+          "APIs e gateway para seus sistemas",
+        ],
       },
       {
         id: "video",
         icon: "video",
         title: "Vídeo ao Vivo / HLS",
         body: "Streams de vídeo contínuos de 24 horas das câmeras a bordo dos seus ativos. Contexto visual para cada evento detectado.",
-        bullets: ["Streaming HLS 24h contínuo", "Frames de câmeras e dashcams", "Contexto visual de cada alerta"],
+        bullets: [
+          "Streaming HLS 24h contínuo",
+          "Frames de câmeras e dashcams",
+          "Contexto visual de cada alerta",
+        ],
       },
     ],
   },
@@ -307,7 +370,8 @@ export const pt = {
   },
 
   footer: {
-    description: "Transformamos cada sinal da sua frota em menos desvios repetidos. Os dados e as decisões são seus.",
+    description:
+      "Transformamos cada sinal da sua frota em menos desvios repetidos. Os dados e as decisões são seus.",
     columns: [
       {
         title: "Explorar",

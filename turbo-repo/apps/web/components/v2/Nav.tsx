@@ -263,6 +263,7 @@ export default function Nav({ lang }: { lang: string }) {
       localStorage.setItem(COUNTRY_KEY, flag);
     } catch {}
   };
+  const closeMobileMenu = () => setOpen(false);
 
   return (
     <header className="border-hairline bg-page/85 sticky top-0 z-50 w-full border-b backdrop-blur-md">
@@ -527,8 +528,13 @@ export default function Nav({ lang }: { lang: string }) {
               {t("actions.login.label")}
             </a>
             <a
+<<<<<<< HEAD
               href={APP_SIGNUP_URL}
               onClick={() => setOpen(false)}
+=======
+              href={resolveHref(base, nav.actions.demo.href)}
+              onClick={closeMobileMenu}
+>>>>>>> 3d9547b26bc5d01df77556e0ab97bbf2e94b9e24
               className="border-ink-1 bg-ink-1 text-page block rounded-lg border px-4 py-2.5 text-center text-sm font-medium"
             >
               {t("actions.signup.label")}

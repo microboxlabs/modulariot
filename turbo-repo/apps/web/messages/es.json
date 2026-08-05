@@ -548,12 +548,39 @@
     "title": "Tus datos, bajo tus reglas",
     "subtitle": "Lo que de-riesga la decisión: dónde viven los datos, quién los trata y qué respaldo hay detrás.",
     "items": [
+<<<<<<< HEAD
       { "title": "Tus datos, en tu nube", "body": "La plataforma corre en tu infraestructura (AWS, Azure o GCP). Los datos nunca salen de tu control." },
       { "title": "Encargado de tratamiento", "body": "MicroboxLabs procesa los datos por cuenta tuya: confidencialidad, sub-encargados declarados y borrado a la salida." },
       { "title": "Ley 19.628 y GDPR", "body": "Marco de tratamiento alineado a la normativa chilena y europea de protección de datos." },
       { "title": "Código abierto auditable", "body": "El motor es open source (Apache-2.0): puedes auditar qué hace con tus datos, línea por línea." },
       { "title": "Trazabilidad para auditorías", "body": "Cada síntoma queda registrado con timestamp, responsable y resolución en tu propia base." },
       { "title": "Soporte con SLA", "body": "Severidades y tiempos de respuesta comprometidos, con monitoreo continuo de la plataforma." }
+=======
+      {
+        "title": "Tus datos, en tu nube",
+        "body": "La plataforma corre en tu infraestructura (AWS, Azure o GCP). Los datos nunca salen de tu control."
+      },
+      {
+        "title": "Encargado de tratamiento",
+        "body": "MicroBox Labs procesa los datos por cuenta tuya: confidencialidad, sub-encargados declarados y borrado a la salida."
+      },
+      {
+        "title": "Ley 19.628 y GDPR",
+        "body": "Marco de tratamiento alineado a la normativa chilena y europea de protección de datos."
+      },
+      {
+        "title": "Código abierto auditable",
+        "body": "El motor es open source (Apache-2.0): puedes auditar qué hace con tus datos, línea por línea."
+      },
+      {
+        "title": "Trazabilidad para auditorías",
+        "body": "Cada síntoma queda registrado con timestamp, responsable y resolución en tu propia base."
+      },
+      {
+        "title": "Soporte con SLA",
+        "body": "Severidades y tiempos de respuesta comprometidos, con monitoreo continuo de la plataforma."
+      }
+>>>>>>> 3d9547b26bc5d01df77556e0ab97bbf2e94b9e24
     ]
   },
   "pricingTeaser": {
@@ -612,7 +639,7 @@
       "boxLabel": "Módulo interno",
       "volMonth": "Vol/mes",
       "pricePerAsset": "$/activo",
-      "selectedBoxes": "Cajas seleccionadas",
+      "selectedBoxes": "Módulos seleccionados",
       "of": "de",
       "fleetOfClient": "Flota del cliente",
       "totalMonthly": "Total mensual",

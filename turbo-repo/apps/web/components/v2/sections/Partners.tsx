@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Section, type Tone } from "./shared";
-import { GPS_PARTNERS, type PartnerLogo } from "../partners-data";
+import { GPS_PARTNERS } from "../partners-data";
+import type { PartnerLogo } from "../partners-data.types";
 
 // Trust bar de integraciones (motion demo-led): un carrusel infinito con el
 // cliente real (Mintral) + los proveedores GPS integrados. Solo logos; cada
@@ -12,13 +13,19 @@ import { GPS_PARTNERS, type PartnerLogo } from "../partners-data";
 // negros necesitan invertirse para no quedar negro-sobre-negro
 // (dark:invert). Los logos a color no llevan ninguna de las dos clases, así
 // no se les distorsiona el color de marca en ningún tema.
-function LogoLi({ p }: { p: PartnerLogo }) {
+function LogoLi({ p, duplicate }: { p: PartnerLogo; duplicate: boolean }) {
   const themeInvert = p.invert ? "invert dark:invert-0" : "dark:invert";
   const height = p.tall ? "h-14" : "h-10";
   const inner = p.img ? (
-    <img src={p.img} alt={p.name} className={`${height} w-auto ${themeInvert}`} />
+    <img
+      src={p.img}
+      alt={p.name}
+      className={`${height} w-auto ${themeInvert}`}
+    />
   ) : (
-    <span className="text-ink-3 text-[19px] font-bold tracking-tight whitespace-nowrap">{p.name}</span>
+    <span className="text-ink-3 text-[19px] font-bold tracking-tight whitespace-nowrap">
+      {p.name}
+    </span>
   );
   const hover = p.invert
     ? "hover:opacity-100"
@@ -32,6 +39,7 @@ function LogoLi({ p }: { p: PartnerLogo }) {
           rel="noopener noreferrer"
           aria-label={p.name}
           title={p.name}
+          tabIndex={duplicate ? -1 : undefined}
           className={`block opacity-55 grayscale transition duration-200 ${hover}`}
         >
           {inner}
@@ -58,12 +66,19 @@ function Track({
     <div className="miot-marquee group relative overflow-hidden">
       <div
         className="miot-marquee-track flex w-max items-center"
-        style={{ animationDuration: `${duration}s`, animationDirection: reverse ? "reverse" : "normal" }}
+        style={{
+          animationDuration: `${duration}s`,
+          animationDirection: reverse ? "reverse" : "normal",
+        }}
       >
         {[0, 1].map((copy) => (
-          <ul key={copy} aria-hidden={copy === 1} className="flex shrink-0 items-center">
+          <ul
+            key={copy}
+            aria-hidden={copy === 1}
+            className="flex shrink-0 items-center"
+          >
             {items.map((p) => (
-              <LogoLi key={p.name} p={p} />
+              <LogoLi key={p.name} p={p} duplicate={copy === 1} />
             ))}
           </ul>
         ))}
@@ -79,7 +94,7 @@ export async function Partners({ lang, tone }: { lang: string; tone: Tone }) {
       <style>{`
         .miot-marquee { -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
         .miot-marquee-track { animation: miot-marquee-scroll linear infinite; }
-        .miot-marquee:hover .miot-marquee-track { animation-play-state: paused; }
+        .miot-marquee:hover .miot-marquee-track, .miot-marquee:focus-within .miot-marquee-track { animation-play-state: paused; }
         @keyframes miot-marquee-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         @media (prefers-reduced-motion: reduce) { .miot-marquee-track { animation: none; } }
       `}</style>

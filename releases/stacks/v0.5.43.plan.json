@@ -1,0 +1,63 @@
+{
+  "stack_version": "0.5.43",
+  "stack_tag": "miot-stack@v0.5.43",
+  "milestone": "MIOT-0.5.43",
+  "pull_requests": [
+    {
+      "number": 1042,
+      "title": "Based/landing page",
+      "source_issues": [
+        {
+          "number": 1103,
+          "title": "Localize landing-page navigation and configure auth destinations"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    ".github/workflows/ci.yaml",
+    ".github/workflows/web.yml",
+    "turbo-repo/apps/web/.env.example",
+    "turbo-repo/apps/web/components/v2/DetailPage.tsx",
+    "turbo-repo/apps/web/components/v2/Nav.tsx",
+    "turbo-repo/apps/web/components/v2/content.en.ts",
+    "turbo-repo/apps/web/components/v2/content.pt.ts",
+    "turbo-repo/apps/web/components/v2/content.ts",
+    "turbo-repo/apps/web/components/v2/nav-data.ts",
+    "turbo-repo/apps/web/messages/br.json",
+    "turbo-repo/apps/web/messages/en.json",
+    "turbo-repo/apps/web/messages/es.json",
+    "turbo-repo/apps/web/next.config.ts"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.43",
+      "tag": "app@v0.5.43"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.42",
+      "version": "0.5.42",
+      "tag": "docs@v0.5.42"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.42",
+      "version": "0.5.43",
+      "tag": "web@v0.5.43"
+    },
+    "modulith": {
+      "changed": false,
+      "changed_since": "modulith@v0.5.26",
+      "version": "0.5.26",
+      "tag": "modulith@v0.5.26"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.5",
+      "version": "0.1.5",
+      "tag": "harness@v0.1.5"
+    }
+  }
+}

@@ -225,7 +225,7 @@
   "useCases": {
     "kicker": "Use cases",
     "title": "Four modules. Only pay for what you need.",
-    "subtitle": "Modular architecture with no vendor lock-in: each box is an independent service, priced per asset.",
+    "subtitle": "Modular architecture with no vendor lock-in: each module is an independent service, priced per asset.",
     "cards": [
       {
         "title": "GPS Core Ingestion",
@@ -371,12 +371,30 @@
     "title": "Your data, under your rules",
     "subtitle": "What de-risks the decision: where the data lives, who processes it and what backing stands behind it.",
     "items": [
-      { "title": "Your data, in your cloud", "body": "The platform runs on your infrastructure (AWS, Azure or GCP). Your data never leaves your control." },
-      { "title": "Data processor", "body": "MicroBox Labs processes data on your behalf: confidentiality, declared sub-processors and deletion on exit." },
-      { "title": "Law 19.628 and GDPR", "body": "Data-processing framework aligned with Chilean and European data-protection regulations." },
-      { "title": "Auditable open source", "body": "The engine is open source (Apache-2.0): you can audit what it does with your data, line by line." },
-      { "title": "Audit-ready traceability", "body": "Every symptom is logged with timestamp, owner and resolution in your own database." },
-      { "title": "Support with SLA", "body": "Committed severities and response times, with continuous platform monitoring." }
+      {
+        "title": "Your data, in your cloud",
+        "body": "The platform runs on your infrastructure (AWS, Azure or GCP). Your data never leaves your control."
+      },
+      {
+        "title": "Data processor",
+        "body": "MicroBox Labs processes data on your behalf: confidentiality, declared sub-processors and deletion on exit."
+      },
+      {
+        "title": "Law 19.628 and GDPR",
+        "body": "Data-processing framework aligned with Chilean and European data-protection regulations."
+      },
+      {
+        "title": "Auditable open source",
+        "body": "The engine is open source (Apache-2.0): you can audit what it does with your data, line by line."
+      },
+      {
+        "title": "Audit-ready traceability",
+        "body": "Every symptom is logged with timestamp, owner and resolution in your own database."
+      },
+      {
+        "title": "Support with SLA",
+        "body": "Committed severities and response times, with continuous platform monitoring."
+      }
     ]
   },
   "pricingTeaser": {
@@ -424,7 +442,7 @@
       }
     },
     "calculator": {
-      "filterLabel": "Filter by operational family and pick the boxes you need",
+      "filterLabel": "Filter by operational family and pick the modules you need",
       "allChip": "All",
       "fleetTitle": "Client fleet size",
       "fleetDesc": "Adjust the fleet to estimate the price per asset.",
@@ -435,7 +453,7 @@
       "boxLabel": "Internal module",
       "volMonth": "Vol/mo",
       "pricePerAsset": "$/asset",
-      "selectedBoxes": "Selected boxes",
+      "selectedBoxes": "Selected modules",
       "of": "of",
       "fleetOfClient": "Client fleet",
       "totalMonthly": "Total monthly",
@@ -453,7 +471,7 @@
       },
       {
         "title": "Transparent per-asset price",
-        "body": "A fixed per-asset/month price for each box. No surprises, no setup costs, no minimum term."
+        "body": "A fixed per-asset/month price for each module. No surprises, no setup costs, no minimum term."
       },
       {
         "title": "Based on real costs",
@@ -473,11 +491,11 @@
         },
         {
           "q": "Are there setup costs or a minimum term?",
-          "a": "No. Integration with your current technology is included and you can adjust or cancel the contracted boxes month to month."
+          "a": "No. Integration with your current technology is included and you can adjust or cancel the contracted modules month to month."
         },
         {
-          "q": "What does each box include?",
-          "a": "Each box is a complete service: infrastructure, processing, management panel and support. The GPS Core Ingestion box is the foundation the others run on."
+          "q": "What does each module include?",
+          "a": "Each module is a complete service: infrastructure, processing, management panel and support. The GPS Core Ingestion module is the foundation the others run on."
         }
       ]
     },
@@ -545,7 +563,7 @@
     "producto/ingesta-gps-core": {
       "eyebrow": "Product · GPS Core Ingestion",
       "title": "Every signal from your fleet, in your cloud, in milliseconds",
-      "subtitle": "ModularIoT's base box. It receives every GPS ping, sensor value and driver event —regardless of the hardware vendor— and delivers it to your own infrastructure in real time.",
+      "subtitle": "ModularIoT's base module. It receives every GPS ping, sensor value and driver event —regardless of the hardware vendor— and delivers it to your own infrastructure in real time.",
       "blocks": [
         {
           "kicker": "What it does",
@@ -890,7 +908,7 @@
           "cards": [
             {
               "title": "Modular",
-              "body": "Each box is an independent service. You contract and scale only what you use."
+              "body": "Each module is an independent service. You contract and scale only what you use."
             },
             {
               "title": "Sovereign",

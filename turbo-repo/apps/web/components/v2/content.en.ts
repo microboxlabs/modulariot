@@ -9,27 +9,82 @@ export const en = {
         {
           title: "Platform",
           items: [
-            { icon: "signal", label: "GPS Core Ingestion", href: "/producto/ingesta-gps-core", desc: "Real-time GPS and sensor signals into your database" },
-            { icon: "radar", label: "Symptoms / Control Tower", href: "/producto/sintomas-torre-control", desc: "30+ detection rules with full traceability" },
-            { icon: "plug", label: "Integrations", href: "/producto/integraciones", desc: "Workflows, webhooks and evidence vault" },
-            { icon: "video", label: "Live Video / HLS", href: "/producto/video-en-vivo", desc: "Continuous streaming from cameras and dashcams" },
+            {
+              icon: "signal",
+              label: "GPS Core Ingestion",
+              href: "/producto/ingesta-gps-core",
+              desc: "Real-time GPS and sensor signals into your database",
+            },
+            {
+              icon: "radar",
+              label: "Symptoms / Control Tower",
+              href: "/producto/sintomas-torre-control",
+              desc: "30+ detection rules with full traceability",
+            },
+            {
+              icon: "plug",
+              label: "Integrations",
+              href: "/producto/integraciones",
+              desc: "Workflows, webhooks and evidence vault",
+            },
+            {
+              icon: "video",
+              label: "Live Video / HLS",
+              href: "/producto/video-en-vivo",
+              desc: "Continuous streaming from cameras and dashcams",
+            },
           ],
         },
         {
           title: "Technology",
           items: [
-            { icon: "code", label: "Features", href: "/producto/caracteristicas", desc: "Streaming, detection and workflows" },
-            { icon: "stack", label: "Architecture", href: "/producto/arquitectura", desc: "From the edge device to your cloud in <56ms" },
-            { icon: "cloud", label: "Deployment", href: "/producto/implementacion", desc: "Your cloud, MBL-managed or hybrid edge" },
+            {
+              icon: "code",
+              label: "Features",
+              href: "/producto/caracteristicas",
+              desc: "Streaming, detection and workflows",
+            },
+            {
+              icon: "stack",
+              label: "Architecture",
+              href: "/producto/arquitectura",
+              desc: "From the edge device to your cloud in <56ms",
+            },
+            {
+              icon: "cloud",
+              label: "Deployment",
+              href: "/producto/implementacion",
+              desc: "Your cloud, MBL-managed or hybrid edge",
+            },
           ],
         },
         {
           title: "Live, with real data",
           items: [
-            { icon: "radar", label: "Control tower", href: "/torre", desc: "All 36 symptoms on a real operation" },
-            { icon: "stack", label: "SuperProfile", href: "/superprofile", desc: "The living operational identity of each actor" },
-            { icon: "plug", label: "Escalation channels", href: "/canales", desc: "The symptom in email, WhatsApp, Teams, Webex and SMS" },
-            { icon: "signal", label: "GPS providers", href: "/proveedores-gps", desc: "We measure signal quality across 28+ providers" },
+            {
+              icon: "radar",
+              label: "Control tower",
+              href: "/torre",
+              desc: "All 36 symptoms on a real operation",
+            },
+            {
+              icon: "stack",
+              label: "SuperProfile",
+              href: "/superprofile",
+              desc: "The living operational identity of each actor",
+            },
+            {
+              icon: "plug",
+              label: "Escalation channels",
+              href: "/canales",
+              desc: "The symptom in email, WhatsApp, Teams, Webex and SMS",
+            },
+            {
+              icon: "signal",
+              label: "GPS providers",
+              href: "/proveedores-gps",
+              desc: "We measure signal quality across 28 providers",
+            },
           ],
         },
       ],
@@ -41,10 +96,22 @@ export const en = {
           {
             title: "Use cases",
             links: [
-              { label: "Driver and asset monitoring", href: "/soluciones#casos-de-uso" },
-              { label: "Mechanical telemetry and maintenance", href: "/soluciones#casos-de-uso" },
-              { label: "Compliance and audits", href: "/soluciones#casos-de-uso" },
-              { label: "Operational control tower", href: "/soluciones#casos-de-uso" },
+              {
+                label: "Driver and asset monitoring",
+                href: "/soluciones#casos-de-uso",
+              },
+              {
+                label: "Mechanical telemetry and maintenance",
+                href: "/soluciones#casos-de-uso",
+              },
+              {
+                label: "Compliance and audits",
+                href: "/soluciones#casos-de-uso",
+              },
+              {
+                label: "Operational control tower",
+                href: "/soluciones#casos-de-uso",
+              },
             ],
             footer: { label: "All solutions", href: "/soluciones" },
           },
@@ -53,7 +120,10 @@ export const en = {
             links: [
               { label: "Freight transport", href: "/soluciones#industrias" },
               { label: "Mining", href: "/soluciones#industrias" },
-              { label: "Distribution and last mile", href: "/soluciones#industrias" },
+              {
+                label: "Distribution and last mile",
+                href: "/soluciones#industrias",
+              },
               { label: "Industrial logistics", href: "/soluciones#industrias" },
             ],
             footer: { label: "Real stories", href: "/#clientes" },
@@ -66,7 +136,11 @@ export const en = {
           {
             title: "Learn",
             links: [
-              { label: "Documentation", href: "https://docs.modulariot.com", external: true },
+              {
+                label: "Documentation",
+                href: "https://docs.modulariot.com",
+                external: true,
+              },
               { label: "FAQ", href: "/#faq" },
             ],
             footer: { label: "All resources", href: "/recursos" },
@@ -74,16 +148,22 @@ export const en = {
           {
             title: "Community",
             links: [
-              { label: "GitHub", href: "https://github.com/microboxlabs", external: true },
-              { label: "MicroBox Labs", href: "https://microboxlabs.com", external: true },
+              {
+                label: "GitHub",
+                href: "https://github.com/microboxlabs",
+                external: true,
+              },
+              {
+                label: "MicroBox Labs",
+                href: "https://microboxlabs.com",
+                external: true,
+              },
             ],
           },
         ],
       },
     ],
-    direct: [
-      { label: "Contact", href: "/contacto" },
-    ],
+    direct: [{ label: "Contact", href: "/contacto" }],
     github: { label: "GitHub", href: "https://github.com/microboxlabs" },
     languages: [
       { lang: "es", country: "Chile", flag: "cl" },
@@ -115,10 +195,26 @@ export const en = {
       live: "receiving events…",
       done: "it all stays in your operation",
       events: [
-        { kind: "signal", title: "Signals arriving", detail: "2,847 assets reporting in real time" },
-        { kind: "symptom", title: "Symptom detected", detail: "Speeding · internal route · high severity" },
-        { kind: "action", title: "Escalated to the owner", detail: "supervisor notified by SMS, with evidence" },
-        { kind: "record", title: "Recorded", detail: "in your database, in your cloud" },
+        {
+          kind: "signal",
+          title: "Signals arriving",
+          detail: "2,847 assets reporting in real time",
+        },
+        {
+          kind: "symptom",
+          title: "Symptom detected",
+          detail: "Speeding · internal route · high severity",
+        },
+        {
+          kind: "action",
+          title: "Escalated to the owner",
+          detail: "supervisor notified by SMS, with evidence",
+        },
+        {
+          kind: "record",
+          title: "Recorded",
+          detail: "in your database, in your cloud",
+        },
       ],
     },
   },
@@ -127,7 +223,10 @@ export const en = {
     title: "A real operation, running today — not a demo",
     items: [
       { value: "55,847", label: "symptoms handled in a single real month" },
-      { value: "65%", label: "of treated alerts get invalidated: closing ≠ solving" },
+      {
+        value: "65%",
+        label: "of treated alerts get invalidated: closing ≠ solving",
+      },
       { value: "28+", label: "GPS providers integrated" },
       { value: "1,900+", label: "assets in real operation" },
     ],
@@ -224,25 +323,38 @@ export const en = {
   features: {
     kicker: "Features",
     title: "Three core capabilities",
-    subtitle: "Everything you need to process, analyze and act on fleet data in real time",
+    subtitle:
+      "Everything you need to process, analyze and act on fleet data in real time",
     cards: [
       {
         icon: "signal",
         title: "Real-time processing",
         body: "Every GPS signal, sensor and driver event is processed as it arrives, with median latency under 56 ms.",
-        bullets: ["One source for all telemetry", "Enriched and evaluated instantly", "Thousands of events per second, no batch"],
+        bullets: [
+          "One source for all telemetry",
+          "Enriched and evaluated instantly",
+          "Thousands of events per second, no batch",
+        ],
       },
       {
         icon: "radar",
         title: "Symptom-based alerts",
         body: "Over 30 rules detect the deviation —fatigue, speeding, risk zones— and generate a classified event, not one more generic notification.",
-        bullets: ["Automatic severity and owner", "Smart noise exclusion", "Action fired: SMS, dashboard or work order"],
+        bullets: [
+          "Automatic severity and owner",
+          "Smart noise exclusion",
+          "Action fired: SMS, dashboard or work order",
+        ],
       },
       {
         icon: "plug",
         title: "Escalation by symptom",
         body: "Each symptom is escalated to the channel where the operation lives —email, WhatsApp, Teams— with a two-way conversation, a plan and an owner.",
-        bullets: ["Channel by symptom type", "Two-way loop, not just notify", "Every alert arrives with a plan and an owner"],
+        bullets: [
+          "Channel by symptom type",
+          "Two-way loop, not just notify",
+          "Every alert arrives with a plan and an owner",
+        ],
       },
     ],
   },
@@ -250,11 +362,24 @@ export const en = {
   architecture: {
     kicker: "Architecture",
     title: "From the edge device to your infrastructure",
-    subtitle: "See how your data flows from edge devices to your cloud in real time",
+    subtitle:
+      "See how your data flows from edge devices to your cloud in real time",
     steps: [
-      { n: "01", title: "Data ingestion", body: "Collect GPS, sensor and event data from your fleet in real time" },
-      { n: "02", title: "Stream processing", body: "Process and analyze data streams with sub-second latency" },
-      { n: "03", title: "Your infrastructure", body: "Data flows straight into your database, analytics and applications" },
+      {
+        n: "01",
+        title: "Data ingestion",
+        body: "Collect GPS, sensor and event data from your fleet in real time",
+      },
+      {
+        n: "02",
+        title: "Stream processing",
+        body: "Process and analyze data streams with sub-second latency",
+      },
+      {
+        n: "03",
+        title: "Your infrastructure",
+        body: "Data flows straight into your database, analytics and applications",
+      },
     ],
     latency: "< 56 ms median end-to-end latency",
     latencySubtitle: "From sensor reading to your application's response",
@@ -271,28 +396,44 @@ export const en = {
         icon: "signal",
         title: "GPS Core Ingestion",
         body: "Every GPS ping, sensor signal and driver event flows to your systems in milliseconds. Last-signal API, AVL tracking and change data capture into your systems.",
-        bullets: ["Last-signal API per asset", "Real-time AVL tracking", "CDC into your downstream systems"],
+        bullets: [
+          "Last-signal API per asset",
+          "Real-time AVL tracking",
+          "CDC into your downstream systems",
+        ],
       },
       {
         id: "sintomas",
         icon: "radar",
         title: "Symptoms / Control Tower",
         body: "Over 30 detection rules: speed by segment, continuous driving, risk zones, fatigue, mechanical telemetry. Each event with severity, owner and full traceability.",
-        bullets: ["Automatic severity and owner", "Lifecycle: open → handle → close", "Smart noise exclusion"],
+        bullets: [
+          "Automatic severity and owner",
+          "Lifecycle: open → handle → close",
+          "Smart noise exclusion",
+        ],
       },
       {
         id: "integraciones",
         icon: "plug",
         title: "Integrations",
         body: "Workflow automation with n8n, document manager for evidence, API gateway and webhooks. Your operation connected to the systems you already use.",
-        bullets: ["Workflows and webhooks (n8n)", "Document evidence vault", "APIs and gateway for your systems"],
+        bullets: [
+          "Workflows and webhooks (n8n)",
+          "Document evidence vault",
+          "APIs and gateway for your systems",
+        ],
       },
       {
         id: "video",
         icon: "video",
         title: "Live Video / HLS",
         body: "Continuous 24-hour video streams from cameras on board your assets. Visual context for every detected event.",
-        bullets: ["Continuous 24h HLS streaming", "Frames from cameras and dashcams", "Visual context for each alert"],
+        bullets: [
+          "Continuous 24h HLS streaming",
+          "Frames from cameras and dashcams",
+          "Visual context for each alert",
+        ],
       },
     ],
   },
@@ -337,15 +478,35 @@ export const en = {
   deployment: {
     kicker: "Deployment",
     title: "Deployment",
-    subtitle: "A rollout managed by MicroBox Labs on your own cloud: we run the infrastructure, you focus on the operation. Live in days, not months.",
+    subtitle:
+      "A rollout managed by MicroBox Labs on your own cloud: we run the infrastructure, you focus on the operation. Live in days, not months.",
     soonLabel: "Coming soon",
     includes: [
-      { title: "Configured to your operation", body: "Thresholds, zones and rules tuned to how you work — not a generic template." },
-      { title: "Deployed in your cloud", body: "Runs on your own infrastructure (AWS, Azure or GCP); your data never leaves your control.", soon: true },
-      { title: "Connected to your systems", body: "API integration with the platforms you already use (dispatch, maintenance, ERP); it adds to your operation, doesn't replace it." },
-      { title: "Your operation's channels", body: "Email, WhatsApp, Teams, Webex and SMS connected so the alert reaches where the team lives." },
-      { title: "Managed rollout", body: "MicroBox Labs runs and supports the operation, with zero DevOps overhead on your side." },
-      { title: "Monitoring, support and updates", body: "The platform stays current and monitored without you having to deal with it." },
+      {
+        title: "Configured to your operation",
+        body: "Thresholds, zones and rules tuned to how you work — not a generic template.",
+      },
+      {
+        title: "Deployed in your cloud",
+        body: "Runs on your own infrastructure (AWS, Azure or GCP); your data never leaves your control.",
+        soon: true,
+      },
+      {
+        title: "Connected to your systems",
+        body: "API integration with the platforms you already use (dispatch, maintenance, ERP); it adds to your operation, doesn't replace it.",
+      },
+      {
+        title: "Your operation's channels",
+        body: "Email, WhatsApp, Teams, Webex and SMS connected so the alert reaches where the team lives.",
+      },
+      {
+        title: "Managed rollout",
+        body: "MicroBox Labs runs and supports the operation, with zero DevOps overhead on your side.",
+      },
+      {
+        title: "Monitoring, support and updates",
+        body: "The platform stays current and monitored without you having to deal with it.",
+      },
     ],
   },
 
@@ -405,7 +566,8 @@ export const en = {
   },
 
   footer: {
-    description: "We turn every fleet signal into fewer repeated deviations. The data and the decisions are yours.",
+    description:
+      "We turn every fleet signal into fewer repeated deviations. The data and the decisions are yours.",
     columns: [
       {
         title: "Explore",

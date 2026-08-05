@@ -172,6 +172,7 @@ export default function Nav() {
       localStorage.setItem(COUNTRY_KEY, flag);
     } catch {}
   };
+  const closeMobileMenu = () => setOpen(false);
 
   return (
     <header className="border-hairline bg-page/85 sticky top-0 z-50 w-full border-b backdrop-blur-md">
@@ -457,7 +458,7 @@ export default function Nav() {
             </a>
             <a
               href={resolveHref(base, nav.actions.demo.href)}
-              onClick={() => setOpen(false)}
+              onClick={closeMobileMenu}
               className="border-ink-1 bg-ink-1 text-page block rounded-lg border px-4 py-2.5 text-center text-sm font-medium"
             >
               {nav.actions.demo.label}

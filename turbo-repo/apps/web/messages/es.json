@@ -1,4 +1,181 @@
 {
+  "nav": {
+    "cta": "Solicitar demo",
+    "mega": {
+      "label": "Producto",
+      "sections": [
+        {
+          "title": "Plataforma",
+          "items": [
+            {
+              "label": "Ingesta GPS Core",
+              "desc": "Señales GPS y sensores en tiempo real hacia tu base de datos"
+            },
+            {
+              "label": "Síntomas / Torre de Control",
+              "desc": "30+ reglas de detección con trazabilidad"
+            },
+            {
+              "label": "Integraciones",
+              "desc": "Workflows, webhooks y bóveda de evidencia"
+            },
+            {
+              "label": "Video en Vivo / HLS",
+              "desc": "Streaming continuo desde cámaras y dashcams"
+            }
+          ]
+        },
+        {
+          "title": "Tecnología",
+          "items": [
+            {
+              "label": "Características",
+              "desc": "Streaming, alertas y flujos de trabajo"
+            },
+            {
+              "label": "Arquitectura",
+              "desc": "Del dispositivo edge a tu nube en <56ms"
+            },
+            {
+              "label": "Implementación",
+              "desc": "Tu nube, gestionado por MBL o edge híbrido"
+            }
+          ]
+        },
+        {
+          "title": "En vivo, con datos reales",
+          "items": [
+            {
+              "label": "Torre de control",
+              "desc": "Los 36 síntomas sobre una operación real"
+            },
+            {
+              "label": "SuperProfile",
+              "desc": "La identidad operacional viva de cada actor"
+            },
+            {
+              "label": "Canales de escalamiento",
+              "desc": "La alerta en correo, WhatsApp, Teams, Webex y SMS"
+            },
+            {
+              "label": "Proveedores GPS",
+              "desc": "Precisión de señal: 12/20 pulsos por minuto"
+            }
+          ]
+        }
+      ]
+    },
+    "columnMenus": [
+      {
+        "label": "Soluciones",
+        "columns": [
+          {
+            "title": "Casos de uso",
+            "links": [
+              {
+                "label": "Monitoreo de conductores y activos"
+              },
+              {
+                "label": "Telemetría mecánica y mantenimiento"
+              },
+              {
+                "label": "Cumplimiento y auditorías"
+              },
+              {
+                "label": "Torre de control operacional"
+              }
+            ],
+            "footer": {
+              "label": "Todas las soluciones"
+            }
+          },
+          {
+            "title": "Industrias",
+            "links": [
+              {
+                "label": "Transporte de carga"
+              },
+              {
+                "label": "Minería"
+              },
+              {
+                "label": "Distribución y última milla"
+              },
+              {
+                "label": "Logística industrial"
+              }
+            ],
+            "footer": {
+              "label": "Casos reales"
+            }
+          }
+        ]
+      },
+      {
+        "label": "Recursos",
+        "columns": [
+          {
+            "title": "Aprende",
+            "links": [
+              {
+                "label": "Documentación"
+              },
+              {
+                "label": "Preguntas frecuentes"
+              }
+            ],
+            "footer": {
+              "label": "Todos los recursos"
+            }
+          },
+          {
+            "title": "Comunidad",
+            "links": [
+              {
+                "label": "GitHub"
+              },
+              {
+                "label": "MicroBox Labs"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "direct": [
+      {
+        "label": "Contacto"
+      }
+    ],
+    "languages": [
+      {
+        "country": "Chile"
+      },
+      {
+        "country": "Perú"
+      },
+      {
+        "country": "Colombia"
+      },
+      {
+        "country": "México"
+      },
+      {
+        "country": "Brasil"
+      },
+      {
+        "country": "Global"
+      }
+    ],
+    "actions": {
+      "login": {
+        "label": "Iniciar sesión"
+      },
+      "signup": {
+        "label": "Crear cuenta"
+      }
+    }
+  },
   "hero": {
     "kicker": "Código abierto — motor y datos auditables",
     "titlePre": "De detectar a ",

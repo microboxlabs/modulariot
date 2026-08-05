@@ -3,6 +3,7 @@ package com.microboxlabs.miot.integrations.calendar;
 import com.microboxlabs.miot.integrations.jobs.JobOutcome;
 import com.microboxlabs.miot.integrations.jobs.ModulithJobHandler;
 import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
+import com.microboxlabs.miot.integrations.service.EventBindingFetchService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Clock;
@@ -12,8 +13,10 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.jboss.logging.Logger;
 
@@ -22,11 +25,14 @@ import org.jboss.logging.Logger;
  * self-contained payload into miot-calendar calls. Ported verbatim from ECM's
  * {@code CalendarSyncJobExecutor} — the moved runtime is the only change.
  *
- * <p>Outcome policy: 404 (no booking) and 409 (status regression — a newer
- * status already applied by an out-of-order sibling) are benign SKIPs; transport
- * / 5xx / network ({@code -1}) errors are thrown so the worker reports FAILED and
- * the ledger retries with backoff. miot-calendar only moves statuses forward, so
- * unordered jobs converge on the max status.
+ * <p>Outcome policy: 409 (status regression — a newer status already applied by
+ * an out-of-order sibling) is a benign SKIP; transport / 5xx / network
+ * ({@code -1}) errors are thrown so the worker reports FAILED and the ledger
+ * retries with backoff. miot-calendar only moves statuses forward, so unordered
+ * jobs converge on the max status. A patch 404 (no booking) creates the booking
+ * and applies the status when the payload carries an ETD and the target is
+ * non-terminal (see {@code materializeFromPatch}); otherwise it too is a benign
+ * SKIP.
  *
  * <p><b>Except when a regression is the point.</b> The workflow is not
  * monotonic — a service can go back from {@code presentDriver} to
@@ -58,15 +64,17 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             .thenComparingInt(CalendarBookingsClient.AvailableSlot::minutes);
 
     private final CalendarBookingsClient client;
+    private final EventBindingFetchService enrichment;
     private final Clock clock;
 
     @Inject
-    CalendarSyncExecutor(CalendarBookingsClient client) {
-        this(client, Clock.systemDefaultZone());
+    CalendarSyncExecutor(CalendarBookingsClient client, EventBindingFetchService enrichment) {
+        this(client, enrichment, Clock.systemDefaultZone());
     }
 
-    CalendarSyncExecutor(CalendarBookingsClient client, Clock clock) {
+    CalendarSyncExecutor(CalendarBookingsClient client, EventBindingFetchService enrichment, Clock clock) {
         this.client = client;
+        this.enrichment = enrichment;
         this.clock = clock;
     }
 
@@ -82,7 +90,7 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
     }
 
     @Override
-    public JobOutcome handle(Map<String, Object> payload) {
+    public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
         String op = str(payload, CalendarSyncFeature.PAYLOAD_OP);
         String resourceId = str(payload, CalendarSyncFeature.PAYLOAD_RESOURCE_ID);
         String calendarIdRaw = str(payload, CalendarSyncFeature.PAYLOAD_CALENDAR_ID);
@@ -92,10 +100,12 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         UUID calendarId = calendarIdRaw == null ? null : UUID.fromString(calendarIdRaw);
 
         if (CalendarSyncFeature.OP_PATCH.equals(op)) {
-            return executePatch(payload, resourceId, calendarId);
+            Enriched enriched = enrich(tenantCode, payload, calendarIdRaw);
+            return withResult(executePatch(enriched.payload(), resourceId, calendarId), enriched);
         }
         if (CalendarSyncFeature.OP_ENSURE.equals(op)) {
-            return executeEnsure(payload, resourceId, calendarId);
+            Enriched enriched = enrich(tenantCode, payload, calendarIdRaw);
+            return withResult(executeEnsure(enriched.payload(), resourceId, calendarId), enriched);
         }
         if (CalendarSyncFeature.OP_UNASSIGN.equals(op)) {
             return executeUnassign(payload, resourceId, calendarId);
@@ -104,6 +114,56 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             return executeCancel(resourceId, calendarId);
         }
         throw new IllegalArgumentException("calendar_sync unknown op: " + op);
+    }
+
+    /**
+     * Resolve extra resource-data through the calendar's enrichment binding, when one is
+     * configured — the answer to a workflow that only carries human identifiers (RUTs,
+     * plates) while the booking is keyed on resource ids. No binding, or a payload with
+     * nothing the binding's mapping reads, changes nothing at all.
+     *
+     * <p>Fetched values are merged over the payload's own {@code resourceData} (fresh
+     * resolution beats what rode along), on a copied payload — the original is the ledger's
+     * record of what ECM sent. A configured fetch that fails throws instead, so the job
+     * retries or parks visibly rather than writing a booking with silently missing data.
+     */
+    private Enriched enrich(String tenantCode, Map<String, Object> payload, String calendarIdRaw) {
+        Optional<EventBindingFetchService.FetchedValues> fetched = enrichment.fetch(
+                tenantCode,
+                CalendarSyncFeature.EVENT_RESOURCE_ENRICHMENT,
+                CalendarSyncFeature.SCOPE_CALENDAR,
+                calendarIdRaw,
+                payload);
+        if (fetched.isEmpty() || fetched.get().values().isEmpty()) {
+            return new Enriched(payload, null);
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        Map<String, Object> existing = asMap(payload.get(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA));
+        if (existing != null) {
+            data.putAll(existing);
+        }
+        data.putAll(fetched.get().values());
+
+        Map<String, Object> enrichedPayload = new LinkedHashMap<>(payload);
+        enrichedPayload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA, data);
+        LOG.infof("calendar_sync enrichment resolved %d value(s) via binding %s for %s",
+                fetched.get().values().size(), fetched.get().bindingId(),
+                str(payload, CalendarSyncFeature.PAYLOAD_RESOURCE_ID));
+        return new Enriched(enrichedPayload, Map.of(
+                "enrichment", fetched.get().values(),
+                "bindingId", fetched.get().bindingId()));
+    }
+
+    /** Attach what enrichment resolved to a successful outcome, for the job's result column. */
+    private static JobOutcome withResult(JobOutcome outcome, Enriched enriched) {
+        if (enriched.result() == null || !JobOutcome.SUCCEEDED.equals(outcome.outcome())) {
+            return outcome;
+        }
+        return new JobOutcome(outcome.outcome(), outcome.detail(), enriched.result());
+    }
+
+    /** A payload with enrichment applied, and what was resolved (null when nothing was). */
+    private record Enriched(Map<String, Object> payload, Map<String, Object> result) {
     }
 
     /**
@@ -125,8 +185,29 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         List<String> clearDataKeys = asStringList(payload.get(CalendarSyncFeature.PAYLOAD_CLEAR_DATA_KEYS));
         try {
             client.unassignByResource(resourceId, calendarId, clearDataKeys);
+            // An optional syncStatus rides the unassign (not the ensure): on the
+            // backward revert the booking is at ASSIGNED, so the ensure leg's
+            // PLANNED patch is refused as a regression and would drop the stamp
+            // with it. The unassign is the one call that succeeds in both
+            // directions, and it must also displace whatever sync verdict the
+            // previous assignment left behind — a stale REJECTED belongs to a
+            // tuple that no longer exists. A rejected follow-up does not undo
+            // the successful unassign and must be reported as such.
+            String syncStatus = str(payload, CalendarSyncFeature.PAYLOAD_SYNC_STATUS);
+            if (syncStatus != null) {
+                try {
+                    client.patchByResource(resourceId, calendarId, null, null, syncStatus, null);
+                } catch (CalendarBookingsHttpException e) {
+                    if (e.getStatus() == 404 || e.getStatus() == 409) {
+                        return JobOutcome.skipped("Booking unassigned for " + resourceId
+                                + "; sync-status patch skipped (" + e.getStatus() + ")");
+                    }
+                    throw e;
+                }
+            }
             return JobOutcome.succeeded("Booking unassigned for " + resourceId
-                    + " (cleared " + clearDataKeys.size() + " data key(s))");
+                    + " (cleared " + clearDataKeys.size() + " data key(s)"
+                    + (syncStatus == null ? ")" : ", sync " + syncStatus + ")"));
         } catch (CalendarBookingsHttpException e) {
             if (e.getStatus() == 404) {
                 return JobOutcome.skipped("No booking to unassign for " + resourceId);
@@ -148,12 +229,60 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             client.patchByResource(resourceId, calendarId, targetStatus, resourceData, syncStatus, null);
             return JobOutcome.succeeded("Booking patched to " + targetStatus + " for " + resourceId);
         } catch (CalendarBookingsHttpException e) {
+            if (e.getStatus() == 404) {
+                JobOutcome materialized = materializeFromPatch(payload, resourceId, calendarId,
+                        targetStatus, resourceData);
+                if (materialized != null) {
+                    return materialized;
+                }
+            }
             JobOutcome benign = benignSkip(e, resourceId, targetStatus);
             if (benign != null) {
                 return benign;
             }
             throw e;
         }
+    }
+
+    /**
+     * A patch that finds no booking used to be a benign skip in every case —
+     * right for a straggler, wrong for a service that entered the workflow
+     * without ever being planned through the calendar: each of its pushes 404'd
+     * and it never appeared at all. When the patch carries an ETD (it rides
+     * {@code resourceData} on every push), create the booking and then apply
+     * the status, so the service materializes at whatever stage first touches
+     * the calendar.
+     *
+     * <p>Returns {@code null} — falling back to the benign skip — in three cases:
+     * <ul>
+     *   <li><b>Terminal target.</b> A missing booking on a FINISHED/CANCELLED
+     *       push is usually the cancel's own work (a future-slot cancel deletes
+     *       the booking); creating one here would resurrect what was just
+     *       released, only to close it. The modulith cannot consult the
+     *       workflow, so terminal pushes never create.
+     *   <li><b>No target status.</b> A data-only patch names no lifecycle stage
+     *       — there is no "stage the service first touched" to materialize at.
+     *   <li><b>No ETD.</b> Patch payloads carry no explicit slot, so without a
+     *       parseable ETD there is nothing to place the booking at.
+     * </ul>
+     */
+    private JobOutcome materializeFromPatch(Map<String, Object> payload, String resourceId,
+                                            UUID calendarId, String targetStatus,
+                                            Map<String, Object> resourceData) {
+        if (calendarId == null || targetStatus == null
+                || CalendarSyncFeature.isTerminalStatus(targetStatus)) {
+            return null;
+        }
+        String etd = resourceData == null ? null
+                : str(resourceData, CalendarSyncFeature.DATA_EXPECTED_DEPARTURE_DATE);
+        if (etd == null) {
+            return null;
+        }
+        Map<String, Object> createPayload = new LinkedHashMap<>(payload);
+        createPayload.put(CalendarSyncFeature.PAYLOAD_ETD, etd);
+        LOG.infof("calendar_sync patch: no booking for %s — materializing one from the patch "
+                + "(etd=%s, target=%s)", resourceId, etd, targetStatus);
+        return ensureCreate(createPayload, resourceId, calendarId, targetStatus, resourceData);
     }
 
     /**
@@ -202,7 +331,8 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             }
             throw e;
         }
-        applyStatus(resourceId, calendarId, targetStatus);
+        applyStatus(resourceId, calendarId, targetStatus,
+                str(payload, CalendarSyncFeature.PAYLOAD_SYNC_STATUS));
         LOG.infof("calendar_sync ensure created booking %s for %s at %s %02d:%02d -> %s",
                 bookingId, resourceId, slot.date(), slot.hour(), slot.minutes(), targetStatus);
         return JobOutcome.succeeded("Ensured (created) booking " + bookingId + " for " + resourceId
@@ -232,9 +362,14 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         }
         // Forward-only status, plus a shallow resource-data merge so a re-plan keeps
         // the row current. 404/409 are benign (raced delete / status regression).
-        if (targetStatus != null || (resourceData != null && !resourceData.isEmpty())) {
+        // The payload's syncStatus rides along (null leaves it untouched) — the
+        // existing-booking path must not drop the confirmation window the push
+        // opened, exactly like applyStatus on the create path.
+        String syncStatus = str(payload, CalendarSyncFeature.PAYLOAD_SYNC_STATUS);
+        if (targetStatus != null || syncStatus != null
+                || (resourceData != null && !resourceData.isEmpty())) {
             try {
-                client.patchByResource(resourceId, calendarId, targetStatus, resourceData);
+                client.patchByResource(resourceId, calendarId, targetStatus, resourceData, syncStatus, null);
             } catch (CalendarBookingsHttpException e) {
                 if (benignSkip(e, resourceId, targetStatus) == null) {
                     throw e;
@@ -246,19 +381,21 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
     }
 
     /**
-     * Set the stage status on the booking we just created. Unlike a status-only
-     * push, a 404 here is NOT benign — the booking exists (we just created it), so
-     * a 404 is a visibility-lag anomaly; propagate it so a retry (whose
-     * {@code listByResource} then finds the booking) converges rather than
-     * reporting success with the status unset. Only 409 (the create default
-     * already at/ahead of the target) is benign.
+     * Set the stage status on the booking we just created, carrying the
+     * originating push's {@code syncStatus} (null leaves it untouched) — a
+     * materialized patch must not lose the confirmation window its payload
+     * opened. Unlike a status-only push, a 404 here is NOT benign — the booking
+     * exists (we just created it), so a 404 is a visibility-lag anomaly;
+     * propagate it so a retry (whose {@code listByResource} then finds the
+     * booking) converges rather than reporting success with the status unset.
+     * Only 409 (the create default already at/ahead of the target) is benign.
      */
-    private void applyStatus(String resourceId, UUID calendarId, String targetStatus) {
+    private void applyStatus(String resourceId, UUID calendarId, String targetStatus, String syncStatus) {
         if (targetStatus == null) {
             return;
         }
         try {
-            client.patchByResource(resourceId, calendarId, targetStatus, null);
+            client.patchByResource(resourceId, calendarId, targetStatus, null, syncStatus, null);
         } catch (CalendarBookingsHttpException e) {
             if (e.getStatus() != 409) {
                 throw e;
@@ -318,7 +455,8 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
     /**
      * Cancel decided from the freshest slot: future slot → DELETE (release
      * capacity); past slot → PATCH CANCELLED (keep history). No matching
-     * booking → SKIPPED.
+     * booking → SKIPPED. The future-vs-past comparison runs in the calendar's
+     * timezone (see {@link #calendarClock}).
      */
     private JobOutcome executeCancel(String resourceId, UUID calendarId) {
         List<CalendarBookingsClient.BookingView> bookings = client.listByResource(resourceId, calendarId);
@@ -326,7 +464,7 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             return JobOutcome.skipped("No booking to cancel for " + resourceId);
         }
 
-        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime now = LocalDateTime.now(calendarClock(calendarId));
         int deleted = 0;
         boolean pastRemains = false;
         for (var booking : bookings) {
@@ -348,6 +486,21 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         }
         return JobOutcome.succeeded(String.format(
                 "Cancel applied for %s (deleted=%d, pastPatched=%b)", resourceId, deleted, pastRemains));
+    }
+
+    /**
+     * Slot times are wall-clock in the calendar's timezone, so the cancel
+     * future-vs-past decision must be taken there — the runtime's own zone
+     * (UTC in the containers) can run hours ahead and misclassify a
+     * still-future slot as past, patching CANCELLED (a ghost row the planning
+     * grid keeps showing) where a delete was due. Falls back to the executor
+     * clock's zone when the calendar has no usable timezone.
+     */
+    private Clock calendarClock(UUID calendarId) {
+        if (calendarId == null) {
+            return clock;
+        }
+        return client.getCalendarTimezone(calendarId).map(clock::withZone).orElse(clock);
     }
 
     private int tryDelete(CalendarBookingsClient.BookingView booking, String resourceId) {

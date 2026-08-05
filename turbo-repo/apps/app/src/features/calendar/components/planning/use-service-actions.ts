@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { PlannedService } from "./planning-selection-context";
 import type { ContextMenuPosition } from "./service-context-menu";
 import { ShowNotification } from "@/features/notifications/notification";
@@ -14,6 +14,7 @@ export interface ContextMenuState {
 export interface DeleteModalState {
   isOpen: boolean;
   plannedService: PlannedService | null;
+  isProcessing: boolean;
 }
 
 interface UseServiceActionsProps {
@@ -65,14 +66,18 @@ export function useServiceActions({
   const [deleteModal, setDeleteModal] = useState<DeleteModalState>({
     isOpen: false,
     plannedService: null,
+    isProcessing: false,
   });
+  const deleteInFlightRef = useRef(false);
 
   // Delete assignment confirmation modal state
   const [deleteAssignmentModal, setDeleteAssignmentModal] =
     useState<DeleteModalState>({
       isOpen: false,
       plannedService: null,
+      isProcessing: false,
     });
+  const deleteAssignmentInFlightRef = useRef(false);
 
   // Context menu handlers
   const handleContextMenu = useCallback(
@@ -114,34 +119,47 @@ export function useServiceActions({
     setDeleteModal({
       isOpen: true,
       plannedService,
+      isProcessing: false,
     });
   }, []);
 
   const handleConfirmDelete = useCallback(
     async (plannedService: PlannedService) => {
-      if (plannedService) {
-        try {
-          await removeService(plannedService.service.id);
-          ShowNotification({
-            type: "success",
-            message: "Asignación eliminada",
-          });
-        } catch (error) {
-          console.error("Error deleting planned service:", error);
-          ShowNotification({
-            type: "error",
-            message:
-              "Error al eliminar la asignación. Por favor, intente nuevamente.",
-          });
-        }
+      if (!plannedService || deleteInFlightRef.current) return;
+
+      deleteInFlightRef.current = true;
+      setDeleteModal((current) => ({ ...current, isProcessing: true }));
+      try {
+        await removeService(plannedService.service.id);
+        ShowNotification({
+          type: "success",
+          message: "Asignación eliminada",
+        });
+      } catch (error) {
+        console.error("Error deleting planned service:", error);
+        ShowNotification({
+          type: "error",
+          message:
+            "Error al eliminar la asignación. Por favor, intente nuevamente.",
+        });
+      } finally {
+        deleteInFlightRef.current = false;
+        setDeleteModal({
+          isOpen: false,
+          plannedService: null,
+          isProcessing: false,
+        });
       }
-      setDeleteModal({ isOpen: false, plannedService: null });
     },
     [removeService]
   );
 
   const handleCancelDelete = useCallback(() => {
-    setDeleteModal({ isOpen: false, plannedService: null });
+    setDeleteModal({
+      isOpen: false,
+      plannedService: null,
+      isProcessing: false,
+    });
   }, []);
 
   // Delete assignment handlers
@@ -150,6 +168,7 @@ export function useServiceActions({
       setDeleteAssignmentModal({
         isOpen: true,
         plannedService,
+        isProcessing: false,
       });
     },
     []
@@ -157,29 +176,44 @@ export function useServiceActions({
 
   const handleConfirmDeleteAssignment = useCallback(
     async (plannedService: PlannedService) => {
-      if (plannedService) {
-        try {
-          await removeAssignment(plannedService.service.id);
-          ShowNotification({
-            type: "success",
-            message: "Asignación eliminada",
-          });
-        } catch (error) {
-          console.error("Error deleting assignment:", error);
-          ShowNotification({
-            type: "error",
-            message:
-              "Error al eliminar la asignación. Por favor, intente nuevamente.",
-          });
-        }
+      if (!plannedService || deleteAssignmentInFlightRef.current) return;
+
+      deleteAssignmentInFlightRef.current = true;
+      setDeleteAssignmentModal((current) => ({
+        ...current,
+        isProcessing: true,
+      }));
+      try {
+        await removeAssignment(plannedService.service.id);
+        ShowNotification({
+          type: "success",
+          message: "Asignación eliminada",
+        });
+      } catch (error) {
+        console.error("Error deleting assignment:", error);
+        ShowNotification({
+          type: "error",
+          message:
+            "Error al eliminar la asignación. Por favor, intente nuevamente.",
+        });
+      } finally {
+        deleteAssignmentInFlightRef.current = false;
+        setDeleteAssignmentModal({
+          isOpen: false,
+          plannedService: null,
+          isProcessing: false,
+        });
       }
-      setDeleteAssignmentModal({ isOpen: false, plannedService: null });
     },
     [removeAssignment]
   );
 
   const handleCancelDeleteAssignment = useCallback(() => {
-    setDeleteAssignmentModal({ isOpen: false, plannedService: null });
+    setDeleteAssignmentModal({
+      isOpen: false,
+      plannedService: null,
+      isProcessing: false,
+    });
   }, []);
 
   return {

@@ -1,0 +1,71 @@
+{
+  "stack_version": "0.5.42",
+  "stack_tag": "miot-stack@v0.5.42",
+  "milestone": "MIOT-0.5.42",
+  "pull_requests": [
+    {
+      "number": 1094,
+      "title": "fixed favicon",
+      "source_issues": [
+        {
+          "number": 1101,
+          "title": "Fix adaptive favicon styling for light and dark modes"
+        }
+      ]
+    },
+    {
+      "number": 1100,
+      "title": "fix(calendar): an assignment is a complete statement — clear dropped slots; register calendar.resource_release",
+      "source_issues": [
+        {
+          "number": 1099,
+          "title": "fix(calendar): an assignment is a complete statement — clear dropped trailer/driver2 slots; register calendar.resource_release"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    ".claude/settings.json",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarSyncFeature.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/IntegrationEventBindingService.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/IntegrationEventBindingServiceTest.java",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-sidebar-form.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/sidebar-tabs/assignment/assignment-rules.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/sidebar-tabs/assignment/assignment-rules.ts",
+    "turbo-repo/apps/web/app/favicon.ico",
+    "turbo-repo/apps/web/app/icon.svg",
+    "turbo-repo/apps/web/app/layout.tsx",
+    "turbo-repo/apps/web/scripts/generate-logo.mjs"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.42",
+      "tag": "app@v0.5.42"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.40",
+      "version": "0.5.42",
+      "tag": "docs@v0.5.42"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.40",
+      "version": "0.5.42",
+      "tag": "web@v0.5.42"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.25",
+      "version": "0.5.26",
+      "tag": "modulith@v0.5.26"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.5",
+      "version": "0.1.5",
+      "tag": "harness@v0.1.5"
+    }
+  }
+}

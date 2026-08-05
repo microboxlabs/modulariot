@@ -1,0 +1,56 @@
+{
+  "stack_version": "0.5.41",
+  "stack_tag": "miot-stack@v0.5.41",
+  "milestone": "MIOT-0.5.41",
+  "pull_requests": [
+    {
+      "number": 1097,
+      "title": "feat(integrations): a JSON-null field default sends an explicit null",
+      "source_issues": [
+        {
+          "number": 1096,
+          "title": "feat(integrations): a JSON-null field default sends an explicit null to the partner"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/IntegrationEventBindingRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/IntegrationEventBindingService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/template/PayloadRenderer.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/jobs/IntegrationEventDispatchHandlerTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/IntegrationEventBindingServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/template/PayloadRendererTest.java"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.41",
+      "tag": "app@v0.5.41"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.40",
+      "version": "0.5.40",
+      "tag": "docs@v0.5.40"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.5.40",
+      "version": "0.5.40",
+      "tag": "web@v0.5.40"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.24",
+      "version": "0.5.25",
+      "tag": "modulith@v0.5.25"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.5",
+      "version": "0.1.5",
+      "tag": "harness@v0.1.5"
+    }
+  }
+}

@@ -35,6 +35,8 @@ public record AsyncJob(
         String lastError,
         List<Map<String, Object>> attemptHistory,
         String enqueuedBy,
+        /** What the last successful run produced; null for jobs with nothing to report. */
+        Map<String, Object> result,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt) {
 }

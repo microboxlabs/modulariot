@@ -10,8 +10,8 @@ import org.jboss.logging.Logger;
 /**
  * {@link ModulithJobHandler} for {@code calendar_confirm}: stamps
  * {@code syncStatus=CONFIRMED} on the booking once its chain predecessor (the
- * {@code alerce_assignment} push) has SUCCEEDED — see
- * {@link CalendarConfirmFeature} for the chain semantics.
+ * partner dispatch push) has SUCCEEDED — see {@link CalendarConfirmFeature}
+ * for the chain semantics.
  *
  * <p>Outcome policy mirrors {@link CalendarSyncExecutor}: 404 (booking gone —
  * unplanned or cancelled while the push was in flight) is a benign SKIP;
@@ -43,7 +43,7 @@ public class CalendarConfirmExecutor implements ModulithJobHandler {
     }
 
     @Override
-    public JobOutcome handle(Map<String, Object> payload) {
+    public JobOutcome handle(String tenantCode, Map<String, Object> payload) {
         String resourceId = str(payload, CalendarConfirmFeature.PAYLOAD_RESOURCE_ID);
         String calendarIdRaw = str(payload, CalendarConfirmFeature.PAYLOAD_CALENDAR_ID);
         String serviceCode = str(payload, CalendarConfirmFeature.PAYLOAD_SERVICE_CODE);
@@ -52,10 +52,11 @@ public class CalendarConfirmExecutor implements ModulithJobHandler {
         }
         java.util.UUID calendarId = calendarIdRaw == null ? null : java.util.UUID.fromString(calendarIdRaw);
 
+        String syncDetail = str(payload, CalendarConfirmFeature.PAYLOAD_SYNC_DETAIL);
         try {
             client.patchByResource(resourceId, calendarId, null, null,
                     CalendarConfirmFeature.SYNC_STATUS_CONFIRMED,
-                    "Alerce accepted the assignment (code=OK)");
+                    syncDetail != null ? syncDetail : CalendarConfirmFeature.DEFAULT_SYNC_DETAIL);
             return JobOutcome.succeeded("Booking sync CONFIRMED for " + resourceId);
         } catch (CalendarBookingsHttpException e) {
             if (e.getStatus() == 404) {

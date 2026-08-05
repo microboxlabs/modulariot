@@ -25,10 +25,18 @@ public record ReportJobRequest(
         String detail,
         Boolean retryable,
         Integer attempts,
-        List<Map<String, Object>> exchanges) {
+        List<Map<String, Object>> exchanges,
+        /** What the run produced (e.g. resolved ids), stored on the job; null keeps the prior value. */
+        Map<String, Object> result) {
 
     /** Report with no HTTP timeline — the shape every caller used before tracing. */
     public ReportJobRequest(String workerId, String outcome, String detail, Boolean retryable, Integer attempts) {
-        this(workerId, outcome, detail, retryable, attempts, null);
+        this(workerId, outcome, detail, retryable, attempts, null, null);
+    }
+
+    /** Report with a timeline but no result — the pre-result shape. */
+    public ReportJobRequest(String workerId, String outcome, String detail, Boolean retryable, Integer attempts,
+            List<Map<String, Object>> exchanges) {
+        this(workerId, outcome, detail, retryable, attempts, exchanges, null);
     }
 }

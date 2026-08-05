@@ -1,0 +1,39 @@
+# 🔔 Release Notes v1.31.33 — ModularIoT
+
+### Fecha: 04/08/2026
+
+**Objetivo**: Esta versión consolida la experiencia del calendario de servicios planificados eliminando acciones redundantes en el menú contextual, mejorando la claridad de la interfaz para los usuarios operativos de la plataforma.
+
+## 🐛 Correcciones
+
+- **🐛 Acción duplicada en el menú de servicio del calendario**
+  - **Impacto**: El menú contextual de servicios planificados presentaba dos acciones de solo lectura visualmente equivalentes (*Open service (Read-only)* y *Preview as viewer*), lo que generaba ambigüedad sobre cuál utilizar. *(Integración OSS — MIOT-0.5.34)*
+  - **Solución**: Se eliminó la entrada *Preview as viewer* y su manejador de URL asociado, conservando únicamente *Open service (Read-only)* como acción de lectura. Se actualizó el cálculo de altura del menú para reflejar el número reducido de acciones y se añadió cobertura de regresión para validar el comportamiento esperado.
+
+## 📊 Beneficios
+
+- La interfaz del calendario de servicios resulta más clara y predecible al eliminar opciones duplicadas que generaban confusión en los usuarios.
+- La reducción de entradas redundantes en menús contextuales disminuye la carga cognitiva durante la operación diaria de coordinación de servicios.
+- La corrección del cálculo de altura del menú garantiza una presentación visual consistente sin desbordamientos ni espacios innecesarios.
+- La cobertura de regresión incorporada reduce el riesgo de que esta clase de duplicaciones reaparezca en futuras iteraciones.
+- La actualización impacta positivamente los componentes `app`, `docs` y `web`, reflejando una mejora coherente en toda la capa de presentación.
+- El harness de pruebas (`harness@v0.1.5`) recibe actualizaciones que refuerzan la calidad general del ciclo de validación del stack.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.34` — versión base del stack desplegado en esta release.
+- **App** (`app@v0.5.34`): actualizada con la corrección del menú contextual del calendario.
+- **Docs** (`docs@v0.5.34`): documentación actualizada en línea con los cambios de esta versión.
+- **Web** (`web@v0.5.34`): capa web actualizada para reflejar la interfaz corregida.
+- **Modulith** (`modulith@v0.5.21`): sin cambios en esta release.
+- **Harness** (`harness@v0.1.5`): actualizado con nueva cobertura de regresión.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación dentro de la aplicación y en el asset `stack-manifest.json` de esta release.
+
+## 📌 Conclusión
+
+La versión 1.31.33 de ModularIoT representa una mejora puntual pero significativa en la usabilidad del módulo de calendario, abordando una inconsistencia de interfaz que afectaba la claridad de las acciones disponibles sobre servicios planificados. Al estandarizar el menú contextual con una única acción de solo lectura, se simplifica la experiencia del usuario y se elimina una fuente potencial de errores operativos.
+
+Desde una perspectiva técnica, la corrección incluye ajustes en la lógica de renderizado del menú, eliminación de manejadores de URL innecesarios y validación mediante pruebas de regresión, lo que fortalece la estabilidad del componente para iteraciones futuras.
+
+Esta release mantiene la cadencia de mejoras continuas del stack OSS `MIOT-0.5.34`, consolidando la base sobre la cual se construirán las próximas funcionalidades evolutivas de la plataforma ModularIoT.

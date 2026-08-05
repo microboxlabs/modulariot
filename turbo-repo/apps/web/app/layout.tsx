@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   description:
     "Convertimos cada señal de tu flota en menos desviaciones repetidas. Los datos y las decisiones son tuyos.",
   icons: {
-    icon: "/favicon.ico",
+    icon: { url: "/icon.svg", type: "image/svg+xml" },
   },
 };
 

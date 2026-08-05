@@ -128,11 +128,58 @@ export function SidebarSection({
 }>) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const resolvedTitleClass = titleClassName ?? "text-gray-400 dark:text-gray-500";
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [maxHeight, setMaxHeight] = useState<string>(defaultExpanded ? "none" : "0px");
+  const releaseCapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track content height with a ResizeObserver so the section grows to fit
+  // children added while expanded (e.g. new column rows), instead of clipping them.
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || !isExpanded) return;
+    const observer = new ResizeObserver(() => {
+      setMaxHeight(`${el.scrollHeight}px`);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isExpanded]);
+
+  useEffect(() => {
+    return () => {
+      if (releaseCapTimer.current) clearTimeout(releaseCapTimer.current);
+    };
+  }, []);
+
+  function toggleExpanded() {
+    const el = contentRef.current;
+    // A pending "release the cap" timeout from a prior expand must not fire after a
+    // rapid collapse — it would overwrite maxHeight back to "none" mid-collapse.
+    if (releaseCapTimer.current) {
+      clearTimeout(releaseCapTimer.current);
+      releaseCapTimer.current = null;
+    }
+    setIsExpanded((prev) => {
+      const next = !prev;
+      if (el) {
+        if (next) {
+          // Expanding: animate from 0 to the measured height, then release the cap.
+          setMaxHeight(`${el.scrollHeight}px`);
+          releaseCapTimer.current = setTimeout(() => setMaxHeight("none"), 200);
+        } else {
+          // Collapsing: pin to the current height first so the transition has a start point.
+          setMaxHeight(`${el.scrollHeight}px`);
+          requestAnimationFrame(() => setMaxHeight("0px"));
+        }
+      }
+      return next;
+    });
+  }
+
   return (
     <div className="border-b border-gray-100 dark:border-gray-700 last:border-b-0">
       <button
         type="button"
-        onClick={() => setIsExpanded((p) => !p)}
+        onClick={toggleExpanded}
         className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors cursor-pointer"
       >
         <span className="flex items-center gap-1.5">
@@ -149,11 +196,12 @@ export function SidebarSection({
         />
       </button>
       <div
-        className={`overflow-hidden transition-all duration-200 ${
-          isExpanded ? "max-h-[2499.75px] opacity-100" : "max-h-0 opacity-0"
-        }`}
+        className={`overflow-hidden transition-all duration-200 ${isExpanded ? "opacity-100" : "opacity-0"}`}
+        style={{ maxHeight }}
       >
-        <div className="px-4 py-2 pb-4">{children}</div>
+        <div ref={contentRef} className="px-4 py-2 pb-4">
+          {children}
+        </div>
       </div>
     </div>
   );

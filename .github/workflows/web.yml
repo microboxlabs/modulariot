@@ -30,6 +30,8 @@ env:
   GHCR_REGISTRY: ghcr.io
   IMAGE_OWNER: microboxlabs
   IMAGE_NAME: miot-web
+  NEXT_PUBLIC_APP_LOGIN_URL: ${{ vars.NEXT_PUBLIC_APP_LOGIN_URL || 'https://modulariot.com/app/sign-in' }}
+  NEXT_PUBLIC_APP_SIGNUP_URL: ${{ vars.NEXT_PUBLIC_APP_SIGNUP_URL || 'https://modulariot.com/app/sign-in' }}
 
 jobs:
   build:

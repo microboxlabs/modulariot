@@ -382,7 +382,7 @@ class AsyncJobServiceTest {
     private static AsyncJob jobInState(JobState state, int attempts, int maxAttempts) {
         return new AsyncJob("job-1", "t", "ecm-1", "ecm", "alerce_arrival", "v1",
                 "chain-1", 0, "dk-1", Map.of(), state, attempts, maxAttempts,
-                null, null, null, null, List.of(), "listener", null, null);
+                null, null, null, null, List.of(), "listener", null, null, null);
     }
 
     /** Repository stub capturing the state transition computed by the service. */
@@ -409,7 +409,8 @@ class AsyncJobServiceTest {
 
         @Override
         public AsyncJob report(String jobId, String workerId, int expectedAttempts, JobState newState,
-                OffsetDateTime nextRetryAt, String lastError, Map<String, Object> attemptEntry) {
+                OffsetDateTime nextRetryAt, String lastError, Map<String, Object> attemptEntry,
+                Map<String, Object> result) {
             this.reportedState = newState;
             this.reportedNextRetryAt = nextRetryAt;
             this.reportedWorkerId = workerId;

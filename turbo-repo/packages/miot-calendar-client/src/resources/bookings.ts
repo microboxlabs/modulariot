@@ -15,6 +15,7 @@ export function createBookingsApi(fetcher: Fetcher) {
       calendarId?: string;
       startDate?: string;
       endDate?: string;
+      resourceIdContains?: string;
     }): Promise<BookingListResponse> {
       return fetcher("GET", BASE, { query: params });
     },

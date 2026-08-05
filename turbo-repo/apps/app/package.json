@@ -1,6 +1,6 @@
 {
   "name": "@modulariot/app",
-  "version": "0.5.30",
+  "version": "0.5.43",
   "private": true,
   "scripts": {
     "dev": "next dev --port 3050",
@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@alfresco/js-api": "^9.0.0",
+    "@modulariot/ui": "*",
     "@auth/core": "0.41.3",
     "@deck.gl/core": "9.2.6",
     "@deck.gl/mapbox": "9.2.6",

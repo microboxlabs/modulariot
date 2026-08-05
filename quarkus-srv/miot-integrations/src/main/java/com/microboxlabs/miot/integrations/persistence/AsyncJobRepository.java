@@ -24,7 +24,7 @@ public class AsyncJobRepository {
             id, tenant_code, source_instance, executor, job_type, correlation_key,
             chain_key, chain_sequence, dedupe_key, payload, state, attempts, max_attempts,
             next_retry_at, locked_by, locked_until, last_error, attempt_history,
-            enqueued_by, created_at, updated_at""";
+            enqueued_by, result, created_at, updated_at""";
 
     private static final String INSERT = """
             INSERT INTO miot_integrations.async_jobs (
@@ -129,6 +129,7 @@ public class AsyncJobRepository {
                 next_retry_at = $3,
                 last_error = $4,
                 attempt_history = attempt_history || $5::jsonb,
+                result = COALESCE($8::jsonb, result),
                 locked_by = NULL,
                 locked_until = NULL,
                 updated_at = now()
@@ -239,7 +240,8 @@ public class AsyncJobRepository {
      *         reclaimed since this worker's claim — the report is stale)
      */
     public AsyncJob report(String jobId, String workerId, int expectedAttempts, JobState newState,
-            OffsetDateTime nextRetryAt, String lastError, Map<String, Object> attemptEntry) {
+            OffsetDateTime nextRetryAt, String lastError, Map<String, Object> attemptEntry,
+            Map<String, Object> result) {
         Tuple params = Tuple.tuple()
                 .addUUID(UUID.fromString(jobId))
                 .addString(newState.name())
@@ -247,7 +249,9 @@ public class AsyncJobRepository {
                 .addString(lastError)
                 .addJsonArray(new JsonArray().add(new JsonObject(attemptEntry)))
                 .addString(workerId)
-                .addInteger(expectedAttempts);
+                .addInteger(expectedAttempts)
+                // COALESCEd in SQL: a report with no result keeps the previous one.
+                .addJsonObject(result == null ? null : new JsonObject(result));
         RowSet<Row> rows = client().preparedQuery(REPORT)
                 .execute(params)
                 .await().indefinitely();
@@ -323,6 +327,7 @@ public class AsyncJobRepository {
                 row.getString("last_error"),
                 toHistory(row.getJsonArray("attempt_history")),
                 row.getString("enqueued_by"),
+                toNullableMap(row.getJsonObject("result")),
                 row.getOffsetDateTime("created_at"),
                 row.getOffsetDateTime("updated_at"));
     }
@@ -333,6 +338,11 @@ public class AsyncJobRepository {
 
     private Map<String, Object> toMap(JsonObject value) {
         return value == null ? Map.of() : new LinkedHashMap<>(value.getMap());
+    }
+
+    /** Unlike {@link #toMap}, absent stays null — "no result" and "empty result" differ. */
+    private Map<String, Object> toNullableMap(JsonObject value) {
+        return value == null ? null : new LinkedHashMap<>(value.getMap());
     }
 
     private List<Map<String, Object>> toHistory(JsonArray value) {

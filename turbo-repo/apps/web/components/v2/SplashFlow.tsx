@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { LynxMark, LynxWordmark } from "./brand/Logo";
+import { LynxMark, LynxWordmark } from "@modulariot/ui/brand/logo";
 import { SelectDropdown } from "./SelectDropdown";
 
 // Splash del "coming soon": la vista hero se reemplaza por el formulario de

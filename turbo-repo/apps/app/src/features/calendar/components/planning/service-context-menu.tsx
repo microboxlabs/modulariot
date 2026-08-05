@@ -4,14 +4,13 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { HiEye, HiSwitchHorizontal, HiTrash, HiUserAdd } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   usePlanningSelection,
   type PlannedService,
 } from "./planning-selection-context";
 import { Button } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { tr } from "@/features/i18n/tr.service";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import {
   canAssignAtStage,
@@ -90,12 +89,8 @@ export function ServiceContextMenu({
   // Effective view-mode — already accounts for `?as=viewer` for users with
   // GROUP_CALENDAR_VIEWER. Fail-closed: both flags are false while
   // permissions load and while the override is active.
-  const { canPlan, canAssign, forceViewer, canTogglePreview } =
-    useCalendarViewMode();
+  const { canPlan, canAssign } = useCalendarViewMode();
   const taskDrivenOrigins = useTaskDrivenOrigins();
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { inspectPlannedService } = usePlanningSelection();
 
   // Role says who may assign; the workflow stage says whether assigning is
@@ -143,7 +138,6 @@ export function ServiceContextMenu({
     (canStartAssignment ? 1 : 0) +
     (canDeleteAssignment ? 1 : 0) +
     (canReplan ? 2 : 0) +
-    (canTogglePreview ? 1 : 0) +
     // "Abrir servicio (Solo Lectura)" always renders.
     1;
   const MENU_HEIGHT =
@@ -218,37 +212,6 @@ export function ServiceContextMenu({
   // trip already under way) has no entry to the sidebar at all.
   const handleOpenReadOnly = () => {
     inspectPlannedService(plannedService);
-    onClose();
-  };
-
-  // Flip the `?as=viewer` URL param without losing any other params
-  // (`date`, `view`, `groupCode`, etc.). Push, don't replace, so back
-  // navigates out of the preview. Closes the menu so the click feels
-  // discrete; the page re-renders with the new mode on the next tick.
-  // When entering preview (not exiting), also populate the sidebar with
-  // the right-clicked chip's data so the read-only view has content to
-  // show on the same gesture — without this, the user would have to
-  // right-click a second time after the URL flip to inspect the chip.
-  const handleTogglePreview = () => {
-    const params = new URLSearchParams(searchParams?.toString() ?? "");
-    const wasForcingViewer = forceViewer;
-    if (wasForcingViewer) {
-      params.delete("as");
-    } else {
-      params.set("as", "viewer");
-      if (plannedService) {
-        inspectPlannedService(plannedService);
-      }
-    }
-    const query = params.toString();
-    const url = query ? `${pathname}?${query}` : pathname;
-    // Replace on exit so Back doesn't bounce the user back into preview;
-    // push on entry so Back is a natural escape hatch out of preview.
-    if (wasForcingViewer) {
-      router.replace(url);
-    } else {
-      router.push(url);
-    }
     onClose();
   };
 
@@ -346,25 +309,6 @@ export function ServiceContextMenu({
             {tr("pages.planning.sidebar.contextMenu.openReadOnly", dict)}
           </span>
         </Button>
-
-        {canTogglePreview && (
-          <Button
-            color={"alternative"}
-            type="button"
-            onClick={handleTogglePreview}
-            className="border-0 rounded-none w-full justify-start gap-2"
-          >
-            <HiEye className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            <span>
-              {trDynamic(
-                forceViewer
-                  ? "pages.planning.sidebar.contextMenu.exitPreview"
-                  : "pages.planning.sidebar.contextMenu.previewAsViewer",
-                dict
-              )}
-            </span>
-          </Button>
-        )}
       </div>
     </div>,
     document.body

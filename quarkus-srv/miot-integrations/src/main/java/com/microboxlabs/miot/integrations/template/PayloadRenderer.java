@@ -26,6 +26,10 @@ import java.util.Set;
  *       An empty <i>required</i> field is an error — silently writing a blank into a
  *       required slot is worse than failing. A structural field whose expansion is empty is
  *       treated the same: omitted when optional, kept when required.
+ *   <li><b>A field default of JSON {@code null} sends an explicit null.</b> To a
+ *       merge-on-missing partner an absent key means "no statement" and keeps whatever it
+ *       stored; a null default is the operator declaring that an empty render must clear
+ *       the slot out loud. Like any default, it satisfies requiredness.
  *   <li><b>A template that is exactly one variable keeps the context value's own type.</b>
  *       {@code {{review.verdict}}} over a real boolean sends JSON {@code false}, not
  *       {@code "false"}, without depending on a string round-trip.
@@ -47,7 +51,20 @@ public class PayloadRenderer {
      */
     public Map<String, Object> render(
             Map<String, String> templates, PayloadSchema schema, Map<String, Object> context) {
-        return renderObject(safeTemplates(templates), schema, safeContext(context), "");
+        return render(templates, Map.of(), schema, context);
+    }
+
+    /**
+     * @param defaults fieldId → literal used when that field's template renders empty; a
+     *        default satisfies requiredness, because the operator explicitly chose the
+     *        stand-in over an omission. A present-but-null value sends an explicit JSON
+     *        null instead of omitting the key.
+     */
+    public Map<String, Object> render(
+            Map<String, String> templates, Map<String, String> defaults,
+            PayloadSchema schema, Map<String, Object> context) {
+        return renderObject(
+                safeTemplates(templates), safeTemplates(defaults), schema, safeContext(context), "");
     }
 
     /**
@@ -64,11 +81,18 @@ public class PayloadRenderer {
      */
     public Object renderBody(
             Map<String, String> templates, PayloadSchema schema, Map<String, Object> context) {
+        return renderBody(templates, Map.of(), schema, context);
+    }
+
+    /** {@link #renderBody(Map, PayloadSchema, Map)} with per-field default literals. */
+    public Object renderBody(
+            Map<String, String> templates, Map<String, String> defaults,
+            PayloadSchema schema, Map<String, Object> context) {
         if (!schema.array()) {
-            return render(templates, schema, context);
+            return render(templates, defaults, schema, context);
         }
-        return renderElements(
-                safeTemplates(templates), schema.itemsFrom(), schema.itemSchema(), safeContext(context), "");
+        return renderElements(safeTemplates(templates), safeTemplates(defaults),
+                schema.itemsFrom(), schema.itemSchema(), safeContext(context), "");
     }
 
     /**
@@ -144,7 +168,8 @@ public class PayloadRenderer {
      * prefix) also emits undeclared, undotted mapped keys as string passthroughs.
      */
     private Map<String, Object> renderObject(
-            Map<String, String> templates, PayloadSchema schema, Map<String, Object> context, String prefix) {
+            Map<String, String> templates, Map<String, String> defaults,
+            PayloadSchema schema, Map<String, Object> context, String prefix) {
         List<String> problems = new ArrayList<>();
         Map<String, Object> payload = new LinkedHashMap<>();
 
@@ -156,8 +181,8 @@ public class PayloadRenderer {
                         // Where the elements come from is the binding's to say; the schema's
                         // itemsFrom is the fallback for contracts stored before that split.
                         String source = PayloadSchema.collectionSourceOf(templates, path, field);
-                        List<Object> value =
-                                renderElements(templates, source, field.child(), context, path + ".");
+                        List<Object> value = renderElements(
+                                templates, defaults, source, field.child(), context, path + ".");
                         if (!value.isEmpty() || field.required()) {
                             payload.put(field.id(), value);
                         }
@@ -167,7 +192,8 @@ public class PayloadRenderer {
                 }
                 case OBJECT -> {
                     try {
-                        Map<String, Object> value = renderObject(templates, field.child(), context, path + ".");
+                        Map<String, Object> value =
+                                renderObject(templates, defaults, field.child(), context, path + ".");
                         if (!value.isEmpty() || field.required()) {
                             payload.put(field.id(), value);
                         }
@@ -175,14 +201,15 @@ public class PayloadRenderer {
                         problems.addAll(e.problems());
                     }
                 }
-                default -> renderScalar(payload, problems, field, field.id(), path, templates, context);
+                default -> renderScalar(
+                        payload, problems, field, field.id(), path, templates, defaults, context);
             }
         }
 
         if (prefix.isEmpty()) {
             for (String key : templates.keySet()) {
                 if (!key.contains(".") && schema.field(key) == null) {
-                    renderScalar(payload, problems, null, key, key, templates, context);
+                    renderScalar(payload, problems, null, key, key, templates, defaults, context);
                 }
             }
         }
@@ -199,7 +226,8 @@ public class PayloadRenderer {
      * ({@code {{content.mediaId}}}) reads this element. Used for a top-level array body and for a
      * nested array field alike.
      */
-    private List<Object> renderElements(Map<String, String> templates, String itemsFrom,
+    private List<Object> renderElements(
+            Map<String, String> templates, Map<String, String> defaults, String itemsFrom,
             PayloadSchema itemSchema, Map<String, Object> context, String prefix) {
         Object collection = resolveCollection(context, itemsFrom);
         if (collection == null) {
@@ -225,7 +253,7 @@ public class PayloadRenderer {
             Map<String, Object> asMap = (Map<String, Object>) element;
             itemContext.put(bindName, asMap);
             try {
-                rendered.add(renderObject(templates, itemSchema, itemContext, prefix));
+                rendered.add(renderObject(templates, defaults, itemSchema, itemContext, prefix));
             } catch (PayloadRenderException e) {
                 int index = i;
                 e.problems().forEach(problem -> problems.add(itemsFrom + "[" + index + "]: " + problem));
@@ -244,7 +272,8 @@ public class PayloadRenderer {
      */
     private void renderScalar(Map<String, Object> payload, List<String> problems,
             PayloadSchema.Field field, String jsonKey, String templateKey,
-            Map<String, String> templates, Map<String, Object> context) {
+            Map<String, String> templates, Map<String, String> defaults,
+            Map<String, Object> context) {
         boolean required = field != null && field.required();
         String template = templates.get(templateKey);
 
@@ -266,10 +295,23 @@ public class PayloadRenderer {
         }
 
         if (rendered.isEmpty()) {
-            if (required) {
-                problems.add("'" + templateKey + "' is required but its mapping produced no value");
+            // The operator's declared stand-in for this exact case. It satisfies
+            // requiredness: a default is a chosen value, not an omission.
+            String fallback = defaults.get(templateKey);
+            if (fallback != null && !fallback.isBlank()) {
+                rendered = fallback;
+            } else if (fallback == null && defaults.containsKey(templateKey)) {
+                // A JSON-null default is the explicit clear: a merge-on-missing partner
+                // keeps its stored value when the key is absent, so "no value" has to be
+                // said out loud as "field": null rather than by omission.
+                payload.put(jsonKey, null);
+                return;
+            } else {
+                if (required) {
+                    problems.add("'" + templateKey + "' is required but its mapping produced no value");
+                }
+                return;
             }
-            return;
         }
 
         PayloadSchema.FieldType type = field == null ? PayloadSchema.FieldType.STRING : field.type();

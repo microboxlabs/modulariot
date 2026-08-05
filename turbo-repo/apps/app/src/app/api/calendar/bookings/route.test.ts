@@ -324,3 +324,34 @@ describe("bookings POST — P2 plan-path task-driven flag gating", () => {
     expect(endTaskMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("bookings GET", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireAuthMock.mockResolvedValue({
+      authenticated: true,
+      session: { user: { rawJWT: "jwt" } },
+    });
+    bookingsListMock.mockResolvedValue({ data: [], total: 0 });
+    createMiotCalendarClientMock.mockReturnValue({
+      bookings: { list: bookingsListMock },
+    });
+  });
+
+  it("forwards the generic resource identifier filter", async () => {
+    const request = new Request(
+      "http://localhost/api/calendar/bookings?resourceIdContains=1584908"
+    );
+    const { GET } = await loadRoute();
+
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(bookingsListMock).toHaveBeenCalledWith({
+      calendarId: undefined,
+      startDate: undefined,
+      endDate: undefined,
+      resourceIdContains: "1584908",
+    });
+  });
+});

@@ -28,6 +28,25 @@ public record IntegrationEventBinding(
         String operationId,
         Map<String, Object> matchCondition,
         Map<String, String> fieldTemplates,
+        /**
+         * The return trip, for fetch-shaped events: targetKey → template over
+         * {@code {response}}. Empty on notify-shaped bindings, whose response is discarded.
+         */
+        Map<String, String> responseTemplates,
+        /**
+         * fieldId → literal used when that field's template renders empty. A default
+         * belongs to the mapping, not the grammar: templates stay a strict Handlebars
+         * subset so the UI preview and the runtime cannot disagree.
+         */
+        Map<String, String> fieldDefaults,
+        /**
+         * How to classify a 2xx response whose body carries the verdict:
+         * {@code {"success": {...}, "retry": {...}}} of response-path → expected value
+         * (the {@code match_condition} vocabulary, over {@code {response}}). Success
+         * matches → delivered; retry matches → backed-off retry; neither → parked.
+         * Empty keeps status-code-only classification.
+         */
+        Map<String, Object> responseConditions,
         boolean enabled,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
@@ -37,5 +56,16 @@ public record IntegrationEventBinding(
     /** Whether this binding applies to every scope of its event type. */
     public boolean appliesToEveryScope() {
         return scopeKind == null || scopeKind.isBlank();
+    }
+
+    /**
+     * Whether this binding listens to the given scope: an unscoped binding listens to every
+     * scope of its event type, a scoped one only to its exact pair.
+     */
+    public boolean matchesScope(String kind, String key) {
+        if (appliesToEveryScope()) {
+            return true;
+        }
+        return scopeKind.equals(kind) && java.util.Objects.equals(scopeKey, key);
     }
 }

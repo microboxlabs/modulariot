@@ -1,0 +1,44 @@
+# 🔔 Release Notes v1.31.42 — ModularIoT
+
+### Fecha: 05/08/2026
+
+**Objetivo**: Esta versión refuerza la confiabilidad operativa en flujos de asignación y mejora la experiencia del landing público con navegación localizada y destinos de autenticación configurables. El foco está en reducir errores de ejecución en operaciones logísticas y facilitar una entrada más clara para usuarios en distintos idiomas.
+
+## 🚀 Evolutivos
+
+- **📍 Navegación localizada y destinos de autenticación configurables**
+  - **Key point**: Se incorporó contenido de navegación localizado en inglés, español y portugués, incluyendo menús traducidos, selección de idioma/país, enlaces de contacto y acciones de autenticación en layouts desktop y mobile.
+  - **Technical detail**: Se configuraron destinos de login y signup por variables de entorno y se consolidó el contenido de navegación en datos compartidos para mantener consistencia entre vistas. *(Integración OSS — MIOT-0.5.43)*
+
+## 🐛 Correcciones
+
+- **🐛 Limpieza explícita de variables de proceso en tareas**
+  - **Impacto**: Cuando una variable llegaba explícitamente como `null`, podía mantenerse un valor previo en el proceso, provocando reutilización de datos obsoletos en asignaciones posteriores.
+  - **Solución**: El tratamiento de `null` pasa a considerarse retractación explícita y se elimina la variable de proceso correspondiente, mientras que claves ausentes conservan el comportamiento actual.
+
+## 📊 Beneficios
+
+- Menor riesgo de despachos o asignaciones con datos residuales en flujos de tareas.
+- Mayor coherencia entre la intención del cliente y el estado real de variables de proceso.
+- Experiencia de landing más clara para usuarios multilingües.
+- Configuración más flexible de accesos de autenticación según entorno de despliegue.
+- Menor acoplamiento de contenido de navegación al centralizar datos localizados.
+- Mejor continuidad operativa entre frontend y servicios de coordinación de procesos.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.5.43`
+- App: `app@v0.5.43` (actualizado)
+- Docs: `docs@v0.5.42` (sin cambios)
+- Web: `web@v0.5.43` (actualizado)
+- Modulith: `modulith@v0.5.26` (sin cambios)
+- Harness: `harness@v0.1.5` (sin cambios)
+- Los digests exactos de imágenes desplegadas están disponibles en el diálogo de información de build dentro de la app y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La release 1.31.42 combina una corrección crítica de comportamiento en ejecución de tareas con una mejora visible en la experiencia de acceso y navegación del sitio público. Esto fortalece tanto la operación logística como la capa de entrada de usuarios.
+
+En términos técnicos, se reduce la posibilidad de arrastre de estado en procesos y se alinea mejor el contrato de datos cuando se envían valores nulos explícitos. A la vez, la navegación localizada y configurable mejora mantenibilidad y adaptación por entorno.
+
+Con el stack en `0.5.43`, esta entrega consolida estabilidad operativa y prepara una base más consistente para siguientes iteraciones funcionales y de integración.

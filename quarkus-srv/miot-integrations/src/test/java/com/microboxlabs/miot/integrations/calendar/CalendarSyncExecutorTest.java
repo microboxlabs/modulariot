@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.calendar;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,13 +10,16 @@ import com.microboxlabs.miot.integrations.jobs.NonRetryableJobException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import com.microboxlabs.miot.integrations.service.EventBindingFetchService;
 
 /**
  * Outcome policy for the ported calendar_sync executor: patch success/benign-skip/
@@ -28,6 +32,16 @@ class CalendarSyncExecutorTest {
     private static final String RESOURCE = "1658427-V";
     // now = 2026-07-15T12:00Z
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-07-15T12:00:00Z"), ZoneOffset.UTC);
+
+    /** No enrichment binding configured — the pre-binding behaviour every existing test assumes. */
+    private static final EventBindingFetchService NO_ENRICHMENT = new EventBindingFetchService(
+            null, null, null, null) {
+        @Override
+        public Optional<FetchedValues> fetch(String tenantClientId, String eventType,
+                String scopeKind, String scopeKey, Map<String, Object> context) {
+            return Optional.empty();
+        }
+    };
 
     private static Map<String, Object> patchPayload(String status) {
         Map<String, Object> p = new LinkedHashMap<>();
@@ -89,11 +103,82 @@ class CalendarSyncExecutorTest {
     @Test
     void patchSuccessIsSucceeded() {
         FakeClient client = new FakeClient();
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(patchPayload("ASSIGNED"));
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", patchPayload("ASSIGNED"));
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(1, client.patchCalls);
         assertEquals("ASSIGNED", client.lastPatchStatus);
+    }
+
+    // --- enrichment ----------------------------------------------------------
+
+    /** An enriching binding: what the fetch resolved lands on the booking's data patch. */
+    private static EventBindingFetchService enriching(Map<String, Object> values) {
+        return new EventBindingFetchService(null, null, null, null) {
+            @Override
+            public Optional<FetchedValues> fetch(String tenantClientId, String eventType,
+                    String scopeKind, String scopeKey, Map<String, Object> context) {
+                assertEquals("tenant-1", tenantClientId);
+                assertEquals(CalendarSyncFeature.EVENT_RESOURCE_ENRICHMENT, eventType);
+                assertEquals(CalendarSyncFeature.SCOPE_CALENDAR, scopeKind);
+                assertEquals(CAL.toString(), scopeKey);
+                return Optional.of(new FetchedValues("b-1", "conn-1", values));
+            }
+        };
+    }
+
+    @Test
+    void patchMergesEnrichedValuesOverThePayloadsOwnData() {
+        FakeClient client = new FakeClient();
+        Map<String, Object> payload = patchPayload("ASSIGNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
+                Map.of("origen", "SCL", "assignedDriver", "stale-uuid"));
+
+        var result = new CalendarSyncExecutor(client,
+                enriching(Map.of("assignedDriver", "fresh-uuid", "assignedTruck", "t-uuid")), CLOCK)
+                .handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        // Payload data survives; freshly resolved values win on collision.
+        assertEquals("SCL", client.lastPatchData.get("origen"));
+        assertEquals("fresh-uuid", client.lastPatchData.get("assignedDriver"));
+        assertEquals("t-uuid", client.lastPatchData.get("assignedTruck"));
+        // What was resolved is surfaced for the job's result column.
+        assertEquals(Map.of("assignedDriver", "fresh-uuid", "assignedTruck", "t-uuid"),
+                result.result().get("enrichment"));
+        assertEquals("b-1", result.result().get("bindingId"));
+    }
+
+    @Test
+    void patchWithoutABindingIsUntouched() {
+        FakeClient client = new FakeClient();
+        Map<String, Object> payload = patchPayload("ASSIGNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA, Map.of("origen", "SCL"));
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK)
+                .handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(Map.of("origen", "SCL"), client.lastPatchData);
+        assertNull(result.result());
+    }
+
+    @Test
+    void aConfiguredFetchThatFailsFailsTheJob() {
+        FakeClient client = new FakeClient();
+        EventBindingFetchService failing = new EventBindingFetchService(null, null, null, null) {
+            @Override
+            public Optional<FetchedValues> fetch(String tenantClientId, String eventType,
+                    String scopeKind, String scopeKey, Map<String, Object> context) {
+                throw new IllegalStateException("partner down");
+            }
+        };
+
+        // Fail closed: better a retried job than a booking written with silently missing data.
+        assertThrows(IllegalStateException.class,
+                () -> new CalendarSyncExecutor(client, failing, CLOCK)
+                        .handle("tenant-1", patchPayload("ASSIGNED")));
+        assertEquals(0, client.patchCalls);
     }
 
     /** The assign chain's PENDING stamp rides the patch payload untouched. */
@@ -103,7 +188,7 @@ class CalendarSyncExecutorTest {
         Map<String, Object> payload = patchPayload("ASSIGNED");
         payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
 
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals("PENDING", client.lastPatchSyncStatus);
@@ -112,7 +197,7 @@ class CalendarSyncExecutorTest {
     @Test
     void patchWithoutSyncStatusSendsNone() {
         FakeClient client = new FakeClient();
-        new CalendarSyncExecutor(client, CLOCK).handle(patchPayload("ASSIGNED"));
+        new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", patchPayload("ASSIGNED"));
         org.junit.jupiter.api.Assertions.assertNull(client.lastPatchSyncStatus);
     }
 
@@ -120,7 +205,7 @@ class CalendarSyncExecutorTest {
     void patch404IsBenignSkip() {
         FakeClient client = new FakeClient();
         client.patchThrows = new CalendarBookingsHttpException(404, "no booking");
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(patchPayload("FINISHED"));
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", patchPayload("FINISHED"));
         assertEquals(JobOutcome.SKIPPED, result.outcome());
     }
 
@@ -128,7 +213,7 @@ class CalendarSyncExecutorTest {
     void patch409IsBenignSkip() {
         FakeClient client = new FakeClient();
         client.patchThrows = new CalendarBookingsHttpException(409, "regression");
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(patchPayload("ARRIVED"));
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", patchPayload("ARRIVED"));
         assertEquals(JobOutcome.SKIPPED, result.outcome());
     }
 
@@ -136,9 +221,126 @@ class CalendarSyncExecutorTest {
     void patch500PropagatesForRetry() {
         FakeClient client = new FakeClient();
         client.patchThrows = new CalendarBookingsHttpException(500, "boom");
-        var executor = new CalendarSyncExecutor(client, CLOCK);
+        var executor = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK);
         var payload = patchPayload("FINISHED");
-        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle(payload));
+        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle("tenant-1", payload));
+    }
+
+    // --- patch 404 materialization (create-then-apply) ------------------------
+
+    /** Payload push data with the ISO ETD the producer writes on every push. */
+    private static Map<String, Object> identityDataWithEtd(String etdIso) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("mintral_truckLicensePlate", "AB1234");
+        data.put(CalendarSyncFeature.DATA_EXPECTED_DEPARTURE_DATE, etdIso);
+        return data;
+    }
+
+    @Test
+    void patch404WithEtdCreatesThenAppliesStatus() {
+        FakeClient client = new FakeClient();
+        client.patchThrowsOnce = new CalendarBookingsHttpException(404, "no booking");
+        client.availableSlots = List.of(slot(LocalDate.of(2026, 7, 15), 14, 0, 1));
+        Map<String, Object> payload = patchPayload("IN_TRANSIT");
+        payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
+                identityDataWithEtd("2026-07-15T10:00:00Z"));
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(1, client.createCalls, "the missing booking is created");
+        assertEquals(LocalDate.of(2026, 7, 15), client.lastCreateDate);
+        assertEquals(14, client.lastCreateHour);
+        assertEquals(2, client.patchCalls, "the 404'd patch, then the post-create status apply");
+        assertEquals("IN_TRANSIT", client.lastPatchStatus);
+    }
+
+    @Test
+    void patch404PastEtdPicksSlotFromNow() {
+        // ETD already behind the fixed clock (12:00Z) — the search window clamps to
+        // now, so an in-flight service lands on the next slot with capacity.
+        FakeClient client = new FakeClient();
+        client.patchThrowsOnce = new CalendarBookingsHttpException(404, "no booking");
+        client.availableSlots = List.of(
+                slot(LocalDate.of(2026, 7, 15), 9, 0, 1),
+                slot(LocalDate.of(2026, 7, 15), 16, 30, 1));
+        Map<String, Object> payload = patchPayload("IN_TRANSIT");
+        payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
+                identityDataWithEtd("2026-07-14T08:00:00Z"));
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(16, client.lastCreateHour, "the 09:00 slot is already past — 16:30 wins");
+        assertEquals(30, client.lastCreateMinutes);
+    }
+
+    @Test
+    void patch404MaterializationForwardsSyncStatus() {
+        // The assign chain stamps syncStatus=PENDING to open the confirmation
+        // window — a materialized patch must carry it onto the created booking.
+        FakeClient client = new FakeClient();
+        client.patchThrowsOnce = new CalendarBookingsHttpException(404, "no booking");
+        client.availableSlots = List.of(slot(LocalDate.of(2026, 7, 15), 14, 0, 1));
+        Map<String, Object> payload = patchPayload("ASSIGNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
+        payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
+                identityDataWithEtd("2026-07-15T10:00:00Z"));
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(2, client.patchCalls, "the 404'd patch, then the post-create status apply");
+        assertEquals("PENDING", client.lastPatchSyncStatus,
+                "the post-create patch must forward the original syncStatus");
+    }
+
+    @Test
+    void patch404DataOnlyPatchStaysSkipped() {
+        // No target status → no stage to materialize at, even with an ETD.
+        FakeClient client = new FakeClient();
+        client.patchThrows = new CalendarBookingsHttpException(404, "no booking");
+        Map<String, Object> payload = patchPayload(null);
+        payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
+                identityDataWithEtd("2026-07-15T10:00:00Z"));
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
+        assertEquals(0, client.createCalls, "a data-only patch must not create");
+    }
+
+    @Test
+    void patch404WithTerminalTargetStaysSkipped() {
+        // FINISHED/CANCELLED on a missing booking is usually the cancel's own work
+        // (future-slot cancels DELETE) — creating here would resurrect it.
+        for (String terminal : List.of(CalendarSyncFeature.STATUS_FINISHED,
+                CalendarSyncFeature.STATUS_CANCELLED)) {
+            FakeClient client = new FakeClient();
+            client.patchThrows = new CalendarBookingsHttpException(404, "no booking");
+            Map<String, Object> payload = patchPayload(terminal);
+            payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
+                    identityDataWithEtd("2026-07-15T10:00:00Z"));
+
+            var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+            assertEquals(JobOutcome.SKIPPED, result.outcome(), terminal + " must not create");
+            assertEquals(0, client.createCalls, terminal + " must not create");
+        }
+    }
+
+    @Test
+    void patch404WithoutEtdStaysSkipped() {
+        FakeClient client = new FakeClient();
+        client.patchThrows = new CalendarBookingsHttpException(404, "no booking");
+        Map<String, Object> payload = patchPayload("IN_TRANSIT");
+        payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
+                Map.of("mintral_truckLicensePlate", "AB1234"));
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
+        assertEquals(0, client.createCalls, "no ETD → nothing to place the booking at");
     }
 
     // --- unassign ------------------------------------------------------------
@@ -146,7 +348,7 @@ class CalendarSyncExecutorTest {
     @Test
     void unassignSuccessIsSucceededAndForwardsTheKeys() {
         FakeClient client = new FakeClient();
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(unassignPayload(CLEAR_KEYS));
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", unassignPayload(CLEAR_KEYS));
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(1, client.unassignCalls);
@@ -161,7 +363,7 @@ class CalendarSyncExecutorTest {
     void unassign404IsBenignSkip() {
         FakeClient client = new FakeClient();
         client.unassignThrows = new CalendarBookingsHttpException(404, "no booking");
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(unassignPayload(CLEAR_KEYS));
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", unassignPayload(CLEAR_KEYS));
         assertEquals(JobOutcome.SKIPPED, result.outcome());
     }
 
@@ -174,7 +376,7 @@ class CalendarSyncExecutorTest {
     void unassign409IsTerminalSkipNotRetried() {
         FakeClient client = new FakeClient();
         client.unassignThrows = new CalendarBookingsHttpException(409, "past ASSIGNED");
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(unassignPayload(CLEAR_KEYS));
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", unassignPayload(CLEAR_KEYS));
 
         assertEquals(JobOutcome.SKIPPED, result.outcome());
         assertTrue(result.detail().contains("past ASSIGNED"), result.detail());
@@ -184,9 +386,9 @@ class CalendarSyncExecutorTest {
     void unassign500PropagatesForRetry() {
         FakeClient client = new FakeClient();
         client.unassignThrows = new CalendarBookingsHttpException(500, "boom");
-        var executor = new CalendarSyncExecutor(client, CLOCK);
+        var executor = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK);
         var payload = unassignPayload(CLEAR_KEYS);
-        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle(payload));
+        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle("tenant-1", payload));
     }
 
     /** No keys is a valid job: reset the lifecycle, leave the payload alone. */
@@ -194,10 +396,71 @@ class CalendarSyncExecutorTest {
     void unassignWithoutClearKeysStillRuns() {
         FakeClient client = new FakeClient();
         var payload = unassignPayload(null);
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(List.of(), client.lastClearDataKeys);
+    }
+
+    /**
+     * The confirmation window opens on the unassign, not the ensure: on the
+     * backward revert the booking is at ASSIGNED, so the ensure's PLANNED
+     * patch 409s away and any stamp riding it is lost. The stamp is a
+     * follow-up status-only patch so it can never regress the lifecycle —
+     * and it displaces a stale sync verdict left by the previous assignment.
+     */
+    @Test
+    void unassignForwardsSyncStatusAsStatusOnlyPatch() {
+        FakeClient client = new FakeClient();
+        var payload = unassignPayload(CLEAR_KEYS);
+        payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(1, client.unassignCalls);
+        assertEquals(1, client.patchCalls);
+        assertNull(client.lastPatchStatus, "sync stamp must not touch the lifecycle status");
+        assertEquals("PENDING", client.lastPatchSyncStatus);
+    }
+
+    @Test
+    void unassignSuccessThenSyncStatus409ReportsPatchSkip() {
+        FakeClient client = new FakeClient();
+        client.patchThrows = new CalendarBookingsHttpException(409, "sync patch rejected");
+        var payload = unassignPayload(CLEAR_KEYS);
+        payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
+        assertEquals(1, client.unassignCalls);
+        assertEquals(1, client.patchCalls);
+        assertTrue(result.detail().contains("Booking unassigned"), result.detail());
+        assertTrue(result.detail().contains("sync-status patch skipped (409)"), result.detail());
+    }
+
+    @Test
+    void unassignWithoutSyncStatusDoesNotPatch() {
+        FakeClient client = new FakeClient();
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", unassignPayload(CLEAR_KEYS));
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(0, client.patchCalls);
+    }
+
+    /** A refused unassign left the booking assigned — its sync state still describes reality. */
+    @Test
+    void unassign409SkipsTheSyncStamp() {
+        FakeClient client = new FakeClient();
+        client.unassignThrows = new CalendarBookingsHttpException(409, "past ASSIGNED");
+        var payload = unassignPayload(CLEAR_KEYS);
+        payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
+        assertEquals(0, client.patchCalls);
     }
 
     /** Null and blank entries would silently target nothing — drop them. */
@@ -208,7 +471,7 @@ class CalendarSyncExecutorTest {
         keys.add("assignedDriver");
         keys.add(null);
         keys.add("   ");
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(unassignPayload(keys));
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", unassignPayload(keys));
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(List.of("assignedDriver"), client.lastClearDataKeys);
@@ -220,7 +483,7 @@ class CalendarSyncExecutorTest {
     void cancelNoBookingsIsSkipped() {
         FakeClient client = new FakeClient();
         client.listResult = List.of();
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(cancelPayload());
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", cancelPayload());
         assertEquals(JobOutcome.SKIPPED, result.outcome());
     }
 
@@ -230,7 +493,7 @@ class CalendarSyncExecutorTest {
         var future = booking(LocalDate.of(2026, 7, 16));
         client.listResult = List.of(future);
 
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(cancelPayload());
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", cancelPayload());
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(List.of(future.id()), client.cancelled);
@@ -242,10 +505,45 @@ class CalendarSyncExecutorTest {
         FakeClient client = new FakeClient();
         client.listResult = List.of(booking(LocalDate.of(2026, 7, 14)));
 
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(cancelPayload());
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", cancelPayload());
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertTrue(client.cancelled.isEmpty(), "past slot is kept for history, not deleted");
+        assertEquals(CalendarSyncFeature.STATUS_CANCELLED, client.lastPatchStatus);
+    }
+
+    /**
+     * Slot wall-clock times live in the calendar's timezone, not the
+     * runtime's. Clock at 12:00Z, slot today 09:00 — naively past; but the
+     * calendar runs at UTC-4 where it is 08:00, so the slot is still an hour
+     * away and must be DELETED, not patched CANCELLED. A CANCELLED row here is
+     * a ghost the planning grid keeps drawing.
+     */
+    @Test
+    void cancelSlotStillFutureInCalendarZoneDeletes() {
+        FakeClient client = new FakeClient();
+        client.calendarTimezone = ZoneId.of("-04:00");
+        var todaySlot = booking(LocalDate.of(2026, 7, 15)); // 09:00 wall-clock
+        client.listResult = List.of(todaySlot);
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", cancelPayload());
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(List.of(todaySlot.id()), client.cancelled);
+        assertEquals(0, client.patchCalls, "still-future slot in the calendar zone deletes, never patches");
+    }
+
+    /** No usable calendar timezone → the decision stays in the executor clock's zone. */
+    @Test
+    void cancelWithoutCalendarTimezoneFallsBackToClockZone() {
+        FakeClient client = new FakeClient();
+        client.calendarTimezone = null;
+        client.listResult = List.of(booking(LocalDate.of(2026, 7, 15))); // 09:00 < 12:00Z
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", cancelPayload());
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertTrue(client.cancelled.isEmpty(), "09:00 is past 12:00 in the clock's own zone");
         assertEquals(CalendarSyncFeature.STATUS_CANCELLED, client.lastPatchStatus);
     }
 
@@ -257,7 +555,7 @@ class CalendarSyncExecutorTest {
         client.listResult = List.of(); // no booking yet
         var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 17), 14, 30);
 
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(1, client.createCalls);
@@ -279,7 +577,7 @@ class CalendarSyncExecutorTest {
         var payload = ensurePayload("PLANNED");
         payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-16T13:00:00");
 
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(1, client.createCalls);
@@ -294,9 +592,9 @@ class CalendarSyncExecutorTest {
         client.availableSlots = List.of(); // capacity exhausted
         var payload = ensurePayload("PLANNED");
         payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-16T13:00:00");
-        var executor = new CalendarSyncExecutor(client, CLOCK);
+        var executor = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK);
 
-        assertThrows(IllegalStateException.class, () -> executor.handle(payload));
+        assertThrows(IllegalStateException.class, () -> executor.handle("tenant-1", payload));
         assertEquals(0, client.createCalls, "no slot → nothing created, job retries");
     }
 
@@ -305,7 +603,7 @@ class CalendarSyncExecutorTest {
         FakeClient client = new FakeClient();
         client.listResult = List.of();
         // no explicit slot, no etd
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(ensurePayload("PLANNED"));
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", ensurePayload("PLANNED"));
 
         assertEquals(JobOutcome.SKIPPED, result.outcome());
         assertEquals(0, client.createCalls);
@@ -319,7 +617,7 @@ class CalendarSyncExecutorTest {
         client.listResult = List.of(existing);
         var payload = withExplicitSlot(ensurePayload("ASSIGNED"), LocalDate.of(2026, 7, 17), 14, 30);
 
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(1, client.moveCalls);
@@ -335,7 +633,7 @@ class CalendarSyncExecutorTest {
         client.listResult = List.of(booking(LocalDate.of(2026, 7, 16))); // 09:00
         var payload = withExplicitSlot(ensurePayload("ASSIGNED"), LocalDate.of(2026, 7, 16), 9, 0);
 
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(0, client.moveCalls, "same slot → no move");
@@ -349,12 +647,32 @@ class CalendarSyncExecutorTest {
         var payload = ensurePayload("IN_TRANSIT");
         payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-16T13:00:00");
 
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(0, client.moveCalls, "ETD auto-pick never re-slots an existing booking");
         assertEquals(0, client.listAvailableCalls);
         assertEquals("IN_TRANSIT", client.lastPatchStatus);
+    }
+
+    /**
+     * The existing-booking path used to drop the payload's syncStatus (only the
+     * create path's applyStatus carried it), silently losing the confirmation
+     * window on any ensure that found its booking already there.
+     */
+    @Test
+    void ensureExistingForwardsSyncStatus() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of(booking(LocalDate.of(2026, 7, 16))); // 09:00
+        var payload = withExplicitSlot(ensurePayload(null), LocalDate.of(2026, 7, 16), 9, 0);
+        payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(1, client.patchCalls);
+        assertNull(client.lastPatchStatus);
+        assertEquals("PENDING", client.lastPatchSyncStatus);
     }
 
     @Test
@@ -364,7 +682,7 @@ class CalendarSyncExecutorTest {
         client.patchThrows = new CalendarBookingsHttpException(409, "regression");
         var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 16), 9, 0);
 
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome(), "409 on the status patch is benign");
     }
@@ -375,11 +693,11 @@ class CalendarSyncExecutorTest {
         client.listResult = List.of(); // absent → create path
         client.patchThrows = new CalendarBookingsHttpException(404, "not found after create");
         var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 17), 14, 30);
-        var executor = new CalendarSyncExecutor(client, CLOCK);
+        var executor = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK);
 
         // Create succeeds; a 404 on the POST-create status patch is an anomaly
         // (the booking exists) → propagate so a retry converges, not benign-skip.
-        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle(payload));
+        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle("tenant-1", payload));
         assertEquals(1, client.createCalls, "the booking was created; the status patch is what failed");
     }
 
@@ -390,7 +708,7 @@ class CalendarSyncExecutorTest {
         client.patchThrows = new CalendarBookingsHttpException(409, "already at/ahead");
         var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 17), 14, 30);
 
-        var result = new CalendarSyncExecutor(client, CLOCK).handle(payload);
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome(), "409 on the post-create status patch is benign");
         assertEquals(1, client.createCalls);
@@ -408,9 +726,9 @@ class CalendarSyncExecutorTest {
         client.listResult = List.of(booking(LocalDate.of(2026, 7, 16))); // existing at 09:00
         client.moveThrows = new CalendarBookingsHttpException(409, "Slot is at full capacity");
         var payload = withExplicitSlot(ensurePayload("ASSIGNED"), LocalDate.of(2026, 7, 17), 14, 30);
-        var executor = new CalendarSyncExecutor(client, CLOCK);
+        var executor = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK);
 
-        var e = assertThrows(NonRetryableJobException.class, () -> executor.handle(payload));
+        var e = assertThrows(NonRetryableJobException.class, () -> executor.handle("tenant-1", payload));
         assertTrue(e.getMessage().contains("full capacity"), e.getMessage());
         assertEquals(1, client.moveCalls);
         assertEquals(0, client.patchCalls, "a rejected move never reaches the status patch");
@@ -424,9 +742,9 @@ class CalendarSyncExecutorTest {
         client.listResultAfterCreate = List.of(); // still absent after the 409 → capacity, not a race
         client.createThrows = new CalendarBookingsHttpException(409, "Slot is at full capacity");
         var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 17), 14, 30);
-        var executor = new CalendarSyncExecutor(client, CLOCK);
+        var executor = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK);
 
-        var e = assertThrows(NonRetryableJobException.class, () -> executor.handle(payload));
+        var e = assertThrows(NonRetryableJobException.class, () -> executor.handle("tenant-1", payload));
         assertTrue(e.getMessage().contains("full capacity"), e.getMessage());
         assertEquals(1, client.createCalls);
     }
@@ -443,10 +761,10 @@ class CalendarSyncExecutorTest {
         client.listResultAfterCreate = List.of(booking(LocalDate.of(2026, 7, 17))); // sibling created it
         client.createThrows = new CalendarBookingsHttpException(409, "already exists");
         var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 17), 14, 30);
-        var executor = new CalendarSyncExecutor(client, CLOCK);
+        var executor = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK);
 
         // Retryable (a plain CalendarBookingsHttpException, not NonRetryableJobException).
-        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle(payload));
+        assertThrows(CalendarBookingsHttpException.class, () -> executor.handle("tenant-1", payload));
     }
 
     @Test
@@ -455,11 +773,11 @@ class CalendarSyncExecutorTest {
         client.listResult = List.of();
         var payload = ensurePayload("PLANNED");
         payload.put(CalendarSyncFeature.PAYLOAD_SLOT_DATE, "2026-07-17"); // date but no hour/minutes
-        var executor = new CalendarSyncExecutor(client, CLOCK);
+        var executor = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK);
 
         // A partial explicit slot is malformed — reject it rather than silently
         // falling back to ETD auto-pick and booking an unintended slot.
-        assertThrows(IllegalArgumentException.class, () -> executor.handle(payload));
+        assertThrows(IllegalArgumentException.class, () -> executor.handle("tenant-1", payload));
         assertEquals(0, client.createCalls);
     }
 
@@ -470,8 +788,8 @@ class CalendarSyncExecutorTest {
         p.put(CalendarSyncFeature.PAYLOAD_OP, CalendarSyncFeature.OP_ENSURE);
         p.put(CalendarSyncFeature.PAYLOAD_RESOURCE_ID, RESOURCE);
         p.put(CalendarSyncFeature.PAYLOAD_TARGET_STATUS, "PLANNED");
-        var executor = new CalendarSyncExecutor(client, CLOCK);
-        assertThrows(IllegalArgumentException.class, () -> executor.handle(p));
+        var executor = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK);
+        assertThrows(IllegalArgumentException.class, () -> executor.handle("tenant-1", p));
     }
 
     // --- validation ----------------------------------------------------------
@@ -480,16 +798,16 @@ class CalendarSyncExecutorTest {
     void unknownOpThrows() {
         Map<String, Object> p = cancelPayload();
         p.put(CalendarSyncFeature.PAYLOAD_OP, "explode");
-        var executor = new CalendarSyncExecutor(new FakeClient(), CLOCK);
-        assertThrows(IllegalArgumentException.class, () -> executor.handle(p));
+        var executor = new CalendarSyncExecutor(new FakeClient(), NO_ENRICHMENT, CLOCK);
+        assertThrows(IllegalArgumentException.class, () -> executor.handle("tenant-1", p));
     }
 
     @Test
     void missingResourceIdThrows() {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put(CalendarSyncFeature.PAYLOAD_OP, CalendarSyncFeature.OP_PATCH);
-        var executor = new CalendarSyncExecutor(new FakeClient(), CLOCK);
-        assertThrows(IllegalArgumentException.class, () -> executor.handle(p));
+        var executor = new CalendarSyncExecutor(new FakeClient(), NO_ENRICHMENT, CLOCK);
+        assertThrows(IllegalArgumentException.class, () -> executor.handle("tenant-1", p));
     }
 
     /** Records calls and lets each network method be primed to throw. */
@@ -497,8 +815,12 @@ class CalendarSyncExecutorTest {
         List<CalendarBookingsClient.BookingView> listResult = List.of();
         List<CalendarBookingsClient.AvailableSlot> availableSlots = List.of();
         RuntimeException patchThrows;
+        // Thrown by the FIRST patch only — models a 404 whose follow-up
+        // (the post-create status apply) must succeed.
+        RuntimeException patchThrowsOnce;
         int patchCalls;
         String lastPatchStatus;
+        Map<String, Object> lastPatchData;
         String lastPatchSyncStatus;
         final List<UUID> cancelled = new ArrayList<>();
 
@@ -512,6 +834,9 @@ class CalendarSyncExecutorTest {
         RuntimeException unassignThrows;
         int unassignCalls;
         List<String> lastClearDataKeys;
+
+        // Null models a calendar with no usable timezone (fallback path).
+        ZoneId calendarTimezone;
 
         int moveCalls;
         UUID lastMoveBookingId;
@@ -536,7 +861,13 @@ class CalendarSyncExecutorTest {
                                     String syncStatus, String syncDetail) {
             patchCalls++;
             lastPatchStatus = targetStatus;
+            lastPatchData = resourceDataPatch;
             lastPatchSyncStatus = syncStatus;
+            if (patchThrowsOnce != null) {
+                RuntimeException once = patchThrowsOnce;
+                patchThrowsOnce = null;
+                throw once;
+            }
             if (patchThrows != null) {
                 throw patchThrows;
             }
@@ -595,6 +926,11 @@ class CalendarSyncExecutorTest {
             if (unassignThrows != null) {
                 throw unassignThrows;
             }
+        }
+
+        @Override
+        public Optional<ZoneId> getCalendarTimezone(UUID calendarId) {
+            return Optional.ofNullable(calendarTimezone);
         }
     }
 }

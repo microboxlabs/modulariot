@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import HeroTerminal from "../HeroTerminal";
-import { LynxMark } from "../brand/Logo";
+import { LynxMark } from "@modulariot/ui/brand/logo";
 import { Eyebrow, Section, btnPrimary, btnLg, type Tone } from "./shared";
 
 // Subrayado de firma: la cinta del pico del Lynx (chevrón 1:2, grosor a/16)

@@ -32,9 +32,8 @@ describe("mapBookingToPlannedService — workflowStage from booking status", () 
     expect(mapped?.planned.workflowStage).toBe("finished");
   });
 
-  it("maps CANCELLED to the terminal 'cancelled' stage", () => {
-    const mapped = mapBookingToPlannedService(booking({ status: "CANCELLED" }));
-    expect(mapped?.planned.workflowStage).toBe("cancelled");
+  it("returns null for CANCELLED bookings — history rows neither the grid nor the search may surface", () => {
+    expect(mapBookingToPlannedService(booking({ status: "CANCELLED" }))).toBeNull();
   });
 
   it("leaves planning-segment statuses unset (the live index owns them)", () => {

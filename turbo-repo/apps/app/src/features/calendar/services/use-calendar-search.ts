@@ -8,13 +8,19 @@ import { listBookings } from "@/features/common/providers/client-api.provider";
 import { mapBookingToPlannedService } from "@/features/calendar/services/booking-service-mapper";
 import {
   SEARCH_WINDOW_DAYS,
+  bookingQueriesForCalendarSearch,
   isCalendarSearchActive,
   matchesCalendarSearch,
   orderMatchesByCalendar,
   parseCalendarSearchParams,
+  type CalendarBookingSearchQuery,
   type CalendarSearchParams,
 } from "@/features/calendar/services/calendar-search";
 import type { MappedBooking } from "@/features/calendar/services/booking-service-mapper";
+import type {
+  BookingListResponse,
+  BookingResponse,
+} from "@microboxlabs/miot-calendar-client";
 
 export interface CalendarSearchResult {
   /** A search is running (at least one filter badge has a value). */
@@ -32,23 +38,16 @@ export interface CalendarSearchResult {
 /**
  * Cross-calendar search over planned bookings.
  *
- * Fetches with **no `calendarId`**, which the bookings API already reads as
- * "every calendar" (BookingService.getBookings -> Booking.findByDateRange), so
- * a service planned in a calendar you are not looking at is still found. No
- * backend change was needed for this.
+ * Fetches with **no `calendarId`**, so matches span every calendar.
  *
- * Two deliberate cost choices:
+ * Service terms are translated to miot-calendar's generic
+ * `resourceIdContains` filter. Those requests intentionally omit dates, so an
+ * old planned service remains findable without teaching the calendar backend
+ * what a service code means.
  *
- * 1. The SWR key holds only the date window, *not* the query. So typing into a
- *    badge re-filters an already-fetched set instead of refetching — one fat
- *    request per window, then instant local narrowing.
- * 2. The key is `null` while no search is active, so a planner who never
- *    searches never pays for the fetch at all.
- *
- * The result set is unpaginated and each booking carries the whole service blob,
- * so this leans on the org having few calendars (it does — `parallelism` exists
- * precisely so that docks don't become calendars). If that stops holding, the
- * fix is a server-side query, and this hook is the seam to swap.
+ * Other filters still narrow a ±30-day client-side set because they live in the
+ * generic resource payload. The key is `null` while no search is active, so a
+ * planner who never searches never pays for either request.
  */
 export function useCalendarSearch(): CalendarSearchResult {
   const searchParams = useSearchParams();
@@ -75,11 +74,14 @@ export function useCalendarSearch(): CalendarSearchResult {
       endDate: today.add(SEARCH_WINDOW_DAYS, "day").format("YYYY-MM-DD"),
     };
   }, []);
+  const bookingQueries = useMemo(
+    () => bookingQueriesForCalendarSearch(params, range),
+    [params, range]
+  );
 
   const { data, error, isLoading } = useSWR(
-    // Query terms are intentionally absent from the key — see above.
-    active ? ["calendar-search", range.startDate, range.endDate] : null,
-    ([, startDate, endDate]) => listBookings({ startDate, endDate }),
+    active ? ["calendar-search", bookingQueries] : null,
+    ([, queries]) => listSearchBookings(queries),
     { revalidateOnFocus: false, keepPreviousData: true }
   );
 
@@ -101,6 +103,20 @@ export function useCalendarSearch(): CalendarSearchResult {
     isLoading: active && isLoading,
     error: error as Error | undefined,
   };
+}
+
+async function listSearchBookings(
+  queries: readonly CalendarBookingSearchQuery[]
+): Promise<BookingListResponse> {
+  const responses = await Promise.all(
+    queries.map((query) => listBookings({ ...query }))
+  );
+
+  const bookings = new Map<string, BookingResponse>();
+  for (const response of responses) {
+    for (const booking of response.data) bookings.set(booking.id, booking);
+  }
+  return { data: [...bookings.values()], total: bookings.size };
 }
 
 function slotTime(m: MappedBooking): dayjs.Dayjs {

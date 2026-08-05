@@ -1,0 +1,53 @@
+{
+  "stack_version": "0.5.37",
+  "stack_tag": "miot-stack@v0.5.37",
+  "milestone": "MIOT-0.5.37",
+  "pull_requests": [
+    {
+      "number": 1085,
+      "title": "feat(integrations): optional dispatch context enrichment via a fetch binding",
+      "source_issues": [
+        {
+          "number": 1084,
+          "title": "Event dispatch: optional context enrichment via a fetch binding before rendering"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/jobs/EventDispatchFeature.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/jobs/IntegrationEventDispatchHandler.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/jobs/IntegrationEventDispatchHandlerTest.java"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.37",
+      "tag": "app@v0.5.37"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.36",
+      "version": "0.5.36",
+      "tag": "docs@v0.5.36"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.5.36",
+      "version": "0.5.36",
+      "tag": "web@v0.5.36"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.22",
+      "version": "0.5.23",
+      "tag": "modulith@v0.5.23"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.5",
+      "version": "0.1.5",
+      "tag": "harness@v0.1.5"
+    }
+  }
+}

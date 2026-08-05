@@ -59,8 +59,10 @@ public class JobFailureNotificationHandler implements ModulithJobHandler {
         return JobFailureNotificationFeature.JOB_TYPE;
     }
 
+    // The payload's own tenantCode predates the tenant-aware SPI and stays authoritative
+    // here; the row's tenant is unused rather than silently swapped in.
     @Override
-    public JobOutcome handle(Map<String, Object> payload) {
+    public JobOutcome handle(String rowTenantCode, Map<String, Object> payload) {
         String tenantCode = str(payload.get(JobFailureNotificationFeature.PAYLOAD_TENANT_CODE));
         List<String> recipients = recipients(payload.get(JobFailureNotificationFeature.PAYLOAD_RECIPIENTS));
         if (tenantCode == null) {

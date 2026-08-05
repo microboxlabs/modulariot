@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.jobs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,12 +16,15 @@ import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationEventBindingRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
+import com.microboxlabs.miot.integrations.service.EventBindingFetchService;
 import com.microboxlabs.miot.integrations.template.PayloadRenderer;
 import java.net.URI;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class IntegrationEventDispatchHandlerTest {
@@ -34,12 +38,15 @@ class IntegrationEventDispatchHandlerTest {
     private final FakeConnections connections = new FakeConnections();
     private final FakeOperations operations = new FakeOperations();
     private final RecordingDispatcher dispatcher = new RecordingDispatcher();
+    private final FakeFetch fetch = new FakeFetch();
 
     private IntegrationEventDispatchHandler handler() {
         return new IntegrationEventDispatchHandler(
                 bindings, connections, operations,
+                new com.microboxlabs.miot.integrations.service.EventBindingSelector(bindings),
                 new ChannelDispatcherRegistry(List.of(dispatcher), dispatcher),
-                new PayloadRenderer());
+                new PayloadRenderer(),
+                fetch);
     }
 
     private static Map<String, Object> payload() {
@@ -55,7 +62,7 @@ class IntegrationEventDispatchHandlerTest {
 
     @Test
     void rendersTheSnapshotAndDeliversItToTheChannel() {
-        JobOutcome outcome = handler().handle(payload());
+        JobOutcome outcome = handler().handle(TENANT, payload());
 
         assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
         assertEquals("19f8-a8ad", dispatcher.lastPayloadMap().get("guidMultimedia"));
@@ -68,7 +75,7 @@ class IntegrationEventDispatchHandlerTest {
     void skipsWhenTheBindingWasRemovedBetweenEnqueueAndDispatch() {
         bindings.binding = null;
 
-        JobOutcome outcome = handler().handle(payload());
+        JobOutcome outcome = handler().handle(TENANT, payload());
 
         // The operator's later decision wins over the queued intent.
         assertEquals(JobOutcome.SKIPPED, outcome.outcome());
@@ -78,7 +85,7 @@ class IntegrationEventDispatchHandlerTest {
     void skipsWhenTheBindingWasDisarmed() {
         bindings.binding = binding(false);
 
-        assertEquals(JobOutcome.SKIPPED, handler().handle(payload()).outcome());
+        assertEquals(JobOutcome.SKIPPED, handler().handle(TENANT, payload()).outcome());
     }
 
     @Test
@@ -88,7 +95,7 @@ class IntegrationEventDispatchHandlerTest {
                 "guidMultimedia", "{{content.missing}}", "aprobado", "{{review.verdict}}"));
 
         NonRetryableJobException failure = assertThrows(NonRetryableJobException.class,
-                () -> handler().handle(payload()));
+                () -> handler().handle(TENANT, payload()));
 
         assertTrue(failure.getMessage().contains("guidMultimedia"), failure.getMessage());
     }
@@ -98,7 +105,7 @@ class IntegrationEventDispatchHandlerTest {
         dispatcher.outcome = DispatchOutcome.permanentFailure("HTTP 422: GUID no existe");
 
         NonRetryableJobException failure = assertThrows(NonRetryableJobException.class,
-                () -> handler().handle(payload()));
+                () -> handler().handle(TENANT, payload()));
 
         assertTrue(failure.getMessage().contains("422"), failure.getMessage());
     }
@@ -108,7 +115,7 @@ class IntegrationEventDispatchHandlerTest {
         dispatcher.outcome = DispatchOutcome.transientFailure("HTTP 503");
 
         RuntimeException failure = assertThrows(RuntimeException.class,
-                () -> handler().handle(payload()));
+                () -> handler().handle(TENANT, payload()));
 
         // Anything but NonRetryableJobException means "back off and try again".
         assertTrue(!(failure instanceof NonRetryableJobException), "503 must stay retryable");
@@ -116,7 +123,194 @@ class IntegrationEventDispatchHandlerTest {
 
     @Test
     void parksAPayloadMissingItsIdentifiers() {
-        assertThrows(NonRetryableJobException.class, () -> handler().handle(Map.of()));
+        assertThrows(NonRetryableJobException.class, () -> handler().handle(TENANT, Map.of()));
+    }
+
+    // --- event-addressed dispatch (no bindingId: the producer cannot read bindings) ---
+
+    private static Map<String, Object> eventAddressedPayload() {
+        Map<String, Object> payload = payload();
+        payload.remove(EventDispatchFeature.PAYLOAD_BINDING_ID);
+        payload.put(EventDispatchFeature.PAYLOAD_EVENT_TYPE, "review.verdict");
+        payload.put(EventDispatchFeature.PAYLOAD_SCOPE_KIND, "activiti_task");
+        payload.put(EventDispatchFeature.PAYLOAD_SCOPE_KEY, "wfship2:presentDriverTask");
+        return payload;
+    }
+
+    @Test
+    void selectsTheArmedBindingByEventAndDelivers() {
+        bindings.armed = List.of(binding(true));
+
+        JobOutcome outcome = handler().handle(TENANT, eventAddressedPayload());
+
+        assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
+        assertTrue(dispatcher.lastPayload instanceof Map<?, ?>, "the rendered body was delivered");
+    }
+
+    @Test
+    void aPayloadWithoutATenantUsesTheRowsTenant() {
+        // A producer outside this module enqueues without stamping the tenant into the
+        // payload — the ledger row already knows whose job it is.
+        bindings.armed = List.of(binding(true));
+        Map<String, Object> payload = eventAddressedPayload();
+        payload.remove(EventDispatchFeature.PAYLOAD_TENANT_CLIENT_ID);
+
+        JobOutcome outcome = handler().handle(TENANT, payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
+    }
+
+    @Test
+    void skipsWhenNothingIsArmedForTheEvent() {
+        bindings.armed = List.of();
+
+        JobOutcome outcome = handler().handle(TENANT, eventAddressedPayload());
+
+        assertEquals(JobOutcome.SKIPPED, outcome.outcome());
+    }
+
+    @Test
+    void parksWhenNeitherBindingNorEventTypeIsNamed() {
+        Map<String, Object> payload = payload();
+        payload.remove(EventDispatchFeature.PAYLOAD_BINDING_ID);
+
+        assertThrows(NonRetryableJobException.class, () -> handler().handle(TENANT, payload));
+    }
+
+    // --- context enrichment (producer names a fetch event to complete the snapshot) ---
+
+    /**
+     * The snapshot carries an opaque id plus a stale identity field; the named fetch
+     * resolves the id and its value must win over the stale one at the merge key.
+     */
+    private Map<String, Object> enrichedPayload() {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put(EventDispatchFeature.PAYLOAD_TENANT_CLIENT_ID, TENANT);
+        payload.put(EventDispatchFeature.PAYLOAD_BINDING_ID, BINDING_ID);
+        payload.put(EventDispatchFeature.PAYLOAD_SCOPE_KIND, "scope-kind");
+        payload.put(EventDispatchFeature.PAYLOAD_SCOPE_KEY, "scope-key");
+        payload.put(EventDispatchFeature.PAYLOAD_ENRICHMENT_EVENT, "resource.identity");
+        payload.put(EventDispatchFeature.PAYLOAD_ENRICHMENT_MERGE_KEY, "resourceData");
+        payload.put(EventDispatchFeature.PAYLOAD_CONTEXT, Map.of(
+                "resourceData", Map.of("identifier", "stale-value", "opaqueId", "u-1"),
+                "review", Map.of("verdict", true)));
+        bindings.binding = bindingWithTemplates(Map.of(
+                "guidMultimedia", "{{resourceData.identifier}}",
+                "aprobado", "{{review.verdict}}"));
+        return payload;
+    }
+
+    @Test
+    void enrichmentValuesWinOverTheSnapshotAtTheMergeKey() {
+        fetch.values = Map.of("identifier", "fresh-value");
+
+        JobOutcome outcome = handler().handle(TENANT, enrichedPayload());
+
+        assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
+        assertEquals("fresh-value", dispatcher.lastPayloadMap().get("guidMultimedia"));
+        assertEquals("resource.identity", fetch.lastEvent);
+        assertEquals("scope-kind", fetch.lastScopeKind);
+        assertEquals("scope-key", fetch.lastScopeKey);
+    }
+
+    @Test
+    void unconfiguredEnrichmentDispatchesTheSnapshotUnchanged() {
+        fetch.values = null; // no armed binding / nothing mapped to ask
+
+        JobOutcome outcome = handler().handle(TENANT, enrichedPayload());
+
+        assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
+        assertEquals("stale-value", dispatcher.lastPayloadMap().get("guidMultimedia"));
+    }
+
+    @Test
+    void payloadWithoutAnEnrichmentEventNeverFetches() {
+        handler().handle(TENANT, payload());
+
+        assertEquals(0, fetch.calls, "no enrichment named, no fetch made");
+    }
+
+    @Test
+    void aFailingConfiguredEnrichmentStaysRetryable() {
+        fetch.failure = new IllegalStateException("Fetch rejected with 503");
+
+        RuntimeException failure = assertThrows(RuntimeException.class,
+                () -> handler().handle(TENANT, enrichedPayload()));
+
+        assertTrue(!(failure instanceof NonRetryableJobException),
+                "a partner that may recover must back off and retry, not park");
+    }
+
+    /**
+     * The stale snapshot maps an optional body field; the fetch's mapping owns that key
+     * but resolved it to nothing (the new assignment has no such resource). The stale
+     * value must not ride into the body — the field is omitted, exactly as a producer
+     * building the body directly would omit a null slot.
+     */
+    @Test
+    void aMappedKeyTheFetchResolvedToNothingClearsTheStaleValue() {
+        Map<String, Object> payload = enrichedPayload();
+        bindings.binding = bindingWithTemplates(Map.of(
+                "guidMultimedia", "{{resourceData.opaqueId}}",
+                "aprobado", "{{review.verdict}}",
+                "usuarioRevisor", "{{resourceData.identifier}}"));
+        fetch.values = Map.of();
+        fetch.mappedKeys = Set.of("identifier");
+
+        JobOutcome outcome = handler().handle(TENANT, payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
+        assertTrue(!dispatcher.lastPayloadMap().containsKey("usuarioRevisor"),
+                "the stale value under a fetch-owned key must not be dispatched");
+    }
+
+    @Test
+    void aNullDefaultTurnsAClearedKeyIntoAnExplicitNull() {
+        // The production shape of a driver de-association: enrichment owns the key and
+        // resolved nothing, and the binding's null default says the partner must hear
+        // "usuarioRevisor": null, not silence — omission keeps its stored value.
+        Map<String, Object> payload = enrichedPayload();
+        Map<String, String> defaults = new LinkedHashMap<>();
+        defaults.put("usuarioRevisor", null);
+        bindings.binding = bindingWith(Map.of(
+                "guidMultimedia", "{{resourceData.opaqueId}}",
+                "aprobado", "{{review.verdict}}",
+                "usuarioRevisor", "{{resourceData.identifier}}"), defaults);
+        fetch.values = Map.of();
+        fetch.mappedKeys = Set.of("identifier");
+
+        JobOutcome outcome = handler().handle(TENANT, payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, outcome.outcome());
+        assertTrue(dispatcher.lastPayloadMap().containsKey("usuarioRevisor"),
+                "the explicit null must keep the key in the body");
+        assertNull(dispatcher.lastPayloadMap().get("usuarioRevisor"));
+    }
+
+    @Test
+    void aKeyTheFetchMappingDoesNotOwnKeepsItsSnapshotValue() {
+        Map<String, Object> payload = enrichedPayload();
+        fetch.values = Map.of("somethingElse", "resolved");
+        fetch.mappedKeys = Set.of("somethingElse");
+
+        handler().handle(TENANT, payload);
+
+        // "identifier" is not the fetch's to speak for — the snapshot's value stands.
+        assertEquals("stale-value", dispatcher.lastPayloadMap().get("guidMultimedia"));
+    }
+
+    @Test
+    void enrichmentWithoutAMergeKeyMergesAtTheContextRoot() {
+        Map<String, Object> payload = enrichedPayload();
+        payload.remove(EventDispatchFeature.PAYLOAD_ENRICHMENT_MERGE_KEY);
+        bindings.binding = bindingWithTemplates(Map.of(
+                "guidMultimedia", "{{identifier}}",
+                "aprobado", "{{review.verdict}}"));
+        fetch.values = Map.of("identifier", "root-value");
+
+        handler().handle(TENANT, payload);
+
+        assertEquals("root-value", dispatcher.lastPayloadMap().get("guidMultimedia"));
     }
 
     @Test
@@ -139,16 +333,26 @@ class IntegrationEventDispatchHandlerTest {
         return bindingWith(true, templates);
     }
 
+    private static IntegrationEventBinding bindingWith(
+            Map<String, String> templates, Map<String, String> defaults) {
+        return new IntegrationEventBinding(
+                BINDING_ID, TENANT, "gama", "review.verdict", "activiti_task",
+                "wfship2:presentDriverTask", CONNECTION_ID, OPERATION_ID,
+                Map.of(), templates, Map.of(), defaults, Map.of(), true,
+                OffsetDateTime.now(), OffsetDateTime.now(), "a", "a");
+    }
+
     private static IntegrationEventBinding bindingWith(boolean enabled, Map<String, String> templates) {
         return new IntegrationEventBinding(
                 BINDING_ID, TENANT, "gama", "review.verdict", "activiti_task",
                 "wfship2:presentDriverTask", CONNECTION_ID, OPERATION_ID,
-                Map.of(), templates, enabled,
+                Map.of(), templates, Map.of(), Map.of(), Map.of(), enabled,
                 OffsetDateTime.now(), OffsetDateTime.now(), "a", "a");
     }
 
     private static final class FakeBindings extends IntegrationEventBindingRepository {
         private IntegrationEventBinding binding = binding(true);
+        private List<IntegrationEventBinding> armed = List.of();
 
         private FakeBindings() {
             super(null);
@@ -157,6 +361,11 @@ class IntegrationEventDispatchHandlerTest {
         @Override
         public IntegrationEventBinding findActiveById(String tenantClientId, String id) {
             return binding;
+        }
+
+        @Override
+        public List<IntegrationEventBinding> listArmed(String tenantClientId, String eventType) {
+            return armed;
         }
     }
 
@@ -190,6 +399,37 @@ class IntegrationEventDispatchHandlerTest {
                     Map.of("type", "object", "properties", properties,
                             "required", List.of("guidMultimedia", "aprobado")),
                     Map.of(), false);
+        }
+    }
+
+    /** Answers the enrichment fetch: {@code values == null} models "not configured". */
+    private static final class FakeFetch extends EventBindingFetchService {
+        private Map<String, Object> values;
+        private Set<String> mappedKeys = Set.of();
+        private RuntimeException failure;
+        private int calls;
+        private String lastEvent;
+        private String lastScopeKind;
+        private String lastScopeKey;
+
+        private FakeFetch() {
+            super(null, null, null, null);
+        }
+
+        @Override
+        public Optional<FetchedValues> fetch(String tenantClientId, String eventType,
+                String scopeKind, String scopeKey, Map<String, Object> context) {
+            calls++;
+            lastEvent = eventType;
+            lastScopeKind = scopeKind;
+            lastScopeKey = scopeKey;
+            if (failure != null) {
+                throw failure;
+            }
+            return values == null
+                    ? Optional.empty()
+                    : Optional.of(new FetchedValues(
+                            "fetch-binding", "fetch-connection", values, mappedKeys));
         }
     }
 

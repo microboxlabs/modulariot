@@ -33,6 +33,10 @@ import {
   AssignmentForm,
   type AssignmentFormData,
 } from "./sidebar-tabs";
+import {
+  assignmentIncomplete,
+  assignmentOverrides,
+} from "./sidebar-tabs/assignment/assignment-rules";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import {
   TabButtons,
@@ -40,52 +44,13 @@ import {
 } from "@/features/common/components/tab-buttons";
 
 /**
- * Build the service-override patch that travels with `confirmService` so the
- * booking payload reflects the user's current selections. Each slot is only
- * written when the user actually filled it in (or kept its conditional
- * section open) — partial assignments shouldn't wipe previously-saved fields
- * with empty strings.
- */
-function assignmentOverrides(
-  data: AssignmentFormData
-): Partial<SelectedService> {
-  const out: Partial<SelectedService> = {};
-  if (data.carrier) {
-    out.assignedCarrier = data.carrier;
-    // Carry the upstream prve_codigo alongside the UUID so the binding
-    // extractor can ship `carrier_external_id` for Alerce `proveedor`.
-    // `null` is a real value (carrier with no upstream code on file) and
-    // must be preserved — don't gate this on truthiness.
-    out.assignedCarrierExternalId = data.carrierExternalId;
-    // Same lifecycle for the accreditation level the calendar card renders:
-    // `null` (unknown) is a real value too.
-    out.assignedCarrierAccreditation = data.carrierAccreditation;
-  }
-  if (data.driver) {
-    out.assignedDriver = data.driver;
-    out.assignedDriverAccreditation = data.driverAccreditation;
-  }
-  if (data.hasSecondDriver && data.secondDriver) {
-    out.assignedDriver2 = data.secondDriver;
-    out.assignedDriver2Accreditation = data.secondDriverAccreditation;
-  }
-  if (data.truck) {
-    out.assignedTruck = data.truck;
-    out.assignedTruckAccreditation = data.truckAccreditation;
-  }
-  if (data.hasTrailer && data.trailer) {
-    out.assignedTrailer = data.trailer;
-    out.assignedTrailerAccreditation = data.trailerAccreditation;
-  }
-  return out;
-}
-
-/**
  * Build the initial `AssignmentFormData` from a service, hydrating the
  * carrier / driver / truck / trailer slots from the values persisted on the
  * previous `confirmService` call. Missing fields collapse to empty strings;
- * `hasSecondDriver` / `hasTrailer` toggle on when the matching slot is
- * set so the conditional UI opens automatically on reassign.
+ * `hasSecondDriver` toggles on when the matching slot is set so the
+ * conditional UI opens automatically on reassign. `truckTrailerNeed` starts
+ * unknown (null → trailer required, fail closed) and is refreshed from the
+ * truck's accredited row once the feed pins it in (assignment-form effect).
  */
 function assignmentDataFromService(
   service: SelectedService | undefined
@@ -106,7 +71,7 @@ function assignmentDataFromService(
     truckAccreditation: service?.assignedTruckAccreditation ?? null,
     trailer: service?.assignedTrailer ?? "",
     trailerAccreditation: service?.assignedTrailerAccreditation ?? null,
-    hasTrailer: Boolean(service?.assignedTrailer),
+    truckTrailerNeed: null,
   };
 }
 
@@ -772,9 +737,7 @@ export function PlanningSidebarForm({
                   onClick={handleAssign}
                   disabled={
                     !assigningService ||
-                    !assignmentData.carrier ||
-                    !assignmentData.driver ||
-                    !assignmentData.truck ||
+                    assignmentIncomplete(assignmentData) ||
                     isSubmitting
                   }
                 >

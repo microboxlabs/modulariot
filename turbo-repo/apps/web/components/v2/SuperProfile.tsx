@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { getTorre, getModules } from "./module-i18n";
 import { symDim, DIM_COLOR, type Entity } from "./torre-modules-data";
-import { useLang } from "./useLang";
 
 // ============================================================
 // Acto 2 · SuperProfile — la identidad operacional viva de cada entidad.
@@ -487,8 +486,7 @@ function ProfileCard({
   );
 }
 
-export default function SuperProfile() {
-  const lang = useLang();
+export default function SuperProfile({ lang }: { lang: string }) {
   const t = UI[(lang as "es" | "en" | "pt")] ?? UI.es;
   const { SYMPTOMS } = getTorre(lang);
   const { ENTITY_DATA } = getModules(lang);

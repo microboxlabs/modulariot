@@ -1,6 +1,6 @@
 {
   "name": "@modulariot/web",
-  "version": "0.5.30",
+  "version": "0.5.43",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack --port 3041",
@@ -11,6 +11,7 @@
     "format:check": "prettier . --check"
   },
   "dependencies": {
+    "@modulariot/ui": "*",
     "flowbite-icons": "^1.5.0",
     "framer-motion": "^12.18.1",
     "next-intl": "^4.13.4",

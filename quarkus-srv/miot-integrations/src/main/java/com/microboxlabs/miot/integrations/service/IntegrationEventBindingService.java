@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.service;
 
+import com.microboxlabs.miot.integrations.dispatch.HttpOperationDispatcher;
 import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.IntegrationEventBinding;
@@ -14,6 +15,7 @@ import com.microboxlabs.miot.integrations.persistence.IntegrationEventBindingRep
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
 import com.microboxlabs.miot.integrations.template.PayloadRenderException;
 import com.microboxlabs.miot.integrations.template.PayloadRenderer;
+import com.microboxlabs.miot.integrations.calendar.CalendarSyncFeature;
 import com.microboxlabs.miot.integrations.template.PayloadSchema;
 import com.microboxlabs.miot.integrations.template.PayloadTemplate;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -21,6 +23,7 @@ import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Reads, validates and stores event bindings.
@@ -90,7 +93,13 @@ public class IntegrationEventBindingService {
         IntegrationOperation operation = resolveOperation(connection, request.operationId());
 
         List<String> problems = renderer.validate(
-                request.fieldTemplates(), contractOf(operation), PayloadTemplate.DEFAULT_ROOTS);
+                request.fieldTemplates(), contractOf(operation), requestRootsFor(request.eventType()));
+        // The return trip renders over {response} alone — response templates reading a request
+        // root would silently produce nothing on every fetch.
+        problems.addAll(renderer.validate(
+                request.responseTemplates(), PayloadSchema.empty(), Set.of("response")));
+        problems.addAll(fieldDefaultsProblems(request.fieldDefaults(), request.fieldTemplates()));
+        problems.addAll(responseConditionsProblems(request.responseConditions()));
         if (!problems.isEmpty()) {
             throw new IllegalArgumentException("The field mapping is not usable: "
                     + String.join("; ", problems));
@@ -107,10 +116,32 @@ public class IntegrationEventBindingService {
                 operation == null ? null : operation.id(),
                 request.matchCondition() == null ? Map.of() : request.matchCondition(),
                 request.fieldTemplates() == null ? Map.of() : request.fieldTemplates(),
+                request.responseTemplates() == null ? Map.of() : request.responseTemplates(),
+                request.fieldDefaults() == null ? Map.of() : request.fieldDefaults(),
+                request.responseConditions() == null ? Map.of() : request.responseConditions(),
                 request.isEnabled(),
                 null, null, actor, actor);
 
         return IntegrationEventBindingResponse.of(bindingRepository.upsert(binding, actor), orgSlug);
+    }
+
+    /**
+     * Which roots a binding's request templates may read. Notify-shaped events render
+     * over the intake snapshot; a fetch-shaped event renders over its job's payload,
+     * whose vocabulary the producer owns.
+     */
+    private static Set<String> requestRootsFor(String eventType) {
+        // Trimmed here because persistence trims: a padded event type must select
+        // the same roots it will be stored under.
+        String normalized = eventType == null ? "" : eventType.trim();
+        if (CalendarSyncFeature.EVENT_RESOURCE_ENRICHMENT.equals(normalized)) {
+            return CalendarSyncFeature.ENRICHMENT_TEMPLATE_ROOTS;
+        }
+        if (CalendarSyncFeature.EVENT_RESOURCE_ASSIGNMENT.equals(normalized)
+                || CalendarSyncFeature.EVENT_RESOURCE_RELEASE.equals(normalized)) {
+            return CalendarSyncFeature.ASSIGNMENT_TEMPLATE_ROOTS;
+        }
+        return PayloadTemplate.DEFAULT_ROOTS;
     }
 
     /**
@@ -164,6 +195,9 @@ public class IntegrationEventBindingService {
             UpsertIntegrationEventBindingRequest request,
             Map<String, Object> context) {
         require(request != null, "A request body is required");
+        // The roots the templates validate against depend on the event type, so a
+        // preview without one would silently validate against the wrong contract.
+        require(notBlank(request.eventType()), "eventType is required");
         require(notBlank(request.connectionId()), "connectionId is required");
 
         IntegrationConnection connection = requireUsableConnection(tenantClientId, request.connectionId());
@@ -171,16 +205,88 @@ public class IntegrationEventBindingService {
         PayloadSchema contract = contractOf(operation);
 
         List<String> problems = renderer.validate(
-                request.fieldTemplates(), contract, PayloadTemplate.DEFAULT_ROOTS);
+                request.fieldTemplates(), contract, requestRootsFor(request.eventType()));
+        problems.addAll(fieldDefaultsProblems(request.fieldDefaults(), request.fieldTemplates()));
         if (!problems.isEmpty()) {
             return BindingPreviewResponse.invalid(problems);
         }
         try {
             return BindingPreviewResponse.ok(renderer.renderBody(
-                    request.fieldTemplates(), contract, context == null ? Map.of() : context));
+                    request.fieldTemplates(),
+                    request.fieldDefaults() == null ? Map.of() : request.fieldDefaults(),
+                    contract,
+                    context == null ? Map.of() : context));
         } catch (PayloadRenderException e) {
             return BindingPreviewResponse.invalid(e.problems());
         }
+    }
+
+    /**
+     * A default is a stand-in for a mapping that rendered empty, so a default for a field
+     * with no mapping is a mistake to name, not to ignore — the constant the operator
+     * wanted is expressed by making the mapping itself a literal.
+     *
+     * <p>A JSON-null default is meaningful, not empty: it declares that an empty render
+     * sends an explicit {@code null} — the clear signal a merge-on-missing partner needs
+     * to dissociate a value it already stores. Only blank strings are rejected.
+     */
+    private static List<String> fieldDefaultsProblems(
+            Map<String, String> defaults, Map<String, String> fieldTemplates) {
+        if (defaults == null || defaults.isEmpty()) {
+            return List.of();
+        }
+        List<String> problems = new ArrayList<>();
+        Map<String, String> templates = fieldTemplates == null ? Map.of() : fieldTemplates;
+        defaults.forEach((fieldId, value) -> {
+            String template = templates.get(fieldId);
+            if (template == null || template.isBlank()) {
+                problems.add("default for '" + fieldId + "' has no mapping to fall back from"
+                        + " — map the field, or make its mapping the literal itself");
+            }
+            if (value != null && value.isBlank()) {
+                problems.add("default for '" + fieldId + "' is empty; remove it instead,"
+                        + " or use a JSON null to send an explicit null");
+            }
+        });
+        return problems;
+    }
+
+    /**
+     * {@code {"success": {...}, "retry": {...}}} — flat matchers over {@code {response}}.
+     * {@code success} is required once any condition exists (without it nothing could ever
+     * be delivered), and every path must read the response, because at classification time
+     * the response is all there is.
+     */
+    private static List<String> responseConditionsProblems(Map<String, Object> conditions) {
+        if (conditions == null || conditions.isEmpty()) {
+            return List.of();
+        }
+        List<String> problems = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : conditions.entrySet()) {
+            if (!HttpOperationDispatcher.CONDITION_SUCCESS.equals(entry.getKey())
+                    && !HttpOperationDispatcher.CONDITION_RETRY.equals(entry.getKey())) {
+                problems.add("response condition '" + entry.getKey() + "' is not supported; "
+                        + "use 'success' and 'retry'");
+                continue;
+            }
+            if (!(entry.getValue() instanceof Map<?, ?> matcher)) {
+                problems.add("response condition '" + entry.getKey()
+                        + "' must be an object of response-path -> expected value");
+                continue;
+            }
+            for (Object path : matcher.keySet()) {
+                String key = String.valueOf(path);
+                if (!key.equals("response") && !key.startsWith("response.")) {
+                    problems.add("response condition '" + entry.getKey() + "' reads '" + key
+                            + "' — conditions can only read the response, e.g. 'response.code'");
+                }
+            }
+        }
+        if (!conditions.containsKey(HttpOperationDispatcher.CONDITION_SUCCESS)) {
+            problems.add("response conditions need a 'success' matcher — without one no"
+                    + " response could ever count as delivered");
+        }
+        return problems;
     }
 
     /* ---------------------------------------------------------------------- */

@@ -35,6 +35,10 @@ public interface ModulithJobHandler {
     /**
      * Execute the job from its self-contained payload. Return the terminal
      * outcome (SUCCEEDED/SKIPPED); throw for a retryable failure.
+     *
+     * @param tenantCode the job row's tenant — the Auth0 M2M client id every
+     *        tenant-scoped lookup (bindings, connections) is keyed on. From the
+     *        ledger, not the payload: a payload cannot claim another tenant.
      */
-    JobOutcome handle(Map<String, Object> payload);
+    JobOutcome handle(String tenantCode, Map<String, Object> payload);
 }

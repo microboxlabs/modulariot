@@ -1,0 +1,74 @@
+{
+  "stack_version": "0.5.33",
+  "stack_tag": "miot-stack@v0.5.33",
+  "milestone": "MIOT-0.5.33",
+  "pull_requests": [
+    {
+      "number": 1068,
+      "title": "fix(calendar): prevent duplicate removal requests",
+      "source_issues": [
+        {
+          "number": 1067,
+          "title": "bug(calendar): prevent duplicate remove-plan requests"
+        }
+      ]
+    },
+    {
+      "number": 1073,
+      "title": "feat(calendar): assignment-dispatch binding section in advanced settings",
+      "source_issues": [
+        {
+          "number": 1072,
+          "title": "Calendar advanced settings: administer the assignment-dispatch binding from the sidebar"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "turbo-repo/apps/app/src/features/calendar/bindings/binding-section-ui.tsx",
+    "turbo-repo/apps/app/src/features/calendar/bindings/use-binding-section.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/use-service-actions.test.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/use-service-actions.ts",
+    "turbo-repo/apps/app/src/features/calendar/dispatch/calendar-dispatch-section.tsx",
+    "turbo-repo/apps/app/src/features/calendar/dispatch/dispatch-upsert.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/dispatch/dispatch-upsert.ts",
+    "turbo-repo/apps/app/src/features/calendar/dispatch/dispatch.types.ts",
+    "turbo-repo/apps/app/src/features/calendar/enrichment/calendar-enrichment-drawer.tsx",
+    "turbo-repo/apps/app/src/features/calendar/enrichment/enrichment-data-service.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/packages/miot-calendar-ui/src/components/planning/delete-confirmation-modal.tsx",
+    "turbo-repo/packages/miot-calendar-ui/src/components/planning/planning-grid-overlays.tsx"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.33",
+      "tag": "app@v0.5.33"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.32",
+      "version": "0.5.32",
+      "tag": "docs@v0.5.32"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.5.32",
+      "version": "0.5.32",
+      "tag": "web@v0.5.32"
+    },
+    "modulith": {
+      "changed": false,
+      "changed_since": "modulith@v0.5.21",
+      "version": "0.5.21",
+      "tag": "modulith@v0.5.21"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.4",
+      "version": "0.1.4",
+      "tag": "harness@v0.1.4"
+    }
+  }
+}

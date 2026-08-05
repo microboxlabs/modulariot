@@ -48,7 +48,7 @@ class IntegrationEventBindingServiceTest {
     private static UpsertIntegrationEventBindingRequest request(Map<String, String> templates) {
         return new UpsertIntegrationEventBindingRequest(
                 "review.verdict", "kanban_lane", "shipping:confirmCierre",
-                CONNECTION_ID, OPERATION_ID, Map.of(), templates, true);
+                CONNECTION_ID, OPERATION_ID, Map.of(), templates, Map.of(), null, null, true);
     }
 
     private static Map<String, String> validTemplates() {
@@ -95,7 +95,7 @@ class IntegrationEventBindingServiceTest {
     @Test
     void requiresAnOperationForOperationBasedChannels() {
         var noOperation = new UpsertIntegrationEventBindingRequest(
-                "review.verdict", null, null, CONNECTION_ID, null, Map.of(), validTemplates(), true);
+                "review.verdict", null, null, CONNECTION_ID, null, Map.of(), validTemplates(), Map.of(), null, null, true);
 
         IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
                 () -> service().upsert(TENANT, CHILD_ORG, noOperation, ACTOR));
@@ -103,12 +103,78 @@ class IntegrationEventBindingServiceTest {
         assertTrue(failure.getMessage().contains("operationId"), failure.getMessage());
     }
 
+    /** Enrichment bindings render over the job payload, not the review snapshot. */
+    @Test
+    void enrichmentBindingsMayReadTheJobPayloadRoots() {
+        var enrichment = new UpsertIntegrationEventBindingRequest(
+                "calendar.resource_enrichment", null, null, CONNECTION_ID, OPERATION_ID,
+                Map.of(),
+                Map.of("guidMultimedia", "{{resourceData.mintral_driver1Rut}}",
+                        "aprobado", "{{resourceData.mintral_serviceKind}}"),
+                Map.of("assignedDriver", "{{response.driver_id}}"),
+                null, null, true);
+
+        service().upsert(TENANT, CHILD_ORG, enrichment, ACTOR);
+
+        assertEquals("{{resourceData.mintral_driver1Rut}}",
+                bindings.saved.get(0).fieldTemplates().get("guidMultimedia"));
+        assertEquals("{{response.driver_id}}",
+                bindings.saved.get(0).responseTemplates().get("assignedDriver"));
+    }
+
+    @Test
+    void assignmentBindingsMayReadTheDispatchContextRoots() {
+        var assignment = new UpsertIntegrationEventBindingRequest(
+                "calendar.resource_assignment", null, null, CONNECTION_ID, OPERATION_ID,
+                Map.of(),
+                Map.of("guidMultimedia", "{{service.code}}",
+                        "aprobado", "{{resourceData.mintral_serviceKind}}"),
+                Map.of(), null, null, true);
+
+        service().upsert(TENANT, CHILD_ORG, assignment, ACTOR);
+
+        assertEquals("{{service.code}}",
+                bindings.saved.get(0).fieldTemplates().get("guidMultimedia"));
+    }
+
+    /** The release event shares the assignment's context vocabulary. */
+    @Test
+    void releaseBindingsMayReadTheDispatchContextRoots() {
+        var release = new UpsertIntegrationEventBindingRequest(
+                "calendar.resource_release", null, null, CONNECTION_ID, OPERATION_ID,
+                Map.of(),
+                Map.of("guidMultimedia", "{{service.code}}",
+                        "aprobado", "{{resourceData.mintral_serviceKind}}"),
+                Map.of(), null, null, true);
+
+        service().upsert(TENANT, CHILD_ORG, release, ACTOR);
+
+        assertEquals("{{service.code}}",
+                bindings.saved.get(0).fieldTemplates().get("guidMultimedia"));
+    }
+
+    /** A review binding still cannot read job-payload roots — the roots are per event. */
+    @Test
+    void reviewBindingsStillCannotReadJobPayloadRoots() {
+        var wrongRoot = new UpsertIntegrationEventBindingRequest(
+                "review.verdict", null, null, CONNECTION_ID, OPERATION_ID,
+                Map.of(),
+                Map.of("guidMultimedia", "{{resourceData.mintral_driver1Rut}}",
+                        "aprobado", "{{review.verdict}}"),
+                Map.of(), null, null, true);
+
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service().upsert(TENANT, CHILD_ORG, wrongRoot, ACTOR));
+
+        assertTrue(failure.getMessage().contains("resourceData"), failure.getMessage());
+    }
+
     @Test
     void aWhatsAppBindingNeedsNoOperation() {
         connections.providerType = ProviderType.WHATSAPP;
         var noOperation = new UpsertIntegrationEventBindingRequest(
                 "symptom.reported", "symptom_board", "b-1",
-                CONNECTION_ID, null, Map.of(), Map.of("body", "{{task.serviceCode}}"), true);
+                CONNECTION_ID, null, Map.of(), Map.of("body", "{{task.serviceCode}}"), Map.of(), null, null, true);
 
         service().upsert(TENANT, CHILD_ORG, noOperation, ACTOR);
 
@@ -133,6 +199,85 @@ class IntegrationEventBindingServiceTest {
                 () -> service().upsert(TENANT, CHILD_ORG, request(templates), ACTOR));
 
         assertTrue(failure.getMessage().contains("mensaje"), failure.getMessage());
+    }
+
+    /* ---- field defaults and response conditions ---- */
+
+    private static UpsertIntegrationEventBindingRequest requestWith(
+            Map<String, String> fieldDefaults, Map<String, Object> responseConditions) {
+        return new UpsertIntegrationEventBindingRequest(
+                "review.verdict", "kanban_lane", "shipping:confirmCierre",
+                CONNECTION_ID, OPERATION_ID, Map.of(), validTemplates(), Map.of(),
+                fieldDefaults, responseConditions, true);
+    }
+
+    @Test
+    void storesDefaultsAndResponseConditions() {
+        var stored = service().upsert(TENANT, CHILD_ORG, requestWith(
+                Map.of("guidMultimedia", "00000000-0"),
+                Map.of("success", Map.of("response.code", "OK"))), ACTOR);
+
+        assertEquals(Map.of("guidMultimedia", "00000000-0"), stored.fieldDefaults());
+        assertEquals(Map.of("success", Map.of("response.code", "OK")), stored.responseConditions());
+    }
+
+    @Test
+    void rejectsADefaultForAnUnmappedField() {
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service().upsert(TENANT, CHILD_ORG,
+                        requestWith(Map.of("unmapped", "x"), Map.of()), ACTOR));
+
+        assertTrue(failure.getMessage().contains("unmapped"), failure.getMessage());
+    }
+
+    @Test
+    void acceptsANullDefaultAsAnExplicitNull() {
+        // Not an empty value: a JSON-null default declares that an empty render must send
+        // "field": null — the clear signal merge-on-missing partners need.
+        Map<String, String> defaults = new LinkedHashMap<>();
+        defaults.put("guidMultimedia", null);
+
+        var stored = service().upsert(TENANT, CHILD_ORG, requestWith(defaults, Map.of()), ACTOR);
+
+        assertTrue(stored.fieldDefaults().containsKey("guidMultimedia"));
+        assertNull(stored.fieldDefaults().get("guidMultimedia"));
+    }
+
+    @Test
+    void rejectsABlankDefault() {
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service().upsert(TENANT, CHILD_ORG,
+                        requestWith(Map.of("guidMultimedia", "  "), Map.of()), ACTOR));
+
+        assertTrue(failure.getMessage().contains("empty"), failure.getMessage());
+    }
+
+    @Test
+    void rejectsResponseConditionsWithoutASuccessMatcher() {
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service().upsert(TENANT, CHILD_ORG,
+                        requestWith(Map.of(), Map.of("retry", Map.of("response.code", "AUTH"))), ACTOR));
+
+        assertTrue(failure.getMessage().contains("success"), failure.getMessage());
+    }
+
+    @Test
+    void rejectsAResponseConditionReadingOutsideTheResponse() {
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service().upsert(TENANT, CHILD_ORG,
+                        requestWith(Map.of(), Map.of("success", Map.of("task.serviceCode", "X"))), ACTOR));
+
+        assertTrue(failure.getMessage().contains("task.serviceCode"), failure.getMessage());
+    }
+
+    @Test
+    void rejectsAnUnknownResponseConditionKind() {
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service().upsert(TENANT, CHILD_ORG, requestWith(Map.of(), Map.of(
+                        "success", Map.of("response.code", "OK"),
+                        "maybe", Map.of("response.code", "HMM"))), ACTOR));
+
+        assertTrue(failure.getMessage().contains("maybe"), failure.getMessage());
     }
 
     /* ---- reads and ownership ---- */
@@ -212,7 +357,7 @@ class IntegrationEventBindingServiceTest {
     private static IntegrationEventBinding binding(String owner) {
         return new IntegrationEventBinding(
                 "b-" + owner, TENANT, owner, "review.verdict", "kanban_lane", "k",
-                CONNECTION_ID, OPERATION_ID, Map.of(), Map.of(), true,
+                CONNECTION_ID, OPERATION_ID, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), true,
                 OffsetDateTime.now(), OffsetDateTime.now(), ACTOR, ACTOR);
     }
 
@@ -243,7 +388,8 @@ class IntegrationEventBindingServiceTest {
                     "generated-id", binding.tenantClientId(), binding.ownerOrgSlug(),
                     binding.eventType(), binding.scopeKind(), binding.scopeKey(),
                     binding.connectionId(), binding.operationId(), binding.matchCondition(),
-                    binding.fieldTemplates(), binding.enabled(),
+                    binding.fieldTemplates(), binding.responseTemplates(),
+                    binding.fieldDefaults(), binding.responseConditions(), binding.enabled(),
                     OffsetDateTime.now(), OffsetDateTime.now(), actor, actor);
         }
 

@@ -1,4 +1,181 @@
 {
+  "nav": {
+    "cta": "Solicitar demo",
+    "mega": {
+      "label": "Produto",
+      "sections": [
+        {
+          "title": "Plataforma",
+          "items": [
+            {
+              "label": "Ingestão GPS Core",
+              "desc": "Sinais GPS e sensores em tempo real para o seu banco de dados"
+            },
+            {
+              "label": "Sintomas / Torre de Controle",
+              "desc": "Mais de 30 regras de detecção com rastreabilidade"
+            },
+            {
+              "label": "Integrações",
+              "desc": "Workflows, webhooks e cofre de evidências"
+            },
+            {
+              "label": "Vídeo ao Vivo / HLS",
+              "desc": "Streaming contínuo de câmeras e dashcams"
+            }
+          ]
+        },
+        {
+          "title": "Tecnologia",
+          "items": [
+            {
+              "label": "Recursos",
+              "desc": "Streaming, alertas e fluxos de trabalho"
+            },
+            {
+              "label": "Arquitetura",
+              "desc": "Do dispositivo edge à sua nuvem em <56ms"
+            },
+            {
+              "label": "Implantação",
+              "desc": "Sua nuvem, gerenciado pela MBL ou edge híbrido"
+            }
+          ]
+        },
+        {
+          "title": "Ao vivo, com dados reais",
+          "items": [
+            {
+              "label": "Torre de controle",
+              "desc": "Os 36 sintomas sobre uma operação real"
+            },
+            {
+              "label": "SuperProfile",
+              "desc": "A identidade operacional viva de cada ator"
+            },
+            {
+              "label": "Canais de escalonamento",
+              "desc": "O alerta em e-mail, WhatsApp, Teams, Webex e SMS"
+            },
+            {
+              "label": "Provedores GPS",
+              "desc": "Precisão de sinal: 12/20 pulsos por minuto"
+            }
+          ]
+        }
+      ]
+    },
+    "columnMenus": [
+      {
+        "label": "Soluções",
+        "columns": [
+          {
+            "title": "Casos de uso",
+            "links": [
+              {
+                "label": "Monitoramento de motoristas e ativos"
+              },
+              {
+                "label": "Telemetria mecânica e manutenção"
+              },
+              {
+                "label": "Conformidade e auditorias"
+              },
+              {
+                "label": "Torre de controle operacional"
+              }
+            ],
+            "footer": {
+              "label": "Todas as soluções"
+            }
+          },
+          {
+            "title": "Indústrias",
+            "links": [
+              {
+                "label": "Transporte de carga"
+              },
+              {
+                "label": "Mineração"
+              },
+              {
+                "label": "Distribuição e última milha"
+              },
+              {
+                "label": "Logística industrial"
+              }
+            ],
+            "footer": {
+              "label": "Casos reais"
+            }
+          }
+        ]
+      },
+      {
+        "label": "Recursos",
+        "columns": [
+          {
+            "title": "Aprenda",
+            "links": [
+              {
+                "label": "Documentação"
+              },
+              {
+                "label": "Perguntas frequentes"
+              }
+            ],
+            "footer": {
+              "label": "Todos os recursos"
+            }
+          },
+          {
+            "title": "Comunidade",
+            "links": [
+              {
+                "label": "GitHub"
+              },
+              {
+                "label": "MicroBox Labs"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "direct": [
+      {
+        "label": "Contato"
+      }
+    ],
+    "languages": [
+      {
+        "country": "Chile"
+      },
+      {
+        "country": "Peru"
+      },
+      {
+        "country": "Colômbia"
+      },
+      {
+        "country": "México"
+      },
+      {
+        "country": "Brasil"
+      },
+      {
+        "country": "Global"
+      }
+    ],
+    "actions": {
+      "login": {
+        "label": "Entrar"
+      },
+      "signup": {
+        "label": "Criar conta"
+      }
+    }
+  },
   "hero": {
     "kicker": "Código aberto — motor e dados auditáveis",
     "titlePre": "De detectar a ",
@@ -540,5 +717,540 @@
         "label": "seus dados, seu controle"
       }
     ]
+  },
+  "detail": {
+    "producto/ingesta-gps-core": {
+      "eyebrow": "Produto · Ingestão GPS Core",
+      "title": "Cada sinal da sua frota, na sua nuvem, em milissegundos",
+      "subtitle": "A caixa base do ModularIoT. Recebe cada ping GPS, valor de sensor e evento do motorista — não importa o fornecedor do hardware — e entrega para a sua própria infraestrutura em tempo real.",
+      "blocks": [
+        {
+          "kicker": "O que faz",
+          "title": "O pipeline sobre o qual tudo o mais roda",
+          "body": "A Ingestão GPS Core normaliza e transmite a telemetria bruta da sua frota para os seus sistemas. É a fundação: sintomas, integrações e vídeo se constroem sobre esse fluxo. Sem dependência de fornecedor e com os dados sempre sob o seu controle.",
+          "bullets": [
+            "API de último sinal por ativo (lastsignal)",
+            "Rastreamento AVL em tempo real",
+            "Captura de mudanças (CDC) para os seus sistemas downstream",
+            "Backbone de mensageria com Apache Pulsar",
+            "Escrita direta no seu PostgreSQL / armazenamento"
+          ]
+        },
+        {
+          "kicker": "Capacidades",
+          "title": "Ingestão pronta para produção",
+          "cards": [
+            {
+              "title": "Qualquer hardware",
+              "body": "Adaptadores universais para fornecedores GPS (Redd, Samtech, GAMA e outros). Você não troca os seus dispositivos."
+            },
+            {
+              "title": "Latência < 56 ms",
+              "body": "Da leitura do sensor até a sua aplicação, com processamento de stream de baixa latência."
+            },
+            {
+              "title": "Alto volume",
+              "body": "Projetado para milhões de sinais por mês: 2,9M+ hoje em operação real, com margem para crescer."
+            },
+            {
+              "title": "Seus dados, sua nuvem",
+              "body": "Os dados chegam na sua infraestrutura. Soberania completa, conformidade com a LGPD/GDPR sem esforço."
+            },
+            {
+              "title": "CDC integrado",
+              "body": "O Debezium captura mudanças e as propaga para os seus sistemas: sem polling, sem jobs em batch."
+            },
+            {
+              "title": "APIs abertas",
+              "body": "REST e acesso direto ao banco de dados para construir sobre o fluxo o que você precisar."
+            }
+          ]
+        },
+        {
+          "kicker": "Como funciona",
+          "title": "Do sinal ao seu banco de dados, em tempo real",
+          "subtitle": "Sem polling nem jobs em batch: cada sinal flui e chega pronto para consulta.",
+          "steps": [
+            {
+              "n": "01",
+              "title": "O sinal chega",
+              "body": "GPS, sensores e eventos de qualquer hardware entram de forma contínua, sem espera."
+            },
+            {
+              "n": "02",
+              "title": "É processado na hora",
+              "body": "Cada sinal é normalizado e avaliado com latência mediana abaixo de 56 ms."
+            },
+            {
+              "n": "03",
+              "title": "Chega na sua nuvem",
+              "body": "Os dados ficam no seu próprio banco de dados: soberania completa, conformidade sem esforço."
+            },
+            {
+              "n": "04",
+              "title": "Consultas quando quiser",
+              "body": "Última posição e status de cada ativo por API aberta ou consulta direta ao banco."
+            }
+          ]
+        }
+      ]
+    },
+    "producto/sintomas-torre-control": {
+      "eyebrow": "Produto · Sintomas / Torre de Controle",
+      "title": "Mais de 30 regras que transformam dados em decisões",
+      "subtitle": "Chega de dados brutos e alertas de ruído. Cada sinal é avaliado contra as regras da sua operação e, se algo se desvia, gera um evento classificado por severidade, com responsável e rastreabilidade completa.",
+      "blocks": [
+        {
+          "kicker": "O que faz",
+          "title": "Interpreta, não só registra",
+          "body": "A diferença entre um GPS e o ModularIoT é a mesma entre uma câmera de segurança e um vigilante treinado. A torre de controle interpreta cada evento no seu contexto operacional: é zona de risco? há quanto tempo está ativo? quem deve atender?",
+          "bullets": [
+            "Severidade e responsável atribuídos automaticamente",
+            "Ciclo de vida do evento: abrir → tratar → fechar",
+            "Exclusão inteligente de ruído: só o que exige ação",
+            "Limites e zonas configurados para a sua operação",
+            "Rastreabilidade completa para auditorias"
+          ]
+        },
+        {
+          "kicker": "Regras de detecção",
+          "title": "Uma regra para cada risco que importa para você",
+          "subtitle": "Mais de 30 regras ativas em produção, cada uma como um microsserviço independente.",
+          "cards": [
+            {
+              "title": "Condução",
+              "body": "Excesso de velocidade por trecho, condução contínua sem descanso, movimento fora do horário autorizado, motorista duplicado."
+            },
+            {
+              "title": "Segurança",
+              "body": "Botão de pânico (SOS), assistência na rota, uso de EPI, homem-máquina, frenagem e curva brusca, fadiga e sonolência."
+            },
+            {
+              "title": "Carga e ativos",
+              "body": "Ausência e deficiência de amarração, superaquecimento do motor, Check Engine, bateria baixa, falha de carregamento."
+            },
+            {
+              "title": "Zonas e rotas",
+              "body": "Cruzamento em área não permitida, parada em zona de risco, pernoite em zona não autorizada, desvio de ETA."
+            }
+          ]
+        },
+        {
+          "kicker": "Ciclo de vida",
+          "title": "O ciclo não termina em fechar: termina em reduzir",
+          "subtitle": "Fechar o chamado não resolve a causa. Por isso o ciclo soma mais um passo: reduzir a recorrência.",
+          "steps": [
+            {
+              "n": "01",
+              "title": "O sintoma é detectado",
+              "body": "A regra avalia o sinal em contexto e gera um evento com severidade."
+            },
+            {
+              "n": "02",
+              "title": "Um responsável é atribuído",
+              "body": "O evento entra no painel da sua equipe operacional e é atribuído para gestão."
+            },
+            {
+              "n": "03",
+              "title": "É tratado",
+              "body": "O operador gerencia o evento com o contexto e as evidências necessárias para agir."
+            },
+            {
+              "n": "04",
+              "title": "É fechado com rastreabilidade",
+              "body": "Fica registrado com timestamp, responsável e resolução. Nada se perde."
+            },
+            {
+              "n": "05",
+              "title": "A recorrência é reduzida",
+              "body": "O SuperProfile soma o histórico por entidade e ataca a causa: menos eventos repetidos mês a mês, não só chamados fechados."
+            }
+          ]
+        },
+        {
+          "kicker": "Ao vivo, com dados reais",
+          "title": "Explore sobre uma operação real",
+          "subtitle": "Os mesmos sintomas, rodando sobre dados de junho de 2026 — não uma maquete.",
+          "links": [
+            {
+              "title": "Torre de controle",
+              "body": "Os 36 sintomas, seu histórico e seus dashboards com dados reais."
+            },
+            {
+              "title": "SuperProfile",
+              "body": "O perfil vivo de cada transportadora e motorista: nível, risco e plano."
+            },
+            {
+              "title": "Canais de escalonamento",
+              "body": "O mesmo alerta em e-mail, WhatsApp, Teams, Webex e SMS."
+            }
+          ]
+        }
+      ]
+    },
+    "producto/integraciones": {
+      "eyebrow": "Produto · Integrações",
+      "title": "Sua operação conectada com o que você já usa",
+      "subtitle": "Automação de fluxos, cofre de evidências documentais, API gateway e webhooks. O ModularIoT não substitui os seus sistemas: ele os conecta e potencializa.",
+      "blocks": [
+        {
+          "kicker": "O que faz",
+          "title": "Do evento à ação, automaticamente",
+          "body": "Quando um sintoma é detectado, não basta vê-lo: é preciso agir. Integrações dispara o fluxo que você definiu — notificar, criar uma ordem de serviço, guardar evidência, avisar um sistema externo — sem intervenção manual.",
+          "bullets": [
+            "Workflows e webhooks com n8n",
+            "Cofre de evidências documentais (gestor ECM)",
+            "API gateway para expor e consumir serviços",
+            "Servidor MCP para agentes de IA",
+            "Automação de GAMA, RFID e processos sob medida"
+          ]
+        },
+        {
+          "kicker": "Conectores",
+          "title": "Integre com o seu stack real",
+          "cards": [
+            {
+              "title": "n8n",
+              "body": "Orquestre fluxos visuais: quando acontece X, faça Y. Sem escrever código de integração."
+            },
+            {
+              "title": "Cofre de evidências",
+              "body": "Cada evento fica com sua documentação, pronta para fiscalizações e auditorias."
+            },
+            {
+              "title": "API Gateway",
+              "body": "Exponha os seus serviços de forma segura e consuma APIs de terceiros a partir de um único ponto."
+            },
+            {
+              "title": "Webhooks",
+              "body": "Notifique qualquer sistema externo em tempo real quando ocorrer um evento relevante."
+            },
+            {
+              "title": "Servidor MCP",
+              "body": "Conecte agentes de IA à sua operação para consultas e ações assistidas."
+            },
+            {
+              "title": "GAMA / RFID",
+              "body": "Ingestão de fornecedores e validação de etiquetas RFID via fluxos automatizados."
+            }
+          ]
+        }
+      ]
+    },
+    "producto/video-en-vivo": {
+      "eyebrow": "Produto · Vídeo ao Vivo / HLS",
+      "title": "Contexto visual para cada evento que você detecta",
+      "subtitle": "Streams de vídeo contínuos de 24 horas das câmeras e dashcams a bordo dos seus ativos. Quando um sintoma dispara, você não só sabe o que aconteceu: pode ver.",
+      "blocks": [
+        {
+          "kicker": "O que faz",
+          "title": "De frames do dispositivo a vídeo ao vivo",
+          "body": "O processador de streams consome os frames das suas câmeras e gera streams HLS contínuos com FFmpeg. Vídeo rolante de 24 horas que dá contexto visual a cada alerta, sem depender de um fornecedor de videomonitoramento externo.",
+          "bullets": [
+            "Streaming HLS contínuo de 24 horas",
+            "Frames processados de câmeras e dashcams",
+            "Contexto visual associado a cada evento detectado",
+            "Armazenamento na sua própria infraestrutura",
+            "Verificação offline de frames e recuperação"
+          ]
+        },
+        {
+          "kicker": "Capacidades",
+          "title": "Vídeo operacional, não só gravação",
+          "cards": [
+            {
+              "title": "HLS 24h",
+              "body": "Streams rolantes contínuos: sempre há vídeo disponível do período que você precisa revisar."
+            },
+            {
+              "title": "FFmpeg",
+              "body": "Processamento de frames em vídeo com o padrão da indústria, no seu pipeline."
+            },
+            {
+              "title": "Vinculado a sintomas",
+              "body": "Cada evento da torre de controle pode vincular o vídeo do momento exato."
+            },
+            {
+              "title": "Seu armazenamento",
+              "body": "Os frames e o vídeo ficam no seu bucket. Sem licenças de videomonitoramento externo."
+            }
+          ]
+        }
+      ]
+    },
+    "producto/caracteristicas": {
+      "eyebrow": "Produto · Características",
+      "title": "Três capacidades principais",
+      "subtitle": "Tudo o que você precisa para processar, analisar e agir sobre dados de frota em tempo real, sobre uma arquitetura aberta que você controla.",
+      "blocks": [
+        {
+          "kicker": "Streaming",
+          "title": "Processa cada sinal assim que ele chega",
+          "body": "O motor avalia a telemetria em tempo real contra as regras da sua operação. Quando algo se desvia, dispara a ação — notificar, escalar, registrar — com latência subsegundo. Tudo configurável, sem escrever código.",
+          "bullets": [
+            "Uma fonte: toda a telemetria da frota em um único fluxo",
+            "Regras por sintoma: fadiga, excesso de velocidade, zonas e mais",
+            "Ações automáticas: SMS ao supervisor, com evidência salva",
+            "Prioridade e severidade por regra, ajustadas à sua operação",
+            "Latência mediana ponta a ponta abaixo de 56 ms"
+          ]
+        },
+        {
+          "kicker": "Por que importa",
+          "title": "Capacidades que se traduzem em operação",
+          "cards": [
+            {
+              "title": "Tempo real",
+              "body": "Aja enquanto o evento acontece, não no dia seguinte. Latência mediana abaixo de 56 ms."
+            },
+            {
+              "title": "Detecção inteligente",
+              "body": "Mais de 30 regras com exclusão de ruído: sua equipe vê só o que importa."
+            },
+            {
+              "title": "Cofre de evidências",
+              "body": "Workflows automatizados com rastreabilidade de 7 anos, prontos para conformidade."
+            }
+          ]
+        }
+      ]
+    },
+    "producto/arquitectura": {
+      "eyebrow": "Produto · Arquitetura",
+      "title": "Do dispositivo edge até a sua infraestrutura",
+      "subtitle": "Veja como os seus dados fluem dos dispositivos até a sua nuvem em tempo real, com latência mediana ponta a ponta abaixo de 56 ms.",
+      "blocks": [
+        {
+          "kicker": "O fluxo",
+          "title": "Três etapas, um pipeline",
+          "steps": [
+            {
+              "n": "01",
+              "title": "Ingestão de dados",
+              "body": "Coleta dados de GPS, sensores e eventos da sua frota em tempo real, de qualquer hardware."
+            },
+            {
+              "n": "02",
+              "title": "Processamento de streams",
+              "body": "Enriquece e avalia fluxos de dados com latência subsegundo contra as regras da sua operação."
+            },
+            {
+              "n": "03",
+              "title": "Sua infraestrutura",
+              "body": "Os dados fluem diretamente para o seu banco de dados, analytics e aplicações. Você é o dono."
+            }
+          ]
+        },
+        {
+          "items": [
+            {
+              "value": "<56ms",
+              "label": "latência mediana ponta a ponta"
+            },
+            {
+              "value": "2,9M+",
+              "label": "sinais processados por mês"
+            },
+            {
+              "value": "99,9%",
+              "label": "precisão de processamento de eventos"
+            },
+            {
+              "value": "24/7",
+              "label": "operação contínua"
+            }
+          ]
+        },
+        {
+          "kicker": "Princípios de design",
+          "title": "Aberta, modular e sua",
+          "cards": [
+            {
+              "title": "Modular",
+              "body": "Cada caixa é um serviço independente. Você contrata e escala só o que usa."
+            },
+            {
+              "title": "Soberana",
+              "body": "O processamento acontece na sua região/nuvem. Nunca armazenamos os seus dados."
+            },
+            {
+              "title": "Sem lock-in",
+              "body": "Tecnologias abertas (Pulsar, PostgreSQL, n8n). Você pode trocar componentes."
+            }
+          ]
+        }
+      ]
+    },
+    "producto/implementacion": {
+      "eyebrow": "Produto · Implantação",
+      "title": "Escolha o modelo que se adapta à sua operação",
+      "subtitle": "Sua nuvem, gerenciado pela MicroBox Labs ou edge híbrido. A mesma plataforma, o nível de controle e conformidade que você precisa.",
+      "blocks": [
+        {
+          "kicker": "Opções",
+          "title": "Três formas de implantar o ModularIoT",
+          "cards": [
+            {
+              "title": "Sua Nuvem",
+              "body": "Controle completo na sua infraestrutura AWS, Azure ou GCP: soberania de dados, segurança sob medida, escalonamento ilimitado e acesso direto ao banco de dados."
+            },
+            {
+              "title": "Gerenciado pela MBL",
+              "body": "Nós cuidamos da infraestrutura enquanto você foca nos seus insights: zero overhead de DevOps, monitoramento 24/7, atualizações automáticas e SLA."
+            },
+            {
+              "title": "Edge Híbrido",
+              "body": "Processamento edge para latência ultrabaixa com backup na nuvem: sub-10 ms, capacidade offline, sincronização e conformidade regional."
+            }
+          ]
+        },
+        {
+          "kicker": "Colocação em operação",
+          "title": "Da assinatura à produção",
+          "steps": [
+            {
+              "n": "01",
+              "title": "Diagnóstico",
+              "body": "Revisamos a sua operação, o hardware atual e os eventos que preocupam você. Sem custo."
+            },
+            {
+              "n": "02",
+              "title": "Integração e configuração",
+              "body": "Conectamos a sua tecnologia, definimos limites e regras, e ativamos o painel. 5 a 10 dias úteis (48h no modo gerenciado)."
+            },
+            {
+              "n": "03",
+              "title": "Operação com visibilidade",
+              "body": "Sua equipe opera com dados em tempo real e recebe um relatório de impacto todo mês."
+            }
+          ]
+        }
+      ]
+    },
+    "soluciones": {
+      "eyebrow": "Soluções",
+      "title": "Visibilidade real para a sua operação, seja qual for",
+      "subtitle": "O ModularIoT é configurado para o que importa na sua operação específica. Estes são os casos de uso e indústrias onde ele já gera impacto.",
+      "blocks": [
+        {
+          "kicker": "Casos de uso",
+          "title": "O que você pode monitorar hoje",
+          "cards": [
+            {
+              "title": "Motoristas e veículos",
+              "body": "Velocidade por trecho, condução contínua sem descanso, zonas de risco e estado mecânico. Cada evento classificado e com responsável."
+            },
+            {
+              "title": "Telemetria e manutenção",
+              "body": "Temperatura, pressão, consumo e ciclos de uso. Sabemos quando um ativo vai falhar antes que isso aconteça."
+            },
+            {
+              "title": "Conformidade e auditorias",
+              "body": "O procedimento foi feito como definido? Monitoramento de execução real com evidência pronta para fiscalização."
+            },
+            {
+              "title": "Torre de controle",
+              "body": "Visão unificada para a sua equipe operacional: alertas com ciclo de vida e rastreabilidade completa."
+            }
+          ]
+        },
+        {
+          "kicker": "Indústrias",
+          "title": "Operações que já confiam no ModularIoT",
+          "cards": [
+            {
+              "title": "Transporte de carga",
+              "body": "Excessos de velocidade na rota, cumprimento de descansos e evidência para clientes exigentes."
+            },
+            {
+              "title": "Mineração",
+              "body": "Limites por trecho interno mais restritivos que o mapa oficial. Evidência pronta para qualquer fiscalização."
+            },
+            {
+              "title": "Distribuição e última milha",
+              "body": "Telemetria mecânica em toda a frota: falhas detectadas antes de o veículo parar."
+            },
+            {
+              "title": "Logística industrial",
+              "body": "Visibilidade centralizada de ativos e processos críticos, com rastreabilidade de cada evento."
+            }
+          ]
+        },
+        {
+          "kicker": "Como começamos",
+          "title": "Configurado para a sua operação, não um sistema genérico",
+          "body": "Não instalamos uma solução de molde. Configuramos os limites, zonas, processos e alertas de acordo com como funciona a sua operação específica. Começamos com um diagnóstico gratuito de 30 minutos.",
+          "bullets": [
+            "Diagnóstico gratuito: o que você pode monitorar hoje",
+            "Integração com o seu hardware e sistemas atuais",
+            "Regras e limites definidos para a sua operação",
+            "Painel ativo para a sua equipe em 5 a 10 dias",
+            "Relatório de impacto mensal"
+          ]
+        }
+      ]
+    },
+    "recursos": {
+      "eyebrow": "Recursos",
+      "title": "Tudo para conhecer e construir com o ModularIoT",
+      "subtitle": "Documentação, casos reais e comunidade. Aprenda como a plataforma funciona e junte-se ao projeto de código aberto.",
+      "blocks": [
+        {
+          "kicker": "Aprenda",
+          "title": "Documentação e conteúdo",
+          "links": [
+            {
+              "title": "Documentação",
+              "body": "Guias, referência de API e integrações para construir sobre o ModularIoT."
+            },
+            {
+              "title": "Casos reais",
+              "body": "Operações que pararam de descobrir tarde demais: transporte, mineração e distribuição."
+            },
+            {
+              "title": "Perguntas frequentes",
+              "body": "O que sempre nos perguntam antes de começar, respondido."
+            }
+          ]
+        },
+        {
+          "kicker": "Comunidade",
+          "title": "Código aberto e contato",
+          "links": [
+            {
+              "title": "GitHub",
+              "body": "Plataforma de código aberto sob licença Apache-2.0. Explore, contribua, deixe uma estrela."
+            },
+            {
+              "title": "MicroBox Labs",
+              "body": "Conheça a empresa por trás do ModularIoT e o restante do portfólio."
+            },
+            {
+              "title": "Falar conosco",
+              "body": "Agende um diagnóstico gratuito de 30 minutos para a sua operação."
+            }
+          ]
+        },
+        {
+          "kicker": "Blog",
+          "title": "Novidades e notas técnicas",
+          "subtitle": "Em breve: artigos, casos e aprendizados de operações reais. Enquanto isso, a documentação e os casos já estão disponíveis.",
+          "cards": [
+            {
+              "title": "Como funciona a Torre de Controle",
+              "body": "Um passeio pelas regras que transformam sinais em decisões."
+            },
+            {
+              "title": "Os 36 sintomas, explicados",
+              "body": "O que cada regra detecta e por que isso importa para a sua operação."
+            },
+            {
+              "title": "Seus dados, sua nuvem",
+              "body": "Como a plataforma funciona sem vendor lock-in, com soberania completa."
+            }
+          ]
+        }
+      ]
+    }
   }
 }

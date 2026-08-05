@@ -1,4 +1,4 @@
-import { getContent } from "./content";
+import { getTranslations } from "next-intl/server";
 import { Reveal } from "./Reveal";
 import { ConceptGraphic } from "./ConceptGraphic";
 import { StatsGrid } from "./StatsGrid";
@@ -416,7 +416,7 @@ function BlockView({
   );
 }
 
-export default function DetailPage({
+export default async function DetailPage({
   data,
   base,
 }: {
@@ -424,7 +424,7 @@ export default function DetailPage({
   base: string;
 }) {
   const lang = base.split("/")[2] || "es";
-  const t = getContent(lang);
+  const t = await getTranslations({ locale: lang, namespace: "nav" });
 
   // Ritmo de superficies automático (mismo patrón que la home): blanco, gris,
   // blanco... empezando por el hero — nada que tocar por sección.
@@ -459,7 +459,7 @@ export default function DetailPage({
               href={`${base}/#contacto`}
               className={`w-full sm:w-auto ${btnPrimary} ${btnLg}`}
             >
-              {t.nav.cta}
+              {t("cta")}
             </a>
           </div>
         </Reveal>

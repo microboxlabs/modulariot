@@ -1,4 +1,181 @@
 {
+  "nav": {
+    "cta": "Solicitar demo",
+    "mega": {
+      "label": "Produto",
+      "sections": [
+        {
+          "title": "Plataforma",
+          "items": [
+            {
+              "label": "Ingestão GPS Core",
+              "desc": "Sinais GPS e sensores em tempo real para o seu banco de dados"
+            },
+            {
+              "label": "Sintomas / Torre de Controle",
+              "desc": "Mais de 30 regras de detecção com rastreabilidade"
+            },
+            {
+              "label": "Integrações",
+              "desc": "Workflows, webhooks e cofre de evidências"
+            },
+            {
+              "label": "Vídeo ao Vivo / HLS",
+              "desc": "Streaming contínuo de câmeras e dashcams"
+            }
+          ]
+        },
+        {
+          "title": "Tecnologia",
+          "items": [
+            {
+              "label": "Recursos",
+              "desc": "Streaming, alertas e fluxos de trabalho"
+            },
+            {
+              "label": "Arquitetura",
+              "desc": "Do dispositivo edge à sua nuvem em <56ms"
+            },
+            {
+              "label": "Implantação",
+              "desc": "Sua nuvem, gerenciado pela MBL ou edge híbrido"
+            }
+          ]
+        },
+        {
+          "title": "Ao vivo, com dados reais",
+          "items": [
+            {
+              "label": "Torre de controle",
+              "desc": "Os 36 sintomas sobre uma operação real"
+            },
+            {
+              "label": "SuperProfile",
+              "desc": "A identidade operacional viva de cada ator"
+            },
+            {
+              "label": "Canais de escalonamento",
+              "desc": "O alerta em e-mail, WhatsApp, Teams, Webex e SMS"
+            },
+            {
+              "label": "Provedores GPS",
+              "desc": "Precisão de sinal: 12/20 pulsos por minuto"
+            }
+          ]
+        }
+      ]
+    },
+    "columnMenus": [
+      {
+        "label": "Soluções",
+        "columns": [
+          {
+            "title": "Casos de uso",
+            "links": [
+              {
+                "label": "Monitoramento de motoristas e ativos"
+              },
+              {
+                "label": "Telemetria mecânica e manutenção"
+              },
+              {
+                "label": "Conformidade e auditorias"
+              },
+              {
+                "label": "Torre de controle operacional"
+              }
+            ],
+            "footer": {
+              "label": "Todas as soluções"
+            }
+          },
+          {
+            "title": "Indústrias",
+            "links": [
+              {
+                "label": "Transporte de carga"
+              },
+              {
+                "label": "Mineração"
+              },
+              {
+                "label": "Distribuição e última milha"
+              },
+              {
+                "label": "Logística industrial"
+              }
+            ],
+            "footer": {
+              "label": "Casos reais"
+            }
+          }
+        ]
+      },
+      {
+        "label": "Recursos",
+        "columns": [
+          {
+            "title": "Aprenda",
+            "links": [
+              {
+                "label": "Documentação"
+              },
+              {
+                "label": "Perguntas frequentes"
+              }
+            ],
+            "footer": {
+              "label": "Todos os recursos"
+            }
+          },
+          {
+            "title": "Comunidade",
+            "links": [
+              {
+                "label": "GitHub"
+              },
+              {
+                "label": "MicroBox Labs"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "direct": [
+      {
+        "label": "Contato"
+      }
+    ],
+    "languages": [
+      {
+        "country": "Chile"
+      },
+      {
+        "country": "Peru"
+      },
+      {
+        "country": "Colômbia"
+      },
+      {
+        "country": "México"
+      },
+      {
+        "country": "Brasil"
+      },
+      {
+        "country": "Global"
+      }
+    ],
+    "actions": {
+      "login": {
+        "label": "Entrar"
+      },
+      "signup": {
+        "label": "Criar conta"
+      }
+    }
+  },
   "hero": {
     "kicker": "Código Aberto · Apache-2.0",
     "titlePre": "De detectar a ",

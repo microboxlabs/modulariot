@@ -1,10 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { DarkThemeToggle } from "flowbite-react";
-import { getContent } from "./content";
 import { Flag } from "./flags";
 import { LynxBrand } from "@modulariot/ui/brand/logo";
+import {
+  MEGA_SECTIONS,
+  COLUMN_MENUS,
+  DIRECT_LINKS,
+  GITHUB_HREF,
+  LANGUAGE_CODES,
+} from "./nav-data";
 
 const COUNTRY_KEY = "miot_country";
 
@@ -31,7 +38,38 @@ function resolveHref(base: string, href: string) {
     : `${base}${href}`;
 }
 
-const navIcons: Record<string, React.ReactNode> = {
+// URLs completas (incluyen path/query) de la app real (apps/app, no esta
+// landing) — varían por entorno, así que viven enteras en
+// NEXT_PUBLIC_APP_LOGIN_URL / NEXT_PUBLIC_APP_SIGNUP_URL (ver
+// .env.example/.env.local), nada de path hardcodeado acá. Separadas (aunque
+// hoy apunten al mismo sign-in) para poder cambiar una sin tocar la otra —
+// p.ej. cuando Crear cuenta sume su propio query param.
+const LOCAL_APP_URL = "http://localhost:3050/sign-in";
+
+function getAppUrls() {
+  const configured = {
+    NEXT_PUBLIC_APP_LOGIN_URL: process.env.NEXT_PUBLIC_APP_LOGIN_URL,
+    NEXT_PUBLIC_APP_SIGNUP_URL: process.env.NEXT_PUBLIC_APP_SIGNUP_URL,
+  };
+  const missing = Object.entries(configured)
+    .filter(([, url]) => !url)
+    .map(([name]) => name);
+
+  if (process.env.NODE_ENV !== "development" && missing.length > 0) {
+    throw new Error(
+      `[Nav] Missing required app URL${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}`,
+    );
+  }
+
+  return {
+    login: configured.NEXT_PUBLIC_APP_LOGIN_URL || LOCAL_APP_URL,
+    signup: configured.NEXT_PUBLIC_APP_SIGNUP_URL || LOCAL_APP_URL,
+  };
+}
+
+const { login: APP_LOGIN_URL, signup: APP_SIGNUP_URL } = getAppUrls();
+
+export const navIcons = {
   signal: (
     <path
       strokeLinecap="round"
@@ -81,7 +119,9 @@ const navIcons: Record<string, React.ReactNode> = {
       d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"
     />
   ),
-};
+} satisfies Record<string, React.ReactNode>;
+
+export type NavIconKey = keyof typeof navIcons;
 
 function ExternalIcon() {
   return (
@@ -134,12 +174,74 @@ const panelCard = "rounded-xl border border-hairline bg-surface shadow-xl";
 const topItem =
   "flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink-1";
 
+type MegaItemText = { label: string; desc: string };
+type ColumnLinkText = { label: string };
+
+function assertMatchingLength(
+  label: string,
+  translated: readonly unknown[],
+  structural: readonly unknown[],
+) {
+  if (translated.length !== structural.length) {
+    throw new Error(
+      `[Nav] ${label} has ${translated.length} translated entries but ${structural.length} structural entries`,
+    );
+  }
+}
+
 export default function Nav({ lang }: { lang: string }) {
   const [open, setOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [country, setCountry] = useState<string | null>(null);
   const base = `/alpha-2506/${lang}`;
-  const nav = getContent(lang).nav;
+  const t = useTranslations("nav");
+
+  // Texto (JSON, vía next-intl) + estructura (código, nav-data.ts) combinados
+  // por índice — mismo split que CARD_IDS en UseCases.tsx: lo no-textual
+  // (íconos/hrefs) no vive en el diccionario de idioma.
+  const translatedMegaSections = t.raw("mega.sections") as {
+    title: string;
+    items: MegaItemText[];
+  }[];
+  assertMatchingLength(
+    "nav.mega.sections",
+    translatedMegaSections,
+    MEGA_SECTIONS,
+  );
+  const megaSections = translatedMegaSections.map((section, si) => ({
+    title: section.title,
+    items: section.items.map((item, ii) => ({
+      ...item,
+      ...MEGA_SECTIONS[si].items[ii],
+    })),
+  }));
+  const translatedColumnMenus = t.raw("columnMenus") as {
+    label: string;
+    columns: {
+      title: string;
+      links: ColumnLinkText[];
+      footer?: ColumnLinkText;
+    }[];
+  }[];
+  assertMatchingLength("nav.columnMenus", translatedColumnMenus, COLUMN_MENUS);
+  const columnMenus = translatedColumnMenus.map((menu, mi) => ({
+    label: menu.label,
+    columns: menu.columns.map((col, ci) => {
+      const colData = COLUMN_MENUS[mi].columns[ci];
+      return {
+        title: col.title,
+        links: col.links.map((link, li) => ({ ...link, ...colData.links[li] })),
+        footer:
+          col.footer && colData.footer
+            ? { ...col.footer, ...colData.footer }
+            : undefined,
+      };
+    }),
+  }));
+  const direct = (t.raw("direct") as ColumnLinkText[]).map((item, i) => ({
+    ...item,
+    ...DIRECT_LINKS[i],
+  }));
 
   // País elegido persistido; se lee tras montar (evita mismatch SSR).
   useEffect(() => {
@@ -150,7 +252,8 @@ export default function Nav({ lang }: { lang: string }) {
 
   // País activo: el guardado si coincide con el idioma de la ruta, si no el
   // primer país (ancla) de ese idioma.
-  const regions = nav.languages;
+  const countries = t.raw("languages") as { country: string }[];
+  const regions = LANGUAGE_CODES.map((l, i) => ({ ...l, country: countries[i].country }));
   const activeRegion =
     regions.find((r) => r.flag === country && r.lang === lang) ||
     regions.find((r) => r.lang === lang) ||
@@ -182,25 +285,14 @@ export default function Nav({ lang }: { lang: string }) {
               una franja muerta que corte el hover al bajar el mouse. */}
           <div className="group flex h-[60px] items-center">
             <button className={topItem}>
-              {nav.mega.label}
+              {t("mega.label")}
               <Chevron />
             </button>
-            <div
-              className={`${panelCentered} w-[92vw] ${nav.mega.sections.length >= 3 ? "max-w-7xl" : "max-w-3xl"}`}
-            >
-              <div
-                className={`grid ${nav.mega.sections.length >= 3 ? "grid-cols-3" : "grid-cols-2"} ${panelCard} p-6`}
-              >
-                {nav.mega.sections.map((section, si) => (
-                  <div
-                    key={section.title}
-                    className={
-                      si === 0 ? "pr-6" : "border-hairline border-l px-6"
-                    }
-                  >
-                    <p className="text-ink-3 mb-3 px-2 text-xs font-semibold tracking-[0.08em] uppercase">
-                      {section.title}
-                    </p>
+            <div className={`${panelCentered} w-[92vw] ${megaSections.length >= 3 ? "max-w-7xl" : "max-w-3xl"}`}>
+              <div className={`grid ${megaSections.length >= 3 ? "grid-cols-3" : "grid-cols-2"} ${panelCard} p-6`}>
+                {megaSections.map((section, si) => (
+                  <div key={section.title} className={si === 0 ? "pr-6" : "border-l border-hairline px-6"}>
+                    <p className="mb-3 px-2 text-xs font-semibold tracking-[0.08em] text-ink-3 uppercase">{section.title}</p>
                     {section.items.map((item) => (
                       <a
                         key={item.label}
@@ -235,7 +327,7 @@ export default function Nav({ lang }: { lang: string }) {
           </div>
 
           {/* Soluciones / Recursos: columnas con encabezado */}
-          {nav.columnMenus.map((menu) => (
+          {columnMenus.map((menu) => (
             <div key={menu.label} className="group relative">
               <button className={topItem}>
                 {menu.label}
@@ -255,18 +347,14 @@ export default function Nav({ lang }: { lang: string }) {
                         <a
                           key={link.label}
                           href={resolveHref(base, link.href)}
-                          {...("external" in link && link.external
-                            ? { target: "_blank", rel: "noopener noreferrer" }
-                            : {})}
-                          className="text-ink-2 hover:bg-surface-3 hover:text-ink-1 flex items-center gap-1.5 rounded-lg px-2 py-2 text-sm transition-colors"
+                          {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                          className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-sm text-ink-2 transition-colors hover:bg-surface-3 hover:text-ink-1"
                         >
                           {link.label}
-                          {"external" in link && link.external && (
-                            <ExternalIcon />
-                          )}
+                          {link.external && <ExternalIcon />}
                         </a>
                       ))}
-                      {"footer" in col && col.footer && (
+                      {col.footer && (
                         <a
                           href={resolveHref(base, col.footer.href)}
                           className="border-hairline text-accent hover:text-accent-strong mt-2 border-t px-2 pt-3 text-sm font-medium transition-colors"
@@ -294,7 +382,7 @@ export default function Nav({ lang }: { lang: string }) {
           ))}
 
           {/* Links directos */}
-          {nav.direct.map((item) => (
+          {direct.map((item) => (
             <a
               key={item.label}
               href={resolveHref(base, item.href)}
@@ -311,7 +399,7 @@ export default function Nav({ lang }: { lang: string }) {
         {/* Derecha: GitHub + tema + idioma + acciones */}
         <div className="ml-auto hidden shrink-0 items-center gap-2 lg:flex">
           <a
-            href={nav.github.href}
+            href={GITHUB_HREF}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub"
@@ -325,16 +413,16 @@ export default function Nav({ lang }: { lang: string }) {
           <DarkThemeToggle theme={themeToggleStyle} />
 
           <a
-            href={resolveHref(base, nav.actions.login.href)}
-            className="text-ink-2 hover:text-ink-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+            href={APP_LOGIN_URL}
+            className="rounded-lg px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:text-ink-1"
           >
-            {nav.actions.login.label}
+            {t("actions.login.label")}
           </a>
           <a
-            href={resolveHref(base, nav.actions.signup.href)}
-            className="border-ink-1 bg-ink-1 text-page hover:bg-ink-2 hover:border-ink-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors"
+            href={APP_SIGNUP_URL}
+            className="rounded-lg border border-ink-1 bg-ink-1 px-3.5 py-2 text-sm font-medium text-page transition-colors hover:bg-ink-2 hover:border-ink-2"
           >
-            {nav.actions.signup.label}
+            {t("actions.signup.label")}
           </a>
         </div>
 
@@ -375,13 +463,8 @@ export default function Nav({ lang }: { lang: string }) {
       {open && (
         <div className="border-hairline bg-page max-h-[80vh] overflow-y-auto border-t px-6 pb-6 lg:hidden">
           {[
-            {
-              label: nav.mega.label,
-              links: nav.mega.sections.flatMap((s) =>
-                s.items.map((i) => ({ label: i.label, href: i.href })),
-              ),
-            },
-            ...nav.columnMenus.map((m) => ({
+            { label: t("mega.label"), links: megaSections.flatMap((s) => s.items.map((i) => ({ label: i.label, href: i.href }))) },
+            ...columnMenus.map((m) => ({
               label: m.label,
               links: m.columns.flatMap((c) =>
                 c.links.map((l) => ({ label: l.label, href: l.href })),
@@ -425,7 +508,7 @@ export default function Nav({ lang }: { lang: string }) {
               )}
             </div>
           ))}
-          {nav.direct.map((item) => (
+          {direct.map((item) => (
             <a
               key={item.label}
               href={resolveHref(base, item.href)}
@@ -437,18 +520,18 @@ export default function Nav({ lang }: { lang: string }) {
           ))}
           <div className="mt-4 space-y-2">
             <a
-              href={resolveHref(base, nav.actions.login.href)}
+              href={APP_LOGIN_URL}
               onClick={() => setOpen(false)}
               className="text-ink-2 block rounded-lg px-4 py-2.5 text-center text-sm font-medium"
             >
-              {nav.actions.login.label}
+              {t("actions.login.label")}
             </a>
             <a
-              href={resolveHref(base, nav.actions.signup.href)}
+              href={APP_SIGNUP_URL}
               onClick={() => setOpen(false)}
               className="border-ink-1 bg-ink-1 text-page block rounded-lg border px-4 py-2.5 text-center text-sm font-medium"
             >
-              {nav.actions.signup.label}
+              {t("actions.signup.label")}
             </a>
           </div>
         </div>

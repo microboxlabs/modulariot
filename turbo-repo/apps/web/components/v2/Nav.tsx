@@ -5,7 +5,13 @@ import { useTranslations } from "next-intl";
 import { DarkThemeToggle } from "flowbite-react";
 import { Flag } from "./flags";
 import { LynxBrand } from "@modulariot/ui/brand/logo";
-import { MEGA_SECTIONS, COLUMN_MENUS, DIRECT_LINKS, GITHUB_HREF, LANGUAGE_CODES } from "./nav-data";
+import {
+  MEGA_SECTIONS,
+  COLUMN_MENUS,
+  DIRECT_LINKS,
+  GITHUB_HREF,
+  LANGUAGE_CODES,
+} from "./nav-data";
 
 const COUNTRY_KEY = "miot_country";
 
@@ -38,10 +44,32 @@ function resolveHref(base: string, href: string) {
 // .env.example/.env.local), nada de path hardcodeado acá. Separadas (aunque
 // hoy apunten al mismo sign-in) para poder cambiar una sin tocar la otra —
 // p.ej. cuando Crear cuenta sume su propio query param.
-const APP_LOGIN_URL = process.env.NEXT_PUBLIC_APP_LOGIN_URL || "http://localhost:3050/sign-in";
-const APP_SIGNUP_URL = process.env.NEXT_PUBLIC_APP_SIGNUP_URL || "http://localhost:3050/sign-in";
+const LOCAL_APP_URL = "http://localhost:3050/sign-in";
 
-const navIcons: Record<string, React.ReactNode> = {
+function getAppUrls() {
+  const configured = {
+    NEXT_PUBLIC_APP_LOGIN_URL: process.env.NEXT_PUBLIC_APP_LOGIN_URL,
+    NEXT_PUBLIC_APP_SIGNUP_URL: process.env.NEXT_PUBLIC_APP_SIGNUP_URL,
+  };
+  const missing = Object.entries(configured)
+    .filter(([, url]) => !url)
+    .map(([name]) => name);
+
+  if (process.env.NODE_ENV !== "development" && missing.length > 0) {
+    throw new Error(
+      `[Nav] Missing required app URL${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}`,
+    );
+  }
+
+  return {
+    login: configured.NEXT_PUBLIC_APP_LOGIN_URL || LOCAL_APP_URL,
+    signup: configured.NEXT_PUBLIC_APP_SIGNUP_URL || LOCAL_APP_URL,
+  };
+}
+
+const { login: APP_LOGIN_URL, signup: APP_SIGNUP_URL } = getAppUrls();
+
+export const navIcons = {
   signal: (
     <path
       strokeLinecap="round"
@@ -91,7 +119,9 @@ const navIcons: Record<string, React.ReactNode> = {
       d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"
     />
   ),
-};
+} satisfies Record<string, React.ReactNode>;
+
+export type NavIconKey = keyof typeof navIcons;
 
 function ExternalIcon() {
   return (
@@ -147,6 +177,18 @@ const topItem =
 type MegaItemText = { label: string; desc: string };
 type ColumnLinkText = { label: string };
 
+function assertMatchingLength(
+  label: string,
+  translated: readonly unknown[],
+  structural: readonly unknown[],
+) {
+  if (translated.length !== structural.length) {
+    throw new Error(
+      `[Nav] ${label} has ${translated.length} translated entries but ${structural.length} structural entries`,
+    );
+  }
+}
+
 export default function Nav({ lang }: { lang: string }) {
   const [open, setOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
@@ -157,27 +199,49 @@ export default function Nav({ lang }: { lang: string }) {
   // Texto (JSON, vía next-intl) + estructura (código, nav-data.ts) combinados
   // por índice — mismo split que CARD_IDS en UseCases.tsx: lo no-textual
   // (íconos/hrefs) no vive en el diccionario de idioma.
-  const megaSections = (t.raw("mega.sections") as { title: string; items: MegaItemText[] }[]).map((section, si) => ({
+  const translatedMegaSections = t.raw("mega.sections") as {
+    title: string;
+    items: MegaItemText[];
+  }[];
+  assertMatchingLength(
+    "nav.mega.sections",
+    translatedMegaSections,
+    MEGA_SECTIONS,
+  );
+  const megaSections = translatedMegaSections.map((section, si) => ({
     title: section.title,
-    items: section.items.map((item, ii) => ({ ...item, ...MEGA_SECTIONS[si].items[ii] })),
+    items: section.items.map((item, ii) => ({
+      ...item,
+      ...MEGA_SECTIONS[si].items[ii],
+    })),
   }));
-  const columnMenus = (
-    t.raw("columnMenus") as {
-      label: string;
-      columns: { title: string; links: ColumnLinkText[]; footer?: ColumnLinkText }[];
-    }[]
-  ).map((menu, mi) => ({
+  const translatedColumnMenus = t.raw("columnMenus") as {
+    label: string;
+    columns: {
+      title: string;
+      links: ColumnLinkText[];
+      footer?: ColumnLinkText;
+    }[];
+  }[];
+  assertMatchingLength("nav.columnMenus", translatedColumnMenus, COLUMN_MENUS);
+  const columnMenus = translatedColumnMenus.map((menu, mi) => ({
     label: menu.label,
     columns: menu.columns.map((col, ci) => {
       const colData = COLUMN_MENUS[mi].columns[ci];
       return {
         title: col.title,
         links: col.links.map((link, li) => ({ ...link, ...colData.links[li] })),
-        footer: col.footer && colData.footer ? { ...col.footer, ...colData.footer } : undefined,
+        footer:
+          col.footer && colData.footer
+            ? { ...col.footer, ...colData.footer }
+            : undefined,
       };
     }),
   }));
-  const direct = (t.raw("direct") as ColumnLinkText[]).map((item, i) => ({ ...item, ...DIRECT_LINKS[i] }));
+  const direct = (t.raw("direct") as ColumnLinkText[]).map((item, i) => ({
+    ...item,
+    ...DIRECT_LINKS[i],
+  }));
 
   // País elegido persistido; se lee tras montar (evita mismatch SSR).
   useEffect(() => {

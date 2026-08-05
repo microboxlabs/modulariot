@@ -3,7 +3,11 @@
 // que CARD_IDS en UseCases.tsx: el texto vive en el JSON, lo que no es texto
 // (ids/hrefs) queda en código.
 
-export const MEGA_SECTIONS: { items: { icon: string; href: string }[] }[] = [
+import type { NavIconKey } from "./Nav";
+
+export const MEGA_SECTIONS: {
+  items: { icon: NavIconKey; href: string }[];
+}[] = [
   {
     items: [
       { icon: "signal", href: "/producto/ingesta-gps-core" },

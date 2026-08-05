@@ -13,6 +13,9 @@ interface SectionHeaderProps {
   lang?: string;
   rootIcon?: React.ReactNode;
   rightContent?: React.ReactNode;
+  /** When true, clicking the last breadcrumb crumb turns it into an editable text field. */
+  editableLastCrumb?: boolean;
+  onEditLastCrumb?: (value: string) => void;
 }
 
 export function SectionHeader({
@@ -23,6 +26,8 @@ export function SectionHeader({
   lang,
   rootIcon,
   rightContent,
+  editableLastCrumb,
+  onEditLastCrumb,
 }: Readonly<SectionHeaderProps>) {
   return (
     <div className="bg-white dark:bg-gray-900 w-full">
@@ -35,6 +40,8 @@ export function SectionHeader({
               rootIcon={rootIcon}
               dict={breadcrumbDict}
               disableLinks
+              editableLast={editableLastCrumb}
+              onEditLast={onEditLastCrumb}
             />
           ) : null
         )}

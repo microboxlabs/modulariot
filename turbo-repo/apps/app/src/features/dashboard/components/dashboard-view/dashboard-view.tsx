@@ -86,6 +86,7 @@ export function DashboardView() {
     isKiosk,
     isLoaded,
     dashboardName,
+    setDashboardName,
     dictionary,
     siteId,
     toggleEditMode,
@@ -294,6 +295,8 @@ export function DashboardView() {
           }
           lang={params.lang}
           filterDict={dictionary}
+          editableLastCrumb={editMode}
+          onEditLastCrumb={setDashboardName}
           leftContent={
             isLoaded ? undefined : (
               <div className="h-7 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />

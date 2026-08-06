@@ -1,0 +1,145 @@
+{
+  "stack_version": "0.5.44",
+  "stack_tag": "miot-stack@v0.5.44",
+  "milestone": "MIOT-0.5.44",
+  "pull_requests": [
+    {
+      "number": 1045,
+      "title": "feat(web): revisión RV + demo-led + trust bar de integraciones",
+      "source_issues": [
+        {
+          "number": 1104,
+          "title": "Refresh demo-led landing page and add integrations trust bar"
+        }
+      ]
+    },
+    {
+      "number": 1092,
+      "title": "Fixed recommendations on the spotlight search",
+      "source_issues": [
+        {
+          "number": 1108,
+          "title": "Add recommendations and persistent recent items to Spotlight search"
+        }
+      ]
+    },
+    {
+      "number": 1106,
+      "title": "Fixed naming in dashboard",
+      "source_issues": [
+        {
+          "number": 1107,
+          "title": "Enable inline dashboard renaming from breadcrumbs"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "turbo-repo/apps/app/src/features/common/components/Breadcrumb/Breadcrumb.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-view/dashboard-view.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/context/dashboard-context.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/section-header/section-header.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-empty-state.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-search.tsx",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/web/app/alpha-2506/[lang]/page.tsx",
+    "turbo-repo/apps/web/app/page.tsx",
+    "turbo-repo/apps/web/components/v2/GpsProviders.tsx",
+    "turbo-repo/apps/web/components/v2/ModuleTabs.tsx",
+    "turbo-repo/apps/web/components/v2/Nav.tsx",
+    "turbo-repo/apps/web/components/v2/StatsGrid.tsx",
+    "turbo-repo/apps/web/components/v2/StatsGrid.types.ts",
+    "turbo-repo/apps/web/components/v2/StepsInteractive.tsx",
+    "turbo-repo/apps/web/components/v2/TorreDeControl.tsx",
+    "turbo-repo/apps/web/components/v2/content.en.ts",
+    "turbo-repo/apps/web/components/v2/content.pt.ts",
+    "turbo-repo/apps/web/components/v2/content.ts",
+    "turbo-repo/apps/web/components/v2/partners-data.ts",
+    "turbo-repo/apps/web/components/v2/partners-data.types.ts",
+    "turbo-repo/apps/web/components/v2/sections/Partners.tsx",
+    "turbo-repo/apps/web/components/v2/sections/Security.tsx",
+    "turbo-repo/apps/web/components/v2/sections/Security.types.ts",
+    "turbo-repo/apps/web/components/v2/sections/Stats.tsx",
+    "turbo-repo/apps/web/components/v2/sections/TresActos.tsx",
+    "turbo-repo/apps/web/components/v2/sections/TrustedBy.tsx",
+    "turbo-repo/apps/web/components/v2/sections/shared.tsx",
+    "turbo-repo/apps/web/components/v2/torre-data.en.ts",
+    "turbo-repo/apps/web/components/v2/torre-data.pt.ts",
+    "turbo-repo/apps/web/components/v2/torre-data.ts",
+    "turbo-repo/apps/web/components/v2/torre-modules-data.en.ts",
+    "turbo-repo/apps/web/components/v2/torre-modules-data.pt.ts",
+    "turbo-repo/apps/web/components/v2/torre-modules-data.ts",
+    "turbo-repo/apps/web/messages/br.json",
+    "turbo-repo/apps/web/messages/en.json",
+    "turbo-repo/apps/web/messages/es.json",
+    "turbo-repo/apps/web/public/partners/aws.svg",
+    "turbo-repo/apps/web/public/partners/azure.svg",
+    "turbo-repo/apps/web/public/partners/bermann.png",
+    "turbo-repo/apps/web/public/partners/controlposition.svg",
+    "turbo-repo/apps/web/public/partners/copiloto.png",
+    "turbo-repo/apps/web/public/partners/digiplus.png",
+    "turbo-repo/apps/web/public/partners/epol.png",
+    "turbo-repo/apps/web/public/partners/galileo.svg",
+    "turbo-repo/apps/web/public/partners/gcloud.svg",
+    "turbo-repo/apps/web/public/partners/geoaustral.png",
+    "turbo-repo/apps/web/public/partners/gotrack.png",
+    "turbo-repo/apps/web/public/partners/gpschile.png",
+    "turbo-repo/apps/web/public/partners/gpsglobal.png",
+    "turbo-repo/apps/web/public/partners/isanto.png",
+    "turbo-repo/apps/web/public/partners/kausana.svg",
+    "turbo-repo/apps/web/public/partners/laxgps.webp",
+    "turbo-repo/apps/web/public/partners/michelin.png",
+    "turbo-repo/apps/web/public/partners/n8n.svg",
+    "turbo-repo/apps/web/public/partners/onelogis.png",
+    "turbo-repo/apps/web/public/partners/onway.svg",
+    "turbo-repo/apps/web/public/partners/position.png",
+    "turbo-repo/apps/web/public/partners/postgresql.svg",
+    "turbo-repo/apps/web/public/partners/pulsar.svg",
+    "turbo-repo/apps/web/public/partners/rastreosat.png",
+    "turbo-repo/apps/web/public/partners/rolbox.png",
+    "turbo-repo/apps/web/public/partners/samtech.png",
+    "turbo-repo/apps/web/public/partners/sicom.png",
+    "turbo-repo/apps/web/public/partners/sitrack.svg",
+    "turbo-repo/apps/web/public/partners/targa.png",
+    "turbo-repo/apps/web/public/partners/teams.svg",
+    "turbo-repo/apps/web/public/partners/tracktec.png",
+    "turbo-repo/apps/web/public/partners/visionid.png",
+    "turbo-repo/apps/web/public/partners/waypoint.png",
+    "turbo-repo/apps/web/public/partners/webex.svg",
+    "turbo-repo/apps/web/public/partners/webfleet.svg",
+    "turbo-repo/apps/web/public/partners/whatsapp.svg",
+    "turbo-repo/apps/web/public/partners/wisetrack.png"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.44",
+      "tag": "app@v0.5.44"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.42",
+      "version": "0.5.44",
+      "tag": "docs@v0.5.44"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.43",
+      "version": "0.5.44",
+      "tag": "web@v0.5.44"
+    },
+    "modulith": {
+      "changed": false,
+      "changed_since": "modulith@v0.5.26",
+      "version": "0.5.26",
+      "tag": "modulith@v0.5.26"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.5",
+      "version": "0.1.5",
+      "tag": "harness@v0.1.5"
+    }
+  }
+}

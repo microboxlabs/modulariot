@@ -9,7 +9,7 @@ export async function Stats({ lang, tone }: { lang: string; tone: Tone }) {
   const items = t.raw("items") as StatItem[];
   return (
     <Section tone={tone} contentClassName="py-14">
-      <StatsGrid items={items} />
+      <StatsGrid items={items} cols={3} align="center" />
     </Section>
   );
 }

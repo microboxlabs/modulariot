@@ -177,7 +177,7 @@
     }
   },
   "hero": {
-    "kicker": "Código Abierto · Apache-2.0",
+    "kicker": "Código abierto — motor y datos auditables",
     "titlePre": "De detectar a ",
     "titleHighlight": "reducir",
     "titlePost": ".",
@@ -186,7 +186,7 @@
     "ctaSecondary": "Ver precios",
     "livePanel": {
       "title": "Operación en vivo",
-      "subtitle": "una operación real, ahora mismo",
+      "subtitle": "así opera, en tiempo real",
       "live": "recibiendo eventos…",
       "done": "todo queda en tu operación",
       "events": [
@@ -215,12 +215,7 @@
       {
         "prefix": "Hasta",
         "value": "55.847",
-        "label": "síntomas gestionados en un mes"
-      },
-      {
-        "prefix": "Un",
-        "value": "65%",
-        "label": "de las alertas tratadas se invalidan"
+        "label": "síntomas detectados en un mes"
       },
       {
         "prefix": "Con",
@@ -237,7 +232,7 @@
   "problem": {
     "kicker": "El problema",
     "title": "¿Tratas las alertas,\npero vuelven a aparecer igual?",
-    "subtitle": "El 97% de los síntomas se trata, pero tratar no resuelve la causa, por eso las mismas desviaciones vuelven mes a mes.",
+    "subtitle": "En promedio un 10.5% de los síntomas detectados en un mes requieren gestión, el restante solo es ruido que tapa lo urgente.\n\nY los que se tratan, la mitad solo generan un cierre de ticket, pero la desviación vuelve mes a mes.",
     "pains": [
       {
         "title": "“Me avisaron al día siguiente”",
@@ -255,14 +250,14 @@
   },
   "tresActos": {
     "kicker": "La tesis, en 3 actos",
-    "title": "Detectar es barato; reducir es el negocio.",
+    "title": "Detectar es commodity,\nreducir es el negocio",
     "subtitle": "El mismo motor de inteligencia, aplicado en tres momentos distintos de tu operación.",
     "actos": [
       {
         "n": "Acto 1",
         "tag": "Ver y reducir",
         "title": "Tratas cada alerta, pero las desviaciones vuelven igual.",
-        "body": "97% de los síntomas se trata… y la mayoría se invalida. Cerrar no es resolver: atacamos la causa que los genera en serie, no el ticket.",
+        "body": "La Torre de Control agrupa los síntomas por causa raíz, no por ticket: ves los patrones repetidos y mides si la desviación realmente bajó.",
         "cta": "Explora la torre de control"
       },
       {
@@ -275,17 +270,15 @@
       {
         "n": "Acto 3",
         "tag": "Gestionar donde vive la operación",
-        "title": "La alerta llega con plan y dueño.",
+        "title": "El síntoma llega con plan y dueño.",
         "body": "Correo, WhatsApp, Teams, Webex o SMS. Escalar deja de ser un aviso y pasa a ser el primer paso de la gestión.",
         "cta": "Ver canales de escalamiento"
       }
-    ],
-    "disclaimer": "Lo que ves en el explorador es una operación real (junio 2026), no una maqueta."
+    ]
   },
   "steps": {
     "kicker": "En la práctica",
     "title": "Transforma una señal cruda en una decisión auditable",
-    "subtitle": "Sigue el flujo de tus alertas, paso a paso.",
     "items": [
       {
         "n": "01",
@@ -377,7 +370,7 @@
         "bullets": [
           "Canal según el tipo de síntoma",
           "Ciclo bidireccional, no solo notificar",
-          "Cada alerta llega con plan y dueño"
+          "Cada síntoma llega con plan y dueño"
         ]
       }
     ]
@@ -408,8 +401,8 @@
   },
   "useCases": {
     "kicker": "Casos de uso",
-    "title": "Cuatro cajas de procesamiento. Contratas solo las que necesitas.",
-    "subtitle": "Arquitectura modular sin dependencia de proveedor: cada caja es un servicio independiente con precio propio por activo.",
+    "title": "Cuatro módulos. Contratas solo los que necesitas.",
+    "subtitle": "Arquitectura modular sin dependencia de proveedor: cada módulo es un servicio independiente con precio propio por activo.",
     "cards": [
       {
         "title": "Ingesta GPS Core",
@@ -444,7 +437,7 @@
         "bullets": [
           "Streaming HLS 24h continuo",
           "Frames desde cámaras y dashcams",
-          "Contexto visual de cada alerta"
+          "Contexto visual de cada síntoma"
         ]
       }
     ]
@@ -483,8 +476,8 @@
         "label": "activos en operación real"
       },
       {
-        "value": "97%",
-        "label": "de síntomas con gestión"
+        "value": "3.583",
+        "label": "tratamientos válidos en un mes"
       },
       {
         "value": "36",
@@ -520,8 +513,8 @@
   },
   "deployment": {
     "kicker": "Implementación",
-    "title": "En vivo en días, no meses.",
-    "subtitle": "Una puesta en marcha gestionada por MicroBox Labs: nosotros operamos la infraestructura, tú te enfocas en la operación.",
+    "title": "En vivo en días, no meses",
+    "subtitle": "Una puesta en marcha gestionada por MicroboxLabs: nosotros operamos la infraestructura, tú te enfocas en la operación.",
     "soonLabel": "Próximamente",
     "includes": [
       {
@@ -538,11 +531,11 @@
       },
       {
         "title": "Canales de tu operación",
-        "body": "Correo, WhatsApp, Teams, Webex y SMS conectados para que la alerta llegue donde vive el equipo."
+        "body": "Correo, WhatsApp, Teams, Webex y SMS conectados para que el síntoma llegue donde vive el equipo."
       },
       {
         "title": "Puesta en marcha gestionada",
-        "body": "MicroBox Labs opera y acompaña la operación, sin overhead de DevOps de tu lado."
+        "body": "MicroboxLabs opera y acompaña la operación, sin overhead de DevOps de tu lado."
       },
       {
         "title": "Monitoreo, soporte y actualizaciones",
@@ -550,10 +543,23 @@
       }
     ]
   },
+  "security": {
+    "kicker": "Seguridad & datos",
+    "title": "Tus datos, bajo tus reglas",
+    "subtitle": "Lo que de-riesga la decisión: dónde viven los datos, quién los trata y qué respaldo hay detrás.",
+    "items": [
+      { "title": "Tus datos, en tu nube", "body": "La plataforma corre en tu infraestructura (AWS, Azure o GCP). Los datos nunca salen de tu control." },
+      { "title": "Encargado de tratamiento", "body": "MicroboxLabs procesa los datos por cuenta tuya: confidencialidad, sub-encargados declarados y borrado a la salida." },
+      { "title": "Ley 19.628 y GDPR", "body": "Marco de tratamiento alineado a la normativa chilena y europea de protección de datos." },
+      { "title": "Código abierto auditable", "body": "El motor es open source (Apache-2.0): puedes auditar qué hace con tus datos, línea por línea." },
+      { "title": "Trazabilidad para auditorías", "body": "Cada síntoma queda registrado con timestamp, responsable y resolución en tu propia base." },
+      { "title": "Soporte con SLA", "body": "Severidades y tiempos de respuesta comprometidos, con monitoreo continuo de la plataforma." }
+    ]
+  },
   "pricingTeaser": {
     "kicker": "Precios",
     "title": "Paga por activo, solo por lo que usas",
-    "subtitle": "Sin licencias por asiento, sin costos de instalación. Cada caja de procesamiento tiene precio propio por activo/mes. Arma tu plan con la calculadora.",
+    "subtitle": "Sin licencias por asiento, sin costos de instalación. Cada módulo tiene precio propio por activo/mes. Arma tu plan con la calculadora.",
     "cta": "Calcula el precio de tu flota"
   },
   "pricing": {
@@ -595,7 +601,7 @@
       }
     },
     "calculator": {
-      "filterLabel": "Filtra por familia operacional y elige las cajas que necesitas",
+      "filterLabel": "Filtra por familia operacional y elige los módulos que necesitas",
       "allChip": "Todas",
       "fleetTitle": "Tamaño de flota del cliente",
       "fleetDesc": "Ajusta la flota para estimar el precio por activo.",
@@ -603,10 +609,10 @@
       "allFamilies": "Todas las familias",
       "baseIncluded": "Base · incluido",
       "perAssetMonth": "por activo/mes",
-      "boxLabel": "Caja interna",
+      "boxLabel": "Módulo interno",
       "volMonth": "Vol/mes",
       "pricePerAsset": "$/activo",
-      "selectedBoxes": "Cajas seleccionadas",
+      "selectedBoxes": "Módulos seleccionados",
       "of": "de",
       "fleetOfClient": "Flota del cliente",
       "totalMonthly": "Total mensual",
@@ -620,11 +626,11 @@
     "philosophy": [
       {
         "title": "Paga solo por lo que usas",
-        "body": "Contratas cajas de procesamiento independientes. Si no usas video o integraciones, no las pagas."
+        "body": "Contratas módulos independientes. Si no usas video o integraciones, no las pagas."
       },
       {
         "title": "Precio por activo, transparente",
-        "body": "Un precio fijo por activo/mes por cada caja. Sin sorpresas, sin costos de instalación, sin permanencia mínima."
+        "body": "Un precio fijo por activo/mes por cada módulo. Sin sorpresas, sin costos de instalación, sin permanencia mínima."
       },
       {
         "title": "Basado en costos reales",
@@ -636,7 +642,7 @@
       "items": [
         {
           "q": "¿Cómo se cobra el servicio?",
-          "a": "Suscripción mensual por activo monitoreado, según las cajas de procesamiento que contrates. La propuesta final se entrega después del diagnóstico gratuito."
+          "a": "Suscripción mensual por activo monitoreado, según los módulos que contrates. La propuesta final se entrega después del diagnóstico gratuito."
         },
         {
           "q": "¿Los precios de la calculadora son finales?",
@@ -644,11 +650,11 @@
         },
         {
           "q": "¿Hay costos de instalación o permanencia mínima?",
-          "a": "No. La integración con tu tecnología actual está incluida y puedes ajustar o cancelar las cajas contratadas mes a mes."
+          "a": "No. La integración con tu tecnología actual está incluida y puedes ajustar o cancelar los módulos contratados mes a mes."
         },
         {
-          "q": "¿Qué incluye cada caja?",
-          "a": "Cada caja es un servicio completo: infraestructura, procesamiento, panel de gestión y soporte. La caja de Ingesta GPS Core es la base sobre la que operan las demás."
+          "q": "¿Qué incluye cada módulo?",
+          "a": "Cada módulo es un servicio completo: infraestructura, procesamiento, panel de gestión y soporte. El módulo de Ingesta GPS Core es la base sobre la que operan las demás."
         }
       ]
     },
@@ -716,7 +722,7 @@
     "producto/ingesta-gps-core": {
       "eyebrow": "Producto · Ingesta GPS Core",
       "title": "Cada señal de tu flota, en tu nube, en milisegundos",
-      "subtitle": "La caja base de ModularIoT. Recibe cada ping GPS, valor de sensor y evento del conductor —sin importar el proveedor del hardware— y lo entrega a tu propia infraestructura en tiempo real.",
+      "subtitle": "El módulo base de ModularIoT. Recibe cada ping GPS, valor de sensor y evento del conductor —sin importar el proveedor del hardware— y lo entrega a tu propia infraestructura en tiempo real.",
       "blocks": [
         {
           "kicker": "Qué hace",
@@ -736,7 +742,7 @@
           "cards": [
             {
               "title": "Cualquier hardware",
-              "body": "Adaptadores universales para proveedores GPS (Redd, Samtech, GAMA y más). No cambias tus dispositivos."
+              "body": "Adaptadores universales para +28 proveedores GPS. No cambias tus dispositivos."
             },
             {
               "title": "Latencia < 56 ms",
@@ -896,7 +902,7 @@
             "Bóveda de evidencia documental (gestor ECM)",
             "API gateway para exponer y consumir servicios",
             "Servidor MCP para agentes de IA",
-            "Automatización de GAMA, RFID y procesos a medida"
+            "Automatización de flujos a medida: ingesta de proveedores, RFID y procesos propios"
           ]
         },
         {
@@ -924,7 +930,7 @@
               "body": "Conecta agentes de IA a tu operación para consultas y acciones asistidas."
             },
             {
-              "title": "GAMA / RFID",
+              "title": "Flujos a medida",
               "body": "Ingesta de proveedores y validación de etiquetas RFID vía flujos automatizados."
             }
           ]
@@ -1061,7 +1067,7 @@
           "cards": [
             {
               "title": "Modular",
-              "body": "Cada caja es un servicio independiente. Contratas y escalas solo lo que usas."
+              "body": "Cada módulo es un servicio independiente. Contratas y escalas solo lo que usas."
             },
             {
               "title": "Soberana",
@@ -1078,7 +1084,7 @@
     "producto/implementacion": {
       "eyebrow": "Producto · Implementación",
       "title": "Elige el modelo que se adapta a tu operación",
-      "subtitle": "Tu nube, gestionado por MicroBox Labs o edge híbrido. La misma plataforma, el nivel de control y cumplimiento que necesitas.",
+      "subtitle": "Tu nube, gestionado por MicroboxLabs o edge híbrido. La misma plataforma, el nivel de control y cumplimiento que necesitas.",
       "blocks": [
         {
           "kicker": "Opciones",
@@ -1216,7 +1222,7 @@
               "body": "Plataforma de código abierto bajo licencia Apache-2.0. Explora, contribuye, danos una estrella."
             },
             {
-              "title": "MicroBox Labs",
+              "title": "MicroboxLabs",
               "body": "Conoce a la empresa detrás de ModularIoT y el resto del portafolio."
             },
             {

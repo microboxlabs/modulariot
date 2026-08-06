@@ -1,13 +1,12 @@
 import { Hero } from "../../../components/v2/sections/Hero";
-import { TrustedBy } from "../../../components/v2/sections/TrustedBy";
 import { Stats } from "../../../components/v2/sections/Stats";
+import { Partners } from "../../../components/v2/sections/Partners";
 import { Problem } from "../../../components/v2/sections/Problem";
 import { TresActos } from "../../../components/v2/sections/TresActos";
 import { Features } from "../../../components/v2/sections/Features";
-import { UseCases } from "../../../components/v2/sections/UseCases";
-import { Confiabilidad } from "../../../components/v2/sections/Confiabilidad";
 import { PainOutcome } from "../../../components/v2/sections/PainOutcome";
 import { Deployment } from "../../../components/v2/sections/Deployment";
+import { Security } from "../../../components/v2/sections/Security";
 import { Stories } from "../../../components/v2/sections/Stories";
 import { FinalCta } from "../../../components/v2/sections/FinalCta";
 import { type Tone } from "../../../components/v2/sections/shared";
@@ -35,6 +34,8 @@ export default async function Home({
     <main>
       <Hero lang={lang} tone={tone()} /> {/* Gancho */}
       <Stats lang={lang} tone={tone()} />{" "}
+      {/* Trust bar: cliente real + proveedores GPS integrados (carrusel) */}
+      <Partners lang={lang} tone={tone()} />{" "}
       {/* Validación / cuantificación (banda oscura) */}
       <Problem lang={lang} tone={tone()} />{" "}
       {/* Problema emocional (We Got You) */}
@@ -43,15 +44,12 @@ export default async function Home({
       <StepsInteractive tone={tone()} />{" "}
       {/* Demostración paso a paso (autoreproducida) */}
       <Features lang={lang} tone={tone()} /> {/* Solución: 3 capacidades */}
-      <UseCases lang={lang} tone={tone()} />{" "}
-      {/* Las 4 cajas de procesamiento */}
-      <Confiabilidad base={base} tone={tone()} />{" "}
-      {/* Precisión de señal: 12/20 pulsos/min (minería) */}
       <PainOutcome lang={lang} tone={tone()} />{" "}
       {/* Diferenciación: rentar vs poseer */}
       <Deployment lang={lang} tone={tone()} />{" "}
+      {/* Seguridad & datos: de-riesgo de la decisión (motion demo-led) */}
+      <Security lang={lang} tone={tone()} />{" "}
       {/* Opciones de implementación */}
-      <TrustedBy lang={lang} tone={tone()} /> {/* Confianza: cliente */}
       <Stories lang={lang} tone={tone()} /> {/* Prueba social: casos reales */}
       <FAQ tone={tone()} /> {/* Objeciones */}
       <FinalCta lang={lang} base={base} tone={tone()} /> {/* Cierre */}

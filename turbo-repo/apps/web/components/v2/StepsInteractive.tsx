@@ -61,7 +61,6 @@ export default function StepsInteractive({ tone }: { tone: Tone }) {
       <div className="max-w-[720px]">
         <Eyebrow>{t("kicker")}</Eyebrow>
         <h2 className="display mt-4 text-[clamp(30px,3.8vw,46px)] leading-[1.1]">{t("title")}</h2>
-        <p className="mt-4 max-w-[56ch] text-[17px] leading-relaxed text-ink-2">{t("subtitle")}</p>
       </div>
 
       <div

@@ -64,6 +64,7 @@ export default async function SecuredLayout({
           <FooterSecuredLayout messages={dict} />
         </KioskShell>
       </SidebarProvider>
+      
     </RuntimeConfigProvider>
   );
 }

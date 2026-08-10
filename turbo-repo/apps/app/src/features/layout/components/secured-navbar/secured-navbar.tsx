@@ -13,6 +13,7 @@ import { twMerge } from "tailwind-merge";
 import { usePathname } from "next/navigation";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import NotificationBell from "@/features/integration-jobs/components/notification-bell";
+import HarnessChatToggleButton from "@/features/harness-chat/harness-chat-toggle-button";
 import SpotlightSearch from "./spotlight-search/spotlight-search";
 import OrgSwitcher from "./org-switcher/org-switcher";
 // import { Filter } from "flowbite-react-icons/outline";
@@ -179,6 +180,7 @@ export function SecuredNavbar({
           </div>
           <div className="flex items-center justify-end gap-2 w-full">
             <OrgSwitcher dict={dict} />
+            <HarnessChatToggleButton />
             {!pathname.includes("/notifications") && (
               <NotificationBell dict={dict} />
             )}

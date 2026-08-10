@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import { useHarnessChatContext } from "@/features/harness-chat/context/harness-chat-context";
 import { BsStars } from "react-icons/bs";
 import { HiArrowRight, HiSearch } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -151,14 +152,20 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
   // selectableCountRef: ArrowDown bound in the keyboard handler
   // selectableItemsRef: Enter key → item lookup by index
   // handleSelectRef:    break circular dep between state hook and handleSelect
+  // openChatRef:        same — needs `close` from useSpotlightState's own return
   const selectableCountRef = useRef(0);
   const selectableItemsRef = useRef<SpotlightItem[]>([]);
   const handleSelectRef    = useRef<((item: SpotlightItem) => void) | null>(null);
+  const openChatRef        = useRef<(() => void) | null>(null);
 
   // Stable Enter handler — reads from refs so it never goes stale.
   const handleEnterSelect = useCallback((index: number) => {
     const item = selectableItemsRef.current[Math.max(index, 0)];
     if (item) handleSelectRef.current?.(item);
+  }, []);
+
+  const handleOpenChat = useCallback(() => {
+    openChatRef.current?.();
   }, []);
 
   // ── Core state ────────────────────────────────────────────────────────────
@@ -171,7 +178,19 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
     navigateItems,
     selectableCountRef,
     onEnterSelect: handleEnterSelect,
+    onOpenChat: handleOpenChat,
   });
+
+  // ── Open the harness chat side panel with the typed query as the first
+  //    message (⌘/Ctrl+Enter or the inline input button) ────────────────────
+  const harnessChat = useHarnessChatContext();
+  const handleOpenChatAction = useCallback(() => {
+    const text = query.trim();
+    if (!text) return;
+    harnessChat.openWithMessage(text);
+    close();
+  }, [harnessChat, close, query]);
+  openChatRef.current = handleOpenChatAction;
 
   // ── Harness url opener — relative paths navigate in-app (locale-aware),
   //    absolute http(s) urls open a new tab ──────────────────────────────────
@@ -363,6 +382,8 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
                 ModeIcon={ModeIcon}
                 iconColor={iconColor}
                 iconBg={iconBg}
+                showOpenChat={!isEmpty}
+                onOpenChat={handleOpenChatAction}
               />
 
               <div className="border-t border-gray-100 dark:border-gray-700" />

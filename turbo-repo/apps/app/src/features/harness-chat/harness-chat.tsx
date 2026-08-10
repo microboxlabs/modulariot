@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FC } from "react";
+import { useCallback, useEffect, useRef, useState, type FC } from "react";
 import {
   AssistantRuntimeProvider,
+  useAui,
   useAuiState,
   useLocalRuntime,
 } from "@assistant-ui/react";
@@ -21,28 +22,47 @@ import { harnessAttachmentAdapter } from "./harness-chat-attachments";
 import { useHarnessChatContext } from "./context/harness-chat-context";
 import { Thread } from "./thread";
 
-type Session = { id: string; createdAt: number; title: string | null };
+type Session = {
+  id: string;
+  createdAt: number;
+  title: string | null;
+  initialMessage: string | null;
+};
 type View = "chat" | "history";
 
-function createSession(): Session {
-  return { id: crypto.randomUUID(), createdAt: Date.now(), title: null };
+function createSession(initialMessage: string | null = null): Session {
+  return {
+    id: crypto.randomUUID(),
+    createdAt: Date.now(),
+    title: null,
+    initialMessage,
+  };
 }
 
 const headerButtonClass =
   "flex h-6 w-6 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100";
 
 export default function HarnessChat() {
-  const { isOpen, close } = useHarnessChatContext();
+  const { isOpen, close, pendingMessage, clearPendingMessage } =
+    useHarnessChatContext();
   const [sessions, setSessions] = useState<Session[]>(() => [createSession()]);
   const [activeId, setActiveId] = useState(() => sessions[0].id);
   const [view, setView] = useState<View>("chat");
 
-  const newChat = useCallback(() => {
-    const session = createSession();
+  const newChat = useCallback((initialMessage: string | null = null) => {
+    const session = createSession(initialMessage);
     setSessions((prev) => [session, ...prev]);
     setActiveId(session.id);
     setView("chat");
   }, []);
+
+  // A search-bar "open chat" action landed while we were mounted — start a
+  // fresh conversation with that text as the first (auto-sent) message.
+  useEffect(() => {
+    if (!pendingMessage) return;
+    newChat(pendingMessage);
+    clearPendingMessage();
+  }, [pendingMessage, newChat, clearPendingMessage]);
 
   const selectSession = useCallback((id: string) => {
     setActiveId(id);
@@ -110,7 +130,7 @@ export default function HarnessChat() {
           )}
           <button
             type="button"
-            onClick={newChat}
+            onClick={() => newChat()}
             aria-label="New chat"
             className={headerButtonClass}
           >
@@ -140,6 +160,7 @@ export default function HarnessChat() {
               key={session.id}
               sessionId={session.id}
               active={session.id === activeId}
+              initialMessage={session.initialMessage}
               onTitleChange={updateSessionTitle}
             />
           ))}
@@ -152,8 +173,9 @@ export default function HarnessChat() {
 const SessionHost: FC<{
   sessionId: string;
   active: boolean;
+  initialMessage: string | null;
   onTitleChange: (id: string, title: string | null) => void;
-}> = ({ sessionId, active, onTitleChange }) => {
+}> = ({ sessionId, active, initialMessage, onTitleChange }) => {
   const runtime = useLocalRuntime(harnessChatAdapter, {
     adapters: { attachments: harnessAttachmentAdapter },
   });
@@ -165,10 +187,27 @@ const SessionHost: FC<{
     >
       <AssistantRuntimeProvider runtime={runtime}>
         <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
+        <InitialMessageSender initialMessage={initialMessage} />
         <Thread />
       </AssistantRuntimeProvider>
     </div>
   );
+};
+
+const InitialMessageSender: FC<{ initialMessage: string | null }> = ({
+  initialMessage,
+}) => {
+  const aui = useAui();
+  const sentRef = useRef(false);
+
+  useEffect(() => {
+    if (!initialMessage || sentRef.current) return;
+    sentRef.current = true;
+    aui.composer.setText(initialMessage);
+    aui.composer.send();
+  }, [initialMessage, aui]);
+
+  return null;
 };
 
 const SessionTitleWatcher: FC<{

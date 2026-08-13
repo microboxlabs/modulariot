@@ -1,3 +1,5 @@
+"use client";
+
 import {
   LuChartBar,
   LuClipboardList,
@@ -6,16 +8,15 @@ import {
   LuMessageCircleQuestion,
   LuSearch,
 } from "react-icons/lu";
-import type { IconType } from "react-icons";
+import HarnessChat from "@/features/harness-chat/harness-chat";
+import type { HarnessSkill } from "@/features/harness-chat/harness-chat-types";
 
-export type HarnessSkill = {
-  id: string;
-  label: string;
-  description: string;
-  icon: IconType;
-};
-
-export const HARNESS_SKILLS: HarnessSkill[] = [
+/**
+ * Placeholder skills for exercising the harness chat's slash-command menu
+ * before the harness has a real, backend-driven skill list to offer —
+ * replace this array (or wire it up to a real source) when that lands.
+ */
+const TEST_HARNESS_SKILLS: HarnessSkill[] = [
   {
     id: "search",
     label: "search",
@@ -53,3 +54,7 @@ export const HARNESS_SKILLS: HarnessSkill[] = [
     icon: LuLightbulb,
   },
 ];
+
+export default function HarnessChatMount() {
+  return <HarnessChat skills={TEST_HARNESS_SKILLS} />;
+}

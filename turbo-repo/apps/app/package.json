@@ -25,8 +25,10 @@
     "upgrade": "next upgrade"
   },
   "dependencies": {
+    "@ag-ui/client": "^0.0.57",
     "@alfresco/js-api": "^9.0.0",
     "@assistant-ui/react": "^0.15.5",
+    "@assistant-ui/react-ag-ui": "^0.0.54",
     "@auth/core": "0.41.3",
     "@deck.gl/core": "9.2.6",
     "@deck.gl/mapbox": "9.2.6",

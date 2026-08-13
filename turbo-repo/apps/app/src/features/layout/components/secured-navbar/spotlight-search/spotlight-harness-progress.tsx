@@ -11,7 +11,7 @@ export interface HarnessProgressLabels {
 
 function StepSpinner() {
   return (
-    <span className="h-3 w-3 shrink-0 rounded-full border-2 border-orange-300 border-t-transparent animate-spin dark:border-orange-500 dark:border-t-transparent" />
+    <span className="h-3 w-3 shrink-0 rounded-full border-2 border-amber-300 border-t-transparent animate-spin dark:border-amber-500 dark:border-t-transparent" />
   );
 }
 
@@ -30,8 +30,8 @@ export function SpotlightHarnessProgress({
   return (
     <output aria-live="polite" className="block px-4 py-2.5">
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-orange-50 dark:bg-orange-900/30 ring-1 ring-inset ring-black/6 dark:ring-white/10 animate-harness-think">
-          <BsStars className="h-3 w-3 text-orange-500 dark:text-orange-400" />
+        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-linear-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)] ring-1 ring-inset ring-black/6 dark:ring-white/10 animate-harness-think">
+          <BsStars className="h-3 w-3 text-white" />
         </div>
 
         <div className="min-w-0 flex-1 flex flex-col gap-1.5 pt-0.5">

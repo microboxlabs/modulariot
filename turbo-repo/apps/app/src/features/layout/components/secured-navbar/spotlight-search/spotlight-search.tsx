@@ -50,13 +50,13 @@ const KIND_ICONS: Record<SpotlightResultKind, IconConfig> = {
   },
   harness: {
     icon: BsStars,
-    iconColor: "text-orange-500 dark:text-orange-400",
-    iconBg: "bg-orange-50 dark:bg-orange-900/30",
+    iconColor: "text-white",
+    iconBg: "bg-linear-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)]",
   },
   "harness-goto": {
     icon: HiArrowRight,
-    iconColor: "text-orange-500 dark:text-orange-400",
-    iconBg: "bg-orange-50 dark:bg-orange-900/30",
+    iconColor: "text-white",
+    iconBg: "bg-linear-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)]",
   },
 };
 

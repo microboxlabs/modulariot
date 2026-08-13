@@ -1,34 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FC } from "react";
-import {
-  AssistantRuntimeProvider,
-  useAui,
-  useAuiState,
-  useLocalRuntime,
-} from "@assistant-ui/react";
-import { Checkbox } from "flowbite-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FC } from "react";
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+import { HttpAgent } from "@ag-ui/client";
 import { twMerge } from "tailwind-merge";
-import {
-  LuArrowLeft,
-  LuHistory,
-  LuPlus,
-  LuSparkles,
-  LuTrash2,
-  LuX,
-} from "react-icons/lu";
-import { harnessChatAdapter } from "./harness-chat-adapter";
+import { LuArrowLeft, LuHistory, LuPlus, LuSparkles, LuX } from "react-icons/lu";
 import { harnessAttachmentAdapter } from "./harness-chat-attachments";
 import { useHarnessChatContext } from "./context/harness-chat-context";
+import { buildHarnessToolkit, type HarnessExtension } from "./harness-extension";
+import { DEFAULT_HARNESS_EXTENSIONS } from "./extensions";
+import { HistoryList } from "./components/history-list";
+import { InitialMessageSender } from "./components/initial-message-sender";
+import { SessionTitleWatcher } from "./components/session-title-watcher";
+import type { HarnessSkill, Session, View } from "./harness-chat-types";
 import { Thread } from "./thread";
-
-type Session = {
-  id: string;
-  createdAt: number;
-  title: string | null;
-  initialMessage: string | null;
-};
-type View = "chat" | "history";
 
 function createSession(initialMessage: string | null = null): Session {
   return {
@@ -42,7 +28,18 @@ function createSession(initialMessage: string | null = null): Session {
 const headerButtonClass =
   "flex h-6 w-6 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100";
 
-export default function HarnessChat() {
+export default function HarnessChat({
+  extensions = DEFAULT_HARNESS_EXTENSIONS,
+  skills,
+}: {
+  extensions?: HarnessExtension[];
+  /**
+   * Slash-command skills the composer's "/" menu offers. No built-in
+   * default — the caller owns this list (e.g. wire it to the harness's
+   * real skill set once available).
+   */
+  skills: HarnessSkill[];
+}) {
   const { isOpen, close, pendingMessage, clearPendingMessage } =
     useHarnessChatContext();
   const [sessions, setSessions] = useState<Session[]>(() => [createSession()]);
@@ -160,8 +157,11 @@ export default function HarnessChat() {
               key={session.id}
               sessionId={session.id}
               active={session.id === activeId}
+              shouldFocus={isOpen && view === "chat"}
               initialMessage={session.initialMessage}
               onTitleChange={updateSessionTitle}
+              extensions={extensions}
+              skills={skills}
             />
           ))}
         </div>
@@ -173,149 +173,62 @@ export default function HarnessChat() {
 const SessionHost: FC<{
   sessionId: string;
   active: boolean;
+  shouldFocus: boolean;
   initialMessage: string | null;
   onTitleChange: (id: string, title: string | null) => void;
-}> = ({ sessionId, active, initialMessage, onTitleChange }) => {
-  const runtime = useLocalRuntime(harnessChatAdapter, {
+  extensions: HarnessExtension[];
+  skills: HarnessSkill[];
+}> = ({
+  sessionId,
+  active,
+  shouldFocus,
+  initialMessage,
+  onTitleChange,
+  extensions,
+  skills,
+}) => {
+  // One agent instance per session — its conversation state (threadId, the
+  // harness's round-tripped conversationId) shouldn't leak across concurrent
+  // chat sessions.
+  const agent = useMemo(
+    () => new HttpAgent({ url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/chat/stream` }),
+    [],
+  );
+  const runtime = useAgUiRuntime({
+    agent,
     adapters: { attachments: harnessAttachmentAdapter },
   });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const toolkit = useMemo(() => buildHarnessToolkit(extensions), [extensions]);
+
+  // Panel just opened (button or ⌘/Ctrl+C) while this is the active session —
+  // send focus straight to the composer input. When it closes (or this stops
+  // being the active session) again, blur it back out — otherwise keystrokes
+  // typed elsewhere would silently land in the now-hidden textarea.
+  useEffect(() => {
+    const textarea = containerRef.current?.querySelector("textarea");
+    if (!textarea) return;
+    if (active && shouldFocus) {
+      textarea.focus();
+    } else if (document.activeElement === textarea) {
+      textarea.blur();
+    }
+  }, [active, shouldFocus]);
 
   return (
     <div
+      ref={containerRef}
       data-session-active={active}
       className={twMerge("flex min-h-0 flex-1 flex-col", !active && "hidden")}
     >
-      <AssistantRuntimeProvider runtime={runtime}>
+      <AssistantRuntimeProvider
+        runtime={runtime}
+        config={AuiConfig({ tools: Tools({ toolkit }) })}
+      >
         <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
         <InitialMessageSender initialMessage={initialMessage} />
-        <Thread />
+        <Thread skills={skills} />
       </AssistantRuntimeProvider>
-    </div>
-  );
-};
-
-const InitialMessageSender: FC<{ initialMessage: string | null }> = ({
-  initialMessage,
-}) => {
-  const aui = useAui();
-  const sentRef = useRef(false);
-
-  useEffect(() => {
-    if (!initialMessage || sentRef.current) return;
-    sentRef.current = true;
-    aui.composer.setText(initialMessage);
-    aui.composer.send();
-  }, [initialMessage, aui]);
-
-  return null;
-};
-
-const SessionTitleWatcher: FC<{
-  sessionId: string;
-  onTitleChange: (id: string, title: string | null) => void;
-}> = ({ sessionId, onTitleChange }) => {
-  const messages = useAuiState((s) => s.thread.messages);
-
-  useEffect(() => {
-    const firstUser = messages.find((m) => m.role === "user");
-    const text = firstUser?.content.find((part) => part.type === "text")?.text;
-    onTitleChange(sessionId, text?.trim() ? text : null);
-  }, [messages, onTitleChange, sessionId]);
-
-  return null;
-};
-
-const HistoryList: FC<{
-  sessions: Session[];
-  activeId: string;
-  onSelect: (id: string) => void;
-  onDelete: (ids: string[]) => void;
-}> = ({ sessions, activeId, onSelect, onDelete }) => {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
-
-  const toggleOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const allSelected = sessions.length > 0 && selectedIds.size === sessions.length;
-
-  const toggleSelectAll = () => {
-    setSelectedIds(allSelected ? new Set() : new Set(sessions.map((s) => s.id)));
-  };
-
-  const deleteSelected = () => {
-    onDelete(Array.from(selectedIds));
-    setSelectedIds(new Set());
-  };
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-3 py-1.5 dark:border-gray-800">
-        <label className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
-          <Checkbox checked={allSelected} onChange={toggleSelectAll} />
-          Select all
-        </label>
-        <button
-          type="button"
-          onClick={deleteSelected}
-          disabled={selectedIds.size === 0}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-red-600 hover:bg-red-50 disabled:pointer-events-none disabled:text-gray-300 dark:text-red-400 dark:hover:bg-red-900/20 dark:disabled:text-gray-600"
-        >
-          <LuTrash2 className="h-3 w-3" />
-          {selectedIds.size > 0 ? `Delete (${selectedIds.size})` : "Delete"}
-        </button>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
-        {sessions.map((session) => (
-          <div
-            key={session.id}
-            className={twMerge(
-              "group flex items-center gap-1.5 rounded-md pl-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700",
-              session.id === activeId && "bg-gray-50 dark:bg-gray-700"
-            )}
-          >
-            <Checkbox
-              checked={selectedIds.has(session.id)}
-              onChange={() => toggleOne(session.id)}
-              onClick={(e) => e.stopPropagation()}
-              className="shrink-0"
-            />
-            <button
-              type="button"
-              onClick={() => onSelect(session.id)}
-              className={twMerge(
-                "flex min-w-0 flex-1 items-center justify-between gap-2 px-1 py-2 text-left text-xs text-gray-600 dark:text-gray-300",
-                session.id === activeId && "font-medium text-gray-900 dark:text-white"
-              )}
-            >
-              <span className="truncate">{session.title ?? "Empty chat"}</span>
-              <span className="shrink-0 text-[10px] text-gray-400">
-                {new Date(session.createdAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete([session.id]);
-              }}
-              aria-label="Delete chat"
-              className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 opacity-0 transition-opacity hover:bg-gray-200 hover:text-gray-700 group-hover:opacity-100 dark:hover:bg-gray-600 dark:hover:text-gray-100"
-            >
-              <LuTrash2 className="h-3 w-3" />
-            </button>
-          </div>
-        ))}
-      </div>
     </div>
   );
 };

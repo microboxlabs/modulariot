@@ -1,5 +1,3 @@
-import type { IconType } from "react-icons";
-
 export type Session = {
   id: string;
   createdAt: number;
@@ -14,5 +12,4 @@ export type HarnessSkill = {
   id: string;
   label: string;
   description: string;
-  icon: IconType;
 };

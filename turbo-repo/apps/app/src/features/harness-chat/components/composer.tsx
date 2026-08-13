@@ -219,27 +219,21 @@ const SlashMenu: FC<{
   onSelect: (skill: HarnessSkill) => void;
 }> = ({ skills, highlighted, onHover, onSelect }) => (
   <div className="absolute bottom-full left-0 right-0 z-10 mb-2 max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
-    {skills.map((skill, i) => {
-      const Icon = skill.icon;
-      return (
-        <button
-          key={skill.id}
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => onSelect(skill)}
-          onMouseEnter={() => onHover(i)}
-          className={twMerge(
-            "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-700 dark:text-gray-200",
-            i === highlighted && "bg-gray-100 dark:bg-gray-700"
-          )}
-        >
-          <Icon className="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500" />
-          <span className="font-medium">/{skill.label}</span>
-          <span className="truncate text-gray-400 dark:text-gray-500">
-            {skill.description}
-          </span>
-        </button>
-      );
-    })}
+    {skills.map((skill, i) => (
+      <button
+        key={skill.id}
+        type="button"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => onSelect(skill)}
+        onMouseEnter={() => onHover(i)}
+        className={twMerge(
+          "flex w-full flex-col gap-0.5 px-3 py-1.5 text-left text-xs text-gray-700 dark:text-gray-200",
+          i === highlighted && "bg-gray-100 dark:bg-gray-700"
+        )}
+      >
+        <span className="font-medium">/{skill.label}</span>
+        <span className="truncate text-gray-400 dark:text-gray-500">{skill.description}</span>
+      </button>
+    ))}
   </div>
 );

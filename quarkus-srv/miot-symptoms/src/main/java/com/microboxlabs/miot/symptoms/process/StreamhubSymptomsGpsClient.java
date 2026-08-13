@@ -3,7 +3,8 @@ package com.microboxlabs.miot.symptoms.process;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.mutiny.pgclient.PgPool;
+import io.vertx.mutiny.pgclient.PgBuilder;
+import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgConnectOptions;
@@ -30,7 +31,7 @@ public class StreamhubSymptomsGpsClient implements FunctionInvoker {
     private final Optional<String> username;
     private final Optional<String> password;
     private final int maxSize;
-    private volatile PgPool pool;
+    private volatile Pool pool;
 
     StreamhubSymptomsGpsClient(
             @ConfigProperty(name = "miot.symptoms.gps.reactive-url") Optional<String> reactiveUrl,
@@ -93,7 +94,10 @@ public class StreamhubSymptomsGpsClient implements FunctionInvoker {
                     .setDatabase(parsed.database)
                     .setUser(username.orElse("streamhub"))
                     .setPassword(password.orElse(""));
-            pool = PgPool.pool(connect, new PoolOptions().setMaxSize(maxSize));
+            pool = PgBuilder.pool()
+                    .with(new PoolOptions().setMaxSize(maxSize))
+                    .connectingTo(connect)
+                    .build();
             LOG.infof("Symptoms GPS pool ready — %s:%d/%s (max %d)", parsed.host, parsed.port, parsed.database, maxSize);
         }
     }

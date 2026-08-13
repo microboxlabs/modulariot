@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.process;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -27,6 +28,7 @@ public class StreamhubSymptomsGpsClient implements FunctionInvoker {
     private static final Logger LOG = Logger.getLogger(StreamhubSymptomsGpsClient.class);
     private static final Pattern FUNCTION_NAME = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
 
+    private final Vertx vertx;
     private final Optional<String> reactiveUrl;
     private final Optional<String> username;
     private final Optional<String> password;
@@ -34,10 +36,12 @@ public class StreamhubSymptomsGpsClient implements FunctionInvoker {
     private volatile Pool pool;
 
     StreamhubSymptomsGpsClient(
+            Vertx vertx,
             @ConfigProperty(name = "miot.symptoms.gps.reactive-url") Optional<String> reactiveUrl,
             @ConfigProperty(name = "miot.symptoms.gps.username") Optional<String> username,
             @ConfigProperty(name = "miot.symptoms.gps.password") Optional<String> password,
             @ConfigProperty(name = "miot.symptoms.gps.pool-max-size", defaultValue = "8") int maxSize) {
+        this.vertx = vertx;
         this.reactiveUrl = reactiveUrl;
         this.username = username;
         this.password = password;
@@ -97,6 +101,7 @@ public class StreamhubSymptomsGpsClient implements FunctionInvoker {
             pool = PgBuilder.pool()
                     .with(new PoolOptions().setMaxSize(maxSize))
                     .connectingTo(connect)
+                    .using(vertx)
                     .build();
             LOG.infof("Symptoms GPS pool ready — %s:%d/%s (max %d)", parsed.host, parsed.port, parsed.database, maxSize);
         }

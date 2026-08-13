@@ -31,6 +31,14 @@
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-integrations</artifactId>
+            <!-- pulsar-client 4.x breaks quarkus-messaging-pulsar (Pulsar 3.3 original).
+                 Symptoms uses the Quarkus connector; retransmit stays unused in this process. -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.pulsar</groupId>
+                    <artifactId>pulsar-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
@@ -43,6 +51,12 @@
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-tracking</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.pulsar</groupId>
+                    <artifactId>pulsar-client</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>

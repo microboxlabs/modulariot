@@ -37,9 +37,6 @@ export async function TresActos({ base, lang, tone }: { base: string; lang: stri
           </Reveal>
         ))}
       </div>
-      <Reveal className="mt-8">
-        <p className="text-sm text-ink-3">{t("disclaimer")}</p>
-      </Reveal>
     </Section>
   );
 }

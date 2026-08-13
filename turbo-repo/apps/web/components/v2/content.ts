@@ -8,6 +8,112 @@ import { en } from "./content.en";
 import { pt } from "./content.pt";
 
 export const content = {
+  // Nav calcado de clickhouse.com: header oscuro translúcido; "Producto" es un
+  // mega-menú con items ricos (icono + título + descripción) agrupados en
+  // secciones; "Soluciones" y "Recursos" son paneles de columnas con encabezado
+  // y link "Todos →"; Docs/Precios/Contacto son links directos; a la derecha
+  // badge GitHub, selector de idioma y CTA amarillo.
+  nav: {
+    mega: {
+      label: "Producto",
+      sections: [
+        {
+          title: "Plataforma",
+          items: [
+            { icon: "signal", label: "Ingesta GPS Core", href: "/producto/ingesta-gps-core", desc: "Señales GPS y sensores en tiempo real hacia tu base de datos" },
+            { icon: "radar", label: "Síntomas / Torre de Control", href: "/producto/sintomas-torre-control", desc: "30+ reglas de detección con trazabilidad" },
+            { icon: "plug", label: "Integraciones", href: "/producto/integraciones", desc: "Workflows, webhooks y bóveda de evidencia" },
+            { icon: "video", label: "Video en Vivo / HLS", href: "/producto/video-en-vivo", desc: "Streaming continuo desde cámaras y dashcams" },
+          ],
+        },
+        {
+          title: "Tecnología",
+          items: [
+            { icon: "code", label: "Características", href: "/producto/caracteristicas", desc: "Streaming, detección y flujos de trabajo" },
+            { icon: "stack", label: "Arquitectura", href: "/producto/arquitectura", desc: "Del dispositivo edge a tu nube en <56ms" },
+            { icon: "cloud", label: "Implementación", href: "/producto/implementacion", desc: "Tu nube, gestionado por MBL o edge híbrido" },
+          ],
+        },
+        {
+          title: "En vivo, con datos reales",
+          items: [
+            { icon: "radar", label: "Torre de control", href: "/torre", desc: "Los 36 síntomas sobre una operación real" },
+            { icon: "stack", label: "SuperProfile", href: "/superprofile", desc: "La identidad operacional viva de cada actor" },
+            { icon: "plug", label: "Canales de escalamiento", href: "/canales", desc: "El síntoma en correo, WhatsApp, Teams, Webex y SMS" },
+            { icon: "signal", label: "Proveedores GPS", href: "/proveedores-gps", desc: "Medimos la calidad de señal de +28 proveedores" },
+          ],
+        },
+      ],
+    },
+    columnMenus: [
+      {
+        label: "Soluciones",
+        columns: [
+          {
+            title: "Casos de uso",
+            links: [
+              { label: "Monitoreo de conductores y activos", href: "/soluciones#casos-de-uso" },
+              { label: "Telemetría mecánica y mantenimiento", href: "/soluciones#casos-de-uso" },
+              { label: "Cumplimiento y auditorías", href: "/soluciones#casos-de-uso" },
+              { label: "Torre de control operacional", href: "/soluciones#casos-de-uso" },
+            ],
+            footer: { label: "Todas las soluciones", href: "/soluciones" },
+          },
+          {
+            title: "Industrias",
+            links: [
+              { label: "Transporte de carga", href: "/soluciones#industrias" },
+              { label: "Minería", href: "/soluciones#industrias" },
+              { label: "Distribución y última milla", href: "/soluciones#industrias" },
+              { label: "Logística industrial", href: "/soluciones#industrias" },
+            ],
+            footer: { label: "Casos reales", href: "/#clientes" },
+          },
+        ],
+      },
+      {
+        label: "Recursos",
+        columns: [
+          {
+            title: "Aprende",
+            links: [
+              { label: "Documentación", href: "https://docs.modulariot.com", external: true },
+              { label: "Preguntas frecuentes", href: "/#faq" },
+            ],
+            footer: { label: "Todos los recursos", href: "/recursos" },
+          },
+          {
+            title: "Comunidad",
+            links: [
+              { label: "GitHub", href: "https://github.com/microboxlabs", external: true },
+              { label: "MicroboxLabs", href: "https://microboxlabs.com", external: true },
+            ],
+          },
+        ],
+      },
+    ],
+    direct: [
+      { label: "Contacto", href: "/contacto" },
+    ] as { label: string; href: string; external?: boolean }[],
+    github: { label: "GitHub", href: "https://github.com/microboxlabs" },
+    // Selector de país → idioma. Varios países LatAm comparten la misma
+    // traducción (es). `flag` = código de bandera SVG en flags.tsx.
+    languages: [
+      { lang: "es", country: "Chile", flag: "cl" },
+      { lang: "es", country: "Perú", flag: "pe" },
+      { lang: "es", country: "Colombia", flag: "co" },
+      { lang: "es", country: "México", flag: "mx" },
+      { lang: "pt", country: "Brasil", flag: "br" },
+      { lang: "en", country: "Global", flag: "gl" },
+    ],
+    cta: "Solicitar demo",
+    // Acciones del nav (demo-led): demo como única primaria + acceso clientes.
+    actions: {
+      demo: { label: "Solicitar demo", href: "/contacto?intent=demo" },
+      login: { label: "Iniciar sesión", href: "/contacto?intent=login" },
+    },
+  },
+
   hero: {
     kicker: "Código Abierto · Apache-2.0",
     titlePre: "De detectar a ",
@@ -249,14 +355,14 @@ export const content = {
   deployment: {
     kicker: "Implementación",
     title: "En vivo en días, no meses.",
-    subtitle: "Una puesta en marcha gestionada por MicroBox Labs: nosotros operamos la infraestructura, tú te enfocas en la operación.",
+    subtitle: "Una puesta en marcha gestionada por MicroboxLabs: nosotros operamos la infraestructura, tú te enfocas en la operación.",
     soonLabel: "Próximamente",
     includes: [
       { title: "Configuración a tu operación", body: "Umbrales, zonas y reglas ajustados a cómo trabajas, no una plantilla genérica." },
       { title: "Despliegue en tu nube", body: "Corre en tu infraestructura (AWS, Azure o GCP); tus datos nunca salen de tu control.", soon: true },
       { title: "Conectado a tus sistemas", body: "Integración vía API con las plataformas que ya usas (despacho, mantención, ERP); se suma a tu operación, no la reemplaza." },
       { title: "Canales de tu operación", body: "Correo, WhatsApp, Teams, Webex y SMS conectados para que la alerta llegue donde vive el equipo." },
-      { title: "Puesta en marcha gestionada", body: "MicroBox Labs opera y acompaña la operación, sin overhead de DevOps de tu lado." },
+      { title: "Puesta en marcha gestionada", body: "MicroboxLabs opera y acompaña la operación, sin overhead de DevOps de tu lado." },
       { title: "Monitoreo, soporte y actualizaciones", body: "La plataforma se mantiene al día y monitoreada sin que te ocupes." },
     ],
   },
@@ -340,12 +446,12 @@ export const content = {
       {
         title: "Empresa",
         links: [
-          { label: "Acerca de MicroBox Labs", href: "https://microboxlabs.com" },
+          { label: "Acerca de MicroboxLabs", href: "https://microboxlabs.com" },
           { label: "Contacto", href: "/contacto" },
         ],
       },
     ],
-    copyright: `© ${new Date().getFullYear()} MicroBox Labs · Todos los derechos reservados`,
+    copyright: `© ${new Date().getFullYear()} MicroboxLabs · Todos los derechos reservados`,
   },
 };
 

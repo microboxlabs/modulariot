@@ -70,7 +70,7 @@ export default function ModuleTabs({
 }) {
   const L = LABELS[lang] || LABELS.es;
   return (
-    <div className="border-hairline bg-page/90 sticky top-[60px] z-30 border-b backdrop-blur">
+    <div className="border-hairline bg-page/90 sticky top-0 z-30 border-b backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center gap-3 overflow-x-auto px-4 py-3 sm:px-6">
         <span className="text-ink-3 hidden shrink-0 text-xs font-semibold tracking-wide uppercase md:inline">
           {INTRO[lang] || INTRO.es}

@@ -177,7 +177,7 @@
     }
   },
   "hero": {
-    "kicker": "Open Source · Apache-2.0",
+    "kicker": "Open source — engine and data you can audit",
     "titlePre": "From detecting to ",
     "titleHighlight": "reducing",
     "titlePost": ".",
@@ -186,7 +186,7 @@
     "ctaSecondary": "See pricing",
     "livePanel": {
       "title": "Live operation",
-      "subtitle": "a real operation, right now",
+      "subtitle": "this is how it runs, live",
       "live": "receiving events…",
       "done": "it all stays in your operation",
       "events": [
@@ -215,12 +215,7 @@
       {
         "prefix": "Up to",
         "value": "55,847",
-        "label": "symptoms handled in a month"
-      },
-      {
-        "prefix": "A",
-        "value": "65%",
-        "label": "of treated alerts get invalidated"
+        "label": "symptoms detected in a month"
       },
       {
         "prefix": "With",
@@ -237,7 +232,7 @@
   "problem": {
     "kicker": "The problem",
     "title": "Do you handle alerts,\nonly to see them come back the same way?",
-    "subtitle": "97% of symptoms get handled, but handling isn't solving the cause — so the same deviations come back month after month.",
+    "subtitle": "On average, only 10.5% of symptoms detected in a month require management — the rest is just noise that buries what's urgent.\n\nAnd of what does get handled, half only closes a ticket, while the deviation comes back month after month.",
     "pains": [
       {
         "title": "“I found out the next day”",
@@ -255,14 +250,14 @@
   },
   "tresActos": {
     "kicker": "The thesis, in 3 acts",
-    "title": "Detecting is cheap; reducing is the business.",
+    "title": "Detecting is a commodity,\nreducing is the business",
     "subtitle": "The same intelligence engine, applied at three different moments of your operation.",
     "actos": [
       {
         "n": "Act 1",
         "tag": "See and reduce",
         "title": "You handle every alert, but the deviations come back the same.",
-        "body": "97% of symptoms get handled… and most get invalidated. Closing isn't solving: we attack the cause generating them in series, not the ticket.",
+        "body": "The Control Tower groups symptoms by root cause, not by ticket: you see the repeating patterns and measure whether the deviation actually dropped.",
         "cta": "Explore the control tower"
       },
       {
@@ -275,17 +270,15 @@
       {
         "n": "Act 3",
         "tag": "Manage where the operation lives",
-        "title": "The alert arrives with a plan and an owner.",
+        "title": "The symptom arrives with a plan and an owner.",
         "body": "Email, WhatsApp, Teams, Webex or SMS. Escalating stops being just a notice and becomes the first step of the handling.",
         "cta": "See escalation channels"
       }
-    ],
-    "disclaimer": "What you see in the explorer is a real operation (June 2026), not a mockup."
+    ]
   },
   "steps": {
     "kicker": "How it works",
     "title": "Turn a raw signal into an auditable decision",
-    "subtitle": "Follow the flow of your alerts, step by step.",
     "items": [
       {
         "n": "01",
@@ -377,7 +370,7 @@
         "bullets": [
           "Channel based on the type of symptom",
           "Two-way cycle, not just a notification",
-          "Every alert arrives with a plan and an owner"
+          "Every symptom arrives with a plan and an owner"
         ]
       }
     ]
@@ -408,8 +401,8 @@
   },
   "useCases": {
     "kicker": "Use cases",
-    "title": "Four processing boxes. Only pay for what you need.",
-    "subtitle": "Modular architecture with no vendor lock-in: each box is an independent service, priced per asset.",
+    "title": "Four modules. Only pay for what you need.",
+    "subtitle": "Modular architecture with no vendor lock-in: each module is an independent service, priced per asset.",
     "cards": [
       {
         "title": "GPS Core Ingestion",
@@ -483,8 +476,8 @@
         "label": "assets in real operation"
       },
       {
-        "value": "97%",
-        "label": "of symptoms under management"
+        "value": "3,583",
+        "label": "valid treatments in one month"
       },
       {
         "value": "36",
@@ -520,8 +513,8 @@
   },
   "deployment": {
     "kicker": "Deployment",
-    "title": "Live in days, not months.",
-    "subtitle": "A rollout managed by MicroBox Labs: we run the infrastructure, you focus on the operation.",
+    "title": "Live in days, not months",
+    "subtitle": "A rollout managed by MicroboxLabs: we run the infrastructure, you focus on the operation.",
     "soonLabel": "Coming soon",
     "includes": [
       {
@@ -542,7 +535,7 @@
       },
       {
         "title": "Managed rollout",
-        "body": "MicroBox Labs operates and supports the rollout, with no DevOps overhead on your side."
+        "body": "MicroboxLabs operates and supports the rollout, with no DevOps overhead on your side."
       },
       {
         "title": "Monitoring, support and updates",
@@ -550,10 +543,23 @@
       }
     ]
   },
+  "security": {
+    "kicker": "Security & data",
+    "title": "Your data, under your rules",
+    "subtitle": "What de-risks the decision: where the data lives, who processes it and what backing stands behind it.",
+    "items": [
+      { "title": "Your data, in your cloud", "body": "The platform runs on your infrastructure (AWS, Azure or GCP). Your data never leaves your control." },
+      { "title": "Data processor", "body": "MicroboxLabs processes data on your behalf: confidentiality, declared sub-processors and deletion on exit." },
+      { "title": "Law 19.628 and GDPR", "body": "Data-processing framework aligned with Chilean and European data-protection regulations." },
+      { "title": "Auditable open source", "body": "The engine is open source (Apache-2.0): you can audit what it does with your data, line by line." },
+      { "title": "Audit-ready traceability", "body": "Every symptom is logged with timestamp, owner and resolution in your own database." },
+      { "title": "Support with SLA", "body": "Committed severities and response times, with continuous platform monitoring." }
+    ]
+  },
   "pricingTeaser": {
     "kicker": "Pricing",
     "title": "Pay per asset, only for what you use",
-    "subtitle": "No per-seat licenses, no setup fees. Each processing box is priced independently per asset/month. Build your plan with the calculator.",
+    "subtitle": "No per-seat licenses, no setup fees. Each module is priced independently per asset/month. Build your plan with the calculator.",
     "cta": "Calculate your fleet's price"
   },
   "pricing": {
@@ -595,7 +601,7 @@
       }
     },
     "calculator": {
-      "filterLabel": "Filter by operational family and pick the boxes you need",
+      "filterLabel": "Filter by operational family and pick the modules you need",
       "allChip": "All",
       "fleetTitle": "Client fleet size",
       "fleetDesc": "Adjust the fleet to estimate the price per asset.",
@@ -603,10 +609,10 @@
       "allFamilies": "All families",
       "baseIncluded": "Base · included",
       "perAssetMonth": "per asset/month",
-      "boxLabel": "Internal box",
+      "boxLabel": "Internal module",
       "volMonth": "Vol/mo",
       "pricePerAsset": "$/asset",
-      "selectedBoxes": "Selected boxes",
+      "selectedBoxes": "Selected modules",
       "of": "of",
       "fleetOfClient": "Client fleet",
       "totalMonthly": "Total monthly",
@@ -620,11 +626,11 @@
     "philosophy": [
       {
         "title": "Pay only for what you use",
-        "body": "You contract independent processing boxes. If you don't use video or integrations, you don't pay for them."
+        "body": "You contract independent modules. If you don't use video or integrations, you don't pay for them."
       },
       {
         "title": "Transparent per-asset price",
-        "body": "A fixed per-asset/month price for each box. No surprises, no setup costs, no minimum term."
+        "body": "A fixed per-asset/month price for each module. No surprises, no setup costs, no minimum term."
       },
       {
         "title": "Based on real costs",
@@ -636,7 +642,7 @@
       "items": [
         {
           "q": "How is the service billed?",
-          "a": "Monthly subscription per monitored vehicle or asset, based on the processing boxes you contract. The final proposal is delivered after the free assessment."
+          "a": "Monthly subscription per monitored vehicle or asset, based on the modules you contract. The final proposal is delivered after the free assessment."
         },
         {
           "q": "Are the calculator prices final?",
@@ -644,11 +650,11 @@
         },
         {
           "q": "Are there setup costs or a minimum term?",
-          "a": "No. Integration with your current technology is included and you can adjust or cancel the contracted boxes month to month."
+          "a": "No. Integration with your current technology is included and you can adjust or cancel the contracted modules month to month."
         },
         {
-          "q": "What does each box include?",
-          "a": "Each box is a complete service: infrastructure, processing, management panel and support. The GPS Core Ingestion box is the foundation the others run on."
+          "q": "What does each module include?",
+          "a": "Each module is a complete service: infrastructure, processing, management panel and support. The GPS Core Ingestion module is the foundation the others run on."
         }
       ]
     },
@@ -716,7 +722,7 @@
     "producto/ingesta-gps-core": {
       "eyebrow": "Product · GPS Core Ingestion",
       "title": "Every signal from your fleet, in your cloud, in milliseconds",
-      "subtitle": "ModularIoT's base box. It receives every GPS ping, sensor value and driver event —regardless of the hardware vendor— and delivers it to your own infrastructure in real time.",
+      "subtitle": "ModularIoT's base module. It receives every GPS ping, sensor value and driver event —regardless of the hardware vendor— and delivers it to your own infrastructure in real time.",
       "blocks": [
         {
           "kicker": "What it does",
@@ -736,7 +742,7 @@
           "cards": [
             {
               "title": "Any hardware",
-              "body": "Universal adapters for GPS providers (Redd, Samtech, GAMA and more). You don't change your devices."
+              "body": "Universal adapters for 28+ GPS providers. You don't change your devices."
             },
             {
               "title": "Latency < 56 ms",
@@ -896,7 +902,7 @@
             "Document evidence vault (ECM manager)",
             "API gateway to expose and consume services",
             "MCP server for AI agents",
-            "GAMA, RFID and custom process automation"
+            "Custom flow automation: provider ingestion, RFID and your own processes"
           ]
         },
         {
@@ -924,7 +930,7 @@
               "body": "Connect AI agents to your operation for assisted queries and actions."
             },
             {
-              "title": "GAMA / RFID",
+              "title": "Custom flows",
               "body": "Provider ingestion and RFID tag validation via automated flows."
             }
           ]
@@ -1061,7 +1067,7 @@
           "cards": [
             {
               "title": "Modular",
-              "body": "Each box is an independent service. You contract and scale only what you use."
+              "body": "Each module is an independent service. You contract and scale only what you use."
             },
             {
               "title": "Sovereign",
@@ -1216,7 +1222,7 @@
               "body": "Open-source platform under Apache-2.0 license. Explore, contribute, give us a star."
             },
             {
-              "title": "MicroBox Labs",
+              "title": "MicroboxLabs",
               "body": "Meet the company behind ModularIoT and the rest of the portfolio."
             },
             {

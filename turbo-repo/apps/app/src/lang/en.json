@@ -4865,6 +4865,11 @@
       "triggers": "goto,go to,navigate,open"
     },
     "recent": "Recent",
+    "suggestions": {
+      "ask": "Try asking",
+      "goto": "Recommended",
+      "harness": "How many trucks are active right now?|What deliveries are scheduled for today?|Which drivers have pending tasks?"
+    },
     "ask": {
       "heading": "Ask",
       "triggers": "ask,question,help"

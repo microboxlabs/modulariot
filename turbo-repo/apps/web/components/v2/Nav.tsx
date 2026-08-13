@@ -263,6 +263,7 @@ export default function Nav({ lang }: { lang: string }) {
       localStorage.setItem(COUNTRY_KEY, flag);
     } catch {}
   };
+  const closeMobileMenu = () => setOpen(false);
 
   return (
     <header className="border-hairline bg-page/85 sticky top-0 z-50 w-full border-b backdrop-blur-md">

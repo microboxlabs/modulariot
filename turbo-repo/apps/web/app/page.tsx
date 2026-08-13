@@ -43,7 +43,7 @@ export default function ComingSoon() {
           </div>
 
           <div className="text-ink-4 mt-10 text-xs">
-            <p>© {new Date().getFullYear()} MicroBox Labs</p>
+            <p>© {new Date().getFullYear()} MicroboxLabs</p>
             <div className="mt-3 flex justify-center gap-4">
               <a href="/privacy" className="hover:text-ink-1 transition-colors">
                 Privacidad

@@ -17,10 +17,26 @@ export const en = {
       live: "receiving events…",
       done: "it all stays in your operation",
       events: [
-        { kind: "signal", title: "Signals arriving", detail: "2,847 assets reporting in real time" },
-        { kind: "symptom", title: "Symptom detected", detail: "Speeding · internal route · high severity" },
-        { kind: "action", title: "Escalated to the owner", detail: "supervisor notified by SMS, with evidence" },
-        { kind: "record", title: "Recorded", detail: "in your database, in your cloud" },
+        {
+          kind: "signal",
+          title: "Signals arriving",
+          detail: "2,847 assets reporting in real time",
+        },
+        {
+          kind: "symptom",
+          title: "Symptom detected",
+          detail: "Speeding · internal route · high severity",
+        },
+        {
+          kind: "action",
+          title: "Escalated to the owner",
+          detail: "supervisor notified by SMS, with evidence",
+        },
+        {
+          kind: "record",
+          title: "Recorded",
+          detail: "in your database, in your cloud",
+        },
       ],
     },
   },
@@ -29,7 +45,10 @@ export const en = {
     title: "A real operation, running today — not a demo",
     items: [
       { value: "55,847", label: "symptoms handled in a single real month" },
-      { value: "65%", label: "of treated alerts get invalidated: closing ≠ solving" },
+      {
+        value: "65%",
+        label: "of treated alerts get invalidated: closing ≠ solving",
+      },
       { value: "28+", label: "GPS providers integrated" },
       { value: "1,900+", label: "assets in real operation" },
     ],
@@ -126,25 +145,38 @@ export const en = {
   features: {
     kicker: "Features",
     title: "Three core capabilities",
-    subtitle: "Everything you need to process, analyze and act on fleet data in real time",
+    subtitle:
+      "Everything you need to process, analyze and act on fleet data in real time",
     cards: [
       {
         icon: "signal",
         title: "Real-time processing",
         body: "Every GPS signal, sensor and driver event is processed as it arrives, with median latency under 56 ms.",
-        bullets: ["One source for all telemetry", "Enriched and evaluated instantly", "Thousands of events per second, no batch"],
+        bullets: [
+          "One source for all telemetry",
+          "Enriched and evaluated instantly",
+          "Thousands of events per second, no batch",
+        ],
       },
       {
         icon: "radar",
         title: "Symptom-based alerts",
         body: "Over 30 rules detect the deviation —fatigue, speeding, risk zones— and generate a classified event, not one more generic notification.",
-        bullets: ["Automatic severity and owner", "Smart noise exclusion", "Action fired: SMS, dashboard or work order"],
+        bullets: [
+          "Automatic severity and owner",
+          "Smart noise exclusion",
+          "Action fired: SMS, dashboard or work order",
+        ],
       },
       {
         icon: "plug",
         title: "Escalation by symptom",
         body: "Each symptom is escalated to the channel where the operation lives —email, WhatsApp, Teams— with a two-way conversation, a plan and an owner.",
-        bullets: ["Channel by symptom type", "Two-way loop, not just notify", "Every alert arrives with a plan and an owner"],
+        bullets: [
+          "Channel by symptom type",
+          "Two-way loop, not just notify",
+          "Every alert arrives with a plan and an owner",
+        ],
       },
     ],
   },
@@ -152,11 +184,24 @@ export const en = {
   architecture: {
     kicker: "Architecture",
     title: "From the edge device to your infrastructure",
-    subtitle: "See how your data flows from edge devices to your cloud in real time",
+    subtitle:
+      "See how your data flows from edge devices to your cloud in real time",
     steps: [
-      { n: "01", title: "Data ingestion", body: "Collect GPS, sensor and event data from your fleet in real time" },
-      { n: "02", title: "Stream processing", body: "Process and analyze data streams with sub-second latency" },
-      { n: "03", title: "Your infrastructure", body: "Data flows straight into your database, analytics and applications" },
+      {
+        n: "01",
+        title: "Data ingestion",
+        body: "Collect GPS, sensor and event data from your fleet in real time",
+      },
+      {
+        n: "02",
+        title: "Stream processing",
+        body: "Process and analyze data streams with sub-second latency",
+      },
+      {
+        n: "03",
+        title: "Your infrastructure",
+        body: "Data flows straight into your database, analytics and applications",
+      },
     ],
     latency: "< 56 ms median end-to-end latency",
     latencySubtitle: "From sensor reading to your application's response",
@@ -173,28 +218,44 @@ export const en = {
         icon: "signal",
         title: "GPS Core Ingestion",
         body: "Every GPS ping, sensor signal and driver event flows to your systems in milliseconds. Last-signal API, AVL tracking and change data capture into your systems.",
-        bullets: ["Last-signal API per asset", "Real-time AVL tracking", "CDC into your downstream systems"],
+        bullets: [
+          "Last-signal API per asset",
+          "Real-time AVL tracking",
+          "CDC into your downstream systems",
+        ],
       },
       {
         id: "sintomas",
         icon: "radar",
         title: "Symptoms / Control Tower",
         body: "Over 30 detection rules: speed by segment, continuous driving, risk zones, fatigue, mechanical telemetry. Each event with severity, owner and full traceability.",
-        bullets: ["Automatic severity and owner", "Lifecycle: open → handle → close", "Smart noise exclusion"],
+        bullets: [
+          "Automatic severity and owner",
+          "Lifecycle: open → handle → close",
+          "Smart noise exclusion",
+        ],
       },
       {
         id: "integraciones",
         icon: "plug",
         title: "Integrations",
         body: "Workflow automation with n8n, document manager for evidence, API gateway and webhooks. Your operation connected to the systems you already use.",
-        bullets: ["Workflows and webhooks (n8n)", "Document evidence vault", "APIs and gateway for your systems"],
+        bullets: [
+          "Workflows and webhooks (n8n)",
+          "Document evidence vault",
+          "APIs and gateway for your systems",
+        ],
       },
       {
         id: "video",
         icon: "video",
         title: "Live Video / HLS",
         body: "Continuous 24-hour video streams from cameras on board your assets. Visual context for every detected event.",
-        bullets: ["Continuous 24h HLS streaming", "Frames from cameras and dashcams", "Visual context for each alert"],
+        bullets: [
+          "Continuous 24h HLS streaming",
+          "Frames from cameras and dashcams",
+          "Visual context for each alert",
+        ],
       },
     ],
   },
@@ -239,14 +300,14 @@ export const en = {
   deployment: {
     kicker: "Deployment",
     title: "Deployment",
-    subtitle: "A rollout managed by MicroBox Labs on your own cloud: we run the infrastructure, you focus on the operation. Live in days, not months.",
+    subtitle: "A rollout managed by MicroboxLabs on your own cloud: we run the infrastructure, you focus on the operation. Live in days, not months.",
     soonLabel: "Coming soon",
     includes: [
       { title: "Configured to your operation", body: "Thresholds, zones and rules tuned to how you work — not a generic template." },
       { title: "Deployed in your cloud", body: "Runs on your own infrastructure (AWS, Azure or GCP); your data never leaves your control.", soon: true },
       { title: "Connected to your systems", body: "API integration with the platforms you already use (dispatch, maintenance, ERP); it adds to your operation, doesn't replace it." },
       { title: "Your operation's channels", body: "Email, WhatsApp, Teams, Webex and SMS connected so the alert reaches where the team lives." },
-      { title: "Managed rollout", body: "MicroBox Labs runs and supports the operation, with zero DevOps overhead on your side." },
+      { title: "Managed rollout", body: "MicroboxLabs runs and supports the operation, with zero DevOps overhead on your side." },
       { title: "Monitoring, support and updates", body: "The platform stays current and monitored without you having to deal with it." },
     ],
   },
@@ -307,7 +368,8 @@ export const en = {
   },
 
   footer: {
-    description: "We turn every fleet signal into fewer repeated deviations. The data and the decisions are yours.",
+    description:
+      "We turn every fleet signal into fewer repeated deviations. The data and the decisions are yours.",
     columns: [
       {
         title: "Explore",
@@ -330,11 +392,11 @@ export const en = {
       {
         title: "Company",
         links: [
-          { label: "About MicroBox Labs", href: "https://microboxlabs.com" },
+          { label: "About MicroboxLabs", href: "https://microboxlabs.com" },
           { label: "Contact", href: "/contacto" },
         ],
       },
     ],
-    copyright: `© ${new Date().getFullYear()} MicroBox Labs · All rights reserved`,
+    copyright: `© ${new Date().getFullYear()} MicroboxLabs · All rights reserved`,
   },
 };

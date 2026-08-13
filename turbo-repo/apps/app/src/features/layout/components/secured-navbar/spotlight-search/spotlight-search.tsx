@@ -60,6 +60,32 @@ const KIND_ICONS: Record<SpotlightResultKind, IconConfig> = {
   },
 };
 
+// Shown in the empty state's "Try asking" section when the dictionary
+// carries no `spotlight.suggestions.harness` override.
+const DEFAULT_HARNESS_SUGGESTIONS = [
+  "How many trucks are active right now?",
+  "What deliveries are scheduled for today?",
+  "Which drivers have pending tasks?",
+];
+
+/** How many distinct sections to sample for the empty state's "Go to" suggestions. */
+const SUGGESTED_GOTO_LIMIT = 3;
+
+/** One item per parent section (plus any top-level items), in registry order. */
+function pickSuggestedGotoItems(navigateItems: SpotlightItem[]): SpotlightItem[] {
+  const seenGroups = new Set<string>();
+  const picks: SpotlightItem[] = [];
+  for (const item of navigateItems) {
+    if (item.isGroupHeader) continue;
+    const groupKey = item.sublabel ?? item.id;
+    if (seenGroups.has(groupKey)) continue;
+    seenGroups.add(groupKey);
+    picks.push(item);
+    if (picks.length >= SUGGESTED_GOTO_LIMIT) break;
+  }
+  return picks;
+}
+
 function urlBlockToItem(
   block: HarnessBlock & { type: "url" },
   i: number,
@@ -118,6 +144,17 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
   const harnessEmptyLabel = (spotlightDict?.harnessEmpty as string | undefined) ?? "No answer found, please try again!";
   const harnessErrorLabel = (spotlightDict?.harnessError as string | undefined) ?? "Something went wrong while searching.";
   const harnessRetryLabel = (spotlightDict?.harnessRetry as string | undefined) ?? "Retry";
+
+  // Empty-state recommendations — sample questions to try with Harness, and
+  // a diverse slice of "Go to" destinations, so the modal isn't blank on open.
+  const suggestionsDict = spotlightDict?.suggestions as I18nRecord | undefined;
+  const suggestedAskLabel = (suggestionsDict?.ask as string | undefined) ?? "Try asking";
+  const suggestedGotoLabel = (suggestionsDict?.goto as string | undefined) ?? "Recommended";
+  // Pipe-delimited, matching this dict's existing list convention (see navigate.triggers).
+  const harnessSuggestionsRaw = suggestionsDict?.harness as string | undefined;
+  const harnessSuggestionQuestions = harnessSuggestionsRaw
+    ? harnessSuggestionsRaw.split("|").map((s) => s.trim()).filter(Boolean)
+    : DEFAULT_HARNESS_SUGGESTIONS;
 
   // Chain-of-thought labels for the live progress panel. The dictionary
   // carries both the phase lines and the per-primitive tool labels.
@@ -181,8 +218,6 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
     onOpenChat: handleOpenChat,
   });
 
-  // ── Open the harness chat side panel with the typed query as the first
-  //    message (⌘/Ctrl+Enter or the inline input button) ────────────────────
   const harnessChat = useHarnessChatContext();
   const handleOpenChatAction = useCallback(() => {
     const text = query.trim();
@@ -191,6 +226,11 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
     close();
   }, [harnessChat, close, query]);
   openChatRef.current = handleOpenChatAction;
+
+  const suggestedGotoItems = useMemo(() => {
+    const recentIds = new Set(recentItems.map((i) => i.id));
+    return pickSuggestedGotoItems(navigateItems.filter((i) => !recentIds.has(i.id)));
+  }, [navigateItems, recentItems]);
 
   // ── Harness url opener — relative paths navigate in-app (locale-aware),
   //    absolute http(s) urls open a new tab ──────────────────────────────────
@@ -213,11 +253,48 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
   // Bumped by the retry row to re-fire the same committed query.
   const [searchAttempt, setSearchAttempt] = useState(0);
 
+  // Set by `askHarness` so the reset effect below can tell "query changed
+  // because we just asked this exact question" apart from the user typing —
+  // otherwise the effect would immediately wipe the commit it just made.
+  const askedQueryRef = useRef<string | null>(null);
+
   // Reset when user types a new query so harness results clear.
   useEffect(() => {
+    if (askedQueryRef.current === query) {
+      askedQueryRef.current = null;
+      return;
+    }
     setCommittedQuery("");
     setSearchAttempt(0);
   }, [query]);
+
+  // Empty-state suggestion click: sets the query and commits it in one shot,
+  // firing the harness search immediately instead of requiring a second click.
+  const askHarness = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      askedQueryRef.current = trimmed;
+      setQuery(trimmed);
+      setCommittedQuery(trimmed);
+    },
+    [setQuery],
+  );
+
+  // Empty-state "Try asking" recommendations — clicking one asks Harness directly.
+  const harnessSuggestionItems = useMemo<SpotlightItem[]>(
+    () =>
+      harnessSuggestionQuestions.map((text, i) => ({
+        id: `harness-suggestion-${i}`,
+        label: text,
+        kind: "harness" as const,
+        icon: BsStars,
+        keywords: [],
+        // Reuses the "ask" prompt's keep-modal-open semantics (see handleSelectAction).
+        isHarnessPrompt: true,
+        onSelect: () => askHarness(text),
+      })),
+    [harnessSuggestionQuestions, askHarness],
+  );
 
   // ── Pagefind static search (falls back to fuzzy in dev) ──────────────────
   const staticResults = usePagefindSearch(query, navigateItems, canAccess, onNavigate);
@@ -279,14 +356,29 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
   // ── Flat selectable list (no group headers) ───────────────────────────────
   // Order matches visual layout: prompt → harness gotos → static navigate.
   // Harness markdown answers are non-interactive prose — excluded from keyboard nav.
+  // Empty state (no query yet) has its own layout — recent → ask suggestions →
+  // goto suggestions — matching SpotlightEmptyState's render order.
   const selectableItems = useMemo(
-    () => [
-      ...(showHarnessPrompt ? [harnessPromptItem] : []),
-      ...(harnessRetryItem ? [harnessRetryItem] : []),
-      ...harnessGoToItems,
-      ...staticResults.filter((i) => !i.isGroupHeader),
+    () =>
+      isEmpty
+        ? [...recentItems, ...harnessSuggestionItems, ...suggestedGotoItems]
+        : [
+            ...(showHarnessPrompt ? [harnessPromptItem] : []),
+            ...(harnessRetryItem ? [harnessRetryItem] : []),
+            ...harnessGoToItems,
+            ...staticResults.filter((i) => !i.isGroupHeader),
+          ],
+    [
+      isEmpty,
+      recentItems,
+      harnessSuggestionItems,
+      suggestedGotoItems,
+      showHarnessPrompt,
+      harnessPromptItem,
+      harnessRetryItem,
+      harnessGoToItems,
+      staticResults,
     ],
-    [showHarnessPrompt, harnessPromptItem, harnessRetryItem, harnessGoToItems, staticResults],
   );
 
   // Keep refs current — runs synchronously during render, before any event.
@@ -392,7 +484,13 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
                 <SpotlightEmptyState
                   recentItems={recentItems}
                   recentLabel={recentLabel}
-                  onSelectRecent={handleSelectAction}
+                  suggestedHarnessItems={harnessSuggestionItems}
+                  suggestedHarnessLabel={suggestedAskLabel}
+                  suggestedGotoItems={suggestedGotoItems}
+                  suggestedGotoLabel={suggestedGotoLabel}
+                  selectedItemId={selectableItems[selectedIndex]?.id ?? null}
+                  onSelect={handleSelectAction}
+                  onHover={setHoveredId}
                 />
               )}
 

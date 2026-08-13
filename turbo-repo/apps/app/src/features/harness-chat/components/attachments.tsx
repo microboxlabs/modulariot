@@ -8,7 +8,7 @@ import {
 import { LuFile, LuX } from "react-icons/lu";
 import { useEffect, useState } from "react";
 
-export function SentAttachment({ attachment }: { attachment: CompleteAttachment }) {
+export function SentAttachment({ attachment }: Readonly<{ attachment: CompleteAttachment }>) {
   const part = attachment.content[0];
   const name = attachment.name;
 
@@ -40,7 +40,7 @@ export function SentAttachment({ attachment }: { attachment: CompleteAttachment 
   );
 }
 
-export function ComposerAttachmentPreview({ attachment }: { attachment: Attachment }) {
+export function ComposerAttachmentPreview({ attachment }: Readonly<{ attachment: Attachment }>) {
   if (attachment.type === "image" && attachment.file) {
     return <ComposerImagePreview file={attachment.file} name={attachment.name} />;
   }
@@ -58,7 +58,7 @@ export function ComposerAttachmentPreview({ attachment }: { attachment: Attachme
   );
 }
 
-function ComposerImagePreview({ file, name }: { file: File; name: string }) {
+function ComposerImagePreview({ file, name }: Readonly<{ file: File; name: string }>) {
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {

@@ -8,6 +8,7 @@ import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { AuthProvider } from "@/features/auth/context/auth-context";
 import NewFeatureNotification from "@/features/new-feature-notification/new-feature-notification";
 import { HarnessChatProvider } from "@/features/harness-chat/context/harness-chat-context";
+import { isHarnessUiEnabled } from "@/features/layout/utils/utils";
 import HarnessChatMount from "./harness-chat-mount";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -30,7 +31,7 @@ export default async function Layout({
             <SecuredLayout params={params}>{children}</SecuredLayout>
           </AuthProvider>
         </SessionProvider>
-        <HarnessChatMount />
+        {isHarnessUiEnabled() && <HarnessChatMount />}
       </HarnessChatProvider>
     </main>
   );

@@ -17,6 +17,17 @@ import type { HarnessSkill } from "../harness-chat-types";
 import { useRunCancel } from "../context/run-cancel-context";
 import { ComposerAttachmentPreview } from "./attachments";
 
+const WHITESPACE_CHARS = new Set([" ", "\t", "\n", "\r", "\f", "\v"]);
+
+// Index of the start of the trailing run of non-whitespace characters —
+// a plain scan instead of the unanchored `/\S*$/` regex (flagged for
+// super-linear backtracking risk on pathological input).
+function trailingNonWhitespaceStart(text: string): number {
+  let i = text.length;
+  while (i > 0 && !WHITESPACE_CHARS.has(text[i - 1])) i--;
+  return i;
+}
+
 function useSlashCommand(
   textareaRef: RefObject<HTMLTextAreaElement | null>,
   skills: HarnessSkill[]
@@ -33,7 +44,7 @@ function useSlashCommand(
   const skillIds = useMemo(() => new Set(skills.map((skill) => skill.id)), [skills]);
 
   const beforeCursor = text.slice(0, cursorPos);
-  const tokenStart = beforeCursor.search(/\S*$/);
+  const tokenStart = trailingNonWhitespaceStart(beforeCursor);
   const currentToken = beforeCursor.slice(tokenStart);
   const query = currentToken.startsWith("/") ? currentToken.slice(1) : null;
 
@@ -50,20 +61,26 @@ function useSlashCommand(
   // Any exact "/skillid" token anywhere in the text is highlighted live,
   // whether it was typed by hand or inserted via the dropdown — the text
   // itself stays a single string, no separate committed-skill state.
-  const highlightedParts = useMemo(
-    () =>
-      text.split(/(\s+)/).map((segment, i) => {
-        if (segment.startsWith("/") && skillIds.has(segment.slice(1))) {
-          return (
-            <span key={i} className="text-amber-600 dark:text-amber-400">
-              {segment}
-            </span>
-          );
-        }
-        return segment;
-      }),
-    [text, skillIds]
-  );
+  const highlightedParts = useMemo(() => {
+    // Segments are fragments of freely-typed text with no natural id, so a
+    // key is derived from the segment's own value plus its occurrence
+    // count among duplicates — not its position — since the array index
+    // shifts as the user types and can associate the wrong DOM node with
+    // the wrong segment.
+    const seen = new Map<string, number>();
+    return text.split(/(\s+)/).map((segment) => {
+      if (segment.startsWith("/") && skillIds.has(segment.slice(1))) {
+        const occurrence = seen.get(segment) ?? 0;
+        seen.set(segment, occurrence + 1);
+        return (
+          <span key={`${segment}#${occurrence}`} className="text-amber-600 dark:text-amber-400">
+            {segment}
+          </span>
+        );
+      }
+      return segment;
+    });
+  }, [text, skillIds]);
 
   useEffect(() => {
     setDismissed(false);

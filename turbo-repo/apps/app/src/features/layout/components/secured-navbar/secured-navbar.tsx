@@ -180,7 +180,7 @@ export function SecuredNavbar({
           </div>
           <div className="flex items-center justify-end gap-2 w-full">
             <OrgSwitcher dict={dict} />
-            <HarnessChatToggleButton />
+            {isSeachEnabled && <HarnessChatToggleButton />}
             {!pathname.includes("/notifications") && (
               <NotificationBell dict={dict} />
             )}

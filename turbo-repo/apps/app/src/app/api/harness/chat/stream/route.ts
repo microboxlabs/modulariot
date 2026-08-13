@@ -241,6 +241,119 @@ function demoAskUserQuestion(send: Sender, text: string): boolean {
   return false;
 }
 
+type HarnessPathDecision = { handled: true } | { handled: false; message: string };
+
+/** Short-circuits for turns that don't need the real harness at all: an
+ * ask_user_question tool result, an empty user message, a demo trigger, or
+ * the harness endpoint being unconfigured. Returns `handled: true` once
+ * it's fully finished the run itself, or the resolved user message when
+ * the caller still needs to drive the real harness. */
+function decideHarnessPath(
+  send: Sender,
+  messages: AgUiMessage[],
+  runId: string,
+  threadId: string,
+): HarnessPathDecision {
+  const toolResult = lastMessageIsToolResult(messages);
+  if (toolResult) {
+    // Acknowledge the card's answer locally — nothing to forward upstream
+    // yet, the real harness can't consume `ask_user_question` results.
+    sendText(send, "Got it — thanks for answering.");
+    send({ type: "RUN_FINISHED", runId, threadId });
+    return { handled: true };
+  }
+
+  const message = lastUserText(messages);
+  if (!message) {
+    send({ type: "RUN_FINISHED", runId, threadId });
+    return { handled: true };
+  }
+
+  if (demoAskUserQuestion(send, message)) {
+    send({ type: "RUN_FINISHED", runId, threadId });
+    return { handled: true };
+  }
+
+  if (!MIOT_HARNESS_HOST) {
+    sendText(
+      send,
+      "The harness isn't configured in this environment — this is a placeholder response.",
+    );
+    send({ type: "RUN_FINISHED", runId, threadId });
+    return { handled: true };
+  }
+
+  return { handled: false, message };
+}
+
+type HarnessConnection =
+  | {
+      ok: true;
+      client: ReturnType<typeof createMiotHarnessClient>;
+      orgSlug: string;
+      token: string | undefined;
+      userEmail: string | undefined;
+    }
+  | { ok: false; errorMessage: string };
+
+/** Resolves auth + tenant scope and builds the harness client — the same
+ * chain the search relay uses. */
+async function connectToHarness(): Promise<HarnessConnection> {
+  const authResult = await requireAuth();
+  if (!authResult.authenticated) return { ok: false, errorMessage: "unauthenticated" };
+
+  const scopeResult = await resolveTenantScope();
+  if (!scopeResult.resolved) return { ok: false, errorMessage: "tenant_unresolved" };
+
+  const orgSlug = scopeResult.scope.activeOrg.slug;
+  const token = authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? undefined;
+  const userEmail = authResult.session.user?.email;
+
+  const client = createMiotHarnessClient({
+    baseUrl: `${MIOT_HARNESS_HOST}/api/v1/orgs/${orgSlug}/harness`,
+    token,
+    headers: userEmail ? { "X-Dev-User-Email": userEmail } : {},
+  });
+
+  return { ok: true, client, orgSlug, token, userEmail };
+}
+
+/** Relays the harness run's own event stream to the browser as live
+ * narration, tracking the route + tools invoked along the way for the
+ * episode record. Breaks once a terminal event arrives. */
+async function relayHarnessEvents(
+  client: ReturnType<typeof createMiotHarnessClient>,
+  runId: string,
+  signal: AbortSignal,
+  send: Sender,
+  narrator: Narrator,
+): Promise<{ route: string | undefined; tools: string[] }> {
+  let progress: HarnessStreamProgress = INITIAL_PROGRESS;
+  let route: string | undefined;
+  const tools: string[] = [];
+
+  for await (const event of client.runs.stream(runId, { signal })) {
+    if (event.type === "route.selected") {
+      const r = (event.data as { route?: unknown }).route;
+      if (typeof r === "string") route = r;
+    } else if (event.type === "tool.started") {
+      const t = (event.data as { tool?: unknown }).tool;
+      if (typeof t === "string") tools.push(t);
+    }
+    if (FORWARDED_EVENTS.has(event.type)) {
+      progress = reduceHarnessStreamEvent(progress, { event: event.type, data: event.data });
+      appendNarrationDiff(send, narrator, progress);
+      if (event.type === "thinking.delta") {
+        const delta = (event.data as { delta?: unknown }).delta;
+        if (typeof delta === "string") appendNarration(send, narrator, delta);
+      }
+    }
+    if (TERMINAL_EVENT_TYPES.has(event.type)) break;
+  }
+
+  return { route, tools };
+}
+
 export async function POST(request: Request) {
   const body: RunAgentInputBody = await request.json().catch(() => ({}));
   const runId = body.runId ?? crypto.randomUUID();
@@ -288,58 +401,18 @@ async function run(
 ): Promise<void> {
   send({ type: "RUN_STARTED", runId, threadId });
 
-  const toolResult = lastMessageIsToolResult(messages);
-  if (toolResult) {
-    // Acknowledge the card's answer locally — nothing to forward upstream
-    // yet, the real harness can't consume `ask_user_question` results.
-    sendText(send, "Got it — thanks for answering.");
-    send({ type: "RUN_FINISHED", runId, threadId });
-    return;
-  }
+  const decision = decideHarnessPath(send, messages, runId, threadId);
+  if (decision.handled) return;
+  const { message } = decision;
 
-  const message = lastUserText(messages);
-  if (!message) {
-    send({ type: "RUN_FINISHED", runId, threadId });
-    return;
-  }
-
-  if (demoAskUserQuestion(send, message)) {
-    send({ type: "RUN_FINISHED", runId, threadId });
-    return;
-  }
-
-  if (!MIOT_HARNESS_HOST) {
-    sendText(
-      send,
-      "The harness isn't configured in this environment — this is a placeholder response.",
-    );
-    send({ type: "RUN_FINISHED", runId, threadId });
-    return;
-  }
-
-  const authResult = await requireAuth();
-  if (!authResult.authenticated) {
+  const connection = await connectToHarness();
+  if (!connection.ok) {
     // RUN_ERROR is terminal on its own — no RUN_FINISHED follows it.
-    send({ type: "RUN_ERROR", message: "unauthenticated" });
+    send({ type: "RUN_ERROR", message: connection.errorMessage });
     return;
   }
-
-  const scopeResult = await resolveTenantScope();
-  if (!scopeResult.resolved) {
-    send({ type: "RUN_ERROR", message: "tenant_unresolved" });
-    return;
-  }
-  const orgSlug = scopeResult.scope.activeOrg.slug;
-
-  const token = authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? undefined;
-  const userEmail = authResult.session.user?.email;
+  const { client, orgSlug, token, userEmail } = connection;
   const conversationId = body.state?.harnessConversationId ?? null;
-
-  const client = createMiotHarnessClient({
-    baseUrl: `${MIOT_HARNESS_HOST}/api/v1/orgs/${orgSlug}/harness`,
-    token,
-    headers: userEmail ? { "X-Dev-User-Email": userEmail } : {},
-  });
 
   let activeRunId: string | null = null;
   let runSettled = false;
@@ -374,28 +447,13 @@ async function run(
     const narrator = openNarration(send);
     appendNarrationDiff(send, narrator, INITIAL_PROGRESS);
 
-    let progress: HarnessStreamProgress = INITIAL_PROGRESS;
-    let route: string | undefined;
-    const tools: string[] = [];
-
-    for await (const event of client.runs.stream(run_id, { signal: controller.signal })) {
-      if (event.type === "route.selected") {
-        const r = (event.data as { route?: unknown }).route;
-        if (typeof r === "string") route = r;
-      } else if (event.type === "tool.started") {
-        const t = (event.data as { tool?: unknown }).tool;
-        if (typeof t === "string") tools.push(t);
-      }
-      if (FORWARDED_EVENTS.has(event.type)) {
-        progress = reduceHarnessStreamEvent(progress, { event: event.type, data: event.data });
-        appendNarrationDiff(send, narrator, progress);
-        if (event.type === "thinking.delta") {
-          const delta = (event.data as { delta?: unknown }).delta;
-          if (typeof delta === "string") appendNarration(send, narrator, delta);
-        }
-      }
-      if (TERMINAL_EVENT_TYPES.has(event.type)) break;
-    }
+    const { route, tools } = await relayHarnessEvents(
+      client,
+      run_id,
+      controller.signal,
+      send,
+      narrator,
+    );
 
     closeNarration(send, narrator);
     runSettled = true;

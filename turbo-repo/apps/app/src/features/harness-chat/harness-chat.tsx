@@ -31,7 +31,7 @@ const headerButtonClass =
 export default function HarnessChat({
   extensions = DEFAULT_HARNESS_EXTENSIONS,
   skills,
-}: {
+}: Readonly<{
   extensions?: HarnessExtension[];
   /**
    * Slash-command skills the composer's "/" menu offers. No built-in
@@ -39,7 +39,7 @@ export default function HarnessChat({
    * real skill set once available).
    */
   skills: HarnessSkill[];
-}) {
+}>) {
   const { isOpen, close, pendingMessage, clearPendingMessage } =
     useHarnessChatContext();
   const [sessions, setSessions] = useState<Session[]>(() => [createSession()]);

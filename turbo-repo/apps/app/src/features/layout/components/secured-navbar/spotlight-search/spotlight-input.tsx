@@ -85,8 +85,7 @@ export function SpotlightInput({
           className="flex shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
         >
           <kbd className="font-mono text-[10px]">⌘</kbd>
-          <kbd className="font-mono text-[10px]">↵</kbd>
-          Open chat
+          <kbd className="font-mono text-[10px]">↵</kbd> Open chat
         </button>
       )}
     </div>

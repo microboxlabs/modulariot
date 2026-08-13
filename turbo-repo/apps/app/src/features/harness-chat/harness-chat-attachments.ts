@@ -1,7 +1,6 @@
 import {
   CompositeAttachmentAdapter,
   SimpleImageAttachmentAdapter,
-  generateId,
   type AttachmentAdapter,
   type CompleteAttachment,
   type PendingAttachment,
@@ -11,7 +10,7 @@ function getFileDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error);
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
     reader.readAsDataURL(file);
   });
 }
@@ -21,7 +20,7 @@ class SimplePdfAttachmentAdapter implements AttachmentAdapter {
 
   async add({ file }: { file: File }): Promise<PendingAttachment> {
     return {
-      id: generateId(),
+      id: crypto.randomUUID(),
       type: "document",
       name: file.name,
       contentType: file.type,
@@ -45,7 +44,10 @@ class SimplePdfAttachmentAdapter implements AttachmentAdapter {
     };
   }
 
-  async remove() {}
+  async remove() {
+    // Content is a data URL embedded directly in the sent message — there's
+    // no blob URL or server-side storage to release.
+  }
 }
 
 export const harnessAttachmentAdapter = new CompositeAttachmentAdapter([

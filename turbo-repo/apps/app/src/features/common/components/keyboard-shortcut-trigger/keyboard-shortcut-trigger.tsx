@@ -17,14 +17,14 @@ export default function KeyboardShortcutTrigger({
   onTrigger,
   withModifier = true,
   children,
-}: {
+}: Readonly<{
   shortcutKey: string;
   /** Text shown in the hint badge, e.g. "C". Defaults to the shortcut key, uppercased. */
   label?: string;
   onTrigger: () => void;
   withModifier?: boolean;
   children: ReactNode;
-}) {
+}>) {
   const { modifierHeld, justTriggered } = useKeyboardShortcut({
     key: shortcutKey,
     withModifier,

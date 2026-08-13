@@ -31,7 +31,7 @@ const RunCancelContext = createContext<RunCancelContextValue | null>(null);
  * overwriting "cancelled" back to "complete". This flag sidesteps that
  * race entirely by tracking the click itself, not the runtime's status.
  */
-export function RunCancelProvider({ children }: PropsWithChildren) {
+export function RunCancelProvider({ children }: Readonly<PropsWithChildren>) {
   const [canceled, setCanceled] = useState(false);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const wasRunning = useRef(isRunning);

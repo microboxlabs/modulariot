@@ -10,6 +10,7 @@ miot-resource-core/   Shared SDK (entity events, KPI interfaces, resolution, Alf
 miot-fleet/           Fleet directory (vehicles, trucks, trailers, carriers)
 miot-driver/          Driver directory (lifecycle, documents, compliance, scoring)
 miot-tracking/        Asset tracking (GPS ingestion via Pulsar)
+miot-symptoms/        Symptoms dispatcher (CDC → RouteTable → process_symptoms_* / webhook)
 miot-gateway/         Routing gateway (body-aware traffic forking, canary splits) → README
 miot-integrations/    External API connections, credential profiles, auth resolution
 miot-cli/             Application entrypoint
@@ -40,6 +41,7 @@ miot-cli/             Application entrypoint
 ./start.sh fleet driver     # fleet + driver
 ./start.sh gateway          # gateway only (no DB required)
 ./start.sh integrations     # integration connections and credential profiles
+./start.sh symptoms         # symptoms dispatcher (needs RouteTable + GPS DB + Pulsar)
 
 # Pass extra Maven/Quarkus args after --
 ./start.sh fleet -- -Dquarkus.http.port=9090
@@ -63,6 +65,7 @@ miot.component.all.enabled=true
 miot.component.fleet.enabled=true
 miot.component.driver.enabled=true
 miot.component.tracking.enabled=true
+miot.component.symptoms.enabled=true
 miot.component.gateway.enabled=true
 miot.component.integrations.enabled=true
 ```
@@ -104,6 +107,7 @@ Migration version ranges are reserved per component so subset deployments can in
 | Driver | `miot_driver` | `V0.4.x` |
 | Tracking | `miot_tracking` | `V0.5.x` |
 | Integrations | `miot_integrations` | `V0.6.x` |
+| Symptoms | — (uses StreamHub `prod_iot_gps`, no local schema) | — |
 
 ## API Documentation
 

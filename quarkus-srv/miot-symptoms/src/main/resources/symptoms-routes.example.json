@@ -1,0 +1,11 @@
+{
+  "routes": [
+    {
+      "name": "off-hours-driving",
+      "targetIds": ["4"],
+      "postgresFunction": "process_symptoms_off_hours_driving",
+      "concurrency": 2,
+      "timeoutSeconds": 30
+    }
+  ]
+}

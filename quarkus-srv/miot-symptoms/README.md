@@ -11,7 +11,8 @@ and (optionally) n8n / `router.streamhub.cl`.
 
 ```
 accumulated_states INSERT/UPDATE
-  → Debezium → Pulsar (one Shared subscription, Latest)
+  → Debezium → Pulsar
+  → @Incoming("symptoms-cdc")  (Shared, Latest, quarkus-messaging-pulsar)
   → RouteTable.match(rule_id)
   → optional SELECT process_symptoms_*(jsonb)
   → optional HTTP POST (skip if forward=false or status=204)
@@ -47,6 +48,8 @@ MIOT_SYMPTOMS_GPS_PASSWORD=...
 MIOT_SYMPTOMS_ROUTES_FILE=/config/symptoms-routes.json
 ```
 
-An empty RouteTable does **not** start the Pulsar consumer.
+The channel is off unless `miot.component.symptoms.enabled=true`. An empty
+RouteTable still subscribes (Latest) and **acks/skips** unowned `rule_id`s —
+old Helm pods keep those rules. Do not add a route until the old pod is down.
 
 `subscription-initial-position` must stay `Latest`.

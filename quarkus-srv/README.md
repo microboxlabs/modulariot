@@ -41,7 +41,7 @@ miot-cli/             Application entrypoint
 ./start.sh fleet driver     # fleet + driver
 ./start.sh gateway          # gateway only (no DB required)
 ./start.sh integrations     # integration connections and credential profiles
-./start.sh symptoms         # symptoms dispatcher (needs RouteTable + GPS DB + Pulsar)
+./start.sh symptoms         # symptoms dispatcher (RouteTable + Pulsar; GPS optional for readiness)
 
 # Pass extra Maven/Quarkus args after --
 ./start.sh fleet -- -Dquarkus.http.port=9090

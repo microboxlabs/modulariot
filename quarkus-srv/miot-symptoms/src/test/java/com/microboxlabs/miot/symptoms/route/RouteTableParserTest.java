@@ -37,6 +37,23 @@ class RouteTableParserTest {
     }
 
     @Test
+    void nullOptionalIntegersUseDefaults() {
+        RouteTable table = RouteTableParser.parse(
+                """
+                {"routes":[{
+                  "name":"x",
+                  "targetIds":["4"],
+                  "postgresFunction":"fn_x",
+                  "concurrency":null,
+                  "timeoutSeconds":null
+                }]}
+                """);
+        SymptomRoute route = table.match(4).orElseThrow();
+        assertEquals(2, route.concurrency());
+        assertEquals(30, route.timeoutSeconds());
+    }
+
+    @Test
     void numericTargetIdsBecomeStrings() {
         RouteTable table = RouteTableParser.parse(
                 "{\"routes\":[{\"name\":\"x\",\"targetIds\":[10],\"postgresFunction\":\"fn_x\"}]}");

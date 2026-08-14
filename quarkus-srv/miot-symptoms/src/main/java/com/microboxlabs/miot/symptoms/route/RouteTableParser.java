@@ -35,16 +35,10 @@ public final class RouteTableParser {
 
     static SymptomRoute fromObject(JsonObject o) {
         boolean hasPg = o.containsKey("postgresFunction") && o.getString("postgresFunction") != null;
-        boolean hasWh = o.containsKey("webhookUrl") && o.getString("webhookUrl") != null;
-        int concurrency = o.containsKey("concurrency")
-                ? o.getInteger("concurrency")
-                : hasPg ? 2 : 4;
-        int timeout = o.containsKey("timeoutSeconds")
-                ? o.getInteger("timeoutSeconds")
-                : hasPg ? 30 : 15;
-        if (!hasPg && hasWh && !o.containsKey("timeoutSeconds")) {
-            timeout = 15;
-        }
+        Integer concurrencyVal = o.getInteger("concurrency");
+        int concurrency = concurrencyVal != null ? concurrencyVal : hasPg ? 2 : 4;
+        Integer timeoutVal = o.getInteger("timeoutSeconds");
+        int timeout = timeoutVal != null ? timeoutVal : hasPg ? 30 : 15;
         return new SymptomRoute(
                 o.getString("name"),
                 stringList(o.getJsonArray("targetIds")),

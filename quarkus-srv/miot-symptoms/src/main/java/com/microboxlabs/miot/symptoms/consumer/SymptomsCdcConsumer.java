@@ -16,8 +16,10 @@ import org.jboss.logging.Logger;
  *
  * <p>Subscription, Latest, Shared, DLQ and receiver queue are connector
  * config ({@code mp.messaging.incoming.symptoms-cdc.*}), not a hand-rolled
- * client/thread. Unowned {@code rule_id}s are skipped (acked) so this
- * subscription can exist while old Helm pods still own those rules.
+ * client/thread. {@code Message<byte[]>} is MANUAL ack — this method must
+ * {@code ack}/{@code nack} or the Pulsar receiver queue fills. Unowned
+ * {@code rule_id}s are skipped (acked) so this subscription can exist
+ * while old Helm pods still own those rules.
  *
  * <p>Present only when {@code miot.component.symptoms.enabled=true}.
  */
@@ -42,17 +44,27 @@ public class SymptomsCdcConsumer {
             payload = new JsonObject(new String(message.getPayload(), StandardCharsets.UTF_8));
         } catch (Exception e) {
             LOG.errorf(e, "Symptoms MESSAGE_PARSE_ERROR");
-            return Uni.createFrom().failure(e);
+            return nack(message, e);
         }
         return processor
                 .process(payload)
                 .onItem()
                 .invoke(metrics::record)
+                .onItem()
+                .transformToUni(ignored -> ack(message))
                 .onFailure()
-                .invoke(err -> {
+                .recoverWithUni(err -> {
                     metrics.recordError(null);
                     LOG.errorf(err, "Symptoms processing failed");
-                })
-                .replaceWithVoid();
+                    return nack(message, err);
+                });
+    }
+
+    private static Uni<Void> ack(Message<?> message) {
+        return Uni.createFrom().completionStage(message::ack);
+    }
+
+    private static Uni<Void> nack(Message<?> message, Throwable err) {
+        return Uni.createFrom().completionStage(() -> message.nack(err));
     }
 }

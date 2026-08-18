@@ -17,6 +17,8 @@ import {
 import type { AskUserQuestionArgs } from "@/features/harness-chat/extensions/ask-user-question";
 import type { ShowDashletArgs } from "@/features/harness-chat/extensions/show-dashlet";
 import { getAllDashlets, getAllDashletMetas } from "@/features/dashboard/dashlets";
+import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.service";
+import type { TrFn } from "@/features/i18n/i18n.service.types";
 
 /**
  * AG-UI-compliant streaming relay for the harness-chat panel. Speaks the
@@ -66,22 +68,27 @@ function sseFrame(event: Record<string, unknown>): Uint8Array {
 type Sender = (event: Record<string, unknown>) => void;
 
 /** Same phase→headline mapping the old client-side adapter used, now run
- * server-side since the narration is streamed as AG-UI THINKING_* events. */
-function phaseLabel(progress: HarnessStreamProgress): string {
+ * server-side since the narration is streamed as AG-UI THINKING_* events.
+ * Own dictionary keys, not the spotlight search panel's `spotlight.progress.*`
+ * — those are worded for a different, quick-search surface (e.g. "Searching…"
+ * vs. this panel's "Connecting to the harness…") and shouldn't be coupled. */
+function phaseLabel(progress: HarnessStreamProgress, tr: TrFn): string {
   switch (progress.phase) {
     case "idle":
     case "connecting":
-      return "Connecting to the harness…";
+      return tr("harnessChat.stream.progress.connecting");
     case "routing":
-      return progress.route ? `Routing via ${progress.route}…` : "Routing your question…";
+      return progress.route
+        ? tr("harnessChat.stream.progress.routingWithRoute", { route: progress.route })
+        : tr("harnessChat.stream.progress.routingGeneric");
     case "exploring":
-      return "Exploring your data…";
+      return tr("harnessChat.stream.progress.exploring");
     case "verifying":
-      return "Verifying the answer…";
+      return tr("harnessChat.stream.progress.verifying");
     case "answering":
-      return "Preparing an answer…";
+      return tr("harnessChat.stream.progress.answering");
     default:
-      return "Thinking…";
+      return tr("harnessChat.stream.progress.thinking");
   }
 }
 
@@ -133,10 +140,11 @@ function appendNarrationDiff(
   send: Sender,
   narrator: Narrator,
   progress: HarnessStreamProgress,
+  tr: TrFn,
 ): void {
   if (progress.phase !== narrator.lastPhase) {
     const prefix = narrator.lastPhase === null ? "" : "\n\n";
-    appendNarration(send, narrator, `${prefix}${phaseLabel(progress)}`);
+    appendNarration(send, narrator, `${prefix}${phaseLabel(progress, tr)}`);
     narrator.lastPhase = progress.phase;
   }
   for (const step of progress.steps) {
@@ -148,10 +156,10 @@ function appendNarrationDiff(
 
 /** The miot-search skill answers with a JSON array of typed blocks — fold
  * them into plain text for the chat bubble (markdown as-is, urls as links). */
-function blocksToText(answer: string | null): string {
-  if (!answer) return "The harness didn't return an answer.";
+function blocksToText(answer: string | null, tr: TrFn): string {
+  if (!answer) return tr("harnessChat.stream.noAnswer");
   const blocks = parseAnswerBlocks(answer).filter((b) => b.type !== "intent");
-  if (blocks.length === 0) return "The harness didn't return an answer.";
+  if (blocks.length === 0) return tr("harnessChat.stream.noAnswer");
   return blocks
     .map((b) => (b.type === "markdown" ? b.value : `[${b.value.name}](${b.value.url})`))
     .join("\n\n");
@@ -180,7 +188,7 @@ function showDashletToolCall(send: Sender, args: ShowDashletArgs): void {
 
 type AgUiMessage = {
   id: string;
-  role: "developer" | "system" | "assistant" | "user" | "tool";
+  role: "developer" | "system" | "assistant" | "user" | "tool" | "activity" | "reasoning";
   content?: unknown;
   toolCallId?: string;
 };
@@ -192,12 +200,19 @@ type RunAgentInputBody = {
   messages?: AgUiMessage[];
 };
 
+// The full AG-UI role set (confirmed against @ag-ui/core's message schema) —
+// "reasoning" matters in particular: this route's own narration streams as
+// REASONING_* events, which the client stores as role:"reasoning" messages
+// in thread history and echoes back on the next turn. Missing it here made
+// every second message in a conversation fail validation.
 const AG_UI_MESSAGE_ROLES: ReadonlySet<string> = new Set([
   "developer",
   "system",
   "assistant",
   "user",
   "tool",
+  "activity",
+  "reasoning",
 ]);
 
 function isValidAgUiMessage(value: unknown): value is AgUiMessage {
@@ -248,15 +263,16 @@ function lastMessageIsToolResult(messages: AgUiMessage[]): AgUiMessage | null {
  * so the AG-UI tool-call path stays exercisable without the harness itself
  * being able to invoke it, without ever intercepting real traffic once a
  * harness is actually configured. */
-function demoAskUserQuestion(send: Sender, text: string): boolean {
+function demoAskUserQuestion(send: Sender, text: string, tr: TrFn): boolean {
   if (/\bmultiple\b/i.test(text)) {
     askUserQuestionToolCall(send, {
-      question: "Which regions should this deploy to?",
-      description: "You can pick more than one — the harness will fan out to each.",
+      question: tr("harnessChat.stream.demo.regions.question"),
+      description: tr("harnessChat.stream.demo.regions.description"),
       options: [
-        { label: "North America", description: "us-east, us-west" },
-        { label: "Europe", description: "eu-west, eu-central" },
-        { label: "Asia-Pacific", description: "ap-southeast" },
+        // Region codes are technical shorthand, not translatable prose.
+        { label: tr("harnessChat.stream.demo.regions.northAmerica"), description: "us-east, us-west" },
+        { label: tr("harnessChat.stream.demo.regions.europe"), description: "eu-west, eu-central" },
+        { label: tr("harnessChat.stream.demo.regions.asiaPacific"), description: "ap-southeast" },
       ],
       allowMultiple: true,
       allowOther: true,
@@ -265,12 +281,21 @@ function demoAskUserQuestion(send: Sender, text: string): boolean {
   }
   if (/\bquestion\b/i.test(text)) {
     askUserQuestionToolCall(send, {
-      question: "Which environment should this run against?",
-      description: "This determines which credentials and data source the harness will use.",
+      question: tr("harnessChat.stream.demo.environment.question"),
+      description: tr("harnessChat.stream.demo.environment.description"),
       options: [
-        { label: "Staging", description: "Safe to experiment, seeded with sample data." },
-        { label: "Production", description: "Live data — changes are real." },
-        { label: "Local", description: "Your own machine, nothing shared." },
+        {
+          label: tr("harnessChat.stream.demo.environment.staging"),
+          description: tr("harnessChat.stream.demo.environment.stagingDescription"),
+        },
+        {
+          label: tr("harnessChat.stream.demo.environment.production"),
+          description: tr("harnessChat.stream.demo.environment.productionDescription"),
+        },
+        {
+          label: tr("harnessChat.stream.demo.environment.local"),
+          description: tr("harnessChat.stream.demo.environment.localDescription"),
+        },
       ],
       allowMultiple: false,
       allowOther: true,
@@ -310,7 +335,7 @@ function demoShowAllDashlets(send: Sender, text: string): boolean {
  * it. Naming a registered dashlet id (e.g. "text_card") renders that one
  * using its own defaultConfig; the generic "dashlet"/"stat card"/"widget"
  * phrasing falls back to a stat_icon demo with custom sample data. */
-function demoShowDashlet(send: Sender, text: string): boolean {
+function demoShowDashlet(send: Sender, text: string, tr: TrFn): boolean {
   const namedId = findNamedDashletId(text);
   if (namedId) {
     showDashletToolCall(send, { dashletId: namedId });
@@ -322,7 +347,11 @@ function demoShowDashlet(send: Sender, text: string): boolean {
     dashletId: "stat_icon",
     config: {
       dataMode: "static",
-      staticData: JSON.stringify({ title: "Active Orders", value: "156", unit: "items" }),
+      staticData: JSON.stringify({
+        title: tr("harnessChat.stream.demo.dashlet.title"),
+        value: "156",
+        unit: "items",
+      }),
       title: "{{row.title}}",
       value: "{{row.value}}",
       unit: "{{row.unit}}",
@@ -346,13 +375,14 @@ function decideHarnessPath(
   messages: AgUiMessage[],
   runId: string,
   threadId: string,
+  tr: TrFn,
 ): HarnessPathDecision {
   const toolResult = lastMessageIsToolResult(messages);
   if (toolResult) {
     // Acknowledge the tool result locally — nothing to forward upstream yet,
     // the real harness can't consume these results. Kept neutral since this
     // covers both an ask_user_question answer and a show_dashlet auto-ack.
-    sendText(send, "Got it.");
+    sendText(send, tr("harnessChat.stream.gotIt"));
     send({ type: "RUN_FINISHED", runId, threadId });
     return { handled: true };
   }
@@ -364,7 +394,7 @@ function decideHarnessPath(
   }
 
   if (!MIOT_HARNESS_HOST) {
-    if (demoAskUserQuestion(send, message)) {
+    if (demoAskUserQuestion(send, message, tr)) {
       send({ type: "RUN_FINISHED", runId, threadId });
       return { handled: true };
     }
@@ -374,15 +404,12 @@ function decideHarnessPath(
       return { handled: true };
     }
 
-    if (demoShowDashlet(send, message)) {
+    if (demoShowDashlet(send, message, tr)) {
       send({ type: "RUN_FINISHED", runId, threadId });
       return { handled: true };
     }
 
-    sendText(
-      send,
-      "The harness isn't configured in this environment — this is a placeholder response.",
-    );
+    sendText(send, tr("harnessChat.stream.unconfigured"));
     send({ type: "RUN_FINISHED", runId, threadId });
     return { handled: true };
   }
@@ -430,6 +457,7 @@ async function relayHarnessEvents(
   signal: AbortSignal,
   send: Sender,
   narrator: Narrator,
+  tr: TrFn,
 ): Promise<{ route: string | undefined; tools: string[] }> {
   let progress: HarnessStreamProgress = INITIAL_PROGRESS;
   let route: string | undefined;
@@ -445,7 +473,7 @@ async function relayHarnessEvents(
     }
     if (FORWARDED_EVENTS.has(event.type)) {
       progress = reduceHarnessStreamEvent(progress, { event: event.type, data: event.data });
-      appendNarrationDiff(send, narrator, progress);
+      appendNarrationDiff(send, narrator, progress, tr);
       if (event.type === "thinking.delta") {
         const delta = (event.data as { delta?: unknown }).delta;
         if (typeof delta === "string") appendNarration(send, narrator, delta);
@@ -466,6 +494,11 @@ export async function POST(request: Request) {
   const runId = body.runId ?? crypto.randomUUID();
   const threadId = body.threadId ?? crypto.randomUUID();
   const messages = body.messages ?? [];
+  // No explicit lang param travels with this request (it's driven by
+  // HttpAgent, not a page fetch) — Accept-Language is the only locale signal
+  // available here, same fallback the search relay's dictionary lookup uses.
+  const locale = getLocaleFromHeaders(request.headers);
+  const [tr] = await getDictionary(locale);
 
   const stream = new ReadableStream<Uint8Array>({
     async start(ctrl) {
@@ -477,7 +510,7 @@ export async function POST(request: Request) {
         }
       };
       try {
-        await run(send, body, messages, runId, threadId, request.signal);
+        await run(send, body, messages, runId, threadId, request.signal, tr);
       } finally {
         try {
           ctrl.close();
@@ -505,6 +538,7 @@ async function run(
   runId: string,
   threadId: string,
   requestSignal: AbortSignal,
+  tr: TrFn,
 ): Promise<void> {
   send({ type: "RUN_STARTED", runId, threadId });
 
@@ -518,7 +552,7 @@ async function run(
     return;
   }
 
-  const decision = decideHarnessPath(send, messages, runId, threadId);
+  const decision = decideHarnessPath(send, messages, runId, threadId, tr);
   if (decision.handled) return;
   const { message } = decision;
 
@@ -566,7 +600,7 @@ async function run(
     activeRunId = run_id;
 
     const narrator = openNarration(send);
-    appendNarrationDiff(send, narrator, INITIAL_PROGRESS);
+    appendNarrationDiff(send, narrator, INITIAL_PROGRESS, tr);
 
     const { route, tools } = await relayHarnessEvents(
       client,
@@ -574,13 +608,14 @@ async function run(
       controller.signal,
       send,
       narrator,
+      tr,
     );
 
     closeNarration(send, narrator);
     runSettled = true;
 
     const record = await client.runs.get(run_id, { signal: controller.signal });
-    sendText(send, blocksToText(record.answer));
+    sendText(send, blocksToText(record.answer, tr));
     send({ type: "STATE_SNAPSHOT", snapshot: { harnessConversationId: record.conversation_id } });
     send({ type: "RUN_FINISHED", runId, threadId });
 

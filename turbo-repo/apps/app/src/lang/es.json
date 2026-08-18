@@ -4900,5 +4900,43 @@
     },
     "harnessError": "Algo salió mal al buscar la respuesta.",
     "harnessRetry": "Reintentar"
+  },
+  "harnessChat": {
+    "stream": {
+      "progress": {
+        "connecting": "Conectando con el harness…",
+        "routingWithRoute": "Enrutando vía {route}…",
+        "routingGeneric": "Enrutando tu pregunta…",
+        "exploring": "Explorando tus datos…",
+        "verifying": "Verificando la respuesta…",
+        "answering": "Preparando una respuesta…",
+        "thinking": "Pensando…"
+      },
+      "gotIt": "Entendido.",
+      "noAnswer": "El harness no devolvió una respuesta.",
+      "unconfigured": "El harness no está configurado en este entorno — esta es una respuesta de marcador de posición.",
+      "demo": {
+        "regions": {
+          "question": "¿A qué regiones se debe desplegar esto?",
+          "description": "Puedes elegir más de una — el harness distribuirá el trabajo a cada una.",
+          "northAmerica": "Norteamérica",
+          "europe": "Europa",
+          "asiaPacific": "Asia-Pacífico"
+        },
+        "environment": {
+          "question": "¿Contra qué entorno debería ejecutarse esto?",
+          "description": "Esto determina qué credenciales y fuente de datos usará el harness.",
+          "staging": "Staging",
+          "stagingDescription": "Seguro para experimentar, con datos de muestra.",
+          "production": "Producción",
+          "productionDescription": "Datos reales — los cambios son reales.",
+          "local": "Local",
+          "localDescription": "Tu propia máquina, nada compartido."
+        },
+        "dashlet": {
+          "title": "Pedidos activos"
+        }
+      }
+    }
   }
 }

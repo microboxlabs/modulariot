@@ -4900,5 +4900,43 @@
     },
     "harnessError": "Something went wrong while searching.",
     "harnessRetry": "Retry"
+  },
+  "harnessChat": {
+    "stream": {
+      "progress": {
+        "connecting": "Connecting to the harness…",
+        "routingWithRoute": "Routing via {route}…",
+        "routingGeneric": "Routing your question…",
+        "exploring": "Exploring your data…",
+        "verifying": "Verifying the answer…",
+        "answering": "Preparing an answer…",
+        "thinking": "Thinking…"
+      },
+      "gotIt": "Got it.",
+      "noAnswer": "The harness didn't return an answer.",
+      "unconfigured": "The harness isn't configured in this environment — this is a placeholder response.",
+      "demo": {
+        "regions": {
+          "question": "Which regions should this deploy to?",
+          "description": "You can pick more than one — the harness will fan out to each.",
+          "northAmerica": "North America",
+          "europe": "Europe",
+          "asiaPacific": "Asia-Pacific"
+        },
+        "environment": {
+          "question": "Which environment should this run against?",
+          "description": "This determines which credentials and data source the harness will use.",
+          "staging": "Staging",
+          "stagingDescription": "Safe to experiment, seeded with sample data.",
+          "production": "Production",
+          "productionDescription": "Live data — changes are real.",
+          "local": "Local",
+          "localDescription": "Your own machine, nothing shared."
+        },
+        "dashlet": {
+          "title": "Active Orders"
+        }
+      }
+    }
   }
 }

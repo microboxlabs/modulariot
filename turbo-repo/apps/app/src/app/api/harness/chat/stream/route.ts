@@ -28,9 +28,10 @@ import { getAllDashlets, getAllDashletMetas } from "@/features/dashboard/dashlet
  *
  * `ask_user_question` is a client-side "human" tool the harness cannot
  * invoke yet, so until it can, this relay synthesizes the tool call itself
- * (triggered by a couple of demo phrases, or whenever the harness endpoint
- * is unconfigured) as a genuine TOOL_CALL_START/ARGS/END sequence — proving
- * out the AG-UI path extensions will use once the harness can drive it.
+ * (triggered by a couple of demo phrases, only reachable while the harness
+ * endpoint is unconfigured) as a genuine TOOL_CALL_START/ARGS/END sequence —
+ * proving out the AG-UI path extensions will use once the harness can drive
+ * it.
  */
 
 const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
@@ -214,10 +215,11 @@ function lastMessageIsToolResult(messages: AgUiMessage[]): AgUiMessage | null {
   return last?.role === "tool" ? last : null;
 }
 
-/** Demo triggers for the ask_user_question human tool — used both when the
- * harness endpoint is unconfigured (local dev without MIOT_HARNESS_URL) and
- * whenever the user's message asks for one, so the AG-UI tool-call path
- * stays exercisable without the harness itself being able to invoke it. */
+/** Demo trigger for the ask_user_question human tool — only reachable when
+ * the harness endpoint is unconfigured (local dev without MIOT_HARNESS_URL),
+ * so the AG-UI tool-call path stays exercisable without the harness itself
+ * being able to invoke it, without ever intercepting real traffic once a
+ * harness is actually configured. */
 function demoAskUserQuestion(send: Sender, text: string): boolean {
   if (/\bmultiple\b/i.test(text)) {
     askUserQuestionToolCall(send, {
@@ -333,22 +335,22 @@ function decideHarnessPath(
     return { handled: true };
   }
 
-  if (demoAskUserQuestion(send, message)) {
-    send({ type: "RUN_FINISHED", runId, threadId });
-    return { handled: true };
-  }
-
-  if (demoShowAllDashlets(send, message)) {
-    send({ type: "RUN_FINISHED", runId, threadId });
-    return { handled: true };
-  }
-
-  if (demoShowDashlet(send, message)) {
-    send({ type: "RUN_FINISHED", runId, threadId });
-    return { handled: true };
-  }
-
   if (!MIOT_HARNESS_HOST) {
+    if (demoAskUserQuestion(send, message)) {
+      send({ type: "RUN_FINISHED", runId, threadId });
+      return { handled: true };
+    }
+
+    if (demoShowAllDashlets(send, message)) {
+      send({ type: "RUN_FINISHED", runId, threadId });
+      return { handled: true };
+    }
+
+    if (demoShowDashlet(send, message)) {
+      send({ type: "RUN_FINISHED", runId, threadId });
+      return { handled: true };
+    }
+
     sendText(
       send,
       "The harness isn't configured in this environment — this is a placeholder response.",

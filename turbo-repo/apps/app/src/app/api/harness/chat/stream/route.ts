@@ -1,3 +1,5 @@
+import { NextResponse } from "next/server";
+import type { Session } from "next-auth";
 import {
   createMiotHarnessClient,
   TERMINAL_EVENT_TYPES,
@@ -190,6 +192,32 @@ type RunAgentInputBody = {
   messages?: AgUiMessage[];
 };
 
+const AG_UI_MESSAGE_ROLES: ReadonlySet<string> = new Set([
+  "developer",
+  "system",
+  "assistant",
+  "user",
+  "tool",
+]);
+
+function isValidAgUiMessage(value: unknown): value is AgUiMessage {
+  if (typeof value !== "object" || value === null) return false;
+  const role = (value as { role?: unknown }).role;
+  return typeof role === "string" && AG_UI_MESSAGE_ROLES.has(role);
+}
+
+/** Guards the two fields this route actually reads off the parsed body
+ * (`messages`, walked by lastUserText/lastMessageIsToolResult) — malformed
+ * JSON here (e.g. `messages` sent as a non-array) would otherwise reach
+ * `messages.at(-1)` in lastMessageIsToolResult and throw, since not every
+ * type has an `.at` method. */
+function isValidRunAgentInputBody(body: unknown): body is RunAgentInputBody {
+  if (typeof body !== "object" || body === null) return false;
+  const messages = (body as { messages?: unknown }).messages;
+  if (messages === undefined) return true;
+  return Array.isArray(messages) && messages.every(isValidAgUiMessage);
+}
+
 function lastUserText(messages: AgUiMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
@@ -372,18 +400,17 @@ type HarnessConnection =
     }
   | { ok: false; errorMessage: string };
 
-/** Resolves auth + tenant scope and builds the harness client — the same
- * chain the search relay uses. */
-async function connectToHarness(): Promise<HarnessConnection> {
-  const authResult = await requireAuth();
-  if (!authResult.authenticated) return { ok: false, errorMessage: "unauthenticated" };
-
+/** Resolves tenant scope and builds the harness client — the same chain the
+ * search relay uses. Takes the already-authenticated session rather than
+ * calling requireAuth() itself: the caller now authenticates once, up front,
+ * before any other branch (including the demo/placeholder paths) runs. */
+async function connectToHarness(session: Session): Promise<HarnessConnection> {
   const scopeResult = await resolveTenantScope();
   if (!scopeResult.resolved) return { ok: false, errorMessage: "tenant_unresolved" };
 
   const orgSlug = scopeResult.scope.activeOrg.slug;
-  const token = authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? undefined;
-  const userEmail = authResult.session.user?.email;
+  const token = session.user?.rawJWT ?? session.user?.ticket ?? undefined;
+  const userEmail = session.user?.email;
 
   const client = createMiotHarnessClient({
     baseUrl: `${MIOT_HARNESS_HOST}/api/v1/orgs/${orgSlug}/harness`,
@@ -431,7 +458,11 @@ async function relayHarnessEvents(
 }
 
 export async function POST(request: Request) {
-  const body: RunAgentInputBody = await request.json().catch(() => ({}));
+  const rawBody: unknown = await request.json().catch(() => ({}));
+  if (!isValidRunAgentInputBody(rawBody)) {
+    return NextResponse.json({ error: "invalid_request_body" }, { status: 400 });
+  }
+  const body = rawBody;
   const runId = body.runId ?? crypto.randomUUID();
   const threadId = body.threadId ?? crypto.randomUUID();
   const messages = body.messages ?? [];
@@ -477,11 +508,21 @@ async function run(
 ): Promise<void> {
   send({ type: "RUN_STARTED", runId, threadId });
 
+  // Authenticate before anything else — including the demo/placeholder
+  // branches in decideHarnessPath, which would otherwise run for anonymous
+  // callers hitting this route directly (no auth middleware sits in front
+  // of it; the page-level (secured) layout only gates the browser UI).
+  const authResult = await requireAuth();
+  if (!authResult.authenticated) {
+    send({ type: "RUN_ERROR", message: "unauthenticated" });
+    return;
+  }
+
   const decision = decideHarnessPath(send, messages, runId, threadId);
   if (decision.handled) return;
   const { message } = decision;
 
-  const connection = await connectToHarness();
+  const connection = await connectToHarness(authResult.session);
   if (!connection.ok) {
     // RUN_ERROR is terminal on its own — no RUN_FINISHED follows it.
     send({ type: "RUN_ERROR", message: connection.errorMessage });
@@ -498,12 +539,16 @@ async function run(
     client.runs.cancel(activeRunId, { signal: AbortSignal.timeout(5_000) }).catch(() => {});
   };
 
+  let timedOut = false;
   const controller = new AbortController();
   const abortRelay = () => {
     controller.abort();
     cancelUpstreamRun();
   };
-  const timeout = setTimeout(abortRelay, HARNESS_STREAM_TIMEOUT_MS);
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    abortRelay();
+  }, HARNESS_STREAM_TIMEOUT_MS);
   requestSignal.addEventListener("abort", abortRelay);
 
   try {
@@ -557,13 +602,20 @@ async function run(
   } catch (err: unknown) {
     const isAbort =
       controller.signal.aborted || (err as { name?: string }).name === "AbortError";
-    if (!isAbort) {
+    if (timedOut) {
+      // Unlike a client disconnect, the caller is still listening here — the
+      // relay itself gave up, so it needs a terminal event same as any other
+      // failure.
+      logger.error({ err }, "[harness/chat/stream] relay timed out");
+      cancelUpstreamRun();
+      send({ type: "RUN_ERROR", message: "timeout" });
+    } else if (!isAbort) {
       logger.error({ err }, "[harness/chat/stream] relay failed");
       cancelUpstreamRun();
       send({ type: "RUN_ERROR", message: "stream_failed" });
     }
-    // Aborted (the caller disconnected or cancelled) — no AG-UI event for
-    // that case, and nothing left to notify: the listener is already gone.
+    // Aborted by the caller disconnecting — no AG-UI event for that case,
+    // and nothing left to notify: the listener is already gone.
   } finally {
     clearTimeout(timeout);
     requestSignal.removeEventListener("abort", abortRelay);

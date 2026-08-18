@@ -78,15 +78,20 @@ export default function HarnessChat({
     });
   }, []);
 
-  const deleteSessions = useCallback((ids: string[]) => {
-    const idSet = new Set(ids);
-    setSessions((prev) => {
-      const filtered = prev.filter((s) => !idSet.has(s.id));
+  // Computed from the current `sessions` closure rather than inside
+  // setSessions's updater — an updater must be pure (no other setters, no
+  // side effects like createSession()'s crypto.randomUUID()/Date.now()),
+  // since React may invoke it more than once for the same commit.
+  const deleteSessions = useCallback(
+    (ids: string[]) => {
+      const idSet = new Set(ids);
+      const filtered = sessions.filter((s) => !idSet.has(s.id));
       const nextSessions = filtered.length > 0 ? filtered : [createSession()];
+      setSessions(nextSessions);
       setActiveId((current) => (idSet.has(current) ? nextSessions[0].id : current));
-      return nextSessions;
-    });
-  }, []);
+    },
+    [sessions],
+  );
 
   const activeTitle = sessions.find((s) => s.id === activeId)?.title ?? "Empty chat";
 

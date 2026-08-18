@@ -31,6 +31,13 @@ export function SpotlightInput({
 }: Readonly<SpotlightInputProps>) {
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Starts false to match the server-rendered markup (no `navigator` there)
+  // — read for real post-mount so there's no hydration mismatch.
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    setIsMac(/mac/i.test(navigator.platform || navigator.userAgent));
+  }, []);
+
   // Focus the input when the panel opens.
   useLayoutEffect(() => {
     const id = setTimeout(() => inputRef.current?.focus(), 60);
@@ -84,7 +91,7 @@ export function SpotlightInput({
           onClick={onOpenChat}
           className="flex shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
         >
-          <kbd className="font-mono text-[10px]">⌘</kbd>
+          <kbd className="font-mono text-[10px]">{isMac ? "⌘" : "Ctrl"}</kbd>
           <kbd className="font-mono text-[10px]">↵</kbd> Open chat
         </button>
       )}

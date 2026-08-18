@@ -15,10 +15,21 @@ function getFileDataURL(file: File): Promise<string> {
   });
 }
 
+const MAX_PDF_BYTES = 20 * 1024 * 1024;
+
 class SimplePdfAttachmentAdapter implements AttachmentAdapter {
   accept = "application/pdf";
 
   async add({ file }: { file: File }): Promise<PendingAttachment> {
+    // The composer runtime already rejects anything not matching `accept`
+    // (file.type) before this ever runs — nothing left to gate here except
+    // size, since a large PDF gets fully base64-encoded into `content` and
+    // held in message state / sent over the wire as-is.
+    if (file.size > MAX_PDF_BYTES) {
+      throw new Error(
+        `PDF is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB) — the limit is ${MAX_PDF_BYTES / (1024 * 1024)} MB.`,
+      );
+    }
     return {
       id: crypto.randomUUID(),
       type: "document",

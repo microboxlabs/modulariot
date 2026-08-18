@@ -3,10 +3,35 @@
  * with a regex and wraps matches in colored spans. No dangerouslySetInnerHTML
  * (the content here is always our own generated JSON, but there's no reason
  * to reach for it when plain React nodes work just as well).
+ *
+ * Matches a single JSON string OR a bare true/false/null/number literal.
+ * Whether a matched string is a property key (vs. a value) isn't decided in
+ * the regex itself — a lookahead there would've meant two near-duplicate
+ * string alternatives (one with, one without), which is exactly what made
+ * the old pattern both over the regex-complexity budget and prone to
+ * non-linear backtracking (`.*?` has no way to tell the two apart without
+ * retrying). `[^"\\]|\\.` is unambiguous — a character is either "not a quote
+ * or backslash" or the second half of an escape sequence, never both — so
+ * there's only one way to match any given string, and key-vs-value is
+ * classified afterward in plain code instead.
  */
-const TOKEN_REGEX = /(".*?"(?=\s*:))|(".*?")|(\btrue\b|\bfalse\b)|(\bnull\b)|(-?\b\d+\.?\d*\b)/g;
+const TOKEN_REGEX = /"(?:[^"\\]|\\.)*"|\btrue\b|\bfalse\b|\bnull\b|-?\b\d+\.?\d*\b/g;
 
-function highlightLine(line: string, lineKey: number): React.ReactNode[] {
+function isFollowedByColon(line: string, index: number): boolean {
+  let i = index;
+  while (i < line.length && /\s/.test(line[i])) i++;
+  return line[i] === ":";
+}
+
+function classNameForToken(token: string, isPropertyKey: boolean): string {
+  if (isPropertyKey) return "text-sky-700 dark:text-sky-400";
+  if (token.startsWith('"')) return "text-emerald-700 dark:text-emerald-400";
+  if (token === "true" || token === "false") return "text-purple-700 dark:text-purple-400";
+  if (token === "null") return "text-gray-500 dark:text-gray-400";
+  return "text-amber-700 dark:text-amber-400";
+}
+
+function highlightLine(line: string, lineKey: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let tokenIndex = 0;
@@ -17,30 +42,33 @@ function highlightLine(line: string, lineKey: number): React.ReactNode[] {
     if (match.index > lastIndex) {
       parts.push(line.slice(lastIndex, match.index));
     }
-    const [full, propKey, str, bool, nul, num] = match;
-    let className = "";
-    if (propKey) className = "text-sky-700 dark:text-sky-400";
-    else if (str) className = "text-emerald-700 dark:text-emerald-400";
-    else if (bool) className = "text-purple-700 dark:text-purple-400";
-    else if (nul) className = "text-gray-500 dark:text-gray-400";
-    else if (num) className = "text-amber-700 dark:text-amber-400";
+    const [token] = match;
+    const isPropertyKey = token.startsWith('"') && isFollowedByColon(line, match.index + token.length);
     parts.push(
-      <span key={`${lineKey}-${tokenIndex++}`} className={className}>
-        {full}
+      <span key={`${lineKey}-${tokenIndex++}`} className={classNameForToken(token, isPropertyKey)}>
+        {token}
       </span>,
     );
-    lastIndex = match.index + full.length;
+    lastIndex = match.index + token.length;
   }
   parts.push(line.slice(lastIndex));
   return parts;
 }
 
 export function HighlightedJson({ json }: Readonly<{ json: string }>) {
+  const seen = new Map<string, number>();
   return (
     <>
-      {json.split("\n").map((line, i) => (
-        <div key={i}>{highlightLine(line, i)}</div>
-      ))}
+      {json.split("\n").map((line) => {
+        // Content-derived key, not the array index — the rendered lines
+        // never reorder/insert/remove independently (the whole `json` string
+        // is always replaced as one unit), but duplicate lines are common in
+        // JSON (e.g. repeated "},"), so an occurrence count disambiguates.
+        const occurrence = seen.get(line) ?? 0;
+        seen.set(line, occurrence + 1);
+        const lineKey = `${line}#${occurrence}`;
+        return <div key={lineKey}>{highlightLine(line, lineKey)}</div>;
+      })}
     </>
   );
 }

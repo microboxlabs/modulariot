@@ -3,6 +3,7 @@ import type { Session } from "next-auth";
 import {
   createMiotHarnessClient,
   TERMINAL_EVENT_TYPES,
+  type HarnessEvent,
 } from "@microboxlabs/miot-harness-client";
 import { requireAuth } from "../../../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../../../utils/tenant-scope";
@@ -311,7 +312,7 @@ function demoAskUserQuestion(send: Sender, text: string, tr: TrFn): boolean {
 function findNamedDashletId(text: string): string | undefined {
   return getAllDashletMetas()
     .map((meta) => meta.id)
-    .find((id) => new RegExp(`\\b${id}\\b`, "i").test(text));
+    .find((id) => new RegExp(String.raw`\b${id}\b`, "i").test(text));
 }
 
 /** Demo trigger that fires every show_dashlet-eligible dashlet as its own
@@ -448,6 +449,38 @@ async function connectToHarness(session: Session): Promise<HarnessConnection> {
   return { ok: true, client, orgSlug, token, userEmail };
 }
 
+type RunTelemetry = { route: string | undefined; tools: string[] };
+
+/** Tracks the two pieces of the episode record that live outside
+ * `HarnessStreamProgress` — the chosen route and every tool invoked —
+ * mutating the shared accumulator in place since both are running tallies
+ * for the whole stream, not per-event state. */
+function trackRunTelemetry(event: HarnessEvent, telemetry: RunTelemetry): void {
+  if (event.type === "route.selected") {
+    const r = event.data.route;
+    if (typeof r === "string") telemetry.route = r;
+  } else if (event.type === "tool.started") {
+    const t = event.data.tool;
+    if (typeof t === "string") telemetry.tools.push(t);
+  }
+}
+
+/** Narrates one forwarded event: always the phase-diff headline, plus the
+ * raw `thinking.delta` chunk when that's what this event is (already
+ * incremental from the harness, so it's appended as-is). */
+function narrateForwardedEvent(
+  send: Sender,
+  narrator: Narrator,
+  progress: HarnessStreamProgress,
+  event: HarnessEvent,
+  tr: TrFn,
+): void {
+  appendNarrationDiff(send, narrator, progress, tr);
+  if (event.type !== "thinking.delta") return;
+  const delta = event.data.delta;
+  if (typeof delta === "string") appendNarration(send, narrator, delta);
+}
+
 /** Relays the harness run's own event stream to the browser as live
  * narration, tracking the route + tools invoked along the way for the
  * episode record. Breaks once a terminal event arrives. */
@@ -458,31 +491,20 @@ async function relayHarnessEvents(
   send: Sender,
   narrator: Narrator,
   tr: TrFn,
-): Promise<{ route: string | undefined; tools: string[] }> {
+): Promise<RunTelemetry> {
   let progress: HarnessStreamProgress = INITIAL_PROGRESS;
-  let route: string | undefined;
-  const tools: string[] = [];
+  const telemetry: RunTelemetry = { route: undefined, tools: [] };
 
   for await (const event of client.runs.stream(runId, { signal })) {
-    if (event.type === "route.selected") {
-      const r = (event.data as { route?: unknown }).route;
-      if (typeof r === "string") route = r;
-    } else if (event.type === "tool.started") {
-      const t = (event.data as { tool?: unknown }).tool;
-      if (typeof t === "string") tools.push(t);
-    }
+    trackRunTelemetry(event, telemetry);
     if (FORWARDED_EVENTS.has(event.type)) {
       progress = reduceHarnessStreamEvent(progress, { event: event.type, data: event.data });
-      appendNarrationDiff(send, narrator, progress, tr);
-      if (event.type === "thinking.delta") {
-        const delta = (event.data as { delta?: unknown }).delta;
-        if (typeof delta === "string") appendNarration(send, narrator, delta);
-      }
+      narrateForwardedEvent(send, narrator, progress, event, tr);
     }
     if (TERMINAL_EVENT_TYPES.has(event.type)) break;
   }
 
-  return { route, tools };
+  return telemetry;
 }
 
 export async function POST(request: Request) {

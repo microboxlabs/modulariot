@@ -9,6 +9,7 @@ import { AuthProvider } from "@/features/auth/context/auth-context";
 import NewFeatureNotification from "@/features/new-feature-notification/new-feature-notification";
 import { HarnessChatProvider } from "@/features/harness-chat/context/harness-chat-context";
 import { isHarnessUiEnabled } from "@/features/layout/utils/utils";
+import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
 import HarnessChatMount from "./harness-chat-mount";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -31,7 +32,18 @@ export default async function Layout({
             <SecuredLayout params={params}>{children}</SecuredLayout>
           </AuthProvider>
         </SessionProvider>
-        {isHarnessUiEnabled() && <HarnessChatMount />}
+        {isHarnessUiEnabled() && (
+          // HarnessChatMount is a sibling of SecuredLayout, not nested inside
+          // it — SecuredLayout owns the "real" RuntimeConfigProvider, so
+          // without this, anything rendered inside chat (e.g. geographic_map,
+          // which needs runtimeConfig.MAPBOX_API_KEY) sees useRuntimeConfig()
+          // as permanently null, not just "still loading." The underlying
+          // fetch is module-level cached/deduped, so a second provider
+          // instance here is free — it doesn't refetch.
+          <RuntimeConfigProvider>
+            <HarnessChatMount />
+          </RuntimeConfigProvider>
+        )}
       </HarnessChatProvider>
     </main>
   );

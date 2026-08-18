@@ -9,6 +9,8 @@ export const dashletDefinition: DashletDefinition = {
   SettingsModal: DashletSettings,
   defaultConfig: defaultConfig as unknown as Record<string, unknown>,
   getLayoutDefaults,
+  // Not useful as a standalone chat preview — chat is already text.
+  showInChat: false,
 };
 
 export { Dashlet, defaultConfig, getLayoutDefaults } from "./dashlet";

@@ -8,6 +8,7 @@ import { twMerge } from "tailwind-merge";
 import { LuArrowLeft, LuHistory, LuPlus, LuSparkles, LuX } from "react-icons/lu";
 import { harnessAttachmentAdapter } from "./harness-chat-attachments";
 import { useHarnessChatContext } from "./context/harness-chat-context";
+import { useResizablePanelWidth } from "./hooks/use-resizable-panel-width";
 import { buildHarnessToolkit, type HarnessExtension } from "./harness-extension";
 import { DEFAULT_HARNESS_EXTENSIONS } from "./extensions";
 import { HistoryList } from "./components/history-list";
@@ -42,6 +43,7 @@ export default function HarnessChat({
 }>) {
   const { isOpen, close, pendingMessage, clearPendingMessage } =
     useHarnessChatContext();
+  const { width, isDragging, startDrag, toggleMinMax } = useResizablePanelWidth();
   const [sessions, setSessions] = useState<Session[]>(() => [createSession()]);
   const [activeId, setActiveId] = useState(() => sessions[0].id);
   const [view, setView] = useState<View>("chat");
@@ -91,11 +93,38 @@ export default function HarnessChat({
   return (
     <div
       className={twMerge(
-        "mt-16 mb-12 hidden shrink-0 overflow-hidden border-l border-gray-200 bg-white transition-[width,opacity] duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-900 lg:flex",
-        isOpen ? "w-1/4 opacity-100" : "w-0 opacity-0"
+        "relative mt-16 mb-12 hidden shrink-0 overflow-hidden border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 lg:flex",
+        isOpen ? "opacity-100" : "w-0 opacity-0",
+        isDragging ? "transition-opacity duration-300 ease-in-out" : "transition-[width,opacity] duration-300 ease-in-out"
       )}
+      style={isOpen ? { width } : undefined}
     >
-      <div className="flex w-[25vw] min-w-72 flex-col text-gray-700 antialiased dark:text-gray-300">
+      {isOpen && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize chat panel"
+          onPointerDown={startDrag}
+          onDoubleClick={toggleMinMax}
+          className={twMerge(
+            // Stays inside the panel's own bounds (not straddling the
+            // border) — the wrapper's overflow-hidden, needed for the
+            // open/close collapse animation, would clip anything hanging
+            // outside it.
+            "group absolute inset-y-0 left-0 z-20 flex w-2.5 cursor-col-resize touch-none select-none items-center justify-center"
+          )}
+        >
+          <div
+            className={twMerge(
+              "h-8 w-1 rounded-full transition-colors duration-150",
+              isDragging
+                ? "bg-gray-500 dark:bg-gray-300"
+                : "bg-gray-300 group-hover:bg-gray-400 dark:bg-gray-600 dark:group-hover:bg-gray-400"
+            )}
+          />
+        </div>
+      )}
+      <div className="flex w-full min-w-0 flex-col text-gray-700 antialiased dark:text-gray-300">
         <div className="h-15 flex shrink-0 items-center gap-1 border-b border-gray-200 px-3 text-xs font-medium text-gray-600 dark:border-gray-700 dark:text-gray-300">
           {view === "history" ? (
             <>

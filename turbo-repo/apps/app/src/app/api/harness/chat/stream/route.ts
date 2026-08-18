@@ -13,6 +13,8 @@ import {
   type HarnessStreamProgress,
 } from "@/features/layout/components/secured-navbar/spotlight-search/harness-stream";
 import type { AskUserQuestionArgs } from "@/features/harness-chat/extensions/ask-user-question";
+import type { ShowDashletArgs } from "@/features/harness-chat/extensions/show-dashlet";
+import { getAllDashlets, getAllDashletMetas } from "@/features/dashboard/dashlets";
 
 /**
  * AG-UI-compliant streaming relay for the harness-chat panel. Speaks the
@@ -166,6 +168,13 @@ function askUserQuestionToolCall(send: Sender, args: AskUserQuestionArgs): void 
   send({ type: "TOOL_CALL_END", toolCallId });
 }
 
+function showDashletToolCall(send: Sender, args: ShowDashletArgs): void {
+  const toolCallId = crypto.randomUUID();
+  send({ type: "TOOL_CALL_START", toolCallId, toolCallName: "show_dashlet" });
+  send({ type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) });
+  send({ type: "TOOL_CALL_END", toolCallId });
+}
+
 type AgUiMessage = {
   id: string;
   role: "developer" | "system" | "assistant" | "user" | "tool";
@@ -241,6 +250,60 @@ function demoAskUserQuestion(send: Sender, text: string): boolean {
   return false;
 }
 
+/** Finds a literal dashlet registry id mentioned in the user's message, e.g.
+ * "show me a text_card dashlet" → "text_card". Lets the demo trigger below
+ * test any registered dashlet by name, not just the stat_icon default. */
+function findNamedDashletId(text: string): string | undefined {
+  return getAllDashletMetas()
+    .map((meta) => meta.id)
+    .find((id) => new RegExp(`\\b${id}\\b`, "i").test(text));
+}
+
+/** Demo trigger that fires every show_dashlet-eligible dashlet as its own
+ * tool call in one run, each with its own defaultConfig — a quick visual
+ * survey of what's rendered correctly in chat. Dashlets with
+ * showInChat: false are skipped here since they'd just render empty or
+ * redundant; naming one directly still works, ShowDashletCard shows an
+ * explicit "not supported" message for those. */
+function demoShowAllDashlets(send: Sender, text: string): boolean {
+  if (!/\b(all|every)\s+dashlets?\b/i.test(text)) return false;
+  for (const dashlet of getAllDashlets()) {
+    if (dashlet.showInChat === false) continue;
+    showDashletToolCall(send, { dashletId: dashlet.meta.id });
+  }
+  return true;
+}
+
+/** Demo trigger for the show_dashlet extension — renders a real dashboard
+ * dashlet with static demo data, no live backend calls, so the "dashlets in
+ * chat" mechanism is provable before the real harness knows how to invoke
+ * it. Naming a registered dashlet id (e.g. "text_card") renders that one
+ * using its own defaultConfig; the generic "dashlet"/"stat card"/"widget"
+ * phrasing falls back to a stat_icon demo with custom sample data. */
+function demoShowDashlet(send: Sender, text: string): boolean {
+  const namedId = findNamedDashletId(text);
+  if (namedId) {
+    showDashletToolCall(send, { dashletId: namedId });
+    return true;
+  }
+
+  if (!/\b(dashlet|stat\s*card|widget)\b/i.test(text)) return false;
+  showDashletToolCall(send, {
+    dashletId: "stat_icon",
+    config: {
+      dataMode: "static",
+      staticData: JSON.stringify({ title: "Active Orders", value: "156", unit: "items" }),
+      title: "{{row.title}}",
+      value: "{{row.value}}",
+      unit: "{{row.unit}}",
+      cardVariant: "horizontal",
+      showIcon: true,
+      icon: "cart",
+    },
+  });
+  return true;
+}
+
 type HarnessPathDecision = { handled: true } | { handled: false; message: string };
 
 /** Short-circuits for turns that don't need the real harness at all: an
@@ -256,9 +319,10 @@ function decideHarnessPath(
 ): HarnessPathDecision {
   const toolResult = lastMessageIsToolResult(messages);
   if (toolResult) {
-    // Acknowledge the card's answer locally — nothing to forward upstream
-    // yet, the real harness can't consume `ask_user_question` results.
-    sendText(send, "Got it — thanks for answering.");
+    // Acknowledge the tool result locally — nothing to forward upstream yet,
+    // the real harness can't consume these results. Kept neutral since this
+    // covers both an ask_user_question answer and a show_dashlet auto-ack.
+    sendText(send, "Got it.");
     send({ type: "RUN_FINISHED", runId, threadId });
     return { handled: true };
   }
@@ -270,6 +334,16 @@ function decideHarnessPath(
   }
 
   if (demoAskUserQuestion(send, message)) {
+    send({ type: "RUN_FINISHED", runId, threadId });
+    return { handled: true };
+  }
+
+  if (demoShowAllDashlets(send, message)) {
+    send({ type: "RUN_FINISHED", runId, threadId });
+    return { handled: true };
+  }
+
+  if (demoShowDashlet(send, message)) {
     send({ type: "RUN_FINISHED", runId, threadId });
     return { handled: true };
   }

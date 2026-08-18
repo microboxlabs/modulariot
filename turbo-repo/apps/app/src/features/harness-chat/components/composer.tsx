@@ -146,6 +146,7 @@ export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
   const slash = useSlashCommand(textareaRef, skills);
   const backdropRef = useRef<HTMLDivElement>(null);
   const { markCanceled } = useRunCancel();
+  const text = useAuiState((s) => s.composer.text);
 
   const syncBackdropScroll = (e: UIEvent<HTMLTextAreaElement>) => {
     if (backdropRef.current) backdropRef.current.scrollTop = e.currentTarget.scrollTop;
@@ -174,23 +175,49 @@ export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
         <ComposerPrimitive.AddAttachment className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100">
           <LuPaperclip className="h-3.5 w-3.5" />
         </ComposerPrimitive.AddAttachment>
-        <div className="grid flex-1">
+        {/*
+          ComposerPrimitive.Input renders react-textarea-autosize under the
+          hood. When the value is empty, it measures height from
+          `node.placeholder` (falling back to a single "x" only once no
+          placeholder is set either) — so a native `placeholder` attribute
+          here would get wrapped across however many lines the *current*
+          container width forces, and that width is briefly whatever the
+          chat panel's own open/close CSS transition happens to be at that
+          instant, not its final settled value. That's the actual "big empty
+          input on open" bug: the placeholder text momentarily wraps to
+          several lines in a near-zero-width container. No placeholder
+          attribute means the library measures its own single-character
+          fallback instead, which can never wrap — so the empty state's
+          height is always minimal and width-independent, and it only ever
+          grows once there's real text to grow for. The placeholder text
+          itself is rendered separately below, as a plain absolutely
+          positioned overlay that has no bearing on height.
+        */}
+        <div className="relative flex-1">
           <div
             ref={backdropRef}
             aria-hidden
-            className="pointer-events-none col-start-1 row-start-1 overflow-hidden whitespace-pre-wrap break-words px-1 py-1 text-xs leading-snug text-gray-800 dark:text-gray-100"
+            className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-1 py-1 text-xs leading-snug text-gray-800 dark:text-gray-100"
           >
             {slash.highlightedParts}
           </div>
+          {text === "" && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute left-0 top-0 truncate px-1 py-1 text-xs leading-snug text-gray-400 dark:text-gray-500"
+            >
+              Ask the harness…
+            </span>
+          )}
           <ComposerPrimitive.Input
             ref={textareaRef}
             rows={1}
-            placeholder="Ask the harness…"
+            aria-label="Ask the harness…"
             onKeyDown={slash.onKeyDown}
             onChange={slash.trackCursor}
             onSelect={slash.trackCursor}
             onScroll={syncBackdropScroll}
-            className="col-start-1 row-start-1 max-h-90 w-full resize-none bg-transparent px-1 py-1 text-xs leading-snug text-transparent outline-none transition-[height] duration-100 ease-out caret-gray-800 placeholder:text-gray-400 dark:caret-gray-100 dark:placeholder:text-gray-500"
+            className="relative max-h-90 w-full resize-none bg-transparent px-1 py-1 text-xs leading-snug text-transparent outline-none transition-[height] duration-100 ease-out caret-gray-800 dark:caret-gray-100"
           />
         </div>
         <AuiIf condition={(s) => !s.thread.isRunning}>

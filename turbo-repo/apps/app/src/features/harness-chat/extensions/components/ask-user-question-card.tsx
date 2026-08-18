@@ -38,11 +38,27 @@ const OptionSelector: FC<{
 
 export const AskUserQuestionCard: FC<
   ToolCallMessagePartProps<AskUserQuestionArgs, AskUserQuestionResult>
-> = ({ args, result, addResult }) => {
+> = ({ args, result, isError, addResult }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [otherSelected, setOtherSelected] = useState(false);
   const [otherText, setOtherText] = useState("");
   const otherInputRef = useRef<HTMLInputElement>(null);
+
+  // A pending question left unanswered when a newer message supersedes it
+  // gets auto-cancelled by the runtime — `result` is then an error payload
+  // (e.g. `{ error: "Tool call cancelled by user" }`), not our own
+  // AskUserQuestionResult shape. `isError` is the documented way to tell
+  // the two apart; checking `result.selected` directly would throw here.
+  if (isError) {
+    return (
+      <div className="w-full rounded-lg border border-gray-200 bg-white p-3 text-xs dark:border-gray-700 dark:bg-gray-800">
+        <p className="font-medium text-gray-700 dark:text-gray-200">{args.question}</p>
+        <p className="mt-1 italic text-gray-400 dark:text-gray-500">
+          Skipped — superseded by a later message.
+        </p>
+      </div>
+    );
+  }
 
   if (result) {
     const answer = [...result.selected, result.other].filter(Boolean).join(", ");

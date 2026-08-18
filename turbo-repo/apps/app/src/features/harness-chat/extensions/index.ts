@@ -1,4 +1,5 @@
 import { askUserQuestionExtension } from "./ask-user-question";
+import { showDashletExtension } from "./show-dashlet";
 import type { HarnessExtension } from "../harness-extension";
 
 /**
@@ -7,4 +8,7 @@ import type { HarnessExtension } from "../harness-extension";
  * harness gets trained to send) here, or pass a different list in per call
  * site to override entirely.
  */
-export const DEFAULT_HARNESS_EXTENSIONS: HarnessExtension[] = [askUserQuestionExtension];
+export const DEFAULT_HARNESS_EXTENSIONS: HarnessExtension[] = [
+  askUserQuestionExtension,
+  showDashletExtension,
+];

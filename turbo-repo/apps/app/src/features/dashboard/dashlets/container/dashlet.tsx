@@ -16,7 +16,7 @@ import {
 import { usePgrestResolvedFields } from "../common/use-pgrest-resolved-fields";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import type { GridLayoutItem } from "../../types/dashboard.types";
-import { useDashboard } from "../../context/dashboard-context";
+import { useOptionalDashboard } from "../../context/dashboard-context";
 
 import "react-grid-layout/css/styles.css";
 
@@ -197,7 +197,7 @@ export function Dashlet({
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { updateWidgetLayouts } = useDashboard();
+  const { updateWidgetLayouts } = useOptionalDashboard();
 
   const config = (widget.config as unknown as DashletConfig) ?? defaultConfig;
   const variant = config.variant ?? "bento-box";

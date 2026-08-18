@@ -7,20 +7,35 @@ import {
 } from "@assistant-ui/react";
 import { LuFile, LuX } from "react-icons/lu";
 import { useEffect, useState } from "react";
+import { ImageLightbox } from "./image-lightbox";
 
 export function SentAttachment({ attachment }: Readonly<{ attachment: CompleteAttachment }>) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const part = attachment.content[0];
   const name = attachment.name;
 
   if (attachment.type === "image" && part?.type === "image") {
     return (
-      // Data-URL attachment content — next/image doesn't optimize these anyway.
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={part.image}
-        alt={name}
-        className="max-h-48 max-w-55 rounded-lg border border-gray-200 object-cover dark:border-gray-700"
-      />
+      <>
+        <button
+          type="button"
+          onClick={() => setLightboxOpen(true)}
+          className="cursor-zoom-in rounded-lg"
+        >
+          {/* Data-URL attachment content — next/image doesn't optimize these anyway. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={part.image}
+            alt={name}
+            className="max-h-48 max-w-55 rounded-lg border border-gray-200 object-cover dark:border-gray-700"
+          />
+        </button>
+        <ImageLightbox
+          src={lightboxOpen ? part.image : null}
+          alt={name}
+          onClose={() => setLightboxOpen(false)}
+        />
+      </>
     );
   }
 
@@ -60,6 +75,7 @@ export function ComposerAttachmentPreview({ attachment }: Readonly<{ attachment:
 
 function ComposerImagePreview({ file, name }: Readonly<{ file: File; name: string }>) {
   const [url, setUrl] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     const objectUrl = URL.createObjectURL(file);
@@ -70,9 +86,22 @@ function ComposerImagePreview({ file, name }: Readonly<{ file: File; name: strin
   return (
     <AttachmentPrimitive.Root className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-gray-200 dark:border-gray-600">
       {url && (
-        // Local object URL for the not-yet-sent file — next/image can't handle these.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt={name} className="h-full w-full object-cover" />
+        <>
+          <button
+            type="button"
+            onClick={() => setLightboxOpen(true)}
+            className="h-full w-full cursor-zoom-in"
+          >
+            {/* Local object URL for the not-yet-sent file — next/image can't handle these. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt={name} className="h-full w-full object-cover" />
+          </button>
+          <ImageLightbox
+            src={lightboxOpen ? url : null}
+            alt={name}
+            onClose={() => setLightboxOpen(false)}
+          />
+        </>
       )}
       <AttachmentPrimitive.Remove
         aria-label="Remove image"

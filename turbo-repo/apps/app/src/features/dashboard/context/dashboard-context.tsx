@@ -486,3 +486,54 @@ export function useDashboard() {
   }
   return context;
 }
+
+const NOOP = () => {};
+const DASHBOARD_FALLBACK: DashboardContextValue = {
+  widgets: [],
+  editMode: false,
+  isKiosk: false,
+  isLoaded: true,
+  dictionary: {},
+  siteId: null,
+  filters: [],
+  setFilters: NOOP,
+  refreshInterval: 0,
+  setRefreshInterval: NOOP,
+  order: undefined,
+  setOrder: NOOP,
+  allowedGroups: [],
+  setAllowedGroups: NOOP,
+  createWidget: () => null,
+  updateWidgetConfig: NOOP,
+  updateWidgetLayouts: NOOP,
+  updateWidgetConstraints: NOOP,
+  deleteWidget: NOOP,
+  duplicateWidget: () => null,
+  findWidget: () => undefined,
+  toggleEditMode: NOOP,
+  setEditMode: NOOP,
+  dashboardName: "",
+  setDashboardName: NOOP,
+  exportDashboard: () => "",
+  importDashboard: () => ({ success: false, error: "No dashboard loaded" }),
+  downloadDashboard: NOOP,
+  plannerDefinitions: [],
+  addPlannerRequest: () => "",
+  updatePlannerRequest: NOOP,
+  removePlannerRequest: NOOP,
+  undo: NOOP,
+  redo: NOOP,
+  canUndo: () => false,
+  canRedo: () => false,
+};
+
+/**
+ * Like `useDashboard` but returns a safe, read-only fallback instead of
+ * throwing when rendered outside a `DashboardProvider` — e.g. a dashlet
+ * rendered standalone in harness-chat, matching how
+ * `useOptionalPlannerContext` already does this for the planner context.
+ * Widget mutation callbacks are no-ops; there's no dashboard to mutate.
+ */
+export function useOptionalDashboard(): DashboardContextValue {
+  return useContext(DashboardContext) ?? DASHBOARD_FALLBACK;
+}

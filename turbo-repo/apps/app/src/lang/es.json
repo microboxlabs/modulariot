@@ -2332,6 +2332,9 @@
         "conversations": "Conversaciones",
         "geographicView": "Vista geográfica",
         "symptoms": "Síntomas",
+        "dev": "Dev",
+        "devExtensions": "Extensiones",
+        "devComponents": "Componentes",
         "liveStreams": "CCTV",
         "facilitySCL": "Sede SCL",
         "truckBeds": "Ramplas",
@@ -3158,16 +3161,16 @@
           "displayFormat": "Formato visual (solo presentación)",
           "displayFormatHint": "Tokens de dayjs, ej. DD/MM HH:mm. No cambia el valor enviado al servidor."
         }
+      },
+      "fileUpload": {
+        "defaultTitle": "Subir archivo",
+        "configureHint": "Configura un endpoint en ajustes",
+        "noEndpoint": "No hay endpoint configurado",
+        "uploading": "Subiendo {fileName}...",
+        "uploaded": "{fileName} subido",
+        "uploadFailed": "Error al subir",
+        "tryAgain": "Intentar de nuevo"
       }
-    },
-    "fileUpload": {
-      "defaultTitle": "Subir archivo",
-      "configureHint": "Configura un endpoint en ajustes",
-      "noEndpoint": "No hay endpoint configurado",
-      "uploading": "Subiendo {fileName}...",
-      "uploaded": "{fileName} subido",
-      "uploadFailed": "Error al subir",
-      "tryAgain": "Intentar de nuevo"
     },
     "defaults": {
       "pageViews": "Vistas de Página",

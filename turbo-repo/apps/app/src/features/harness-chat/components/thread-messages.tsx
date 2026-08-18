@@ -171,7 +171,7 @@ export const AssistantMessage: FC = () => (
       <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[7px] bg-linear-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)]">
         <BsStars className="h-3 w-3 text-white" />
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
         <MessagePrimitive.Parts
           components={{ Text: AssistantText, Reasoning: AssistantReasoning }}
         />

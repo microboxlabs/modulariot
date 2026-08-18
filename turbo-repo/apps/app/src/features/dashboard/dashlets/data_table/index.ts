@@ -9,6 +9,8 @@ export const dashletDefinition: DashletDefinition = {
   SettingsModal: DashletSettings,
   defaultConfig: defaultConfig as unknown as Record<string, unknown>,
   getLayoutDefaults,
+  // Superseded by data_table_v2 for chat — only the v2 renders standalone.
+  showInChat: false,
 };
 
 export { Dashlet, defaultConfig, getLayoutDefaults } from "./dashlet";

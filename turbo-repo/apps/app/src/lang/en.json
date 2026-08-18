@@ -2328,6 +2328,9 @@
         "conversations": "Conversations",
         "geographicView": "Geographic view",
         "symptoms": "Symptoms",
+        "dev": "Dev",
+        "devExtensions": "Extensions",
+        "devComponents": "Components",
         "liveStreams": "Live Streams",
         "facilitySCL": "Facility SCL",
         "truckBeds": "Truck Beds",
@@ -3158,16 +3161,16 @@
           "displayFormat": "Display format (visual only)",
           "displayFormatHint": "dayjs tokens, e.g. DD/MM HH:mm. Does not change the value sent to the server."
         }
+      },
+      "fileUpload": {
+        "defaultTitle": "Upload File",
+        "configureHint": "Configure an endpoint in settings",
+        "noEndpoint": "No endpoint configured",
+        "uploading": "Uploading {fileName}...",
+        "uploaded": "{fileName} uploaded",
+        "uploadFailed": "Upload failed",
+        "tryAgain": "Try again"
       }
-    },
-    "fileUpload": {
-      "defaultTitle": "Upload File",
-      "configureHint": "Configure an endpoint in settings",
-      "noEndpoint": "No endpoint configured",
-      "uploading": "Uploading {fileName}...",
-      "uploaded": "{fileName} uploaded",
-      "uploadFailed": "Upload failed",
-      "tryAgain": "Try again"
     },
     "defaults": {
       "pageViews": "Page Views",

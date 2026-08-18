@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { z } from "zod";
 import type { PickingInfo } from "@deck.gl/core";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import { useDashboard } from "../../context/dashboard-context";
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import { useMapPositions } from "@/features/common/providers/client-api.provider";
 import { PinLayer } from "@/features/geographic-view/components/layers/pin_layer_clustered";
 import Filters from "@/features/geographic-view/components/filters";
@@ -136,7 +136,7 @@ function LayersMapContent({
   mapLayers,
   showStyleSelector,
 }: Readonly<LayersMapContentProps>) {
-  const { dictionary } = useDashboard();
+  const { dictionary } = useOptionalDashboard();
   const [mapStyle, setMapStyle] = useState("satellite");
   const mapRef = useRef<MapRef>(null);
   const [zoom, setZoom] = useState(2);
@@ -235,7 +235,7 @@ function MapContent({
   showStyleSelector,
   pointMode,
 }: Readonly<MapContentProps>) {
-  const { dictionary } = useDashboard();
+  const { dictionary } = useOptionalDashboard();
   const [hoverInfo, setHoverInfo] =
     useState<PickingInfo<MapPositionProperties>>();
   const [positions, setPositions] = useState<MapPosition[]>([]);
@@ -449,14 +449,19 @@ function MapContent({
         </div>
       )}
       {showFilters && (
+        // pointer-events-none here so empty space in this column lets clicks
+        // through to the map underneath — Filters' own interactive buttons
+        // (MapButton) already set pointer-events-auto on themselves. Do NOT
+        // wrap Filters in a blanket pointer-events-auto: that re-enables
+        // hit-testing for its empty "reserved space" divs too (e.g. the
+        // collapsed-state wrapper in FilterComponent), turning them into a
+        // dead zone that blocks dragging the map.
         <div className="absolute left-0 top-0 bottom-0 z-40 pointer-events-none">
-          <div className="pointer-events-auto">
-            <Filters
-              dict={dictionary}
-              originalPositions={originalPositions}
-              setPositions={setPositions}
-            />
-          </div>
+          <Filters
+            dict={dictionary}
+            originalPositions={originalPositions}
+            setPositions={setPositions}
+          />
         </div>
       )}
       {hoverInfo && (
@@ -492,7 +497,7 @@ export function Dashlet({ editMode, widget }: Readonly<DashletComponentProps>) {
   const showStyleSelector = config.showStyleSelector;
   const pointMode = config.pointMode;
 
-  const { dictionary } = useDashboard();
+  const { dictionary } = useOptionalDashboard();
   const hasLayers = config.layers && config.layers.length > 0;
 
   const {

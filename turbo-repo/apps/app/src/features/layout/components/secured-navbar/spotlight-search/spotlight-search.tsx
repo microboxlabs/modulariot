@@ -14,6 +14,7 @@ import { useHarnessChatContext } from "@/features/harness-chat/context/harness-c
 import { BsStars } from "react-icons/bs";
 import { HiArrowRight, HiSearch } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import type { SpotlightItem, SpotlightResultKind, HarnessBlock } from "./types";
 import { buildNavigateItems } from "./navigate-actions";
 import { useSpotlightState } from "./use-spotlight-state";
@@ -133,25 +134,17 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
 
   // ── i18n ─────────────────────────────────────────────────────────────────
   const spotlightDict = dict?.spotlight as I18nRecord | undefined;
-  const navigateDict  = spotlightDict?.navigate as I18nRecord | undefined;
   const sidebarLabels = (
     (dict?.layout as I18nRecord | undefined)?.secured as I18nRecord | undefined
   )?.sidebar as I18nRecord | undefined;
 
-  const placeholder      = (spotlightDict?.placeholder  as string | undefined) ?? "Search…";
-  const recentLabel      = (spotlightDict?.recent       as string | undefined) ?? "Recent";
-  const navigateHeading  = (navigateDict?.heading       as string | undefined) ?? "Go to";
-  const harnessEmptyLabel = (spotlightDict?.harnessEmpty as string | undefined) ?? "No answer found, please try again!";
-  const harnessErrorLabel = (spotlightDict?.harnessError as string | undefined) ?? "Something went wrong while searching.";
-  const harnessRetryLabel = (spotlightDict?.harnessRetry as string | undefined) ?? "Retry";
-  const openChatLabel = (spotlightDict?.openChat as string | undefined) ?? "Open chat";
-
   // Empty-state recommendations — sample questions to try with Harness, and
   // a diverse slice of "Go to" destinations, so the modal isn't blank on open.
   const suggestionsDict = spotlightDict?.suggestions as I18nRecord | undefined;
-  const suggestedAskLabel = (suggestionsDict?.ask as string | undefined) ?? "Try asking";
-  const suggestedGotoLabel = (suggestionsDict?.goto as string | undefined) ?? "Recommended";
-  // Pipe-delimited, matching this dict's existing list convention (see navigate.triggers).
+  // Pipe-delimited, matching this dict's existing list convention (see
+  // navigate.triggers) — needs its own parsing + a structural (array, not
+  // string) fallback, so it stays a direct lookup rather than tr(), whose
+  // missing-key fallback is the literal key path, not undefined.
   const harnessSuggestionsRaw = suggestionsDict?.harness as string | undefined;
   const harnessSuggestionQuestions = harnessSuggestionsRaw
     ? harnessSuggestionsRaw.split("|").map((s) => s.trim()).filter(Boolean)
@@ -332,7 +325,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
       hasHarnessError
         ? {
             id: "__harness-retry__",
-            label: harnessRetryLabel,
+            label: tr("spotlight.harnessRetry", dict),
             kind: "harness" as const,
             icon: BsStars,
             keywords: [],
@@ -341,7 +334,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
             onSelect: () => setSearchAttempt((a) => a + 1),
           }
         : null,
-    [hasHarnessError, harnessRetryLabel],
+    [hasHarnessError, dict],
   );
 
   // ── Harness-generated go-to items (url blocks) — keyboard-selectable ────────
@@ -449,7 +442,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
         className="flex items-center w-full lg:w-96 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
       >
         <HiSearch className="mr-2 h-4 w-4 shrink-0" />
-        <span className="flex-1 text-left truncate">{placeholder}</span>
+        <span className="flex-1 text-left truncate">{tr("spotlight.placeholder", dict)}</span>
         <KbdHint />
       </button>
 
@@ -458,7 +451,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
         <SpotlightBackdrop onClose={close}>
           <dialog
             open
-            aria-label={placeholder}
+            aria-label={tr("spotlight.placeholder", dict)}
             className="relative left-1/2 top-[15%] w-full max-w-2xl -translate-x-1/2 px-4 border-0 bg-transparent p-0 m-0 max-h-none overflow-visible"
           >
             <div
@@ -470,14 +463,14 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
 
               <SpotlightInput
                 query={query}
-                placeholder={placeholder}
+                placeholder={tr("spotlight.placeholder", dict)}
                 onChange={setQuery}
                 ModeIcon={ModeIcon}
                 iconColor={iconColor}
                 iconBg={iconBg}
                 showOpenChat={!isEmpty}
                 onOpenChat={handleOpenChatAction}
-                openChatLabel={openChatLabel}
+                openChatLabel={tr("spotlight.openChat", dict)}
               />
 
               <div className="border-t border-gray-100 dark:border-gray-700" />
@@ -485,11 +478,11 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
               {isEmpty && (
                 <SpotlightEmptyState
                   recentItems={recentItems}
-                  recentLabel={recentLabel}
+                  recentLabel={tr("spotlight.recent", dict)}
                   suggestedHarnessItems={harnessSuggestionItems}
-                  suggestedHarnessLabel={suggestedAskLabel}
+                  suggestedHarnessLabel={tr("spotlight.suggestions.ask", dict)}
                   suggestedGotoItems={suggestedGotoItems}
-                  suggestedGotoLabel={suggestedGotoLabel}
+                  suggestedGotoLabel={tr("spotlight.suggestions.goto", dict)}
                   selectedItemId={selectableItems[selectedIndex]?.id ?? null}
                   onSelect={handleSelectAction}
                   onHover={setHoveredId}
@@ -505,15 +498,15 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
                   harnessProgress={harnessProgress}
                   harnessProgressLabels={harnessProgressLabels}
                   harnessError={hasHarnessError}
-                  harnessErrorLabel={harnessErrorLabel}
+                  harnessErrorLabel={tr("spotlight.harnessError", dict)}
                   harnessRetryItem={harnessRetryItem}
                   harnessPrompt={showHarnessPrompt ? harnessPromptItem : null}
                   selectedItemId={selectableItems[selectedIndex]?.id ?? null}
                   onSelect={handleSelectAction}
                   onHover={setHoveredId}
                   onOpenUrl={onOpenHarnessUrl}
-                  navigateHeading={navigateHeading}
-                  harnessEmptyLabel={harnessEmptyLabel}
+                  navigateHeading={tr("spotlight.navigate.heading", dict)}
+                  harnessEmptyLabel={tr("spotlight.harnessEmpty", dict)}
                 />
               )}
 

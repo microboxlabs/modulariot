@@ -10,12 +10,18 @@
  * string alternatives (one with, one without), which is exactly what made
  * the old pattern both over the regex-complexity budget and prone to
  * non-linear backtracking (`.*?` has no way to tell the two apart without
- * retrying). `[^"\\]|\\.` is unambiguous — a character is either "not a quote
- * or backslash" or the second half of an escape sequence, never both — so
- * there's only one way to match any given string, and key-vs-value is
- * classified afterward in plain code instead.
+ * retrying). key-vs-value is classified afterward in plain code instead.
+ *
+ * The string branch is the "unrolled loop" form
+ * (`[^"\\]*(?:\\.[^"\\]*)*`) rather than `(?:[^"\\]|\\.)*` — both match the
+ * same strings (there's only one way to parse any given input either way,
+ * so neither is actually ambiguous), but a star wrapped directly around an
+ * alternation is exactly the shape static backtracking-safety checks key
+ * off of. Splitting the "run of plain chars" and "escape pair" into two
+ * separately-starred, non-alternating pieces says the same thing in a shape
+ * that doesn't trip that heuristic.
  */
-const TOKEN_REGEX = /"(?:[^"\\]|\\.)*"|\btrue\b|\bfalse\b|\bnull\b|-?\b\d+\.?\d*\b/g;
+const TOKEN_REGEX = /"[^"\\]*(?:\\.[^"\\]*)*"|\btrue\b|\bfalse\b|\bnull\b|-?\b\d+\.?\d*\b/g;
 
 function isFollowedByColon(line: string, index: number): boolean {
   let i = index;

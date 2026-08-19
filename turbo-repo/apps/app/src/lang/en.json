@@ -4899,7 +4899,8 @@
       }
     },
     "harnessError": "Something went wrong while searching.",
-    "harnessRetry": "Retry"
+    "harnessRetry": "Retry",
+    "openChat": "Open chat"
   },
   "harnessChat": {
     "stream": {
@@ -4936,6 +4937,45 @@
         "dashlet": {
           "title": "Active Orders"
         }
+      }
+    },
+    "ui": {
+      "toggleButton": "Toggle harness chat",
+      "resizePanel": "Resize chat panel",
+      "emptyChatTitle": "Empty chat",
+      "history": {
+        "label": "History",
+        "backToChat": "Back to chat",
+        "chatHistory": "Chat history",
+        "newChat": "New chat",
+        "closePanel": "Close harness panel",
+        "selectAll": "Select all",
+        "delete": "Delete",
+        "deleteCount": "Delete ({count})",
+        "deleteChat": "Delete chat"
+      },
+      "thread": {
+        "dropToAttach": "Drop to attach",
+        "empty": "Ask the harness about this workspace.",
+        "editCancel": "Cancel",
+        "editSave": "Save",
+        "thoughtProcess": "Thought process",
+        "executionCanceled": "Execution was canceled."
+      },
+      "attachments": {
+        "removeImage": "Remove image"
+      },
+      "composer": {
+        "placeholder": "Ask the harness…",
+        "cancelRun": "Cancel",
+        "pdfTooLarge": "PDF is too large ({size} MB) — the limit is {limit} MB."
+      },
+      "askUserQuestion": {
+        "skipped": "Skipped — superseded by a later message.",
+        "noAnswer": "(no answer)",
+        "otherPlaceholder": "Other…",
+        "otherAriaLabel": "Other",
+        "submit": "Submit"
       }
     }
   }

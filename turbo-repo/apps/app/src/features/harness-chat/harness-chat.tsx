@@ -6,8 +6,12 @@ import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { HttpAgent } from "@ag-ui/client";
 import { twMerge } from "tailwind-merge";
 import { LuArrowLeft, LuHistory, LuPlus, LuSparkles, LuX } from "react-icons/lu";
-import { harnessAttachmentAdapter } from "./harness-chat-attachments";
+import { createHarnessAttachmentAdapter } from "./harness-chat-attachments";
 import { useHarnessChatContext } from "./context/harness-chat-context";
+import {
+  HarnessChatI18nProvider,
+  useHarnessChatTr,
+} from "./context/harness-chat-i18n-context";
 import { useResizablePanelWidth } from "./hooks/use-resizable-panel-width";
 import { buildHarnessToolkit, type HarnessExtension } from "./harness-extension";
 import { DEFAULT_HARNESS_EXTENSIONS } from "./extensions";
@@ -15,6 +19,7 @@ import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
+import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { Thread } from "./thread";
 
 function createSession(initialMessage: string | null = null): Session {
@@ -32,6 +37,8 @@ const headerButtonClass =
 export default function HarnessChat({
   extensions = DEFAULT_HARNESS_EXTENSIONS,
   skills,
+  dict,
+  locale,
 }: Readonly<{
   extensions?: HarnessExtension[];
   /**
@@ -40,7 +47,22 @@ export default function HarnessChat({
    * real skill set once available).
    */
   skills: HarnessSkill[];
+  dict: I18nDictionary;
+  locale: string;
 }>) {
+  return (
+    <HarnessChatI18nProvider dict={dict}>
+      <HarnessChatPanel extensions={extensions} skills={skills} locale={locale} />
+    </HarnessChatI18nProvider>
+  );
+}
+
+const HarnessChatPanel: FC<{
+  extensions: HarnessExtension[];
+  skills: HarnessSkill[];
+  locale: string;
+}> = ({ extensions, skills, locale }) => {
+  const tr = useHarnessChatTr();
   const { isOpen, close, pendingMessage, clearPendingMessage } =
     useHarnessChatContext();
   const { width, isDragging, startDrag, toggleMinMax } = useResizablePanelWidth();
@@ -93,7 +115,8 @@ export default function HarnessChat({
     [sessions],
   );
 
-  const activeTitle = sessions.find((s) => s.id === activeId)?.title ?? "Empty chat";
+  const activeTitle =
+    sessions.find((s) => s.id === activeId)?.title ?? tr("harnessChat.ui.emptyChatTitle");
 
   return (
     <div
@@ -108,7 +131,7 @@ export default function HarnessChat({
         <div
           role="separator"
           aria-orientation="vertical"
-          aria-label="Resize chat panel"
+          aria-label={tr("harnessChat.ui.resizePanel")}
           onPointerDown={startDrag}
           onDoubleClick={toggleMinMax}
           className={twMerge(
@@ -136,12 +159,12 @@ export default function HarnessChat({
               <button
                 type="button"
                 onClick={() => setView("chat")}
-                aria-label="Back to chat"
+                aria-label={tr("harnessChat.ui.history.backToChat")}
                 className={headerButtonClass}
               >
                 <LuArrowLeft className="h-3.5 w-3.5" />
               </button>
-              <span className="flex-1">History</span>
+              <span className="flex-1">{tr("harnessChat.ui.history.label")}</span>
             </>
           ) : (
             <>
@@ -152,7 +175,7 @@ export default function HarnessChat({
               <button
                 type="button"
                 onClick={() => setView("history")}
-                aria-label="Chat history"
+                aria-label={tr("harnessChat.ui.history.chatHistory")}
                 className={headerButtonClass}
               >
                 <LuHistory className="h-3.5 w-3.5" />
@@ -162,7 +185,7 @@ export default function HarnessChat({
           <button
             type="button"
             onClick={() => newChat()}
-            aria-label="New chat"
+            aria-label={tr("harnessChat.ui.history.newChat")}
             className={headerButtonClass}
           >
             <LuPlus className="h-3.5 w-3.5" />
@@ -170,7 +193,7 @@ export default function HarnessChat({
           <button
             type="button"
             onClick={close}
-            aria-label="Close harness panel"
+            aria-label={tr("harnessChat.ui.history.closePanel")}
             className={headerButtonClass}
           >
             <LuX className="h-3.5 w-3.5" />
@@ -183,6 +206,7 @@ export default function HarnessChat({
             activeId={activeId}
             onSelect={selectSession}
             onDelete={(ids) => deleteSessions(ids)}
+            locale={locale}
           />
         )}
         <div className={twMerge("flex min-h-0 flex-1 flex-col", view === "history" && "hidden")}>
@@ -228,9 +252,11 @@ const SessionHost: FC<{
     () => new HttpAgent({ url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/chat/stream` }),
     [],
   );
+  const tr = useHarnessChatTr();
+  const attachmentAdapter = useMemo(() => createHarnessAttachmentAdapter(tr), [tr]);
   const runtime = useAgUiRuntime({
     agent,
-    adapters: { attachments: harnessAttachmentAdapter },
+    adapters: { attachments: attachmentAdapter },
   });
   const containerRef = useRef<HTMLDivElement>(null);
   const toolkit = useMemo(() => buildHarnessToolkit(extensions), [extensions]);

@@ -5,6 +5,7 @@ import {
   type CompleteAttachment,
   type PendingAttachment,
 } from "@assistant-ui/react";
+import type { TrFn } from "./context/harness-chat-i18n-context";
 
 function getFileDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -20,6 +21,8 @@ const MAX_PDF_BYTES = 20 * 1024 * 1024;
 class SimplePdfAttachmentAdapter implements AttachmentAdapter {
   accept = "application/pdf";
 
+  constructor(private readonly tr: TrFn) {}
+
   async add({ file }: { file: File }): Promise<PendingAttachment> {
     // The composer runtime already rejects anything not matching `accept`
     // (file.type) before this ever runs — nothing left to gate here except
@@ -27,7 +30,10 @@ class SimplePdfAttachmentAdapter implements AttachmentAdapter {
     // held in message state / sent over the wire as-is.
     if (file.size > MAX_PDF_BYTES) {
       throw new Error(
-        `PDF is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB) — the limit is ${MAX_PDF_BYTES / (1024 * 1024)} MB.`,
+        this.tr("harnessChat.ui.composer.pdfTooLarge", {
+          size: (file.size / (1024 * 1024)).toFixed(1),
+          limit: String(MAX_PDF_BYTES / (1024 * 1024)),
+        }),
       );
     }
     return {
@@ -61,7 +67,9 @@ class SimplePdfAttachmentAdapter implements AttachmentAdapter {
   }
 }
 
-export const harnessAttachmentAdapter = new CompositeAttachmentAdapter([
-  new SimpleImageAttachmentAdapter(),
-  new SimplePdfAttachmentAdapter(),
-]);
+export function createHarnessAttachmentAdapter(tr: TrFn): CompositeAttachmentAdapter {
+  return new CompositeAttachmentAdapter([
+    new SimpleImageAttachmentAdapter(),
+    new SimplePdfAttachmentAdapter(tr),
+  ]);
+}

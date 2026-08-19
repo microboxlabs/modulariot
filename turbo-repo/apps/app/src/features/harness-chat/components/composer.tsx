@@ -15,6 +15,7 @@ import {
 import { twMerge } from "tailwind-merge";
 import type { HarnessSkill } from "../harness-chat-types";
 import { useRunCancel } from "../context/run-cancel-context";
+import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
 import { ComposerAttachmentPreview } from "./attachments";
 
 const WHITESPACE_CHARS = new Set([" ", "\t", "\n", "\r", "\f", "\v"]);
@@ -142,6 +143,7 @@ function useSlashCommand(
 }
 
 export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
+  const tr = useHarnessChatTr();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const slash = useSlashCommand(textareaRef, skills);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -206,13 +208,13 @@ export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
               aria-hidden
               className="pointer-events-none absolute left-0 top-0 truncate px-1 py-1 text-xs leading-snug text-gray-400 dark:text-gray-500"
             >
-              Ask the harness…
+              {tr("harnessChat.ui.composer.placeholder")}
             </span>
           )}
           <ComposerPrimitive.Input
             ref={textareaRef}
             rows={1}
-            aria-label="Ask the harness…"
+            aria-label={tr("harnessChat.ui.composer.placeholder")}
             onKeyDown={slash.onKeyDown}
             onChange={slash.trackCursor}
             onSelect={slash.trackCursor}
@@ -227,7 +229,7 @@ export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
         </AuiIf>
         <AuiIf condition={(s) => s.thread.isRunning}>
           <ComposerPrimitive.Cancel
-            aria-label="Cancel"
+            aria-label={tr("harnessChat.ui.composer.cancelRun")}
             onClick={markCanceled}
             className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100"
           >

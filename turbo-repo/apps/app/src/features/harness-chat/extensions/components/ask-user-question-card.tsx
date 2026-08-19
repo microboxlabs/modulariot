@@ -5,6 +5,7 @@ import { type ToolCallMessagePartProps } from "@assistant-ui/react";
 import { Checkbox, Radio } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
 import type { AskUserQuestionArgs, AskUserQuestionResult } from "../ask-user-question";
+import { useHarnessChatTr } from "../../context/harness-chat-i18n-context";
 
 const OTHER_VALUE = "__other__";
 
@@ -39,6 +40,7 @@ const OptionSelector: FC<{
 export const AskUserQuestionCard: FC<
   ToolCallMessagePartProps<AskUserQuestionArgs, AskUserQuestionResult>
 > = ({ args, result, isError, addResult }) => {
+  const tr = useHarnessChatTr();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [otherSelected, setOtherSelected] = useState(false);
   const [otherText, setOtherText] = useState("");
@@ -54,7 +56,7 @@ export const AskUserQuestionCard: FC<
       <div className="w-full rounded-lg border border-gray-200 bg-white p-3 text-xs dark:border-gray-700 dark:bg-gray-800">
         <p className="font-medium text-gray-700 dark:text-gray-200">{args.question}</p>
         <p className="mt-1 italic text-gray-400 dark:text-gray-500">
-          Skipped — superseded by a later message.
+          {tr("harnessChat.ui.askUserQuestion.skipped")}
         </p>
       </div>
     );
@@ -65,7 +67,9 @@ export const AskUserQuestionCard: FC<
     return (
       <div className="w-full rounded-lg border border-gray-200 bg-white p-3 text-xs dark:border-gray-700 dark:bg-gray-800">
         <p className="font-medium text-gray-700 dark:text-gray-200">{args.question}</p>
-        <p className="mt-1 text-gray-500 dark:text-gray-400">{answer || "(no answer)"}</p>
+        <p className="mt-1 text-gray-500 dark:text-gray-400">
+          {answer || tr("harnessChat.ui.askUserQuestion.noAnswer")}
+        </p>
       </div>
     );
   }
@@ -132,12 +136,12 @@ export const AskUserQuestionCard: FC<
               checked={otherSelected}
               onChange={selectOther}
               value={OTHER_VALUE}
-              ariaLabel="Other"
+              ariaLabel={tr("harnessChat.ui.askUserQuestion.otherAriaLabel")}
             />
             <input
               ref={otherInputRef}
               type="text"
-              placeholder="Other…"
+              placeholder={tr("harnessChat.ui.askUserQuestion.otherPlaceholder")}
               value={otherText}
               readOnly={!otherSelected}
               onFocus={() => {
@@ -162,7 +166,7 @@ export const AskUserQuestionCard: FC<
           "dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-gray-300"
         )}
       >
-        Submit
+        {tr("harnessChat.ui.askUserQuestion.submit")}
       </button>
     </div>
   );

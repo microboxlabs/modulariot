@@ -24,17 +24,21 @@ import { useState, type FC } from "react";
 import { twMerge } from "tailwind-merge";
 import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import { useRunCancel } from "../context/run-cancel-context";
+import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
 import { SentAttachment } from "./attachments";
 
 const actionButtonClass =
   "flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-40 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-200";
 
-export const ThreadEmpty: FC = () => (
-  <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 text-center text-gray-400 dark:text-gray-500">
-    <LuSparkles className="h-5 w-5" />
-    <p className="text-xs">Ask the harness about this workspace.</p>
-  </div>
-);
+export const ThreadEmpty: FC = () => {
+  const tr = useHarnessChatTr();
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 text-center text-gray-400 dark:text-gray-500">
+      <LuSparkles className="h-5 w-5" />
+      <p className="text-xs">{tr("harnessChat.ui.thread.empty")}</p>
+    </div>
+  );
+};
 
 export const UserMessage: FC = () => {
   const isEditing = useAuiState((s) => s.composer.isEditing);
@@ -71,23 +75,26 @@ const UserActionBar: FC = () => (
   </ActionBarPrimitive.Root>
 );
 
-const EditComposer: FC = () => (
-  <ComposerPrimitive.Root className="flex w-full flex-col gap-1.5 rounded-lg border border-gray-300 bg-white p-1.5 dark:border-gray-600 dark:bg-gray-800">
-    <ComposerPrimitive.Input
-      autoFocus
-      rows={1}
-      className="max-h-32 resize-none bg-transparent px-1 py-1 text-xs leading-relaxed text-gray-800 outline-none dark:text-gray-100"
-    />
-    <div className="flex justify-end gap-1.5">
-      <ComposerPrimitive.Cancel className="rounded-md px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700">
-        Cancel
-      </ComposerPrimitive.Cancel>
-      <ComposerPrimitive.Send className="rounded-md bg-gray-800 px-2 py-1 text-xs text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-gray-300">
-        Save
-      </ComposerPrimitive.Send>
-    </div>
-  </ComposerPrimitive.Root>
-);
+const EditComposer: FC = () => {
+  const tr = useHarnessChatTr();
+  return (
+    <ComposerPrimitive.Root className="flex w-full flex-col gap-1.5 rounded-lg border border-gray-300 bg-white p-1.5 dark:border-gray-600 dark:bg-gray-800">
+      <ComposerPrimitive.Input
+        autoFocus
+        rows={1}
+        className="max-h-32 resize-none bg-transparent px-1 py-1 text-xs leading-relaxed text-gray-800 outline-none dark:text-gray-100"
+      />
+      <div className="flex justify-end gap-1.5">
+        <ComposerPrimitive.Cancel className="rounded-md px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700">
+          {tr("harnessChat.ui.thread.editCancel")}
+        </ComposerPrimitive.Cancel>
+        <ComposerPrimitive.Send className="rounded-md bg-gray-800 px-2 py-1 text-xs text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-gray-300">
+          {tr("harnessChat.ui.thread.editSave")}
+        </ComposerPrimitive.Send>
+      </div>
+    </ComposerPrimitive.Root>
+  );
+};
 
 // Plain text replies stay bubble-width, but non-text parts (like an
 // ask-user-question card) render outside this cap, at the full row width —
@@ -114,6 +121,7 @@ const AssistantText: FC<TextMessagePartProps> = ({ text }) => (
 // as the conversation grows. Gating on `isLast` keeps exactly one, and it
 // naturally moves with whichever message is newest.
 const AssistantReasoning: FC<ReasoningMessagePartProps> = ({ text, status }) => {
+  const tr = useHarnessChatTr();
   const [expanded, setExpanded] = useState(false);
   const isLast = useAuiState((s) => s.message.isLast);
   if (!isLast || !text.trim()) return null;
@@ -134,7 +142,7 @@ const AssistantReasoning: FC<ReasoningMessagePartProps> = ({ text, status }) => 
         aria-expanded={expanded}
         className="flex w-fit items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
       >
-        <span>Thought process</span>
+        <span>{tr("harnessChat.ui.thread.thoughtProcess")}</span>
         <LuChevronDown
           className={twMerge("h-3 w-3 transition-transform", expanded && "rotate-180")}
         />
@@ -155,12 +163,13 @@ const AssistantReasoning: FC<ReasoningMessagePartProps> = ({ text, status }) => 
 // RUN_FINISHED right behind the local RUN_CANCELLED, silently flipping
 // status back to "complete" — so status alone isn't reliable here.
 const CancelledNotice: FC = () => {
+  const tr = useHarnessChatTr();
   const { canceled } = useRunCancel();
   const isLast = useAuiState((s) => s.message.isLast);
   if (!canceled || !isLast) return null;
   return (
     <p className="max-w-[90%] text-xs italic text-gray-400 dark:text-gray-500">
-      Execution was canceled.
+      {tr("harnessChat.ui.thread.executionCanceled")}
     </p>
   );
 };

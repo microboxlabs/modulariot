@@ -5,13 +5,16 @@ import { twMerge } from "tailwind-merge";
 import { LuTrash2 } from "react-icons/lu";
 import { useState, type FC } from "react";
 import type { Session } from "../harness-chat-types";
+import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
 
 export const HistoryList: FC<{
   sessions: Session[];
   activeId: string;
   onSelect: (id: string) => void;
   onDelete: (ids: string[]) => void;
-}> = ({ sessions, activeId, onSelect, onDelete }) => {
+  locale: string;
+}> = ({ sessions, activeId, onSelect, onDelete, locale }) => {
+  const tr = useHarnessChatTr();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const toggleOne = (id: string) => {
@@ -39,7 +42,7 @@ export const HistoryList: FC<{
       <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-3 py-1.5 dark:border-gray-800">
         <label className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
           <Checkbox checked={allSelected} onChange={toggleSelectAll} />
-          Select all
+          {tr("harnessChat.ui.history.selectAll")}
         </label>
         <button
           type="button"
@@ -48,7 +51,9 @@ export const HistoryList: FC<{
           className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-red-600 hover:bg-red-50 disabled:pointer-events-none disabled:text-gray-300 dark:text-red-400 dark:hover:bg-red-900/20 dark:disabled:text-gray-600"
         >
           <LuTrash2 className="h-3 w-3" />
-          {selectedIds.size > 0 ? `Delete (${selectedIds.size})` : "Delete"}
+          {selectedIds.size > 0
+            ? tr("harnessChat.ui.history.deleteCount", { count: String(selectedIds.size) })
+            : tr("harnessChat.ui.history.delete")}
         </button>
       </div>
 
@@ -75,9 +80,11 @@ export const HistoryList: FC<{
                 session.id === activeId && "font-medium text-gray-900 dark:text-white"
               )}
             >
-              <span className="truncate">{session.title ?? "Empty chat"}</span>
+              <span className="truncate">
+                {session.title ?? tr("harnessChat.ui.emptyChatTitle")}
+              </span>
               <span className="shrink-0 text-[10px] text-gray-400">
-                {new Date(session.createdAt).toLocaleTimeString([], {
+                {new Date(session.createdAt).toLocaleTimeString(locale, {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
@@ -89,7 +96,7 @@ export const HistoryList: FC<{
                 e.stopPropagation();
                 onDelete([session.id]);
               }}
-              aria-label="Delete chat"
+              aria-label={tr("harnessChat.ui.history.deleteChat")}
               className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 opacity-0 transition-opacity hover:bg-gray-200 hover:text-gray-700 group-hover:opacity-100 dark:hover:bg-gray-600 dark:hover:text-gray-100"
             >
               <LuTrash2 className="h-3 w-3" />

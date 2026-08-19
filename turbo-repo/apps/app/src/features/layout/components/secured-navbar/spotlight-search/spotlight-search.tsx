@@ -144,6 +144,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
   const harnessEmptyLabel = (spotlightDict?.harnessEmpty as string | undefined) ?? "No answer found, please try again!";
   const harnessErrorLabel = (spotlightDict?.harnessError as string | undefined) ?? "Something went wrong while searching.";
   const harnessRetryLabel = (spotlightDict?.harnessRetry as string | undefined) ?? "Retry";
+  const openChatLabel = (spotlightDict?.openChat as string | undefined) ?? "Open chat";
 
   // Empty-state recommendations — sample questions to try with Harness, and
   // a diverse slice of "Go to" destinations, so the modal isn't blank on open.
@@ -476,6 +477,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
                 iconBg={iconBg}
                 showOpenChat={!isEmpty}
                 onOpenChat={handleOpenChatAction}
+                openChatLabel={openChatLabel}
               />
 
               <div className="border-t border-gray-100 dark:border-gray-700" />

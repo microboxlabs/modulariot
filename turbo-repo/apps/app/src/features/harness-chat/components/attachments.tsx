@@ -8,6 +8,7 @@ import {
 import { LuFile, LuX } from "react-icons/lu";
 import { useEffect, useState } from "react";
 import { ImageLightbox } from "./image-lightbox";
+import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
 
 export function SentAttachment({ attachment }: Readonly<{ attachment: CompleteAttachment }>) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -74,6 +75,7 @@ export function ComposerAttachmentPreview({ attachment }: Readonly<{ attachment:
 }
 
 function ComposerImagePreview({ file, name }: Readonly<{ file: File; name: string }>) {
+  const tr = useHarnessChatTr();
   const [url, setUrl] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
@@ -104,7 +106,7 @@ function ComposerImagePreview({ file, name }: Readonly<{ file: File; name: strin
         </>
       )}
       <AttachmentPrimitive.Remove
-        aria-label="Remove image"
+        aria-label={tr("harnessChat.ui.attachments.removeImage")}
         className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
       >
         <LuX className="h-2.5 w-2.5" />

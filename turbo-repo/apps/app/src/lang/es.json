@@ -4899,7 +4899,8 @@
       }
     },
     "harnessError": "Algo salió mal al buscar la respuesta.",
-    "harnessRetry": "Reintentar"
+    "harnessRetry": "Reintentar",
+    "openChat": "Abrir chat"
   },
   "harnessChat": {
     "stream": {
@@ -4936,6 +4937,45 @@
         "dashlet": {
           "title": "Pedidos activos"
         }
+      }
+    },
+    "ui": {
+      "toggleButton": "Alternar el chat del harness",
+      "resizePanel": "Redimensionar panel del chat",
+      "emptyChatTitle": "Chat vacío",
+      "history": {
+        "label": "Historial",
+        "backToChat": "Volver al chat",
+        "chatHistory": "Historial de chats",
+        "newChat": "Nuevo chat",
+        "closePanel": "Cerrar panel del harness",
+        "selectAll": "Seleccionar todo",
+        "delete": "Eliminar",
+        "deleteCount": "Eliminar ({count})",
+        "deleteChat": "Eliminar chat"
+      },
+      "thread": {
+        "dropToAttach": "Suelta para adjuntar",
+        "empty": "Pregúntale al harness sobre este workspace.",
+        "editCancel": "Cancelar",
+        "editSave": "Guardar",
+        "thoughtProcess": "Proceso de pensamiento",
+        "executionCanceled": "La ejecución fue cancelada."
+      },
+      "attachments": {
+        "removeImage": "Quitar imagen"
+      },
+      "composer": {
+        "placeholder": "Pregúntale al harness…",
+        "cancelRun": "Cancelar",
+        "pdfTooLarge": "El PDF es demasiado grande ({size} MB) — el límite es {limit} MB."
+      },
+      "askUserQuestion": {
+        "skipped": "Omitido — reemplazado por un mensaje posterior.",
+        "noAnswer": "(sin respuesta)",
+        "otherPlaceholder": "Otro…",
+        "otherAriaLabel": "Otro",
+        "submit": "Enviar"
       }
     }
   }

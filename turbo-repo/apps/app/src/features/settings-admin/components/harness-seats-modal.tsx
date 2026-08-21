@@ -152,6 +152,13 @@ interface BillingCardProps {
   readonly diffLabel: (diff: number) => string;
 }
 
+/** Text color for the diff line: neutral at zero, green above, amber below. */
+function getDiffColorClass(diff: number): string {
+  if (diff === 0) return "text-gray-400 dark:text-gray-500";
+  if (diff > 0) return "text-green-600 dark:text-green-400";
+  return "text-amber-600 dark:text-amber-400";
+}
+
 function BillingCard({
   selected,
   onSelect,
@@ -174,56 +181,60 @@ function BillingCard({
   // `total / seats` is this card's effective per-seat rate for its billing
   // cycle (already includes the yearly x12), so this scales exactly with diff.
   const priceDiff = diff * (total / seats);
+  const priceDiffSign = priceDiff >= 0 ? "+" : "-";
+  const diffText =
+    diff === 0
+      ? noChangeLabel
+      : `${diffLabel(diff)} · ${priceDiffSign}$${Math.abs(priceDiff).toLocaleString()}${unit}`;
 
   return (
+    // Plain container (not itself a button) so the seat stepper's real
+    // <button>s below can nest without violating button-in-button HTML.
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onSelect();
-        }
-      }}
-      className={`flex cursor-pointer flex-col gap-4 rounded-xl border-2 p-5 text-left transition-all ${
+      className={`flex flex-col gap-4 rounded-xl border-2 p-5 text-left transition-all ${
         selected
           ? "border-blue-600 bg-blue-50/60 shadow-sm dark:border-blue-500 dark:bg-blue-900/10"
           : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
       }`}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">
-            {label}
-          </span>
-          {badge && (
-            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-              {badge}
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex w-full cursor-pointer flex-col gap-4 text-left"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-900 dark:text-white">
+              {label}
             </span>
-          )}
+            {badge && (
+              <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                {badge}
+              </span>
+            )}
+          </div>
+          <span
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+              selected
+                ? "border-blue-600 bg-blue-600"
+                : "border-gray-300 dark:border-gray-600"
+            }`}
+          >
+            {selected && <HiCheck className="h-3 w-3 text-white" />}
+          </span>
         </div>
-        <span
-          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-            selected
-              ? "border-blue-600 bg-blue-600"
-              : "border-gray-300 dark:border-gray-600"
-          }`}
-        >
-          {selected && <HiCheck className="h-3 w-3 text-white" />}
-        </span>
-      </div>
 
-      {/* Hero number: the unit price — the totals section below covers the
-          resolved cost for the chosen seat count. */}
-      <div className="flex items-baseline gap-1">
-        <span className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-          ${pricePerSeat}
-        </span>
-        <span className="text-sm text-gray-500 dark:text-gray-400">
-          {perSeatSuffix}
-        </span>
-      </div>
+        {/* Hero number: the unit price — the totals section below covers the
+            resolved cost for the chosen seat count. */}
+        <div className="flex items-baseline gap-1">
+          <span className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+            ${pricePerSeat}
+          </span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {perSeatSuffix}
+          </span>
+        </div>
+      </button>
 
       <div className="flex flex-col gap-2 border-t border-gray-200 pt-4 dark:border-gray-700">
         <div className="flex items-center justify-between">
@@ -233,10 +244,7 @@ function BillingCard({
           <div className="flex items-center gap-1 rounded-lg bg-gray-100 px-1.5 py-1 dark:bg-gray-700/50">
             <button
               type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onAdjustSeats(-1);
-              }}
+              onClick={() => onAdjustSeats(-1)}
               disabled={seats <= minSeats}
               className="flex h-6 w-6 items-center justify-center rounded-full text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-300 dark:hover:bg-gray-600"
             >
@@ -247,10 +255,7 @@ function BillingCard({
             </span>
             <button
               type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onAdjustSeats(1);
-              }}
+              onClick={() => onAdjustSeats(1)}
               className="flex h-6 w-6 items-center justify-center rounded-full text-gray-600 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-600"
             >
               +
@@ -259,19 +264,9 @@ function BillingCard({
         </div>
 
         <p
-          className={`text-right text-xs font-medium ${
-            diff === 0
-              ? "text-gray-400 dark:text-gray-500"
-              : diff > 0
-                ? "text-green-600 dark:text-green-400"
-                : "text-amber-600 dark:text-amber-400"
-          }`}
+          className={`text-right text-xs font-medium ${getDiffColorClass(diff)}`}
         >
-          {diff === 0
-            ? noChangeLabel
-            : `${diffLabel(diff)} · ${priceDiff >= 0 ? "+" : "-"}$${Math.abs(
-                priceDiff
-              ).toLocaleString()}${unit}`}
+          {diffText}
         </p>
 
         <div className="flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-700/60">

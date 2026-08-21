@@ -128,6 +128,16 @@ function getLastPaymentDateLabel(cycle: BillingCycle): string {
 
 type AccessMode = "all" | "some" | "none";
 
+function getActiveCount(
+  accessMode: AccessMode,
+  totalMembers: number,
+  activeMemberIds: Set<string>
+): number {
+  if (accessMode === "all") return totalMembers;
+  if (accessMode === "none") return 0;
+  return activeMemberIds.size;
+}
+
 export default function HarnessPageContent({
   dict,
   lang,
@@ -195,12 +205,11 @@ export default function HarnessPageContent({
     );
   };
 
-  const activeCount =
-    accessMode === "all"
-      ? members.length
-      : accessMode === "none"
-        ? 0
-        : activeMemberIds.size;
+  const activeCount = getActiveCount(
+    accessMode,
+    members.length,
+    activeMemberIds
+  );
   // Seats "used" tracks active members, not the whole roster — deactivating
   // someone in the access list below frees up their seat immediately.
   const seatsUsed = Math.min(activeCount, purchasedSeats);

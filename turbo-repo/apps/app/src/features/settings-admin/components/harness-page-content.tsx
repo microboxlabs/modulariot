@@ -231,9 +231,11 @@ export default function HarnessPageContent({
 
   return (
     // Same shell as Settings > Credentials / Data sources / Connections: a
-    // full-width sticky breadcrumb bar over a capped, centred content column.
-    <div className="flex h-full w-full flex-col overflow-auto">
-      <div className="sticky top-0 z-10 flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+    // full-width breadcrumb bar (outside the scroll container, so it never
+    // moves — including during rubber-band overscroll) over a capped,
+    // independently-scrolling content column.
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
         <Breadcrumb
           dict={breadcrumbDict}
           lang={lang}
@@ -242,7 +244,7 @@ export default function HarnessPageContent({
         />
       </div>
 
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pt-2 pb-6 dark:bg-gray-900">
+      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-2 pb-6 dark:bg-gray-900">
         <div className="flex items-center gap-3">
           <IconTile icon={HiChip} />
           <div>
@@ -288,7 +290,7 @@ export default function HarnessPageContent({
               </div>
             </div>
 
-            <div className="flex-1 grid grid-cols-3 gap-x-4 gap-y-4 px-4 py-3">
+            <div className="flex-1 grid grid-cols-1 gap-4 px-4 py-3 lg:grid-cols-3">
               <div>
                 <p className="text-xs text-gray-400 dark:text-gray-500">
                   {tr("estimatedTotalLabel", pricingDict)}{" "}
@@ -303,7 +305,7 @@ export default function HarnessPageContent({
                   </button>
                 </p>
                 <div className="mt-1 flex items-baseline gap-1.5">
-                  <span className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                  <span className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
                     ${estimatedTotal.toLocaleString()}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -317,7 +319,7 @@ export default function HarnessPageContent({
                   {tr("perSeatLabel", pricingDict)}
                 </p>
                 <div className="mt-1 flex items-baseline gap-1.5">
-                  <span className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                  <span className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
                     ${PRICE_PER_SEAT_USD}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -331,7 +333,7 @@ export default function HarnessPageContent({
                   {tr("extraTokensLabel", pricingDict)}
                 </p>
                 <div className="mt-1 flex items-baseline gap-1.5">
-                  <span className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                  <span className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
                     ${extraTokensCost.toLocaleString()}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -341,7 +343,7 @@ export default function HarnessPageContent({
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 dark:border-gray-700/60">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-700/60">
               <span className="text-xs text-gray-500 dark:text-gray-400">
                 {tr("lastPaymentLabel", pricingDict)} $
                 {estimatedTotal.toLocaleString()} · {lastPaymentDateLabel}

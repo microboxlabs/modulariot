@@ -26,6 +26,19 @@ export async function Features({ lang, tone }: { lang: string; tone: Tone }) {
         title={t("title")}
         subtitle={t("subtitle")}
       />
+      <Reveal className="mt-8 flex justify-center">
+        <p className="border-hairline bg-surface flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-full border px-6 py-2.5 text-center text-sm">
+          <span className="text-ink-1 font-semibold">
+            {t("taxonomy.modules")}
+          </span>
+          <span className="text-ink-3">{t("taxonomy.contain")}</span>
+          <span className="text-ink-1 font-semibold">{t("taxonomy.rules")}</span>
+          <span className="text-ink-3">{t("taxonomy.produce")}</span>
+          <span className="text-accent font-semibold">
+            {t("taxonomy.symptoms")}
+          </span>
+        </p>
+      </Reveal>
       <div className="mt-12 grid gap-4 lg:grid-cols-3">
         {cards.map((card, i) => {
           const icon = ICONS[i];

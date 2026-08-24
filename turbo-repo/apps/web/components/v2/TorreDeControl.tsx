@@ -409,7 +409,11 @@ function DetailModal({ s, onClose, lang }: { s: Symptom; onClose: () => void; la
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Stat label={t.symptomsDetected} value={fmtN(k.total)} />
+                <Stat
+                  label={t.symptomsDetected}
+                  value={fmtN(k.total)}
+                  sub={`≈${Math.round((k.total / META.total_trips) * 100)} / 100 ${t.trips}`}
+                />
                 <Stat
                   label={t.manageable}
                   value={fmtN(k.gestionables)}

@@ -1,11 +1,12 @@
 import { getTranslations } from "next-intl/server";
 import { Section, type Tone } from "./shared";
-import { GPS_PARTNERS } from "../partners-data";
+import { CLIENT_LOGOS, GPS_PARTNERS } from "../partners-data";
 import type { PartnerLogo } from "../partners-data.types";
 
-// Trust bar de integraciones (motion demo-led): un carrusel infinito con el
-// cliente real (Mintral) + los proveedores GPS integrados. Solo logos; cada
-// uno linkea al sitio oficial.
+// Trust bar en dos planos (motion demo-led): el carrusel infinito lleva las
+// integraciones GPS bajo "Integrado con" — no son clientes, son proveedores
+// integrados — y los clientes reales van aparte, estáticos, bajo "Confiado
+// por". Solo logos; cada uno linkea al sitio oficial.
 
 // `invert` marca logos de arte blanco/negro puro (no a color): en claro se
 // invierten solo si son blancos (`p.invert`), en oscuro es al revés — los
@@ -99,9 +100,19 @@ export async function Partners({ lang, tone }: { lang: string; tone: Tone }) {
         @media (prefers-reduced-motion: reduce) { .miot-marquee-track { animation: none; } }
       `}</style>
       <p className="text-ink-3 text-center text-xs font-semibold tracking-widest uppercase">
-        {t("trustedBy")}
+        {t("integratedWith")}
       </p>
       <Track items={GPS_PARTNERS} duration={80} />
+      <div className="flex flex-col items-center gap-5 pt-3">
+        <p className="text-ink-3 text-center text-xs font-semibold tracking-widest uppercase">
+          {t("trustedBy")}
+        </p>
+        <ul className="flex flex-wrap items-center justify-center">
+          {CLIENT_LOGOS.map((p) => (
+            <LogoLi key={p.name} p={p} duplicate={false} />
+          ))}
+        </ul>
+      </div>
     </Section>
   );
 }

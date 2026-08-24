@@ -1,9 +1,11 @@
 import Link from "next/link";
 
 // ============================================================
-// Sub-navegación entre los 4 módulos en vivo. Los entrelaza como una
-// sola experiencia (Ver → Entender → Gestionar → Medir) en vez de 4
-// páginas sueltas. Se coloca bajo el Nav en cada página de módulo.
+// Sub-navegación entre los módulos en vivo. El flujo narrativo son 3
+// movimientos (Ver → Entender → Gestionar), espejo de los 3 actos de la
+// home. Calidad de señal no es un movimiento del flujo: es observabilidad
+// transversal, así que va aparte, con su propio rótulo. Se coloca bajo el
+// Nav en cada página de módulo.
 // ============================================================
 
 export type ModuleKey = "torre" | "superprofile" | "canales" | "gps";
@@ -13,8 +15,12 @@ const MODULES: { key: ModuleKey; href: string }[] = [
   { key: "torre", href: "/torre" },
   { key: "superprofile", href: "/superprofile" },
   { key: "canales", href: "/canales" },
-  { key: "gps", href: "/proveedores-gps" },
 ];
+
+const OBS_MODULE: { key: ModuleKey; href: string } = {
+  key: "gps",
+  href: "/proveedores-gps",
+};
 
 // Un ícono por módulo — el mismo trazo (Heroicons outline) que el resto del DS.
 const ICONS: Record<ModuleKey, React.ReactNode> = {
@@ -37,26 +43,32 @@ const LABELS: Record<Lang, Record<ModuleKey, string>> = {
     torre: "Ver",
     superprofile: "Entender",
     canales: "Gestionar",
-    gps: "Medir",
+    gps: "Calidad de señal",
   },
   en: {
     torre: "See",
     superprofile: "Understand",
     canales: "Act",
-    gps: "Measure",
+    gps: "Signal quality",
   },
   pt: {
     torre: "Ver",
     superprofile: "Entender",
     canales: "Gerir",
-    gps: "Medir",
+    gps: "Qualidade do sinal",
   },
 };
 
 const INTRO: Record<Lang, string> = {
-  es: "La operación real, en 4 movimientos",
-  en: "The real operation, in 4 moves",
-  pt: "A operação real, em 4 movimentos",
+  es: "La operación real, en 3 movimientos",
+  en: "The real operation, in 3 moves",
+  pt: "A operação real, em 3 movimentos",
+};
+
+const OBS_LABEL: Record<Lang, string> = {
+  es: "Observabilidad",
+  en: "Observability",
+  pt: "Observabilidade",
 };
 
 export default function ModuleTabs({
@@ -69,42 +81,53 @@ export default function ModuleTabs({
   lang?: Lang;
 }) {
   const L = LABELS[lang] || LABELS.es;
+
+  const pill = (m: { key: ModuleKey; href: string }) => {
+    const on = m.key === active;
+    return (
+      <Link
+        key={m.key}
+        href={`${base}${m.href}`}
+        aria-current={on ? "page" : undefined}
+        className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
+          on
+            ? "border-accent bg-accent text-white"
+            : "border-hairline bg-surface text-ink-2 hover:border-hairline-strong"
+        }`}
+      >
+        <svg
+          className="h-4 w-4 shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.75}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          {ICONS[m.key]}
+        </svg>
+        {L[m.key]}
+      </Link>
+    );
+  };
+
   return (
     <div className="border-hairline bg-page/90 sticky top-0 z-30 border-b backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center gap-3 overflow-x-auto px-4 py-3 sm:px-6">
         <span className="text-ink-3 hidden shrink-0 text-xs font-semibold tracking-wide uppercase md:inline">
           {INTRO[lang] || INTRO.es}
         </span>
+        <div className="flex items-center gap-2">{MODULES.map(pill)}</div>
+        <span
+          className="bg-hairline hidden h-5 w-px shrink-0 sm:block"
+          aria-hidden="true"
+        />
         <div className="flex items-center gap-2">
-          {MODULES.map((m) => {
-            const on = m.key === active;
-            return (
-              <Link
-                key={m.key}
-                href={`${base}${m.href}`}
-                aria-current={on ? "page" : undefined}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
-                  on
-                    ? "border-accent bg-accent text-white"
-                    : "border-hairline bg-surface text-ink-2 hover:border-hairline-strong"
-                }`}
-              >
-                <svg
-                  className="h-4 w-4 shrink-0"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.75}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  {ICONS[m.key]}
-                </svg>
-                {L[m.key]}
-              </Link>
-            );
-          })}
+          <span className="text-ink-3 hidden shrink-0 text-xs font-semibold tracking-wide uppercase lg:inline">
+            {OBS_LABEL[lang] || OBS_LABEL.es}
+          </span>
+          {pill(OBS_MODULE)}
         </div>
       </div>
     </div>

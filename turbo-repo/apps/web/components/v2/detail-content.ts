@@ -7,7 +7,7 @@ import type { Block, DetailPageData } from "./DetailPage";
 // messages/{es,en,br}.json bajo el namespace "detail", con la misma forma y
 // el mismo orden de bloques/arrays que aquí, para poder unirlos por índice.
 
-type CardConfig = { icon?: string };
+type CardConfig = { icon?: string; id?: string };
 type LinkConfig = { href: string; external?: boolean };
 
 type BlockConfig =
@@ -21,6 +21,9 @@ interface PageConfig {
   icon?: string;
   graphic?: string;
   blocks: BlockConfig[];
+  // La página ya cuenta el camino evaluación→piloto→operación en su propio
+  // bloque de pasos: el CTA final omite sus cifras para no repetirlo.
+  ctaStats?: false;
 }
 
 export const detailConfig: Record<string, PageConfig> = {
@@ -60,12 +63,13 @@ export const detailConfig: Record<string, PageConfig> = {
   "producto/implementacion": {
     icon: "cloud",
     blocks: [{ type: "grid", cards: [{ icon: "cloud" }, { icon: "bolt" }, { icon: "stack" }] }, { type: "steps" }],
+    ctaStats: false,
   },
   soluciones: {
     icon: "radar",
     blocks: [
-      { type: "grid", id: "casos-de-uso", cards: [{ icon: "truck" }, { icon: "chart" }, { icon: "shield" }, { icon: "radar" }] },
-      { type: "grid", id: "industrias", cards: [{ icon: "truck" }, { icon: "stack" }, { icon: "signal" }, { icon: "chart" }] },
+      { type: "grid", id: "casos-de-uso", cards: [{ icon: "truck", id: "monitoreo-conductores" }, { icon: "chart", id: "telemetria-mantenimiento" }, { icon: "shield", id: "cumplimiento-auditorias" }, { icon: "radar", id: "torre-de-control" }] },
+      { type: "grid", id: "industrias", cards: [{ icon: "truck", id: "transporte-carga" }, { icon: "stack", id: "mineria" }, { icon: "signal", id: "telemetria-flota" }, { icon: "chart", id: "logistica-industrial" }] },
       { type: "split" },
     ],
   },
@@ -122,7 +126,7 @@ export async function getDetailPageData(lang: string, slug: string): Promise<Det
         kicker: bt.kicker,
         title: bt.title!,
         subtitle: bt.subtitle,
-        cards: bt.cards!.map((c, j) => ({ icon: bc.cards[j]?.icon, title: c.title, body: c.body })),
+        cards: bt.cards!.map((c, j) => ({ icon: bc.cards[j]?.icon, id: bc.cards[j]?.id, title: c.title, body: c.body })),
       };
     }
     if (bc.type === "linkgrid") {
@@ -150,5 +154,6 @@ export async function getDetailPageData(lang: string, slug: string): Promise<Det
     title: text.title,
     subtitle: text.subtitle,
     blocks,
+    ctaStats: config.ctaStats,
   };
 }

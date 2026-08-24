@@ -13,7 +13,7 @@
             },
             {
               "label": "Symptoms / Control Tower",
-              "desc": "30+ detection rules with full traceability"
+              "desc": "36 symptoms with severity, owner and traceability"
             },
             {
               "label": "Integrations",
@@ -59,7 +59,7 @@
             },
             {
               "label": "GPS providers",
-              "desc": "Signal precision: 12/20 pulses per minute"
+              "desc": "Signal quality: frequency, latency and integrity, measured"
             }
           ]
         }
@@ -99,7 +99,7 @@
                 "label": "Mining"
               },
               {
-                "label": "Distribution and last mile"
+                "label": "Fleet mechanical telemetry"
               },
               {
                 "label": "Industrial logistics"
@@ -211,11 +211,17 @@
   },
   "stats": {
     "trustedBy": "Trusted by",
+    "integratedWith": "Integrated with",
     "items": [
       {
-        "prefix": "Up to",
-        "value": "55,847",
-        "label": "symptoms detected in a month"
+        "prefix": "More than",
+        "value": "2.9M",
+        "label": "signals processed per month"
+      },
+      {
+        "prefix": "Only",
+        "value": "≈10%",
+        "label": "requires management — the rest is noise"
       },
       {
         "prefix": "With",
@@ -231,8 +237,8 @@
   },
   "problem": {
     "kicker": "The problem",
-    "title": "Do you handle alerts,\nonly to see them come back the same way?",
-    "subtitle": "On average, only 10.5% of symptoms detected in a month require management — the rest is just noise that buries what's urgent.\n\nAnd of what does get handled, half only closes a ticket, while the deviation comes back month after month.",
+    "title": "Are you managing what matters,\nor lost in the noise?",
+    "subtitle": "In our experience, only ≈10% of the deviations detected in a month require management — the rest is noise that buries what's urgent.\n\nAnd of the ones that do get handled, only half end in a closed ticket: the deviation keeps coming back.",
     "pains": [
       {
         "title": "“I found out the next day”",
@@ -256,8 +262,8 @@
       {
         "n": "Act 1",
         "tag": "See and reduce",
-        "title": "You handle every alert, but the deviations come back the same.",
-        "body": "The Control Tower groups symptoms by root cause, not by ticket: you see the repeating patterns and measure whether the deviation actually dropped.",
+        "title": "The business is in reducing your deviations.",
+        "body": "And you can't do that if your system buries you in noise. The Control Tower groups symptoms by root cause, not by ticket: you see the repeated patterns and measure whether the deviation actually went down.",
         "cta": "Explore the control tower"
       },
       {
@@ -342,6 +348,7 @@
     }
   },
   "features": {
+        "taxonomy": {"modules": "4 modules", "contain": "→ contain", "rules": "detection rules (30+)", "produce": "→ produce", "symptoms": "36 symptoms"},
     "kicker": "Features",
     "title": "Three core capabilities",
     "subtitle": "Everything you need to process, analyze and act on fleet data in real time",
@@ -357,7 +364,7 @@
       },
       {
         "title": "Symptom-based alerts",
-        "body": "30+ rules detect the deviation — fatigue, speeding, risk zones — and generate a classified event, not another generic notification.",
+        "body": "30+ rules detect the deviation — for example: speeding, driving hours, risk zones, fatigue — and produce a classified symptom, not a generic notification.",
         "bullets": [
           "Automatic severity and owner assignment",
           "Smart noise exclusion",
@@ -705,16 +712,16 @@
     "note": "No commitment · Response in under 24 hours",
     "stats": [
       {
-        "value": "48hr",
-        "label": "managed deployment setup"
+        "value": "14 days",
+        "label": "of evaluation, on the GPS you already have"
       },
       {
-        "value": "0%",
-        "label": "data vendor dependency"
+        "value": "1 month",
+        "label": "of pilot, with goals agreed in writing"
       },
       {
-        "value": "100%",
-        "label": "your data, your control"
+        "value": "Month 2+",
+        "label": "real operation: reduction measured month over month"
       }
     ]
   },
@@ -797,7 +804,7 @@
     },
     "producto/sintomas-torre-control": {
       "eyebrow": "Product · Symptoms / Control Tower",
-      "title": "Over 30 rules that turn data into decisions",
+      "title": "36 symptoms that turn data into decisions",
       "subtitle": "No more raw data or noisy alerts. Every signal is evaluated against your operation's rules and, if something deviates, a severity-classified event is generated, with an owner and full traceability.",
       "blocks": [
         {
@@ -1106,22 +1113,22 @@
         },
         {
           "kicker": "Getting started",
-          "title": "From signing to production",
+          "title": "From evaluation to real operation",
           "steps": [
             {
               "n": "01",
-              "title": "Assessment",
-              "body": "We review your operation, current hardware and the events that concern you. Free."
+              "title": "Evaluation · 14 days",
+              "body": "We connect to the GPS you already have — no hardware changes — and measure your real operation: which symptoms appear, how much is noise and where the value is. At no cost."
             },
             {
               "n": "02",
-              "title": "Integration and setup",
-              "body": "We connect your technology, define thresholds and rules, and activate the panel. 5 to 10 business days (48h in managed mode)."
+              "title": "Pilot · 1 month",
+              "body": "A bounded slice of your operation, with goals agreed in writing. Thresholds, rules and channels configured; your team operates with the panel live."
             },
             {
               "n": "03",
-              "title": "Operating with visibility",
-              "body": "Your team operates with real-time data and gets an impact report every month."
+              "title": "Real operation",
+              "body": "Rolled out to the rest of the operation. Reduction measured month over month, with an impact report: you see whether the deviation actually went down."
             }
           ]
         }
@@ -1142,7 +1149,7 @@
             },
             {
               "title": "Telemetry and maintenance",
-              "body": "Temperature, pressure, consumption and usage cycles. We know when an asset is about to fail before it does."
+              "body": "Temperature, pressure, consumption and usage cycles. Failures detected from engine codes (DTC) the moment they appear."
             },
             {
               "title": "Compliance and audits",
@@ -1167,8 +1174,8 @@
               "body": "Limits by internal segment, stricter than the official map. Evidence ready for any inspection."
             },
             {
-              "title": "Distribution and last mile",
-              "body": "Mechanical telemetry across the whole fleet: failures detected before the vehicle stops."
+              "title": "Fleet mechanical telemetry",
+              "body": "Mechanical telemetry across the fleet: failures detected from engine codes (DTC) the moment they appear, so you can intervene before the vehicle stops."
             },
             {
               "title": "Industrial logistics",
@@ -1181,10 +1188,10 @@
           "title": "Configured for your operation, not a generic system",
           "body": "We don't install a one-size-fits-all solution. We configure the thresholds, zones, processes and alerts based on how your specific operation works. We start with a free 30-minute assessment.",
           "bullets": [
-            "Free assessment: what you can monitor today",
-            "Integration with your current hardware and systems",
-            "Rules and thresholds defined for your operation",
-            "Active panel for your team in 5 to 10 days",
+            "Technical demo and diagnosis at no cost",
+            "14-day evaluation on your current GPS",
+            "1-month pilot with goals agreed in writing",
+            "Real operation with reduction measured month over month",
             "Monthly impact report"
           ]
         }

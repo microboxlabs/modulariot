@@ -12,16 +12,17 @@ function parseValue(raw: string) {
   if (!m)
     return { prefix: "", target: 0, decimals: 0, suffix: raw, grouped: false };
   const [, prefix, digits, suffix] = m;
-  const decimalMatch = digits.match(/[.,](\d{1,2})$/);
+  const decimalMatch = digits.match(/([.,])(\d{1,2})$/);
   if (decimalMatch) {
-    const decimals = decimalMatch[1].length;
+    const decimals = decimalMatch[2].length;
     const intPart = digits.slice(0, digits.length - decimals - 1);
     return {
       prefix,
-      target: parseFloat(`${intPart}.${decimalMatch[1]}`),
+      target: parseFloat(`${intPart}.${decimalMatch[2]}`),
       decimals,
       suffix,
       grouped: false,
+      decimalSep: decimalMatch[1],
     };
   }
   return {
@@ -30,11 +31,17 @@ function parseValue(raw: string) {
     decimals: 0,
     suffix,
     grouped: digits.includes(".") || digits.includes(","),
+    decimalSep: ".",
   };
 }
 
-function formatNumber(n: number, decimals: number, grouped: boolean) {
-  if (decimals > 0) return n.toFixed(decimals);
+function formatNumber(
+  n: number,
+  decimals: number,
+  grouped: boolean,
+  decimalSep = ".",
+) {
+  if (decimals > 0) return n.toFixed(decimals).replace(".", decimalSep);
   const rounded = Math.round(n);
   return grouped
     ? new Intl.NumberFormat("de-DE").format(rounded)
@@ -49,7 +56,8 @@ export function Counter({
   value: string;
   duration?: number;
 }) {
-  const { prefix, target, decimals, suffix, grouped } = parseValue(value);
+  const { prefix, target, decimals, suffix, grouped, decimalSep } =
+    parseValue(value);
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
   const reduce = useReducedMotion();
@@ -68,7 +76,7 @@ export function Counter({
   return (
     <span ref={ref} className="tabular-nums">
       {prefix}
-      {formatNumber(display, decimals, grouped)}
+      {formatNumber(display, decimals, grouped, decimalSep)}
       {suffix}
     </span>
   );

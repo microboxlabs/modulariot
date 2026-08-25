@@ -4,16 +4,21 @@ import path from "path";
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
-const missingAppUrls = [
-  ["NEXT_PUBLIC_APP_LOGIN_URL", process.env.NEXT_PUBLIC_APP_LOGIN_URL],
-  ["NEXT_PUBLIC_APP_SIGNUP_URL", process.env.NEXT_PUBLIC_APP_SIGNUP_URL],
-].flatMap(([name, url]) => (url ? [] : [name]));
-
-if (process.env.NODE_ENV !== "development" && missingAppUrls.length > 0) {
-  throw new Error(
-    `[web] Missing required app URL${missingAppUrls.length > 1 ? "s" : ""}: ${missingAppUrls.join(", ")}`,
-  );
-}
+// Guardia de las URLs de la plataforma: comentada mientras "Iniciar sesión" /
+// "Crear cuenta" están ocultos en el Nav (ver components/v2/Nav.tsx). Sin
+// enlaces que las consuman, exigirlas rompería cualquier build que no sea de
+// desarrollo. Descomentar al habilitar el acceso a la plataforma.
+//
+// const missingAppUrls = [
+//   ["NEXT_PUBLIC_APP_LOGIN_URL", process.env.NEXT_PUBLIC_APP_LOGIN_URL],
+//   ["NEXT_PUBLIC_APP_SIGNUP_URL", process.env.NEXT_PUBLIC_APP_SIGNUP_URL],
+// ].flatMap(([name, url]) => (url ? [] : [name]));
+//
+// if (process.env.NODE_ENV !== "development" && missingAppUrls.length > 0) {
+//   throw new Error(
+//     `[web] Missing required app URL${missingAppUrls.length > 1 ? "s" : ""}: ${missingAppUrls.join(", ")}`,
+//   );
+// }
 
 const nextConfig = {
   output: "standalone",

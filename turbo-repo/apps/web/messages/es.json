@@ -216,7 +216,7 @@
       {
         "prefix": "Más de",
         "value": "2,9M",
-        "label": "señales procesadas al mes"
+        "label": "señales procesadas al día"
       },
       {
         "prefix": "Solo",
@@ -757,7 +757,7 @@
             },
             {
               "title": "Alto volumen",
-              "body": "Diseñado para millones de señales al mes: 2.9M+ hoy en operación real, con margen para crecer."
+              "body": "Diseñado para millones de señales al día: 2.9M+ hoy en operación real, con margen para crecer."
             },
             {
               "title": "Tus datos, tu nube",
@@ -1056,7 +1056,7 @@
             },
             {
               "value": "2.9M+",
-              "label": "señales procesadas al mes"
+              "label": "señales procesadas al día"
             },
             {
               "value": "99.9%",

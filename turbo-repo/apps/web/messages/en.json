@@ -216,7 +216,7 @@
       {
         "prefix": "More than",
         "value": "2.9M",
-        "label": "signals processed per month"
+        "label": "signals processed per day"
       },
       {
         "prefix": "Only",
@@ -757,7 +757,7 @@
             },
             {
               "title": "High volume",
-              "body": "Built for millions of signals per month: 2.9M+ in real operation today, with room to grow."
+              "body": "Built for millions of signals per day: 2.9M+ in real operation today, with room to grow."
             },
             {
               "title": "Your data, your cloud",
@@ -1056,7 +1056,7 @@
             },
             {
               "value": "2.9M+",
-              "label": "signals processed per month"
+              "label": "signals processed per day"
             },
             {
               "value": "99.9%",

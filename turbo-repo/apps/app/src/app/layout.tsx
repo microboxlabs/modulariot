@@ -5,6 +5,7 @@ import ThemeDetector from "@/features/theme/components/ThemeDetector";
 import { Toaster } from "sonner";
 import { ThemeModeScript } from "flowbite-react";
 import { ThemeInit } from "../../.flowbite-react/init";
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 export const metadata: Metadata = {
   title: process.env.APP_TITLE ?? "ModularIoT",
@@ -34,6 +35,9 @@ export default function RootLayout({
           closeButton
         />
       </body>
+      {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+        <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
+      )}
     </html>
   );
 }

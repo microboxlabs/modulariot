@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "@alfresco/js-api": "^9.0.0",
-    "@modulariot/ui": "*",
     "@auth/core": "0.41.3",
     "@deck.gl/core": "9.2.6",
     "@deck.gl/mapbox": "9.2.6",
@@ -40,7 +39,9 @@
     "@microboxlabs/miot-calendar-ui": "*",
     "@microboxlabs/miot-harness-client": "*",
     "@microboxlabs/miot-resource-client": "*",
+    "@modulariot/ui": "*",
     "@next/mdx": "16.2.11",
+    "@next/third-parties": "^16.2.11",
     "@react-google-maps/api": "^2.20.3",
     "@tailwindcss/postcss": "^4.1.17",
     "@tanstack/react-virtual": "^3.10.9",

@@ -38,11 +38,45 @@ function resolveHref(base: string, href: string) {
     : `${base}${href}`;
 }
 
-// "Iniciar sesión" / "Crear cuenta" están ocultos: apuntaban a la app real
-// (apps/app) vía NEXT_PUBLIC_APP_LOGIN_URL / NEXT_PUBLIC_APP_SIGNUP_URL y hoy
-// no resuelven. Las cadenas siguen en messages/*.json (`nav.actions.*`); para
-// reponerlos hace falta volver a leer esas env vars y renderizar los enlaces
-// en los dos bloques marcados más abajo (desktop y móvil).
+// ── Acceso a la plataforma: OCULTO ──────────────────────────────────────
+// "Iniciar sesión" / "Crear cuenta" apuntaban a la app real (apps/app) vía
+// NEXT_PUBLIC_APP_LOGIN_URL / NEXT_PUBLIC_APP_SIGNUP_URL, que hoy no
+// resuelven. Se deja el código comentado —acá y en los dos bloques de render
+// marcados más abajo (desktop y móvil)— para reponerlo cuando la plataforma
+// se habilite; las cadenas siguen en messages/*.json (`nav.actions.*`) y las
+// env vars en .env.example. Descomentar también la guardia de next.config.ts.
+//
+// URLs completas (incluyen path/query) de la app real (apps/app, no esta
+// landing) — varían por entorno, así que viven enteras en
+// NEXT_PUBLIC_APP_LOGIN_URL / NEXT_PUBLIC_APP_SIGNUP_URL (ver
+// .env.example/.env.local), nada de path hardcodeado acá. Separadas (aunque
+// hoy apunten al mismo sign-in) para poder cambiar una sin tocar la otra —
+// p.ej. cuando Crear cuenta sume su propio query param.
+//
+// const LOCAL_APP_URL = "http://localhost:3050/sign-in";
+//
+// function getAppUrls() {
+//   const configured = {
+//     NEXT_PUBLIC_APP_LOGIN_URL: process.env.NEXT_PUBLIC_APP_LOGIN_URL,
+//     NEXT_PUBLIC_APP_SIGNUP_URL: process.env.NEXT_PUBLIC_APP_SIGNUP_URL,
+//   };
+//   const missing = Object.entries(configured)
+//     .filter(([, url]) => !url)
+//     .map(([name]) => name);
+//
+//   if (process.env.NODE_ENV !== "development" && missing.length > 0) {
+//     throw new Error(
+//       `[Nav] Missing required app URL${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}`,
+//     );
+//   }
+//
+//   return {
+//     login: configured.NEXT_PUBLIC_APP_LOGIN_URL || LOCAL_APP_URL,
+//     signup: configured.NEXT_PUBLIC_APP_SIGNUP_URL || LOCAL_APP_URL,
+//   };
+// }
+//
+// const { login: APP_LOGIN_URL, signup: APP_SIGNUP_URL } = getAppUrls();
 
 export const navIcons = {
   signal: (
@@ -388,7 +422,20 @@ export default function Nav({ lang }: { lang: string }) {
 
           <DarkThemeToggle theme={themeToggleStyle} />
 
-          {/* Aquí iban "Iniciar sesión" / "Crear cuenta" (desktop) — ocultos. */}
+          {/* Acceso a la plataforma (desktop) — oculto, ver nota arriba.
+          <a
+            href={APP_LOGIN_URL}
+            className="rounded-lg px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:text-ink-1"
+          >
+            {t("actions.login.label")}
+          </a>
+          <a
+            href={APP_SIGNUP_URL}
+            className="rounded-lg border border-ink-1 bg-ink-1 px-3.5 py-2 text-sm font-medium text-page transition-colors hover:bg-ink-2 hover:border-ink-2"
+          >
+            {t("actions.signup.label")}
+          </a>
+          */}
         </div>
 
         {/* Mobile: toggle de tema + hamburguesa */}
@@ -483,7 +530,24 @@ export default function Nav({ lang }: { lang: string }) {
               {item.label}
             </a>
           ))}
-          {/* Aquí iban "Iniciar sesión" / "Crear cuenta" (móvil) — ocultos. */}
+          {/* Acceso a la plataforma (móvil) — oculto, ver nota arriba.
+          <div className="mt-4 space-y-2">
+            <a
+              href={APP_LOGIN_URL}
+              onClick={() => setOpen(false)}
+              className="text-ink-2 block rounded-lg px-4 py-2.5 text-center text-sm font-medium"
+            >
+              {t("actions.login.label")}
+            </a>
+            <a
+              href={APP_SIGNUP_URL}
+              onClick={() => setOpen(false)}
+              className="border-ink-1 bg-ink-1 text-page block rounded-lg border px-4 py-2.5 text-center text-sm font-medium"
+            >
+              {t("actions.signup.label")}
+            </a>
+          </div>
+          */}
         </div>
       )}
     </header>

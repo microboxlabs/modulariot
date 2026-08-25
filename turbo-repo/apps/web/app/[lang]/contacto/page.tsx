@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import ContactForm from "../../../../components/v2/ContactForm";
-import { pageMetadata, type Lang } from "../../../../lib/seo";
+import ContactForm from "../../../components/v2/ContactForm";
+import { pageMetadata, type Lang } from "../../../lib/seo";
 
 const META: Record<Lang, { title: string; description: string }> = {
   es: {
@@ -39,7 +39,7 @@ export default async function ContactoPage({
 }) {
   const { lang } = await params;
   const { intent } = await searchParams;
-  const base = `/alpha-2506/${lang}`;
+  const base = `/${lang}`;
   const initialIntent: Intent = INTENTS.includes(intent as Intent) ? (intent as Intent) : "demo";
   return (
     <main>

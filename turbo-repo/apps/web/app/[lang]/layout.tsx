@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
-import Nav from "../../../components/v2/Nav";
-import DemoFab from "../../../components/v2/DemoFab";
-import { Footer } from "../../../components/v2/sections/Footer";
-import { getMessages } from "../../../i18n/request";
-import { pageMetadata, organizationJsonLd, type Lang } from "../../../lib/seo";
+import Nav from "../../components/v2/Nav";
+import DemoFab from "../../components/v2/DemoFab";
+import { Footer } from "../../components/v2/sections/Footer";
+import { getMessages } from "../../i18n/request";
+import { notFound } from "next/navigation";
+import { pageMetadata, organizationJsonLd, LOCALES, type Lang } from "../../lib/seo";
 
 export async function generateMetadata({
   params,
@@ -39,7 +40,7 @@ export async function generateMetadata({
 }
 
 export async function generateStaticParams() {
-  return [{ lang: "en" }, { lang: "es" }, { lang: "pt" }];
+  return LOCALES.map((lang) => ({ lang }));
 }
 
 export default async function RootLayout({
@@ -50,8 +51,14 @@ export default async function RootLayout({
   params: Promise<{ lang: string }>;
 }>) {
   const { lang } = await params;
+
+  // `[lang]` cuelga de la raíz: sin este guardia cualquier primer segmento
+  // (`/loquesea`) renderizaría la home con su propio canonical, multiplicando
+  // contenido duplicado indexable.
+  if (!LOCALES.includes(lang as Lang)) notFound();
+
   const messages = getMessages(lang);
-  const base = `/alpha-2506/${lang}`;
+  const base = `/${lang}`;
 
   return (
     <NextIntlClientProvider locale={lang} messages={messages}>

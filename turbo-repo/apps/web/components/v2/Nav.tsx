@@ -193,7 +193,7 @@ export default function Nav({ lang }: { lang: string }) {
   const [open, setOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [country, setCountry] = useState<string | null>(null);
-  const base = `/alpha-2506/${lang}`;
+  const base = `/${lang}`;
   const t = useTranslations("nav");
 
   // Texto (JSON, vía next-intl) + estructura (código, nav-data.ts) combinados

@@ -18,6 +18,14 @@ if (process.env.NODE_ENV !== "development" && missingAppUrls.length > 0) {
 const nextConfig = {
   output: "standalone",
   transpilePackages: ["flowbite-react"],
+  // La landing vivió bajo el prefijo oculto /alpha-2506 hasta su publicación en
+  // la raíz. Se mantiene el redirect permanente para enlaces ya compartidos.
+  async redirects() {
+    return [
+      { source: "/alpha-2506", destination: "/", permanent: true },
+      { source: "/alpha-2506/:path*", destination: "/:path*", permanent: true },
+    ];
+  },
 };
 
 // Apply Flowbite last so it resolves next-intl's config function before

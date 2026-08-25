@@ -1,6 +1,6 @@
 // Contenido de la landing v2. Fuente ES aquí; en/pt en content.en.ts / content.pt.ts.
 // getContent(lang) resuelve el diccionario por idioma (fallback a es).
-// Identidad: la landing ModularIoT original (alpha-2506). Infraestructura de
+// Identidad: la landing ModularIoT original. Infraestructura de
 // navegación/página de precios guiada por clickhouse.com. We Got You y la
 // calculadora del portafolio de costos alimentan secciones específicas.
 

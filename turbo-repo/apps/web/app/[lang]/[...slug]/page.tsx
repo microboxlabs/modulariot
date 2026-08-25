@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import DetailPage from "../../../../components/v2/DetailPage";
-import { getAllDetailSlugs, getDetailPageData } from "../../../../components/v2/detail-content";
-import { pageMetadata, type Lang } from "../../../../lib/seo";
+import DetailPage from "../../../components/v2/DetailPage";
+import { getAllDetailSlugs, getDetailPageData } from "../../../components/v2/detail-content";
+import { pageMetadata, type Lang } from "../../../lib/seo";
 
 // Catch-all: resuelve todas las páginas de detalle (producto/*, soluciones, recursos).
 // Config estructural en detail-content.ts, texto en messages/{lang}.json (namespace "detail").
@@ -39,5 +39,5 @@ export default async function CatchAllDetail({
   const { lang, slug } = await params;
   const data = await getDetailPageData(lang, slug.join("/"));
   if (!data) notFound();
-  return <DetailPage data={data} base={`/alpha-2506/${lang}`} />;
+  return <DetailPage data={data} base={`/${lang}`} />;
 }

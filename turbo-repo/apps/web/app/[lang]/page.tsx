@@ -1,17 +1,17 @@
-import { Hero } from "../../../components/v2/sections/Hero";
-import { Stats } from "../../../components/v2/sections/Stats";
-import { Partners } from "../../../components/v2/sections/Partners";
-import { Problem } from "../../../components/v2/sections/Problem";
-import { TresActos } from "../../../components/v2/sections/TresActos";
-import { Features } from "../../../components/v2/sections/Features";
-import { PainOutcome } from "../../../components/v2/sections/PainOutcome";
-import { Deployment } from "../../../components/v2/sections/Deployment";
-import { Security } from "../../../components/v2/sections/Security";
-import { Stories } from "../../../components/v2/sections/Stories";
-import { FinalCta } from "../../../components/v2/sections/FinalCta";
-import { type Tone } from "../../../components/v2/sections/shared";
-import StepsInteractive from "../../../components/v2/StepsInteractive";
-import FAQ from "../../../components/v2/FAQ";
+import { Hero } from "../../components/v2/sections/Hero";
+import { Stats } from "../../components/v2/sections/Stats";
+import { Partners } from "../../components/v2/sections/Partners";
+import { Problem } from "../../components/v2/sections/Problem";
+import { TresActos } from "../../components/v2/sections/TresActos";
+import { Features } from "../../components/v2/sections/Features";
+import { PainOutcome } from "../../components/v2/sections/PainOutcome";
+import { Deployment } from "../../components/v2/sections/Deployment";
+import { Security } from "../../components/v2/sections/Security";
+import { Stories } from "../../components/v2/sections/Stories";
+import { FinalCta } from "../../components/v2/sections/FinalCta";
+import { type Tone } from "../../components/v2/sections/shared";
+import StepsInteractive from "../../components/v2/StepsInteractive";
+import FAQ from "../../components/v2/FAQ";
 
 // Home: arco narrativo estilo luuk.cl con identidad ModularIoT.
 // Gancho → validación → problema → demostración → solución → diferenciación →
@@ -22,7 +22,7 @@ export default async function Home({
   params: Promise<{ lang: "en" | "es" | "pt" }>;
 }) {
   const { lang } = await params;
-  const base = `/alpha-2506/${lang}`;
+  const base = `/${lang}`;
 
   // Ritmo de superficies automático: blanco, gris, blanco, gris... en el
   // orden en que las secciones aparecen abajo. Cambiar el orden de las

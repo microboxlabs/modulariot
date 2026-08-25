@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import ModuleTabs from "../../../../components/v2/ModuleTabs";
-import SuperProfile from "../../../../components/v2/SuperProfile";
-import { FinalCta } from "../../../../components/v2/sections/FinalCta";
-import { pageMetadata, type Lang } from "../../../../lib/seo";
+import ModuleTabs from "../../../components/v2/ModuleTabs";
+import SuperProfile from "../../../components/v2/SuperProfile";
+import { FinalCta } from "../../../components/v2/sections/FinalCta";
+import { pageMetadata, type Lang } from "../../../lib/seo";
 
 const META: Record<Lang, { title: string; description: string }> = {
   es: {
@@ -38,7 +38,7 @@ export default async function SuperProfilePage({
   params: Promise<{ lang: "en" | "es" | "pt" }>;
 }) {
   const { lang } = await params;
-  const base = `/alpha-2506/${lang}`;
+  const base = `/${lang}`;
   return (
     <>
       <ModuleTabs base={base} active="superprofile" lang={lang} />

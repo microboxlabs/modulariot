@@ -12,11 +12,15 @@ export const metadata: Metadata = {
   description: process.env.APP_DESCRIPTION ?? "Open-source real-time fleet monitoring platform.",
 };
 
+const googleAnalyticsId = process.env.GA_MEASUREMENT_ID
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  
+
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
@@ -35,9 +39,7 @@ export default function RootLayout({
           closeButton
         />
       </body>
-      {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
-        <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
-      )}
+      <GoogleAnalytics gaId={googleAnalyticsId as string} />
     </html>
   );
 }

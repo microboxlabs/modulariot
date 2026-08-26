@@ -2320,6 +2320,7 @@
         "subtitle4": "Validación GPS",
         "details": "Detalles servicio nº {serviceCode}",
         "integrations": "Integraciones",
+        "storytelling": "Storytelling",
         "settings": "Ajustes",
         "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos",
@@ -4074,7 +4075,8 @@
     "assignment": "Asignación",
     "unassigned": "Sin asignar",
     "partial": "Parcial",
-    "assigned": "Asignado"
+    "assigned": "Asignado",
+    "type": "Tipo"
   },
   "comments": {
     "title": "Comentarios",
@@ -4807,6 +4809,50 @@
     },
     "breadcrumb": {
       "collaboratorsManagement": "Gestión de Colaboradores"
+    }
+  },
+  "storytelling": {
+    "breadcrumb": {
+      "storytelling": "Storytelling"
+    },
+    "title": "Storytelling",
+    "description": "Historias generadas por IA y curadas para tu organización.",
+    "card": {
+      "aiGenerated": "Generado por IA"
+    },
+    "filters": {
+      "noMatches": "Ninguna historia coincide con los filtros actuales."
+    },
+    "list": {
+      "empty": "Todavía no hay historias."
+    },
+    "menu": {
+      "label": "Acciones",
+      "share": "Compartir",
+      "delete": "Eliminar"
+    },
+    "delete": {
+      "title": "Eliminar historia",
+      "confirmButton": "Eliminar"
+    },
+    "share": {
+      "title": "Compartir",
+      "copyLink": "Copiar enlace",
+      "email": "Correo electrónico",
+      "whatsapp": "WhatsApp",
+      "copied": "Enlace copiado al portapapeles",
+      "copyFailed": "No se pudo copiar el enlace"
+    },
+    "toast": {
+      "deleted": "Se eliminó {name}"
+    },
+    "detail": {
+      "aiGeneratedBadge": "Generado por IA",
+      "notFound": {
+        "title": "Historia no encontrada",
+        "description": "Esta historia no existe, o fue eliminada.",
+        "backButton": "Volver a Storytelling"
+      }
     }
   },
   "conversations": {

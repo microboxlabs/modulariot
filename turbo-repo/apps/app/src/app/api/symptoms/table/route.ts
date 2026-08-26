@@ -95,6 +95,7 @@ export async function GET(req: NextRequest) {
 
   async function fetchSymptomsData(params: URLSearchParams) {
     const token = await authToken.getToken();
+    console.log("DEBUG bearer token:", token); // TODO: remove after testing
 
     const response = await fetch(SYMPTOMS_API_URL + "?" + params.toString(), {
       headers: {

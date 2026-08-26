@@ -85,6 +85,12 @@
     "blockedGroups": []
   },
   {
+    "label": "storytelling",
+    "href": "/storytelling",
+    "requiredGroups": [],
+    "blockedGroups": []
+  },
+  {
     "label": "settings",
     "items": [
       { "href": "/users/settings/organizations", "label": "organizations", "requiredGroups": [], "blockedGroups": [] },

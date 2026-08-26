@@ -1,4 +1,5 @@
 import { askUserQuestionExtension } from "./ask-user-question";
+import { createStoryExtension } from "./create-story";
 import { showDashletExtension } from "./show-dashlet";
 import type { HarnessExtension } from "../harness-extension";
 
@@ -11,4 +12,5 @@ import type { HarnessExtension } from "../harness-extension";
 export const DEFAULT_HARNESS_EXTENSIONS: HarnessExtension[] = [
   askUserQuestionExtension,
   showDashletExtension,
+  createStoryExtension,
 ];

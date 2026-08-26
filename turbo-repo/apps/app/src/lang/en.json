@@ -2316,6 +2316,7 @@
         "reports": "Reports",
         "details": "Service details nº {serviceCode}",
         "integrations": "Integrations",
+        "storytelling": "Storytelling",
         "settings": "Settings",
         "organizations": "Organizations",
         "dataSources": "Data Sources",
@@ -4074,7 +4075,8 @@
     "assignment": "Assignment",
     "unassigned": "Unassigned",
     "partial": "Partial",
-    "assigned": "Assigned"
+    "assigned": "Assigned",
+    "type": "Type"
   },
   "comments": {
     "title": "Comments",
@@ -4807,6 +4809,50 @@
     },
     "breadcrumb": {
       "collaboratorsManagement": "Collaborators Management"
+    }
+  },
+  "storytelling": {
+    "breadcrumb": {
+      "storytelling": "Storytelling"
+    },
+    "title": "Storytelling",
+    "description": "AI-generated and curated stories for your organization.",
+    "card": {
+      "aiGenerated": "AI Generated"
+    },
+    "filters": {
+      "noMatches": "No stories match the current filters."
+    },
+    "list": {
+      "empty": "No stories yet."
+    },
+    "menu": {
+      "label": "Actions",
+      "share": "Share",
+      "delete": "Delete"
+    },
+    "delete": {
+      "title": "Delete story",
+      "confirmButton": "Delete"
+    },
+    "share": {
+      "title": "Share",
+      "copyLink": "Copy link",
+      "email": "Email",
+      "whatsapp": "WhatsApp",
+      "copied": "Link copied to clipboard",
+      "copyFailed": "Couldn't copy the link"
+    },
+    "toast": {
+      "deleted": "Deleted {name}"
+    },
+    "detail": {
+      "aiGeneratedBadge": "AI Generated",
+      "notFound": {
+        "title": "Story not found",
+        "description": "This story doesn't exist, or was deleted.",
+        "backButton": "Back to Storytelling"
+      }
     }
   },
   "conversations": {

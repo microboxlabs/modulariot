@@ -8,6 +8,7 @@ import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
 import { FaDev, FaTruckLoading } from "react-icons/fa";
 import { HiCog, HiLightningBolt } from "react-icons/hi";
+import { HiSparkles } from "react-icons/hi2";
 import { LuTowerControl } from "react-icons/lu";
 import type { FC, ComponentProps } from "react";
 import pagesConfig from "./pages-config.json";
@@ -23,6 +24,7 @@ const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   fleetManagement: TruckIcon,
   whereIsMyLoad: FaTruckLoading as FC<ComponentProps<"svg">>,
   integrations: HiLightningBolt as FC<ComponentProps<"svg">>,
+  storytelling: HiSparkles as FC<ComponentProps<"svg">>,
   settings: HiCog as FC<ComponentProps<"svg">>,
   dev: FaDev as FC<ComponentProps<"svg">>,
 };

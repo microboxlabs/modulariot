@@ -1,4 +1,5 @@
 import { logger } from "@/lib/logger";
+import { modulithHost } from "@/lib/modulith-host";
 
 /**
  * Body of an interaction episode (semantic-layer continual-learning loop).
@@ -25,7 +26,7 @@ export async function recordEpisode(args: {
   token: string | undefined;
   body: EpisodeBody;
 }): Promise<void> {
-  const host = process.env.MIOT_HARNESS_URL ?? "";
+  const host = modulithHost();
   if (!host) return;
   try {
     const res = await fetch(

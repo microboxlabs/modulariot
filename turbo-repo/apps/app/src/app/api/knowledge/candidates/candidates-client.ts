@@ -1,11 +1,12 @@
 import { logger } from "@/lib/logger";
+import { modulithHost } from "@/lib/modulith-host";
 
 /**
  * Server-side client for the semantic-layer learning loop's staging store. The
  * browser has no user token for the modulith, so these run in app API routes
- * that hold the session token + org scope. `MIOT_HARNESS_URL` is the modulith
- * base (same var the search + episode routes use); the modulith hosts both the
- * knowledge-candidates endpoints and the harness proxy.
+ * that hold the session token + org scope. The base host comes from
+ * `modulithHost()` (same host the search + episode routes use); the modulith
+ * serves both the knowledge-candidates endpoints and the harness proxy.
  */
 
 /** Body to stage a candidate — the connection + the proposed term MEANING. */
@@ -37,7 +38,7 @@ export interface Candidate {
 export type Decision = "approve" | "reject";
 
 function host(): string {
-  return process.env.MIOT_HARNESS_URL ?? "";
+  return modulithHost();
 }
 
 async function modulith(
@@ -46,7 +47,7 @@ async function modulith(
   init: RequestInit,
 ): Promise<Response> {
   const base = host();
-  if (!base) throw new Error("MIOT_HARNESS_URL is not set");
+  if (!base) throw new Error("MIOT_MODULITH_URL is not set");
   return fetch(`${base}${path}`, {
     ...init,
     headers: {

@@ -20,6 +20,7 @@ import type { ShowDashletArgs } from "@/features/harness-chat/extensions/show-da
 import { getAllDashlets, getAllDashletMetas } from "@/features/dashboard/dashlets";
 import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.service";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
+import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
 
 /**
  * AG-UI-compliant streaming relay for the harness-chat panel. Speaks the
@@ -38,8 +39,6 @@ import type { TrFn } from "@/features/i18n/i18n.service.types";
  * proving out the AG-UI path extensions will use once the harness can drive
  * it.
  */
-
-const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
 
 // See search/stream/route.ts's HARNESS_STREAM_TIMEOUT_MS comment — same
 // stopgap ceiling applies here.
@@ -268,7 +267,7 @@ function lastMessageIsToolResult(messages: AgUiMessage[]): AgUiMessage | null {
 }
 
 /** Demo trigger for the ask_user_question human tool — only reachable when
- * the harness endpoint is unconfigured (local dev without MIOT_HARNESS_URL),
+ * the harness endpoint is unconfigured (local dev without MIOT_MODULITH_URL),
  * so the AG-UI tool-call path stays exercisable without the harness itself
  * being able to invoke it, without ever intercepting real traffic once a
  * harness is actually configured. */
@@ -402,7 +401,7 @@ function decideHarnessPath(
     return { handled: true };
   }
 
-  if (!MIOT_HARNESS_HOST) {
+  if (!isModulithConfigured()) {
     if (demoAskUserQuestion(send, message, tr)) {
       send({ type: "RUN_FINISHED", runId, threadId });
       return { handled: true };
@@ -449,7 +448,7 @@ async function connectToHarness(session: Session): Promise<HarnessConnection> {
   const userEmail = session.user?.email;
 
   const client = createMiotHarnessClient({
-    baseUrl: `${MIOT_HARNESS_HOST}/api/v1/orgs/${orgSlug}/harness`,
+    baseUrl: `${modulithHost()}/api/v1/orgs/${orgSlug}/harness`,
     token,
     headers: userEmail ? { "X-Dev-User-Email": userEmail } : {},
   });

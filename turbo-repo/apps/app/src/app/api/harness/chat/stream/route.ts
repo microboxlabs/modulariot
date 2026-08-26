@@ -23,21 +23,11 @@ import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
 
 /**
- * AG-UI-compliant streaming relay for the harness-chat panel. Speaks the
- * AG-UI wire protocol (`RunAgentInput` in, `AgUiEvent` SSE frames out) so
- * the browser can run `useAgUiRuntime` against this route directly — see
- * https://github.com/ag-ui-protocol/ag-ui. Underneath, it still drives the
- * same real harness backend the search relay uses (unchanged auth/org-scope
- * chain, unchanged `client.runs.*` calls); only the wire format facing the
- * browser changed. The harness itself has no AG-UI awareness and isn't
- * expected to gain any here — that's future work.
- *
- * `ask_user_question` is a client-side "human" tool the harness cannot
- * invoke yet, so until it can, this relay synthesizes the tool call itself
- * (triggered by a couple of demo phrases, only reachable while the harness
- * endpoint is unconfigured) as a genuine TOOL_CALL_START/ARGS/END sequence —
- * proving out the AG-UI path extensions will use once the harness can drive
- * it.
+ * AG-UI streaming relay for the harness-chat panel: `RunAgentInput` in,
+ * `AgUiEvent` SSE frames out, so the browser drives it with `useAgUiRuntime`
+ * directly — see https://github.com/ag-ui-protocol/ag-ui. Underneath it's the
+ * same harness backend the search relay uses; only the browser-facing wire
+ * format differs. The harness has no AG-UI awareness of its own.
  */
 
 // See search/stream/route.ts's HARNESS_STREAM_TIMEOUT_MS comment — same
@@ -93,21 +83,14 @@ function phaseLabel(progress: HarnessStreamProgress, tr: TrFn): string {
 }
 
 /**
- * Live "what the harness is doing" narration, streamed as a single
- * continuously-growing AG-UI reasoning message for the whole run (opened
- * once, appended to with genuinely incremental deltas, closed once) —
- * rather than one full-text message per progress snapshot. Re-sending the
- * entire accumulated text on every snapshot (the earlier approach) made
- * `progress.thinking` — itself already an accumulation of many
- * `thinking.delta` chunks — get resent in full on every single one of those
- * chunks, producing a wall of near-duplicate text. Appending only what's
- * new keeps the stream the size of what actually changed.
+ * Live "what the harness is doing" narration: one reasoning message per run,
+ * opened once and appended with incremental deltas. Re-sending the whole
+ * accumulated text per progress snapshot (the earlier approach) resent
+ * `progress.thinking` in full on each of its own `thinking.delta` chunks — a
+ * wall of near-duplicate text.
  *
- * Deliberately REASONING_* rather than the older THINKING_* pair: the
- * installed @ag-ui/client (0.0.57) applies THINKING_* events as pure no-ops
- * (no subscriber callback fires for them at all — confirmed by reading its
- * event-application switch), so they never reach the runtime. REASONING_*
- * is the supported, wired-through equivalent.
+ * REASONING_* not THINKING_*: @ag-ui/client 0.0.57 applies THINKING_* as
+ * no-ops, so they never reach the runtime.
  */
 type Narrator = {
   messageId: string;

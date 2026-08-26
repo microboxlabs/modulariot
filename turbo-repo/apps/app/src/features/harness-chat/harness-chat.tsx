@@ -19,7 +19,8 @@ import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
-import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
+import { StandaloneDictionaryProvider } from "@/features/dashboard/context/standalone-dictionary-context";
+import type { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Thread } from "./thread";
 
 function createSession(initialMessage: string | null = null): Session {
@@ -52,7 +53,12 @@ export default function HarnessChat({
 }>) {
   return (
     <HarnessChatI18nProvider dict={dict}>
-      <HarnessChatPanel extensions={extensions} skills={skills} locale={locale} />
+      {/* Dashlets rendered by show_dashlet cards sit outside any
+          DashboardProvider and would otherwise translate against an empty
+          dictionary, printing raw key paths. */}
+      <StandaloneDictionaryProvider dictionary={dict as I18nRecord}>
+        <HarnessChatPanel extensions={extensions} skills={skills} locale={locale} />
+      </StandaloneDictionaryProvider>
     </HarnessChatI18nProvider>
   );
 }
@@ -65,7 +71,8 @@ const HarnessChatPanel: FC<{
   const tr = useHarnessChatTr();
   const { isOpen, close, pendingMessage, clearPendingMessage } =
     useHarnessChatContext();
-  const { width, isDragging, startDrag, toggleMinMax } = useResizablePanelWidth();
+  const { width, isDragging, startDrag, toggleMinMax, onHandleKeyDown, bounds } =
+    useResizablePanelWidth();
   const [sessions, setSessions] = useState<Session[]>(() => [createSession()]);
   const [activeId, setActiveId] = useState(() => sessions[0].id);
   const [view, setView] = useState<View>("chat");
@@ -132,6 +139,16 @@ const HarnessChatPanel: FC<{
           role="separator"
           aria-orientation="vertical"
           aria-label={tr("harnessChat.ui.resizePanel")}
+          // A separator that can actually be resized has to be reachable and
+          // driveable from the keyboard, and report its range — dragging is
+          // pointer-only, so without this the panel is stuck at whatever
+          // width a keyboard user finds it at. Arrows nudge (Shift for a
+          // coarser step), Home/End snap to the bounds.
+          tabIndex={0}
+          aria-valuenow={Math.round(width)}
+          aria-valuemin={Math.round(bounds.min)}
+          aria-valuemax={Math.round(bounds.max)}
+          onKeyDown={onHandleKeyDown}
           onPointerDown={startDrag}
           onDoubleClick={toggleMinMax}
           className={twMerge(
@@ -147,7 +164,7 @@ const HarnessChatPanel: FC<{
               "h-8 w-1 rounded-full transition-colors duration-150",
               isDragging
                 ? "bg-gray-500 dark:bg-gray-300"
-                : "bg-gray-300 group-hover:bg-gray-400 dark:bg-gray-600 dark:group-hover:bg-gray-400"
+                : "bg-gray-300 group-hover:bg-gray-400 group-focus-visible:bg-gray-500 dark:bg-gray-600 dark:group-hover:bg-gray-400 dark:group-focus-visible:bg-gray-300"
             )}
           />
         </div>

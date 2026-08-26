@@ -65,7 +65,9 @@ export const UserMessage: FC = () => {
 };
 
 const UserActionBar: FC = () => (
-  <ActionBarPrimitive.Root className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100">
+  // focus-within reveals the bar for keyboard users — Edit and Copy are
+  // tabbable whether or not a pointer happens to be over the message.
+  <ActionBarPrimitive.Root className="flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/message:opacity-100">
     <ActionBarPrimitive.Edit className={actionButtonClass}>
       <LuPencil className="h-3 w-3" />
     </ActionBarPrimitive.Edit>
@@ -192,7 +194,8 @@ export const AssistantMessage: FC = () => (
 );
 
 const AssistantActionBar: FC = () => (
-  <ActionBarPrimitive.Root className="ml-6 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100">
+  // Same as UserActionBar: tabbable controls have to become visible on focus.
+  <ActionBarPrimitive.Root className="ml-6 flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/message:opacity-100">
     <ActionBarPrimitive.Copy className={actionButtonClass}>
       <LuCopy className="h-3 w-3" />
     </ActionBarPrimitive.Copy>

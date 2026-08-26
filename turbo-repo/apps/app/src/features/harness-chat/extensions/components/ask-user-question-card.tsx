@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FC } from "react";
+import { useId, useRef, useState, type FC } from "react";
 import { type ToolCallMessagePartProps } from "@assistant-ui/react";
 import { Checkbox, Radio } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
@@ -14,11 +14,19 @@ const optionRowClass =
 
 const OptionSelector: FC<{
   multiSelect: boolean;
+  /**
+   * Radio group name, unique per card. A shared constant would make every
+   * pending question on the page one native group: inactive sessions stay
+   * mounted (SessionHost only hides them with `hidden`), so answering a
+   * question in one session would silently uncheck the DOM radio of a
+   * hidden session's card while its React state still held the selection.
+   */
+  groupName: string;
   checked: boolean;
   onChange: () => void;
   value?: string;
   ariaLabel?: string;
-}> = ({ multiSelect, checked, onChange, value, ariaLabel }) =>
+}> = ({ multiSelect, groupName, checked, onChange, value, ariaLabel }) =>
   multiSelect ? (
     <Checkbox
       checked={checked}
@@ -28,7 +36,7 @@ const OptionSelector: FC<{
     />
   ) : (
     <Radio
-      name="ask-user-question"
+      name={groupName}
       value={value}
       checked={checked}
       onChange={onChange}
@@ -41,6 +49,8 @@ export const AskUserQuestionCard: FC<
   ToolCallMessagePartProps<AskUserQuestionArgs, AskUserQuestionResult>
 > = ({ args, result, isError, addResult }) => {
   const tr = useHarnessChatTr();
+  // Scopes this card's radios to their own native group — see OptionSelector.
+  const groupName = useId();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [otherSelected, setOtherSelected] = useState(false);
   const [otherText, setOtherText] = useState("");
@@ -115,6 +125,7 @@ export const AskUserQuestionCard: FC<
           <label key={option.label} className={optionRowClass}>
             <OptionSelector
               multiSelect={!!args.allowMultiple}
+              groupName={groupName}
               checked={selected.has(option.label)}
               onChange={() => toggle(option.label)}
             />
@@ -133,6 +144,7 @@ export const AskUserQuestionCard: FC<
           <label className={optionRowClass}>
             <OptionSelector
               multiSelect={!!args.allowMultiple}
+              groupName={groupName}
               checked={otherSelected}
               onChange={selectOther}
               value={OTHER_VALUE}

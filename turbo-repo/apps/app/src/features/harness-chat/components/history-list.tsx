@@ -37,6 +37,20 @@ export const HistoryList: FC<{
     setSelectedIds(new Set());
   };
 
+  /** Row-level delete. Drops the id from the selection too — left behind, it
+   * keeps the toolbar enabled and counting a session that no longer exists
+   * (whose own Delete is then a no-op), and skews `allSelected`, which
+   * compares the selection size against the live session count. */
+  const deleteOne = (id: string) => {
+    onDelete([id]);
+    setSelectedIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-3 py-1.5 dark:border-gray-800">
@@ -94,10 +108,13 @@ export const HistoryList: FC<{
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onDelete([session.id]);
+                deleteOne(session.id);
               }}
               aria-label={tr("harnessChat.ui.history.deleteChat")}
-              className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 opacity-0 transition-opacity hover:bg-gray-200 hover:text-gray-700 group-hover:opacity-100 dark:hover:bg-gray-600 dark:hover:text-gray-100"
+              // focus-visible alongside group-hover: this button is in the tab
+              // order regardless, so without it keyboard users land on an
+              // invisible destructive control.
+              className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 opacity-0 transition-opacity hover:bg-gray-200 hover:text-gray-700 focus-visible:opacity-100 group-hover:opacity-100 dark:hover:bg-gray-600 dark:hover:text-gray-100"
             >
               <LuTrash2 className="h-3 w-3" />
             </button>

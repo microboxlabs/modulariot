@@ -122,7 +122,7 @@
     "knip": "^5.79.0",
     "node-mocks-http": "^1.16.2",
     "pagefind": "^1.5.2",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.23",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "typescript": "^5",

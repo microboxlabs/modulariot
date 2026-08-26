@@ -22,14 +22,21 @@ export interface DashboardCapabilities {
   canDelete: boolean;
 }
 
-/** Deny-by-default capabilities — the correct starting point for any caller. */
-export const NO_CAPABILITIES: DashboardCapabilities = {
+/**
+ * Deny-by-default capabilities — the correct starting point for any caller.
+ *
+ * Frozen, and typed `Readonly`, because this is a shared module-level object
+ * in a long-lived server process: one caller mutating it in place would move
+ * the deny-by-default baseline for every request that followed. Build a
+ * widened set by spreading it, never by assigning through it.
+ */
+export const NO_CAPABILITIES: Readonly<DashboardCapabilities> = Object.freeze({
   readOnly: true,
   canEdit: false,
   canShare: false,
   canManagePermissions: false,
   canDelete: false,
-};
+});
 
 /** How a request authenticated. Embed tokens are deliberately distinguishable. */
 export type DashboardPrincipalKind = "user" | "embed" | "service";

@@ -25,8 +25,12 @@
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const SRC = new URL("../src", import.meta.url).pathname;
+// fileURLToPath, not URL.pathname: the latter yields a URL path, which keeps
+// percent-encoding and gains a leading slash before a Windows drive letter.
+// Matches the convention in apps/app/scripts/build-search-index.mjs.
+const SRC = fileURLToPath(new URL("../src", import.meta.url));
 
 /**
  * Every module specifier on a line, across all import forms:

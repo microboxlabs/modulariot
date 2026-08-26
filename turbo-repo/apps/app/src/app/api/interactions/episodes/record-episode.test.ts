@@ -7,7 +7,7 @@ describe("recordEpisode", () => {
   );
 
   beforeEach(() => {
-    vi.stubEnv("MIOT_HARNESS_URL", "http://modulith:8180");
+    vi.stubEnv("MIOT_MODULITH_URL", "http://modulith:8180");
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockClear();
   });
@@ -37,7 +37,7 @@ describe("recordEpisode", () => {
   });
 
   it("is a no-op when the harness host is unset", async () => {
-    vi.stubEnv("MIOT_HARNESS_URL", "");
+    vi.stubEnv("MIOT_MODULITH_URL", "");
     await recordEpisode({ orgSlug: "o", token: "t", body: { surface: "cli" } });
     expect(fetchMock).not.toHaveBeenCalled();
   });

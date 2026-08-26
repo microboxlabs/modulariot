@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { proxyToUpstream } from "@/app/api/utils/upstream-proxy";
+import { modulithHost } from "@/lib/modulith-host";
 
 /**
  * Forward the caller's session JWT to a Quarkus endpoint and return the
@@ -32,10 +33,10 @@ export async function forwardToQuarkus(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const baseUrl = process.env.MIOT_RESOURCE_URL;
+  const baseUrl = modulithHost();
   if (!baseUrl) {
     return NextResponse.json(
-      { error: "MIOT_RESOURCE_URL is not configured" },
+      { error: "MIOT_MODULITH_URL is not configured" },
       { status: 500 },
     );
   }

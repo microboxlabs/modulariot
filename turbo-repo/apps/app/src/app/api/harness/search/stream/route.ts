@@ -8,6 +8,7 @@ import { resolveTenantScope } from "../../../utils/tenant-scope";
 import { logger } from "@/lib/logger";
 import { toSearchResult } from "../search-blocks";
 import { recordEpisode } from "../../../interactions/episodes/record-episode";
+import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
 
 /**
  * Streaming twin of the buffered POST /api/harness/search.
@@ -28,8 +29,6 @@ import { recordEpisode } from "../../../interactions/episodes/record-episode";
  *   shape the buffered route returns, emitted after the terminal event.
  * - `search.error`     — `{ error: string }` when the relay fails mid-run.
  */
-
-const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
 
 /** Typical agentic runs measure ~35-45s, but harder questions (per-entity
  * detail, not a count) replan several times on the Opus planner and can exceed 2
@@ -70,7 +69,7 @@ function sseFrame(event: string, data: unknown, id?: string | number): Uint8Arra
 }
 
 export async function POST(request: Request) {
-  if (!MIOT_HARNESS_HOST) {
+  if (!isModulithConfigured()) {
     return NextResponse.json({ error: "harness_unconfigured" }, { status: 503 });
   }
 
@@ -92,7 +91,7 @@ export async function POST(request: Request) {
   const userEmail = authResult.session.user?.email;
 
   const client = createMiotHarnessClient({
-    baseUrl: `${MIOT_HARNESS_HOST}/api/v1/orgs/${orgSlug}/harness`,
+    baseUrl: `${modulithHost()}/api/v1/orgs/${orgSlug}/harness`,
     token,
     headers: userEmail ? { "X-Dev-User-Email": userEmail } : {},
   });

@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { logger } from "@/lib/logger";
+import { modulithHost } from "@/lib/modulith-host";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -194,10 +195,10 @@ async function fetchScopes(session: Session): Promise<OrganizationScope[]> {
   const cached = getCached(userId);
   if (cached) return cached;
 
-  const baseUrl = process.env.MIOT_RESOURCE_URL;
+  const baseUrl = modulithHost();
   if (!baseUrl) {
     throw new Error(
-      "MIOT_RESOURCE_URL environment variable is not set. " +
+      "MIOT_MODULITH_URL environment variable is not set. " +
         "Required for tenant scope resolution."
     );
   }

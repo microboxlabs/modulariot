@@ -4,6 +4,7 @@ import { useEffect, type FC } from "react";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { resolveDashletPreview } from "@/features/dashboard/dashlets/dashlet-preview";
 import type { ShowDashletArgs, ShowDashletResult } from "../show-dashlet";
+import { useHarnessChatTr } from "../../context/harness-chat-i18n-context";
 
 const messageCardClass =
   "w-full max-w-[90%] rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400";
@@ -24,6 +25,8 @@ export const ShowDashletCard: FC<ToolCallMessagePartProps<ShowDashletArgs, ShowD
   result,
   addResult,
 }) => {
+  const tr = useHarnessChatTr();
+
   useEffect(() => {
     if (!result) addResult({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -34,15 +37,25 @@ export const ShowDashletCard: FC<ToolCallMessagePartProps<ShowDashletArgs, ShowD
   if (resolved.status === "unknown") {
     return (
       <div className={messageCardClass}>
-        Unknown dashlet: {args.dashletId}
+        {tr("harnessChat.ui.showDashlet.unknown", { id: args.dashletId })}
       </div>
     );
   }
 
-  // Renders nothing at all — not even a notice. The tool call already
-  // auto-resolved above, so the run isn't blocked; this dashlet's chat
-  // preview attempt just leaves no visible trace.
-  if (resolved.status === "excluded") return null;
+  // Says so rather than rendering nothing. The `show_dashlet` schema only
+  // offers showInChat-eligible ids, but nothing stops a model emitting one
+  // outside that enum — and the demo trigger reaches this path directly by
+  // naming any registered dashlet (see findNamedDashletId in the chat stream
+  // route, whose comment already promises this notice). Silence here reads
+  // as a broken chat: the tool call auto-resolved, so the run carries on
+  // with only a generic acknowledgement and no trace of what was asked for.
+  if (resolved.status === "excluded") {
+    return (
+      <div className={messageCardClass}>
+        {tr("harnessChat.ui.showDashlet.unsupported", { name: resolved.name })}
+      </div>
+    );
+  }
 
   const { Component, widget, heightPx } = resolved;
   return (

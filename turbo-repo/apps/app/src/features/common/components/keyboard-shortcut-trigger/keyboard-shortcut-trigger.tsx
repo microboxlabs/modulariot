@@ -16,19 +16,27 @@ export default function KeyboardShortcutTrigger({
   label,
   onTrigger,
   withModifier = true,
+  enabled = true,
   children,
 }: Readonly<{
   shortcutKey: string;
-  /** Text shown in the hint badge, e.g. "C". Defaults to the shortcut key, uppercased. */
+  /** Text shown in the hint badge, e.g. "J". Defaults to the shortcut key, uppercased. */
   label?: string;
   onTrigger: () => void;
   withModifier?: boolean;
+  /**
+   * Set to false where the wrapped control is present but inert — e.g. hidden
+   * at the current breakpoint. The listener goes away with it, so the chord
+   * can't fire an action the user has no way to see.
+   */
+  enabled?: boolean;
   children: ReactNode;
 }>) {
   const { modifierHeld, justTriggered } = useKeyboardShortcut({
     key: shortcutKey,
     withModifier,
     onTrigger,
+    enabled,
   });
 
   return (

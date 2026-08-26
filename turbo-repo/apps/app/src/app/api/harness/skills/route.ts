@@ -3,6 +3,7 @@ import { createMiotHarnessClient } from "@microboxlabs/miot-harness-client";
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../../utils/tenant-scope";
 import { logger } from "@/lib/logger";
+import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
 
 /**
  * Lists the skills the harness exposes, via the same `client.skills.list()`
@@ -11,10 +12,8 @@ import { logger } from "@/lib/logger";
  * chain as the other harness routes.
  */
 
-const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
-
 export async function GET() {
-  if (!MIOT_HARNESS_HOST) {
+  if (!isModulithConfigured()) {
     return NextResponse.json({ skills: [] });
   }
 
@@ -28,7 +27,7 @@ export async function GET() {
   const token = authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? undefined;
 
   const client = createMiotHarnessClient({
-    baseUrl: `${MIOT_HARNESS_HOST}/api/v1/orgs/${orgSlug}/harness`,
+    baseUrl: `${modulithHost()}/api/v1/orgs/${orgSlug}/harness`,
     token,
     headers: authResult.session.user?.email
       ? { "X-Dev-User-Email": authResult.session.user.email }

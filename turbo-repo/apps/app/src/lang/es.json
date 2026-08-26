@@ -5016,6 +5016,10 @@
         "cancelRun": "Cancelar",
         "pdfTooLarge": "El PDF es demasiado grande ({size} MB) — el límite es {limit} MB."
       },
+      "showDashlet": {
+        "unknown": "Dashlet desconocido: {id}",
+        "unsupported": "{name} no se puede mostrar en el chat."
+      },
       "askUserQuestion": {
         "skipped": "Omitido — reemplazado por un mensaje posterior.",
         "noAnswer": "(sin respuesta)",

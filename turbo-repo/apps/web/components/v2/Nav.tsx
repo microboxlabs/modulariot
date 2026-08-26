@@ -38,36 +38,45 @@ function resolveHref(base: string, href: string) {
     : `${base}${href}`;
 }
 
+// ── Acceso a la plataforma: OCULTO ──────────────────────────────────────
+// "Iniciar sesión" / "Crear cuenta" apuntaban a la app real (apps/app) vía
+// NEXT_PUBLIC_APP_LOGIN_URL / NEXT_PUBLIC_APP_SIGNUP_URL, que hoy no
+// resuelven. Se deja el código comentado —acá y en los dos bloques de render
+// marcados más abajo (desktop y móvil)— para reponerlo cuando la plataforma
+// se habilite; las cadenas siguen en messages/*.json (`nav.actions.*`) y las
+// env vars en .env.example. Descomentar también la guardia de next.config.ts.
+//
 // URLs completas (incluyen path/query) de la app real (apps/app, no esta
 // landing) — varían por entorno, así que viven enteras en
 // NEXT_PUBLIC_APP_LOGIN_URL / NEXT_PUBLIC_APP_SIGNUP_URL (ver
 // .env.example/.env.local), nada de path hardcodeado acá. Separadas (aunque
 // hoy apunten al mismo sign-in) para poder cambiar una sin tocar la otra —
 // p.ej. cuando Crear cuenta sume su propio query param.
-const LOCAL_APP_URL = "http://localhost:3050/sign-in";
-
-function getAppUrls() {
-  const configured = {
-    NEXT_PUBLIC_APP_LOGIN_URL: process.env.NEXT_PUBLIC_APP_LOGIN_URL,
-    NEXT_PUBLIC_APP_SIGNUP_URL: process.env.NEXT_PUBLIC_APP_SIGNUP_URL,
-  };
-  const missing = Object.entries(configured)
-    .filter(([, url]) => !url)
-    .map(([name]) => name);
-
-  if (process.env.NODE_ENV !== "development" && missing.length > 0) {
-    throw new Error(
-      `[Nav] Missing required app URL${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}`,
-    );
-  }
-
-  return {
-    login: configured.NEXT_PUBLIC_APP_LOGIN_URL || LOCAL_APP_URL,
-    signup: configured.NEXT_PUBLIC_APP_SIGNUP_URL || LOCAL_APP_URL,
-  };
-}
-
-const { login: APP_LOGIN_URL, signup: APP_SIGNUP_URL } = getAppUrls();
+//
+// const LOCAL_APP_URL = "http://localhost:3050/sign-in";
+//
+// function getAppUrls() {
+//   const configured = {
+//     NEXT_PUBLIC_APP_LOGIN_URL: process.env.NEXT_PUBLIC_APP_LOGIN_URL,
+//     NEXT_PUBLIC_APP_SIGNUP_URL: process.env.NEXT_PUBLIC_APP_SIGNUP_URL,
+//   };
+//   const missing = Object.entries(configured)
+//     .filter(([, url]) => !url)
+//     .map(([name]) => name);
+//
+//   if (process.env.NODE_ENV !== "development" && missing.length > 0) {
+//     throw new Error(
+//       `[Nav] Missing required app URL${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}`,
+//     );
+//   }
+//
+//   return {
+//     login: configured.NEXT_PUBLIC_APP_LOGIN_URL || LOCAL_APP_URL,
+//     signup: configured.NEXT_PUBLIC_APP_SIGNUP_URL || LOCAL_APP_URL,
+//   };
+// }
+//
+// const { login: APP_LOGIN_URL, signup: APP_SIGNUP_URL } = getAppUrls();
 
 export const navIcons = {
   signal: (
@@ -193,7 +202,7 @@ export default function Nav({ lang }: { lang: string }) {
   const [open, setOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [country, setCountry] = useState<string | null>(null);
-  const base = `/alpha-2506/${lang}`;
+  const base = `/${lang}`;
   const t = useTranslations("nav");
 
   // Texto (JSON, vía next-intl) + estructura (código, nav-data.ts) combinados
@@ -413,6 +422,7 @@ export default function Nav({ lang }: { lang: string }) {
 
           <DarkThemeToggle theme={themeToggleStyle} />
 
+          {/* Acceso a la plataforma (desktop) — oculto, ver nota arriba.
           <a
             href={APP_LOGIN_URL}
             className="rounded-lg px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:text-ink-1"
@@ -425,6 +435,7 @@ export default function Nav({ lang }: { lang: string }) {
           >
             {t("actions.signup.label")}
           </a>
+          */}
         </div>
 
         {/* Mobile: toggle de tema + hamburguesa */}
@@ -519,6 +530,7 @@ export default function Nav({ lang }: { lang: string }) {
               {item.label}
             </a>
           ))}
+          {/* Acceso a la plataforma (móvil) — oculto, ver nota arriba.
           <div className="mt-4 space-y-2">
             <a
               href={APP_LOGIN_URL}
@@ -535,6 +547,7 @@ export default function Nav({ lang }: { lang: string }) {
               {t("actions.signup.label")}
             </a>
           </div>
+          */}
         </div>
       )}
     </header>

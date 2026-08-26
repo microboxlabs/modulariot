@@ -85,7 +85,7 @@ async function parseFrames(
 beforeEach(async () => {
   vi.resetModules();
   vi.clearAllMocks();
-  process.env.MIOT_HARNESS_URL = "http://modulith.test";
+  process.env.MIOT_MODULITH_URL = "http://modulith.test";
   ({ POST } = await import("./route"));
 
   requireAuthMock.mockResolvedValue({

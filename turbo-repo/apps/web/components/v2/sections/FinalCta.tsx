@@ -11,14 +11,18 @@ export async function FinalCta({
   lang,
   base,
   tone = "white",
+  showStats = true,
 }: {
   lang: string;
   base?: string;
   tone?: Tone;
+  // Las cifras del cierre cuentan el camino evaluación→piloto→operación;
+  // una página que ya lo narra en detalle (implementación) las omite.
+  showStats?: boolean;
 }) {
   const t = await getTranslations({ locale: lang, namespace: "finalCta" });
   const stats = t.raw("stats") as FinalCtaStat[];
-  const routeBase = base ?? `/alpha-2506/${lang}`;
+  const routeBase = base ?? `/${lang}`;
   return (
     <Section id="contacto" tone={tone}>
       <div className="border-hairline bg-surface rounded-2xl border px-8 py-14 text-center sm:px-16">
@@ -35,16 +39,18 @@ export async function FinalCta({
           {t("cta")}
         </a>
         <p className="text-ink-3 mt-4 text-sm">{t("note")}</p>
-        <div className="border-hairline mx-auto mt-12 grid max-w-2xl grid-cols-3 gap-6 border-t pt-10">
-          {stats.map((s) => (
-            <div key={s.label}>
-              <p className="text-ink-1 text-2xl font-semibold tracking-[-0.02em] tabular-nums sm:text-3xl">
-                {s.value}
-              </p>
-              <p className="text-ink-3 mt-1 text-xs sm:text-sm">{s.label}</p>
-            </div>
-          ))}
-        </div>
+        {showStats && (
+          <div className="border-hairline mx-auto mt-12 grid max-w-2xl grid-cols-3 gap-6 border-t pt-10">
+            {stats.map((s) => (
+              <div key={s.label}>
+                <p className="text-ink-1 text-2xl font-semibold tracking-[-0.02em] tabular-nums sm:text-3xl">
+                  {s.value}
+                </p>
+                <p className="text-ink-3 mt-1 text-xs sm:text-sm">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </Section>
   );

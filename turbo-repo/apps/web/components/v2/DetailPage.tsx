@@ -26,7 +26,7 @@ export type Block =
       kicker?: string;
       title: string;
       subtitle?: string;
-      cards: { icon?: string; title: string; body: string }[];
+      cards: { icon?: string; id?: string; title: string; body: string }[];
     }
   | {
       type: "steps";
@@ -63,6 +63,7 @@ export interface DetailPageData {
   title: string;
   subtitle: string;
   blocks: Block[];
+  ctaStats?: false; // la página ya cuenta el camino en sus pasos: sin cifras en el CTA
 }
 
 const detailIcons: Record<string, React.ReactNode> = {
@@ -282,8 +283,9 @@ function BlockView({
           {block.cards.map((card, i) => (
             <Reveal
               key={card.title}
+              id={card.id}
               delay={i * 0.07}
-              className="border-hairline bg-surface rounded-xl border p-8 transition-shadow hover:shadow-md"
+              className="border-hairline bg-surface scroll-mt-28 rounded-xl border p-8 transition-shadow hover:shadow-md"
             >
               {card.icon && (
                 <div className="bg-accent-soft text-accent mb-5 flex h-11 w-11 items-center justify-center rounded-lg">
@@ -470,7 +472,12 @@ export default async function DetailPage({
       ))}
 
       {/* CTA final — mismo componente que la home, sigue el ritmo automático */}
-      <FinalCta lang={lang} base={base} tone={toneAt(data.blocks.length + 1)} />
+      <FinalCta
+        lang={lang}
+        base={base}
+        tone={toneAt(data.blocks.length + 1)}
+        showStats={data.ctaStats !== false}
+      />
     </main>
   );
 }

@@ -7,8 +7,7 @@ import { requireAuth } from "../../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../../utils/tenant-scope";
 import { logger } from "@/lib/logger";
 import { toSearchResult } from "./search-blocks";
-
-const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
+import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
 
 /** ms before we abort a run that hasn't completed — entity lookups on the
  * agentic path (planner → datasource tools → verify gate) need headroom.
@@ -17,7 +16,7 @@ const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
 const HARNESS_SEARCH_TIMEOUT_MS = 90_000;
 
 export async function POST(request: Request) {
-  if (!MIOT_HARNESS_HOST) {
+  if (!isModulithConfigured()) {
     return NextResponse.json({ results: [] });
   }
 
@@ -36,7 +35,7 @@ export async function POST(request: Request) {
   if (!scopeResult.resolved) return scopeResult.response;
   const orgSlug = scopeResult.scope.activeOrg.slug;
 
-  const harnessUrl = `${MIOT_HARNESS_HOST}/api/v1/orgs/${orgSlug}/harness`;
+  const harnessUrl = `${modulithHost()}/api/v1/orgs/${orgSlug}/harness`;
 
   // The harness accepts the Auth0 id_token (rawJWT) as the bearer token.
   // The opaque access_token (no AUTH_AUTH0_AUDIENCE) is NOT a JWT and is rejected.

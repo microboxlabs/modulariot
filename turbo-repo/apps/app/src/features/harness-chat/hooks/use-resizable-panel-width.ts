@@ -1,11 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 
 const MIN_PANEL_WIDTH_RATIO = 1 / 4; // of the viewport width
 const MAX_PANEL_WIDTH_RATIO = 2 / 3; // of the viewport width
 const DEFAULT_PANEL_WIDTH = 384;
 const STORAGE_KEY = "harness-chat-panel-width";
+/** Arrow-key nudge; Shift takes the coarser step. */
+const KEYBOARD_STEP_PX = 16;
+const COARSE_KEYBOARD_STEP_PX = 64;
 
 function minPanelWidth(): number {
   return window.innerWidth * MIN_PANEL_WIDTH_RATIO;
@@ -31,15 +41,27 @@ function clamp(width: number): number {
 export function useResizablePanelWidth() {
   const [width, setWidth] = useState(DEFAULT_PANEL_WIDTH);
   const [isDragging, setIsDragging] = useState(false);
+  // The separator needs its range as real numbers for aria-valuemin/max, and
+  // both ends move with the viewport — so they're tracked as state, refreshed
+  // wherever the clamping bounds themselves can change.
+  const [bounds, setBounds] = useState({ min: 0, max: 0 });
   const dragStart = useRef<{ pointerX: number; startWidth: number } | null>(null);
 
   useEffect(() => {
     const stored = Number(window.localStorage.getItem(STORAGE_KEY));
-    if (Number.isFinite(stored) && stored > 0) setWidth(clamp(stored));
+    // The default needs clamping every bit as much as a restored value: 384px
+    // is already under the 1/4 minimum on any viewport wider than 1536px, and
+    // proportionally smaller the wider the window gets.
+    const initial = Number.isFinite(stored) && stored > 0 ? stored : DEFAULT_PANEL_WIDTH;
+    setWidth(clamp(initial));
+    setBounds({ min: minPanelWidth(), max: maxPanelWidth() });
   }, []);
 
   useEffect(() => {
-    const handleResize = () => setWidth((current) => clamp(current));
+    const handleResize = () => {
+      setWidth((current) => clamp(current));
+      setBounds({ min: minPanelWidth(), max: maxPanelWidth() });
+    };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -94,5 +116,34 @@ export function useResizablePanelWidth() {
     setWidth((current) => (Math.abs(current - maxPanelWidth()) < 1 ? minPanelWidth() : maxPanelWidth()));
   }, []);
 
-  return { width, isDragging, startDrag, toggleMinMax };
+  /**
+   * Keyboard equivalent of the drag, for the separator handle: arrows nudge,
+   * Home/End jump to the bounds. Dragging is otherwise pointer-only, which
+   * leaves the panel unresizable for anyone navigating by keyboard even
+   * though the handle is exposed as an ARIA separator.
+   */
+  const onHandleKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+    // Left grows the panel and right shrinks it, matching the drag: the
+    // handle is on the panel's left edge, so it moves with the pointer.
+    const step = e.shiftKey ? COARSE_KEYBOARD_STEP_PX : KEYBOARD_STEP_PX;
+    switch (e.key) {
+      case "ArrowLeft":
+        setWidth((current) => clamp(current + step));
+        break;
+      case "ArrowRight":
+        setWidth((current) => clamp(current - step));
+        break;
+      case "Home":
+        setWidth(minPanelWidth());
+        break;
+      case "End":
+        setWidth(maxPanelWidth());
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+  }, []);
+
+  return { width, isDragging, startDrag, toggleMinMax, onHandleKeyDown, bounds };
 }

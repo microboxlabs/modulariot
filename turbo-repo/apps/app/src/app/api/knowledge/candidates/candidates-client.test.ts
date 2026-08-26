@@ -28,7 +28,7 @@ describe("candidates-client", () => {
   const fetchMock = vi.fn();
 
   beforeEach(() => {
-    vi.stubEnv("MIOT_HARNESS_URL", "http://modulith:8180");
+    vi.stubEnv("MIOT_MODULITH_URL", "http://modulith:8180");
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockReset();
   });

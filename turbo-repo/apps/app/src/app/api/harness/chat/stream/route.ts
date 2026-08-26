@@ -21,26 +21,15 @@ import type { ShowDashletArgs } from "@/features/harness-chat/extensions/show-da
 import { getAllDashlets, getAllDashletMetas } from "@/features/dashboard/dashlets";
 import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.service";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
+import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
 
 /**
- * AG-UI-compliant streaming relay for the harness-chat panel. Speaks the
- * AG-UI wire protocol (`RunAgentInput` in, `AgUiEvent` SSE frames out) so
- * the browser can run `useAgUiRuntime` against this route directly — see
- * https://github.com/ag-ui-protocol/ag-ui. Underneath, it still drives the
- * same real harness backend the search relay uses (unchanged auth/org-scope
- * chain, unchanged `client.runs.*` calls); only the wire format facing the
- * browser changed. The harness itself has no AG-UI awareness and isn't
- * expected to gain any here — that's future work.
- *
- * `ask_user_question` is a client-side "human" tool the harness cannot
- * invoke yet, so until it can, this relay synthesizes the tool call itself
- * (triggered by a couple of demo phrases, only reachable while the harness
- * endpoint is unconfigured) as a genuine TOOL_CALL_START/ARGS/END sequence —
- * proving out the AG-UI path extensions will use once the harness can drive
- * it.
+ * AG-UI streaming relay for the harness-chat panel: `RunAgentInput` in,
+ * `AgUiEvent` SSE frames out, so the browser drives it with `useAgUiRuntime`
+ * directly — see https://github.com/ag-ui-protocol/ag-ui. Underneath it's the
+ * same harness backend the search relay uses; only the browser-facing wire
+ * format differs. The harness has no AG-UI awareness of its own.
  */
-
-const MIOT_HARNESS_HOST = process.env.MIOT_HARNESS_URL ?? "";
 
 // See search/stream/route.ts's HARNESS_STREAM_TIMEOUT_MS comment — same
 // stopgap ceiling applies here.
@@ -95,21 +84,14 @@ function phaseLabel(progress: HarnessStreamProgress, tr: TrFn): string {
 }
 
 /**
- * Live "what the harness is doing" narration, streamed as a single
- * continuously-growing AG-UI reasoning message for the whole run (opened
- * once, appended to with genuinely incremental deltas, closed once) —
- * rather than one full-text message per progress snapshot. Re-sending the
- * entire accumulated text on every snapshot (the earlier approach) made
- * `progress.thinking` — itself already an accumulation of many
- * `thinking.delta` chunks — get resent in full on every single one of those
- * chunks, producing a wall of near-duplicate text. Appending only what's
- * new keeps the stream the size of what actually changed.
+ * Live "what the harness is doing" narration: one reasoning message per run,
+ * opened once and appended with incremental deltas. Re-sending the whole
+ * accumulated text per progress snapshot (the earlier approach) resent
+ * `progress.thinking` in full on each of its own `thinking.delta` chunks — a
+ * wall of near-duplicate text.
  *
- * Deliberately REASONING_* rather than the older THINKING_* pair: the
- * installed @ag-ui/client (0.0.57) applies THINKING_* events as pure no-ops
- * (no subscriber callback fires for them at all — confirmed by reading its
- * event-application switch), so they never reach the runtime. REASONING_*
- * is the supported, wired-through equivalent.
+ * REASONING_* not THINKING_*: @ag-ui/client 0.0.57 applies THINKING_* as
+ * no-ops, so they never reach the runtime.
  */
 type Narrator = {
   messageId: string;
@@ -250,7 +232,15 @@ function lastUserText(messages: AgUiMessage[]): string {
     if (Array.isArray(m.content)) {
       const text = m.content.find(
         (part): part is { type: "text"; text: string } =>
-          typeof part === "object" && part !== null && (part as { type?: unknown }).type === "text",
+          typeof part === "object" &&
+          part !== null &&
+          (part as { type?: unknown }).type === "text" &&
+          // `isValidRunAgentInputBody` only guards each message's `role`, so a
+          // part can arrive as `{ type: "text", text: 1 }` — without this the
+          // `.trim()` below throws, and it throws from `decideHarnessPath`,
+          // outside `run`'s try/catch, closing the SSE stream after
+          // RUN_STARTED with no terminal event at all.
+          typeof (part as { text?: unknown }).text === "string",
       );
       return text?.text.trim() ?? "";
     }
@@ -268,7 +258,7 @@ function lastMessageIsToolResult(messages: AgUiMessage[]): AgUiMessage | null {
 }
 
 /** Demo trigger for the ask_user_question human tool — only reachable when
- * the harness endpoint is unconfigured (local dev without MIOT_HARNESS_URL),
+ * the harness endpoint is unconfigured (local dev without MIOT_MODULITH_URL),
  * so the AG-UI tool-call path stays exercisable without the harness itself
  * being able to invoke it, without ever intercepting real traffic once a
  * harness is actually configured. */
@@ -416,18 +406,12 @@ function decideHarnessPath(
     return { handled: true };
   }
 
-  // Unconditional, unlike the demo triggers below: create_story is purely
-  // local (localStorage-backed, no backend behind it at all — see
-  // storytelling-store.ts), so there's no "real harness" version of it to
-  // eventually replace this with. Gating it behind !MIOT_HARNESS_HOST like
-  // the others would just make it a dead phrase in any env with a harness
-  // actually configured.
   if (demoCreateStory(send, message)) {
     send({ type: "RUN_FINISHED", runId, threadId });
     return { handled: true };
   }
 
-  if (!MIOT_HARNESS_HOST) {
+  if (!isModulithConfigured()) {
     if (demoAskUserQuestion(send, message, tr)) {
       send({ type: "RUN_FINISHED", runId, threadId });
       return { handled: true };
@@ -474,7 +458,7 @@ async function connectToHarness(session: Session): Promise<HarnessConnection> {
   const userEmail = session.user?.email;
 
   const client = createMiotHarnessClient({
-    baseUrl: `${MIOT_HARNESS_HOST}/api/v1/orgs/${orgSlug}/harness`,
+    baseUrl: `${modulithHost()}/api/v1/orgs/${orgSlug}/harness`,
     token,
     headers: userEmail ? { "X-Dev-User-Email": userEmail } : {},
   });
@@ -483,6 +467,14 @@ async function connectToHarness(session: Session): Promise<HarnessConnection> {
 }
 
 type RunTelemetry = { route: string | undefined; tools: string[] };
+
+/** How the harness event stream ended. `completed` and `failed` mirror the
+ * two terminal events; `truncated` is the stream running dry without either
+ * one — an upstream disconnect, not a finished run. Only `completed` has an
+ * answer worth fetching. */
+type RunOutcome = "completed" | "failed" | "truncated";
+
+type RelayResult = RunTelemetry & { outcome: RunOutcome };
 
 /** Tracks the two pieces of the episode record that live outside
  * `HarnessStreamProgress` — the chosen route and every tool invoked —
@@ -524,9 +516,12 @@ async function relayHarnessEvents(
   send: Sender,
   narrator: Narrator,
   tr: TrFn,
-): Promise<RunTelemetry> {
+): Promise<RelayResult> {
   let progress: HarnessStreamProgress = INITIAL_PROGRESS;
   const telemetry: RunTelemetry = { route: undefined, tools: [] };
+  // Stays `truncated` unless a terminal event actually arrives — falling out
+  // of the loop is the upstream stream ending on us, which is a failure.
+  let outcome: RunOutcome = "truncated";
 
   for await (const event of client.runs.stream(runId, { signal })) {
     trackRunTelemetry(event, telemetry);
@@ -534,10 +529,13 @@ async function relayHarnessEvents(
       progress = reduceHarnessStreamEvent(progress, { event: event.type, data: event.data });
       narrateForwardedEvent(send, narrator, progress, event, tr);
     }
-    if (TERMINAL_EVENT_TYPES.has(event.type)) break;
+    if (TERMINAL_EVENT_TYPES.has(event.type)) {
+      outcome = event.type === "run.failed" ? "failed" : "completed";
+      break;
+    }
   }
 
-  return telemetry;
+  return { ...telemetry, outcome };
 }
 
 export async function POST(request: Request) {
@@ -657,7 +655,7 @@ async function run(
     const narrator = openNarration(send);
     appendNarrationDiff(send, narrator, INITIAL_PROGRESS, tr);
 
-    const { route, tools } = await relayHarnessEvents(
+    const { route, tools, outcome } = await relayHarnessEvents(
       client,
       run_id,
       controller.signal,
@@ -667,6 +665,22 @@ async function run(
     );
 
     closeNarration(send, narrator);
+
+    // A failed run and a stream that died mid-flight both arrive here with no
+    // answer to present. Falling through to `runs.get` would dress either one
+    // up as a successful, empty response — the exact failure the miot-chat
+    // clients avoid by branching on the terminal event. RUN_ERROR is terminal
+    // on its own, so no RUN_FINISHED follows it.
+    if (outcome !== "completed") {
+      logger.error({ runId: run_id, outcome }, "[harness/chat/stream] run did not complete");
+      // `failed` has already settled upstream; `truncated` may have left the
+      // run alive with nobody listening. Cancelling covers both — on an
+      // already-finished run it's a swallowed no-op.
+      cancelUpstreamRun();
+      send({ type: "RUN_ERROR", message: outcome === "failed" ? "run_failed" : "stream_truncated" });
+      return;
+    }
+
     runSettled = true;
 
     const record = await client.runs.get(run_id, { signal: controller.signal });

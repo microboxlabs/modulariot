@@ -3,10 +3,11 @@
 import { getAllDashlets } from "@/features/dashboard/dashlets";
 import type { DashletDefinition } from "@/features/dashboard/dashlets";
 import { resolveDashletPreview } from "@/features/dashboard/dashlets/dashlet-preview";
+import { StandaloneDictionaryProvider } from "@/features/dashboard/context/standalone-dictionary-context";
 import { DEFAULT_HARNESS_EXTENSIONS } from "@/features/harness-chat/extensions";
 import type { HarnessExtension } from "@/features/harness-chat/harness-extension";
 import { HarnessChatI18nProvider } from "@/features/harness-chat/context/harness-chat-i18n-context";
-import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
+import type { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
   ExtensionVariantPreview,
   getExtensionVariants,
@@ -100,49 +101,53 @@ export function ComponentsView({ dict }: Readonly<{ dict: I18nDictionary }>) {
     // ask_user_question's card reads this context — it has no other path to
     // it here, since this gallery renders extension cards standalone.
     <HarnessChatI18nProvider dict={dict}>
-      <div className="flex flex-col gap-10">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Chat components
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Everything the chat panel can render, live — extension cards (e.g.
-            ask_user_question, in every shape it supports) and every dashlet
-            show_dashlet can show, standalone with its own defaultConfig.
-          </p>
-        </div>
+      {/* Same reason the chat panel mounts this: the dashlets below render
+          outside a DashboardProvider and translate against the fallback. */}
+      <StandaloneDictionaryProvider dictionary={dict as I18nRecord}>
+        <div className="flex flex-col gap-10">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Chat components
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Everything the chat panel can render, live — extension cards (e.g.
+              ask_user_question, in every shape it supports) and every dashlet
+              show_dashlet can show, standalone with its own defaultConfig.
+            </p>
+          </div>
 
-        <div className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            Extension components
-          </h2>
-          <SectionNav
-            items={extensionVariants.map(({ variant }) => ({
-              id: variant.id,
-              label: variant.label,
-            }))}
-          />
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {extensionVariants.map(({ extension, variant }) => (
-              <ExtensionCard key={variant.id} extension={extension} variant={variant} />
-            ))}
+          <div className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Extension components
+            </h2>
+            <SectionNav
+              items={extensionVariants.map(({ variant }) => ({
+                id: variant.id,
+                label: variant.label,
+              }))}
+            />
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {extensionVariants.map(({ extension, variant }) => (
+                <ExtensionCard key={variant.id} extension={extension} variant={variant} />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Dashlet components
+            </h2>
+            <SectionNav
+              items={dashlets.map((d) => ({ id: d.meta.id, label: d.meta.id }))}
+            />
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {dashlets.map((dashlet) => (
+                <DashletCard key={dashlet.meta.id} dashlet={dashlet} />
+              ))}
+            </div>
           </div>
         </div>
-
-        <div className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            Dashlet components
-          </h2>
-          <SectionNav
-            items={dashlets.map((d) => ({ id: d.meta.id, label: d.meta.id }))}
-          />
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {dashlets.map((dashlet) => (
-              <DashletCard key={dashlet.meta.id} dashlet={dashlet} />
-            ))}
-          </div>
-        </div>
-      </div>
+      </StandaloneDictionaryProvider>
     </HarnessChatI18nProvider>
   );
 }

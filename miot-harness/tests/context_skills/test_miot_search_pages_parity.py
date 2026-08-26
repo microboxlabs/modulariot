@@ -63,10 +63,9 @@ def _registry_hrefs() -> set[str]:
 
     Excludes the "dev" section: per `pages.ts`, it's reference-only tooling
     (an extensions/components gallery for whoever builds harness chat tool
-    integrations) filtered out of real navigation unless
-    NEXT_PUBLIC_ENABLE_DEV_TOOLS is explicitly set — not a page real users
-    reach, so the search skill has no business teaching the AI to route
-    users there.
+    integrations) filtered out of real navigation unless ENABLE_DEV_TOOLS is
+    explicitly set — not a page real users reach, so the search skill has no
+    business teaching the AI to route users there.
     """
     sections = json.loads(_PAGES_CONFIG.read_text(encoding="utf-8"))
     hrefs: set[str] = set()

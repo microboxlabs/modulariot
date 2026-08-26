@@ -1,6 +1,6 @@
 import { HiArrowRight } from "react-icons/hi";
-import { pages } from "@/features/layout/models/pages";
 import { trDynamic } from "@/features/i18n/tr.service";
+import type { SidebarItem } from "@/features/layout/types/common.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type { SpotlightItem } from "./types";
 
@@ -11,7 +11,12 @@ function translate(label: string, sidebarLabels: I18nRecord | null): string {
 }
 
 /**
- * Builds the full flat list of navigate items from the static pages registry.
+ * Builds the full flat list of navigate items from the pages it's given.
+ *
+ * Takes `pages` as an argument rather than importing the registry directly:
+ * whether the Dev section is included depends on the runtime config, which
+ * only a hook can read — see `useVisiblePages`. Passing the list in also
+ * keeps this function pure and directly testable.
  *
  * Emits two row kinds:
  *  - **Group header** (`isGroupHeader: true`): one per parent page that has
@@ -23,6 +28,7 @@ function translate(label: string, sidebarLabels: I18nRecord | null): string {
  * with no `sublabel`.
  */
 export function buildNavigateItems(
+  pages: SidebarItem[],
   sidebarLabels: I18nRecord,
   onNavigate: (href: string) => void,
   canAccess: CanAccessFn = () => true,

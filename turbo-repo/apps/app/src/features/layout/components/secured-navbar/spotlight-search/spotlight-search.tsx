@@ -17,6 +17,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { SpotlightItem, SpotlightResultKind, HarnessBlock } from "./types";
 import { buildNavigateItems } from "./navigate-actions";
+import { useVisiblePages } from "@/features/layout/hooks/use-visible-pages";
 import { useSpotlightState } from "./use-spotlight-state";
 import { useHarnessSearch } from "./use-harness-search";
 import { usePagefindSearch } from "./use-pagefind-search";
@@ -174,9 +175,10 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
   );
 
   // ── Navigate item registry ────────────────────────────────────────────────
+  const visiblePages = useVisiblePages();
   const navigateItems = useMemo(
-    () => buildNavigateItems(sidebarLabels ?? {}, onNavigate, canAccess),
-    [sidebarLabels, onNavigate, canAccess],
+    () => buildNavigateItems(visiblePages, sidebarLabels ?? {}, onNavigate, canAccess),
+    [visiblePages, sidebarLabels, onNavigate, canAccess],
   );
 
   // ── Shared refs — kept current synchronously during render ───────────────

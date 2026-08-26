@@ -7,7 +7,7 @@ import { ComponentsView } from "./components-view";
 export default async function ComponentsPage(props: ParamsWithLang) {
   const { lang } = await props.params;
 
-  if (process.env.NEXT_PUBLIC_ENABLE_DEV_TOOLS !== "true") {
+  if (process.env.ENABLE_DEV_TOOLS !== "true") {
     notFound();
   }
 

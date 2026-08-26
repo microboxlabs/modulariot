@@ -1,0 +1,20 @@
+{
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    // tsup bundles the entry, so bundler-style resolution keeps relative
+    // re-exports in src/index.ts free of explicit .js extensions for DTS emit.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    // Matches apps/app (and the UI package) rather than the repo base. The
+    // pgrest services this package absorbs in P4 were written against
+    // noUncheckedIndexedAccess:false; aligning now means moved code compiles
+    // unchanged instead of needing a rewrite mid-extraction.
+    "noUncheckedIndexedAccess": false,
+    // Server package: no DOM. Keeps browser-only globals from compiling.
+    "lib": ["es2022"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

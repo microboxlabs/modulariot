@@ -23,7 +23,7 @@ import { ColumnFilterToolbar } from "@/features/dashboard/dashlets/common/column
 import { useDashletData } from "@/features/dashboard/dashlets/common/use-dashlet-data";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { useCompiledColumns } from "@/features/dashboard/dashlets/common/use-compiled-columns";
-import { useDashboard } from "@/features/dashboard/context/dashboard-context";
+import { useOptionalDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import Markdown from "react-markdown";
 
@@ -511,7 +511,7 @@ function ColumnSortIcon({ colKey, sortKey, sortDir }: Readonly<ColumnSortIconPro
 // ============================================================================
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
-  const { dictionary } = useDashboard();
+  const { dictionary } = useOptionalDashboard();
   const config = widget.config as unknown as DashletConfig;
   const {
     title = defaultConfig.title,
@@ -722,8 +722,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     table.getBoundingClientRect(); // force reflow in auto mode
 
     const cells = headerRow.children;
-    // Measure ALL data columns including the last.
-    const raw = cols.map((_, i) => (cells[i] as HTMLElement)?.offsetWidth ?? null);
+    const lastIdx = cols.length - 1;
+    // Measure every data column except the last, which stays unconstrained
+    // (null) so it fills whatever space is left — same rule drag-resize and
+    // autoFitColumn already follow (see the block comment above).
+    const raw = cols.map((_, i) =>
+      i === lastIdx ? null : ((cells[i] as HTMLElement)?.offsetWidth ?? null)
+    );
 
     table.style.tableLayout = "";
     table.style.width = "";

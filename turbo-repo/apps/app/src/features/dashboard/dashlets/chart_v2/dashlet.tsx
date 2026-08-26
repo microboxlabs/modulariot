@@ -9,7 +9,7 @@ import { DashletLoading, DashletError } from "../common/dashlet-states";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { buildEChartsOption } from "./build-chart-option";
-import { useDashboard } from "../../context/dashboard-context";
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import { useDashboardFilters } from "../../context/dashboard-filters-context";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { ColorPalette } from "../chart/chart-palettes";
@@ -170,7 +170,7 @@ function useDarkMode(): boolean {
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { dictionary } = useDashboard();
+  const { dictionary } = useOptionalDashboard();
   const chartRef = useRef<ReactECharts | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const darkMode = useDarkMode();

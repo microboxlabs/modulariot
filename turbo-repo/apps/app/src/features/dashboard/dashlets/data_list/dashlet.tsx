@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { HiEllipsisVertical } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import { useDashboard } from "../../context/dashboard-context";
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 import type {
   BadgeColorMapping,
@@ -337,7 +337,7 @@ function ListCard({
 // ============================================================================
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
-  const { dictionary } = useDashboard();
+  const { dictionary } = useOptionalDashboard();
   const config = widget.config as unknown as DashletConfig;
   const {
     title = defaultConfig.title,

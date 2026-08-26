@@ -6,6 +6,7 @@ import dark from "@assets/map_selection/dark.png";
 import light from "@assets/map_selection/light.png";
 import Image from "next/image";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { trDynamic } from "@/features/i18n/tr.service";
 export const mapstyles = [
   {
     img: street,
@@ -90,11 +91,7 @@ export default function MapStyleSelector({
                   : "hide-flex 0.3s ease-in-out",
               }}
             >
-              {
-                (dict.geographic_view as I18nRecord)[
-                  style.text as keyof typeof dict.geographic_view
-                ] as string
-              }
+              {trDynamic(`geographic_view.${style.text}`, dict)}
             </div>
           </div>
         ))}

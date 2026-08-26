@@ -29,6 +29,8 @@ interface UseSpotlightStateOptions {
   selectableCountRef: RefObject<number>;
   /** Called with the current selectedIndex when Enter is pressed. */
   onEnterSelect: (index: number) => void;
+  /** Called on ⌘/Ctrl+Enter while there's a non-empty query. */
+  onOpenChat: () => void;
 }
 
 export interface UseSpotlightStateReturn {
@@ -53,6 +55,7 @@ export function useSpotlightState({
   navigateItems,
   selectableCountRef,
   onEnterSelect,
+  onOpenChat,
 }: UseSpotlightStateOptions): UseSpotlightStateReturn {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -60,11 +63,15 @@ export function useSpotlightState({
   const [recentIds, setRecentIds] = useState<string[]>([]);
 
   const isOpenRef = useRef(isOpen);
+  const queryRef = useRef(query);
   const selectedIndexRef = useRef(selectedIndex);
   const onEnterSelectRef = useRef(onEnterSelect);
+  const onOpenChatRef = useRef(onOpenChat);
   isOpenRef.current = isOpen;
+  queryRef.current = query;
   selectedIndexRef.current = selectedIndex;
   onEnterSelectRef.current = onEnterSelect;
+  onOpenChatRef.current = onOpenChat;
 
   const open = useCallback(() => {
     setQuery("");
@@ -104,6 +111,12 @@ export function useSpotlightState({
         return;
       }
       if (!isOpenRef.current) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        if (!queryRef.current.trim()) return;
+        e.preventDefault();
+        onOpenChatRef.current();
+        return;
+      }
       if (e.key === "Escape") { e.preventDefault(); close(); return; }
       if (e.key === "ArrowDown") {
         e.preventDefault();

@@ -94,5 +94,14 @@
     ],
     "requiredGroups": [],
     "blockedGroups": []
+  },
+  {
+    "label": "dev",
+    "items": [
+      { "href": "/dev/harness-extensions", "label": "devExtensions", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/dev/components", "label": "devComponents", "requiredGroups": [], "blockedGroups": [] }
+    ],
+    "requiredGroups": [],
+    "blockedGroups": []
   }
 ]

@@ -9,4 +9,6 @@ export const dashletDefinition: DashletDefinition = {
   SettingsModal: DashletSettings,
   defaultConfig: defaultConfig as unknown as Record<string, unknown>,
   getLayoutDefaults,
+  // Superseded by chart_v2 for chat — only the v2 renders standalone.
+  showInChat: false,
 };

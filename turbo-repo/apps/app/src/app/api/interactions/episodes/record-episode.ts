@@ -7,7 +7,7 @@ import { logger } from "@/lib/logger";
  * clicked result id, …).
  */
 export interface EpisodeBody {
-  surface: "spotlight" | "cli";
+  surface: "spotlight" | "cli" | "chat";
   runId?: string;
   signal?: string;
   payload?: Record<string, unknown>;

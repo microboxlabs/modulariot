@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { Button } from "flowbite-react";
 import { HiArrowUpTray } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import { useDashboard } from "../../context/dashboard-context";
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 import { makePgrestBatchApi } from "./engine/api";
 import { buildDataSourceParams } from "../common/pgrest-utils";
@@ -43,7 +43,7 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { dictionary, updateWidgetConfig } = useDashboard();
+  const { dictionary, updateWidgetConfig } = useOptionalDashboard();
   const { lang } = useParams<{ lang: string }>();
   const [open, setOpen] = useState(false);
   const [params, setParams] = useState<IntrospectedParam[] | null>(null);

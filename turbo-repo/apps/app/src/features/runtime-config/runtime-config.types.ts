@@ -14,6 +14,12 @@ export interface RuntimeConfig {
    */
   MAP_DEFAULT_TRIP_FILTER: string;
   /**
+   * If "true", the reference-only "Dev" section (extensions/components
+   * galleries) appears in navigation and its routes resolve. Anything else,
+   * including empty, keeps it hidden.
+   */
+  ENABLE_DEV_TOOLS: string;
+  /**
    * Comma-separated list of `service.origen` codes that route plan/assign
    * through workflow task moves + ECM listeners (#257, #262, #266) instead
    * of the BFF `calendar/bookings` + `/mintral/calendar/binding` path.

@@ -25,7 +25,7 @@ import { ColumnFilterToolbar } from "@/features/dashboard/dashlets/common/column
 import { useDashletData } from "@/features/dashboard/dashlets/common/use-dashlet-data";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { useCompiledColumns } from "@/features/dashboard/dashlets/common/use-compiled-columns";
-import { useDashboard } from "@/features/dashboard/context/dashboard-context";
+import { useOptionalDashboard } from "@/features/dashboard/context/dashboard-context";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import Markdown from "react-markdown";
 
@@ -472,7 +472,7 @@ function MarkdownTooltip({
 // ============================================================================
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
-  const { dictionary } = useDashboard();
+  const { dictionary } = useOptionalDashboard();
   const config = widget.config as unknown as DashletConfig;
   const {
     title = defaultConfig.title,

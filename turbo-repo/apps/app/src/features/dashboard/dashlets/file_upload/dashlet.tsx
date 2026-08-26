@@ -5,7 +5,7 @@ import { Button, Spinner } from "flowbite-react";
 import { HiCloudArrowUp, HiCheckCircle, HiExclamationCircle } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { buildDataSourceParams } from "../common/pgrest-utils";
-import { useDashboard } from "../../context/dashboard-context";
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 
 export interface DashletConfig {
@@ -37,7 +37,7 @@ type UploadState =
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const { dictionary } = useDashboard();
+  const { dictionary } = useOptionalDashboard();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadState, setUploadState] = useState<UploadState>({ status: "idle" });
 

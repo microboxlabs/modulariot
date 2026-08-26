@@ -1,4 +1,4 @@
-import { useDashboard } from "../context/dashboard-context";
+import { useOptionalDashboard } from "../context/dashboard-context";
 
 /**
  * Resolves the effective polling interval for a widget in milliseconds.
@@ -9,11 +9,15 @@ import { useDashboard } from "../context/dashboard-context";
  *    - `"inherit"` or absent means use the dashboard setting.
  * 2. Dashboard-level `refreshInterval` (from context).
  * 3. Returns 0 (off) when edit mode is active.
+ *
+ * Falls back to a safe "no dashboard, no polling" default (via
+ * useOptionalDashboard) when rendered outside a DashboardProvider — e.g. a
+ * dashlet rendered standalone in harness-chat.
  */
 export function useEffectiveRefreshInterval(
   widgetConfig: Record<string, unknown>,
 ): number {
-  const { refreshInterval: dashboardInterval, editMode } = useDashboard();
+  const { refreshInterval: dashboardInterval, editMode } = useOptionalDashboard();
 
   if (editMode) return 0;
 

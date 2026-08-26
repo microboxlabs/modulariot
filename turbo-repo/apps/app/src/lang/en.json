@@ -2328,6 +2328,9 @@
         "conversations": "Conversations",
         "geographicView": "Geographic view",
         "symptoms": "Symptoms",
+        "dev": "Dev",
+        "devExtensions": "Extensions",
+        "devComponents": "Components",
         "liveStreams": "Live Streams",
         "facilitySCL": "Facility SCL",
         "truckBeds": "Truck Beds",
@@ -3158,16 +3161,16 @@
           "displayFormat": "Display format (visual only)",
           "displayFormatHint": "dayjs tokens, e.g. DD/MM HH:mm. Does not change the value sent to the server."
         }
+      },
+      "fileUpload": {
+        "defaultTitle": "Upload File",
+        "configureHint": "Configure an endpoint in settings",
+        "noEndpoint": "No endpoint configured",
+        "uploading": "Uploading {fileName}...",
+        "uploaded": "{fileName} uploaded",
+        "uploadFailed": "Upload failed",
+        "tryAgain": "Try again"
       }
-    },
-    "fileUpload": {
-      "defaultTitle": "Upload File",
-      "configureHint": "Configure an endpoint in settings",
-      "noEndpoint": "No endpoint configured",
-      "uploading": "Uploading {fileName}...",
-      "uploaded": "{fileName} uploaded",
-      "uploadFailed": "Upload failed",
-      "tryAgain": "Try again"
     },
     "defaults": {
       "pageViews": "Page Views",
@@ -4896,6 +4899,88 @@
       }
     },
     "harnessError": "Something went wrong while searching.",
-    "harnessRetry": "Retry"
+    "harnessRetry": "Retry",
+    "openChat": "Open chat"
+  },
+  "harnessChat": {
+    "stream": {
+      "progress": {
+        "connecting": "Connecting to the harness…",
+        "routingWithRoute": "Routing via {route}…",
+        "routingGeneric": "Routing your question…",
+        "exploring": "Exploring your data…",
+        "verifying": "Verifying the answer…",
+        "answering": "Preparing an answer…",
+        "thinking": "Thinking…"
+      },
+      "gotIt": "Got it.",
+      "noAnswer": "The harness didn't return an answer.",
+      "unconfigured": "The harness isn't configured in this environment — this is a placeholder response.",
+      "demo": {
+        "regions": {
+          "question": "Which regions should this deploy to?",
+          "description": "You can pick more than one — the harness will fan out to each.",
+          "northAmerica": "North America",
+          "europe": "Europe",
+          "asiaPacific": "Asia-Pacific"
+        },
+        "environment": {
+          "question": "Which environment should this run against?",
+          "description": "This determines which credentials and data source the harness will use.",
+          "staging": "Staging",
+          "stagingDescription": "Safe to experiment, seeded with sample data.",
+          "production": "Production",
+          "productionDescription": "Live data — changes are real.",
+          "local": "Local",
+          "localDescription": "Your own machine, nothing shared."
+        },
+        "dashlet": {
+          "title": "Active Orders"
+        }
+      }
+    },
+    "ui": {
+      "toggleButton": "Toggle harness chat",
+      "resizePanel": "Resize chat panel",
+      "emptyChatTitle": "Empty chat",
+      "history": {
+        "label": "History",
+        "backToChat": "Back to chat",
+        "chatHistory": "Chat history",
+        "newChat": "New chat",
+        "closePanel": "Close harness panel",
+        "selectAll": "Select all",
+        "delete": "Delete",
+        "deleteCount": "Delete ({count})",
+        "deleteChat": "Delete chat"
+      },
+      "thread": {
+        "dropToAttach": "Drop to attach",
+        "empty": "Ask the harness about this workspace.",
+        "editCancel": "Cancel",
+        "editSave": "Save",
+        "thoughtProcess": "Thought process",
+        "executionCanceled": "Execution was canceled."
+      },
+      "attachments": {
+        "removeImage": "Remove image"
+      },
+      "composer": {
+        "placeholder": "Ask the harness…",
+        "cancelRun": "Cancel",
+        "pdfTooLarge": "PDF is too large ({size} MB) — the limit is {limit} MB."
+      },
+      "showDashlet": {
+        "unknown": "Unknown dashlet: {id}",
+        "unsupported": "{name} can't be shown in chat."
+      },
+      "askUserQuestion": {
+        "skipped": "Skipped — superseded by a later message.",
+        "noAnswer": "(no answer)",
+        "otherPlaceholder": "Other…",
+        "otherAriaLabel": "Other",
+        "submit": "Submit"
+      }
+    }
   }
 }

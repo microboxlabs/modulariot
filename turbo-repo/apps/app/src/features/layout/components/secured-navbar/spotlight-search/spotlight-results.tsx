@@ -31,12 +31,12 @@ function SectionHeader({ Icon, label, iconClass, labelClass, dividerClass }: Rea
   );
 }
 
-/** Orange-stars icon + one-line notice — the error and empty states share it. */
+/** Gold-badge stars icon + one-line notice — the error and empty states share it. */
 function HarnessNotice({ label }: Readonly<{ label: string }>) {
   return (
     <div className="px-4 py-3 flex items-start gap-3">
-      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-orange-50 dark:bg-orange-900/30 ring-1 ring-inset ring-black/6 dark:ring-white/10">
-        <BsStars className="h-3 w-3 text-orange-500 dark:text-orange-400" />
+      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-linear-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)] ring-1 ring-inset ring-black/6 dark:ring-white/10">
+        <BsStars className="h-3 w-3 text-white" />
       </div>
       <p className="pt-1 text-sm text-gray-500 dark:text-gray-400">
         {label}
@@ -84,8 +84,8 @@ function HarnessAnswerItem({ item, onHover, onOpenUrl, navigateHeading, selected
       {markdownBlocks.length > 0 && (
         <div className="px-4 py-3 select-text cursor-default">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-orange-50 dark:bg-orange-900/30 ring-1 ring-inset ring-black/6 dark:ring-white/10">
-              <BsStars className="h-3 w-3 text-orange-500 dark:text-orange-400" />
+            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-linear-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)] ring-1 ring-inset ring-black/6 dark:ring-white/10">
+              <BsStars className="h-3 w-3 text-white" />
             </div>
             <div className="min-w-0 flex-1 flex flex-col gap-2">
               {markdownBlocks.map((block) => (
@@ -104,8 +104,8 @@ function HarnessAnswerItem({ item, onHover, onOpenUrl, navigateHeading, selected
           <SectionHeader
             Icon={HiArrowRight}
             label={navigateHeading}
-            iconClass="text-orange-400 dark:text-orange-300"
-            labelClass="text-orange-400 dark:text-orange-300"
+            iconClass="text-amber-500 dark:text-amber-400"
+            labelClass="text-amber-500 dark:text-amber-400"
             dividerClass="bg-gray-100 dark:bg-gray-700"
           />
           {urlBlocks.map((block, i) => {

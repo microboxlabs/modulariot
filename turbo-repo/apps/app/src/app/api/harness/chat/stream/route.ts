@@ -242,7 +242,15 @@ function lastUserText(messages: AgUiMessage[]): string {
     if (Array.isArray(m.content)) {
       const text = m.content.find(
         (part): part is { type: "text"; text: string } =>
-          typeof part === "object" && part !== null && (part as { type?: unknown }).type === "text",
+          typeof part === "object" &&
+          part !== null &&
+          (part as { type?: unknown }).type === "text" &&
+          // `isValidRunAgentInputBody` only guards each message's `role`, so a
+          // part can arrive as `{ type: "text", text: 1 }` — without this the
+          // `.trim()` below throws, and it throws from `decideHarnessPath`,
+          // outside `run`'s try/catch, closing the SSE stream after
+          // RUN_STARTED with no terminal event at all.
+          typeof (part as { text?: unknown }).text === "string",
       );
       return text?.text.trim() ?? "";
     }
@@ -451,6 +459,14 @@ async function connectToHarness(session: Session): Promise<HarnessConnection> {
 
 type RunTelemetry = { route: string | undefined; tools: string[] };
 
+/** How the harness event stream ended. `completed` and `failed` mirror the
+ * two terminal events; `truncated` is the stream running dry without either
+ * one — an upstream disconnect, not a finished run. Only `completed` has an
+ * answer worth fetching. */
+type RunOutcome = "completed" | "failed" | "truncated";
+
+type RelayResult = RunTelemetry & { outcome: RunOutcome };
+
 /** Tracks the two pieces of the episode record that live outside
  * `HarnessStreamProgress` — the chosen route and every tool invoked —
  * mutating the shared accumulator in place since both are running tallies
@@ -491,9 +507,12 @@ async function relayHarnessEvents(
   send: Sender,
   narrator: Narrator,
   tr: TrFn,
-): Promise<RunTelemetry> {
+): Promise<RelayResult> {
   let progress: HarnessStreamProgress = INITIAL_PROGRESS;
   const telemetry: RunTelemetry = { route: undefined, tools: [] };
+  // Stays `truncated` unless a terminal event actually arrives — falling out
+  // of the loop is the upstream stream ending on us, which is a failure.
+  let outcome: RunOutcome = "truncated";
 
   for await (const event of client.runs.stream(runId, { signal })) {
     trackRunTelemetry(event, telemetry);
@@ -501,10 +520,13 @@ async function relayHarnessEvents(
       progress = reduceHarnessStreamEvent(progress, { event: event.type, data: event.data });
       narrateForwardedEvent(send, narrator, progress, event, tr);
     }
-    if (TERMINAL_EVENT_TYPES.has(event.type)) break;
+    if (TERMINAL_EVENT_TYPES.has(event.type)) {
+      outcome = event.type === "run.failed" ? "failed" : "completed";
+      break;
+    }
   }
 
-  return telemetry;
+  return { ...telemetry, outcome };
 }
 
 export async function POST(request: Request) {
@@ -624,7 +646,7 @@ async function run(
     const narrator = openNarration(send);
     appendNarrationDiff(send, narrator, INITIAL_PROGRESS, tr);
 
-    const { route, tools } = await relayHarnessEvents(
+    const { route, tools, outcome } = await relayHarnessEvents(
       client,
       run_id,
       controller.signal,
@@ -634,6 +656,22 @@ async function run(
     );
 
     closeNarration(send, narrator);
+
+    // A failed run and a stream that died mid-flight both arrive here with no
+    // answer to present. Falling through to `runs.get` would dress either one
+    // up as a successful, empty response — the exact failure the miot-chat
+    // clients avoid by branching on the terminal event. RUN_ERROR is terminal
+    // on its own, so no RUN_FINISHED follows it.
+    if (outcome !== "completed") {
+      logger.error({ runId: run_id, outcome }, "[harness/chat/stream] run did not complete");
+      // `failed` has already settled upstream; `truncated` may have left the
+      // run alive with nobody listening. Cancelling covers both — on an
+      // already-finished run it's a swallowed no-op.
+      cancelUpstreamRun();
+      send({ type: "RUN_ERROR", message: outcome === "failed" ? "run_failed" : "stream_truncated" });
+      return;
+    }
+
     runSettled = true;
 
     const record = await client.runs.get(run_id, { signal: controller.signal });

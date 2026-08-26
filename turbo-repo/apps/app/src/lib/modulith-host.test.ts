@@ -14,9 +14,6 @@ describe("modulithHost", () => {
   });
 
   it("returns empty when unset, rather than throwing", () => {
-    // The features built on this host degrade on an empty string (search and
-    // chat disable themselves, telemetry no-ops), so an unconfigured
-    // environment has to reach them as "" and not an exception.
     vi.stubEnv("MIOT_MODULITH_URL", "");
 
     expect(modulithHost()).toBe("");

@@ -135,16 +135,23 @@ const HarnessChatPanel: FC<{
       style={isOpen ? { width } : undefined}
     >
       {isOpen && (
-        <div
+        // This is the WAI-ARIA window-splitter pattern: a *focusable*
+        // separator, which ARIA classes as a widget role — hence the
+        // tabIndex, the value attributes and the key handler below. Sonar's
+        // S6845/S6847 (and jsx-a11y, which they mirror) read `separator` off
+        // a static role map that has no way to know this one is focusable,
+        // so they see a non-interactive div carrying tabIndex and handlers.
+        // The NOSONAR markers are for those two false positives; removing
+        // them would mean giving up either the keyboard resize or the
+        // correct role.
+        <div /* NOSONAR */
           role="separator"
           aria-orientation="vertical"
           aria-label={tr("harnessChat.ui.resizePanel")}
-          // A separator that can actually be resized has to be reachable and
-          // driveable from the keyboard, and report its range — dragging is
-          // pointer-only, so without this the panel is stuck at whatever
-          // width a keyboard user finds it at. Arrows nudge (Shift for a
-          // coarser step), Home/End snap to the bounds.
-          tabIndex={0}
+          // Dragging is pointer-only, so without this the panel is stuck at
+          // whatever width a keyboard user finds it at. Arrows nudge (Shift
+          // for a coarser step), Home/End snap to the bounds.
+          tabIndex={0 /* NOSONAR */}
           aria-valuenow={Math.round(width)}
           aria-valuemin={Math.round(bounds.min)}
           aria-valuemax={Math.round(bounds.max)}

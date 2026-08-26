@@ -47,7 +47,7 @@ property the security review should attack first.
 
 | Entry | Lands |
 |---|---|
-| `.` | now — seams and services |
+| `.` | now — seams only; services land behind them phase by phase |
 | `./next` | P2, with the persistence strangle |
 | `./fastify` | P8 |
 

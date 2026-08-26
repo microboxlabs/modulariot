@@ -25,8 +25,14 @@ export type AuditOutcome = "allowed" | "denied" | "error";
 export interface AuditEvent {
   /** ISO-8601, stamped by the caller so ordering survives an async sink. */
   at: string;
-  tenantId: string;
-  userId: string;
+  /**
+   * Absent when the request never resolved to an identity — a 401, or an
+   * embed token that failed to verify. Those are precisely the attempts worth
+   * recording, so the type must not force a caller to invent values to record
+   * them. An absent tenantId means "unknown", never "any".
+   */
+  tenantId?: string;
+  userId?: string;
   action: AuditAction;
   outcome: AuditOutcome;
   /** What was acted on: `scopeId/slug`, or a datasource id. */

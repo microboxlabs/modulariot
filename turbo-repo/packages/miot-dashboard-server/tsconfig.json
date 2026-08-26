@@ -7,11 +7,14 @@
     // re-exports in src/index.ts free of explicit .js extensions for DTS emit.
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    // Matches apps/app (and the UI package) rather than the repo base. The
-    // pgrest services this package absorbs in P4 were written against
-    // noUncheckedIndexedAccess:false; aligning now means moved code compiles
-    // unchanged instead of needing a rewrite mid-extraction.
-    "noUncheckedIndexedAccess": false,
+    // Deliberately NOT relaxing noUncheckedIndexedAccess the way apps/app and
+    // the UI packages do. They override it to accommodate code that was
+    // already written against the looser setting; this package has none yet,
+    // and AGENTS.md asks for it enabled. Index-safety matters most in exactly
+    // the code arriving in P4 — the datasource query proxy. If the moved
+    // pgrest services fight it there, relax it then, with the code in hand:
+    // true -> false is a one-line retreat, false -> true is a rewrite.
+    //
     // Server package: no DOM. Keeps browser-only globals from compiling.
     "lib": ["es2022"]
   },

@@ -36,6 +36,9 @@ export function useKeyboardShortcut({
 
       const modifierOk = !withModifier || e.metaKey || e.ctrlKey;
       if (modifierOk && e.key.toLowerCase() === key.toLowerCase()) {
+        // The app owns this chord — swallow it so the browser's own binding
+        // for the same combination doesn't fire alongside the toggle.
+        e.preventDefault();
         onTrigger();
         clearTimeout(pulseTimeoutRef.current);
         setJustTriggered(true);

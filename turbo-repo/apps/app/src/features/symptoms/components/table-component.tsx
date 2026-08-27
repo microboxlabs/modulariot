@@ -4,8 +4,10 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useSymptomsTable } from "@/features/common/providers/client-api.provider";
 import EmptyTable from "./empty-table";
 import CustomTable from "@/features/common/components/custom-table/custom-table";
-import { useSearchParams } from "next/navigation";
-import React from "react";
+import {
+  useSymptomTableQuery,
+  usePublishSymptomNames,
+} from "../hooks/use-symptom-names";
 
 const pageSize = 13;
 
@@ -21,38 +23,13 @@ export default function SymptomsTable({
     setCurrentPage: (page: number) => void;
   };
 }) {
-  const searchParams = useSearchParams();
+  const query = useSymptomTableQuery(pagination.currentPage, pageSize);
 
-  const { tableData, loading, error } = useSymptomsTable({
-    page: pagination.currentPage,
-    pageSize,
-    icu_code: searchParams.get("icu_code") || "",
-    trip_id: searchParams.get("trip_id") || "",
-    asset_id: searchParams.get("asset_id") || "",
-    driver_id: searchParams.get("driver_id") || "",
-    carrier_id: searchParams.get("carrier_id") || "",
-    origin: searchParams.get("origin") || "",
-    destination: searchParams.get("destination") || "",
-    symptom_name: searchParams.get("symptom_name") || "",
-    date_range: {
-      from: searchParams.get("date_from") || "",
-      to: searchParams.get("date_to") || "",
-    },
-  });
+  const { tableData, loading, error } = useSymptomsTable(query);
 
-  // Store symptoms list in localStorage when data changes
-  React.useEffect(() => {
-    if (tableData?.symptoms_list && tableData.symptoms_list.length > 0) {
-      localStorage.setItem("selector", JSON.stringify(tableData.symptoms_list));
-
-      // Dispatch custom event to notify other components of localStorage change
-      window.dispatchEvent(
-        new CustomEvent("localStorageUpdated", {
-          detail: { key: "selector", value: tableData.symptoms_list },
-        })
-      );
-    }
-  }, [tableData?.symptoms_list]);
+  // Feed the "Nombre del síntoma" dropdown from the same query minus the
+  // symptom filter, so selecting one symptom doesn't hide all the others.
+  usePublishSymptomNames(query);
 
   if (loading) {
     return (

@@ -7,6 +7,11 @@ import type { DashboardFilterParam } from "../../types/dashboard.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { BADGE_ACTIVE, BADGE_IDLE } from "./badge-styles";
 
+/** Strip the time component from a `YYYY-MM-DD HH:mm:ss` param value. */
+function dayPart(value: string): string {
+  return value.split(" ")[0] || value.split("T")[0] || value;
+}
+
 interface DateFilterBadgeProps {
   filter: DashboardFilterParam;
   from: string | undefined;
@@ -27,7 +32,13 @@ export function DateFilterBadge({ filter, from, to, onChange, onClear, dictionar
   }, [from, to]);
 
   const hasValue = Boolean(localFrom || localTo);
-  const displayText = hasValue ? [localFrom, localTo].filter(Boolean).join(" – ") : null;
+  // Params carry full-day bounds (`YYYY-MM-DD 00:00:00`); the badge shows just the days.
+  const displayText = hasValue
+    ? [localFrom, localTo]
+        .filter((v): v is string => Boolean(v))
+        .map(dayPart)
+        .join(" – ")
+    : null;
 
   const handleDateChange = (newFrom: string, newTo: string) => {
     setLocalFrom(newFrom);

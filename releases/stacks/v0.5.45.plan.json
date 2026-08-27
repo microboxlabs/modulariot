@@ -1,0 +1,258 @@
+{
+  "stack_version": "0.5.45",
+  "stack_tag": "miot-stack@v0.5.45",
+  "milestone": "MIOT-0.5.45",
+  "pull_requests": [
+    {
+      "number": 1111,
+      "title": "feat(symptoms): in-process RouteTable dispatcher in the modulith",
+      "source_issues": [
+        {
+          "number": 1110,
+          "title": "feat(symptoms): in-process RouteTable dispatcher in the modulith"
+        }
+      ]
+    },
+    {
+      "number": 1112,
+      "title": "Based/implementing assistant UI",
+      "source_issues": [
+        {
+          "number": 1124,
+          "title": "Add the Harness assistant chat experience"
+        }
+      ]
+    },
+    {
+      "number": 1122,
+      "title": "[web-admin] Replace legacy illustrated owl with Golden Owl brand assets (#1114)",
+      "source_issues": [
+        {
+          "number": 1114,
+          "title": "chore: remove legacy illustrated owl logo and variants — keep only Golden Owl mark"
+        }
+      ]
+    },
+    {
+      "number": 1127,
+      "title": "refactor(app): collapse MIOT_HARNESS_URL and MIOT_RESOURCE_URL into MIOT_MODULITH_URL",
+      "source_issues": [
+        {
+          "number": 1126,
+          "title": "refactor(app): rename MIOT_HARNESS_URL to MIOT_MODULITH_URL and centralise the read"
+        }
+      ]
+    },
+    {
+      "number": 1128,
+      "title": "[app] Replace stale favicon with the Lynx mark from apps/web (#1123)",
+      "source_issues": [
+        {
+          "number": 1123,
+          "title": "bug: apps/app favicon is stale — use the Lynx favicon from apps/web"
+        }
+      ]
+    },
+    {
+      "number": 1131,
+      "title": "fix(app): make control-tower filters usable",
+      "source_issues": [
+        {
+          "number": 1132,
+          "title": "bug: control-tower filter bar — blank symptom options, collapsing option list, day-only date ranges, empty results on multi-select"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "miot-harness/tests/context_skills/test_miot_search_pages_parity.py",
+    "quarkus-srv/.env.sample",
+    "quarkus-srv/README.md",
+    "quarkus-srv/miot-cli/pom.xml",
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-symptoms/README.md",
+    "quarkus-srv/miot-symptoms/pom.xml",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/SymptomsComponent.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/consumer/SymptomsCdcConsumer.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/metrics/SymptomMetrics.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/process/FunctionInvoker.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/process/ProcessOutcome.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/process/ResultForwarder.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/process/RouteBulkhead.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/process/StreamhubSymptomsGpsClient.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/process/SymptomProcessor.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/process/WebhookForwarder.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/route/BootstrapRouteTableSource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/route/RouteTable.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/route/RouteTableHolder.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/route/RouteTableParser.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/route/RouteTableSource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/route/SymptomRoute.java",
+    "quarkus-srv/miot-symptoms/src/main/resources/symptoms-routes.example.json",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/process/ResultForwarderTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/process/StreamhubSymptomsGpsClientTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/process/SymptomProcessorTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/route/RouteTableParserTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/route/RouteTableTest.java",
+    "quarkus-srv/pom.xml",
+    "quarkus-srv/start.sh",
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/package.json",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/dev/components/components-view.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/dev/components/extension-preview.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/dev/components/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/dev/harness-extensions/harness-extensions-view.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/dev/harness-extensions/json-highlight.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/dev/harness-extensions/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/harness-chat-mount.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/layout.tsx",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/gps-webhooks/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/search/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/search/stream/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/search/stream/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/skills/route.ts",
+    "turbo-repo/apps/app/src/app/api/interactions/episodes/record-episode.test.ts",
+    "turbo-repo/apps/app/src/app/api/interactions/episodes/record-episode.ts",
+    "turbo-repo/apps/app/src/app/api/knowledge/candidates/candidates-client.test.ts",
+    "turbo-repo/apps/app/src/app/api/knowledge/candidates/candidates-client.ts",
+    "turbo-repo/apps/app/src/app/api/runtime-config/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/utils/miot-resource-api-client.ts",
+    "turbo-repo/apps/app/src/app/api/utils/quarkus-proxy.ts",
+    "turbo-repo/apps/app/src/app/api/utils/streamhub-modulith-proxy.ts",
+    "turbo-repo/apps/app/src/app/api/utils/tenant-scope.ts",
+    "turbo-repo/apps/app/src/app/favicon.ico",
+    "turbo-repo/apps/app/src/app/icon.svg",
+    "turbo-repo/apps/app/src/features/common/components/keyboard-shortcut-trigger/index.ts",
+    "turbo-repo/apps/app/src/features/common/components/keyboard-shortcut-trigger/keyboard-shortcut-trigger.tsx",
+    "turbo-repo/apps/app/src/features/common/hooks/use-keyboard-shortcut.ts",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filter-bar/time-range-picker.test.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filter-bar/time-range-picker.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/date-filter-badge.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/select-filter-badge.test.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/select-filter-badge.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-settings-dropdown/dashboard-settings-dropdown.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/context/dashboard-context.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/context/standalone-dictionary-context.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/batch_import/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/batch_import/index.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/chart/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/chart/index.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/chart_v2/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/common/column-filter-popover.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/common/column-filter-toolbar.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/common/use-planner-data.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/container/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/container/index.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/dashlet-preview.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/data_list/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/data_table/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/data_table/index.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/data_table_v2/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/file_upload/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/file_upload/index.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/flex_container/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/flex_container/index.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/geographic_map/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/info_card/index.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/stat_expandable/index.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/text_card/index.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/types.ts",
+    "turbo-repo/apps/app/src/features/dashboard/hooks/use-effective-refresh-interval.ts",
+    "turbo-repo/apps/app/src/features/dashboard/hooks/use-filter-options.test.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/hooks/use-filter-options.ts",
+    "turbo-repo/apps/app/src/features/dashboard/types/dashboard.types.ts",
+    "turbo-repo/apps/app/src/features/dashboard/utils/date-param.test.ts",
+    "turbo-repo/apps/app/src/features/dashboard/utils/date-param.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/filters.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-style-selector.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/attachments.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/composer.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/history-list.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/image-lightbox.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/initial-message-sender.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/session-title-watcher.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/thread-messages.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/context/harness-chat-context.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/context/harness-chat-i18n-context.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/context/run-cancel-context.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/ask-user-question.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/ask-user-question-card.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/show-dashlet-card.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/index.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/show-dashlet.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-chat-attachments.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-chat-toggle-button.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-chat-types.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-chat.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-extension.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-harness-skills.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-resizable-panel-width.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/thread.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-layout.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/navegation_params.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/parametrized-filter-bar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/parametrized-searchbar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/secured-navbar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/navigate-actions.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-harness-progress.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-input.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-results.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-row.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-search.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/use-spotlight-state.ts",
+    "turbo-repo/apps/app/src/features/layout/context/sidebar-navigation-context.test.tsx",
+    "turbo-repo/apps/app/src/features/layout/context/sidebar-navigation-context.tsx",
+    "turbo-repo/apps/app/src/features/layout/hooks/use-visible-pages.ts",
+    "turbo-repo/apps/app/src/features/layout/models/pages-config.json",
+    "turbo-repo/apps/app/src/features/layout/models/pages.ts",
+    "turbo-repo/apps/app/src/features/layout/utils/utils.ts",
+    "turbo-repo/apps/app/src/features/runtime-config/runtime-config.constants.ts",
+    "turbo-repo/apps/app/src/features/runtime-config/runtime-config.types.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/condition-icon.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/table-component.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/hooks/use-symptom-names.test.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/hooks/use-symptom-names.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/app/src/lib/modulith-host.test.ts",
+    "turbo-repo/apps/app/src/lib/modulith-host.ts",
+    "turbo-repo/apps/web-admin/public/headlogo-dark.svg",
+    "turbo-repo/apps/web-admin/public/headlogo.svg",
+    "turbo-repo/apps/web-admin/public/logo.svg",
+    "turbo-repo/apps/web/public/brand/README.md",
+    "turbo-repo/package-lock.json",
+    "turbo-repo/turbo.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.45",
+      "tag": "app@v0.5.45"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.44",
+      "version": "0.5.45",
+      "tag": "docs@v0.5.45"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.44",
+      "version": "0.5.45",
+      "tag": "web@v0.5.45"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.26",
+      "version": "0.5.27",
+      "tag": "modulith@v0.5.27"
+    },
+    "harness": {
+      "changed": true,
+      "changed_since": "harness@v0.1.5",
+      "version": "0.1.6",
+      "tag": "harness@v0.1.6"
+    }
+  }
+}

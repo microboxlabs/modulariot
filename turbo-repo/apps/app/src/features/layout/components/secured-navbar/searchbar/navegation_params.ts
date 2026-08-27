@@ -103,13 +103,9 @@ const symptoms_params: ParamType[] = [
   setParam("origin", "text"),
   setParam("destination", "text"),
   setParam("date", "date_range"),
-  setParam(
-    "symptom_name",
-    "selector",
-    localStorage.getItem("selector")
-      ? JSON.parse(localStorage.getItem("selector")!)
-      : []
-  ), // here add a call on the cookies local data, search for a value called "selector" to load everything
+  // Options are not static: they come from the symptom names the symptoms
+  // table aggregates into localStorage. See `useSymptomNames`.
+  setParam("symptom_name", "selector"),
 ];
 
 function setParam(

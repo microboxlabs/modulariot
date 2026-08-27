@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.microboxlabs.miot</groupId>
         <artifactId>miot-parent</artifactId>
-        <version>0.5.26</version>
+        <version>0.5.28</version>
     </parent>
 
     <artifactId>miot-symptoms</artifactId>
@@ -42,6 +42,20 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-messaging-pulsar</artifactId>
+            <exclusions>
+                <!-- Pulsar 3.3.0 packages bcprov-ext 1.78 alongside Bouncy Castle
+                     1.83, which causes a native-image linkage error. -->
+                <exclusion>
+                    <groupId>org.apache.pulsar</groupId>
+                    <artifactId>bouncy-castle-bc</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <!-- Replace Pulsar's mixed-version aggregate with the matching provider set. -->
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>1.83</version>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>

@@ -5,22 +5,17 @@ import ThemeDetector from "@/features/theme/components/ThemeDetector";
 import { Toaster } from "sonner";
 import { ThemeModeScript } from "flowbite-react";
 import { ThemeInit } from "../../.flowbite-react/init";
-import { GoogleAnalytics } from "@next/third-parties/google";
 
 export const metadata: Metadata = {
   title: process.env.APP_TITLE ?? "ModularIoT",
   description: process.env.APP_DESCRIPTION ?? "Open-source real-time fleet monitoring platform.",
 };
 
-const googleAnalyticsId = process.env.GA_MEASUREMENT_ID
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  
-
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
@@ -39,7 +34,6 @@ export default function RootLayout({
           closeButton
         />
       </body>
-      <GoogleAnalytics gaId={googleAnalyticsId as string} />
     </html>
   );
 }

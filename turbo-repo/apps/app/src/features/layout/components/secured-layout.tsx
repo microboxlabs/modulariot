@@ -12,6 +12,7 @@ import { SecuredSidebar } from "./secured-sidebar/secured-sidebar";
 import FooterSecuredLayout from "./footer-secured/footer-secured";
 import SseListener from "@/features/sse/components/sse-listener/sse-listener";
 import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
 import { KioskShell } from "./kiosk-shell";
 
 export default async function SecuredLayout({
@@ -35,32 +36,34 @@ export default async function SecuredLayout({
   // to bypass.
   const isSeachEnabled = process.env.ENABLE_SEARCHBAR === "true";
   return (
-    <SidebarProvider>
-      <KioskShell>
-        <SseListener
-          dictionary={dictionary}
-          tenantId={session.user.email}
-        />
-        <SecuredNavbar
-          messages={navBarMessages}
-          dict={dictionary as I18nRecord}
-          initialOrgLogo={initialOrgLogo}
-          isSeachEnabled={isSeachEnabled}
-        />
-        <div
-          data-testid="content-with-sidebar"
-          className="mt-16 mb-12 flex items-start flex-1 overflow-hidden overscroll-none"
-        >
-          <SecuredSidebar
-            dict={
-              ((dictionary.layout as I18nRecord)?.secured as I18nRecord)
-                ?.sidebar as I18nRecord
-            }
+    <RuntimeConfigProvider>
+      <SidebarProvider>
+        <KioskShell>
+          <SseListener
+            dictionary={dictionary}
+            tenantId={session.user.email}
           />
-          <LayoutContent dict={dictionary as I18nRecord}>{children}</LayoutContent>
-        </div>
-        <FooterSecuredLayout messages={dict} />
-      </KioskShell>
-    </SidebarProvider>
+          <SecuredNavbar
+            messages={navBarMessages}
+            dict={dictionary as I18nRecord}
+            initialOrgLogo={initialOrgLogo}
+            isSeachEnabled={isSeachEnabled}
+          />
+          <div
+            data-testid="content-with-sidebar"
+            className="mt-16 mb-12 flex items-start flex-1 overflow-hidden overscroll-none"
+          >
+            <SecuredSidebar
+              dict={
+                ((dictionary.layout as I18nRecord)?.secured as I18nRecord)
+                  ?.sidebar as I18nRecord
+              }
+            />
+            <LayoutContent dict={dictionary as I18nRecord}>{children}</LayoutContent>
+          </div>
+          <FooterSecuredLayout messages={dict} />
+        </KioskShell>
+      </SidebarProvider>
+    </RuntimeConfigProvider>
   );
 }

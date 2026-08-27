@@ -20,8 +20,4 @@ export interface RuntimeConfig {
    * Empty (default) keeps every origin on the legacy path.
    */
   TASK_DRIVEN_ORIGINS: string;
-  /**
-   * GA4 measurement ID (e.g. G-XXXXXXXXXX). Empty string disables tracking.
-   */
-  GA_MEASUREMENT_ID: string;
 }

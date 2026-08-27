@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@modulariot/ui": "*",
+    "@next/third-parties": "16.2.11",
     "flowbite-icons": "^1.5.0",
     "framer-motion": "^12.18.1",
     "next-intl": "^4.13.4",

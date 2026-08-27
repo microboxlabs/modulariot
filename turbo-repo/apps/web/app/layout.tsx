@@ -1,7 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { ThemeModeScript } from "flowbite-react";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { Inter } from "next/font/google";
 import "./globals.css";
+
+const googleAnalyticsId = process.env.GA_MEASUREMENT_ID;
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,6 +39,7 @@ export default function RootLayout({
       <body className="bg-page text-ink-1 font-sans antialiased">
         {children}
       </body>
+      {googleAnalyticsId ? <GoogleAnalytics gaId={googleAnalyticsId} /> : null}
     </html>
   );
 }

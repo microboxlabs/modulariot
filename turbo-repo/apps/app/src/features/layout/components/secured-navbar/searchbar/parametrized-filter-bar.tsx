@@ -7,8 +7,12 @@ import { TextFilterBadge } from "@/features/dashboard/components/dashboard-filte
 import { SelectFilterBadge } from "@/features/dashboard/components/dashboard-filters-card/select-filter-badge";
 import { DateFilterBadge } from "@/features/dashboard/components/dashboard-filters-card/date-filter-badge";
 import { getCategories } from "./parametrized-searchbar";
+import { useSymptomNames, toSymptomOptions } from "@/features/symptoms/hooks/use-symptom-names";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type { NavParam } from "./navegation_params";
+
+/** Selector whose options are aggregated from data rather than declared statically. */
+const SYMPTOM_NAME_KEY = "symptom_name";
 
 interface ParametrizedFilterBarProps {
   readonly dict: I18nRecord;
@@ -33,19 +37,28 @@ export default function ParametrizedFilterBar({
     [router, pathname]
   );
 
-  const filters: DashboardFilterParam[] = navegation_params.map((p) => ({
-    key: p.param.key,
-    label: p.label,
-    type:
-      p.param.type === "selector" || p.param.type === "bool"
-        ? "select"
-        : (p.param.type as "text" | "date_range"),
-    unique: p.unique,
-    options:
-      p.param.type === "bool"
-        ? getCategories(dict)
-        : (p.options as DashboardFilterParam["options"]),
-  }));
+  const symptomNames = useSymptomNames();
+
+  const optionsFor = (p: NavParam): DashboardFilterParam["options"] => {
+    if (p.param.key === SYMPTOM_NAME_KEY) return toSymptomOptions(symptomNames, dict);
+    if (p.param.type === "bool") return getCategories(dict);
+    return p.options as DashboardFilterParam["options"];
+  };
+
+  const filters: DashboardFilterParam[] = navegation_params.map((p) => {
+    const isSelect = p.param.type === "selector" || p.param.type === "bool";
+    return {
+      key: p.param.key,
+      label: p.label,
+      type: isSelect ? "select" : (p.param.type as "text" | "date_range"),
+      unique: p.unique,
+      options: optionsFor(p),
+      // Every selector here maps to a single-valued API argument — the RPCs
+      // match one exact string, so a comma-joined pair returns nothing. This is
+      // what the old CustomSelector offered before the badge bar replaced it.
+      single: isSelect,
+    };
+  });
 
   const applyText = useCallback(
     (key: string, value: string) => {

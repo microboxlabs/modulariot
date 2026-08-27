@@ -25,6 +25,7 @@ import {
 } from "react-icons/hi2";
 import { twMerge } from "tailwind-merge";
 import { useDashboard } from "../../context/dashboard-context";
+import { useOptionalPlannerContext } from "../../context/planner-context";
 import { PlannerManagerForm } from "../planner-manager/planner-manager";
 import { ConfirmModal } from "../confirm-modal";
 import { deleteDashboardConfigClient } from "@/features/common/providers/client-api.provider";
@@ -34,6 +35,7 @@ import { tr } from "@/features/i18n/tr.service";
 import type {
   DashboardFilterParam,
   DashboardFilterOption,
+  DashboardFilterOptionsSource,
   RefreshInterval,
 } from "../../types/dashboard.types";
 import { REFRESH_INTERVAL_OPTIONS } from "../../types/dashboard.types";
@@ -455,8 +457,25 @@ function FilterManagerForm({
   filters,
   onSave,
 }: Readonly<FilterManagerFormProps>) {
-  const { dictionary } = useDashboard();
+  const { dictionary, plannerDefinitions } = useDashboard();
+  const { schemas } = useOptionalPlannerContext();
   const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
+
+  /** Column names a planner variable exposes, from its last fetch or its persisted schema. */
+  const fieldsFor = (variableName: string): string[] => {
+    const live = schemas.get(variableName);
+    if (live?.length) return live;
+    return (
+      plannerDefinitions.find((d) => d.variableName === variableName)?.schema ?? []
+    );
+  };
+
+  /** Same list, but keeps an already-saved field selectable when the schema isn't known yet. */
+  const fieldChoicesFor = (variableName: string, current?: string): string[] => {
+    const fields = fieldsFor(variableName);
+    if (!current || fields.includes(current)) return fields;
+    return [current, ...fields];
+  };
 
   const [localFilters, setLocalFilters] = useState<DashboardFilterParam[]>(filters);
   const [filterIds, setFilterIds] = useState(() => filters.map(() => crypto.randomUUID()));
@@ -582,6 +601,19 @@ function FilterManagerForm({
     );
   };
 
+  const updateOptionsSource = (
+    filterIndex: number,
+    field: keyof DashboardFilterOptionsSource,
+    value: string
+  ) => {
+    setLocalFilters((prev) =>
+      prev.map((f, i) => {
+        if (i !== filterIndex || !f.optionsSource) return f;
+        return { ...f, optionsSource: { ...f.optionsSource, [field]: value } };
+      })
+    );
+  };
+
   const removeOption = (filterIndex: number, optIndex: number) => {
     const filterId = filterIds[filterIndex];
     setLocalFilters((prev) =>
@@ -610,6 +642,20 @@ function FilterManagerForm({
     });
 
     const hasEmpty = normalizedFilters.some((f) => !f.key || !f.label);
+    // A source can go stale without touching the filter: deleting or renaming
+    // the planner variable leaves the reference dangling, and the filter would
+    // then resolve to an empty dropdown forever with nothing to explain it.
+    const hasIncompleteSource = normalizedFilters.some((f) => {
+      const source = f.optionsSource;
+      if (!source) return false;
+      if (!source.valueField) return true;
+      if (!plannerDefinitions.some((d) => d.variableName === source.variableName))
+        return true;
+      // The schema is only known once the variable has been fetched at least
+      // once; an unknown schema can't contradict the field.
+      const fields = fieldsFor(source.variableName);
+      return fields.length > 0 && !fields.includes(source.valueField);
+    });
     const keyCount = new Map<string, number>();
     for (const f of normalizedFilters) {
       if (f.key) keyCount.set(f.key, (keyCount.get(f.key) ?? 0) + 1);
@@ -618,6 +664,11 @@ function FilterManagerForm({
 
     if (hasEmpty || hasDuplicates) {
       ShowNotification({ type: "error", message: t("filtersValidationError") });
+      return;
+    }
+
+    if (hasIncompleteSource) {
+      ShowNotification({ type: "error", message: t("optionsSourceValidationError") });
       return;
     }
 
@@ -649,6 +700,13 @@ function FilterManagerForm({
         {displayItems.map(({ filter, id }, index) => {
           const isOpen = expandedIds.has(id);
           const title = filter.label || t("newFilter");
+          const optionsSource = filter.optionsSource;
+          const isStaleSource = Boolean(
+            optionsSource &&
+              !plannerDefinitions.some(
+                (d) => d.variableName === optionsSource.variableName
+              )
+          );
 
           return (
             <div
@@ -750,6 +808,8 @@ function FilterManagerForm({
                         updateFilter(index, {
                           type: e.target.value as DashboardFilterParam["type"],
                           options: e.target.value === "select" ? (filter.options ?? []) : undefined,
+                          optionsSource:
+                            e.target.value === "select" ? filter.optionsSource : undefined,
                         })
                       }
                     >
@@ -788,8 +848,97 @@ function FilterManagerForm({
                     />
                   </div>
 
-                  {/* Select options */}
+                  {/* Where the select options come from */}
                   {filter.type === "select" && (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1">
+                        <Label htmlFor={`opt-source-${id}`}>{t("optionsSourceLabel")}</Label>
+                        <Tooltip content={<MdTooltip>{t("optionsSourceTooltip")}</MdTooltip>}>
+                          <HiQuestionMarkCircle className="h-3.5 w-3.5 text-gray-400 cursor-help" />
+                        </Tooltip>
+                      </div>
+                      <Select
+                        id={`opt-source-${id}`}
+                        sizing="sm"
+                        value={filter.optionsSource?.variableName ?? ""}
+                        onChange={(e) =>
+                          updateFilter(index, {
+                            optionsSource: e.target.value
+                              ? { variableName: e.target.value, valueField: "" }
+                              : undefined,
+                          })
+                        }
+                      >
+                        <option value="">{t("optionsSourceManual")}</option>
+                        {plannerDefinitions
+                          .filter((d) => d.variableName)
+                          .map((d) => (
+                            <option key={d.id} value={d.variableName}>
+                              {d.variableName}
+                            </option>
+                          ))}
+                        {/* A deleted or renamed variable would otherwise fall
+                            back to showing "Manual", hiding the dangling
+                            reference behind a plausible value. */}
+                        {optionsSource && isStaleSource && (
+                          <option value={optionsSource.variableName}>
+                            {optionsSource.variableName}
+                          </option>
+                        )}
+                      </Select>
+                      {isStaleSource && (
+                        <p className="text-xs text-red-500 dark:text-red-400">
+                          {t("optionsSourceMissingVariable")}
+                        </p>
+                      )}
+                      {plannerDefinitions.length === 0 && (
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                          {t("optionsSourceNoVariables")}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Which fields of the variable become label and value */}
+                  {filter.type === "select" && optionsSource && (
+                    <div className="space-y-2">
+                      {fieldsFor(optionsSource.variableName).length === 0 && (
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                          {t("optionsSourceNoFields")}
+                        </p>
+                      )}
+                      {([
+                        { field: "valueField" as const, labelKey: "optionsSourceValueField" },
+                        { field: "labelField" as const, labelKey: "optionsSourceLabelField" },
+                      ]).map(({ field, labelKey }) => (
+                        <div key={field} className="space-y-1">
+                          <Label htmlFor={`opt-${field}-${id}`}>{t(labelKey)}</Label>
+                          <Select
+                            id={`opt-${field}-${id}`}
+                            sizing="sm"
+                            value={optionsSource[field] ?? ""}
+                            onChange={(e) =>
+                              updateOptionsSource(index, field, e.target.value)
+                            }
+                          >
+                            <option value="">
+                              {field === "valueField"
+                                ? t("optionsSourceFieldPlaceholder")
+                                : t("optionsSourceSameAsValue")}
+                            </option>
+                            {fieldChoicesFor(optionsSource.variableName, optionsSource[field]).map((col) => (
+                              <option key={col} value={col}>
+                                {col}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Select options */}
+                  {filter.type === "select" && !optionsSource && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-1">
                         <Label>{t("selectOptionsLabel")}</Label>

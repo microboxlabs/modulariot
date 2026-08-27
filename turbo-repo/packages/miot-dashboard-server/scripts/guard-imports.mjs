@@ -22,6 +22,15 @@
  * (`require("x")`) forms are caught alongside `from "x"`. Scanning only
  * `from` clauses would let a forbidden dependency through a gate whose whole
  * job is to stop one.
+ *
+ * The specifier scan runs over the whole file text rather than line by line,
+ * because a specifier can legally sit on a line of its own:
+ *
+ *     await import(
+ *       "react"
+ *     )
+ *
+ * A line-based scan sees neither half as an import and waves it through.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -33,8 +42,11 @@ import { fileURLToPath } from "node:url";
 const SRC = fileURLToPath(new URL("../src", import.meta.url));
 
 /**
- * Every module specifier on a line, across all import forms:
+ * Every module specifier in a file, across all import forms:
  *   from "x" · export … from "x" · import "x" · import("x") · require("x")
+ *
+ * `\s` matches newlines, so the keyword and its specifier may sit on
+ * different lines.
  */
 const SPECIFIER_RE = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']([^"']+)["']/g;
 
@@ -114,23 +126,32 @@ for (const file of walk(SRC)) {
     ...SPECIFIER_RULES,
     ...FRAMEWORK_RULES.filter((r) => !rel.startsWith(r.allowedPrefix)),
   ];
-  const lines = readFileSync(file, "utf8").split("\n");
+  const source = readFileSync(file, "utf8");
 
-  lines.forEach((line, i) => {
-    const at = `src/${rel}:${i + 1}`;
+  // Specifiers: whole-file scan, so a multi-line import cannot straddle the
+  // gate. Files here are small enough that counting newlines per match is cheap.
+  const lineOf = (index) => source.slice(0, index).split("\n").length;
 
-    for (const specifier of line.matchAll(SPECIFIER_RE)) {
-      const moduleId = specifier[1];
-      for (const { test, why } of specifierRules) {
-        if (test(moduleId)) {
-          violations.push(`${at} — ${why}\n    ${line.trim()}`);
-        }
+  for (const match of source.matchAll(SPECIFIER_RE)) {
+    const moduleId = match[1];
+    for (const { test, why } of specifierRules) {
+      if (test(moduleId)) {
+        // Report the match itself, not its first line: in a multi-line import
+        // the first line is precisely the half that reads as innocent.
+        const snippet = match[0].replace(/\s+/g, " ").trim();
+        violations.push(`src/${rel}:${lineOf(match.index)} — ${why}\n    ${snippet}`);
       }
     }
+  }
 
+  // Content rules stay line-based: they match prose-shaped references, where the
+  // line is the meaningful unit and a whole-file scan would report no location.
+  source.split("\n").forEach((line, i) => {
     for (const { re, why, skipComments } of CONTENT_RULES) {
       if (skipComments && isCommentLine(line)) continue;
-      if (re.test(line)) violations.push(`${at} — ${why}\n    ${line.trim()}`);
+      if (re.test(line)) {
+        violations.push(`src/${rel}:${i + 1} — ${why}\n    ${line.trim()}`);
+      }
     }
   });
 }

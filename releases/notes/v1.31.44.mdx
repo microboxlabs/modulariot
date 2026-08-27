@@ -1,0 +1,79 @@
+# 🔔 Release Notes v1.31.44 — ModularIoT
+
+### Fecha: 27/08/2026
+
+**Objetivo**: Esta versión consolida la experiencia del asistente Harness, mejora el procesamiento de señales de activos con enriquecimiento configurable de datos de camiones, e incorpora correcciones críticas en la barra de filtros de Torre de Control. Se avanza además en la reducción de costos operativos mediante el dispatcher en proceso para síntomas IoT.
+
+---
+
+## 🚀 Evolutivos
+
+- **💬 Experiencia de chat del asistente Harness**
+  - **Implementado**: Interfaz de chat multi-sesión con historial de conversaciones, adjuntos, skills por slash-command y razonamiento expandible. Incluye prompts interactivos de respuesta simple, múltiple y texto libre.
+  - **Detalle técnico**: Se añadieron atajos de teclado para abrir el chat y disparar acciones, integración con Spotlight Search, y actualización del acento visual de Harness y Spotlight a amber/gold. *(Integración OSS — MIOT-0.5.45)*
+
+- **⚙️ Dispatcher RouteTable en proceso para síntomas IoT**
+  - **Implementado**: Componente `miot-symptoms` en `quarkus-srv` con suscripción compartida a Pulsar sobre `accumulated_states` y un `RouteTable` en proceso indexado por `rule_id`, con bootstrap JSON configurable.
+  - **Detalle técnico**: Contrato de skip compatible con el comportamiento actual (`forward:false` / `status:204`). Tabla vacía no inicia el consumidor; los pods Helm existentes retienen ownership de cada `rule_id` hasta migración explícita, evitando escrituras dobles en `symptoms`. *(Integración OSS — MIOT-0.5.45)*
+
+- **🚛 Enriquecimiento configurable de señales con datos de camiones (`rd_trucks`)**
+  - **Implementado**: Cada señal de activo validada se enriquece con atributos configurables de `ams.rd_trucks`, exponiendo por defecto el campo numérico `max_weight`.
+  - **Detalle técnico**: Resolución por `(client_id, asset_id)` con caché Redis tenant-aware (TTL positivo 8 h, negativo 15 min). La proyección es configurable vía `rd-truck.enrichment.fields`. El enriquecimiento nunca rechaza la señal ante fallos de Redis o PostgreSQL (fail-open). Los campos core de la señal no pueden ser sobreescritos.
+
+- **🎨 Marca Lynx como logo único de la plataforma**
+  - **Implementado**: Eliminación del logo ilustrado legacy (búho ilustrado) y todas sus variantes; consolidación en el símbolo Golden Owl "Lynx" generado por `apps/web/scripts/generate-logo.mjs`.
+  - **Detalle técnico**: Consumidores en `packages/ui/src/brand/` y `apps/web-admin` actualizados para renderizar únicamente la marca Lynx. README de marca documentado. *(Integración OSS — MIOT-0.5.45)*
+
+---
+
+## 🔧 Integraciones
+
+- **🔌 Renombrado de variable de entorno del modulith (`MIOT_MODULITH_URL`)**
+  - **Alcance**: `MIOT_HARNESS_URL` renombrada a `MIOT_MODULITH_URL` para reflejar que es el host base del gateway Quarkus modulith, no solo del harness. La lectura se centralizó en un único helper. Se mantiene fallback transitional a `MIOT_HARNESS_URL` con advertencia de deprecación para evitar interrupciones durante el despliegue escalonado. `MIOT_MODULITH_URL` y `ENABLE_DEV_TOOLS` declarados en `turbo.json` `globalEnv`. *(Integración OSS — MIOT-0.5.45)*
+
+---
+
+## 🐛 Correcciones
+
+- **🐛 Barra de filtros de Torre de Control — cuatro defectos en síntomas**
+  - **Impacto**: (1) Rangos de fecha predefinidos ("Hoy", "Ayer", "Últimos 7 días") emitían solo la fecha sin hora, perdiendo el rango completo del día. (2) El dropdown "Nombre del síntoma" mostraba checkboxes en blanco porque `SelectFilterBadge` recibía strings en lugar de objetos `{label, value}`. (3) La lista de opciones colapsaba a la selección activa, impidiendo cambiar de síntoma sin limpiar el filtro. (4) Seleccionar dos síntomas devolvía tabla vacía porque la función SQL espera un valor único.
+  - **Solución**: Corregida la emisión de fechas con hora completa (`00:00:00`→`23:59:59`); corregida la hidratación de opciones del selector de síntomas de forma reactiva; la lista de opciones se carga independientemente del filtro activo; los selectores del dashboard ganan `optionsSource` opcional para derivar opciones desde variables del Request Planner. *(Integración OSS — MIOT-0.5.45)*
+
+- **🐛 Favicon desactualizado en la aplicación principal**
+  - **Impacto**: `apps/app` mostraba el favicon anterior (arte pre-Lynx) en lugar del ícono adaptativo Lynx.
+  - **Solución**: `apps/app/src/app/icon.svg` y `favicon.ico` sincronizados con los generados por `apps/web`, mostrando la marca Lynx en superficies claras y oscuras. *(Integración OSS — MIOT-0.5.45)*
+
+---
+
+## 📊 Beneficios
+
+- **Reducción de costos operativos**: El dispatcher en proceso para síntomas elimina la dependencia de 16 pods Autopilot always-on, permitiendo drenar esa flota progresivamente por `rule_id`.
+- **Señales más ricas**: El enriquecimiento con `max_weight` de `rd_trucks` llega de forma consistente a ambas funciones SQL de procesamiento (`speed_process_signal` y `acumulate_process_signal`) sin impacto en la disponibilidad del pipeline.
+- **Experiencia de asistente madura**: El chat Harness multi-sesión con historial, adjuntos y skills por slash-command eleva significativamente las capacidades de interacción con el asistente ASK MIOT.
+- **Filtros de Torre de Control corregidos**: Los operadores pueden ahora filtrar síntomas por nombre con opciones visibles y rangos de fecha precisos, sin resultados vacíos inesperados.
+- **Identidad visual consolidada**: La marca Lynx es el único logo de la plataforma, eliminando inconsistencias visuales entre aplicaciones.
+- **Configuración de entorno más robusta**: La centralización de `MIOT_MODULITH_URL` con fallback transitional evita interrupciones y hace explícita la dependencia de todos los consumidores del modulith.
+- **Seguridad de caché mejorada**: Las claves Redis con `client_id` + `asset_id` garantizan aislamiento entre tenants en el enriquecimiento de camiones.
+
+---
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.45`
+- **App** (`app@v0.5.45`): actualizada en esta versión.
+- **Docs** (`docs@v0.5.45`): actualizada en esta versión.
+- **Web** (`web@v0.5.45`): actualizada en esta versión.
+- **Modulith** (`modulith@v0.5.27`): actualizado en esta versión.
+- **Harness** (`harness@v0.1.6`): actualizado en esta versión.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build dentro de la aplicación y en el artefacto de release `stack-manifest.json`.
+
+---
+
+## 📌 Conclusión
+
+La versión 1.31.44 representa un avance sustancial en tres frentes simultáneos: la experiencia de usuario con el asistente Harness, la confiabilidad operativa del pipeline de síntomas IoT, y la calidad de los datos de señales de flota. La migración progresiva del dispatcher de síntomas al modulith sienta las bases para una reducción significativa de infraestructura dedicada sin riesgo de pérdida de datos.
+
+Las correcciones en la barra de filtros de Torre de Control y el favicon restauran la consistencia esperada por los operadores, mientras que el enriquecimiento configurable con datos de camiones abre una vía extensible para incorporar atributos adicionales de `rd_trucks` sin modificar el núcleo del pipeline. La arquitectura fail-open garantiza que ninguna dependencia externa pueda interrumpir el procesamiento de señales.
+
+El renombrado de `MIOT_HARNESS_URL` a `MIOT_MODULITH_URL`, con su fallback transitional, es un ejemplo del enfoque adoptado en esta versión: cambios que mejoran la claridad del sistema sin imponer ventanas de mantenimiento, permitiendo que cada entorno se actualice de forma independiente y segura.

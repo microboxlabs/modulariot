@@ -42,6 +42,15 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-messaging-pulsar</artifactId>
+            <exclusions>
+                <!-- Pulsar's aggregate Bouncy Castle dependency combines incompatible
+                     provider versions and breaks Mandrel's native-image analysis.
+                     The CLI uses the JDK TLS provider instead. -->
+                <exclusion>
+                    <groupId>org.apache.pulsar</groupId>
+                    <artifactId>bouncy-castle-bc</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>

@@ -1,0 +1,124 @@
+# =============================================================================
+# CodeQL - ModularIoT Monorepo
+# =============================================================================
+# Pull requests scan only the languages affected by their changed paths.
+# Pushes to trunk, scheduled runs, and manual runs scan every language so the
+# default branch still receives complete and up-to-date security coverage.
+# =============================================================================
+
+name: CodeQL
+
+on:
+  push:
+    branches:
+      - trunk
+  pull_request:
+    branches:
+      - trunk
+    paths:
+      - '.github/**'
+      - 'ecm-srv/**'
+      - 'miot-harness/**'
+      - 'quarkus-srv/**'
+      - 'scripts/**/*.py'
+      - 'turbo-repo/**'
+  schedule:
+    - cron: '30 12 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Select Languages
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v6
+
+      - name: Detect changed language paths
+        if: github.event_name == 'pull_request'
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            actions:
+              - '.github/**'
+            java:
+              - 'ecm-srv/**'
+              - 'quarkus-srv/**'
+            javascript:
+              - '.github/scripts/**/*.js'
+              - 'ecm-srv/**/*.js'
+              - 'turbo-repo/**'
+            python:
+              - 'miot-harness/**'
+              - 'scripts/**/*.py'
+
+      - name: Build language matrix
+        id: matrix
+        shell: bash
+        env:
+          ACTIONS_CHANGED: ${{ steps.filter.outputs.actions }}
+          JAVA_CHANGED: ${{ steps.filter.outputs.java }}
+          JAVASCRIPT_CHANGED: ${{ steps.filter.outputs.javascript }}
+          PYTHON_CHANGED: ${{ steps.filter.outputs.python }}
+        run: |
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            matrix='{"include":[{"language":"actions","build-mode":"none"},{"language":"java-kotlin","build-mode":"none"},{"language":"javascript-typescript","build-mode":"none"},{"language":"python","build-mode":"none"}]}'
+          else
+            matrix="$({
+              [[ "$ACTIONS_CHANGED" == "true" ]] && printf '%s\n' '{"language":"actions","build-mode":"none"}'
+              [[ "$JAVA_CHANGED" == "true" ]] && printf '%s\n' '{"language":"java-kotlin","build-mode":"none"}'
+              [[ "$JAVASCRIPT_CHANGED" == "true" ]] && printf '%s\n' '{"language":"javascript-typescript","build-mode":"none"}'
+              [[ "$PYTHON_CHANGED" == "true" ]] && printf '%s\n' '{"language":"python","build-mode":"none"}'
+              true
+            } | jq -sc '{include: .}')"
+          fi
+
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "Selected matrix: $matrix"
+
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    needs: changes
+    if: >-
+      needs.changes.outputs.matrix != '{"include":[]}' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}

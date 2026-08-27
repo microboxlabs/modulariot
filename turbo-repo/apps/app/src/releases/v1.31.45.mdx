@@ -1,0 +1,38 @@
+# 🔔 Release Notes v1.31.45 — ModularIoT
+
+### Fecha: 27/08/2026
+
+**Objetivo**: Esta versión estabiliza el proceso de compilación nativa del CLI de ModularIoT, resolviendo un conflicto de dependencias de Bouncy Castle que impedía generar imágenes nativas con Mandrel/GraalVM. Se consolida la base técnica para entregas continuas más confiables.
+
+## 🐛 Correcciones
+
+- **🐛 Fallo en la generación de imagen nativa por dependencias mixtas de Bouncy Castle en Pulsar**
+  - **Impacto**: El proceso de compilación nativa del CLI con Mandrel/GraalVM fallaba durante el análisis de `native-image` debido a que el bundle agregado `bouncy-castle-bc` de Pulsar 3.3.0 combinaba Bouncy Castle 1.83 con `bcprov-ext` 1.78, causando un `NoSuchFieldError` en `CMSObjectIdentifiers`. *(Integración OSS — MIOT-0.5.46)*
+  - **Solución**: Se excluyó el artefacto `bouncy-castle-bc` de Pulsar 3.3.0, se agregó la dependencia `bcpkix-jdk18on` 1.83 para mantener los proveedores estándar de Pulsar, y se configuró la inicialización de `SecurityUtility` en tiempo de ejecución durante las compilaciones nativas.
+
+## 📊 Beneficios
+
+- El CLI de ModularIoT puede compilarse como imagen nativa con Mandrel sin errores de análisis de dependencias.
+- Se elimina la ambigüedad de versiones de Bouncy Castle en el árbol de dependencias, resolviendo únicamente artefactos 1.83.
+- La cadena de CI/CD en GitHub Actions valida automáticamente las compilaciones nativas en cada pull request.
+- Se reduce el riesgo de regresiones criptográficas al garantizar una única versión coherente de la librería Bouncy Castle.
+- La estabilización del proceso de build nativo sienta las bases para distribuciones del CLI más ligeras y de inicio más rápido.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.46`
+- **App**: `app@v0.5.46` *(actualizado)*
+- **Modulith**: `modulith@v0.5.28` *(actualizado)*
+- **Docs**: `docs@v0.5.45` *(sin cambios)*
+- **Web**: `web@v0.5.45` *(sin cambios)*
+- **Harness**: `harness@v0.1.6` *(sin cambios)*
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de build dentro de la aplicación y en el artefacto de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.45 se centra en la solidez del proceso de construcción del CLI nativo, un componente crítico para la distribución y despliegue de ModularIoT en entornos industriales. La resolución del conflicto de Bouncy Castle elimina una barrera técnica que afectaba la generación de binarios optimizados con GraalVM/Mandrel.
+
+Este ajuste refuerza la confiabilidad del pipeline de integración continua y garantiza que futuros cambios en el CLI puedan validarse mediante compilación nativa sin intervención manual. La alineación con las versiones correctas de las librerías criptográficas también mejora la postura de seguridad del componente.
+
+Con los componentes `app` y `modulith` actualizados en este ciclo, la plataforma avanza hacia el stack `v0.5.46` con una base de build más estable, lista para soportar los próximos evolutivos de integración y funcionalidad industrial.

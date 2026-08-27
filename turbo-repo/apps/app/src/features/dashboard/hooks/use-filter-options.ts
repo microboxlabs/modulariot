@@ -21,6 +21,17 @@ export interface ResolvedFilterOptions {
 const EMPTY_OPTIONS: DashboardFilterOption[] = [];
 
 /**
+ * Read one cell as option text. Rows come straight off the wire, so a cell may
+ * be absent or hold a nested object — which has no useful string form, and
+ * cannot be an option value or label. Those read as empty.
+ */
+function cellText(cell: unknown): string {
+  if (typeof cell === "string") return cell;
+  if (typeof cell === "number" || typeof cell === "boolean") return String(cell);
+  return "";
+}
+
+/**
  * Resolve the options of a "select" filter.
  *
  * Without an `optionsSource` the hand-typed `filter.options` are returned as-is.
@@ -50,15 +61,10 @@ export function useFilterOptions(
     const options: DashboardFilterOption[] = [];
 
     for (const row of rows ?? []) {
-      // Rows come straight off the wire — cells may be absent or non-string.
-      const rawValue: unknown = row[source.valueField];
-      if (rawValue === undefined || rawValue === null || rawValue === "") continue;
-      const value = String(rawValue);
-      if (seen.has(value)) continue;
+      const value = cellText(row[source.valueField]);
+      if (!value || seen.has(value)) continue;
       seen.add(value);
-      const rawLabel: unknown = row[labelField];
-      const blankLabel = rawLabel === undefined || rawLabel === null || rawLabel === "";
-      options.push({ label: blankLabel ? value : String(rawLabel), value });
+      options.push({ label: cellText(row[labelField]) || value, value });
     }
 
     return {

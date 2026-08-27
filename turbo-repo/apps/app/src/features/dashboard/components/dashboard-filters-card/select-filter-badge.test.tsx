@@ -97,6 +97,6 @@ describe("SelectFilterBadge", () => {
 
     pickOption("Perdida de señal");
 
-    expect(screen.queryByText("Exceso de velocidad")).not.toBeNull();
+    expect(screen.getByText("Exceso de velocidad")).toBeTruthy();
   });
 });

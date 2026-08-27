@@ -94,6 +94,34 @@ describe("useFilterOptions", () => {
     expect(result.current.options).toEqual([{ label: "TEMP", value: "TEMP" }]);
   });
 
+  it("skips cells that hold an object, which has no usable string form", () => {
+    setRows("symptoms", {
+      rows: [
+        { code: { nested: true } as unknown as string },
+        { code: "TEMP", name: { nested: true } as unknown as string },
+      ],
+    });
+    const filter: DashboardFilterParam = {
+      ...SELECT,
+      optionsSource: { variableName: "symptoms", valueField: "code", labelField: "name" },
+    };
+    const { result } = renderHook(() => useFilterOptions(filter));
+
+    // Not "[object Object]" anywhere.
+    expect(result.current.options).toEqual([{ label: "TEMP", value: "TEMP" }]);
+  });
+
+  it("keeps numeric and boolean cells", () => {
+    setRows("symptoms", { rows: [{ code: 7 as unknown as string }] });
+    const filter: DashboardFilterParam = {
+      ...SELECT,
+      optionsSource: { variableName: "symptoms", valueField: "code" },
+    };
+    const { result } = renderHook(() => useFilterOptions(filter));
+
+    expect(result.current.options).toEqual([{ label: "7", value: "7" }]);
+  });
+
   it("surfaces the loading and error state of the backing variable", () => {
     setRows("symptoms", { loading: true });
     const filter: DashboardFilterParam = {

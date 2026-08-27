@@ -44,7 +44,7 @@
             <artifactId>quarkus-messaging-pulsar</artifactId>
             <exclusions>
                 <!-- Pulsar 3.3.0 packages bcprov-ext 1.78 alongside Bouncy Castle
-                     1.83, which causes a native-image linkage error. -->
+                     1.84, which causes a native-image linkage error. -->
                 <exclusion>
                     <groupId>org.apache.pulsar</groupId>
                     <artifactId>bouncy-castle-bc</artifactId>
@@ -55,7 +55,6 @@
             <!-- Replace Pulsar's mixed-version aggregate with the matching provider set. -->
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk18on</artifactId>
-            <version>1.84</version>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>

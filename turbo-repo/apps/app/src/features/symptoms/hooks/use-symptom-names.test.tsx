@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { SymptomTableQuery } from "./use-symptom-names";
 
 let mockSearchParams = new URLSearchParams();
 const mockUseSymptomsTable = vi.fn();
@@ -10,7 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/features/common/providers/client-api.provider", () => ({
-  useSymptomsTable: (args: unknown) => mockUseSymptomsTable(args),
+  useSymptomsTable: (args: SymptomTableQuery) => mockUseSymptomsTable(args),
 }));
 
 const {
@@ -21,16 +22,16 @@ const {
   SYMPTOM_NAMES_KEY,
 } = await import("./use-symptom-names");
 
-const DICT = {
+const DICT: I18nRecord = {
   symptoms: {
     types: {
       "Lost Signal": "Perdida de reportabilidad GPS",
       "Speed Limit": "Exceso de límite de velocidad",
     },
   },
-} as unknown as I18nRecord;
+};
 
-const QUERY = {
+const QUERY: SymptomTableQuery = {
   page: 1,
   pageSize: 13,
   icu_code: "",
@@ -140,9 +141,28 @@ describe("usePublishSymptomNames", () => {
     globalThis.removeEventListener("localStorageUpdated", listener);
   });
 
-  it("leaves a previously published list alone when the query returns nothing", () => {
+  it("empties the list when the scope has no symptoms", () => {
     localStorage.setItem(SYMPTOM_NAMES_KEY, JSON.stringify(["Lost Signal"]));
     mockUseSymptomsTable.mockReturnValue({ tableData: { symptoms_list: [] } });
+
+    renderHook(() => usePublishSymptomNames(QUERY));
+
+    // Keeping the old list would offer symptoms that cannot match anything.
+    expect(localStorage.getItem(SYMPTOM_NAMES_KEY)).toBe("[]");
+  });
+
+  it("treats an absent symptom_name_list as none — the API omits it on no match", () => {
+    localStorage.setItem(SYMPTOM_NAMES_KEY, JSON.stringify(["Lost Signal"]));
+    mockUseSymptomsTable.mockReturnValue({ tableData: { data: [] } });
+
+    renderHook(() => usePublishSymptomNames(QUERY));
+
+    expect(localStorage.getItem(SYMPTOM_NAMES_KEY)).toBe("[]");
+  });
+
+  it("publishes nothing while the first response is still in flight", () => {
+    localStorage.setItem(SYMPTOM_NAMES_KEY, JSON.stringify(["Lost Signal"]));
+    mockUseSymptomsTable.mockReturnValue({ tableData: undefined });
 
     renderHook(() => usePublishSymptomNames(QUERY));
 
@@ -168,7 +188,10 @@ describe("useSymptomNames", () => {
     expect(result.current).toEqual([]);
 
     act(() => {
-      localStorage.setItem(SYMPTOM_NAMES_KEY, JSON.stringify(["Route Deviation"]));
+      localStorage.setItem(
+        SYMPTOM_NAMES_KEY,
+        JSON.stringify(["Route Deviation"])
+      );
       globalThis.dispatchEvent(new CustomEvent("localStorageUpdated"));
     });
 
@@ -177,7 +200,9 @@ describe("useSymptomNames", () => {
 
   it("ignores a malformed payload", () => {
     localStorage.setItem(SYMPTOM_NAMES_KEY, "{not json");
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     const { result } = renderHook(() => useSymptomNames());
 
     expect(result.current).toEqual([]);
@@ -185,7 +210,10 @@ describe("useSymptomNames", () => {
   });
 
   it("drops non-string entries", () => {
-    localStorage.setItem(SYMPTOM_NAMES_KEY, JSON.stringify(["Lost Signal", 7, null]));
+    localStorage.setItem(
+      SYMPTOM_NAMES_KEY,
+      JSON.stringify(["Lost Signal", 7, null])
+    );
     const { result } = renderHook(() => useSymptomNames());
 
     expect(result.current).toEqual(["Lost Signal"]);

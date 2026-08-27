@@ -104,6 +104,9 @@ export function SelectFilterBadge({ filter, values, onApply, onClear, dictionary
           <button
             key={opt.value}
             type="button"
+            // The tick/dot conveys selection visually only; carry it in the
+            // accessibility tree too.
+            aria-pressed={checked}
             onMouseDown={(e) => { e.preventDefault(); toggleOption(opt.value); }}
             className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600"
           >

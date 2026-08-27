@@ -27,7 +27,8 @@ const EMPTY_OPTIONS: DashboardFilterOption[] = [];
  */
 function cellText(cell: unknown): string {
   if (typeof cell === "string") return cell;
-  if (typeof cell === "number" || typeof cell === "boolean") return String(cell);
+  if (typeof cell === "number" || typeof cell === "boolean")
+    return String(cell);
   return "";
 }
 
@@ -73,5 +74,13 @@ export function useFilterOptions(
       error: result?.error ?? null,
       dynamic: true,
     };
-  }, [source?.variableName, source?.valueField, source?.labelField, rows, result?.loading, result?.error, filter.options]);
+  }, [
+    source?.variableName,
+    source?.valueField,
+    source?.labelField,
+    rows,
+    result?.loading,
+    result?.error,
+    filter.options,
+  ]);
 }

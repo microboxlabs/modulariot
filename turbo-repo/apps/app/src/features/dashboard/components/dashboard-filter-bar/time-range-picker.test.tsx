@@ -114,6 +114,31 @@ describe("TimeRangePicker in date mode", () => {
     );
   });
 
+  it("normalizes an ISO T-separated value from the URL", () => {
+    const onDateChange = vi.fn();
+    render(
+      <TimeRangePicker
+        dictionary={DICTIONARY}
+        mode="date"
+        ranges="date"
+        from="2026-08-26T15:30:00"
+        to="2026-08-27T09:00:00"
+        onDateChange={onDateChange}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole("button")[0]);
+    // The date inputs must receive a bare date, not the whole timestamp.
+    expect(screen.getAllByDisplayValue("2026-08-26").length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByText("applyRange"));
+
+    expect(onDateChange).toHaveBeenCalledWith(
+      "2026-08-26 00:00:00",
+      "2026-08-27 23:59:59"
+    );
+  });
+
   it("leaves datetime mode untouched", () => {
     const onDateChange = vi.fn();
     render(

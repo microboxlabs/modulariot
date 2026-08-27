@@ -6,11 +6,7 @@ import TimeRangePicker from "../dashboard-filter-bar/time-range-picker";
 import type { DashboardFilterParam } from "../../types/dashboard.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { BADGE_ACTIVE, BADGE_IDLE } from "./badge-styles";
-
-/** Strip the time component from a `YYYY-MM-DD HH:mm:ss` param value. */
-function dayPart(value: string): string {
-  return value.split(" ")[0] || value.split("T")[0] || value;
-}
+import { dayPart } from "../../utils/date-param";
 
 interface DateFilterBadgeProps {
   filter: DashboardFilterParam;

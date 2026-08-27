@@ -60,7 +60,9 @@ function readSymptomNames(): string[] {
     const stored = localStorage.getItem(SYMPTOM_NAMES_KEY);
     if (!stored) return [];
     const parsed: unknown = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed.filter((n): n is string => typeof n === "string") : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((n): n is string => typeof n === "string")
+      : [];
   } catch (error) {
     console.error("Error parsing localStorage selector:", error);
     return [];
@@ -81,11 +83,19 @@ function readSymptomNames(): string[] {
  */
 export function usePublishSymptomNames(query: SymptomTableQuery): void {
   const { tableData } = useSymptomsTable({ ...query, symptom_name: "" });
-  const names = tableData?.symptoms_list;
 
-  // Compare by content: SWR hands back a fresh array on every revalidation,
-  // and re-publishing an unchanged list would wake every reader on a timer.
-  const serialized = names?.length ? JSON.stringify(names) : "";
+  // Publish whenever a response has landed, empty included: a scope with no
+  // symptoms must empty the dropdown rather than keep offering names from the
+  // scope before it. The API omits `symptom_name_list` entirely when nothing
+  // matched, so an absent list means "none", not "unknown".
+  //
+  // Compare by content: SWR hands back a fresh array on every revalidation, and
+  // re-publishing an unchanged list would wake every reader on a timer. Nothing
+  // is published while the first response is in flight; SWR keeps the previous
+  // data during a refetch, so this never blinks through empty on a poll.
+  const serialized = tableData
+    ? JSON.stringify(tableData.symptoms_list ?? [])
+    : "";
 
   useEffect(() => {
     if (!serialized) return;

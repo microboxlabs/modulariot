@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { HiCalendar, HiClock, HiSearch, HiChevronDown } from "react-icons/hi";
 import dayjs from "dayjs";
 import { z } from "zod";
+import { dayPart } from "../../utils/date-param";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
@@ -143,21 +144,18 @@ export default function TimeRangePicker({
     }
   };
 
-  const extractDatePart = (dateStr: string): string =>
-    dateStr.split(" ")[0] || dateStr.split("T")[0] || dateStr;
-
   /** In date mode the picker only tracks days, so compare day parts. */
   const isValidRange =
     fromDate !== "" &&
     toDate !== "" &&
     (mode === "date"
-      ? extractDatePart(fromDate) <= extractDatePart(toDate)
+      ? dayPart(fromDate) <= dayPart(toDate)
       : fromDate <= toDate);
 
   /** Date mode emits `YYYY-MM-DD 00:00:00` / `YYYY-MM-DD 23:59:59` so the range covers the whole day. */
   const withDayBound = (dateStr: string, edge: "from" | "to"): string => {
     if (mode !== "date" || !dateStr) return dateStr;
-    return `${extractDatePart(dateStr)} ${edge === "from" ? DAY_START : DAY_END}`;
+    return `${dayPart(dateStr)} ${edge === "from" ? DAY_START : DAY_END}`;
   };
 
   const emitRange = (from: string, to: string) => {
@@ -175,13 +173,13 @@ export default function TimeRangePicker({
 
   const getInputValue = (dateStr: string): string => {
     if (!dateStr) return "";
-    if (mode === "date") return extractDatePart(dateStr);
+    if (mode === "date") return dayPart(dateStr);
     return dateStr.replace(" ", "T");
   };
 
   /** Times are an implementation detail of date mode — the trigger shows plain days. */
   const getDisplayValue = (dateStr: string): string =>
-    mode === "date" ? extractDatePart(dateStr) : dateStr;
+    mode === "date" ? dayPart(dateStr) : dateStr;
 
   const handleQuickRangeSelect = (range: (typeof resolvedRanges)[number]) => {
     const value = range.getValue();
@@ -200,8 +198,8 @@ export default function TimeRangePicker({
     to: string;
     labelKey?: string;
   }) => {
-    const fromFormatted = mode === "date" ? extractDatePart(range.from) : range.from;
-    const toFormatted = mode === "date" ? extractDatePart(range.to) : range.to;
+    const fromFormatted = mode === "date" ? dayPart(range.from) : range.from;
+    const toFormatted = mode === "date" ? dayPart(range.to) : range.to;
     setFromDate(fromFormatted);
     setToDate(toFormatted);
     emitRange(fromFormatted, toFormatted);
@@ -376,7 +374,7 @@ export default function TimeRangePicker({
                       >
                         {range.labelKey
                           ? t(range.labelKey)
-                          : `${extractDatePart(range.from)} - ${extractDatePart(range.to)}`}
+                          : `${dayPart(range.from)} - ${dayPart(range.to)}`}
                       </button>
                     ))}
                   </div>

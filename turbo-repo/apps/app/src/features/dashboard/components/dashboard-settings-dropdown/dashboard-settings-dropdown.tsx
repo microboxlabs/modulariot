@@ -642,9 +642,20 @@ function FilterManagerForm({
     });
 
     const hasEmpty = normalizedFilters.some((f) => !f.key || !f.label);
-    const hasIncompleteSource = normalizedFilters.some(
-      (f) => f.optionsSource && !f.optionsSource.valueField
-    );
+    // A source can go stale without touching the filter: deleting or renaming
+    // the planner variable leaves the reference dangling, and the filter would
+    // then resolve to an empty dropdown forever with nothing to explain it.
+    const hasIncompleteSource = normalizedFilters.some((f) => {
+      const source = f.optionsSource;
+      if (!source) return false;
+      if (!source.valueField) return true;
+      if (!plannerDefinitions.some((d) => d.variableName === source.variableName))
+        return true;
+      // The schema is only known once the variable has been fetched at least
+      // once; an unknown schema can't contradict the field.
+      const fields = fieldsFor(source.variableName);
+      return fields.length > 0 && !fields.includes(source.valueField);
+    });
     const keyCount = new Map<string, number>();
     for (const f of normalizedFilters) {
       if (f.key) keyCount.set(f.key, (keyCount.get(f.key) ?? 0) + 1);
@@ -690,6 +701,12 @@ function FilterManagerForm({
           const isOpen = expandedIds.has(id);
           const title = filter.label || t("newFilter");
           const optionsSource = filter.optionsSource;
+          const isStaleSource = Boolean(
+            optionsSource &&
+              !plannerDefinitions.some(
+                (d) => d.variableName === optionsSource.variableName
+              )
+          );
 
           return (
             <div
@@ -860,7 +877,20 @@ function FilterManagerForm({
                               {d.variableName}
                             </option>
                           ))}
+                        {/* A deleted or renamed variable would otherwise fall
+                            back to showing "Manual", hiding the dangling
+                            reference behind a plausible value. */}
+                        {optionsSource && isStaleSource && (
+                          <option value={optionsSource.variableName}>
+                            {optionsSource.variableName}
+                          </option>
+                        )}
                       </Select>
+                      {isStaleSource && (
+                        <p className="text-xs text-red-500 dark:text-red-400">
+                          {t("optionsSourceMissingVariable")}
+                        </p>
+                      )}
                       {plannerDefinitions.length === 0 && (
                         <p className="text-xs text-gray-400 dark:text-gray-500">
                           {t("optionsSourceNoVariables")}

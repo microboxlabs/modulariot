@@ -10,6 +10,8 @@ interface StoryGridProps {
   readonly lang: string;
   readonly dict: I18nRecord;
   readonly emptyMessage: string;
+  readonly selectedIds: ReadonlySet<string>;
+  readonly onToggleSelect: (story: StoryItem) => void;
   readonly onShare: (story: StoryItem) => void;
   readonly onDelete: (story: StoryItem) => void;
 }
@@ -19,6 +21,8 @@ export default function StoryGrid({
   lang,
   dict,
   emptyMessage,
+  selectedIds,
+  onToggleSelect,
   onShare,
   onDelete,
 }: StoryGridProps) {
@@ -39,6 +43,8 @@ export default function StoryGrid({
           story={story}
           lang={lang}
           dict={dict}
+          selected={selectedIds.has(story.id)}
+          onToggleSelect={onToggleSelect}
           onShare={onShare}
           onDelete={onDelete}
         />

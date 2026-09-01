@@ -406,7 +406,13 @@ function decideHarnessPath(
     return { handled: true };
   }
 
-  if (demoCreateStory(send, message)) {
+  // Both storytelling-related trigger words — "create a story" and "show
+  // all dashlets" — are testing scaffolding, gated the same as the
+  // storytelling pages themselves (see ENABLE_STORYTELLING in
+  // runtime-config.types.ts).
+  const storytellingTestingEnabled = process.env.ENABLE_STORYTELLING === "true";
+
+  if (storytellingTestingEnabled && demoCreateStory(send, message)) {
     send({ type: "RUN_FINISHED", runId, threadId });
     return { handled: true };
   }
@@ -417,7 +423,7 @@ function decideHarnessPath(
       return { handled: true };
     }
 
-    if (demoShowAllDashlets(send, message)) {
+    if (storytellingTestingEnabled && demoShowAllDashlets(send, message)) {
       send({ type: "RUN_FINISHED", runId, threadId });
       return { handled: true };
     }

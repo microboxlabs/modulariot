@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { HiSparkles } from "react-icons/hi2";
+import { HiCheck, HiMinus, HiSparkles, HiTrash } from "react-icons/hi2";
 import { toast } from "sonner";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { getStories, removeStory } from "../storytelling-store";
+import { getStories, removeStories } from "../storytelling-store";
 import type { StoryItem } from "../storytelling.types";
 import { StoryDeleteDialog } from "./story-delete-dialog";
 import StoryGrid from "./story-grid";
@@ -34,7 +34,11 @@ export default function StorytellingPageContent({
   // trigger has added since the last visit.
   const [stories, setStories] = useState<StoryItem[]>(() => getStories());
   const [sharing, setSharing] = useState<StoryItem | null>(null);
-  const [deleting, setDeleting] = useState<StoryItem | null>(null);
+  // Single delete (per-card kebab menu) and mass delete (selection toolbar)
+  // both just populate this with the stories to confirm — the dialog itself
+  // doesn't care which triggered it.
+  const [deleting, setDeleting] = useState<readonly StoryItem[]>([]);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
 
   // URL-driven filter from the breadcrumb's own filter bar (see
   // navegation_params.ts's `storytelling` entry), same pattern as fleet-management.
@@ -48,12 +52,52 @@ export default function StorytellingPageContent({
 
   const hasActiveFilters = nameFilter !== "";
 
+  // "Select all" only ever acts on what's actually on screen — filtering to
+  // a name match and hitting it shouldn't reach out and select stories the
+  // filter is hiding.
+  const allVisibleSelected =
+    visible.length > 0 && visible.every((story) => selectedIds.has(story.id));
+  const someVisibleSelected = visible.some((story) => selectedIds.has(story.id));
+
+  function toggleSelect(story: StoryItem) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(story.id)) next.delete(story.id);
+      else next.add(story.id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      // Any visible selection at all — full or partial — collapses back to
+      // none; only a fully-empty visible selection expands to everything.
+      if (someVisibleSelected) {
+        for (const story of visible) next.delete(story.id);
+      } else {
+        for (const story of visible) next.add(story.id);
+      }
+      return next;
+    });
+  }
+
   function handleDeleteConfirm() {
-    if (!deleting) return;
-    removeStory(deleting.id);
-    setStories((prev) => prev.filter((s) => s.id !== deleting.id));
-    toast.success(tr("toast.deleted", dict, { name: deleting.title }));
-    setDeleting(null);
+    if (deleting.length === 0) return;
+    const ids = deleting.map((s) => s.id);
+    removeStories(ids);
+    setStories((prev) => prev.filter((s) => !ids.includes(s.id)));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.delete(id);
+      return next;
+    });
+    toast.success(
+      deleting.length === 1 && deleting[0]
+        ? tr("toast.deleted", dict, { name: deleting[0].title })
+        : tr("toast.deletedMultiple", dict, { count: String(deleting.length) })
+    );
+    setDeleting([]);
   }
 
   return (
@@ -70,13 +114,63 @@ export default function StorytellingPageContent({
       />
 
       <div className="mx-auto flex w-full max-w-screen-2xl min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-4 pb-6 dark:bg-gray-900">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            {tr("title", dict)}
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {tr("description", dict)}
-          </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+              {tr("title", dict)}
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {tr("description", dict)}
+            </p>
+          </div>
+
+          {/* "Select all" is always here once there's anything to select —
+              it's the only way to select more than one card without hovering
+              each one individually. Clicking it again while anything visible
+              is selected clears the selection instead of a separate X
+              button. The count/delete cluster next to it only shows up once
+              the selection is non-empty. */}
+          {visible.length > 0 && (
+            <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2 py-1.5 dark:border-gray-700 dark:bg-gray-800">
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className="flex cursor-pointer items-center gap-1.5 rounded-lg py-0.5 pr-1.5 pl-1 text-xs text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                <span
+                  className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${
+                    allVisibleSelected || someVisibleSelected
+                      ? "border-blue-600 bg-blue-600 text-white"
+                      : "border-gray-300 dark:border-gray-500"
+                  }`}
+                >
+                  {allVisibleSelected && <HiCheck className="h-3 w-3" />}
+                  {someVisibleSelected && !allVisibleSelected && <HiMinus className="h-3 w-3" />}
+                </span>
+                {tr("selection.selectAll", dict)}
+              </button>
+
+              {selectedIds.size > 0 && (
+                <>
+                  <span className="h-4 w-px bg-gray-200 dark:bg-gray-700" />
+                  <span className="text-xs text-gray-600 dark:text-gray-300">
+                    {tr("selection.count", dict, { count: String(selectedIds.size) })}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={tr("selection.deleteSelected", dict)}
+                    title={tr("selection.deleteSelected", dict)}
+                    onClick={() =>
+                      setDeleting(stories.filter((story) => selectedIds.has(story.id)))
+                    }
+                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                  >
+                    <HiTrash className="h-4 w-4" />
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <StoryGrid
@@ -86,8 +180,10 @@ export default function StorytellingPageContent({
           emptyMessage={
             hasActiveFilters ? tr("filters.noMatches", dict) : tr("list.empty", dict)
           }
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
           onShare={setSharing}
-          onDelete={setDeleting}
+          onDelete={(story) => setDeleting([story])}
         />
       </div>
 
@@ -99,8 +195,8 @@ export default function StorytellingPageContent({
       />
 
       <StoryDeleteDialog
-        story={deleting}
-        onClose={() => setDeleting(null)}
+        stories={deleting}
+        onClose={() => setDeleting([])}
         onConfirm={handleDeleteConfirm}
         dict={dict}
       />

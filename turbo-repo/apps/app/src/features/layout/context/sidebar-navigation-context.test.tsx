@@ -5,7 +5,7 @@ import {
   SidebarNavigationProvider,
   useSidebarNavigation,
 } from "./sidebar-navigation-context";
-import { pages, visiblePages, DEV_PAGE_LABEL } from "../models/pages";
+import { pages, visiblePages, DEV_PAGE_LABEL, STORYTELLING_PAGE_LABEL } from "../models/pages";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -143,7 +143,7 @@ describe("SidebarNavigationProvider", () => {
 
   it("exposes all pages as items", () => {
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
-    expect(result.current.items).toHaveLength(visiblePages(false).length);
+    expect(result.current.items).toHaveLength(visiblePages(false, false).length);
   });
 
   it("hides the Dev section when the runtime config hasn't enabled it", () => {
@@ -153,6 +153,13 @@ describe("SidebarNavigationProvider", () => {
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
     expect(result.current.items.some((i) => i.label === DEV_PAGE_LABEL)).toBe(false);
     expect(pages.some((p) => p.label === DEV_PAGE_LABEL)).toBe(true);
+  });
+
+  it("hides the Storytelling section when the runtime config hasn't enabled it", () => {
+    // Same "config not resolved yet" state as the Dev test above.
+    const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
+    expect(result.current.items.some((i) => i.label === STORYTELLING_PAGE_LABEL)).toBe(false);
+    expect(pages.some((p) => p.label === STORYTELLING_PAGE_LABEL)).toBe(true);
   });
 
   describe("pages immutability", () => {

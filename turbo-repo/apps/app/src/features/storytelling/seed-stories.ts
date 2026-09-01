@@ -1,8 +1,43 @@
-import type { StoryItem } from "./storytelling.types";
+import type { DeckContent, StoryItem } from "./storytelling.types";
 
-/** Default entries so the list isn't empty before anything's been created from chat. */
+/** Also reused by storytelling-store.ts's addStoriesForAllTypes — the
+ * chat's create_story trigger doesn't generate real ppt content yet, so it
+ * clones this same fixture rather than a thin placeholder deck. */
+export const BOARD_DECK: DeckContent = {
+  slides: [
+    { type: "title", title: "Board Deck", subtitle: "Testing content for the storytelling PPT previewer — not a real deck." },
+    {
+      type: "bullets",
+      title: "Agenda",
+      items: [
+        "Q3 performance overview",
+        "Fleet utilization trends",
+        "Incident response times",
+        "Roadmap for Q4",
+      ],
+    },
+    {
+      type: "table",
+      title: "Previewer status",
+      headers: ["Component", "Status"],
+      rows: [
+        ["HTML previewer", "Working"],
+        ["Markdown previewer", "Working"],
+        ["PPT previewer", "Working"],
+        ["PDF previewer", "Working"],
+      ],
+    },
+    { type: "title", title: "Thanks!", subtitle: "board-deck-demo — storytelling PPT test fixture" },
+  ],
+};
+
+/** Default entries so the list isn't empty before anything's been created
+ * from chat — one of each artifact type (previewers/html, /markdown, /ppt,
+ * /pdf), so every previewer is reachable without needing a real
+ * chat-generated artifact of each kind yet. */
 export const SEED_STORIES: readonly StoryItem[] = [
-  { id: "fleet-performance", title: "Fleet Performance Overview", createdAt: "2026-08-01", source: "seed" },
-  { id: "onboarding-journey", title: "Driver Onboarding Journey", createdAt: "2026-07-20", source: "seed" },
-  { id: "quarterly-review", title: "Quarterly Business Review", createdAt: "2026-07-10", source: "seed" },
+  { id: "fleet-performance", title: "Fleet Performance Overview", createdAt: "2026-08-01", source: "seed", artifactType: "html" },
+  { id: "release-notes-demo", title: "Release Notes", createdAt: "2026-08-20", source: "seed", artifactType: "markdown" },
+  { id: "board-deck-demo", title: "Board Deck", createdAt: "2026-08-21", source: "seed", artifactType: "ppt", deck: BOARD_DECK },
+  { id: "audit-report-demo", title: "Audit Report", createdAt: "2026-08-22", source: "seed", artifactType: "pdf" },
 ];

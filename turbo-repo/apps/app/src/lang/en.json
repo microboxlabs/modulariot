@@ -4830,8 +4830,11 @@
     },
     "title": "Storytelling",
     "description": "AI-generated and curated stories for your organization.",
-    "card": {
-      "aiGenerated": "AI Generated"
+    "artifactType": {
+      "html": "HTML",
+      "markdown": "Markdown",
+      "ppt": "PPT",
+      "pdf": "PDF"
     },
     "filters": {
       "noMatches": "No stories match the current filters."
@@ -4842,11 +4845,14 @@
     "menu": {
       "label": "Actions",
       "share": "Share",
-      "delete": "Delete"
+      "delete": "Delete",
+      "download": "Download"
     },
     "delete": {
       "title": "Delete story",
-      "confirmButton": "Delete"
+      "multipleTitle": "Delete {count} stories?",
+      "confirmButton": "Delete",
+      "cancelButton": "Cancel"
     },
     "share": {
       "title": "Share",
@@ -4857,10 +4863,33 @@
       "copyFailed": "Couldn't copy the link"
     },
     "toast": {
-      "deleted": "Deleted {name}"
+      "deleted": "Deleted {name}",
+      "deletedMultiple": "Deleted {count} stories"
+    },
+    "selection": {
+      "selectAll": "Select all",
+      "count": "{count} selected",
+      "selectAria": "Select {name}",
+      "deleteSelected": "Delete selected"
     },
     "detail": {
       "aiGeneratedBadge": "AI Generated",
+      "loading": "Loading dashboard…",
+      "search": {
+        "placeholder": "Search…",
+        "previous": "Previous match",
+        "next": "Next match",
+        "clear": "Clear search"
+      },
+      "markdown": {
+        "error": "Couldn't load this document."
+      },
+      "ppt": {
+        "comingSoon": "PPT preview isn't available yet — this is a placeholder for the artifact type."
+      },
+      "pdf": {
+        "comingSoon": "PDF preview isn't available yet — this is a placeholder for the artifact type."
+      },
       "notFound": {
         "title": "Story not found",
         "description": "This story doesn't exist, or was deleted.",
@@ -5032,6 +5061,9 @@
       "showDashlet": {
         "unknown": "Unknown dashlet: {id}",
         "unsupported": "{name} can't be shown in chat."
+      },
+      "createStory": {
+        "open": "Click to open"
       },
       "askUserQuestion": {
         "skipped": "Skipped — superseded by a later message.",

@@ -7,6 +7,7 @@ const ENV_KEYS = [
   "MAP_DEFAULT_TRIP_FILTER",
   "TASK_DRIVEN_ORIGINS",
   "ENABLE_DEV_TOOLS",
+  "ENABLE_STORYTELLING",
 ] as const;
 
 describe("runtime config route", () => {
@@ -22,6 +23,7 @@ describe("runtime config route", () => {
     process.env[ENV_KEYS[2]] = "true";
     process.env[ENV_KEYS[3]] = "ANTOFAGASTA";
     process.env[ENV_KEYS[4]] = "true";
+    process.env[ENV_KEYS[5]] = "true";
 
     const response = GET();
     const data = await response.json();
@@ -32,6 +34,7 @@ describe("runtime config route", () => {
       MAP_DEFAULT_TRIP_FILTER: "true",
       TASK_DRIVEN_ORIGINS: "ANTOFAGASTA",
       ENABLE_DEV_TOOLS: "true",
+      ENABLE_STORYTELLING: "true",
     });
   });
 

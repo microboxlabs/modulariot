@@ -17,6 +17,7 @@ import { buildHarnessToolkit, type HarnessExtension } from "./harness-extension"
 import { DEFAULT_HARNESS_EXTENSIONS } from "./extensions";
 import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
+import { PendingAttachmentReceiver } from "./components/pending-attachment-receiver";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
 import { StandaloneDictionaryProvider } from "@/features/dashboard/context/standalone-dictionary-context";
@@ -69,8 +70,14 @@ const HarnessChatPanel: FC<{
   locale: string;
 }> = ({ extensions, skills, locale }) => {
   const tr = useHarnessChatTr();
-  const { isOpen, close, pendingMessage, clearPendingMessage } =
-    useHarnessChatContext();
+  const {
+    isOpen,
+    close,
+    pendingMessage,
+    clearPendingMessage,
+    pendingAttachment,
+    clearPendingAttachment,
+  } = useHarnessChatContext();
   const { width, isDragging, startDrag, toggleMinMax, onHandleKeyDown, bounds } =
     useResizablePanelWidth();
   const [sessions, setSessions] = useState<Session[]>(() => [createSession()]);
@@ -241,6 +248,11 @@ const HarnessChatPanel: FC<{
               active={session.id === activeId}
               shouldFocus={isOpen && view === "chat"}
               initialMessage={session.initialMessage}
+              // Only the active session should receive it — every session's
+              // SessionHost stays mounted (just hidden), so a session-agnostic
+              // prop would add the same attachment to all of them at once.
+              pendingAttachmentLabel={session.id === activeId ? pendingAttachment : null}
+              onAttachmentConsumed={clearPendingAttachment}
               onTitleChange={updateSessionTitle}
               extensions={extensions}
               skills={skills}
@@ -257,6 +269,8 @@ const SessionHost: FC<{
   active: boolean;
   shouldFocus: boolean;
   initialMessage: string | null;
+  pendingAttachmentLabel: string | null;
+  onAttachmentConsumed: () => void;
   onTitleChange: (id: string, title: string | null) => void;
   extensions: HarnessExtension[];
   skills: HarnessSkill[];
@@ -265,6 +279,8 @@ const SessionHost: FC<{
   active,
   shouldFocus,
   initialMessage,
+  pendingAttachmentLabel,
+  onAttachmentConsumed,
   onTitleChange,
   extensions,
   skills,
@@ -311,6 +327,10 @@ const SessionHost: FC<{
       >
         <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
         <InitialMessageSender initialMessage={initialMessage} />
+        <PendingAttachmentReceiver
+          label={pendingAttachmentLabel}
+          onConsumed={onAttachmentConsumed}
+        />
         <Thread skills={skills} />
       </AssistantRuntimeProvider>
     </div>

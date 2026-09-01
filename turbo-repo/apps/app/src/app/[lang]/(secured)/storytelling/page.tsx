@@ -1,9 +1,17 @@
+import { notFound } from "next/navigation";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { RouteGuard } from "@/features/auth/components/route-guard";
 import StorytellingPageContent from "@/features/storytelling/components/storytelling-page-content";
 
 export default async function StorytellingPage({ params }: ParamsWithLang) {
+  // Testing-only for now — see ENABLE_STORYTELLING in
+  // runtime-config.types.ts, and features/layout/models/pages.ts for the
+  // matching nav-entry filter.
+  if (process.env.ENABLE_STORYTELLING !== "true") {
+    notFound();
+  }
+
   const { lang } = await params;
   const [, dictionary] = await getDictionary(lang);
   const dict = (dictionary.storytelling as I18nRecord) ?? {};

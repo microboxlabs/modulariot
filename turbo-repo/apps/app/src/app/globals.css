@@ -1,11 +1,18 @@
 @import "tailwindcss";
 @import "flowbite-react/plugin/tailwindcss";
+@plugin "@tailwindcss/typography";
 @source "../../.flowbite-react/class-list.json";
 /* Scan the extracted calendar package so its Tailwind classes (e.g. the
    TIME_WINDOW_COLORS shift tints) are generated — they live in the package
    source now, outside the app's default content roots. R6 formalises this as
    the package's Tailwind preset/@source contract for external consumers. */
 @source "../../../../packages/miot-calendar-ui/src";
+
+/* Standalone dashboard mockups under storytelling/testing are raw HTML
+   dumps (multi-MB, no real class usage) served through an API route for
+   iframe preview. The oxide scanner chokes on their huge single lines, so
+   exclude them from source detection entirely. */
+@source not "../features/storytelling/testing/**/*";
 
 @config "../../tailwind.config.ts";
 
@@ -27,6 +34,11 @@
   50% { opacity: 0; }
 }
 
+@keyframes story-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes harness-think {
   0%   { transform: rotate(0deg);   animation-timing-function: ease-in-out; }
   20%  { transform: rotate(90deg);  }
@@ -46,6 +58,9 @@
   .animate-harness-think {
     animation: harness-think 2s linear infinite;
   }
+  .animate-story-enter {
+    animation: story-enter 0.4s ease-out both;
+  }
 }
 
 @layer utilities {
@@ -56,6 +71,22 @@
   .no-dot::before {
     content: none;
   }
+}
+
+/* Find-in-page highlight for storytelling previewers that render in our own
+ * document (Markdown, PPT) — dom-search.ts's searchInDom/focusSearchMatch.
+ * The HTML previewer's same-origin iframe can't see this stylesheet, so it
+ * injects an equivalent <style> with the same colors/class names instead
+ * (see iframe-inject-actions.ts). */
+mark.miot-search-mark {
+  background: #fef08a;
+  color: #111827;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+mark.miot-search-mark.miot-search-mark-current {
+  background: #f97316;
+  color: #fff;
 }
 
 /* Remove dots from the start of links */

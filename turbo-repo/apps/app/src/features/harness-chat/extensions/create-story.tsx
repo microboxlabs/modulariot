@@ -17,7 +17,7 @@ export const createStoryExtension: HarnessExtension<CreateStoryArgs, CreateStory
   toolName: "create_story",
   description:
     "Create a new AI-generated storytelling entry, available afterwards at /storytelling/{id}. " +
-    "Renders nothing in the chat — the story itself lives on its own page, not as an inline element.",
+    "Renders a clickable card in the chat; the story itself only opens on the user's click, not automatically.",
   parameters: {
     type: "object",
     properties: {

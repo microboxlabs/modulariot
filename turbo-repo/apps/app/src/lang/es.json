@@ -4830,8 +4830,11 @@
     },
     "title": "Storytelling",
     "description": "Historias generadas por IA y curadas para tu organización.",
-    "card": {
-      "aiGenerated": "Generado por IA"
+    "artifactType": {
+      "html": "HTML",
+      "markdown": "Markdown",
+      "ppt": "PPT",
+      "pdf": "PDF"
     },
     "filters": {
       "noMatches": "Ninguna historia coincide con los filtros actuales."
@@ -4842,11 +4845,14 @@
     "menu": {
       "label": "Acciones",
       "share": "Compartir",
-      "delete": "Eliminar"
+      "delete": "Eliminar",
+      "download": "Descargar"
     },
     "delete": {
       "title": "Eliminar historia",
-      "confirmButton": "Eliminar"
+      "multipleTitle": "¿Eliminar {count} historias?",
+      "confirmButton": "Eliminar",
+      "cancelButton": "Cancelar"
     },
     "share": {
       "title": "Compartir",
@@ -4857,10 +4863,33 @@
       "copyFailed": "No se pudo copiar el enlace"
     },
     "toast": {
-      "deleted": "Se eliminó {name}"
+      "deleted": "Se eliminó {name}",
+      "deletedMultiple": "Se eliminaron {count} historias"
+    },
+    "selection": {
+      "selectAll": "Seleccionar todo",
+      "count": "{count} seleccionadas",
+      "selectAria": "Seleccionar {name}",
+      "deleteSelected": "Eliminar seleccionadas"
     },
     "detail": {
       "aiGeneratedBadge": "Generado por IA",
+      "loading": "Cargando panel…",
+      "search": {
+        "placeholder": "Buscar…",
+        "previous": "Coincidencia anterior",
+        "next": "Siguiente coincidencia",
+        "clear": "Limpiar búsqueda"
+      },
+      "markdown": {
+        "error": "No se pudo cargar este documento."
+      },
+      "ppt": {
+        "comingSoon": "La vista previa de PPT aún no está disponible — esto es un marcador de posición para este tipo de artefacto."
+      },
+      "pdf": {
+        "comingSoon": "La vista previa de PDF aún no está disponible — esto es un marcador de posición para este tipo de artefacto."
+      },
       "notFound": {
         "title": "Historia no encontrada",
         "description": "Esta historia no existe, o fue eliminada.",
@@ -5032,6 +5061,9 @@
       "showDashlet": {
         "unknown": "Dashlet desconocido: {id}",
         "unsupported": "{name} no se puede mostrar en el chat."
+      },
+      "createStory": {
+        "open": "Clic para abrir"
       },
       "askUserQuestion": {
         "skipped": "Omitido — reemplazado por un mensaje posterior.",

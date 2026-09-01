@@ -1,6 +1,8 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
+import { twMerge } from "tailwind-merge";
 
 const MARKDOWN_COMPONENTS = {
   p: ({ children }: React.HTMLAttributes<HTMLParagraphElement>) => (
@@ -41,7 +43,74 @@ const MARKDOWN_COMPONENTS = {
   ),
 };
 
-export function MarkdownContent({ children, className }: Readonly<{ children: string; className?: string }>) {
+// Prose's default `pre`/`code` colors are fixed (a dark gray background
+// regardless of light/dark mode — code blocks conventionally stay dark even
+// on a light page) — swapped for the app's own light/dark surface tokens
+// (the same gray-50/gray-800 + border pairing used throughout the app) so
+// code blocks actually follow the system theme instead of always looking
+// like a dark terminal.
+const DOCUMENT_COMPONENTS = {
+  pre: ({ children }: React.HTMLAttributes<HTMLPreElement>) => (
+    <pre className="overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+      {children}
+    </pre>
+  ),
+  code: ({ className, children }: React.HTMLAttributes<HTMLElement>) => {
+    // Fenced blocks land inside <pre>, tagged language-xxx by remark — let
+    // pre's background/border show through and just set the text color.
+    // Inline code (no className, not inside a <pre>) gets its own pill.
+    if (className?.startsWith("language-")) {
+      return (
+        <code className={twMerge(className, "text-gray-800 dark:text-gray-200")}>
+          {children}
+        </code>
+      );
+    }
+    return (
+      <code className="rounded bg-gray-100 px-1 py-0.5 font-mono text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+        {children}
+      </code>
+    );
+  },
+};
+
+interface MarkdownContentProps {
+  readonly children: string;
+  readonly className?: string;
+  /**
+   * "compact" (default) is the original hand-mapped element styling above —
+   * tuned for and used by chat bubbles (thread-messages.tsx), spotlight
+   * search results, and KPI stat descriptions. "document" is Tailwind's
+   * typography plugin (`prose`) with GFM (tables, strikethrough) instead —
+   * full document styling for a page-length preview, which the compact
+   * mapping was never meant to cover (no table support, minimal spacing).
+   * Existing callers are unaffected either way — this only changes anything
+   * for callers that opt into "document".
+   */
+  readonly variant?: "compact" | "document";
+}
+
+export function MarkdownContent({
+  children,
+  className,
+  variant = "compact",
+}: Readonly<MarkdownContentProps>) {
+  if (variant === "document") {
+    // twMerge, not plain concatenation — max-w-none here is only a default,
+    // meant to be overridden by a max-w-* in the caller's className. Both
+    // classes landing in the same attribute (via a template literal) means
+    // the browser picks whichever Tailwind happened to emit later in the
+    // stylesheet, not whichever the caller passed — twMerge resolves the
+    // conflict in the caller's favor, like it should.
+    return (
+      <article className={twMerge("prose dark:prose-invert max-w-none", className)}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={DOCUMENT_COMPONENTS as never}>
+          {children}
+        </ReactMarkdown>
+      </article>
+    );
+  }
+
   return (
     <div className={className}>
       <ReactMarkdown remarkPlugins={[remarkBreaks]} components={MARKDOWN_COMPONENTS as never}>

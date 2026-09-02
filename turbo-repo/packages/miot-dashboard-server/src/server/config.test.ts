@@ -51,4 +51,49 @@ describe("readServerConfig", () => {
       readServerConfig({ MIOT_DASHBOARD_INSECURE_AUTH: "yes" }),
     ).toThrowError(ConfigError);
   });
+
+  describe("insecure auth is confined to loopback", () => {
+    // With unverified header auth, reaching the port *is* being every user in
+    // every tenant. NODE_ENV is not a boundary — it is a variable nobody has
+    // to set — so the address the socket binds to is the check that holds.
+    it.each(["0.0.0.0", "::", "[::]", "192.168.1.10", "10.0.0.5", ""])(
+      "refuses to start on %j",
+      (host) => {
+        expect(() => readServerConfig({ ...base, HOST: host })).toThrowError(
+          ConfigError,
+        );
+        expect(() => readServerConfig({ ...base, HOST: host })).toThrowError(
+          /loopback/i,
+        );
+      },
+    );
+
+    it.each([
+      "127.0.0.1",
+      "127.0.0.53",
+      "localhost",
+      "LOCALHOST",
+      "::1",
+      "[::1]",
+      " 127.0.0.1 ",
+    ])("starts on %j", (host) => {
+      expect(readServerConfig({ ...base, HOST: host }).host).toBe(host);
+    });
+
+    it("defaults to loopback when HOST is unset", () => {
+      expect(readServerConfig(base).host).toBe("127.0.0.1");
+    });
+
+    it("does not constrain the host once auth is not the insecure one", () => {
+      // The rule is about the insecure resolver, not about binding widely.
+      // When a verifying resolver lands in P2b, 0.0.0.0 becomes legitimate and
+      // this check must not stand in its way.
+      expect(() =>
+        readServerConfig({
+          MIOT_DASHBOARD_INSECURE_AUTH: "false",
+          HOST: "0.0.0.0",
+        }),
+      ).toThrowError(/identity provider/i);
+    });
+  });
 });

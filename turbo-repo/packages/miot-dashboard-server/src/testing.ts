@@ -52,6 +52,24 @@ export interface SeedDashboard {
  * inside one, and then `{tenantId: "ac", scopeId: "me/ops"}` and
  * `{tenantId: "ac/me", scopeId: "ops"}` would address the same entry.
  */
+/**
+ * Hand back a copy, never the stored object.
+ *
+ * This store is published for integrators and dev servers, not just for our
+ * own tests, so a caller holding a reference into the `Map` is a caller who
+ * can rewrite history: mutating a returned `record.revision` moves the store's
+ * own optimistic-concurrency counter, and the conflict path stops meaning
+ * anything. A real store hands back rows it decoded, so returning aliases here
+ * would also let our tests pass against behaviour Postgres will not reproduce.
+ *
+ * `config` is spread shallowly and deliberately: it is caller-supplied
+ * `unknown`, the store never inspects it, and deep-cloning arbitrary values
+ * would be a different promise than the one a database makes.
+ */
+function copyRecord(record: DashboardRecord): DashboardRecord {
+  return { ...record };
+}
+
 const key = (ref: ServerDashboardRef) =>
   JSON.stringify([ref.tenantId, ref.scopeId, ref.slug]);
 
@@ -98,7 +116,8 @@ export function createMemoryStore(
 
   return {
     load(ref) {
-      return Promise.resolve(entries.get(key(ref))?.record ?? null);
+      const stored = entries.get(key(ref))?.record;
+      return Promise.resolve(stored ? copyRecord(stored) : null);
     },
 
     save(ref: ServerDashboardRef, config: unknown, saveOptions: SaveOptions) {
@@ -131,7 +150,7 @@ export function createMemoryStore(
         record,
       });
       if (!permissions.has(key(ref))) permissions.set(key(ref), []);
-      return Promise.resolve(record);
+      return Promise.resolve(copyRecord(record));
     },
 
     list(tenantId: string, scopeId: string): Promise<DashboardSummary[]> {
@@ -151,7 +170,7 @@ export function createMemoryStore(
     },
 
     getPermissions(ref) {
-      return Promise.resolve(permissions.get(key(ref)) ?? []);
+      return Promise.resolve([...(permissions.get(key(ref)) ?? [])]);
     },
 
     setPermissions(ref, assignments) {

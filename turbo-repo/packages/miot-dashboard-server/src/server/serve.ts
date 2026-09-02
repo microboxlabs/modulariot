@@ -8,8 +8,7 @@
  */
 
 import { createServer, type Server } from "node:http";
-import { createAccessControl } from "../access/access-control";
-import { createDashboardHandler } from "../http/handler";
+import { createDashboardHandler, pathnameOf } from "../http/handler";
 import type { AuditSink } from "../seams/audit";
 import type { IdentityResolver, ScopeAuthority } from "../seams/identity";
 import type { ServerDashboardStore } from "../seams/store";
@@ -23,6 +22,8 @@ export interface ServeOptions {
   basePath?: string;
   port: number;
   host: string;
+  /** Largest request body to buffer. Defaults to `DEFAULT_MAX_BODY_BYTES`. */
+  maxBodyBytes?: number;
   /** Structured log line sink. Defaults to stdout as JSON. */
   log?: (line: Record<string, unknown>) => void;
 }
@@ -37,6 +38,29 @@ export interface RunningServer {
 const defaultLog = (line: Record<string, unknown>) => {
   process.stdout.write(`${JSON.stringify(line)}\n`);
 };
+
+/**
+ * The origin to report and to hand back as `url`.
+ *
+ * An IPv6 literal has to be bracketed or the result is not a URL at all:
+ * `HOST=::1` produced `http://::1:3070`, which no client and no `new URL`
+ * accepts. Detected by the colon rather than by parsing, because a hostname
+ * and an IPv4 literal never contain one and every IPv6 literal does.
+ */
+function originFor(host: string, port: number): string {
+  const bracketed = host.includes(":") && !host.startsWith("[");
+  return `http://${bracketed ? `[${host}]` : host}:${port}`;
+}
+
+/**
+ * Lifted out of `serve` rather than nested inside the listen callback, which
+ * put it four function levels deep and past what SonarCloud allows.
+ */
+function closeServer(server: Server): Promise<void> {
+  return new Promise<void>((done, fail) => {
+    server.close((error) => (error ? fail(error) : done()));
+  });
+}
 
 /**
  * Health and readiness are answered here rather than in the handler, because
@@ -54,24 +78,21 @@ function probeResponse(pathname: string): Response | null {
 }
 
 export function createRequestHandler(options: ServeOptions) {
-  const accessOptions = {
+  const api = createDashboardHandler({
     identity: options.identity,
     scopes: options.scopes,
     store: options.store,
     ...(options.audit ? { audit: options.audit } : {}),
-  };
-  // Constructed once so the handler and any future in-process caller share one
-  // access control instance rather than two with divergent configuration.
-  void createAccessControl<Request>(accessOptions);
-
-  const api = createDashboardHandler({
-    ...accessOptions,
     ...(options.basePath ? { basePath: options.basePath } : {}),
   });
 
   return async function handle(request: Request): Promise<Response> {
-    const pathname = new URL(request.url).pathname;
-    const probe = probeResponse(pathname);
+    // `pathnameOf`, not `new URL(...)`: a relative `request.url` is legal in
+    // some frameworks' request objects, and throwing here would happen before
+    // anything could turn it into a response. The handler already guards it
+    // the same way, so this is the router's own helper rather than a second
+    // reading of the same string.
+    const probe = probeResponse(pathnameOf(request.url));
     if (probe !== null) return probe;
     return api(request);
   };
@@ -81,12 +102,17 @@ export function serve(options: ServeOptions): Promise<RunningServer> {
   const log = options.log ?? defaultLog;
   const handler = createRequestHandler(options);
   const server = createServer(
-    toNodeListener(handler, (error) => {
-      log({
-        level: "error",
-        msg: "unhandled request failure",
-        error: error instanceof Error ? error.message : String(error),
-      });
+    toNodeListener(handler, {
+      ...(options.maxBodyBytes === undefined
+        ? {}
+        : { maxBodyBytes: options.maxBodyBytes }),
+      onError: (error) => {
+        log({
+          level: "error",
+          msg: "unhandled request failure",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      },
     }),
   );
 
@@ -99,22 +125,14 @@ export function serve(options: ServeOptions): Promise<RunningServer> {
         typeof address === "object" && address !== null
           ? address.port
           : options.port;
-      const url = `http://${options.host}:${port}`;
+      const url = originFor(options.host, port);
       log({
         level: "info",
         msg: "listening",
         url,
         basePath: options.basePath ?? "",
       });
-      resolve({
-        server,
-        port,
-        url,
-        close: () =>
-          new Promise<void>((done, fail) => {
-            server.close((error) => (error ? fail(error) : done()));
-          }),
-      });
+      resolve({ server, port, url, close: () => closeServer(server) });
     });
   });
 }

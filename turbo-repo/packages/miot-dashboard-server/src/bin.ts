@@ -15,6 +15,8 @@
  */
 
 import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ConfigError, readServerConfig } from "./server/config";
 import { serve } from "./server/serve";
 import {
@@ -31,10 +33,67 @@ interface SeedFile {
   dashboards?: SeedDashboard[];
 }
 
-function readSeed(path: string | undefined): SeedFile {
-  if (path === undefined) return {};
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * Check the seed's shape before it reaches the seams.
+ *
+ * `JSON.parse` validates syntax, not structure, so `as SeedFile` used to wave
+ * through a `memberships` that was a string or a `dashboards` that was an
+ * object — and those then surfaced far away, as an authorization seam behaving
+ * strangely rather than as a bad file. The operator's own file, so the answer
+ * is a clear refusal at startup, not a runtime surprise.
+ *
+ * Deliberately hand-written: this package ships no runtime dependencies and
+ * the import guard exists to keep it that way. What matters is that a bad file
+ * is named as such, not that every leaf is described twice.
+ */
+/**
+ * The bundled example seed, for `MIOT_DASHBOARD_SEED=example`.
+ *
+ * Any other value is a filesystem path resolved from the caller's working
+ * directory, which is what makes this reserved word worth having: the
+ * documented `npx` line used to say `examples/seed.json`, and that only ever
+ * worked from inside this repository. Two candidates because the module sits
+ * one level below the package root when running from source and again when
+ * running from a build, but a bundler is free to place it either way.
+ */
+function bundledSeedPath(): string | null {
+  const here = dirname(fileURLToPath(import.meta.url));
+  for (const candidate of [
+    join(here, "..", "examples", "seed.json"),
+    join(here, "..", "..", "examples", "seed.json"),
+  ]) {
+    try {
+      readFileSync(candidate);
+      return candidate;
+    } catch {
+      // Try the next layout.
+    }
+  }
+  return null;
+}
+
+function resolveSeedPath(seed: string): string {
+  if (seed !== "example") return seed;
+  const bundled = bundledSeedPath();
+  if (bundled === null) {
+    throw new ConfigError(
+      'MIOT_DASHBOARD_SEED="example" asks for the seed shipped with this ' +
+        "package, but it was not found next to the installed files.",
+    );
+  }
+  return bundled;
+}
+
+function readSeed(seed: string | undefined): SeedFile {
+  if (seed === undefined) return {};
+  const path = resolveSeedPath(seed);
+
+  let parsed: unknown;
   try {
-    return JSON.parse(readFileSync(path, "utf8")) as SeedFile;
+    parsed = JSON.parse(readFileSync(path, "utf8"));
   } catch (error) {
     throw new ConfigError(
       `Could not read MIOT_DASHBOARD_SEED at "${path}": ${
@@ -42,6 +101,49 @@ function readSeed(path: string | undefined): SeedFile {
       }`,
     );
   }
+
+  if (!isRecord(parsed)) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_SEED at "${path}" must contain a JSON object`,
+    );
+  }
+  const { memberships, dashboards } = parsed;
+  if (memberships !== undefined && !isRecord(memberships)) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_SEED at "${path}": "memberships" must be an object keyed by tenant`,
+    );
+  }
+  if (dashboards !== undefined && !Array.isArray(dashboards)) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_SEED at "${path}": "dashboards" must be an array`,
+    );
+  }
+  for (const [index, entry] of (dashboards ?? []).entries()) {
+    if (!isRecord(entry) || !isRecord(entry.ref)) {
+      throw new ConfigError(
+        `MIOT_DASHBOARD_SEED at "${path}": "dashboards[${index}]" must be an object with a "ref"`,
+      );
+    }
+    const { tenantId, scopeId, slug } = entry.ref;
+    if (
+      typeof tenantId !== "string" ||
+      typeof scopeId !== "string" ||
+      typeof slug !== "string"
+    ) {
+      throw new ConfigError(
+        `MIOT_DASHBOARD_SEED at "${path}": "dashboards[${index}].ref" needs string tenantId, scopeId and slug`,
+      );
+    }
+  }
+
+  return {
+    ...(memberships === undefined
+      ? {}
+      : { memberships: memberships as Memberships }),
+    ...(dashboards === undefined
+      ? {}
+      : { dashboards: dashboards as SeedDashboard[] }),
+  };
 }
 
 async function main(): Promise<void> {

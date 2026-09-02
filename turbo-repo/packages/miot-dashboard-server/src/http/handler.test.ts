@@ -116,13 +116,89 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await running.close();
+  // Guarded: if `beforeAll` threw before `serve` resolved, `running` is
+  // undefined and an unguarded close fails with a null reference that buries
+  // the startup error underneath it.
+  await running?.close();
 });
 
 describe.each([
   ["in-process handler", () => inProcess],
   ["node server over http", () => overHttp],
 ])("%s", (_label, mode) => {
+  it("marks every response no-store, whatever its status", async () => {
+    // One URL serves a different body per credential by design, so a shared
+    // cache or a browser's back/forward store handing one identity's response
+    // to another would undo the isolation the rest of the package enforces.
+    const cases: [string, RequestInit | undefined][] = [
+      ["/scopes/ops/dashboards", asUser("alice", "acme")],
+      ["/scopes/ops/dashboards", undefined], // 401
+      ["/scopes/ops/dashboards/fleet", asUser("mallory", "globex")], // 403
+      ["/scopes/ops/nothing-here", asUser("alice", "acme")], // 404
+    ];
+    for (const [path, init] of cases) {
+      const response = await mode().fetch(path, init);
+      expect(response.headers.get("cache-control"), path).toBe("no-store");
+    }
+  });
+
+  it("answers 401 before telling an anonymous caller about the body schema", async () => {
+    // Parsing before authorizing handed an unauthenticated caller a free
+    // description of the request schema — and did the parsing work for them.
+    const badJson: RequestInit = {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: "{ not json",
+    };
+    const save = await mode().fetch("/scopes/ops/dashboards/fleet", badJson);
+    expect(save.status).toBe(401);
+    await expect(save.json()).resolves.toMatchObject({
+      code: "UNAUTHENTICATED",
+    });
+
+    // The permissions route leaked more: its 400 names the field and lists
+    // every valid role.
+    const permissions = await mode().fetch(
+      "/scopes/ops/dashboards/fleet/permissions",
+      withBody({}, "PUT", {
+        assignments: [{ authorityId: "x", role: "Nope" }],
+      }),
+    );
+    expect(permissions.status).toBe(401);
+    const body = (await permissions.text()).toLowerCase();
+    expect(body).not.toContain("coordinator");
+  });
+
+  it("still reports a malformed body to a caller who may write", async () => {
+    const response = await mode().fetch("/scopes/ops/dashboards/fleet", {
+      ...asUser("alice", "acme"),
+      method: "PUT",
+      body: "{ not json",
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it.each(['""', "", "  ", 'W/""'])(
+    "refuses If-Match %j rather than reading it as revision 0",
+    async (header) => {
+      // `Number("")` is 0, which the store reads as "expect this dashboard not
+      // to exist" — a 409 on a perfectly good save. An absent precondition is
+      // spelled by omitting the header.
+      const response = await mode().fetch("/scopes/ops/dashboards/fleet", {
+        ...withBody(asUser("alice", "acme"), "PUT", { version: 2 }),
+        headers: {
+          ...(asUser("alice", "acme").headers as Record<string, string>),
+          "content-type": "application/json",
+          "if-match": header,
+        },
+      });
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        code: "BAD_REQUEST",
+      });
+    },
+  );
+
   it("refuses an unauthenticated request with the shared envelope", async () => {
     const response = await mode().fetch("/scopes/ops/dashboards");
     expect(response.status).toBe(401);
@@ -421,5 +497,52 @@ describe("standalone server extras", () => {
     await expect(
       httpStore.load({ tenantId: "acme", scopeId: "ops", slug: "newboard" }),
     ).resolves.not.toBeNull();
+  });
+
+  it("refuses a body larger than it will buffer, rather than growing", async () => {
+    // Unbounded, one connection sending an endless body grows the chunk array
+    // until the process dies and every tenant goes down with it. The limit is
+    // on bytes received, not on Content-Length, which the caller writes.
+    const capped = await serve({
+      ...buildOptions().options,
+      port: 0,
+      host: "127.0.0.1",
+      maxBodyBytes: 512,
+      log: () => {},
+    });
+    try {
+      const response = await fetch(
+        `${capped.url}/scopes/ops/dashboards/fleet`,
+        withBody({}, "PUT", { blob: "x".repeat(4096) }),
+      );
+      expect(response.status).toBe(413);
+      await expect(response.json()).resolves.toMatchObject({
+        status: 413,
+        code: "PAYLOAD_TOO_LARGE",
+      });
+
+      // Still serving afterwards: refusing one request must not take the
+      // listener with it.
+      expect((await fetch(`${capped.url}/health`)).status).toBe(200);
+    } finally {
+      await capped.close();
+    }
+  });
+
+  it("brackets an IPv6 host in the URL it reports", async () => {
+    // `http://::1:3070` is not a URL any client or `new URL` accepts.
+    const ipv6 = await serve({
+      ...buildOptions().options,
+      port: 0,
+      host: "::1",
+      log: () => {},
+    });
+    try {
+      expect(ipv6.url).toMatch(/^http:\/\/\[::1\]:\d+$/);
+      expect(() => new URL(ipv6.url)).not.toThrow();
+      expect((await fetch(`${ipv6.url}/health`)).status).toBe(200);
+    } finally {
+      await ipv6.close();
+    }
   });
 });

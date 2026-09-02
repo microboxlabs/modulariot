@@ -13,6 +13,8 @@
  * tenant-unaware.
  */
 
+import type { DashboardRole } from "../access/roles";
+
 /** Capabilities mirror the UI package's Seam F vocabulary exactly. */
 export interface DashboardCapabilities {
   readOnly: boolean;
@@ -78,4 +80,30 @@ export interface DashboardIdentity {
  */
 export interface IdentityResolver<TRequest = unknown> {
   resolve(request: TRequest): Promise<DashboardIdentity | null>;
+}
+
+/**
+ * Answers the second half of the tenancy question: given who the caller is,
+ * what is their standing in the scope a request names?
+ *
+ * `IdentityResolver` binds a credential to a tenant; this seam binds that
+ * identity to a scope *inside* the tenant. The access control consults it
+ * exactly once per request, before any store or datasource call, and it is
+ * the only place a URL-supplied `scopeId` is ever checked against the
+ * credential.
+ *
+ * Return `null` when the scope is not this principal's to see — because it
+ * belongs to another tenant, because it does not exist, or because they hold
+ * no membership in it. The three cases are deliberately indistinguishable:
+ * a caller probing scope ids must learn nothing from the answer.
+ *
+ * For a host with one scope per tenant this is `scopeId === identity.tenantId
+ * ? "Coordinator" : null`. There is no default: an implementation that grants
+ * access by omission is the failure mode this package exists to prevent.
+ */
+export interface ScopeAuthority {
+  resolveScopeRole(
+    identity: DashboardIdentity,
+    scopeId: string,
+  ): Promise<DashboardRole | null>;
 }

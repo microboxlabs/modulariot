@@ -11,6 +11,8 @@
  * Postgres table for TotalCheck. Neither shape reaches this package.
  */
 
+import type { DashboardRole } from "../access/roles";
+
 /** Fully qualified address of one dashboard. `tenantId` is never optional. */
 export interface ServerDashboardRef {
   tenantId: string;
@@ -35,6 +37,13 @@ export interface DashboardRecord {
   updatedAt: string;
   updatedBy: string;
   /**
+   * Who first saved it, when the host tracks that. The default capability
+   * policy uses it for one rule only: a Contributor may edit dashboards they
+   * created. A store that cannot supply it simply leaves it out, and
+   * Contributors then get view-only access.
+   */
+  createdBy?: string;
+  /**
    * Monotonic revision counter, used for optimistic concurrency. Two editors
    * — or an editor and the AI generation skill — must not silently overwrite
    * one another; a stale revision is refused with a conflict.
@@ -51,13 +60,6 @@ export interface SaveOptions {
   updatedBy: string;
 }
 
-/** Role vocabulary, matching the wire contract's PermissionAssignments. */
-export type DashboardRole =
-  | "Consumer"
-  | "Contributor"
-  | "Editor"
-  | "Coordinator";
-
 export interface PermissionAssignment {
   /** Host-defined user or group identifier. */
   authorityId: string;
@@ -69,14 +71,20 @@ export interface ServerDashboardStore {
   save(
     ref: ServerDashboardRef,
     config: unknown,
-    options: SaveOptions
+    options: SaveOptions,
   ): Promise<DashboardRecord>;
   list(tenantId: string, scopeId: string): Promise<DashboardSummary[]>;
   remove(ref: ServerDashboardRef): Promise<void>;
 
+  /**
+   * The assignments that apply to this dashboard, as the host resolves them.
+   * Inherited assignments belong in the answer if the host's model has
+   * inheritance; the capability policy treats the list as complete. Only
+   * called for dashboards that exist.
+   */
   getPermissions(ref: ServerDashboardRef): Promise<PermissionAssignment[]>;
   setPermissions(
     ref: ServerDashboardRef,
-    assignments: PermissionAssignment[]
+    assignments: PermissionAssignment[],
   ): Promise<void>;
 }

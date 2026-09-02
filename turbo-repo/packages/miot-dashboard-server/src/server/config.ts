@@ -16,13 +16,29 @@ export interface ServerConfig {
    * explicitly set, and refused outright when NODE_ENV is production.
    */
   insecureAuth: boolean;
-  /** Where dashboards live. Only "memory" exists today; Postgres lands in P2b. */
-  store: "memory";
-  /** Seed file for the in-memory store, so a dev server can start with data. */
+  /**
+   * Where dashboards live. `memory` forgets everything on restart and is the
+   * default because it needs nothing; `sqlite` persists to one file and needs
+   * nothing either, which is what makes it a deployment rather than a demo.
+   */
+  store: StoreKind;
+  /** Database file for the sqlite store. Ignored by the memory store. */
+  sqlitePath: string;
+  /** Seed file, so a dev server can start with data. */
   seedPath: string | undefined;
   /** Serve the contract at /openapi.yaml and render it at /docs. */
   docs: boolean;
 }
+
+export const STORE_KINDS = ["memory", "sqlite"] as const;
+export type StoreKind = (typeof STORE_KINDS)[number];
+
+/**
+ * Default database file — relative, and deliberately neither a hostname nor a
+ * credential. It is the one piece of storage configuration that can carry a
+ * default without one deployment quietly inheriting another's.
+ */
+export const DEFAULT_SQLITE_PATH = "./data/dashboards.db";
 
 export class ConfigError extends Error {}
 
@@ -111,9 +127,10 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
   }
 
   const store = env.MIOT_DASHBOARD_STORE ?? "memory";
-  if (store !== "memory") {
+  if (!(STORE_KINDS as readonly string[]).includes(store)) {
     throw new ConfigError(
-      `MIOT_DASHBOARD_STORE="${store}" is not supported yet. Only "memory" exists; a Postgres store lands with P2b.`,
+      `MIOT_DASHBOARD_STORE="${store}" is not supported. Choose one of: ` +
+        `${STORE_KINDS.join(", ")}. A PostgreSQL store lands with P2b-3.`,
     );
   }
 
@@ -131,7 +148,8 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     host,
     basePath: env.MIOT_DASHBOARD_BASE_PATH ?? "",
     insecureAuth,
-    store,
+    store: store as StoreKind,
+    sqlitePath: env.MIOT_DASHBOARD_SQLITE_PATH ?? DEFAULT_SQLITE_PATH,
     seedPath: env.MIOT_DASHBOARD_SEED,
     docs: readBooleanUnlessDisabled(env.MIOT_DASHBOARD_DOCS),
   };

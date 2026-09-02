@@ -17,8 +17,14 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ConfigError, readServerConfig } from "./server/config";
+import {
+  ConfigError,
+  readServerConfig,
+  type ServerConfig,
+} from "./server/config";
 import { serve } from "./server/serve";
+import type { ServerDashboardStore } from "./seams/store";
+import { openSqliteStore } from "./store/sqlite";
 import {
   createInsecureHeaderIdentityResolver,
   createMemoryScopeAuthority,
@@ -146,6 +152,51 @@ function readSeed(seed: string | undefined): SeedFile {
   };
 }
 
+interface AssembledStore {
+  store: ServerDashboardStore;
+  close(): Promise<void>;
+  describe: string;
+}
+
+/**
+ * Build the configured store, and seed it only where seeding means anything.
+ *
+ * The memory store takes its seed at construction. A persistent one cannot:
+ * re-applying a seed on every boot would overwrite whatever people had done
+ * since. So a dashboard is written only when its slug is absent, which makes
+ * the seed a first-run fixture rather than a scheduled data loss.
+ */
+async function openStore(
+  config: ServerConfig,
+  seed: SeedFile,
+): Promise<AssembledStore> {
+  const dashboards = seed.dashboards ?? [];
+
+  if (config.store === "memory") {
+    return {
+      store: createMemoryStore({ seed: dashboards }),
+      close: () => Promise.resolve(),
+      describe: "memory (nothing survives a restart)",
+    };
+  }
+
+  const opened = await openSqliteStore({ path: config.sqlitePath });
+  for (const dashboard of dashboards) {
+    if ((await opened.store.load(dashboard.ref)) !== null) continue;
+    await opened.store.save(dashboard.ref, dashboard.record?.config ?? null, {
+      updatedBy: dashboard.record?.updatedBy ?? "seed",
+    });
+    if (dashboard.assignments) {
+      await opened.store.setPermissions(dashboard.ref, dashboard.assignments);
+    }
+  }
+  return {
+    store: opened.store,
+    close: opened.close,
+    describe: `sqlite at ${config.sqlitePath}`,
+  };
+}
+
 async function main(): Promise<void> {
   const config = readServerConfig(process.env);
   const seed = readSeed(config.seedPath);
@@ -155,10 +206,15 @@ async function main(): Promise<void> {
       "(MIOT_DASHBOARD_INSECURE_AUTH). Local use only.\n",
   );
 
+  const assembled = await openStore(config, seed);
+  process.stdout.write(
+    `${JSON.stringify({ level: "info", msg: "store", store: assembled.describe })}\n`,
+  );
+
   const running = await serve({
     identity: createInsecureHeaderIdentityResolver(),
     scopes: createMemoryScopeAuthority(seed.memberships ?? {}),
-    store: createMemoryStore({ seed: seed.dashboards ?? [] }),
+    store: assembled.store,
     audit: createRecordingAuditSink(),
     port: config.port,
     host: config.host,
@@ -170,8 +226,11 @@ async function main(): Promise<void> {
     process.stdout.write(
       `${JSON.stringify({ level: "info", msg: "shutting down", signal })}\n`,
     );
+    // Listener first, then the database: closing the store while a request is
+    // still in flight would fail that request for no reason.
     running
       .close()
+      .then(() => assembled.close())
       .then(() => process.exit(0))
       .catch(() => process.exit(1));
   };

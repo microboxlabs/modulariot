@@ -25,7 +25,7 @@
       "record": {
         "config": {
           "version": 2,
-          "title": "Fleet overview",
+          "name": "Fleet overview",
           "widgets": []
         },
         "createdBy": "carl"
@@ -38,7 +38,7 @@
       "record": {
         "config": {
           "version": 2,
-          "title": "A different tenant's dashboard at the same address",
+          "name": "A different tenant's dashboard at the same address",
           "widgets": []
         }
       }

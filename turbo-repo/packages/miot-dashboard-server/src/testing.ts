@@ -14,6 +14,7 @@
  */
 
 import { DashboardServerError } from "./access/errors";
+import { dashboardDisplayName } from "./store/composite";
 import type { DashboardRole } from "./access/roles";
 import { FULL_CAPABILITIES } from "./access/roles";
 import type { AuditEvent, AuditSink } from "./seams/audit";
@@ -146,7 +147,12 @@ export function createMemoryStore(
       };
       entries.set(key(ref), {
         ref,
-        name: existing?.name ?? ref.slug,
+        // Derived from the config, exactly as a real store does it, rather
+        // than frozen at whatever the entry was first created with. Keeping
+        // the cheap version here would have meant a rename showing up in the
+        // list against a database and not against this — a divergence tests
+        // written on this store would never see.
+        name: dashboardDisplayName(config, ref.slug),
         record,
       });
       if (!permissions.has(key(ref))) permissions.set(key(ref), []);

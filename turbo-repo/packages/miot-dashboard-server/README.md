@@ -31,6 +31,7 @@ between them.
 | ------------------------------------- | ----------------- | --------- |
 | Core: seams, access control           | `.`               | nothing   |
 | HTTP handler: `Request` to `Response` | `./http`          | Web types |
+| Persistence: composite, SQL, SQLite   | `./store-sql`     | Node      |
 | In-memory seams                       | `./testing`       | nothing   |
 | Server: listener, probes, docs        | `./server`, `bin` | Node      |
 
@@ -82,6 +83,39 @@ MIOT_DASHBOARD_SEED=example \
 directory; the single reserved value `example` means the one shipped with the
 package, which is what makes the line above work from anywhere.
 
+### Keeping it
+
+`MIOT_DASHBOARD_STORE` chooses where dashboards live.
+
+| Value              | Keeps data        | Needs                                      |
+| ------------------ | ----------------- | ------------------------------------------ |
+| `memory` (default) | until you stop it | nothing                                    |
+| `sqlite`           | in one file       | nothing — `node:sqlite` is built into Node |
+
+```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true \
+MIOT_DASHBOARD_STORE=sqlite \
+MIOT_DASHBOARD_SQLITE_PATH=./data/dashboards.db \
+MIOT_DASHBOARD_SEED=example \
+  npx @microboxlabs/miot-dashboard-server
+```
+
+The file and its parent directories are created on first run, and the schema is
+migrated on every start — applying only what that database has not seen. With a
+seed, dashboards are written **only where the slug is absent**, so a seed is a
+first-run fixture rather than something that overwrites your work every boot.
+
+Under the covers this is two halves rather than one store: a **metadata**
+database holding a row per dashboard and its permissions, and a **document**
+store holding the config bytes. A save writes the config at a brand-new key and
+only then swaps the pointer in the database, so a reader can never see a
+half-written dashboard, and the document side needs no locking of its own —
+which is what will let it be a bucket or a directory later without changing
+anything above it. `sqlite` keeps both halves in the one file.
+
+`node:sqlite` needs Node 22.5 or newer. On anything older the server says so and
+names the alternative rather than failing obscurely.
+
 `MIOT_DASHBOARD_INSECURE_AUTH` reads the caller's identity straight from
 request headers with no verification, so anyone who can reach the port can
 claim to be anyone. It exists to exercise the API before an identity provider
@@ -90,8 +124,8 @@ refuses to start under `NODE_ENV=production`, it refuses to start **on any
 address but loopback** — reaching the port is being every user in every tenant,
 so the port must not leave the machine — and it refuses to start without it
 too, because the alternative would be starting with no authentication at all.
-A verifying resolver arrives with P2b, along with a Postgres store to replace
-the in-memory one.
+A verifying resolver arrives with P2b-3, along with a PostgreSQL metadata
+store for deployments that run more than one instance.
 
 `NODE_ENV` is not a security boundary; it is a variable nobody has to set. The
 bind-address check is the one that holds either way.
@@ -241,21 +275,26 @@ One envelope, from every adapter:
 - No React — this is a backend. The UI package's React entries are off-limits;
   only its React-free `/schema` subpath may be imported.
 - `next/*` only under `src/adapters/next/`, `fastify` only under
-  `src/adapters/fastify/`, `swagger-ui-dist` only under `src/server/`.
-  Everything else runs under a bare Node process, with nothing optional
-  installed.
+  `src/adapters/fastify/`, `swagger-ui-dist` only under `src/server/`,
+  `node:sqlite` only under `src/store/`. Everything else runs under a bare Node
+  process, with nothing optional installed.
+- `node:sqlite` is loaded with `createRequire`, never a static import: the
+  bundler has no `sqlite` in its table of Node built-ins, strips the prefix and
+  emits `from "sqlite"`, which resolves to nothing. The guard refuses the static
+  form because no test can see that failure — tests import the source.
 - No Alfresco. Alfresco is one host's `ServerDashboardStore` implementation,
   supplied from outside, never something this package knows about.
 
 ## Entries
 
-| Entry       | Holds                                                |
-| ----------- | ---------------------------------------------------- |
-| `.`         | seams, access control, roles, errors                 |
-| `./http`    | the fetch-shaped handler                             |
-| `./testing` | in-memory seams, for dev servers and for integrators |
-| `./server`  | Node listener, probes, config, contract and docs     |
-| `bin`       | `npx @microboxlabs/miot-dashboard-server`            |
+| Entry         | Holds                                                |
+| ------------- | ---------------------------------------------------- |
+| `.`           | seams, access control, roles, errors                 |
+| `./http`      | the fetch-shaped handler                             |
+| `./store-sql` | composite store, SQL metadata store, SQLite driver   |
+| `./testing`   | in-memory seams, for dev servers and for integrators |
+| `./server`    | Node listener, probes, config, contract and docs     |
+| `bin`         | `npx @microboxlabs/miot-dashboard-server`            |
 
 Separate entries so that mounting the library never drags in a listener, and
 running the server never drags in a framework.

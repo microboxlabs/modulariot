@@ -98,6 +98,16 @@ const FRAMEWORK_RULES = [
     allowedPrefix: "adapters/fastify/",
   },
   {
+    // Built into Node 24, and still confined: the core and the HTTP handler
+    // must keep running on a host that supplies its own store, and the moment
+    // a database module is reachable from them, "library first" stops being
+    // true. Same reasoning as the framework rules above, different reason for
+    // the dependency being available.
+    test: (s) => /^node:sqlite$/.test(s),
+    why: "node:sqlite import outside src/store/ (persistence is an opt-in entry)",
+    allowedPrefix: "store/",
+  },
+  {
     // An optional dependency of the standalone server, and 11 MB of it. The
     // core and the HTTP handler must stay reachable without it installed at
     // all, which only holds while nothing outside the server layer names it.
@@ -115,6 +125,18 @@ const isCommentLine = (line) => /^\s*(\/\/|\/\*|\*)/.test(line.trimStart());
  * that are not imports at all.
  */
 const CONTENT_RULES = [
+  {
+    // Not taste — a build failure that no test can see. esbuild has no
+    // `sqlite` in its table of Node built-ins at any target we can set, so it
+    // strips the prefix from a static import and emits `from "sqlite"`. That
+    // resolves to nothing and kills the server on startup, while every test
+    // keeps passing because tests import the source. `createRequire` is
+    // opaque to the bundler and is what src/store/sqlite-driver.ts uses.
+    re: /\bfrom\s*["']node:sqlite["']/,
+    why: 'static import of node:sqlite (the bundler rewrites it to "sqlite"; use createRequire)',
+    // The doc comment that explains this rule quotes the forbidden line.
+    skipComments: true,
+  },
   {
     re: /alfresco/i,
     why: "Alfresco reference in code (host persistence stays behind the ServerDashboardStore seam)",

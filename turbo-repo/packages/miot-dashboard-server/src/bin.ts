@@ -60,6 +60,7 @@ async function main(): Promise<void> {
     audit: createRecordingAuditSink(),
     port: config.port,
     host: config.host,
+    docs: config.docs,
     ...(config.basePath ? { basePath: config.basePath } : {}),
   });
 

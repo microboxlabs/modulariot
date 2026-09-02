@@ -1,0 +1,41 @@
+meta {
+  name: OpenAPI contract
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/openapi.yaml
+  body: none
+  auth: none
+}
+
+docs {
+  The contract, served by the standalone server beside the health probes and
+  rendered at /docs. Unauthenticated on purpose: it describes a public
+  interface, and an integrator has to be able to read it before they have a
+  credential. Set MIOT_DASHBOARD_DOCS=false to serve neither.
+
+  This request is here so that the collection covers everything the port
+  answers, and so that a spec whose operations stopped matching the routes
+  fails somewhere other than in a reader's browser. The comparison itself is
+  in src/server/docs.test.ts, which probes both directions.
+}
+
+assert {
+  res.status: eq 200
+  res.headers['content-type']: contains application/yaml
+}
+
+tests {
+  test("describes the operations this collection exercises", function () {
+    const spec = res.getBody();
+    // Not a YAML parse: the collection has no dependencies and should not
+    // grow one. Presence of each path is enough to catch a document that has
+    // fallen behind the routes above.
+    expect(spec).to.contain("/scopes/{scopeId}/dashboards:");
+    expect(spec).to.contain("/scopes/{scopeId}/dashboards/{slug}:");
+    expect(spec).to.contain("/scopes/{scopeId}/dashboards/{slug}/capabilities:");
+    expect(spec).to.contain("/scopes/{scopeId}/dashboards/{slug}/permissions:");
+  });
+}

@@ -51,4 +51,20 @@ describe("readServerConfig", () => {
       readServerConfig({ MIOT_DASHBOARD_INSECURE_AUTH: "yes" }),
     ).toThrowError(ConfigError);
   });
+
+  it("serves the contract unless someone turns it off", () => {
+    // The opposite default to the insecure-auth switch, and deliberately so:
+    // that one is dangerous and must be asked for, this one describes a public
+    // interface and costs nothing to have on.
+    expect(readServerConfig(base).docs).toBe(true);
+    expect(readServerConfig({ ...base, MIOT_DASHBOARD_DOCS: "false" }).docs).toBe(
+      false,
+    );
+    expect(readServerConfig({ ...base, MIOT_DASHBOARD_DOCS: "0" }).docs).toBe(
+      false,
+    );
+    expect(readServerConfig({ ...base, MIOT_DASHBOARD_DOCS: "true" }).docs).toBe(
+      true,
+    );
+  });
 });

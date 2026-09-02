@@ -18,6 +18,16 @@ export {
 export { toNodeListener } from "./server/node-adapter";
 
 export {
+  createDocsHandler,
+  resolveSpecPath,
+  resolveAssetsDir,
+  DOCS_PATH,
+  SPEC_PATH,
+  type DocsHandler,
+  type DocsOptions,
+} from "./server/docs";
+
+export {
   readServerConfig,
   ConfigError,
   type ConfigEnv,

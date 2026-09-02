@@ -13,6 +13,7 @@ import { createDashboardHandler } from "../http/handler";
 import type { AuditSink } from "../seams/audit";
 import type { IdentityResolver, ScopeAuthority } from "../seams/identity";
 import type { ServerDashboardStore } from "../seams/store";
+import { createDocsHandler, DOCS_PATH, SPEC_PATH } from "./docs";
 import { toNodeListener } from "./node-adapter";
 
 export interface ServeOptions {
@@ -23,6 +24,13 @@ export interface ServeOptions {
   basePath?: string;
   port: number;
   host: string;
+  /**
+   * Serve the contract at /openapi.yaml and render it at /docs. On by
+   * default: the document describes a public interface, not a secret, and a
+   * server nobody can read the contract of is harder to integrate against
+   * than it is safe. Turn it off where the surface itself is sensitive.
+   */
+  docs?: boolean;
   /** Structured log line sink. Defaults to stdout as JSON. */
   log?: (line: Record<string, unknown>) => void;
 }
@@ -69,12 +77,24 @@ export function createRequestHandler(options: ServeOptions) {
     ...(options.basePath ? { basePath: options.basePath } : {}),
   });
 
-  return async function handle(request: Request): Promise<Response> {
+  const docs =
+    options.docs === false
+      ? null
+      : createDocsHandler({
+          ...(options.basePath ? { basePath: options.basePath } : {}),
+        });
+
+  const handle = async function handle(request: Request): Promise<Response> {
     const pathname = new URL(request.url).pathname;
     const probe = probeResponse(pathname);
     if (probe !== null) return probe;
+    // Before the API, and never under its base path, so documentation can
+    // never shadow a route or be shadowed by one.
+    const documented = docs?.(request) ?? null;
+    if (documented !== null) return documented;
     return api(request);
   };
+  return Object.assign(handle, { docs });
 }
 
 export function serve(options: ServeOptions): Promise<RunningServer> {
@@ -105,6 +125,17 @@ export function serve(options: ServeOptions): Promise<RunningServer> {
         msg: "listening",
         url,
         basePath: options.basePath ?? "",
+        // Said out loud on startup rather than discovered as a broken page:
+        // whether the contract is being served, and whether there is anything
+        // installed to render it with.
+        ...(handler.docs
+          ? {
+              spec: `${url}${SPEC_PATH}`,
+              docs: handler.docs.rendered
+                ? `${url}${DOCS_PATH}`
+                : "swagger-ui-dist is not installed; /docs explains how to add it",
+            }
+          : { docs: false }),
       });
       resolve({
         server,

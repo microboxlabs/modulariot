@@ -8,7 +8,7 @@
  * cannot function without it.
  *
  * Reference implementations differ per host — Alfresco nodes for apps/app, a
- * Postgres table for TotalCheck. Neither shape reaches this package.
+ * Postgres table for the standalone server. Neither shape reaches this package.
  */
 
 import type { DashboardRole } from "../access/roles";

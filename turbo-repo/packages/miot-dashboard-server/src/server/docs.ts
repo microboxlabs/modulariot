@@ -85,6 +85,13 @@ export interface DocsHandler {
  * differs between running from source (`src/server/docs.ts`, two levels down)
  * and running a build (`dist/server.js`, one). A fixed `../..` would work in
  * exactly one of the two and fail confusingly in the other.
+ *
+ * The walk stops at the first directory holding a `package.json` — our own
+ * package root. Without that boundary, a missing contract would send the
+ * search into the parent workspace, where it might find some *other*
+ * project's document and serve it as ours. Failing to find one is a 500 that
+ * names the problem; finding the wrong one is a documented API that quietly
+ * describes something else.
  */
 export function resolveSpecPath(
   from: string = fileURLToPath(import.meta.url),
@@ -92,16 +99,22 @@ export function resolveSpecPath(
   let directory = dirname(from);
   for (let depth = 0; depth < 5; depth++) {
     const candidate = join(directory, "contract", "openapi.yaml");
-    try {
-      readFileSync(candidate);
-      return candidate;
-    } catch {
-      const parent = dirname(directory);
-      if (parent === directory) break;
-      directory = parent;
-    }
+    if (exists(candidate)) return candidate;
+    if (exists(join(directory, "package.json"))) return null;
+    const parent = dirname(directory);
+    if (parent === directory) return null;
+    directory = parent;
   }
   return null;
+}
+
+function exists(path: string): boolean {
+  try {
+    readFileSync(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** The `swagger-ui-dist` directory, or null when it is not installed. */

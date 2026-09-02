@@ -10,7 +10,16 @@
  * the suite fails.
  */
 
-import { readFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -32,6 +41,9 @@ import {
 const get = (path: string, init?: RequestInit) =>
   new Request(`http://test.local${path}`, init);
 
+/** This file is at <root>/src/server/, so the package root is two up. */
+const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+
 describe("the contract endpoint", () => {
   it("serves the file on disk byte for byte", async () => {
     const specPath = resolveSpecPath();
@@ -47,6 +59,52 @@ describe("the contract endpoint", () => {
     await expect(response?.text()).resolves.toBe(
       readFileSync(specPath as string, "utf8"),
     );
+  });
+
+  it("finds the document from source and from a build", () => {
+    // The two layouts the walk-up exists for: src/server/docs.ts is two levels
+    // below the package root, dist/server.js is one.
+    expect(
+      resolveSpecPath(join(PACKAGE_ROOT, "src", "server", "docs.ts")),
+    ).toBe(join(PACKAGE_ROOT, "contract", "openapi.yaml"));
+    expect(resolveSpecPath(join(PACKAGE_ROOT, "dist", "server.js"))).toBe(
+      join(PACKAGE_ROOT, "contract", "openapi.yaml"),
+    );
+  });
+
+  it("stops at the package root rather than adopting a parent's contract", () => {
+    // Built rather than pointed at a real sibling: no parent of this package
+    // happens to hold a contract today, so a test against the real tree would
+    // pass whether or not the boundary exists. Here the decoy is real.
+    //
+    //   <tmp>/contract/openapi.yaml   ← another project's document
+    //   <tmp>/pkg/package.json        ← our package root, no contract
+    //   <tmp>/pkg/dist/server.js      ← where the search starts
+    //
+    // Serving that decoy would be a documented API quietly describing
+    // something else, which is worse than serving no documentation at all.
+    const root = mkdtempSync(join(tmpdir(), "miot-docs-"));
+    try {
+      mkdirSync(join(root, "contract"), { recursive: true });
+      writeFileSync(join(root, "contract", "openapi.yaml"), "openapi: 3.1.0\n");
+      mkdirSync(join(root, "pkg", "dist"), { recursive: true });
+      writeFileSync(join(root, "pkg", "package.json"), "{}\n");
+
+      const start = join(root, "pkg", "dist", "server.js");
+      expect(resolveSpecPath(start)).toBeNull();
+
+      // Positive control: the same search finds the package's own contract.
+      mkdirSync(join(root, "pkg", "contract"), { recursive: true });
+      writeFileSync(
+        join(root, "pkg", "contract", "openapi.yaml"),
+        "openapi: 3.1.0\n",
+      );
+      expect(resolveSpecPath(start)).toBe(
+        join(root, "pkg", "contract", "openapi.yaml"),
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("reports a missing document rather than serving an empty one", async () => {

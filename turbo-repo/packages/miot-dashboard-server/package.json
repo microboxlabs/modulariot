@@ -1,0 +1,40 @@
+{
+  "name": "@microboxlabs/miot-dashboard-server",
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/microboxlabs/modulariot",
+    "directory": "packages/miot-dashboard-server"
+  },
+  "description": "Framework-agnostic backend services for MIOT embeddable dashboards: persistence, identity and tenancy, datasource proxying, embed tokens.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint .",
+    "check-types": "tsc --noEmit && node scripts/guard-imports.mjs",
+    "guard": "node scripts/guard-imports.mjs"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "tsup": "^8.0.0",
+    "typescript": "5.8.2",
+    "vitest": "^4.0.18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

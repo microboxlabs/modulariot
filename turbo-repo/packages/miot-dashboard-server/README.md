@@ -55,17 +55,29 @@ export const PUT = handle;
 
 ### Running it
 
+From anywhere in the monorepo, as a turbo task. This reloads on change and
+starts with the example seed on port 3070:
+
 ```bash
-MIOT_DASHBOARD_INSECURE_AUTH=true \
-MIOT_DASHBOARD_SEED=examples/seed.json \
-PORT=3071 \
-  npx @microboxlabs/miot-dashboard-server
+npx turbo run dev:server --filter=@microboxlabs/miot-dashboard-server
 ```
 
 ```bash
 curl -H 'x-dev-user: alice' -H 'x-dev-tenant: acme' \
-  http://127.0.0.1:3071/scopes/ops/dashboards
+  http://127.0.0.1:3070/scopes/ops/dashboards
 ```
+
+Outside this repo, or from a build rather than from source:
+
+```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true \
+MIOT_DASHBOARD_SEED=examples/seed.json \
+  npx @microboxlabs/miot-dashboard-server
+```
+
+`PORT`, `HOST` and `MIOT_DASHBOARD_BASE_PATH` are read from the environment.
+The default host is loopback, so a development server is not reachable from
+another machine unless you ask for that.
 
 `MIOT_DASHBOARD_INSECURE_AUTH` reads the caller's identity straight from
 request headers with no verification, so anyone who can reach the port can
@@ -82,12 +94,19 @@ cases worth seeing fail: an unauthenticated call, a cross-tenant probe, a
 Consumer's write, a stale revision.
 
 ```bash
-cd rest-api && npx @usebruno/cli run --env local
+npx turbo run test:api --filter=@microboxlabs/miot-dashboard-server
 ```
 
-Run it against the seeded dev server above. The seed puts a dashboard at the
-same scope and slug in two different tenants, so an isolation mistake shows up
-as a failing assertion rather than as a subtle bug.
+Run it against the seeded dev server above; both default to port 3070. The
+seed puts a dashboard at the same scope and slug in two different tenants, so
+an isolation mistake shows up as a failing assertion rather than as a subtle
+bug.
+
+The collection carries its own `package.json`, and it is load-bearing: `npx`
+resets the working directory to the nearest one, and the Bruno CLI resolves
+the collection from the working directory. Without it the run fails with "You
+can run only at the root of a collection" even though the collection file is
+right there.
 
 ## The seams
 

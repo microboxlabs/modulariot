@@ -39,7 +39,9 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
+    "dev:server": "MIOT_DASHBOARD_INSECURE_AUTH=true MIOT_DASHBOARD_SEED=examples/seed.json tsx watch src/bin.ts",
     "start": "node dist/bin.js",
+    "test:api": "npm --prefix rest-api run test:api",
     "lint": "eslint .",
     "check-types": "tsc --noEmit && node scripts/guard-imports.mjs",
     "guard": "node scripts/guard-imports.mjs"
@@ -49,6 +51,7 @@
     "@repo/typescript-config": "*",
     "@types/node": "^20.19.0",
     "tsup": "^8.0.0",
+    "tsx": "^4.22.0",
     "typescript": "5.8.2",
     "vitest": "^4.0.18"
   },

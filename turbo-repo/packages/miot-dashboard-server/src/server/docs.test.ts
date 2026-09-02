@@ -44,6 +44,38 @@ const get = (path: string, init?: RequestInit) =>
 /** This file is at <root>/src/server/, so the package root is two up. */
 const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
+/**
+ * The contract's `paths`, checked rather than asserted.
+ *
+ * A bare `as` on the parse result means a malformed document surfaces as a
+ * `TypeError` from `Object.entries` somewhere down the file, which reads like
+ * a broken test rather than a broken contract. Checked here instead, with the
+ * shape named in the failure.
+ *
+ * Deliberately hand-written rather than a schema library: this package ships
+ * with no runtime dependencies and the boundary guard exists to keep it that
+ * way, so pulling one in to validate a file we commit ourselves would be a
+ * poor trade.
+ */
+function readSpecPaths(): { paths: Record<string, Record<string, unknown>> } {
+  const path = resolveSpecPath();
+  expect(path, "contract/openapi.yaml was not found").not.toBeNull();
+
+  const parsed: unknown = parseYaml(readFileSync(path as string, "utf8"));
+  const paths = isRecord(parsed) ? parsed.paths : undefined;
+  expect(isRecord(paths), `${path}: "paths" must be a mapping`).toBe(true);
+
+  for (const [name, item] of Object.entries(paths as object)) {
+    expect(isRecord(item), `${path}: path "${name}" must be a mapping`).toBe(
+      true,
+    );
+  }
+  return { paths: paths as Record<string, Record<string, unknown>> };
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 describe("the contract endpoint", () => {
   it("serves the file on disk byte for byte", async () => {
     const specPath = resolveSpecPath();
@@ -164,6 +196,27 @@ describe("the docs page", () => {
       )?.text()) ?? "";
     expect(body).toContain('"/api/dashboard"');
   });
+
+  it.each([
+    ["/api/dashboard/", "/api/dashboard"],
+    ["/api/dashboard///", "/api/dashboard"],
+    ["api/dashboard", "/api/dashboard"],
+    ["/", ""],
+    ["///", ""],
+  ])(
+    "normalizes base path %j the same way the router does",
+    async (given, normalized) => {
+      // The router normalizes its own base path; the page has to agree with it
+      // or "Try it out" addresses a path the router will not serve. Both are
+      // handed the same unnormalized value by `serve`, so agreement cannot be
+      // left to the caller.
+      const body =
+        (await createDocsHandler({ basePath: given })(
+          get(DOCS_PATH),
+        )?.text()) ?? "";
+      expect(body).toContain(`var BASE_PATH = ${JSON.stringify(normalized)};`);
+    },
+  );
 
   it("cannot be made to end its own script element", async () => {
     const body =
@@ -395,9 +448,7 @@ describe("the spec against the router", () => {
       .replace("{scopeId}", EXAMPLE.scopeId)
       .replace("{slug}", EXAMPLE.slug);
 
-  const spec = parseYaml(readFileSync(resolveSpecPath() as string, "utf8")) as {
-    paths: Record<string, Record<string, unknown>>;
-  };
+  const spec = readSpecPaths();
 
   const documented = new Set(
     Object.entries(spec.paths).flatMap(([template, item]) =>

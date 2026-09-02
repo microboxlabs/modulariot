@@ -24,6 +24,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { normalizeBasePath } from "../http/handler";
 
 export const DOCS_PATH = "/docs";
 export const SPEC_PATH = "/openapi.yaml";
@@ -128,7 +129,11 @@ export function resolveAssetsDir(): string | null {
 }
 
 export function createDocsHandler(options: DocsOptions = {}): DocsHandler {
-  const basePath = options.basePath ?? "";
+  // The router's own normalizer, not a second one: `serve` hands both this and
+  // the handler the same unnormalized value, and a prefix written
+  // "api/dashboard" or "/api/dashboard/" must reach the same answer in both or
+  // "Try it out" addresses a path the router will not serve.
+  const basePath = normalizeBasePath(options.basePath);
   const specPath = options.specPath ?? resolveSpecPath();
   const assetsDir =
     options.assetsDir === undefined ? resolveAssetsDir() : options.assetsDir;
@@ -260,7 +265,7 @@ function codeFor(status: number): string {
  * value here comes from configuration rather than from a request, but a
  * server's own base path is not a good place to rely on that staying true.
  */
-function embed(value: unknown): string {
+function embed(value: string): string {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
@@ -318,7 +323,12 @@ function page(basePath: string): string {
     dom_id: "#swagger-ui",
     deepLinking: true,
     tryItOutEnabled: true,
-    persistAuthorization: true,
+    // Deliberately off. Swagger UI persists credentials to localStorage, where
+    // they outlive the tab and the browser restart, on the API's own origin.
+    // The spec declares a real bearer scheme, so once P2b lands a verifying
+    // resolver that would be a live token left behind for the next person on
+    // the machine. Re-authorizing after a reload is the cheaper cost.
+    persistAuthorization: false,
     defaultModelsExpandDepth: 1,
     requestInterceptor: function (req) {
       return (${REQUEST_INTERCEPTOR_SOURCE})(

@@ -20,6 +20,7 @@ export type DashboardErrorCode =
   | "NOT_FOUND"
   | "BAD_REQUEST"
   | "CONFLICT"
+  | "PAYLOAD_TOO_LARGE"
   | "UPSTREAM_ERROR"
   | "INTERNAL_ERROR";
 
@@ -38,6 +39,7 @@ export const STATUS_BY_CODE: Readonly<Record<DashboardErrorCode, number>> =
     NOT_FOUND: 404,
     BAD_REQUEST: 400,
     CONFLICT: 409,
+    PAYLOAD_TOO_LARGE: 413,
     UPSTREAM_ERROR: 502,
     INTERNAL_ERROR: 500,
   });
@@ -105,6 +107,15 @@ export class DashboardServerError extends Error {
 
   static conflict(message: string): DashboardServerError {
     return new DashboardServerError("CONFLICT", message);
+  }
+
+  /**
+   * A body larger than an adapter is willing to buffer. Its own code rather
+   * than a 400, because the caller's remedy is different: nothing about the
+   * request was malformed, there was simply too much of it.
+   */
+  static payloadTooLarge(message: string): DashboardServerError {
+    return new DashboardServerError("PAYLOAD_TOO_LARGE", message);
   }
 }
 

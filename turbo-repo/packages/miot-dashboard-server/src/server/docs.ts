@@ -24,7 +24,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { normalizeBasePath } from "../http/handler";
+import { normalizeBasePath, pathnameOf } from "../http/handler";
 
 export const DOCS_PATH = "/docs";
 export const SPEC_PATH = "/openapi.yaml";
@@ -220,14 +220,6 @@ export function createDocsHandler(options: DocsOptions = {}): DocsHandler {
 
 function isDocsPath(pathname: string): boolean {
   return pathname === DOCS_PATH || pathname.startsWith(`${DOCS_PATH}/`);
-}
-
-function pathnameOf(url: string): string {
-  try {
-    return new URL(url).pathname;
-  } catch {
-    return url.split("?")[0] ?? "/";
-  }
 }
 
 function html(body: string): Response {

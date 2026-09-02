@@ -73,21 +73,28 @@ Outside this repo, or from a build rather than from source:
 
 ```bash
 MIOT_DASHBOARD_INSECURE_AUTH=true \
-MIOT_DASHBOARD_SEED=examples/seed.json \
+MIOT_DASHBOARD_SEED=example \
   npx @microboxlabs/miot-dashboard-server
 ```
 
 `PORT`, `HOST` and `MIOT_DASHBOARD_BASE_PATH` are read from the environment.
-The default host is loopback, so a development server is not reachable from
-another machine unless you ask for that.
+`MIOT_DASHBOARD_SEED` is a path to a JSON seed file, resolved from your working
+directory; the single reserved value `example` means the one shipped with the
+package, which is what makes the line above work from anywhere.
 
 `MIOT_DASHBOARD_INSECURE_AUTH` reads the caller's identity straight from
 request headers with no verification, so anyone who can reach the port can
 claim to be anyone. It exists to exercise the API before an identity provider
-is wired up. The server refuses to start with it under `NODE_ENV=production`,
-and refuses to start without it too, because the alternative would be starting
-with no authentication at all. A verifying resolver arrives with P2b, along
-with a Postgres store to replace the in-memory one.
+is wired up, and the server fails closed around it in three directions: it
+refuses to start under `NODE_ENV=production`, it refuses to start **on any
+address but loopback** — reaching the port is being every user in every tenant,
+so the port must not leave the machine — and it refuses to start without it
+too, because the alternative would be starting with no authentication at all.
+A verifying resolver arrives with P2b, along with a Postgres store to replace
+the in-memory one.
+
+`NODE_ENV` is not a security boundary; it is a variable nobody has to set. The
+bind-address check is the one that holds either way.
 
 ### Reading it
 

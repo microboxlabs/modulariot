@@ -33,7 +33,8 @@
   },
   "files": [
     "dist",
-    "contract"
+    "contract",
+    "examples"
   ],
   "scripts": {
     "build": "tsup",

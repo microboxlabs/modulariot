@@ -13,10 +13,18 @@ get {
 docs {
   Every failure in this API uses one envelope: error, status, code, and reason
   on a 403. Nothing here is a framework's default error page.
+
+  Asserted in full, not just on the status: the point of this case is that the
+  envelope is complete and consistent, and a response missing `error` — or
+  carrying a stray `reason` on a 401, where it has no meaning — would have
+  passed a check that only looked at two fields.
 }
 
 assert {
   res.status: eq 401
   res.body.code: eq UNAUTHENTICATED
   res.body.status: eq 401
+  res.body.error: eq Authentication required
+  res.body.reason: isUndefined
+  res.headers['cache-control']: eq no-store
 }

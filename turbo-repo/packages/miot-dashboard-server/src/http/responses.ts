@@ -7,7 +7,22 @@
 
 import { toErrorEnvelope } from "../access/errors";
 
-const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
+/**
+ * `no-store` is not boilerplate here, it is the tenancy guarantee reaching the
+ * cache layer.
+ *
+ * Every path in this API serves a different body depending on the credential
+ * that asked — `/scopes/ops/dashboards/fleet` is a different dashboard for
+ * each tenant, by design. Without an explicit policy, a shared cache or a
+ * browser's back/forward store is free to hand one identity's response to
+ * another, which would defeat the isolation the rest of the package spends its
+ * effort on. `Vary: Authorization` would be weaker: the credential can arrive
+ * in several headers, and a cache that does not know them all still guesses.
+ */
+const JSON_HEADERS = {
+  "content-type": "application/json; charset=utf-8",
+  "cache-control": "no-store",
+};
 
 export function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -17,7 +32,10 @@ export function jsonResponse(body: unknown, status = 200): Response {
 }
 
 export function noContentResponse(): Response {
-  return new Response(null, { status: 204 });
+  return new Response(null, {
+    status: 204,
+    headers: { "cache-control": "no-store" },
+  });
 }
 
 /**

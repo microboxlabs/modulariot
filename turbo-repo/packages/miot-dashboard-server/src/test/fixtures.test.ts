@@ -99,4 +99,55 @@ describe("memoryStore", () => {
     await store.load(ref("acme", "ops", "fleet"));
     expect(store.touched()).toBe(true);
   });
+
+  describe("hands back copies, never its own state", () => {
+    // This store is published for integrators and dev servers, not only for
+    // our tests. A caller holding a reference into the Map can rewrite history
+    // — and a real store, which decodes rows, would never let them. Aliases
+    // here would let the suite pass against behaviour Postgres cannot
+    // reproduce.
+    const target = ref("acme", "ops", "fleet");
+
+    it("does not let a mutated load() move the revision counter", async () => {
+      const store = memoryStore([{ ref: target }]);
+      const loaded = await store.load(target);
+      const stored = loaded?.revision;
+      expect(stored).toBeTypeOf("number");
+
+      // Exactly the mutation that would break optimistic concurrency: bump
+      // the counter under the store and every later If-Match is judged
+      // against a number nobody wrote.
+      (loaded as { revision: number }).revision = 99;
+
+      await expect(store.load(target)).resolves.toMatchObject({
+        revision: stored,
+      });
+    });
+
+    it("does not let a mutated save() result move it either", async () => {
+      const store = memoryStore([{ ref: target }]);
+      const saved = await store.save(target, { v: 1 }, { updatedBy: "alice" });
+      const written = saved.revision;
+      (saved as { revision: number }).revision = 99;
+
+      await expect(store.load(target)).resolves.toMatchObject({
+        revision: written,
+      });
+    });
+
+    it("does not let a pushed getPermissions() grant a role", async () => {
+      const store = memoryStore([
+        {
+          ref: target,
+          assignments: [{ authorityId: "alice", role: "Editor" }],
+        },
+      ]);
+      const assignments = await store.getPermissions(target);
+      assignments.push({ authorityId: "mallory", role: "Coordinator" });
+
+      await expect(store.getPermissions(target)).resolves.toEqual([
+        { authorityId: "alice", role: "Editor" },
+      ]);
+    });
+  });
 });

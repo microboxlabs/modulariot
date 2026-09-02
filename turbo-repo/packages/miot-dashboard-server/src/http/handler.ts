@@ -86,12 +86,16 @@ export function createDashboardHandler(
           return jsonResponse({ data: record?.config ?? null });
         }
         if (method === "PUT") {
-          const config = await readJsonBody(request);
+          // Authorize first. Parsing before this told an unauthenticated
+          // caller whether their JSON was well-formed — a free description of
+          // the request schema, and parsing work done for someone with no
+          // standing to ask for it.
           const decision = await access.authorize(request, {
             scopeId: match.scopeId,
             slug,
             action: "dashboard.save",
           });
+          const config = await readJsonBody(request);
           const expectedRevision = readExpectedRevision(request);
           const saved = await options.store.save(
             refOf(decision.identity.tenantId, match.scopeId, slug),
@@ -146,13 +150,16 @@ export function createDashboardHandler(
           });
         }
         if (method === "PUT") {
-          const body = await readJsonBody(request);
-          const assignments = parseAssignments(body);
+          // Authorize before parsing, as above. This route leaked more than
+          // the other: `parseAssignments` names the offending field and lists
+          // the valid roles, so an unauthenticated caller could read the
+          // permission vocabulary straight out of the 400s.
           const decision = await access.authorize(request, {
             scopeId: match.scopeId,
             slug,
             action: "dashboard.permissions.write",
           });
+          const assignments = parseAssignments(await readJsonBody(request));
           await options.store.setPermissions(
             refOf(decision.identity.tenantId, match.scopeId, slug),
             assignments,
@@ -202,7 +209,14 @@ function requireSlug(match: RouteMatch): string {
   return match.slug;
 }
 
-function pathnameOf(url: string): string {
+/**
+ * The pathname of a request URL, without throwing on a relative one.
+ *
+ * Exported because the standalone server has to read the same string to answer
+ * its probes, and `new URL(request.url)` there would throw before anything
+ * could turn it into a response.
+ */
+export function pathnameOf(url: string): string {
   try {
     return new URL(url).pathname;
   } catch {
@@ -265,7 +279,17 @@ async function readJsonBody(request: Request): Promise<unknown> {
 function readExpectedRevision(request: Request): number | undefined {
   const header = request.headers.get("if-match");
   if (header === null) return undefined;
-  const value = Number(header.replace(/^W\/|"/g, "").trim());
+  const token = header.replace(/^W\/|"/g, "").trim();
+  // `Number("")` is 0, so an empty or quote-only If-Match used to arrive as
+  // "expect revision 0" — which the store reads as "expect this dashboard not
+  // to exist" and answers 409 for a perfectly good save. An absent precondition
+  // is spelled by omitting the header, never by sending an empty one.
+  if (token.length === 0) {
+    throw DashboardServerError.badRequest(
+      "If-Match must be an integer revision; omit the header to write without a precondition",
+    );
+  }
+  const value = Number(token);
   if (!Number.isInteger(value) || value < 0) {
     throw DashboardServerError.badRequest(
       "If-Match must be an integer revision",

@@ -1,15 +1,9 @@
 /**
  * The `ServerDashboardStore` contract, run against every implementation we ship.
  *
- * The point is parity. The in-memory store is what our own tests, the dev
- * server and an integrator's first afternoon all run on, so anything it does
- * that a database does not is a lesson people learn wrong. Running one suite
- * against both is what stops the two from drifting — the last time a store
- * double was written twice, the copy nothing asserted on grew a key-collision
- * bug.
- *
- * Behaviour that is genuinely backend-specific belongs in `sqlite.test.ts`,
- * not here.
+ * The in-memory store is what our tests, the dev server and an integrator's
+ * first afternoon run on, so anything it does that a database does not is a
+ * lesson people learn wrong. Backend-specific behaviour goes in `sqlite.test.ts`.
  */
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -73,8 +67,7 @@ describe.each(BACKENDS)("$name", ({ open }) => {
 
   it("round-trips the config it was handed, untouched", async () => {
     const s = await store();
-    // Deliberately awkward: nesting, an array, a null, a unicode string and a
-    // key order a JSON column type would be free to rewrite.
+    // A key order a JSON column type would be free to rewrite.
     const awkward = {
       version: 2,
       name: "Ünïcode ✅",
@@ -119,7 +112,6 @@ describe.each(BACKENDS)("$name", ({ open }) => {
       expectedRevision: 0,
     });
     expect(created.revision).toBe(1);
-    // Second caller believed the same thing and was wrong.
     await expect(
       s.save(ref, config, { updatedBy: "bo", expectedRevision: 0 }),
     ).rejects.toBeInstanceOf(DashboardServerError);

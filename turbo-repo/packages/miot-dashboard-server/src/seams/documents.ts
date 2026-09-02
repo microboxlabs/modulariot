@@ -1,25 +1,13 @@
 /**
- * Document seam — where the dashboard config bytes actually sit.
+ * Document seam — where the dashboard config bytes sit.
  *
- * Three methods, none of them hard. There is deliberately **no conditional
- * write, no compare-and-swap and no atomicity requirement**, because the
- * metadata store is the only arbiter of who wins a race: a save writes the
- * config at a brand-new key and only then swaps the pointer in the database,
- * so a reader can never reach a key the database has not committed.
- *
- * That is what puts a plain filesystem, a bucket and a database column on
- * equal footing here. It costs orphaned documents when a write crashes or
- * loses a race, which is a garbage-collection problem rather than a
- * correctness one.
- *
- * Keys are opaque to implementations — see `createCompositeStore` for how they
- * are built, and why they carry no caller-supplied path segment.
+ * Deliberately no conditional write and no atomicity requirement: the metadata
+ * store decides who wins a race, so a filesystem, a bucket and a database
+ * column are all equally valid here. Keys are opaque; `createCompositeStore`
+ * builds them.
  */
 export interface DashboardDocumentStore {
-  /**
-   * Write a document. Keys are never reused, so an implementation may assume
-   * it is creating rather than replacing.
-   */
+  /** Keys are never reused, so this always creates rather than replaces. */
   put(key: string, body: Uint8Array): Promise<void>;
 
   /** `null` when the key is absent. */

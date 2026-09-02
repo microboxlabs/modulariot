@@ -1,9 +1,7 @@
 /**
- * The SQLite backing, and the properties that only exist once a real database
- * is underneath: migrations, durability across a restart, and the document
- * bookkeeping the composite promises but cannot demonstrate on its own.
- *
- * Behaviour shared with every other store lives in `store-contract.test.ts`.
+ * What only exists once a real database is underneath: migrations, durability
+ * across a restart, and the document bookkeeping. Shared behaviour lives in
+ * `store-contract.test.ts`.
  */
 
 import { mkdtempSync, rmSync } from "node:fs";
@@ -36,12 +34,9 @@ afterEach(() => {
 });
 
 /**
- * The same assembly `openSqliteStore` performs, with the driver kept in hand.
- *
- * Tests below have to look at the tables the store is managing — how many
- * documents survive a rewrite, what a corrupted row does — and asserting on
- * that through the store's own interface would only prove the store agrees
- * with itself.
+ * What `openSqliteStore` does, with the driver kept in hand: these tests read
+ * the tables directly, since asking the store would only prove it agrees with
+ * itself.
  */
 async function assemble(): Promise<{
   driver: SqlDriver;
@@ -78,8 +73,6 @@ describe("migrations", () => {
   });
 
   it("creates the directory rather than failing on a missing one", async () => {
-    // "unable to open database file" is all SQLite says about a missing
-    // parent, which is a bad first five minutes for anyone.
     const path = join(temporaryDirectory(), "nested", "deeper", "dash.db");
     const opened = await openSqliteStore({ path });
     await opened.close();
@@ -116,8 +109,7 @@ describe("document bookkeeping", () => {
       for (let i = 0; i < 5; i++) {
         await store.save(ref, { ...config, i }, { updatedBy: "ana" });
       }
-      // Every save writes a new key and then collects the one it replaced.
-      // Without that, an inline deployment's database grows with every edit.
+      // Without collection, an inline database grows with every edit.
       expect(await documentCount(driver)).toBe(1);
     } finally {
       await driver.close();
@@ -131,8 +123,7 @@ describe("document bookkeeping", () => {
       await expect(
         store.save(ref, config, { updatedBy: "bo", expectedRevision: 99 }),
       ).rejects.toMatchObject({ code: "CONFLICT" });
-      // The loser uploaded before it knew it had lost; nothing points at that
-      // document, so it must not be left behind.
+      // The loser uploaded before it knew it had lost.
       expect(await documentCount(driver)).toBe(1);
     } finally {
       await driver.close();
@@ -153,8 +144,8 @@ describe("document bookkeeping", () => {
   it("puts no caller-supplied text in the document key", async () => {
     const { driver, store } = await assemble();
     try {
-      // A slug is host-defined and reaches us decoded, so this one is legal as
-      // far as this package is concerned. It must not become a path.
+      // Host-defined and decoded by the time it reaches us, so this is a legal
+      // slug. It must not become a path.
       const hostile = {
         tenantId: "acme",
         scopeId: "../../..",
@@ -177,8 +168,8 @@ describe("document bookkeeping", () => {
     try {
       await store.save(ref, config, { updatedBy: "ana" });
       await driver.all("DELETE FROM dashboard_documents");
-      // Not `null`: reporting an empty dashboard would invite the next save to
-      // overwrite a revision whose content might still be recoverable.
+      // Not `null`: that would invite the next save to overwrite a revision
+      // whose content might still be recoverable.
       await expect(store.load(ref)).rejects.toMatchObject({
         code: "INTERNAL_ERROR",
       });
@@ -199,8 +190,6 @@ describe("permissions in SQL", () => {
          VALUES (?, ?, ?, ?, ?)`,
         [ref.tenantId, ref.scopeId, ref.slug, "mallory", "Superuser"],
       );
-      // Dropping narrows access; passing it through would widen it, and only
-      // one of those is safe to get wrong.
       expect(await store.getPermissions(ref)).toEqual([]);
     } finally {
       await driver.close();
@@ -211,8 +200,7 @@ describe("permissions in SQL", () => {
     const { driver, store } = await assemble();
     try {
       await store.save(ref, config, { updatedBy: "ana" });
-      // The primary key would reject this batch outright, turning a duplicated
-      // id in a request into a 500.
+      // The primary key would otherwise reject the batch.
       await store.setPermissions(ref, [
         { authorityId: "bo", role: "Consumer" },
         { authorityId: "bo", role: "Coordinator" },
@@ -251,8 +239,7 @@ describe("the driver", () => {
     const driver = createSqliteDriver({ path: SQLITE_MEMORY });
     try {
       await runMigrations(driver);
-      // SQLite rejects a second BEGIN outright, so `remove` — which opens one
-      // — would fail the moment anything wrapped it in another.
+      // `remove` opens one, so it would fail inside any outer transaction.
       await driver.transaction(() =>
         driver.transaction(() =>
           driver.all(

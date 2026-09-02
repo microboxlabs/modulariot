@@ -1,15 +1,9 @@
 /**
- * The "inline" document backend: configs live in the metadata database.
+ * The "inline" document backend: configs live in the metadata database, so the
+ * server persists with no second system to provision. The default.
  *
- * This is the default, and the reason is operational rather than technical. A
- * dashboard config is a few kilobytes; requiring a second system to hold it
- * would mean nobody can run this server without provisioning one. Inline makes
- * `npx @microboxlabs/miot-dashboard-server` persist with no dependency and no
- * configuration, and leaves a bucket as a choice for deployments that want one.
- *
- * The body is stored as TEXT rather than a JSON column type: SQLite has no
- * such type, PostgreSQL's would reformat and reorder what it was given, and
- * this package promises to hand back the config it was handed.
+ * Stored as TEXT, not a JSON column type — PostgreSQL's would reorder keys, and
+ * this package hands back the config it was handed.
  */
 
 import type { DashboardDocumentStore } from "../../seams/documents";

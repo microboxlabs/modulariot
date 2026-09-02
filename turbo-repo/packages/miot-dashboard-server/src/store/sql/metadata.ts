@@ -1,16 +1,10 @@
 /**
- * The metadata store, in SQL that both SQLite and PostgreSQL accept.
+ * The metadata store, in SQL both SQLite and PostgreSQL accept.
  *
- * One implementation rather than two, because the entire concurrency surface
- * is three statements and both engines spell them the same way:
- *
- *   create   INSERT … ON CONFLICT DO NOTHING RETURNING *
- *   update   UPDATE … WHERE revision = $expected RETURNING *
- *   force    INSERT … ON CONFLICT DO UPDATE … RETURNING *
- *
- * Each returns the row it wrote, or nothing at all when its precondition did
- * not hold — so "did I win?" is answered by the row count, not by a second
- * read that another writer could slip past.
+ * The whole concurrency surface is three statements — create, update and
+ * force. Each returns the row it wrote, or nothing when its precondition did
+ * not hold, so "did I win?" is the row count rather than a second read another
+ * writer could slip past.
  */
 
 import { isDashboardRole } from "../../access/roles";
@@ -42,8 +36,6 @@ function toRow(raw: RawRow): DashboardMetadataRow {
   return {
     slug: raw.slug,
     name: raw.name,
-    // SQLite hands back whatever was stored; a text revision would break the
-    // arithmetic in the conflict message rather than the comparison in SQL.
     revision: Number(raw.revision),
     documentKey: raw.document_key,
     updatedAt: raw.updated_at,
@@ -58,7 +50,7 @@ const first = (rows: readonly RawRow[]): DashboardMetadataRow | null =>
 export function createSqlMetadataStore(
   driver: SqlDriver,
 ): DashboardMetadataStore {
-  /** The three-part key, in the order every statement below binds it. */
+  /** The three-part key, in the order every statement binds it. */
   const refValues = (ref: ServerDashboardRef): SqlValue[] => [
     ref.tenantId,
     ref.scopeId,
@@ -95,8 +87,7 @@ export function createSqlMetadataStore(
         write.documentKey,
         write.updatedAt,
         write.updatedBy,
-        // Set once, here, and never touched again: the default capability
-        // policy reads it to decide whether a Contributor may edit.
+        // created_by: set once, and no later statement touches it.
         write.updatedBy,
       ],
     );
@@ -174,9 +165,8 @@ export function createSqlMetadataStore(
 
     commit(ref, write, expectedRevision) {
       if (expectedRevision === undefined) return force(ref, write);
-      // Zero means "I believe this does not exist yet", which is a create and
-      // must fail if someone got there first — not an update of revision 0,
-      // a revision no row ever holds.
+      // Zero means "I believe this does not exist yet" — a create that must
+      // fail if someone got there first, not an update of a revision no row holds.
       if (expectedRevision === 0) return create(ref, write);
       return update(ref, write, expectedRevision);
     },
@@ -208,9 +198,8 @@ export function createSqlMetadataStore(
           ORDER BY authority_id`,
         refValues(ref),
       );
-      // A role this build does not recognize is dropped rather than passed
-      // on. Dropping narrows access and passing it on would widen it, and
-      // only one of those two is safe to get wrong.
+      // Dropping an unrecognized role narrows access; passing it on would
+      // widen it, and only one of those is safe to get wrong.
       return rows
         .filter((row) => isDashboardRole(row.role))
         .map((row) => ({
@@ -220,9 +209,8 @@ export function createSqlMetadataStore(
     },
 
     async setPermissions(ref, assignments) {
-      // Last assignment wins for a repeated authority. The table's primary
-      // key would otherwise reject the batch, turning a duplicated id in a
-      // request into a 500 instead of the harmless thing it is.
+      // Last wins for a repeated authority: the primary key would otherwise
+      // turn a duplicated id in a request into a 500.
       const byAuthority = new Map<string, PermissionAssignment>();
       for (const assignment of assignments) {
         byAuthority.set(assignment.authorityId, assignment);

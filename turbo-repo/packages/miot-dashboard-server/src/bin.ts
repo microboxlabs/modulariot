@@ -43,27 +43,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
- * Check the seed's shape before it reaches the seams.
- *
- * `JSON.parse` validates syntax, not structure, so `as SeedFile` used to wave
- * through a `memberships` that was a string or a `dashboards` that was an
- * object — and those then surfaced far away, as an authorization seam behaving
- * strangely rather than as a bad file. The operator's own file, so the answer
- * is a clear refusal at startup, not a runtime surprise.
- *
- * Deliberately hand-written: this package ships no runtime dependencies and
- * the import guard exists to keep it that way. What matters is that a bad file
- * is named as such, not that every leaf is described twice.
- */
-/**
- * The bundled example seed, for `MIOT_DASHBOARD_SEED=example`.
- *
- * Any other value is a filesystem path resolved from the caller's working
- * directory, which is what makes this reserved word worth having: the
- * documented `npx` line used to say `examples/seed.json`, and that only ever
- * worked from inside this repository. Two candidates because the module sits
- * one level below the package root when running from source and again when
- * running from a build, but a bundler is free to place it either way.
+ * The bundled example seed, for `MIOT_DASHBOARD_SEED=example`; any other value
+ * is a path from the caller's working directory. Two candidates because the
+ * module sits one or two levels below the package root depending on the build.
  */
 function bundledSeedPath(): string | null {
   const here = dirname(fileURLToPath(import.meta.url));
@@ -93,6 +75,7 @@ function resolveSeedPath(seed: string): string {
   return bundled;
 }
 
+/** `JSON.parse` validates syntax, not shape; a bad seed must fail at startup. */
 function readSeed(seed: string | undefined): SeedFile {
   if (seed === undefined) return {};
   const path = resolveSeedPath(seed);
@@ -159,12 +142,9 @@ interface AssembledStore {
 }
 
 /**
- * Build the configured store, and seed it only where seeding means anything.
- *
- * The memory store takes its seed at construction. A persistent one cannot:
- * re-applying a seed on every boot would overwrite whatever people had done
- * since. So a dashboard is written only when its slug is absent, which makes
- * the seed a first-run fixture rather than a scheduled data loss.
+ * A persistent store cannot take a seed at construction the way the memory one
+ * does — re-applying it every boot would overwrite whatever people had done
+ * since — so a dashboard is written only where its slug is absent.
  */
 async function openStore(
   config: ServerConfig,
@@ -226,8 +206,7 @@ async function main(): Promise<void> {
     process.stdout.write(
       `${JSON.stringify({ level: "info", msg: "shutting down", signal })}\n`,
     );
-    // Listener first, then the database: closing the store while a request is
-    // still in flight would fail that request for no reason.
+    // Listener first: closing the store under an in-flight request fails it.
     running
       .close()
       .then(() => assembled.close())

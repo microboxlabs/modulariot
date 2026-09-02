@@ -16,11 +16,7 @@ export interface ServerConfig {
    * explicitly set, and refused outright when NODE_ENV is production.
    */
   insecureAuth: boolean;
-  /**
-   * Where dashboards live. `memory` forgets everything on restart and is the
-   * default because it needs nothing; `sqlite` persists to one file and needs
-   * nothing either, which is what makes it a deployment rather than a demo.
-   */
+  /** `memory` forgets everything on restart; `sqlite` persists to one file. */
   store: StoreKind;
   /** Database file for the sqlite store. Ignored by the memory store. */
   sqlitePath: string;
@@ -33,11 +29,7 @@ export interface ServerConfig {
 export const STORE_KINDS = ["memory", "sqlite"] as const;
 export type StoreKind = (typeof STORE_KINDS)[number];
 
-/**
- * Default database file — relative, and deliberately neither a hostname nor a
- * credential. It is the one piece of storage configuration that can carry a
- * default without one deployment quietly inheriting another's.
- */
+/** Relative, and deliberately neither a hostname nor a credential. */
 export const DEFAULT_SQLITE_PATH = "./data/dashboards.db";
 
 export class ConfigError extends Error {}

@@ -1,10 +1,6 @@
 /**
- * The standalone server, persisting for real.
- *
- * Everything else about the store is tested at the seam. This runs the whole
- * stack over a socket and then restarts it, because "the data is still there
- * after a deploy" is the one claim a unit test cannot make — and it is the
- * claim that distinguishes this from the in-memory server we had yesterday.
+ * The whole stack over a socket, then restarted. "The data is still there after
+ * a deploy" is the one claim a unit test cannot make.
  */
 
 import { mkdtempSync, rmSync } from "node:fs";
@@ -88,8 +84,7 @@ describe("a restart", () => {
       expect(loaded.status).toBe(200);
       expect(await loaded.json()).toEqual({ data: config });
 
-      // And the revision survived too, so a client holding an ETag from
-      // before the restart is not told its write conflicts.
+      // The revision survived too, so an ETag from before the restart still works.
       const conflicting = await fetch(
         `${second.running.url}/scopes/ops/dashboards/fleet`,
         {
@@ -120,9 +115,8 @@ describe("a restart", () => {
 
     const second = await boot();
     try {
-      // Same scope id, different tenant on the credential. The scope authority
-      // has no membership for them, so this is a 403 rather than a 404 — the
-      // two must stay indistinguishable from outside.
+      // Same scope id, different tenant. 403 rather than 404: the two stay
+      // indistinguishable from outside.
       const theirs = await fetch(
         `${second.running.url}/scopes/ops/dashboards/private`,
         { headers: { ...AS_ANA, "x-dev-tenant": "globex" } },

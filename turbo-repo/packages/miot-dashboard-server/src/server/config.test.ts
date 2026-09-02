@@ -28,8 +28,6 @@ describe("readServerConfig", () => {
     expect(() =>
       readServerConfig({ ...base, MIOT_DASHBOARD_STORE: "postgres" }),
     ).toThrowError(/not supported/i);
-    // Naming the alternatives, because the failure is at startup and the
-    // operator has no other way to discover what this build can do.
     expect(() =>
       readServerConfig({ ...base, MIOT_DASHBOARD_STORE: "postgres" }),
     ).toThrowError(/memory, sqlite/);
@@ -59,9 +57,8 @@ describe("readServerConfig", () => {
     });
 
     it("carries no hostname or credential in any default", () => {
-      // The one storage default that exists is a relative path. A default
-      // pointing at a real database is how one deployment ends up writing to
-      // another's.
+      // A default pointing at a real database is how one deployment ends up
+      // writing to another's.
       expect(DEFAULT_SQLITE_PATH.startsWith("./")).toBe(true);
       expect(DEFAULT_SQLITE_PATH).not.toMatch(/:\/\/|@/);
     });

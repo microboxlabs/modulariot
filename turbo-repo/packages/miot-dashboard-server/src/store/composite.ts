@@ -1,21 +1,11 @@
 /**
  * One `ServerDashboardStore` out of a database and a blob store.
  *
- * The write protocol is the whole design, and the order matters:
- *
- *   1. `put` the config at a **brand-new key**. Documents are never overwritten.
- *   2. Compare-and-swap the metadata row to point at that key.
- *
- * Because step 2 is the only arbiter, a reader can only ever reach a key the
- * database has already committed — so it never observes a partial write, and
- * the document store needs no conditional write of its own. A crash between
- * the two steps, or a lost race in step 2, leaves an **orphaned document**
- * rather than a corrupted dashboard. That trade is deliberate: orphans are a
- * collection problem, and a torn config would be a data-loss one.
- *
- * The normal paths clean up after themselves — a superseded document is
- * deleted after a successful swap, and a losing writer deletes its own — so
- * only crashes and races leave anything behind for a sweep to find.
+ * A save puts the config at a brand-new key, then compare-and-swaps the
+ * metadata row to point at it. The swap is the only arbiter, so a reader never
+ * reaches an uncommitted key and the document store needs no conditional
+ * write. A crash or a lost race leaves an orphaned document rather than a
+ * corrupted dashboard; the normal paths collect their own.
  */
 
 import { DashboardServerError } from "../access/errors";
@@ -36,41 +26,23 @@ export interface CompositeStoreOptions {
   now?: () => Date;
   /** Key factory. Overridable so tests can make keys predictable. */
   newDocumentKey?: (ref: ServerDashboardRef) => string;
-  /**
-   * Called when a document could not be deleted and has been left behind.
-   *
-   * The alternative to a hook here is swallowing the error in silence, which
-   * is how a bucket fills up without anyone finding out. Failing the request
-   * would be worse: by the time this runs, the caller's write has already
-   * succeeded or already lost, and neither outcome changes.
-   */
+  /** Called when a document could not be deleted and has been left behind. */
   onOrphan?: (key: string, error: unknown) => void;
 }
 
 /**
- * `<tenantId>/<uuid>.json`, and deliberately nothing else.
- *
- * No slug and no scope, because a caller-supplied path segment is a traversal
- * against a filesystem-backed document store — `slug = "../../etc/x"` is a
- * legal slug as far as this package is concerned. The database holds the exact
- * key, so the path buys no lookup ability it would be worth taking a risk for.
- *
- * The tenant prefix survives because it is worth something the key alone is
- * not: a bucket prefix policy can enforce tenant isolation underneath us,
- * independently of this code being correct. It is encoded, so a tenant id
- * containing a slash stays one path segment.
+ * `<tenantId>/<uuid>.json`. No slug or scope: a caller-supplied path segment is
+ * a traversal against a filesystem-backed store, and the database holds the
+ * exact key anyway. The tenant prefix stays so a bucket prefix policy can
+ * enforce isolation underneath us; it is encoded to keep it one segment.
  */
 function defaultDocumentKey(ref: ServerDashboardRef): string {
   return `${encodeURIComponent(ref.tenantId)}/${crypto.randomUUID()}.json`;
 }
 
 /**
- * The display name for the dashboard list.
- *
- * Read off the config when it carries a usable one, because `list` must not
- * have to fetch a document per row — that N+1 is the reason the name is
- * denormalized into the database at all. This is not validation: a config
- * without a name is not malformed, it just lists under its slug.
+ * Denormalized into the row so `list` never fetches a document per entry. Not
+ * validation: a config without a name is fine, it just lists under its slug.
  */
 export function dashboardDisplayName(config: unknown, slug: string): string {
   if (typeof config === "object" && config !== null) {
@@ -83,9 +55,7 @@ export function dashboardDisplayName(config: unknown, slug: string): string {
 function encode(config: unknown): Uint8Array {
   let json: string;
   try {
-    // `?? null` because `JSON.stringify(undefined)` is `undefined`, not a
-    // string, and a store that wrote the four bytes "unde" would be worse
-    // than one that refuses.
+    // `JSON.stringify(undefined)` is `undefined`, not a string.
     json = JSON.stringify(config ?? null);
   } catch (error) {
     throw DashboardServerError.badRequest(
@@ -100,9 +70,7 @@ function decode(key: string, body: Uint8Array): unknown {
   try {
     return JSON.parse(text);
   } catch {
-    // The row points at a document that is not JSON. Reporting the key rather
-    // than the content: the content is a tenant's data and this message may
-    // reach a log.
+    // The key, never the content: that is a tenant's data and this reaches logs.
     throw new DashboardServerError(
       "INTERNAL_ERROR",
       `Stored dashboard document ${key} is not valid JSON`,
@@ -152,11 +120,9 @@ export function createCompositeStore(
       if (row === null) return null;
       const body = await documents.get(row.documentKey);
       if (body === null) {
-        // A committed row pointing at a missing document. Never reachable by
-        // the write protocol above, so it means the document store lost data
-        // or a collector deleted something it should not have. Say so rather
-        // than reporting the dashboard as empty, which would invite the next
-        // save to overwrite a revision that still exists somewhere.
+        // Unreachable by the write protocol, so the document store lost data.
+        // Reporting an empty dashboard would invite the next save to overwrite
+        // a revision that may still be recoverable.
         throw new DashboardServerError(
           "INTERNAL_ERROR",
           `Dashboard document ${row.documentKey} is missing`,
@@ -188,11 +154,9 @@ export function createCompositeStore(
       );
 
       if (row === null) {
-        // We lost. Our document is unreachable — nothing points at it — so
-        // collect it now rather than leaving it for a sweep.
+        // Nothing points at our document now.
         await forget(key);
-        // Re-read for the message rather than trusting `previous`: the whole
-        // point of losing is that someone else moved the revision.
+        // Re-read rather than trust `previous`: someone else moved the revision.
         const found = (await metadata.read(ref))?.revision ?? 0;
         throw DashboardServerError.conflict(
           `Dashboard was modified by someone else (expected revision ${saveOptions.expectedRevision}, found ${found})`,

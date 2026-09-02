@@ -1,20 +1,10 @@
 /**
- * Metadata seam — the relational half of persistence.
+ * Metadata seam — the relational half of persistence, paired with a
+ * `DashboardDocumentStore` by `createCompositeStore`.
  *
- * `ServerDashboardStore` is what a host implements and what the HTTP layer
- * calls. This seam sits *underneath* it: paired with a `DashboardDocumentStore`
- * by `createCompositeStore`, the two make one `ServerDashboardStore` out of a
- * database and a blob store.
- *
- * The split exists because the two halves want different things. Listing a
- * scope needs an indexed query over names and revisions; storing a config
- * needs a place to put a few kilobytes of opaque JSON. A database does the
- * first well, and object storage does the second cheaply.
- *
- * **All optimistic concurrency lives here.** `commit` is a compare-and-swap
- * and the only arbiter of who wins a race. That is what lets the document
- * side stay a write-once key-value store with no conditional writes, which in
- * turn is what makes a plain filesystem a safe backend rather than a footgun.
+ * All optimistic concurrency lives here: `commit` is a compare-and-swap and
+ * the only arbiter of who wins a race, which is what lets the document side
+ * stay a write-once key-value store.
  */
 
 import type { PermissionAssignment, ServerDashboardRef } from "./store";
@@ -50,13 +40,9 @@ export interface DashboardMetadataStore {
   list(tenantId: string, scopeId: string): Promise<DashboardMetadataRow[]>;
 
   /**
-   * Compare-and-swap the row, incrementing `revision`.
-   *
-   * `expectedRevision` is the revision the caller believes it is replacing:
-   * `0` for a create, a positive number for an update, `undefined` to write
-   * whatever is there. A precondition failure returns **`null` rather than
-   * throwing**, because at this layer it is an outcome, not an error — the
-   * composite is what knows it becomes a 409.
+   * Compare-and-swap the row, incrementing `revision`. `expectedRevision` is
+   * `0` for a create, positive for an update, `undefined` to write regardless.
+   * A precondition failure returns `null`; the composite turns that into a 409.
    */
   commit(
     ref: ServerDashboardRef,

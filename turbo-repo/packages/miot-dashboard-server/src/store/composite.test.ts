@@ -1,10 +1,7 @@
 /**
- * The composite's own promises, checked against halves that do as they are
- * told — including failing.
- *
- * The write ordering is the one thing here that cannot be observed from the
- * outside and cannot be got wrong safely, so it is asserted directly rather
- * than inferred from a passing round trip.
+ * The composite against halves that do as they are told, including failing.
+ * The write ordering cannot be observed from outside, so it is asserted
+ * directly rather than inferred from a passing round trip.
  */
 
 import { describe, expect, it } from "vitest";
@@ -97,9 +94,8 @@ describe("the write protocol", () => {
 
     await store.save(ref, { name: "Fleet" }, { updatedBy: "ana" });
 
-    // The order is the entire safety argument: commit-then-put would leave a
-    // committed row pointing at a document that does not exist yet, and every
-    // reader in that window would fail.
+    // Commit-then-put would leave a committed row pointing at a document that
+    // does not exist yet, and every reader in that window would fail.
     expect(fake.calls.indexOf("put:acme/new.json")).toBeLessThan(
       fake.calls.indexOf("commit"),
     );
@@ -135,8 +131,7 @@ describe("the write protocol", () => {
       onOrphan: (key) => orphans.push(key),
     });
 
-    // The caller's outcome was already decided by the commit; a failed cleanup
-    // must not turn a 409 into a 500, and must not vanish either.
+    // A failed cleanup must not turn a 409 into a 500, nor vanish silently.
     await expect(
       store.save(
         ref,
@@ -173,8 +168,6 @@ describe("the write protocol", () => {
 
     await store.save(ref, undefined, { updatedBy: "ana" });
     const body = fake.bodies.get("acme/undef.json");
-    // `JSON.stringify(undefined)` is not a string; writing it unguarded puts
-    // the literal text "undefined" in a document that claims to be JSON.
     expect(new TextDecoder().decode(body)).toBe("null");
   });
 });
@@ -213,8 +206,7 @@ describe("reading", () => {
         updatedBy: "ana",
       },
     });
-    // A corrupted document is still a tenant's data, and this message reaches
-    // logs.
+    // A corrupted document is still a tenant's data, and this reaches logs.
     fake.bodies.set(
       "acme/corrupt.json",
       new TextEncoder().encode("SECRET-CUSTOMER-NAME"),

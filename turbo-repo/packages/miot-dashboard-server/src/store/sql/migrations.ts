@@ -1,15 +1,8 @@
 /**
- * Schema and migration runner.
+ * Schema and migration runner. Hand-rolled because the package ships no runtime
+ * dependencies, and this is an ordered list plus a bookkeeping table.
  *
- * Hand-rolled rather than a framework, for the same reason the package has no
- * runtime dependencies: a migration runner is an ordered list, a table of what
- * has been applied, and a transaction. A library that a host mounts should not
- * drag a migration tool into that host's dependency tree to get those three
- * things.
- *
- * Rules for adding one: **append, never edit.** A shipped migration has run
- * somewhere, so changing it changes nothing on the databases that matter and
- * silently diverges the ones created later.
+ * Append, never edit: a shipped migration has already run somewhere.
  */
 
 import type { SqlDriver } from "./driver";
@@ -21,10 +14,8 @@ export interface Migration {
 }
 
 /**
- * Types are the portable subset on purpose. `TEXT` rather than `VARCHAR(n)`
- * because host-defined ids have no length we get to pick; timestamps as
- * ISO-8601 `TEXT` because SQLite has no date type and a string round-trips
- * identically through both engines.
+ * `TEXT` throughout: host-defined ids have no length we get to pick, and SQLite
+ * has no date type, so ISO-8601 strings round-trip identically on both engines.
  */
 export const MIGRATIONS: readonly Migration[] = [
   {
@@ -43,8 +34,7 @@ export const MIGRATIONS: readonly Migration[] = [
          created_by   TEXT,
          PRIMARY KEY (tenant_id, scope_id, slug)
        )`,
-      // No separate index for listing a scope: the primary key's leading
-      // columns are (tenant_id, scope_id), which both engines can scan.
+      // Listing a scope rides the primary key's leading columns.
       `CREATE TABLE dashboard_permissions (
          tenant_id    TEXT NOT NULL,
          scope_id     TEXT NOT NULL,
@@ -53,10 +43,7 @@ export const MIGRATIONS: readonly Migration[] = [
          role         TEXT NOT NULL,
          PRIMARY KEY (tenant_id, scope_id, slug, authority_id)
        )`,
-      // The "inline" document backend. Present in the schema even when
-      // documents live in a bucket, because an empty table costs nothing and
-      // a database that can be switched to inline without a migration is
-      // easier to operate than one that cannot.
+      // The "inline" document backend; empty when documents live elsewhere.
       `CREATE TABLE dashboard_documents (
          document_key TEXT PRIMARY KEY,
          body         TEXT NOT NULL
@@ -72,11 +59,9 @@ const MIGRATIONS_TABLE = `CREATE TABLE IF NOT EXISTS schema_migrations (
  )`;
 
 /**
- * Apply every migration this build knows and the database has not seen.
- *
- * Each runs in its own transaction with its bookkeeping row, so an
- * interrupted upgrade leaves the database at a version that actually exists
- * rather than half of one.
+ * Apply every migration this build knows and the database has not seen. Each
+ * runs in its own transaction with its bookkeeping row, so an interrupted
+ * upgrade leaves a version that exists rather than half of one.
  */
 export async function runMigrations(
   driver: SqlDriver,

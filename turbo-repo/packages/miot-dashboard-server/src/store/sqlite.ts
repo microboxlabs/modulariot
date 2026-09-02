@@ -1,9 +1,6 @@
 /**
- * A persistent `ServerDashboardStore` in one call.
- *
- * Opens the database, brings the schema up to date, and assembles the metadata
- * and document halves into the composite. This is the seam a deployment
- * actually names; everything under `store/sql/` is the machinery it wires.
+ * A persistent `ServerDashboardStore` in one call: open, migrate, and assemble
+ * the metadata and document halves. This is what a deployment names.
  */
 
 import { mkdirSync } from "node:fs";
@@ -22,10 +19,7 @@ export const SQLITE_MEMORY = ":memory:";
 export interface SqliteStoreOptions {
   /** File path, or `SQLITE_MEMORY`. Parent directories are created. */
   path: string;
-  /**
-   * Where config bodies go. Defaults to the same database, which is what
-   * makes a single file a complete deployment.
-   */
+  /** Where config bodies go. Defaults to the same database. */
   documents?: DashboardDocumentStore;
   now?: () => Date;
   newDocumentKey?: (ref: ServerDashboardRef) => string;
@@ -44,16 +38,13 @@ export async function openSqliteStore(
 ): Promise<OpenedStore> {
   const { path } = options;
   if (path !== SQLITE_MEMORY) {
-    // A missing directory is the most common first-run failure, and the error
-    // SQLite gives for it says only "unable to open database file".
+    // SQLite's error for a missing parent is only "unable to open database file".
     mkdirSync(dirname(path), { recursive: true });
   }
 
   const driver = createSqliteDriver({ path });
   try {
     const applied = await runMigrations(driver);
-    // Built after the migrations, because the inline backend's table is one
-    // of the things they create.
     const documents = options.documents ?? createSqlDocumentStore(driver);
     const store = createCompositeStore({
       metadata: createSqlMetadataStore(driver),
@@ -69,15 +60,12 @@ export async function openSqliteStore(
       store,
       applied,
       async close() {
-        // Only a caller-supplied document store gets closed here; the inline
-        // one is the driver, and closing it twice is not the driver's problem
-        // to guard against.
+        // The inline document store is the driver; only a supplied one needs this.
         if (options.documents?.close) await options.documents.close();
         await driver.close();
       },
     };
   } catch (error) {
-    // Opening left a handle behind; a failed migration must not also leak it.
     await driver.close();
     throw error;
   }

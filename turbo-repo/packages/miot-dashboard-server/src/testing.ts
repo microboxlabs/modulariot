@@ -147,11 +147,8 @@ export function createMemoryStore(
       };
       entries.set(key(ref), {
         ref,
-        // Derived from the config, exactly as a real store does it, rather
-        // than frozen at whatever the entry was first created with. Keeping
-        // the cheap version here would have meant a rename showing up in the
-        // list against a database and not against this — a divergence tests
-        // written on this store would never see.
+        // Derived as a real store does it: freezing the name here would mean
+        // a rename showing up against a database and not against this.
         name: dashboardDisplayName(config, ref.slug),
         record,
       });

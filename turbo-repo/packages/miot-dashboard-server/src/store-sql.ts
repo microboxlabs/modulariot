@@ -1,17 +1,10 @@
 /**
- * @microboxlabs/miot-dashboard-server/store-sql — persistence.
+ * @microboxlabs/miot-dashboard-server/store-sql — persistence, in its own entry
+ * because it is the only part of the package that assumes a database.
  *
- * Its own entry because it is the only part of the package that assumes a
- * database. A host with its own `ServerDashboardStore` never loads this, and
- * a host that wants ours does not have to take the HTTP layer or the listener
- * with it.
- *
- * The shape, in one paragraph: a `DashboardMetadataStore` (a database, holding
- * one row per dashboard plus its permissions) and a `DashboardDocumentStore`
- * (write-once bytes) are combined by `createCompositeStore` into the seam the
- * rest of the package talks to. All optimistic concurrency lives in the
- * metadata half, which is what lets the document half be anything that can
- * store a key and give it back.
+ * A `DashboardMetadataStore` (rows and permissions) and a
+ * `DashboardDocumentStore` (write-once bytes) are combined by
+ * `createCompositeStore` into one `ServerDashboardStore`.
  */
 
 export { createCompositeStore } from "./store/composite";

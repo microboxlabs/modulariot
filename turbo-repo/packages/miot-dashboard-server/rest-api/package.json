@@ -1,0 +1,8 @@
+{
+  "name": "@microboxlabs/miot-dashboard-server-rest-api",
+  "private": true,
+  "description": "Bruno collection for the dashboard server API. This file exists so that `npx` run from here keeps its working directory here: npx resets the working directory to the nearest package.json, and the Bruno CLI resolves the collection from the working directory, so without it the run fails with 'You can run only at the root of a collection'.",
+  "scripts": {
+    "test:api": "bru run --env local"
+  }
+}

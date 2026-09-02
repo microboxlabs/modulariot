@@ -1,0 +1,22 @@
+meta {
+  name: No credential is 401
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/scopes/{{scopeId}}/dashboards
+  body: none
+  auth: none
+}
+
+docs {
+  Every failure in this API uses one envelope: error, status, code, and reason
+  on a 403. Nothing here is a framework's default error page.
+}
+
+assert {
+  res.status: eq 401
+  res.body.code: eq UNAUTHENTICATED
+  res.body.status: eq 401
+}

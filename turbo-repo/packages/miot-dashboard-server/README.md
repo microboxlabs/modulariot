@@ -13,12 +13,86 @@ package.
 
 ## Status
 
-**P1 — access control.** The seams are declared and the first service behind
-them is in: `createAccessControl`, the single point where identity, tenancy
-and capabilities are enforced. Persistence, the query proxy and embed tokens
-land in later phases and all go through it.
+**P2a — HTTP layer and a runnable server.** Access control from P1 is now
+reachable over HTTP, in both shapes the project supports: mount the library in
+a server you already have, or run the server this package ships. The query
+proxy, datasource administration and embed tokens land in later phases and all
+go through the same authorization point.
+
+## Two shapes, one codebase
+
+Integrate into an existing backend, or run the server when there is nothing to
+integrate into. Neither is a fallback for the other, and no logic is duplicated
+between them.
+
+| Layer                                 | Entry             | Assumes   |
+| ------------------------------------- | ----------------- | --------- |
+| Core: seams, access control           | `.`               | nothing   |
+| HTTP handler: `Request` to `Response` | `./http`          | Web types |
+| In-memory seams                       | `./testing`       | nothing   |
+| Server: listener, probes, lifecycle   | `./server`, `bin` | Node      |
+
+Each layer is usable without the one below it in this table. A host that mounts
+the handler never pulls in a listener; a standalone deployment never pulls in a
+framework.
+
+### Mounting it
+
+```ts
+import { createDashboardHandler } from "@microboxlabs/miot-dashboard-server/http";
+
+const handle = createDashboardHandler({
+  identity: myIdentityResolver,
+  scopes: myScopeAuthority,
+  store: myDashboardStore,
+  basePath: "/api/dashboard",
+});
+
+// Next route handlers already take and return Web Request/Response:
+export const GET = handle;
+export const PUT = handle;
+```
+
+### Running it
+
+```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true \
+MIOT_DASHBOARD_SEED=examples/seed.json \
+PORT=3071 \
+  npx @microboxlabs/miot-dashboard-server
+```
+
+```bash
+curl -H 'x-dev-user: alice' -H 'x-dev-tenant: acme' \
+  http://127.0.0.1:3071/scopes/ops/dashboards
+```
+
+`MIOT_DASHBOARD_INSECURE_AUTH` reads the caller's identity straight from
+request headers with no verification, so anyone who can reach the port can
+claim to be anyone. It exists to exercise the API before an identity provider
+is wired up. The server refuses to start with it under `NODE_ENV=production`,
+and refuses to start without it too, because the alternative would be starting
+with no authentication at all. A verifying resolver arrives with P2b, along
+with a Postgres store to replace the in-memory one.
+
+### Exercising it
+
+`rest-api/` is a Bruno collection covering the whole surface, including the
+cases worth seeing fail: an unauthenticated call, a cross-tenant probe, a
+Consumer's write, a stale revision.
+
+```bash
+cd rest-api && npx @usebruno/cli run --env local
+```
+
+Run it against the seeded dev server above. The seed puts a dashboard at the
+same scope and slug in two different tenants, so an isolation mistake shows up
+as a failing assertion rather than as a subtle bug.
 
 ## The seams
+
+A host mounting the library implements these. The standalone server supplies
+in-memory defaults from `./testing`, which are for development only.
 
 | Seam                   | Answers                                                      |
 | ---------------------- | ------------------------------------------------------------ |
@@ -109,12 +183,20 @@ One envelope, from every adapter:
 - No Alfresco. Alfresco is one host's `ServerDashboardStore` implementation,
   supplied from outside, never something this package knows about.
 
-## Planned entries
+## Entries
 
-| Entry       | Lands                                                                          |
-| ----------- | ------------------------------------------------------------------------------ |
-| `.`         | now — seams and access control; other services land behind them phase by phase |
-| `./next`    | P2, with the persistence strangle                                              |
-| `./fastify` | P8                                                                             |
+| Entry       | Holds                                                |
+| ----------- | ---------------------------------------------------- |
+| `.`         | seams, access control, roles, errors                 |
+| `./http`    | the fetch-shaped handler                             |
+| `./testing` | in-memory seams, for dev servers and for integrators |
+| `./server`  | Node listener, probes, config                        |
+| `bin`       | `npx @microboxlabs/miot-dashboard-server`            |
 
-Separate entries so mounting one framework never drags in the other.
+Separate entries so that mounting the library never drags in a listener, and
+running the server never drags in a framework.
+
+The handler is written against Web standard `Request` and `Response` rather
+than any framework's types. Next route handlers already speak those, so a Next
+binding is a re-export rather than a translation, and no framework's version
+churn reaches consumers.

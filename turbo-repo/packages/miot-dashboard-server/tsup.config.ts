@@ -1,11 +1,25 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  // P0 ships the framework-agnostic core only. The `./next` route-handler
-  // mount lands with P2 (persistence strangle) and `./fastify` with P8; both
-  // get their own entry here rather than being bundled into ".", so a host
-  // never pulls in a framework it doesn't use.
-  entry: ["src/index.ts"],
+  // One entry per layer, so a consumer pays only for what it mounts.
+  //
+  //   index   — core: seams, access control (no HTTP, no framework)
+  //   http    — fetch-shaped handler (Web types only)
+  //   testing — in-memory seams; shippable, no test framework imported
+  //   server  — Node listener, probes, lifecycle (the only Node-assuming entry)
+  //
+  // The Next adapter gets its own entry when it lands; keeping these apart is
+  // what stops a host that mounts the library from pulling in a listener, and
+  // a standalone deployment from pulling in a framework.
+  // All entries sit directly in src/, so the bundler emits them flat into
+  // dist/ rather than mirroring a subdirectory into the published paths.
+  entry: [
+    "src/index.ts",
+    "src/http.ts",
+    "src/testing.ts",
+    "src/server.ts",
+    "src/bin.ts",
+  ],
   format: ["esm"],
   outDir: "dist",
   dts: true,

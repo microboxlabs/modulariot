@@ -14,15 +14,32 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./http": {
+      "types": "./dist/http.d.ts",
+      "import": "./dist/http.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
     }
   },
+  "bin": {
+    "miot-dashboard-server": "./dist/bin.js"
+  },
   "files": [
-    "dist"
+    "dist",
+    "contract"
   ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
+    "start": "node dist/bin.js",
     "lint": "eslint .",
     "check-types": "tsc --noEmit && node scripts/guard-imports.mjs",
     "guard": "node scripts/guard-imports.mjs"
@@ -30,6 +47,7 @@
   "devDependencies": {
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
+    "@types/node": "^20.19.0",
     "tsup": "^8.0.0",
     "typescript": "5.8.2",
     "vitest": "^4.0.18"

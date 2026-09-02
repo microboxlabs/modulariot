@@ -1,10 +1,10 @@
 /**
  * @microboxlabs/miot-dashboard-server — package entry.
  *
- * P0 surface: the four seams a host implements. Services (persistence,
- * tenancy enforcement, query proxy, embed tokens) land phase by phase behind
- * these interfaces, so a host that implements them today keeps compiling as
- * the package fills in.
+ * P0 declared the seams a host implements. P1 adds the first service behind
+ * them: access control, the single point where identity, tenancy and
+ * capabilities are enforced. Later services (persistence, query proxy, embed
+ * tokens) land phase by phase and all go through it.
  *
  * Framework adapters are deliberately absent from this entry — `./next`
  * (P2) and `./fastify` (P8) get their own so mounting one never drags in the
@@ -18,6 +18,7 @@ export {
   type DashboardPrincipalKind,
   type DashboardIdentity,
   type IdentityResolver,
+  type ScopeAuthority,
 } from "./seams/identity";
 
 // ---- Seam: persistence ----
@@ -26,7 +27,6 @@ export type {
   DashboardSummary,
   DashboardRecord,
   SaveOptions,
-  DashboardRole,
   PermissionAssignment,
   ServerDashboardStore,
 } from "./seams/store";
@@ -47,3 +47,44 @@ export {
   type AuditEvent,
   type AuditSink,
 } from "./seams/audit";
+
+// ---- Roles & capabilities ----
+export {
+  DASHBOARD_ROLES,
+  FULL_CAPABILITIES,
+  isDashboardRole,
+  roleAtLeast,
+  highestRole,
+  capabilitiesForRole,
+  intersectCapabilities,
+  type DashboardRole,
+  type RoleCapabilityOptions,
+} from "./access/roles";
+
+export {
+  roleCapabilityPolicy,
+  type CapabilityContext,
+  type CapabilityPolicy,
+} from "./access/capabilities";
+
+// ---- Errors ----
+export {
+  DashboardServerError,
+  STATUS_BY_CODE,
+  isDashboardServerError,
+  toErrorEnvelope,
+  type DashboardErrorCode,
+  type ForbiddenReason,
+  type ErrorEnvelope,
+} from "./access/errors";
+
+// ---- Access control ----
+export {
+  createAccessControl,
+  type AccessControl,
+  type AccessControlOptions,
+  type AccessDecision,
+  type AccessTarget,
+  type DashboardAccess,
+  type DashboardAction,
+} from "./access/access-control";

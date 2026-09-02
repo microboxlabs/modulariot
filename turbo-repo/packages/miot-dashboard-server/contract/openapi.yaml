@@ -1,0 +1,168 @@
+# Dashboard wire contract — server-defined surface (P1).
+#
+# Companion to the draft at packages/miot-dashboard-ui/contract/openapi.yaml,
+# which was written from the client seams outward and stops where the client
+# seams stop. This file holds what only the server side defines: the error
+# envelope every endpoint returns, and the capabilities endpoint (Seam F's
+# server half), which the client draft is missing.
+#
+# The two fold into one document once the shared contract package exists —
+# see "Open decisions" in the build todo. Until then, paths, parameters and
+# vocabulary here are identical to the client draft so the merge is a
+# concatenation, not a reconciliation.
+openapi: 3.1.0
+info:
+  title: MIOT Dashboard API — server-defined surface
+  version: 0.1.0-draft
+  description: >
+    Endpoints and shapes defined by @microboxlabs/miot-dashboard-server that
+    the client draft does not cover. Every endpoint in either document resolves
+    the caller's tenant from the credential and returns the Error envelope
+    below on failure.
+  x-status: draft
+
+security:
+  - bearerAuth: []
+  - embedToken: []
+
+paths:
+  /scopes/{scopeId}/dashboards/{slug}/capabilities:
+    get:
+      operationId: getDashboardCapabilities
+      summary: The caller's effective capabilities on one dashboard
+      description: >
+        Server half of the UI package's Seam F. Replaces the host-specific
+        access endpoint an embed host would otherwise have to reimplement.
+        The answer is the caller's role-derived capabilities intersected with
+        the ceiling their credential carries; an embed token always resolves
+        read-only. A caller who cannot see the dashboard at all receives 403,
+        not an all-false set: the two mean different things to a UI.
+      parameters:
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/slug"
+      responses:
+        "200":
+          description: Effective capabilities.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Capabilities"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Host-app session/JWT auth.
+    embedToken:
+      type: apiKey
+      in: header
+      name: X-Miot-Embed-Token
+      description: Signed embed token carrying tenant scope + capabilities.
+
+  parameters:
+    scopeId:
+      name: scopeId
+      in: path
+      required: true
+      schema: { type: string }
+      description: >
+        Host-defined container (site, workspace, folder). Checked against the
+        credential's tenant before anything else happens; never trusted on
+        its own.
+    slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    Unauthorized:
+      description: No credential, or one that did not resolve to an identity.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Authentication required
+            status: 401
+            code: UNAUTHENTICATED
+    Forbidden:
+      description: >
+        The credential cannot perform this action here. `reason` says why:
+        TENANT_SCOPE — the scope is not reachable with this credential
+        (foreign tenant, unknown scope and no membership are indistinguishable
+        by design, and no store was consulted); EMBED_SCOPE — an embed token
+        used outside the one dashboard it names; CAPABILITY — in scope, but
+        the effective capabilities do not include the action.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: The requested scope is not accessible with these credentials
+            status: 403
+            code: FORBIDDEN
+            reason: TENANT_SCOPE
+    NotFound:
+      description: The dashboard does not exist in the caller's tenant.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      description: >
+        The one error envelope. Superset of the shape apps/app dashboard routes
+        already return, so existing clients keep working when routes are
+        strangled onto the package. Messages are safe to display and never
+        carry credentials, connection strings or stack text.
+      type: object
+      required: [error, status, code]
+      properties:
+        error:
+          type: string
+          description: Human-readable message.
+        status:
+          type: integer
+          description: HTTP status, repeated in the body for clients that lose it.
+        code:
+          type: string
+          enum:
+            - UNAUTHENTICATED
+            - FORBIDDEN
+            - NOT_FOUND
+            - BAD_REQUEST
+            - CONFLICT
+            - UPSTREAM_ERROR
+            - INTERNAL_ERROR
+        reason:
+          type: string
+          description: Present on 403 only.
+          enum: [TENANT_SCOPE, EMBED_SCOPE, CAPABILITY]
+    Capabilities:
+      description: Identical to the client draft's Capabilities (Seam F vocabulary).
+      type: object
+      required: [readOnly, canEdit, canShare, canManagePermissions, canDelete]
+      properties:
+        readOnly: { type: boolean }
+        canEdit: { type: boolean }
+        canShare: { type: boolean }
+        canManagePermissions: { type: boolean }
+        canDelete: { type: boolean }
+    Role:
+      description: >
+        Role vocabulary, shared with PermissionAssignments in the client draft.
+        Default capability mapping — Consumer: view. Contributor: view, plus
+        edit of dashboards they created. Editor: edit and share. Coordinator:
+        everything. Creating a dashboard in a scope needs Contributor or above
+        in that scope.
+      type: string
+      enum: [Consumer, Contributor, Editor, Coordinator]

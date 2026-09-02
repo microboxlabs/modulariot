@@ -10,11 +10,13 @@
  */
 
 export type AuditAction =
+  | "dashboard.list"
   | "dashboard.load"
   | "dashboard.save"
   | "dashboard.delete"
   | "dashboard.permissions.read"
   | "dashboard.permissions.write"
+  | "datasource.list"
   | "datasource.query"
   | "datasource.write"
   | "embed.token.issue"

@@ -13,7 +13,7 @@ import { createCompositeStore } from "./composite";
 import { createSqlDocumentStore } from "./sql/documents";
 import { createSqlMetadataStore } from "./sql/metadata";
 import { MIGRATIONS, runMigrations } from "./sql/migrations";
-import type { SqlDriver } from "./sql/driver";
+import { SQLITE_DIALECT, type SqlDriver } from "./sql/driver";
 import { createSqliteDriver } from "./sqlite-driver";
 import { openSqliteStore, SQLITE_MEMORY } from "./sqlite";
 
@@ -71,10 +71,82 @@ describe("migrations", () => {
     await second.close();
   });
 
+  it("closes the database even when the document store will not", async () => {
+    let closedDocuments = false;
+    const opened = await openSqliteStore({
+      path: SQLITE_MEMORY,
+      documents: {
+        put: () => Promise.resolve(),
+        get: () => Promise.resolve(null),
+        delete: () => Promise.resolve(),
+        close: () => {
+          closedDocuments = true;
+          return Promise.reject(new Error("bucket client hung"));
+        },
+      },
+    });
+
+    await expect(opened.close()).rejects.toThrow("bucket client hung");
+    expect(closedDocuments).toBe(true);
+    // The database has to be closed even so, or a caller that keeps running
+    // after a failed shutdown holds the handle forever.
+    await expect(opened.store.list("acme", "ops")).rejects.toThrow();
+  });
+
   it("creates the directory rather than failing on a missing one", async () => {
     const path = join(temporaryDirectory(), "nested", "deeper", "dash.db");
     const opened = await openSqliteStore({ path });
     await opened.close();
+  });
+});
+
+describe("two processes starting at once", () => {
+  it("reads the applied versions inside the transaction", async () => {
+    // Two processes starting together both read `schema_migrations` before
+    // either writes, both decide version 1 is missing, and the second runs
+    // CREATE TABLE on a table that now exists. One process cannot reproduce
+    // that with a synchronous driver, so this asserts the ordering that
+    // prevents it: nothing is read before the transaction opens.
+    const calls: string[] = [];
+    const driver: SqlDriver = {
+      dialect: SQLITE_DIALECT,
+      exec: (sql) => {
+        calls.push(`exec:${sql.slice(0, 24)}`);
+        return Promise.resolve();
+      },
+      all: <T>(sql: string) => {
+        calls.push(sql.includes("SELECT version") ? "read" : "write");
+        return Promise.resolve([] as T[]);
+      },
+      transaction: async (body) => {
+        calls.push("begin");
+        const result = await body();
+        calls.push("commit");
+        return result;
+      },
+      close: () => Promise.resolve(),
+    };
+
+    await runMigrations(driver);
+    expect(calls.indexOf("begin")).toBeLessThan(calls.indexOf("read"));
+    expect(calls.indexOf("read")).toBeLessThan(calls.indexOf("commit"));
+  });
+
+  it("applies the schema once across separate connections", async () => {
+    const path = join(temporaryDirectory(), "dashboards.db");
+    const first = createSqliteDriver({ path });
+    const second = createSqliteDriver({ path });
+    try {
+      expect(await runMigrations(first)).toEqual(
+        MIGRATIONS.map((m) => m.version),
+      );
+      // Reading the applied versions outside a transaction let this connection
+      // decide the same migrations were missing and run CREATE TABLE again.
+      expect(await runMigrations(second)).toEqual([]);
+    } finally {
+      await first.close();
+      await second.close();
+    }
   });
 });
 
@@ -162,6 +234,28 @@ describe("document bookkeeping", () => {
     }
   });
 
+  it("escapes a tenant id that is itself a path segment", async () => {
+    const { driver, store } = await assemble();
+    try {
+      // encodeURIComponent does not touch ".", so ".." survived it intact and
+      // the key began "../". Tenant ids are host-defined strings.
+      await store.save(
+        { tenantId: "..", scopeId: "ops", slug: "fleet" },
+        config,
+        { updatedBy: "ana" },
+      );
+      const rows = await driver.all<{ document_key: string }>(
+        "SELECT document_key FROM dashboards",
+      );
+      const key = rows[0]?.document_key ?? "";
+      expect(key).not.toContain("..");
+      expect(key.startsWith("../")).toBe(false);
+      expect(key).toMatch(/^%2E%2E\/[0-9a-f-]{36}\.json$/);
+    } finally {
+      await driver.close();
+    }
+  });
+
   it("says so when a row points at a document that is gone", async () => {
     const { driver, store } = await assemble();
     try {
@@ -207,6 +301,63 @@ describe("permissions in SQL", () => {
       expect(await store.getPermissions(ref)).toEqual([
         { authorityId: "bo", role: "Coordinator" },
       ]);
+    } finally {
+      await driver.close();
+    }
+  });
+});
+
+describe("permissions and deletion", () => {
+  it("refuses to write permissions for a dashboard that is gone", async () => {
+    const { driver, store } = await assemble();
+    try {
+      await store.save(ref, config, { updatedBy: "ana" });
+      await store.remove(ref);
+      // A caller authorized against the dashboard a moment earlier. Writing
+      // the assignments anyway leaves rows that a dashboard recreated at the
+      // same address would inherit.
+      await expect(
+        store.setPermissions(ref, [{ authorityId: "bo", role: "Coordinator" }]),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+      const rows = await driver.all<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM dashboard_permissions",
+      );
+      expect(Number(rows[0]?.n)).toBe(0);
+    } finally {
+      await driver.close();
+    }
+  });
+
+  it("rejects a permission row for a dashboard that does not exist", async () => {
+    const { driver } = await assemble();
+    try {
+      // The foreign key, not the read above it: PostgreSQL readers do not
+      // block, so the constraint is what holds when the check races a delete.
+      await expect(
+        driver.all(
+          `INSERT INTO dashboard_permissions
+             (tenant_id, scope_id, slug, authority_id, role)
+           VALUES (?, ?, ?, ?, ?)`,
+          ["acme", "ops", "never-existed", "bo", "Editor"],
+        ),
+      ).rejects.toThrow();
+    } finally {
+      await driver.close();
+    }
+  });
+
+  it("takes a dashboard's permissions with it when it is deleted", async () => {
+    const { driver, store } = await assemble();
+    try {
+      await store.save(ref, config, { updatedBy: "ana" });
+      await store.setPermissions(ref, [
+        { authorityId: "bo", role: "Coordinator" },
+      ]);
+      await store.remove(ref);
+      await store.save(ref, config, { updatedBy: "ana" });
+      // Recreating the same address must not inherit the old assignments.
+      expect(await store.getPermissions(ref)).toEqual([]);
     } finally {
       await driver.close();
     }

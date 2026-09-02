@@ -43,7 +43,15 @@ export const MIGRATIONS: readonly Migration[] = [
          slug         TEXT NOT NULL,
          authority_id TEXT NOT NULL,
          role         TEXT NOT NULL,
-         PRIMARY KEY (tenant_id, scope_id, slug, authority_id)
+         PRIMARY KEY (tenant_id, scope_id, slug, authority_id),
+         -- Without this, a set of permissions authorized just before a
+         -- concurrent delete can be written for a row that is already gone,
+         -- and recreating the same slug later inherits those assignments.
+         -- Requires foreign keys to be enabled on the connection; node:sqlite
+         -- does that by default, unlike the sqlite3 command line.
+         FOREIGN KEY (tenant_id, scope_id, slug)
+           REFERENCES dashboards (tenant_id, scope_id, slug)
+           ON DELETE CASCADE
        )`,
       // Used by the inline document backend; empty for other backends.
       `CREATE TABLE dashboard_documents (
@@ -70,15 +78,22 @@ export async function runMigrations(
   now: () => Date = () => new Date(),
 ): Promise<number[]> {
   await driver.exec(MIGRATIONS_TABLE);
-  const applied = await driver.all<{ version: number }>(
-    "SELECT version FROM schema_migrations",
-  );
-  const seen = new Set(applied.map((row) => row.version));
-  const ran: number[] = [];
 
-  for (const migration of MIGRATIONS) {
-    if (seen.has(migration.version)) continue;
-    await driver.transaction(async () => {
+  // Reading the applied versions and writing the missing ones happen in one
+  // transaction. Read outside it and two processes starting together both
+  // decide version 1 is absent; the second then runs `CREATE TABLE` on a table
+  // that now exists and fails to start. SQLite's BEGIN IMMEDIATE serializes
+  // this. A PostgreSQL driver will need an advisory lock as well, since its
+  // transactions do not block one another this way.
+  return driver.transaction(async () => {
+    const applied = await driver.all<{ version: number }>(
+      "SELECT version FROM schema_migrations",
+    );
+    const seen = new Set(applied.map((row) => row.version));
+    const ran: number[] = [];
+
+    for (const migration of MIGRATIONS) {
+      if (seen.has(migration.version)) continue;
       for (const statement of migration.statements) {
         await driver.exec(statement);
       }
@@ -88,9 +103,9 @@ export async function runMigrations(
          VALUES (${p.placeholder(1)}, ${p.placeholder(2)}, ${p.placeholder(3)})`,
         [migration.version, migration.name, now().toISOString()],
       );
-    });
-    ran.push(migration.version);
-  }
+      ran.push(migration.version);
+    }
 
-  return ran;
+    return ran;
+  });
 }

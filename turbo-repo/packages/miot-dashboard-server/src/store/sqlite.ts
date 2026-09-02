@@ -60,10 +60,13 @@ export async function openSqliteStore(
       store,
       applied,
       async close() {
-        // The inline document store uses this driver, so only a supplied
-        // document store is closed separately.
-        if (options.documents?.close) await options.documents.close();
-        await driver.close();
+        try {
+          // The inline document store uses this driver, so only a supplied
+          // document store is closed separately.
+          if (options.documents?.close) await options.documents.close();
+        } finally {
+          await driver.close();
+        }
       },
     };
   } catch (error) {

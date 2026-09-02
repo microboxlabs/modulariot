@@ -22,6 +22,7 @@ import {
   readServerConfig,
   type ServerConfig,
 } from "./server/config";
+import { seedDashboards } from "./server/seed";
 import { serve } from "./server/serve";
 import type { ServerDashboardStore } from "./seams/store";
 import { openSqliteStore } from "./store/sqlite";
@@ -141,11 +142,7 @@ interface AssembledStore {
   describe: string;
 }
 
-/**
- * The memory store takes the seed at construction. A persistent one cannot:
- * applying the seed on every start would overwrite later edits, so a dashboard
- * is written only if its slug is absent.
- */
+/** Build the store named by the configuration. */
 async function openStore(
   config: ServerConfig,
   seed: SeedFile,
@@ -161,15 +158,7 @@ async function openStore(
   }
 
   const opened = await openSqliteStore({ path: config.sqlitePath });
-  for (const dashboard of dashboards) {
-    if ((await opened.store.load(dashboard.ref)) !== null) continue;
-    await opened.store.save(dashboard.ref, dashboard.record?.config ?? null, {
-      updatedBy: dashboard.record?.updatedBy ?? "seed",
-    });
-    if (dashboard.assignments) {
-      await opened.store.setPermissions(dashboard.ref, dashboard.assignments);
-    }
-  }
+  await seedDashboards(opened.store, dashboards);
   return {
     store: opened.store,
     close: opened.close,

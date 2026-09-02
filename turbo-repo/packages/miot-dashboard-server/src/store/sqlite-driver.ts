@@ -36,9 +36,11 @@ function loadSqlite(): NodeSqlite {
     return createRequire(import.meta.url)("node:sqlite") as NodeSqlite;
   } catch (error) {
     throw new Error(
-      "The sqlite store needs the node:sqlite module, which arrived in Node " +
-        `22.5. This process is ${process.version}. Upgrade Node, or configure ` +
-        `a different store. (${error instanceof Error ? error.message : String(error)})`,
+      "The sqlite store needs the node:sqlite module, which is available " +
+        "without a flag from Node 22.13 (from 22.5 it required " +
+        `--experimental-sqlite). This process is ${process.version}. Upgrade ` +
+        "Node, or set MIOT_DASHBOARD_STORE=memory. " +
+        `(${error instanceof Error ? error.message : String(error)})`,
     );
   }
 }
@@ -73,13 +75,28 @@ export function createSqliteDriver(options: SqliteDriverOptions): SqlDriver {
   return {
     dialect: SQLITE_DIALECT,
 
+    // `node:sqlite` throws synchronously. Both methods are declared to return
+    // a promise, so a caller may reasonably attach `.catch` instead of
+    // awaiting, and a synchronous throw would escape that.
     exec(sql: string) {
-      db.exec(sql);
-      return Promise.resolve();
+      try {
+        db.exec(sql);
+        return Promise.resolve();
+      } catch (error) {
+        return Promise.reject(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      }
     },
 
     all<T>(sql: string, params: readonly SqlValue[] = []) {
-      return Promise.resolve(prepared(sql).all(...params) as T[]);
+      try {
+        return Promise.resolve(prepared(sql).all(...params) as T[]);
+      } catch (error) {
+        return Promise.reject(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      }
     },
 
     async transaction<T>(body: () => Promise<T>): Promise<T> {

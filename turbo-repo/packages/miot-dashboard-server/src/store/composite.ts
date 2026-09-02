@@ -41,7 +41,16 @@ export interface CompositeStoreOptions {
  * percent-encoded so it stays one path segment.
  */
 function defaultDocumentKey(ref: ServerDashboardRef): string {
-  return `${encodeURIComponent(ref.tenantId)}/${crypto.randomUUID()}.json`;
+  return `${encodeKeySegment(ref.tenantId)}/${crypto.randomUUID()}.json`;
+}
+
+/**
+ * `encodeURIComponent` does not escape `.`, so a tenant id of `..` would
+ * produce `../<uuid>.json` and leave the root of a filesystem-backed document
+ * store. Escaping the dot as well leaves an alphabet with no path meaning.
+ */
+function encodeKeySegment(value: string): string {
+  return encodeURIComponent(value).replace(/\./g, "%2E");
 }
 
 /**
@@ -57,13 +66,20 @@ export function dashboardDisplayName(config: unknown, slug: string): string {
 }
 
 function encode(config: unknown): Uint8Array {
-  let json: string;
+  let json: string | undefined;
   try {
-    // `JSON.stringify(undefined)` is `undefined`, not a string.
     json = JSON.stringify(config ?? null);
   } catch (error) {
     throw DashboardServerError.badRequest(
       `Dashboard config could not be serialized: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  // `JSON.stringify` returns undefined, not a string, for `undefined` and for
+  // a top-level function or symbol. Encoding that writes the seven characters
+  // "undefined" into a document the next `load` cannot parse.
+  if (typeof json !== "string") {
+    throw DashboardServerError.badRequest(
+      "Dashboard config must be a JSON value; a function or symbol cannot be stored",
     );
   }
   return new TextEncoder().encode(json);
@@ -98,7 +114,12 @@ export function createCompositeStore(
     try {
       await documents.delete(key);
     } catch (error) {
-      onOrphan(key, error);
+      try {
+        onOrphan(key, error);
+      } catch {
+        // Reporting a document that was left behind must not turn a completed
+        // save, or a conflict the caller needs to see, into a different error.
+      }
     }
   };
 
@@ -120,13 +141,26 @@ export function createCompositeStore(
 
   return {
     async load(ref: ServerDashboardRef): Promise<DashboardRecord | null> {
-      const row = await metadata.read(ref);
+      let row = await metadata.read(ref);
       if (row === null) return null;
-      const body = await documents.get(row.documentKey);
+      let body = await documents.get(row.documentKey);
+
       if (body === null) {
-        // The write order above never produces this, so the document store
-        // lost data. Returning an empty dashboard would let the next save
-        // overwrite a revision whose document may still be recoverable.
+        // A save that ran between the two reads replaced the row and deleted
+        // the document this call was about to fetch. Read the row again: a
+        // different key means the dashboard moved on, not that data was lost.
+        const current = await metadata.read(ref);
+        if (current === null) return null;
+        if (current.documentKey !== row.documentKey) {
+          row = current;
+          body = await documents.get(current.documentKey);
+        }
+      }
+
+      if (body === null) {
+        // The key did not change, so the document store lost data. Returning
+        // an empty dashboard would let the next save overwrite a revision
+        // whose document may still be recoverable.
         throw new DashboardServerError(
           "INTERNAL_ERROR",
           `Dashboard document ${row.documentKey} is missing`,

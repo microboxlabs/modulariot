@@ -6,6 +6,7 @@
  * decides the outcome without a second read.
  */
 
+import { DashboardServerError } from "../../access/errors";
 import { isDashboardRole } from "../../access/roles";
 import type {
   DashboardMetadataRow,
@@ -216,6 +217,15 @@ export function createSqlMetadataStore(
       }
 
       await driver.transaction(async () => {
+        // The caller authorized against a dashboard that may have been deleted
+        // since. The foreign key rejects the inserts either way; reading first
+        // makes that a 404 instead of a driver error. A PostgreSQL driver will
+        // need SELECT ... FOR UPDATE here, since its readers do not block.
+        if ((await read(ref)) === null) {
+          throw DashboardServerError.notFound(
+            "Dashboard was deleted before its permissions could be written",
+          );
+        }
         const p = placeholders(driver.dialect);
         await driver.all(
           `DELETE FROM dashboard_permissions

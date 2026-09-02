@@ -172,6 +172,65 @@ describe("the write protocol", () => {
   });
 });
 
+describe("configs it will not store", () => {
+  it.each([
+    ["a function", () => "no"],
+    ["a symbol", Symbol("no")],
+  ])("refuses %s, which JSON.stringify turns into nothing", async (_c, bad) => {
+    const fake = recorder();
+    const store = createCompositeStore({
+      metadata: fake.metadata,
+      documents: fake.documents,
+    });
+
+    // `JSON.stringify` returns undefined rather than throwing for these, so an
+    // unchecked encode writes the seven characters "undefined" and the next
+    // load fails to parse a document the store said it had written.
+    await expect(
+      store.save(ref, bad, { updatedBy: "ana" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(fake.calls).toEqual([]);
+  });
+});
+
+describe("a reporting hook that throws", () => {
+  it("does not turn a completed save into a failure", async () => {
+    const fake = recorder({ deleteFails: true });
+    const store = createCompositeStore({
+      metadata: fake.metadata,
+      documents: fake.documents,
+      onOrphan: () => {
+        throw new Error("the log sink is down");
+      },
+    });
+
+    // The metadata commit already succeeded; reporting a document left behind
+    // must not take the caller's write with it.
+    await expect(
+      store.save(ref, { name: "Fleet" }, { updatedBy: "ana" }),
+    ).resolves.toMatchObject({ revision: 1 });
+  });
+
+  it("does not turn a conflict into a different error", async () => {
+    const fake = recorder({ commit: null, deleteFails: true });
+    const store = createCompositeStore({
+      metadata: fake.metadata,
+      documents: fake.documents,
+      onOrphan: () => {
+        throw new Error("the log sink is down");
+      },
+    });
+
+    await expect(
+      store.save(
+        ref,
+        { name: "Fleet" },
+        { updatedBy: "ana", expectedRevision: 3 },
+      ),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+  });
+});
+
 describe("reading", () => {
   it("refuses to serve a document that is not JSON", async () => {
     const fake = recorder({
@@ -223,6 +282,90 @@ describe("reading", () => {
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).not.toContain("SECRET-CUSTOMER-NAME");
     expect((error as Error).message).toContain("acme/corrupt.json");
+  });
+});
+
+describe("a save that lands between the two reads of a load", () => {
+  const row = (
+    revision: number,
+    documentKey: string,
+  ): DashboardMetadataRow => ({
+    slug: "fleet",
+    name: "Fleet",
+    revision,
+    documentKey,
+    updatedAt: "2026-09-02T00:00:00.000Z",
+    updatedBy: "ana",
+  });
+
+  /** Reads return `rows` in order, so the second read sees the newer row. */
+  const readingInTurn = (rows: DashboardMetadataRow[]) => {
+    let call = 0;
+    const metadata = {
+      read: () =>
+        Promise.resolve(rows[Math.min(call++, rows.length - 1)] ?? null),
+      list: () => Promise.resolve([]),
+      commit: () => Promise.resolve(null),
+      remove: () => Promise.resolve(null),
+      getPermissions: () => Promise.resolve([]),
+      setPermissions: () => Promise.resolve(),
+    } as unknown as DashboardMetadataStore;
+    return metadata;
+  };
+
+  const onlyHas = (key: string, config: unknown): DashboardDocumentStore => ({
+    put: () => Promise.resolve(),
+    get: (k) =>
+      Promise.resolve(
+        k === key ? new TextEncoder().encode(JSON.stringify(config)) : null,
+      ),
+    delete: () => Promise.resolve(),
+  });
+
+  it("follows the document the newer row names", async () => {
+    // The save deleted the document this load was about to fetch. That is the
+    // ordinary outcome of two clients working at once, not lost data.
+    const store = createCompositeStore({
+      metadata: readingInTurn([
+        row(1, "acme/old.json"),
+        row(2, "acme/new.json"),
+      ]),
+      documents: onlyHas("acme/new.json", { version: 2, name: "Newer" }),
+    });
+
+    const loaded = await store.load(ref);
+    expect(loaded?.revision).toBe(2);
+    expect(loaded?.config).toEqual({ version: 2, name: "Newer" });
+  });
+
+  it("still reports a missing document when the row did not move", async () => {
+    const store = createCompositeStore({
+      metadata: readingInTurn([row(1, "acme/only.json")]),
+      documents: onlyHas("acme/somewhere-else.json", {}),
+    });
+
+    await expect(store.load(ref)).rejects.toMatchObject({
+      code: "INTERNAL_ERROR",
+    });
+  });
+
+  it("reports nothing at all when the dashboard was deleted", async () => {
+    let call = 0;
+    const metadata = {
+      read: () =>
+        Promise.resolve(call++ === 0 ? row(1, "acme/gone.json") : null),
+      list: () => Promise.resolve([]),
+      commit: () => Promise.resolve(null),
+      remove: () => Promise.resolve(null),
+      getPermissions: () => Promise.resolve([]),
+      setPermissions: () => Promise.resolve(),
+    } as unknown as DashboardMetadataStore;
+
+    const store = createCompositeStore({
+      metadata,
+      documents: onlyHas("acme/nothing.json", {}),
+    });
+    expect(await store.load(ref)).toBeNull();
   });
 });
 

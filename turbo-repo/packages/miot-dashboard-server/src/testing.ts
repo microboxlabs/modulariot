@@ -40,7 +40,6 @@ import type {
 
 export interface SeedDashboard {
   ref: ServerDashboardRef;
-  name?: string;
   record?: Partial<DashboardRecord>;
   assignments?: PermissionAssignment[];
 }
@@ -103,7 +102,9 @@ export function createMemoryStore(
   for (const item of seed) {
     entries.set(key(item.ref), {
       ref: item.ref,
-      name: item.name ?? item.ref.slug,
+      // The config, as everywhere else. A separate seed field would list one
+      // name here and another in a store seeded through `save`.
+      name: dashboardDisplayName(item.record?.config, item.ref.slug),
       record: {
         config: { version: 2 },
         updatedAt: now().toISOString(),

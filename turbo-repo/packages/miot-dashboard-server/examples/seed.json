@@ -20,8 +20,11 @@
   },
   "dashboards": [
     {
-      "ref": { "tenantId": "acme", "scopeId": "ops", "slug": "fleet" },
-      "name": "Fleet overview",
+      "ref": {
+        "tenantId": "acme",
+        "scopeId": "ops",
+        "slug": "fleet"
+      },
       "record": {
         "config": {
           "version": 2,
@@ -30,11 +33,19 @@
         },
         "createdBy": "carl"
       },
-      "assignments": [{ "authorityId": "connie", "role": "Editor" }]
+      "assignments": [
+        {
+          "authorityId": "connie",
+          "role": "Editor"
+        }
+      ]
     },
     {
-      "ref": { "tenantId": "globex", "scopeId": "ops", "slug": "fleet" },
-      "name": "Fleet overview",
+      "ref": {
+        "tenantId": "globex",
+        "scopeId": "ops",
+        "slug": "fleet"
+      },
       "record": {
         "config": {
           "version": 2,

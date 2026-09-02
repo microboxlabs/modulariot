@@ -112,6 +112,12 @@ declare `MIOT_DASHBOARD_*`, `PORT` and `HOST` in `passThroughEnv` for that
 reason. The startup line names the store it opened, which is the quickest way
 to see that a setting arrived.
 
+The path is relative to the working directory, which for a turbo task is this
+package: the default puts the database at
+`turbo-repo/packages/miot-dashboard-server/data/dashboards.db`. That directory
+is gitignored, because a database holding real dashboards must not reach this
+repository.
+
 The file and its parent directories are created on first run, and migrations
 run on every start, applying only what that database has not recorded. A seed
 writes a dashboard only if its slug is absent, so it does not overwrite edits

@@ -336,6 +336,48 @@ describe.each([
 });
 
 describe("mount prefix", () => {
+  it.each([
+    ["/api/dashboard", "leading slash, no trailing"],
+    ["/api/dashboard/", "one trailing slash"],
+    ["/api/dashboard///", "several trailing slashes"],
+    ["api/dashboard", "no leading slash"],
+  ])("normalises %s (%s)", async (basePath) => {
+    const { options } = buildOptions();
+    const handler = createDashboardHandler({ ...options, basePath });
+    const response = await handler(
+      new Request(
+        "http://test.local/api/dashboard/scopes/ops/dashboards",
+        asUser("alice", "acme"),
+      ),
+    );
+    expect(response.status).toBe(200);
+  });
+
+  it("normalises a long run of slashes in linear time", () => {
+    // Guards the shape of the fix rather than the fix itself: the previous
+    // version used a regex that backtracks quadratically on exactly this
+    // input, which CodeQL flagged as a polynomial regular expression.
+    const { options } = buildOptions();
+    const started = Date.now();
+    createDashboardHandler({
+      ...options,
+      basePath: `/x${"/".repeat(200_000)}`,
+    });
+    expect(Date.now() - started).toBeLessThan(1_000);
+  });
+
+  it("treats a basePath of only slashes as no prefix at all", async () => {
+    const { options } = buildOptions();
+    const handler = createDashboardHandler({ ...options, basePath: "///" });
+    const response = await handler(
+      new Request(
+        "http://test.local/scopes/ops/dashboards",
+        asUser("alice", "acme"),
+      ),
+    );
+    expect(response.status).toBe(200);
+  });
+
   it("serves under a basePath and ignores anything outside it", async () => {
     const { options } = buildOptions();
     const handler = createDashboardHandler({

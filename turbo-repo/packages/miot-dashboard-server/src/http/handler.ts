@@ -211,10 +211,25 @@ function pathnameOf(url: string): string {
   }
 }
 
+const SLASH = "/".charCodeAt(0);
+
+/**
+ * Trim trailing slashes and guarantee a leading one.
+ *
+ * Deliberately not `replace(/\/+$/, "")`. A repeated character class anchored
+ * at the end backtracks quadratically, so a long run of slashes costs time
+ * proportional to its square. CodeQL flags it as a polynomial regular
+ * expression and it is right to: the value reaches here from configuration
+ * that a deployment can set, and the linear version below is no harder to
+ * read.
+ */
 function normalizeBasePath(basePath: string | undefined): string {
   if (!basePath) return "";
-  const trimmed = basePath.replace(/\/+$/, "");
-  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  let end = basePath.length;
+  while (end > 0 && basePath.charCodeAt(end - 1) === SLASH) end--;
+  const trimmed = basePath.slice(0, end);
+  if (trimmed.length === 0) return "";
+  return trimmed.charCodeAt(0) === SLASH ? trimmed : `/${trimmed}`;
 }
 
 /** Returns the remaining path, or null when the prefix does not match. */

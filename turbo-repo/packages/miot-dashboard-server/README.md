@@ -70,7 +70,15 @@ curl -H 'x-dev-user: alice' -H 'x-dev-tenant: acme' \
   http://127.0.0.1:3070/scopes/ops/dashboards
 ```
 
-Outside this repo, or from a build rather than from source:
+To run the built output rather than the source, which is what a deployment
+runs. `start` depends on `build`, so this compiles first:
+
+```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true MIOT_DASHBOARD_SEED=example \
+  npx turbo run start --filter=@microboxlabs/miot-dashboard-server
+```
+
+Outside this repo:
 
 ```bash
 MIOT_DASHBOARD_INSECURE_AUTH=true \
@@ -93,12 +101,16 @@ package, which is what makes the line above work from anywhere.
 | `sqlite`           | in one file            | nothing — `node:sqlite` is part of Node |
 
 ```bash
-MIOT_DASHBOARD_INSECURE_AUTH=true \
-MIOT_DASHBOARD_STORE=sqlite \
-MIOT_DASHBOARD_SQLITE_PATH=./data/dashboards.db \
-MIOT_DASHBOARD_SEED=example \
-  npx @microboxlabs/miot-dashboard-server
+MIOT_DASHBOARD_STORE=sqlite MIOT_DASHBOARD_SQLITE_PATH=./data/dashboards.db \
+  npx turbo run dev:server --filter=@microboxlabs/miot-dashboard-server
 ```
+
+Turborepo runs tasks with a filtered environment, so a variable the task does
+not declare is removed rather than passed on — and the server would start with
+the default store without saying why. `dev:server`, `start` and `test:api`
+declare `MIOT_DASHBOARD_*`, `PORT` and `HOST` in `passThroughEnv` for that
+reason. The startup line names the store it opened, which is the quickest way
+to see that a setting arrived.
 
 The file and its parent directories are created on first run, and migrations
 run on every start, applying only what that database has not recorded. A seed
@@ -112,8 +124,9 @@ point at it, so a read never sees a partly written dashboard and the document
 store needs no locking. That is what will allow a bucket or a directory as the
 document store later. `sqlite` keeps both parts in the same file.
 
-`node:sqlite` requires Node 22.5 or newer. On earlier versions the server
-reports that and names the alternative store.
+`node:sqlite` runs without a flag from Node 22.13; from 22.5 it needed
+`--experimental-sqlite`. On earlier versions the server reports that and names
+the alternative store.
 
 `MIOT_DASHBOARD_INSECURE_AUTH` reads the caller's identity straight from
 request headers with no verification, so anyone who can reach the port can

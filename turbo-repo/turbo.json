@@ -94,10 +94,18 @@
     },
     "dev:server": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["MIOT_DASHBOARD_*", "PORT", "HOST"]
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["MIOT_DASHBOARD_*", "PORT", "HOST"]
     },
     "test:api": {
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["MIOT_DASHBOARD_*", "PORT", "HOST"]
     },
     "storm": {
       "cache": false,
@@ -118,7 +126,7 @@
     },
     "db:migrate": {
       "cache": false,
-      "persistent": true 
+      "persistent": true
     },
     "db:deploy": {
       "cache": false

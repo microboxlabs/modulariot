@@ -147,8 +147,8 @@ export function createMemoryStore(
       };
       entries.set(key(ref), {
         ref,
-        // Derived as a real store does it: freezing the name here would mean
-        // a rename showing up against a database and not against this.
+        // Derived from the config, as the SQL store does. Keeping the name
+        // fixed here would make a rename appear in one store's list only.
         name: dashboardDisplayName(config, ref.slug),
         record,
       });

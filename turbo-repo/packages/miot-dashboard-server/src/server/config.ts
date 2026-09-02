@@ -16,7 +16,7 @@ export interface ServerConfig {
    * explicitly set, and refused outright when NODE_ENV is production.
    */
   insecureAuth: boolean;
-  /** `memory` forgets everything on restart; `sqlite` persists to one file. */
+  /** `memory` is discarded on restart; `sqlite` writes to one file. */
   store: StoreKind;
   /** Database file for the sqlite store. Ignored by the memory store. */
   sqlitePath: string;
@@ -29,7 +29,7 @@ export interface ServerConfig {
 export const STORE_KINDS = ["memory", "sqlite"] as const;
 export type StoreKind = (typeof STORE_KINDS)[number];
 
-/** Relative, and deliberately neither a hostname nor a credential. */
+/** A relative path, so the default contains no hostname and no credential. */
 export const DEFAULT_SQLITE_PATH = "./data/dashboards.db";
 
 export class ConfigError extends Error {}

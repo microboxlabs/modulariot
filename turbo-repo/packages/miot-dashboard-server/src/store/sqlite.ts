@@ -1,6 +1,6 @@
 /**
- * A persistent `ServerDashboardStore` in one call: open, migrate, and assemble
- * the metadata and document halves. This is what a deployment names.
+ * Opens the database, applies migrations, and returns a persistent
+ * `ServerDashboardStore`.
  */
 
 import { mkdirSync } from "node:fs";
@@ -13,7 +13,7 @@ import { createSqlMetadataStore } from "./sql/metadata";
 import { runMigrations } from "./sql/migrations";
 import { createSqliteDriver } from "./sqlite-driver";
 
-/** A database that dies with the process. Useful in tests and demos. */
+/** In-memory database, discarded when the process exits. */
 export const SQLITE_MEMORY = ":memory:";
 
 export interface SqliteStoreOptions {
@@ -60,7 +60,8 @@ export async function openSqliteStore(
       store,
       applied,
       async close() {
-        // The inline document store is the driver; only a supplied one needs this.
+        // The inline document store uses this driver, so only a supplied
+        // document store is closed separately.
         if (options.documents?.close) await options.documents.close();
         await driver.close();
       },

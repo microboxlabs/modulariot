@@ -142,9 +142,9 @@ interface AssembledStore {
 }
 
 /**
- * A persistent store cannot take a seed at construction the way the memory one
- * does — re-applying it every boot would overwrite whatever people had done
- * since — so a dashboard is written only where its slug is absent.
+ * The memory store takes the seed at construction. A persistent one cannot:
+ * applying the seed on every start would overwrite later edits, so a dashboard
+ * is written only if its slug is absent.
  */
 async function openStore(
   config: ServerConfig,
@@ -206,7 +206,8 @@ async function main(): Promise<void> {
     process.stdout.write(
       `${JSON.stringify({ level: "info", msg: "shutting down", signal })}\n`,
     );
-    // Listener first: closing the store under an in-flight request fails it.
+    // Close the listener first, so no request is in progress when the
+    // database closes.
     running
       .close()
       .then(() => assembled.close())

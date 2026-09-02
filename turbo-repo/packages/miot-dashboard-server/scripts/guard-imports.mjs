@@ -129,8 +129,6 @@ const CONTENT_RULES = [
   {
     re: /alfresco/i,
     why: "Alfresco reference in code (host persistence stays behind the ServerDashboardStore seam)",
-    // Doc comments legitimately explain that Alfresco is one host's
-    // implementation, so comment lines are exempt from this rule only.
     skipComments: true,
   },
 ];

@@ -1,9 +1,9 @@
 /**
- * The `ServerDashboardStore` contract, run against every implementation we ship.
+ * The `ServerDashboardStore` contract, run against every implementation.
  *
- * The in-memory store is what our tests, the dev server and an integrator's
- * first afternoon run on, so anything it does that a database does not is a
- * lesson people learn wrong. Backend-specific behaviour goes in `sqlite.test.ts`.
+ * The in-memory store is used by these tests, by the dev server and by
+ * integrators before they write their own, so it has to behave like the
+ * database-backed one. SQLite-only behaviour is in `sqlite.test.ts`.
  */
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -67,7 +67,7 @@ describe.each(BACKENDS)("$name", ({ open }) => {
 
   it("round-trips the config it was handed, untouched", async () => {
     const s = await store();
-    // A key order a JSON column type would be free to rewrite.
+    // Includes a key order that a JSON column type would be free to change.
     const awkward = {
       version: 2,
       name: "Ünïcode ✅",

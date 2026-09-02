@@ -1,6 +1,6 @@
 /**
- * The whole stack over a socket, then restarted. "The data is still there after
- * a deploy" is the one claim a unit test cannot make.
+ * The server over a real socket, stopped and started again on the same database
+ * file.
  */
 
 import { mkdtempSync, rmSync } from "node:fs";
@@ -74,7 +74,7 @@ describe("a restart", () => {
       await first.opened.close();
     }
 
-    // Nothing of the first process survives but the file.
+    // Only the file carries over from the first process.
     const second = await boot();
     try {
       const loaded = await fetch(
@@ -84,7 +84,7 @@ describe("a restart", () => {
       expect(loaded.status).toBe(200);
       expect(await loaded.json()).toEqual({ data: config });
 
-      // The revision survived too, so an ETag from before the restart still works.
+      // The revision persisted, so an If-Match from before the restart matches.
       const conflicting = await fetch(
         `${second.running.url}/scopes/ops/dashboards/fleet`,
         {
@@ -115,8 +115,8 @@ describe("a restart", () => {
 
     const second = await boot();
     try {
-      // Same scope id, different tenant. 403 rather than 404: the two stay
-      // indistinguishable from outside.
+      // Same scope id, different tenant on the credential. 403 and not 404:
+      // the two are not distinguishable from outside.
       const theirs = await fetch(
         `${second.running.url}/scopes/ops/dashboards/private`,
         { headers: { ...AS_ANA, "x-dev-tenant": "globex" } },

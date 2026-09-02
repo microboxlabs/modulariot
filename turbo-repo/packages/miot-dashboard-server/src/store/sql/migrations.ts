@@ -1,8 +1,10 @@
 /**
- * Schema and migration runner. Hand-rolled because the package ships no runtime
- * dependencies, and this is an ordered list plus a bookkeeping table.
+ * Schema and migration runner. Written here rather than taken from a library
+ * because the package has no runtime dependencies and this needs only an
+ * ordered list and a table recording what has been applied.
  *
- * Append, never edit: a shipped migration has already run somewhere.
+ * Add migrations by appending. Editing one that has shipped changes nothing on
+ * databases that already applied it.
  */
 
 import type { SqlDriver } from "./driver";
@@ -14,8 +16,8 @@ export interface Migration {
 }
 
 /**
- * `TEXT` throughout: host-defined ids have no length we get to pick, and SQLite
- * has no date type, so ISO-8601 strings round-trip identically on both engines.
+ * `TEXT` throughout: host-defined ids have no fixed length, and SQLite has no
+ * date type, so timestamps are ISO-8601 strings on both engines.
  */
 export const MIGRATIONS: readonly Migration[] = [
   {
@@ -34,7 +36,7 @@ export const MIGRATIONS: readonly Migration[] = [
          created_by   TEXT,
          PRIMARY KEY (tenant_id, scope_id, slug)
        )`,
-      // Listing a scope rides the primary key's leading columns.
+      // Listing a scope uses the primary key's first two columns.
       `CREATE TABLE dashboard_permissions (
          tenant_id    TEXT NOT NULL,
          scope_id     TEXT NOT NULL,
@@ -43,7 +45,7 @@ export const MIGRATIONS: readonly Migration[] = [
          role         TEXT NOT NULL,
          PRIMARY KEY (tenant_id, scope_id, slug, authority_id)
        )`,
-      // The "inline" document backend; empty when documents live elsewhere.
+      // Used by the inline document backend; empty for other backends.
       `CREATE TABLE dashboard_documents (
          document_key TEXT PRIMARY KEY,
          body         TEXT NOT NULL
@@ -59,9 +61,9 @@ const MIGRATIONS_TABLE = `CREATE TABLE IF NOT EXISTS schema_migrations (
  )`;
 
 /**
- * Apply every migration this build knows and the database has not seen. Each
- * runs in its own transaction with its bookkeeping row, so an interrupted
- * upgrade leaves a version that exists rather than half of one.
+ * Apply every migration this build knows and the database has not recorded.
+ * Each runs in one transaction with the row recording it, so an interrupted
+ * upgrade leaves the database at a complete version.
  */
 export async function runMigrations(
   driver: SqlDriver,

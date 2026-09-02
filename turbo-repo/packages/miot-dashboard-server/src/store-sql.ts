@@ -1,10 +1,9 @@
 /**
- * @microboxlabs/miot-dashboard-server/store-sql — persistence, in its own entry
- * because it is the only part of the package that assumes a database.
+ * @microboxlabs/miot-dashboard-server/store-sql — persistence. A separate entry
+ * because it is the only part of the package that requires a database.
  *
- * A `DashboardMetadataStore` (rows and permissions) and a
- * `DashboardDocumentStore` (write-once bytes) are combined by
- * `createCompositeStore` into one `ServerDashboardStore`.
+ * `createCompositeStore` combines a `DashboardMetadataStore` with a
+ * `DashboardDocumentStore` to produce a `ServerDashboardStore`.
  */
 
 export { createCompositeStore } from "./store/composite";

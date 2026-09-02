@@ -1,9 +1,9 @@
 /**
- * The "inline" document backend: configs live in the metadata database, so the
- * server persists with no second system to provision. The default.
+ * The `inline` document backend: configs are stored in the metadata database,
+ * so no second system is required. This is the default.
  *
- * Stored as TEXT, not a JSON column type — PostgreSQL's would reorder keys, and
- * this package hands back the config it was handed.
+ * The body is a TEXT column rather than a JSON type. PostgreSQL's `jsonb`
+ * reorders keys, and this package returns the config exactly as given.
  */
 
 import type { DashboardDocumentStore } from "../../seams/documents";

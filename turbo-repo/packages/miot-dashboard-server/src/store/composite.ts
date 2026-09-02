@@ -1,11 +1,12 @@
 /**
- * One `ServerDashboardStore` out of a database and a blob store.
+ * Builds a `ServerDashboardStore` from a metadata store and a document store.
  *
- * A save puts the config at a brand-new key, then compare-and-swaps the
- * metadata row to point at it. The swap is the only arbiter, so a reader never
- * reaches an uncommitted key and the document store needs no conditional
- * write. A crash or a lost race leaves an orphaned document rather than a
- * corrupted dashboard; the normal paths collect their own.
+ * A save writes the config under a new key, then updates the metadata row to
+ * point at that key. Only the metadata update is checked for concurrency, so a
+ * read never sees a key the database has not recorded, and the document store
+ * needs no conditional write. If the process stops between the two steps, or
+ * the metadata update is rejected, the document is left unreferenced. `save`
+ * and `remove` delete the documents they replace.
  */
 
 import { DashboardServerError } from "../access/errors";
@@ -31,18 +32,21 @@ export interface CompositeStoreOptions {
 }
 
 /**
- * `<tenantId>/<uuid>.json`. No slug or scope: a caller-supplied path segment is
- * a traversal against a filesystem-backed store, and the database holds the
- * exact key anyway. The tenant prefix stays so a bucket prefix policy can
- * enforce isolation underneath us; it is encoded to keep it one segment.
+ * `<tenantId>/<uuid>.json`.
+ *
+ * The scope and slug are left out because they come from the caller and would
+ * allow path traversal in a filesystem-backed document store. The database
+ * records the exact key, so nothing needs to derive it. The tenant id is kept
+ * as a prefix so bucket policies can restrict access by tenant, and is
+ * percent-encoded so it stays one path segment.
  */
 function defaultDocumentKey(ref: ServerDashboardRef): string {
   return `${encodeURIComponent(ref.tenantId)}/${crypto.randomUUID()}.json`;
 }
 
 /**
- * Denormalized into the row so `list` never fetches a document per entry. Not
- * validation: a config without a name is fine, it just lists under its slug.
+ * Copied into the metadata row so `list` does not read one document per entry.
+ * A config with no name is not an error; it lists under its slug.
  */
 export function dashboardDisplayName(config: unknown, slug: string): string {
   if (typeof config === "object" && config !== null) {
@@ -70,7 +74,7 @@ function decode(key: string, body: Uint8Array): unknown {
   try {
     return JSON.parse(text);
   } catch {
-    // The key, never the content: that is a tenant's data and this reaches logs.
+    // The key, not the content: the content is tenant data and this is logged.
     throw new DashboardServerError(
       "INTERNAL_ERROR",
       `Stored dashboard document ${key} is not valid JSON`,
@@ -120,9 +124,9 @@ export function createCompositeStore(
       if (row === null) return null;
       const body = await documents.get(row.documentKey);
       if (body === null) {
-        // Unreachable by the write protocol, so the document store lost data.
-        // Reporting an empty dashboard would invite the next save to overwrite
-        // a revision that may still be recoverable.
+        // The write order above never produces this, so the document store
+        // lost data. Returning an empty dashboard would let the next save
+        // overwrite a revision whose document may still be recoverable.
         throw new DashboardServerError(
           "INTERNAL_ERROR",
           `Dashboard document ${row.documentKey} is missing`,
@@ -154,9 +158,9 @@ export function createCompositeStore(
       );
 
       if (row === null) {
-        // Nothing points at our document now.
+        // No row references the document this call wrote.
         await forget(key);
-        // Re-read rather than trust `previous`: someone else moved the revision.
+        // Re-read: another writer changed the revision.
         const found = (await metadata.read(ref))?.revision ?? 0;
         throw DashboardServerError.conflict(
           `Dashboard was modified by someone else (expected revision ${saveOptions.expectedRevision}, found ${found})`,

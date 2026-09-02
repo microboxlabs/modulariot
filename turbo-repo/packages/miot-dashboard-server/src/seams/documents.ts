@@ -1,21 +1,21 @@
 /**
- * Document seam — where the dashboard config bytes sit.
+ * Where dashboard config bytes are stored.
  *
- * Deliberately no conditional write and no atomicity requirement: the metadata
- * store decides who wins a race, so a filesystem, a bucket and a database
- * column are all equally valid here. Keys are opaque; `createCompositeStore`
- * builds them.
+ * Implementations need no conditional write and no atomicity: the metadata
+ * store decides which of two concurrent saves succeeds. A filesystem, a bucket
+ * and a database column are all valid backends. `createCompositeStore` builds
+ * the keys; implementations treat them as opaque strings.
  */
 export interface DashboardDocumentStore {
-  /** Keys are never reused, so this always creates rather than replaces. */
+  /** Keys are never reused, so this always inserts. */
   put(key: string, body: Uint8Array): Promise<void>;
 
   /** `null` when the key is absent. */
   get(key: string): Promise<Uint8Array | null>;
 
-  /** Deleting an absent key succeeds: collection has to be idempotent. */
+  /** Deleting a key that does not exist succeeds. */
   delete(key: string): Promise<void>;
 
-  /** Release any held resource. Absent on implementations that hold none. */
+  /** Optional: implementations that hold a connection close it here. */
   close?(): Promise<void>;
 }

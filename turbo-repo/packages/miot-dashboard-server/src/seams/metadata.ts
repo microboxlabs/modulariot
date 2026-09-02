@@ -1,22 +1,22 @@
 /**
- * Metadata seam — the relational half of persistence, paired with a
- * `DashboardDocumentStore` by `createCompositeStore`.
+ * Dashboard rows and permission assignments, stored in a database.
+ * `createCompositeStore` combines this with a `DashboardDocumentStore` to make
+ * a `ServerDashboardStore`.
  *
- * All optimistic concurrency lives here: `commit` is a compare-and-swap and
- * the only arbiter of who wins a race, which is what lets the document side
- * stay a write-once key-value store.
+ * `commit` is a compare-and-swap and is the only concurrency check in the pair,
+ * which is why the document store needs none.
  */
 
 import type { PermissionAssignment, ServerDashboardRef } from "./store";
 
-/** One dashboard's metadata. The config itself lives behind `documentKey`. */
+/** One dashboard's row. The config is stored separately, at `documentKey`. */
 export interface DashboardMetadataRow {
   slug: string;
-  /** Display name, denormalized so `list` never has to read a document. */
+  /** Copied from the config so `list` does not read one document per row. */
   name: string;
   /** Monotonic, incremented by every successful `commit`. */
   revision: number;
-  /** Address of the config in the document store. Never reused. */
+  /** Key of the config in the document store. A new key on every write. */
   documentKey: string;
   /** ISO-8601. */
   updatedAt: string;
@@ -25,12 +25,12 @@ export interface DashboardMetadataRow {
   createdBy?: string;
 }
 
-/** The mutable half of a row, as supplied by a caller that is about to write. */
+/** The fields a write supplies. */
 export interface DashboardMetadataWrite {
   name: string;
   documentKey: string;
   updatedBy: string;
-  /** ISO-8601. Supplied rather than read from a clock here, so tests can pin it. */
+  /** ISO-8601. Passed in rather than read from a clock so tests can fix it. */
   updatedAt: string;
 }
 
@@ -40,9 +40,10 @@ export interface DashboardMetadataStore {
   list(tenantId: string, scopeId: string): Promise<DashboardMetadataRow[]>;
 
   /**
-   * Compare-and-swap the row, incrementing `revision`. `expectedRevision` is
-   * `0` for a create, positive for an update, `undefined` to write regardless.
-   * A precondition failure returns `null`; the composite turns that into a 409.
+   * Update the row and increment `revision`, but only if `expectedRevision`
+   * matches: `0` means the row must not exist yet, a positive number means it
+   * must hold that revision, `undefined` writes without checking. Returns
+   * `null` when the check fails, which `createCompositeStore` turns into a 409.
    */
   commit(
     ref: ServerDashboardRef,
@@ -50,7 +51,7 @@ export interface DashboardMetadataStore {
     expectedRevision?: number,
   ): Promise<DashboardMetadataRow | null>;
 
-  /** Returns the row that was deleted, so its document can be collected. */
+  /** Returns the deleted row, so its document can be deleted too. */
   remove(ref: ServerDashboardRef): Promise<DashboardMetadataRow | null>;
 
   getPermissions(ref: ServerDashboardRef): Promise<PermissionAssignment[]>;
@@ -60,6 +61,6 @@ export interface DashboardMetadataStore {
     assignments: PermissionAssignment[],
   ): Promise<void>;
 
-  /** Release the connection. Absent on implementations that hold none. */
+  /** Optional: implementations that hold a connection close it here. */
   close?(): Promise<void>;
 }

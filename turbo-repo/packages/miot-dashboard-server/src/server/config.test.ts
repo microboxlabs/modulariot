@@ -57,8 +57,8 @@ describe("readServerConfig", () => {
     });
 
     it("carries no hostname or credential in any default", () => {
-      // A default pointing at a real database is how one deployment ends up
-      // writing to another's.
+      // A default naming a real database would let one deployment write to
+      // another deployment's data.
       expect(DEFAULT_SQLITE_PATH.startsWith("./")).toBe(true);
       expect(DEFAULT_SQLITE_PATH).not.toMatch(/:\/\/|@/);
     });

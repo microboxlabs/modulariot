@@ -1,12 +1,11 @@
 /**
- * The narrow SQL surface this package needs.
+ * The SQL operations this package uses.
  *
- * SQLite and PostgreSQL both support the two statements the metadata store
- * relies on, so one set of SQL serves both and the dialect only has to explain
- * how a parameter is spelled.
+ * SQLite and PostgreSQL accept the same statements, so one implementation
+ * serves both and `SqlDialect` covers only parameter syntax.
  */
 
-/** Values this package binds. Configs are stored as text, never as numbers. */
+/** Bound parameter values. Configs are stored as text. */
 export type SqlValue = string | number | null;
 
 export interface SqlDialect {
@@ -25,10 +24,10 @@ export const POSTGRES_DIALECT: SqlDialect = {
 export interface SqlDriver {
   readonly dialect: SqlDialect;
 
-  /** Run statements for their effect. Used by the migration runner only. */
+  /** Run a statement with no parameters and no result. Used by migrations. */
   exec(sql: string): Promise<void>;
 
-  /** Run one parameterized statement and return whatever it yielded. */
+  /** Run a parameterized statement and return its rows. */
   all<T>(sql: string, params?: readonly SqlValue[]): Promise<T[]>;
 
   /** Run `body` in a transaction, rolling back if it throws. */
@@ -38,9 +37,10 @@ export interface SqlDriver {
 }
 
 /**
- * Placeholders for one statement, numbered in the order they are written — so
- * call it in the order the values are bound. Built this way rather than
- * rewriting `?` for Postgres, which could not tell a marker from a literal.
+ * Numbers the placeholders of one statement in call order, so call it in the
+ * same order the parameters are bound. Written this way rather than emitting
+ * `?` and rewriting it for PostgreSQL, which cannot tell a parameter marker
+ * from a question mark inside a string literal.
  */
 export function placeholders(dialect: SqlDialect): () => string {
   let index = 0;

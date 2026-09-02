@@ -48,6 +48,6 @@ export interface CredentialsVault {
    */
   resolve(
     tenantId: string,
-    dataSourceId: string
+    dataSourceId: string,
   ): Promise<DataSourceCredential | null>;
 }

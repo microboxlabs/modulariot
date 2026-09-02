@@ -1,10 +1,9 @@
 /**
- * The metadata store, in SQL both SQLite and PostgreSQL accept.
+ * `DashboardMetadataStore` in SQL that SQLite and PostgreSQL both accept.
  *
- * The whole concurrency surface is three statements — create, update and
- * force. Each returns the row it wrote, or nothing when its precondition did
- * not hold, so "did I win?" is the row count rather than a second read another
- * writer could slip past.
+ * Three statements cover concurrency: create, update and force. Each returns
+ * the row it wrote, or no rows if its condition did not match, so the result
+ * decides the outcome without a second read.
  */
 
 import { isDashboardRole } from "../../access/roles";
@@ -50,7 +49,7 @@ const first = (rows: readonly RawRow[]): DashboardMetadataRow | null =>
 export function createSqlMetadataStore(
   driver: SqlDriver,
 ): DashboardMetadataStore {
-  /** The three-part key, in the order every statement binds it. */
+  /** The three key columns, in the order the statements bind them. */
   const refValues = (ref: ServerDashboardRef): SqlValue[] => [
     ref.tenantId,
     ref.scopeId,
@@ -87,7 +86,7 @@ export function createSqlMetadataStore(
         write.documentKey,
         write.updatedAt,
         write.updatedBy,
-        // created_by: set once, and no later statement touches it.
+        // created_by: set here, and no later statement updates it.
         write.updatedBy,
       ],
     );
@@ -120,7 +119,7 @@ export function createSqlMetadataStore(
     return first(rows);
   }
 
-  /** No precondition: create or bump, whichever applies. */
+  /** No condition: insert if absent, otherwise increment the revision. */
   async function force(
     ref: ServerDashboardRef,
     write: DashboardMetadataWrite,
@@ -165,8 +164,8 @@ export function createSqlMetadataStore(
 
     commit(ref, write, expectedRevision) {
       if (expectedRevision === undefined) return force(ref, write);
-      // Zero means "I believe this does not exist yet" — a create that must
-      // fail if someone got there first, not an update of a revision no row holds.
+      // Zero means the caller expects no row yet, so this is an insert that
+      // must fail if one exists. No row ever holds revision 0.
       if (expectedRevision === 0) return create(ref, write);
       return update(ref, write, expectedRevision);
     },
@@ -198,8 +197,8 @@ export function createSqlMetadataStore(
           ORDER BY authority_id`,
         refValues(ref),
       );
-      // Dropping an unrecognized role narrows access; passing it on would
-      // widen it, and only one of those is safe to get wrong.
+      // An unrecognized role is dropped rather than returned: dropping it
+      // removes access, returning it could grant more than intended.
       return rows
         .filter((row) => isDashboardRole(row.role))
         .map((row) => ({
@@ -209,8 +208,8 @@ export function createSqlMetadataStore(
     },
 
     async setPermissions(ref, assignments) {
-      // Last wins for a repeated authority: the primary key would otherwise
-      // turn a duplicated id in a request into a 500.
+      // A repeated authority takes its last value. Otherwise the primary key
+      // rejects the insert and a duplicated id in a request becomes a 500.
       const byAuthority = new Map<string, PermissionAssignment>();
       for (const assignment of assignments) {
         byAuthority.set(assignment.authorityId, assignment);

@@ -1,7 +1,7 @@
 /**
- * The composite against halves that do as they are told, including failing.
- * The write ordering cannot be observed from outside, so it is asserted
- * directly rather than inferred from a passing round trip.
+ * `createCompositeStore` against stub stores, including ones that fail. The
+ * order of its two writes cannot be observed from outside, so it is asserted
+ * on the recorded calls.
  */
 
 import { describe, expect, it } from "vitest";
@@ -94,8 +94,8 @@ describe("the write protocol", () => {
 
     await store.save(ref, { name: "Fleet" }, { updatedBy: "ana" });
 
-    // Commit-then-put would leave a committed row pointing at a document that
-    // does not exist yet, and every reader in that window would fail.
+    // In the other order the row would point at a document that has not been
+    // written yet, and reads in that window would fail.
     expect(fake.calls.indexOf("put:acme/new.json")).toBeLessThan(
       fake.calls.indexOf("commit"),
     );
@@ -131,7 +131,7 @@ describe("the write protocol", () => {
       onOrphan: (key) => orphans.push(key),
     });
 
-    // A failed cleanup must not turn a 409 into a 500, nor vanish silently.
+    // A failed delete must not change the 409, and must not be silent.
     await expect(
       store.save(
         ref,
@@ -206,7 +206,7 @@ describe("reading", () => {
         updatedBy: "ana",
       },
     });
-    // A corrupted document is still a tenant's data, and this reaches logs.
+    // A corrupted document is still tenant data, and this message is logged.
     fake.bodies.set(
       "acme/corrupt.json",
       new TextEncoder().encode("SECRET-CUSTOMER-NAME"),

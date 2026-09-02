@@ -1,15 +1,15 @@
 /**
- * SQL driver over `node:sqlite` — built into the runtime, so the single-instance
- * store costs no dependency at all.
+ * `SqlDriver` implemented with `node:sqlite`, which is part of Node, so this
+ * adds no dependency.
  *
- * Synchronous underneath an asynchronous interface, because SQLite is an
- * in-process library and there is nothing to wait on.
+ * The `node:sqlite` API is synchronous. The methods below return already
+ * resolved promises to match the `SqlDriver` interface.
  */
 
 import { createRequire } from "node:module";
 import { SQLITE_DIALECT, type SqlDriver, type SqlValue } from "./sql/driver";
 
-/** The slice of `node:sqlite` used here; `@types/node@20` does not describe it. */
+/** The parts of `node:sqlite` used here. `@types/node@20` has no types for it. */
 interface StatementSync {
   all(...params: unknown[]): unknown[];
 }
@@ -25,10 +25,11 @@ interface NodeSqlite {
 }
 
 /**
- * Loaded at runtime because a static import does not survive the bundler:
- * esbuild has no `sqlite` in its built-in table at any target, strips the
- * prefix, and emits `from "sqlite"` — which resolves to nothing and kills the
- * server at startup while every test still passes. `external` does not help.
+ * Loaded with `createRequire` because a static import does not survive the
+ * build. esbuild does not list `sqlite` among Node's built-in modules at any
+ * target, so it removes the prefix and emits `from "sqlite"`, which fails to
+ * resolve when the server starts. Marking it external does not prevent this,
+ * and the tests do not detect it because they import the TypeScript source.
  */
 function loadSqlite(): NodeSqlite {
   try {
@@ -45,7 +46,7 @@ function loadSqlite(): NodeSqlite {
 export interface SqliteDriverOptions {
   /** File path, or `:memory:` for a database that dies with the process. */
   path: string;
-  /** Milliseconds to wait on a database another process has locked. */
+  /** Milliseconds to wait when another process holds the database lock. */
   busyTimeoutMs?: number;
 }
 
@@ -53,7 +54,7 @@ export function createSqliteDriver(options: SqliteDriverOptions): SqlDriver {
   const { path, busyTimeoutMs = 5_000 } = options;
   const db = new (loadSqlite().DatabaseSync)(path);
 
-  // Readers are never blocked by a writer. Ignored for :memory:.
+  // WAL lets reads continue during a write. Ignored for :memory:.
   db.exec("PRAGMA journal_mode = WAL");
   db.exec(`PRAGMA busy_timeout = ${Number(busyTimeoutMs)}`);
 
@@ -66,7 +67,7 @@ export function createSqliteDriver(options: SqliteDriverOptions): SqlDriver {
     return statement;
   };
 
-  /** Nested transactions join the open one; SQLite rejects a second BEGIN. */
+  /** A nested call joins the open transaction; SQLite rejects a second BEGIN. */
   let depth = 0;
 
   return {
@@ -83,8 +84,8 @@ export function createSqliteDriver(options: SqliteDriverOptions): SqlDriver {
 
     async transaction<T>(body: () => Promise<T>): Promise<T> {
       if (depth > 0) return body();
-      // IMMEDIATE, not DEFERRED: two read-then-write transactions upgrading
-      // their locks at once is the classic SQLITE_BUSY deadlock.
+      // IMMEDIATE takes the write lock now. With DEFERRED, two transactions
+      // that read and then write both try to upgrade, and one gets SQLITE_BUSY.
       db.exec("BEGIN IMMEDIATE");
       depth = 1;
       try {

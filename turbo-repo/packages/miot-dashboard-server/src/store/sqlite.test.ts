@@ -1,7 +1,7 @@
 /**
- * What only exists once a real database is underneath: migrations, durability
- * across a restart, and the document bookkeeping. Shared behaviour lives in
- * `store-contract.test.ts`.
+ * Behaviour that needs a real database: migrations, data surviving a restart,
+ * and the document rows the composite store creates and deletes. Behaviour
+ * shared with the in-memory store is in `store-contract.test.ts`.
  */
 
 import { mkdtempSync, rmSync } from "node:fs";
@@ -34,9 +34,8 @@ afterEach(() => {
 });
 
 /**
- * What `openSqliteStore` does, with the driver kept in hand: these tests read
- * the tables directly, since asking the store would only prove it agrees with
- * itself.
+ * The same wiring as `openSqliteStore`, but returning the driver as well: these
+ * tests query the tables directly rather than through the store.
  */
 async function assemble(): Promise<{
   driver: SqlDriver;
@@ -109,7 +108,7 @@ describe("document bookkeeping", () => {
       for (let i = 0; i < 5; i++) {
         await store.save(ref, { ...config, i }, { updatedBy: "ana" });
       }
-      // Without collection, an inline database grows with every edit.
+      // Without the delete, the table grows on every edit.
       expect(await documentCount(driver)).toBe(1);
     } finally {
       await driver.close();
@@ -123,7 +122,7 @@ describe("document bookkeeping", () => {
       await expect(
         store.save(ref, config, { updatedBy: "bo", expectedRevision: 99 }),
       ).rejects.toMatchObject({ code: "CONFLICT" });
-      // The loser uploaded before it knew it had lost.
+      // The rejected save had already written its document.
       expect(await documentCount(driver)).toBe(1);
     } finally {
       await driver.close();
@@ -144,8 +143,8 @@ describe("document bookkeeping", () => {
   it("puts no caller-supplied text in the document key", async () => {
     const { driver, store } = await assemble();
     try {
-      // Host-defined and decoded by the time it reaches us, so this is a legal
-      // slug. It must not become a path.
+      // Slugs are host-defined and arrive decoded, so this one is valid. It
+      // must not become part of a filesystem path.
       const hostile = {
         tenantId: "acme",
         scopeId: "../../..",
@@ -168,8 +167,8 @@ describe("document bookkeeping", () => {
     try {
       await store.save(ref, config, { updatedBy: "ana" });
       await driver.all("DELETE FROM dashboard_documents");
-      // Not `null`: that would invite the next save to overwrite a revision
-      // whose content might still be recoverable.
+      // Not `null`, which would let the next save overwrite a revision whose
+      // document may still be recoverable.
       await expect(store.load(ref)).rejects.toMatchObject({
         code: "INTERNAL_ERROR",
       });
@@ -239,7 +238,7 @@ describe("the driver", () => {
     const driver = createSqliteDriver({ path: SQLITE_MEMORY });
     try {
       await runMigrations(driver);
-      // `remove` opens one, so it would fail inside any outer transaction.
+      // `remove` opens a transaction, so it must work inside another one.
       await driver.transaction(() =>
         driver.transaction(() =>
           driver.all(

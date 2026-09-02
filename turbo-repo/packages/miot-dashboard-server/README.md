@@ -83,14 +83,14 @@ MIOT_DASHBOARD_SEED=example \
 directory; the single reserved value `example` means the one shipped with the
 package, which is what makes the line above work from anywhere.
 
-### Keeping it
+### Storing dashboards
 
-`MIOT_DASHBOARD_STORE` chooses where dashboards live.
+`MIOT_DASHBOARD_STORE` selects the store.
 
-| Value              | Keeps data        | Needs                                      |
-| ------------------ | ----------------- | ------------------------------------------ |
-| `memory` (default) | until you stop it | nothing                                    |
-| `sqlite`           | in one file       | nothing — `node:sqlite` is built into Node |
+| Value              | Stores data            | Requires                                |
+| ------------------ | ---------------------- | --------------------------------------- |
+| `memory` (default) | until the process ends | nothing                                 |
+| `sqlite`           | in one file            | nothing — `node:sqlite` is part of Node |
 
 ```bash
 MIOT_DASHBOARD_INSECURE_AUTH=true \
@@ -100,21 +100,20 @@ MIOT_DASHBOARD_SEED=example \
   npx @microboxlabs/miot-dashboard-server
 ```
 
-The file and its parent directories are created on first run, and the schema is
-migrated on every start — applying only what that database has not seen. With a
-seed, dashboards are written **only where the slug is absent**, so a seed is a
-first-run fixture rather than something that overwrites your work every boot.
+The file and its parent directories are created on first run, and migrations
+run on every start, applying only what that database has not recorded. A seed
+writes a dashboard only if its slug is absent, so it does not overwrite edits
+made since the last start.
 
-Under the covers this is two halves rather than one store: a **metadata**
-database holding a row per dashboard and its permissions, and a **document**
-store holding the config bytes. A save writes the config at a brand-new key and
-only then swaps the pointer in the database, so a reader can never see a
-half-written dashboard, and the document side needs no locking of its own —
-which is what will let it be a bucket or a directory later without changing
-anything above it. `sqlite` keeps both halves in the one file.
+The store is built from two parts: a **metadata** database holding a row per
+dashboard and its permissions, and a **document** store holding the config
+bytes. A save writes the config under a new key and then updates the row to
+point at it, so a read never sees a partly written dashboard and the document
+store needs no locking. That is what will allow a bucket or a directory as the
+document store later. `sqlite` keeps both parts in the same file.
 
-`node:sqlite` needs Node 22.5 or newer. On anything older the server says so and
-names the alternative rather than failing obscurely.
+`node:sqlite` requires Node 22.5 or newer. On earlier versions the server
+reports that and names the alternative store.
 
 `MIOT_DASHBOARD_INSECURE_AUTH` reads the caller's identity straight from
 request headers with no verification, so anyone who can reach the port can
@@ -278,10 +277,11 @@ One envelope, from every adapter:
   `src/adapters/fastify/`, `swagger-ui-dist` only under `src/server/`,
   `node:sqlite` only under `src/store/`. Everything else runs under a bare Node
   process, with nothing optional installed.
-- `node:sqlite` is loaded with `createRequire`, never a static import: the
-  bundler has no `sqlite` in its table of Node built-ins, strips the prefix and
-  emits `from "sqlite"`, which resolves to nothing. The guard refuses the static
-  form because no test can see that failure — tests import the source.
+- `node:sqlite` is loaded with `createRequire`, never a static import: esbuild
+  does not list `sqlite` among Node's built-in modules, so it removes the prefix
+  and emits `from "sqlite"`, which fails to resolve. The guard rejects the
+  static form because the tests import the TypeScript source and do not detect
+  it.
 - No Alfresco. Alfresco is one host's `ServerDashboardStore` implementation,
   supplied from outside, never something this package knows about.
 

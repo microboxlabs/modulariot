@@ -236,8 +236,14 @@ const SLASH = "/".charCodeAt(0);
  * expression and it is right to: the value reaches here from configuration
  * that a deployment can set, and the linear version below is no harder to
  * read.
+ *
+ * Exported because the documentation page has to arrive at the same answer.
+ * `serve` hands both the same unnormalized value, so anything computing its
+ * own version of this would disagree with the router for a prefix written
+ * `api/dashboard` or `/api/dashboard/` — and "Try it out" would then address
+ * a path the router does not serve.
  */
-function normalizeBasePath(basePath: string | undefined): string {
+export function normalizeBasePath(basePath: string | undefined): string {
   if (!basePath) return "";
   let end = basePath.length;
   while (end > 0 && basePath.charCodeAt(end - 1) === SLASH) end--;

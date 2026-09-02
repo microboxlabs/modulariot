@@ -44,11 +44,18 @@ const SRC = fileURLToPath(new URL("../src", import.meta.url));
 /**
  * Every module specifier in a file, across all import forms:
  *   from "x" · export … from "x" · import "x" · import("x") · require("x")
+ *   · require.resolve("x")
+ *
+ * `require.resolve` is in the list because it makes a package a dependency
+ * just as surely as importing it does — it is how an optional dependency is
+ * located — and a gate that watched only the executing forms would wave it
+ * through.
  *
  * `\s` matches newlines, so the keyword and its specifier may sit on
  * different lines.
  */
-const SPECIFIER_RE = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']([^"']+)["']/g;
+const SPECIFIER_RE =
+  /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*(?:\.resolve\s*)?\(\s*)["']([^"']+)["']/g;
 
 /** The one UI subpath a backend may import — React-free by construction. */
 const UI_SCHEMA_ENTRY = "@microboxlabs/miot-dashboard-ui/schema";
@@ -89,6 +96,14 @@ const FRAMEWORK_RULES = [
     test: (s) => /^fastify(\/|$)/.test(s),
     why: "Fastify import outside src/adapters/fastify/",
     allowedPrefix: "adapters/fastify/",
+  },
+  {
+    // An optional dependency of the standalone server, and 11 MB of it. The
+    // core and the HTTP handler must stay reachable without it installed at
+    // all, which only holds while nothing outside the server layer names it.
+    test: (s) => /^swagger-ui-dist(\/|$)/.test(s),
+    why: "swagger-ui-dist reference outside src/server/ (optional, standalone-server only)",
+    allowedPrefix: "server/",
   },
 ];
 

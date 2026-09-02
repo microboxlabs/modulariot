@@ -13,11 +13,13 @@ package.
 
 ## Status
 
-**P2a — HTTP layer and a runnable server.** Access control from P1 is now
-reachable over HTTP, in both shapes the project supports: mount the library in
-a server you already have, or run the server this package ships. The query
-proxy, datasource administration and embed tokens land in later phases and all
-go through the same authorization point.
+**P2a — HTTP layer, a runnable server, and a contract that matches it.**
+Access control from P1 is now reachable over HTTP, in both shapes the project
+supports: mount the library in a server you already have, or run the server
+this package ships. The server publishes its own OpenAPI document and renders
+it, and a test holds the two together. The query proxy, datasource
+administration and embed tokens land in later phases and all go through the
+same authorization point.
 
 ## Two shapes, one codebase
 
@@ -30,7 +32,7 @@ between them.
 | Core: seams, access control           | `.`               | nothing   |
 | HTTP handler: `Request` to `Response` | `./http`          | Web types |
 | In-memory seams                       | `./testing`       | nothing   |
-| Server: listener, probes, lifecycle   | `./server`, `bin` | Node      |
+| Server: listener, probes, docs        | `./server`, `bin` | Node      |
 
 Each layer is usable without the one below it in this table. A host that mounts
 the handler never pulls in a listener; a standalone deployment never pulls in a
@@ -93,6 +95,40 @@ the in-memory one.
 
 `NODE_ENV` is not a security boundary; it is a variable nobody has to set. The
 bind-address check is the one that holds either way.
+
+### Reading it
+
+The standalone server publishes its own contract:
+
+| Path            | Is                                            |
+| --------------- | --------------------------------------------- |
+| `/openapi.yaml` | `contract/openapi.yaml`, served byte for byte |
+| `/docs`         | that document, rendered with Swagger UI       |
+
+The page has "Try it out" wired up, and the spec declares the two development
+headers as security schemes, so **Authorize** with a user and a tenant is
+enough to drive the whole API from the browser against a seeded dev server.
+Set `MIOT_DASHBOARD_DOCS=false` to serve neither.
+
+Swagger UI's assets are an **optional** dependency and are never loaded from a
+CDN — a dashboard server inside a cluster with no egress has to be able to
+render its own documentation, and a page that quietly fetches 1.5 MB from a
+third party is not something to hide in a docs route. The trade is that
+`/docs` needs `swagger-ui-dist` installed alongside the package:
+
+```bash
+npm install swagger-ui-dist
+```
+
+Without it `/openapi.yaml` still works and `/docs` says exactly that. In this
+repository it is already a dev dependency, so the turbo task above renders.
+
+The document and the router are held together by
+`src/server/docs.test.ts`, which probes every path and method in both
+directions: a documented operation the router does not serve fails, and a
+served operation the document omits fails too. That check exists because the
+contract spent P1 describing one of the seven operations, and rendering a
+stale document is worse than not rendering one.
 
 ### Exercising it
 
@@ -205,7 +241,9 @@ One envelope, from every adapter:
 - No React — this is a backend. The UI package's React entries are off-limits;
   only its React-free `/schema` subpath may be imported.
 - `next/*` only under `src/adapters/next/`, `fastify` only under
-  `src/adapters/fastify/`. Everything else runs under a bare Node process.
+  `src/adapters/fastify/`, `swagger-ui-dist` only under `src/server/`.
+  Everything else runs under a bare Node process, with nothing optional
+  installed.
 - No Alfresco. Alfresco is one host's `ServerDashboardStore` implementation,
   supplied from outside, never something this package knows about.
 
@@ -216,7 +254,7 @@ One envelope, from every adapter:
 | `.`         | seams, access control, roles, errors                 |
 | `./http`    | the fetch-shaped handler                             |
 | `./testing` | in-memory seams, for dev servers and for integrators |
-| `./server`  | Node listener, probes, config                        |
+| `./server`  | Node listener, probes, config, contract and docs     |
 | `bin`       | `npx @microboxlabs/miot-dashboard-server`            |
 
 Separate entries so that mounting the library never drags in a listener, and

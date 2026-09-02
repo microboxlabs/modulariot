@@ -1,34 +1,187 @@
-# Dashboard wire contract — server-defined surface (P1).
+# Dashboard wire contract — the server's implemented surface.
 #
-# Companion to the draft at packages/miot-dashboard-ui/contract/openapi.yaml,
-# which was written from the client seams outward and stops where the client
-# seams stop. This file holds what only the server side defines: the error
-# envelope every endpoint returns, and the capabilities endpoint (Seam F's
-# server half), which the client draft is missing.
+# Every operation `@microboxlabs/miot-dashboard-server` answers, described
+# exactly as it behaves. This document is served by the standalone server at
+# /openapi.yaml and rendered at /docs, so a drift between the two is visible
+# rather than theoretical: the Bruno collection in rest-api/ exercises the same
+# operations, including the ones that must fail.
 #
-# The two fold into one document once the shared contract package exists —
-# see "Open decisions" in the build todo. Until then, paths, parameters and
-# vocabulary here are identical to the client draft so the merge is a
-# concatenation, not a reconciliation.
+# It began as the server-defined complement to the client draft in
+# packages/miot-dashboard-ui/contract/openapi.yaml, which was written from the
+# client seams outward and covers only what those seams reach. Now that the
+# standalone server exists, this file has to describe the whole HTTP surface —
+# it is the interface a non-Node service integrates against, and half a
+# contract is worse than none. Folding the two documents together is therefore
+# a reconciliation of overlapping paths, not the concatenation the earlier note
+# promised; paths, parameters and vocabulary are still identical between them
+# so that the reconciliation stays mechanical. See "Open decisions" in the
+# build todo.
 openapi: 3.1.0
 info:
-  title: MIOT Dashboard API — server-defined surface
+  title: MIOT Dashboard API
   version: 0.1.0-draft
   description: >
-    Endpoints and shapes defined by @microboxlabs/miot-dashboard-server that
-    the client draft does not cover. Every endpoint in either document resolves
-    the caller's tenant from the credential and returns the Error envelope
-    below on failure.
+    Persistence, tenancy and capabilities for embeddable dashboards.
+
+
+    Every endpoint resolves the caller's tenant from their **credential**,
+    never from the path or the body. A caller may name any `scopeId`; if it
+    does not belong to the tenant their credential resolves to, the request is
+    refused with the same 403 as an unknown scope and as a scope they are
+    simply not a member of. The three are indistinguishable by design, and no
+    store is consulted before the check.
+
+
+    Failures share one envelope, so a client parses one shape.
   x-status: draft
+
+servers:
+  - url: /
+    description: >
+      The server this document was served from. The standalone server serves
+      the API at the root unless MIOT_DASHBOARD_BASE_PATH is set; a host that
+      mounts the library chooses its own prefix.
+
+tags:
+  - name: dashboards
+    description: Reading, writing and removing dashboard configurations.
+  - name: access
+    description: What the caller may do, and who else may do what.
 
 security:
   - bearerAuth: []
   - embedToken: []
+  - devUser: []
+    devTenant: []
 
 paths:
+  /scopes/{scopeId}/dashboards:
+    get:
+      operationId: listDashboards
+      tags: [dashboards]
+      summary: Dashboards in one scope
+      description: >
+        Every dashboard in the scope, for a caller with any standing in it.
+        The list is drawn under the credential's tenant, so two tenants sharing
+        a scope identifier never see each other's entries.
+      parameters:
+        - $ref: "#/components/parameters/scopeId"
+      responses:
+        "200":
+          description: The dashboards in this scope. An empty list is a 200, not a 404.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /scopes/{scopeId}/dashboards/{slug}:
+    get:
+      operationId: loadDashboard
+      tags: [dashboards]
+      summary: One dashboard's configuration
+      description: >
+        A dashboard the caller may see but which does not exist yet answers
+        `200` with `data: null`, not `404`. The distinction matters to an
+        editor: "nothing saved here yet" is a starting point, while `404` would
+        be an error to report. A dashboard the caller may *not* see is `403`,
+        so absence never leaks through this endpoint.
+      parameters:
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/slug"
+      responses:
+        "200":
+          description: The stored configuration, or null when nothing is stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DashboardConfig"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    put:
+      operationId: saveDashboard
+      tags: [dashboards]
+      summary: Create or replace a dashboard's configuration
+      description: >
+        The body replaces the stored configuration outright; there is no merge.
+
+
+        Send `If-Match` with the revision you loaded. A write whose expected
+        revision is stale is refused with `409`, which is what stops two
+        editors — or an editor and the AI generation skill — from silently
+        overwriting one another. Omit the header only for a first write.
+
+
+        Creating a dashboard that does not exist yet is decided by scope
+        standing (Contributor or above), because a dashboard with no record has
+        no capabilities to consult.
+      parameters:
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/slug"
+        - $ref: "#/components/parameters/ifMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DashboardConfig"
+      responses:
+        "200":
+          description: Saved. The new revision is what the next If-Match must carry.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SaveResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+    delete:
+      operationId: deleteDashboard
+      tags: [dashboards]
+      summary: Remove a dashboard
+      parameters:
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/slug"
+      responses:
+        "204":
+          description: Removed. No body.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /scopes/{scopeId}/dashboards/{slug}/capabilities:
     get:
       operationId: getDashboardCapabilities
+      tags: [access]
       summary: The caller's effective capabilities on one dashboard
       description: >
         Server half of the UI package's Seam F. Replaces the host-specific
@@ -54,6 +207,58 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /scopes/{scopeId}/dashboards/{slug}/permissions:
+    get:
+      operationId: getDashboardPermissions
+      tags: [access]
+      summary: Role assignments on one dashboard
+      description: >
+        The assignments the host store reports, complete: if the host's model
+        has inheritance, inherited assignments are in the list. Requires
+        `canManagePermissions`, so this is not a way to enumerate a tenant's
+        users.
+      parameters:
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/slug"
+      responses:
+        "200":
+          description: The assignments that apply to this dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PermissionAssignments"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    put:
+      operationId: setDashboardPermissions
+      tags: [access]
+      summary: Replace the role assignments on one dashboard
+      description: >
+        The list replaces what is stored; omitting an authority removes its
+        assignment. `authorityId` is whatever the host calls a user or a group
+        — this package never interprets it.
+      parameters:
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/slug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PermissionAssignments"
+      responses:
+        "204":
+          description: Replaced. No body.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -65,6 +270,24 @@ components:
       in: header
       name: X-Miot-Embed-Token
       description: Signed embed token carrying tenant scope + capabilities.
+    devUser:
+      type: apiKey
+      in: header
+      name: X-Dev-User
+      description: >
+        **Development only.** Read verbatim, with no verification, when the
+        server runs with MIOT_DASHBOARD_INSECURE_AUTH. Anyone who can reach the
+        port can then claim to be anyone, which is why the server refuses this
+        setting under NODE_ENV=production. It is documented here so that "Try
+        it out" works against a dev server before an identity provider exists.
+    devTenant:
+      type: apiKey
+      in: header
+      name: X-Dev-Tenant
+      description: >
+        **Development only.** The tenant the unverified identity above belongs
+        to. Sent together with X-Dev-User; either alone resolves to no identity
+        at all, and the request is 401.
 
   parameters:
     scopeId:
@@ -81,8 +304,31 @@ components:
       in: path
       required: true
       schema: { type: string }
+    ifMatch:
+      name: If-Match
+      in: header
+      required: false
+      schema: { type: string }
+      description: >
+        The revision the caller believes it is replacing, as an integer. A
+        weak-validator prefix and surrounding quotes are tolerated. Omit only
+        for a first write; a mismatch is a 409, never a merge.
+      example: "3"
 
   responses:
+    BadRequest:
+      description: >
+        The request could not be understood: a body that is not JSON, an
+        `If-Match` that is not an integer, or an assignment list with a
+        malformed entry. The message names the offending field.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: "'assignments[0].role' must be one of Consumer, Contributor, Editor, Coordinator"
+            status: 400
+            code: BAD_REQUEST
     Unauthorized:
       description: No credential, or one that did not resolve to an identity.
       content:
@@ -111,11 +357,27 @@ components:
             code: FORBIDDEN
             reason: TENANT_SCOPE
     NotFound:
-      description: The dashboard does not exist in the caller's tenant.
+      description: >
+        The dashboard does not exist in the caller's tenant — or the path is
+        not one this API serves. An unsupported method on a real path answers
+        404 rather than 405 on purpose: which methods a path accepts is not
+        something an unauthorized caller should be able to enumerate.
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    Conflict:
+      description: >
+        The `If-Match` revision is not the stored one: something else was
+        written since the caller loaded it. Reload, reapply, retry.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Dashboard was modified by someone else
+            status: 409
+            code: CONFLICT
 
   schemas:
     Error:
@@ -148,6 +410,58 @@ components:
           type: string
           description: Present on 403 only.
           enum: [TENANT_SCOPE, EMBED_SCOPE, CAPABILITY]
+    DashboardSummary:
+      type: object
+      required: [slug, name]
+      properties:
+        slug:
+          type: string
+          description: Identifies the dashboard within its scope.
+        name:
+          type: string
+          description: Display name, as the host store records it.
+    DashboardConfig:
+      description: >
+        The dashboard document the UI package renders — layout, widgets and
+        their datasource bindings. Deliberately unconstrained here: it is
+        validated against its own versioned JSON Schema at the service layer,
+        so this contract never becomes a second, drifting definition of it.
+        `null` means nothing has been saved at this slug yet.
+      type: [object, "null"]
+      additionalProperties: true
+    SaveResult:
+      type: object
+      required: [revision, updatedAt]
+      properties:
+        revision:
+          type: integer
+          minimum: 0
+          description: >
+            Monotonic counter. Send it back as `If-Match` on the next write.
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO-8601, as the store recorded it.
+    PermissionAssignments:
+      type: object
+      required: [assignments]
+      properties:
+        assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/PermissionAssignment"
+    PermissionAssignment:
+      type: object
+      required: [authorityId, role]
+      properties:
+        authorityId:
+          type: string
+          minLength: 1
+          description: >
+            Host-defined user or group identifier. Opaque to this package,
+            compared only against what the identity seam reports.
+        role:
+          $ref: "#/components/schemas/Role"
     Capabilities:
       description: Identical to the client draft's Capabilities (Seam F vocabulary).
       type: object

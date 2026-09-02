@@ -20,6 +20,8 @@ export interface ServerConfig {
   store: "memory";
   /** Seed file for the in-memory store, so a dev server can start with data. */
   seedPath: string | undefined;
+  /** Serve the contract at /openapi.yaml and render it at /docs. */
+  docs: boolean;
 }
 
 export class ConfigError extends Error {}
@@ -61,6 +63,18 @@ function isLoopbackHost(host: string): boolean {
   const address = stripBrackets(host.trim().toLowerCase());
   if (address === "localhost" || address === "::1") return true;
   return address.startsWith("127.");
+}
+
+/**
+ * For switches that are on unless someone says otherwise.
+ *
+ * Kept separate from `readBoolean` rather than given a default parameter: a
+ * dangerous switch must be off unless explicitly enabled, and reading the two
+ * defaults out of one function is how those get confused.
+ */
+function readBooleanUnlessDisabled(value: string | undefined): boolean {
+  if (value === undefined) return true;
+  return !(value === "0" || value.toLowerCase() === "false");
 }
 
 /**
@@ -119,5 +133,6 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     insecureAuth,
     store,
     seedPath: env.MIOT_DASHBOARD_SEED,
+    docs: readBooleanUnlessDisabled(env.MIOT_DASHBOARD_DOCS),
   };
 }

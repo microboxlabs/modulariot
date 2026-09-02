@@ -1,0 +1,21 @@
+meta {
+  name: Load a dashboard config
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/scopes/{{scopeId}}/dashboards/{{slug}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-dev-user: {{user}}
+  x-dev-tenant: {{tenant}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.version: eq 2
+}

@@ -1,0 +1,36 @@
+meta {
+  name: Create or replace a dashboard
+  type: http
+  seq: 8
+}
+
+put {
+  url: {{baseUrl}}/scopes/{{scopeId}}/dashboards/bruno-scratch
+  body: json
+  auth: none
+}
+
+headers {
+  x-dev-user: {{user}}
+  x-dev-tenant: {{tenant}}
+}
+
+body:json {
+  {
+    "version": 2,
+    "title": "Written from Bruno",
+    "widgets": []
+  }
+}
+
+docs {
+  Creating a dashboard is decided by scope standing rather than by capabilities
+  on a document that does not exist yet: Contributor or above may create.
+  Send If-Match with the revision you believe you are replacing to get
+  optimistic concurrency; omit it for a first write.
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.revision: isNumber
+}

@@ -1,26 +1,26 @@
 /**
- * Test doubles for the four seams.
+ * Test wiring.
  *
- * The request type is the identity itself (or null): tests hand the access
- * control exactly the identity they want it to see, so what is under test is
- * everything *after* identity resolution — which is everything this package
- * owns.
+ * The seam implementations themselves live in `src/testing.ts` and are shipped,
+ * because the dev server and any integrator need exactly the same doubles. What
+ * lives here is only what tests need on top: spies, so a test can assert that
+ * the store was never reached, and a harness that assembles the parts.
+ *
+ * Keeping one implementation matters. When the store double was defined twice,
+ * the copy that nothing asserted on quietly grew a key-collision bug.
  */
 
 import { vi } from "vitest";
+import {
+  createMemoryScopeAuthority,
+  createMemoryStore,
+  createRecordingAuditSink,
+  type Memberships,
+  type SeedDashboard,
+} from "../testing";
 import type { AuditEvent, AuditSink } from "../seams/audit";
-import type {
-  DashboardIdentity,
-  IdentityResolver,
-  ScopeAuthority,
-} from "../seams/identity";
-import type {
-  DashboardRecord,
-  PermissionAssignment,
-  ServerDashboardRef,
-  ServerDashboardStore,
-} from "../seams/store";
-import type { DashboardRole } from "../access/roles";
+import type { DashboardIdentity, IdentityResolver } from "../seams/identity";
+import type { ServerDashboardStore } from "../seams/store";
 import { FULL_CAPABILITIES } from "../access/roles";
 import {
   createAccessControl,
@@ -28,6 +28,13 @@ import {
   type AccessControlOptions,
 } from "../access/access-control";
 
+export type { Memberships, SeedDashboard };
+
+/**
+ * The request type is the identity itself, so tests hand the access control
+ * exactly the identity they want it to see. What is under test is everything
+ * after identity resolution, which is everything this package owns.
+ */
 export type TestRequest = DashboardIdentity | null;
 
 export const identityFromRequest: IdentityResolver<TestRequest> = {
@@ -64,39 +71,7 @@ export function embed(
   };
 }
 
-/** tenantId → scopeId → userId → role */
-export type Memberships = Record<
-  string,
-  Record<string, Record<string, DashboardRole>>
->;
-
-export function scopeAuthority(memberships: Memberships): ScopeAuthority {
-  return {
-    resolveScopeRole: (identity, scopeId) =>
-      Promise.resolve(
-        memberships[identity.tenantId]?.[scopeId]?.[identity.userId] ?? null,
-      ),
-  };
-}
-
-export interface SeedDashboard {
-  ref: ServerDashboardRef;
-  name?: string;
-  record?: Partial<DashboardRecord>;
-  assignments?: PermissionAssignment[];
-}
-
-/**
- * Map key for a dashboard reference.
- *
- * `JSON.stringify` of the three parts rather than joining them with a
- * separator: ids are host-defined, so any separator character could appear
- * inside one, and then `{tenantId: "ac", scopeId: "me/ops"}` and
- * `{tenantId: "ac/me", scopeId: "ops"}` would address the same entry. A
- * fixture whose keys can collide would let a genuine isolation bug pass.
- */
-const key = (ref: ServerDashboardRef) =>
-  JSON.stringify([ref.tenantId, ref.scopeId, ref.slug]);
+export const scopeAuthority = createMemoryScopeAuthority;
 
 export interface MemoryStore extends ServerDashboardStore {
   load: ReturnType<typeof vi.fn<ServerDashboardStore["load"]>>;
@@ -104,59 +79,44 @@ export interface MemoryStore extends ServerDashboardStore {
   getPermissions: ReturnType<
     typeof vi.fn<ServerDashboardStore["getPermissions"]>
   >;
+  save: ReturnType<typeof vi.fn<ServerDashboardStore["save"]>>;
+  remove: ReturnType<typeof vi.fn<ServerDashboardStore["remove"]>>;
+  setPermissions: ReturnType<
+    typeof vi.fn<ServerDashboardStore["setPermissions"]>
+  >;
   /** True when any read or write reached the store. */
   touched(): boolean;
 }
 
+/** The shipped in-memory store, with every method wrapped in a spy. */
 export function memoryStore(seed: SeedDashboard[] = []): MemoryStore {
-  // The ref is stored beside the record rather than re-derived from the key,
-  // so `list` never has to parse a key back into its parts.
-  const records = new Map<
-    string,
-    { ref: ServerDashboardRef; name: string; record: DashboardRecord }
-  >();
-  const permissions = new Map<string, PermissionAssignment[]>();
-  for (const { ref, name, record, assignments } of seed) {
-    records.set(key(ref), {
-      ref,
-      name: name ?? ref.slug,
-      record: {
-        config: { version: 2 },
-        updatedAt: "2026-01-01T00:00:00.000Z",
-        updatedBy: "seed",
-        revision: 1,
-        ...record,
-      },
-    });
-    permissions.set(key(ref), assignments ?? []);
-  }
+  const inner = createMemoryStore({
+    seed,
+    now: () => new Date("2026-01-01T00:00:00.000Z"),
+  });
 
-  const load = vi.fn<ServerDashboardStore["load"]>((ref) =>
-    Promise.resolve(records.get(key(ref))?.record ?? null),
+  const load = vi.fn<ServerDashboardStore["load"]>(inner.load.bind(inner));
+  const list = vi.fn<ServerDashboardStore["list"]>(inner.list.bind(inner));
+  const save = vi.fn<ServerDashboardStore["save"]>(inner.save.bind(inner));
+  const remove = vi.fn<ServerDashboardStore["remove"]>(
+    inner.remove.bind(inner),
   );
-  const list = vi.fn<ServerDashboardStore["list"]>((tenantId, scopeId) =>
-    Promise.resolve(
-      [...records.values()]
-        .filter((e) => e.ref.tenantId === tenantId && e.ref.scopeId === scopeId)
-        .map((e) => ({ slug: e.ref.slug, name: e.name })),
-    ),
+  const getPermissions = vi.fn<ServerDashboardStore["getPermissions"]>(
+    inner.getPermissions.bind(inner),
   );
-  const getPermissions = vi.fn<ServerDashboardStore["getPermissions"]>((ref) =>
-    Promise.resolve(permissions.get(key(ref)) ?? []),
+  const setPermissions = vi.fn<ServerDashboardStore["setPermissions"]>(
+    inner.setPermissions.bind(inner),
   );
-  const save = vi.fn<ServerDashboardStore["save"]>();
-  const remove = vi.fn<ServerDashboardStore["remove"]>();
-  const setPermissions = vi.fn<ServerDashboardStore["setPermissions"]>();
 
   return {
     load,
     list,
-    getPermissions,
     save,
     remove,
+    getPermissions,
     setPermissions,
     touched: () =>
-      [load, list, getPermissions, save, remove, setPermissions].some(
+      [load, list, save, remove, getPermissions, setPermissions].some(
         (fn) => fn.mock.calls.length > 0,
       ),
   };
@@ -167,12 +127,10 @@ export interface RecordingAudit extends AuditSink {
 }
 
 export function recordingAudit(): RecordingAudit {
-  const events: AuditEvent[] = [];
+  const sink = createRecordingAuditSink();
   return {
-    events,
-    record(event) {
-      events.push(event);
-    },
+    events: sink.events as AuditEvent[],
+    record: (event) => sink.record(event),
   };
 }
 
@@ -194,7 +152,7 @@ export function harness(
   const audit = recordingAudit();
   const control = createAccessControl<TestRequest>({
     identity: identityFromRequest,
-    scopes: scopeAuthority(options.memberships ?? {}),
+    scopes: createMemoryScopeAuthority(options.memberships ?? {}),
     store,
     audit,
     ...(options.policy ? { policy: options.policy } : {}),

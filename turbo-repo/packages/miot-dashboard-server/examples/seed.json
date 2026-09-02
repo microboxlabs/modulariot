@@ -1,0 +1,47 @@
+{
+  "_comment": "Seed for the standalone dev server. Two tenants deliberately share a scope id and a dashboard slug, so a tenant-isolation mistake shows up immediately rather than hiding behind unique names.",
+  "memberships": {
+    "acme": {
+      "ops": {
+        "alice": "Coordinator",
+        "erin": "Editor",
+        "carl": "Contributor",
+        "connie": "Consumer"
+      },
+      "finance": {
+        "alice": "Consumer"
+      }
+    },
+    "globex": {
+      "ops": {
+        "bob": "Coordinator"
+      }
+    }
+  },
+  "dashboards": [
+    {
+      "ref": { "tenantId": "acme", "scopeId": "ops", "slug": "fleet" },
+      "name": "Fleet overview",
+      "record": {
+        "config": {
+          "version": 2,
+          "title": "Fleet overview",
+          "widgets": []
+        },
+        "createdBy": "carl"
+      },
+      "assignments": [{ "authorityId": "connie", "role": "Editor" }]
+    },
+    {
+      "ref": { "tenantId": "globex", "scopeId": "ops", "slug": "fleet" },
+      "name": "Fleet overview",
+      "record": {
+        "config": {
+          "version": 2,
+          "title": "A different tenant's dashboard at the same address",
+          "widgets": []
+        }
+      }
+    }
+  ]
+}

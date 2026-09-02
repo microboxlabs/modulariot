@@ -141,6 +141,7 @@ components:
             - NOT_FOUND
             - BAD_REQUEST
             - CONFLICT
+            - PAYLOAD_TOO_LARGE
             - UPSTREAM_ERROR
             - INTERNAL_ERROR
         reason:

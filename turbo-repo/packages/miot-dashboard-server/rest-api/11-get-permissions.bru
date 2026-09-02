@@ -1,0 +1,26 @@
+meta {
+  name: Read role assignments
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/scopes/{{scopeId}}/dashboards/{{slug}}/permissions
+  body: none
+  auth: none
+}
+
+headers {
+  x-dev-user: {{user}}
+  x-dev-tenant: {{tenant}}
+}
+
+docs {
+  Reading assignments requires canManagePermissions, which only a Coordinator
+  has by default. An Editor gets 403 here.
+}
+
+assert {
+  res.status: eq 200
+  res.body.assignments: isDefined
+}

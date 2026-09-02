@@ -107,16 +107,58 @@ export interface AccessControl<TRequest> {
   ): Promise<DashboardCapabilities>;
 }
 
-/** Actions that only make sense against one dashboard, so a slug is mandatory. */
-const DASHBOARD_ACTIONS: ReadonlySet<DashboardAction> =
-  new Set<DashboardAction>([
-    "dashboard.load",
-    "dashboard.save",
-    "dashboard.delete",
-    "dashboard.permissions.read",
-    "dashboard.permissions.write",
-    "embed.token.issue",
-  ]);
+/**
+ * Capability flags an action can require. `readOnly` is deliberately absent:
+ * it is a rendering hint for the UI, never a gate on the server.
+ */
+type CapabilityName = Exclude<keyof DashboardCapabilities, "readOnly">;
+
+type ActionRule =
+  /** Names one dashboard; a slug is mandatory and its capabilities decide. */
+  | { level: "dashboard"; capability: CapabilityName | null }
+  /** Acts on the scope; the caller's role in it decides, plus their ceiling. */
+  | { level: "scope"; floor: DashboardRole; capability: CapabilityName | null };
+
+/**
+ * What every action requires. One table, consulted by both the scope-level
+ * and dashboard-level paths, for two reasons:
+ *
+ * `Record<DashboardAction, ActionRule>` is exhaustive, so a new action cannot
+ * be authorized by omission. `DashboardAction` is derived from the audit
+ * vocabulary, which means adding an audit verb also adds an authorization
+ * verb; before this table, such a verb inherited a permissive default and was
+ * allowed to every scope member. Now it fails to compile until someone says
+ * what it needs.
+ *
+ * `capability` is checked on both paths. When it was checked only on the
+ * dashboard path, omitting the slug skipped the caller's ceiling entirely —
+ * a restricted principal could write to a datasource by leaving the slug out
+ * of a request that would have been refused with it.
+ */
+const ACTION_RULES: Readonly<Record<DashboardAction, ActionRule>> = {
+  "dashboard.list": { level: "scope", floor: "Consumer", capability: null },
+  "dashboard.load": { level: "dashboard", capability: null },
+  "dashboard.save": { level: "dashboard", capability: "canEdit" },
+  "dashboard.delete": { level: "dashboard", capability: "canDelete" },
+  "dashboard.permissions.read": {
+    level: "dashboard",
+    capability: "canManagePermissions",
+  },
+  "dashboard.permissions.write": {
+    level: "dashboard",
+    capability: "canManagePermissions",
+  },
+  "datasource.list": { level: "scope", floor: "Consumer", capability: null },
+  "datasource.query": { level: "scope", floor: "Consumer", capability: null },
+  // Write-back is scope-level on purpose: the app's existing routes address a
+  // function, not a dashboard, and P6 has to strangle them as they are.
+  "datasource.write": {
+    level: "scope",
+    floor: "Contributor",
+    capability: "canEdit",
+  },
+  "embed.token.issue": { level: "dashboard", capability: "canShare" },
+};
 
 /**
  * What an embed principal may do at all. Rendering needs the config and its
@@ -129,42 +171,39 @@ const EMBED_ACTIONS: ReadonlySet<DashboardAction> = new Set<DashboardAction>([
   "datasource.query",
 ]);
 
-/** Minimum scope role for actions that do not name a dashboard. */
-function scopeFloor(action: DashboardAction): DashboardRole {
-  return action === "datasource.write" ? "Contributor" : "Consumer";
-}
-
 /**
- * Whether the effective capabilities cover the action. Creating a dashboard
- * is the one case decided by scope standing rather than by capabilities on
- * the (nonexistent) dashboard.
+ * Whether the dashboard's effective capabilities cover the action. Those are
+ * already intersected with the caller's ceiling, so no further narrowing is
+ * needed here.
+ *
+ * Creating a dashboard is the one case decided by scope standing instead:
+ * a dashboard that does not exist yet has no capabilities to consult.
  */
 function dashboardActionAllowed(
   action: DashboardAction,
   access: DashboardAccess,
   scopeRole: DashboardRole,
 ): boolean {
-  const caps = access.capabilities;
-  switch (action) {
-    case "dashboard.save":
-      return access.record === null
-        ? roleAtLeast(scopeRole, "Contributor")
-        : caps.canEdit;
-    case "dashboard.delete":
-      return caps.canDelete;
-    case "dashboard.permissions.read":
-    case "dashboard.permissions.write":
-      return caps.canManagePermissions;
-    case "embed.token.issue":
-      return caps.canShare;
-    case "datasource.write":
-      return caps.canEdit;
-    case "dashboard.load":
-    case "dashboard.list":
-    case "datasource.list":
-    case "datasource.query":
-      return true;
+  if (action === "dashboard.save" && access.record === null) {
+    return roleAtLeast(scopeRole, "Contributor");
   }
+  const { capability } = ACTION_RULES[action];
+  return capability === null || access.capabilities[capability];
+}
+
+/**
+ * Whether a scope-level action is allowed: the caller's role in the scope
+ * must clear the floor, and their ceiling must still permit it.
+ */
+function scopeActionAllowed(
+  action: DashboardAction,
+  identity: DashboardIdentity,
+  scopeRole: DashboardRole,
+): boolean {
+  const rule = ACTION_RULES[action];
+  if (rule.level !== "scope") return false;
+  if (!roleAtLeast(scopeRole, rule.floor)) return false;
+  return rule.capability === null || identity.capabilities[rule.capability];
 }
 
 function targetLabel(target: AccessTarget): string {
@@ -305,7 +344,7 @@ export function createAccessControl<TRequest>(
     }
 
     if (target.slug === undefined) {
-      if (DASHBOARD_ACTIONS.has(target.action)) {
+      if (ACTION_RULES[target.action].level === "dashboard") {
         // Audited like any other refusal. This one indicts the adapter rather
         // than the caller, but it is reachable from a request, and a burst of
         // them is worth seeing in the log rather than only in a 400.
@@ -317,7 +356,7 @@ export function createAccessControl<TRequest>(
           `Action ${target.action} requires a dashboard slug`,
         );
       }
-      if (!roleAtLeast(scopeRole, scopeFloor(target.action))) {
+      if (!scopeActionAllowed(target.action, identity, scopeRole)) {
         return deny(
           identity,
           target,

@@ -395,6 +395,38 @@ describe("capabilities by role", () => {
     expect(byGroup.dashboard?.capabilities).toEqual(FULL_CAPABILITIES);
   });
 
+  it("the ceiling applies to scope-level actions too, so omitting the slug is not a way around it", async () => {
+    const h = harness({ memberships, seed });
+    // Editor in the scope, but the credential itself may not edit.
+    const restricted = user("eve", "acme", {
+      capabilities: { ...FULL_CAPABILITIES, canEdit: false },
+    });
+
+    // With a slug the ceiling is applied through the dashboard's capabilities.
+    const withSlug = await expectError(
+      h.control.authorize(restricted, target("datasource.write")),
+    );
+    expect(withSlug.reason).toBe("CAPABILITY");
+
+    // Without one it used to skip the ceiling entirely and be allowed.
+    const withoutSlug = await expectError(
+      h.control.authorize(restricted, {
+        scopeId: "ops",
+        action: "datasource.write",
+      }),
+    );
+    expect(withoutSlug.reason).toBe("CAPABILITY");
+
+    // The same principal with an unrestricted ceiling still gets through,
+    // so the check narrows rather than blocking the action outright.
+    await expect(
+      h.control.authorize(user("eve", "acme"), {
+        scopeId: "ops",
+        action: "datasource.write",
+      }),
+    ).resolves.toBeDefined();
+  });
+
   it("the identity's ceiling narrows what the role would grant", async () => {
     const h = harness({ memberships, seed });
     const cappedAlice = user("alice", "acme", {

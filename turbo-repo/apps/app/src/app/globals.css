@@ -85,7 +85,9 @@ mark.miot-search-mark {
   padding: 0 1px;
 }
 mark.miot-search-mark.miot-search-mark-current {
-  background: #f97316;
+  /* orange-700, not -500: white text on #f97316 was ~2.8:1, below WCAG AA's
+   * 4.5:1 for normal text (sonar css:S7924) — this passes at ~5.2:1. */
+  background: #c2410c;
   color: #fff;
 }
 

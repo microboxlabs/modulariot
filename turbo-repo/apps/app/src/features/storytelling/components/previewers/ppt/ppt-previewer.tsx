@@ -63,7 +63,7 @@ function TableSlide({ slide }: { readonly slide: Extract<DeckSlide, { type: "tab
           {slide.rows.map((row) => (
             <tr key={row.join("|")} className="border-b border-gray-100 dark:border-gray-800">
               {row.map((cell, i) => (
-                <td key={i} className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                <td key={slide.headers[i] ?? i} className="px-3 py-2 text-gray-700 dark:text-gray-300">
                   {cell}
                 </td>
               ))}
@@ -250,7 +250,7 @@ export const PptPreviewer = forwardRef<SearchableHandle, PptPreviewerProps>(
       }
       searchInDom(el, query);
       const target = locateMatch(countsRef.current, globalIndexRef.current);
-      if (target && target.slideIndex === index) {
+      if (target?.slideIndex === index) {
         focusSearchMatch(el, target.localIndex, { scroll: false });
       }
       // mainFrameRef is a stable ref object, deliberately not a dependency.
@@ -300,7 +300,7 @@ export const PptPreviewer = forwardRef<SearchableHandle, PptPreviewerProps>(
           >
             {deck.slides.map((s, i) => (
               <SlideThumbnail
-                key={i}
+                key={`${s.type}-${s.title}`}
                 slide={s}
                 index={i}
                 active={i === index}

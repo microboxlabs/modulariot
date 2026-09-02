@@ -48,8 +48,9 @@ export default function StoryShareModal({ story, lang, onClose, dict }: StorySha
   function handleWhatsapp() {
     if (!story) return;
     const url = shareUrl(story, lang);
+    const text = `${story.title} ${url}`;
     window.open(
-      `https://wa.me/?text=${encodeURIComponent(`${story.title} ${url}`)}`,
+      `https://wa.me/?text=${encodeURIComponent(text)}`,
       "_blank",
       "noopener,noreferrer"
     );

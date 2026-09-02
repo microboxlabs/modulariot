@@ -41,7 +41,7 @@ export function searchInDom(root: Document | Element, query: string): number {
       const tag = node.parentElement?.tagName;
       if (tag === "SCRIPT" || tag === "STYLE" || tag === "MARK") return NodeFilter.FILTER_REJECT;
       const text = node.textContent;
-      if (!text || !text.toLowerCase().includes(needle)) return NodeFilter.FILTER_SKIP;
+      if (!text?.toLowerCase().includes(needle)) return NodeFilter.FILTER_SKIP;
       return NodeFilter.FILTER_ACCEPT;
     },
   });

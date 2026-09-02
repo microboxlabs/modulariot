@@ -144,7 +144,9 @@ export function injectActionPills(doc: Document, handlers: InjectActionHandlers)
         padding: 0 1px;
       }
       mark.${MARK_CLASS}.${MARK_CURRENT_CLASS} {
-        background: #f97316;
+        /* Kept in sync with globals.css's .miot-search-mark-current — see
+         * its comment for why this is orange-700, not -500. */
+        background: #c2410c;
         color: #fff;
       }
     `;

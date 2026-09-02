@@ -306,6 +306,13 @@ export function createAccessControl<TRequest>(
 
     if (target.slug === undefined) {
       if (DASHBOARD_ACTIONS.has(target.action)) {
+        // Audited like any other refusal. This one indicts the adapter rather
+        // than the caller, but it is reachable from a request, and a burst of
+        // them is worth seeing in the log rather than only in a 400.
+        await record(identity, target, "denied", {
+          reason: "BAD_REQUEST",
+          principal: identity.kind,
+        });
         throw DashboardServerError.badRequest(
           `Action ${target.action} requires a dashboard slug`,
         );

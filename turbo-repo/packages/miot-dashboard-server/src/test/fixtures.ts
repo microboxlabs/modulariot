@@ -81,12 +81,22 @@ export function scopeAuthority(memberships: Memberships): ScopeAuthority {
 
 export interface SeedDashboard {
   ref: ServerDashboardRef;
+  name?: string;
   record?: Partial<DashboardRecord>;
   assignments?: PermissionAssignment[];
 }
 
+/**
+ * Map key for a dashboard reference.
+ *
+ * `JSON.stringify` of the three parts rather than joining them with a
+ * separator: ids are host-defined, so any separator character could appear
+ * inside one, and then `{tenantId: "ac", scopeId: "me/ops"}` and
+ * `{tenantId: "ac/me", scopeId: "ops"}` would address the same entry. A
+ * fixture whose keys can collide would let a genuine isolation bug pass.
+ */
 const key = (ref: ServerDashboardRef) =>
-  `${ref.tenantId}${ref.scopeId}${ref.slug}`;
+  JSON.stringify([ref.tenantId, ref.scopeId, ref.slug]);
 
 export interface MemoryStore extends ServerDashboardStore {
   load: ReturnType<typeof vi.fn<ServerDashboardStore["load"]>>;
@@ -99,27 +109,36 @@ export interface MemoryStore extends ServerDashboardStore {
 }
 
 export function memoryStore(seed: SeedDashboard[] = []): MemoryStore {
-  const records = new Map<string, DashboardRecord>();
+  // The ref is stored beside the record rather than re-derived from the key,
+  // so `list` never has to parse a key back into its parts.
+  const records = new Map<
+    string,
+    { ref: ServerDashboardRef; name: string; record: DashboardRecord }
+  >();
   const permissions = new Map<string, PermissionAssignment[]>();
-  for (const { ref, record, assignments } of seed) {
+  for (const { ref, name, record, assignments } of seed) {
     records.set(key(ref), {
-      config: { version: 2 },
-      updatedAt: "2026-01-01T00:00:00.000Z",
-      updatedBy: "seed",
-      revision: 1,
-      ...record,
+      ref,
+      name: name ?? ref.slug,
+      record: {
+        config: { version: 2 },
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        updatedBy: "seed",
+        revision: 1,
+        ...record,
+      },
     });
     permissions.set(key(ref), assignments ?? []);
   }
 
   const load = vi.fn<ServerDashboardStore["load"]>((ref) =>
-    Promise.resolve(records.get(key(ref)) ?? null),
+    Promise.resolve(records.get(key(ref))?.record ?? null),
   );
   const list = vi.fn<ServerDashboardStore["list"]>((tenantId, scopeId) =>
     Promise.resolve(
-      [...records.keys()]
-        .filter((k) => k.startsWith(`${tenantId}${scopeId}`))
-        .map((k) => ({ slug: k.split("")[2] ?? "", name: "" })),
+      [...records.values()]
+        .filter((e) => e.ref.tenantId === tenantId && e.ref.scopeId === scopeId)
+        .map((e) => ({ slug: e.ref.slug, name: e.name })),
     ),
   );
   const getPermissions = vi.fn<ServerDashboardStore["getPermissions"]>((ref) =>

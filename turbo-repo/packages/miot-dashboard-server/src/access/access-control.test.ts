@@ -439,7 +439,7 @@ describe("capabilities by role", () => {
 });
 
 describe("target validation", () => {
-  it("dashboard-level actions without a slug are a caller bug, reported as 400", async () => {
+  it("dashboard-level actions without a slug are a caller bug, reported as 400 and audited", async () => {
     const h = harness({ memberships, seed });
     const error = await expectError(
       h.control.authorize(user("alice", "acme"), {
@@ -449,6 +449,18 @@ describe("target validation", () => {
     );
     expect(error.status).toBe(400);
     expect(h.store.touched()).toBe(false);
+    // The module header promises every refusal is audited; this is the path
+    // that used to slip out unrecorded.
+    expect(h.audit.events).toEqual([
+      expect.objectContaining({
+        action: "dashboard.save",
+        outcome: "denied",
+        target: "ops",
+        tenantId: "acme",
+        userId: "alice",
+        detail: expect.objectContaining({ reason: "BAD_REQUEST" }),
+      }),
+    ]);
   });
 });
 

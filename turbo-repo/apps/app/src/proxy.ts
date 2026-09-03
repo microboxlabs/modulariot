@@ -41,6 +41,12 @@ function hasRequiredGroups(
 
 const logger = createManagedLogger("middleware", "Middleware", "error");
 
+// Static files served from public/ that must skip auth and the locale
+// rewrite (e.g. /app/pdf.worker.min.mjs — the pdf.js worker). Lives here as
+// a regex literal instead of in `config.matcher`, whose entries Next
+// statically analyses and so can only be plain (unescaped) string literals.
+const STATIC_ASSET_PATH = /\.(?:png|svg|mjs)$|^\/autentia\/.+\.js$/;
+
 // Type annotation to avoid npm phantom dependency type inference issues
 const middleware = auth(async function middleware(request: NextRequest) {
   // const shouldLog = process.env.LOG_ACCESS === "true";
@@ -53,6 +59,10 @@ const middleware = auth(async function middleware(request: NextRequest) {
     /^\/app(\/.*)?$/,
     (_: string, captured: string | undefined) => captured || "/"
   );
+
+  if (STATIC_ASSET_PATH.test(pathname)) {
+    return NextResponse.next();
+  }
 
   if (pathname.startsWith("/cli/auth/login")) {
     return NextResponse.next();
@@ -127,16 +137,14 @@ const middleware = auth(async function middleware(request: NextRequest) {
 export default middleware;
 
 export const config = {
-  // NOTE: these entries must stay plain string literals — Next statically
-  // analyses `config.matcher`, so a `String.raw` (or any expression) here
-  // fails the build with "Invalid segment configuration export detected".
+  // Next statically analyses `config.matcher`, so entries must be plain
+  // string literals (no `String.raw`, no expressions) — otherwise the build
+  // fails with "Invalid segment configuration export detected". File-type
+  // skips that would need escaped backslashes here are handled by
+  // STATIC_ASSET_PATH inside the middleware body instead.
   matcher: [
-    // Skip all internal paths (_next) and static asset files served from
-    // public/ (e.g. /app/pdf.worker.min.mjs — the pdf.js worker the
-    // storytelling PDF previewer loads; without the .mjs skip the locale
-    // rewrite below turns it into /app/<locale>/pdf.worker.min.mjs → 404).
     "/",
-    "/((?!api|_next/static|_next/image|.*\\.png$|.*\\.svg$|.*\\.mjs$|autentia/.*\\.js$).*)",
-    "/app/((?!api|_next/static|_next/image|.*\\.png$|.*\\.svg$|.*\\.mjs$|autentia/.*\\.js$).*)",
+    "/((?!api|_next/static|_next/image).*)",
+    "/app/((?!api|_next/static|_next/image).*)",
   ],
 };

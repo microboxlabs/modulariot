@@ -6,6 +6,7 @@
  * resolved promises to match the `SqlDriver` interface.
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire } from "node:module";
 import { SQLITE_DIALECT, type SqlDriver, type SqlValue } from "./sql/driver";
 
@@ -69,8 +70,22 @@ export function createSqliteDriver(options: SqliteDriverOptions): SqlDriver {
     return statement;
   };
 
-  /** A nested call joins the open transaction; SQLite rejects a second BEGIN. */
-  let depth = 0;
+  /**
+   * Set while a transaction is open, and readable only from the async calls
+   * that transaction made. A counter cannot tell the two cases apart: with two
+   * requests in flight, the second `transaction()` call sees the first's
+   * counter and runs its body inside the first's transaction, so the first
+   * caller's rollback silently discards the second caller's writes while the
+   * second caller is told it succeeded.
+   */
+  const open = new AsyncLocalStorage<true>();
+
+  /**
+   * Independent transactions run one at a time. SQLite allows one write
+   * transaction per connection, and `body` is free to await, so overlapping
+   * callers would otherwise share whichever transaction started first.
+   */
+  let queue: Promise<unknown> = Promise.resolve();
 
   return {
     dialect: SQLITE_DIALECT,
@@ -99,22 +114,34 @@ export function createSqliteDriver(options: SqliteDriverOptions): SqlDriver {
       }
     },
 
-    async transaction<T>(body: () => Promise<T>): Promise<T> {
-      if (depth > 0) return body();
-      // IMMEDIATE takes the write lock now. With DEFERRED, two transactions
-      // that read and then write both try to upgrade, and one gets SQLITE_BUSY.
-      db.exec("BEGIN IMMEDIATE");
-      depth = 1;
-      try {
-        const result = await body();
-        db.exec("COMMIT");
-        return result;
-      } catch (error) {
-        db.exec("ROLLBACK");
-        throw error;
-      } finally {
-        depth = 0;
-      }
+    transaction<T>(body: () => Promise<T>): Promise<T> {
+      // Called from inside a transaction this driver opened: join it, because
+      // SQLite rejects a second BEGIN on the same connection.
+      if (open.getStore() === true) return body();
+
+      const run = async (): Promise<T> => {
+        // IMMEDIATE takes the write lock now. With DEFERRED, two transactions
+        // that read and then write both try to upgrade, and one gets
+        // SQLITE_BUSY.
+        db.exec("BEGIN IMMEDIATE");
+        try {
+          const result = await open.run(true, body);
+          db.exec("COMMIT");
+          return result;
+        } catch (error) {
+          db.exec("ROLLBACK");
+          throw error;
+        }
+      };
+
+      // Wait for the transaction ahead of this one, whether it committed or
+      // rolled back, then take its place in the queue.
+      const result = queue.then(run, run);
+      queue = result.then(
+        () => undefined,
+        () => undefined,
+      );
+      return result;
     },
 
     close() {

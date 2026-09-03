@@ -385,6 +385,37 @@ describe("the driver", () => {
     }
   });
 
+  it("does not let one caller's rollback discard another's writes", async () => {
+    const driver = createSqliteDriver({ path: SQLITE_MEMORY });
+    try {
+      await runMigrations(driver);
+      const insert = (key: string) =>
+        driver.all(
+          `INSERT INTO dashboard_documents (document_key, body) VALUES (?, ?)`,
+          [key, "{}"],
+        );
+
+      // Two requests in flight. The first yields at its await, which is where
+      // the second used to see an open transaction and run inside it.
+      const failing = driver.transaction(async () => {
+        await insert("rolled-back");
+        await new Promise((resume) => setImmediate(resume));
+        throw new Error("first caller failed");
+      });
+      const succeeding = driver.transaction(() => insert("committed"));
+
+      await expect(failing).rejects.toThrow("first caller failed");
+      await succeeding;
+
+      const rows = await driver.all<{ document_key: string }>(
+        "SELECT document_key FROM dashboard_documents",
+      );
+      expect(rows.map((row) => row.document_key)).toEqual(["committed"]);
+    } finally {
+      await driver.close();
+    }
+  });
+
   it("lets a nested transaction join the one already open", async () => {
     const driver = createSqliteDriver({ path: SQLITE_MEMORY });
     try {

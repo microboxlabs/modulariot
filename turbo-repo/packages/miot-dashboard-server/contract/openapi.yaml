@@ -50,6 +50,7 @@ tags:
 
 security:
   - bearerAuth: []
+  - ticketAuth: []
   - embedToken: []
   - devUser: []
     devTenant: []
@@ -273,6 +274,18 @@ components:
         source and is never taken from the token. A host that mounts the
         library supplies its own resolver and may accept something else
         entirely.
+    ticketAuth:
+      type: apiKey
+      in: header
+      name: X-Ticket
+      description: >
+        An opaque ticket, validated against the system that issued it on every
+        request that is not answered from a short-lived cache. The header name
+        shown here is an example: it is named by configuration, because no
+        standard covers it. The tenant comes from the emitter's answer, or is
+        fixed by configuration where the emitter serves one tenant. A ticket
+        the emitter refuses is a 401; an emitter that cannot be reached is a
+        500, never a 401.
     embedToken:
       type: apiKey
       in: header

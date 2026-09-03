@@ -8,6 +8,11 @@
  */
 
 import type { JwtAlgorithm } from "../identity/jwt";
+import type {
+  TicketPresentation,
+  TicketTenantSource,
+} from "../identity/ticket";
+import { DASHBOARD_ROLES, type DashboardRole } from "../access/roles";
 import { isLoopbackHost } from "../net/loopback";
 
 export interface ServerConfig {
@@ -16,6 +21,8 @@ export interface ServerConfig {
   basePath: string;
   /** Which identity provider the server was told to use. */
   auth: AuthConfig;
+  /** Where scope membership is answered: the seed file, or the host. */
+  scopes: ScopeConfig;
   /** `memory` is discarded on restart; `sqlite` writes to one file. */
   store: StoreKind;
   /** Database file for the sqlite store. Ignored by the memory store. */
@@ -26,15 +33,27 @@ export interface ServerConfig {
   docs: boolean;
 }
 
-export type AuthConfig = InsecureAuthConfig | JwtAuthConfig;
+export type AuthConfig = InsecureAuthConfig | VerifiedAuthConfig;
 
 /** Identity read from request headers, unverified. Loopback only. */
 export interface InsecureAuthConfig {
   kind: "insecure";
 }
 
+/**
+ * The verified schemes, of which at least one is present.
+ *
+ * More than one may be, because a deployment can face a front-end holding a
+ * JWT and a service holding a ticket at the same time. They read different
+ * headers, so they do not compete.
+ */
+export interface VerifiedAuthConfig {
+  kind: "verified";
+  jwt: JwtAuthConfig | undefined;
+  ticket: TicketAuthConfig | undefined;
+}
+
 export interface JwtAuthConfig {
-  kind: "jwt";
   issuer: string;
   audience: string[];
   /**
@@ -58,6 +77,60 @@ export type JwtKeySource =
   | { kind: "jwks"; url: string }
   | { kind: "publicKey"; pem: string }
   | { kind: "secret"; secret: string };
+
+export interface TicketAuthConfig {
+  /** Request header the caller presents the ticket in. */
+  header: string;
+  /** Scheme prefix to strip from that header, when the caller sends one. */
+  scheme: string | undefined;
+  url: string;
+  method: HttpMethod;
+  present: TicketPresentation;
+  /** A credential this server sends to the emitter, beyond the ticket itself. */
+  serviceHeader: HeaderCredential | undefined;
+  tenant: TicketTenantSource;
+  claims: {
+    userId: string;
+    groups: string | undefined;
+    displayName: string | undefined;
+  };
+  absentStatuses: number[];
+  cacheSeconds: number;
+  negativeCacheSeconds: number;
+  requestTimeoutMs: number;
+}
+
+export type ScopeConfig = SeedScopeConfig | HttpScopeConfig;
+
+/**
+ * Membership from the seed file. Correct for a demo and for the tests; in a
+ * deployment nobody maintains it, which is why the server says so at startup.
+ */
+export interface SeedScopeConfig {
+  kind: "seed";
+}
+
+export interface HttpScopeConfig {
+  kind: "http";
+  url: string;
+  method: HttpMethod;
+  rolePath: string;
+  /** Host role names mapped onto this package's. Empty means they match. */
+  roleMap: Record<string, DashboardRole> | undefined;
+  serviceHeader: HeaderCredential | undefined;
+  absentStatuses: number[];
+  cacheSeconds: number;
+  negativeCacheSeconds: number;
+  requestTimeoutMs: number;
+}
+
+export type HttpMethod = "GET" | "POST";
+
+/** A header this server sends. The value is a credential; never log it. */
+export interface HeaderCredential {
+  name: string;
+  value: string;
+}
 
 export const STORE_KINDS = ["memory", "sqlite"] as const;
 export type StoreKind = (typeof STORE_KINDS)[number];
@@ -226,7 +299,6 @@ function readJwtAuth(env: ConfigEnv): JwtAuthConfig {
   const key = readKeySource(env);
 
   return {
-    kind: "jwt",
     issuer: required(
       env,
       "MIOT_DASHBOARD_JWT_ISSUER",
@@ -252,6 +324,324 @@ function readJwtAuth(env: ConfigEnv): JwtAuthConfig {
   };
 }
 
+// ------------------------------------------- delegated to the host over HTTP ----
+
+/**
+ * Defaults for both host lookups. Sixty seconds is short enough that a
+ * revoked membership or ticket stops working while someone is still looking
+ * at the screen, and long enough that the host sees a fraction of this
+ * server's traffic.
+ */
+const DEFAULT_LOOKUP_CACHE_SECONDS = 60;
+const DEFAULT_NEGATIVE_CACHE_SECONDS = 30;
+const DEFAULT_LOOKUP_TIMEOUT_MS = 5000;
+const MAX_LOOKUP_CACHE_SECONDS = 3600;
+const MAX_LOOKUP_TIMEOUT_MS = 30_000;
+
+function readWholeNumber(
+  env: ConfigEnv,
+  key: string,
+  fallback: number,
+  max: number,
+  units: string,
+): number {
+  const raw = trimmed(env[key]);
+  if (raw === undefined) return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0 || value > max) {
+    throw new ConfigError(
+      `${key} must be a whole number of ${units} between 0 and ${max}, got "${raw}"`,
+    );
+  }
+  return value;
+}
+
+function readMethod(env: ConfigEnv, key: string): HttpMethod {
+  const raw = trimmed(env[key]);
+  if (raw === undefined) return "GET";
+  const method = raw.toUpperCase();
+  if (method !== "GET" && method !== "POST") {
+    throw new ConfigError(`${key} must be GET or POST, got "${raw}"`);
+  }
+  return method;
+}
+
+function readStatuses(
+  env: ConfigEnv,
+  key: string,
+  fallback: readonly number[],
+): number[] {
+  const raw = trimmed(env[key]);
+  if (raw === undefined) return [...fallback];
+  const statuses = raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+    .map((entry) => {
+      const status = Number(entry);
+      if (!Number.isInteger(status) || status < 100 || status > 599) {
+        throw new ConfigError(
+          `${key} must be a comma-separated list of HTTP statuses, got "${entry}"`,
+        );
+      }
+      return status;
+    });
+  if (statuses.length === 0) {
+    throw new ConfigError(`${key} must name at least one status`);
+  }
+  return statuses;
+}
+
+/**
+ * A header this server sends to the host, as a name and a value.
+ *
+ * Both or neither: a name with no value sends an empty credential, and a value
+ * with no name is a credential that was configured and then not sent — the
+ * kind of mistake that looks like it worked until the host starts enforcing.
+ */
+function readHeaderCredential(
+  env: ConfigEnv,
+  nameKey: string,
+  valueKey: string,
+): HeaderCredential | undefined {
+  const name = trimmed(env[nameKey]);
+  const value = env[valueKey];
+  if (name === undefined && (value === undefined || value.length === 0)) {
+    return undefined;
+  }
+  if (name === undefined || value === undefined || value.length === 0) {
+    throw new ConfigError(
+      `${nameKey} and ${valueKey} must be set together; one without the ` +
+        "other either sends an empty credential or configures one that is " +
+        "never sent",
+    );
+  }
+  return { name, value };
+}
+
+/** `SiteManager=Coordinator,SiteConsumer=Consumer` into a lookup. */
+function readRoleMap(
+  env: ConfigEnv,
+  key: string,
+): Record<string, DashboardRole> | undefined {
+  const raw = trimmed(env[key]);
+  if (raw === undefined) return undefined;
+
+  const map: Record<string, DashboardRole> = Object.create(null) as Record<
+    string,
+    DashboardRole
+  >;
+  for (const pair of raw.split(",")) {
+    const entry = pair.trim();
+    if (entry.length === 0) continue;
+    const separator = entry.indexOf("=");
+    if (separator < 1) {
+      throw new ConfigError(
+        `${key} must be a comma-separated list of <host role>=<role>, got "${entry}"`,
+      );
+    }
+    const from = entry.slice(0, separator).trim();
+    const to = entry.slice(separator + 1).trim();
+    if (!(DASHBOARD_ROLES as readonly string[]).includes(to)) {
+      throw new ConfigError(
+        `${key} maps "${from}" to "${to}", which is not one of ` +
+          `${DASHBOARD_ROLES.join(", ")}`,
+      );
+    }
+    map[from] = to as DashboardRole;
+  }
+  if (Object.keys(map).length === 0) {
+    throw new ConfigError(`${key} must map at least one role`);
+  }
+  return map;
+}
+
+/** Every variable that only means anything to the ticket resolver. */
+const TICKET_ENV_KEYS = [
+  "MIOT_DASHBOARD_TICKET_HEADER",
+  "MIOT_DASHBOARD_TICKET_SCHEME",
+  "MIOT_DASHBOARD_TICKET_VALIDATE_URL",
+  "MIOT_DASHBOARD_TICKET_VALIDATE_METHOD",
+  "MIOT_DASHBOARD_TICKET_PRESENT",
+  "MIOT_DASHBOARD_TICKET_PRESENT_NAME",
+  "MIOT_DASHBOARD_TICKET_PRESENT_VALUE",
+  "MIOT_DASHBOARD_TICKET_SERVICE_HEADER",
+  "MIOT_DASHBOARD_TICKET_SERVICE_VALUE",
+  "MIOT_DASHBOARD_TICKET_TENANT",
+  "MIOT_DASHBOARD_TICKET_TENANT_PATH",
+  "MIOT_DASHBOARD_TICKET_USER_PATH",
+  "MIOT_DASHBOARD_TICKET_GROUPS_PATH",
+  "MIOT_DASHBOARD_TICKET_NAME_PATH",
+  "MIOT_DASHBOARD_TICKET_INVALID_STATUS",
+  "MIOT_DASHBOARD_TICKET_CACHE",
+  "MIOT_DASHBOARD_TICKET_NEGATIVE_CACHE",
+  "MIOT_DASHBOARD_TICKET_TIMEOUT",
+] as const;
+
+function readTicketPresentation(env: ConfigEnv): TicketPresentation {
+  const kind = (
+    trimmed(env.MIOT_DASHBOARD_TICKET_PRESENT) ?? "header"
+  ).toLowerCase();
+  const name = trimmed(env.MIOT_DASHBOARD_TICKET_PRESENT_NAME);
+
+  if (kind === "body") return { kind: "body" };
+  if (kind === "query") {
+    if (name === undefined) {
+      throw new ConfigError(
+        "MIOT_DASHBOARD_TICKET_PRESENT_NAME is required when " +
+          'MIOT_DASHBOARD_TICKET_PRESENT="query": it names the query parameter',
+      );
+    }
+    return { kind: "query", name };
+  }
+  if (kind !== "header") {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_TICKET_PRESENT must be header, query or body, got " +
+        `"${kind}"`,
+    );
+  }
+
+  const value = trimmed(env.MIOT_DASHBOARD_TICKET_PRESENT_VALUE);
+  if (name === undefined || value === undefined) {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_TICKET_PRESENT_NAME and " +
+        "MIOT_DASHBOARD_TICKET_PRESENT_VALUE are required when the ticket is " +
+        "presented in a header. The value is a template over {ticket} and " +
+        "{ticketBase64}, so an emitter wanting basic authentication takes " +
+        '"Basic {ticketBase64}".',
+    );
+  }
+  return { kind: "header", name, value };
+}
+
+function readTicketTenant(env: ConfigEnv): TicketTenantSource {
+  const fixed = trimmed(env.MIOT_DASHBOARD_TICKET_TENANT);
+  const path = trimmed(env.MIOT_DASHBOARD_TICKET_TENANT_PATH);
+
+  if (fixed !== undefined && path !== undefined) {
+    throw new ConfigError(
+      "Set exactly one of MIOT_DASHBOARD_TICKET_TENANT and " +
+        "MIOT_DASHBOARD_TICKET_TENANT_PATH. The first names the single " +
+        "tenant this emitter serves; the second reads it from the emitter's " +
+        "answer.",
+    );
+  }
+  if (fixed !== undefined) return { kind: "fixed", tenantId: fixed };
+  if (path !== undefined) return { kind: "path", path };
+  throw new ConfigError(
+    "Ticket authentication needs a tenant. Set MIOT_DASHBOARD_TICKET_TENANT " +
+      "when the emitter serves one tenant, or MIOT_DASHBOARD_TICKET_TENANT_PATH " +
+      "to read it from the validation response. There is no default: without " +
+      "one, every ticket holder would land in the same tenant.",
+  );
+}
+
+function readTicketAuth(env: ConfigEnv): TicketAuthConfig {
+  return {
+    header: required(
+      env,
+      "MIOT_DASHBOARD_TICKET_HEADER",
+      "the request header callers present the ticket in. No standard header " +
+        "carries one, so there is no default.",
+    ),
+    scheme: trimmed(env.MIOT_DASHBOARD_TICKET_SCHEME),
+    url: required(
+      env,
+      "MIOT_DASHBOARD_TICKET_VALIDATE_URL",
+      "the emitter's endpoint for checking a ticket. A ticket carries no " +
+        "proof of its own, so only the emitter can say whether it is valid.",
+    ),
+    method: readMethod(env, "MIOT_DASHBOARD_TICKET_VALIDATE_METHOD"),
+    present: readTicketPresentation(env),
+    serviceHeader: readHeaderCredential(
+      env,
+      "MIOT_DASHBOARD_TICKET_SERVICE_HEADER",
+      "MIOT_DASHBOARD_TICKET_SERVICE_VALUE",
+    ),
+    tenant: readTicketTenant(env),
+    claims: {
+      userId: required(
+        env,
+        "MIOT_DASHBOARD_TICKET_USER_PATH",
+        "where the user id sits in the emitter's answer, as a dotted path " +
+          'into the JSON it returns, such as "entry.id".',
+      ),
+      groups: trimmed(env.MIOT_DASHBOARD_TICKET_GROUPS_PATH),
+      displayName: trimmed(env.MIOT_DASHBOARD_TICKET_NAME_PATH),
+    },
+    absentStatuses: readStatuses(
+      env,
+      "MIOT_DASHBOARD_TICKET_INVALID_STATUS",
+      [401, 404],
+    ),
+    cacheSeconds: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_TICKET_CACHE",
+      DEFAULT_LOOKUP_CACHE_SECONDS,
+      MAX_LOOKUP_CACHE_SECONDS,
+      "seconds",
+    ),
+    negativeCacheSeconds: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_TICKET_NEGATIVE_CACHE",
+      DEFAULT_NEGATIVE_CACHE_SECONDS,
+      MAX_LOOKUP_CACHE_SECONDS,
+      "seconds",
+    ),
+    requestTimeoutMs: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_TICKET_TIMEOUT",
+      DEFAULT_LOOKUP_TIMEOUT_MS,
+      MAX_LOOKUP_TIMEOUT_MS,
+      "milliseconds",
+    ),
+  };
+}
+
+function readScopes(env: ConfigEnv): ScopeConfig {
+  const url = trimmed(env.MIOT_DASHBOARD_SCOPES_URL);
+  if (url === undefined) return { kind: "seed" };
+
+  return {
+    kind: "http",
+    url,
+    method: readMethod(env, "MIOT_DASHBOARD_SCOPES_METHOD"),
+    rolePath: trimmed(env.MIOT_DASHBOARD_SCOPES_ROLE_PATH) ?? "role",
+    roleMap: readRoleMap(env, "MIOT_DASHBOARD_SCOPES_ROLE_MAP"),
+    serviceHeader: readHeaderCredential(
+      env,
+      "MIOT_DASHBOARD_SCOPES_SERVICE_HEADER",
+      "MIOT_DASHBOARD_SCOPES_SERVICE_VALUE",
+    ),
+    absentStatuses: readStatuses(
+      env,
+      "MIOT_DASHBOARD_SCOPES_ABSENT_STATUS",
+      [404],
+    ),
+    cacheSeconds: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_SCOPES_CACHE",
+      DEFAULT_LOOKUP_CACHE_SECONDS,
+      MAX_LOOKUP_CACHE_SECONDS,
+      "seconds",
+    ),
+    negativeCacheSeconds: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_SCOPES_NEGATIVE_CACHE",
+      DEFAULT_NEGATIVE_CACHE_SECONDS,
+      MAX_LOOKUP_CACHE_SECONDS,
+      "seconds",
+    ),
+    requestTimeoutMs: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_SCOPES_TIMEOUT",
+      DEFAULT_LOOKUP_TIMEOUT_MS,
+      MAX_LOOKUP_TIMEOUT_MS,
+      "milliseconds",
+    ),
+  };
+}
+
 /**
  * Pick the identity provider, refusing anything unsafe rather than warning
  * about it. The insecure resolver lets any caller claim any user in any
@@ -260,13 +650,17 @@ function readJwtAuth(env: ConfigEnv): JwtAuthConfig {
 function readAuth(env: ConfigEnv, host: string): AuthConfig {
   const insecure = readBoolean(env.MIOT_DASHBOARD_INSECURE_AUTH);
   const jwtKeys = JWT_ENV_KEYS.filter((key) => trimmed(env[key]) !== undefined);
+  const ticketKeys = TICKET_ENV_KEYS.filter(
+    (key) => trimmed(env[key]) !== undefined,
+  );
+  const verifiedKeys = [...jwtKeys, ...ticketKeys];
 
-  if (insecure && jwtKeys.length > 0) {
+  if (insecure && verifiedKeys.length > 0) {
     throw new ConfigError(
       "Two identity providers are configured: MIOT_DASHBOARD_INSECURE_AUTH " +
-        `is on and ${jwtKeys.join(", ")} is set. Unset one: a server that ` +
-        "preferred either would verify tokens in one environment and trust " +
-        "headers in another.",
+        `is on and ${verifiedKeys.join(", ")} is set. Unset one: a server ` +
+        "that preferred either would verify credentials in one environment " +
+        "and trust headers in another.",
     );
   }
 
@@ -295,13 +689,24 @@ function readAuth(env: ConfigEnv, host: string): AuthConfig {
     return { kind: "insecure" };
   }
 
-  if (jwtKeys.length > 0) return readJwtAuth(env);
+  // Both may be configured. A JWT arrives in Authorization and a ticket in a
+  // header the operator names, so the two are read from different places and
+  // a request carrying neither is anonymous either way.
+  if (verifiedKeys.length > 0) {
+    return {
+      kind: "verified",
+      jwt: jwtKeys.length > 0 ? readJwtAuth(env) : undefined,
+      ticket: ticketKeys.length > 0 ? readTicketAuth(env) : undefined,
+    };
+  }
 
   throw new ConfigError(
     "No identity provider is configured. Either set MIOT_DASHBOARD_JWT_ISSUER, " +
       "MIOT_DASHBOARD_JWT_AUDIENCE, MIOT_DASHBOARD_JWT_TENANT_CLAIM and one key " +
       "source (MIOT_DASHBOARD_JWT_JWKS_URL, MIOT_DASHBOARD_JWT_PUBLIC_KEY or " +
-      "MIOT_DASHBOARD_JWT_SECRET) to verify bearer tokens, or opt into " +
+      "MIOT_DASHBOARD_JWT_SECRET) to verify bearer tokens; or set " +
+      "MIOT_DASHBOARD_TICKET_HEADER and MIOT_DASHBOARD_TICKET_VALIDATE_URL to " +
+      "validate tickets against their emitter; or opt into " +
       "MIOT_DASHBOARD_INSECURE_AUTH=true, which reads identity from request " +
       "headers without verification and is for local use only.",
   );
@@ -324,6 +729,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     host,
     basePath: env.MIOT_DASHBOARD_BASE_PATH ?? "",
     auth,
+    scopes: readScopes(env),
     store: store as StoreKind,
     sqlitePath: env.MIOT_DASHBOARD_SQLITE_PATH ?? DEFAULT_SQLITE_PATH,
     seedPath: env.MIOT_DASHBOARD_SEED,

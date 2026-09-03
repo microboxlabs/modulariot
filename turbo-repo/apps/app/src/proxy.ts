@@ -127,13 +127,16 @@ const middleware = auth(async function middleware(request: NextRequest) {
 export default middleware;
 
 export const config = {
+  // NOTE: these entries must stay plain string literals — Next statically
+  // analyses `config.matcher`, so a `String.raw` (or any expression) here
+  // fails the build with "Invalid segment configuration export detected".
   matcher: [
     // Skip all internal paths (_next) and static asset files served from
     // public/ (e.g. /app/pdf.worker.min.mjs — the pdf.js worker the
     // storytelling PDF previewer loads; without the .mjs skip the locale
     // rewrite below turns it into /app/<locale>/pdf.worker.min.mjs → 404).
     "/",
-    String.raw`/((?!api|_next/static|_next/image|.*\.png$|.*\.svg$|.*\.mjs$|autentia/.*\.js$).*)`,
-    String.raw`/app/((?!api|_next/static|_next/image|.*\.png$|.*\.svg$|.*\.mjs$|autentia/.*\.js$).*)`,
+    "/((?!api|_next/static|_next/image|.*\\.png$|.*\\.svg$|.*\\.mjs$|autentia/.*\\.js$).*)",
+    "/app/((?!api|_next/static|_next/image|.*\\.png$|.*\\.svg$|.*\\.mjs$|autentia/.*\\.js$).*)",
   ],
 };

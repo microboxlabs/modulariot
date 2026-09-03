@@ -103,6 +103,16 @@ const FRAMEWORK_RULES = [
     allowedPrefix: "store/",
   },
   {
+    // Optional, like swagger-ui-dist. The core, the HTTP handler and a host
+    // supplying its own IdentityResolver must all load without it installed,
+    // which is only true while nothing outside these directories imports it.
+    test: (s) => /^jose(\/|$)/.test(s),
+    why: "jose import outside src/identity/ (optional, verifying-resolver only)",
+    // server/ builds the resolver and reports its absence as a config error;
+    // test/ mints signed tokens and ships nowhere.
+    allowedPrefix: ["identity/", "server/auth", "test/"],
+  },
+  {
     // An optional dependency of the standalone server, and 11 MB of it. The
     // core and the HTTP handler must stay reachable without it installed at
     // all, which only holds while nothing outside the server layer names it.
@@ -143,12 +153,18 @@ function walk(dir) {
   return files;
 }
 
+/** `allowedPrefix` is one directory or several. */
+const allowedPrefixes = (rule) =>
+  Array.isArray(rule.allowedPrefix) ? rule.allowedPrefix : [rule.allowedPrefix];
+
 const violations = [];
 for (const file of walk(SRC)) {
   const rel = relative(SRC, file);
   const specifierRules = [
     ...SPECIFIER_RULES,
-    ...FRAMEWORK_RULES.filter((r) => !rel.startsWith(r.allowedPrefix)),
+    ...FRAMEWORK_RULES.filter(
+      (r) => !allowedPrefixes(r).some((prefix) => rel.startsWith(prefix)),
+    ),
   ];
   const source = readFileSync(file, "utf8");
 

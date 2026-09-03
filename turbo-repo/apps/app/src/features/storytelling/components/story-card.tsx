@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { Dropdown, DropdownItem } from "flowbite-react";
-import { HiCheck, HiEllipsisVertical, HiShare, HiSparkles, HiTrash } from "react-icons/hi2";
+import {
+  HiCheck,
+  HiEllipsisVertical,
+  HiInformationCircle,
+  HiShare,
+  HiSparkles,
+  HiTrash,
+} from "react-icons/hi2";
+import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { getArtifactTypeMeta } from "../artifact-type-meta";
@@ -15,6 +23,7 @@ interface StoryCardProps {
   readonly selected: boolean;
   readonly onToggleSelect: (story: StoryItem) => void;
   readonly onShare: (story: StoryItem) => void;
+  readonly onDetails: (story: StoryItem) => void;
   readonly onDelete: (story: StoryItem) => void;
 }
 
@@ -25,10 +34,16 @@ export default function StoryCard({
   selected,
   onToggleSelect,
   onShare,
+  onDetails,
   onDelete,
 }: StoryCardProps) {
   const typeMeta = getArtifactTypeMeta(story.artifactType);
   const TypeIcon = typeMeta.icon;
+  const editedDate = formatDateString(
+    story.updatedAt,
+    "date",
+    lang === "en" ? "en-US" : "es-CL"
+  );
 
   return (
     <div
@@ -81,9 +96,15 @@ export default function StoryCard({
         <HiCheck className="h-3.5 w-3.5" />
       </button>
       <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2 dark:border-gray-700">
-        <p className="min-w-0 flex-1 truncate text-sm font-normal text-gray-900 dark:text-white">
-          {story.title}
-        </p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-normal text-gray-900 dark:text-white">
+            {story.title}
+          </p>
+          {/* Last editor + last edition date. */}
+          <p className="mt-0.5 truncate text-xs text-gray-400 dark:text-gray-500">
+            {tr("card.editedBy", dict, { name: story.updatedBy, date: editedDate })}
+          </p>
+        </div>
 
         <div className="relative shrink-0">
           <Dropdown
@@ -111,6 +132,9 @@ export default function StoryCard({
           >
             <DropdownItem icon={HiShare} onClick={() => onShare(story)}>
               {tr("menu.share", dict)}
+            </DropdownItem>
+            <DropdownItem icon={HiInformationCircle} onClick={() => onDetails(story)}>
+              {tr("menu.details", dict)}
             </DropdownItem>
             <DropdownItem
               icon={HiTrash}

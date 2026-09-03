@@ -1,3 +1,4 @@
+import { AI_AUTHOR } from "./people";
 import { BOARD_DECK, SEED_STORIES } from "./seed-stories";
 import type { ArtifactType, StoryItem } from "./storytelling.types";
 
@@ -11,11 +12,18 @@ import type { ArtifactType, StoryItem } from "./storytelling.types";
 const STORAGE_KEY = "miot.storytelling.stories.v1";
 
 /** Fills in fields that didn't exist yet when this record was persisted
- * (e.g. artifactType) — once localStorage has anything at all, it's used
- * as-is instead of SEED_STORIES, so older snapshots don't pick up new
- * fields on their own. */
+ * (artifactType, and the createdBy/updatedAt/updatedBy authorship trio) —
+ * once localStorage has anything at all, it's used as-is instead of
+ * SEED_STORIES, so older snapshots don't pick up new fields on their own. */
 function normalize(story: StoryItem): StoryItem {
-  return story.artifactType ? story : { ...story, artifactType: "html" };
+  const authoredBy = story.source === "ai" ? AI_AUTHOR : "—";
+  return {
+    ...story,
+    artifactType: story.artifactType ?? "html",
+    createdBy: story.createdBy ?? authoredBy,
+    updatedAt: story.updatedAt ?? story.createdAt,
+    updatedBy: story.updatedBy ?? story.createdBy ?? authoredBy,
+  };
 }
 
 function readAll(): StoryItem[] {
@@ -51,10 +59,14 @@ export function getStory(id: string): StoryItem | undefined {
 }
 
 export function addStory(input: { id: string; title?: string }): StoryItem {
+  const today = new Date().toISOString().slice(0, 10);
   const story: StoryItem = {
     id: input.id,
     title: input.title?.trim() || `Story ${input.id}`,
-    createdAt: new Date().toISOString().slice(0, 10),
+    createdAt: today,
+    createdBy: AI_AUTHOR,
+    updatedAt: today,
+    updatedBy: AI_AUTHOR,
     source: "ai",
     // The chat's create_story trigger only ever produces the HTML dashboard
     // artifact today — the other previewer types are testing-only for now.
@@ -85,6 +97,9 @@ export function addStoriesForAllTypes(input: { id: string; title?: string }): St
     id: `${input.id}-${artifactType}`,
     title,
     createdAt,
+    createdBy: AI_AUTHOR,
+    updatedAt: createdAt,
+    updatedBy: AI_AUTHOR,
     source: "ai",
     artifactType,
     ...(artifactType === "ppt" ? { deck: BOARD_DECK } : {}),

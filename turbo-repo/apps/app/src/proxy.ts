@@ -128,9 +128,12 @@ export default middleware;
 
 export const config = {
   matcher: [
-    // Skip all internal paths (_next)
+    // Skip all internal paths (_next) and static asset files served from
+    // public/ (e.g. /app/pdf.worker.min.mjs — the pdf.js worker the
+    // storytelling PDF previewer loads; without the .mjs skip the locale
+    // rewrite below turns it into /app/<locale>/pdf.worker.min.mjs → 404).
     "/",
-    "/((?!api|_next/static|_next/image|.*\\.png$|.*\\.svg$|autentia/.*\\.js$).*)",
-    "/app/((?!api|_next/static|_next/image|.*\\.png$|.*\\.svg$|autentia/.*\\.js$).*)",
+    "/((?!api|_next/static|_next/image|.*\\.png$|.*\\.svg$|.*\\.mjs$|autentia/.*\\.js$).*)",
+    "/app/((?!api|_next/static|_next/image|.*\\.png$|.*\\.svg$|.*\\.mjs$|autentia/.*\\.js$).*)",
   ],
 };

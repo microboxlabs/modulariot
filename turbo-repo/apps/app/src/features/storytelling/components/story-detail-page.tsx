@@ -10,7 +10,6 @@ import {
   HiChevronDown,
   HiChevronUp,
   HiMagnifyingGlass,
-  HiShare,
   HiSparkles,
   HiTrash,
   HiXMark,
@@ -20,7 +19,10 @@ import { SectionHeader } from "@/features/layout/components/section-header/secti
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { getStory, removeStory } from "../storytelling-store";
+import { getStoryVersionState } from "../story-versions-store";
 import { StoryDeleteDialog } from "./story-delete-dialog";
+import StorySharePanel from "./story-share-panel";
+import StoryVersionBadge from "./story-version-badge";
 import {
   HTML_DOWNLOAD_FILENAME,
   HTML_PREVIEW_URL,
@@ -72,19 +74,6 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
   // page load is the only time it can have changed since this route rendered.
   const [story] = useState(() => getStory(id));
   const [deleting, setDeleting] = useState(false);
-
-  // Same behavior the HTML previewer's injected per-card toolbar's Share
-  // button uses — native share sheet if available, else copy the link.
-  // Story-level (shares the page URL), so it's the same for every artifact
-  // type, not just HTML.
-  const handleShare = useCallback(async () => {
-    const shareData = { title: story?.title, url: window.location.href };
-    if (navigator.share) {
-      await navigator.share(shareData).catch(() => {});
-    } else {
-      await navigator.clipboard.writeText(shareData.url);
-    }
-  }, [story?.title]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!story) return;
@@ -193,6 +182,18 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
               { label: "storytelling", href: "/storytelling" },
               { label: story.title },
             ]}
+            rightContent={[
+              {
+                key: "version",
+                content: (
+                  <StoryVersionBadge
+                    label={getStoryVersionState(story).current.label}
+                    href={`/${lang}/storytelling/${encodeURIComponent(story.id)}/versions`}
+                    dict={dict}
+                  />
+                ),
+              },
+            ]}
           />
         }
         rightContent={
@@ -260,15 +261,7 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
                 <HiArrowDownTray className="h-4 w-4" />
               </button>
             )}
-            <button
-              type="button"
-              onClick={handleShare}
-              title={tr("menu.share", dict)}
-              aria-label={tr("menu.share", dict)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-            >
-              <HiShare className="h-4 w-4" />
-            </button>
+            <StorySharePanel story={story} lang={lang} dict={dict} />
             <button
               type="button"
               onClick={() => setDeleting(true)}
@@ -296,7 +289,9 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
       {artifactType === "ppt" && story.deck && (
         <PptPreviewer ref={previewerRef} deck={story.deck} onReadyChange={setPreviewerReady} />
       )}
-      {artifactType === "pdf" && <PdfPreviewer title={story.title} />}
+      {artifactType === "pdf" && (
+        <PdfPreviewer title={story.title} dict={dict} onReadyChange={setPreviewerReady} />
+      )}
       <StoryDeleteDialog
         stories={deleting ? [story] : []}
         onClose={() => setDeleting(false)}

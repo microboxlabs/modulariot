@@ -1,9 +1,9 @@
 /** Imperative handle a previewer exposes to let the header's search bar
  * (story-detail-page.tsx) drive find-in-page — implemented by HtmlPreviewer,
- * MarkdownPreviewer, and PptPreviewer. Not implemented by PdfPreviewer: it's
- * a native browser <iframe src="file.pdf">, and browsers don't expose any
- * way to script their built-in PDF viewer's search from outside — that
- * would need swapping the renderer for a JS-based one (pdfjs-dist). */
+ * MarkdownPreviewer, and PptPreviewer. PdfPreviewer renders with pdf.js
+ * (pdfjs-dist) but only paints page canvases — there's no selectable text
+ * layer yet, so it can't be searched; add one (pdf.js `TextLayer`) and this
+ * handle to wire it in. */
 export interface SearchableHandle {
   /** Highlights every match, returns the count. */
   search(query: string): number;

@@ -45,6 +45,15 @@ const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 2.5;
 const ZOOM_STEP = 1.25;
 
+/** Which slice of the horizontal "bus" a child cell draws — the connector
+ * spans between the first and last child's centres. */
+function busClass(index: number, count: number): string {
+  if (count <= 1) return "before:hidden";
+  if (index === 0) return "before:left-1/2 before:right-0";
+  if (index === count - 1) return "before:left-0 before:right-1/2";
+  return "before:left-0 before:right-0";
+}
+
 interface NodeActions {
   readonly onOpen: (version: StoryVersion) => void;
   readonly onIterate: (version: StoryVersion) => void;
@@ -67,21 +76,24 @@ function VersionCard({
   return (
     <div
       data-version-node
-      role="button"
-      tabIndex={0}
-      onClick={() => actions.onOpen(version)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          actions.onOpen(version);
-        }
-      }}
-      className={`w-60 cursor-pointer overflow-hidden rounded-xl border bg-white text-left shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800 ${
+      className={`group relative w-60 overflow-hidden rounded-xl border bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800 ${
         isCurrent
           ? "border-blue-500 ring-1 ring-blue-500"
           : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-500"
       }`}
     >
+      {/* Whole-card open target — a real <button> stretched over the card
+          (kept below the kebab via z-index), same stacked-link idea as
+          story-card.tsx. */}
+      <button
+        type="button"
+        onClick={() => actions.onOpen(version)}
+        aria-label={`${tr("version.menu.open", dict)} ${tr("version.badgeLabel", dict, {
+          label: version.label,
+        })}`}
+        className="absolute inset-0 z-0 cursor-pointer rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+      />
+
       {/* Title row — same treatment as the stories' section header. */}
       <div className="flex items-center gap-1.5 border-b border-gray-100 px-3 py-1.5 dark:border-gray-700">
         <span className="text-sm font-medium text-gray-900 dark:text-white">
@@ -98,12 +110,7 @@ function VersionCard({
           </span>
         )}
 
-        <div
-          className="ml-auto"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-          role="presentation"
-        >
+        <div className="relative z-10 ml-auto">
           <Dropdown
             inline
             arrowIcon={false}
@@ -204,15 +211,10 @@ function VersionSubtree({
           {kids.map((kid, i) => (
             <div
               key={kid.id}
-              className={`relative flex flex-col items-center px-5 pb-10 after:absolute after:bottom-0 after:left-1/2 after:h-10 after:w-px after:-translate-x-1/2 after:bg-gray-300 after:content-[''] before:absolute before:bottom-0 before:h-px before:bg-gray-300 before:content-[''] dark:after:bg-gray-600 dark:before:bg-gray-600 ${
-                kids.length === 1
-                  ? "before:hidden"
-                  : i === 0
-                    ? "before:left-1/2 before:right-0"
-                    : i === kids.length - 1
-                      ? "before:left-0 before:right-1/2"
-                      : "before:left-0 before:right-0"
-              }`}
+              className={`relative flex flex-col items-center px-5 pb-10 after:absolute after:bottom-0 after:left-1/2 after:h-10 after:w-px after:-translate-x-1/2 after:bg-gray-300 after:content-[''] before:absolute before:bottom-0 before:h-px before:bg-gray-300 before:content-[''] dark:after:bg-gray-600 dark:before:bg-gray-600 ${busClass(
+                i,
+                kids.length
+              )}`}
             >
               <VersionSubtree
                 node={kid}

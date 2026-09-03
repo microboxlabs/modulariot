@@ -46,7 +46,9 @@ function shareUrl(story: StoryItem, lang: string): string {
   return `${window.location.origin}/app/${lang}/storytelling/${encodeURIComponent(story.id)}`;
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Dot-free domain labels joined by explicit dots — no two quantifiers can
+// eat the same separator, so matching stays linear (SonarCloud S8786).
+const EMAIL_RE = /^[^\s@]+@[^\s.@]+(?:\.[^\s.@]+)+$/;
 
 /** Per-person "Can view / Can edit" picker — flowbite Dropdown, same
  * inline/no-arrow trigger pattern as story-card.tsx's kebab menu. */
@@ -56,10 +58,10 @@ function RoleDropdown({
   dict,
   onChange,
 }: {
-  value: ShareRole;
-  label: string;
-  dict: I18nRecord;
-  onChange: (role: ShareRole) => void;
+  readonly value: ShareRole;
+  readonly label: string;
+  readonly dict: I18nRecord;
+  readonly onChange: (role: ShareRole) => void;
 }) {
   const current =
     value === "editor"
@@ -98,9 +100,9 @@ function Avatar({
   email,
   className = "",
 }: {
-  name: string;
-  email: string;
-  className?: string;
+  readonly name: string;
+  readonly email: string;
+  readonly className?: string;
 }) {
   return (
     <span
@@ -123,7 +125,7 @@ export default function StorySharePanel({
   const close = useCallback(() => setIsOpen(false), []);
   useClickOutside(containerRef, isOpen, close);
 
-  const [state, setStateRaw] = useState<StoryShareState>(() =>
+  const [state, setState] = useState<StoryShareState>(() =>
     getShareState(story.id)
   );
   const [query, setQuery] = useState("");
@@ -138,7 +140,7 @@ export default function StorySharePanel({
   const commit = useCallback(
     (next: StoryShareState) => {
       setShareState(story.id, next);
-      setStateRaw(next);
+      setState(next);
     },
     [story.id]
   );

@@ -133,7 +133,7 @@ export const config = {
     // storytelling PDF previewer loads; without the .mjs skip the locale
     // rewrite below turns it into /app/<locale>/pdf.worker.min.mjs → 404).
     "/",
-    "/((?!api|_next/static|_next/image|.*\\.png$|.*\\.svg$|.*\\.mjs$|autentia/.*\\.js$).*)",
-    "/app/((?!api|_next/static|_next/image|.*\\.png$|.*\\.svg$|.*\\.mjs$|autentia/.*\\.js$).*)",
+    String.raw`/((?!api|_next/static|_next/image|.*\.png$|.*\.svg$|.*\.mjs$|autentia/.*\.js$).*)`,
+    String.raw`/app/((?!api|_next/static|_next/image|.*\.png$|.*\.svg$|.*\.mjs$|autentia/.*\.js$).*)`,
   ],
 };

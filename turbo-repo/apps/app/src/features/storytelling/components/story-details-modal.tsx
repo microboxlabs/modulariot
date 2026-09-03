@@ -14,7 +14,7 @@ interface StoryDetailsModalProps {
   readonly dict: I18nRecord;
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { readonly label: string; readonly value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-2">
       <span className="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">

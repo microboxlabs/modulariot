@@ -1,4 +1,3 @@
-import { STORY_PEOPLE, type StoryPerson } from "./people";
 import type {
   LinkAccess,
   ShareRecipient,
@@ -19,13 +18,11 @@ export const DEFAULT_SHARE_STATE: StoryShareState = {
   linkAccess: "restricted",
 };
 
-/**
- * The org "directory" the invite box autocompletes against — the shared
- * storytelling people pool (see people.ts). Aliased so existing call sites
- * keep reading `ORG_DIRECTORY`.
- */
-export type DirectoryEntry = StoryPerson;
-export const ORG_DIRECTORY = STORY_PEOPLE;
+// The org "directory" the invite box autocompletes against — the shared
+// storytelling people pool (people.ts), re-exported so existing call sites
+// keep reading `ORG_DIRECTORY` / `DirectoryEntry`.
+export { STORY_PEOPLE as ORG_DIRECTORY } from "./people";
+export type { StoryPerson as DirectoryEntry } from "./people";
 
 /** Deterministic avatar tint for an initials chip — index into a small set
  * so the same person always reads the same colour across renders. */
@@ -40,8 +37,9 @@ const AVATAR_TINTS = [
 
 export function avatarTint(seed: string): string {
   let hash = 0;
-  for (let i = 0; i < seed.length; i += 1)
-    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = Math.trunc(hash * 31 + (seed.codePointAt(i) ?? 0));
+  }
   return AVATAR_TINTS[Math.abs(hash) % AVATAR_TINTS.length];
 }
 
@@ -49,7 +47,7 @@ export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return (parts[0][0] + parts.at(-1)![0]).toUpperCase();
 }
 
 function isShareRole(value: unknown): value is ShareRole {

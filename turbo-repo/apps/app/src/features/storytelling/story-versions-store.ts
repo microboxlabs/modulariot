@@ -54,9 +54,12 @@ function load(story: StoryItem): StoredVersions {
     return seed(story);
   }
   const hasCurrent = stored.versions.some((v) => v.id === stored.currentId);
+  // `stored.versions` is non-empty (guarded above), so `.at(-1)` is defined.
   return {
     versions: stored.versions,
-    currentId: hasCurrent ? stored.currentId : stored.versions[stored.versions.length - 1].id,
+    currentId: hasCurrent
+      ? stored.currentId
+      : (stored.versions.at(-1)?.id ?? stored.currentId),
   };
 }
 
@@ -65,9 +68,9 @@ function save(storyId: string, state: StoredVersions): void {
 }
 
 function resolve(state: StoredVersions): StoryVersionState {
+  // `load` always hands us a non-empty list, so the fallback is defined.
   const current =
-    state.versions.find((v) => v.id === state.currentId) ??
-    state.versions[state.versions.length - 1];
+    state.versions.find((v) => v.id === state.currentId) ?? state.versions.at(-1)!;
   return { versions: state.versions, currentId: state.currentId, current };
 }
 
@@ -107,14 +110,17 @@ export function iterateVersion(story: StoryItem, fromId: string): StoryVersion {
 export function deleteStoryVersion(story: StoryItem, id: string): void {
   const state = load(story);
   const target = state.versions.find((v) => v.id === id);
-  if (!target || target.parentId === null) return;
+  if (!target) return;
+  // The root has no parent — nothing above it to fall back to.
+  if (target.parentId === null) return;
 
   const doomed = subtreeIds(state.versions, id);
   const remaining = state.versions.filter((v) => !doomed.has(v.id));
   if (remaining.length === 0) return;
 
+  // If the current version went with the subtree, fall back to its parent.
   const currentId = doomed.has(state.currentId)
-    ? (target.parentId ?? remaining[remaining.length - 1].id)
+    ? target.parentId
     : state.currentId;
 
   save(story.id, { versions: remaining, currentId });

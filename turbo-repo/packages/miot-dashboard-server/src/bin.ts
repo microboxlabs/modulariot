@@ -176,7 +176,7 @@ async function main(): Promise<void> {
   const seed = readSeed(config.seedPath);
   const memberships = seed.memberships ?? {};
 
-  const auth = buildIdentityResolver(config.auth, {
+  const auth = await buildIdentityResolver(config.auth, {
     // The caller gets a 401 with no detail, which is right. Whoever runs the
     // server gets the reason here, which is the difference between a
     // five-minute misconfiguration and an afternoon. Rate-limited, because

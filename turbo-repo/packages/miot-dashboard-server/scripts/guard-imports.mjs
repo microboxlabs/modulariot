@@ -103,10 +103,14 @@ const FRAMEWORK_RULES = [
     allowedPrefix: "store/",
   },
   {
-    test: (s) => /^node:crypto$/.test(s),
-    why: "node:crypto import outside src/identity/ (the core and the HTTP handler use the global WebCrypto instead)",
-    // src/test/ mints signed tokens for the identity tests and ships nowhere.
-    allowedPrefix: ["identity/", "test/"],
+    // Optional, like swagger-ui-dist: the core, the HTTP handler and a host
+    // that brings its own IdentityResolver must all stay reachable without it
+    // installed, which only holds while nothing outside these names it.
+    test: (s) => /^jose(\/|$)/.test(s),
+    why: "jose import outside src/identity/ (optional, verifying-resolver only)",
+    // server/ builds the resolver and reports its absence as a config error;
+    // test/ mints signed tokens and ships nowhere.
+    allowedPrefix: ["identity/", "server/auth", "test/"],
   },
   {
     // An optional dependency of the standalone server, and 11 MB of it. The

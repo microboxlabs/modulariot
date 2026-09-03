@@ -167,15 +167,20 @@ Exactly one key source. **The algorithm is not configurable** — it follows fro
 the key source, because a verifier that accepts both RS256 and HS256 can be
 defeated: the RS256 public key is published, and an attacker signs an HS256
 token using it as the shared secret. Configuring one key source is what makes
-"accept either" impossible to ask for.
+"accept either" impossible to ask for, and it is the one part of verification
+a library does not do for you: `jose` accepts whatever the key supports unless
+it is told which algorithm to allow.
 
 Three things worth knowing before deploying it:
 
+- **`jose` has to be installed.** Verification is delegated to it, and it is
+  an optional peer dependency so that a host mounting the library with its own
+  identity resolver installs nothing: `npm install jose`. The server says so
+  and exits if it is missing rather than starting and refusing everyone.
 - **The issuer is compared exactly**, trailing slash included, as OpenID
   Connect requires — any rule that makes two spellings equal makes two
-  different issuers equal too. Auth0 publishes its issuer *with* the slash. If
-  you get that wrong the log says so by name rather than leaving you to find
-  one character.
+  different issuers equal too. Auth0 publishes its issuer _with_ the slash, so
+  copy it from a token rather than typing it.
 - **There is no default tenant claim.** No registered claim carries a tenant
   and every provider spells its own differently, so a guess would silently put
   every caller in one tenant. For Auth0 this is a namespaced custom claim,

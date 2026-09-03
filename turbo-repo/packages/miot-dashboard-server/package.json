@@ -59,9 +59,13 @@
     "guard": "node scripts/guard-imports.mjs"
   },
   "peerDependencies": {
+    "jose": "^6.0.0",
     "swagger-ui-dist": "^5.0.0"
   },
   "peerDependenciesMeta": {
+    "jose": {
+      "optional": true
+    },
     "swagger-ui-dist": {
       "optional": true
     }
@@ -70,6 +74,7 @@
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
     "@types/node": "^20.19.0",
+    "jose": "^6.2.10",
     "swagger-ui-dist": "^5.32.14",
     "tsup": "^8.0.0",
     "tsx": "^4.22.0",

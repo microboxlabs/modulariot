@@ -3,14 +3,12 @@
  *
  * Lives here rather than inside `bin.ts` so it can be tested: the assembly is
  * where a key source becomes a key, and where a misconfiguration has to
- * become a startup failure instead of a server that runs and refuses
- * everyone.
+ * become a startup failure instead of a server that runs and refuses everyone.
  */
 
 import {
   createJwksKeyRing,
   createJwtIdentityResolver,
-  createStaticKeyRing,
   hmacKeyFromSecret,
   KeySourceError,
   publicKeyFromPem,
@@ -33,14 +31,32 @@ export interface BuildIdentityOptions {
   fetchImpl?: typeof fetch;
 }
 
-function keyRingFor(
+/**
+ * jose is an optional peer dependency, so its absence is a configuration
+ * problem to report at startup rather than a module error on the first
+ * request that presents a token.
+ */
+async function requireJose(): Promise<void> {
+  try {
+    await import("jose");
+  } catch (error) {
+    throw new ConfigError(
+      "JWT authentication needs the `jose` package, which this server treats " +
+        "as an optional dependency so that a host mounting the library " +
+        "without it installs nothing. Run `npm install jose`. " +
+        `(${error instanceof Error ? error.message : String(error)})`,
+    );
+  }
+}
+
+async function keyRingFor(
   auth: JwtAuthConfig,
   options: BuildIdentityOptions,
-): { keys: KeyRing; describe: string } {
+): Promise<{ keys: KeyRing; describe: string }> {
   switch (auth.key.kind) {
     case "jwks":
       return {
-        keys: createJwksKeyRing({
+        keys: await createJwksKeyRing({
           url: auth.key.url,
           ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
         }),
@@ -48,21 +64,21 @@ function keyRingFor(
       };
     case "publicKey":
       return {
-        keys: createStaticKeyRing(publicKeyFromPem(auth.key.pem)),
+        keys: await publicKeyFromPem(auth.key.pem),
         describe: "keys from a configured public key",
       };
     case "secret":
       return {
-        keys: createStaticKeyRing(hmacKeyFromSecret(auth.key.secret)),
+        keys: hmacKeyFromSecret(auth.key.secret),
         describe: "keys from a configured shared secret",
       };
   }
 }
 
-export function buildIdentityResolver(
+export async function buildIdentityResolver(
   auth: AuthConfig,
   options: BuildIdentityOptions = {},
-): AssembledIdentity {
+): Promise<AssembledIdentity> {
   if (auth.kind === "insecure") {
     return {
       identity: createInsecureHeaderIdentityResolver(),
@@ -70,10 +86,12 @@ export function buildIdentityResolver(
     };
   }
 
+  await requireJose();
+
   let keys: KeyRing;
   let keyDescription: string;
   try {
-    ({ keys, describe: keyDescription } = keyRingFor(auth, options));
+    ({ keys, describe: keyDescription } = await keyRingFor(auth, options));
   } catch (error) {
     // A key that cannot be read is a configuration problem, and the process
     // should say so and exit rather than start and refuse every request.

@@ -26,8 +26,8 @@ const JWKS_URL = "https://issuer.test/.well-known/jwks.json";
 
 let pair: TestKeyPair;
 
-beforeAll(() => {
-  pair = generateTestKeyPair("test-key");
+beforeAll(async () => {
+  pair = await generateTestKeyPair("test-key");
 });
 
 /** Answers the JWKS URL from the in-process key pair. */
@@ -55,7 +55,7 @@ const jwtConfig = (overrides: Partial<JwtAuthConfig> = {}): JwtAuthConfig => ({
   ...overrides,
 });
 
-const tokenFor = (claims: Record<string, unknown> = {}): string =>
+const tokenFor = (claims: Record<string, unknown> = {}): Promise<string> =>
   signRs256(pair.privateKey, {
     header: { kid: pair.kid },
     claims: validClaims({
@@ -69,11 +69,11 @@ const tokenFor = (claims: Record<string, unknown> = {}): string =>
 
 describe("buildIdentityResolver", () => {
   it("builds a resolver that verifies against the JWKS endpoint", async () => {
-    const { identity } = buildIdentityResolver(jwtConfig(), {
+    const { identity } = await buildIdentityResolver(jwtConfig(), {
       fetchImpl: fakeJwks(),
     });
     const request = new Request("https://server.test/", {
-      headers: { authorization: `Bearer ${tokenFor()}` },
+      headers: { authorization: `Bearer ${await tokenFor()}` },
     });
 
     await expect(identity.resolve(request)).resolves.toMatchObject({
@@ -82,8 +82,8 @@ describe("buildIdentityResolver", () => {
     });
   });
 
-  it("describes the configuration without printing key material", () => {
-    const { describe: line } = buildIdentityResolver(
+  it("describes the configuration without printing key material", async () => {
+    const { describe: line } = await buildIdentityResolver(
       jwtConfig({
         algorithm: "HS256",
         key: { kind: "secret", secret: "s".repeat(40) },
@@ -95,27 +95,27 @@ describe("buildIdentityResolver", () => {
     expect(line).not.toContain("s".repeat(40));
   });
 
-  it("turns an unusable key into a startup failure", () => {
+  it("turns an unusable key into a startup failure", async () => {
     // The alternative is a process that starts, looks healthy and refuses
     // every request.
-    expect(() =>
+    await expect(
       buildIdentityResolver(
         jwtConfig({
           algorithm: "HS256",
           key: { kind: "secret", secret: "too-short" },
         }),
       ),
-    ).toThrow(ConfigError);
+    ).rejects.toThrow(ConfigError);
 
-    expect(() =>
+    await expect(
       buildIdentityResolver(
         jwtConfig({ key: { kind: "publicKey", pem: "not a pem" } }),
       ),
-    ).toThrow(ConfigError);
+    ).rejects.toThrow(ConfigError);
   });
 
   it("still builds the header resolver when that is what was asked for", async () => {
-    const { identity, describe: line } = buildIdentityResolver({
+    const { identity, describe: line } = await buildIdentityResolver({
       kind: "insecure",
     });
     expect(line).toContain("unverified");
@@ -133,7 +133,7 @@ describe("the server behind a verifying resolver", () => {
   let running: RunningServer;
 
   beforeAll(async () => {
-    const { identity } = buildIdentityResolver(jwtConfig(), {
+    const { identity } = await buildIdentityResolver(jwtConfig(), {
       fetchImpl: fakeJwks(),
     });
     running = await serve({
@@ -168,7 +168,7 @@ describe("the server behind a verifying resolver", () => {
     });
 
   it("saves and reads back a dashboard for a bearer token", async () => {
-    const token = tokenFor();
+    const token = await tokenFor();
     const saved = await put(token);
     expect(saved.status).toBe(200);
 
@@ -196,13 +196,13 @@ describe("the server behind a verifying resolver", () => {
     ["a token from another issuer", { iss: "https://elsewhere.test/" }],
     ["a token carrying no tenant", { [TENANT_CLAIM]: undefined }],
   ])("answers 401 for %s", async (_name, claims) => {
-    const response = await put(tokenFor(claims));
+    const response = await put(await tokenFor(claims));
     expect(response.status).toBe(401);
   });
 
   it("refuses a token signed by a key this server does not trust", async () => {
-    const attacker = generateTestKeyPair("test-key");
-    const forged = signRs256(attacker.privateKey, {
+    const attacker = await generateTestKeyPair("test-key");
+    const forged = await signRs256(attacker.privateKey, {
       header: { kid: "test-key" },
       claims: validClaims({
         iss: ISSUER,
@@ -219,7 +219,7 @@ describe("the server behind a verifying resolver", () => {
     // The header is the one the insecure resolver would have believed.
     const response = await fetch(dashboardUrl(), {
       headers: {
-        authorization: `Bearer ${tokenFor({ [TENANT_CLAIM]: "other-tenant" })}`,
+        authorization: `Bearer ${await tokenFor({ [TENANT_CLAIM]: "other-tenant" })}`,
         "x-dev-tenant": "acme",
       },
     });

@@ -1,54 +1,39 @@
 /**
- * JWT verification.
+ * JWT verification, delegated to jose.
  *
- * Deliberately small: two algorithms, one of them chosen by configuration
- * rather than read from the token, and the registered claims. Everything a
- * general JOSE library offers beyond that (encrypted tokens, EdDSA, key
- * agreement) is surface this package does not need and would have to defend.
+ * What is left here is the part that is ours: which algorithm is accepted,
+ * and the distinction between a credential we refuse and a key source we
+ * could not reach. Everything else — parsing, signatures, `crit`, the
+ * registered claims and their boundaries — is jose's, and the reason is that
+ * the two defects a review found in the hand-written version were both of the
+ * form "the specification says X and I did Y because Y was friendlier".
  *
- * The one property worth stating outright, because it is the difference
- * between a verifier and a vulnerability: `algorithm` comes from the caller
- * and the token's own `alg` header is only ever compared against it, never
- * used to select anything. A verifier that reads `alg` and then picks a key
- * accordingly can be defeated with the RS256 public key — which is published
- * — used as an HS256 shared secret. Comparing also rejects `alg: "none"`
- * without needing a rule about it.
+ * The one property worth stating outright, because a library does not supply
+ * it: `algorithm` comes from configuration and is passed to jose as the only
+ * one it may accept. A verifier that takes the algorithm from the token can be
+ * defeated with the RS256 public key — which is published — used as an HS256
+ * shared secret. `jwtVerify` will accept whatever the key supports unless it
+ * is told otherwise, so telling it is not optional.
  */
 
-import {
-  createHmac,
-  timingSafeEqual,
-  verify,
-  type KeyObject,
-} from "node:crypto";
+import type { CryptoKey, JWTPayload, KeyObject } from "jose";
 
 /** The algorithms this package verifies. Each is pinned per configuration. */
 export const JWT_ALGORITHMS = ["RS256", "HS256"] as const;
 export type JwtAlgorithm = (typeof JWT_ALGORITHMS)[number];
 
-/** RS256 verifies against a public key; HS256 against a shared secret. */
-export type VerificationKey = KeyObject | Buffer;
-
-export interface JwtClaims {
-  iss?: unknown;
-  sub?: unknown;
-  aud?: unknown;
-  exp?: unknown;
-  nbf?: unknown;
-  iat?: unknown;
-  [claim: string]: unknown;
-}
+/** RS256 verifies against a public key; HS256 against a secret's bytes. */
+export type VerificationKey = CryptoKey | KeyObject | Uint8Array;
 
 /**
- * Supplies the key a token should be verified against.
- *
- * Returning `null` means "no key with that id", which is a rejected token.
- * Throwing means the key source itself failed, which is not the caller's
- * fault and must not be reported as a bad credential.
+ * Resolves the key for a token, as jose's `jwtVerify` takes it: either one key
+ * or a function that picks one per token, which is what a JWKS endpoint is.
  */
-export interface KeyRing {
-  resolve(keyId: string | undefined): Promise<VerificationKey | null>;
-}
+export type KeyRing =
+  | VerificationKey
+  | ((header: { kid?: string; alg?: string }) => Promise<VerificationKey>);
+
+export type JwtClaims = JWTPayload;
 
 /**
  * A token that must not be trusted. Every rejection uses this type, so a
@@ -65,216 +50,71 @@ export class JwtVerificationError extends Error {
 
 export interface VerifyJwtOptions {
   keys: KeyRing;
-  /** Pinned by configuration. The token's `alg` is compared against it. */
+  /** Pinned by configuration, and the only algorithm jose is allowed. */
   algorithm: JwtAlgorithm;
   issuer: string;
   audience: readonly string[];
   /** Seconds of allowed clock difference on `exp` and `nbf`. */
   clockToleranceSeconds?: number;
-  /** Milliseconds since the epoch. Injected so expiry is testable. */
+  /** Injected so expiry is testable without waiting. */
   now?: () => number;
 }
 
-/** `typ` is optional, but a value we do not recognise is a different format. */
-const ACCEPTED_TYPES = new Set(["jwt", "at+jwt", "application/at+jwt"]);
-
-const BASE64URL = /^[A-Za-z0-9_-]*$/;
-
 /**
- * `Buffer.from(value, "base64url")` drops characters it does not recognise
- * instead of failing, so a token can be mangled and still decode. The shape
- * is checked first and the result is exact.
- */
-function decodeSegment(segment: string, what: string): Buffer {
-  if (!BASE64URL.test(segment)) {
-    throw new JwtVerificationError(`${what} is not base64url`);
-  }
-  return Buffer.from(segment, "base64url");
-}
-
-function decodeJson(segment: string, what: string): Record<string, unknown> {
-  // Decoded outside the try: a `catch` around both steps reports every
-  // malformed segment as bad JSON, including the ones that never got that far.
-  const bytes = decodeSegment(segment, what);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(bytes.toString("utf8"));
-  } catch {
-    throw new JwtVerificationError(`${what} is not JSON`);
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    throw new JwtVerificationError(`${what} is not a JSON object`);
-  }
-  return parsed as Record<string, unknown>;
-}
-
-/**
- * Issuer identifiers are compared exactly, character for character.
+ * jose error codes that mean the token is bad rather than that we are.
  *
- * This is what OpenID Connect requires, and it is the wrong place to be
- * helpful: an issuer is the name of a trust relationship, and any rule that
- * makes two spellings equal makes two different issuers equal too. An earlier
- * version ignored a trailing slash and was wrong for that reason.
- *
- * The one thing that costs — Auth0 publishes its issuer with a trailing slash
- * and configuration is routinely written without it — is paid for in the
- * rejection message rather than in the comparison.
+ * Anything not listed — a timeout, a socket error, a JWKS endpoint answering
+ * something other than 200 — is an availability failure and propagates. A 401
+ * there would sign out everyone holding a valid token for as long as the
+ * identity provider is unreachable.
  */
-function issuerMismatch(claimed: string, configured: string): string | null {
-  if (claimed === configured) return null;
-  const off = (a: string, b: string) => `${a}/` === b;
-  if (off(claimed, configured) || off(configured, claimed)) {
-    return (
-      "token issuer differs from the configured one by a trailing slash. " +
-      "Issuers are compared exactly, so set the issuer to the value the " +
-      "tokens carry"
-    );
-  }
-  return "token issuer is not the configured one";
-}
+const REFUSAL_CODES = new Set([
+  "ERR_JWT_EXPIRED",
+  "ERR_JWT_CLAIM_VALIDATION_FAILED",
+  "ERR_JWT_INVALID",
+  "ERR_JWS_INVALID",
+  "ERR_JWS_SIGNATURE_VERIFICATION_FAILED",
+  "ERR_JOSE_ALG_NOT_ALLOWED",
+  "ERR_JWKS_NO_MATCHING_KEY",
+  "ERR_JWKS_MULTIPLE_MATCHING_KEYS",
+]);
 
-function checkAudience(claim: unknown, accepted: readonly string[]): void {
-  const values =
-    typeof claim === "string"
-      ? [claim]
-      : Array.isArray(claim)
-        ? claim.filter((entry): entry is string => typeof entry === "string")
-        : [];
-  if (values.length === 0) {
-    throw new JwtVerificationError("token carries no audience");
-  }
-  if (!values.some((value) => accepted.includes(value))) {
-    throw new JwtVerificationError("token audience is not this server");
-  }
-}
-
-function requireSeconds(value: unknown, claim: string): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new JwtVerificationError(`${claim} is missing or not a number`);
-  }
-  return value;
-}
-
-function checkSignature(
-  algorithm: JwtAlgorithm,
-  signed: string,
-  signature: Buffer,
-  key: VerificationKey,
-): void {
-  const data = Buffer.from(signed, "ascii");
-  let valid = false;
-
-  if (algorithm === "HS256") {
-    const expected = createHmac("sha256", key as Buffer)
-      .update(data)
-      .digest();
-    // The length is checked first because timingSafeEqual throws when the
-    // two buffers differ in length, and that throw would itself be the
-    // comparison's answer.
-    valid =
-      expected.length === signature.length &&
-      timingSafeEqual(expected, signature);
-  } else {
-    try {
-      // Padding is left at the default, which for an RSA key is PKCS#1 v1.5
-      // — what RS256 is defined as. PSS would be PS256.
-      valid = verify("sha256", data, key as KeyObject, signature);
-    } catch {
-      // A malformed signature, or a key of the wrong type, is a bad token
-      // rather than a server fault.
-      valid = false;
-    }
-  }
-
-  if (!valid) throw new JwtVerificationError("signature does not verify");
+function codeOf(error: unknown): string | undefined {
+  return typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code: unknown }).code)
+    : undefined;
 }
 
 /**
  * Verify a compact JWS and return its claims.
  *
  * Throws `JwtVerificationError` for anything wrong with the token. Anything
- * else thrown came from the key ring and means the key source is unavailable.
+ * else thrown means the key source is unavailable.
  */
 export async function verifyJwt(
   token: string,
   options: VerifyJwtOptions,
 ): Promise<JwtClaims> {
-  const parts = token.split(".");
-  if (parts.length !== 3) {
-    throw new JwtVerificationError("token is not a compact JWS");
-  }
-  const [encodedHeader, encodedPayload, encodedSignature] = parts as [
-    string,
-    string,
-    string,
-  ];
-
-  const header = decodeJson(encodedHeader, "header");
-  if (header.alg !== options.algorithm) {
-    // Not "unsupported algorithm": the configured one is the only algorithm
-    // this server accepts, whatever else it could verify in principle.
-    throw new JwtVerificationError(
-      `token is signed with ${String(header.alg)}, this server accepts ${options.algorithm}`,
-    );
-  }
-  if (
-    typeof header.typ === "string" &&
-    !ACCEPTED_TYPES.has(header.typ.toLowerCase())
-  ) {
-    throw new JwtVerificationError(`unexpected token type ${header.typ}`);
-  }
-  if (header.crit !== undefined) {
-    // `crit` names extensions a verifier is required to understand. We
-    // understand none, so a token carrying it cannot be verified correctly
-    // and must not be verified at all.
-    throw new JwtVerificationError("token requires unsupported extensions");
-  }
-
-  const keyId = typeof header.kid === "string" ? header.kid : undefined;
-  const key = await options.keys.resolve(keyId);
-  if (key === null) {
-    throw new JwtVerificationError(
-      keyId === undefined
-        ? "token names no key and no default key is configured"
-        : `no verification key with id ${keyId}`,
-    );
-  }
-
-  checkSignature(
-    options.algorithm,
-    `${encodedHeader}.${encodedPayload}`,
-    decodeSegment(encodedSignature, "signature"),
-    key,
-  );
-
-  // Claims are read only once the signature holds. Reading them earlier would
-  // mean acting on values an attacker chose.
-  const claims = decodeJson(encodedPayload, "payload") as JwtClaims;
-
-  if (typeof claims.iss !== "string") {
-    throw new JwtVerificationError("token carries no issuer");
-  }
-  const mismatch = issuerMismatch(claims.iss, options.issuer);
-  if (mismatch !== null) throw new JwtVerificationError(mismatch);
-  checkAudience(claims.aud, options.audience);
-
-  const tolerance = options.clockToleranceSeconds ?? 30;
-  const now = Math.floor((options.now?.() ?? Date.now()) / 1000);
-
-  // `exp` is required. A token without one never stops being valid, and a
-  // stolen bearer credential that never expires is the whole problem.
-  // `>=`: RFC 7519 says the current time must be *before* `exp`, so the
-  // expiry second itself is already too late.
-  const exp = requireSeconds(claims.exp, "exp");
-  if (now >= exp + tolerance) {
-    throw new JwtVerificationError("token has expired");
-  }
-  if (claims.nbf !== undefined) {
-    const nbf = requireSeconds(claims.nbf, "nbf");
-    if (now < nbf - tolerance) {
-      throw new JwtVerificationError("token is not valid yet");
+  const { jwtVerify } = await import("jose");
+  try {
+    const { payload } = await jwtVerify(token, options.keys, {
+      algorithms: [options.algorithm],
+      issuer: options.issuer,
+      audience: [...options.audience],
+      clockTolerance: options.clockToleranceSeconds ?? 30,
+      // A token with no expiry never stops being valid, and a stolen bearer
+      // credential that never expires is the whole problem.
+      requiredClaims: ["exp"],
+      ...(options.now ? { currentDate: new Date(options.now()) } : {}),
+    });
+    return payload;
+  } catch (error) {
+    const code = codeOf(error);
+    if (code !== undefined && REFUSAL_CODES.has(code)) {
+      throw new JwtVerificationError(
+        error instanceof Error ? error.message : code,
+      );
     }
+    throw error;
   }
-
-  return claims;
 }

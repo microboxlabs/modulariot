@@ -6,6 +6,10 @@
  * already authenticates its own requests supplies one and never loads any of
  * this. Only the standalone server, and a host with no identity layer of its
  * own, needs what is here.
+ *
+ * This entry is the only part of the package that uses `jose`, which is an
+ * optional peer dependency and is imported when a key source is built rather
+ * than when the module loads.
  */
 
 export {
@@ -21,7 +25,6 @@ export {
 
 export {
   createJwksKeyRing,
-  createStaticKeyRing,
   hmacKeyFromSecret,
   publicKeyFromPem,
   KeySourceError,

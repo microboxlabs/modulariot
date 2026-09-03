@@ -6,13 +6,12 @@ import {
   type TestKeyPair,
 } from "../test/tokens";
 import type { KeyRing } from "./jwt";
-import { createStaticKeyRing } from "./keys";
 import { createJwtIdentityResolver } from "./resolver";
 
 let pair: TestKeyPair;
 
-beforeAll(() => {
-  pair = generateTestKeyPair("test-key");
+beforeAll(async () => {
+  pair = await generateTestKeyPair("test-key");
 });
 
 const TENANT_CLAIM = "https://miot.dev/tenant_id";
@@ -24,7 +23,7 @@ function resolverFor(
     issuer: "https://issuer.test/",
     audience: "miot-dashboards",
     algorithm: "RS256",
-    keys: createStaticKeyRing(pair.publicKey),
+    keys: pair.publicKey,
     claims: { tenantId: TENANT_CLAIM },
     ...overrides,
   });
@@ -42,12 +41,12 @@ function requestWith(
   });
 }
 
-const tokenFor = (claims: Record<string, unknown>): string =>
+const tokenFor = (claims: Record<string, unknown>): Promise<string> =>
   signRs256(pair.privateKey, { claims: validClaims(claims) });
 
 describe("createJwtIdentityResolver", () => {
   it("reads the identity out of a verified token", async () => {
-    const token = tokenFor({
+    const token = await tokenFor({
       sub: "auth0|alice",
       name: "Alice",
       [TENANT_CLAIM]: "tenant-a",
@@ -77,7 +76,7 @@ describe("createJwtIdentityResolver", () => {
   it("takes the tenant from the token and ignores anything the request says", async () => {
     // The invariant the whole package rests on: a caller can name any tenant
     // they like in a header, a path or a body and it changes nothing.
-    const token = tokenFor({ [TENANT_CLAIM]: "tenant-a" });
+    const token = await tokenFor({ [TENANT_CLAIM]: "tenant-a" });
     const identity = await resolverFor().resolve(
       requestWith(token, {
         "x-dev-tenant": "tenant-b",
@@ -108,7 +107,7 @@ describe("createJwtIdentityResolver", () => {
   });
 
   it("tolerates extra spacing in the Authorization header", async () => {
-    const token = tokenFor({ [TENANT_CLAIM]: "tenant-a" });
+    const token = await tokenFor({ [TENANT_CLAIM]: "tenant-a" });
     await expect(
       resolverFor().resolve(
         requestWith(null, { authorization: `  bearer   ${token}  ` }),
@@ -118,19 +117,21 @@ describe("createJwtIdentityResolver", () => {
 
   it("refuses a token it cannot verify, and says why in the log only", async () => {
     const onReject = vi.fn();
-    const token = signRs256(pair.privateKey, {
+    const token = await signRs256(pair.privateKey, {
       claims: validClaims({ aud: "another-api", [TENANT_CLAIM]: "tenant-a" }),
     });
 
     await expect(
       resolverFor({ onReject }).resolve(requestWith(token)),
     ).resolves.toBeNull();
-    expect(onReject).toHaveBeenCalledWith(expect.stringMatching(/audience/));
+    // The wording is jose's; what matters is that the reason names the claim
+    // that failed and reaches the log rather than the caller.
+    expect(onReject).toHaveBeenCalledWith(expect.stringMatching(/aud/));
   });
 
   it("refuses a verified token that carries no tenant", async () => {
     const onReject = vi.fn();
-    const token = tokenFor({ sub: "auth0|alice" });
+    const token = await tokenFor({ sub: "auth0|alice" });
 
     await expect(
       resolverFor({ onReject }).resolve(requestWith(token)),
@@ -144,7 +145,7 @@ describe("createJwtIdentityResolver", () => {
     // The dangerous shape of the previous case: a missing claim is where a
     // convenience fallback gets added, and it would hand the caller a tenant
     // they chose. Refusing the request is the only correct answer.
-    const token = tokenFor({ sub: "auth0|alice" });
+    const token = await tokenFor({ sub: "auth0|alice" });
     await expect(
       resolverFor().resolve(
         requestWith(token, {
@@ -156,17 +157,16 @@ describe("createJwtIdentityResolver", () => {
   });
 
   it("accepts a numeric tenant claim", async () => {
-    const token = tokenFor({ [TENANT_CLAIM]: 42 });
+    const token = await tokenFor({ [TENANT_CLAIM]: 42 });
     await expect(
       resolverFor().resolve(requestWith(token)),
     ).resolves.toMatchObject({ tenantId: "42" });
   });
 
   it("lets a key source failure through instead of answering 401", async () => {
-    const broken: KeyRing = {
-      resolve: () => Promise.reject(new Error("JWKS endpoint is down")),
-    };
-    const token = tokenFor({ [TENANT_CLAIM]: "tenant-a" });
+    const broken: KeyRing = () =>
+      Promise.reject(new Error("JWKS endpoint is down"));
+    const token = await tokenFor({ [TENANT_CLAIM]: "tenant-a" });
 
     await expect(
       resolverFor({ keys: broken }).resolve(requestWith(token)),
@@ -175,7 +175,7 @@ describe("createJwtIdentityResolver", () => {
 
   describe("principal kind", () => {
     it("calls an Auth0 machine-to-machine token a service", async () => {
-      const token = tokenFor({
+      const token = await tokenFor({
         [TENANT_CLAIM]: "tenant-a",
         gty: "client-credentials",
       });
@@ -185,7 +185,7 @@ describe("createJwtIdentityResolver", () => {
     });
 
     it("recognises the @clients subject Auth0 gives those tokens", async () => {
-      const token = tokenFor({
+      const token = await tokenFor({
         sub: "abc123@clients",
         [TENANT_CLAIM]: "tenant-a",
       });
@@ -195,7 +195,7 @@ describe("createJwtIdentityResolver", () => {
     });
 
     it("can be told apart differently by the host", async () => {
-      const token = tokenFor({ [TENANT_CLAIM]: "tenant-a" });
+      const token = await tokenFor({ [TENANT_CLAIM]: "tenant-a" });
       await expect(
         resolverFor({ principalKind: () => "service" }).resolve(
           requestWith(token),
@@ -206,7 +206,7 @@ describe("createJwtIdentityResolver", () => {
 
   describe("groups", () => {
     it("reads a space-separated string, as a scope claim is written", async () => {
-      const token = tokenFor({
+      const token = await tokenFor({
         [TENANT_CLAIM]: "tenant-a",
         scope: "GROUP_finance GROUP_ops",
       });
@@ -218,7 +218,7 @@ describe("createJwtIdentityResolver", () => {
     });
 
     it("leaves the field off when the claim is not configured", async () => {
-      const token = tokenFor({
+      const token = await tokenFor({
         [TENANT_CLAIM]: "tenant-a",
         groups: ["GROUP_finance"],
       });
@@ -227,7 +227,7 @@ describe("createJwtIdentityResolver", () => {
     });
 
     it("drops entries that are not strings", async () => {
-      const token = tokenFor({
+      const token = await tokenFor({
         [TENANT_CLAIM]: "tenant-a",
         groups: ["GROUP_finance", 7, null, "  ", "GROUP_ops"],
       });

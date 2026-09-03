@@ -264,7 +264,15 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      description: Host-app session/JWT auth.
+      bearerFormat: JWT
+      description: >
+        A JWT from the configured issuer, minted for this server's audience.
+        The tenant is read from a claim named by configuration and from
+        nowhere else, so a caller cannot change tenant with a header, a path
+        or a body. The signing algorithm follows from the configured key
+        source and is never taken from the token. A host that mounts the
+        library supplies its own resolver and may accept something else
+        entirely.
     embedToken:
       type: apiKey
       in: header

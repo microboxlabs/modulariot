@@ -13,13 +13,15 @@ package.
 
 ## Status
 
-**P2a — HTTP layer, a runnable server, and a contract that matches it.**
-Access control from P1 is now reachable over HTTP, in both shapes the project
+**P2b — the server persists dashboards and verifies who is asking for them.**
+Access control from P1 is reachable over HTTP in both shapes the project
 supports: mount the library in a server you already have, or run the server
-this package ships. The server publishes its own OpenAPI document and renders
-it, and a test holds the two together. The query proxy, datasource
-administration and embed tokens land in later phases and all go through the
-same authorization point.
+this package ships. Dashboards survive a restart, and callers authenticate
+with a bearer JWT rather than a header nobody checks. What is still missing
+before a deployment: scope membership comes from a seed file rather than from
+the host's own membership system, and a PostgreSQL store for running more than
+one instance. The query proxy, datasource administration and embed tokens land
+in later phases and all go through the same authorization point.
 
 ## Two shapes, one codebase
 
@@ -31,6 +33,7 @@ between them.
 | ------------------------------------- | ----------------- | --------- |
 | Core: seams, access control           | `.`               | nothing   |
 | HTTP handler: `Request` to `Response` | `./http`          | Web types |
+| Identity: JWT verification            | `./identity`      | Node      |
 | Persistence: composite, SQL, SQLite   | `./store-sql`     | Node      |
 | In-memory seams                       | `./testing`       | nothing   |
 | Server: listener, probes, docs        | `./server`, `bin` | Node      |
@@ -134,16 +137,72 @@ document store later. `sqlite` keeps both parts in the same file.
 `--experimental-sqlite`. On earlier versions the server reports that and names
 the alternative store.
 
+### Authenticating callers
+
+The server accepts a bearer JWT in the `Authorization` header. Configure the
+issuer, the audience, the claim carrying the tenant, and one key source:
+
+```bash
+MIOT_DASHBOARD_JWT_ISSUER=https://your-tenant.auth0.com/ \
+MIOT_DASHBOARD_JWT_AUDIENCE=miot-dashboards \
+MIOT_DASHBOARD_JWT_TENANT_CLAIM=https://your-namespace/tenant_id \
+MIOT_DASHBOARD_JWT_JWKS_URL=https://your-tenant.auth0.com/.well-known/jwks.json \
+  npx turbo run start --filter=@microboxlabs/miot-dashboard-server
+```
+
+| Variable                             | Is                                                                      |
+| ------------------------------------ | ----------------------------------------------------------------------- |
+| `MIOT_DASHBOARD_JWT_ISSUER`          | required; the `iss` the tokens carry                                    |
+| `MIOT_DASHBOARD_JWT_AUDIENCE`        | required; one API identifier, or several separated by commas            |
+| `MIOT_DASHBOARD_JWT_TENANT_CLAIM`    | required; the claim holding the tenant                                  |
+| `MIOT_DASHBOARD_JWT_JWKS_URL`        | a key source: keys fetched from the provider (RS256)                    |
+| `MIOT_DASHBOARD_JWT_PUBLIC_KEY`      | a key source: a PEM pasted into configuration (RS256)                   |
+| `MIOT_DASHBOARD_JWT_SECRET`          | a key source: a shared secret, at least 32 bytes (HS256)                |
+| `MIOT_DASHBOARD_JWT_USER_CLAIM`      | the claim holding the user id; defaults to `sub`                        |
+| `MIOT_DASHBOARD_JWT_GROUPS_CLAIM`    | the claim holding group ids; no default, and optional                   |
+| `MIOT_DASHBOARD_JWT_NAME_CLAIM`      | the claim holding a display name; defaults to `name`                    |
+| `MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE` | seconds of clock difference allowed on `exp`; default 30, capped at 300 |
+
+Exactly one key source. **The algorithm is not configurable** — it follows from
+the key source, because a verifier that accepts both RS256 and HS256 can be
+defeated: the RS256 public key is published, and an attacker signs an HS256
+token using it as the shared secret. Configuring one key source is what makes
+"accept either" impossible to ask for.
+
+Three things worth knowing before deploying it:
+
+- **There is no default tenant claim.** No registered claim carries a tenant
+  and every provider spells its own differently, so a guess would silently put
+  every caller in one tenant. For Auth0 this is a namespaced custom claim,
+  which an Action has to add — a stock token does not carry one.
+- **A pasted key needs no egress.** `MIOT_DASHBOARD_JWT_PUBLIC_KEY` verifies
+  the same tokens without ever reaching the identity provider, which is what a
+  cluster with no outbound access needs. The cost is replacing it by hand when
+  the provider rotates.
+- **Identity is not membership.** Verifying a token says who the caller is and
+  which tenant they are in. Which scopes they belong to is the `ScopeAuthority`
+  seam, and the standalone server still reads that from the seed file. Start it
+  with a verified issuer and no seed and every request is a `403` — it says so
+  at startup.
+
+A refused credential is a `401` with no detail, which is right for the caller
+and useless for whoever is on call, so the reason is logged instead:
+
+```json
+{ "level": "warn", "msg": "credential refused", "reason": "token has expired" }
+```
+
+#### The development alternative
+
 `MIOT_DASHBOARD_INSECURE_AUTH` reads the caller's identity straight from
 request headers with no verification, so anyone who can reach the port can
 claim to be anyone. It exists to exercise the API before an identity provider
 is wired up, and the server fails closed around it in three directions: it
 refuses to start under `NODE_ENV=production`, it refuses to start **on any
 address but loopback** — reaching the port is being every user in every tenant,
-so the port must not leave the machine — and it refuses to start without it
-too, because the alternative would be starting with no authentication at all.
-A verifying resolver arrives with P2b-3, along with a PostgreSQL metadata
-store for deployments that run more than one instance.
+so the port must not leave the machine — and it refuses to start alongside the
+JWT variables, because a server that silently preferred one would be verifying
+tokens in one environment and trusting headers in another.
 
 `NODE_ENV` is not a security boundary; it is a variable nobody has to set. The
 bind-address check is the one that holds either way.
@@ -294,8 +353,9 @@ One envelope, from every adapter:
   only its React-free `/schema` subpath may be imported.
 - `next/*` only under `src/adapters/next/`, `fastify` only under
   `src/adapters/fastify/`, `swagger-ui-dist` only under `src/server/`,
-  `node:sqlite` only under `src/store/`. Everything else runs under a bare Node
-  process, with nothing optional installed.
+  `node:sqlite` only under `src/store/`, `node:crypto` only under
+  `src/identity/`. Everything else runs under a bare Node process, with nothing
+  optional installed.
 - `node:sqlite` is loaded with `createRequire`, never a static import: esbuild
   does not list `sqlite` among Node's built-in modules, so it removes the prefix
   and emits `from "sqlite"`, which fails to resolve. The guard rejects the
@@ -310,6 +370,7 @@ One envelope, from every adapter:
 | ------------- | ---------------------------------------------------- |
 | `.`           | seams, access control, roles, errors                 |
 | `./http`      | the fetch-shaped handler                             |
+| `./identity`  | JWT verification, key rings, the verifying resolver  |
 | `./store-sql` | composite store, SQL metadata store, SQLite driver   |
 | `./testing`   | in-memory seams, for dev servers and for integrators |
 | `./server`    | Node listener, probes, config, contract and docs     |

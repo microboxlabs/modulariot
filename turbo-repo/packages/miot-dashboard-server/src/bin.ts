@@ -2,13 +2,13 @@
 /**
  * `npx @microboxlabs/miot-dashboard-server`
  *
- * Assembles the in-memory seams from environment variables and serves them.
- * This is the "no integration exists" path: a client with nothing to mount the
- * library into runs this, and so does anyone exercising the API locally.
+ * Assembles the seams from environment variables and serves them. This is the
+ * "no integration exists" path: a client with nothing to mount the library
+ * into runs this, and so does anyone exercising the API locally.
  *
- * It refuses to start rather than starting insecurely. Today the only identity
- * resolver it can build is the unverified header one, so it demands an explicit
- * opt-in and rejects it outright under NODE_ENV=production.
+ * It refuses to start rather than starting insecurely: either it verifies
+ * bearer tokens against a configured issuer, or the unverified header resolver
+ * is explicitly opted into and then confined to a loopback address.
  *
  * Lives at the top of `src/` rather than under `src/server/` so the bundler
  * emits it as `dist/bin.js`, matching the path `package.json` publishes.
@@ -17,6 +17,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildIdentityResolver } from "./server/auth";
 import {
   ConfigError,
   readServerConfig,
@@ -27,7 +28,6 @@ import { serve } from "./server/serve";
 import type { ServerDashboardStore } from "./seams/store";
 import { openSqliteStore } from "./store/sqlite";
 import {
-  createInsecureHeaderIdentityResolver,
   createMemoryScopeAuthority,
   createMemoryStore,
   createRecordingAuditSink,
@@ -166,23 +166,48 @@ async function openStore(
   };
 }
 
+const log = (line: Record<string, unknown>) => {
+  process.stdout.write(`${JSON.stringify(line)}\n`);
+};
+
 async function main(): Promise<void> {
   const config = readServerConfig(process.env);
   const seed = readSeed(config.seedPath);
+  const memberships = seed.memberships ?? {};
 
-  process.stderr.write(
-    "WARNING: identity is read from request headers without verification " +
-      "(MIOT_DASHBOARD_INSECURE_AUTH). Local use only.\n",
-  );
+  const auth = buildIdentityResolver(config.auth, {
+    // The caller gets a 401 with no detail, which is right. Whoever runs the
+    // server gets the reason here, which is the difference between a
+    // five-minute misconfiguration and an afternoon.
+    onReject: (reason) => {
+      log({ level: "warn", msg: "credential refused", reason });
+    },
+  });
+
+  if (config.auth.kind === "insecure") {
+    process.stderr.write(
+      "WARNING: identity is read from request headers without verification " +
+        "(MIOT_DASHBOARD_INSECURE_AUTH). Local use only.\n",
+    );
+  } else if (Object.keys(memberships).length === 0) {
+    // Identity is verified, but nothing says which scopes anyone belongs to,
+    // and the scope authority denies by default. Every request will be a 403,
+    // and without this line that looks like a bug in the server.
+    process.stderr.write(
+      "WARNING: no scope memberships are configured, so every request will be " +
+        "refused with 403 TENANT_SCOPE. The standalone server reads them from " +
+        "MIOT_DASHBOARD_SEED; a deployment reads them from the host's own " +
+        "membership system through the ScopeAuthority seam.\n",
+    );
+  }
 
   const assembled = await openStore(config, seed);
-  process.stdout.write(
-    `${JSON.stringify({ level: "info", msg: "store", store: assembled.describe })}\n`,
-  );
+  log({ level: "info", msg: "store", store: assembled.describe });
+  log({ level: "info", msg: "identity", auth: auth.describe });
 
   const running = await serve({
-    identity: createInsecureHeaderIdentityResolver(),
-    scopes: createMemoryScopeAuthority(seed.memberships ?? {}),
+    identity: auth.identity,
+    scopes: createMemoryScopeAuthority(memberships),
     store: assembled.store,
     audit: createRecordingAuditSink(),
     port: config.port,
@@ -192,9 +217,7 @@ async function main(): Promise<void> {
   });
 
   const shutdown = (signal: string) => {
-    process.stdout.write(
-      `${JSON.stringify({ level: "info", msg: "shutting down", signal })}\n`,
-    );
+    log({ level: "info", msg: "shutting down", signal });
     // Close the listener first, so no request is in progress when the
     // database closes.
     running

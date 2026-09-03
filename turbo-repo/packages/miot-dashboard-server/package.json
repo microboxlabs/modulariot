@@ -22,6 +22,10 @@
       "types": "./dist/http.d.ts",
       "import": "./dist/http.js"
     },
+    "./identity": {
+      "types": "./dist/identity.d.ts",
+      "import": "./dist/identity.js"
+    },
     "./store-sql": {
       "types": "./dist/store-sql.d.ts",
       "import": "./dist/store-sql.js"

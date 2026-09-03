@@ -177,10 +177,9 @@ async function main(): Promise<void> {
   const memberships = seed.memberships ?? {};
 
   const auth = await buildIdentityResolver(config.auth, {
-    // The caller gets a 401 with no detail, which is right. Whoever runs the
-    // server gets the reason here, which is the difference between a
-    // five-minute misconfiguration and an afternoon. Rate-limited, because
-    // otherwise an anonymous caller decides how much this process logs.
+    // The response is a 401 with no detail; the reason is logged here so a
+    // misconfiguration can be diagnosed. Rate-limited, because otherwise an
+    // anonymous caller controls how much this process logs.
     onReject: createRefusalLog({ write: log }),
   });
 
@@ -190,9 +189,8 @@ async function main(): Promise<void> {
         "(MIOT_DASHBOARD_INSECURE_AUTH). Local use only.\n",
     );
   } else if (Object.keys(memberships).length === 0) {
-    // Identity is verified, but nothing says which scopes anyone belongs to,
-    // and the scope authority denies by default. Every request will be a 403,
-    // and without this line that looks like a bug in the server.
+    // Identity is verified, but no scope memberships are configured and the
+    // scope authority denies by default, so every request will be a 403.
     process.stderr.write(
       "WARNING: no scope memberships are configured, so every request will be " +
         "refused with 403 TENANT_SCOPE. The standalone server reads them from " +

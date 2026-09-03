@@ -1,20 +1,18 @@
 /**
  * Where verification keys come from.
  *
- * Three sources, and which one is configured is also what pins the algorithm:
- * a JWKS endpoint or a public key means RS256, a shared secret means HS256.
- * There is deliberately no way to configure "accept both" — that is the
- * algorithm-confusion attack described in `jwt.ts`, and the cleanest defence
- * is to make it inexpressible.
+ * Which source is configured also determines the algorithm: a JWKS endpoint or
+ * a public key means RS256, a shared secret means HS256. There is no way to
+ * configure both, which is what prevents the algorithm confusion described in
+ * `jwt.ts`.
  *
- * A JWKS endpoint is the normal choice. The other two exist because the
- * target cluster may have no egress: a key pasted into configuration verifies
- * the same tokens without reaching the identity provider at all, at the cost
- * of having to be replaced by hand when the provider rotates.
+ * A JWKS endpoint is the normal choice. The other two exist because the target
+ * cluster may have no egress: a key pasted into configuration verifies the same
+ * tokens without reaching the identity provider, but has to be replaced by hand
+ * when the provider rotates.
  *
- * The fetching, caching and parsing behind a JWKS endpoint is jose's. What is
- * ours is the policy: the URL may not be plaintext, and a key has to be big
- * enough to be worth verifying against.
+ * jose does the fetching, caching and parsing. This module adds two rules: the
+ * URL may not be plaintext, and an RSA key must be at least 2048 bits.
  */
 
 import type { KeyRing } from "./jwt";
@@ -29,27 +27,25 @@ export class KeySourceError extends Error {
 }
 
 /**
- * The smallest RSA modulus RS256 may be used with, from RFC 7518 §3.3.
- *
- * The same reasoning as the HS256 minimum below: a key smaller than this is
- * factorable by someone who wants to be, and then they mint their own tokens.
+ * The smallest RSA modulus RS256 may be used with, from RFC 7518 §3.3. A
+ * smaller key can be factored, and whoever factors it can sign tokens.
  */
 const MIN_RSA_MODULUS_BITS = 2048;
 
 /**
  * An HMAC key from a configured secret.
  *
- * Refuses anything under 32 bytes. HS256 keys are guessable in exactly the
- * way passwords are, the secret is usually typed by a person, and a short one
- * lets an attacker mint tokens for any user in any tenant offline.
+ * Refuses anything under 32 bytes. An HS256 secret is usually typed by a
+ * person, and a short one can be brute-forced offline from a single token,
+ * after which an attacker can sign tokens for any user in any tenant.
  */
 export function hmacKeyFromSecret(secret: string): Uint8Array {
   const key = new TextEncoder().encode(secret);
   if (key.length < 32) {
     throw new KeySourceError(
       `An HS256 secret must be at least 32 bytes; this one is ${key.length}. ` +
-        "It is the only thing standing between a caller and any identity in " +
-        "any tenant, so it has to be long enough not to be guessed offline.",
+        "A shorter one can be recovered offline from a single token, and " +
+        "whoever recovers it can sign tokens for any user in any tenant.",
     );
   }
   return key;
@@ -73,8 +69,7 @@ export async function publicKeyFromPem(pem: string): Promise<KeyRing> {
     );
   }
 
-  // jose checks that the key can carry RS256; it does not check that the key
-  // is large enough for the guarantee to mean anything.
+  // jose checks that the key can be used for RS256, not that it is 2048 bits.
   const bits =
     "algorithm" in key && typeof key.algorithm === "object"
       ? ((key.algorithm as { modulusLength?: number }).modulusLength ?? 0)
@@ -94,27 +89,26 @@ export interface JwksKeyRingOptions {
   /** How long a fetched key set is used before being fetched again. */
   cacheSeconds?: number;
   /**
-   * Shortest interval between fetches provoked by an unknown key id. Without
-   * one, a caller sending tokens with random `kid` values turns every request
-   * into an outbound fetch, which is a denial of service against the identity
-   * provider that we would be performing on their behalf.
+   * Shortest interval between fetches triggered by an unknown key id. Without
+   * one, a caller sending random `kid` values makes this server fetch the key
+   * set once per request, flooding the identity provider.
    */
   minRefreshSeconds?: number;
   requestTimeoutMs?: number;
-  /** Injected in tests. jose's own hook, so it sees every request it makes. */
+  /** Injected in tests. jose's own hook, so it covers every request jose makes. */
   fetchImpl?: typeof fetch;
 }
 
 /**
  * A JWKS URL must be https, unless it is loopback.
  *
- * The document behind this URL decides which signatures are trusted, so
- * fetching it over plaintext hands that decision to anyone on the path.
- * Loopback is exempt so a fake provider can be run in tests and locally.
+ * The document at this URL determines which signatures are trusted, so anyone
+ * able to modify it in transit can issue tokens for any user. Loopback is
+ * exempt so a fake provider can be run in tests and locally.
  *
- * A redirect cannot get around this: jose asks for the key set with
- * `redirect: "manual"` and treats anything but a 200 as a failure, so the
- * only URL ever read is this one.
+ * A redirect cannot bypass this: jose requests the key set with
+ * `redirect: "manual"` and treats anything but a 200 as a failure, so this is
+ * the only URL read.
  */
 function checkJwksUrl(raw: string): URL {
   let url: URL;
@@ -134,12 +128,10 @@ function checkJwksUrl(raw: string): URL {
 }
 
 /**
- * Keys fetched from a JWKS endpoint, cached, refreshed on an unknown key id.
+ * Keys fetched from a JWKS endpoint, cached, refetched on an unknown key id.
  *
- * `cooldownDuration` is what bounds that refresh: an unknown key id is what a
- * rotation looks like from here and is worth another fetch, but not one per
- * request, or a caller sending random key ids would have us flood the
- * identity provider on their behalf.
+ * An unknown key id usually means the provider rotated its keys, so one more
+ * fetch is worth trying. `cooldownDuration` bounds how often.
  */
 export async function createJwksKeyRing(
   options: JwksKeyRingOptions,

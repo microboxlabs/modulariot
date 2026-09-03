@@ -1,19 +1,15 @@
 /**
  * JWT verification, delegated to jose.
  *
- * What is left here is the part that is ours: which algorithm is accepted,
- * and the distinction between a credential we refuse and a key source we
- * could not reach. Everything else — parsing, signatures, `crit`, the
- * registered claims and their boundaries — is jose's, and the reason is that
- * the two defects a review found in the hand-written version were both of the
- * form "the specification says X and I did Y because Y was friendlier".
+ * This module adds two things jose does not decide: which algorithm is
+ * accepted, and whether a failure is a refused credential or an unreachable
+ * key source.
  *
- * The one property worth stating outright, because a library does not supply
- * it: `algorithm` comes from configuration and is passed to jose as the only
- * one it may accept. A verifier that takes the algorithm from the token can be
- * defeated with the RS256 public key — which is published — used as an HS256
- * shared secret. `jwtVerify` will accept whatever the key supports unless it
- * is told otherwise, so telling it is not optional.
+ * `algorithm` comes from configuration and is passed to jose as the only
+ * algorithm it may accept. `jwtVerify` otherwise accepts any algorithm the key
+ * supports, and a verifier that takes the algorithm from the token can be
+ * defeated: the RS256 public key is published, so an attacker signs an HS256
+ * token using it as the shared secret.
  */
 
 import type { CryptoKey, JWTPayload, KeyObject } from "jose";
@@ -25,10 +21,7 @@ export type JwtAlgorithm = (typeof JWT_ALGORITHMS)[number];
 /** RS256 verifies against a public key; HS256 against a secret's bytes. */
 export type VerificationKey = CryptoKey | KeyObject | Uint8Array;
 
-/**
- * Resolves the key for a token, as jose's `jwtVerify` takes it: either one key
- * or a function that picks one per token, which is what a JWKS endpoint is.
- */
+/** One key, or a function that selects one per token, as a JWKS endpoint does. */
 export type KeyRing =
   | VerificationKey
   | ((header: { kid?: string; alg?: string }) => Promise<VerificationKey>);
@@ -37,9 +30,8 @@ export type JwtClaims = JWTPayload;
 
 /**
  * A token that must not be trusted. Every rejection uses this type, so a
- * caller can turn the whole class into one 401 without enumerating the
- * reasons — and without the reasons reaching the client, where they would
- * describe our verification to whoever is probing it.
+ * caller can answer 401 without enumerating the reasons, and the reasons stay
+ * out of the response.
  */
 export class JwtVerificationError extends Error {
   constructor(reason: string) {
@@ -56,17 +48,17 @@ export interface VerifyJwtOptions {
   audience: readonly string[];
   /** Seconds of allowed clock difference on `exp` and `nbf`. */
   clockToleranceSeconds?: number;
-  /** Injected so expiry is testable without waiting. */
+  /** Injected so expiry can be tested without waiting. */
   now?: () => number;
 }
 
 /**
- * jose error codes that mean the token is bad rather than that we are.
+ * jose error codes that mean the token is invalid.
  *
  * Anything not listed — a timeout, a socket error, a JWKS endpoint answering
- * something other than 200 — is an availability failure and propagates. A 401
- * there would sign out everyone holding a valid token for as long as the
- * identity provider is unreachable.
+ * something other than 200 — means the identity provider is unreachable and
+ * propagates. Answering 401 there would reject every valid token for the
+ * duration of the outage.
  */
 const REFUSAL_CODES = new Set([
   "ERR_JWT_EXPIRED",
@@ -102,8 +94,7 @@ export async function verifyJwt(
       issuer: options.issuer,
       audience: [...options.audience],
       clockTolerance: options.clockToleranceSeconds ?? 30,
-      // A token with no expiry never stops being valid, and a stolen bearer
-      // credential that never expires is the whole problem.
+      // jose does not require `exp`. A token without one is valid forever.
       requiredClaims: ["exp"],
       ...(options.now ? { currentDate: new Date(options.now()) } : {}),
     });

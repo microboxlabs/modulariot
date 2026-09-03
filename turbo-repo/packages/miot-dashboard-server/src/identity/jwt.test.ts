@@ -1,8 +1,8 @@
 /**
- * What is tested here is our policy, not jose's correctness: which algorithm
- * is accepted, and whether a failure is a refused credential or an outage.
- * Parsing, signatures and the registered claims are jose's, and restating its
- * behaviour in assertions would only pin the version we happened to install.
+ * These tests cover our policy, not jose's correctness: which algorithm is
+ * accepted, and whether a failure is a refused credential or an outage.
+ * Asserting jose's own parsing and claim handling would pin the installed
+ * version and nothing else.
  */
 
 import { beforeAll, describe, expect, it } from "vitest";
@@ -59,12 +59,11 @@ describe("verifyJwt", () => {
 
   describe("algorithm confusion", () => {
     it("refuses an HS256 token keyed with the RSA public key", async () => {
-      // The attack: the RS256 public key is published, so anyone can take it
-      // and use its bytes as an HMAC secret. A verifier that reads `alg` from
-      // the token and picks a key accordingly validates the result and hands
-      // the attacker any identity they asked for. `jwtVerify` accepts
-      // whatever the key supports unless it is told which algorithm to use,
-      // so passing that is the whole defence.
+      // The RS256 public key is published, so anyone can use its bytes as an
+      // HMAC secret. A verifier that reads `alg` from the token and picks a
+      // key accordingly accepts the result. `jwtVerify` accepts any algorithm
+      // the key supports unless told which one to allow, so passing
+      // `algorithms` is what prevents this.
       const forged = await signHs256(pair.spki, {
         claims: validClaims({ sub: "auth0|attacker" }),
       });
@@ -106,7 +105,7 @@ describe("verifyJwt", () => {
   });
 
   it("lets a key source failure through instead of calling it a bad token", async () => {
-    // A 401 here would sign every valid session out for as long as the
+    // Answering 401 would reject every valid token for as long as the
     // identity provider is unreachable.
     const broken: KeyRing = () =>
       Promise.reject(new Error("JWKS endpoint is down"));
@@ -126,8 +125,8 @@ describe("verifyJwt", () => {
     });
 
     it("compares the issuer exactly, trailing slash included", async () => {
-      // An issuer identifier names a trust relationship, and any rule that
-      // makes two spellings equal makes two different issuers equal too.
+      // OpenID Connect requires an exact match. A rule that treats two
+      // spellings as equal treats two different issuers as equal.
       const token = await signRs256(pair.privateKey, {
         claims: validClaims({ iss: "https://issuer.test" }),
       });
@@ -151,9 +150,8 @@ describe("verifyJwt", () => {
     });
 
     it("refuses a token that never expires", async () => {
-      // Not jose's default: `requiredClaims` is what makes `exp` mandatory,
-      // and a stolen bearer credential that never expires is the whole
-      // problem with bearers.
+      // jose does not require `exp`; `requiredClaims` does. A token without
+      // one is valid forever.
       const claims = validClaims();
       delete claims.exp;
       const token = await signRs256(pair.privateKey, { claims });

@@ -74,8 +74,8 @@ describe("createJwtIdentityResolver", () => {
   });
 
   it("takes the tenant from the token and ignores anything the request says", async () => {
-    // The invariant the whole package rests on: a caller can name any tenant
-    // they like in a header, a path or a body and it changes nothing.
+    // A caller can name any tenant in a header, a path or a body and it
+    // changes nothing.
     const token = await tokenFor({ [TENANT_CLAIM]: "tenant-a" });
     const identity = await resolverFor().resolve(
       requestWith(token, {
@@ -91,8 +91,8 @@ describe("createJwtIdentityResolver", () => {
     await expect(
       resolverFor({ onReject }).resolve(requestWith(null)),
     ).resolves.toBeNull();
-    // An anonymous request is not a refusal worth logging; every
-    // unauthenticated probe would land in the log.
+    // An anonymous request is not a refusal; logging it would record every
+    // unauthenticated request.
     expect(onReject).not.toHaveBeenCalled();
   });
 
@@ -124,8 +124,8 @@ describe("createJwtIdentityResolver", () => {
     await expect(
       resolverFor({ onReject }).resolve(requestWith(token)),
     ).resolves.toBeNull();
-    // The wording is jose's; what matters is that the reason names the claim
-    // that failed and reaches the log rather than the caller.
+    // The wording is jose's. What matters is that the reason names the claim
+    // that failed and goes to the log rather than to the caller.
     expect(onReject).toHaveBeenCalledWith(expect.stringMatching(/aud/));
   });
 
@@ -142,9 +142,8 @@ describe("createJwtIdentityResolver", () => {
   });
 
   it("does not fall back to a header when the token has no tenant", async () => {
-    // The dangerous shape of the previous case: a missing claim is where a
-    // convenience fallback gets added, and it would hand the caller a tenant
-    // they chose. Refusing the request is the only correct answer.
+    // A missing claim is where a fallback would be added for convenience,
+    // and it would let the caller choose their own tenant.
     const token = await tokenFor({ sub: "auth0|alice" });
     await expect(
       resolverFor().resolve(
@@ -241,8 +240,8 @@ describe("createJwtIdentityResolver", () => {
 
   describe("configuration", () => {
     it("refuses to be built without an audience", () => {
-      // Without one, every token this issuer signed for any of its APIs
-      // would be accepted here.
+      // Without one, any token this issuer signed for any of its APIs would
+      // be accepted here.
       expect(() => resolverFor({ audience: [] })).toThrow(/audience/);
     });
 

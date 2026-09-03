@@ -149,7 +149,7 @@ describe("readServerConfig", () => {
     });
 
     it("does not constrain the host once tokens are verified", () => {
-      // The rule is about the insecure resolver, not about binding widely. A
+      // The rule applies to the insecure resolver, not to binding widely. A
       // server that verifies signatures is meant to be reachable.
       expect(readServerConfig({ ...jwtBase, HOST: "0.0.0.0" }).host).toBe(
         "0.0.0.0",
@@ -195,8 +195,8 @@ describe("readServerConfig: JWT authentication", () => {
   });
 
   it("derives the algorithm from the key source", () => {
-    // The algorithm is never configured on its own, which is what makes
-    // "accept either" impossible to ask for.
+    // The algorithm is never configured on its own, so "accept either"
+    // cannot be requested.
     const rsa = readServerConfig(jwtBase).auth;
     expect(rsa).toMatchObject({ algorithm: "RS256" });
 
@@ -209,8 +209,8 @@ describe("readServerConfig: JWT authentication", () => {
   });
 
   it("hands the shared secret on byte for byte", () => {
-    // Trimming it would change the key: HMAC is computed over exactly these
-    // bytes, so a trimmed secret quietly stops matching the issuer's.
+    // Trimming would change the key: HMAC is computed over exactly these
+    // bytes, so a trimmed secret stops matching the issuer's.
     const secret = `${"x".repeat(32)}   y`;
     expect(
       readServerConfig({
@@ -222,9 +222,9 @@ describe("readServerConfig: JWT authentication", () => {
   });
 
   it("refuses a secret wrapped in whitespace instead of guessing", () => {
-    // Either reading of it — keep the whitespace or drop it — is a server
-    // that starts and then refuses every token, so it is settled here where
-    // the message can say what happened.
+    // Keeping the whitespace and removing it both produce a server that
+    // starts and then rejects every token, so it is settled here, where the
+    // message can say why.
     expect(() =>
       readServerConfig({
         ...jwtBase,

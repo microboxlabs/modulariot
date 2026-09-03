@@ -1,15 +1,14 @@
 /**
  * The verifying identity resolver: a bearer JWT in, a `DashboardIdentity` out.
  *
- * This is the seam the whole package's isolation guarantee hangs from, so the
- * rule from `seams/identity.ts` is enforced here literally: `tenantId` comes
- * from a claim in the signed token and from nowhere else. No header, no query
- * parameter and no path segment can influence it.
+ * The rule from `seams/identity.ts` is enforced here: `tenantId` is read from
+ * a claim in the signed token and from nowhere else. No header, query
+ * parameter or path segment can change it.
  *
- * There is no default tenant claim. No registered claim carries a tenant, and
- * every provider spells its own differently, so a wrong guess would silently
- * put every caller in one tenant — which is the failure this package exists
- * to prevent. Naming it is part of configuring the server.
+ * There is no default tenant claim. No registered claim carries a tenant and
+ * every provider uses a different name, so a wrong default would put every
+ * caller in the same tenant without any error. The claim name is required
+ * configuration.
  */
 
 import { FULL_CAPABILITIES } from "../access/roles";
@@ -54,22 +53,20 @@ export interface JwtIdentityOptions {
   /**
    * Called with a short reason each time a presented credential is refused.
    *
-   * Refusals are a 401 with no detail, which is right for the caller and
-   * useless for whoever has to work out why every request stopped working.
-   * The reason goes here instead. It never contains the token or any claim
-   * value, so it is safe to log.
+   * The response is a 401 with no detail. The reason goes here instead, so
+   * that a misconfiguration can be diagnosed. It never contains the token or
+   * any claim value, so it is safe to log.
    */
   onReject?: (reason: string) => void;
   /**
-   * How a service principal is told apart from a person. The default reads
-   * Auth0's `gty: "client-credentials"`, which is what a machine-to-machine
-   * token carries, and falls back to the `@clients` suffix Auth0 gives those
-   * tokens' `sub`.
+   * How a service principal is distinguished from a person. The default reads
+   * Auth0's `gty: "client-credentials"`, which a machine-to-machine token
+   * carries, and falls back to the `@clients` suffix Auth0 puts on their `sub`.
    */
   principalKind?: (claims: JwtClaims) => DashboardPrincipalKind;
 }
 
-/** Trailing "@clients" is how an Auth0 M2M subject is spelled. */
+/** Auth0 appends this to the `sub` of a machine-to-machine token. */
 const CLIENT_SUBJECT = "@clients";
 
 function defaultPrincipalKind(claims: JwtClaims): DashboardPrincipalKind {
@@ -81,11 +78,9 @@ function defaultPrincipalKind(claims: JwtClaims): DashboardPrincipalKind {
 }
 
 /**
- * A claim read as an identifier.
- *
- * Numbers are accepted and written out, because a provider whose tenant id is
- * numeric will put a number here and refusing it would be an outage with no
- * security benefit.
+ * A claim read as an identifier. Numbers are converted to strings: a provider
+ * with numeric tenant ids will send a number, and refusing it would break the
+ * server for no security benefit.
  */
 function readIdentifier(claims: JwtClaims, claim: string): string | null {
   const value = claims[claim];
@@ -109,13 +104,12 @@ function readGroups(claims: JwtClaims, claim: string | undefined): string[] {
 }
 
 /**
- * The token out of an `Authorization` header, or null when there is nothing
- * to verify.
+ * The token from an `Authorization` header, or null when there is none.
  *
- * Split on whitespace rather than matched with a pattern: `Bearer` followed
- * by two spaces is still a bearer credential, and a regular expression over
- * an attacker-controlled header is how this package already earned one
- * high-severity finding.
+ * Split on whitespace rather than matched with a pattern: `Bearer` followed by
+ * two spaces is still a bearer credential, and a pattern applied to an
+ * attacker-controlled header produced a high-severity ReDoS finding here
+ * before.
  */
 function bearerToken(header: string | null): string | null {
   if (header === null) return null;
@@ -152,8 +146,8 @@ export function createJwtIdentityResolver(
   return {
     async resolve(request: Request): Promise<DashboardIdentity | null> {
       const token = bearerToken(request.headers.get("authorization"));
-      // No credential at all is an anonymous request, not a refusal: reporting
-      // it would fill the log with every unauthenticated probe.
+      // No credential is an anonymous request, not a refusal. Reporting it
+      // would log every unauthenticated request.
       if (token === null) return null;
 
       let claims: JwtClaims;
@@ -170,9 +164,8 @@ export function createJwtIdentityResolver(
         });
       } catch (error) {
         if (error instanceof JwtVerificationError) return reject(error.message);
-        // The key source failed. This is not a bad credential and must not be
-        // answered as one: a 401 here would log out every valid session for
-        // as long as the identity provider is unreachable.
+        // The key source failed. Answering 401 would reject every valid
+        // token for as long as the identity provider is unreachable.
         throw error;
       }
 
@@ -180,7 +173,7 @@ export function createJwtIdentityResolver(
       if (tenantId === null) {
         return reject(
           `the token carries no usable "${options.claims.tenantId}" claim, ` +
-            "which is where this server reads the tenant from",
+            "which is the claim this server reads the tenant from",
         );
       }
 
@@ -200,9 +193,9 @@ export function createJwtIdentityResolver(
         userId,
         tenantId,
         kind: kindOf(claims),
-        // The ceiling, not a grant: what this principal may do on a given
-        // dashboard is still decided by the scope authority and the
-        // permission assignments.
+        // An upper bound, not a grant: what this principal may do on a
+        // dashboard is decided by the scope authority and the permission
+        // assignments.
         capabilities: { ...FULL_CAPABILITIES },
         ...(groups.length > 0 ? { groups } : {}),
         ...(displayName === null ? {} : { displayName }),

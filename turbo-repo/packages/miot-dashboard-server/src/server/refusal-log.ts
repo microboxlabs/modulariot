@@ -1,15 +1,14 @@
 /**
  * Rate-limited logging of refused credentials.
  *
- * Every rejected token used to write a line. Now that the server is meant to
- * be reachable, that is a write per unauthenticated request: an anonymous
- * caller decides how much this process logs, and `process.stdout.write`
- * buffers in memory when whatever is reading it cannot keep up.
+ * Every rejected token used to write a line. Now that the server is reachable,
+ * that is one write per unauthenticated request: an anonymous caller controls
+ * how much this process logs, and `process.stdout.write` buffers in memory
+ * when whatever reads it cannot keep up.
  *
- * A line is still worth having — a 401 with no detail is right for the caller
- * and useless for whoever is on call — so the volume is capped rather than the
- * information. One line per reason per interval, carrying how many were
- * folded into it.
+ * The reason is still recorded — a 401 carries no detail, so without it a
+ * misconfiguration cannot be diagnosed — but at most one line per reason per
+ * interval, carrying how many were folded into it.
  */
 
 export interface RefusalLogOptions {
@@ -23,8 +22,9 @@ export interface RefusalLogOptions {
  * Distinct reasons tracked at once.
  *
  * Some reasons quote the token — the algorithm it claims, the key id it names
- * — so a caller can mint as many distinct ones as it likes. Without a cap the
- * table of reasons is itself the unbounded growth this module exists to stop.
+ * — so a caller can produce as many distinct ones as it likes. Without a cap
+ * the table of reasons grows without bound, which is what this module exists
+ * to prevent.
  */
 const MAX_REASONS = 32;
 

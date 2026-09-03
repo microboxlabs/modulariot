@@ -28,7 +28,7 @@ describe("createRefusalLog", () => {
   });
 
   it("does not write a line per request while the flood lasts", () => {
-    // An anonymous caller must not decide how much this process logs.
+    // An anonymous caller must not control how much this process logs.
     const { lines, refused } = harness();
     for (let i = 0; i < 10_000; i += 1) refused("signature does not verify");
     expect(lines).toHaveLength(1);
@@ -48,8 +48,8 @@ describe("createRefusalLog", () => {
   });
 
   it("keeps a rare reason visible behind a common one", () => {
-    // The misconfiguration is the line worth reading, and it must not be
-    // hidden by whatever is arriving in volume.
+    // A misconfiguration must still be logged when something else is
+    // arriving in volume.
     const { lines, refused } = harness();
     for (let i = 0; i < 100; i += 1) refused("signature does not verify");
     refused('the token carries no usable "tenant_id" claim');
@@ -62,8 +62,7 @@ describe("createRefusalLog", () => {
 
   it("does not grow without bound on reasons a caller invents", () => {
     // Some reasons quote the token: the algorithm it claims, the key id it
-    // names. A table keyed by reason is otherwise the same unbounded growth
-    // this module exists to prevent.
+    // names. Without a cap, the table keyed by reason grows without bound.
     const { lines, refused } = harness();
     for (let i = 0; i < 5_000; i += 1)
       refused(`no verification key with id ${i}`);

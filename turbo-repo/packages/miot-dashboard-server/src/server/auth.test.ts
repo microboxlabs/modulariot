@@ -1,10 +1,9 @@
 /**
- * Assembling the identity resolver from configuration, and then running the
- * whole server behind it over a real socket.
+ * Assembling the identity resolver from configuration, and running the server
+ * behind it over a real socket.
  *
- * The unit tests below the HTTP ones prove the pieces; the HTTP ones prove
- * that a bearer token actually reaches a dashboard and that a bad one gets a
- * 401 envelope rather than a stack trace.
+ * The HTTP tests check that a bearer token reaches a dashboard and that a bad
+ * one produces a 401 envelope rather than a stack trace.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -96,7 +95,7 @@ describe("buildIdentityResolver", () => {
   });
 
   it("turns an unusable key into a startup failure", async () => {
-    // The alternative is a process that starts, looks healthy and refuses
+    // Otherwise the process starts, reports itself healthy, and refuses
     // every request.
     await expect(
       buildIdentityResolver(
@@ -143,8 +142,8 @@ describe("the server behind a verifying resolver", () => {
       }),
       store: createMemoryStore(),
       port: 0,
-      // Binding off loopback is legitimate now that tokens are verified; the
-      // test still uses loopback so it does not open a port on the network.
+      // Binding off loopback is allowed now that tokens are verified. The
+      // test uses loopback so it opens no port on the network.
       host: "127.0.0.1",
       docs: false,
       log: () => {},
@@ -223,8 +222,8 @@ describe("the server behind a verifying resolver", () => {
         "x-dev-tenant": "acme",
       },
     });
-    // Another tenant's caller has no standing in this scope, and the answer
-    // must not distinguish that from the scope not existing.
+    // A caller from another tenant has no standing in this scope, and the
+    // answer must not distinguish that from the scope not existing.
     expect(response.status).toBe(403);
   });
 });

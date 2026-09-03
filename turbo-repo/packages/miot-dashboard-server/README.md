@@ -166,37 +166,38 @@ MIOT_DASHBOARD_JWT_JWKS_URL=https://your-tenant.auth0.com/.well-known/jwks.json 
 Exactly one key source. **The algorithm is not configurable** — it follows from
 the key source, because a verifier that accepts both RS256 and HS256 can be
 defeated: the RS256 public key is published, and an attacker signs an HS256
-token using it as the shared secret. Configuring one key source is what makes
-"accept either" impossible to ask for, and it is the one part of verification
-a library does not do for you: `jose` accepts whatever the key supports unless
-it is told which algorithm to allow.
+token using it as the shared secret. Deriving the algorithm from the key source
+means "accept either" cannot be configured. This is the one part of
+verification a library does not decide: `jose` accepts any algorithm the key
+supports unless it is told which one to allow.
 
-Three things worth knowing before deploying it:
+Five things to know before deploying it:
 
-- **`jose` has to be installed.** Verification is delegated to it, and it is
-  an optional peer dependency so that a host mounting the library with its own
-  identity resolver installs nothing: `npm install jose`. The server says so
-  and exits if it is missing rather than starting and refusing everyone.
+- **`jose` has to be installed.** Verification is delegated to it, and it is an
+  optional peer dependency so that a host mounting the library with its own
+  identity resolver installs nothing: `npm install jose`. If it is missing the
+  server reports that and exits, rather than starting and refusing every
+  request.
 - **The issuer is compared exactly**, trailing slash included, as OpenID
-  Connect requires — any rule that makes two spellings equal makes two
-  different issuers equal too. Auth0 publishes its issuer _with_ the slash, so
+  Connect requires: a rule that treats two spellings as equal treats two
+  different issuers as equal. Auth0 publishes its issuer _with_ the slash, so
   copy it from a token rather than typing it.
 - **There is no default tenant claim.** No registered claim carries a tenant
-  and every provider spells its own differently, so a guess would silently put
-  every caller in one tenant. For Auth0 this is a namespaced custom claim,
-  which an Action has to add — a stock token does not carry one.
+  and every provider uses a different name, so a default would put every caller
+  in the same tenant without any error. For Auth0 this is a namespaced custom
+  claim that an Action has to add; a stock token does not carry one.
 - **A pasted key needs no egress.** `MIOT_DASHBOARD_JWT_PUBLIC_KEY` verifies
-  the same tokens without ever reaching the identity provider, which is what a
-  cluster with no outbound access needs. The cost is replacing it by hand when
-  the provider rotates.
-- **Identity is not membership.** Verifying a token says who the caller is and
-  which tenant they are in. Which scopes they belong to is the `ScopeAuthority`
-  seam, and the standalone server still reads that from the seed file. Start it
-  with a verified issuer and no seed and every request is a `403` — it says so
-  at startup.
+  the same tokens without reaching the identity provider, which is what a
+  cluster with no outbound access needs. It has to be replaced by hand when the
+  provider rotates.
+- **Identity is not membership.** Verifying a token establishes who the caller
+  is and which tenant they are in. Which scopes they belong to comes from the
+  `ScopeAuthority` seam, and the standalone server still reads that from the
+  seed file. Started with a verified issuer and no seed, every request is a
+  `403`, and the server says so at startup.
 
-A refused credential is a `401` with no detail, which is right for the caller
-and useless for whoever is on call, so the reason is logged instead:
+A refused credential is a `401` with no detail. The reason is logged instead,
+so that a misconfiguration can be diagnosed:
 
 ```json
 { "level": "warn", "msg": "credential refused", "reason": "token has expired" }

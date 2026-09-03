@@ -1,10 +1,9 @@
 /**
  * Token minting for the identity tests.
  *
- * Real keys and real signatures, generated per run. A fixture token would
- * have to carry a fixed expiry and a committed private key, and the first of
- * those makes the suite fail on a date and the second puts a key in the
- * repository.
+ * Real keys and signatures, generated per run. A fixture token would need a
+ * fixed expiry, which makes the suite fail on a date, and a committed private
+ * key.
  */
 
 import {
@@ -25,10 +24,7 @@ export interface TestKeyPair {
   kid: string;
 }
 
-/**
- * 2048 bits rather than 4096: generation is the slow part of these tests, and
- * the size under test is the signature format, not the modulus.
- */
+/** 2048 bits rather than 4096: key generation is the slow part of these tests. */
 export async function generateTestKeyPair(
   kid: string,
   modulusLength = 2048,
@@ -47,10 +43,9 @@ export async function generateTestKeyPair(
 }
 
 /**
- * A public key too small for RS256, as PEM.
- *
- * `generateKeyPair` refuses to make one — jose enforces the floor when
- * generating, not when importing — so this goes through WebCrypto directly.
+ * A public key too small for RS256, as PEM. `generateKeyPair` refuses to make
+ * one, since jose enforces the minimum when generating but not when importing,
+ * so this uses WebCrypto directly.
  */
 export async function weakPublicKeyPem(): Promise<string> {
   const pair = (await crypto.subtle.generateKey(

@@ -1,8 +1,7 @@
 /**
- * The caching, refreshing and parsing behind a JWKS endpoint belongs to jose
- * and is not restated here. What is tested is the policy around it: the URL
- * may not be plaintext, and a key has to be big enough to be worth verifying
- * against.
+ * jose does the caching, refreshing and parsing behind a JWKS endpoint, and
+ * that is not restated here. These tests cover the two rules this module adds:
+ * the URL may not be plaintext, and an RSA key must be at least 2048 bits.
  */
 
 import { beforeAll, describe, expect, it } from "vitest";
@@ -28,7 +27,7 @@ const URL_UNDER_TEST = "https://issuer.test/.well-known/jwks.json";
 
 describe("createJwksKeyRing", () => {
   it("refuses to fetch its trust root over plaintext http", async () => {
-    // Whoever can answer this URL decides which signatures are trusted.
+    // The document at this URL determines which signatures are trusted.
     await expect(
       createJwksKeyRing({ url: "http://issuer.test/.well-known/jwks.json" }),
     ).rejects.toThrow(KeySourceError);
@@ -42,8 +41,8 @@ describe("createJwksKeyRing", () => {
 
   it("refuses a redirect away from the URL that was vetted", async () => {
     // `fetch` follows redirects on its own, https to http included, so a
-    // redirect would otherwise be a way around the check above. jose asks
-    // with `redirect: "manual"` and treats anything but 200 as a failure.
+    // redirect would otherwise bypass the check above. jose requests with
+    // `redirect: "manual"` and treats anything but 200 as a failure.
     const seen: string[] = [];
     const fetchImpl = ((target: URL | string) => {
       seen.push(String(target));
@@ -102,9 +101,8 @@ describe("publicKeyFromPem", () => {
   });
 
   it("refuses an RSA key below the size RS256 requires", async () => {
-    // RFC 7518 puts the floor at 2048 bits, and jose does not enforce it:
-    // it checks that a key can carry RS256, not that the key is large enough
-    // for the guarantee to mean anything.
+    // RFC 7518 sets the minimum at 2048 bits. jose checks that a key can be
+    // used for RS256, not that it is large enough.
     await expect(publicKeyFromPem(await weakPublicKeyPem())).rejects.toThrow(
       /2048/,
     );

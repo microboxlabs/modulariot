@@ -18,8 +18,8 @@ describe("isLoopbackHost", () => {
   });
 
   it.each([
-    // The one that mattered: a prefix test on a name accepted this, and a
-    // name is resolved by whoever answers DNS.
+    // A prefix test on a name accepted this. A name is resolved by whoever
+    // answers DNS.
     "127.attacker.test",
     "127.0.0.1.attacker.test",
     "0.0.0.0",
@@ -29,7 +29,7 @@ describe("isLoopbackHost", () => {
     "10.0.0.5",
     "example.test",
     "",
-    // Shorthand forms a resolver would accept and this deliberately does not.
+    // Shorthand forms a resolver accepts and this deliberately does not.
     "127.1",
     "2130706433",
     // Not an address at all, whatever it looks like.

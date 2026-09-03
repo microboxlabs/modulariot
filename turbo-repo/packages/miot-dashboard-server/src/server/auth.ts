@@ -1,9 +1,9 @@
 /**
  * Turns the identity half of the configuration into a resolver.
  *
- * Lives here rather than inside `bin.ts` so it can be tested: the assembly is
- * where a key source becomes a key, and where a misconfiguration has to
- * become a startup failure instead of a server that runs and refuses everyone.
+ * Separate from `bin.ts` so it can be tested. This is where a key source
+ * becomes a key, and where a misconfiguration has to fail at startup rather
+ * than leave the server running and refusing every request.
  */
 
 import {
@@ -32,9 +32,8 @@ export interface BuildIdentityOptions {
 }
 
 /**
- * jose is an optional peer dependency, so its absence is a configuration
- * problem to report at startup rather than a module error on the first
- * request that presents a token.
+ * jose is an optional peer dependency. Report its absence at startup rather
+ * than as a module error on the first request carrying a token.
  */
 async function requireJose(): Promise<void> {
   try {
@@ -93,8 +92,8 @@ export async function buildIdentityResolver(
   try {
     ({ keys, describe: keyDescription } = await keyRingFor(auth, options));
   } catch (error) {
-    // A key that cannot be read is a configuration problem, and the process
-    // should say so and exit rather than start and refuse every request.
+    // A key that cannot be read is a configuration problem: report it and
+    // exit, rather than start and refuse every request.
     if (error instanceof KeySourceError) {
       throw new ConfigError(error.message);
     }

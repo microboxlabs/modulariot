@@ -39,9 +39,9 @@ export interface JwtAuthConfig {
   audience: string[];
   /**
    * Derived from the key source rather than configured: a JWKS endpoint or a
-   * public key means RS256, a shared secret means HS256. Deriving it is what
-   * makes "accept either" impossible to express, and "accept either" is the
-   * algorithm-confusion attack.
+   * public key means RS256, a shared secret means HS256. Deriving it means
+   * "accept either" cannot be configured, which is the algorithm-confusion
+   * attack.
    */
   algorithm: JwtAlgorithm;
   key: JwtKeySource;
@@ -137,12 +137,11 @@ function unescapeNewlines(pem: string): string {
 /**
  * The shared secret, byte for byte.
  *
- * Trimming it would change the key: HMAC is computed over exactly these
- * bytes, so a secret whose real value ends in a space would silently stop
- * matching the issuer's. Surrounding whitespace is almost always an accident
- * of how the value was pasted or read from a file, and either reading of it
- * is a server that starts and then refuses every token — so it is refused
- * here, where the message can say what happened.
+ * Trimming would change the key, since HMAC is computed over exactly these
+ * bytes. Surrounding whitespace is usually an accident of how the value was
+ * pasted or read from a file, but keeping it and removing it both produce a
+ * server that starts and then rejects every token, so it is refused here
+ * instead, where the message can say why.
  */
 function readSecret(env: ConfigEnv): string | undefined {
   const raw = env.MIOT_DASHBOARD_JWT_SECRET;
@@ -151,8 +150,8 @@ function readSecret(env: ConfigEnv): string | undefined {
     throw new ConfigError(
       "MIOT_DASHBOARD_JWT_SECRET begins or ends with whitespace. It is used " +
         "as key material exactly as given, so this is either a stray newline " +
-        "from however it was set, or part of the secret that must be kept. " +
-        "Set it without the surrounding whitespace.",
+        "from how it was set, or part of the secret. Set it without the " +
+        "surrounding whitespace.",
     );
   }
   return raw;
@@ -180,9 +179,9 @@ function readKeySource(env: ConfigEnv): JwtKeySource {
   if (configured.length > 1) {
     throw new ConfigError(
       `Set exactly one JWT key source; found ${configured.join(" and ")}. ` +
-        "Accepting more than one algorithm at a time is the attack this " +
-        "server is built to refuse: the RS256 public key is published, and a " +
-        "verifier that also accepts HS256 will take it as a shared secret.",
+        "Accepting two algorithms at once is what this server refuses to do: " +
+        "the RS256 public key is published, and a verifier that also accepts " +
+        "HS256 will take it as a shared secret.",
     );
   }
 
@@ -200,8 +199,8 @@ function readClockTolerance(env: ConfigEnv): number {
   if (!Number.isInteger(seconds) || seconds < 0 || seconds > 300) {
     throw new ConfigError(
       "MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE must be a whole number of seconds " +
-        `between 0 and 300, got "${raw}". It widens the window in which an ` +
-        "expired token is still accepted, so it is capped.",
+        `between 0 and 300, got "${raw}". It extends how long an expired ` +
+        "token is still accepted, so it is capped.",
     );
   }
   return seconds;
@@ -231,8 +230,8 @@ function readJwtAuth(env: ConfigEnv): JwtAuthConfig {
     issuer: required(
       env,
       "MIOT_DASHBOARD_JWT_ISSUER",
-      "the issuer whose tokens this server accepts, exactly as the tokens " +
-        'spell it (for Auth0, "https://<tenant>.auth0.com/").',
+      "the issuer whose tokens this server accepts, written exactly as the " +
+        'tokens carry it (for Auth0, "https://<tenant>.auth0.com/").',
     ),
     audience,
     algorithm: key.kind === "secret" ? "HS256" : "RS256",
@@ -242,8 +241,8 @@ function readJwtAuth(env: ConfigEnv): JwtAuthConfig {
         env,
         "MIOT_DASHBOARD_JWT_TENANT_CLAIM",
         "the claim carrying the tenant. No registered claim carries one and " +
-          "every provider spells it differently, so there is no default: a " +
-          "wrong guess would silently put every caller in the same tenant.",
+          "every provider uses a different name, so there is no default: a " +
+          "wrong default would put every caller in the same tenant.",
       ),
       userId: trimmed(env.MIOT_DASHBOARD_JWT_USER_CLAIM),
       groups: trimmed(env.MIOT_DASHBOARD_JWT_GROUPS_CLAIM),
@@ -255,10 +254,8 @@ function readJwtAuth(env: ConfigEnv): JwtAuthConfig {
 
 /**
  * Pick the identity provider, refusing anything unsafe rather than warning
- * about it.
- *
- * The insecure resolver is the one genuinely dangerous switch in this
- * package: it lets any caller claim any user in any tenant.
+ * about it. The insecure resolver lets any caller claim any user in any
+ * tenant, so it is the switch this function guards hardest.
  */
 function readAuth(env: ConfigEnv, host: string): AuthConfig {
   const insecure = readBoolean(env.MIOT_DASHBOARD_INSECURE_AUTH);
@@ -267,9 +264,9 @@ function readAuth(env: ConfigEnv, host: string): AuthConfig {
   if (insecure && jwtKeys.length > 0) {
     throw new ConfigError(
       "Two identity providers are configured: MIOT_DASHBOARD_INSECURE_AUTH " +
-        `is on and ${jwtKeys.join(", ")} is set. Unset one — a server that ` +
-        "silently preferred either would be verifying tokens in one " +
-        "environment and trusting headers in another.",
+        `is on and ${jwtKeys.join(", ")} is set. Unset one: a server that ` +
+        "preferred either would verify tokens in one environment and trust " +
+        "headers in another.",
     );
   }
 

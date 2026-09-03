@@ -103,9 +103,9 @@ const FRAMEWORK_RULES = [
     allowedPrefix: "store/",
   },
   {
-    // Optional, like swagger-ui-dist: the core, the HTTP handler and a host
-    // that brings its own IdentityResolver must all stay reachable without it
-    // installed, which only holds while nothing outside these names it.
+    // Optional, like swagger-ui-dist. The core, the HTTP handler and a host
+    // supplying its own IdentityResolver must all load without it installed,
+    // which is only true while nothing outside these directories imports it.
     test: (s) => /^jose(\/|$)/.test(s),
     why: "jose import outside src/identity/ (optional, verifying-resolver only)",
     // server/ builds the resolver and reports its absence as a config error;

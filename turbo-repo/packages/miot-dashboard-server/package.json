@@ -9,6 +9,9 @@
   },
   "description": "Framework-agnostic backend services for MIOT embeddable dashboards: persistence, identity and tenancy, datasource proxying, embed tokens.",
   "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "sideEffects": false,
   "exports": {
     ".": {
@@ -18,6 +21,10 @@
     "./http": {
       "types": "./dist/http.d.ts",
       "import": "./dist/http.js"
+    },
+    "./store-sql": {
+      "types": "./dist/store-sql.d.ts",
+      "import": "./dist/store-sql.js"
     },
     "./testing": {
       "types": "./dist/testing.d.ts",

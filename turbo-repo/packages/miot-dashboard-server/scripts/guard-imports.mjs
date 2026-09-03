@@ -98,6 +98,11 @@ const FRAMEWORK_RULES = [
     allowedPrefix: "adapters/fastify/",
   },
   {
+    test: (s) => /^node:sqlite$/.test(s),
+    why: "node:sqlite import outside src/store/ (persistence is an opt-in entry)",
+    allowedPrefix: "store/",
+  },
+  {
     // An optional dependency of the standalone server, and 11 MB of it. The
     // core and the HTTP handler must stay reachable without it installed at
     // all, which only holds while nothing outside the server layer names it.
@@ -116,10 +121,14 @@ const isCommentLine = (line) => /^\s*(\/\/|\/\*|\*)/.test(line.trimStart());
  */
 const CONTENT_RULES = [
   {
+    // esbuild rewrites this specifier to "sqlite", which resolves to nothing.
+    re: /\bfrom\s*["']node:sqlite["']/,
+    why: 'static import of node:sqlite (the bundler rewrites it to "sqlite"; use createRequire)',
+    skipComments: true,
+  },
+  {
     re: /alfresco/i,
     why: "Alfresco reference in code (host persistence stays behind the ServerDashboardStore seam)",
-    // Doc comments legitimately explain that Alfresco is one host's
-    // implementation, so comment lines are exempt from this rule only.
     skipComments: true,
   },
 ];

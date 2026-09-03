@@ -29,15 +29,16 @@ const MEMBERSHIPS: Memberships = {
 const seedFor = (): SeedDashboard[] => [
   {
     ref: { tenantId: "acme", scopeId: "ops", slug: "fleet" },
-    name: "Fleet",
-    record: { config: { version: 2, title: "acme fleet" }, createdBy: "carl" },
+    record: {
+      config: { version: 2, name: "Fleet", title: "acme fleet" },
+      createdBy: "carl",
+    },
   },
   {
     // Same scope and slug in another tenant: if isolation leaks anywhere, this
     // is the pair that reveals it.
     ref: { tenantId: "globex", scopeId: "ops", slug: "fleet" },
-    name: "Fleet",
-    record: { config: { version: 2, title: "globex fleet" } },
+    record: { config: { version: 2, name: "Fleet", title: "globex fleet" } },
   },
 ];
 
@@ -232,10 +233,10 @@ describe.each([
       asUser("bob", "globex"),
     );
     await expect(acme.json()).resolves.toEqual({
-      data: { version: 2, title: "acme fleet" },
+      data: { version: 2, name: "Fleet", title: "acme fleet" },
     });
     await expect(globex.json()).resolves.toEqual({
-      data: { version: 2, title: "globex fleet" },
+      data: { version: 2, name: "Fleet", title: "globex fleet" },
     });
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ConfigError, readServerConfig } from "./config";
+import { ConfigError, DEFAULT_SQLITE_PATH, readServerConfig } from "./config";
 
 const base = { MIOT_DASHBOARD_INSECURE_AUTH: "true" };
 
@@ -27,7 +27,41 @@ describe("readServerConfig", () => {
   it("rejects a store it cannot build rather than silently using memory", () => {
     expect(() =>
       readServerConfig({ ...base, MIOT_DASHBOARD_STORE: "postgres" }),
-    ).toThrowError(/not supported yet/i);
+    ).toThrowError(/not supported/i);
+    expect(() =>
+      readServerConfig({ ...base, MIOT_DASHBOARD_STORE: "postgres" }),
+    ).toThrowError(/memory, sqlite/);
+  });
+
+  describe("the store", () => {
+    it("keeps everything in memory unless asked otherwise", () => {
+      expect(readServerConfig(base).store).toBe("memory");
+    });
+
+    it("takes sqlite with a default file, so it needs no other setting", () => {
+      const config = readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_STORE: "sqlite",
+      });
+      expect(config.store).toBe("sqlite");
+      expect(config.sqlitePath).toBe(DEFAULT_SQLITE_PATH);
+    });
+
+    it("takes an explicit database file", () => {
+      const config = readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_STORE: "sqlite",
+        MIOT_DASHBOARD_SQLITE_PATH: "/var/lib/miot/dash.db",
+      });
+      expect(config.sqlitePath).toBe("/var/lib/miot/dash.db");
+    });
+
+    it("carries no hostname or credential in any default", () => {
+      // A default naming a real database would let one deployment write to
+      // another deployment's data.
+      expect(DEFAULT_SQLITE_PATH.startsWith("./")).toBe(true);
+      expect(DEFAULT_SQLITE_PATH).not.toMatch(/:\/\/|@/);
+    });
   });
 
   it("validates the port", () => {

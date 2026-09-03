@@ -17,8 +17,15 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ConfigError, readServerConfig } from "./server/config";
+import {
+  ConfigError,
+  readServerConfig,
+  type ServerConfig,
+} from "./server/config";
+import { seedDashboards } from "./server/seed";
 import { serve } from "./server/serve";
+import type { ServerDashboardStore } from "./seams/store";
+import { openSqliteStore } from "./store/sqlite";
 import {
   createInsecureHeaderIdentityResolver,
   createMemoryScopeAuthority,
@@ -37,27 +44,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
- * Check the seed's shape before it reaches the seams.
- *
- * `JSON.parse` validates syntax, not structure, so `as SeedFile` used to wave
- * through a `memberships` that was a string or a `dashboards` that was an
- * object — and those then surfaced far away, as an authorization seam behaving
- * strangely rather than as a bad file. The operator's own file, so the answer
- * is a clear refusal at startup, not a runtime surprise.
- *
- * Deliberately hand-written: this package ships no runtime dependencies and
- * the import guard exists to keep it that way. What matters is that a bad file
- * is named as such, not that every leaf is described twice.
- */
-/**
- * The bundled example seed, for `MIOT_DASHBOARD_SEED=example`.
- *
- * Any other value is a filesystem path resolved from the caller's working
- * directory, which is what makes this reserved word worth having: the
- * documented `npx` line used to say `examples/seed.json`, and that only ever
- * worked from inside this repository. Two candidates because the module sits
- * one level below the package root when running from source and again when
- * running from a build, but a bundler is free to place it either way.
+ * The bundled example seed, for `MIOT_DASHBOARD_SEED=example`; any other value
+ * is a path from the caller's working directory. Two candidates because the
+ * module sits one or two levels below the package root depending on the build.
  */
 function bundledSeedPath(): string | null {
   const here = dirname(fileURLToPath(import.meta.url));
@@ -87,6 +76,7 @@ function resolveSeedPath(seed: string): string {
   return bundled;
 }
 
+/** `JSON.parse` validates syntax, not shape; a bad seed must fail at startup. */
 function readSeed(seed: string | undefined): SeedFile {
   if (seed === undefined) return {};
   const path = resolveSeedPath(seed);
@@ -146,6 +136,36 @@ function readSeed(seed: string | undefined): SeedFile {
   };
 }
 
+interface AssembledStore {
+  store: ServerDashboardStore;
+  close(): Promise<void>;
+  describe: string;
+}
+
+/** Build the store named by the configuration. */
+async function openStore(
+  config: ServerConfig,
+  seed: SeedFile,
+): Promise<AssembledStore> {
+  const dashboards = seed.dashboards ?? [];
+
+  if (config.store === "memory") {
+    return {
+      store: createMemoryStore({ seed: dashboards }),
+      close: () => Promise.resolve(),
+      describe: "memory (nothing survives a restart)",
+    };
+  }
+
+  const opened = await openSqliteStore({ path: config.sqlitePath });
+  await seedDashboards(opened.store, dashboards);
+  return {
+    store: opened.store,
+    close: opened.close,
+    describe: `sqlite at ${config.sqlitePath}`,
+  };
+}
+
 async function main(): Promise<void> {
   const config = readServerConfig(process.env);
   const seed = readSeed(config.seedPath);
@@ -155,10 +175,15 @@ async function main(): Promise<void> {
       "(MIOT_DASHBOARD_INSECURE_AUTH). Local use only.\n",
   );
 
+  const assembled = await openStore(config, seed);
+  process.stdout.write(
+    `${JSON.stringify({ level: "info", msg: "store", store: assembled.describe })}\n`,
+  );
+
   const running = await serve({
     identity: createInsecureHeaderIdentityResolver(),
     scopes: createMemoryScopeAuthority(seed.memberships ?? {}),
-    store: createMemoryStore({ seed: seed.dashboards ?? [] }),
+    store: assembled.store,
     audit: createRecordingAuditSink(),
     port: config.port,
     host: config.host,
@@ -170,8 +195,11 @@ async function main(): Promise<void> {
     process.stdout.write(
       `${JSON.stringify({ level: "info", msg: "shutting down", signal })}\n`,
     );
+    // Close the listener first, so no request is in progress when the
+    // database closes.
     running
       .close()
+      .then(() => assembled.close())
       .then(() => process.exit(0))
       .catch(() => process.exit(1));
   };

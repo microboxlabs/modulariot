@@ -31,6 +31,7 @@ between them.
 | ------------------------------------- | ----------------- | --------- |
 | Core: seams, access control           | `.`               | nothing   |
 | HTTP handler: `Request` to `Response` | `./http`          | Web types |
+| Persistence: composite, SQL, SQLite   | `./store-sql`     | Node      |
 | In-memory seams                       | `./testing`       | nothing   |
 | Server: listener, probes, docs        | `./server`, `bin` | Node      |
 
@@ -69,7 +70,15 @@ curl -H 'x-dev-user: alice' -H 'x-dev-tenant: acme' \
   http://127.0.0.1:3070/scopes/ops/dashboards
 ```
 
-Outside this repo, or from a build rather than from source:
+To run the built output rather than the source, which is what a deployment
+runs. `start` depends on `build`, so this compiles first:
+
+```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true MIOT_DASHBOARD_SEED=example \
+  npx turbo run start --filter=@microboxlabs/miot-dashboard-server
+```
+
+Outside this repo:
 
 ```bash
 MIOT_DASHBOARD_INSECURE_AUTH=true \
@@ -82,6 +91,49 @@ MIOT_DASHBOARD_SEED=example \
 directory; the single reserved value `example` means the one shipped with the
 package, which is what makes the line above work from anywhere.
 
+### Storing dashboards
+
+`MIOT_DASHBOARD_STORE` selects the store.
+
+| Value              | Stores data            | Requires                                |
+| ------------------ | ---------------------- | --------------------------------------- |
+| `memory` (default) | until the process ends | nothing                                 |
+| `sqlite`           | in one file            | nothing — `node:sqlite` is part of Node |
+
+```bash
+MIOT_DASHBOARD_STORE=sqlite MIOT_DASHBOARD_SQLITE_PATH=./data/dashboards.db \
+  npx turbo run dev:server --filter=@microboxlabs/miot-dashboard-server
+```
+
+Turborepo runs tasks with a filtered environment, so a variable the task does
+not declare is removed rather than passed on — and the server would start with
+the default store without saying why. `dev:server`, `start` and `test:api`
+declare `MIOT_DASHBOARD_*`, `PORT` and `HOST` in `passThroughEnv` for that
+reason. The startup line names the store it opened, which is the quickest way
+to see that a setting arrived.
+
+The path is relative to the working directory, which for a turbo task is this
+package: the default puts the database at
+`turbo-repo/packages/miot-dashboard-server/data/dashboards.db`. That directory
+is gitignored, because a database holding real dashboards must not reach this
+repository.
+
+The file and its parent directories are created on first run, and migrations
+run on every start, applying only what that database has not recorded. A seed
+writes a dashboard only if its slug is absent, so it does not overwrite edits
+made since the last start.
+
+The store is built from two parts: a **metadata** database holding a row per
+dashboard and its permissions, and a **document** store holding the config
+bytes. A save writes the config under a new key and then updates the row to
+point at it, so a read never sees a partly written dashboard and the document
+store needs no locking. That is what will allow a bucket or a directory as the
+document store later. `sqlite` keeps both parts in the same file.
+
+`node:sqlite` runs without a flag from Node 22.13; from 22.5 it needed
+`--experimental-sqlite`. On earlier versions the server reports that and names
+the alternative store.
+
 `MIOT_DASHBOARD_INSECURE_AUTH` reads the caller's identity straight from
 request headers with no verification, so anyone who can reach the port can
 claim to be anyone. It exists to exercise the API before an identity provider
@@ -90,8 +142,8 @@ refuses to start under `NODE_ENV=production`, it refuses to start **on any
 address but loopback** — reaching the port is being every user in every tenant,
 so the port must not leave the machine — and it refuses to start without it
 too, because the alternative would be starting with no authentication at all.
-A verifying resolver arrives with P2b, along with a Postgres store to replace
-the in-memory one.
+A verifying resolver arrives with P2b-3, along with a PostgreSQL metadata
+store for deployments that run more than one instance.
 
 `NODE_ENV` is not a security boundary; it is a variable nobody has to set. The
 bind-address check is the one that holds either way.
@@ -241,21 +293,27 @@ One envelope, from every adapter:
 - No React — this is a backend. The UI package's React entries are off-limits;
   only its React-free `/schema` subpath may be imported.
 - `next/*` only under `src/adapters/next/`, `fastify` only under
-  `src/adapters/fastify/`, `swagger-ui-dist` only under `src/server/`.
-  Everything else runs under a bare Node process, with nothing optional
-  installed.
+  `src/adapters/fastify/`, `swagger-ui-dist` only under `src/server/`,
+  `node:sqlite` only under `src/store/`. Everything else runs under a bare Node
+  process, with nothing optional installed.
+- `node:sqlite` is loaded with `createRequire`, never a static import: esbuild
+  does not list `sqlite` among Node's built-in modules, so it removes the prefix
+  and emits `from "sqlite"`, which fails to resolve. The guard rejects the
+  static form because the tests import the TypeScript source and do not detect
+  it.
 - No Alfresco. Alfresco is one host's `ServerDashboardStore` implementation,
   supplied from outside, never something this package knows about.
 
 ## Entries
 
-| Entry       | Holds                                                |
-| ----------- | ---------------------------------------------------- |
-| `.`         | seams, access control, roles, errors                 |
-| `./http`    | the fetch-shaped handler                             |
-| `./testing` | in-memory seams, for dev servers and for integrators |
-| `./server`  | Node listener, probes, config, contract and docs     |
-| `bin`       | `npx @microboxlabs/miot-dashboard-server`            |
+| Entry         | Holds                                                |
+| ------------- | ---------------------------------------------------- |
+| `.`           | seams, access control, roles, errors                 |
+| `./http`      | the fetch-shaped handler                             |
+| `./store-sql` | composite store, SQL metadata store, SQLite driver   |
+| `./testing`   | in-memory seams, for dev servers and for integrators |
+| `./server`    | Node listener, probes, config, contract and docs     |
+| `bin`         | `npx @microboxlabs/miot-dashboard-server`            |
 
 Separate entries so that mounting the library never drags in a listener, and
 running the server never drags in a framework.

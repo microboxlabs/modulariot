@@ -25,7 +25,10 @@ describe("memoryStore", () => {
   it("lists real slugs, not fragments of the storage key", async () => {
     const store = memoryStore([
       { ref: ref("acme", "ops", "fleet") },
-      { ref: ref("acme", "ops", "maintenance"), name: "Maintenance" },
+      {
+        ref: ref("acme", "ops", "maintenance"),
+        record: { config: { name: "Maintenance" } },
+      },
     ]);
 
     await expect(store.list("acme", "ops")).resolves.toEqual([

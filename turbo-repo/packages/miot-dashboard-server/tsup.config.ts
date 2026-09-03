@@ -5,6 +5,7 @@ export default defineConfig({
   //
   //   index   — core: seams, access control (no HTTP, no framework)
   //   http    — fetch-shaped handler (Web types only)
+  //   store-sql — persistence: composite store, SQL metadata, SQLite driver
   //   testing — in-memory seams; shippable, no test framework imported
   //   server  — Node listener, probes, lifecycle (the only Node-assuming entry)
   //
@@ -16,6 +17,7 @@ export default defineConfig({
   entry: [
     "src/index.ts",
     "src/http.ts",
+    "src/store-sql.ts",
     "src/testing.ts",
     "src/server.ts",
     "src/bin.ts",

@@ -14,6 +14,7 @@
  */
 
 import { DashboardServerError } from "./access/errors";
+import { dashboardDisplayName } from "./store/composite";
 import type { DashboardRole } from "./access/roles";
 import { FULL_CAPABILITIES } from "./access/roles";
 import type { AuditEvent, AuditSink } from "./seams/audit";
@@ -39,7 +40,6 @@ import type {
 
 export interface SeedDashboard {
   ref: ServerDashboardRef;
-  name?: string;
   record?: Partial<DashboardRecord>;
   assignments?: PermissionAssignment[];
 }
@@ -102,7 +102,9 @@ export function createMemoryStore(
   for (const item of seed) {
     entries.set(key(item.ref), {
       ref: item.ref,
-      name: item.name ?? item.ref.slug,
+      // The config, as everywhere else. A separate seed field would list one
+      // name here and another in a store seeded through `save`.
+      name: dashboardDisplayName(item.record?.config, item.ref.slug),
       record: {
         config: { version: 2 },
         updatedAt: now().toISOString(),
@@ -146,7 +148,9 @@ export function createMemoryStore(
       };
       entries.set(key(ref), {
         ref,
-        name: existing?.name ?? ref.slug,
+        // Derived from the config, as the SQL store does. Keeping the name
+        // fixed here would make a rename appear in one store's list only.
+        name: dashboardDisplayName(config, ref.slug),
         record,
       });
       if (!permissions.has(key(ref))) permissions.set(key(ref), []);

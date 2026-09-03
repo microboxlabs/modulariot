@@ -208,6 +208,32 @@ describe("readServerConfig: JWT authentication", () => {
     expect(hmac).toMatchObject({ algorithm: "HS256" });
   });
 
+  it("hands the shared secret on byte for byte", () => {
+    // Trimming it would change the key: HMAC is computed over exactly these
+    // bytes, so a trimmed secret quietly stops matching the issuer's.
+    const secret = `${"x".repeat(32)}   y`;
+    expect(
+      readServerConfig({
+        ...jwtBase,
+        MIOT_DASHBOARD_JWT_JWKS_URL: undefined,
+        MIOT_DASHBOARD_JWT_SECRET: secret,
+      }).auth,
+    ).toMatchObject({ key: { kind: "secret", secret } });
+  });
+
+  it("refuses a secret wrapped in whitespace instead of guessing", () => {
+    // Either reading of it — keep the whitespace or drop it — is a server
+    // that starts and then refuses every token, so it is settled here where
+    // the message can say what happened.
+    expect(() =>
+      readServerConfig({
+        ...jwtBase,
+        MIOT_DASHBOARD_JWT_JWKS_URL: undefined,
+        MIOT_DASHBOARD_JWT_SECRET: `${"x".repeat(32)}\n`,
+      }),
+    ).toThrowError(/whitespace/);
+  });
+
   it("refuses two key sources at once", () => {
     expect(() =>
       readServerConfig({

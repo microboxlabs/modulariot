@@ -109,15 +109,28 @@ function decodeJson(segment: string, what: string): Record<string, unknown> {
 }
 
 /**
- * Issuers are compared as strings, after removing one trailing slash from
- * each. Auth0 publishes its issuer with the slash and configuration is
- * routinely written without it; treating those as different issuers produces
- * a total outage whose cause is one character.
+ * Issuer identifiers are compared exactly, character for character.
+ *
+ * This is what OpenID Connect requires, and it is the wrong place to be
+ * helpful: an issuer is the name of a trust relationship, and any rule that
+ * makes two spellings equal makes two different issuers equal too. An earlier
+ * version ignored a trailing slash and was wrong for that reason.
+ *
+ * The one thing that costs — Auth0 publishes its issuer with a trailing slash
+ * and configuration is routinely written without it — is paid for in the
+ * rejection message rather than in the comparison.
  */
-function sameIssuer(a: string, b: string): boolean {
-  const trim = (value: string) =>
-    value.endsWith("/") ? value.slice(0, -1) : value;
-  return trim(a) === trim(b);
+function issuerMismatch(claimed: string, configured: string): string | null {
+  if (claimed === configured) return null;
+  const off = (a: string, b: string) => `${a}/` === b;
+  if (off(claimed, configured) || off(configured, claimed)) {
+    return (
+      "token issuer differs from the configured one by a trailing slash. " +
+      "Issuers are compared exactly, so set the issuer to the value the " +
+      "tokens carry"
+    );
+  }
+  return "token issuer is not the configured one";
 }
 
 function checkAudience(claim: unknown, accepted: readonly string[]): void {
@@ -238,12 +251,11 @@ export async function verifyJwt(
   // mean acting on values an attacker chose.
   const claims = decodeJson(encodedPayload, "payload") as JwtClaims;
 
-  if (
-    typeof claims.iss !== "string" ||
-    !sameIssuer(claims.iss, options.issuer)
-  ) {
-    throw new JwtVerificationError("token issuer is not the configured one");
+  if (typeof claims.iss !== "string") {
+    throw new JwtVerificationError("token carries no issuer");
   }
+  const mismatch = issuerMismatch(claims.iss, options.issuer);
+  if (mismatch !== null) throw new JwtVerificationError(mismatch);
   checkAudience(claims.aud, options.audience);
 
   const tolerance = options.clockToleranceSeconds ?? 30;
@@ -251,8 +263,10 @@ export async function verifyJwt(
 
   // `exp` is required. A token without one never stops being valid, and a
   // stolen bearer credential that never expires is the whole problem.
+  // `>=`: RFC 7519 says the current time must be *before* `exp`, so the
+  // expiry second itself is already too late.
   const exp = requireSeconds(claims.exp, "exp");
-  if (now > exp + tolerance) {
+  if (now >= exp + tolerance) {
     throw new JwtVerificationError("token has expired");
   }
   if (claims.nbf !== undefined) {

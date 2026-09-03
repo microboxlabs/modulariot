@@ -8,6 +8,7 @@
  */
 
 import type { JwtAlgorithm } from "../identity/jwt";
+import { isLoopbackHost } from "../net/loopback";
 
 export interface ServerConfig {
   port: number;
@@ -87,26 +88,6 @@ function readBoolean(value: string | undefined): boolean {
   return value === "1" || value?.toLowerCase() === "true";
 }
 
-/** `[::1]` and `::1` are the same address written two ways. */
-function stripBrackets(host: string): string {
-  return host.length >= 2 && host.startsWith("[") && host.endsWith("]")
-    ? host.slice(1, -1)
-    : host;
-}
-
-/**
- * Whether a bind address reaches only this machine.
- *
- * The whole 127.0.0.0/8 block is loopback, not just 127.0.0.1. `0.0.0.0` and
- * `::` are the opposite — they bind every interface — and an empty host means
- * the same thing to Node, so it is refused rather than guessed at.
- */
-function isLoopbackHost(host: string): boolean {
-  const address = stripBrackets(host.trim().toLowerCase());
-  if (address === "localhost" || address === "::1") return true;
-  return address.startsWith("127.");
-}
-
 /**
  * For switches that are on unless someone says otherwise.
  *
@@ -153,10 +134,34 @@ function unescapeNewlines(pem: string): string {
   return pem.includes("\\n") ? pem.split("\\n").join("\n") : pem;
 }
 
+/**
+ * The shared secret, byte for byte.
+ *
+ * Trimming it would change the key: HMAC is computed over exactly these
+ * bytes, so a secret whose real value ends in a space would silently stop
+ * matching the issuer's. Surrounding whitespace is almost always an accident
+ * of how the value was pasted or read from a file, and either reading of it
+ * is a server that starts and then refuses every token — so it is refused
+ * here, where the message can say what happened.
+ */
+function readSecret(env: ConfigEnv): string | undefined {
+  const raw = env.MIOT_DASHBOARD_JWT_SECRET;
+  if (raw === undefined || raw.trim().length === 0) return undefined;
+  if (raw !== raw.trim()) {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_JWT_SECRET begins or ends with whitespace. It is used " +
+        "as key material exactly as given, so this is either a stray newline " +
+        "from however it was set, or part of the secret that must be kept. " +
+        "Set it without the surrounding whitespace.",
+    );
+  }
+  return raw;
+}
+
 function readKeySource(env: ConfigEnv): JwtKeySource {
   const jwks = trimmed(env.MIOT_DASHBOARD_JWT_JWKS_URL);
   const publicKey = trimmed(env.MIOT_DASHBOARD_JWT_PUBLIC_KEY);
-  const secret = trimmed(env.MIOT_DASHBOARD_JWT_SECRET);
+  const secret = readSecret(env);
 
   const configured = [
     jwks === undefined ? null : "MIOT_DASHBOARD_JWT_JWKS_URL",

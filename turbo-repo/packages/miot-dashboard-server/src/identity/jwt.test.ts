@@ -160,13 +160,34 @@ describe("verifyJwt", () => {
       await expect(verifyJwt(token, rsaOptions())).rejects.toThrow(/issuer/);
     });
 
-    it("treats an issuer with and without its trailing slash as one", async () => {
+    it("compares the issuer exactly, trailing slash included", async () => {
+      // An issuer identifier names a trust relationship, and any rule that
+      // makes two spellings equal makes two different issuers equal too.
       const token = signRs256(pair.privateKey, {
         claims: validClaims({ iss: "https://issuer.test" }),
       });
       await expect(
         verifyJwt(token, { ...rsaOptions(), issuer: "https://issuer.test/" }),
-      ).resolves.toBeTruthy();
+      ).rejects.toThrow(JwtVerificationError);
+    });
+
+    it("says when the difference is only that slash", async () => {
+      // The cost of comparing exactly is an outage whose cause is one
+      // character, so the reason has to name it. It goes to the log, never
+      // to the caller.
+      const token = signRs256(pair.privateKey, {
+        claims: validClaims({ iss: "https://issuer.test" }),
+      });
+      await expect(
+        verifyJwt(token, { ...rsaOptions(), issuer: "https://issuer.test/" }),
+      ).rejects.toThrow(/trailing slash/);
+    });
+
+    it("refuses a token carrying no issuer", async () => {
+      const claims = validClaims();
+      delete claims.iss;
+      const token = signRs256(pair.privateKey, { claims });
+      await expect(verifyJwt(token, rsaOptions())).rejects.toThrow(/issuer/);
     });
 
     it("refuses a token minted for a different API", async () => {
@@ -209,9 +230,28 @@ describe("verifyJwt", () => {
       });
 
       await expect(verifyJwt(token, at(expiry + 29))).resolves.toBeTruthy();
+      // The boundary second is already too late: RFC 7519 requires the
+      // current time to be *before* the expiry.
+      await expect(verifyJwt(token, at(expiry + 30))).rejects.toThrow(
+        /expired/,
+      );
       await expect(verifyJwt(token, at(expiry + 31))).rejects.toThrow(
         /expired/,
       );
+    });
+
+    it("refuses a token at its own expiry with no tolerance configured", async () => {
+      const expiry = 1_700_000_000;
+      const token = signRs256(pair.privateKey, {
+        claims: validClaims({ exp: expiry }),
+      });
+      await expect(
+        verifyJwt(token, {
+          ...rsaOptions(),
+          clockToleranceSeconds: 0,
+          now: () => expiry * 1000,
+        }),
+      ).rejects.toThrow(/expired/);
     });
 
     it("refuses a token that is not valid yet", async () => {

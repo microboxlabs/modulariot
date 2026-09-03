@@ -193,6 +193,135 @@ describe("createJwksKeyRing", () => {
     await expect(ring.resolve("oct")).rejects.toThrow(/no usable RS256/);
   });
 
+  it("ignores a key too small to stand behind its signatures", () => {
+    const weak = generateKeyPairSync("rsa", { modulusLength: 1024 });
+    const jwk = {
+      ...weak.publicKey.export({ format: "jwk" }),
+      kid: "weak",
+      use: "sig",
+      alg: "RS256",
+    } as Record<string, unknown>;
+    const endpoint = fakeJwks([jwk, second.jwk]);
+    const ring = createJwksKeyRing({
+      url: URL_UNDER_TEST,
+      fetchImpl: endpoint.fetchImpl,
+    });
+
+    return Promise.all([
+      expect(ring.resolve("weak")).resolves.toBeNull(),
+      expect(ring.resolve("key-2")).resolves.toBeTruthy(),
+    ]);
+  });
+
+  it("does not retry a failing provider once per request", async () => {
+    // `inFlight` only merges calls that overlap. Sequential ones each started
+    // their own fetch, so an outage meant every request waited for the
+    // timeout and the provider got a retry storm from us.
+    let clock = 1_000_000;
+    const endpoint = fakeJwks([first.jwk]);
+    endpoint.fail(new Error("connect ECONNREFUSED"));
+    const ring = createJwksKeyRing({
+      url: URL_UNDER_TEST,
+      fetchImpl: endpoint.fetchImpl,
+      minRefreshSeconds: 30,
+      now: () => clock,
+    });
+
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      clock += 100;
+      await expect(ring.resolve("key-1")).rejects.toThrow("ECONNREFUSED");
+    }
+    expect(endpoint.calls).toBe(1);
+
+    clock += 30_000;
+    await expect(ring.resolve("key-1")).rejects.toThrow("ECONNREFUSED");
+    expect(endpoint.calls).toBe(2);
+  });
+
+  it("does not refetch on every request once a cached set goes stale", async () => {
+    let clock = 1_000_000;
+    const endpoint = fakeJwks([first.jwk]);
+    const ring = createJwksKeyRing({
+      url: URL_UNDER_TEST,
+      fetchImpl: endpoint.fetchImpl,
+      cacheSeconds: 10,
+      minRefreshSeconds: 30,
+      now: () => clock,
+    });
+
+    await ring.resolve("key-1");
+    endpoint.fail(new Error("connect ECONNREFUSED"));
+
+    // Past the cache lifetime, so every call finds the set stale. A failed
+    // refresh does not move `fetchedAt`, which is what made this retry
+    // forever.
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      clock += 11_000;
+      await expect(ring.resolve("key-1")).resolves.toBeTruthy();
+    }
+    expect(endpoint.calls).toBeLessThanOrEqual(8);
+  });
+
+  describe("redirects", () => {
+    /** Answers one redirect, then the key set. */
+    const redirectingTo = (location: string) => {
+      const seen: string[] = [];
+      const fetchImpl = ((target: URL) => {
+        seen.push(target.toString());
+        if (seen.length === 1) {
+          return Promise.resolve(
+            new Response(null, { status: 302, headers: { location } }),
+          );
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify({ keys: [first.jwk] }), { status: 200 }),
+        );
+      }) as unknown as typeof fetch;
+      return { fetchImpl, seen };
+    };
+
+    it("refuses a redirect that drops to plaintext http", async () => {
+      // `fetch` follows redirects itself, and follows https to http without
+      // complaint, so checking only the first URL is not checking the URL the
+      // keys actually came from.
+      const endpoint = redirectingTo("http://issuer.test/keys.json");
+      const ring = createJwksKeyRing({
+        url: URL_UNDER_TEST,
+        fetchImpl: endpoint.fetchImpl,
+      });
+
+      await expect(ring.resolve("key-1")).rejects.toThrow(/https/);
+      expect(endpoint.seen).toHaveLength(1);
+    });
+
+    it("follows one that stays on https", async () => {
+      const endpoint = redirectingTo("https://cdn.issuer.test/keys.json");
+      const ring = createJwksKeyRing({
+        url: URL_UNDER_TEST,
+        fetchImpl: endpoint.fetchImpl,
+      });
+
+      await expect(ring.resolve("key-1")).resolves.toBeTruthy();
+      expect(endpoint.seen).toEqual([
+        URL_UNDER_TEST,
+        "https://cdn.issuer.test/keys.json",
+      ]);
+    });
+
+    it("gives up on a redirect that never lands", async () => {
+      const fetchImpl = (() =>
+        Promise.resolve(
+          new Response(null, {
+            status: 302,
+            headers: { location: "https://issuer.test/again" },
+          }),
+        )) as unknown as typeof fetch;
+      const ring = createJwksKeyRing({ url: URL_UNDER_TEST, fetchImpl });
+
+      await expect(ring.resolve("key-1")).rejects.toThrow(/redirected/);
+    });
+  });
+
   it("refuses to fetch its trust root over plaintext http", () => {
     // Whoever can answer this URL decides which signatures are trusted.
     expect(() =>
@@ -236,5 +365,13 @@ describe("publicKeyFromPem", () => {
     const { publicKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
     const pem = publicKey.export({ type: "spki", format: "pem" }) as string;
     expect(() => publicKeyFromPem(pem)).toThrow(/RSA/);
+  });
+
+  it("refuses an RSA key below the size RS256 requires", () => {
+    // RFC 7518 puts the floor at 2048 bits; the same reasoning as the
+    // minimum length on an HS256 secret.
+    const { publicKey } = generateKeyPairSync("rsa", { modulusLength: 1024 });
+    const pem = publicKey.export({ type: "spki", format: "pem" }) as string;
+    expect(() => publicKeyFromPem(pem)).toThrow(/2048/);
   });
 });

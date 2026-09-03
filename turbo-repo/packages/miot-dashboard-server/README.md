@@ -171,6 +171,11 @@ token using it as the shared secret. Configuring one key source is what makes
 
 Three things worth knowing before deploying it:
 
+- **The issuer is compared exactly**, trailing slash included, as OpenID
+  Connect requires — any rule that makes two spellings equal makes two
+  different issuers equal too. Auth0 publishes its issuer *with* the slash. If
+  you get that wrong the log says so by name rather than leaving you to find
+  one character.
 - **There is no default tenant claim.** No registered claim carries a tenant
   and every provider spells its own differently, so a guess would silently put
   every caller in one tenant. For Auth0 this is a namespaced custom claim,

@@ -14,6 +14,7 @@
  */
 
 import { createPublicKey, type KeyObject } from "node:crypto";
+import { isLoopbackHost } from "../net/loopback";
 import type { KeyRing, VerificationKey } from "./jwt";
 
 /** Thrown when the key source itself is unusable, never for a bad token. */
@@ -48,6 +49,31 @@ export function hmacKeyFromSecret(secret: string): Buffer {
   return key;
 }
 
+/**
+ * The smallest RSA modulus RS256 may be used with, from RFC 7518 §3.3.
+ *
+ * The same reasoning as the HS256 minimum above: a key below this is
+ * factorable by someone who wants to be, and then they mint their own tokens.
+ */
+const MIN_RSA_MODULUS_BITS = 2048;
+
+/** Rejects an RSA key too small to stand behind the signatures it verifies. */
+function checkRsaKey(key: KeyObject, what: string): KeyObject {
+  if (key.asymmetricKeyType !== "rsa") {
+    throw new KeySourceError(
+      `RS256 needs an RSA public key; ${what} is ${String(key.asymmetricKeyType)}.`,
+    );
+  }
+  const bits = key.asymmetricKeyDetails?.modulusLength ?? 0;
+  if (bits < MIN_RSA_MODULUS_BITS) {
+    throw new KeySourceError(
+      `RS256 needs an RSA key of at least ${MIN_RSA_MODULUS_BITS} bits; ` +
+        `${what} is ${bits}.`,
+    );
+  }
+  return key;
+}
+
 /** An RSA public key from PEM (SPKI, PKCS#1 or a certificate). */
 export function publicKeyFromPem(pem: string): KeyObject {
   let key: KeyObject;
@@ -60,12 +86,7 @@ export function publicKeyFromPem(pem: string): KeyObject {
       { cause: error },
     );
   }
-  if (key.asymmetricKeyType !== "rsa") {
-    throw new KeySourceError(
-      `RS256 needs an RSA public key; this one is ${String(key.asymmetricKeyType)}.`,
-    );
-  }
-  return key;
+  return checkRsaKey(key, "the configured public key");
 }
 
 export interface JwksKeyRingOptions {
@@ -98,6 +119,9 @@ interface JsonWebKey {
 /** One megabyte of JWKS is already absurd; anything larger is not a key set. */
 const MAX_JWKS_BYTES = 1024 * 1024;
 
+/** Redirects are followed by hand, so the chain needs its own bound. */
+const MAX_JWKS_REDIRECTS = 3;
+
 /**
  * A JWKS URL must be https, unless it is loopback.
  *
@@ -112,12 +136,7 @@ function checkJwksUrl(raw: string): URL {
   } catch {
     throw new KeySourceError(`"${raw}" is not a URL`);
   }
-  const loopback =
-    url.hostname === "localhost" ||
-    url.hostname === "::1" ||
-    url.hostname === "[::1]" ||
-    url.hostname.startsWith("127.");
-  if (url.protocol !== "https:" && !loopback) {
+  if (url.protocol !== "https:" && !isLoopbackHost(url.hostname)) {
     throw new KeySourceError(
       `The JWKS URL must use https (got "${url.protocol}//"). It decides ` +
         "which signatures this server trusts, so anyone able to answer it " +
@@ -151,10 +170,13 @@ function parseKeySet(body: unknown): Map<string, KeyObject> {
     try {
       parsed.set(
         jwk.kid,
-        createPublicKey({ key: jwk as never, format: "jwk" }),
+        checkRsaKey(
+          createPublicKey({ key: jwk as never, format: "jwk" }),
+          `the key "${jwk.kid}"`,
+        ),
       );
     } catch {
-      // One unreadable key must not cost us the rest of the set.
+      // One unreadable or undersized key must not cost us the rest of the set.
     }
   }
   if (parsed.size === 0) {
@@ -183,16 +205,55 @@ export function createJwksKeyRing(options: JwksKeyRingOptions): KeyRing {
   const fetchImpl = options.fetchImpl ?? fetch;
 
   let keys = new Map<string, KeyObject>();
-  let fetchedAt = 0;
-  let attemptedAt = 0;
+  // Negative infinity rather than zero, so the first call counts as overdue
+  // whatever the clock reads.
+  let fetchedAt = Number.NEGATIVE_INFINITY;
+  /**
+   * When a fetch was last started, successful or not. `fetchedAt` moves only
+   * on success, so a failure would otherwise leave the cache permanently
+   * stale and every later call would try again.
+   */
+  let attemptedAt = Number.NEGATIVE_INFINITY;
+  /** Reported again during the cooldown, so the caller learns the cause. */
+  let lastFailure: unknown = null;
   /** Concurrent misses share one fetch rather than starting one each. */
   let inFlight: Promise<void> | null = null;
 
+  /**
+   * Fetch the key set, checking every hop of a redirect.
+   *
+   * `fetch` follows redirects on its own, and it follows them from https to
+   * http without complaint. Only the first URL passes through `checkJwksUrl`,
+   * so an automatic redirect is a way around the https requirement: the keys
+   * that decide which signatures this server trusts would arrive in clear
+   * text. Following them here means each `Location` is checked like the
+   * original.
+   */
+  async function fetchKeySet(): Promise<Response> {
+    let target = url;
+    for (let hop = 0; hop <= MAX_JWKS_REDIRECTS; hop += 1) {
+      const response = await fetchImpl(target, {
+        signal: AbortSignal.timeout(timeoutMs),
+        headers: { accept: "application/json" },
+        redirect: "manual",
+      });
+      if (response.status < 300 || response.status >= 400) return response;
+
+      const location = response.headers.get("location");
+      if (location === null) {
+        throw new KeySourceError(
+          `The JWKS endpoint answered ${response.status} with no location`,
+        );
+      }
+      target = checkJwksUrl(new URL(location, target).toString());
+    }
+    throw new KeySourceError(
+      `The JWKS endpoint redirected more than ${MAX_JWKS_REDIRECTS} times`,
+    );
+  }
+
   async function load(): Promise<void> {
-    const response = await fetchImpl(url, {
-      signal: AbortSignal.timeout(timeoutMs),
-      headers: { accept: "application/json" },
-    });
+    const response = await fetchKeySet();
     if (!response.ok) {
       throw new KeySourceError(`The JWKS endpoint answered ${response.status}`);
     }
@@ -224,11 +285,35 @@ export function createJwksKeyRing(options: JwksKeyRingOptions): KeyRing {
     return inFlight;
   }
 
+  /**
+   * Attempt a refresh, unless one was attempted too recently.
+   *
+   * `inFlight` only merges calls that overlap. Sequential ones each started
+   * their own fetch, so a provider that is down turned every request into
+   * another attempt that waited for the timeout before answering: latency on
+   * all authenticated traffic, and a retry storm aimed at a service that is
+   * already struggling. The interval that already bounded refetching on an
+   * unknown key id bounds this too.
+   */
   async function refreshOrKeepCache(): Promise<void> {
+    // A fetch already running is one to wait for, not a recent attempt to
+    // back off from: the callers that arrive while the very first fetch is in
+    // flight would otherwise be told the endpoint had not been read yet.
+    if (inFlight === null && now() - attemptedAt < minRefreshMs) {
+      // Still cooling down. With keys cached the stale ones are the right
+      // answer; with none, the last failure is, because a missing key would
+      // reach the caller as a rejected credential rather than an outage.
+      if (keys.size > 0) return;
+      throw (
+        lastFailure ??
+        new KeySourceError("The JWKS endpoint has not been read yet")
+      );
+    }
     try {
       await refresh();
+      lastFailure = null;
     } catch (error) {
-      // Nothing cached means there is no answer to give but the failure.
+      lastFailure = error;
       if (keys.size === 0) throw error;
     }
   }

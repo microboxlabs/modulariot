@@ -23,6 +23,7 @@ import {
   readServerConfig,
   type ServerConfig,
 } from "./server/config";
+import { createRefusalLog } from "./server/refusal-log";
 import { seedDashboards } from "./server/seed";
 import { serve } from "./server/serve";
 import type { ServerDashboardStore } from "./seams/store";
@@ -178,10 +179,9 @@ async function main(): Promise<void> {
   const auth = buildIdentityResolver(config.auth, {
     // The caller gets a 401 with no detail, which is right. Whoever runs the
     // server gets the reason here, which is the difference between a
-    // five-minute misconfiguration and an afternoon.
-    onReject: (reason) => {
-      log({ level: "warn", msg: "credential refused", reason });
-    },
+    // five-minute misconfiguration and an afternoon. Rate-limited, because
+    // otherwise an anonymous caller decides how much this process logs.
+    onReject: createRefusalLog({ write: log }),
   });
 
   if (config.auth.kind === "insecure") {

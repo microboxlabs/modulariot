@@ -83,13 +83,21 @@ function NavbarLogo({
         {/* Fallback for light mode if only dark logo exists */}
         {!logoUrlLight && logoUrlDark && (
           <span className="mr-3 block dark:hidden">
-            <LynxBrand iconClassName="h-11 w-11" wordmarkClassName="h-5 w-auto" className="text-(--brand-ink)" />
+            <LynxBrand
+              iconClassName="h-11 w-11"
+              wordmarkClassName="h-5 w-auto"
+              className="text-(--brand-ink)"
+            />
           </span>
         )}
         {/* Fallback for dark mode if only light logo exists */}
         {logoUrlLight && !logoUrlDark && (
           <span className="mr-3 hidden dark:block">
-            <LynxBrand iconClassName="h-11 w-11" wordmarkClassName="h-5 w-auto" className="text-(--brand-ink)" />
+            <LynxBrand
+              iconClassName="h-11 w-11"
+              wordmarkClassName="h-5 w-auto"
+              className="text-(--brand-ink)"
+            />
           </span>
         )}
       </>
@@ -111,7 +119,11 @@ function NavbarLogo({
   }
 
   return (
-    <LynxBrand className="mr-3 text-(--brand-ink)" iconClassName="h-11 w-11" wordmarkClassName="h-5 w-auto" />
+    <LynxBrand
+      className="mr-3 text-(--brand-ink)"
+      iconClassName="h-11 w-11"
+      wordmarkClassName="h-5 w-auto"
+    />
   );
 }
 
@@ -122,6 +134,7 @@ export function SecuredNavbar({
   isUserMenuEnabled = true,
   dict,
   initialOrgLogo,
+  isHarnessSettingsEnabled = false,
 }: SecuredNavBarProps & { dict: I18nRecord }) {
   const sidebar = useSidebarContext();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
@@ -164,7 +177,10 @@ export function SecuredNavbar({
             )}
             {isSeachEnabled && (
               <div className="hidden lg:block">
-                <SpotlightSearch dict={dict} />
+                <SpotlightSearch
+                  dict={dict}
+                  isHarnessSettingsEnabled={isHarnessSettingsEnabled}
+                />
               </div>
             )}
           </div>

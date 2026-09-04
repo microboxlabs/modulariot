@@ -64,3 +64,24 @@ export function visiblePages(devToolsEnabled: boolean): SidebarItem[] {
   if (devToolsEnabled) return pages;
   return pages.filter((p) => p.label !== DEV_PAGE_LABEL);
 }
+
+const HARNESS_SETTINGS_HREF = "/users/settings/harness";
+
+/**
+ * Strips the Harness settings entry unless its own feature flag is on.
+ * Shared by the sidebar and Spotlight so a user with the flag off can't
+ * find the link through one nav surface but not the other — both would
+ * otherwise need to duplicate this href check independently.
+ */
+export function filterHarnessSettings(
+  input: SidebarItem[],
+  isHarnessSettingsEnabled: boolean
+): SidebarItem[] {
+  if (isHarnessSettingsEnabled) return input;
+  return input.map((page) => ({
+    ...page,
+    items: (page.items ?? []).filter(
+      (item) => item.href !== HARNESS_SETTINGS_HREF
+    ),
+  }));
+}

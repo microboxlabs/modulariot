@@ -7,6 +7,7 @@ import jakarta.ws.rs.ForbiddenException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.jwt.JsonWebToken;
@@ -36,12 +37,18 @@ public class PlatformAuthorizer {
     private final Set<String> ownerEmails;
     private final SecurityIdentity securityIdentity;
 
+    /**
+     * The list is {@link Optional} rather than a {@code defaultValue = ""}: an
+     * empty string has no conversion to {@code List<String>}, so the default
+     * form fails to construct the bean whenever the property is unset — which
+     * is its normal state, and would stop the application booting.
+     */
     @Inject
     public PlatformAuthorizer(
-            @ConfigProperty(name = "miot.platform.owner-emails", defaultValue = "")
-            List<String> ownerEmails,
+            @ConfigProperty(name = "miot.platform.owner-emails")
+            Optional<List<String>> ownerEmails,
             SecurityIdentity securityIdentity) {
-        this.ownerEmails = normalizeOwners(ownerEmails);
+        this.ownerEmails = normalizeOwners(ownerEmails.orElse(List.of()));
         this.securityIdentity = securityIdentity;
     }
 

@@ -96,7 +96,8 @@
       { "href": "/users/settings/organizations", "label": "organizations", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/data-sources", "label": "dataSources", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/credentials", "label": "credentials", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/users/settings/connections", "label": "connections", "requiredGroups": [], "blockedGroups": [] }
+      { "href": "/users/settings/connections", "label": "connections", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/users/settings/harness", "label": "harness", "requiredGroups": [], "blockedGroups": [] }
     ],
     "requiredGroups": [],
     "blockedGroups": []

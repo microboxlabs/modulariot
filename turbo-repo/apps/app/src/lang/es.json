@@ -1581,13 +1581,104 @@
           }
         }
       },
+      "harness": {
+        "title": "Harness",
+        "description": "Administra los asientos, el uso y los usuarios con acceso al asistente de IA de Harness.",
+        "loadError": "No se pudo cargar la configuración de Harness.",
+        "unpaidAlert": "Tu último pago no se procesó. Actualiza tu método de pago para mantener Harness activo.",
+        "unpaidAlertAction": "Resolverlo",
+        "pricing": {
+          "title": "Precio",
+          "description": "Costo mensual estimado para tu plan de asientos actual.",
+          "perSeatLabel": "Por asiento",
+          "estimatedTotalLabel": "Cuánto pagas por",
+          "seatsLabel": "{count} asientos",
+          "extraTokensLabel": "Tokens extra",
+          "lastPaymentLabel": "Último pago",
+          "paymentStatus": {
+            "paid": "Pagado",
+            "failed": "Fallido",
+            "pending": "Pendiente"
+          },
+          "seatsModal": {
+            "title": "Plan de pago",
+            "description": "Elige cómo quieres que se te cobre por los asientos de Harness.",
+            "monthlyLabel": "Mensual",
+            "yearlyLabel": "Anual",
+            "perSeatSuffix": "/ asiento",
+            "monthlyUnit": "/ mes",
+            "yearlyUnit": "/ año",
+            "seatsRowLabel": "Asientos",
+            "totalLabel": "Total",
+            "diffNoChange": "Sin cambios",
+            "diffMore": "{count} asientos más",
+            "diffFewer": "{count} asientos menos",
+            "savePercent": "Ahorra {percent}%",
+            "save": "Guardar"
+          }
+        },
+        "usage": {
+          "seats": {
+            "title": "Asientos del equipo",
+            "description": "Miembros activos",
+            "unitLabel": "asientos",
+            "remaining": "{count} asientos restantes",
+            "status": {
+              "fullyUsed": "Totalmente utilizados",
+              "underused": "Asientos sin usar"
+            }
+          },
+          "tokens": {
+            "title": "Tokens usados",
+            "unitLabel": "tokens",
+            "remaining": "{count} tokens restantes",
+            "status": {
+              "onTrack": "Sin problemas",
+              "atLimit": "Límite alcanzado"
+            }
+          },
+          "extraTokens": {
+            "title": "Tokens extra",
+            "description": "Recarga de tokens bajo demanda",
+            "unitLabel": "tokens",
+            "remaining": "{count} tokens restantes",
+            "status": {
+              "onTrack": "Sin problemas",
+              "atLimit": "Límite alcanzado"
+            }
+          }
+        },
+        "access": {
+          "title": "Acceso de usuarios",
+          "description": "Controla qué miembros de la organización pueden usar el asistente de Harness.",
+          "enabledForLabel": "Habilitado para",
+          "enabledAllOption": "Todos",
+          "enabledSomeOption": "Algunos",
+          "enabledNoneOption": "Nadie",
+          "memberCount": "{count} miembros",
+          "activeCount": "{count} de {total} activos",
+          "searchLabel": "Buscar miembros",
+          "searchPlaceholder": "Buscar por nombre o correo…",
+          "memberColumn": "Miembro",
+          "statusColumn": "Estado",
+          "status": {
+            "active": "Activo",
+            "inactive": "Inactivo"
+          },
+          "empty": "No se encontraron miembros.",
+          "noSearchResults": "Ningún miembro coincide con tu búsqueda.",
+          "loading": "Cargando…",
+          "loadError": "No se pudieron cargar los miembros de la organización."
+        }
+      },
       "breadcrumb": {
         "user": "Usuario",
         "settings": "Ajustes",
         "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos",
         "credentials": "Credenciales",
-        "connections": "Conexiones"
+        "connections": "Conexiones",
+        "harness": "Harness"
       },
       "symptoms": {
         "config": {
@@ -2326,6 +2417,7 @@
         "dataSources": "Fuentes de Datos",
         "credentials": "Credenciales",
         "connections": "Conexiones",
+        "harness": "Harness",
         "help": "Ayuda y cómo empezar",
         "controlTower": "Torre de control",
         "whereIsMyLoad": "¿Dónde está mi carga?",

@@ -222,7 +222,7 @@ export function useSearchTasks(searchTerm: string | null) {
     FetcherError
   >(
     searchTerm
-      ? `/app/api/task/search?filter=mintral_key:v${searchTerm}`
+      ? `/app/api/task/search?filter=mintral_key:${searchTerm}`
       : null,
     fetcher
   );

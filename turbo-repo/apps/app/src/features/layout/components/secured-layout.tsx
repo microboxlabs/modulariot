@@ -15,6 +15,8 @@ import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfre
 import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
 import { KioskShell } from "./kiosk-shell";
 
+const isHarnessSettingsEnabled = process.env.ENABLE_HARNESS_SETTINGS === "true";
+
 export default async function SecuredLayout({
   children,
   params,
@@ -38,15 +40,13 @@ export default async function SecuredLayout({
     <RuntimeConfigProvider>
       <SidebarProvider>
         <KioskShell>
-          <SseListener
-            dictionary={dictionary}
-            tenantId={session.user.email}
-          />
+          <SseListener dictionary={dictionary} tenantId={session.user.email} />
           <SecuredNavbar
             messages={navBarMessages}
             dict={dictionary as I18nRecord}
             initialOrgLogo={initialOrgLogo}
             isSeachEnabled={isSeachEnabled}
+            isHarnessSettingsEnabled={isHarnessSettingsEnabled}
           />
           <div
             data-testid="content-with-sidebar"
@@ -57,13 +57,15 @@ export default async function SecuredLayout({
                 ((dictionary.layout as I18nRecord)?.secured as I18nRecord)
                   ?.sidebar as I18nRecord
               }
+              isHarnessSettingsEnabled={isHarnessSettingsEnabled}
             />
-            <LayoutContent dict={dictionary as I18nRecord}>{children}</LayoutContent>
+            <LayoutContent dict={dictionary as I18nRecord}>
+              {children}
+            </LayoutContent>
           </div>
           <FooterSecuredLayout messages={dict} />
         </KioskShell>
       </SidebarProvider>
-      
     </RuntimeConfigProvider>
   );
 }

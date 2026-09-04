@@ -1581,13 +1581,104 @@
           }
         }
       },
+      "harness": {
+        "title": "Harness",
+        "description": "Manage Harness seats, usage, and which users can access the AI assistant.",
+        "loadError": "Couldn't load Harness settings.",
+        "unpaidAlert": "Your last payment didn't go through. Update your payment method to keep Harness active.",
+        "unpaidAlertAction": "Handle it",
+        "pricing": {
+          "title": "Pricing",
+          "description": "Estimated monthly cost for your current seat plan.",
+          "perSeatLabel": "Per seat",
+          "estimatedTotalLabel": "What you pay for",
+          "seatsLabel": "{count} seats",
+          "extraTokensLabel": "Extra tokens",
+          "lastPaymentLabel": "Last payment",
+          "paymentStatus": {
+            "paid": "Paid",
+            "failed": "Failed",
+            "pending": "Pending"
+          },
+          "seatsModal": {
+            "title": "Payment plan",
+            "description": "Choose how you'd like to be billed for Harness seats.",
+            "monthlyLabel": "Monthly",
+            "yearlyLabel": "Yearly",
+            "perSeatSuffix": "/ seat",
+            "monthlyUnit": "/ month",
+            "yearlyUnit": "/ year",
+            "seatsRowLabel": "Seats",
+            "totalLabel": "Total",
+            "diffNoChange": "No changes yet",
+            "diffMore": "{count} more seats",
+            "diffFewer": "{count} fewer seats",
+            "savePercent": "Save {percent}%",
+            "save": "Save"
+          }
+        },
+        "usage": {
+          "seats": {
+            "title": "Team seats",
+            "description": "Active members",
+            "unitLabel": "seats",
+            "remaining": "{count} seats remaining",
+            "status": {
+              "fullyUsed": "Fully utilized",
+              "underused": "Seats unused"
+            }
+          },
+          "tokens": {
+            "title": "Tokens used",
+            "unitLabel": "tokens",
+            "remaining": "{count} tokens remaining",
+            "status": {
+              "onTrack": "On track",
+              "atLimit": "Limit reached"
+            }
+          },
+          "extraTokens": {
+            "title": "Extra tokens",
+            "description": "On-demand token top-up",
+            "unitLabel": "tokens",
+            "remaining": "{count} tokens remaining",
+            "status": {
+              "onTrack": "On track",
+              "atLimit": "Limit reached"
+            }
+          }
+        },
+        "access": {
+          "title": "User access",
+          "description": "Control which organization members can use the Harness assistant.",
+          "enabledForLabel": "Enabled for",
+          "enabledAllOption": "All",
+          "enabledSomeOption": "Some",
+          "enabledNoneOption": "Nobody",
+          "memberCount": "{count} members",
+          "activeCount": "{count} of {total} active",
+          "searchLabel": "Search members",
+          "searchPlaceholder": "Search by name or email…",
+          "memberColumn": "Member",
+          "statusColumn": "Status",
+          "status": {
+            "active": "Active",
+            "inactive": "Inactive"
+          },
+          "empty": "No members found.",
+          "noSearchResults": "No members match your search.",
+          "loading": "Loading…",
+          "loadError": "Couldn't load organization members."
+        }
+      },
       "breadcrumb": {
         "user": "User",
         "settings": "Settings",
         "organizations": "Organizations",
         "dataSources": "Data Sources",
         "credentials": "Credentials",
-        "connections": "Connections"
+        "connections": "Connections",
+        "harness": "Harness"
       },
       "symptoms": {
         "config": {
@@ -2322,6 +2413,7 @@
         "dataSources": "Data Sources",
         "credentials": "Credentials",
         "connections": "Connections",
+        "harness": "Harness",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",

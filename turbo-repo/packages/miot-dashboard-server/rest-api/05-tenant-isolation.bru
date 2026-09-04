@@ -1,0 +1,28 @@
+meta {
+  name: Same URL, another tenant, different dashboard
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/scopes/{{scopeId}}/dashboards/{{slug}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-dev-user: {{otherUser}}
+  x-dev-tenant: {{otherTenant}}
+}
+
+docs {
+  The seed deliberately puts a dashboard at the same scope and slug in two
+  tenants. This request and the previous one differ only by credential, and
+  they must return different documents. If they ever return the same one,
+  tenant isolation has broken.
+}
+
+assert {
+  res.status: eq 200
+  res.body.data.name: neq Fleet overview
+}

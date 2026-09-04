@@ -735,7 +735,7 @@ function OptionDropdown({
         <button
           type="button"
           disabled={disabled}
-          aria-label={ariaLabel}
+          aria-label={ariaLabel ? `${ariaLabel}: ${current?.label ?? ""}` : undefined}
           className={triggerClassName}
         >
           {current?.label}

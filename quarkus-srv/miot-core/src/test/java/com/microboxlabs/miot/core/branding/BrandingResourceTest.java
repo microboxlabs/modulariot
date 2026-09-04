@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import com.microboxlabs.miot.core.auth.TestTokenFactory;
@@ -120,15 +121,18 @@ class BrandingResourceTest {
         String etag = given().when().get("/branding/conditional.test/logo")
                 .then().statusCode(200).extract().header("ETag");
 
-        for (String validator : new String[] {etag, "W/" + etag, "*", "\"other\", " + etag}) {
-            given().header("If-None-Match", validator)
-                    .when().get("/branding/conditional.test/logo")
-                    .then().statusCode(304);
-        }
+        assertAll(
+                () -> assertEquals(304, statusFor(etag), "strong validator"),
+                () -> assertEquals(304, statusFor("W/" + etag), "weak validator"),
+                () -> assertEquals(304, statusFor("*"), "wildcard"),
+                () -> assertEquals(304, statusFor("\"other\", " + etag), "list"),
+                () -> assertEquals(200, statusFor("\"stale\""), "stale validator"));
+    }
 
-        given().header("If-None-Match", "\"stale\"")
+    private static int statusFor(String ifNoneMatch) {
+        return given().header("If-None-Match", ifNoneMatch)
                 .when().get("/branding/conditional.test/logo")
-                .then().statusCode(200);
+                .thenReturn().statusCode();
     }
 
     @Test

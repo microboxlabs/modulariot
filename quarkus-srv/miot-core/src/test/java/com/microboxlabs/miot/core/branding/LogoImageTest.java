@@ -128,7 +128,7 @@ class LogoImageTest {
                 dataUrl("image/png", "two".getBytes(StandardCharsets.UTF_8)));
 
         assertNotEquals(png, other);
-        assertNotEquals(png, "not a logo");
+        assertNotEquals("not a logo", png);
     }
 
     @Test

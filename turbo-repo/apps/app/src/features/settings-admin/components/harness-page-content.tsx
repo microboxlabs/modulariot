@@ -144,6 +144,9 @@ export default function HarnessPageContent({
 }: HarnessPageContentProps) {
   const harnessDict = dict?.harness as I18nRecord;
   const pricingDict = harnessDict?.pricing as I18nRecord;
+  // Reuse the seats modal's "/ month" copy for the pricing stats below,
+  // instead of a hardcoded English suffix.
+  const monthlyUnitDict = pricingDict?.seatsModal as I18nRecord;
   const usageDict = harnessDict?.usage as I18nRecord;
   const seatsUsageDict = usageDict?.seats as I18nRecord;
   const tokensUsageDict = usageDict?.tokens as I18nRecord;
@@ -168,11 +171,11 @@ export default function HarnessPageContent({
     setActiveMemberIds(new Set(members.map((member) => member.id)));
   }, [members]);
 
-  const toggleMember = (memberId: string) => {
+  const setMemberActive = (memberId: string, active: boolean) => {
     setActiveMemberIds((current) => {
       const next = new Set(current);
-      if (next.has(memberId)) next.delete(memberId);
-      else next.add(memberId);
+      if (active) next.add(memberId);
+      else next.delete(memberId);
       return next;
     });
   };
@@ -309,7 +312,7 @@ export default function HarnessPageContent({
                     ${estimatedTotal.toLocaleString()}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    / month
+                    {tr("monthlyUnit", monthlyUnitDict)}
                   </span>
                 </div>
               </div>
@@ -323,7 +326,7 @@ export default function HarnessPageContent({
                     ${PRICE_PER_SEAT_USD}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    / month
+                    {tr("monthlyUnit", monthlyUnitDict)}
                   </span>
                 </div>
               </div>
@@ -337,7 +340,7 @@ export default function HarnessPageContent({
                     ${extraTokensCost.toLocaleString()}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    / month
+                    {tr("monthlyUnit", monthlyUnitDict)}
                   </span>
                 </div>
               </div>
@@ -613,7 +616,9 @@ export default function HarnessPageContent({
                     <div className="flex items-center justify-end gap-3">
                       <OptionDropdown
                         value={isActive ? "active" : "inactive"}
-                        onChange={() => toggleMember(member.id)}
+                        onChange={(value) =>
+                          setMemberActive(member.id, value === "active")
+                        }
                         disabled={accessMode !== "some"}
                         ariaLabel={member.displayName || member.email}
                         options={[

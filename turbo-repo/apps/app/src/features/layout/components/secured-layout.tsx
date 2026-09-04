@@ -15,6 +15,20 @@ import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfre
 import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
 import { KioskShell } from "./kiosk-shell";
 
+// Server-only flags: kept off NEXT_PUBLIC_ so they never ship to the client
+// bundle. Resolved once at module scope (static config, not render state)
+// and passed down as props instead of read client-side.
+//
+// isSeachEnabled: when false/unset, SpotlightSearch isn't rendered at all
+// below, which also removes its Cmd+K listener — there's no client-side
+// toggle to bypass.
+//
+// isHarnessSettingsEnabled: Harness settings is a preview behind this flag;
+// threading it down as a prop keeps the sidebar link in sync with the
+// route's own 404 gate (harness/page.tsx) without exposing the flag itself.
+const isSeachEnabled = process.env.ENABLE_SEARCHBAR === "true";
+const isHarnessSettingsEnabled = process.env.ENABLE_HARNESS_SETTINGS === "true";
+
 export default async function SecuredLayout({
   children,
   params,
@@ -30,19 +44,11 @@ export default async function SecuredLayout({
     redirect(`/${lang}/sign-in`);
   }
   const initialOrgLogo = await getPublicOrgLogo();
-  // Server-only flag: kept off NEXT_PUBLIC_ so it never ships to the client
-  // bundle. When false/unset, SpotlightSearch isn't rendered at all below,
-  // which also removes its Cmd+K listener — there's no client-side toggle
-  // to bypass.
-  const isSeachEnabled = process.env.ENABLE_SEARCHBAR === "true";
   return (
     <RuntimeConfigProvider>
       <SidebarProvider>
         <KioskShell>
-          <SseListener
-            dictionary={dictionary}
-            tenantId={session.user.email}
-          />
+          <SseListener dictionary={dictionary} tenantId={session.user.email} />
           <SecuredNavbar
             messages={navBarMessages}
             dict={dictionary as I18nRecord}
@@ -58,8 +64,11 @@ export default async function SecuredLayout({
                 ((dictionary.layout as I18nRecord)?.secured as I18nRecord)
                   ?.sidebar as I18nRecord
               }
+              isHarnessSettingsEnabled={isHarnessSettingsEnabled}
             />
-            <LayoutContent dict={dictionary as I18nRecord}>{children}</LayoutContent>
+            <LayoutContent dict={dictionary as I18nRecord}>
+              {children}
+            </LayoutContent>
           </div>
           <FooterSecuredLayout messages={dict} />
         </KioskShell>

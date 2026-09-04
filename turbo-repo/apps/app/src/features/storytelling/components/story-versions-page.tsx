@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Dropdown, DropdownItem } from "flowbite-react";
 import {
   HiArrowLeft,
@@ -76,7 +77,12 @@ function VersionCard({
   return (
     <div
       data-version-node
-      className={`group relative w-60 overflow-hidden rounded-xl border bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800 ${
+      // No overflow-hidden here: flowbite's Dropdown below doesn't portal
+      // its floating panel (it renders inline, absolutely positioned) — a
+      // clipped ancestor cuts it off before it can extend past this short
+      // card. Nothing else in the card needs the clip (no child has a
+      // background that would otherwise poke out past the rounded corners).
+      className={`group relative w-60 rounded-xl border bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800 ${
         isCurrent
           ? "border-blue-500 ring-1 ring-blue-500"
           : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-500"
@@ -164,7 +170,10 @@ function VersionCard({
             {initials(version.createdBy)}
           </span>
           <span className="min-w-0 truncate text-[11px] text-gray-400 dark:text-gray-500">
-            {version.createdBy} · {formatDateString(version.createdAt, "date", locale)}
+            {tr("attribution", dict, {
+              name: version.createdBy,
+              date: formatDateString(version.createdAt, "date", locale),
+            })}
           </span>
         </div>
       </div>
@@ -239,6 +248,7 @@ function clamp(n: number, min: number, max: number) {
 export default function StoryVersionsPage({ dict, id, rootDict }: StoryVersionsPageProps) {
   const { lang } = useParams<{ lang: string }>();
   const router = useRouter();
+  const { data: session } = useSession();
   const [story] = useState(() => getStory(id));
   const locale = lang === "en" ? "en-US" : "es-CL";
 
@@ -372,13 +382,16 @@ export default function StoryVersionsPage({ dict, id, rootDict }: StoryVersionsP
       },
       onIterate: (version) => {
         if (!story) return;
-        const created = iterateVersion(story, version.id);
+        // Attribute the new iteration to whoever's actually signed in, not
+        // a generic "Harness AI" label — iterateVersion falls back to that
+        // itself if the session hasn't resolved a name yet.
+        const created = iterateVersion(story, version.id, session?.user?.name ?? undefined);
         toast.success(tr("version.toast.iterated", dict, { label: created.label }));
         setNonce((n) => n + 1);
       },
       onDelete: (version) => setPendingDelete(version),
     }),
-    [story, lang, router, dict]
+    [story, lang, router, dict, session?.user?.name]
   );
 
   const confirmDelete = useCallback(() => {

@@ -4885,8 +4885,9 @@
       "download": "Download"
     },
     "card": {
-      "editedBy": "Edited by {name} · {date}"
+      "editedBy": "Edited by {name} on {date}"
     },
+    "attribution": "{name} on {date}",
     "details": {
       "title": "Story details",
       "type": "Type",
@@ -4903,8 +4904,6 @@
     "share": {
       "title": "Share",
       "copyLink": "Copy link",
-      "email": "Email",
-      "whatsapp": "WhatsApp",
       "copied": "Link copied to clipboard",
       "copyFailed": "Couldn't copy the link",
       "inviteTitle": "Invite people",
@@ -4947,7 +4946,8 @@
         "clear": "Clear search"
       },
       "markdown": {
-        "error": "Couldn't load this document."
+        "error": "Couldn't load this document.",
+        "outline": "Outline"
       },
       "ppt": {
         "comingSoon": "PPT preview isn't available yet — this is a placeholder for the artifact type."
@@ -4960,7 +4960,10 @@
         "zoomIn": "Zoom in",
         "zoomOut": "Zoom out",
         "zoomReset": "Reset zoom",
-        "fit": "Fit to width"
+        "fit": "Fit to width",
+        "railPages": "Pages",
+        "railSections": "Sections",
+        "noSections": "This document has no sections to list"
       },
       "notFound": {
         "title": "Story not found",

@@ -58,15 +58,19 @@ export function getStory(id: string): StoryItem | undefined {
   return readAll().find((story) => story.id === id);
 }
 
-export function addStory(input: { id: string; title?: string }): StoryItem {
+export function addStory(input: { id: string; title?: string; authorName?: string }): StoryItem {
   const today = new Date().toISOString().slice(0, 10);
+  // Attribute to whoever was actually driving the chat, not a generic
+  // "Harness AI" label — falls back to it only when no signed-in name was
+  // available to pass in (see create-story-card.tsx's useSession()).
+  const author = input.authorName?.trim() || AI_AUTHOR;
   const story: StoryItem = {
     id: input.id,
     title: input.title?.trim() || `Story ${input.id}`,
     createdAt: today,
-    createdBy: AI_AUTHOR,
+    createdBy: author,
     updatedAt: today,
-    updatedBy: AI_AUTHOR,
+    updatedBy: author,
     source: "ai",
     // The chat's create_story trigger only ever produces the HTML dashboard
     // artifact today — the other previewer types are testing-only for now.
@@ -90,16 +94,23 @@ const CREATE_STORY_TYPES: readonly ArtifactType[] = ["html", "ppt", "pdf", "mark
  * so this just reuses the one deck the app already has instead of standing
  * up a thin placeholder.
  */
-export function addStoriesForAllTypes(input: { id: string; title?: string }): StoryItem[] {
+export function addStoriesForAllTypes(input: {
+  id: string;
+  title?: string;
+  authorName?: string;
+}): StoryItem[] {
   const title = input.title?.trim() || `Story ${input.id}`;
   const createdAt = new Date().toISOString().slice(0, 10);
+  // Same fallback as addStory — the real signed-in name when the caller has
+  // one, "Harness AI" only when it doesn't.
+  const author = input.authorName?.trim() || AI_AUTHOR;
   const stories: StoryItem[] = CREATE_STORY_TYPES.map((artifactType) => ({
     id: `${input.id}-${artifactType}`,
     title,
     createdAt,
-    createdBy: AI_AUTHOR,
+    createdBy: author,
     updatedAt: createdAt,
-    updatedBy: AI_AUTHOR,
+    updatedBy: author,
     source: "ai",
     artifactType,
     ...(artifactType === "ppt" ? { deck: BOARD_DECK } : {}),

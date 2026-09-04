@@ -4885,8 +4885,9 @@
       "download": "Descargar"
     },
     "card": {
-      "editedBy": "Editado por {name} · {date}"
+      "editedBy": "Editado por {name} el {date}"
     },
+    "attribution": "{name} el {date}",
     "details": {
       "title": "Detalles de la historia",
       "type": "Tipo",
@@ -4903,8 +4904,6 @@
     "share": {
       "title": "Compartir",
       "copyLink": "Copiar enlace",
-      "email": "Correo electrónico",
-      "whatsapp": "WhatsApp",
       "copied": "Enlace copiado al portapapeles",
       "copyFailed": "No se pudo copiar el enlace",
       "inviteTitle": "Invitar personas",
@@ -4947,7 +4946,8 @@
         "clear": "Limpiar búsqueda"
       },
       "markdown": {
-        "error": "No se pudo cargar este documento."
+        "error": "No se pudo cargar este documento.",
+        "outline": "Índice"
       },
       "ppt": {
         "comingSoon": "La vista previa de PPT aún no está disponible — esto es un marcador de posición para este tipo de artefacto."
@@ -4960,7 +4960,10 @@
         "zoomIn": "Acercar",
         "zoomOut": "Alejar",
         "zoomReset": "Restablecer zoom",
-        "fit": "Ajustar al ancho"
+        "fit": "Ajustar al ancho",
+        "railPages": "Páginas",
+        "railSections": "Secciones",
+        "noSections": "Este documento no tiene secciones para listar"
       },
       "notFound": {
         "title": "Historia no encontrada",

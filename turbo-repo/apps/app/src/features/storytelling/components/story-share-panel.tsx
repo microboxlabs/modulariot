@@ -73,7 +73,10 @@ function RoleDropdown({
       arrowIcon={false}
       label=""
       placement="bottom-end"
-      className="w-36 origin-top-right transition-[opacity,transform] duration-150 ease-out starting:scale-95 starting:opacity-0"
+      // Opacity-only transition — floating-ui positions this panel with its
+      // own `transform: translate(...)`, so transitioning `transform` too
+      // fights that value and makes the panel fly in from (0,0).
+      className="w-36 origin-top-right transition-opacity duration-150 ease-out starting:opacity-0"
       renderTrigger={() => (
         <button
           type="button"

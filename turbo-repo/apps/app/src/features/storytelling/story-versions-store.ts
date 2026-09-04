@@ -79,7 +79,7 @@ export function getStoryVersionState(story: StoryItem): StoryVersionState {
 }
 
 /** Append a new iteration branching off `fromId`, make it current. */
-export function iterateVersion(story: StoryItem, fromId: string): StoryVersion {
+export function iterateVersion(story: StoryItem, fromId: string, authorName?: string): StoryVersion {
   const state = load(story);
   const parent = state.versions.find((v) => v.id === fromId);
   if (!parent) return resolve(state).current;
@@ -93,7 +93,9 @@ export function iterateVersion(story: StoryItem, fromId: string): StoryVersion {
     label: nextVersionLabel(parent.label, taken),
     parentId: parent.id,
     createdAt: new Date().toISOString().slice(0, 10),
-    createdBy: AI_AUTHOR,
+    // The person actually driving the iteration, not a generic "Harness AI"
+    // label — falls back to it only when no signed-in name was passed in.
+    createdBy: authorName?.trim() || AI_AUTHOR,
     summary: "New iteration.",
   };
 

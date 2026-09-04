@@ -6,7 +6,6 @@ import {
   HiCheck,
   HiEllipsisVertical,
   HiInformationCircle,
-  HiShare,
   HiSparkles,
   HiTrash,
 } from "react-icons/hi2";
@@ -22,7 +21,6 @@ interface StoryCardProps {
   readonly dict: I18nRecord;
   readonly selected: boolean;
   readonly onToggleSelect: (story: StoryItem) => void;
-  readonly onShare: (story: StoryItem) => void;
   readonly onDetails: (story: StoryItem) => void;
   readonly onDelete: (story: StoryItem) => void;
 }
@@ -33,7 +31,6 @@ export default function StoryCard({
   dict,
   selected,
   onToggleSelect,
-  onShare,
   onDetails,
   onDelete,
 }: StoryCardProps) {
@@ -47,7 +44,13 @@ export default function StoryCard({
 
   return (
     <div
-      className={`group relative flex flex-col overflow-hidden rounded-lg border bg-white transition-colors focus-within:ring-2 focus-within:ring-blue-500 dark:bg-gray-800 ${
+      // No overflow-hidden on the card itself: flowbite's kebab Dropdown
+      // below doesn't portal its floating panel (it renders inline,
+      // absolutely positioned), so a clipped ancestor can cut it off. The
+      // thumbnail below carries its own rounded-t-lg instead, so its
+      // background still respects the card's rounded corners without
+      // needing the parent to clip.
+      className={`group relative flex flex-col rounded-lg border bg-white transition-colors focus-within:ring-2 focus-within:ring-blue-500 dark:bg-gray-800 ${
         selected
           ? "border-blue-500 dark:border-blue-500"
           : "border-gray-200 hover:border-gray-400 dark:border-gray-700 dark:hover:border-gray-500"
@@ -62,7 +65,7 @@ export default function StoryCard({
         className="cursor-pointer text-left after:absolute after:inset-0 after:rounded-lg focus:outline-none"
       />
 
-      <div className="flex h-40 w-full items-center justify-center bg-indigo-50 text-indigo-300 dark:bg-indigo-900/10 dark:text-indigo-500/50">
+      <div className="flex h-40 w-full items-center justify-center rounded-t-lg bg-indigo-50 text-indigo-300 dark:bg-indigo-900/10 dark:text-indigo-500/50">
         <HiSparkles className="h-14 w-14" />
       </div>
       {/* Which previewer (previewers/html, /markdown, /ppt, /pdf) this story
@@ -118,8 +121,16 @@ export default function StoryCard({
             // so there's no "from" state for a plain CSS transition to
             // animate from. `starting:` (Tailwind's @starting-style variant)
             // is what actually makes enter transitions work for elements
-            // that appear via insertion rather than a class flip.
-            className="w-40 origin-top-right transition-[opacity,transform] duration-150 ease-out starting:scale-95 starting:opacity-0"
+            // that appear via insertion rather than a class flip. Only
+            // opacity transitions — not `transform` — since floating-ui
+            // positions this panel with its own `transform: translate(...)`;
+            // transitioning that too fights floating-ui's value and makes
+            // the panel fly in from (0,0) instead of just fading in place.
+            // `z-20` beats every card's own z-10 (the selection checkbox) —
+            // cards don't each get their own stacking context, so an open
+            // dropdown must outrank that fixed value to never render behind
+            // a neighboring card's UI.
+            className="z-20 w-40 origin-top-right transition-opacity duration-150 ease-out starting:opacity-0"
             renderTrigger={() => (
               <button
                 type="button"
@@ -130,9 +141,9 @@ export default function StoryCard({
               </button>
             )}
           >
-            <DropdownItem icon={HiShare} onClick={() => onShare(story)}>
-              {tr("menu.share", dict)}
-            </DropdownItem>
+            {/* Sharing lives only inside the open document (the share
+                button on story-detail-page.tsx, via StorySharePanel) — not
+                duplicated here as a second, simpler share UI. */}
             <DropdownItem icon={HiInformationCircle} onClick={() => onDetails(story)}>
               {tr("menu.details", dict)}
             </DropdownItem>

@@ -12,7 +12,6 @@ interface StoryGridProps {
   readonly emptyMessage: string;
   readonly selectedIds: ReadonlySet<string>;
   readonly onToggleSelect: (story: StoryItem) => void;
-  readonly onShare: (story: StoryItem) => void;
   readonly onDetails: (story: StoryItem) => void;
   readonly onDelete: (story: StoryItem) => void;
 }
@@ -24,7 +23,6 @@ export default function StoryGrid({
   emptyMessage,
   selectedIds,
   onToggleSelect,
-  onShare,
   onDetails,
   onDelete,
 }: StoryGridProps) {
@@ -47,7 +45,6 @@ export default function StoryGrid({
           dict={dict}
           selected={selectedIds.has(story.id)}
           onToggleSelect={onToggleSelect}
-          onShare={onShare}
           onDetails={onDetails}
           onDelete={onDelete}
         />

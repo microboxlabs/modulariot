@@ -12,7 +12,6 @@ import type { StoryItem } from "../storytelling.types";
 import { StoryDeleteDialog } from "./story-delete-dialog";
 import StoryDetailsModal from "./story-details-modal";
 import StoryGrid from "./story-grid";
-import StoryShareModal from "./story-share-modal";
 
 interface StorytellingPageContentProps {
   /** `storytelling` dict namespace — its own `breadcrumb` subtree included. */
@@ -34,7 +33,6 @@ export default function StorytellingPageContent({
   // from, and a fresh mount picks up anything the chat's create_story
   // trigger has added since the last visit.
   const [stories, setStories] = useState<StoryItem[]>(() => getStories());
-  const [sharing, setSharing] = useState<StoryItem | null>(null);
   const [detailing, setDetailing] = useState<StoryItem | null>(null);
   // Single delete (per-card kebab menu) and mass delete (selection toolbar)
   // both just populate this with the stories to confirm — the dialog itself
@@ -204,18 +202,10 @@ export default function StorytellingPageContent({
           }
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
-          onShare={setSharing}
           onDetails={setDetailing}
           onDelete={(story) => setDeleting([story])}
         />
       </div>
-
-      <StoryShareModal
-        story={sharing}
-        lang={lang}
-        onClose={() => setSharing(null)}
-        dict={dict}
-      />
 
       <StoryDetailsModal
         story={detailing}

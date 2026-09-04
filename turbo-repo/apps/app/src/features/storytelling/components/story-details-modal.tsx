@@ -37,7 +37,19 @@ export default function StoryDetailsModal({
   const fmt = (date: string) => formatDateString(date, "date", locale);
 
   return (
-    <Modal dismissible show={story !== null} onClose={onClose} size="md">
+    <Modal
+      dismissible
+      show={story !== null}
+      onClose={onClose}
+      size="md"
+      className="backdrop-blur-[10px]"
+      theme={{
+        content: {
+          inner:
+            "relative flex max-h-[90dvh] flex-col rounded-lg border border-gray-300 bg-white shadow dark:border-gray-700 dark:bg-gray-800",
+        },
+      }}
+    >
       {story && (
         <>
           <ModalHeader>{tr("details.title", dict)}</ModalHeader>
@@ -55,11 +67,11 @@ export default function StoryDetailsModal({
               />
               <Row
                 label={tr("details.created", dict)}
-                value={`${story.createdBy} · ${fmt(story.createdAt)}`}
+                value={tr("attribution", dict, { name: story.createdBy, date: fmt(story.createdAt) })}
               />
               <Row
                 label={tr("details.lastEdited", dict)}
-                value={`${story.updatedBy} · ${fmt(story.updatedAt)}`}
+                value={tr("attribution", dict, { name: story.updatedBy, date: fmt(story.updatedAt) })}
               />
               <Row label={tr("details.id", dict)} value={story.id} />
             </div>

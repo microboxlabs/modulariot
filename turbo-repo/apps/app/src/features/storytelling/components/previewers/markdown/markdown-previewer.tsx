@@ -17,9 +17,19 @@ interface MarkdownPreviewerProps {
   readonly onReadyChange?: (ready: boolean) => void;
 }
 
+interface TocEntry {
+  readonly level: number;
+  readonly text: string;
+}
+
 /** Fetches the artifact's raw Markdown and renders it with the same
  * MarkdownContent component the rest of the app already uses (dashboard
  * dashlets, settings fields) — not a separate renderer for this one case.
+ * A side rail lists the document's headings (styled like the PDF
+ * previewer's "Sections" tab — previewers/pdf/pdf-previewer.tsx) for
+ * quick navigation; it's built from the actual rendered heading elements
+ * rather than re-parsing the Markdown, so nesting inside blockquotes/lists
+ * is covered for free and there's no risk of the two disagreeing.
  * Searchable: renders in our own document (unlike HtmlPreviewer's iframe),
  * so find-in-page just scopes dom-search.ts to this component's own
  * container instead of a foreign document. */
@@ -29,6 +39,10 @@ export const MarkdownPreviewer = forwardRef<SearchableHandle, MarkdownPreviewerP
     const [failed, setFailed] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const matchStateRef = useRef({ count: 0, current: -1 });
+
+    const [toc, setToc] = useState<TocEntry[]>([]);
+    const headingElsRef = useRef<HTMLElement[]>([]);
+    const [activeHeading, setActiveHeading] = useState(0);
 
     useEffect(() => {
       let cancelled = false;
@@ -53,6 +67,45 @@ export const MarkdownPreviewer = forwardRef<SearchableHandle, MarkdownPreviewerP
       // means there's nothing left to wait on.
       if (content !== null || failed) onReadyChange?.(true);
     }, [content, failed, onReadyChange]);
+
+    // Build the outline from the headings MarkdownContent actually rendered
+    // (once, right after they land in the DOM), then track which one the
+    // reader has scrolled to — same "topmost visible entry wins" idea as a
+    // scrollspy, so the highlight doesn't chase whichever heading happens to
+    // cover the most pixels.
+    useEffect(() => {
+      const container = containerRef.current;
+      if (content === null || !container) return;
+
+      const headings = Array.from(
+        container.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")
+      );
+      headingElsRef.current = headings;
+      setToc(
+        headings.map((el) => ({
+          level: Number(el.tagName[1]),
+          text: el.textContent?.trim() ?? "",
+        }))
+      );
+      if (headings.length === 0) return;
+
+      const visible = new Map<number, boolean>();
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            const idx = headings.indexOf(entry.target as HTMLElement);
+            if (idx !== -1) visible.set(idx, entry.isIntersecting);
+          }
+          const visibleIndexes = [...visible.entries()]
+            .filter(([, isVisible]) => isVisible)
+            .map(([idx]) => idx);
+          if (visibleIndexes.length > 0) setActiveHeading(Math.min(...visibleIndexes));
+        },
+        { root: container, threshold: 0 }
+      );
+      for (const el of headings) io.observe(el);
+      return () => io.disconnect();
+    }, [content]);
 
     useImperativeHandle(
       ref,
@@ -97,10 +150,47 @@ export const MarkdownPreviewer = forwardRef<SearchableHandle, MarkdownPreviewerP
     }
 
     return (
-      <div ref={containerRef} className="h-full w-full overflow-y-auto bg-white dark:bg-gray-900">
-        <MarkdownContent variant="document" className="mx-auto max-w-4xl px-6 py-10">
-          {content}
-        </MarkdownContent>
+      <div className="flex h-full w-full min-h-0 flex-1">
+        {toc.length > 0 && (
+          <div className="flex w-48 shrink-0 flex-col border-r border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-950">
+            <div className="border-b border-gray-200 px-3 py-2 text-xs font-semibold text-gray-500 dark:border-gray-700 dark:text-gray-400">
+              {tr("detail.markdown.outline", dict)}
+            </div>
+            <ul className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
+              {toc.map((entry, i) => (
+                <li key={i}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      headingElsRef.current[i]?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      })
+                    }
+                    style={{ paddingLeft: `${0.5 + (entry.level - 1) * 0.75}rem` }}
+                    className={`block w-full truncate rounded-md py-1.5 pr-2 text-left text-xs transition-colors ${
+                      i === activeHeading
+                        ? "bg-blue-50 font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+                        : "text-gray-600 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-800"
+                    }`}
+                    title={entry.text}
+                  >
+                    {entry.text}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div
+          ref={containerRef}
+          className="h-full min-h-0 flex-1 overflow-y-auto bg-white dark:bg-gray-900"
+        >
+          <MarkdownContent variant="document" className="mx-auto max-w-4xl px-6 py-10">
+            {content}
+          </MarkdownContent>
+        </div>
       </div>
     );
   }

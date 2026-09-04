@@ -158,7 +158,7 @@ export const MarkdownPreviewer = forwardRef<SearchableHandle, MarkdownPreviewerP
             </div>
             <ul className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
               {toc.map((entry, i) => (
-                <li key={i}>
+                <li key={`${entry.level}-${entry.text}-${i}`}>
                   <button
                     type="button"
                     onClick={() =>

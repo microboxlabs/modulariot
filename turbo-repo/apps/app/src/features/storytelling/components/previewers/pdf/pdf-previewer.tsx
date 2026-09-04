@@ -58,9 +58,51 @@ interface RawOutlineNode {
   readonly items?: readonly RawOutlineNode[];
 }
 
-/** Depth-first flatten of the outline tree into page-numbered entries.
- * Skips nodes whose destination can't be resolved to a page (malformed or
- * unsupported dest shapes) rather than failing the whole outline. */
+/** How far down its page an "XYZ" dest's `top` sits, 0–1 top-to-bottom —
+ * the same convention text runs use (see pageLines below). */
+async function outlineYFraction(
+  pdf: PDFDocumentProxy,
+  pageIndex: number,
+  top: number
+): Promise<number> {
+  const page = await pdf.getPage(pageIndex + 1);
+  const pageHeight = page.getViewport({ scale: 1 }).height;
+  return pageHeight > 0 ? Math.min(1, Math.max(0, 1 - top / pageHeight)) : 0;
+}
+
+/** Resolves one outline node's own entry (not its children — flattenOutline
+ * handles those). Returns null when the destination can't be resolved to a
+ * page (malformed or unsupported dest shapes), so the caller can just skip
+ * that node instead of failing the whole outline. */
+async function resolveOutlineEntry(
+  pdf: PDFDocumentProxy,
+  node: RawOutlineNode,
+  level: number
+): Promise<OutlineEntry | null> {
+  try {
+    const dest =
+      typeof node.dest === "string" ? await pdf.getDestination(node.dest) : node.dest;
+    const ref = Array.isArray(dest) ? dest[0] : null;
+    if (ref == null) return null;
+
+    const pageIndex = await pdf.getPageIndex(ref);
+    // A "XYZ" dest is `[ref, {name:"XYZ"}, left, top, zoom]` — `top` is the
+    // same bottom-up PDF-space y that text runs use. Other dest types
+    // (Fit, FitH, …) don't carry one; those entries just jump to the top of
+    // the page instead of a specific spot on it.
+    const top = Array.isArray(dest) && typeof dest[3] === "number" ? dest[3] : null;
+    const yFraction = top == null ? 0 : await outlineYFraction(pdf, pageIndex, top);
+
+    // Real bookmarks don't carry a font size, so there's nothing to
+    // subtract here — the PDF author's own `top` is trusted as-is.
+    return { title: node.title, page: pageIndex + 1, level, yFraction, heightFraction: 0 };
+  } catch {
+    // Unresolvable destination — the caller skips this node, keeps the rest.
+    return null;
+  }
+}
+
+/** Depth-first flatten of the outline tree into page-numbered entries. */
 async function flattenOutline(
   pdf: PDFDocumentProxy,
   nodes: readonly RawOutlineNode[],
@@ -68,30 +110,8 @@ async function flattenOutline(
 ): Promise<OutlineEntry[]> {
   const entries: OutlineEntry[] = [];
   for (const node of nodes) {
-    try {
-      const dest =
-        typeof node.dest === "string" ? await pdf.getDestination(node.dest) : node.dest;
-      const ref = Array.isArray(dest) ? dest[0] : null;
-      if (ref != null) {
-        const pageIndex = await pdf.getPageIndex(ref);
-        // A "XYZ" dest is `[ref, {name:"XYZ"}, left, top, zoom]` — `top` is
-        // the same bottom-up PDF-space y that text runs use. Other dest
-        // types (Fit, FitH, …) don't carry one; those entries just jump to
-        // the top of the page instead of a specific spot on it.
-        const top = Array.isArray(dest) && typeof dest[3] === "number" ? dest[3] : null;
-        let yFraction = 0;
-        if (top != null) {
-          const page = await pdf.getPage(pageIndex + 1);
-          const pageHeight = page.getViewport({ scale: 1 }).height;
-          if (pageHeight > 0) yFraction = Math.min(1, Math.max(0, 1 - top / pageHeight));
-        }
-        // Real bookmarks don't carry a font size, so there's nothing to
-        // subtract here — the PDF author's own `top` is trusted as-is.
-        entries.push({ title: node.title, page: pageIndex + 1, level, yFraction, heightFraction: 0 });
-      }
-    } catch {
-      // Unresolvable destination — skip this node, keep the rest.
-    }
+    const entry = await resolveOutlineEntry(pdf, node, level);
+    if (entry) entries.push(entry);
     if (node.items?.length) {
       entries.push(...(await flattenOutline(pdf, node.items, level + 1)));
     }

@@ -49,6 +49,9 @@ public class CalendarBookingsClient {
     private static final String SLOTS_PATH = "/api/v1/miot-calendar/slots";
     @SuppressWarnings("java:S1075")
     private static final String CALENDARS_PATH = "/api/v1/miot-calendar/calendars";
+    private static final String RESOURCE_PATH = "/resource/";
+    private static final String CALENDAR_ID_QUERY = "?calendarId=";
+    private static final String STATUS_FIELD = "status";
     private static final String X_USER_ID = "miot-integrations";
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(15);
 
@@ -103,7 +106,7 @@ public class CalendarBookingsClient {
                                 String syncStatus, String syncDetail) {
         JsonObject body = new JsonObject();
         if (targetStatus != null) {
-            body.put("status", targetStatus);
+            body.put(STATUS_FIELD, targetStatus);
         }
         if (resourceDataPatch != null && !resourceDataPatch.isEmpty()) {
             body.put("resourceData", new JsonObject(resourceDataPatch));
@@ -114,8 +117,8 @@ public class CalendarBookingsClient {
                 body.put("syncDetail", syncDetail);
             }
         }
-        String url = base() + BASE_PATH + "/resource/" + enc(resourceId)
-                + (calendarId != null ? "?calendarId=" + calendarId : "");
+        String url = base() + BASE_PATH + RESOURCE_PATH + enc(resourceId)
+                + (calendarId != null ? CALENDAR_ID_QUERY + calendarId : "");
         HttpResponse<String> response = send("PATCH", url, body.encode());
         if (response.statusCode() != 200) {
             throw httpError("patchByResource", url, response);
@@ -137,8 +140,8 @@ public class CalendarBookingsClient {
         if (clearDataKeys != null && !clearDataKeys.isEmpty()) {
             body.put("clearDataKeys", new JsonArray(clearDataKeys));
         }
-        String url = base() + BASE_PATH + "/resource/" + enc(resourceId) + "/unassign"
-                + (calendarId != null ? "?calendarId=" + calendarId : "");
+        String url = base() + BASE_PATH + RESOURCE_PATH + enc(resourceId) + "/unassign"
+                + (calendarId != null ? CALENDAR_ID_QUERY + calendarId : "");
         HttpResponse<String> response = send("POST", url, body.encode());
         if (response.statusCode() != 200) {
             throw httpError("unassignByResource", url, response);
@@ -151,7 +154,7 @@ public class CalendarBookingsClient {
      * to one calendar when {@code calendarId} is non-null (filtered client-side).
      */
     public List<BookingView> listByResource(String resourceId, UUID calendarId) {
-        String url = base() + BASE_PATH + "/resource/" + enc(resourceId);
+        String url = base() + BASE_PATH + RESOURCE_PATH + enc(resourceId);
         HttpResponse<String> response = send("GET", url, null);
         if (response.statusCode() == 404) {
             return List.of();
@@ -178,19 +181,23 @@ public class CalendarBookingsClient {
      */
     public UUID create(UUID calendarId, LocalDate slotDate, int slotHour, int slotMinutes,
                        String resourceId, String resourceType, Map<String, Object> resourceData) {
-        return create(calendarId, slotDate, slotHour, slotMinutes,
+        return create(calendarId, new SlotRequest(slotDate, slotHour, slotMinutes),
                 resourceId, resourceType, resourceData, false);
     }
 
     /**
-     * Creates a booking, optionally allowing the calendar to exceed the slot/window
-     * capacity. The override remains explicit on the individual request; ordinary
-     * UI and integration callers therefore retain the calendar's hard capacity
-     * guard.
+     * Creates a booking that may exceed slot/window capacity. The separate method
+     * keeps the override explicit; ordinary callers retain the hard capacity guard.
      */
-    public UUID create(UUID calendarId, LocalDate slotDate, int slotHour, int slotMinutes,
-                       String resourceId, String resourceType, Map<String, Object> resourceData,
-                       boolean allowOverbooking) {
+    public UUID createOverbooked(UUID calendarId, LocalDate slotDate, int slotHour, int slotMinutes,
+                                 String resourceId, String resourceType, Map<String, Object> resourceData) {
+        return create(calendarId, new SlotRequest(slotDate, slotHour, slotMinutes),
+                resourceId, resourceType, resourceData, true);
+    }
+
+    private UUID create(UUID calendarId, SlotRequest slot, String resourceId,
+                        String resourceType, Map<String, Object> resourceData,
+                        boolean allowOverbooking) {
         JsonObject resource = new JsonObject().put("id", resourceId);
         if (resourceType != null) {
             resource.put("type", resourceType);
@@ -201,7 +208,7 @@ public class CalendarBookingsClient {
         JsonObject body = new JsonObject()
                 .put("calendarId", calendarId.toString())
                 .put("resource", resource)
-                .put("slot", slotJson(slotDate, slotHour, slotMinutes));
+                .put("slot", slotJson(slot.date(), slot.hour(), slot.minutes()));
         if (allowOverbooking) {
             body.put("allowOverbooking", true);
         }
@@ -260,7 +267,7 @@ public class CalendarBookingsClient {
     private List<AvailableSlot> listSlots(UUID calendarId, LocalDate startDate, LocalDate endDate,
                                           boolean availableOnly) {
         String url = base() + SLOTS_PATH
-                + "?calendarId=" + calendarId
+                + CALENDAR_ID_QUERY + calendarId
                 + "&startDate=" + startDate
                 + "&endDate=" + endDate
                 + (availableOnly ? "&available=true" : "");
@@ -363,7 +370,7 @@ public class CalendarBookingsClient {
         Integer hour = slot.getInteger("slotHour");
         Integer minutes = slot.getInteger("slotMinutes");
         Integer avail = slot.getInteger("availableCapacity");
-        String status = slot.getString("status");
+        String status = slot.getString(STATUS_FIELD);
         if (date == null || hour == null || minutes == null || avail == null) {
             return null;
         }
@@ -406,7 +413,7 @@ public class CalendarBookingsClient {
             return null;
         }
         return new BookingView(UUID.fromString(id), UUID.fromString(bookingCalendarId),
-                LocalDate.parse(date), hour, minutes, booking.getString("status"));
+                LocalDate.parse(date), hour, minutes, booking.getString(STATUS_FIELD));
     }
 
     private static JsonArray parseDataArray(String body, String url) {
@@ -473,5 +480,8 @@ public class CalendarBookingsClient {
         public AvailableSlot(LocalDate date, int hour, int minutes, int availableCapacity) {
             this(date, hour, minutes, availableCapacity, "OPEN");
         }
+    }
+
+    private record SlotRequest(LocalDate date, int hour, int minutes) {
     }
 }

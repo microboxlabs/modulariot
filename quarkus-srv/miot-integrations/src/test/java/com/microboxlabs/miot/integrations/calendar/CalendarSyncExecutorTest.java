@@ -176,9 +176,9 @@ class CalendarSyncExecutorTest {
         };
 
         // Fail closed: better a retried job than a booking written with silently missing data.
-        assertThrows(IllegalStateException.class,
-                () -> new CalendarSyncExecutor(client, failing, CLOCK)
-                        .handle("tenant-1", patchPayload("ASSIGNED")));
+        var executor = new CalendarSyncExecutor(client, failing, CLOCK);
+        Map<String, Object> payload = patchPayload("ASSIGNED");
+        assertThrows(IllegalStateException.class, () -> executor.handle("tenant-1", payload));
         assertEquals(0, client.patchCalls);
     }
 
@@ -921,14 +921,17 @@ class CalendarSyncExecutorTest {
         @Override
         public UUID create(UUID calendarId, LocalDate slotDate, int slotHour, int slotMinutes,
                            String resourceId, String resourceType, Map<String, Object> resourceData) {
-            return create(calendarId, slotDate, slotHour, slotMinutes,
-                    resourceId, resourceType, resourceData, false);
+            return recordCreate(slotDate, slotHour, slotMinutes, false);
         }
 
         @Override
-        public UUID create(UUID calendarId, LocalDate slotDate, int slotHour, int slotMinutes,
-                           String resourceId, String resourceType, Map<String, Object> resourceData,
-                           boolean allowOverbooking) {
+        public UUID createOverbooked(UUID calendarId, LocalDate slotDate, int slotHour, int slotMinutes,
+                                     String resourceId, String resourceType, Map<String, Object> resourceData) {
+            return recordCreate(slotDate, slotHour, slotMinutes, true);
+        }
+
+        private UUID recordCreate(LocalDate slotDate, int slotHour, int slotMinutes,
+                                  boolean allowOverbooking) {
             createCalls++;
             lastCreateDate = slotDate;
             lastCreateHour = slotHour;

@@ -2,15 +2,16 @@ package com.microboxlabs.miot.core.api;
 
 import com.microboxlabs.miot.core.api.dto.DomainBrandingSummaryDto;
 import com.microboxlabs.miot.core.branding.DomainBrandingService;
-import com.microboxlabs.miot.core.branding.EntityTagMatch;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.EntityTag;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Request;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -53,17 +54,22 @@ public class BrandingResource {
     @Path("/{domain}/logo")
     @Operation(summary = "Logo image for a domain")
     public Uni<Response> logo(
-            @PathParam("domain") String domain,
-            @HeaderParam("If-None-Match") String ifNoneMatch) {
+            @PathParam("domain") String domain, @Context Request request) {
         return service.findActiveLogo(domain).map(branding -> {
             if (branding == null) {
                 return Response.status(Response.Status.NOT_FOUND).build();
             }
-            if (EntityTagMatch.matches(ifNoneMatch, branding.logoEtag)) {
-                return withCommonHeaders(Response.notModified().tag(branding.logoEtag)).build();
+            EntityTag etag = new EntityTag(branding.logoEtag);
+            // Non-null means a precondition failed, which for a conditional GET
+            // is the 304. Delegated rather than compared by hand: If-None-Match
+            // is list-valued and admits weak validators, "*", and commas inside
+            // a tag, and the grammar is the container's job to know.
+            Response.ResponseBuilder preconditionFailed = request.evaluatePreconditions(etag);
+            if (preconditionFailed != null) {
+                return withCommonHeaders(preconditionFailed.tag(etag)).build();
             }
             return withCommonHeaders(Response.ok(branding.logoContent, branding.logoMime)
-                    .tag(branding.logoEtag)).build();
+                    .tag(etag)).build();
         });
     }
 

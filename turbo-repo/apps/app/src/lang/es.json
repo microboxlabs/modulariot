@@ -2411,6 +2411,7 @@
         "subtitle4": "Validación GPS",
         "details": "Detalles servicio nº {serviceCode}",
         "integrations": "Integraciones",
+        "storytelling": "Storytelling",
         "settings": "Ajustes",
         "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos",
@@ -3037,6 +3038,8 @@
       "optionsLoading": "Cargando opciones…",
       "optionsError": "No se pudieron cargar las opciones.",
       "noOptionsYet": "Sin opciones aún. Agrega al menos una.",
+      "optionsSearchPlaceholder": "Buscar…",
+      "optionsNoMatches": "Sin coincidencias",
       "optionLabelPlaceholder": "Etiqueta",
       "optionValuePlaceholder": "Valor",
       "addOption": "Agregar opción",
@@ -4179,7 +4182,11 @@
     "assignment": "Asignación",
     "unassigned": "Sin asignar",
     "partial": "Parcial",
-    "assigned": "Asignado"
+    "assigned": "Asignado",
+    "type": "Tipo",
+    "artifactType": "Tipo de documento",
+    "creator": "Creador",
+    "createdAt": "Fecha de creación"
   },
   "comments": {
     "title": "Comentarios",
@@ -4914,6 +4921,149 @@
       "collaboratorsManagement": "Gestión de Colaboradores"
     }
   },
+  "storytelling": {
+    "breadcrumb": {
+      "storytelling": "Storytelling",
+      "versions": "Versiones"
+    },
+    "version": {
+      "badgeLabel": "v{label}",
+      "badgeTitle": "Versión {label} — ver historial",
+      "title": "Historial de versiones",
+      "subtitle": "{count} iteraciones · actual v{label}",
+      "current": "Actual",
+      "root": "Primera versión",
+      "canvas": {
+        "fit": "Centrar en todo",
+        "zoomIn": "Acercar",
+        "zoomOut": "Alejar"
+      },
+      "menu": {
+        "label": "Acciones de versión",
+        "open": "Abrir",
+        "iterate": "Iterar",
+        "delete": "Eliminar"
+      },
+      "delete": {
+        "title": "¿Eliminar esta versión?",
+        "branchWarning": "También se elimina todo lo que deriva de esta versión.",
+        "confirm": "Eliminar",
+        "cancel": "Cancelar"
+      },
+      "toast": {
+        "iterated": "Se creó la v{label}",
+        "deleted": "Se eliminó la v{label}"
+      }
+    },
+    "title": "Storytelling",
+    "description": "Historias generadas por IA y curadas para tu organización.",
+    "artifactType": {
+      "html": "HTML",
+      "markdown": "Markdown",
+      "ppt": "PPT",
+      "pdf": "PDF"
+    },
+    "filters": {
+      "noMatches": "Ninguna historia coincide con los filtros actuales."
+    },
+    "list": {
+      "empty": "Todavía no hay historias."
+    },
+    "menu": {
+      "label": "Acciones",
+      "share": "Compartir",
+      "details": "Detalles",
+      "delete": "Eliminar",
+      "download": "Descargar"
+    },
+    "card": {
+      "editedBy": "Editado por {name} el {date}"
+    },
+    "attribution": "{name} el {date}",
+    "details": {
+      "title": "Detalles de la historia",
+      "type": "Tipo",
+      "created": "Creada",
+      "lastEdited": "Última edición",
+      "id": "ID"
+    },
+    "delete": {
+      "title": "Eliminar historia",
+      "multipleTitle": "¿Eliminar {count} historias?",
+      "confirmButton": "Eliminar",
+      "cancelButton": "Cancelar"
+    },
+    "share": {
+      "title": "Compartir",
+      "copyLink": "Copiar enlace",
+      "copied": "Enlace copiado al portapapeles",
+      "copyFailed": "No se pudo copiar el enlace",
+      "inviteTitle": "Invitar personas",
+      "invitePlaceholder": "Agrega personas por nombre o correo",
+      "inviteButton": "Invitar",
+      "invited": "Se invitó a {name}",
+      "accessRemoved": "Se quitó a {name}",
+      "roleForLabel": "Nivel de acceso de {name}",
+      "roleViewer": "Puede ver",
+      "roleEditor": "Puede editar",
+      "remove": "Quitar",
+      "removeFor": "Quitar a {name}",
+      "peopleWithAccess": "Personas con acceso",
+      "owner": "Tú",
+      "ownerBadge": "Propietario",
+      "generalAccess": "Acceso general",
+      "linkRestricted": "Restringido",
+      "linkAnyone": "Cualquiera con el enlace",
+      "linkRestrictedHint": "Solo las personas invitadas pueden abrir esta historia",
+      "linkViewerHint": "Cualquiera con el enlace puede ver esta historia",
+      "linkEditorHint": "Cualquiera con el enlace puede ver y editar esta historia"
+    },
+    "toast": {
+      "deleted": "Se eliminó {name}",
+      "deletedMultiple": "Se eliminaron {count} historias"
+    },
+    "selection": {
+      "selectAll": "Seleccionar todo",
+      "count": "{count} seleccionadas",
+      "selectAria": "Seleccionar {name}",
+      "deleteSelected": "Eliminar seleccionadas"
+    },
+    "detail": {
+      "aiGeneratedBadge": "Generado por IA",
+      "loading": "Cargando panel…",
+      "search": {
+        "placeholder": "Buscar…",
+        "previous": "Coincidencia anterior",
+        "next": "Siguiente coincidencia",
+        "clear": "Limpiar búsqueda"
+      },
+      "markdown": {
+        "error": "No se pudo cargar este documento.",
+        "outline": "Índice"
+      },
+      "ppt": {
+        "comingSoon": "La vista previa de PPT aún no está disponible — esto es un marcador de posición para este tipo de artefacto."
+      },
+      "pdf": {
+        "loading": "Cargando documento…",
+        "error": "No se pudo cargar este PDF.",
+        "previousPage": "Página anterior",
+        "nextPage": "Página siguiente",
+        "zoomIn": "Acercar",
+        "zoomOut": "Alejar",
+        "zoomReset": "Restablecer zoom",
+        "fit": "Ajustar al ancho",
+        "railPages": "Páginas",
+        "railSections": "Secciones",
+        "noSections": "Este documento no tiene secciones para listar"
+      },
+      "notFound": {
+        "title": "Historia no encontrada",
+        "description": "Esta historia no existe, o fue eliminada.",
+        "backButton": "Volver a Storytelling"
+      }
+    }
+  },
   "conversations": {
     "title": "Conversaciones de WhatsApp",
     "description": "Respuestas de conductores y estado de entrega de los mensajes de tu organización.",
@@ -5078,6 +5228,9 @@
       "showDashlet": {
         "unknown": "Dashlet desconocido: {id}",
         "unsupported": "{name} no se puede mostrar en el chat."
+      },
+      "createStory": {
+        "open": "Clic para abrir"
       },
       "askUserQuestion": {
         "skipped": "Omitido — reemplazado por un mensaje posterior.",

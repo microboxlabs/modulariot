@@ -56,7 +56,8 @@ class HomeUrlTest {
 
     @Test
     void rejectsOverlyLongUrls() {
-        assertThrows(BadRequestException.class,
-                () -> HomeUrl.normalize("https://example.com/" + "a".repeat(2048)));
+        String tooLong = "https://example.com/" + "a".repeat(2048);
+
+        assertThrows(BadRequestException.class, () -> HomeUrl.normalize(tooLong));
     }
 }

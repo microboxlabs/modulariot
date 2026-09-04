@@ -4,9 +4,11 @@ import jakarta.ws.rs.BadRequestException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -77,6 +79,33 @@ public record LogoImage(String mime, byte[] content, String etag) {
      * is hashed with the bytes: the same bytes served under a different type are
      * a different representation and must not reuse a cached validator.
      */
+    // A record compares and prints an array field by reference, so the generated
+    // members would report two identical logos as different and dump the raw
+    // bytes into any log line that formatted one.
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof LogoImage that)) {
+            return false;
+        }
+        return Objects.equals(mime, that.mime)
+                && Objects.equals(etag, that.etag)
+                && Arrays.equals(content, that.content);
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * Objects.hash(mime, etag) + Arrays.hashCode(content);
+    }
+
+    @Override
+    public String toString() {
+        return "LogoImage[mime=" + mime + ", bytes=" + content.length + ", etag=" + etag + "]";
+    }
+
     private static String etagOf(String mime, byte[] content) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

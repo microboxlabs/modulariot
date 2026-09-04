@@ -3,6 +3,7 @@ package com.microboxlabs.miot.core.branding;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -67,18 +68,18 @@ class LogoImageTest {
 
     @Test
     void rejectsMimesTheColumnConstraintWouldReject() {
-        assertThrows(BadRequestException.class, () -> LogoImage.fromDataUrl(
-                dataUrl("text/html", "<b>x</b>".getBytes(StandardCharsets.UTF_8))));
-        assertThrows(BadRequestException.class, () -> LogoImage.fromDataUrl(
-                dataUrl("image/gif", "x".getBytes(StandardCharsets.UTF_8))));
+        String html = dataUrl("text/html", "<b>x</b>".getBytes(StandardCharsets.UTF_8));
+        String gif = dataUrl("image/gif", "x".getBytes(StandardCharsets.UTF_8));
+
+        assertThrows(BadRequestException.class, () -> LogoImage.fromDataUrl(html));
+        assertThrows(BadRequestException.class, () -> LogoImage.fromDataUrl(gif));
     }
 
     @Test
     void rejectsPayloadsOverTheCap() {
-        byte[] tooBig = new byte[LogoImage.MAX_BYTES + 1];
+        String tooBig = dataUrl("image/png", new byte[LogoImage.MAX_BYTES + 1]);
 
-        assertThrows(BadRequestException.class,
-                () -> LogoImage.fromDataUrl(dataUrl("image/png", tooBig)));
+        assertThrows(BadRequestException.class, () -> LogoImage.fromDataUrl(tooBig));
     }
 
     @Test
@@ -103,8 +104,41 @@ class LogoImageTest {
 
     @Test
     void rejectsEmptyContent() {
-        assertThrows(BadRequestException.class,
-                () -> LogoImage.fromDataUrl(dataUrl("image/png", new byte[0])));
+        String empty = dataUrl("image/png", new byte[0]);
+
+        assertThrows(BadRequestException.class, () -> LogoImage.fromDataUrl(empty));
+    }
+
+    @Test
+    void equalLogosCompareAndHashByContentNotByArrayIdentity() {
+        String url = dataUrl("image/png", "same".getBytes(StandardCharsets.UTF_8));
+        LogoImage first = LogoImage.fromDataUrl(url);
+        LogoImage second = LogoImage.fromDataUrl(url);
+
+        assertNotSame(first.content(), second.content());
+        assertEquals(first, second);
+        assertEquals(first.hashCode(), second.hashCode());
+    }
+
+    @Test
+    void differentLogosAreNotEqual() {
+        LogoImage png = LogoImage.fromDataUrl(
+                dataUrl("image/png", "one".getBytes(StandardCharsets.UTF_8)));
+        LogoImage other = LogoImage.fromDataUrl(
+                dataUrl("image/png", "two".getBytes(StandardCharsets.UTF_8)));
+
+        assertNotEquals(png, other);
+        assertNotEquals(png, "not a logo");
+    }
+
+    @Test
+    void toStringReportsTheSizeRatherThanTheBytes() {
+        LogoImage logo = LogoImage.fromDataUrl(
+                dataUrl("image/png", "abc".getBytes(StandardCharsets.UTF_8)));
+
+        assertEquals(
+                "LogoImage[mime=image/png, bytes=3, etag=" + logo.etag() + "]",
+                logo.toString());
     }
 
     @Test

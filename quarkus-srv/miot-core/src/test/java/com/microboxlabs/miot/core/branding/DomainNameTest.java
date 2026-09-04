@@ -66,7 +66,8 @@ class DomainNameTest {
 
     @Test
     void rejectsLabelsLongerThanDnsAllows() {
-        assertThrows(BadRequestException.class,
-                () -> DomainName.normalize("a".repeat(64) + ".example.com"));
+        String labelTooLong = "a".repeat(64) + ".example.com";
+
+        assertThrows(BadRequestException.class, () -> DomainName.normalize(labelTooLong));
     }
 }

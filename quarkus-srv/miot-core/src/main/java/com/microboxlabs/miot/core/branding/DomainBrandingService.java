@@ -22,11 +22,11 @@ public class DomainBrandingService {
      */
     public Uni<DomainBrandingSummaryDto> summary(String rawDomain) {
         String domain = DomainName.normalize(rawDomain);
-        return Panache.withSession(() -> DomainBranding.findActiveByDomain(domain)
-                .map(branding -> branding == null
+        return Panache.withSession(() -> DomainBranding.findActiveMetadata(domain)
+                .map(metadata -> metadata == null
                         ? new DomainBrandingSummaryDto(domain, false, null, null)
                         : new DomainBrandingSummaryDto(
-                                domain, true, branding.logoEtag, branding.homeUrl)));
+                                domain, true, metadata.logoEtag(), metadata.homeUrl())));
     }
 
     /** Unauthenticated. Null when the domain has no active branding. */
@@ -36,18 +36,17 @@ public class DomainBrandingService {
     }
 
     public Uni<List<DomainBrandingDto>> list() {
-        return Panache.withSession(() -> DomainBranding.listAllOrdered()
-                .map(rows -> rows.stream().map(DomainBrandingService::toDto).toList()));
+        return Panache.withSession(DomainBranding::listAllMetadata);
     }
 
     public Uni<DomainBrandingDto> get(String rawDomain) {
         String domain = DomainName.normalize(rawDomain);
-        return Panache.withSession(() -> DomainBranding.findByDomain(domain)
-                .map(branding -> {
-                    if (branding == null) {
+        return Panache.withSession(() -> DomainBranding.findMetadataByDomain(domain)
+                .map(dto -> {
+                    if (dto == null) {
                         throw new NotFoundException("No branding for domain: " + domain);
                     }
-                    return toDto(branding);
+                    return dto;
                 }));
     }
 

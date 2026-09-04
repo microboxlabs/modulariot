@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.core.model;
 
+import com.microboxlabs.miot.core.api.dto.DomainBrandingDto;
+import com.microboxlabs.miot.core.branding.DomainBrandingMetadata;
 import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import io.smallrye.mutiny.Uni;
 import jakarta.persistence.Column;
@@ -57,11 +59,28 @@ public class DomainBranding extends PanacheEntityBase {
         return find("domain = ?1", domain).firstResult();
     }
 
+    /** Loads the row with its bytes; only the endpoint serving the image needs this. */
     public static Uni<DomainBranding> findActiveByDomain(String domain) {
         return find("domain = ?1 and active = true", domain).firstResult();
     }
 
-    public static Uni<List<DomainBranding>> listAllOrdered() {
-        return find("order by domain").list();
+    // The projecting finders below leave logo_content in the database. It is an
+    // eagerly fetched basic column, so any query returning the entity reads up to
+    // 256 KB per row even when the caller only wants the metadata.
+
+    public static Uni<DomainBrandingMetadata> findActiveMetadata(String domain) {
+        return find("domain = ?1 and active = true", domain)
+                .project(DomainBrandingMetadata.class)
+                .firstResult();
+    }
+
+    public static Uni<DomainBrandingDto> findMetadataByDomain(String domain) {
+        return find("domain = ?1", domain)
+                .project(DomainBrandingDto.class)
+                .firstResult();
+    }
+
+    public static Uni<List<DomainBrandingDto>> listAllMetadata() {
+        return find("order by domain").project(DomainBrandingDto.class).list();
     }
 }

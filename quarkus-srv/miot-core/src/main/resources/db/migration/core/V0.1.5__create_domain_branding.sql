@@ -8,8 +8,12 @@ CREATE TABLE miot_core.domain_branding (
     domain       VARCHAR(253)  NOT NULL UNIQUE,
     logo_content BYTEA         NOT NULL,
     logo_mime    VARCHAR(64)   NOT NULL,
-    -- Hex SHA-256 of logo_content. Served as the ETag and used to bust the
-    -- browser cache when the image changes but the URL does not.
+    -- Hex SHA-256 of logo_mime, a newline, then logo_content -- see
+    -- LogoImage.etagOf. The mime is part of the digest because it is part of
+    -- the response, so the same bytes served as a different Content-Type must
+    -- not reuse a validator. Anything backfilling this column has to hash the
+    -- same input. Served as the ETag, and busts the browser cache when the
+    -- image changes but the URL does not.
     logo_etag    VARCHAR(64)   NOT NULL,
     home_url     VARCHAR(2048),
     active       BOOLEAN       NOT NULL DEFAULT true,

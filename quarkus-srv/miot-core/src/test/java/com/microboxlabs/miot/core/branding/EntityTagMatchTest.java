@@ -45,6 +45,14 @@ class EntityTagMatchTest {
     }
 
     @Test
+    void aCommaInsideAQuotedTagDoesNotSplitTheList() {
+        // RFC 9110 etagc admits "," inside the opaque tag.
+        assertTrue(EntityTagMatch.matches("\"a,b\"", "a,b"));
+        assertTrue(EntityTagMatch.matches("\"x\", W/\"a,b\"", "a,b"));
+        assertFalse(EntityTagMatch.matches("\"a,b\"", "a"));
+    }
+
+    @Test
     void anUnquotedValueIsNotAValidator() {
         assertFalse(EntityTagMatch.matches("abc123", ETAG));
     }

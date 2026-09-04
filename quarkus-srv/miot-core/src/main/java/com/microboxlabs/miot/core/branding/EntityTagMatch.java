@@ -1,5 +1,8 @@
 package com.microboxlabs.miot.core.branding;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Evaluates an {@code If-None-Match} header against one entity tag.
  *
@@ -10,6 +13,7 @@ package com.microboxlabs.miot.core.branding;
  * check would then miss the match and resend the whole image.
  */
 public final class EntityTagMatch {
+
 
     private static final String WEAK_PREFIX = "W/";
 
@@ -31,12 +35,38 @@ public final class EntityTagMatch {
         if ("*".equals(header)) {
             return true;
         }
-        for (String candidate : header.split(",")) {
+        for (String candidate : splitEntries(header)) {
             if (etag.equals(opaqueValue(candidate))) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Splits the list on commas that separate entries rather than on commas
+     * inside a tag. RFC 9110's {@code etagc} admits "," in the opaque value, and
+     * excludes the double quote, so quoting cannot itself be escaped and a plain
+     * toggle tracks it exactly.
+     */
+    private static List<String> splitEntries(String header) {
+        List<String> entries = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean quoted = false;
+        for (int i = 0; i < header.length(); i++) {
+            char c = header.charAt(i);
+            if (c == '"') {
+                quoted = !quoted;
+                current.append(c);
+            } else if (c == ',' && !quoted) {
+                entries.add(current.toString());
+                current.setLength(0);
+            } else {
+                current.append(c);
+            }
+        }
+        entries.add(current.toString());
+        return entries;
     }
 
     /** Strips the weak marker and the surrounding quotes from one list entry. */

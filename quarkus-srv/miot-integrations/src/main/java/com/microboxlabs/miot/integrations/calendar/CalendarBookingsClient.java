@@ -49,6 +49,7 @@ public class CalendarBookingsClient {
     private static final String SLOTS_PATH = "/api/v1/miot-calendar/slots";
     @SuppressWarnings("java:S1075")
     private static final String CALENDARS_PATH = "/api/v1/miot-calendar/calendars";
+    @SuppressWarnings("java:S1075")
     private static final String RESOURCE_PATH = "/resource/";
     private static final String CALENDAR_ID_QUERY = "?calendarId=";
     private static final String STATUS_FIELD = "status";

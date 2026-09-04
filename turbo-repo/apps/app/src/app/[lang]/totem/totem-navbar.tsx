@@ -4,16 +4,17 @@ import AppLogo from "@/features/common/components/app-logo/app-logo";
 
 interface TotemNavbarProps {
   readonly orgLogoUrl?: string | null;
+  readonly homeUrl?: string | null;
 }
 
-export default function TotemNavbar({ orgLogoUrl }: Readonly<TotemNavbarProps>) {
+export default function TotemNavbar({
+  orgLogoUrl,
+  homeUrl,
+}: Readonly<TotemNavbarProps>) {
   return (
     <div className="w-full h-fit">
       <Navbar fluid className="dark:bg-transparent">
-        <NavbarBrand
-          data-testid="login-navbar"
-          href="https://www.mintral.cl/"
-        >
+        <NavbarBrand data-testid="login-navbar" href={homeUrl ?? undefined}>
           {orgLogoUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img

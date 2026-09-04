@@ -11,7 +11,7 @@ import { buildNavBarMessages, isHarnessUiEnabled } from "../utils/utils";
 import { SecuredSidebar } from "./secured-sidebar/secured-sidebar";
 import FooterSecuredLayout from "./footer-secured/footer-secured";
 import SseListener from "@/features/sse/components/sse-listener/sse-listener";
-import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { getDomainBranding } from "@/features/branding/domain-branding.service";
 import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
 import { KioskShell } from "./kiosk-shell";
 
@@ -31,7 +31,7 @@ export default async function SecuredLayout({
   if (!session?.user) {
     redirect(`/${lang}/sign-in`);
   }
-  const initialOrgLogo = await getPublicOrgLogo();
+  const branding = await getDomainBranding();
   // When false/unset, SpotlightSearch isn't rendered at all below, which
   // also removes its Cmd+K listener — there's no client-side toggle to
   // bypass. Also gates the harness-chat toggle in SecuredNavbar.
@@ -44,7 +44,7 @@ export default async function SecuredLayout({
           <SecuredNavbar
             messages={navBarMessages}
             dict={dictionary as I18nRecord}
-            initialOrgLogo={initialOrgLogo}
+            initialOrgLogo={branding?.logoUrl}
             isSeachEnabled={isSeachEnabled}
             isHarnessSettingsEnabled={isHarnessSettingsEnabled}
           />

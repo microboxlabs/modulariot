@@ -4,7 +4,7 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import AuthPageShell from "@/features/auth/components/auth-page-shell/auth-page-shell";
 import FormSignIn from "@/features/auth/components/form-sign-in/form-sign-in";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
-import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { getDomainBranding } from "@/features/branding/domain-branding.service";
 import { getAuthConfig } from "@/features/auth/config/auth-providers.config";
 import type {
   ProviderLabels,
@@ -92,7 +92,7 @@ export default async function SignInPage(
     resolvedSearchParams?.error === "AccessDenied"
       ? dict("pages.login.errors.accessDenied")
       : null;
-  const orgLogo = await getPublicOrgLogo();
+  const branding = await getDomainBranding();
   const authConfig = getAuthConfig();
   // Provider/SAML labels and dividerText come from runtime auth config: the key
   // is only known at runtime, so they use the dynamic (unchecked) translator.
@@ -121,7 +121,11 @@ export default async function SignInPage(
   const showRegisterLink = process.env.ENABLE_REGISTER_LINK === "true";
 
   return (
-    <AuthPageShell orgLogoUrl={orgLogo} footerMessages={dict}>
+    <AuthPageShell
+      orgLogoUrl={branding?.logoUrl}
+      homeUrl={branding?.homeUrl}
+      footerMessages={dict}
+    >
       <Card
         data-testid="login-card"
         horizontal

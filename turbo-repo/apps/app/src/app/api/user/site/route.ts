@@ -4,8 +4,8 @@ import {
   getUserSites,
   getSiteLogos,
   getSiteLogoContent,
-  getPublicOrgLogo,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { getDomainBranding } from "@/features/branding/domain-branding.service";
 import type { UserSiteResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { handleApiError, unauthorizedResponse } from "@/app/api/utils/api-error-handler";
 
@@ -19,8 +19,8 @@ export async function GET() {
     // Get user's sites
     const sites = await getUserSites(session);
 
-    // First, try to get the public organization logo
-    const publicLogo = await getPublicOrgLogo();
+    // Per-domain logo, used when the site has no branding of its own.
+    const publicLogo = (await getDomainBranding())?.logoUrl ?? null;
 
     if (!sites || sites.length === 0) {
       // Return public logo if available, otherwise null

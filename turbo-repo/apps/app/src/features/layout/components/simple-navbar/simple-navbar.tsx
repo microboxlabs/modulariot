@@ -1,14 +1,28 @@
 import "server-only";
 
-import { Navbar, NavbarBrand, Tooltip } from "flowbite-react";
+import { Navbar, Tooltip } from "flowbite-react";
 import Link from "next/link";
 import { LynxBrand } from "@modulariot/ui/brand/logo";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
-import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { getDomainBranding } from "@/features/branding/domain-branding.service";
 
 export async function SimpleNavbar() {
-  // Try to get the organization logo from the public endpoint
-  const orgLogo = await getPublicOrgLogo();
+  const branding = await getDomainBranding();
+  const brand = branding?.logoUrl ? (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      className="mr-3 h-8"
+      alt="Organization logo"
+      src={branding.logoUrl}
+      width={150}
+    />
+  ) : (
+    <LynxBrand
+      className="mr-3 text-(--brand-ink)"
+      iconClassName="h-11 w-11"
+      wordmarkClassName="h-5 w-auto"
+    />
+  );
 
   return (
     <Navbar
@@ -18,23 +32,13 @@ export async function SimpleNavbar() {
       <div className="w-full p-3 pr-4">
         <div className="flex items-center">
           <div className="flex items-start justify-start flex-1">
-            <Link href="https://www.mintral.cl/" className="flex items-center">
-              {orgLogo ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  className="mr-3 h-8"
-                  alt="Organization logo"
-                  src={orgLogo}
-                  width={150}
-                />
-              ) : (
-                <LynxBrand
-                  className="mr-3 text-(--brand-ink)"
-                  iconClassName="h-11 w-11"
-                  wordmarkClassName="h-5 w-auto"
-                />
-              )}
-            </Link>
+            {branding?.homeUrl ? (
+              <Link href={branding.homeUrl} className="flex items-center">
+                {brand}
+              </Link>
+            ) : (
+              <span className="flex items-center">{brand}</span>
+            )}
           </div>
           <div className="flex items-center justify-end flex-1 lg:gap-3">
             <div className="flex items-center">

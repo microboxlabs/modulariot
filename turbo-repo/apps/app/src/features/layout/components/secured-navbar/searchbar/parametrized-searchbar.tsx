@@ -9,8 +9,9 @@ import { useDebouncedCallback } from "use-debounce";
 import { ParamType } from "./navegation_params";
 import CustomSelector from "@/features/common/components/custom-dropdown/custom-selector";
 import { KbdHint } from "./kbd-hint";
+import { useSymptomNames, toSymptomOptions } from "@/features/symptoms/hooks/use-symptom-names";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { tr } from "@/features/i18n/tr.service";
 import { logger } from "@/lib/logger";
 import DateRangePicker from "@/features/common/components/date-picker/date-range-picker";
 import dayjs from "dayjs";
@@ -32,46 +33,11 @@ export default function ParametrizedSearchBar({
 }: ParametrizedSearchBarProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [localStorageOptions, setLocalStorageOptions] = useState<string[]>([]);
   const router = useRouter();
   const pathName = usePathname();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Listen for localStorage changes
-  useEffect(() => {
-    const updateOptionsFromLocalStorage = () => {
-      try {
-        const storedOptions = localStorage.getItem("selector");
-        if (storedOptions) {
-          const parsed = JSON.parse(storedOptions);
-          setLocalStorageOptions(Array.isArray(parsed) ? parsed : []);
-        }
-      } catch (error) {
-        console.error("Error parsing localStorage selector:", error);
-        setLocalStorageOptions([]);
-      }
-    };
-
-    // Initial load
-    updateOptionsFromLocalStorage();
-
-    // Listen for storage changes from other tabs/windows
-    globalThis.addEventListener("storage", updateOptionsFromLocalStorage);
-
-    // Listen for custom event when localStorage is updated in the same tab
-    globalThis.addEventListener(
-      "localStorageUpdated",
-      updateOptionsFromLocalStorage
-    );
-
-    return () => {
-      globalThis.removeEventListener("storage", updateOptionsFromLocalStorage);
-      globalThis.removeEventListener(
-        "localStorageUpdated",
-        updateOptionsFromLocalStorage
-      );
-    };
-  }, []);
+  const localStorageOptions = useSymptomNames();
 
   const handleSearch = useDebouncedCallback((term: string, param: string) => {
     // Check if this param is unique
@@ -294,10 +260,7 @@ function SelectorParams({
           // For symptom_name selector only, use dynamic options from localStorage
           options = [
             { value: "", label: "-" },
-            ...dynamicOptions.map((option) => ({
-              value: option,
-              label: trDynamic("symptoms.types." + option, dict),
-            })),
+            ...toSymptomOptions(dynamicOptions, dict),
           ];
         } else if (param.options && Array.isArray(param.options)) {
           // For other selectors (like state, originType), use their predefined options

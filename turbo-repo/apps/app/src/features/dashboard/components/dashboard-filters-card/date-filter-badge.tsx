@@ -6,6 +6,7 @@ import TimeRangePicker from "../dashboard-filter-bar/time-range-picker";
 import type { DashboardFilterParam } from "../../types/dashboard.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { BADGE_ACTIVE, BADGE_IDLE } from "./badge-styles";
+import { dayPart } from "../../utils/date-param";
 
 interface DateFilterBadgeProps {
   filter: DashboardFilterParam;
@@ -27,7 +28,13 @@ export function DateFilterBadge({ filter, from, to, onChange, onClear, dictionar
   }, [from, to]);
 
   const hasValue = Boolean(localFrom || localTo);
-  const displayText = hasValue ? [localFrom, localTo].filter(Boolean).join(" – ") : null;
+  // Params carry full-day bounds (`YYYY-MM-DD 00:00:00`); the badge shows just the days.
+  const displayText = hasValue
+    ? [localFrom, localTo]
+        .filter((v): v is string => Boolean(v))
+        .map(dayPart)
+        .join(" – ")
+    : null;
 
   const handleDateChange = (newFrom: string, newTo: string) => {
     setLocalFrom(newFrom);

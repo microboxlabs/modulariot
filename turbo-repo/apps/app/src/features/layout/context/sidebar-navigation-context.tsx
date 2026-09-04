@@ -8,7 +8,7 @@ import {
   type PropsWithChildren,
 } from "react";
 import { useRouter } from "next/navigation";
-import { pages } from "../models/pages";
+import { useVisiblePages } from "../hooks/use-visible-pages";
 import { SidebarItem } from "../types/common.types";
 import {
   getMyTasks,
@@ -155,6 +155,7 @@ export function SidebarNavigationProvider({
   const taskDynamicItems = useTaskDynamicItems();
   const calendarDynamicItems = useCalendarDynamicItems();
   const dashboardDynamicItems = useDashboardDynamicItems();
+  const pages = useVisiblePages();
 
   useEffect(() => {
     if (error && (error.status === 401 || error.status === 403)) {
@@ -231,6 +232,7 @@ export function SidebarNavigationProvider({
 
     return { items: resolvedItems, totals, isLoading: false };
   }, [
+    pages,
     taskDynamicItems,
     calendarDynamicItems,
     dashboardDynamicItems,

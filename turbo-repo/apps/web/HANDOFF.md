@@ -1,4 +1,4 @@
-# ModularIoT — Landing (alpha-2506) · Handoff a fábrica
+# ModularIoT — Landing · Handoff a fábrica
 
 Landing comercial de ModularIoT. Sitio Next.js multi-idioma (es · en · pt), enfocado a
 tomadores de decisión de monitoreo de flota. Tesis: **"De detectar desviaciones a reducirlas"**.
@@ -31,24 +31,29 @@ Variables de entorno: **ninguna requerida hoy** (el formulario usa `mailto:`).
 
 ## 3. Rutas
 
-Todo cuelga de `app/app/alpha-2506/[lang]/` con `[lang]` = `es | en | pt`.
+Todo cuelga de `app/app/[lang]/` con `[lang]` = `es | en | pt`.
 
 | Ruta | Contenido |
 |---|---|
-| `/alpha-2506/[lang]` | Home (hero, tesis 3 actos, features, casos, precios teaser, FAQ, CTA) |
+| `/[lang]` | Home (hero, tesis 3 actos, features, casos, precios teaser, FAQ, CTA) |
 | `/precios` | Matriz de precios (síntomas × capacidades) + calculadora "a medida" |
 | `/torre` · `/superprofile` · `/canales` · `/proveedores-gps` | 4 módulos en vivo entrelazados (barra `ModuleTabs`) |
 | `/contacto` | Formulario segmentado (demo / cotizar / general) |
 | `/producto/*` · `/soluciones` · `/recursos` | Páginas de detalle (data-driven, `detail-content*.ts`) |
-| `/` (raíz) | Splash "coming soon" (noindex) → enlaza a `/alpha-2506/es` |
+| `/` (raíz) | Redirige (307) a `/{lang}` según `Accept-Language` (`proxy.ts`) |
+| `/alpha-2506/*` | Redirect permanente (308) al equivalente sin prefijo (`next.config.ts`) |
+
+Las rutas de la tabla se sirven bajo el idioma: `/es/precios`, `/en/torre`, etc.
+`[lang]` cuelga de la raíz, así que su `layout.tsx` valida el idioma y hace
+`notFound()` para cualquier otro primer segmento — sin ese guardia el segmento
+dinámico se tragaría `/loquesea` y lo renderizaría como la home.
 
 ## 4. Estructura clave
 
 ```
 app/
 ├── app/                      # Next App Router
-│   ├── page.tsx              # raíz (coming soon)
-│   └── alpha-2506/[lang]/
+│   └── [lang]/
 │       ├── layout.tsx        # + DemoFab (botón demo flotante)
 │       ├── page.tsx          # home
 │       ├── precios/ contacto/ torre/ superprofile/ canales/ proveedores-gps/
@@ -104,7 +109,7 @@ tinta `#13273D` / `#E8EFF7`).
 | Nota "datos GPS reales, no simulados" | ✅ |
 | Prueba social (testimonios anónimos + banda de métricas) | ✅ |
 | Precios: calculadora síntomas×capacidades (Detección·Gestión·Automatización) | ✅ |
-| Logo nuevo "the Lynx" (nav/footer/splash/lockup) + favicon | ✅ |
+| Logo nuevo "the Lynx" (nav/footer/lockup) + favicon | ✅ |
 | Reemplazar snippets de código dev por visuales de negocio (hero + home + detalle) | ✅ |
 | i18n total de módulos (Torre/SuperProfile/Canales/GPS + PricingTiers) en es·en·pt | ✅ |
 | Implementación: de "3 opciones" a "qué incluye" (edge/híbrido → integración vía API) | ✅ |
@@ -127,5 +132,6 @@ tinta `#13273D` / `#E8EFF7`).
 4. **Logo/favicon** → ✅ resuelto: logo "the Lynx" (búho golden-ratio) generado desde
    geometría en `headlogo-dark.svg` (dark), `headlogo.svg` (light), `logo.svg` (lockup),
    `app/icon.svg` + `app/favicon.ico` + `public/apple-icon.png`.
-5. **Deploy** → Vercel o Docker. Revisar `metadata` y `canonical` en
-   `alpha-2506/[lang]/layout.tsx` antes de producción.
+5. **Deploy** → Vercel o Docker. `canonical`/hreflang los centraliza `lib/seo.ts`
+   (`pageMetadata`), ya sin el prefijo `alpha-2506`.
+   Pendiente menor: `sitemap.ts` / `robots.ts`.

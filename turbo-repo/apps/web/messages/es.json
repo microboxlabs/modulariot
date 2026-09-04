@@ -13,7 +13,7 @@
             },
             {
               "label": "Síntomas / Torre de Control",
-              "desc": "30+ reglas de detección con trazabilidad"
+              "desc": "36 síntomas con severidad, dueño y trazabilidad"
             },
             {
               "label": "Integraciones",
@@ -59,7 +59,7 @@
             },
             {
               "label": "Proveedores GPS",
-              "desc": "Precisión de señal: 12/20 pulsos por minuto"
+              "desc": "Calidad de señal: frecuencia, latencia e integridad, medidas"
             }
           ]
         }
@@ -99,7 +99,7 @@
                 "label": "Minería"
               },
               {
-                "label": "Distribución y última milla"
+                "label": "Telemetría mecánica de flota"
               },
               {
                 "label": "Logística industrial"
@@ -211,11 +211,17 @@
   },
   "stats": {
     "trustedBy": "Confiado por",
+    "integratedWith": "Integrado con",
     "items": [
       {
-        "prefix": "Hasta",
-        "value": "55.847",
-        "label": "síntomas detectados en un mes"
+        "prefix": "Más de",
+        "value": "2,9M",
+        "label": "señales procesadas al día"
+      },
+      {
+        "prefix": "Solo",
+        "value": "≈10%",
+        "label": "requiere gestión — el resto es ruido"
       },
       {
         "prefix": "Con",
@@ -231,8 +237,8 @@
   },
   "problem": {
     "kicker": "El problema",
-    "title": "¿Tratas las alertas,\npero vuelven a aparecer igual?",
-    "subtitle": "En promedio un 10.5% de los síntomas detectados en un mes requieren gestión, el restante solo es ruido que tapa lo urgente.\n\nY los que se tratan, la mitad solo generan un cierre de ticket, pero la desviación vuelve mes a mes.",
+    "title": "¿Estás gestionando lo importante,\no perdido en el ruido?",
+    "subtitle": "En nuestra experiencia, solo un ≈10% de las desviaciones detectadas en un mes requiere gestión — el resto es ruido que tapa lo urgente.\n\nY de las que se tratan, solo la mitad genera un cierre de ticket: la desviación se sigue repitiendo.",
     "pains": [
       {
         "title": "“Me avisaron al día siguiente”",
@@ -256,8 +262,8 @@
       {
         "n": "Acto 1",
         "tag": "Ver y reducir",
-        "title": "Tratas cada alerta, pero las desviaciones vuelven igual.",
-        "body": "La Torre de Control agrupa los síntomas por causa raíz, no por ticket: ves los patrones repetidos y mides si la desviación realmente bajó.",
+        "title": "El negocio está en reducir tus desviaciones.",
+        "body": "Y no puedes hacerlo si tu sistema te llena de ruido. La Torre de Control agrupa los síntomas por causa raíz, no por ticket: ves los patrones repetidos y mides si la desviación realmente bajó.",
         "cta": "Explora la torre de control"
       },
       {
@@ -342,6 +348,7 @@
     }
   },
   "features": {
+        "taxonomy": {"modules": "4 módulos", "contain": "→ contienen", "rules": "reglas de detección (30+)", "produce": "→ producen", "symptoms": "36 síntomas"},
     "kicker": "Características",
     "title": "Tres capacidades principales",
     "subtitle": "Todo lo que necesitas para procesar, analizar y actuar sobre datos de flota en tiempo real",
@@ -357,7 +364,7 @@
       },
       {
         "title": "Alertas por síntoma",
-        "body": "Más de 30 reglas detectan la desviación, fatiga, exceso de velocidad, zonas de riesgo y generan un evento clasificado, no una notificación genérica.",
+        "body": "Más de 30 reglas detectan la desviación —por ejemplo: exceso de velocidad, horas de conducción, zonas de riesgo, fatiga— y generan un síntoma clasificado, no una notificación genérica.",
         "bullets": [
           "Severidad y responsable automáticos",
           "Exclusión inteligente de ruido",
@@ -705,16 +712,16 @@
     "note": "Sin compromiso · Respuesta en menos de 24 horas",
     "stats": [
       {
-        "value": "48hr",
-        "label": "configuración de implementación gestionada"
+        "value": "14 días",
+        "label": "de evaluación, sobre el GPS que ya tienes"
       },
       {
-        "value": "0%",
-        "label": "dependencia de proveedores de datos"
+        "value": "1 mes",
+        "label": "de piloto, con metas pactadas por escrito"
       },
       {
-        "value": "100%",
-        "label": "tus datos, tu control"
+        "value": "Mes 2+",
+        "label": "operación real: reducción medida mes a mes"
       }
     ]
   },
@@ -750,7 +757,7 @@
             },
             {
               "title": "Alto volumen",
-              "body": "Diseñado para millones de señales al mes: 2.9M+ hoy en operación real, con margen para crecer."
+              "body": "Diseñado para millones de señales al día: 2.9M+ hoy en operación real, con margen para crecer."
             },
             {
               "title": "Tus datos, tu nube",
@@ -797,7 +804,7 @@
     },
     "producto/sintomas-torre-control": {
       "eyebrow": "Producto · Síntomas / Torre de Control",
-      "title": "Más de 30 reglas que convierten datos en decisiones",
+      "title": "36 síntomas que convierten datos en decisiones",
       "subtitle": "No más datos crudos ni alertas de ruido. Cada señal se evalúa contra las reglas de tu operación y, si algo se desvía, se genera un evento clasificado por severidad, con responsable y trazabilidad completa.",
       "blocks": [
         {
@@ -1049,7 +1056,7 @@
             },
             {
               "value": "2.9M+",
-              "label": "señales procesadas al mes"
+              "label": "señales procesadas al día"
             },
             {
               "value": "99.9%",
@@ -1106,22 +1113,22 @@
         },
         {
           "kicker": "Puesta en marcha",
-          "title": "De la firma a producción",
+          "title": "De la evaluación a la operación real",
           "steps": [
             {
               "n": "01",
-              "title": "Diagnóstico",
-              "body": "Revisamos tu operación, hardware actual y los eventos que te preocupan. Sin costo."
+              "title": "Evaluación · 14 días",
+              "body": "Nos conectamos al GPS que ya tienes, sin cambiar hardware, y medimos tu operación real: qué síntomas aparecen, cuánto es ruido y dónde está el valor. Sin costo."
             },
             {
               "n": "02",
-              "title": "Integración y configuración",
-              "body": "Conectamos tu tecnología, definimos umbrales y reglas, y activamos el panel. 5 a 10 días hábiles (48 h en modo gestionado)."
+              "title": "Piloto · 1 mes",
+              "body": "Un trozo acotado de tu operación, con metas pactadas por escrito. Umbrales, reglas y canales configurados; tu equipo opera con el panel activo."
             },
             {
               "n": "03",
-              "title": "Operación con visibilidad",
-              "body": "Tu equipo opera con datos en tiempo real y recibe un reporte de impacto cada mes."
+              "title": "Operación real",
+              "body": "Se extiende al resto de la operación. Reducción medida mes a mes y reporte de impacto: se ve si la desviación realmente bajó."
             }
           ]
         }
@@ -1142,7 +1149,7 @@
             },
             {
               "title": "Telemetría y mantenimiento",
-              "body": "Temperatura, presión, consumo y ciclos de uso. Sabemos cuándo un activo va a fallar antes de que lo haga."
+              "body": "Temperatura, presión, consumo y ciclos de uso. Fallas detectadas por códigos del motor (DTC) apenas aparecen."
             },
             {
               "title": "Cumplimiento y auditorías",
@@ -1167,8 +1174,8 @@
               "body": "Límites por tramo interno más restrictivos que el mapa oficial. Evidencia lista para cualquier fiscalización."
             },
             {
-              "title": "Distribución y última milla",
-              "body": "Telemetría mecánica en toda la flota: fallas detectadas antes de que el vehículo se detenga."
+              "title": "Telemetría mecánica de flota",
+              "body": "Telemetría mecánica en toda la flota: fallas detectadas por códigos del motor (DTC) apenas aparecen, para intervenir antes de que el vehículo se detenga."
             },
             {
               "title": "Logística industrial",
@@ -1181,10 +1188,10 @@
           "title": "Configurado para tu operación, no un sistema genérico",
           "body": "No instalamos una solución de molde. Configuramos los umbrales, zonas, procesos y alertas según cómo funciona tu operación específica. Empezamos con un diagnóstico gratuito de 30 minutos.",
           "bullets": [
-            "Diagnóstico gratuito: qué puedes monitorear hoy",
-            "Integración con tu hardware y sistemas actuales",
-            "Reglas y umbrales definidos para tu operación",
-            "Panel activo para tu equipo en 5 a 10 días",
+            "Demo técnica y diagnóstico sin costo",
+            "Evaluación de 14 días sobre tu GPS actual",
+            "Piloto de 1 mes con metas pactadas por escrito",
+            "Operación real con reducción medida mes a mes",
             "Reporte de impacto mensual"
           ]
         }

@@ -1,21 +1,25 @@
 // Integraciones reales de la plataforma (trust bar demo-led).
-// Mintral va primero: es cliente real (antes vivía solo, en la sección
-// "Trusted by", ahora consolidada acá). El resto son los 28 proveedores GPS
-// del snapshot de operación real + Samtech y Targa (piloto GAMA). Logos
-// oficiales descargados y verificados; los que no tienen asset van como
-// wordmark. `invert`: logo blanco → se invierte sobre fondo claro.
+// GPS_PARTNERS son los 28 proveedores GPS del snapshot de operación real
+// + Samtech y Targa (piloto GAMA) — van bajo "Integrado con": no son
+// clientes ni proveedores nuestros, son integraciones. CLIENT_LOGOS son
+// los clientes reales y van aparte, bajo "Confiado por". Logos oficiales
+// descargados y verificados; los que no tienen asset van como wordmark.
+// `invert`: logo blanco → se invierte sobre fondo claro.
 
 // `tall`: el logo trae varios elementos apilados (escudo + wordmark +
 // tagline) y a la altura compartida del carrusel se lee chico aunque ya
 // esté recortado al contenido — se le da un poco más de alto solo a él.
 import type { PartnerLogo } from "./partners-data.types";
 
-export const GPS_PARTNERS: readonly PartnerLogo[] = [
+export const CLIENT_LOGOS: readonly PartnerLogo[] = [
   {
     name: "Mintral",
     href: "https://www.mintral.cl/",
     img: "/clients/mintral-logo.png",
   },
+];
+
+export const GPS_PARTNERS: readonly PartnerLogo[] = [
   {
     name: "Onway · Entel Digital",
     href: "https://enteldigital.cl/onway",

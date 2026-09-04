@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import Markdown from "react-markdown";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import { useDashboard } from "../../context/dashboard-context";
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
 
 // ============================================================================
@@ -37,7 +37,7 @@ export function Dashlet({
   editMode,
   children,
 }: Readonly<DashletComponentProps>) {
-  const { dictionary } = useDashboard();
+  const { dictionary } = useOptionalDashboard();
   const config = (widget.config as unknown as DashletConfig) ?? defaultConfig;
   const layout = config.layout ?? "row";
   const title = config.title?.trim() || "Untitled";

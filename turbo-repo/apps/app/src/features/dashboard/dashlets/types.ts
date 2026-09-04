@@ -109,4 +109,14 @@ export interface DashletDefinition {
   getLayoutDefaults: (
     config?: Record<string, unknown>
   ) => DashletLayoutDefaults;
+  /**
+   * Whether this dashlet is offered to the `show_dashlet` harness-chat
+   * extension — as a synthetic single-widget preview, standalone outside a
+   * real grid. Defaults to `true`. Set to `false` when that doesn't make
+   * sense — e.g. container-style dashlets that expect child widgets
+   * (`onAddChild`/`children` from `DashletComponentProps`) have no content
+   * of their own, and text_card is redundant next to the chat message
+   * itself, which is already text.
+   */
+  showInChat?: boolean;
 }

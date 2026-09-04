@@ -9,6 +9,10 @@ export const dashletDefinition: DashletDefinition = {
   SettingsModal: DashletSettings,
   defaultConfig: defaultConfig as unknown as Record<string, unknown>,
   getLayoutDefaults,
+  // Needs a real pgrestFunctionName wired up to do anything — no static
+  // demo mode like data-display dashlets, and uploading into a synthetic
+  // throwaway chat-preview widget wouldn't go anywhere meaningful anyway.
+  showInChat: false,
 };
 
 export { Dashlet, defaultConfig, getLayoutDefaults } from "./dashlet";

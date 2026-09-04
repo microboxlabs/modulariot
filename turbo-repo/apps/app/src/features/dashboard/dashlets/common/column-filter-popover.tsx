@@ -12,7 +12,7 @@ import { HiFunnel, HiCheck } from "react-icons/hi2";
 import { Select } from "flowbite-react";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { useDashboard } from "@/features/dashboard/context/dashboard-context";
+import { useOptionalDashboard } from "@/features/dashboard/context/dashboard-context";
 import type { DataType } from "./column-types";
 import type {
   ColumnFilter,
@@ -43,7 +43,7 @@ export function ColumnFilterPopover({
   enumValues,
   onFilterChange,
 }: ColumnFilterPopoverProps) {
-  const { dictionary } = useDashboard();
+  const { dictionary } = useOptionalDashboard();
   const [isOpen, setIsOpen] = useState(false);
   const popoverRef = useRef<HTMLDialogElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);

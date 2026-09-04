@@ -13,7 +13,7 @@ import ConditionIcon from "@/features/symptoms/components/condition-icon";
 import PinIcon from "@/features/icons/pin-icon";
 import { useState, useEffect, useRef } from "react";
 import CustomTooltip from "@/features/common/components/custom-tooltip/custom-tooltip";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { useMapFilters } from "../hooks/use-map-filters";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 
@@ -194,21 +194,21 @@ export default function Filters({
     ],
     speed: [
       {
-        text: (dict.symptoms as I18nRecord).normal_speed as string,
+        text: trDynamic("symptoms.normal_speed", dict),
         filter_value: "1",
         code: "1",
         icon: blue_pin.src,
         activated: getInitialActivated("speed", "1", false),
       },
       {
-        text: (dict.symptoms as I18nRecord).high_speed as string,
+        text: trDynamic("symptoms.high_speed", dict),
         filter_value: "2",
         code: "2",
         icon: yellow_pin.src,
         activated: getInitialActivated("speed", "2", false),
       },
       {
-        text: (dict.symptoms as I18nRecord).very_high_speed as string,
+        text: trDynamic("symptoms.very_high_speed", dict),
         filter_value: "3",
         code: "3",
         icon: red_pin.src,
@@ -224,7 +224,7 @@ export default function Filters({
           <CustomTooltip
             content={
               <div className="z-50 px-2 py-1 text-sm text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-600 rounded-md whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).with_trip as string}
+                {trDynamic("symptoms.with_trip", dict)}
               </div>
             }
             placement="bottom"
@@ -244,7 +244,7 @@ export default function Filters({
           <CustomTooltip
             content={
               <div className="z-50 px-2 py-1 text-sm text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-600 rounded-md whitespace-nowrap">
-                {(dict.symptoms as I18nRecord).without_trip as string}
+                {trDynamic("symptoms.without_trip", dict)}
               </div>
             }
             placement="bottom"
@@ -314,7 +314,7 @@ export default function Filters({
       </div>
       <div className="z-[9998]">
         <FilterComponent
-          label={(dict.symptoms as I18nRecord).markers as string}
+          label={trDynamic("symptoms.markers", dict)}
           icon={blue_pin.src}
           icon_size="w-7 h-7"
           options={activeFilters.speed}
@@ -323,7 +323,7 @@ export default function Filters({
       </div>
       <div className="z-[9997]">
         <FilterComponent
-          label={(dict.symptoms as I18nRecord).trip_states as string}
+          label={trDynamic("symptoms.trip_states", dict)}
           icon={PinIcon as unknown as IconType}
           icon_size="w-10 h-10"
           options={activeFilters.tripStates}

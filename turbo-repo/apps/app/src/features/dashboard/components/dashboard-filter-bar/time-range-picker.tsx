@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { HiCalendar, HiClock, HiSearch, HiChevronDown } from "react-icons/hi";
 import dayjs from "dayjs";
 import { z } from "zod";
+import { dayPart } from "../../utils/date-param";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
@@ -58,6 +59,9 @@ const DATE_QUICK_RANGES: QuickRangeDef[] = [
 ];
 
 const RECENT_RANGES_KEY = "time-range-picker-recent";
+/** Date-mode ranges are emitted as full-day boundaries so consumers get an hour, not a bare day. */
+const DAY_START = "00:00:00";
+const DAY_END = "23:59:59";
 const MAX_RECENT_RANGES = 5;
 
 export default function TimeRangePicker({
@@ -140,25 +144,42 @@ export default function TimeRangePicker({
     }
   };
 
-  const isValidRange = fromDate !== "" && toDate !== "" && fromDate <= toDate;
+  /** In date mode the picker only tracks days, so compare day parts. */
+  const isValidRange =
+    fromDate !== "" &&
+    toDate !== "" &&
+    (mode === "date"
+      ? dayPart(fromDate) <= dayPart(toDate)
+      : fromDate <= toDate);
+
+  /** Date mode emits `YYYY-MM-DD 00:00:00` / `YYYY-MM-DD 23:59:59` so the range covers the whole day. */
+  const withDayBound = (dateStr: string, edge: "from" | "to"): string => {
+    if (mode !== "date" || !dateStr) return dateStr;
+    return `${dayPart(dateStr)} ${edge === "from" ? DAY_START : DAY_END}`;
+  };
+
+  const emitRange = (from: string, to: string) => {
+    onDateChange(withDayBound(from, "from"), withDayBound(to, "to"));
+  };
 
   const handleApply = () => {
     if (isValidRange) {
-      onDateChange(fromDate, toDate);
+      emitRange(fromDate, toDate);
       saveRecentRange(fromDate, toDate);
       setIsOpen(false);
       onOpenChange?.(false);
     }
   };
 
-  const extractDatePart = (dateStr: string): string =>
-    dateStr.split(" ")[0] || dateStr.split("T")[0] || dateStr;
-
   const getInputValue = (dateStr: string): string => {
     if (!dateStr) return "";
-    if (mode === "date") return extractDatePart(dateStr);
+    if (mode === "date") return dayPart(dateStr);
     return dateStr.replace(" ", "T");
   };
+
+  /** Times are an implementation detail of date mode — the trigger shows plain days. */
+  const getDisplayValue = (dateStr: string): string =>
+    mode === "date" ? dayPart(dateStr) : dateStr;
 
   const handleQuickRangeSelect = (range: (typeof resolvedRanges)[number]) => {
     const value = range.getValue();
@@ -166,7 +187,7 @@ export default function TimeRangePicker({
     const toStr = value.to.format(dateFormat);
     setFromDate(fromStr);
     setToDate(toStr);
-    onDateChange(fromStr, toStr);
+    emitRange(fromStr, toStr);
     saveRecentRange(fromStr, toStr, range.labelKey);
     setIsOpen(false);
     onOpenChange?.(false);
@@ -177,11 +198,11 @@ export default function TimeRangePicker({
     to: string;
     labelKey?: string;
   }) => {
-    const fromFormatted = mode === "date" ? extractDatePart(range.from) : range.from;
-    const toFormatted = mode === "date" ? extractDatePart(range.to) : range.to;
+    const fromFormatted = mode === "date" ? dayPart(range.from) : range.from;
+    const toFormatted = mode === "date" ? dayPart(range.to) : range.to;
     setFromDate(fromFormatted);
     setToDate(toFormatted);
-    onDateChange(fromFormatted, toFormatted);
+    emitRange(fromFormatted, toFormatted);
     setIsOpen(false);
     onOpenChange?.(false);
   };
@@ -267,7 +288,7 @@ export default function TimeRangePicker({
         className={`flex cursor-pointer items-center border border-gray-300 bg-white text-sm transition-colors hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500 ${sizeClass}`}
         title={
           fromDate && toDate
-            ? `${fromDate} - ${toDate}`
+            ? `${getDisplayValue(fromDate)} - ${getDisplayValue(toDate)}`
             : t("selectDateRange")
         }
       >
@@ -275,7 +296,7 @@ export default function TimeRangePicker({
           <HiCalendar className={`shrink-0 text-gray-500 dark:text-gray-400 ${fullWidth ? "h-3.5 w-3.5" : "h-5 w-5"}`} />
           {fullWidth && (
             <span className="truncate text-xs text-gray-500 dark:text-gray-400">
-              {fromDate && toDate ? `${fromDate} – ${toDate}` : t("selectDateRange")}
+              {fromDate && toDate ? `${getDisplayValue(fromDate)} – ${getDisplayValue(toDate)}` : t("selectDateRange")}
             </span>
           )}
         </span>
@@ -353,7 +374,7 @@ export default function TimeRangePicker({
                       >
                         {range.labelKey
                           ? t(range.labelKey)
-                          : `${extractDatePart(range.from)} - ${extractDatePart(range.to)}`}
+                          : `${dayPart(range.from)} - ${dayPart(range.to)}`}
                       </button>
                     ))}
                   </div>

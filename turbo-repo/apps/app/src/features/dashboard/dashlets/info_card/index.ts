@@ -9,6 +9,7 @@ export const dashletDefinition: DashletDefinition = {
   SettingsModal: DashletSettings,
   defaultConfig: defaultConfig as unknown as Record<string, unknown>,
   getLayoutDefaults,
+  showInChat: false,
 };
 
 export { Dashlet, defaultConfig, getLayoutDefaults } from "./dashlet";

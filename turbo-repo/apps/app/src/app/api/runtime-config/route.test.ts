@@ -6,6 +6,7 @@ const ENV_KEYS = [
   "MAPBOX_API_KEY",
   "MAP_DEFAULT_TRIP_FILTER",
   "TASK_DRIVEN_ORIGINS",
+  "ENABLE_DEV_TOOLS",
 ] as const;
 
 describe("runtime config route", () => {
@@ -20,6 +21,7 @@ describe("runtime config route", () => {
     process.env[ENV_KEYS[1]] = "pk.runtime-mapbox-token";
     process.env[ENV_KEYS[2]] = "true";
     process.env[ENV_KEYS[3]] = "ANTOFAGASTA";
+    process.env[ENV_KEYS[4]] = "true";
 
     const response = GET();
     const data = await response.json();
@@ -29,6 +31,7 @@ describe("runtime config route", () => {
       MAPBOX_API_KEY: "pk.runtime-mapbox-token",
       MAP_DEFAULT_TRIP_FILTER: "true",
       TASK_DRIVEN_ORIGINS: "ANTOFAGASTA",
+      ENABLE_DEV_TOOLS: "true",
     });
   });
 

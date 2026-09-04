@@ -7,7 +7,7 @@ import type { PropsWithChildren } from "react";
 import { SecuredNavbar } from "./secured-navbar/secured-navbar";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
-import { buildNavBarMessages } from "../utils/utils";
+import { buildNavBarMessages, isHarnessUiEnabled } from "../utils/utils";
 import { SecuredSidebar } from "./secured-sidebar/secured-sidebar";
 import FooterSecuredLayout from "./footer-secured/footer-secured";
 import SseListener from "@/features/sse/components/sse-listener/sse-listener";
@@ -15,18 +15,6 @@ import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfre
 import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
 import { KioskShell } from "./kiosk-shell";
 
-// Server-only flags: kept off NEXT_PUBLIC_ so they never ship to the client
-// bundle. Resolved once at module scope (static config, not render state)
-// and passed down as props instead of read client-side.
-//
-// isSeachEnabled: when false/unset, SpotlightSearch isn't rendered at all
-// below, which also removes its Cmd+K listener — there's no client-side
-// toggle to bypass.
-//
-// isHarnessSettingsEnabled: Harness settings is a preview behind this flag;
-// threading it down as a prop keeps the sidebar link in sync with the
-// route's own 404 gate (harness/page.tsx) without exposing the flag itself.
-const isSeachEnabled = process.env.ENABLE_SEARCHBAR === "true";
 const isHarnessSettingsEnabled = process.env.ENABLE_HARNESS_SETTINGS === "true";
 
 export default async function SecuredLayout({
@@ -44,6 +32,10 @@ export default async function SecuredLayout({
     redirect(`/${lang}/sign-in`);
   }
   const initialOrgLogo = await getPublicOrgLogo();
+  // When false/unset, SpotlightSearch isn't rendered at all below, which
+  // also removes its Cmd+K listener — there's no client-side toggle to
+  // bypass. Also gates the harness-chat toggle in SecuredNavbar.
+  const isSeachEnabled = isHarnessUiEnabled();
   return (
     <RuntimeConfigProvider>
       <SidebarProvider>

@@ -59,10 +59,19 @@ def _body_routes() -> set[str]:
 
 
 def _registry_hrefs() -> set[str]:
-    """Static hrefs from the app nav registry (sections + nested items)."""
+    """Static hrefs from the app nav registry (sections + nested items).
+
+    Excludes the "dev" section: per `pages.ts`, it's reference-only tooling
+    (an extensions/components gallery for whoever builds harness chat tool
+    integrations) filtered out of real navigation unless ENABLE_DEV_TOOLS is
+    explicitly set — not a page real users reach, so the search skill has no
+    business teaching the AI to route users there.
+    """
     sections = json.loads(_PAGES_CONFIG.read_text(encoding="utf-8"))
     hrefs: set[str] = set()
     for section in sections:
+        if section.get("label") == "dev":
+            continue
         for entry in (section, *(section.get("items") or ())):
             href = entry.get("href")
             if href:

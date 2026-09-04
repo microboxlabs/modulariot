@@ -7,7 +7,7 @@ const SITE_NAME = "ModularIoT";
 const DEFAULT_OG_IMAGE = { url: "/logo.svg", width: 1052, height: 256, alt: SITE_NAME };
 const TWITTER_HANDLE = "@microboxlabs";
 
-// Cada página bajo /alpha-2506/{lang} llama a esto para su metadata: fija
+// Cada página bajo /{lang} llama a esto para su metadata: fija
 // canonical + hreflang (alternates.languages) y repite el bloque completo de
 // openGraph/twitter, porque Next.js NO hace merge profundo de esos objetos
 // con los del layout — si una página define openGraph, reemplaza el del
@@ -23,13 +23,13 @@ export function pageMetadata({
   title: string;
   description: string;
 }): Metadata {
-  const canonical = `/alpha-2506/${lang}${path}`;
+  const canonical = `/${lang}${path}`;
   return {
     title,
     description,
     alternates: {
       canonical,
-      languages: Object.fromEntries(LOCALES.map((l) => [l, `/alpha-2506/${l}${path}`])),
+      languages: Object.fromEntries(LOCALES.map((l) => [l, `/${l}${path}`])),
     },
     openGraph: {
       title,

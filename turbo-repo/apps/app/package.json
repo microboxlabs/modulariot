@@ -1,6 +1,6 @@
 {
   "name": "@modulariot/app",
-  "version": "0.5.44",
+  "version": "0.5.46",
   "private": true,
   "scripts": {
     "dev": "next dev --port 3050",
@@ -25,8 +25,10 @@
     "upgrade": "next upgrade"
   },
   "dependencies": {
+    "@ag-ui/client": "^0.0.57",
     "@alfresco/js-api": "^9.0.0",
-    "@modulariot/ui": "*",
+    "@assistant-ui/react": "^0.15.5",
+    "@assistant-ui/react-ag-ui": "^0.0.54",
     "@auth/core": "0.41.3",
     "@deck.gl/core": "9.2.6",
     "@deck.gl/mapbox": "9.2.6",
@@ -40,6 +42,7 @@
     "@microboxlabs/miot-calendar-ui": "*",
     "@microboxlabs/miot-harness-client": "*",
     "@microboxlabs/miot-resource-client": "*",
+    "@modulariot/ui": "*",
     "@next/mdx": "16.2.11",
     "@react-google-maps/api": "^2.20.3",
     "@tailwindcss/postcss": "^4.1.17",
@@ -119,7 +122,7 @@
     "knip": "^5.79.0",
     "node-mocks-http": "^1.16.2",
     "pagefind": "^1.5.2",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.23",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "typescript": "^5",

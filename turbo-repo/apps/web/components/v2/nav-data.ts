@@ -40,19 +40,19 @@ export const COLUMN_MENUS: {
     columns: [
       {
         links: [
-          { href: "/soluciones#casos-de-uso" },
-          { href: "/soluciones#casos-de-uso" },
-          { href: "/soluciones#casos-de-uso" },
-          { href: "/soluciones#casos-de-uso" },
+          { href: "/soluciones#monitoreo-conductores" },
+          { href: "/soluciones#telemetria-mantenimiento" },
+          { href: "/soluciones#cumplimiento-auditorias" },
+          { href: "/soluciones#torre-de-control" },
         ],
         footer: { href: "/soluciones" },
       },
       {
         links: [
-          { href: "/soluciones#industrias" },
-          { href: "/soluciones#industrias" },
-          { href: "/soluciones#industrias" },
-          { href: "/soluciones#industrias" },
+          { href: "/soluciones#transporte-carga" },
+          { href: "/soluciones#mineria" },
+          { href: "/soluciones#telemetria-flota" },
+          { href: "/soluciones#logistica-industrial" },
         ],
         footer: { href: "/#clientes" },
       },

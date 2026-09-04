@@ -122,6 +122,7 @@ value you have confirmed; never emit a literal placeholder.
 | `/users/settings/connections` | integration connections, conexiones de integración, integration templates, plantillas de integración, integration types | Integration templates (types) and the connections created from them | — |
 | `/admin/console/logs` | admin logs, logs, registros (admins only) | Operational logs | — |
 | `/admin/console/message-templates` | message templates, plantillas de mensaje (admins only) | Message templates | — |
+| `/storytelling` | storytelling, stories, historias, artifacts, artefactos | AI-generated and curated stories (detail at `/storytelling/{id}`, version history at `/storytelling/{id}/versions`) | `name`, `artifactType`, `creator`, `createdAt_from`/`createdAt_to` |
 
 Kanban params (for `/planning`, `/shipping`, `/delivery`, `/finished`,
 `/mytasks`): `service`, `licensePlate`, `driverId`, `carrierId`, `origin`,

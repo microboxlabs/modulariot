@@ -20,6 +20,7 @@ import { InitialMessageSender } from "./components/initial-message-sender";
 import { PendingAttachmentReceiver } from "./components/pending-attachment-receiver";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
+import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import { StandaloneDictionaryProvider } from "@/features/dashboard/context/standalone-dictionary-context";
 import type { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Thread } from "./thread";
@@ -52,13 +53,29 @@ export default function HarnessChat({
   dict: I18nDictionary;
   locale: string;
 }>) {
+  // create_story is testing scaffolding for the storytelling feature (see
+  // ENABLE_STORYTELLING) — strip it out via the same runtime-config flag
+  // that hides the Storytelling nav entry (useVisiblePages), so the tool
+  // isn't reachable from chat when the feature itself isn't. Fails closed:
+  // useRuntimeConfig() is null until the fetch resolves, which hides the
+  // tool a beat longer rather than exposing it early.
+  const runtimeConfig = useRuntimeConfig();
+  const storytellingEnabled = runtimeConfig?.ENABLE_STORYTELLING === "true";
+  const effectiveExtensions = useMemo(
+    () =>
+      storytellingEnabled
+        ? extensions
+        : extensions.filter((ext) => ext.toolName !== "create_story"),
+    [extensions, storytellingEnabled]
+  );
+
   return (
     <HarnessChatI18nProvider dict={dict}>
       {/* Dashlets rendered by show_dashlet cards sit outside any
           DashboardProvider and would otherwise translate against an empty
           dictionary, printing raw key paths. */}
       <StandaloneDictionaryProvider dictionary={dict as I18nRecord}>
-        <HarnessChatPanel extensions={extensions} skills={skills} locale={locale} />
+        <HarnessChatPanel extensions={effectiveExtensions} skills={skills} locale={locale} />
       </StandaloneDictionaryProvider>
     </HarnessChatI18nProvider>
   );

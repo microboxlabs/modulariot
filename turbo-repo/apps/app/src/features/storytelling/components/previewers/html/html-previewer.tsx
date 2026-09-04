@@ -130,6 +130,13 @@ export const HtmlPreviewer = forwardRef<SearchableHandle, HtmlPreviewerProps>(
             ref={iframeRef}
             onLoad={handleIframeLoad}
             src={HTML_PREVIEW_URL}
+            // allow-scripts: the fixture's own inline <script> has to run.
+            // allow-same-origin: contentDocument access above (theming,
+            // injectActionPills, find-in-page) needs it. Together they don't
+            // fully sandbox script content — the missing permissions
+            // (top-navigation, popups, forms, modals, downloads, pointer
+            // lock) are what's actually being withheld here.
+            sandbox="allow-scripts allow-same-origin"
             title={title}
             className="h-full w-full border-0"
           />

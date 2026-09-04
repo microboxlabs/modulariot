@@ -85,9 +85,9 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
   // Find-in-page, delegated to whichever previewer is mounted — Html,
   // Markdown, and Ppt all implement SearchableHandle (see previewers/
   // searchable.ts); only one previewer ever renders at a time (switched on
-  // artifactType below), so one ref covers all three. Pdf doesn't: it's a
-  // native browser <iframe src="file.pdf">, and there's no way to script a
-  // browser's built-in PDF viewer's search from outside.
+  // artifactType below), so one ref covers all three. Pdf doesn't yet: it
+  // renders with pdf.js (previewers/pdf/pdf-previewer.tsx) but only paints
+  // page canvases — there's no text layer to search until one is added.
   const previewerRef = useRef<SearchableHandle>(null);
   const [previewerReady, setPreviewerReady] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");

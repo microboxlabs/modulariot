@@ -56,7 +56,7 @@ function sseFrame(event: Record<string, unknown>): Uint8Array {
   return SSE_ENCODER.encode(`data: ${JSON.stringify(event)}\n\n`);
 }
 
-type Sender = (event: Record<string, unknown>) => void;
+export type Sender = (event: Record<string, unknown>) => void;
 
 /** Same phase→headline mapping the old client-side adapter used, now run
  * server-side since the narration is streamed as AG-UI THINKING_* events.
@@ -177,7 +177,7 @@ function createStoryToolCall(send: Sender, args: CreateStoryArgs): void {
   send({ type: "TOOL_CALL_END", toolCallId });
 }
 
-type AgUiMessage = {
+export type AgUiMessage = {
   id: string;
   role: "developer" | "system" | "assistant" | "user" | "tool" | "activity" | "reasoning";
   content?: unknown;
@@ -376,14 +376,14 @@ function demoCreateStory(send: Sender, text: string): boolean {
   return true;
 }
 
-type HarnessPathDecision = { handled: true } | { handled: false; message: string };
+export type HarnessPathDecision = { handled: true } | { handled: false; message: string };
 
 /** Short-circuits for turns that don't need the real harness at all: an
  * ask_user_question tool result, an empty user message, a demo trigger, or
  * the harness endpoint being unconfigured. Returns `handled: true` once
  * it's fully finished the run itself, or the resolved user message when
  * the caller still needs to drive the real harness. */
-function decideHarnessPath(
+export function decideHarnessPath(
   send: Sender,
   messages: AgUiMessage[],
   runId: string,
@@ -412,12 +412,17 @@ function decideHarnessPath(
   // runtime-config.types.ts).
   const storytellingTestingEnabled = process.env.ENABLE_STORYTELLING === "true";
 
-  if (storytellingTestingEnabled && demoCreateStory(send, message)) {
-    send({ type: "RUN_FINISHED", runId, threadId });
-    return { handled: true };
-  }
-
   if (!isModulithConfigured()) {
+    // Demo triggers only ever run as a stand-in for the real harness — they
+    // must stay inside this branch. `demoCreateStory` used to run ahead of
+    // this check, so with the flag on, any real (configured-harness) turn
+    // that merely mentioned "story"/"stories" got hijacked into a fake
+    // create_story card instead of reaching the actual harness.
+    if (storytellingTestingEnabled && demoCreateStory(send, message)) {
+      send({ type: "RUN_FINISHED", runId, threadId });
+      return { handled: true };
+    }
+
     if (demoAskUserQuestion(send, message, tr)) {
       send({ type: "RUN_FINISHED", runId, threadId });
       return { handled: true };

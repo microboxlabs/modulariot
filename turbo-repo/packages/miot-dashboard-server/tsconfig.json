@@ -1,0 +1,26 @@
+{
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    // tsup bundles the entry, so bundler-style resolution keeps relative
+    // re-exports in src/index.ts free of explicit .js extensions for DTS emit.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    // Pinned, not inherited, even though base.json already sets it true: this
+    // is a deliberate choice for this package, so it should not move if the
+    // base config ever relaxes. apps/app and the UI packages override it to
+    // false to accommodate code already written against the looser setting;
+    // this package has none yet, and AGENTS.md:155 asks for it enabled.
+    // Index-safety matters most in exactly the code arriving in P4 — the
+    // datasource query proxy. If the moved pgrest services fight it there,
+    // relax it then, with the code in hand: true -> false is a one-line
+    // retreat, false -> true is a rewrite.
+    "noUncheckedIndexedAccess": true,
+    //
+    // Server package: no DOM. Keeps browser-only globals from compiling.
+    "lib": ["es2022"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

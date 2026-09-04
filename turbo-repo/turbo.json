@@ -73,6 +73,7 @@
     "ENABLE_STORYTELLING",
     "ENABLE_SEARCHBAR",
     "ENABLE_REGISTER_LINK",
+    "ENABLE_HARNESS_SETTINGS",
     "AUTH_CREDENTIALS_LABEL_VARIANT"
   ],
   "tasks": {
@@ -93,6 +94,21 @@
       "cache": false,
       "persistent": true
     },
+    "dev:server": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["MIOT_DASHBOARD_*", "PORT", "HOST"]
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["MIOT_DASHBOARD_*", "PORT", "HOST"]
+    },
+    "test:api": {
+      "cache": false,
+      "passThroughEnv": ["MIOT_DASHBOARD_*", "PORT", "HOST"]
+    },
     "storm": {
       "cache": false,
       "persistent": true
@@ -112,7 +128,7 @@
     },
     "db:migrate": {
       "cache": false,
-      "persistent": true 
+      "persistent": true
     },
     "db:deploy": {
       "cache": false

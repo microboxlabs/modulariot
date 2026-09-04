@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { useVisiblePages } from "../hooks/use-visible-pages";
+import { filterHarnessSettings } from "../models/pages";
 import { SidebarItem } from "../types/common.types";
 import {
   getMyTasks,
@@ -26,7 +27,11 @@ import {
   PLANNING_COORDINATOR_PROCESS_TASKS,
   SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
 } from "@/features/task-forms/services/form.service";
-import { DeliveryProcessTask, PlanningProcessTask, ShippingCoordinatorProcessTaskV2 } from "@/features/task-forms/services/form.service.types";
+import {
+  DeliveryProcessTask,
+  PlanningProcessTask,
+  ShippingCoordinatorProcessTaskV2,
+} from "@/features/task-forms/services/form.service.types";
 
 interface SidebarNavigationContextValue {
   items: SidebarItem[];
@@ -107,9 +112,14 @@ function useCalendarDynamicItems(): SidebarItem[] {
   return useMemo(() => {
     if (calendars.length === 0) return [];
 
-    const groupMap = new Map<string, { group: CalendarGroupResponse; firstCalId: string }>();
+    const groupMap = new Map<
+      string,
+      { group: CalendarGroupResponse; firstCalId: string }
+    >();
 
-    for (const cal of calendars.slice().sort((a, b) => a.id.localeCompare(b.id))) {
+    for (const cal of calendars
+      .slice()
+      .sort((a, b) => a.id.localeCompare(b.id))) {
       const group = cal.groups?.[0];
       if (group && !groupMap.has(group.code)) {
         groupMap.set(group.code, { group, firstCalId: cal.id });
@@ -123,7 +133,21 @@ function useCalendarDynamicItems(): SidebarItem[] {
   }, [calendars]);
 }
 
-export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildren>) {
+interface SidebarNavigationProviderProps extends PropsWithChildren {
+  /**
+   * Harness settings is a preview behind a server-resolved feature flag —
+   * kept off NEXT_PUBLIC_ so it never ships to the client bundle. Passed
+   * down from SecuredLayout (a server component) instead, so the sidebar
+   * link stays in sync with the route's own 404 gate without exposing the
+   * flag itself to the client.
+   */
+  isHarnessSettingsEnabled: boolean;
+}
+
+export function SidebarNavigationProvider({
+  children,
+  isHarnessSettingsEnabled,
+}: Readonly<SidebarNavigationProviderProps>) {
   const router = useRouter();
   const { data, error } = useMyTasksCount();
   const { data: historicInstances } = useHistoricInstancesCount();
@@ -146,21 +170,27 @@ export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildr
     if (!error) {
       totals["shipping"] = Object.entries(data?.totals ?? {})
         .filter(([key]) =>
-          SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(key as ShippingCoordinatorProcessTaskV2)
+          SHIPPING_COORDINATOR_PROCESS_TASKS_V2.includes(
+            key as ShippingCoordinatorProcessTaskV2
+          )
         )
         .map(([, value]) => value)
         .reduce((a, b) => a + b, 0);
 
       totals["delivery"] = Object.entries(data?.totals ?? {})
         .filter(([key]) =>
-          DELIVERY_COORDINATOR_PROCESS_TASKS.includes(key as DeliveryProcessTask)
+          DELIVERY_COORDINATOR_PROCESS_TASKS.includes(
+            key as DeliveryProcessTask
+          )
         )
         .map(([, value]) => value)
         .reduce((a, b) => a + b, 0);
 
       totals["planning"] = Object.entries(data?.totals ?? {})
         .filter(([key]) =>
-          PLANNING_COORDINATOR_PROCESS_TASKS.includes(key as PlanningProcessTask)
+          PLANNING_COORDINATOR_PROCESS_TASKS.includes(
+            key as PlanningProcessTask
+          )
         )
         .map(([, value]) => value)
         .reduce((a, b) => a + b, 0);
@@ -190,19 +220,33 @@ export function SidebarNavigationProvider({ children }: Readonly<PropsWithChildr
       dashboards: dashboardDynamicItems,
     };
 
-    const resolvedItems = pages.map((page) => {
-      if (!page.dynamicItemsSource) return page;
-      const dynamic = dynamicMap[page.dynamicItemsSource] ?? [];
-      return { ...page, items: [...(page.items ?? []), ...dynamic] };
+    const resolvedItems = filterHarnessSettings(
+      pages,
+      isHarnessSettingsEnabled
+    ).map((page) => {
+      const dynamic = page.dynamicItemsSource
+        ? (dynamicMap[page.dynamicItemsSource] ?? [])
+        : [];
+      const items = [...(page.items ?? []), ...dynamic];
+      return { ...page, items };
     });
 
     return { items: resolvedItems, totals, isLoading: false };
-  }, [pages, taskDynamicItems, calendarDynamicItems, dashboardDynamicItems, data, historicInstances, mapCount, symptomsCount, error]);
+  }, [
+    pages,
+    taskDynamicItems,
+    calendarDynamicItems,
+    dashboardDynamicItems,
+    data,
+    historicInstances,
+    mapCount,
+    symptomsCount,
+    error,
+    isHarnessSettingsEnabled,
+  ]);
 
   return (
-    <SidebarNavigationContext.Provider
-      value={contextValue}
-    >
+    <SidebarNavigationContext.Provider value={contextValue}>
       {children}
     </SidebarNavigationContext.Provider>
   );

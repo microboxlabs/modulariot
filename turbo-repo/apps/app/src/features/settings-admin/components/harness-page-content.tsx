@@ -21,7 +21,11 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { useOrgMembers } from "../hooks/use-org-members";
-import HarnessSeatsModal, { type BillingCycle } from "./harness-seats-modal";
+import HarnessSeatsModal, {
+  type BillingCycle,
+  getBillingTotal,
+  getPricePerSeatForCycle,
+} from "./harness-seats-modal";
 
 interface HarnessPageContentProps {
   readonly dict: I18nRecord;
@@ -216,7 +220,19 @@ export default function HarnessPageContent({
   // Seats "used" tracks active members, not the whole roster — deactivating
   // someone in the access list below frees up their seat immediately.
   const seatsUsed = Math.min(activeCount, purchasedSeats);
-  const estimatedTotal = purchasedSeats * PRICE_PER_SEAT_USD;
+  // Same pricing calc the seats modal uses, keyed on the saved billing
+  // cycle, so the pricing card and the modal never disagree on the total.
+  const pricePerSeatForCycle = getPricePerSeatForCycle(
+    PRICE_PER_SEAT_USD,
+    billingCycle
+  );
+  const estimatedTotal = getBillingTotal(
+    purchasedSeats,
+    PRICE_PER_SEAT_USD,
+    billingCycle
+  );
+  const recurringUnitKey =
+    billingCycle === "yearly" ? "yearlyUnit" : "monthlyUnit";
 
   const seatsStatus = getSeatsStatus(seatsUsed, purchasedSeats);
   const tokensStatus = getUsageStatus(TOKENS_USED, MAX_TOKENS);
@@ -268,10 +284,14 @@ export default function HarnessPageContent({
                 {tr("unpaidAlert", harnessDict)}
               </p>
             </div>
+            {/* No payment-method flow exists yet — the seat/billing-cycle
+                modal this used to open can't resolve a failed payment, so
+                the action stays disabled rather than pointing somewhere
+                misleading. Wire this up once that flow lands. */}
             <button
               type="button"
-              onClick={() => setShowSeatsModal(true)}
-              className="shrink-0 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+              disabled
+              className="shrink-0 cursor-not-allowed rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white opacity-50"
             >
               {tr("unpaidAlertAction", harnessDict)}
             </button>
@@ -312,7 +332,7 @@ export default function HarnessPageContent({
                     ${estimatedTotal.toLocaleString()}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {tr("monthlyUnit", monthlyUnitDict)}
+                    {trDynamic(recurringUnitKey, monthlyUnitDict)}
                   </span>
                 </div>
               </div>
@@ -323,10 +343,10 @@ export default function HarnessPageContent({
                 </p>
                 <div className="mt-1 flex items-baseline gap-1.5">
                   <span className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
-                    ${PRICE_PER_SEAT_USD}
+                    ${pricePerSeatForCycle}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {tr("monthlyUnit", monthlyUnitDict)}
+                    {trDynamic(recurringUnitKey, monthlyUnitDict)}
                   </span>
                 </div>
               </div>

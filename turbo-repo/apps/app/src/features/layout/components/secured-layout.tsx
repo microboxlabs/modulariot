@@ -46,6 +46,7 @@ export default async function SecuredLayout({
             dict={dictionary as I18nRecord}
             initialOrgLogo={initialOrgLogo}
             isSeachEnabled={isSeachEnabled}
+            isHarnessSettingsEnabled={isHarnessSettingsEnabled}
           />
           <div
             data-testid="content-with-sidebar"

@@ -12,6 +12,35 @@ export type BillingCycle = "monthly" | "yearly";
 // 20% off the monthly per-seat rate when billed yearly.
 const YEARLY_DISCOUNT = 0.2;
 
+/** Per-seat rate for a cycle — discounted (and rounded, like the sticker price) when yearly. */
+export function getPricePerSeatForCycle(
+  pricePerSeat: number,
+  billingCycle: BillingCycle
+): number {
+  return billingCycle === "yearly"
+    ? Math.round(pricePerSeat * (1 - YEARLY_DISCOUNT))
+    : pricePerSeat;
+}
+
+/**
+ * The recurring charge for a cycle — used for both the modal's own cards and
+ * the page's pricing stats, so they can never show mismatched totals for the
+ * same seat count/cycle.
+ */
+export function getBillingTotal(
+  seats: number,
+  pricePerSeat: number,
+  billingCycle: BillingCycle
+): number {
+  const effectivePricePerSeat = getPricePerSeatForCycle(
+    pricePerSeat,
+    billingCycle
+  );
+  return billingCycle === "yearly"
+    ? seats * effectivePricePerSeat * 12
+    : seats * effectivePricePerSeat;
+}
+
 interface HarnessSeatsModalProps {
   readonly show: boolean;
   readonly currentSeats: number;
@@ -46,9 +75,9 @@ export default function HarnessSeatsModal({
   const adjustSeats = (delta: number) =>
     setSeats((current) => Math.max(minSeats, current + delta));
 
-  const yearlyPricePerSeat = Math.round(pricePerSeat * (1 - YEARLY_DISCOUNT));
-  const monthlyTotal = seats * pricePerSeat;
-  const yearlyTotal = seats * yearlyPricePerSeat * 12;
+  const yearlyPricePerSeat = getPricePerSeatForCycle(pricePerSeat, "yearly");
+  const monthlyTotal = getBillingTotal(seats, pricePerSeat, "monthly");
+  const yearlyTotal = getBillingTotal(seats, pricePerSeat, "yearly");
 
   const isDirty =
     seats !== currentSeats || billingCycle !== currentBillingCycle;

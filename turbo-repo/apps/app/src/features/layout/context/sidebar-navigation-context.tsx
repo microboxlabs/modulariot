@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { useVisiblePages } from "../hooks/use-visible-pages";
+import { filterHarnessSettings } from "../models/pages";
 import { SidebarItem } from "../types/common.types";
 import {
   getMyTasks,
@@ -219,14 +220,14 @@ export function SidebarNavigationProvider({
       dashboards: dashboardDynamicItems,
     };
 
-    const resolvedItems = pages.map((page) => {
+    const resolvedItems = filterHarnessSettings(
+      pages,
+      isHarnessSettingsEnabled
+    ).map((page) => {
       const dynamic = page.dynamicItemsSource
         ? (dynamicMap[page.dynamicItemsSource] ?? [])
         : [];
-      const items = [...(page.items ?? []), ...dynamic].filter(
-        (item) =>
-          isHarnessSettingsEnabled || item.href !== "/users/settings/harness"
-      );
+      const items = [...(page.items ?? []), ...dynamic];
       return { ...page, items };
     });
 

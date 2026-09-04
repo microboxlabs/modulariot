@@ -68,9 +68,9 @@ export default function HarnessSeatsModal({
 
   useEffect(() => {
     if (!show) return;
-    setSeats(currentSeats);
+    setSeats(Math.max(currentSeats, minSeats));
     setBillingCycle(currentBillingCycle);
-  }, [show, currentSeats, currentBillingCycle]);
+  }, [show, currentSeats, currentBillingCycle, minSeats]);
 
   const adjustSeats = (delta: number) =>
     setSeats((current) => Math.max(minSeats, current + delta));

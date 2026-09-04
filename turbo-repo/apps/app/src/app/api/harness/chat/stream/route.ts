@@ -16,6 +16,7 @@ import {
   type HarnessStreamProgress,
 } from "@/features/layout/components/secured-navbar/spotlight-search/harness-stream";
 import type { AskUserQuestionArgs } from "@/features/harness-chat/extensions/ask-user-question";
+import type { CreateStoryArgs } from "@/features/harness-chat/extensions/create-story";
 import type { ShowDashletArgs } from "@/features/harness-chat/extensions/show-dashlet";
 import { getAllDashlets, getAllDashletMetas } from "@/features/dashboard/dashlets";
 import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.service";
@@ -165,6 +166,13 @@ function askUserQuestionToolCall(send: Sender, args: AskUserQuestionArgs): void 
 function showDashletToolCall(send: Sender, args: ShowDashletArgs): void {
   const toolCallId = crypto.randomUUID();
   send({ type: "TOOL_CALL_START", toolCallId, toolCallName: "show_dashlet" });
+  send({ type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) });
+  send({ type: "TOOL_CALL_END", toolCallId });
+}
+
+function createStoryToolCall(send: Sender, args: CreateStoryArgs): void {
+  const toolCallId = crypto.randomUUID();
+  send({ type: "TOOL_CALL_START", toolCallId, toolCallName: "create_story" });
   send({ type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) });
   send({ type: "TOOL_CALL_END", toolCallId });
 }
@@ -354,6 +362,20 @@ function demoShowDashlet(send: Sender, text: string, tr: TrFn): boolean {
   return true;
 }
 
+/** Demo trigger for the create_story human tool — makes a new /storytelling/{id}
+ * entry "AI generated", entirely client-side (see create-story-card.tsx):
+ * this route can't touch the browser's localStorage itself, so it only hands
+ * the tool call a fresh id and lets the card do the actual creation. Nothing
+ * renders in the chat for this one — that's the point (see CreateStoryCard). */
+function demoCreateStory(send: Sender, text: string): boolean {
+  // Loose on purpose, same as demoShowDashlet's fallback below — any phrase
+  // with "story"/"stories" in it (create/show/make/new a story, etc.), not
+  // just the literal "create a story".
+  if (!/\bstor(y|ies)\b/i.test(text)) return false;
+  createStoryToolCall(send, { id: crypto.randomUUID().slice(0, 8) });
+  return true;
+}
+
 type HarnessPathDecision = { handled: true } | { handled: false; message: string };
 
 /** Short-circuits for turns that don't need the real harness at all: an
@@ -384,13 +406,24 @@ function decideHarnessPath(
     return { handled: true };
   }
 
+  // Both storytelling-related trigger words — "create a story" and "show
+  // all dashlets" — are testing scaffolding, gated the same as the
+  // storytelling pages themselves (see ENABLE_STORYTELLING in
+  // runtime-config.types.ts).
+  const storytellingTestingEnabled = process.env.ENABLE_STORYTELLING === "true";
+
+  if (storytellingTestingEnabled && demoCreateStory(send, message)) {
+    send({ type: "RUN_FINISHED", runId, threadId });
+    return { handled: true };
+  }
+
   if (!isModulithConfigured()) {
     if (demoAskUserQuestion(send, message, tr)) {
       send({ type: "RUN_FINISHED", runId, threadId });
       return { handled: true };
     }
 
-    if (demoShowAllDashlets(send, message)) {
+    if (storytellingTestingEnabled && demoShowAllDashlets(send, message)) {
       send({ type: "RUN_FINISHED", runId, threadId });
       return { handled: true };
     }

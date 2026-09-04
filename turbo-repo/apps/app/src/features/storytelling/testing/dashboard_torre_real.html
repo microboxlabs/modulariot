@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rendimiento Torre de Control — Datos Reales</title><!-- v: filtro-mes -->
+<style>
+  :root{
+    --surface:#FCFCFB; --card:#FFFFFF; --border:#E5E7EB;
+    --ink:#111827; --ink2:#6B7280; --ink3:#9CA3AF;
+    --cat1:#1C64F2; --cat3:#0D9488; --cat6:#A16207;
+    --good:#15803D; --goodbg:#DCFCE7; --warn:#A16207; --warnbg:#FEF3C7; --crit:#B91C1C; --critbg:#FEE2E2;
+  }
+  /* Mirrors the app's own dark palette (gray-900/800/700) — toggled via the
+     `dark` class on this document's <html>, kept in sync with the parent
+     app's theme by syncInjectedTheme() in iframe-inject-actions.ts. Category
+     bar/badge accent colors (cat1/cat3/cat6) and per-cell heatmap/chart
+     colors set directly by the script stay as-is in both themes — only the
+     chrome (surface, card, border, text, status colors) swaps. */
+  html.dark{
+    --surface:#111827; --card:#1F2937; --border:#374151;
+    --ink:#F3F4F6; --ink2:#9CA3AF; --ink3:#6B7280;
+    --cat1:#3B82F6; --cat3:#2DD4BF; --cat6:#D97706;
+    --good:#4ADE80; --goodbg:rgba(34,197,94,.16); --warn:#FBBF24; --warnbg:rgba(217,119,6,.16); --crit:#F87171; --critbg:rgba(220,38,38,.16);
+  }
+  html.dark .note{background:rgba(220,38,38,.12); border-color:rgba(248,113,113,.35); color:#FCA5A5;}
+  html.dark .ddpanel label:hover{background:#374151;}
+  html.dark .ddpanel .clear{background:#374151;}
+  html.dark .chip{background:#374151;}
+  html.dark .chip.glb{background:rgba(217,119,6,.2); border-color:rgba(217,119,6,.4); color:#FCD34D;}
+  html.dark .b-info{background:rgba(59,130,246,.18); color:#93C5FD;}
+  html.dark .b-mut{background:#374151;}
+  html.dark td{border-bottom-color:#374151;}
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--surface); color:var(--ink); font:14px/1.45 -apple-system,"Segoe UI",Inter,Roboto,sans-serif; padding:24px 16px 64px;}
+  .wrap{max-width:1400px; margin:0 auto;}
+  h1{font-size:22px; font-weight:700;}
+  .sub{color:var(--ink2); margin-top:2px; font-size:13px;}
+  .note{background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; padding:10px 14px; margin:14px 0 18px; font-size:12.5px; color:#7F1D1D;}
+  .filters{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px; position:sticky; top:0; z-index:30; background:var(--surface); padding:8px 0;}
+  .filter{background:var(--card); border:1px solid var(--border); border-radius:8px; padding:7px 12px; font-size:13px; display:flex; align-items:center; gap:8px;}
+  .filter b{font-weight:600;} .filter .val{color:var(--cat1); font-weight:600;}
+  .filter .tag{font-size:10px; color:var(--ink3); font-family:ui-monospace,Menlo,monospace;}
+  .dd{position:relative; cursor:pointer;}
+  .ddpanel{display:none; position:absolute; top:100%; left:0; margin-top:6px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:8px 10px; z-index:40; box-shadow:0 10px 28px rgba(0,0,0,.14); min-width:300px; max-height:320px; overflow:auto; cursor:default;}
+  .dd.open .ddpanel{display:block;}
+  .ddpanel label{display:flex; gap:8px; align-items:center; font-size:12.5px; padding:5px 4px; cursor:pointer; white-space:nowrap; border-radius:6px;}
+  .ddpanel label:hover{background:#F3F4F6;}
+  .ddpanel .muted{color:var(--ink3); font-size:11px;}
+  .ddpanel .clear{display:block; width:100%; margin-top:6px; border:1px solid var(--border); background:#F9FAFB; border-radius:6px; padding:5px; font:inherit; font-size:12px; cursor:pointer; color:var(--ink2);}
+  .grid{display:grid; grid-template-columns:repeat(24,1fr); gap:12px;}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; position:relative; min-width:0;}
+  .w4{grid-column:span 4;} .w6{grid-column:span 6;} .w8{grid-column:span 8;} .w12{grid-column:span 12;} .w24{grid-column:span 24;}
+  @media(max-width:1100px){ .w4{grid-column:span 8;} .w6{grid-column:span 12;} .w8{grid-column:span 12;} .w12{grid-column:span 24;} }
+  @media(max-width:640px){ .w4,.w6,.w8{grid-column:span 24;} }
+  .chip{position:absolute; top:10px; right:12px; font-size:9.5px; color:var(--ink3); font-family:ui-monospace,Menlo,monospace; background:#F9FAFB; border:1px solid var(--border); border-radius:4px; padding:1px 6px; max-width:46%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .chip.glb{background:#FEF3C7; border-color:#FDE68A; color:#92400E;}
+  .ttl{font-size:12.5px; font-weight:600; color:var(--ink2); margin-bottom:6px; padding-right:110px;}
+  .big{font-size:30px; font-weight:700; letter-spacing:-0.5px;}
+  .big small{font-size:14px; font-weight:500; color:var(--ink2);}
+  .desc{font-size:12px; color:var(--ink2); margin-top:4px;}
+  .pill{font-size:12px; font-weight:600; margin-top:4px; display:inline-flex; align-items:center; gap:4px; border-radius:6px; padding:2px 8px;}
+  .p-good{color:var(--good); background:var(--goodbg);} .p-crit{color:var(--crit); background:var(--critbg);} .p-warn{color:var(--warn); background:var(--warnbg);}
+  .sep{grid-column:span 24; margin-top:10px; padding:8px 2px 0; border-top:2px solid var(--border);}
+  .sep h2{font-size:15px; font-weight:700;} .sep p{font-size:12.5px; color:var(--ink2); margin-top:2px;}
+  .sep .chipline{font-size:10px; color:var(--ink3); font-family:ui-monospace,Menlo,monospace; float:right;}
+  svg{display:block; width:100%; height:auto;}
+  .legend{display:flex; flex-wrap:wrap; gap:14px; font-size:11.5px; color:var(--ink2); margin-top:8px;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .sw{width:10px; height:10px; border-radius:3px; display:inline-block;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{text-align:left; color:var(--ink2); font-weight:600; padding:7px 8px; border-bottom:1px solid var(--border); white-space:nowrap;}
+  td{padding:7px 8px; border-bottom:1px solid #F3F4F6; white-space:nowrap;}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums;}
+  .badge{display:inline-block; border-radius:6px; padding:1px 8px; font-size:11.5px; font-weight:600;}
+  .b-crit{background:var(--critbg); color:var(--crit);} .b-warn{background:var(--warnbg); color:var(--warn);} .b-good{background:var(--goodbg); color:var(--good);} .b-info{background:#DBEAFE; color:#1E40AF;} .b-mut{background:#F3F4F6; color:var(--ink2);}
+  .tblwrap{overflow-x:auto;}
+  .hm td{text-align:center; padding:6px 4px; font-size:11.5px; font-variant-numeric:tabular-nums; border:2px solid var(--card); border-radius:4px;}
+  .hm th{text-align:center;}
+  .hm td.rowlab{text-align:left; color:var(--ink2); font-weight:600; background:var(--card) !important; white-space:nowrap;}
+  #tip{position:fixed; pointer-events:none; background:var(--ink); color:#fff; font-size:11.5px; padding:5px 9px; border-radius:6px; opacity:0; transition:opacity .1s; z-index:50; max-width:280px; white-space:nowrap;}
+  code{font-family:ui-monospace,Menlo,monospace; font-size:11.5px; background:#F3F4F6; padding:1px 5px; border-radius:4px;}
+  .tchip{border:1px solid var(--border); border-radius:8px; padding:5px 12px; font-size:12.5px; cursor:pointer; background:#F9FAFB; color:var(--ink2); font-weight:600;}
+  .tchip.on{background:#DBEAFE; color:#1E40AF; border-color:#93C5FD;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Rendimiento Torre de Control</h1>
+  <div class="sub"><b>DATOS REALES</b> · universo atendible: eventos desde el nivel donde la Matriz exige operador (crítica+; comprometida+ en carga y fatiga; pánico y descanso solo negro) — sin niveles automáticos, sin ETA · histórico mar-2025 → 24-ago-2026 (filtros de período y mes) · BD prod_iot_gps + citus (capa nexo) · TZ America/Santiago · extraído 2026-08-21 (síntomas y coordinador, con corrección TZ naive-UTC)</div>
+  <div class="note"><b>Hallazgos (trimestre móvil jun→ago 2026, universo atendible):</b> 26.349 eventos que exigen operador; cobertura 34,0% (17.383 sin gestión). El 60% del universo es <b>Exceso de velocidad en crítica+negro</b> — por acuerdo se mide como GxC, no se gestiona en t° real; ahí vive casi todo el hueco. <b>Sin velocidad, la cobertura del universo exigido es 77,7%</b>. SLA <b>desde el nivel exigido</b>: p50 9 min · p90 45 min. El <b>39,7%</b> de lo atendido se resuelve invalidando/ignorando. Incluye ahora <b>Cambio de conductor</b> (validación, nivel fijo crítica) y <b>Asistencia</b>. <b>Filtros multi-selección:</b> mes, tipos y operadores (dropdown, barras de D1 y filas de las tablas D4/D4b — clic agrega/quita).</div>
+
+  <div class="filters">
+    <div class="filter"><b>Período</b> <span class="val">Últimos 3 meses</span> <span class="tag">date_range</span></div>
+    <div class="filter dd" id="ddMes"><b>Mes</b> <span class="val" id="mesChip">Todos ▾</span> <span class="tag">multi</span>
+      <div class="ddpanel" id="panelMes"></div>
+    </div>
+    <div class="filter"><b>Severidad</b> <span class="val">Nivel exigido por la Matriz</span> <span class="tag">select</span></div>
+    <div class="filter dd" id="ddTipo"><b>Tipo de síntoma</b> <span class="val" id="tipoChip">Todos ▾</span> <span class="tag">multi</span>
+      <div class="ddpanel" id="panelTipo"></div>
+    </div>
+    <div class="filter dd" id="ddOp"><b>Operador</b> <span class="val" id="opChip">Todos ▾</span> <span class="tag">multi</span>
+      <div class="ddpanel" id="panelOp"></div>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- ====== PORTADA ====== -->
+    <div class="card w4 injected"><span class="chip">stat_icon · tc_kpi</span>
+      <div class="ttl">Eventos por atender</div>
+      <div class="big" id="v-n">—</div>
+      <div class="desc" id="v-n-desc">—</div>
+    </div>
+    <div class="card w4 injected"><span class="chip">stat_icon · tc_kpi</span>
+      <div class="ttl">Sin gestión alguna</div>
+      <div class="big" style="color:var(--crit)" id="v-sin">—</div>
+      <div class="desc">⚠ Ningún tratamiento en toda la ventana</div>
+    </div>
+    <div class="card w4 injected"><span class="chip">stat_detailed · tc_kpi</span>
+      <div class="ttl" id="t-cob">Cobertura de atención</div>
+      <div class="big" id="v-cob">—</div>
+      <div class="pill p-crit" id="v-cob-pill">—</div>
+      <div class="desc" id="v-cob-desc"></div>
+    </div>
+    <div class="card w4 injected"><span class="chip">stat_detailed · tc_kpi</span>
+      <div class="ttl">Nivel exigido → 1ª gestión (p50)</div>
+      <div class="big" id="v-p50">—</div>
+      <div class="desc">Reloj desde que el síntoma escaló a icu 4</div>
+    </div>
+    <div class="card w4 injected"><span class="chip">stat_icon · tc_kpi</span>
+      <div class="ttl">Nivel exigido → 1ª gestión (p90)</div>
+      <div class="big" style="color:var(--warn)" id="v-p90">—</div>
+      <div class="desc" id="v-p90-desc">—</div>
+    </div>
+    <div class="card w4 injected"><span class="chip glb">global · torre_activos</span>
+      <div class="ttl">Activos sin gestión · ahora</div>
+      <div class="big" style="color:var(--crit)">1</div>
+      <div class="desc">⚠ El mismo Lost Signal del 11-08: ya lleva <b>139 horas (5,8 días)</b> sin gestión</div>
+    </div>
+
+    <!-- ====== D1 ====== -->
+    <div class="sep"><span class="chipline">text_card</span><h2>D1 · Demanda — qué carga recibió la torre</h2><p>Todos los eventos por atender excepto Deviation ETA. 9.495 exigían gestión según la matriz (tc=1) y 4.096 no (tc=0) — pero la torre atiende más los segundos.</p></div>
+
+    <div class="card w12 injected"><span class="chip">chart bar horizontal · tc_por_tipo</span>
+      <div class="ttl">Eventos por atender por tipo (clic agrega/quita del filtro)</div>
+      <div id="c-tipo"></div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart_v2 bar · tc_semanal</span>
+      <div class="ttl">Demanda semanal (semanas extremas truncadas)</div>
+      <div id="c-semana"></div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart bar · tc_por_hora</span>
+      <div class="ttl">Demanda por hora del día</div>
+      <div id="c-hora"></div>
+    </div>
+    <div class="card w6 injected"><span class="chip">chart bar · tc_por_dia</span>
+      <div class="ttl">Demanda por día de semana</div>
+      <div id="c-dia"></div>
+    </div>
+    <div class="card w6 injected"><span class="chip">stat_stacked donut · tc_duracion</span>
+      <div class="ttl">Duración del síntoma</div>
+      <div id="c-dur"></div>
+      <div class="legend" id="lg-dur"></div>
+    </div>
+
+    <!-- ====== D2 ====== -->
+    <div class="sep"><span class="chipline">text_card</span><h2>D2 · Cobertura — ¿se gestionó o no?</h2><p>Invalidar/ignorar cuenta como atención (decisión 2026-08-14).</p></div>
+
+    <div class="card w12 injected"><span class="chip">chart bar stacked · cobertura_tipo</span>
+      <div class="ttl">Estado de atención por tipo</div>
+      <div id="c-cob"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--cat1)"></span>Gestionada</span>
+        <span><span class="sw" style="background:#D97706"></span>Ignorada (ignorar condición)</span>
+        <span><span class="sw" style="background:#6B7280"></span>Invalidada (invalidar síntoma / respuesta #no)</span>
+        <span><span class="sw" style="background:#EF4444"></span>Sin gestión</span>
+      </div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart_v2 line · cobertura_semanal</span>
+      <div class="ttl" id="t-cobsem">Cobertura semanal de atención (%)</div>
+      <div id="c-cobsem"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--cat1)"></span>serie semanal</span>
+        <span><span class="sw" style="background:var(--ink3)"></span>Meta propuesta 95% (línea segmentada)</span>
+      </div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart bar · cobertura_dow</span>
+      <div class="ttl" id="t-cobdow">Cobertura por día de semana (%)</div>
+      <div id="c-cobdow"></div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart bar grouped · sla_dow</span>
+      <div class="ttl">Nivel exigido → 1ª gestión por día de semana (minutos)</div>
+      <div id="c-sladow"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:#93C5FD"></span>p50</span>
+        <span><span class="sw" style="background:var(--cat1)"></span>p90</span>
+      </div>
+    </div>
+
+    <!-- ====== D2b: SIN GESTIÓN ====== -->
+    <div class="sep"><span class="chipline">text_card</span><h2>D2b · Sin gestión — ¿cuándo ocurre lo que nunca se toca?</h2><p>Demanda descompuesta: sin gestión (rojo, en la base) vs gestionada (azul claro). <b>Base 100</b> compara la proporción pareja entre barras; <b>Absoluto</b> muestra dónde está el volumen. No aplica con filtro de operador.</p>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="tchip on" id="sgm-pct">Base 100</button>
+        <button class="tchip" id="sgm-abs">Absoluto</button>
+      </div>
+    </div>
+
+    <div class="card w12 injected"><span class="chip">chart bar stacked · sg_hora</span>
+      <div class="ttl">Sin gestión por hora del día (rojo en la base, comparable; azul = gestionada, contexto)</div>
+      <div id="c-sg-hora"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:#EF4444"></span>Sin gestión (base)</span>
+        <span><span class="sw" style="background:#93C5FD"></span>Gestionada</span>
+        <span style="color:var(--crit)">% rojo = tasa de sin gestión de la hora</span>
+      </div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart bar stacked · sg_dia</span>
+      <div class="ttl">Sin gestión por día de semana</div>
+      <div id="c-sg-dia"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:#EF4444"></span>Sin gestión (base)</span>
+        <span><span class="sw" style="background:#93C5FD"></span>Gestionada</span>
+      </div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart_v2 bar stacked · sg_semana</span>
+      <div class="ttl">Sin gestión por semana — ¿el hueco crece o se achica?</div>
+      <div id="c-sg-sem"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:#EF4444"></span>Sin gestión (base)</span>
+        <span><span class="sw" style="background:#93C5FD"></span>Gestionada</span>
+      </div>
+    </div>
+    <div class="card w12 injected"><span class="chip">stat_icon × 3 · sg_kpi</span>
+      <div class="ttl">Concentración del hueco</div>
+      <div class="big" style="color:var(--crit)" id="v-sg-n">—</div>
+      <div class="desc" id="v-sg-desc">—</div>
+      <div class="desc" id="v-sg-top" style="margin-top:8px">—</div>
+    </div>
+    <div class="card w24 injected"><span class="chip">data_table_v2 · sg_franja (heatmap emulado)</span>
+      <div class="ttl">Volumen de sin gestión por franja × día — n casos sin ningún tratamiento</div>
+      <div class="tblwrap" id="c-sg-hm"></div>
+      <div class="desc" style="margin-top:6px" id="d-sg-hm">Intensidad roja = más casos sin gestión acumulados en esa celda durante el trimestre.</div>
+    </div>
+
+    <!-- ====== D3 ====== -->
+    <div class="sep"><span class="chipline">text_card</span><h2>D3 · Oportunidad — cuando se gestiona, ¿se gestiona a tiempo?</h2><p>Reloj principal: desde que el síntoma escaló a evento exigido (created_at de la fila icu4). El reloj desde el inicio del síntoma queda como referencia.</p></div>
+
+    <div class="card w12 injected"><span class="chip">chart bar grouped · sla_por_tipo</span>
+      <div class="ttl">Nivel exigido → 1ª gestión por tipo (minutos, atendidas)</div>
+      <div id="c-sla"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:#93C5FD"></span>p50</span>
+        <span><span class="sw" style="background:var(--cat1)"></span>p90</span>
+      </div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart bar · sla_buckets</span>
+      <div class="ttl">Distribución del tiempo a primera gestión (% del filtro)</div>
+      <div id="c-buck"></div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart bar · sla_histograma</span>
+      <div class="ttl">Distribución del SLA — nivel exigido → 1ª gestión (% de atendidas)</div>
+      <div id="c-hist-t1"></div>
+      <div class="desc" id="d-hist-t1" style="margin-top:6px">—</div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart bar · gestion_histograma</span>
+      <div class="ttl">Tiempo de gestión — creación → cierre del tratamiento (% de cerradas)</div>
+      <div id="c-hist-res"></div>
+      <div class="desc" id="d-hist-res" style="margin-top:6px">—</div>
+    </div>
+    <div class="card w24 injected"><span class="chip glb">global · torre_activos</span>
+      <div class="ttl">Cola crítica — eventos por atender activos sin gestión (al momento de la extracción)</div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Patente</th><th>Tipo de síntoma</th><th>Transportista</th><th>Detección</th><th class="num">Horas activo</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr style="background:var(--critbg)"><td>—</td><td>Lost Signal (tc=0)</td><td>—</td><td>11-08 14:33</td><td class="num">138,9</td><td><span class="badge b-crit">⚠ Escalar</span></td></tr>
+        </tbody>
+      </table></div>
+      <div class="desc" style="margin-top:6px">Foto del 17-08 09:30. Este mismo Lost Signal tenía 81 h en la extracción del 15-08 y nadie lo ha tomado — es el argumento vivo del escalamiento automático (elemento de control E4).</div>
+    </div>
+
+    <!-- ====== D4 ====== -->
+    <div class="sep"><span class="chipline">text_card</span><h2>D4 · Personas y turnos — quién sostiene la operación y cuándo</h2><p>Los mismos 10 operadores gestionan los síntomas de la torre y las tareas del Coordinador: un solo equipo con doble rol.</p></div>
+
+    <div class="card w24 injected"><span class="chip">data_table_v2 · operadores</span>
+      <div class="ttl">Desempeño por operador — clic en una o más filas filtra todo el dashboard</div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Operador</th><th class="num">Gestiones síntomas</th><th class="num">1ª gestión p50</th><th class="num">% invalidación</th><th class="num">Cierres tareas Coordinador</th><th>Franja dominante</th></tr></thead>
+        <tbody id="tb-ops"></tbody>
+      </table></div>
+      <div class="desc" style="margin-top:8px">La resolución del tratamiento es ~6 min para todos (cierre mecánico de la ventana de notificación): el diferenciador real es el tiempo a primera gestión y el % de invalidación. La franja dominante es inferencia desde las gestiones, no un turno formal (elemento de control E6). Los cierres Coordinador son globales (no filtran por síntoma).</div>
+    </div>
+
+    <div class="card w24 injected"><span class="chip">data_table_v2 · cobertura_franja (heatmap emulado con reglas de color)</span>
+      <div class="ttl" id="t-hm">Cobertura de gestión por franja × día — % gestionado (n = demanda del filtro)</div>
+      <div class="tblwrap" id="hm"></div>
+      <div class="legend" id="hm-legend">
+        <span><span class="sw" style="background:#DBEAFE"></span>≥ 45%</span>
+        <span><span class="sw" style="background:#93C5FD"></span>30–44%</span>
+        <span><span class="sw" style="background:#3B82F6"></span>15–29%</span>
+        <span><span class="sw" style="background:#EF4444"></span>&lt; 15% · hueco severo</span>
+        <span><span class="sw" style="background:#F3F4F6"></span>sin datos (n=0)</span>
+      </div>
+      <div class="desc" style="margin-top:6px" id="d-hm">Con "Todos": el lunes diurno es el hueco más severo del trimestre. La madrugada cubre mejor que el día — el día se inunda de Speed Limit Standard. Con operadores seleccionados, el heatmap muestra su actividad (turno inferido).</div>
+    </div>
+
+    <!-- ====== D4b: OCUPACIÓN CONJUNTA ====== -->
+    <div class="sep"><span class="chipline">text_card</span><h2>D4b · Ocupación conjunta por operador — síntomas + tareas del Coordinador</h2><p>Carga de trabajo total del equipo en ambos mundos. Respeta filtros de <b>mes</b> y <b>operador</b>; ignora el filtro de tipo (la ocupación es carga total). Acción = gestión de síntoma o cierre de tarea.</p></div>
+
+    <div class="card w24 injected"><span class="chip">data_table_v2 · ocupacion</span>
+      <div class="ttl">Ocupación por operador — clic en una fila filtra por ese operador</div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Operador</th><th class="num">Gestiones síntomas</th><th class="num">Cierres tareas Coord.</th><th class="num">Total acciones</th><th class="num">Mix síntomas / tareas</th><th class="num">Acciones por día</th><th>Franja dominante conjunta</th></tr></thead>
+        <tbody id="tb-ocu"></tbody>
+      </table></div>
+      <div class="desc" style="margin-top:8px" id="d-ocu">"Acciones por día" usa los días de la ventana filtrada como denominador — es carga registrada, no horas trabajadas (no existe registro de turnos: elemento de control E6).</div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart bar stacked · ocupacion_mix</span>
+      <div class="ttl">Acciones por operador (síntomas + tareas)</div>
+      <div id="c-ocu"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:#1C64F2"></span>Gestiones de síntomas</span>
+        <span><span class="sw" style="background:#0D9488"></span>Cierres de tareas Coordinador</span>
+      </div>
+    </div>
+    <div class="card w12 injected"><span class="chip">data_table_v2 · ocupacion_franja (heatmap emulado)</span>
+      <div class="ttl" id="t-ocu-hm">Ocupación conjunta por franja × día — n acciones</div>
+      <div class="tblwrap" id="c-ocu-hm"></div>
+      <div class="desc" style="margin-top:6px">Suma de gestiones de síntomas + cierres de tareas de los operadores del filtro (todos si no hay selección). Aquí se ve la ocupación real y el turno de cada persona al seleccionarla.</div>
+    </div>
+
+    <!-- ====== D5 ====== -->
+    <div class="sep"><span class="chipline">text_card</span><h2>D5 · Calidad — ¿la gestión fue real?</h2><p>Cuando la torre atiende, ¿resuelve o descarta?</p></div>
+
+    <div class="card w6 injected"><span class="chip">stat_icon · calidad_kpi</span>
+      <div class="ttl">Invalidación sobre lo atendido</div>
+      <div class="big" style="color:var(--warn)" id="v-inv">—</div>
+      <div class="desc" id="v-inv-desc">—</div>
+    </div>
+    <div class="card w6 injected"><span class="chip glb">global · calidad_kpi</span>
+      <div class="ttl">Reincidencia &lt; 24 h</div>
+      <div class="big" style="color:var(--warn)">21,7<small>%</small></div>
+      <div class="desc">1.359 de 6.255 atendidas: mismo activo y tipo tras una gestión (alcance completo)</div>
+    </div>
+    <div class="card w6 injected"><span class="chip">stat_icon · calidad_kpi</span>
+      <div class="ttl" id="t-vtc">Cobertura según exigencia</div>
+      <div class="big" id="v-tc">—</div>
+      <div class="desc" id="v-tc-desc">—</div>
+    </div>
+    <div class="card w6 injected"><span class="chip glb">global · calidad_kpi</span>
+      <div class="ttl">Tratamiento automático</div>
+      <div class="big">0<small>%</small></div>
+      <div class="desc">Cero tratamientos sin operador en el alcance actual: todo es manual</div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart bar · invalidacion_operador</span>
+      <div class="ttl">% de invalidación por operador (clic agrega/quita del filtro)</div>
+      <div id="c-inv"></div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart bar stacked · mix_tratamiento</span>
+      <div class="ttl">Tipo de tratamiento aplicado (atendidas)</div>
+      <div id="c-mix"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--cat1)"></span>Llamar al conductor</span>
+        <span><span class="sw" style="background:#D97706"></span>Ignorar condición</span>
+        <span><span class="sw" style="background:#6B7280"></span>Invalidar síntoma</span>
+      </div>
+    </div>
+
+    <!-- ====== D6 ====== -->
+    <div class="sep"><span class="chipline">text_card · filtra por mes y tarea</span><h2>D6 · Proceso Coordinador — ¿las tareas fluyen?</h2><p>27.022 ejecuciones de las 4 tareas foco en el trimestre (acs.act_hi_taskinst vía capa nexo). Reloj temporal: momento del cierre de la tarea (cuando el equipo actúa), TZ Santiago. <b>Respeta el filtro de mes</b>; con varios meses, los percentiles usan el trimestre completo (no se pueden combinar) y se marcan con ≈.</p></div>
+
+    <div class="card w24 injected" style="padding:10px 16px"><span class="chip">filtro tarea (select)</span>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center" id="tareaChips"><b style="font-size:12.5px; color:var(--ink2)">Tarea:</b></div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart bar · coord_hora</span>
+      <div class="ttl" id="t-co-hora">Cierres por hora del día</div>
+      <div id="c-co-hora"></div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart bar grouped · coord_dow</span>
+      <div class="ttl">Duración por día de semana (horas) + volumen</div>
+      <div id="c-co-dow"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:#93C5FD"></span>p50</span>
+        <span><span class="sw" style="background:var(--cat1)"></span>p90</span>
+      </div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart_v2 bar · coord_semana</span>
+      <div class="ttl">Cierres por semana</div>
+      <div id="c-co-sem"></div>
+    </div>
+    <div class="card w12 injected"><span class="chip">data_table_v2 · coord_mes</span>
+      <div class="ttl">Análisis mensual (meses extremos truncados)</div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Mes</th><th class="num">Cerradas</th><th class="num">p50</th><th class="num">p90</th><th class="num">% cierre &lt;1 min</th></tr></thead>
+        <tbody id="tb-co-mes"></tbody>
+      </table></div>
+    </div>
+    <div class="card w12 injected"><span class="chip">data_table_v2 · coord_op</span>
+      <div class="ttl" id="t-co-op">Por usuario — cierres de la tarea del filtro</div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Operador</th><th class="num">Cierres</th><th class="num">p50</th><th class="num">p90</th><th class="num">% &lt;1 min</th></tr></thead>
+        <tbody id="tb-co-op"></tbody>
+      </table></div>
+    </div>
+    <div class="card w12 injected"><span class="chip">chart bar · coord_op</span>
+      <div class="ttl">Volumen de cierres por usuario</div>
+      <div id="c-co-op"></div>
+    </div>
+
+    <div class="card w12 injected"><span class="chip">chart bar grouped · tareas_sla</span>
+      <div class="ttl">Duración de tarea (horas) + % de cierres en &lt; 1 minuto</div>
+      <div id="c-tareas"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:#93C5FD"></span>p50</span>
+        <span><span class="sw" style="background:var(--cat1)"></span>p90</span>
+      </div>
+      <div class="desc" style="margin-top:6px">Confirmar POD: p50 36 segundos y 82,5% cerrado en &lt;1 min → cierre mecánico, no revisión. Iniciar Viaje también es mayormente clic inmediato (p50 2,4 min).</div>
+    </div>
+    <div class="card w4 injected"><span class="chip">stat_icon · pod_kpi</span>
+      <div class="ttl">Servicios con POD cargado</div>
+      <div class="big" style="color:var(--crit)">43,6<small>%</small></div>
+      <div class="desc">4.308 de 9.874 servicios del trimestre</div>
+    </div>
+    <div class="card w4 injected"><span class="chip">stat_icon · pod_kpi</span>
+      <div class="ttl">Cierre Alerce sin POD</div>
+      <div class="big" style="color:var(--crit)">42,6<small>%</small></div>
+      <div class="desc">4.205 servicios cerrados sin prueba de entrega</div>
+    </div>
+    <div class="card w4 injected"><span class="chip">stat_stacked · pod_kpi</span>
+      <div class="ttl">Origen del POD</div>
+      <div class="big">99,1<small>% app</small></div>
+      <div class="desc">4.270 app · 38 manual · POD llega junto al cierre de entrega (Δ p50 ≈ 0 h)</div>
+    </div>
+    <div class="card w12 injected"><span class="chip">data_table_v2 + rowActions goto · tareas_breach</span>
+      <div class="ttl">Confirmar POD — abiertas más antiguas (57 en total · 258 cerradas superaron 48 h en el trimestre)</div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Servicio</th><th class="num">Días abierta</th><th>Operador</th><th>Estado</th></tr></thead>
+        <tbody id="tb-abiertas"></tbody>
+      </table></div>
+      <div class="desc" style="margin-top:6px">Todas sin assignee: nadie las ha tomado. La "aprobación del POD" no existe como dato (elemento de control E8); lo medible es carga del documento → cierre de la tarea.</div>
+    </div>
+
+  </div><!-- /grid -->
+
+</div><!-- /wrap -->
+<div id="tip"></div>
+
+<script>
+let CO=null, RAW=null;
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+// ================== DATOS ==================
+// RAW = detalle fila a fila de eventos por atender icu4 (excl. Deviation ETA) del trimestre (datos/detalle.csv)
+// rows: [tipoIdx, semanaIdx, dow(1-7), hora(0-23), dur_min, atendida, invalidada, t1_min(-1=null; desde inicio del síntoma),
+//        opIdx(-1=null), ttIdx(-1=null), tc(0/1), resol_min(-1=abierto), t1b_min(null=sin gestión; desde el nivel exigido)]
+
+// Cierres de tareas Coordinador por operador (columna de la tabla D4) — derivado del bloque CO
+function coordDe(email){ if(!CO)return "—"; const f=CO.op.find(x=>x[0]==="(todas)"&&x[1]==="(todos)"&&x[2]===email); return f?f[3]:0; }
+const COORD=new Proxy({},{get:(_,email)=>coordDe(email)});
+const TAREAS=[
+ {n:"Iniciar Viaje (16% <1m)",p50:0.04,p90:0.12},
+ {n:"Confirmar Arribo (30% <1m)",p50:0.16,p90:1.32},
+ {n:"Cierre Monitoreo (24% <1m)",p50:2.47,p90:8.71},
+ {n:"Confirmar POD (82% <1m)",p50:0.01,p90:0.34}];
+const ABIERTAS=[["1645277",64.9],["1638902",63.9],["1644590",60.6],["1649824",56.6],["1648221",55.5],["1617259",52.9],["1649968",51.8],["1652296",48.6],["1649686",48.5],["1654556",44.7]];
+const HM_DIAS=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+const HM_FR=["00–03","03–06","06–09","09–12","12–15","15–18","18–21","21–24"];
+const FRLBL=HM_FR;
+
+// ================== helpers ==================
+const NS="http://www.w3.org/2000/svg";
+const tip=document.getElementById("tip");
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function hover(node,text){
+  node.addEventListener("mousemove",ev=>{tip.textContent=text;tip.style.opacity=1;tip.style.left=(ev.clientX+12)+"px";tip.style.top=(ev.clientY-10)+"px";});
+  node.addEventListener("mouseleave",()=>tip.style.opacity=0);
+}
+function svgIn(id,w,h){const c=document.getElementById(id);c.innerHTML="";const s=el("svg",{viewBox:`0 0 ${w} ${h}`});c.appendChild(s);return s;}
+const fmt=v=>v.toLocaleString("es-CL");
+const fmtMin=m=>m==null?"—":(m>=60?`${Math.floor(m/60)} h ${String(Math.round(m%60)).padStart(2,"0")} m`:`${Math.round(m)} min`);
+function pctile(arr,q){if(!arr.length)return null;const s=[...arr].sort((a,b)=>a-b);const p=(s.length-1)*q,lo=Math.floor(p);return s[lo]+((s[Math.ceil(p)]-s[lo])*(p-lo));}
+const r1=v=>Math.round(v*10)/10;
+function hBar(id,data,{unit="",color="#1C64F2",lw=190,click}={}){
+  const w=560,rh=26,h=Math.max(1,data.length)*rh+4,max=Math.max(1,...data.map(d=>d.v));
+  const s=svgIn(id,w,h);
+  data.forEach((d,i)=>{
+    const y=i*rh+3,bw=Math.max(4,(d.v/max)*(w-lw-70));
+    s.appendChild(Object.assign(el("text",{x:lw-8,y:y+14,"text-anchor":"end",fill:"#6B7280","font-size":"11.5"}),{textContent:d.n}));
+    const r=el("rect",{x:lw,y,width:bw,height:rh-9,rx:4,fill:d.c||color});
+    if(click){r.style.cursor="pointer";r.addEventListener("click",()=>click(d));}
+    hover(r,`${d.n}: ${fmt(d.v)}${unit}`); s.appendChild(r);
+    s.appendChild(Object.assign(el("text",{x:lw+bw+6,y:y+14,fill:"#111827","font-size":"11.5","font-weight":"600"}),{textContent:fmt(d.v)+unit}));
+  });
+}
+function vBar(id,data,{color="#1C64F2",labelEvery=1,showVals=false,unit=""}={}){
+  const w=560,h=180,pb=22,pt=10,max=Math.max(1,...data.map(d=>d.v));
+  const s=svgIn(id,w,h),bw=(w-16)/data.length;
+  data.forEach((d,i)=>{
+    const bh=Math.max(2,(d.v/max)*(h-pb-pt)),x=8+i*bw,y=h-pb-bh;
+    const r=el("rect",{x:x+1.5,y,width:bw-3,height:bh,rx:3,fill:d.c||color});
+    hover(r,`${d.n}: ${fmt(d.v)}${unit}`); s.appendChild(r);
+    if(i%labelEvery===0)s.appendChild(Object.assign(el("text",{x:x+bw/2,y:h-7,"text-anchor":"middle",fill:"#9CA3AF","font-size":"10.5"}),{textContent:d.n}));
+    if(showVals)s.appendChild(Object.assign(el("text",{x:x+bw/2,y:y-4,"text-anchor":"middle",fill:"#374151","font-size":"10.5","font-weight":"600"}),{textContent:fmt(d.v)+unit}));
+  });
+}
+function gBar(id,data,{unit="",lw=200}={}){
+  const w=560,g=36,h=Math.max(1,data.length)*g+4,max=Math.max(1,...data.map(d=>d.p90));
+  const s=svgIn(id,w,h);
+  data.forEach((d,i)=>{
+    const y=i*g+3,bw50=Math.max(3,(d.p50/max)*(w-lw-70)),bw90=Math.max(3,(d.p90/max)*(w-lw-70));
+    s.appendChild(Object.assign(el("text",{x:lw-8,y:y+18,"text-anchor":"end",fill:"#6B7280","font-size":"11.5"}),{textContent:d.n}));
+    const r50=el("rect",{x:lw,y:y+2,width:bw50,height:11,rx:3,fill:"#93C5FD"});
+    const r90=el("rect",{x:lw,y:y+16,width:bw90,height:11,rx:3,fill:"#1C64F2"});
+    hover(r50,`${d.n} · p50: ${(+d.p50).toLocaleString("es-CL")}${unit}`); hover(r90,`${d.n} · p90: ${(+d.p90).toLocaleString("es-CL")}${unit}`);
+    s.appendChild(r50); s.appendChild(r90);
+    s.appendChild(Object.assign(el("text",{x:lw+bw90+6,y:y+26,fill:"#111827","font-size":"11","font-weight":"600"}),{textContent:(+d.p90).toLocaleString("es-CL")+unit}));
+    s.appendChild(Object.assign(el("text",{x:lw+bw50+6,y:y+12,fill:"#6B7280","font-size":"10"}),{textContent:(+d.p50).toLocaleString("es-CL")+unit}));
+  });
+}
+function stack(id,data,keys,{lw=190}={}){
+  const w=560,rh=30,h=Math.max(1,data.length)*rh+4;
+  const s=svgIn(id,w,h),tw=w-lw-10;
+  data.forEach((d,i)=>{
+    const y=i*rh+4; let x=lw;
+    s.appendChild(Object.assign(el("text",{x:lw-8,y:y+15,"text-anchor":"end",fill:"#6B7280","font-size":"11.5"}),{textContent:d.n}));
+    keys.forEach(k=>{
+      const val=d[k.f], bw=(val/100)*tw;
+      if(bw<1){x+=bw;return;}
+      const r=el("rect",{x:x+1,y,width:Math.max(1,bw-2),height:rh-10,rx:3,fill:k.c});
+      hover(r,`${d.n} · ${k.n}: ${val.toLocaleString("es-CL")}%`); s.appendChild(r);
+      if(bw>36)s.appendChild(Object.assign(el("text",{x:x+bw/2,y:y+14,"text-anchor":"middle",fill:"#fff","font-size":"10.5","font-weight":"600"}),{textContent:val.toLocaleString("es-CL")+"%"}));
+      x+=bw;
+    });
+  });
+}
+// barras verticales apiladas: SIN GESTIÓN EN LA BASE (serie bajo análisis, comparable
+// entre barras porque parte siempre de cero) + gestionada arriba como contexto
+function vStack2(id,data,{labelEvery=1,pctEvery=1,mode="abs"}={}){
+  const w=560,h=200,pb=22,pt=16,max=Math.max(1,...data.map(d=>d.a+d.s));
+  const s=svgIn(id,w,h),bw=(w-16)/data.length;
+  data.forEach((d,i)=>{
+    const tot=d.a+d.s, x=8+i*bw;
+    const base = mode==="pct" ? Math.max(1,tot) : max;   // base 100: cada barra normalizada a su total
+    const hA=(d.a/base)*(h-pb-pt), hS=(d.s/base)*(h-pb-pt);
+    if(d.s>0){const r=el("rect",{x:x+1.5,y:h-pb-hS,width:bw-3,height:Math.max(1,hS-1),rx:2,fill:"#EF4444"});hover(r,`${d.n}: ${fmt(d.s)} sin gestión (${tot?Math.round(100*d.s/tot):0}% de la demanda)`);s.appendChild(r);}
+    if(d.a>0){const r=el("rect",{x:x+1.5,y:h-pb-hS-hA,width:bw-3,height:Math.max(1,hA-1),rx:2,fill:"#93C5FD"});hover(r,`${d.n}: ${fmt(d.a)} gestionadas de ${fmt(tot)}`);s.appendChild(r);}
+    if(i%labelEvery===0)s.appendChild(Object.assign(el("text",{x:x+bw/2,y:h-7,"text-anchor":"middle",fill:"#9CA3AF","font-size":"10.5"}),{textContent:d.n}));
+    if(i%pctEvery===0&&tot>0)s.appendChild(Object.assign(el("text",{x:x+bw/2,y:h-pb-hS-hA-4,"text-anchor":"middle",fill:"#B91C1C","font-size":"9.5","font-weight":"600"}),{textContent:Math.round(100*d.s/tot)+"%"}));
+  });
+}
+function lineCh(id,data,{target}={}){
+  const w=560,h=170,pl=36,pb=20,pt=8,min=0,max=100;
+  const s=svgIn(id,w,h);
+  const X=i=>pl+i*(w-pl-10)/(Math.max(1,data.length-1)), Y=v=>pt+(1-(v-min)/(max-min))*(h-pb-pt-6);
+  [0,25,50,75,100].forEach(v=>{
+    s.appendChild(el("line",{x1:pl,y1:Y(v),x2:w-8,y2:Y(v),stroke:"#F3F4F6","stroke-width":1}));
+    s.appendChild(Object.assign(el("text",{x:pl-6,y:Y(v)+4,"text-anchor":"end",fill:"#9CA3AF","font-size":"10.5"}),{textContent:v+"%"}));
+  });
+  s.appendChild(el("line",{x1:pl,y1:Y(target),x2:w-8,y2:Y(target),stroke:"#9CA3AF","stroke-width":1,"stroke-dasharray":"5 4"}));
+  s.appendChild(el("polyline",{points:data.map((v,i)=>`${X(i)},${Y(v)}`).join(" "),fill:"none",stroke:"#1C64F2","stroke-width":2,"stroke-linejoin":"round"}));
+  data.forEach((v,i)=>{
+    const c=el("circle",{cx:X(i),cy:Y(v),r:4,fill:"#1C64F2",stroke:"#fff","stroke-width":2});
+    hover(c,`Semana ${i+1}: ${v.toLocaleString("es-CL")}%`); s.appendChild(c);
+    if(i%3===0)s.appendChild(Object.assign(el("text",{x:X(i),y:h-4,"text-anchor":"middle",fill:"#9CA3AF","font-size":"10.5"}),{textContent:"S"+(i+1)}));
+  });
+}
+function donut(id,lgId,data,centerTxt,centerSub){
+  const w=200,h=170,cx=85,cy=85,R=62,r=38; const s=svgIn(id,w,h);
+  let a=-Math.PI/2; const tot=Math.max(1,data.reduce((t,d)=>t+d.v,0));
+  data.forEach(d=>{
+    if(d.v<=0)return;
+    const a2=a+2*Math.PI*d.v/tot, gap=Math.min(0.03,(a2-a)/4);
+    const p=(ang,rad)=>`${cx+rad*Math.cos(ang)},${cy+rad*Math.sin(ang)}`;
+    const large=(a2-a)>Math.PI?1:0;
+    const path=el("path",{d:`M${p(a+gap,R)} A${R},${R} 0 ${large} 1 ${p(a2-gap,R)} L${p(a2-gap,r)} A${r},${r} 0 ${large} 0 ${p(a+gap,r)} Z`,fill:d.c});
+    hover(path,`${d.n}: ${d.v.toLocaleString("es-CL")}%`); s.appendChild(path); a=a2;
+  });
+  s.appendChild(Object.assign(el("text",{x:cx,y:cy-2,"text-anchor":"middle",fill:"#111827","font-size":"17","font-weight":"700"}),{textContent:centerTxt}));
+  s.appendChild(Object.assign(el("text",{x:cx,y:cy+14,"text-anchor":"middle",fill:"#6B7280","font-size":"10.5"}),{textContent:centerSub}));
+  const lg=document.getElementById(lgId); lg.innerHTML="";
+  data.forEach(d=>{const sp=document.createElement("span");sp.innerHTML=`<span class="sw" style="background:${d.c}"></span>${d.n} · ${d.v.toLocaleString("es-CL")}%`;lg.appendChild(sp);});
+}
+
+// ================== filtros multi-selección ==================
+const FILTRO={tipos:new Set(), ops:new Set(), meses:new Set()};   // vacío = todos
+let SG_MODE="pct";                               // D2b: "pct" = base 100 | "abs" = absoluto
+const TT_I=["ignorar condicion"], TT_X=["invalidar sintoma"];
+function ttClass(name){ if(TT_I.includes(name))return "inv"; if(TT_X.includes(name))return "x"; return "g"; }
+
+const MESNOM={"01":"Enero","02":"Febrero","03":"Marzo","04":"Abril","05":"Mayo","06":"Junio","07":"Julio","08":"Agosto","09":"Septiembre","10":"Octubre","11":"Noviembre","12":"Diciembre"};
+const mesNombre=m=>`${MESNOM[m.slice(5)]} ${m.slice(0,4)}`;
+function chipLabel(set, names){
+  if(!set.size) return "Todos ▾";
+  if(set.size===1) return names[[...set][0]]+" ▾";
+  return set.size+" seleccionados ▾";
+}
+function syncChecks(){
+  document.querySelectorAll("#panelTipo input[type=checkbox]").forEach(cb=>cb.checked=FILTRO.tipos.has(+cb.dataset.i));
+  document.querySelectorAll("#panelOp input[type=checkbox]").forEach(cb=>cb.checked=FILTRO.ops.has(+cb.dataset.i));
+  document.querySelectorAll("#panelMes input[type=checkbox]").forEach(cb=>cb.checked=FILTRO.meses.has(+cb.dataset.i));
+  document.getElementById("tipoChip").textContent=chipLabel(FILTRO.tipos,RAW?RAW.tipos:[]);
+  document.getElementById("opChip").textContent=chipLabel(FILTRO.ops,RAW?RAW.ops:[]);
+  document.getElementById("mesChip").textContent=chipLabel(FILTRO.meses,RAW?RAW.meses.map(mesNombre):[]);
+}
+
+// ================== render ==================
+async function render(){
+  if(!RAW){document.querySelector(".note").textContent="ERROR: datos no inyectados (correr build_dashboard.js)";return;}
+  syncChecks();
+  const fT=FILTRO.tipos, fO=FILTRO.ops, fM=FILTRO.meses, opAct=fO.size>0;
+  const BASE = fM.size ? RAW.rows.filter(r=>fM.has(r[13])) : RAW.rows;         // filtro mes primero (aplica a todo)
+  const SRC = opAct ? BASE.filter(r=>fO.has(r[8])&&r[5]===1) : BASE;           // filtro operadores: solo sus gestiones
+  const rows = fT.size ? SRC.filter(r=>fT.has(r[0])) : SRC;
+  const n=rows.length;
+  const at=rows.filter(r=>r[5]===1);
+  const sin=n-at.length, inv=at.filter(r=>r[6]===1).length;
+  const t1s=at.map(r=>r[12]==null?null:Math.max(0,r[12])).filter(v=>v!=null);
+  const t1sym=at.map(r=>r[7]).filter(v=>v>=0);
+  const opsLbl = fO.size===1 ? RAW.ops[[...fO][0]] : fO.size+" operadores";
+
+  // Portada
+  const tc1n=rows.filter(r=>r[10]===1).length, tc0n=n-tc1n;
+  const tc1at=rows.filter(r=>r[10]===1&&r[5]===1).length, tc0at=at.length-tc1at;
+  document.getElementById("v-n").textContent=fmt(n);
+  document.getElementById("v-n-desc").textContent = opAct
+    ? `gestionados por ${opsLbl} · ${fmt(tc1n)} tc=1 · ${fmt(tc0n)} tc=0`
+    : `${fmt(tc1n)} de exigencia máxima (tc=1) · ${fmt(tc0n)} sin exigencia (tc=0)`;
+  const cobEl=document.getElementById("v-cob");
+  if(opAct){
+    const atTipo=(fT.size?BASE.filter(r=>fT.has(r[0])):BASE).filter(r=>r[5]===1).length;
+    document.getElementById("v-sin").innerHTML=`— <small>no aplica</small>`;
+    document.getElementById("t-cob").textContent="Participación en las gestiones";
+    const share=r1(100*n/Math.max(1,atTipo));
+    cobEl.innerHTML=`${share.toLocaleString("es-CL")}<small>%</small>`; cobEl.style.color="var(--cat1)";
+    document.getElementById("v-cob-pill").textContent=`de las ${fmt(atTipo)} gestiones del filtro de tipo`;
+    document.getElementById("v-cob-desc").textContent="cobertura no aplica con filtro de operador";
+  } else {
+    document.getElementById("t-cob").textContent="Cobertura de atención";
+    document.getElementById("v-sin").innerHTML=`${fmt(sin)} <small>· ${r1(100*sin/Math.max(1,n)).toLocaleString("es-CL")}%</small>`;
+    const cob=r1(100*at.length/Math.max(1,n));
+    cobEl.innerHTML=`${cob.toLocaleString("es-CL")}<small>%</small>`;
+    cobEl.style.color = cob<50?"var(--crit)":(cob<80?"var(--warn)":"var(--good)");
+    document.getElementById("v-cob-pill").textContent=`${fmt(at.length)} de ${fmt(n)} atendidas`;
+    if(!fT.size){
+      const noSls=BASE.filter(r=>RAW.tipos[r[0]]!=="Speed Limit Standard");
+      const c2=r1(100*noSls.filter(r=>r[5]===1).length/Math.max(1,noSls.length));
+      document.getElementById("v-cob-desc").textContent=`Sin Speed Limit Std: ${c2.toLocaleString("es-CL")}%`;
+    } else document.getElementById("v-cob-desc").textContent="";
+  }
+  document.getElementById("v-p50").textContent=fmtMin(pctile(t1s,0.5));
+  document.getElementById("v-p90").textContent=fmtMin(pctile(t1s,0.9));
+  document.getElementById("v-p90-desc").textContent=`Desde el inicio del síntoma: p50 ${fmtMin(pctile(t1sym,0.5))} · p90 ${fmtMin(pctile(t1sym,0.9))}`;
+
+  await sleep(0);
+  // D1 por tipo (siempre visibles los tipos con datos en SRC; seleccionados en azul)
+  const porTipo=RAW.tipos.map((t,i)=>({n:t,v:SRC.filter(r=>r[0]===i).length,i}))
+      .filter(d=>d.v>0)
+      .sort((a,b)=>b.v-a.v)
+      .map(d=>({...d,c:(!fT.size||fT.has(d.i))?"#1C64F2":"#D1D5DB"}));
+  hBar("c-tipo",porTipo,{click:d=>{fT.has(d.i)?fT.delete(d.i):fT.add(d.i);render();}});
+
+  const wk=RAW.weeks.map((_,i)=>({n:"S"+(i+1),v:rows.filter(r=>r[1]===i).length}));
+  vBar("c-semana",wk,{labelEvery:2,showVals:true});
+  vBar("c-hora",Array.from({length:24},(_,h)=>({n:String(h).padStart(2,"0"),v:rows.filter(r=>r[3]===h).length})),{labelEvery:3});
+  vBar("c-dia",HM_DIAS.map((d,i)=>({n:d,v:rows.filter(r=>r[2]===i+1).length})),{showVals:true});
+  const db=[["< 15 min",r=>r[4]<15,"#BFDBFE"],["15–60 min",r=>r[4]>=15&&r[4]<60,"#60A5FA"],["1–3 h",r=>r[4]>=60&&r[4]<180,"#2563EB"],["> 3 h",r=>r[4]>=180,"#1E3A8A"]];
+  donut("c-dur","lg-dur",db.map(([nm,f,c])=>({n:nm,v:r1(100*rows.filter(f).length/Math.max(1,n)),c})),fmt(n),opAct?"gestiones":"eventos por atender");
+
+  await sleep(0);
+  // D2
+  const tiposShow = porTipo.filter(d=>!fT.size||fT.has(d.i)).map(d=>d.i);
+  stack("c-cob",tiposShow.map(i=>{
+    const R=SRC.filter(r=>r[0]===i), a=R.filter(r=>r[5]===1);
+    const ig=a.filter(r=>r[6]===1&&r[9]>=0&&RAW.tts[r[9]]==="ignorar condicion").length;
+    const iv=a.filter(r=>r[6]===1).length-ig;                      // 'invalidar sintoma' + invalidación por respuesta/feedback
+    const T=Math.max(1,R.length);
+    return {n:RAW.tipos[i],g:r1(100*(a.length-ig-iv)/T),ig:r1(100*ig/T),iv:r1(100*iv/T),sg:r1(100*(R.length-a.length)/T)};
+  }),[{f:"g",n:"Gestionada",c:"#1C64F2"},{f:"ig",n:"Ignorada",c:"#D97706"},{f:"iv",n:"Invalidada",c:"#6B7280"},{f:"sg",n:"Sin gestión",c:"#EF4444"}]);
+  document.getElementById("t-cobsem").textContent = opAct ? `% de invalidación semanal · ${opsLbl}` : "Cobertura semanal de atención (%)";
+  lineCh("c-cobsem",RAW.weeks.map((_,i)=>{
+    const R=rows.filter(r=>r[1]===i);
+    if(!R.length)return 0;
+    return opAct ? r1(100*R.filter(r=>r[6]===1).length/R.length) : r1(100*R.filter(r=>r[5]===1).length/R.length);
+  }),{target:95});
+  document.getElementById("t-cobdow").textContent = opAct ? `% de invalidación por día de semana · ${opsLbl}` : "Cobertura por día de semana (%)";
+  vBar("c-cobdow",HM_DIAS.map((d,i)=>{
+    const R=rows.filter(r=>r[2]===i+1);
+    if(!R.length)return {n:d,v:0};
+    return {n:d, v: opAct ? r1(100*R.filter(r=>r[6]===1).length/R.length) : r1(100*R.filter(r=>r[5]===1).length/R.length)};
+  }),{showVals:true,unit:"%"});
+  gBar("c-sladow",HM_DIAS.map((d,i)=>{
+    const T=rows.filter(r=>r[2]===i+1&&r[5]===1&&r[12]!=null).map(r=>Math.max(0,r[12]));
+    return {n:d,p50:Math.round(pctile(T,0.5)||0),p90:Math.round(pctile(T,0.9)||0)};
+  }),{unit:" min",lw:80});
+
+  await sleep(0);
+  // D2b — análisis de los SIN GESTIÓN (no aplica con filtro de operador)
+  if(opAct){
+    ["c-sg-hora","c-sg-dia","c-sg-sem","c-sg-hm"].forEach(id=>document.getElementById(id).innerHTML='<div class="desc" style="padding:20px 0">No aplica con filtro de operador: los casos sin gestión no tienen operador asignado. Limpia el filtro de operador para ver esta sección.</div>');
+    document.getElementById("v-sg-n").textContent="—";
+    document.getElementById("v-sg-desc").textContent="No aplica con filtro de operador";
+    document.getElementById("v-sg-top").textContent="";
+  } else {
+    const split=f=>{const R=rows.filter(f);return {a:R.filter(r=>r[5]===1).length,s:R.filter(r=>r[5]===0).length};};
+    vStack2("c-sg-hora",Array.from({length:24},(_,h)=>({n:String(h).padStart(2,"0"),...split(r=>r[3]===h)})),{labelEvery:3,pctEvery:2,mode:SG_MODE});
+    vStack2("c-sg-dia",HM_DIAS.map((d,i)=>({n:d,...split(r=>r[2]===i+1)})),{labelEvery:1,pctEvery:1,mode:SG_MODE});
+    vStack2("c-sg-sem",RAW.weeks.map((_,i)=>({n:"S"+(i+1),...split(r=>r[1]===i)})),{labelEvery:2,pctEvery:1,mode:SG_MODE});
+    // KPI de concentración
+    const sgRows=rows.filter(r=>r[5]===0);
+    document.getElementById("v-sg-n").innerHTML=`${fmt(sgRows.length)} <small>sin gestión</small>`;
+    const diurno=sgRows.filter(r=>r[3]>=8&&r[3]<20).length;
+    document.getElementById("v-sg-desc").textContent=`${r1(100*diurno/Math.max(1,sgRows.length)).toLocaleString("es-CL")}% ocurre en horario diurno (08–20 h) — el hueco no es nocturno, es de capacidad de día`;
+    // heatmap de volumen sin gestión + top 3 celdas
+    const cells=[];
+    let mxs=1;
+    for(let f=0;f<8;f++)for(let d=1;d<=7;d++){const c=sgRows.filter(r=>Math.floor(r[3]/3)===f&&r[2]===d).length;cells.push({f,d,c});if(c>mxs)mxs=c;}
+    let sghtml='<table class="hm"><thead><tr><th></th>'+HM_DIAS.map(d=>`<th>${d}</th>`).join("")+"</tr></thead><tbody>";
+    for(let f=0;f<8;f++){
+      sghtml+=`<tr><td class="rowlab">${HM_FR[f]} h</td>`;
+      for(let d=1;d<=7;d++){
+        const c=cells.find(x=>x.f===f&&x.d===d).c;
+        if(!c){sghtml+=`<td style="background:#F3F4F6;color:#9CA3AF">0</td>`;continue;}
+        const t=c/mxs;
+        const bg=t>=0.75?"#B91C1C":t>=0.5?"#EF4444":t>=0.25?"#FCA5A5":"#FEE2E2";
+        const fg=t>=0.5?"#fff":"#7F1D1D";
+        sghtml+=`<td style="background:${bg};color:${fg}" title="${HM_DIAS[d-1]} ${HM_FR[f]} h — ${c} sin gestión">${c}</td>`;
+      }
+      sghtml+="</tr>";
+    }
+    document.getElementById("c-sg-hm").innerHTML=sghtml+"</tbody></table>";
+    const top3=cells.sort((a,b)=>b.c-a.c).slice(0,3).map(x=>`${HM_DIAS[x.d-1]} ${HM_FR[x.f]} h (${x.c})`).join(" · ");
+    document.getElementById("v-sg-top").textContent=`Top 3 celdas críticas: ${top3}`;
+    document.getElementById("d-sg-hm").textContent=`Intensidad roja = más casos sin gestión acumulados en la celda durante el trimestre. Top 3: ${top3}.`;
+  }
+
+  await sleep(0);
+  // D3
+  gBar("c-sla",tiposShow.map(i=>{
+    const T=SRC.filter(r=>r[0]===i&&r[5]===1&&r[12]!=null).map(r=>Math.max(0,r[12]));
+    return {n:RAW.tipos[i],p50:Math.round(pctile(T,0.5)||0),p90:Math.round(pctile(T,0.9)||0)};
+  }),{unit:" min"});
+  const bkDefs=[["< 5 min",0,5],["5–15 min",5,15],["15–60 min",15,60],["1–4 h",60,240],["> 4 h",240,Infinity]];
+  const bks=bkDefs.map(([nm,lo,hi])=>({n:nm,v:r1(100*t1s.filter(v=>v>=lo&&v<hi).length/Math.max(1,n))}));
+  if(!opAct) bks.push({n:"Sin gestión",v:r1(100*sin/Math.max(1,n)),c:"#EF4444"});
+  vBar("c-buck",bks,{showVals:true,unit:"%"});
+
+  const T1BINS=[["<1 m",0,1],["1–2 m",1,2],["2–5 m",2,5],["5–10 m",5,10],["10–15 m",10,15],["15–30 m",15,30],["30–60 m",30,60],["1–2 h",60,120],["2–4 h",120,240],["4–8 h",240,480],["8–24 h",480,1440],[">24 h",1440,Infinity]];
+  vBar("c-hist-t1",T1BINS.map(([nm,lo,hi])=>({n:nm,v:r1(100*t1s.filter(v=>v>=lo&&v<hi).length/Math.max(1,t1s.length))})),{showVals:true,unit:"%"});
+  document.getElementById("d-hist-t1").textContent=`Desde evento exigido: p50 ${fmtMin(pctile(t1s,0.5))} · p90 ${fmtMin(pctile(t1s,0.9))} · sobre ${fmt(t1s.length)} atendidas. Desde el inicio del síntoma sería p50 ${fmtMin(pctile(t1sym,0.5))} · p90 ${fmtMin(pctile(t1sym,0.9))} — la diferencia es el tiempo de incubación hasta escalar a icu 4.`;
+  const RESBINS=[["<2 m",0,2],["2–4 m",2,4],["4–5 m",4,5],["5–6 m",5,6],["6–7 m",6,7],["7–8 m",7,8],["8–10 m",8,10],["10–20 m",10,20],["20–60 m",20,60],[">1 h",60,Infinity]];
+  const resv=at.map(r=>r[11]).filter(v=>v>=0);
+  vBar("c-hist-res",RESBINS.map(([nm,lo,hi])=>({n:nm,v:r1(100*resv.filter(v=>v>=lo&&v<hi).length/Math.max(1,resv.length))})),{showVals:true,unit:"%"});
+  document.getElementById("d-hist-res").textContent=`p50 ${fmtMin(pctile(resv,0.5))} · p90 ${fmtMin(pctile(resv,0.9))} · ${fmt(resv.length)} cerradas · ${fmt(at.length-resv.length)} sin cierre. La concentración en 5–8 min confirma el cierre mecánico de la ventana de notificación: mide el proceso, no al operador.`;
+
+  await sleep(0);
+  // D4 operadores (multi-selección: clic agrega/quita)
+  const byOp={};
+  const atForOps=(fT.size?BASE.filter(r=>fT.has(r[0])):BASE).filter(r=>r[5]===1);
+  atForOps.forEach(r=>{const o=r[8]; if(o<0)return; (byOp[o]=byOp[o]||[]).push(r);});
+  const ops=Object.entries(byOp).map(([o,R])=>{
+    const email=RAW.ops[o], t1v=R.map(r=>r[12]).filter(v=>v!=null).map(v=>Math.max(0,v));
+    const frCount={}; R.forEach(r=>{const f=Math.floor(r[3]/3); frCount[f]=(frCount[f]||0)+1;});
+    const fr=+Object.entries(frCount).sort((a,b)=>b[1]-a[1])[0][0];
+    return {o:+o,email,g:R.length,t1:r1(pctile(t1v,0.5)||0),inv:r1(100*R.filter(r=>r[6]===1).length/R.length),coord:COORD[email]??"—",fr};
+  }).sort((a,b)=>b.g-a.g);
+  document.getElementById("tb-ops").innerHTML=ops.map(o=>{
+    const invB=o.inv>=65?'b-crit':(o.inv>=50?'b-warn':'b-mut');
+    const selRow=fO.has(o.o);
+    return `<tr data-op="${o.o}" style="cursor:pointer${selRow?';background:#DBEAFE':''}" title="Clic para ${selRow?'quitar del filtro':'agregar al filtro'}"><td>${selRow?'✓ ':''}${o.email}</td><td class="num">${fmt(o.g)}</td><td class="num">${fmtMin(o.t1)}</td><td class="num"><span class="badge ${invB}">${o.inv.toLocaleString("es-CL")}%</span></td><td class="num">${typeof o.coord==="number"?fmt(o.coord):o.coord}</td><td><span class="badge b-info">${FRLBL[o.fr]} h</span></td></tr>`;
+  }).join("") || '<tr><td colspan="6" style="color:var(--ink2)">Sin gestiones para este filtro</td></tr>';
+  document.querySelectorAll("#tb-ops tr[data-op]").forEach(tr=>tr.addEventListener("click",()=>{
+    const v=+tr.dataset.op; fO.has(v)?fO.delete(v):fO.add(v); render();
+  }));
+
+  // D4 heatmap: cobertura (global) o actividad de los operadores seleccionados (turno inferido)
+  document.getElementById("t-hm").textContent = opAct
+    ? `Actividad de ${opsLbl} por franja × día — n gestiones (turno inferido)`
+    : "Cobertura de gestión por franja × día — % gestionado (n = demanda del filtro)";
+  document.getElementById("hm-legend").style.display = opAct ? "none" : "";
+  const seq=v=> v>=45?["#DBEAFE","#1E3A8A"] : v>=30?["#93C5FD","#1E3A8A"] : v>=15?["#3B82F6","#fff"] : ["#EF4444","#fff"];
+  let mx=1;
+  if(opAct) for(let f=0;f<8;f++) for(let d=1;d<=7;d++){const c=rows.filter(r=>Math.floor(r[3]/3)===f&&r[2]===d).length; if(c>mx)mx=c;}
+  let html='<table class="hm"><thead><tr><th></th>'+HM_DIAS.map(d=>`<th>${d}</th>`).join("")+"</tr></thead><tbody>";
+  for(let f=0;f<8;f++){
+    html+=`<tr><td class="rowlab">${HM_FR[f]} h</td>`;
+    for(let d=1;d<=7;d++){
+      const C=rows.filter(r=>Math.floor(r[3]/3)===f&&r[2]===d);
+      if(!C.length){html+=`<td style="background:#F3F4F6;color:#9CA3AF">—</td>`;continue;}
+      if(opAct){
+        const t=C.length/mx;
+        const bg = t>=0.66?"#1E40AF" : t>=0.33?"#3B82F6" : "#93C5FD";
+        const fg = t>=0.33?"#fff":"#1E3A8A";
+        html+=`<td style="background:${bg};color:${fg}" title="${HM_DIAS[d-1]} ${HM_FR[f]} h — ${C.length} gestiones">${C.length}</td>`;
+      } else {
+        const cov=Math.round(100*C.filter(r=>r[5]===1).length/C.length),[bg,fg]=seq(cov);
+        html+=`<td style="background:${bg};color:${fg}" title="${HM_DIAS[d-1]} ${HM_FR[f]} h — ${cov}% gestionado de ${C.length}">${cov}%<br><span style="font-size:9.5px;opacity:.78">n=${C.length}</span></td>`;
+      }
+    }
+    html+="</tr>";
+  }
+  document.getElementById("hm").innerHTML=html+"</tbody></table>";
+
+  await sleep(0);
+  // D4b — Ocupación conjunta por operador (mes + operador; ignora filtro de tipo)
+  if(CO){
+    const selM=coSelM();
+    const mMatch=x1=> selM.length===0 ? x1==="(todos)" : selM.includes(x1);
+    const coOpN={};
+    CO.op.filter(x=>x[0]==="(todas)"&&mMatch(x[1])).forEach(x=>{coOpN[x[2]]=(coOpN[x[2]]||0)+x[3];});
+    const symOp={}, symFr={}, coFr={};
+    BASE.filter(r=>r[5]===1&&r[8]>=0).forEach(r=>{
+      const e=RAW.ops[r[8]], f=Math.floor(r[3]/3);
+      symOp[e]=(symOp[e]||0)+1;
+      (symFr[e]=symFr[e]||Array(8).fill(0))[f]++;
+    });
+    CO.opfr.filter(x=>mMatch(x[1])).forEach(x=>{(coFr[x[0]]=coFr[x[0]]||Array(8).fill(0))[x[3]]+=x[4];});
+    const selEmails = fO.size ? new Set([...fO].map(i=>RAW.ops[i])) : null;
+    const dias = selM.length ? Math.round(selM.length*30.4) : 92;
+    const rowsOcu=[...new Set([...Object.keys(symOp),...Object.keys(coOpN)])]
+      .filter(e=>!selEmails||selEmails.has(e))
+      .map(e=>{
+        const s=symOp[e]||0, c=coOpN[e]||0, tot=s+c;
+        const frs=Array.from({length:8},(_,f)=>(symFr[e]?.[f]||0)+(coFr[e]?.[f]||0));
+        return {e,s,c,tot,frDom:frs.indexOf(Math.max(...frs))};
+      }).filter(o=>o.tot>0).sort((a,b)=>b.tot-a.tot);
+    document.getElementById("tb-ocu").innerHTML=rowsOcu.map(o=>{
+      const oi=RAW.ops.indexOf(o.e), selR=oi>=0&&fO.has(oi);
+      return `<tr data-ocuop="${oi}" style="cursor:pointer${selR?';background:#DBEAFE':''}"><td>${selR?'✓ ':''}${o.e}</td><td class="num">${fmt(o.s)}</td><td class="num">${fmt(o.c)}</td><td class="num"><b>${fmt(o.tot)}</b></td><td class="num">${Math.round(100*o.s/o.tot)}% / ${Math.round(100*o.c/o.tot)}%</td><td class="num">${(o.tot/dias).toLocaleString("es-CL",{maximumFractionDigits:1})}</td><td><span class="badge b-info">${FRLBL[o.frDom]} h</span></td></tr>`;
+    }).join("") || '<tr><td colspan="7" style="color:var(--ink2)">Sin datos para este filtro</td></tr>';
+    document.querySelectorAll("#tb-ocu tr[data-ocuop]").forEach(tr=>tr.addEventListener("click",()=>{
+      const v=+tr.dataset.ocuop; if(v<0)return; fO.has(v)?fO.delete(v):fO.add(v); render();
+    }));
+    // barra apilada síntomas + tareas por operador
+    (function(){
+      const w=560,rh=26,lw=120,data=rowsOcu.slice(0,13),h=Math.max(1,data.length)*rh+4,max=Math.max(1,...data.map(d=>d.tot));
+      const svg=svgIn("c-ocu",w,h);
+      data.forEach((d,i)=>{
+        const y=i*rh+3, ws=(d.s/max)*(w-lw-74), wc=(d.c/max)*(w-lw-74);
+        svg.appendChild(Object.assign(el("text",{x:lw-8,y:y+14,"text-anchor":"end",fill:"#6B7280","font-size":"11.5"}),{textContent:d.e.split("@")[0]}));
+        if(d.s>0){const ra=el("rect",{x:lw,y,width:Math.max(1,ws),height:rh-9,rx:3,fill:"#1C64F2"});hover(ra,`${d.e}: ${fmt(d.s)} gestiones de síntomas`);svg.appendChild(ra);}
+        if(d.c>0){const rb=el("rect",{x:lw+ws+1,y,width:Math.max(1,wc),height:rh-9,rx:3,fill:"#0D9488"});hover(rb,`${d.e}: ${fmt(d.c)} cierres de tareas Coordinador`);svg.appendChild(rb);}
+        svg.appendChild(Object.assign(el("text",{x:lw+ws+wc+6,y:y+14,fill:"#111827","font-size":"11.5","font-weight":"600"}),{textContent:fmt(d.tot)}));
+      });
+    })();
+    // heatmap de ocupación conjunta
+    const inclOcu=e=>!selEmails||selEmails.has(e);
+    const cellsO=Array.from({length:8},()=>Array(7).fill(0));
+    BASE.filter(r=>r[5]===1&&r[8]>=0&&inclOcu(RAW.ops[r[8]])).forEach(r=>{cellsO[Math.floor(r[3]/3)][r[2]-1]++;});
+    CO.opfr.filter(x=>inclOcu(x[0])&&mMatch(x[1])).forEach(x=>{cellsO[x[3]][x[2]-1]+=x[4];});
+    let mxo=1; cellsO.forEach(row=>row.forEach(c=>{if(c>mxo)mxo=c;}));
+    document.getElementById("t-ocu-hm").textContent=`Ocupación conjunta por franja × día — n acciones${selEmails?` · ${selEmails.size===1?[...selEmails][0]:selEmails.size+" operadores"}`:""}`;
+    let oh='<table class="hm"><thead><tr><th></th>'+HM_DIAS.map(d=>`<th>${d}</th>`).join("")+"</tr></thead><tbody>";
+    for(let f=0;f<8;f++){
+      oh+=`<tr><td class="rowlab">${HM_FR[f]} h</td>`;
+      for(let d=0;d<7;d++){
+        const c=cellsO[f][d];
+        if(!c){oh+=`<td style="background:#F3F4F6;color:#9CA3AF">—</td>`;continue;}
+        const t=c/mxo, bg=t>=0.66?"#1E40AF":t>=0.33?"#3B82F6":"#93C5FD", fg=t>=0.33?"#fff":"#1E3A8A";
+        oh+=`<td style="background:${bg};color:${fg}" title="${HM_DIAS[d]} ${HM_FR[f]} h — ${fmt(c)} acciones">${fmt(c)}</td>`;
+      }
+      oh+="</tr>";
+    }
+    document.getElementById("c-ocu-hm").innerHTML=oh+"</tbody></table>";
+  }
+
+  await sleep(0);
+  // D5
+  document.getElementById("v-inv").innerHTML=`${r1(100*inv/Math.max(1,at.length)).toLocaleString("es-CL")}<small>%</small>`;
+  document.getElementById("v-inv-desc").textContent=`${fmt(inv)} de ${fmt(at.length)} atendidas se resolvieron invalidando o ignorando`;
+  const tcEl=document.getElementById("v-tc");
+  if(opAct){
+    document.getElementById("t-vtc").textContent="Mix de exigencia";
+    tcEl.style.fontSize="21px";
+    tcEl.innerHTML=`${r1(100*tc1n/Math.max(1,n)).toLocaleString("es-CL")}% <small>tc=1</small> · ${r1(100*tc0n/Math.max(1,n)).toLocaleString("es-CL")}% <small>tc=0</small>`;
+    document.getElementById("v-tc-desc").textContent="Mix de exigencia de sus gestiones";
+  } else {
+    document.getElementById("t-vtc").textContent="Cobertura según exigencia";
+    const c1=tc1n?r1(100*tc1at/tc1n):null, c0=tc0n?r1(100*tc0at/tc0n):null;
+    if(c1!=null&&c0!=null){
+      tcEl.style.fontSize="21px";
+      tcEl.innerHTML=`${c1.toLocaleString("es-CL")}% <small>tc=1</small> · ${c0.toLocaleString("es-CL")}% <small>tc=0</small>`;
+      document.getElementById("v-tc-desc").textContent="La torre atiende más lo que la matriz no exige — revisar matriz tc";
+    } else {
+      tcEl.style.fontSize="";
+      tcEl.innerHTML=`${(c1??c0??0).toLocaleString("es-CL")}<small>%</small>`;
+      document.getElementById("v-tc-desc").textContent=c1!=null?"Tipo(s) con exigencia de gestión (tc=1)":"Tipo(s) sin exigencia de gestión (tc=0)";
+    }
+  }
+  hBar("c-inv",ops.map(o=>({n:(fO.has(o.o)?"✓ ":"")+o.email.split("@")[0],v:o.inv,c:fO.has(o.o)?"#1C64F2":"#A16207",i:o.o})),{unit:"%",lw:110,click:d=>{fO.has(d.i)?fO.delete(d.i):fO.add(d.i);render();}});
+  stack("c-mix",tiposShow.map(i=>{
+    const A=SRC.filter(r=>r[0]===i&&r[5]===1);
+    const cnt={g:0,inv:0,x:0};
+    A.forEach(r=>{const cl=r[9]>=0?ttClass(RAW.tts[r[9]]):"g";cnt[cl]++;});
+    const tot=Math.max(1,A.length);
+    return {n:RAW.tipos[i],g:r1(100*cnt.g/tot),inv:r1(100*cnt.inv/tot),x:r1(100*cnt.x/tot)};
+  }),[{f:"g",n:"Llamar al conductor",c:"#1C64F2"},{f:"inv",n:"Ignorar condición",c:"#D97706"},{f:"x",n:"Invalidar síntoma",c:"#6B7280"}]);
+
+  // D6 respeta el filtro de mes
+  if(CO&&document.querySelector("#tareaChips .tchip"))renderCoord();
+}
+
+// ================== Coordinador dinámico (hora / dow / semana / mes / usuario) ==================
+const TAREA_LBL={"(todas)":"Todas","missionControl":"Iniciar Viaje","confirmArrival":"Confirmar Arribo","closeMonitoring":"Cierre Monitoreo","receiveDelivery":"Confirmar POD"};
+let TAREA_SEL="(todas)";
+function coSelM(){return RAW?[...FILTRO.meses].map(i=>RAW.meses[i]):[];}
+// filas de una lista CO.* para la tarea + selección de meses. Volúmenes se suman;
+// percentiles solo son exactos con 0 o 1 mes (con varios se usa '(todos)' y se marca ≈)
+function coRows(list,tarea){
+  const m=coSelM();
+  if(m.length===0)return list.filter(x=>x[0]===tarea&&x[1]==="(todos)");
+  if(m.length===1)return list.filter(x=>x[0]===tarea&&x[1]===m[0]);
+  return list.filter(x=>x[0]===tarea&&m.includes(x[1]));
+}
+function coStatsRows(list,tarea){ // para percentiles cuando hay multi-mes
+  const m=coSelM();
+  return m.length>1 ? list.filter(x=>x[0]===tarea&&x[1]==="(todos)") : coRows(list,tarea);
+}
+function renderCoord(){
+  if(!CO)return;
+  const lbl=TAREA_LBL[TAREA_SEL], m=coSelM(), multi=m.length>1;
+  const mesLbl=m.length===0?"":` · ${m.length===1?mesNombre(m[0]):m.length+" meses"}`;
+  const approx=multi?" ≈":"";
+  document.querySelectorAll("#tareaChips .tchip").forEach(b=>b.classList.toggle("on",b.dataset.t===TAREA_SEL));
+  document.getElementById("t-co-hora").textContent=`Cierres por hora del día · ${lbl}${mesLbl}`;
+  vBar("c-co-hora",Array.from({length:24},(_,h)=>{
+    const n=coRows(CO.hora,TAREA_SEL).filter(x=>x[2]===h).reduce((t,x)=>t+x[3],0);
+    return {n:String(h).padStart(2,"0"),v:n};
+  }),{labelEvery:3});
+  gBar("c-co-dow",HM_DIAS.map((d,i)=>{
+    const n=coRows(CO.dow,TAREA_SEL).filter(x=>x[2]===i+1).reduce((t,x)=>t+x[3],0);
+    const st=coStatsRows(CO.dow,TAREA_SEL).find(x=>x[2]===i+1);
+    return {n:`${d} (n=${fmt(n)})${approx}`,p50:st?st[4]:0,p90:st?st[5]:0};
+  }),{unit:" h",lw:130});
+  const weeks=[...new Set(CO.semana.filter(x=>x[1]==="(todos)").map(x=>x[2]))].sort();
+  vBar("c-co-sem",weeks.map((w,i)=>{
+    const n=coRows(CO.semana,TAREA_SEL).filter(x=>x[2]===w).reduce((t,x)=>t+x[3],0);
+    return {n:"S"+(i+1),v:n};
+  }),{labelEvery:2,showVals:true});
+  const mesRows=CO.mes.filter(x=>x[0]===TAREA_SEL&&(m.length===0||m.includes(x[1]))).sort((a,b)=>a[1]<b[1]?-1:1);
+  document.getElementById("tb-co-mes").innerHTML=mesRows.map(x=>{
+    const p1=x[5], b=p1>=50?'b-crit':(p1>=25?'b-warn':'b-mut');
+    return `<tr><td>${mesNombre(x[1])}</td><td class="num">${fmt(x[2])}</td><td class="num">${fmtMin(x[3]*60)}</td><td class="num">${fmtMin(x[4]*60)}</td><td class="num"><span class="badge ${b}">${x[5].toLocaleString("es-CL")}%</span></td></tr>`;
+  }).join("");
+  // por usuario
+  document.getElementById("t-co-op").textContent=`Por usuario — ${lbl}${mesLbl}${approx}`;
+  const opVol={}; coRows(CO.op,TAREA_SEL).forEach(x=>{opVol[x[2]]=(opVol[x[2]]||0)+x[3];});
+  const opStats={}; coStatsRows(CO.op,TAREA_SEL).forEach(x=>{opStats[x[2]]=x;});
+  const opRows=Object.entries(opVol).sort((a,b)=>b[1]-a[1]);
+  document.getElementById("tb-co-op").innerHTML=opRows.map(([op,n])=>{
+    const st=opStats[op], p1=st?st[6]:null, b=p1==null?'b-mut':(p1>=50?'b-crit':(p1>=25?'b-warn':'b-mut'));
+    return `<tr><td>${op}</td><td class="num">${fmt(n)}</td><td class="num">${st?fmtMin(st[4]*60):"—"}</td><td class="num">${st?fmtMin(st[5]*60):"—"}</td><td class="num"><span class="badge ${b}">${p1!=null?p1.toLocaleString("es-CL")+"%":"—"}</span></td></tr>`;
+  }).join("");
+  hBar("c-co-op",opRows.map(([op,n])=>({n:op.split("@")[0],v:n})),{lw:120});
+}
+function initDataDependentUI(){
+if(CO){
+  const cont=document.getElementById("tareaChips");
+  ["(todas)","missionControl","confirmArrival","closeMonitoring","receiveDelivery"].forEach(t=>{
+    const b=document.createElement("button"); b.className="tchip"; b.dataset.t=t; b.textContent=TAREA_LBL[t];
+    b.addEventListener("click",()=>{TAREA_SEL=t;renderCoord();});
+    cont.appendChild(b);
+  });
+}
+
+// ================== estáticos + init ==================
+gBar("c-tareas",TAREAS,{unit:" h",lw:210});
+document.getElementById("tb-abiertas").innerHTML=ABIERTAS.map(([svc,dias])=>{
+  const cls=dias>50?'b-crit':'b-warn';
+  return `<tr${dias>50?' style="background:var(--critbg)"':''}><td>${svc}</td><td class="num">${dias.toLocaleString("es-CL")}</td><td>—</td><td><span class="badge ${cls}">⚠ Sin tomar</span></td></tr>`;
+}).join("");
+
+if(RAW){
+  // panel de tipos
+  const pT=document.getElementById("panelTipo");
+  RAW.tipos.map((t,i)=>({t,i,n:RAW.rows.filter(r=>r[0]===i).length,tc:RAW.rows.find(r=>r[0]===i)?.[10]}))
+    .sort((a,b)=>b.n-a.n)
+    .forEach(({t,i,n,tc})=>{
+      const lb=document.createElement("label");
+      lb.innerHTML=`<input type="checkbox" data-i="${i}"> ${t} <span class="muted">(${fmt(n)}${tc===0?" · sin exigencia":""})</span>`;
+      lb.querySelector("input").addEventListener("change",e=>{e.target.checked?FILTRO.tipos.add(i):FILTRO.tipos.delete(i);render();});
+      pT.appendChild(lb);
+    });
+  const bT=document.createElement("button"); bT.className="clear"; bT.textContent="Limpiar (todos)";
+  bT.addEventListener("click",()=>{FILTRO.tipos.clear();render();}); pT.appendChild(bT);
+
+  // panel de operadores
+  const pO=document.getElementById("panelOp");
+  const opCount={}; RAW.rows.forEach(r=>{if(r[8]>=0&&r[5]===1)opCount[r[8]]=(opCount[r[8]]||0)+1;});
+  Object.entries(opCount).sort((a,b)=>b[1]-a[1]).forEach(([i,cnt])=>{
+    const lb=document.createElement("label");
+    lb.innerHTML=`<input type="checkbox" data-i="${i}"> ${RAW.ops[i]} <span class="muted">(${fmt(cnt)})</span>`;
+    lb.querySelector("input").addEventListener("change",e=>{e.target.checked?FILTRO.ops.add(+i):FILTRO.ops.delete(+i);render();});
+    pO.appendChild(lb);
+  });
+  const bO=document.createElement("button"); bO.className="clear"; bO.textContent="Limpiar (todos)";
+  bO.addEventListener("click",()=>{FILTRO.ops.clear();render();}); pO.appendChild(bO);
+
+  // panel de meses
+  const pM=document.getElementById("panelMes");
+  RAW.meses.forEach((m,i)=>{
+    const n=RAW.rows.filter(r=>r[13]===i).length;
+    const lb=document.createElement("label");
+    lb.innerHTML=`<input type="checkbox" data-i="${i}"> ${mesNombre(m)} <span class="muted">(${fmt(n)})</span>`;
+    lb.querySelector("input").addEventListener("change",e=>{e.target.checked?FILTRO.meses.add(i):FILTRO.meses.delete(i);render();});
+    pM.appendChild(lb);
+  });
+  const bM=document.createElement("button"); bM.className="clear"; bM.textContent="Limpiar (todos)";
+  bM.addEventListener("click",()=>{FILTRO.meses.clear();render();}); pM.appendChild(bM);
+
+  // toggle base 100 / absoluto de D2b
+  [["sgm-pct","pct"],["sgm-abs","abs"]].forEach(([id,m])=>{
+    document.getElementById(id).addEventListener("click",()=>{
+      SG_MODE=m;
+      document.getElementById("sgm-pct").classList.toggle("on",m==="pct");
+      document.getElementById("sgm-abs").classList.toggle("on",m==="abs");
+      render();
+    });
+  });
+
+  // abrir/cerrar dropdowns
+  [["ddTipo","panelTipo"],["ddOp","panelOp"],["ddMes","panelMes"]].forEach(([dd,panel])=>{
+    const d=document.getElementById(dd);
+    d.addEventListener("click",e=>{
+      if(e.target.closest(".ddpanel"))return;           // clics dentro del panel no togglean
+      document.querySelectorAll(".dd").forEach(x=>{if(x!==d)x.classList.remove("open");});
+      d.classList.toggle("open");
+    });
+  });
+  document.addEventListener("click",e=>{
+    if(!e.target.closest(".dd"))document.querySelectorAll(".dd").forEach(x=>x.classList.remove("open"));
+  });
+}
+}
+fetch("dashboard-preview-data").then(r=>r.json()).then(d=>{RAW=d.RAW;CO=d.CO;initDataDependentUI();render();}).catch(()=>{const n=document.querySelector(".note");if(n)n.textContent="ERROR: no se pudo cargar el dataset.";});
+</script>
+</body>
+</html>

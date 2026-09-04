@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.core.branding;
 
 import jakarta.ws.rs.BadRequestException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
@@ -19,6 +20,9 @@ import java.util.Set;
 public record LogoImage(String mime, byte[] content, String etag) {
 
     public static final int MAX_BYTES = 256 * 1024;
+
+    /** Length of MAX_BYTES once base64-encoded: four characters per three bytes. */
+    private static final int MAX_ENCODED_LENGTH = ((MAX_BYTES + 2) / 3) * 4;
 
     /** Kept in step with {@code chk_domain_branding_mime} in V0.1.5. */
     private static final Set<String> ALLOWED_MIMES = Set.of(
@@ -45,10 +49,16 @@ public record LogoImage(String mime, byte[] content, String etag) {
             throw new BadRequestException("Unsupported logo type: " + mime);
         }
 
+        String encoded = value.substring(marker + BASE64_MARKER.length());
+        // Reject on the encoded length first, so an oversized upload does not
+        // get decoded into a large array only to be thrown away.
+        if (encoded.length() > MAX_ENCODED_LENGTH) {
+            throw new BadRequestException("Logo exceeds " + MAX_BYTES + " bytes");
+        }
+
         byte[] content;
         try {
-            content = Base64.getDecoder().decode(
-                    value.substring(marker + BASE64_MARKER.length()));
+            content = Base64.getDecoder().decode(encoded);
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("logoDataUrl is not valid base64");
         }
@@ -59,13 +69,21 @@ public record LogoImage(String mime, byte[] content, String etag) {
             throw new BadRequestException(
                     "Logo exceeds " + MAX_BYTES + " bytes: " + content.length);
         }
-        return new LogoImage(mime, content, sha256Hex(content));
+        return new LogoImage(mime, content, etagOf(mime, content));
     }
 
-    private static String sha256Hex(byte[] content) {
+    /**
+     * The tag identifies the whole response, Content-Type included, so the mime
+     * is hashed with the bytes: the same bytes served under a different type are
+     * a different representation and must not reuse a cached validator.
+     */
+    private static String etagOf(String mime, byte[] content) {
         try {
-            return HexFormat.of().formatHex(
-                    MessageDigest.getInstance("SHA-256").digest(content));
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update(mime.getBytes(StandardCharsets.UTF_8));
+            digest.update((byte) '\n');
+            digest.update(content);
+            return HexFormat.of().formatHex(digest.digest());
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is required by the Java platform", e);
         }

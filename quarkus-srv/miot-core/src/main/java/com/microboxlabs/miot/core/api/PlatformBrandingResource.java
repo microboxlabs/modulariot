@@ -9,7 +9,6 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -37,8 +36,6 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @SecurityRequirement(name = "oidc")
 public class PlatformBrandingResource {
 
-    private static final String DEV_USER_HEADER = "X-Dev-User-Email";
-
     private final DomainBrandingService service;
     private final PlatformAuthorizer authorizer;
 
@@ -51,19 +48,16 @@ public class PlatformBrandingResource {
 
     @GET
     @Operation(summary = "List every configured domain")
-    public Uni<List<DomainBrandingDto>> list(
-            @HeaderParam(DEV_USER_HEADER) String devUserEmail) {
-        authorizer.requirePlatformOwner(devUserEmail);
+    public Uni<List<DomainBrandingDto>> list() {
+        authorizer.requirePlatformOwner();
         return service.list();
     }
 
     @GET
     @Path("/{domain}")
     @Operation(summary = "Get one domain's branding")
-    public Uni<DomainBrandingDto> get(
-            @PathParam("domain") String domain,
-            @HeaderParam(DEV_USER_HEADER) String devUserEmail) {
-        authorizer.requirePlatformOwner(devUserEmail);
+    public Uni<DomainBrandingDto> get(@PathParam("domain") String domain) {
+        authorizer.requirePlatformOwner();
         return service.get(domain);
     }
 
@@ -71,20 +65,16 @@ public class PlatformBrandingResource {
     @Path("/{domain}")
     @Operation(summary = "Create or replace one domain's branding")
     public Uni<DomainBrandingDto> put(
-            @PathParam("domain") String domain,
-            @HeaderParam(DEV_USER_HEADER) String devUserEmail,
-            SetDomainBrandingRequest request) {
-        String callerEmail = authorizer.requirePlatformOwner(devUserEmail);
+            @PathParam("domain") String domain, SetDomainBrandingRequest request) {
+        String callerEmail = authorizer.requirePlatformOwner();
         return service.upsert(domain, request, callerEmail);
     }
 
     @DELETE
     @Path("/{domain}")
     @Operation(summary = "Remove one domain's branding, reverting it to the default logo")
-    public Uni<Response> delete(
-            @PathParam("domain") String domain,
-            @HeaderParam(DEV_USER_HEADER) String devUserEmail) {
-        authorizer.requirePlatformOwner(devUserEmail);
+    public Uni<Response> delete(@PathParam("domain") String domain) {
+        authorizer.requirePlatformOwner();
         return service.delete(domain).replaceWith(Response.noContent().build());
     }
 }

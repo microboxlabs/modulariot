@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.api;
 
 import com.microboxlabs.miot.core.api.dto.DomainBrandingSummaryDto;
 import com.microboxlabs.miot.core.branding.DomainBrandingService;
+import com.microboxlabs.miot.core.branding.EntityTagMatch;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
@@ -58,8 +59,7 @@ public class BrandingResource {
             if (branding == null) {
                 return Response.status(Response.Status.NOT_FOUND).build();
             }
-            String etag = "\"" + branding.logoEtag + "\"";
-            if (etag.equals(ifNoneMatch)) {
+            if (EntityTagMatch.matches(ifNoneMatch, branding.logoEtag)) {
                 return withCommonHeaders(Response.notModified().tag(branding.logoEtag)).build();
             }
             return withCommonHeaders(Response.ok(branding.logoContent, branding.logoMime)

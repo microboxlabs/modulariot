@@ -43,6 +43,12 @@ public final class HomeUrl {
         if (uri.getHost() == null || uri.getHost().isBlank()) {
             throw new BadRequestException("homeUrl must include a host");
         }
+        // "https://www.trusted.example@evil.example" renders as a link to
+        // evil.example while reading as the trusted one, and any password in
+        // there would be published on the sign-in page.
+        if (uri.getRawUserInfo() != null) {
+            throw new BadRequestException("homeUrl must not contain user information");
+        }
         return value;
     }
 }

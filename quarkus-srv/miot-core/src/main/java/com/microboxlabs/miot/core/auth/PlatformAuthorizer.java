@@ -20,6 +20,11 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
  * {@link OrganizationRequestFilter} help, since it only intercepts
  * {@code /api/v1/orgs/**} and so leaves {@link OrganizationContext} empty here.
  *
+ * <p>The caller's identity comes only from a verified JWT. There is no
+ * development header equivalent to the one {@code OrganizationRequestFilter}
+ * accepts: platform scope spans every organization, and a token with no
+ * {@code email} claim — an M2M client — could otherwise name any owner it liked.
+ *
  * <p>The owner list comes from {@code miot.platform.owner-emails} and is empty
  * by default, which denies every write. Keeping it in configuration rather than
  * a table means there is no role-management UI to build; this class is the seam
@@ -29,29 +34,23 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 public class PlatformAuthorizer {
 
     private final Set<String> ownerEmails;
-    private final boolean allowDevUserHeader;
     private final SecurityIdentity securityIdentity;
 
     @Inject
     public PlatformAuthorizer(
             @ConfigProperty(name = "miot.platform.owner-emails", defaultValue = "")
             List<String> ownerEmails,
-            @ConfigProperty(name = "miot.platform.allow-dev-user-header", defaultValue = "false")
-            boolean allowDevUserHeader,
             SecurityIdentity securityIdentity) {
         this.ownerEmails = normalizeOwners(ownerEmails);
-        this.allowDevUserHeader = allowDevUserHeader;
         this.securityIdentity = securityIdentity;
     }
 
     /**
-     * @param devUserEmailHeader the request's {@code X-Dev-User-Email}, honoured
-     *                           only when {@code miot.platform.allow-dev-user-header} is on
      * @return the caller's email, once confirmed to be a platform owner
      * @throws ForbiddenException when it is not, or cannot be resolved
      */
-    public String requirePlatformOwner(String devUserEmailHeader) {
-        String email = resolveEmail(devUserEmailHeader);
+    public String requirePlatformOwner() {
+        String email = resolveEmail();
         if (email == null) {
             throw new ForbiddenException("Cannot resolve caller identity");
         }
@@ -61,19 +60,13 @@ public class PlatformAuthorizer {
         return email;
     }
 
-    private String resolveEmail(String devUserEmailHeader) {
+    private String resolveEmail() {
         if (securityIdentity != null && !securityIdentity.isAnonymous()
                 && securityIdentity.getPrincipal() instanceof JsonWebToken jwt) {
             String email = jwt.getClaim("email");
             if (email != null && !email.isBlank()) {
                 return email;
             }
-        }
-        // Off by default. OrganizationRequestFilter honours this header
-        // unconditionally, which is tolerable for an org-membership check but
-        // not for platform scope, so here it takes an explicit opt-in.
-        if (allowDevUserHeader && devUserEmailHeader != null && !devUserEmailHeader.isBlank()) {
-            return devUserEmailHeader;
         }
         return null;
     }

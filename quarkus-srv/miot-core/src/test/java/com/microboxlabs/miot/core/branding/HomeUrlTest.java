@@ -47,6 +47,14 @@ class HomeUrlTest {
     }
 
     @Test
+    void rejectsUrlsCarryingCredentialsOrASpoofedAuthority() {
+        assertThrows(BadRequestException.class,
+                () -> HomeUrl.normalize("https://user:password@example.com"));
+        assertThrows(BadRequestException.class,
+                () -> HomeUrl.normalize("https://www.trusted.example@evil.example"));
+    }
+
+    @Test
     void rejectsOverlyLongUrls() {
         assertThrows(BadRequestException.class,
                 () -> HomeUrl.normalize("https://example.com/" + "a".repeat(2048)));

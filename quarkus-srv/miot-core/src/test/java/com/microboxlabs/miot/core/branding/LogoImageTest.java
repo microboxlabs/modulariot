@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import jakarta.ws.rs.BadRequestException;
 import java.nio.charset.StandardCharsets;
@@ -27,13 +28,23 @@ class LogoImageTest {
     }
 
     @Test
-    void etagIsTheSha256OfTheContent() {
+    void etagIsTheSha256OfTheMimeAndContent() {
         LogoImage logo = LogoImage.fromDataUrl(
                 dataUrl("image/png", "abc".getBytes(StandardCharsets.UTF_8)));
 
+        // printf 'image/png\nabc' | shasum -a 256
         assertEquals(
-                "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                "95f5e93468a071a0c9f1b1c8d100fae2ad16f17c12b07a34963123c2460af16e",
                 logo.etag());
+    }
+
+    @Test
+    void sameBytesUnderADifferentMimeGetADifferentEtag() {
+        byte[] content = "same".getBytes(StandardCharsets.UTF_8);
+
+        assertNotEquals(
+                LogoImage.fromDataUrl(dataUrl("image/png", content)).etag(),
+                LogoImage.fromDataUrl(dataUrl("image/jpeg", content)).etag());
     }
 
     @Test
@@ -68,6 +79,18 @@ class LogoImageTest {
 
         assertThrows(BadRequestException.class,
                 () -> LogoImage.fromDataUrl(dataUrl("image/png", tooBig)));
+    }
+
+    @Test
+    void rejectsAnOversizedPayloadOnLengthBeforeDecodingIt() {
+        // Not valid base64, so decoding it would fail with a different message.
+        // The size rejection has to come first for this to report the real problem.
+        String oversizedAndMalformed = "data:image/png;base64,"
+                + "!".repeat(LogoImage.MAX_BYTES * 8);
+
+        BadRequestException thrown = assertThrows(BadRequestException.class,
+                () -> LogoImage.fromDataUrl(oversizedAndMalformed));
+        assertTrue(thrown.getMessage().contains("exceeds"), thrown.getMessage());
     }
 
     @Test

@@ -229,6 +229,7 @@ function BillingCard({
       <button
         type="button"
         onClick={onSelect}
+        aria-pressed={selected}
         className="flex w-full cursor-pointer flex-col gap-4 text-left"
       >
         <div className="flex items-center justify-between">

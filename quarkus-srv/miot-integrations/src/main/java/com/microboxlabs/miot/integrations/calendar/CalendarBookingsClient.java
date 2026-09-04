@@ -178,6 +178,19 @@ public class CalendarBookingsClient {
      */
     public UUID create(UUID calendarId, LocalDate slotDate, int slotHour, int slotMinutes,
                        String resourceId, String resourceType, Map<String, Object> resourceData) {
+        return create(calendarId, slotDate, slotHour, slotMinutes,
+                resourceId, resourceType, resourceData, false);
+    }
+
+    /**
+     * Creates a booking, optionally allowing the calendar to exceed the slot/window
+     * capacity. The override remains explicit on the individual request; ordinary
+     * UI and integration callers therefore retain the calendar's hard capacity
+     * guard.
+     */
+    public UUID create(UUID calendarId, LocalDate slotDate, int slotHour, int slotMinutes,
+                       String resourceId, String resourceType, Map<String, Object> resourceData,
+                       boolean allowOverbooking) {
         JsonObject resource = new JsonObject().put("id", resourceId);
         if (resourceType != null) {
             resource.put("type", resourceType);
@@ -189,6 +202,9 @@ public class CalendarBookingsClient {
                 .put("calendarId", calendarId.toString())
                 .put("resource", resource)
                 .put("slot", slotJson(slotDate, slotHour, slotMinutes));
+        if (allowOverbooking) {
+            body.put("allowOverbooking", true);
+        }
         String url = base() + BASE_PATH;
         HttpResponse<String> response = send("POST", url, body.encode());
         if (response.statusCode() != 201 && response.statusCode() != 200) {
@@ -233,11 +249,21 @@ public class CalendarBookingsClient {
      * and windows them. Ported from ECM's {@code listAvailableSlots}.
      */
     public List<AvailableSlot> listAvailableSlots(UUID calendarId, LocalDate startDate, LocalDate endDate) {
+        return listSlots(calendarId, startDate, endDate, true);
+    }
+
+    /** Lists every slot, including full slots used by the overbooking fallback. */
+    public List<AvailableSlot> listSlots(UUID calendarId, LocalDate startDate, LocalDate endDate) {
+        return listSlots(calendarId, startDate, endDate, false);
+    }
+
+    private List<AvailableSlot> listSlots(UUID calendarId, LocalDate startDate, LocalDate endDate,
+                                          boolean availableOnly) {
         String url = base() + SLOTS_PATH
                 + "?calendarId=" + calendarId
                 + "&startDate=" + startDate
                 + "&endDate=" + endDate
-                + "&available=true";
+                + (availableOnly ? "&available=true" : "");
         HttpResponse<String> response = send("GET", url, null);
         if (response.statusCode() != 200) {
             throw httpError("listAvailableSlots", url, response);
@@ -337,10 +363,11 @@ public class CalendarBookingsClient {
         Integer hour = slot.getInteger("slotHour");
         Integer minutes = slot.getInteger("slotMinutes");
         Integer avail = slot.getInteger("availableCapacity");
+        String status = slot.getString("status");
         if (date == null || hour == null || minutes == null || avail == null) {
             return null;
         }
-        return new AvailableSlot(LocalDate.parse(date), hour, minutes, avail);
+        return new AvailableSlot(LocalDate.parse(date), hour, minutes, avail, status);
     }
 
     private static List<BookingView> parseBookingViews(String body, UUID calendarId, String url) {
@@ -440,7 +467,11 @@ public class CalendarBookingsClient {
                               int slotHour, int slotMinutes, String status) {
     }
 
-    /** A slot with remaining capacity, as returned by {@link #listAvailableSlots}. */
-    public record AvailableSlot(LocalDate date, int hour, int minutes, int availableCapacity) {
+    /** A slot candidate returned by the slots endpoint. */
+    public record AvailableSlot(LocalDate date, int hour, int minutes, int availableCapacity, String status) {
+        /** Back-compatible test/caller shape for an ordinary open slot. */
+        public AvailableSlot(LocalDate date, int hour, int minutes, int availableCapacity) {
+            this(date, hour, minutes, availableCapacity, "OPEN");
+        }
     }
 }

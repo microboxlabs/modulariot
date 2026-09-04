@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.calendar;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -583,19 +584,46 @@ class CalendarSyncExecutorTest {
         assertEquals(1, client.createCalls);
         assertEquals(LocalDate.of(2026, 7, 16), client.lastCreateDate, "earliest available wins");
         assertEquals(15, client.lastCreateHour);
+        assertFalse(client.lastCreateAllowOverbooking, "ordinary capacity must not request an override");
+        assertEquals(0, client.listAllSlotsCalls, "fallback query is avoided while capacity exists");
     }
 
     @Test
-    void ensureAbsentWithEtdButNoCapacityThrowsForRetry() {
+    void ensureAbsentWithEtdButNoCapacityOverbooksEarliestRealSlot() {
         FakeClient client = new FakeClient();
         client.listResult = List.of();
         client.availableSlots = List.of(); // capacity exhausted
+        client.allSlots = List.of(
+                new CalendarBookingsClient.AvailableSlot(LocalDate.of(2026, 7, 16), 15, 0, 0, "FULL"),
+                new CalendarBookingsClient.AvailableSlot(LocalDate.of(2026, 7, 16), 14, 0, 0, "OVERFLOW"),
+                new CalendarBookingsClient.AvailableSlot(LocalDate.of(2026, 7, 16), 13, 30, 0, "CLOSED"));
+        var payload = ensurePayload("PLANNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-16T13:00:00");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(1, client.createCalls);
+        assertEquals(LocalDate.of(2026, 7, 16), client.lastCreateDate);
+        assertEquals(15, client.lastCreateHour);
+        assertTrue(client.lastCreateAllowOverbooking);
+        assertEquals(1, client.listAllSlotsCalls);
+    }
+
+    @Test
+    void ensureAbsentWithEtdAndNoRealSlotStillRetries() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();
+        client.availableSlots = List.of();
+        client.allSlots = List.of(
+                new CalendarBookingsClient.AvailableSlot(LocalDate.of(2026, 7, 16), 14, 0, 0, "OVERFLOW"),
+                new CalendarBookingsClient.AvailableSlot(LocalDate.of(2026, 7, 16), 15, 0, 0, "CLOSED"));
         var payload = ensurePayload("PLANNED");
         payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-16T13:00:00");
         var executor = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK);
 
         assertThrows(IllegalStateException.class, () -> executor.handle("tenant-1", payload));
-        assertEquals(0, client.createCalls, "no slot → nothing created, job retries");
+        assertEquals(0, client.createCalls);
     }
 
     @Test
@@ -814,6 +842,7 @@ class CalendarSyncExecutorTest {
     private static final class FakeClient extends CalendarBookingsClient {
         List<CalendarBookingsClient.BookingView> listResult = List.of();
         List<CalendarBookingsClient.AvailableSlot> availableSlots = List.of();
+        List<CalendarBookingsClient.AvailableSlot> allSlots = List.of();
         RuntimeException patchThrows;
         // Thrown by the FIRST patch only — models a 404 whose follow-up
         // (the post-create status apply) must succeed.
@@ -829,7 +858,9 @@ class CalendarSyncExecutorTest {
         LocalDate lastCreateDate;
         int lastCreateHour;
         int lastCreateMinutes;
+        boolean lastCreateAllowOverbooking;
         int listAvailableCalls;
+        int listAllSlotsCalls;
 
         RuntimeException unassignThrows;
         int unassignCalls;
@@ -890,10 +921,19 @@ class CalendarSyncExecutorTest {
         @Override
         public UUID create(UUID calendarId, LocalDate slotDate, int slotHour, int slotMinutes,
                            String resourceId, String resourceType, Map<String, Object> resourceData) {
+            return create(calendarId, slotDate, slotHour, slotMinutes,
+                    resourceId, resourceType, resourceData, false);
+        }
+
+        @Override
+        public UUID create(UUID calendarId, LocalDate slotDate, int slotHour, int slotMinutes,
+                           String resourceId, String resourceType, Map<String, Object> resourceData,
+                           boolean allowOverbooking) {
             createCalls++;
             lastCreateDate = slotDate;
             lastCreateHour = slotHour;
             lastCreateMinutes = slotMinutes;
+            lastCreateAllowOverbooking = allowOverbooking;
             if (createThrows != null) {
                 throw createThrows;
             }
@@ -917,6 +957,13 @@ class CalendarSyncExecutorTest {
                 UUID calendarId, LocalDate startDate, LocalDate endDate) {
             listAvailableCalls++;
             return availableSlots;
+        }
+
+        @Override
+        public List<CalendarBookingsClient.AvailableSlot> listSlots(
+                UUID calendarId, LocalDate startDate, LocalDate endDate) {
+            listAllSlotsCalls++;
+            return allSlots;
         }
 
         @Override

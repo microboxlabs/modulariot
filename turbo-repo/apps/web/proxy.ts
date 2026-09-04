@@ -29,31 +29,20 @@ export function proxy(request: NextRequest) {
     return;
   }
 
-  // Skip middleware for root path (coming soon page)
+  // La landing vive en la raíz: `/` negocia idioma y redirige a `/{lang}`.
   if (pathname === "/") {
-    return;
+    request.nextUrl.pathname = `/${getLocale(request)}`;
+    return NextResponse.redirect(request.nextUrl);
   }
 
-  // Only handle language routing for alpha-2506 paths
-  if (pathname.startsWith("/alpha-2506")) {
-    // Check if there is any supported locale in the alpha-2506 pathname
-    const pathnameHasLocale = locales.some(
-      (locale) =>
-        pathname.startsWith(`/alpha-2506/${locale}/`) ||
-        pathname === `/alpha-2506/${locale}`,
-    );
+  // `/{lang}` y `/{lang}/...` ya traen idioma → resuelven en `app/[lang]`.
+  const pathnameHasLocale = locales.some(
+    (locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`),
+  );
+  if (pathnameHasLocale) return;
 
-    if (pathnameHasLocale) return;
-
-    // If accessing /alpha-2506 without language, redirect to default locale
-    if (pathname === "/alpha-2506" || pathname === "/alpha-2506/") {
-      const locale = getLocale(request);
-      request.nextUrl.pathname = `/alpha-2506/${locale}`;
-      return NextResponse.redirect(request.nextUrl);
-    }
-  }
-
-  // For any other paths, let them pass through (will result in 404 if not found)
+  // Rutas sin idioma (`/privacy`, `/terms`) tienen su propio segmento; el
+  // resto cae en 404 (el guardia de `app/[lang]/layout.tsx` lo garantiza).
   return;
 }
 

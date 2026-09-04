@@ -13,6 +13,7 @@ import { twMerge } from "tailwind-merge";
 import { usePathname } from "next/navigation";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import NotificationBell from "@/features/integration-jobs/components/notification-bell";
+import HarnessChatToggleButton from "@/features/harness-chat/harness-chat-toggle-button";
 import SpotlightSearch from "./spotlight-search/spotlight-search";
 import OrgSwitcher from "./org-switcher/org-switcher";
 // import { Filter } from "flowbite-react-icons/outline";
@@ -82,13 +83,21 @@ function NavbarLogo({
         {/* Fallback for light mode if only dark logo exists */}
         {!logoUrlLight && logoUrlDark && (
           <span className="mr-3 block dark:hidden">
-            <LynxBrand iconClassName="h-11 w-11" wordmarkClassName="h-5 w-auto" className="text-(--brand-ink)" />
+            <LynxBrand
+              iconClassName="h-11 w-11"
+              wordmarkClassName="h-5 w-auto"
+              className="text-(--brand-ink)"
+            />
           </span>
         )}
         {/* Fallback for dark mode if only light logo exists */}
         {logoUrlLight && !logoUrlDark && (
           <span className="mr-3 hidden dark:block">
-            <LynxBrand iconClassName="h-11 w-11" wordmarkClassName="h-5 w-auto" className="text-(--brand-ink)" />
+            <LynxBrand
+              iconClassName="h-11 w-11"
+              wordmarkClassName="h-5 w-auto"
+              className="text-(--brand-ink)"
+            />
           </span>
         )}
       </>
@@ -110,7 +119,11 @@ function NavbarLogo({
   }
 
   return (
-    <LynxBrand className="mr-3 text-(--brand-ink)" iconClassName="h-11 w-11" wordmarkClassName="h-5 w-auto" />
+    <LynxBrand
+      className="mr-3 text-(--brand-ink)"
+      iconClassName="h-11 w-11"
+      wordmarkClassName="h-5 w-auto"
+    />
   );
 }
 
@@ -121,6 +134,7 @@ export function SecuredNavbar({
   isUserMenuEnabled = true,
   dict,
   initialOrgLogo,
+  isHarnessSettingsEnabled = false,
 }: SecuredNavBarProps & { dict: I18nRecord }) {
   const sidebar = useSidebarContext();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
@@ -163,7 +177,10 @@ export function SecuredNavbar({
             )}
             {isSeachEnabled && (
               <div className="hidden lg:block">
-                <SpotlightSearch dict={dict} />
+                <SpotlightSearch
+                  dict={dict}
+                  isHarnessSettingsEnabled={isHarnessSettingsEnabled}
+                />
               </div>
             )}
           </div>
@@ -179,6 +196,7 @@ export function SecuredNavbar({
           </div>
           <div className="flex items-center justify-end gap-2 w-full">
             <OrgSwitcher dict={dict} />
+            {isSeachEnabled && <HarnessChatToggleButton dict={dict} />}
             {!pathname.includes("/notifications") && (
               <NotificationBell dict={dict} />
             )}

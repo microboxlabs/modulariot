@@ -1,0 +1,52 @@
+{
+  "stack_version": "0.5.46",
+  "stack_tag": "miot-stack@v0.5.46",
+  "milestone": "MIOT-0.5.46",
+  "pull_requests": [
+    {
+      "number": 1136,
+      "title": "fix(native): exclude Pulsar Bouncy Castle bundle",
+      "source_issues": [
+        {
+          "number": 1137,
+          "title": "Fix Mandrel native-image failure caused by Pulsar Bouncy Castle dependencies"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-symptoms/pom.xml"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.46",
+      "tag": "app@v0.5.46"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.45",
+      "version": "0.5.45",
+      "tag": "docs@v0.5.45"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.5.45",
+      "version": "0.5.45",
+      "tag": "web@v0.5.45"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.27",
+      "version": "0.5.28",
+      "tag": "modulith@v0.5.28"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.6",
+      "version": "0.1.6",
+      "tag": "harness@v0.1.6"
+    }
+  }
+}

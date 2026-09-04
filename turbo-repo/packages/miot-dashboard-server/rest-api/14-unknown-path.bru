@@ -1,0 +1,28 @@
+meta {
+  name: Unknown path uses the same envelope
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/scopes/{{scopeId}}/widgets
+  body: none
+  auth: none
+}
+
+headers {
+  x-dev-user: {{user}}
+  x-dev-tenant: {{tenant}}
+}
+
+docs {
+  An unrecognised path, and an unsupported method on a real path, both answer
+  404 with this envelope rather than a framework error page. The method case is
+  deliberately not a 405: which verbs exist on a path is not something an
+  unauthorized caller should be able to enumerate.
+}
+
+assert {
+  res.status: eq 404
+  res.body.code: eq NOT_FOUND
+}

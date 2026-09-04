@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Alert, Button } from "flowbite-react";
 import { HiPlus, HiClipboardList } from "react-icons/hi";
-import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
+import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useDataSources } from "../hooks/use-data-sources";
@@ -18,11 +18,13 @@ import { toast } from "sonner";
 interface DataSourcesPageContentProps {
   readonly dict: I18nRecord;
   readonly siteId: string;
+  readonly lang: string;
 }
 
 export default function DataSourcesPageContent({
   dict,
   siteId,
+  lang,
 }: DataSourcesPageContentProps) {
   const {
     dataSources,
@@ -39,8 +41,9 @@ export default function DataSourcesPageContent({
   } = useDataSources(siteId);
 
   const [showModal, setShowModal] = useState(false);
-  const [editingSource, setEditingSource] =
-    useState<DataSourceListItem | null>(null);
+  const [editingSource, setEditingSource] = useState<DataSourceListItem | null>(
+    null
+  );
   const [deletingSource, setDeletingSource] =
     useState<DataSourceListItem | null>(null);
 
@@ -69,7 +72,9 @@ export default function DataSourcesPageContent({
             ? { ...(data.token ? { token: data.token } : {}) }
             : {
                 clientId: data.clientId,
-                ...(data.clientSecret ? { clientSecret: data.clientSecret } : {}),
+                ...(data.clientSecret
+                  ? { clientSecret: data.clientSecret }
+                  : {}),
                 tokenUrl: data.tokenUrl,
                 scope: data.scope,
                 audience: data.audience,
@@ -145,9 +150,12 @@ export default function DataSourcesPageContent({
   };
 
   return (
-    <div className="w-full h-full flex flex-col overflow-auto">
-      <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full z-10">
-        <ClientBreadcrumb
+    // Breadcrumb bar sits outside the scroll container so it never moves —
+    // including during rubber-band overscroll — while the content column
+    // below scrolls independently.
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      <div className="p-5 flex items-center justify-between border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 dark:text-white w-full">
+        <Breadcrumb
           path={[
             "breadcrumb.user",
             "breadcrumb.settings",
@@ -155,10 +163,12 @@ export default function DataSourcesPageContent({
           ]}
           rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
           dict={dict}
+          lang={lang}
+          disableLinks
         />
       </div>
 
-      <div className="px-4 pt-2 pb-6 dark:bg-gray-900 max-w-screen-2xl mx-auto w-full">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-2 pb-6 dark:bg-gray-900 max-w-screen-2xl mx-auto w-full">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold dark:text-white">

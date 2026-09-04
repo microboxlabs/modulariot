@@ -5,7 +5,7 @@ import {
   SidebarNavigationProvider,
   useSidebarNavigation,
 } from "./sidebar-navigation-context";
-import { pages } from "../models/pages";
+import { pages, visiblePages, DEV_PAGE_LABEL } from "../models/pages";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -81,7 +81,9 @@ function setDefaultMocks({
   // API returns arbitrary process-task keys. Use unknown intermediary to avoid
   // constructing the full type shape in test mocks.
   vi.mocked(useMyTasksCount).mockReturnValue({
-    data: { totals: taskTotals } as unknown as ReturnType<typeof useMyTasksCount>["data"],
+    data: { totals: taskTotals } as unknown as ReturnType<
+      typeof useMyTasksCount
+    >["data"],
     error: error ? makeFetcherError(error.status) : undefined,
     isLoading: false,
   });
@@ -115,7 +117,9 @@ function setDefaultMocks({
 }
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <SidebarNavigationProvider>{children}</SidebarNavigationProvider>
+  <SidebarNavigationProvider isHarnessSettingsEnabled={false}>
+    {children}
+  </SidebarNavigationProvider>
 );
 
 // ---------------------------------------------------------------------------
@@ -143,7 +147,16 @@ describe("SidebarNavigationProvider", () => {
 
   it("exposes all pages as items", () => {
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
-    expect(result.current.items).toHaveLength(pages.length);
+    expect(result.current.items).toHaveLength(visiblePages(false).length);
+  });
+
+  it("hides the Dev section when the runtime config hasn't enabled it", () => {
+    // No RuntimeConfigProvider in this wrapper, so useRuntimeConfig() is null
+    // — the same state as a page before the config fetch resolves. Dev must
+    // stay out of navigation in that window.
+    const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
+    expect(result.current.items.some((i) => i.label === DEV_PAGE_LABEL)).toBe(false);
+    expect(pages.some((p) => p.label === DEV_PAGE_LABEL)).toBe(true);
   });
 
   describe("pages immutability", () => {

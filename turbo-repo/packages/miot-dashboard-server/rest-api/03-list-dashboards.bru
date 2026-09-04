@@ -1,0 +1,26 @@
+meta {
+  name: List dashboards in a scope
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/scopes/{{scopeId}}/dashboards
+  body: none
+  auth: none
+}
+
+headers {
+  x-dev-user: {{user}}
+  x-dev-tenant: {{tenant}}
+}
+
+docs {
+  The tenant comes from the credential, never from the URL. The scope in the
+  path is checked against that tenant before the store is touched.
+}
+
+assert {
+  res.status: eq 200
+  res.body.data: isDefined
+}

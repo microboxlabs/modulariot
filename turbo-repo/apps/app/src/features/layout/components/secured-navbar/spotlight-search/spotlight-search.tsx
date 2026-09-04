@@ -10,11 +10,15 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
+import { useHarnessChatContext } from "@/features/harness-chat/context/harness-chat-context";
 import { BsStars } from "react-icons/bs";
 import { HiArrowRight, HiSearch } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr } from "@/features/i18n/tr.service";
 import type { SpotlightItem, SpotlightResultKind, HarnessBlock } from "./types";
 import { buildNavigateItems } from "./navigate-actions";
+import { useVisiblePages } from "@/features/layout/hooks/use-visible-pages";
+import { filterHarnessSettings } from "@/features/layout/models/pages";
 import { useSpotlightState } from "./use-spotlight-state";
 import { useHarnessSearch } from "./use-harness-search";
 import { usePagefindSearch } from "./use-pagefind-search";
@@ -49,13 +53,13 @@ const KIND_ICONS: Record<SpotlightResultKind, IconConfig> = {
   },
   harness: {
     icon: BsStars,
-    iconColor: "text-orange-500 dark:text-orange-400",
-    iconBg: "bg-orange-50 dark:bg-orange-900/30",
+    iconColor: "text-white",
+    iconBg: "bg-linear-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)]",
   },
   "harness-goto": {
     icon: HiArrowRight,
-    iconColor: "text-orange-500 dark:text-orange-400",
-    iconBg: "bg-orange-50 dark:bg-orange-900/30",
+    iconColor: "text-white",
+    iconBg: "bg-linear-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)]",
   },
 };
 
@@ -71,7 +75,9 @@ const DEFAULT_HARNESS_SUGGESTIONS = [
 const SUGGESTED_GOTO_LIMIT = 3;
 
 /** One item per parent section (plus any top-level items), in registry order. */
-function pickSuggestedGotoItems(navigateItems: SpotlightItem[]): SpotlightItem[] {
+function pickSuggestedGotoItems(
+  navigateItems: SpotlightItem[]
+): SpotlightItem[] {
   const seenGroups = new Set<string>();
   const picks: SpotlightItem[] = [];
   for (const item of navigateItems) {
@@ -88,7 +94,7 @@ function pickSuggestedGotoItems(navigateItems: SpotlightItem[]): SpotlightItem[]
 function urlBlockToItem(
   block: HarnessBlock & { type: "url" },
   i: number,
-  openUrl: (url: string) => void,
+  openUrl: (url: string) => void
 ): SpotlightItem {
   return {
     id: `harness-url-${i}`,
@@ -113,46 +119,50 @@ function postSpotlightSignal(body: {
   // Prefix the app basePath (/app) like every sibling fetch — without it the
   // POST resolves off-app and 404s in every deployed env, silently dropping the
   // clicked signal (one of the loop's two capture paths).
-  void fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/interactions/episodes`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ surface: "spotlight", ...body }),
-    keepalive: true,
-  }).catch(() => {});
+  void fetch(
+    `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/interactions/episodes`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ surface: "spotlight", ...body }),
+      keepalive: true,
+    }
+  ).catch(() => {});
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 interface SpotlightSearchProps {
   dict: I18nRecord;
+  /** Keeps Spotlight's "Go to" results in sync with the sidebar's Harness settings gate. */
+  isHarnessSettingsEnabled?: boolean;
 }
 
-export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>) {
+export default function SpotlightSearch({
+  dict,
+  isHarnessSettingsEnabled = false,
+}: Readonly<SpotlightSearchProps>) {
   const router = useRouter();
   const { userGroups } = usePermissions();
 
   // ── i18n ─────────────────────────────────────────────────────────────────
   const spotlightDict = dict?.spotlight as I18nRecord | undefined;
-  const navigateDict  = spotlightDict?.navigate as I18nRecord | undefined;
   const sidebarLabels = (
     (dict?.layout as I18nRecord | undefined)?.secured as I18nRecord | undefined
   )?.sidebar as I18nRecord | undefined;
 
-  const placeholder      = (spotlightDict?.placeholder  as string | undefined) ?? "Search…";
-  const recentLabel      = (spotlightDict?.recent       as string | undefined) ?? "Recent";
-  const navigateHeading  = (navigateDict?.heading       as string | undefined) ?? "Go to";
-  const harnessEmptyLabel = (spotlightDict?.harnessEmpty as string | undefined) ?? "No answer found, please try again!";
-  const harnessErrorLabel = (spotlightDict?.harnessError as string | undefined) ?? "Something went wrong while searching.";
-  const harnessRetryLabel = (spotlightDict?.harnessRetry as string | undefined) ?? "Retry";
-
   // Empty-state recommendations — sample questions to try with Harness, and
   // a diverse slice of "Go to" destinations, so the modal isn't blank on open.
   const suggestionsDict = spotlightDict?.suggestions as I18nRecord | undefined;
-  const suggestedAskLabel = (suggestionsDict?.ask as string | undefined) ?? "Try asking";
-  const suggestedGotoLabel = (suggestionsDict?.goto as string | undefined) ?? "Recommended";
-  // Pipe-delimited, matching this dict's existing list convention (see navigate.triggers).
+  // Pipe-delimited, matching this dict's existing list convention (see
+  // navigate.triggers) — needs its own parsing + a structural (array, not
+  // string) fallback, so it stays a direct lookup rather than tr(), whose
+  // missing-key fallback is the literal key path, not undefined.
   const harnessSuggestionsRaw = suggestionsDict?.harness as string | undefined;
   const harnessSuggestionQuestions = harnessSuggestionsRaw
-    ? harnessSuggestionsRaw.split("|").map((s) => s.trim()).filter(Boolean)
+    ? harnessSuggestionsRaw
+        .split("|")
+        .map((s) => s.trim())
+        .filter(Boolean)
     : DEFAULT_HARNESS_SUGGESTIONS;
 
   // Chain-of-thought labels for the live progress panel. The dictionary
@@ -161,9 +171,12 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
   const harnessProgressLabels = useMemo(
     () => ({
       phases: (progressDict ?? {}) as Record<string, string>,
-      tools: ((progressDict?.tools as I18nRecord | undefined) ?? {}) as Record<string, string>,
+      tools: ((progressDict?.tools as I18nRecord | undefined) ?? {}) as Record<
+        string,
+        string
+      >,
     }),
-    [progressDict],
+    [progressDict]
   );
 
   // ── Stable nav callbacks ──────────────────────────────────────────────────
@@ -175,22 +188,37 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
       if (!requiredGroups.length) return true;
       return requiredGroups.some((g) => userGroups.includes(g));
     },
-    [userGroups],
+    [userGroups]
   );
 
   // ── Navigate item registry ────────────────────────────────────────────────
+  const visiblePages = useVisiblePages();
   const navigateItems = useMemo(
-    () => buildNavigateItems(sidebarLabels ?? {}, onNavigate, canAccess),
-    [sidebarLabels, onNavigate, canAccess],
+    () =>
+      buildNavigateItems(
+        filterHarnessSettings(visiblePages, isHarnessSettingsEnabled),
+        sidebarLabels ?? {},
+        onNavigate,
+        canAccess
+      ),
+    [
+      visiblePages,
+      isHarnessSettingsEnabled,
+      sidebarLabels,
+      onNavigate,
+      canAccess,
+    ]
   );
 
   // ── Shared refs — kept current synchronously during render ───────────────
   // selectableCountRef: ArrowDown bound in the keyboard handler
   // selectableItemsRef: Enter key → item lookup by index
   // handleSelectRef:    break circular dep between state hook and handleSelect
+  // openChatRef:        same — needs `close` from useSpotlightState's own return
   const selectableCountRef = useRef(0);
   const selectableItemsRef = useRef<SpotlightItem[]>([]);
-  const handleSelectRef    = useRef<((item: SpotlightItem) => void) | null>(null);
+  const handleSelectRef = useRef<((item: SpotlightItem) => void) | null>(null);
+  const openChatRef = useRef<(() => void) | null>(null);
 
   // Stable Enter handler — reads from refs so it never goes stale.
   const handleEnterSelect = useCallback((index: number) => {
@@ -198,24 +226,42 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
     if (item) handleSelectRef.current?.(item);
   }, []);
 
+  const handleOpenChat = useCallback(() => {
+    openChatRef.current?.();
+  }, []);
+
   // ── Core state ────────────────────────────────────────────────────────────
   const {
-    isOpen, open, close,
-    query, setQuery,
-    selectedIndex, setSelectedIndex,
-    recentItems, addRecentItem,
+    isOpen,
+    open,
+    close,
+    query,
+    setQuery,
+    selectedIndex,
+    setSelectedIndex,
+    recentItems,
+    addRecentItem,
   } = useSpotlightState({
     navigateItems,
     selectableCountRef,
     onEnterSelect: handleEnterSelect,
+    onOpenChat: handleOpenChat,
   });
 
-  // Empty-state "Go to" recommendations — one destination per section, minus
-  // whatever's already pinned in Recent (same underlying item/id would
-  // otherwise render — and highlight — in both sections at once).
+  const harnessChat = useHarnessChatContext();
+  const handleOpenChatAction = useCallback(() => {
+    const text = query.trim();
+    if (!text) return;
+    harnessChat.openWithMessage(text);
+    close();
+  }, [harnessChat, close, query]);
+  openChatRef.current = handleOpenChatAction;
+
   const suggestedGotoItems = useMemo(() => {
     const recentIds = new Set(recentItems.map((i) => i.id));
-    return pickSuggestedGotoItems(navigateItems.filter((i) => !recentIds.has(i.id)));
+    return pickSuggestedGotoItems(
+      navigateItems.filter((i) => !recentIds.has(i.id))
+    );
   }, [navigateItems, recentItems]);
 
   // ── Harness url opener — relative paths navigate in-app (locale-aware),
@@ -231,7 +277,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
         close();
       }
     },
-    [router, close],
+    [router, close]
   );
 
   // ── Committed query — only set when user explicitly asks Harness ─────────
@@ -263,7 +309,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
       setQuery(trimmed);
       setCommittedQuery(trimmed);
     },
-    [setQuery],
+    [setQuery]
   );
 
   // Empty-state "Try asking" recommendations — clicking one asks Harness directly.
@@ -279,11 +325,16 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
         isHarnessPrompt: true,
         onSelect: () => askHarness(text),
       })),
-    [harnessSuggestionQuestions, askHarness],
+    [harnessSuggestionQuestions, askHarness]
   );
 
   // ── Pagefind static search (falls back to fuzzy in dev) ──────────────────
-  const staticResults = usePagefindSearch(query, navigateItems, canAccess, onNavigate);
+  const staticResults = usePagefindSearch(
+    query,
+    navigateItems,
+    canAccess,
+    onNavigate
+  );
 
   // ── Manual harness search — fires only after user commits ─────────────────
   const {
@@ -307,7 +358,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
       isHarnessPrompt: true,
       onSelect: () => setCommittedQuery(query.trim()),
     }),
-    [query],
+    [query]
   );
 
   // ── Retry row — keyboard-selectable after a stream failure ────────────────
@@ -317,7 +368,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
       hasHarnessError
         ? {
             id: "__harness-retry__",
-            label: harnessRetryLabel,
+            label: tr("spotlight.harnessRetry", dict),
             kind: "harness" as const,
             icon: BsStars,
             keywords: [],
@@ -326,17 +377,18 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
             onSelect: () => setSearchAttempt((a) => a + 1),
           }
         : null,
-    [hasHarnessError, harnessRetryLabel],
+    [hasHarnessError, dict]
   );
 
   // ── Harness-generated go-to items (url blocks) — keyboard-selectable ────────
-  const harnessGoToItems = useMemo<SpotlightItem[]>(() =>
-    harnessResults.flatMap((result) =>
-      (result.blocks ?? [])
-        .filter((b): b is HarnessBlock & { type: "url" } => b.type === "url")
-        .map((block, i) => urlBlockToItem(block, i, onOpenHarnessUrl))
-    ),
-    [harnessResults, onOpenHarnessUrl],
+  const harnessGoToItems = useMemo<SpotlightItem[]>(
+    () =>
+      harnessResults.flatMap((result) =>
+        (result.blocks ?? [])
+          .filter((b): b is HarnessBlock & { type: "url" } => b.type === "url")
+          .map((block, i) => urlBlockToItem(block, i, onOpenHarnessUrl))
+      ),
+    [harnessResults, onOpenHarnessUrl]
   );
 
   // ── Flat selectable list (no group headers) ───────────────────────────────
@@ -364,12 +416,12 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
       harnessRetryItem,
       harnessGoToItems,
       staticResults,
-    ],
+    ]
   );
 
   // Keep refs current — runs synchronously during render, before any event.
-  selectableCountRef.current  = selectableItems.length;
-  selectableItemsRef.current  = selectableItems;
+  selectableCountRef.current = selectableItems.length;
+  selectableItemsRef.current = selectableItems;
 
   // Auto-select the first result whenever the result set changes.
   useEffect(() => {
@@ -386,8 +438,11 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
     return selectableItems.find((i) => i.id === id)?.kind ?? null;
   }, [hoveredId, selectedIndex, selectableItems]);
 
-  const { icon: ModeIcon, iconColor, iconBg } =
-    activeKind ? KIND_ICONS[activeKind] : DEFAULT_ICON;
+  const {
+    icon: ModeIcon,
+    iconColor,
+    iconBg,
+  } = activeKind ? KIND_ICONS[activeKind] : DEFAULT_ICON;
 
   // ── Action handler ────────────────────────────────────────────────────────
   const handleSelectAction = useCallback(
@@ -412,7 +467,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
       item.onSelect();
       close();
     },
-    [addRecentItem, close],
+    [addRecentItem, close]
   );
   // Keep the ref current so handleEnterSelect always calls the latest version.
   handleSelectRef.current = handleSelectAction;
@@ -434,7 +489,9 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
         className="flex items-center w-full lg:w-96 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
       >
         <HiSearch className="mr-2 h-4 w-4 shrink-0" />
-        <span className="flex-1 text-left truncate">{placeholder}</span>
+        <span className="flex-1 text-left truncate">
+          {tr("spotlight.placeholder", dict)}
+        </span>
         <KbdHint />
       </button>
 
@@ -443,7 +500,7 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
         <SpotlightBackdrop onClose={close}>
           <dialog
             open
-            aria-label={placeholder}
+            aria-label={tr("spotlight.placeholder", dict)}
             className="relative left-1/2 top-[15%] w-full max-w-2xl -translate-x-1/2 px-4 border-0 bg-transparent p-0 m-0 max-h-none overflow-visible"
           >
             <div
@@ -452,14 +509,16 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
               onKeyDown={() => {}}
               role="presentation"
             >
-
               <SpotlightInput
                 query={query}
-                placeholder={placeholder}
+                placeholder={tr("spotlight.placeholder", dict)}
                 onChange={setQuery}
                 ModeIcon={ModeIcon}
                 iconColor={iconColor}
                 iconBg={iconBg}
+                showOpenChat={!isEmpty}
+                onOpenChat={handleOpenChatAction}
+                openChatLabel={tr("spotlight.openChat", dict)}
               />
 
               <div className="border-t border-gray-100 dark:border-gray-700" />
@@ -467,11 +526,11 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
               {isEmpty && (
                 <SpotlightEmptyState
                   recentItems={recentItems}
-                  recentLabel={recentLabel}
+                  recentLabel={tr("spotlight.recent", dict)}
                   suggestedHarnessItems={harnessSuggestionItems}
-                  suggestedHarnessLabel={suggestedAskLabel}
+                  suggestedHarnessLabel={tr("spotlight.suggestions.ask", dict)}
                   suggestedGotoItems={suggestedGotoItems}
-                  suggestedGotoLabel={suggestedGotoLabel}
+                  suggestedGotoLabel={tr("spotlight.suggestions.goto", dict)}
                   selectedItemId={selectableItems[selectedIndex]?.id ?? null}
                   onSelect={handleSelectAction}
                   onHover={setHoveredId}
@@ -487,15 +546,15 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
                   harnessProgress={harnessProgress}
                   harnessProgressLabels={harnessProgressLabels}
                   harnessError={hasHarnessError}
-                  harnessErrorLabel={harnessErrorLabel}
+                  harnessErrorLabel={tr("spotlight.harnessError", dict)}
                   harnessRetryItem={harnessRetryItem}
                   harnessPrompt={showHarnessPrompt ? harnessPromptItem : null}
                   selectedItemId={selectableItems[selectedIndex]?.id ?? null}
                   onSelect={handleSelectAction}
                   onHover={setHoveredId}
                   onOpenUrl={onOpenHarnessUrl}
-                  navigateHeading={navigateHeading}
-                  harnessEmptyLabel={harnessEmptyLabel}
+                  navigateHeading={tr("spotlight.navigate.heading", dict)}
+                  harnessEmptyLabel={tr("spotlight.harnessEmpty", dict)}
                 />
               )}
 
@@ -506,7 +565,6 @@ export default function SpotlightSearch({ dict }: Readonly<SpotlightSearchProps>
               />
 
               <SpotlightFooter hasResults={!isEmpty && hasResults} />
-
             </div>
           </dialog>
         </SpotlightBackdrop>

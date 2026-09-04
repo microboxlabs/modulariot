@@ -6,7 +6,7 @@ import { Section, type Tone } from "./sections/shared";
 
 type Philosophy = { title: string; body: string };
 
-// Página de precios completa, montada en app/alpha-2506/[lang]/precios/.
+// Página de precios completa, montada en app/[lang]/precios/.
 export default async function PricingPage({
   lang,
   base,

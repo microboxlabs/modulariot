@@ -5,7 +5,7 @@ import { HiXMark } from "react-icons/hi2";
 import { Button } from "flowbite-react";
 import CustomBadge from "@/features/common/components/custom-badge/custom-badge";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { useDashboard } from "@/features/dashboard/context/dashboard-context";
+import { useOptionalDashboard } from "@/features/dashboard/context/dashboard-context";
 import type { TableColumn } from "./column-types";
 import type { ColumnFilter } from "./column-filter-types";
 import { resolveDataProperty } from "./handlebars-helpers";
@@ -27,7 +27,7 @@ export function ColumnFilterToolbar({
   onRemove,
   onClearAll,
 }: ColumnFilterToolbarProps) {
-  const { dictionary } = useDashboard();
+  const { dictionary } = useOptionalDashboard();
   const activeFilters = Object.values(filters);
   if (activeFilters.length === 0) return null;
 

@@ -22,7 +22,7 @@ export async function FinalCta({
 }) {
   const t = await getTranslations({ locale: lang, namespace: "finalCta" });
   const stats = t.raw("stats") as FinalCtaStat[];
-  const routeBase = base ?? `/alpha-2506/${lang}`;
+  const routeBase = base ?? `/${lang}`;
   return (
     <Section id="contacto" tone={tone}>
       <div className="border-hairline bg-surface rounded-2xl border px-8 py-14 text-center sm:px-16">

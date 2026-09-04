@@ -17,7 +17,7 @@ const LABEL: Record<string, string> = {
 export default function DemoFab({ lang = "es" }: { lang?: string }) {
   const pathname = usePathname() || "";
   if (pathname.includes("/contacto")) return null;
-  const base = `/alpha-2506/${lang}`;
+  const base = `/${lang}`;
 
   return (
     <a

@@ -7,7 +7,7 @@ import { requireOrganizationOwner } from "@/app/api/utils/organization-owner";
  * POST /api/admin/orgs/[orgId]/integrations/gps-webhooks — create subscription
  *
  * StreamHub-domain control plane (GPS). Uses {@code MIOT_STREAMHUB_API_URL}
- * (falls back to {@code MIOT_RESOURCE_URL}) — not the coordinator-only helper.
+ * (falls back to {@code MIOT_MODULITH_URL}) — not the coordinator-only helper.
  */
 export async function GET(
   _request: Request,

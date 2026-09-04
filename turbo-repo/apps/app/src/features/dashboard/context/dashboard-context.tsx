@@ -22,6 +22,7 @@ import { getDashlet, canNestIn, getDefaultContainerVariant } from "../dashlets";
 import { getNextPosition } from "../utils/get-next-position";
 import { PlannerProvider } from "./planner-context";
 import { DashboardFiltersProvider } from "./dashboard-filters-context";
+import { useStandaloneDictionary } from "./standalone-dictionary-context";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useKioskMode } from "@/features/layout/hooks/use-kiosk-mode";
 
@@ -485,4 +486,67 @@ export function useDashboard() {
     throw new Error("useDashboard must be used within a DashboardProvider");
   }
   return context;
+}
+
+const NOOP = () => {};
+const DASHBOARD_FALLBACK: DashboardContextValue = {
+  widgets: [],
+  editMode: false,
+  isKiosk: false,
+  isLoaded: true,
+  dictionary: {},
+  siteId: null,
+  filters: [],
+  setFilters: NOOP,
+  refreshInterval: 0,
+  setRefreshInterval: NOOP,
+  order: undefined,
+  setOrder: NOOP,
+  allowedGroups: [],
+  setAllowedGroups: NOOP,
+  createWidget: () => null,
+  updateWidgetConfig: NOOP,
+  updateWidgetLayouts: NOOP,
+  updateWidgetConstraints: NOOP,
+  deleteWidget: NOOP,
+  duplicateWidget: () => null,
+  findWidget: () => undefined,
+  toggleEditMode: NOOP,
+  setEditMode: NOOP,
+  dashboardName: "",
+  setDashboardName: NOOP,
+  exportDashboard: () => "",
+  importDashboard: () => ({ success: false, error: "No dashboard loaded" }),
+  downloadDashboard: NOOP,
+  plannerDefinitions: [],
+  addPlannerRequest: () => "",
+  updatePlannerRequest: NOOP,
+  removePlannerRequest: NOOP,
+  undo: NOOP,
+  redo: NOOP,
+  canUndo: () => false,
+  canRedo: () => false,
+};
+
+/**
+ * Like `useDashboard` but returns a safe, read-only fallback instead of
+ * throwing when rendered outside a `DashboardProvider` — e.g. a dashlet
+ * rendered standalone in harness-chat, matching how
+ * `useOptionalPlannerContext` already does this for the planner context.
+ * Widget mutation callbacks are no-ops; there's no dashboard to mutate.
+ *
+ * The one field the fallback can't sensibly leave empty is `dictionary` —
+ * plenty of eligible dashlets translate unconditionally, and an empty
+ * dictionary makes `tr()` render the raw key path on screen. A
+ * `StandaloneDictionaryProvider` above supplies it; without one the old
+ * empty-object behaviour still applies.
+ */
+export function useOptionalDashboard(): DashboardContextValue {
+  const context = useContext(DashboardContext);
+  const standaloneDictionary = useStandaloneDictionary();
+  return useMemo(() => {
+    if (context) return context;
+    if (!standaloneDictionary) return DASHBOARD_FALLBACK;
+    return { ...DASHBOARD_FALLBACK, dictionary: standaloneDictionary };
+  }, [context, standaloneDictionary]);
 }

@@ -2,15 +2,15 @@ import { memo, useCallback, useEffect, useRef } from "react";
 import { HiArrowRight } from "react-icons/hi";
 import type { SpotlightItem } from "./types";
 
-function getRowBg(isSelected: boolean, useOrangeAccent: boolean): string {
+function getRowBg(isSelected: boolean, useAmberAccent: boolean): string {
   if (isSelected) {
-    return useOrangeAccent ? "bg-orange-100 dark:bg-orange-800/40" : "bg-gray-100 dark:bg-gray-700/70";
+    return useAmberAccent ? "bg-amber-100 dark:bg-amber-800/40" : "bg-gray-100 dark:bg-gray-700/70";
   }
-  return useOrangeAccent ? "hover:bg-orange-50 dark:hover:bg-orange-900/20" : "hover:bg-gray-50 dark:hover:bg-gray-700/50";
+  return useAmberAccent ? "hover:bg-amber-50 dark:hover:bg-amber-900/20" : "hover:bg-gray-50 dark:hover:bg-gray-700/50";
 }
 
 function getLabelClass(isHarnessGoto: boolean, isHarness: boolean): string {
-  if (isHarnessGoto) return "font-medium text-orange-500 dark:text-orange-400";
+  if (isHarnessGoto) return "font-medium text-amber-600 dark:text-amber-400";
   if (isHarness) return "font-medium text-gray-800 dark:text-white";
   return "text-gray-600 dark:text-gray-300";
 }
@@ -20,7 +20,7 @@ interface SpotlightRowProps {
   isSelected: boolean;
   onSelect: (item: SpotlightItem) => void;
   onHover: (id: string | null) => void;
-  /** When true, uses orange hover bg and selected bg (harness prompt only) */
+  /** When true, uses amber hover bg and selected bg (harness prompt only) */
   accentHover?: boolean;
 }
 
@@ -43,17 +43,15 @@ export const SpotlightRow = memo(function SpotlightRow({
 
   const ItemIcon = item.icon ?? HiArrowRight;
   const isHarness = item.kind === "harness" || item.kind === "harness-goto";
-  const useOrangeAccent = accentHover || isHarness;
+  const useAmberAccent = accentHover || isHarness;
 
-  const iconClass = isHarness
-    ? "text-orange-500 dark:text-orange-400"
-    : "text-gray-500 dark:text-gray-400";
+  const iconClass = isHarness ? "text-white" : "text-gray-500 dark:text-gray-400";
 
   const iconBgClass = isHarness
-    ? "bg-orange-50 dark:bg-orange-900/30"
+    ? "bg-linear-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)]"
     : "bg-gray-100 dark:bg-gray-700";
 
-  const rowBg = getRowBg(isSelected, useOrangeAccent);
+  const rowBg = getRowBg(isSelected, useAmberAccent);
 
   return (
     <button
@@ -69,7 +67,7 @@ export const SpotlightRow = memo(function SpotlightRow({
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         {item.sublabel && (
-          <span className={`truncate text-[10px] font-medium ${isHarness ? "text-orange-500 dark:text-orange-400" : "text-gray-400 dark:text-gray-500"}`}>
+          <span className={`truncate text-[10px] font-medium ${isHarness ? "text-amber-600 dark:text-amber-400" : "text-gray-400 dark:text-gray-500"}`}>
             {item.sublabel}
           </span>
         )}

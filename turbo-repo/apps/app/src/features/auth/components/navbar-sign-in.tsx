@@ -3,15 +3,20 @@ import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import AppLogo from "@/features/common/components/app-logo/app-logo";
 
 interface NavbarSignInProps {
-  /** Organization logo as base64 data URL; if provided, shown instead of default logo */
+  /** Per-domain logo URL; if provided, shown instead of the default logo */
   orgLogoUrl?: string | null;
+  /** Where the brand links to; unlinked when the domain configures no home URL */
+  homeUrl?: string | null;
 }
 
-export default function NavbarSignIn({ orgLogoUrl }: NavbarSignInProps = {}) {
+export default function NavbarSignIn({
+  orgLogoUrl,
+  homeUrl,
+}: NavbarSignInProps = {}) {
   return (
     <div className="w-full h-fit dark:bg-gray-800">
       <Navbar fluid className="dark:bg-transparent">
-        <NavbarBrand data-testid="login-navbar" href="https://www.mintral.cl/">
+        <NavbarBrand data-testid="login-navbar" href={homeUrl ?? undefined}>
           {orgLogoUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img

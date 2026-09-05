@@ -1,20 +1,30 @@
-package com.microboxlabs.miot.core.branding;
+package com.microboxlabs.miot.core.auth;
 
-import com.microboxlabs.miot.core.auth.TestTokenFactory;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Mirrors the deployed auth and datasource configuration for the branding
- * endpoints. {@code miot-core} has no {@code application.properties} of its own,
- * so without these overrides {@code /api/*} would be permit-all and the
- * unauthenticated/forbidden split under test would never fire.
+ * Mirrors the deployed auth and datasource configuration for the platform-scope
+ * endpoints — branding and roles. {@code miot-core} has no
+ * {@code application.properties} of its own, so without these overrides
+ * {@code /api/*} would be permit-all and the unauthenticated/forbidden split
+ * under test would never fire.
+ *
+ * <p>Shared by every platform {@code @QuarkusTest} on purpose: one profile is
+ * one application start.
  */
-public class DomainBrandingTestProfile implements QuarkusTestProfile {
+public class PlatformTestProfile implements QuarkusTestProfile {
 
     public static final String OWNER_EMAIL = "owner@test.example";
     public static final String NON_OWNER_EMAIL = "stranger@test.example";
+    /**
+     * Granted the role through the API rather than configuration. Kept distinct
+     * from {@link #NON_OWNER_EMAIL} because the profile is shared: one test
+     * class granting the other's "stranger" would silently turn its
+     * forbidden-write assertions green.
+     */
+    public static final String GRANTED_EMAIL = "granted@test.example";
 
     @Override
     public Map<String, String> getConfigOverrides() {

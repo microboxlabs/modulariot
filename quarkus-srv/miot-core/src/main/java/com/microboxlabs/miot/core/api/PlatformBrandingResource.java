@@ -27,7 +27,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
  * domain belongs to no organization, and that prefix would put the request
  * through {@code OrganizationRequestFilter}'s membership check. Authorization
  * is {@link PlatformAuthorizer} instead, and it denies everything until
- * {@code miot.platform.owner-emails} is set.
+ * somebody holds {@code PLATFORM_OWNER} — by configuration or by grant.
  */
 @Path("/api/v1/platform/branding/domains")
 @Produces(MediaType.APPLICATION_JSON)
@@ -49,16 +49,14 @@ public class PlatformBrandingResource {
     @GET
     @Operation(summary = "List every configured domain")
     public Uni<List<DomainBrandingDto>> list() {
-        authorizer.requirePlatformOwner();
-        return service.list();
+        return authorizer.requirePlatformOwner().flatMap(ignored -> service.list());
     }
 
     @GET
     @Path("/{domain}")
     @Operation(summary = "Get one domain's branding")
     public Uni<DomainBrandingDto> get(@PathParam("domain") String domain) {
-        authorizer.requirePlatformOwner();
-        return service.get(domain);
+        return authorizer.requirePlatformOwner().flatMap(ignored -> service.get(domain));
     }
 
     @PUT
@@ -66,15 +64,16 @@ public class PlatformBrandingResource {
     @Operation(summary = "Create or replace one domain's branding")
     public Uni<DomainBrandingDto> put(
             @PathParam("domain") String domain, SetDomainBrandingRequest request) {
-        String callerEmail = authorizer.requirePlatformOwner();
-        return service.upsert(domain, request, callerEmail);
+        return authorizer.requirePlatformOwner()
+                .flatMap(callerEmail -> service.upsert(domain, request, callerEmail));
     }
 
     @DELETE
     @Path("/{domain}")
     @Operation(summary = "Remove one domain's branding, reverting it to the default logo")
     public Uni<Response> delete(@PathParam("domain") String domain) {
-        authorizer.requirePlatformOwner();
-        return service.delete(domain).replaceWith(Response.noContent().build());
+        return authorizer.requirePlatformOwner()
+                .flatMap(ignored -> service.delete(domain))
+                .replaceWith(() -> Response.noContent().build());
     }
 }

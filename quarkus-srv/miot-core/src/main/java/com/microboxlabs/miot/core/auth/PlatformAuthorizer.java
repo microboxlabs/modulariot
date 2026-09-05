@@ -1,6 +1,10 @@
 package com.microboxlabs.miot.core.auth;
 
+import com.microboxlabs.miot.core.model.PlatformRoleAssignment;
+import com.microboxlabs.miot.core.permission.PlatformRoleDefinition;
+import io.quarkus.hibernate.reactive.panache.Panache;
 import io.quarkus.security.identity.SecurityIdentity;
+import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.ForbiddenException;
@@ -13,7 +17,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
 /**
- * Authorizes platform-scope writes — the ones that are not about a single
+ * Authorizes platform-scope requests — the ones that are not about a single
  * organization, such as per-domain branding.
  *
  * <p>{@link WriteAuthorizer} cannot express this: its rule is "SITE_MANAGER on
@@ -26,15 +30,25 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
  * accepts: platform scope spans every organization, and a token with no
  * {@code email} claim — an M2M client — could otherwise name any owner it liked.
  *
- * <p>The owner list comes from {@code miot.platform.owner-emails} and is empty
- * by default, which denies every write. Keeping it in configuration rather than
- * a table means there is no role-management UI to build; this class is the seam
- * to replace if that changes.
+ * <p>Two grants, either of which suffices:
+ *
+ * <ul>
+ *   <li>{@code miot.platform.owner-emails}, empty by default. It answers who
+ *       grants the first database owner, and is the way back in when the table
+ *       is empty or wrong. Changing it needs a deployment, which is what makes
+ *       it break-glass rather than the everyday mechanism.
+ *   <li>{@code PLATFORM_OWNER} in {@code miot_core.platform_role_assignments},
+ *       managed through {@code /api/v1/platform/roles} and visible in the
+ *       product.
+ * </ul>
+ *
+ * <p>The configured list is consulted first so that the break-glass path needs
+ * no database, which is the state it exists for.
  */
 @ApplicationScoped
 public class PlatformAuthorizer {
 
-    private final Set<String> ownerEmails;
+    private final Set<String> bootstrapOwners;
     private final SecurityIdentity securityIdentity;
 
     /**
@@ -48,21 +62,52 @@ public class PlatformAuthorizer {
             @ConfigProperty(name = "miot.platform.owner-emails")
             Optional<List<String>> ownerEmails,
             SecurityIdentity securityIdentity) {
-        this.ownerEmails = normalizeOwners(ownerEmails.orElse(List.of()));
+        this.bootstrapOwners = normalizeOwners(ownerEmails.orElse(List.of()));
         this.securityIdentity = securityIdentity;
+    }
+
+    /** The emails granted by configuration, already normalized. */
+    public Set<String> bootstrapOwners() {
+        return Set.copyOf(bootstrapOwners);
     }
 
     /**
      * @return the caller's email, once confirmed to be a platform owner
      * @throws ForbiddenException when it is not, or cannot be resolved
      */
-    public String requirePlatformOwner() {
+    public Uni<String> requirePlatformOwner() {
+        String email = requireCallerEmail();
+        return isPlatformOwner(email)
+                .flatMap(owner -> Boolean.TRUE.equals(owner)
+                        ? Uni.createFrom().item(email)
+                        : Uni.createFrom().failure(
+                                new ForbiddenException("Platform owner role required")));
+    }
+
+    /** Does not throw when the caller is not an owner — for reporting held roles. */
+    public Uni<Boolean> isPlatformOwner(String email) {
+        if (email == null) {
+            return Uni.createFrom().item(false);
+        }
+        if (isOwner(bootstrapOwners, email)) {
+            return Uni.createFrom().item(true);
+        }
+        return Panache.withSession(() -> PlatformRoleAssignment.hasAssignment(
+                PlatformRoleDefinition.OWNER.roleCode(), normalize(email)));
+    }
+
+    /** The caller's email, or null when the token carries no {@code email} claim. */
+    public String callerEmail() {
+        return resolveEmail();
+    }
+
+    /**
+     * @throws ForbiddenException when the request carries no usable identity
+     */
+    public String requireCallerEmail() {
         String email = resolveEmail();
         if (email == null) {
             throw new ForbiddenException("Cannot resolve caller identity");
-        }
-        if (!isOwner(ownerEmails, email)) {
-            throw new ForbiddenException("Platform owner role required");
         }
         return email;
     }
@@ -85,13 +130,18 @@ public class PlatformAuthorizer {
         }
         for (String entry : configured) {
             if (entry != null && !entry.isBlank()) {
-                owners.add(entry.trim().toLowerCase(Locale.ROOT));
+                owners.add(normalize(entry));
             }
         }
         return owners;
     }
 
     static boolean isOwner(Set<String> owners, String email) {
-        return email != null && owners.contains(email.trim().toLowerCase(Locale.ROOT));
+        return email != null && owners.contains(normalize(email));
+    }
+
+    /** Public because assignments must be stored the way this class compares them. */
+    public static String normalize(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 }

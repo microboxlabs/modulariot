@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
+import com.microboxlabs.miot.core.auth.PlatformTestProfile;
 import com.microboxlabs.miot.core.auth.TestTokenFactory;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
@@ -24,7 +25,7 @@ import org.junit.jupiter.api.Test;
  * of which the validator unit tests can reach.
  */
 @QuarkusTest
-@TestProfile(DomainBrandingTestProfile.class)
+@TestProfile(PlatformTestProfile.class)
 class BrandingResourceTest {
 
     private static final byte[] LOGO =
@@ -33,7 +34,7 @@ class BrandingResourceTest {
             "data:image/svg+xml;base64," + Base64.getEncoder().encodeToString(LOGO);
 
     private static String ownerToken() {
-        return TestTokenFactory.signWebToken(DomainBrandingTestProfile.OWNER_EMAIL);
+        return TestTokenFactory.signWebToken(PlatformTestProfile.OWNER_EMAIL);
     }
 
     private static void putBranding(String domain, String body) {
@@ -81,7 +82,7 @@ class BrandingResourceTest {
     void writesAreForbiddenForNonOwners() {
         given().header("Authorization",
                         "Bearer " + TestTokenFactory.signWebToken(
-                                DomainBrandingTestProfile.NON_OWNER_EMAIL))
+                                PlatformTestProfile.NON_OWNER_EMAIL))
                 .contentType("application/json")
                 .body(requestBody(null))
                 .when().put("/api/v1/platform/branding/domains/forbidden.test")

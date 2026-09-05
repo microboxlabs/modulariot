@@ -1,4 +1,8 @@
 {
+  "legalLinks": {
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service"
+  },
   "nav": {
     "cta": "Request a demo",
     "mega": {
@@ -177,11 +181,11 @@
     }
   },
   "hero": {
-    "kicker": "Open source — engine and data you can audit",
+    "kicker": "ModularIoT — Fleet monitoring and IoT analytics",
     "titlePre": "From detecting to ",
     "titleHighlight": "reducing",
     "titlePost": ".",
-    "subtitle": "We turn your alerts into real improvements for your operation.",
+    "subtitle": "ModularIoT by MicroboxLabs connects GPS devices and IoT sensors so teams can monitor fleets in real time, investigate alerts, and coordinate operational responses. Sign in to the ModularIoT application to access your organization’s dashboards and tools.",
     "ctaPrimary": "Book a 20-min technical demo",
     "ctaSecondary": "See pricing",
     "livePanel": {

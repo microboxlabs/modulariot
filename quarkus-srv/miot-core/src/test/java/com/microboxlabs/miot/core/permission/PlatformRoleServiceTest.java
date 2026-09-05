@@ -33,10 +33,12 @@ class PlatformRoleServiceTest {
 
     @Test
     void rejectsAMissingAssigneeList() {
+        SetPlatformRoleRequest withoutIds = new SetPlatformRoleRequest(null);
+
         assertThrows(BadRequestException.class,
                 () -> PlatformRoleService.normalizeAssignees(null));
         assertThrows(BadRequestException.class,
-                () -> PlatformRoleService.normalizeAssignees(new SetPlatformRoleRequest(null)));
+                () -> PlatformRoleService.normalizeAssignees(withoutIds));
     }
 
     @Test

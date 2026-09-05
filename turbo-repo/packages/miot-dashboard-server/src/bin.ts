@@ -17,7 +17,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildIdentityResolver } from "./server/auth";
+import { buildIdentityResolver, buildScopeAuthority } from "./server/auth";
 import {
   ConfigError,
   readServerConfig,
@@ -29,7 +29,6 @@ import { serve } from "./server/serve";
 import type { ServerDashboardStore } from "./seams/store";
 import { openSqliteStore } from "./store/sqlite";
 import {
-  createMemoryScopeAuthority,
   createMemoryStore,
   createRecordingAuditSink,
   type Memberships,
@@ -176,36 +175,39 @@ async function main(): Promise<void> {
   const seed = readSeed(config.seedPath);
   const memberships = seed.memberships ?? {};
 
-  const auth = await buildIdentityResolver(config.auth, {
-    // The response is a 401 with no detail; the reason is logged here so a
-    // misconfiguration can be diagnosed. Rate-limited, because otherwise an
-    // anonymous caller controls how much this process logs.
-    onReject: createRefusalLog({ write: log }),
-  });
+  // The response is a 401 or 403 with no detail; the reason is logged here so
+  // a misconfiguration can be diagnosed. Rate-limited, because otherwise an
+  // anonymous caller controls how much this process logs.
+  const onReject = createRefusalLog({ write: log });
+
+  const auth = await buildIdentityResolver(config.auth, { onReject });
+  const scopes = buildScopeAuthority(config.scopes, { memberships, onReject });
 
   if (config.auth.kind === "insecure") {
     process.stderr.write(
       "WARNING: identity is read from request headers without verification " +
         "(MIOT_DASHBOARD_INSECURE_AUTH). Local use only.\n",
     );
-  } else if (Object.keys(memberships).length === 0) {
-    // Identity is verified, but no scope memberships are configured and the
-    // scope authority denies by default, so every request will be a 403.
+  }
+  if (config.scopes.kind === "seed" && Object.keys(memberships).length === 0) {
+    // The scope authority denies by default, so with no memberships every
+    // request is a 403 and the server looks broken rather than misconfigured.
     process.stderr.write(
       "WARNING: no scope memberships are configured, so every request will be " +
-        "refused with 403 TENANT_SCOPE. The standalone server reads them from " +
-        "MIOT_DASHBOARD_SEED; a deployment reads them from the host's own " +
-        "membership system through the ScopeAuthority seam.\n",
+        "refused with 403 TENANT_SCOPE. Read them from MIOT_DASHBOARD_SEED for " +
+        "local use, or set MIOT_DASHBOARD_SCOPES_URL to ask the host's own " +
+        "membership system.\n",
     );
   }
 
   const assembled = await openStore(config, seed);
   log({ level: "info", msg: "store", store: assembled.describe });
   log({ level: "info", msg: "identity", auth: auth.describe });
+  log({ level: "info", msg: "scopes", membership: scopes.describe });
 
   const running = await serve({
     identity: auth.identity,
-    scopes: createMemoryScopeAuthority(memberships),
+    scopes: scopes.scopes,
     store: assembled.store,
     audit: createRecordingAuditSink(),
     port: config.port,

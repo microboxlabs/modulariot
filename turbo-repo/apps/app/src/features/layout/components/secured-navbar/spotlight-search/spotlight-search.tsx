@@ -18,7 +18,8 @@ import { tr } from "@/features/i18n/tr.service";
 import type { SpotlightItem, SpotlightResultKind, HarnessBlock } from "./types";
 import { buildNavigateItems } from "./navigate-actions";
 import { useVisiblePages } from "@/features/layout/hooks/use-visible-pages";
-import { filterHarnessSettings } from "@/features/layout/models/pages";
+import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
+import { filterSettings } from "@/features/layout/models/pages";
 import { useSpotlightState } from "./use-spotlight-state";
 import { useHarnessSearch } from "./use-harness-search";
 import { usePagefindSearch } from "./use-pagefind-search";
@@ -193,10 +194,14 @@ export default function SpotlightSearch({
 
   // ── Navigate item registry ────────────────────────────────────────────────
   const visiblePages = useVisiblePages();
+  const { isPlatformOwner } = useIsPlatformOwner();
   const navigateItems = useMemo(
     () =>
       buildNavigateItems(
-        filterHarnessSettings(visiblePages, isHarnessSettingsEnabled),
+        filterSettings(visiblePages, {
+          harness: isHarnessSettingsEnabled,
+          platformOwner: isPlatformOwner,
+        }),
         sidebarLabels ?? {},
         onNavigate,
         canAccess
@@ -204,6 +209,7 @@ export default function SpotlightSearch({
     [
       visiblePages,
       isHarnessSettingsEnabled,
+      isPlatformOwner,
       sidebarLabels,
       onNavigate,
       canAccess,

@@ -1,6 +1,6 @@
 "use client";
 
-import { ApiError } from "../data/settings-admin-data-service";
+import { ApiError } from "../data/json-client";
 import {
   parseRecipientList,
   WHATSAPP_PROVIDER,

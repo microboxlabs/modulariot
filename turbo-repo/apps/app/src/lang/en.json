@@ -1422,6 +1422,83 @@
       "subtitle": "The trip you are looking for does not exist or is not available."
     },
     "userSettings": {
+      "branding": {
+        "title": "Branding by domain",
+        "description": "Set the logo shown on each domain. Domains with no entry use the default logo.",
+        "loadError": "Couldn't load the configured domains.",
+        "notOwnerTitle": "You don't have access to this section",
+        "notOwnerBody": "Only platform administrators can configure branding by domain.",
+        "domainsTitle": "Domains",
+        "domainsDescription": "One logo per domain, plus the link it points to.",
+        "domainsEmpty": "No domains configured yet.",
+        "addDomain": "Add domain",
+        "logoAlt": "{domain} logo",
+        "noHomeUrl": "No link",
+        "updatedBy": "Updated by {who} · {when}",
+        "statusActive": "Active",
+        "statusInactive": "Inactive",
+        "edit": "Edit",
+        "remove": "Remove",
+        "removeConfirm": "Confirm",
+        "cancel": "Cancel",
+        "saveError": "Couldn't save the change.",
+        "toast": {
+          "saved": "Saved the branding for {domain}.",
+          "removed": "Removed the branding for {domain}."
+        },
+        "modal": {
+          "addTitle": "Add domain",
+          "editTitle": "Edit domain",
+          "subtitle": "Upload the logo people will see when they arrive on this domain.",
+          "editSubtitle": "Change this domain's logo or link.",
+          "domainLabel": "Domain",
+          "domainPlaceholder": "portal.example.com",
+          "domainHelp": "No protocol and no port. The domain can't be changed afterwards: to rename it, remove the entry and create a new one.",
+          "logoLabel": "Logo",
+          "logoHelp": "SVG, PNG, JPEG or WebP, up to {size} KB.",
+          "currentLogo": "Current logo",
+          "newLogo": "New logo",
+          "previewAlt": "Logo preview",
+          "homeUrlLabel": "Logo link",
+          "homeUrlPlaceholder": "https://www.example.com/",
+          "homeUrlHelp": "Where the logo goes when clicked. Leave it empty to render the logo unlinked.",
+          "activeLabel": "Active",
+          "activeHelp": "Turning this off returns the domain to the default logo without losing what's configured.",
+          "save": "Save",
+          "saving": "Saving…",
+          "cancel": "Cancel",
+          "errors": {
+            "domain": "Enter a valid domain, for example portal.example.com.",
+            "logoRequired": "Choose a logo file.",
+            "logoType": "Unsupported format. Use SVG, PNG, JPEG or WebP.",
+            "logoEmpty": "The file is empty.",
+            "logoSize": "The file is over the size limit.",
+            "logoUnreadable": "Couldn't read the logo file.",
+            "homeUrlLength": "The link is too long.",
+            "homeUrlMalformed": "The link is not a valid URL.",
+            "homeUrlScheme": "The link must start with http:// or https://.",
+            "homeUrlUserInfo": "The link can't include a username or password."
+          }
+        },
+        "owners": {
+          "title": "Platform administrators",
+          "description": "Who can configure branding for any domain.",
+          "empty": "No administrators yet.",
+          "loadError": "Couldn't load the administrator list.",
+          "saveError": "Couldn't save the change.",
+          "addLabel": "Administrator email",
+          "addPlaceholder": "person@example.com",
+          "add": "Add",
+          "removeLabel": "Remove {email}",
+          "added": "Administrator added.",
+          "removed": "Administrator removed.",
+          "invalidEmail": "Enter a valid email address.",
+          "duplicate": "That address is already on the list.",
+          "lastOwnerHelp": "The last administrator can't be removed: nobody would be able to get back in.",
+          "bootstrapBadge": "From configuration",
+          "bootstrapHelp": "The marked administrators come from the deployment's configuration and can only be changed there. They exist so access can be recovered if the list is ever emptied."
+        }
+      },
       "organizations": {
         "title": "Organizations",
         "description": "Review your organizations and their members. Organization owners can manage access and integrations.",
@@ -1678,7 +1755,8 @@
         "dataSources": "Data Sources",
         "credentials": "Credentials",
         "connections": "Connections",
-        "harness": "Harness"
+        "harness": "Harness",
+        "branding": "Branding"
       },
       "symptoms": {
         "config": {
@@ -2413,6 +2491,7 @@
         "credentials": "Credentials",
         "connections": "Connections",
         "harness": "Harness",
+        "branding": "Branding",
         "help": "Help and getting started",
         "controlTower": "Control Tower",
         "whereIsMyLoad": "Where is my load?",

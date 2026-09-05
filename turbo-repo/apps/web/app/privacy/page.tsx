@@ -113,6 +113,15 @@ export default function PrivacyPolicy() {
           when managing membership and access.
         </p>
         <p className="text-ink-2 mt-4 leading-relaxed">
+          Separately from Google sign-in, this website uses Google Analytics
+          when analytics is enabled. Google receives website usage data such as
+          page views, session activity, browser and device information,
+          approximate location, and cookie-based identifiers to help us
+          understand how the website is used. This includes visits to this
+          privacy page. We do not send your Google sign-in profile or
+          authentication tokens to Google Analytics.
+        </p>
+        <p className="text-ink-2 mt-4 leading-relaxed">
           Google sign-in information is used for account and service
           functionality, not sold or used for advertising or training
           general-purpose AI models. Account data is protected by the security
@@ -127,19 +136,23 @@ export default function PrivacyPolicy() {
           >
             Google Account connections
           </a>
-          . Revoking access prevents future sign-in through that connection; it
-          does not automatically delete an existing ModularIoT account. To
-          request deletion of your account and stored Google profile
-          information, email{" "}
+          . Removing the sign-in connection stops automatic Google sign-in;
+          revoking Google data access invalidates the associated Google tokens.
+          You can choose to sign in again and reauthorize access. These actions
+          do not automatically end an existing ModularIoT session or delete your
+          ModularIoT account. Signing out of ModularIoT is separate from
+          revoking access in Google. To request manual deletion of your account
+          and stored Google profile information, email{" "}
           <a
             href="mailto:privacy@modulariot.com"
             className="text-accent hover:text-accent-strong"
           >
             privacy@modulariot.com
           </a>
-          . We may verify your identity before handling the request. Information
-          required for legal or security purposes may be retained as described
-          in this policy.
+          . Sending an email submits a request; it does not automatically delete
+          data. We may verify your identity before handling the request.
+          Information required for legal or security purposes may be retained as
+          described in this policy.
         </p>
       </section>
 

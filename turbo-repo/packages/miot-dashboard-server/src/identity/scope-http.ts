@@ -22,6 +22,7 @@ import {
   EndpointError,
   fetchJson,
   fillTemplate,
+  placeholderProblem,
   readPath,
   secureUrlProblem,
 } from "../net/endpoint";
@@ -75,6 +76,7 @@ export interface HttpScopeAuthorityOptions {
   onReject?: (reason: string) => void;
 }
 
+const PLACEHOLDERS = ["tenantId", "scopeId", "userId"] as const;
 const DEFAULT_ROLE_PATH = "role";
 const DEFAULT_ABSENT = [404] as const;
 const DEFAULT_CACHE_SECONDS = 60;
@@ -106,15 +108,33 @@ function cacheKey(question: Membership): string {
 export function createHttpScopeAuthority(
   options: HttpScopeAuthorityOptions,
 ): ScopeAuthority {
-  const problem = secureUrlProblem(
-    // Placeholders are not valid URL characters everywhere, so the template is
-    // checked with them filled by a harmless value.
-    fillTemplate(options.url, { tenantId: "t", scopeId: "s", userId: "u" }),
-    "The scope membership URL",
-  );
+  const what = "The scope membership URL";
+  const problem =
+    placeholderProblem(options.url, PLACEHOLDERS, what) ??
+    secureUrlProblem(
+      // Placeholders are not valid URL characters everywhere, so the template
+      // is checked with them filled by a harmless value.
+      fillTemplate(options.url, { tenantId: "t", scopeId: "s", userId: "u" }),
+      what,
+    );
   if (problem !== null) throw new EndpointError(problem);
 
   const method = options.method ?? "GET";
+  if (method === "GET") {
+    // With no body, the URL is the only place the question travels. A URL
+    // that leaves out who or where asks the host the same question for
+    // everyone and hands every caller the same answer. `{tenantId}` is not
+    // required: a host that serves one tenant has nowhere to put it.
+    for (const name of ["userId", "scopeId"] as const) {
+      if (!options.url.includes(`{${name}}`)) {
+        throw new EndpointError(
+          `${what} must contain {${name}} when the lookup is a GET, or the ` +
+            "host is asked the same question for everyone. Use POST to send " +
+            "the question as a body instead.",
+        );
+      }
+    }
+  }
   const rolePath = options.rolePath ?? DEFAULT_ROLE_PATH;
   const absentStatuses = options.absentStatuses ?? DEFAULT_ABSENT;
   const timeoutMs = options.requestTimeoutMs ?? DEFAULT_TIMEOUT_MS;

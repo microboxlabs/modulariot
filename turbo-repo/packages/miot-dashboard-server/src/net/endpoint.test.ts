@@ -4,6 +4,7 @@ import {
   fetchJson,
   fillHeaderTemplate,
   fillTemplate,
+  placeholderProblem,
   readGroupsAt,
   readIdentifierAt,
   readPath,
@@ -235,5 +236,50 @@ describe("fillHeaderTemplate", () => {
         fillHeaderTemplate("Bearer {ticket}", { ticket: value }),
       ).toThrowError(EndpointError);
     }
+  });
+});
+
+describe("a redirect listed as an absent status", () => {
+  it("is still refused, so configuration cannot turn one into a quiet no", async () => {
+    await expect(
+      request(
+        answering(302, "", {
+          headers: { location: "https://elsewhere.test/" },
+        }),
+        [302, 404],
+      ),
+    ).rejects.toThrowError(/redirect/i);
+  });
+});
+
+describe("placeholderProblem", () => {
+  const names = ["scopeId", "userId"];
+
+  it("accepts placeholders in the path and the query", () => {
+    expect(
+      placeholderProblem(
+        "https://host.test/people/{userId}/sites/{scopeId}?u={userId}",
+        names,
+        "The URL",
+      ),
+    ).toBeNull();
+  });
+
+  it.each([
+    "https://{scopeId}/lookup",
+    "https://host.{scopeId}.test/lookup",
+    "https://host.test:{scopeId}/lookup",
+    "https://{userId}:secret@host.test/lookup",
+    "https://svc:{userId}@host.test/lookup",
+  ])("refuses %s", (template) => {
+    expect(placeholderProblem(template, names, "The URL")).toMatch(
+      /scheme, credentials, host or port/,
+    );
+  });
+
+  it("leaves something that is not a URL to secureUrlProblem", () => {
+    expect(
+      placeholderProblem("not a url {scopeId}", names, "The URL"),
+    ).toBeNull();
   });
 });

@@ -209,3 +209,45 @@ describe("createHttpScopeAuthority", () => {
     expect(call).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("what the membership URL must and must not carry", () => {
+  it("refuses a GET that leaves out who is being asked about", () => {
+    // Without {userId} the host is asked the same question for everyone.
+    expect(() =>
+      authority(answering(200), { url: "https://host.test/sites/{scopeId}" }),
+    ).toThrowError(/\{userId\}/);
+  });
+
+  it("refuses a GET that leaves out where", () => {
+    expect(() =>
+      authority(answering(200), { url: "https://host.test/people/{userId}" }),
+    ).toThrowError(/\{scopeId\}/);
+  });
+
+  it("does not need {tenantId}, since a single-tenant host has nowhere to put it", () => {
+    expect(() =>
+      authority(answering(200), {
+        url: "https://host.test/people/{userId}/sites/{scopeId}",
+      }),
+    ).not.toThrow();
+  });
+
+  it("lets a POST carry the question in the body instead", () => {
+    expect(() =>
+      authority(answering(200), {
+        url: "https://host.test/membership",
+        method: "POST",
+      }),
+    ).not.toThrow();
+  });
+
+  it("refuses a placeholder in the host, whatever the method", () => {
+    // Encoding the value does not help: a host name needs no slash to be a
+    // different host, and the service credential would be sent there.
+    expect(() =>
+      authority(answering(200), {
+        url: "https://{scopeId}.host.test/people/{userId}",
+      }),
+    ).toThrowError(/scheme, credentials, host or port/);
+  });
+});

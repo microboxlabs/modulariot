@@ -23,6 +23,7 @@ import {
   fetchJson,
   fillHeaderTemplate,
   fillTemplate,
+  placeholderProblem,
   readGroupsAt,
   readIdentifierAt,
   secureUrlProblem,
@@ -79,6 +80,7 @@ export interface TicketIdentityOptions {
   scheme?: string;
   /** The emitter's validation endpoint. `{ticket}` and `{ticketBase64}` fill in. */
   url: string;
+  /** Default GET, or POST when the ticket is presented in the body. */
   method?: "GET" | "POST";
   present: TicketPresentation;
   /** Sent with every validation, for an emitter that also wants a service credential. */
@@ -90,10 +92,10 @@ export interface TicketIdentityOptions {
    * is what an emitter answers for an expired or unknown ticket.
    *
    * 401 is in the default here, unlike the membership lookup, because the
-   * ticket *is* the credential being presented. Where a service credential is
-   * configured as well, a 401 stops being unambiguous — it could be this
-   * server's own credential that was refused — and the emitter's status for an
-   * invalid ticket should be set explicitly.
+   * ticket *is* the credential being presented. Where `headers` carries a
+   * service credential as well, a 401 could mean that this server's own
+   * credential was refused, so there is no default then and this must be
+   * set.
    */
   absentStatuses?: readonly number[];
   /** How long a validated ticket is reused. Bounds how long a revocation takes. */
@@ -109,6 +111,7 @@ export interface TicketIdentityOptions {
   onReject?: (reason: string) => void;
 }
 
+const PLACEHOLDERS = ["ticket", "ticketBase64"] as const;
 const DEFAULT_ABSENT = [401, 404] as const;
 const DEFAULT_CACHE_SECONDS = 60;
 const DEFAULT_NEGATIVE_CACHE_SECONDS = 30;
@@ -164,10 +167,13 @@ function ticketFrom(
 export function createTicketIdentityResolver(
   options: TicketIdentityOptions,
 ): IdentityResolver<Request> {
-  const problem = secureUrlProblem(
-    fillTemplate(options.url, { ticket: "t", ticketBase64: "t" }),
-    "The ticket validation URL",
-  );
+  const what = "The ticket validation URL";
+  const problem =
+    placeholderProblem(options.url, PLACEHOLDERS, what) ??
+    secureUrlProblem(
+      fillTemplate(options.url, { ticket: "t", ticketBase64: "t" }),
+      what,
+    );
   if (problem !== null) throw new EndpointError(problem);
   if (options.header.trim().length === 0) {
     throw new EndpointError(
@@ -176,7 +182,29 @@ export function createTicketIdentityResolver(
     );
   }
 
-  const method = options.method ?? "GET";
+  const method =
+    options.method ?? (options.present.kind === "body" ? "POST" : "GET");
+  if (options.present.kind === "body" && method === "GET") {
+    // `fetchJson` sends a body only on POST, so this would validate nothing
+    // and refuse every ticket.
+    throw new EndpointError(
+      "A ticket presented in the request body needs POST; a GET carries no " +
+        "body, so the emitter would never see the ticket",
+    );
+  }
+
+  if (
+    options.absentStatuses === undefined &&
+    Object.keys(options.headers ?? {}).length > 0
+  ) {
+    throw new EndpointError(
+      "When a service credential is sent with each validation, the statuses " +
+        'meaning "invalid ticket" must be set. The default includes 401, ' +
+        "and with two credentials on the request a 401 could be the service " +
+        "credential being refused, which must fail the request rather than " +
+        "refuse the ticket.",
+    );
+  }
   const absentStatuses = options.absentStatuses ?? DEFAULT_ABSENT;
   const timeoutMs = options.requestTimeoutMs ?? DEFAULT_TIMEOUT_MS;
   const kind = options.principalKind ?? "user";

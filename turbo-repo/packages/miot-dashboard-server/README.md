@@ -222,25 +222,26 @@ MIOT_DASHBOARD_TICKET_TENANT=acme \
   npx turbo run start --filter=@microboxlabs/miot-dashboard-server
 ```
 
-| Variable                               | Is                                                                   |
-| -------------------------------------- | -------------------------------------------------------------------- |
-| `MIOT_DASHBOARD_TICKET_HEADER`         | required; the request header callers present the ticket in           |
-| `MIOT_DASHBOARD_TICKET_VALIDATE_URL`   | required; the emitter's endpoint, over `{ticket}` / `{ticketBase64}` |
-| `MIOT_DASHBOARD_TICKET_USER_PATH`      | required; dotted path to the user id in the answer                   |
-| `MIOT_DASHBOARD_TICKET_TENANT`         | the single tenant this emitter serves                                |
-| `MIOT_DASHBOARD_TICKET_TENANT_PATH`    | or: dotted path to the tenant in the answer. Exactly one of the two  |
-| `MIOT_DASHBOARD_TICKET_SCHEME`         | a scheme prefix to strip, for a header holding `Ticket <value>`      |
-| `MIOT_DASHBOARD_TICKET_PRESENT`        | `header` (default), `query` or `body`                                |
-| `MIOT_DASHBOARD_TICKET_PRESENT_NAME`   | the header or query parameter the emitter reads it from              |
-| `MIOT_DASHBOARD_TICKET_PRESENT_VALUE`  | header value template, e.g. `Basic {ticketBase64}`                   |
-| `MIOT_DASHBOARD_TICKET_SERVICE_HEADER` | a credential of this server's own, sent as well as the ticket (name) |
-| `MIOT_DASHBOARD_TICKET_SERVICE_VALUE`  | its value                                                            |
-| `MIOT_DASHBOARD_TICKET_GROUPS_PATH`    | dotted path to group ids in the answer                               |
-| `MIOT_DASHBOARD_TICKET_NAME_PATH`      | dotted path to a display name                                        |
-| `MIOT_DASHBOARD_TICKET_INVALID_STATUS` | statuses meaning "not valid"; default `401,404`                      |
-| `MIOT_DASHBOARD_TICKET_CACHE`          | seconds a validated ticket is reused; default 60                     |
-| `MIOT_DASHBOARD_TICKET_NEGATIVE_CACHE` | seconds a rejection is reused; default 30                            |
-| `MIOT_DASHBOARD_TICKET_TIMEOUT`        | milliseconds to wait for the emitter; default 5000                   |
+| Variable                                | Is                                                                                             |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `MIOT_DASHBOARD_TICKET_HEADER`          | required; the request header callers present the ticket in                                     |
+| `MIOT_DASHBOARD_TICKET_VALIDATE_URL`    | required; the emitter's endpoint, over `{ticket}` / `{ticketBase64}`                           |
+| `MIOT_DASHBOARD_TICKET_VALIDATE_METHOD` | `GET` (default) or `POST`; `POST` is the default when presenting in the body                   |
+| `MIOT_DASHBOARD_TICKET_USER_PATH`       | required; dotted path to the user id in the answer                                             |
+| `MIOT_DASHBOARD_TICKET_TENANT`          | the single tenant this emitter serves                                                          |
+| `MIOT_DASHBOARD_TICKET_TENANT_PATH`     | or: dotted path to the tenant in the answer. Exactly one of the two                            |
+| `MIOT_DASHBOARD_TICKET_SCHEME`          | a scheme prefix to strip, for a header holding `Ticket <value>`                                |
+| `MIOT_DASHBOARD_TICKET_PRESENT`         | `header` (default), `query` or `body`                                                          |
+| `MIOT_DASHBOARD_TICKET_PRESENT_NAME`    | the header or query parameter the emitter reads it from                                        |
+| `MIOT_DASHBOARD_TICKET_PRESENT_VALUE`   | header value template, e.g. `Basic {ticketBase64}`                                             |
+| `MIOT_DASHBOARD_TICKET_SERVICE_HEADER`  | a credential of this server's own, sent as well as the ticket (name)                           |
+| `MIOT_DASHBOARD_TICKET_SERVICE_VALUE`   | its value                                                                                      |
+| `MIOT_DASHBOARD_TICKET_GROUPS_PATH`     | dotted path to group ids in the answer                                                         |
+| `MIOT_DASHBOARD_TICKET_NAME_PATH`       | dotted path to a display name                                                                  |
+| `MIOT_DASHBOARD_TICKET_INVALID_STATUS`  | statuses meaning "not valid"; default `401,404`, and required when a service credential is set |
+| `MIOT_DASHBOARD_TICKET_CACHE`           | seconds a validated ticket is reused; default 60                                               |
+| `MIOT_DASHBOARD_TICKET_NEGATIVE_CACHE`  | seconds a rejection is reused; default 30                                                      |
+| `MIOT_DASHBOARD_TICKET_TIMEOUT`         | milliseconds to wait for the emitter; default 5000                                             |
 
 Worth knowing:
 
@@ -288,18 +289,18 @@ MIOT_DASHBOARD_SCOPES_SERVICE_VALUE="Basic $ECM_SERVICE_CREDENTIAL" \
   npx turbo run start --filter=@microboxlabs/miot-dashboard-server
 ```
 
-| Variable                               | Is                                                                       |
-| -------------------------------------- | ------------------------------------------------------------------------ |
-| `MIOT_DASHBOARD_SCOPES_URL`            | the membership endpoint, over `{tenantId}` `{scopeId}` `{userId}`        |
-| `MIOT_DASHBOARD_SCOPES_METHOD`         | `GET` (default) or `POST`, which sends the question as a JSON body       |
-| `MIOT_DASHBOARD_SCOPES_ROLE_PATH`      | dotted path to the role in the answer; default `role`                    |
-| `MIOT_DASHBOARD_SCOPES_ROLE_MAP`       | `<host role>=<role>` pairs; without it the answer must already be a role |
-| `MIOT_DASHBOARD_SCOPES_SERVICE_HEADER` | this server's credential for asking about other people (name)            |
-| `MIOT_DASHBOARD_SCOPES_SERVICE_VALUE`  | its value                                                                |
-| `MIOT_DASHBOARD_SCOPES_ABSENT_STATUS`  | statuses meaning "not a member"; default `404`                           |
-| `MIOT_DASHBOARD_SCOPES_CACHE`          | seconds a membership is reused; default 60                               |
-| `MIOT_DASHBOARD_SCOPES_NEGATIVE_CACHE` | seconds a non-membership is reused; default 30                           |
-| `MIOT_DASHBOARD_SCOPES_TIMEOUT`        | milliseconds to wait; default 5000                                       |
+| Variable                               | Is                                                                                                               |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `MIOT_DASHBOARD_SCOPES_URL`            | the membership endpoint, over `{tenantId}` `{scopeId}` `{userId}`; a `GET` must place `{userId}` and `{scopeId}` |
+| `MIOT_DASHBOARD_SCOPES_METHOD`         | `GET` (default) or `POST`, which sends the question as a JSON body                                               |
+| `MIOT_DASHBOARD_SCOPES_ROLE_PATH`      | dotted path to the role in the answer; default `role`                                                            |
+| `MIOT_DASHBOARD_SCOPES_ROLE_MAP`       | `<host role>=<role>` pairs; without it the answer must already be a role                                         |
+| `MIOT_DASHBOARD_SCOPES_SERVICE_HEADER` | this server's credential for asking about other people (name)                                                    |
+| `MIOT_DASHBOARD_SCOPES_SERVICE_VALUE`  | its value                                                                                                        |
+| `MIOT_DASHBOARD_SCOPES_ABSENT_STATUS`  | statuses meaning "not a member"; default `404`                                                                   |
+| `MIOT_DASHBOARD_SCOPES_CACHE`          | seconds a membership is reused; default 60                                                                       |
+| `MIOT_DASHBOARD_SCOPES_NEGATIVE_CACHE` | seconds a non-membership is reused; default 30                                                                   |
+| `MIOT_DASHBOARD_SCOPES_TIMEOUT`        | milliseconds to wait; default 5000                                                                               |
 
 Worth knowing:
 

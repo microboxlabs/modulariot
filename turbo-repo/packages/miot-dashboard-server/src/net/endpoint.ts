@@ -47,6 +47,50 @@ export function secureUrlProblem(raw: string, what: string): string | null {
   return null;
 }
 
+/**
+ * Why `template` places a placeholder somewhere a request value must not
+ * reach, or null when every placeholder sits in the path or query.
+ *
+ * Filled twice with different values: if the origin or the credentials
+ * differ between the two, a placeholder is in the scheme, user info, host or
+ * port, and at request time the value would pick the host that answers, and
+ * the one this server's credential is sent to. Encoding does not prevent
+ * that, because a host name needs no `/` or `@` to be a different host.
+ */
+export function placeholderProblem(
+  template: string,
+  names: readonly string[],
+  what: string,
+): string | null {
+  const filled = (value: string): URL | null => {
+    const values = Object.fromEntries(names.map((name) => [name, value]));
+    try {
+      return new URL(fillTemplate(template, values));
+    } catch {
+      // Not a URL at all; `secureUrlProblem` reports that.
+      return null;
+    }
+  };
+  // Digits, because they are legal in every part of a URL a placeholder could
+  // sit in. A letter makes a port invalid, the URL unparseable, and the
+  // placeholder in it invisible to this check.
+  const a = filled("1");
+  const b = filled("2");
+  if (a === null || b === null) return null;
+  if (
+    a.origin !== b.origin ||
+    a.username !== b.username ||
+    a.password !== b.password
+  ) {
+    return (
+      `${what} has a placeholder in its scheme, credentials, host or port. ` +
+      "Placeholders may only appear in the path or query: anywhere else, a " +
+      "value from a request would choose which host answers."
+    );
+  }
+  return null;
+}
+
 export interface JsonRequest {
   url: URL;
   method: "GET" | "POST";
@@ -98,15 +142,17 @@ export async function fetchJson(request: JsonRequest): Promise<JsonOutcome> {
     );
   }
 
-  if (request.absentStatuses.includes(response.status)) {
-    return { kind: "absent" };
-  }
+  // Before the configured statuses, so that listing a 3xx among them cannot
+  // turn a redirect into a quiet "no".
   if (response.status >= 300 && response.status < 400) {
     throw new EndpointError(
       `${request.url.origin} answered ${response.status} with a redirect. ` +
         "Redirects are not followed here: the destination would decide who " +
         "this server lets in. Configure the final URL instead.",
     );
+  }
+  if (request.absentStatuses.includes(response.status)) {
+    return { kind: "absent" };
   }
   if (!response.ok) {
     throw new EndpointError(

@@ -250,3 +250,54 @@ describe("createTicketIdentityResolver", () => {
     expect(call).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("presenting the ticket in the body", () => {
+  it("uses POST by default, so the body is actually sent", async () => {
+    const call = answering(200, { entry: { id: "ana" } });
+    await resolver(call, { present: { kind: "body" } }).resolve(
+      carrying({ "x-ticket": "TICKET_abc" }),
+    );
+    expect(call).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ ticket: "TICKET_abc" }),
+      }),
+    );
+  });
+
+  it("refuses an explicit GET, which would carry no ticket at all", () => {
+    expect(() =>
+      resolver(answering(200), { present: { kind: "body" }, method: "GET" }),
+    ).toThrowError(/needs POST/);
+  });
+});
+
+describe("a service credential beside the ticket", () => {
+  it("requires the invalid-ticket statuses to be set", () => {
+    // With the default in place, the emitter refusing this server's own
+    // credential would read as an invalid ticket and be cached as one.
+    expect(() =>
+      resolver(answering(200), {
+        headers: { authorization: "Bearer service-token" },
+      }),
+    ).toThrowError(/must be set/);
+  });
+
+  it("is accepted once they are", () => {
+    expect(() =>
+      resolver(answering(200), {
+        headers: { authorization: "Bearer service-token" },
+        absentStatuses: [404],
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe("the validation URL", () => {
+  it("refuses a placeholder in the host", () => {
+    expect(() =>
+      resolver(answering(200), { url: "https://{ticket}.emitter.test/x" }),
+    ).toThrowError(/scheme, credentials, host or port/);
+  });
+});

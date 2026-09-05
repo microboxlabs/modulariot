@@ -545,3 +545,38 @@ describe("readServerConfig: scope membership", () => {
     ).toBeUndefined();
   });
 });
+
+describe("readServerConfig: ticket presentation and service credential", () => {
+  it("defaults the method to POST when the ticket goes in the body", () => {
+    expect(
+      ticketAuthOf({ ...ticketBase, MIOT_DASHBOARD_TICKET_PRESENT: "body" }),
+    ).toMatchObject({ method: "POST", present: { kind: "body" } });
+  });
+
+  it("refuses body presentation with an explicit GET", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_PRESENT: "body",
+        MIOT_DASHBOARD_TICKET_VALIDATE_METHOD: "GET",
+      }),
+    ).toThrowError(/VALIDATE_METHOD=POST/);
+  });
+
+  it("requires the invalid statuses when a service credential is sent", () => {
+    const withService = {
+      ...ticketBase,
+      MIOT_DASHBOARD_TICKET_SERVICE_HEADER: "authorization",
+      MIOT_DASHBOARD_TICKET_SERVICE_VALUE: "Bearer service-token",
+    };
+    expect(() => readServerConfig(withService)).toThrowError(
+      /MIOT_DASHBOARD_TICKET_INVALID_STATUS must be set/,
+    );
+    expect(
+      ticketAuthOf({
+        ...withService,
+        MIOT_DASHBOARD_TICKET_INVALID_STATUS: "404",
+      }),
+    ).toMatchObject({ absentStatuses: [404] });
+  });
+});

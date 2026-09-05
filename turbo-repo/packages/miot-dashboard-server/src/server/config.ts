@@ -356,9 +356,9 @@ function readWholeNumber(
   return value;
 }
 
-function readMethod(env: ConfigEnv, key: string): HttpMethod {
+function readMethod(env: ConfigEnv, key: string): HttpMethod | undefined {
   const raw = trimmed(env[key]);
-  if (raw === undefined) return "GET";
+  if (raw === undefined) return undefined;
   const method = raw.toUpperCase();
   if (method !== "GET" && method !== "POST") {
     throw new ConfigError(`${key} must be GET or POST, got "${raw}"`);
@@ -537,6 +537,36 @@ function readTicketTenant(env: ConfigEnv): TicketTenantSource {
 }
 
 function readTicketAuth(env: ConfigEnv): TicketAuthConfig {
+  const present = readTicketPresentation(env);
+  const method =
+    readMethod(env, "MIOT_DASHBOARD_TICKET_VALIDATE_METHOD") ??
+    (present.kind === "body" ? "POST" : "GET");
+  if (present.kind === "body" && method === "GET") {
+    throw new ConfigError(
+      'MIOT_DASHBOARD_TICKET_PRESENT="body" needs ' +
+        "MIOT_DASHBOARD_TICKET_VALIDATE_METHOD=POST (the default when unset): " +
+        "a GET carries no body, so the emitter would never see the ticket.",
+    );
+  }
+
+  const serviceHeader = readHeaderCredential(
+    env,
+    "MIOT_DASHBOARD_TICKET_SERVICE_HEADER",
+    "MIOT_DASHBOARD_TICKET_SERVICE_VALUE",
+  );
+  if (
+    serviceHeader !== undefined &&
+    trimmed(env.MIOT_DASHBOARD_TICKET_INVALID_STATUS) === undefined
+  ) {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_TICKET_INVALID_STATUS must be set when " +
+        "MIOT_DASHBOARD_TICKET_SERVICE_HEADER is. The default includes 401, " +
+        "and with this server's own credential on the request a 401 could " +
+        "be that credential being refused, which must fail the request " +
+        "rather than pass as an invalid ticket.",
+    );
+  }
+
   return {
     header: required(
       env,
@@ -551,13 +581,9 @@ function readTicketAuth(env: ConfigEnv): TicketAuthConfig {
       "the emitter's endpoint for checking a ticket. A ticket carries no " +
         "proof of its own, so only the emitter can say whether it is valid.",
     ),
-    method: readMethod(env, "MIOT_DASHBOARD_TICKET_VALIDATE_METHOD"),
-    present: readTicketPresentation(env),
-    serviceHeader: readHeaderCredential(
-      env,
-      "MIOT_DASHBOARD_TICKET_SERVICE_HEADER",
-      "MIOT_DASHBOARD_TICKET_SERVICE_VALUE",
-    ),
+    method,
+    present,
+    serviceHeader,
     tenant: readTicketTenant(env),
     claims: {
       userId: required(
@@ -605,7 +631,7 @@ function readScopes(env: ConfigEnv): ScopeConfig {
   return {
     kind: "http",
     url,
-    method: readMethod(env, "MIOT_DASHBOARD_SCOPES_METHOD"),
+    method: readMethod(env, "MIOT_DASHBOARD_SCOPES_METHOD") ?? "GET",
     rolePath: trimmed(env.MIOT_DASHBOARD_SCOPES_ROLE_PATH) ?? "role",
     roleMap: readRoleMap(env, "MIOT_DASHBOARD_SCOPES_ROLE_MAP"),
     serviceHeader: readHeaderCredential(

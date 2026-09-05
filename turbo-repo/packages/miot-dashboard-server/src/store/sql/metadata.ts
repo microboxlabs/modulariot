@@ -244,6 +244,13 @@ export function createSqlMetadataStore(
       });
     },
 
+    async documentKeys() {
+      const rows = await driver.all<{ document_key: string }>(
+        "SELECT document_key FROM dashboards",
+      );
+      return new Set(rows.map((row) => row.document_key));
+    },
+
     close() {
       return driver.close();
     },

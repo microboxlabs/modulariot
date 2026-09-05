@@ -12,6 +12,7 @@ import { createSqlDocumentStore } from "./sql/documents";
 import { createSqlMetadataStore } from "./sql/metadata";
 import { runMigrations } from "./sql/migrations";
 import { createSqliteDriver } from "./sqlite-driver";
+import { sweepOrphanDocuments, type SweepResult } from "./sweep";
 
 /** In-memory database, discarded when the process exits. */
 export const SQLITE_MEMORY = ":memory:";
@@ -30,6 +31,8 @@ export interface OpenedStore {
   store: ServerDashboardStore;
   /** Migration versions this call applied. Empty when already up to date. */
   applied: readonly number[];
+  /** Delete unreferenced documents written before `olderThan`. */
+  sweep(olderThan: Date, dryRun?: boolean): Promise<SweepResult>;
   close(): Promise<void>;
 }
 
@@ -46,8 +49,9 @@ export async function openSqliteStore(
   try {
     const applied = await runMigrations(driver);
     const documents = options.documents ?? createSqlDocumentStore(driver);
+    const metadata = createSqlMetadataStore(driver);
     const store = createCompositeStore({
-      metadata: createSqlMetadataStore(driver),
+      metadata,
       documents,
       ...(options.now ? { now: options.now } : {}),
       ...(options.newDocumentKey
@@ -59,6 +63,9 @@ export async function openSqliteStore(
     return {
       store,
       applied,
+      sweep(olderThan, dryRun = false) {
+        return sweepOrphanDocuments({ metadata, documents, olderThan, dryRun });
+      },
       async close() {
         try {
           // The inline document store uses this driver, so only a supplied

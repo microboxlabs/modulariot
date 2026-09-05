@@ -132,8 +132,38 @@ The store is built from two parts: a **metadata** database holding a row per
 dashboard and its permissions, and a **document** store holding the config
 bytes. A save writes the config under a new key and then updates the row to
 point at it, so a read never sees a partly written dashboard and the document
-store needs no locking. That is what will allow a bucket or a directory as the
-document store later. `sqlite` keeps both parts in the same file.
+store needs no locking. `MIOT_DASHBOARD_DOCUMENTS` selects where the bytes go.
+
+| Value              | Stores configs                          |
+| ------------------ | --------------------------------------- |
+| `inline` (default) | in the sqlite database, beside the rows |
+| `fs`               | one file per document under a directory |
+
+```bash
+MIOT_DASHBOARD_STORE=sqlite MIOT_DASHBOARD_DOCUMENTS=fs \
+MIOT_DASHBOARD_DOCUMENTS_PATH=./data/documents \
+  npx turbo run dev:server --filter=@microboxlabs/miot-dashboard-server
+```
+
+Files are named `<tenant>/<uuid>.json`. The tenant id is percent-encoded and
+nothing else the caller supplies appears in the path, and a key the database
+hands back that is not a path under the directory is refused rather than
+opened. Each file is written once, so a directory served by a network
+filesystem needs no lock.
+
+A save that loses its race, a process that dies between its two writes, or a
+delete that fails leaves a document nothing references. An **orphan sweep**
+runs at start and then every `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` seconds
+(default 3600; `0` disables it), deleting unreferenced documents older than
+`MIOT_DASHBOARD_ORPHAN_MIN_AGE` seconds (default 86400). Anything younger is
+left alone, because a save holds its document unreferenced for a moment
+before the row commits. The age limit is also how long a replaced config
+stays on disk, so it doubles as a retention policy. Documents the `inline`
+backend wrote before this version have no recorded age and are never swept.
+Each run logs one line with what it deleted, kept and could not delete.
+
+Library users get the same from `sweepOrphanDocuments` in `./store-sql`, or
+from `sweep` on the object `openSqliteStore` returns.
 
 `node:sqlite` runs without a flag from Node 22.13; from 22.5 it needed
 `--experimental-sqlite`. On earlier versions the server reports that and names
@@ -477,15 +507,15 @@ One envelope, from every adapter:
 
 ## Entries
 
-| Entry         | Holds                                                |
-| ------------- | ---------------------------------------------------- |
-| `.`           | seams, access control, roles, errors                 |
-| `./http`      | the fetch-shaped handler                             |
-| `./identity`  | JWT verification, key rings, the verifying resolver  |
-| `./store-sql` | composite store, SQL metadata store, SQLite driver   |
-| `./testing`   | in-memory seams, for dev servers and for integrators |
-| `./server`    | Node listener, probes, config, contract and docs     |
-| `bin`         | `npx @microboxlabs/miot-dashboard-server`            |
+| Entry         | Holds                                                                    |
+| ------------- | ------------------------------------------------------------------------ |
+| `.`           | seams, access control, roles, errors                                     |
+| `./http`      | the fetch-shaped handler                                                 |
+| `./identity`  | JWT verification, key rings, the verifying resolver                      |
+| `./store-sql` | composite store, SQL metadata, SQLite driver, fs documents, orphan sweep |
+| `./testing`   | in-memory seams, for dev servers and for integrators                     |
+| `./server`    | Node listener, probes, config, contract and docs                         |
+| `bin`         | `npx @microboxlabs/miot-dashboard-server`                                |
 
 Separate entries so that mounting the library never drags in a listener, and
 running the server never drags in a framework.

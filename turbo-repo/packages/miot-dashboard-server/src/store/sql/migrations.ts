@@ -60,6 +60,13 @@ export const MIGRATIONS: readonly Migration[] = [
        )`,
     ],
   },
+  {
+    version: 2,
+    name: "document creation time, for the orphan sweep",
+    // Nullable: rows written before this version have no known age, and the
+    // sweep leaves those alone rather than guessing.
+    statements: [`ALTER TABLE dashboard_documents ADD COLUMN created_at TEXT`],
+  },
 ];
 
 const MIGRATIONS_TABLE = `CREATE TABLE IF NOT EXISTS schema_migrations (

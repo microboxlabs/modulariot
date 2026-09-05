@@ -27,6 +27,14 @@ export interface ServerConfig {
   store: StoreKind;
   /** Database file for the sqlite store. Ignored by the memory store. */
   sqlitePath: string;
+  /** Where the sqlite store keeps config bodies. */
+  documents: DocumentsKind;
+  /** Directory for the `fs` document backend. */
+  documentsPath: string;
+  /** Seconds between orphan sweeps; `0` means never. */
+  orphanSweepIntervalSeconds: number;
+  /** An unreferenced document younger than this is a save in progress. */
+  orphanMinAgeSeconds: number;
   /** Seed file, so a dev server can start with data. */
   seedPath: string | undefined;
   /** Serve the contract at /openapi.yaml and render it at /docs. */
@@ -135,8 +143,20 @@ export interface HeaderCredential {
 export const STORE_KINDS = ["memory", "sqlite"] as const;
 export type StoreKind = (typeof STORE_KINDS)[number];
 
+export const DOCUMENTS_KINDS = ["inline", "fs"] as const;
+export type DocumentsKind = (typeof DOCUMENTS_KINDS)[number];
+
 /** A relative path, so the default contains no hostname and no credential. */
 export const DEFAULT_SQLITE_PATH = "./data/dashboards.db";
+export const DEFAULT_DOCUMENTS_PATH = "./data/documents";
+
+export const DEFAULT_ORPHAN_SWEEP_INTERVAL_SECONDS = 3_600;
+/**
+ * A day. A save holds its document unreferenced for milliseconds, so the
+ * limit is set by how long a leftover is worth keeping as history, not by
+ * the race it guards.
+ */
+export const DEFAULT_ORPHAN_MIN_AGE_SECONDS = 86_400;
 
 export const DEFAULT_CLOCK_TOLERANCE_SECONDS = 30;
 
@@ -263,6 +283,18 @@ function readKeySource(env: ConfigEnv): JwtKeySource {
     return { kind: "publicKey", pem: unescapeNewlines(publicKey) };
   }
   return { kind: "secret", secret: secret as string };
+}
+
+function readSeconds(env: ConfigEnv, key: string, fallback: number): number {
+  const raw = trimmed(env[key]);
+  if (raw === undefined) return fallback;
+  const seconds = Number(raw);
+  if (!Number.isInteger(seconds) || seconds < 0) {
+    throw new ConfigError(
+      `${key} must be a whole number of seconds, got "${raw}"`,
+    );
+  }
+  return seconds;
 }
 
 function readClockTolerance(env: ConfigEnv): number {
@@ -724,6 +756,22 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     );
   }
 
+  const documents = env.MIOT_DASHBOARD_DOCUMENTS ?? "inline";
+  if (!(DOCUMENTS_KINDS as readonly string[]).includes(documents)) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_DOCUMENTS="${documents}" is not supported. Choose one of: ` +
+        `${DOCUMENTS_KINDS.join(", ")}. Buckets land with P2b-3.`,
+    );
+  }
+  if (store === "memory" && env.MIOT_DASHBOARD_DOCUMENTS !== undefined) {
+    // Refused rather than ignored: a setting that does nothing would be
+    // taken for one that worked.
+    throw new ConfigError(
+      "MIOT_DASHBOARD_DOCUMENTS has no effect with the memory store, which " +
+        "keeps nothing. Set MIOT_DASHBOARD_STORE=sqlite as well.",
+    );
+  }
+
   return {
     port: readPort(env),
     host,
@@ -732,6 +780,18 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     scopes: readScopes(env),
     store: store as StoreKind,
     sqlitePath: env.MIOT_DASHBOARD_SQLITE_PATH ?? DEFAULT_SQLITE_PATH,
+    documents: documents as DocumentsKind,
+    documentsPath: env.MIOT_DASHBOARD_DOCUMENTS_PATH ?? DEFAULT_DOCUMENTS_PATH,
+    orphanSweepIntervalSeconds: readSeconds(
+      env,
+      "MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL",
+      DEFAULT_ORPHAN_SWEEP_INTERVAL_SECONDS,
+    ),
+    orphanMinAgeSeconds: readSeconds(
+      env,
+      "MIOT_DASHBOARD_ORPHAN_MIN_AGE",
+      DEFAULT_ORPHAN_MIN_AGE_SECONDS,
+    ),
     seedPath: env.MIOT_DASHBOARD_SEED,
     docs: readBooleanUnlessDisabled(env.MIOT_DASHBOARD_DOCS),
   };

@@ -53,8 +53,8 @@ npx turbo run dev:server --filter=@microboxlabs/miot-dashboard-server
 Reloads when you change files. Serves example dashboards on port 3070.
 
 ```bash
-curl -H 'x-dev-user: alice' -H 'x-dev-tenant: acme' \
-  http://127.0.0.1:3070/scopes/ops/dashboards
+curl -H 'x-dev-user: alice' \
+  http://127.0.0.1:3070/tenants/acme/scopes/ops/dashboards
 ```
 
 **Production mode** — from the monorepo:
@@ -156,12 +156,11 @@ store from `openSqliteStore`.
 ### Authenticating callers
 
 The server accepts a bearer JWT in the `Authorization` header. Configure the
-issuer, the audience, the claim carrying the tenant, and one key source:
+issuer, the audience, and one key source:
 
 ```bash
 MIOT_DASHBOARD_JWT_ISSUER=https://your-tenant.auth0.com/ \
 MIOT_DASHBOARD_JWT_AUDIENCE=miot-dashboards \
-MIOT_DASHBOARD_JWT_TENANT_CLAIM=https://your-namespace/tenant_id \
 MIOT_DASHBOARD_JWT_JWKS_URL=https://your-tenant.auth0.com/.well-known/jwks.json \
   npx turbo run start --filter=@microboxlabs/miot-dashboard-server
 ```
@@ -170,7 +169,6 @@ MIOT_DASHBOARD_JWT_JWKS_URL=https://your-tenant.auth0.com/.well-known/jwks.json 
 | ------------------------------------ | ----------------------------------------------------------------------- |
 | `MIOT_DASHBOARD_JWT_ISSUER`          | required; the `iss` the tokens carry                                    |
 | `MIOT_DASHBOARD_JWT_AUDIENCE`        | required; one API identifier, or several separated by commas            |
-| `MIOT_DASHBOARD_JWT_TENANT_CLAIM`    | required; the claim holding the tenant                                  |
 | `MIOT_DASHBOARD_JWT_JWKS_URL`        | a key source: keys fetched from the provider (RS256)                    |
 | `MIOT_DASHBOARD_JWT_PUBLIC_KEY`      | a key source: a PEM pasted into configuration (RS256)                   |
 | `MIOT_DASHBOARD_JWT_SECRET`          | a key source: a shared secret, at least 32 bytes (HS256)                |
@@ -179,8 +177,9 @@ MIOT_DASHBOARD_JWT_JWKS_URL=https://your-tenant.auth0.com/.well-known/jwks.json 
 | `MIOT_DASHBOARD_JWT_NAME_CLAIM`      | the claim holding a display name; defaults to `name`                    |
 | `MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE` | seconds of clock difference allowed on `exp`; default 30, capped at 300 |
 
-Set exactly one key source. JWT verifies who the caller is, not scope membership — see
-[Scope membership](#scope-membership).
+Set exactly one key source. A JWT says who the caller is. Which tenant they
+may act in is [Tenant entitlement](#tenant-entitlement); what they may do
+inside it is [Scope membership](#scope-membership).
 
 #### Tickets
 
@@ -193,7 +192,6 @@ MIOT_DASHBOARD_TICKET_VALIDATE_URL=https://ecm.internal/alfresco/api/-default-/p
 MIOT_DASHBOARD_TICKET_PRESENT_NAME=authorization \
 MIOT_DASHBOARD_TICKET_PRESENT_VALUE='Basic {ticketBase64}' \
 MIOT_DASHBOARD_TICKET_USER_PATH=entry.id \
-MIOT_DASHBOARD_TICKET_TENANT=acme \
   npx turbo run start --filter=@microboxlabs/miot-dashboard-server
 ```
 
@@ -203,8 +201,6 @@ MIOT_DASHBOARD_TICKET_TENANT=acme \
 | `MIOT_DASHBOARD_TICKET_VALIDATE_URL`    | required; the emitter's endpoint, over `{ticket}` / `{ticketBase64}`                           |
 | `MIOT_DASHBOARD_TICKET_VALIDATE_METHOD` | `GET` (default) or `POST`; `POST` is the default when presenting in the body                   |
 | `MIOT_DASHBOARD_TICKET_USER_PATH`       | required; dotted path to the user id in the answer                                             |
-| `MIOT_DASHBOARD_TICKET_TENANT`          | the single tenant this emitter serves                                                          |
-| `MIOT_DASHBOARD_TICKET_TENANT_PATH`     | or: dotted path to the tenant in the answer. Exactly one of the two                            |
 | `MIOT_DASHBOARD_TICKET_SCHEME`          | a scheme prefix to strip, for a header holding `Ticket <value>`                                |
 | `MIOT_DASHBOARD_TICKET_PRESENT`         | `header` (default), `query` or `body`                                                          |
 | `MIOT_DASHBOARD_TICKET_PRESENT_NAME`    | the header or query parameter the emitter reads it from                                        |
@@ -232,9 +228,44 @@ verification — for testing before an identity provider is wired up.
 The server refuses to start if `NODE_ENV=production`, if `HOST` is not
 loopback, or if JWT/ticket variables are also set.
 
+### Tenant entitlement
+
+A request names its tenant in the path, and the server checks it before
+anything else. One credential can therefore serve someone who works in
+several tenants: switching is a different URL, not a new token.
+
+Pick one of three sources.
+
+```bash
+# One tenant for the whole deployment.
+MIOT_DASHBOARD_TENANT=acme
+
+# Or ask the host, so a new grant applies without re-issuing anyone's token.
+MIOT_DASHBOARD_TENANTS_URL='https://host.internal/people/{userId}/tenants/{tenantId}'
+```
+
+Set neither and entitlement comes from the seed file, for dev and tests.
+
+| Variable                                | Is                                                                 |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| `MIOT_DASHBOARD_TENANT`                 | the single tenant this deployment serves                           |
+| `MIOT_DASHBOARD_TENANTS_URL`            | or: the entitlement endpoint, over `{tenantId}` `{userId}`         |
+| `MIOT_DASHBOARD_TENANTS_METHOD`         | `GET` (default) or `POST`, which sends the question as a JSON body |
+| `MIOT_DASHBOARD_TENANTS_ENTITLED_PATH`  | dotted path to a boolean, for a host that answers 200 either way   |
+| `MIOT_DASHBOARD_TENANTS_SERVICE_HEADER` | this server's credential for asking about other people (name)      |
+| `MIOT_DASHBOARD_TENANTS_SERVICE_VALUE`  | its value                                                          |
+| `MIOT_DASHBOARD_TENANTS_ABSENT_STATUS`  | statuses meaning "not entitled"; default `404`                     |
+| `MIOT_DASHBOARD_TENANTS_CACHE`          | seconds a yes is reused; default 60                                |
+| `MIOT_DASHBOARD_TENANTS_NEGATIVE_CACHE` | seconds a no is reused; default 30                                 |
+| `MIOT_DASHBOARD_TENANTS_TIMEOUT`        | milliseconds before the lookup gives up; default 5000              |
+
+A `GET` URL must contain both `{userId}` and `{tenantId}`, or it would ask the
+same question for every caller and one yes would entitle everyone. `POST`
+sends both in the body instead.
+
 ### Scope membership
 
-Auth proves who the caller is, not which scopes they can access. Set
+Entitlement gets a caller into a tenant, not into its scopes. Set
 `MIOT_DASHBOARD_SCOPES_URL` to ask the host's membership service; omit it to
 use the seed file (dev and tests only).
 
@@ -286,24 +317,27 @@ collection root.
 When you mount the library, your app implements these interfaces. The
 standalone server uses in-memory defaults from `./testing` (dev only).
 
-| Interface              | Your app answers                                      |
-| ---------------------- | ----------------------------------------------------- |
-| `IdentityResolver`     | Who is calling, and which tenant?                     |
-| `ScopeAuthority`       | What role does this user have in the requested scope? |
-| `ServerDashboardStore` | Where are dashboard configs and permissions stored?   |
-| `CredentialsVault`     | What secret authenticates a datasource query?         |
-| `AuditSink`            | Where do audit logs go?                               |
-| `CapabilityPolicy`     | Optional — how roles map to capabilities              |
+| Interface              | Your app answers                                    |
+| ---------------------- | --------------------------------------------------- |
+| `IdentityResolver`     | Who is calling?                                     |
+| `TenantAuthority`      | May they act in the tenant the request names?       |
+| `ScopeAuthority`       | What role do they have in the requested scope?      |
+| `ServerDashboardStore` | Where are dashboard configs and permissions stored? |
+| `CredentialsVault`     | What secret authenticates a datasource query?       |
+| `AuditSink`            | Where do audit logs go?                             |
+| `CapabilityPolicy`     | Optional — how roles map to capabilities            |
 
-**Tenant rule:** `tenantId` always comes from the credential, never from the
-URL or request body. A caller cannot access another tenant by changing
-`scopeId` in the path.
+**Tenant rule:** the caller names the tenant and the scope, and neither is
+believed. Both are checked against a host that already knows the answer, and
+naming one the caller has no standing in is a 403 — the same answer as one
+that does not exist, so probing reveals nothing.
 
 ## Access control
 
 ```ts
 const access = createAccessControl({
   identity: myIdentityResolver,
+  tenants: myTenantAuthority,
   scopes: myScopeAuthority,
   store: myDashboardStore,
   audit: myAuditSink, // optional

@@ -260,7 +260,6 @@ describe("readServerConfig", () => {
 const jwtBase = {
   MIOT_DASHBOARD_JWT_ISSUER: "https://issuer.test/",
   MIOT_DASHBOARD_JWT_AUDIENCE: "miot-dashboards",
-  MIOT_DASHBOARD_JWT_TENANT_CLAIM: "https://miot.dev/tenant_id",
   MIOT_DASHBOARD_JWT_JWKS_URL: "https://issuer.test/.well-known/jwks.json",
 };
 
@@ -292,7 +291,6 @@ describe("readServerConfig: JWT authentication", () => {
         url: "https://issuer.test/.well-known/jwks.json",
       },
       claims: {
-        tenantId: "https://miot.dev/tenant_id",
         userId: "email",
         groups: "https://miot.dev/groups",
         displayName: "nickname",
@@ -358,7 +356,6 @@ describe("readServerConfig: JWT authentication", () => {
   it.each([
     ["MIOT_DASHBOARD_JWT_ISSUER", /ISSUER is required/],
     ["MIOT_DASHBOARD_JWT_AUDIENCE", /AUDIENCE is required/],
-    ["MIOT_DASHBOARD_JWT_TENANT_CLAIM", /TENANT_CLAIM is required/],
     ["MIOT_DASHBOARD_JWT_JWKS_URL", /needs a key/],
   ])("refuses to start without %s", (key, message) => {
     expect(() =>
@@ -417,7 +414,6 @@ const ticketBase = {
   MIOT_DASHBOARD_TICKET_PRESENT_NAME: "authorization",
   MIOT_DASHBOARD_TICKET_PRESENT_VALUE: "Basic {ticketBase64}",
   MIOT_DASHBOARD_TICKET_USER_PATH: "entry.id",
-  MIOT_DASHBOARD_TICKET_TENANT: "acme",
 };
 
 const ticketAuthOf = (env: Record<string, string | undefined>) => {
@@ -444,7 +440,6 @@ describe("readServerConfig: ticket authentication", () => {
         value: "Basic {ticketBase64}",
       },
       serviceHeader: undefined,
-      tenant: { kind: "fixed", tenantId: "acme" },
       claims: {
         userId: "entry.id",
         groups: "entry.groups",
@@ -464,35 +459,6 @@ describe("readServerConfig: ticket authentication", () => {
     expect(() =>
       readServerConfig({ ...ticketBase, [key]: undefined }),
     ).toThrowError(message);
-  });
-
-  it("refuses to start without a tenant", () => {
-    // Without one every ticket holder would land in the same tenant.
-    expect(() =>
-      readServerConfig({
-        ...ticketBase,
-        MIOT_DASHBOARD_TICKET_TENANT: undefined,
-      }),
-    ).toThrowError(/needs a tenant/);
-  });
-
-  it("refuses a fixed tenant and a tenant path at once", () => {
-    expect(() =>
-      readServerConfig({
-        ...ticketBase,
-        MIOT_DASHBOARD_TICKET_TENANT_PATH: "entry.org",
-      }),
-    ).toThrowError(/exactly one/);
-  });
-
-  it("reads the tenant from the emitter's answer", () => {
-    expect(
-      ticketAuthOf({
-        ...ticketBase,
-        MIOT_DASHBOARD_TICKET_TENANT: undefined,
-        MIOT_DASHBOARD_TICKET_TENANT_PATH: "entry.org",
-      }),
-    ).toMatchObject({ tenant: { kind: "path", path: "entry.org" } });
   });
 
   it("needs a name and a value to present the ticket in a header", () => {

@@ -56,7 +56,7 @@ security:
     devTenant: []
 
 paths:
-  /scopes/{scopeId}/dashboards:
+  /tenants/{tenantId}/scopes/{scopeId}/dashboards:
     get:
       operationId: listDashboards
       tags: [dashboards]
@@ -66,6 +66,7 @@ paths:
         The list is drawn under the credential's tenant, so two tenants sharing
         a scope identifier never see each other's entries.
       parameters:
+        - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
       responses:
         "200":
@@ -85,7 +86,7 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
-  /scopes/{scopeId}/dashboards/{slug}:
+  /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}:
     get:
       operationId: loadDashboard
       tags: [dashboards]
@@ -97,6 +98,7 @@ paths:
         be an error to report. A dashboard the caller may *not* see is `403`,
         so absence never leaks through this endpoint.
       parameters:
+        - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
         - $ref: "#/components/parameters/slug"
       responses:
@@ -133,6 +135,7 @@ paths:
         standing (Contributor or above), because a dashboard with no record has
         no capabilities to consult.
       parameters:
+        - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
         - $ref: "#/components/parameters/slug"
         - $ref: "#/components/parameters/ifMatch"
@@ -167,6 +170,7 @@ paths:
       tags: [dashboards]
       summary: Remove a dashboard
       parameters:
+        - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
         - $ref: "#/components/parameters/slug"
       responses:
@@ -179,7 +183,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /scopes/{scopeId}/dashboards/{slug}/capabilities:
+  /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/capabilities:
     get:
       operationId: getDashboardCapabilities
       tags: [access]
@@ -192,6 +196,7 @@ paths:
         read-only. A caller who cannot see the dashboard at all receives 403,
         not an all-false set: the two mean different things to a UI.
       parameters:
+        - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
         - $ref: "#/components/parameters/slug"
       responses:
@@ -208,7 +213,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /scopes/{scopeId}/dashboards/{slug}/permissions:
+  /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/permissions:
     get:
       operationId: getDashboardPermissions
       tags: [access]
@@ -219,6 +224,7 @@ paths:
         `canManagePermissions`, so this is not a way to enumerate a tenant's
         users.
       parameters:
+        - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
         - $ref: "#/components/parameters/slug"
       responses:
@@ -242,6 +248,7 @@ paths:
         assignment. `authorityId` is whatever the host calls a user or a group
         — this package never interprets it.
       parameters:
+        - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
         - $ref: "#/components/parameters/slug"
       requestBody:
@@ -311,15 +318,25 @@ components:
         at all, and the request is 401.
 
   parameters:
+    tenantId:
+      name: tenantId
+      in: path
+      required: true
+      schema: { type: string }
+      description: >
+        The tenant this request acts in. Checked against the caller's
+        entitlement before anything else happens; naming one they are not
+        entitled to is a 403, indistinguishable from a tenant that does not
+        exist. It is in the path rather than the credential so that one
+        credential can serve a caller who works in several tenants.
     scopeId:
       name: scopeId
       in: path
       required: true
       schema: { type: string }
       description: >
-        Host-defined container (site, workspace, folder). Checked against the
-        credential's tenant before anything else happens; never trusted on
-        its own.
+        Host-defined container (site, workspace, folder) inside the tenant.
+        Checked against the caller's membership; never trusted on its own.
     slug:
       name: slug
       in: path

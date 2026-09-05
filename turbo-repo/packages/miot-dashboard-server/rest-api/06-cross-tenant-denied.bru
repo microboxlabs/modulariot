@@ -5,14 +5,13 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/scopes/finance/dashboards/{{slug}}
+  url: {{baseUrl}}/tenants/{{otherTenant}}/scopes/finance/dashboards/{{slug}}
   body: none
   auth: none
 }
 
 headers {
   x-dev-user: {{otherUser}}
-  x-dev-tenant: {{otherTenant}}
 }
 
 docs {

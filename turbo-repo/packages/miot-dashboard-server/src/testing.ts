@@ -23,9 +23,10 @@ import type {
   DataSourceCredential,
 } from "./seams/credentials";
 import type {
-  DashboardIdentity,
+  DashboardPrincipal,
   IdentityResolver,
   ScopeAuthority,
+  TenantAuthority,
 } from "./seams/identity";
 import type {
   DashboardRecord,
@@ -208,10 +209,30 @@ export function createMemoryScopeAuthority(
   };
 }
 
+/**
+ * Tenant authority backed by the same object. A principal may act in a tenant
+ * when the seed puts them in at least one of its scopes, which is what "is a
+ * member of this tenant" means in a seed with no separate tenant roster.
+ */
+export function createMemoryTenantAuthority(
+  memberships: Memberships,
+): TenantAuthority {
+  return {
+    mayActAs(principal, tenantId) {
+      const scopes = memberships[tenantId];
+      return Promise.resolve(
+        scopes !== undefined &&
+          Object.values(scopes).some(
+            (members) => members[principal.userId] !== undefined,
+          ),
+      );
+    },
+  };
+}
+
 export interface InsecureHeaderIdentityOptions {
   /** Header carrying the user id. Absent header means unauthenticated. */
   userHeader?: string;
-  tenantHeader?: string;
   /** Comma-separated group list. */
   groupsHeader?: string;
 }
@@ -221,7 +242,7 @@ export interface InsecureHeaderIdentityOptions {
  * any kind.
  *
  * Named "insecure" deliberately and at every call site: anyone who can reach
- * the server can claim to be anyone in any tenant. It exists so the package
+ * the server can claim to be anyone. It exists so the package
  * can be exercised over HTTP — by Bruno, by an integrator, by a developer —
  * before a real identity provider is wired up.
  *
@@ -231,29 +252,23 @@ export interface InsecureHeaderIdentityOptions {
 export function createInsecureHeaderIdentityResolver(
   options: InsecureHeaderIdentityOptions = {},
 ): IdentityResolver<Request> {
-  const {
-    userHeader = "x-dev-user",
-    tenantHeader = "x-dev-tenant",
-    groupsHeader = "x-dev-groups",
-  } = options;
+  const { userHeader = "x-dev-user", groupsHeader = "x-dev-groups" } = options;
 
   return {
     resolve(request: Request) {
       const userId = request.headers.get(userHeader);
-      const tenantId = request.headers.get(tenantHeader);
-      if (!userId || !tenantId) return Promise.resolve(null);
+      if (!userId) return Promise.resolve(null);
       const groups = (request.headers.get(groupsHeader) ?? "")
         .split(",")
         .map((g) => g.trim())
         .filter((g) => g.length > 0);
-      const identity: DashboardIdentity = {
+      const principal: DashboardPrincipal = {
         userId,
-        tenantId,
         kind: "user",
         capabilities: { ...FULL_CAPABILITIES },
         ...(groups.length > 0 ? { groups } : {}),
       };
-      return Promise.resolve(identity);
+      return Promise.resolve(principal);
     },
   };
 }

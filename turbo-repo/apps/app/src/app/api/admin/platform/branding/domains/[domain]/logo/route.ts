@@ -18,10 +18,11 @@ const UPSTREAM_TIMEOUT_MS = 5_000;
  * the domain would not. It still requires a session — an unauthenticated
  * caller has no business enumerating the platform's domains — and normalizes
  * the path parameter before interpolating it into the upstream URL.
- * `?v=` is only a cache buster; its value is not read.
+ * `?variant=dark` selects the dark-background image; `?v=` is only a cache
+ * buster and its value is not read.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ domain: string }> }
 ): Promise<Response> {
   const session = await auth();
@@ -35,10 +36,15 @@ export async function GET(
     return new NextResponse(null, { status: 404 });
   }
 
+  // Anything but the exact string "dark" is the light logo, so a stray value
+  // cannot reach for a path segment upstream.
+  const variant =
+    new URL(request.url).searchParams.get("variant") === "dark" ? "/dark" : "";
+
   let upstream: Response;
   try {
     upstream = await fetch(
-      `${modulithHost()}/branding/${encodeURIComponent(normalized)}/logo`,
+      `${modulithHost()}/branding/${encodeURIComponent(normalized)}/logo${variant}`,
       { cache: "no-store", signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) }
     );
   } catch {

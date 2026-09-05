@@ -104,4 +104,48 @@ describe("branding logo proxy", () => {
     expect(response.status).toBe(404);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("asks upstream for the dark variant when the query says so", async () => {
+    fetchMock.mockResolvedValue(upstreamLogo());
+
+    await GET(
+      new Request("http://localhost/app/api/branding/logo?v=abc&variant=dark", {
+        headers: { host: "portal.example.com" },
+      }),
+    );
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "http://modulith:8180/branding/portal.example.com/logo/dark",
+    );
+  });
+
+  it.each(["light", "DARK", "../dark", ""])(
+    "treats %s as the light logo rather than passing it upstream",
+    async (variant) => {
+      fetchMock.mockResolvedValue(upstreamLogo());
+
+      await GET(
+        new Request(
+          `http://localhost/app/api/branding/logo?variant=${encodeURIComponent(variant)}`,
+          { headers: { host: "portal.example.com" } },
+        ),
+      );
+
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        "http://modulith:8180/branding/portal.example.com/logo",
+      );
+    },
+  );
+
+  it("relays a 404 for a domain that ships no dark logo", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 404 }));
+
+    const response = await GET(
+      new Request("http://localhost/app/api/branding/logo?variant=dark", {
+        headers: { host: "portal.example.com" },
+      }),
+    );
+
+    expect(response.status).toBe(404);
+  });
 });

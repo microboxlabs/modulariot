@@ -3,6 +3,9 @@ export interface DomainBrandingAdmin {
   domain: string;
   logoMime: string;
   logoEtag: string;
+  /** Null when the domain ships one logo for both grounds. */
+  logoDarkMime: string | null;
+  logoDarkEtag: string | null;
   homeUrl: string | null;
   active: boolean;
   updatedAt: string;
@@ -12,6 +15,11 @@ export interface DomainBrandingAdmin {
 /** Mirrors `SetDomainBrandingRequest`. */
 export interface SetDomainBranding {
   logoDataUrl: string;
+  /**
+   * Optional. Null clears a stored dark variant: the write replaces the row,
+   * so an edit that means to keep one resends it.
+   */
+  logoDarkDataUrl: string | null;
   homeUrl: string | null;
   active: boolean;
 }
@@ -35,3 +43,6 @@ export interface PlatformRoleMembership {
 }
 
 export const PLATFORM_OWNER_ROLE = "PLATFORM_OWNER";
+
+/** Which ground a stored logo is drawn for. Mirrors `LogoVariant` on the modulith. */
+export type LogoVariant = "light" | "dark";

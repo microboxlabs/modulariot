@@ -24,6 +24,7 @@ export default async function SecuredTaskLayout({
         isSeachEnabled={false}
         dict={dict as unknown as I18nRecord}
         initialOrgLogo={branding?.logoUrl}
+        initialOrgLogoDark={branding?.logoUrlDark}
       />
       <div data-testid="content" className="mt-16 mb-6 flex items-center">
         {children}

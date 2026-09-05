@@ -16,6 +16,7 @@ export default async function Page({
     <div className="flex flex-col w-full justify-center items-center">
       <NavbarSignIn
         orgLogoUrl={branding?.logoUrl}
+        orgLogoUrlDark={branding?.logoUrlDark}
         homeUrl={branding?.homeUrl}
       />
       <div className="flex w-1/3 min-w-[400px] flex-col gap-4 pb-5 px-5 text-gray-900 dark:text-gray-100">

@@ -2,6 +2,8 @@ package com.microboxlabs.miot.core.model;
 
 import com.microboxlabs.miot.core.api.dto.DomainBrandingDto;
 import com.microboxlabs.miot.core.branding.DomainBrandingMetadata;
+import com.microboxlabs.miot.core.branding.LogoImage;
+import com.microboxlabs.miot.core.branding.LogoVariant;
 import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import io.smallrye.mutiny.Uni;
 import jakarta.persistence.Column;
@@ -40,6 +42,19 @@ public class DomainBranding extends PanacheEntityBase {
     @Column(name = "logo_etag", nullable = false)
     public String logoEtag;
 
+    // The dark variant is optional: most domains ship one logo that reads on
+    // both grounds, and a row without these columns serves the light one
+    // everywhere. V0.1.7 keeps all three null or all three set.
+
+    @Column(name = "logo_dark_content")
+    public byte[] logoDarkContent;
+
+    @Column(name = "logo_dark_mime")
+    public String logoDarkMime;
+
+    @Column(name = "logo_dark_etag")
+    public String logoDarkEtag;
+
     @Column(name = "home_url")
     public String homeUrl;
 
@@ -54,6 +69,23 @@ public class DomainBranding extends PanacheEntityBase {
 
     @Column(name = "updated_by")
     public String updatedBy;
+
+    /**
+     * The stored image for one ground, or {@code null} when this row has no
+     * dark variant — in which case the caller falls back to the light one.
+     *
+     * <p>Returns a {@link LogoImage} because that is what these columns hold:
+     * a decoded, validated logo, written by {@code LogoImage.fromDataUrl} and
+     * read back unchanged.
+     */
+    public LogoImage logoFor(LogoVariant variant) {
+        if (variant == LogoVariant.DARK) {
+            return logoDarkContent == null
+                    ? null
+                    : new LogoImage(logoDarkMime, logoDarkContent, logoDarkEtag);
+        }
+        return new LogoImage(logoMime, logoContent, logoEtag);
+    }
 
     public static Uni<DomainBranding> findByDomain(String domain) {
         return find("domain = ?1", domain).firstResult();

@@ -5,16 +5,14 @@ import Link from "next/link";
 import { LynxBrand } from "@modulariot/ui/brand/logo";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import { getDomainBranding } from "@/features/branding/domain-branding.service";
+import DomainLogo from "@/features/branding/domain-logo";
 
 export async function SimpleNavbar() {
   const branding = await getDomainBranding();
   const brand = branding?.logoUrl ? (
-    /* eslint-disable-next-line @next/next/no-img-element */
-    <img
-      className="mr-3 h-8"
-      alt="Organization logo"
-      src={branding.logoUrl}
-      width={150}
+    <DomainLogo
+      logoUrl={branding.logoUrl}
+      logoUrlDark={branding.logoUrlDark}
     />
   ) : (
     <LynxBrand

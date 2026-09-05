@@ -1,14 +1,17 @@
 import { Navbar, NavbarBrand } from "flowbite-react";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import AppLogo from "@/features/common/components/app-logo/app-logo";
+import DomainLogo from "@/features/branding/domain-logo";
 
 interface TotemNavbarProps {
   readonly orgLogoUrl?: string | null;
+  readonly orgLogoUrlDark?: string | null;
   readonly homeUrl?: string | null;
 }
 
 export default function TotemNavbar({
   orgLogoUrl,
+  orgLogoUrlDark,
   homeUrl,
 }: Readonly<TotemNavbarProps>) {
   return (
@@ -16,13 +19,10 @@ export default function TotemNavbar({
       <Navbar fluid className="dark:bg-transparent">
         <NavbarBrand data-testid="login-navbar" href={homeUrl ?? undefined}>
           {orgLogoUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              className="mr-3 h-8"
-              alt="Organization logo"
-              src={orgLogoUrl}
-              data-testid="org-logo"
-              width={150}
+            <DomainLogo
+              logoUrl={orgLogoUrl}
+              logoUrlDark={orgLogoUrlDark}
+              testId="org-logo"
             />
           ) : (
             <AppLogo />

@@ -10,6 +10,7 @@ export type SecuredNavBarProps = {
   isUserMenuEnabled?: boolean;
   /** Server-fetched org logo used as fallback while client-side logos load */
   initialOrgLogo?: string | null;
+  initialOrgLogoDark?: string | null;
   /** Threaded down to SpotlightSearch so its results stay in sync with the sidebar's Harness settings gate. */
   isHarnessSettingsEnabled?: boolean;
 };

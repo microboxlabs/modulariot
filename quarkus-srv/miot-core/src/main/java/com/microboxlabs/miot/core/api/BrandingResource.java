@@ -3,6 +3,8 @@ package com.microboxlabs.miot.core.api;
 import com.microboxlabs.miot.core.api.dto.DomainBrandingSummaryDto;
 import com.microboxlabs.miot.core.branding.DomainBrandingService;
 import com.microboxlabs.miot.core.branding.EntityTagMatch;
+import com.microboxlabs.miot.core.branding.LogoImage;
+import com.microboxlabs.miot.core.branding.LogoVariant;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
@@ -55,8 +57,33 @@ public class BrandingResource {
     public Uni<Response> logo(
             @PathParam("domain") String domain,
             @HeaderParam("If-None-Match") String ifNoneMatch) {
+        return serve(domain, LogoVariant.LIGHT, ifNoneMatch);
+    }
+
+    /**
+     * The dark-background variant, and 404 when the domain has none.
+     *
+     * <p>A separate URL rather than content negotiation on the light one: the
+     * two images have their own validators and cache lifetimes, and the client
+     * picks between them with CSS, which needs a stable address for each.
+     *
+     * <p>404 is the useful answer to "does this domain ship a dark logo" —
+     * falling back to the light bytes here would give the caller no way to tell
+     * the two apart, and the summary already reports {@code hasDarkLogo}.
+     */
+    @GET
+    @Path("/{domain}/logo/dark")
+    @Operation(summary = "Dark-background logo image for a domain")
+    public Uni<Response> darkLogo(
+            @PathParam("domain") String domain,
+            @HeaderParam("If-None-Match") String ifNoneMatch) {
+        return serve(domain, LogoVariant.DARK, ifNoneMatch);
+    }
+
+    private Uni<Response> serve(String domain, LogoVariant variant, String ifNoneMatch) {
         return service.findActiveLogo(domain).map(branding -> {
-            if (branding == null) {
+            LogoImage logo = branding == null ? null : branding.logoFor(variant);
+            if (logo == null) {
                 return Response.status(Response.Status.NOT_FOUND).build();
             }
             // Compared here rather than through Request.evaluatePreconditions:
@@ -65,11 +92,11 @@ public class BrandingResource {
             // exotic — nginx rewrites an ETag to its weak variant when it gzips,
             // and this service is served through an nginx ingress. Verified by
             // BrandingResourceTest, which covers strong, weak, wildcard and list.
-            if (EntityTagMatch.matches(ifNoneMatch, branding.logoEtag)) {
-                return withCommonHeaders(Response.notModified().tag(branding.logoEtag)).build();
+            if (EntityTagMatch.matches(ifNoneMatch, logo.etag())) {
+                return withCommonHeaders(Response.notModified().tag(logo.etag())).build();
             }
-            return withCommonHeaders(Response.ok(branding.logoContent, branding.logoMime)
-                    .tag(branding.logoEtag)).build();
+            return withCommonHeaders(
+                    Response.ok(logo.content(), logo.mime()).tag(logo.etag())).build();
         });
     }
 

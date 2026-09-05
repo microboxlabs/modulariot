@@ -24,9 +24,14 @@ public class DomainBrandingService {
         String domain = DomainName.normalize(rawDomain);
         return Panache.withSession(() -> DomainBranding.findActiveMetadata(domain)
                 .map(metadata -> metadata == null
-                        ? new DomainBrandingSummaryDto(domain, false, null, null)
+                        ? new DomainBrandingSummaryDto(domain, false, null, false, null, null)
                         : new DomainBrandingSummaryDto(
-                                domain, true, metadata.logoEtag(), metadata.homeUrl())));
+                                domain,
+                                true,
+                                metadata.logoEtag(),
+                                metadata.logoDarkEtag() != null,
+                                metadata.logoDarkEtag(),
+                                metadata.homeUrl())));
     }
 
     /** Unauthenticated. Null when the domain has no active branding. */
@@ -57,6 +62,12 @@ public class DomainBrandingService {
         }
         String domain = DomainName.normalize(rawDomain);
         LogoImage logo = LogoImage.fromDataUrl(request.logoDataUrl());
+        // Optional, and absent means absent: a PUT replaces the row, so leaving
+        // this out clears a dark variant rather than keeping the stored one.
+        LogoImage darkLogo = request.logoDarkDataUrl() == null
+                        || request.logoDarkDataUrl().isBlank()
+                ? null
+                : LogoImage.fromDataUrl(request.logoDarkDataUrl());
         String homeUrl = HomeUrl.normalize(request.homeUrl());
         boolean active = request.active() == null || request.active();
 
@@ -67,6 +78,9 @@ public class DomainBrandingService {
                     branding.logoContent = logo.content();
                     branding.logoMime = logo.mime();
                     branding.logoEtag = logo.etag();
+                    branding.logoDarkContent = darkLogo == null ? null : darkLogo.content();
+                    branding.logoDarkMime = darkLogo == null ? null : darkLogo.mime();
+                    branding.logoDarkEtag = darkLogo == null ? null : darkLogo.etag();
                     branding.homeUrl = homeUrl;
                     branding.active = active;
                     branding.updatedAt = Instant.now();
@@ -92,6 +106,8 @@ public class DomainBrandingService {
                 branding.domain,
                 branding.logoMime,
                 branding.logoEtag,
+                branding.logoDarkMime,
+                branding.logoDarkEtag,
                 branding.homeUrl,
                 branding.active,
                 branding.updatedAt,

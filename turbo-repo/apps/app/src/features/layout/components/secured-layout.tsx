@@ -45,6 +45,7 @@ export default async function SecuredLayout({
             messages={navBarMessages}
             dict={dictionary as I18nRecord}
             initialOrgLogo={branding?.logoUrl}
+            initialOrgLogoDark={branding?.logoUrlDark}
             isSeachEnabled={isSeachEnabled}
             isHarnessSettingsEnabled={isHarnessSettingsEnabled}
           />

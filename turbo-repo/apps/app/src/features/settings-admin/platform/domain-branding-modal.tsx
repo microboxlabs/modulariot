@@ -20,6 +20,9 @@ import LogoPreview from "./logo-preview";
 import { domainLogoUrl, fetchStoredLogoDataUrl } from "./platform-data-service";
 import type { DomainBrandingAdmin, SetDomainBranding } from "./platform.types";
 
+const FILE_INPUT_CLASS =
+  "block w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 file:mr-4 file:cursor-pointer file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:file:bg-gray-600 dark:file:text-gray-100";
+
 const LOGO_PROBLEM_KEYS: Record<LogoProblem, string> = {
   type: "modal.errors.logoType",
   empty: "modal.errors.logoEmpty",
@@ -59,6 +62,9 @@ export default function DomainBrandingModal({
   const [active, setActive] = useState(true);
   /** Set only when a new file has been picked; null means "keep the stored one". */
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  const [darkLogoDataUrl, setDarkLogoDataUrl] = useState<string | null>(null);
+  /** Distinct from "none picked": the operator asked for the variant to go. */
+  const [darkLogoCleared, setDarkLogoCleared] = useState(false);
   const [problemKey, setProblemKey] = useState<string | null>(null);
   const wasOpen = useRef(false);
 
@@ -70,31 +76,56 @@ export default function DomainBrandingModal({
       setHomeUrl(initial?.homeUrl ?? "");
       setActive(initial?.active ?? true);
       setLogoDataUrl(null);
+      setDarkLogoDataUrl(null);
+      setDarkLogoCleared(false);
       setProblemKey(null);
     }
     wasOpen.current = show;
   }, [show, initial]);
 
-  const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const pickFile = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    accept: (dataUrl: string | null) => void
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
     const problem = checkLogoFile(file);
     if (problem) {
-      setLogoDataUrl(null);
+      accept(null);
       setProblemKey(LOGO_PROBLEM_KEYS[problem]);
       return;
     }
     setProblemKey(null);
     readLogoDataUrl(file)
-      .then(setLogoDataUrl)
+      .then(accept)
       .catch(() => setProblemKey("modal.errors.logoUnreadable"));
   };
+
+  const handleFile = (event: React.ChangeEvent<HTMLInputElement>) =>
+    pickFile(event, setLogoDataUrl);
+
+  const handleDarkFile = (event: React.ChangeEvent<HTMLInputElement>) =>
+    pickFile(event, (dataUrl) => {
+      setDarkLogoDataUrl(dataUrl);
+      if (dataUrl) setDarkLogoCleared(false);
+    });
 
   /** The bytes to send: a freshly picked file, else the stored logo re-read. */
   const resolveLogo = async (): Promise<string | null> => {
     if (logoDataUrl) return logoDataUrl;
     if (!initial) return null;
     return fetchStoredLogoDataUrl(initial.domain, initial.logoEtag);
+  };
+
+  /**
+   * Null when the domain should end up with no dark variant — either it never
+   * had one, or the operator removed it. Otherwise the picked file, or the
+   * stored one re-read, since the write replaces the whole row.
+   */
+  const resolveDarkLogo = async (): Promise<string | null> => {
+    if (darkLogoDataUrl) return darkLogoDataUrl;
+    if (darkLogoCleared || !initial?.logoDarkEtag) return null;
+    return fetchStoredLogoDataUrl(initial.domain, initial.logoDarkEtag, "dark");
   };
 
   const submit = async () => {
@@ -110,8 +141,10 @@ export default function DomainBrandingModal({
     }
 
     let logo: string | null;
+    let darkLogo: string | null;
     try {
       logo = await resolveLogo();
+      darkLogo = await resolveDarkLogo();
     } catch {
       setProblemKey("modal.errors.logoUnreadable");
       return;
@@ -124,6 +157,7 @@ export default function DomainBrandingModal({
     setProblemKey(null);
     onSubmit(normalized, {
       logoDataUrl: logo,
+      logoDarkDataUrl: darkLogo,
       homeUrl: homeUrl.trim() || null,
       active,
     });
@@ -131,6 +165,12 @@ export default function DomainBrandingModal({
 
   const preview =
     logoDataUrl ?? (initial ? domainLogoUrl(initial.domain, initial.logoEtag) : null);
+  const storedDarkPreview =
+    !darkLogoCleared && initial?.logoDarkEtag
+      ? domainLogoUrl(initial.domain, initial.logoDarkEtag, "dark")
+      : null;
+  const darkPreview = darkLogoDataUrl ?? storedDarkPreview;
+  const hasDarkLogo = darkPreview != null;
   const problem = problemKey ? new Error(trDynamic(problemKey, dict)) : null;
 
   return (
@@ -171,13 +211,43 @@ export default function DomainBrandingModal({
             type="file"
             accept={LOGO_ACCEPT}
             onChange={handleFile}
-            className="block w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 file:mr-4 file:cursor-pointer file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:file:bg-gray-600 dark:file:text-gray-100"
+            className={FILE_INPUT_CLASS}
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             {tr("modal.logoHelp", dict, {
               size: String(Math.round(MAX_LOGO_BYTES / 1024)),
             })}
           </p>
+        </SettingsFormField>
+
+        <SettingsFormField
+          id="branding-logo-dark"
+          label={tr("modal.darkLogoLabel", dict)}
+        >
+          <input
+            id="branding-logo-dark"
+            type="file"
+            accept={LOGO_ACCEPT}
+            onChange={handleDarkFile}
+            className={FILE_INPUT_CLASS}
+          />
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {tr("modal.darkLogoHelp", dict)}
+            </p>
+            {hasDarkLogo && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDarkLogoDataUrl(null);
+                  setDarkLogoCleared(true);
+                }}
+                className="text-xs font-medium text-red-600 underline hover:no-underline dark:text-red-400"
+              >
+                {tr("modal.removeDarkLogo", dict)}
+              </button>
+            )}
+          </div>
         </SettingsFormField>
 
         {preview && (
@@ -190,14 +260,30 @@ export default function DomainBrandingModal({
             <LogoPreview
               lightLabel={tr("previewLight", dict)}
               darkLabel={tr("previewDark", dict)}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={preview}
-                alt={tr("modal.previewAlt", dict)}
-                className="max-h-full max-w-full object-contain"
-              />
-            </LogoPreview>
+              light={
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={preview}
+                  alt={tr("modal.previewAlt", dict)}
+                  className="max-h-full max-w-full object-contain"
+                />
+              }
+              dark={
+                darkPreview ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={darkPreview}
+                    alt={tr("modal.darkPreviewAlt", dict)}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                ) : undefined
+              }
+            />
+            {!hasDarkLogo && (
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                {tr("modal.sameOnBoth", dict)}
+              </p>
+            )}
           </div>
         )}
 

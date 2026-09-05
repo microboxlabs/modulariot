@@ -167,9 +167,14 @@ function DomainRow({ row, dict, busy, onEdit, onRemove }: DomainRowProps) {
         </p>
       </div>
 
-      <Badge color={row.active ? "success" : "gray"}>
-        {row.active ? tr("statusActive", dict) : tr("statusInactive", dict)}
-      </Badge>
+      <div className="flex shrink-0 items-center gap-2">
+        {row.logoDarkEtag && (
+          <Badge color="info">{tr("hasDarkLogo", dict)}</Badge>
+        )}
+        <Badge color={row.active ? "success" : "gray"}>
+          {row.active ? tr("statusActive", dict) : tr("statusInactive", dict)}
+        </Badge>
+      </div>
 
       <div className="flex shrink-0 gap-2">
         <Button size="xs" color="light" disabled={busy} onClick={onEdit}>

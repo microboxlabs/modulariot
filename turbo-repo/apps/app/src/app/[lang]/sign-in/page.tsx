@@ -123,6 +123,7 @@ export default async function SignInPage(
   return (
     <AuthPageShell
       orgLogoUrl={branding?.logoUrl}
+      orgLogoUrlDark={branding?.logoUrlDark}
       homeUrl={branding?.homeUrl}
       footerMessages={dict}
     >

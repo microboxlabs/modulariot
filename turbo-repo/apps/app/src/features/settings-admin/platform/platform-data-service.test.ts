@@ -75,6 +75,7 @@ describe("domain branding calls", () => {
     fetchMock.mockResolvedValue(jsonOk({}));
     const value = {
       logoDataUrl: "data:image/png;base64,AAA",
+      logoDarkDataUrl: "data:image/png;base64,BBB",
       homeUrl: "https://example.test/",
       active: true,
     };
@@ -112,6 +113,7 @@ describe("domain branding calls", () => {
     await expect(
       saveDomainBranding("portal.example.com", {
         logoDataUrl: "data:application/pdf;base64,AAA",
+        logoDarkDataUrl: null,
         homeUrl: null,
         active: true,
       }),
@@ -137,6 +139,25 @@ describe("stored logo", () => {
   it("busts the cache with the ETag", () => {
     expect(domainLogoUrl("portal.example.com", "abc/123")).toBe(
       "/app/api/admin/platform/branding/domains/portal.example.com/logo?v=abc%2F123",
+    );
+  });
+
+  it("addresses the dark variant separately", () => {
+    expect(domainLogoUrl("portal.example.com", "dark456", "dark")).toBe(
+      "/app/api/admin/platform/branding/domains/portal.example.com/logo?v=dark456&variant=dark",
+    );
+  });
+
+  it("re-reads the stored dark bytes from the dark URL", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(["<svg id=\"d\"/>"], { type: "image/svg+xml" }),
+    });
+
+    await fetchStoredLogoDataUrl("portal.example.com", "dark456", "dark");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/app/api/admin/platform/branding/domains/portal.example.com/logo?v=dark456&variant=dark",
     );
   });
 

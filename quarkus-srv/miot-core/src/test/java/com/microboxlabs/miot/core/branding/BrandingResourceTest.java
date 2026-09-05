@@ -33,6 +33,12 @@ class BrandingResourceTest {
     private static final String LOGO_DATA_URL =
             "data:image/svg+xml;base64," + Base64.getEncoder().encodeToString(LOGO);
 
+    /** Deliberately different bytes, so a mixed-up variant shows as wrong content. */
+    private static final byte[] DARK_LOGO =
+            "<svg id=\"dark\"/>".getBytes(StandardCharsets.UTF_8);
+    private static final String DARK_LOGO_DATA_URL =
+            "data:image/svg+xml;base64," + Base64.getEncoder().encodeToString(DARK_LOGO);
+
     private static String ownerToken() {
         return TestTokenFactory.signWebToken(PlatformTestProfile.OWNER_EMAIL);
     }
@@ -48,6 +54,12 @@ class BrandingResourceTest {
     private static String requestBody(String homeUrl) {
         String home = homeUrl == null ? "null" : "\"" + homeUrl + "\"";
         return "{\"logoDataUrl\":\"" + LOGO_DATA_URL + "\",\"homeUrl\":" + home + "}";
+    }
+
+    /** Both grounds in one body, the way the settings form sends them. */
+    private static String requestBodyWithDarkLogo() {
+        return "{\"logoDataUrl\":\"" + LOGO_DATA_URL
+                + "\",\"logoDarkDataUrl\":\"" + DARK_LOGO_DATA_URL + "\"}";
     }
 
     @Test
@@ -176,5 +188,107 @@ class BrandingResourceTest {
 
         assertArrayEquals(updated, response.asByteArray());
         assertNotEquals(first, response.header("ETag"));
+    }
+
+    @Test
+    void darkLogoIsNotFoundForADomainThatShipsOnlyOne() {
+        putBranding("light-only.test", requestBody(null));
+
+        given().when().get("/branding/light-only.test/logo/dark").then().statusCode(404);
+        given().when().get("/branding/light-only.test")
+                .then().statusCode(200)
+                .body("hasLogo", is(true))
+                .body("hasDarkLogo", is(false))
+                .body("logoDarkEtag", nullValue());
+    }
+
+    @Test
+    void eachGroundIsServedItsOwnBytesAndValidator() {
+        putBranding("two-grounds.test", requestBodyWithDarkLogo());
+
+        Response light = given().when().get("/branding/two-grounds.test/logo")
+                .then().statusCode(200).extract().response();
+        Response dark = given().when().get("/branding/two-grounds.test/logo/dark")
+                .then().statusCode(200)
+                .header("X-Content-Type-Options", "nosniff")
+                .header("Content-Security-Policy", "default-src 'none'; sandbox")
+                .extract().response();
+
+        assertAll(
+                () -> assertArrayEquals(LOGO, light.asByteArray()),
+                () -> assertArrayEquals(DARK_LOGO, dark.asByteArray()),
+                () -> assertNotEquals(light.header("ETag"), dark.header("ETag")));
+    }
+
+    @Test
+    void metadataReportsTheDarkVariantWithoutServingIt() {
+        putBranding("dark-meta.test", requestBodyWithDarkLogo());
+
+        String darkEtag = given().when().get("/branding/dark-meta.test/logo/dark")
+                .then().statusCode(200).extract().header("ETag");
+
+        given().when().get("/branding/dark-meta.test")
+                .then().statusCode(200)
+                .body("hasDarkLogo", is(true))
+                .body("logoDarkEtag", is(darkEtag.replace("\"", "")));
+    }
+
+    @Test
+    void conditionalGetOnTheDarkVariantUsesItsOwnValidator() {
+        putBranding("dark-conditional.test", requestBodyWithDarkLogo());
+
+        String lightEtag = given().when().get("/branding/dark-conditional.test/logo")
+                .then().statusCode(200).extract().header("ETag");
+        String darkEtag = given().when().get("/branding/dark-conditional.test/logo/dark")
+                .then().statusCode(200).extract().header("ETag");
+
+        assertAll(
+                () -> assertEquals(304, darkStatusFor(darkEtag), "its own validator"),
+                () -> assertEquals(304, darkStatusFor("W/" + darkEtag), "weak"),
+                // The light logo's tag identifies a different representation.
+                () -> assertEquals(200, darkStatusFor(lightEtag), "the light validator"));
+    }
+
+    private static int darkStatusFor(String ifNoneMatch) {
+        return given().header("If-None-Match", ifNoneMatch)
+                .when().get("/branding/dark-conditional.test/logo/dark")
+                .thenReturn().statusCode();
+    }
+
+    @Test
+    void aWriteWithoutTheDarkLogoClearsAStoredOne() {
+        putBranding("dark-cleared.test", requestBodyWithDarkLogo());
+        given().when().get("/branding/dark-cleared.test/logo/dark").then().statusCode(200);
+
+        // A PUT replaces the row, so omitting the field means "no dark variant".
+        putBranding("dark-cleared.test", requestBody(null));
+
+        given().when().get("/branding/dark-cleared.test/logo/dark").then().statusCode(404);
+        given().when().get("/branding/dark-cleared.test")
+                .then().statusCode(200).body("hasDarkLogo", is(false));
+        // The light logo is untouched.
+        given().when().get("/branding/dark-cleared.test/logo").then().statusCode(200);
+    }
+
+    @Test
+    void anUnsupportedDarkLogoIsRejected() {
+        given().header("Authorization", "Bearer " + ownerToken())
+                .contentType("application/json")
+                .body("{\"logoDataUrl\":\"" + LOGO_DATA_URL
+                        + "\",\"logoDarkDataUrl\":\"data:application/pdf;base64,QUJD\"}")
+                .when().put("/api/v1/platform/branding/domains/bad-dark.test")
+                .then().statusCode(400);
+    }
+
+    @Test
+    void adminMetadataCarriesBothVariants() {
+        putBranding("dark-admin.test", requestBodyWithDarkLogo());
+
+        given().header("Authorization", "Bearer " + ownerToken())
+                .when().get("/api/v1/platform/branding/domains/dark-admin.test")
+                .then().statusCode(200)
+                .body("logoMime", is("image/svg+xml"))
+                .body("logoDarkMime", is("image/svg+xml"))
+                .body("logoDarkEtag", notNullValue());
     }
 }

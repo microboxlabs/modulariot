@@ -7,5 +7,6 @@ package com.microboxlabs.miot.core.branding;
  * fetched basic column, so reading the entity would pull up to 256 KB per row
  * only to discard it, on a query the sign-in page runs for every visitor.
  */
-public record DomainBrandingMetadata(String domain, String logoEtag, String homeUrl) {
+public record DomainBrandingMetadata(
+        String domain, String logoEtag, String logoDarkEtag, String homeUrl) {
 }

@@ -10,6 +10,8 @@ const { state, save, remove, fetchStoredLogoDataUrl, toast } = vi.hoisted(
           domain: "portal.example.com",
           logoMime: "image/png",
           logoEtag: "etag-1",
+          logoDarkMime: null as string | null,
+          logoDarkEtag: null as string | null,
           homeUrl: "https://www.example.com/",
           active: true,
           updatedAt: "2026-09-05T03:04:46.807Z",
@@ -31,7 +33,8 @@ vi.mock("./use-domain-brandings", () => ({
   useDomainBrandings: () => ({ ...state, save, remove }),
 }));
 vi.mock("./platform-data-service", () => ({
-  domainLogoUrl: (domain: string, etag: string) => `/logo/${domain}?v=${etag}`,
+  domainLogoUrl: (domain: string, etag: string, variant = "light") =>
+    `/logo/${domain}?v=${etag}&variant=${variant}`,
   fetchStoredLogoDataUrl,
 }));
 vi.mock("sonner", () => ({ toast }));
@@ -47,6 +50,7 @@ const dict = {
   logoAlt: "{domain} logo",
   noHomeUrl: "No link",
   updatedBy: "Updated by {who}, {when}",
+  hasDarkLogo: "Two logos",
   previewLight: "Light background",
   previewDark: "Dark background",
   statusActive: "Active",
@@ -67,6 +71,11 @@ const dict = {
     domainHelp: "No protocol and no port.",
     logoLabel: "Logo",
     logoHelp: "Up to {size} KB.",
+    darkLogoLabel: "Dark-background logo (optional)",
+    darkLogoHelp: "Use it when the main logo does not read on dark.",
+    removeDarkLogo: "Remove the dark-background logo",
+    darkPreviewAlt: "Dark-background logo preview",
+    sameOnBoth: "This domain uses the same logo on both grounds.",
     currentLogo: "Current logo",
     newLogo: "New logo",
     previewAlt: "Logo preview",
@@ -113,6 +122,8 @@ function fill(label: string, value: string): void {
 
 beforeEach(() => {
   user = userEvent.setup();
+  state.domains[0].logoDarkMime = null;
+  state.domains[0].logoDarkEtag = null;
   save.mockReset();
   save.mockResolvedValue(undefined);
   remove.mockReset();
@@ -160,6 +171,7 @@ describe("DomainBrandingCard", () => {
     await waitFor(() =>
       expect(save).toHaveBeenCalledWith("new.example.com", {
         logoDataUrl: PNG_DATA_URL,
+        logoDarkDataUrl: null,
         homeUrl: null,
         active: true,
       })
@@ -221,6 +233,7 @@ describe("DomainBrandingCard", () => {
     await waitFor(() =>
       expect(save).toHaveBeenCalledWith("portal.example.com", {
         logoDataUrl: "data:image/png;base64,STORED",
+        logoDarkDataUrl: null,
         homeUrl: "https://moved.example.test/",
         active: true,
       })
@@ -249,5 +262,102 @@ describe("DomainBrandingCard", () => {
     await waitFor(() =>
       expect(remove).toHaveBeenCalledWith("portal.example.com")
     );
+  });
+
+  it("sends both files when a dark variant is picked", async () => {
+    render(<DomainBrandingCard dict={dict} />);
+
+    await user.click(screen.getByRole("button", { name: "Add domain" }));
+    fill("Domain", "new.example.com");
+    await user.upload(screen.getByLabelText("Logo"), pngFile());
+    await user.upload(
+      screen.getByLabelText("Dark-background logo (optional)"),
+      new File([new Uint8Array([4, 5, 6])], "dark.png", { type: "image/png" })
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByAltText("Dark-background logo preview")
+      ).toBeInTheDocument()
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith("new.example.com", {
+        logoDataUrl: PNG_DATA_URL,
+        logoDarkDataUrl: "data:image/png;base64,BAUG",
+        homeUrl: null,
+        active: true,
+      })
+    );
+  });
+
+  it("says so when one logo covers both grounds", async () => {
+    render(<DomainBrandingCard dict={dict} />);
+
+    await user.click(screen.getByRole("button", { name: "Add domain" }));
+    await user.upload(screen.getByLabelText("Logo"), pngFile());
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("This domain uses the same logo on both grounds.")
+      ).toBeInTheDocument()
+    );
+  });
+
+  it("resends a stored dark variant an edit does not touch", async () => {
+    state.domains[0].logoDarkMime = "image/png";
+    state.domains[0].logoDarkEtag = "dark-1";
+    fetchStoredLogoDataUrl.mockImplementation(
+      async (_domain: string, _etag: string, variant = "light") =>
+        variant === "dark"
+          ? "data:image/png;base64,STOREDDARK"
+          : "data:image/png;base64,STORED"
+    );
+    render(<DomainBrandingCard dict={dict} />);
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith("portal.example.com", {
+        logoDataUrl: "data:image/png;base64,STORED",
+        logoDarkDataUrl: "data:image/png;base64,STOREDDARK",
+        homeUrl: "https://www.example.com/",
+        active: true,
+      })
+    );
+  });
+
+  it("clears a stored dark variant when it is removed", async () => {
+    state.domains[0].logoDarkMime = "image/png";
+    state.domains[0].logoDarkEtag = "dark-1";
+    render(<DomainBrandingCard dict={dict} />);
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(
+      screen.getByRole("button", { name: "Remove the dark-background logo" })
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith(
+        "portal.example.com",
+        expect.objectContaining({ logoDarkDataUrl: null })
+      )
+    );
+    // The stored dark bytes are not re-read once removal is asked for.
+    expect(fetchStoredLogoDataUrl).not.toHaveBeenCalledWith(
+      "portal.example.com",
+      "dark-1",
+      "dark"
+    );
+  });
+
+  it("marks a row that ships two logos", () => {
+    state.domains[0].logoDarkMime = "image/png";
+    state.domains[0].logoDarkEtag = "dark-1";
+    render(<DomainBrandingCard dict={dict} />);
+
+    expect(screen.getByText("Two logos")).toBeInTheDocument();
   });
 });

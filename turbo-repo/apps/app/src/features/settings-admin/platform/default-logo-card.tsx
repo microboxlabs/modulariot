@@ -38,9 +38,8 @@ export default function DefaultLogoCard({ dict }: DefaultLogoCardProps) {
         <LogoPreview
           lightLabel={tr("previewLight", dict)}
           darkLabel={tr("previewDark", dict)}
-        >
-          <AppLogo className="" />
-        </LogoPreview>
+          light={<AppLogo className="" />}
+        />
       </div>
     </div>
   );

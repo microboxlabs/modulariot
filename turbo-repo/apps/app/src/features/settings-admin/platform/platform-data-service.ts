@@ -6,6 +6,7 @@ import {
   PLATFORM_OWNER_ROLE,
   type DomainBrandingAdmin,
   type PlatformRole,
+  type LogoVariant,
   type PlatformRoleMembership,
   type SetDomainBranding,
 } from "./platform.types";
@@ -66,8 +67,13 @@ export function deleteDomainBranding(domain: string): Promise<void> {
  * Where the settings UI reads a domain's stored logo. Carries the ETag as a
  * cache buster so a replaced logo shows immediately.
  */
-export function domainLogoUrl(domain: string, logoEtag: string): string {
-  return `${domainUrl(domain)}/logo?v=${encodeURIComponent(logoEtag)}`;
+export function domainLogoUrl(
+  domain: string,
+  logoEtag: string,
+  variant: LogoVariant = "light"
+): string {
+  const dark = variant === "dark" ? "&variant=dark" : "";
+  return `${domainUrl(domain)}/logo?v=${encodeURIComponent(logoEtag)}${dark}`;
 }
 
 /**
@@ -80,9 +86,10 @@ export function domainLogoUrl(domain: string, logoEtag: string): string {
  */
 export async function fetchStoredLogoDataUrl(
   domain: string,
-  logoEtag: string
+  logoEtag: string,
+  variant: LogoVariant = "light"
 ): Promise<string> {
-  const url = domainLogoUrl(domain, logoEtag);
+  const url = domainLogoUrl(domain, logoEtag, variant);
   const res = await fetch(url);
   if (!res.ok) {
     throw new ApiError({ status: res.status, url });

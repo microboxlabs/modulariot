@@ -19,15 +19,19 @@ export async function GET() {
     // Get user's sites
     const sites = await getUserSites(session);
 
-    // Per-domain logo, used when the site has no branding of its own.
-    const publicLogo = (await getDomainBranding())?.logoUrl ?? null;
+    // Per-domain logo, used when the site has no branding of its own. A domain
+    // that ships only one logo uses it on both grounds, which is what this
+    // fell back to for every domain before the dark variant existed.
+    const branding = await getDomainBranding();
+    const publicLogo = branding?.logoUrl ?? null;
+    const publicLogoDark = branding?.logoUrlDark ?? publicLogo;
 
     if (!sites || sites.length === 0) {
       // Return public logo if available, otherwise null
       const response: UserSiteResponse = {
         site: null,
         logoUrlLight: publicLogo,
-        logoUrlDark: publicLogo,
+        logoUrlDark: publicLogoDark,
       };
       return NextResponse.json(response);
     }
@@ -52,7 +56,7 @@ export async function GET() {
     const response: UserSiteResponse = {
       site: primarySite,
       logoUrlLight: siteLogoLight ?? publicLogo,
-      logoUrlDark: siteLogoDark ?? publicLogo,
+      logoUrlDark: siteLogoDark ?? publicLogoDark,
     };
 
     return NextResponse.json(response);

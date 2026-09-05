@@ -11,6 +11,9 @@ public record DomainBrandingDto(
         String domain,
         String logoMime,
         String logoEtag,
+        /** Null when the domain ships one logo for both grounds. */
+        String logoDarkMime,
+        String logoDarkEtag,
         String homeUrl,
         boolean active,
         Instant updatedAt,

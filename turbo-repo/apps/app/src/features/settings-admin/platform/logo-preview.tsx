@@ -5,17 +5,22 @@ import type { ReactNode } from "react";
 interface LogoPreviewProps {
   readonly lightLabel: string;
   readonly darkLabel: string;
-  /** Rendered once per ground; the same node description, drawn twice. */
-  readonly children: ReactNode;
+  readonly light: ReactNode;
+  /**
+   * Defaults to {@link light}: a domain with one logo shows it on both grounds,
+   * which is exactly the case this preview exists to let someone judge.
+   */
+  readonly dark?: ReactNode;
 }
 
 /**
- * One logo shown on both grounds it has to survive, each captioned.
+ * What each ground will actually show, captioned.
  *
- * A domain gets a single logo but the sign-in navbar has a light and a dark
- * theme, so the only way to judge an upload is to see it against both. The
- * captions matter as much as the swatches: two unlabelled copies of the same
- * image leave the reader guessing which is which.
+ * The sign-in navbar has a light and a dark theme, so the only way to judge an
+ * upload is to see it against both. A domain that ships one logo sees it twice
+ * — which is the point, since that is what visitors get. The captions matter as
+ * much as the swatches: two unlabelled images leave the reader guessing which
+ * ground is which.
  *
  * Each half pins the brand palette to its own ground rather than inheriting
  * the page's, so a mark drawn from the brand CSS variables — the bundled
@@ -26,13 +31,14 @@ interface LogoPreviewProps {
 export default function LogoPreview({
   lightLabel,
   darkLabel,
-  children,
+  light,
+  dark,
 }: LogoPreviewProps) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <figure className="m-0">
         <div className="brand-ground-light flex h-16 items-center justify-center rounded bg-white p-2">
-          {children}
+          {light}
         </div>
         <figcaption className="mt-1 text-center text-xs text-gray-500 dark:text-gray-400">
           {lightLabel}
@@ -40,7 +46,7 @@ export default function LogoPreview({
       </figure>
       <figure className="m-0">
         <div className="brand-ground-dark flex h-16 items-center justify-center rounded bg-gray-900 p-2">
-          {children}
+          {dark ?? light}
         </div>
         <figcaption className="mt-1 text-center text-xs text-gray-500 dark:text-gray-400">
           {darkLabel}

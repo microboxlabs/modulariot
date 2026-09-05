@@ -6,6 +6,7 @@ import type { FooterSignInProps } from "@/features/auth/components/footer-sign-i
 type AuthPageShellProps = PropsWithChildren<{
   /** Per-domain logo URL; if provided, shown instead of the default logo */
   orgLogoUrl?: string | null;
+  orgLogoUrlDark?: string | null;
   /** Where the brand links to; unlinked when the domain configures no home URL */
   homeUrl?: string | null;
   footerMessages: FooterSignInProps["messages"];
@@ -18,13 +19,18 @@ type AuthPageShellProps = PropsWithChildren<{
  */
 export default function AuthPageShell({
   orgLogoUrl,
+  orgLogoUrlDark,
   homeUrl,
   footerMessages,
   children,
 }: Readonly<AuthPageShellProps>) {
   return (
     <div className="mx-auto flex flex-col md:h-screen bg-gray-50 dark:bg-gray-900">
-      <NavbarSignIn orgLogoUrl={orgLogoUrl} homeUrl={homeUrl} />
+      <NavbarSignIn
+        orgLogoUrl={orgLogoUrl}
+        orgLogoUrlDark={orgLogoUrlDark}
+        homeUrl={homeUrl}
+      />
       <div className="flex flex-1 flex-col items-center justify-center">
         <div className="w-full md:max-w-lg">{children}</div>
       </div>

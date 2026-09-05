@@ -31,9 +31,13 @@ export async function getDomainBranding(): Promise<DomainBranding | null> {
   if (!summary?.hasLogo) return null;
 
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-  const version = encodeURIComponent(summary.logoEtag ?? "");
+  const logoUrl = (etag: string | null, variant?: "dark") =>
+    `${basePath}/api/branding/logo?v=${encodeURIComponent(etag ?? "")}` +
+    (variant ? `&variant=${variant}` : "");
+
   return {
-    logoUrl: `${basePath}/api/branding/logo?v=${version}`,
+    logoUrl: logoUrl(summary.logoEtag),
+    logoUrlDark: summary.hasDarkLogo ? logoUrl(summary.logoDarkEtag, "dark") : null,
     homeUrl: summary.homeUrl ?? null,
   };
 }

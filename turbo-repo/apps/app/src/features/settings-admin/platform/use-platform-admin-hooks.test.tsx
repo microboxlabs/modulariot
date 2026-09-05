@@ -27,6 +27,8 @@ const ROW = {
   domain: "portal.example.com",
   logoMime: "image/png",
   logoEtag: "etag-1",
+  logoDarkMime: null,
+  logoDarkEtag: null,
   homeUrl: null,
   active: true,
   updatedAt: "2026-09-05T03:04:46.807Z",
@@ -97,6 +99,7 @@ describe("useDomainBrandings", () => {
     await act(async () => {
       await result.current.save("PORTAL.Example.COM", {
         logoDataUrl: "data:image/png;base64,AAA",
+        logoDarkDataUrl: null,
         homeUrl: null,
         active: true,
       });

@@ -19,13 +19,13 @@ describe("visiblePages", () => {
 });
 
 describe("filterSettings", () => {
-  it("hides Branding from anyone who does not hold PLATFORM_OWNER", () => {
+  it("hides Platform from anyone who does not hold PLATFORM_OWNER", () => {
     const filtered = filterSettings(pages, {
       harness: true,
       platformOwner: false,
     });
 
-    expect(settingsHrefs(filtered)).not.toContain("/users/settings/branding");
+    expect(settingsHrefs(filtered)).not.toContain("/users/settings/platform");
     expect(settingsHrefs(filtered)).toContain("/users/settings/harness");
   });
 
@@ -36,7 +36,7 @@ describe("filterSettings", () => {
     });
 
     expect(settingsHrefs(filtered)).not.toContain("/users/settings/harness");
-    expect(settingsHrefs(filtered)).toContain("/users/settings/branding");
+    expect(settingsHrefs(filtered)).toContain("/users/settings/platform");
   });
 
   it("hides both when neither gate is open", () => {
@@ -51,6 +51,15 @@ describe("filterSettings", () => {
       "/users/settings/credentials",
       "/users/settings/connections",
     ]);
+  });
+
+  it("puts Platform above Organizations", () => {
+    const hrefs = settingsHrefs(pages);
+
+    expect(hrefs.indexOf("/users/settings/platform")).toBe(0);
+    expect(hrefs.indexOf("/users/settings/platform")).toBeLessThan(
+      hrefs.indexOf("/users/settings/organizations")
+    );
   });
 
   it("leaves every entry in place when both gates are open", () => {

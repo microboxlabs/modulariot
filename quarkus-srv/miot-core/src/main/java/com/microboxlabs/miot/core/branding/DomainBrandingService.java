@@ -62,12 +62,7 @@ public class DomainBrandingService {
         }
         String domain = DomainName.normalize(rawDomain);
         LogoImage logo = LogoImage.fromDataUrl(request.logoDataUrl());
-        // Optional, and absent means absent: a PUT replaces the row, so leaving
-        // this out clears a dark variant rather than keeping the stored one.
-        LogoImage darkLogo = request.logoDarkDataUrl() == null
-                        || request.logoDarkDataUrl().isBlank()
-                ? null
-                : LogoImage.fromDataUrl(request.logoDarkDataUrl());
+        LogoImage darkLogo = optionalLogo(request.logoDarkDataUrl());
         String homeUrl = HomeUrl.normalize(request.homeUrl());
         boolean active = request.active() == null || request.active();
 
@@ -78,9 +73,7 @@ public class DomainBrandingService {
                     branding.logoContent = logo.content();
                     branding.logoMime = logo.mime();
                     branding.logoEtag = logo.etag();
-                    branding.logoDarkContent = darkLogo == null ? null : darkLogo.content();
-                    branding.logoDarkMime = darkLogo == null ? null : darkLogo.mime();
-                    branding.logoDarkEtag = darkLogo == null ? null : darkLogo.etag();
+                    branding.setDarkLogo(darkLogo);
                     branding.homeUrl = homeUrl;
                     branding.active = active;
                     branding.updatedAt = Instant.now();
@@ -88,6 +81,14 @@ public class DomainBrandingService {
                     return branding.persistAndFlush().replaceWith(branding);
                 })
                 .map(DomainBrandingService::toDto));
+    }
+
+    /**
+     * Absent means absent: a PUT replaces the row, so omitting the dark logo
+     * clears a stored one rather than keeping it.
+     */
+    private static LogoImage optionalLogo(String dataUrl) {
+        return dataUrl == null || dataUrl.isBlank() ? null : LogoImage.fromDataUrl(dataUrl);
     }
 
     public Uni<Void> delete(String rawDomain) {

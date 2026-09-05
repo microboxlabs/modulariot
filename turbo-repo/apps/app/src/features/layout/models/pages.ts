@@ -66,7 +66,7 @@ export function visiblePages(devToolsEnabled: boolean): SidebarItem[] {
 }
 
 const HARNESS_SETTINGS_HREF = "/users/settings/harness";
-const BRANDING_SETTINGS_HREF = "/users/settings/branding";
+const PLATFORM_SETTINGS_HREF = "/users/settings/platform";
 
 /** Which flag decides whether a gated Settings entry is offered. */
 export interface SettingsGates {
@@ -87,13 +87,13 @@ export function filterSettings(
   input: SidebarItem[],
   gates: SettingsGates
 ): SidebarItem[] {
-  const hidden = new Set<string>();
-  if (!gates.harness) hidden.add(HARNESS_SETTINGS_HREF);
-  if (!gates.platformOwner) hidden.add(BRANDING_SETTINGS_HREF);
-  if (hidden.size === 0) return input;
+  if (gates.harness && gates.platformOwner) return input;
 
   return input.map((page) => ({
     ...page,
-    items: (page.items ?? []).filter((item) => !hidden.has(item.href ?? "")),
+    items: (page.items ?? []).filter((item) => {
+      if (!gates.harness && item.href === HARNESS_SETTINGS_HREF) return false;
+      return gates.platformOwner || item.href !== PLATFORM_SETTINGS_HREF;
+    }),
   }));
 }

@@ -46,3 +46,6 @@ export const PLATFORM_OWNER_ROLE = "PLATFORM_OWNER";
 
 /** Which ground a stored logo is drawn for. Mirrors `LogoVariant` on the modulith. */
 export type LogoVariant = "light" | "dark";
+
+/** The panels Settings > Platform offers in its left-hand menu. */
+export type PlatformSection = "branding" | "superusers";

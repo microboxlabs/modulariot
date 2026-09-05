@@ -39,9 +39,12 @@ vi.mock("./platform-data-service", () => ({
 }));
 vi.mock("sonner", () => ({ toast }));
 
-import DomainBrandingCard from "./domain-branding-card";
+import BrandingSection from "./branding-section";
 
 const dict = {
+  title: "Branding",
+  menuHint: "One logo per domain",
+  loading: "Loading",
   domainsTitle: "Domains",
   domainsDescription: "One logo per domain.",
   domainsEmpty: "No domains configured yet.",
@@ -134,9 +137,9 @@ beforeEach(() => {
   state.error = null;
 });
 
-describe("DomainBrandingCard", () => {
+describe("BrandingSection", () => {
   it("lists each configured domain with its link and status", () => {
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     expect(screen.getByText("portal.example.com")).toBeInTheDocument();
     expect(screen.getByText("https://www.example.com/")).toBeInTheDocument();
@@ -145,7 +148,7 @@ describe("DomainBrandingCard", () => {
 
   it("reports a failed load instead of an empty list", () => {
     state.error = new Error("boom");
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     expect(
       screen.getByText("Couldn't load the configured domains.")
@@ -153,7 +156,7 @@ describe("DomainBrandingCard", () => {
   });
 
   it("saves a new domain with the picked file as a data: URL", async () => {
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     await user.click(screen.getByRole("button", { name: "Add domain" }));
     fill("Domain", "New.Example.COM");
@@ -162,9 +165,10 @@ describe("DomainBrandingCard", () => {
       expect(screen.getByText("New logo")).toBeInTheDocument()
     );
     // Both grounds are captioned, so the reader is not left guessing which is
-    // the light one.
-    expect(screen.getByText("Light background")).toBeInTheDocument();
-    expect(screen.getByText("Dark background")).toBeInTheDocument();
+    // the light one. Twice over: the default-logo reference below the list
+    // carries the same pair.
+    expect(screen.getAllByText("Light background")).toHaveLength(2);
+    expect(screen.getAllByText("Dark background")).toHaveLength(2);
 
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -179,7 +183,7 @@ describe("DomainBrandingCard", () => {
   });
 
   it("refuses an unsupported file without calling the API", async () => {
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     await user.click(screen.getByRole("button", { name: "Add domain" }));
     fill("Domain", "new.example.com");
@@ -196,7 +200,7 @@ describe("DomainBrandingCard", () => {
   });
 
   it("refuses a domain that is not a plausible host", async () => {
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     await user.click(screen.getByRole("button", { name: "Add domain" }));
     fill("Domain", "not..a..domain");
@@ -211,7 +215,7 @@ describe("DomainBrandingCard", () => {
   });
 
   it("refuses a home URL whose scheme would run on the sign-in page", async () => {
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     await user.click(screen.getByRole("button", { name: "Edit" }));
     fill("Logo link", "javascript:alert(1)");
@@ -224,7 +228,7 @@ describe("DomainBrandingCard", () => {
   });
 
   it("resends the stored logo when an edit changes only the link", async () => {
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     await user.click(screen.getByRole("button", { name: "Edit" }));
     fill("Logo link", "https://moved.example.test/");
@@ -245,7 +249,7 @@ describe("DomainBrandingCard", () => {
   });
 
   it("does not let an edit change the domain, which would create a second row", async () => {
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     await user.click(screen.getByRole("button", { name: "Edit" }));
 
@@ -253,7 +257,7 @@ describe("DomainBrandingCard", () => {
   });
 
   it("takes two clicks to remove a domain", async () => {
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     await user.click(screen.getByRole("button", { name: "Remove" }));
     expect(remove).not.toHaveBeenCalled();
@@ -265,7 +269,7 @@ describe("DomainBrandingCard", () => {
   });
 
   it("sends both files when a dark variant is picked", async () => {
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     await user.click(screen.getByRole("button", { name: "Add domain" }));
     fill("Domain", "new.example.com");
@@ -292,7 +296,7 @@ describe("DomainBrandingCard", () => {
   });
 
   it("says so when one logo covers both grounds", async () => {
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     await user.click(screen.getByRole("button", { name: "Add domain" }));
     await user.upload(screen.getByLabelText("Logo"), pngFile());
@@ -313,7 +317,7 @@ describe("DomainBrandingCard", () => {
           ? "data:image/png;base64,STOREDDARK"
           : "data:image/png;base64,STORED"
     );
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     await user.click(screen.getByRole("button", { name: "Edit" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -331,7 +335,7 @@ describe("DomainBrandingCard", () => {
   it("clears a stored dark variant when it is removed", async () => {
     state.domains[0].logoDarkMime = "image/png";
     state.domains[0].logoDarkEtag = "dark-1";
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     await user.click(screen.getByRole("button", { name: "Edit" }));
     await user.click(
@@ -356,7 +360,7 @@ describe("DomainBrandingCard", () => {
   it("marks a row that ships two logos", () => {
     state.domains[0].logoDarkMime = "image/png";
     state.domains[0].logoDarkEtag = "dark-1";
-    render(<DomainBrandingCard dict={dict} />);
+    render(<BrandingSection dict={dict} />);
 
     expect(screen.getByText("Two logos")).toBeInTheDocument();
   });

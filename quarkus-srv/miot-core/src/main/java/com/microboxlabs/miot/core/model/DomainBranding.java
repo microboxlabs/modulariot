@@ -71,6 +71,19 @@ public class DomainBranding extends PanacheEntityBase {
     public String updatedBy;
 
     /**
+     * Sets or clears the dark variant, all three columns together.
+     *
+     * <p>V0.1.7 constrains them to be all set or all null, and this is where
+     * that holds: a caller passing {@code null} means "no dark variant", not
+     * "leave two of the columns as they were".
+     */
+    public void setDarkLogo(LogoImage logo) {
+        logoDarkContent = logo == null ? null : logo.content();
+        logoDarkMime = logo == null ? null : logo.mime();
+        logoDarkEtag = logo == null ? null : logo.etag();
+    }
+
+    /**
      * The stored image for one ground, or {@code null} when this row has no
      * dark variant — in which case the caller falls back to the light one.
      *

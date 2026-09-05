@@ -14,7 +14,7 @@ interface PlatformOwnersCardProps {
 }
 
 /**
- * Who may administer the platform.
+ * The people who may administer the platform.
  *
  * Two sources, shown apart because only one of them is editable here: grants
  * held in the database, and the deployment's `MIOT_PLATFORM_OWNER_EMAILS`,
@@ -147,11 +147,11 @@ export default function PlatformOwnersCard({ dict }: PlatformOwnersCardProps) {
       <div className="flex items-center gap-2">
         <HiOutlineKey className="h-5 w-5 text-amber-500" />
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-          {tr("owners.title", dict)}
+          {tr("title", dict)}
         </h3>
       </div>
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-        {tr("owners.description", dict)}
+        {tr("description", dict)}
       </p>
 
       <div className="mt-3">{renderBody()}</div>

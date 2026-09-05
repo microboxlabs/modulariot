@@ -47,6 +47,8 @@ const dict = {
   logoAlt: "{domain} logo",
   noHomeUrl: "No link",
   updatedBy: "Updated by {who}, {when}",
+  previewLight: "Light background",
+  previewDark: "Dark background",
   statusActive: "Active",
   statusInactive: "Inactive",
   edit: "Edit",
@@ -148,6 +150,11 @@ describe("DomainBrandingCard", () => {
     await waitFor(() =>
       expect(screen.getByText("New logo")).toBeInTheDocument()
     );
+    // Both grounds are captioned, so the reader is not left guessing which is
+    // the light one.
+    expect(screen.getByText("Light background")).toBeInTheDocument();
+    expect(screen.getByText("Dark background")).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>

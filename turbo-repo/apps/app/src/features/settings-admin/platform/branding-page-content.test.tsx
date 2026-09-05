@@ -14,6 +14,9 @@ vi.mock("./domain-branding-card", () => ({
 vi.mock("./platform-owners-card", () => ({
   default: () => <div>owners card</div>,
 }));
+vi.mock("./default-logo-card", () => ({
+  default: () => <div>default logo card</div>,
+}));
 
 import BrandingPageContent from "./branding-page-content";
 
@@ -33,11 +36,12 @@ beforeEach(() => {
 });
 
 describe("BrandingPageContent", () => {
-  it("shows both panels to a platform owner", () => {
+  it("shows the panels and the default-logo reference to a platform owner", () => {
     membership.isPlatformOwner = true;
     render(<BrandingPageContent dict={dict} lang="en" />);
 
     expect(screen.getByText("domains card")).toBeInTheDocument();
+    expect(screen.getByText("default logo card")).toBeInTheDocument();
     expect(screen.getByText("owners card")).toBeInTheDocument();
   });
 
@@ -45,6 +49,7 @@ describe("BrandingPageContent", () => {
     render(<BrandingPageContent dict={dict} lang="en" />);
 
     expect(screen.queryByText("domains card")).not.toBeInTheDocument();
+    expect(screen.queryByText("default logo card")).not.toBeInTheDocument();
     expect(screen.queryByText("owners card")).not.toBeInTheDocument();
     expect(
       screen.getByText("You don't have access to this section")

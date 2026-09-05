@@ -16,6 +16,7 @@ import {
   type HomeUrlProblem,
   type LogoProblem,
 } from "./domain-branding-form";
+import LogoPreview from "./logo-preview";
 import { domainLogoUrl, fetchStoredLogoDataUrl } from "./platform-data-service";
 import type { DomainBrandingAdmin, SetDomainBranding } from "./platform.types";
 
@@ -186,26 +187,17 @@ export default function DomainBrandingModal({
                 ? tr("modal.newLogo", dict)
                 : tr("modal.currentLogo", dict)}
             </p>
-            {/* Two grounds, because one logo has to read on both the light and
-                dark sign-in navbars. */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex h-16 items-center justify-center rounded bg-white p-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={preview}
-                  alt={tr("modal.previewAlt", dict)}
-                  className="max-h-full max-w-full object-contain"
-                />
-              </div>
-              <div className="flex h-16 items-center justify-center rounded bg-gray-900 p-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={preview}
-                  alt={tr("modal.previewAlt", dict)}
-                  className="max-h-full max-w-full object-contain"
-                />
-              </div>
-            </div>
+            <LogoPreview
+              lightLabel={tr("previewLight", dict)}
+              darkLabel={tr("previewDark", dict)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={preview}
+                alt={tr("modal.previewAlt", dict)}
+                className="max-h-full max-w-full object-contain"
+              />
+            </LogoPreview>
           </div>
         )}
 

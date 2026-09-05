@@ -5,6 +5,7 @@ import { HiColorSwatch } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import DefaultLogoCard from "./default-logo-card";
 import DomainBrandingCard from "./domain-branding-card";
 import PlatformOwnersCard from "./platform-owners-card";
 import { useIsPlatformOwner } from "./use-platform-membership";
@@ -68,6 +69,7 @@ export default function BrandingPageContent({
         {!isLoading && isPlatformOwner && (
           <>
             <DomainBrandingCard dict={brandingDict} />
+            <DefaultLogoCard dict={brandingDict} />
             <PlatformOwnersCard dict={brandingDict} />
           </>
         )}

@@ -291,4 +291,58 @@ class BrandingResourceTest {
                 .body("logoDarkMime", is("image/svg+xml"))
                 .body("logoDarkEtag", notNullValue());
     }
+
+    @Test
+    void anInactiveDomainKeepsItsLogoForTheOwnerButNotForVisitors() {
+        putBranding("parked.test", requestBodyWithDarkLogo());
+        given().header("Authorization", "Bearer " + ownerToken())
+                .contentType("application/json")
+                .body("{\"logoDataUrl\":\"" + LOGO_DATA_URL
+                        + "\",\"logoDarkDataUrl\":\"" + DARK_LOGO_DATA_URL
+                        + "\",\"active\":false}")
+                .when().put("/api/v1/platform/branding/domains/parked.test")
+                .then().statusCode(200);
+
+        // Switched off is switched off for the public read.
+        given().when().get("/branding/parked.test/logo").then().statusCode(404);
+        given().when().get("/branding/parked.test/logo/dark").then().statusCode(404);
+
+        // But deactivating parks the configuration, so the settings UI can
+        // still show it and an edit can still resend the bytes.
+        Response light = given().header("Authorization", "Bearer " + ownerToken())
+                .when().get("/api/v1/platform/branding/domains/parked.test/logo")
+                .then().statusCode(200).extract().response();
+        Response dark = given().header("Authorization", "Bearer " + ownerToken())
+                .when().get("/api/v1/platform/branding/domains/parked.test/logo/dark")
+                .then().statusCode(200).extract().response();
+
+        assertAll(
+                () -> assertArrayEquals(LOGO, light.asByteArray()),
+                () -> assertArrayEquals(DARK_LOGO, dark.asByteArray()));
+    }
+
+    @Test
+    void theOwnerLogoReadIsNotPublic() {
+        putBranding("owner-only.test", requestBody(null));
+
+        given().when().get("/api/v1/platform/branding/domains/owner-only.test/logo")
+                .then().statusCode(401);
+        given().header("Authorization",
+                        "Bearer " + TestTokenFactory.signWebToken(
+                                PlatformTestProfile.NON_OWNER_EMAIL))
+                .when().get("/api/v1/platform/branding/domains/owner-only.test/logo")
+                .then().statusCode(403);
+    }
+
+    @Test
+    void theOwnerReadIs404ForADomainWithNoDarkVariant() {
+        putBranding("owner-light-only.test", requestBody(null));
+
+        given().header("Authorization", "Bearer " + ownerToken())
+                .when().get("/api/v1/platform/branding/domains/owner-light-only.test/logo")
+                .then().statusCode(200);
+        given().header("Authorization", "Bearer " + ownerToken())
+                .when().get("/api/v1/platform/branding/domains/owner-light-only.test/logo/dark")
+                .then().statusCode(404);
+    }
 }

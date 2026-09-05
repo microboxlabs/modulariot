@@ -81,8 +81,7 @@ public class BrandingResource {
     }
 
     private Uni<Response> serve(String domain, LogoVariant variant, String ifNoneMatch) {
-        return service.findActiveLogo(domain).map(branding -> {
-            LogoImage logo = branding == null ? null : branding.logoFor(variant);
+        return service.findActiveLogo(domain, variant).map(logo -> {
             if (logo == null) {
                 return Response.status(Response.Status.NOT_FOUND).build();
             }

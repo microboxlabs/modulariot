@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { auth } = vi.hoisted(() => ({ auth: vi.fn() }));
-vi.mock("@/auth", () => ({ auth }));
+const { quarkusAuthHeaders } = vi.hoisted(() => ({
+  quarkusAuthHeaders: vi.fn(),
+}));
+vi.mock("@/app/api/utils/quarkus-proxy", () => ({ quarkusAuthHeaders }));
 
 import { GET } from "./route";
 
@@ -23,7 +25,7 @@ beforeEach(() => {
   vi.stubEnv("MIOT_MODULITH_URL", "http://modulith:8180");
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockReset();
-  auth.mockResolvedValue({ user: { id: "auth0|1" } });
+  quarkusAuthHeaders.mockResolvedValue({ Authorization: "Bearer token" });
 });
 
 afterEach(() => {
@@ -41,7 +43,7 @@ describe("admin logo preview proxy", () => {
     );
 
     expect(fetchMock.mock.calls[0][0]).toBe(
-      "http://modulith:8180/branding/portal.example.com/logo",
+      "http://modulith:8180/api/v1/platform/branding/domains/portal.example.com/logo",
     );
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("image/png");
@@ -64,7 +66,7 @@ describe("admin logo preview proxy", () => {
   });
 
   it("requires a session", async () => {
-    auth.mockResolvedValue(null);
+    quarkusAuthHeaders.mockResolvedValue(null);
 
     const response = await GET(
       new Request("http://localhost"),
@@ -81,7 +83,7 @@ describe("admin logo preview proxy", () => {
     await GET(new Request("http://localhost"), params("PORTAL.Example.COM:8443"));
 
     expect(fetchMock.mock.calls[0][0]).toBe(
-      "http://modulith:8180/branding/portal.example.com/logo",
+      "http://modulith:8180/api/v1/platform/branding/domains/portal.example.com/logo",
     );
   });
 
@@ -131,4 +133,28 @@ describe("admin logo preview proxy", () => {
 
     expect(response.status).toBe(502);
   });
+
+  it("sends the caller's credentials, since the modulith gates this read", async () => {
+    fetchMock.mockResolvedValue(upstreamLogo());
+
+    await GET(new Request("http://localhost"), params("portal.example.com"));
+
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      headers: { Authorization: "Bearer token" },
+    });
+  });
+
+  it.each([401, 403])(
+    "relays %i rather than flattening the modulith's answer into a 502",
+    async (status) => {
+      fetchMock.mockResolvedValue(new Response(null, { status }));
+
+      const response = await GET(
+        new Request("http://localhost"),
+        params("portal.example.com"),
+      );
+
+      expect(response.status).toBe(status);
+    },
+  );
 });

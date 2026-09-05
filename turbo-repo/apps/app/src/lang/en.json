@@ -1512,6 +1512,7 @@
             "removed": "Administrator removed.",
             "invalidEmail": "Enter a valid email address.",
             "duplicate": "That address is already on the list.",
+            "duplicateBootstrap": "That address already administers the platform through the deployment's configuration.",
             "lastOwnerHelp": "The last administrator can't be removed: nobody would be able to get back in.",
             "bootstrapBadge": "From configuration",
             "bootstrapHelp": "The marked administrators come from the deployment's configuration and can only be changed there. They exist so access can be recovered if the list is ever emptied."

@@ -56,6 +56,13 @@ export default function PlatformOwnersCard({
       setProblemKey("owners.invalidEmail");
       return;
     }
+    // Both sources are the same membership. Granting it again in the database
+    // would list the person twice — once read-only, once removable — while
+    // changing nothing about what they can do.
+    if (bootstrap.includes(candidate)) {
+      setProblemKey("owners.duplicateBootstrap");
+      return;
+    }
     if (assignees.includes(candidate)) {
       setProblemKey("owners.duplicate");
       return;

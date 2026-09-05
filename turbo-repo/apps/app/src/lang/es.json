@@ -1512,6 +1512,7 @@
             "removed": "Se quitó el administrador.",
             "invalidEmail": "Escribe un correo válido.",
             "duplicate": "Ese correo ya está en la lista.",
+            "duplicateBootstrap": "Ese correo ya administra la plataforma desde la configuración del despliegue.",
             "lastOwnerHelp": "No se puede quitar al último administrador: nadie podría volver a entrar.",
             "bootstrapBadge": "Desde la configuración",
             "bootstrapHelp": "Los administradores marcados vienen de la configuración del despliegue y solo se cambian ahí. Existen para poder recuperar el acceso si la lista queda vacía."

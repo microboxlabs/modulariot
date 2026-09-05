@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/auth";
+import { quarkusAuthHeaders } from "@/app/api/utils/quarkus-proxy";
 import { normalizeDomain } from "@/features/branding/domain-name";
 import { isModulithConfigured, modulithHost } from "@/lib/modulith-host";
 
@@ -14,10 +14,13 @@ const UPSTREAM_TIMEOUT_MS = 5_000;
  * the domain from the request headers so the URL can never be aimed at
  * another host's branding.
  *
- * Upstream is the same public endpoint, so this exposes nothing that visiting
- * the domain would not. It still requires a session — an unauthenticated
- * caller has no business enumerating the platform's domains — and normalizes
- * the path parameter before interpolating it into the upstream URL.
+ * Upstream is the platform admin endpoint, not the public one, because the
+ * public read serves only active domains — and this route is also how an edit
+ * re-reads the bytes it must resend. Going through the public endpoint would
+ * 404 for a deactivated domain and force a re-upload to change its link or
+ * switch it back on, which is the opposite of what deactivating promises.
+ * The modulith checks platform ownership; the caller's token is forwarded for
+ * it to do so. The path parameter is normalized before interpolation.
  * `?variant=dark` selects the dark-background image; `?v=` is only a cache
  * buster and its value is not read.
  */
@@ -25,8 +28,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ domain: string }> }
 ): Promise<Response> {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const headers = await quarkusAuthHeaders();
+  if (!headers) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -44,16 +47,23 @@ export async function GET(
   let upstream: Response;
   try {
     upstream = await fetch(
-      `${modulithHost()}/branding/${encodeURIComponent(normalized)}/logo${variant}`,
-      { cache: "no-store", signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) }
+      `${modulithHost()}/api/v1/platform/branding/domains/${encodeURIComponent(normalized)}/logo${variant}`,
+      {
+        headers,
+        cache: "no-store",
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      }
     );
   } catch {
     return new NextResponse(null, { status: 502 });
   }
 
   if (!upstream.ok) {
+    // 401/403 are the modulith's answer about this caller, not a proxy fault,
+    // so they are relayed rather than flattened into a 502.
+    const relayed = [401, 403, 404];
     return new NextResponse(null, {
-      status: upstream.status === 404 ? 404 : 502,
+      status: relayed.includes(upstream.status) ? upstream.status : 502,
     });
   }
 

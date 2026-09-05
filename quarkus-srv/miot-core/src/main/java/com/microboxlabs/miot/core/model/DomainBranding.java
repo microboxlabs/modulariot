@@ -3,7 +3,6 @@ package com.microboxlabs.miot.core.model;
 import com.microboxlabs.miot.core.api.dto.DomainBrandingDto;
 import com.microboxlabs.miot.core.branding.DomainBrandingMetadata;
 import com.microboxlabs.miot.core.branding.LogoImage;
-import com.microboxlabs.miot.core.branding.LogoVariant;
 import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import io.smallrye.mutiny.Uni;
 import jakarta.persistence.Column;
@@ -83,30 +82,8 @@ public class DomainBranding extends PanacheEntityBase {
         logoDarkEtag = logo == null ? null : logo.etag();
     }
 
-    /**
-     * The stored image for one ground, or {@code null} when this row has no
-     * dark variant — in which case the caller falls back to the light one.
-     *
-     * <p>Returns a {@link LogoImage} because that is what these columns hold:
-     * a decoded, validated logo, written by {@code LogoImage.fromDataUrl} and
-     * read back unchanged.
-     */
-    public LogoImage logoFor(LogoVariant variant) {
-        if (variant == LogoVariant.DARK) {
-            return logoDarkContent == null
-                    ? null
-                    : new LogoImage(logoDarkMime, logoDarkContent, logoDarkEtag);
-        }
-        return new LogoImage(logoMime, logoContent, logoEtag);
-    }
-
     public static Uni<DomainBranding> findByDomain(String domain) {
         return find("domain = ?1", domain).firstResult();
-    }
-
-    /** Loads the row with its bytes; only the endpoint serving the image needs this. */
-    public static Uni<DomainBranding> findActiveByDomain(String domain) {
-        return find("domain = ?1 and active = true", domain).firstResult();
     }
 
     // The projecting finders below leave logo_content in the database. It is an

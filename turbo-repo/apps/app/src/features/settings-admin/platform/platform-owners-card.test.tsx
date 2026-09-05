@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,7 +11,7 @@ const { state, save, toast } = vi.hoisted(() => ({
     },
     isLoading: false,
     isSaving: false,
-    error: null as Error | null,
+    error: null as ApiError | null,
   },
   save: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn() },
@@ -22,6 +22,7 @@ vi.mock("./use-platform-owner-role", () => ({
 }));
 vi.mock("sonner", () => ({ toast }));
 
+import { ApiError } from "../data/json-client";
 import PlatformOwnersCard from "./platform-owners-card";
 
 const dict = {
@@ -151,11 +152,68 @@ describe("PlatformOwnersCard", () => {
   });
 
   it("reports a failed load instead of an empty list", () => {
-    state.error = new Error("boom");
+    state.error = new ApiError({ status: 500, url: "/roles/PLATFORM_OWNER" });
     render(<PlatformOwnersCard dict={dict} />);
 
     expect(
       screen.getByText("Couldn't load the administrator list.")
     ).toBeInTheDocument();
+  });
+
+  it("keeps the address in the field when the write fails", async () => {
+    save.mockRejectedValue(new ApiError({ status: 503, url: "/roles" }));
+    render(<PlatformOwnersCard dict={dict} />);
+    const field = screen.getByLabelText("Administrator email");
+
+    await userEvent.type(field, "new@example.test");
+    await userEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    // Retrying should not mean typing it again.
+    expect(field).toHaveValue("new@example.test");
+  });
+
+  it("clears the field once the write lands", async () => {
+    render(<PlatformOwnersCard dict={dict} />);
+    const field = screen.getByLabelText("Administrator email");
+
+    await userEvent.type(field, "new@example.test");
+    await userEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => expect(field).toHaveValue(""));
+  });
+
+  it("shows the API's own explanation of a refused write", async () => {
+    save.mockRejectedValue(
+      new ApiError({
+        status: 400,
+        url: "/roles",
+        message: "Removing every assignee would leave nobody",
+      })
+    );
+    render(<PlatformOwnersCard dict={dict} />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove held@example.test" })
+    );
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Removing every assignee would leave nobody"
+      )
+    );
+  });
+
+  it("falls back to its own wording when the failure is not the API's", async () => {
+    save.mockRejectedValue(new TypeError("cannot read properties of undefined"));
+    render(<PlatformOwnersCard dict={dict} />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove held@example.test" })
+    );
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Couldn't save the change.")
+    );
   });
 });

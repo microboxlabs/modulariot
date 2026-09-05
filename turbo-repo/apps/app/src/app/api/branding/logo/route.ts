@@ -61,7 +61,17 @@ export async function GET(request: Request): Promise<Response> {
     return new NextResponse(null, { status: 502 });
   }
 
-  return new NextResponse(await upstream.arrayBuffer(), {
+  // Read inside the guard: a body stream can fail after the headers arrive,
+  // and an unhandled throw here would answer 500 instead of the 502 every
+  // other upstream failure on this route produces.
+  let body: ArrayBuffer;
+  try {
+    body = await upstream.arrayBuffer();
+  } catch {
+    return new NextResponse(null, { status: 502 });
+  }
+
+  return new NextResponse(body, {
     status: 200,
     headers: passThrough(upstream),
   });

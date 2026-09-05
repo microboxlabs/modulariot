@@ -110,7 +110,7 @@ export default function PlatformPageContent({
             />
             <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
               {selected === "branding" ? (
-                <BrandingSection dict={brandingDict} />
+                <BrandingSection dict={brandingDict} lang={lang} />
               ) : (
                 <PlatformOwnersCard dict={superusersDict} />
               )}

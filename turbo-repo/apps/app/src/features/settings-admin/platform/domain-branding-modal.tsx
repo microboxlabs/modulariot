@@ -23,6 +23,8 @@ import type { DomainBrandingAdmin, SetDomainBranding } from "./platform.types";
 const FILE_INPUT_CLASS =
   "block w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-900 file:mr-4 file:cursor-pointer file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:file:bg-gray-600 dark:file:text-gray-100";
 
+type LogoGround = "light" | "dark";
+
 const LOGO_PROBLEM_KEYS: Record<LogoProblem, string> = {
   type: "modal.errors.logoType",
   empty: "modal.errors.logoEmpty",
@@ -67,6 +69,18 @@ export default function DomainBrandingModal({
   const [darkLogoCleared, setDarkLogoCleared] = useState(false);
   const [problemKey, setProblemKey] = useState<string | null>(null);
   const wasOpen = useRef(false);
+  /**
+   * The newest read per ground, held as the promise rather than its result.
+   *
+   * Submitting is allowed while a file is still being read — Save is one click
+   * away from the picker — so the bytes have to be awaited at submit time.
+   * Keeping the promise also settles ordering: two quick picks resolve in any
+   * order, and only the one still recorded here is accepted.
+   */
+  const latestRead = useRef<Record<LogoGround, Promise<string> | null>>({
+    light: null,
+    dark: null,
+  });
 
   // Initialize on open (false → true) rather than on every render, so typing
   // is not overwritten when the parent re-renders mid-edit.
@@ -79,40 +93,55 @@ export default function DomainBrandingModal({
       setDarkLogoDataUrl(null);
       setDarkLogoCleared(false);
       setProblemKey(null);
+      latestRead.current = { light: null, dark: null };
     }
     wasOpen.current = show;
   }, [show, initial]);
 
   const pickFile = (
     event: React.ChangeEvent<HTMLInputElement>,
+    ground: LogoGround,
     accept: (dataUrl: string | null) => void
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
     const problem = checkLogoFile(file);
     if (problem) {
+      // Also forget the previous read: a rejected pick means the operator no
+      // longer wants what they chose before it.
+      latestRead.current[ground] = null;
       accept(null);
       setProblemKey(LOGO_PROBLEM_KEYS[problem]);
       return;
     }
     setProblemKey(null);
-    readLogoDataUrl(file)
-      .then(accept)
-      .catch(() => setProblemKey("modal.errors.logoUnreadable"));
+
+    const read = readLogoDataUrl(file);
+    latestRead.current[ground] = read;
+    read
+      .then((dataUrl) => {
+        if (latestRead.current[ground] === read) accept(dataUrl);
+      })
+      .catch(() => {
+        if (latestRead.current[ground] === read) {
+          setProblemKey("modal.errors.logoUnreadable");
+        }
+      });
   };
 
   const handleFile = (event: React.ChangeEvent<HTMLInputElement>) =>
-    pickFile(event, setLogoDataUrl);
+    pickFile(event, "light", setLogoDataUrl);
 
   const handleDarkFile = (event: React.ChangeEvent<HTMLInputElement>) =>
-    pickFile(event, (dataUrl) => {
+    pickFile(event, "dark", (dataUrl) => {
       setDarkLogoDataUrl(dataUrl);
       if (dataUrl) setDarkLogoCleared(false);
     });
 
   /** The bytes to send: a freshly picked file, else the stored logo re-read. */
   const resolveLogo = async (): Promise<string | null> => {
-    if (logoDataUrl) return logoDataUrl;
+    const picked = latestRead.current.light;
+    if (picked) return picked;
     if (!initial) return null;
     return fetchStoredLogoDataUrl(initial.domain, initial.logoEtag);
   };
@@ -123,8 +152,10 @@ export default function DomainBrandingModal({
    * stored one re-read, since the write replaces the whole row.
    */
   const resolveDarkLogo = async (): Promise<string | null> => {
-    if (darkLogoDataUrl) return darkLogoDataUrl;
-    if (darkLogoCleared || !initial?.logoDarkEtag) return null;
+    if (darkLogoCleared) return null;
+    const picked = latestRead.current.dark;
+    if (picked) return picked;
+    if (!initial?.logoDarkEtag) return null;
     return fetchStoredLogoDataUrl(initial.domain, initial.logoDarkEtag, "dark");
   };
 

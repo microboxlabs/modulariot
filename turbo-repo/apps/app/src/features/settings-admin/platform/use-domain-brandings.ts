@@ -7,6 +7,7 @@ import {
   fetchDomainBrandings,
   saveDomainBranding,
 } from "./platform-data-service";
+import { ApiError } from "../data/json-client";
 import type { DomainBrandingAdmin, SetDomainBranding } from "./platform.types";
 
 /** Every configured domain, plus the create/replace and delete actions. */
@@ -14,7 +15,7 @@ export function useDomainBrandings() {
   const [isSaving, setIsSaving] = useState(false);
   const { data, error, isLoading, mutate } = useSWR<
     DomainBrandingAdmin[],
-    Error
+    ApiError
   >("domain-brandings", fetchDomainBrandings, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,

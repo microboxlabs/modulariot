@@ -9,6 +9,8 @@ import type { DomainBrandingAdmin } from "./platform.types";
 
 interface DomainListProps {
   readonly domains: DomainBrandingAdmin[];
+  /** Route language, so the audit timestamp reads in the chosen one. */
+  readonly lang: string;
   readonly isLoading: boolean;
   readonly isSaving: boolean;
   readonly error: Error | null;
@@ -24,6 +26,7 @@ interface DomainListProps {
  */
 export default function DomainList({
   domains,
+  lang,
   isLoading,
   isSaving,
   error,
@@ -59,6 +62,7 @@ export default function DomainList({
         <DomainRow
           key={row.domain}
           row={row}
+          lang={lang}
           dict={dict}
           busy={isSaving}
           onEdit={() => onEdit(row)}
@@ -71,13 +75,14 @@ export default function DomainList({
 
 interface DomainRowProps {
   readonly row: DomainBrandingAdmin;
+  readonly lang: string;
   readonly dict: I18nRecord;
   readonly busy: boolean;
   readonly onEdit: () => void;
   readonly onRemove: () => void;
 }
 
-function DomainRow({ row, dict, busy, onEdit, onRemove }: DomainRowProps) {
+function DomainRow({ row, lang, dict, busy, onEdit, onRemove }: DomainRowProps) {
   // Two clicks to delete, without a second modal: the first turns this row's
   // button into an explicit confirmation.
   const [isConfirming, setConfirming] = useState(false);
@@ -103,7 +108,7 @@ function DomainRow({ row, dict, busy, onEdit, onRemove }: DomainRowProps) {
         <p className="truncate text-xs text-gray-400 dark:text-gray-500">
           {tr("updatedBy", dict, {
             who: row.updatedBy ?? "—",
-            when: new Date(row.updatedAt).toLocaleString(),
+            when: new Date(row.updatedAt).toLocaleString(lang),
           })}
         </p>
       </div>

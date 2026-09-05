@@ -6,6 +6,7 @@ import { HiOutlineKey, HiOutlineLockClosed, HiX } from "react-icons/hi";
 import { toast } from "sonner";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { ApiError } from "../data/json-client";
 import { isPlausibleEmail } from "./assignee-email";
 import { usePlatformOwnerRole } from "./use-platform-owner-role";
 
@@ -20,7 +21,9 @@ interface PlatformOwnersCardProps {
  * held in the database, and the deployment's `MIOT_PLATFORM_OWNER_EMAILS`,
  * which exists so there is a way back in when the table is empty or wrong.
  */
-export default function PlatformOwnersCard({ dict }: PlatformOwnersCardProps) {
+export default function PlatformOwnersCard({
+  dict,
+}: Readonly<PlatformOwnersCardProps>) {
   const { role, isLoading, isSaving, error, save } = usePlatformOwnerRole();
   const [draft, setDraft] = useState("");
   const [problemKey, setProblemKey] = useState<string | null>(null);
@@ -31,12 +34,19 @@ export default function PlatformOwnersCard({ dict }: PlatformOwnersCardProps) {
   // next one. Mirrored here so the button explains itself instead of 400ing.
   const isLastWayIn = assignees.length === 1 && bootstrap.length === 0;
 
+  /** @returns whether the write landed, so a caller can keep its input. */
   const replace = async (next: string[], successKey: string) => {
     try {
       await save(next);
       toast.success(trDynamic(successKey, dict));
+      return true;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : tr("owners.saveError", dict));
+      // Only the API's own explanation is shown. Anything else is a bug in
+      // this client, and its message would mean nothing to an operator.
+      toast.error(
+        err instanceof ApiError ? err.message : tr("owners.saveError", dict)
+      );
+      return false;
     }
   };
 
@@ -51,11 +61,19 @@ export default function PlatformOwnersCard({ dict }: PlatformOwnersCardProps) {
       return;
     }
     setProblemKey(null);
-    setDraft("");
-    await replace(
+
+    const saved = await replace(
       [...assignees, candidate].sort((left, right) => left.localeCompare(right)),
       "owners.added"
     );
+    // Cleared only once it is stored: a failed write should leave the address
+    // in the field to retry, not make the operator type it again.
+    if (saved) setDraft("");
+  };
+
+  const handleDraftChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setDraft(event.target.value);
+    setProblemKey(null);
   };
 
   function renderBody(): ReactNode {
@@ -123,10 +141,7 @@ export default function PlatformOwnersCard({ dict }: PlatformOwnersCardProps) {
               disabled={isSaving}
               placeholder={tr("owners.addPlaceholder", dict)}
               aria-label={tr("owners.addLabel", dict)}
-              onChange={(event) => {
-                setDraft(event.target.value);
-                setProblemKey(null);
-              }}
+              onChange={handleDraftChange}
             />
             {problemKey && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">

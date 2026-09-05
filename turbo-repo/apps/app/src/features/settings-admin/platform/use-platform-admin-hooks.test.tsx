@@ -15,7 +15,7 @@ vi.mock("./platform-data-service", () => service);
 import { useDomainBrandings } from "./use-domain-brandings";
 import { usePlatformOwnerRole } from "./use-platform-owner-role";
 
-function wrapper({ children }: { children: React.ReactNode }) {
+function wrapper({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       {children}

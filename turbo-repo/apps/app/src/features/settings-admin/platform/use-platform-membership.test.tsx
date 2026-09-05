@@ -11,7 +11,7 @@ vi.mock("./platform-data-service", () => ({ fetchMyPlatformRoles }));
 import { useIsPlatformOwner } from "./use-platform-membership";
 
 /** A cache per test, so one test's answer is not another's starting point. */
-function wrapper({ children }: { children: React.ReactNode }) {
+function wrapper({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       {children}
@@ -61,6 +61,24 @@ describe("useIsPlatformOwner", () => {
 
   it("ignores a role the caller holds that is not platform ownership", async () => {
     fetchMyPlatformRoles.mockResolvedValue({ roleCodes: ["SOMETHING_ELSE"] });
+
+    const { result } = renderHook(() => useIsPlatformOwner(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isPlatformOwner).toBe(false);
+  });
+
+  it("fails closed on a 2xx body that is not the shape it claims", async () => {
+    fetchMyPlatformRoles.mockResolvedValue({ roleCodes: "PLATFORM_OWNER" });
+
+    const { result } = renderHook(() => useIsPlatformOwner(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isPlatformOwner).toBe(false);
+  });
+
+  it("fails closed on a 2xx body with no roles at all", async () => {
+    fetchMyPlatformRoles.mockResolvedValue({});
 
     const { result } = renderHook(() => useIsPlatformOwner(), { wrapper });
 

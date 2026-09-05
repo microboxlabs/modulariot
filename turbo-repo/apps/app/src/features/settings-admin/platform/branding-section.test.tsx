@@ -2,7 +2,14 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { state, save, remove, fetchStoredLogoDataUrl, toast } = vi.hoisted(
+const {
+  state,
+  save,
+  remove,
+  fetchStoredLogoDataUrl,
+  toast,
+  readLogoOverride,
+} = vi.hoisted(
   () => ({
     state: {
       domains: [
@@ -26,6 +33,7 @@ const { state, save, remove, fetchStoredLogoDataUrl, toast } = vi.hoisted(
     remove: vi.fn(),
     fetchStoredLogoDataUrl: vi.fn(),
     toast: { success: vi.fn(), error: vi.fn() },
+    readLogoOverride: { current: null as (() => Promise<string>) | null },
   })
 );
 
@@ -38,6 +46,17 @@ vi.mock("./platform-data-service", () => ({
   fetchStoredLogoDataUrl,
 }));
 vi.mock("sonner", () => ({ toast }));
+vi.mock("./domain-branding-form", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./domain-branding-form")>();
+  return {
+    ...actual,
+    readLogoDataUrl: (blob: Blob) =>
+      readLogoOverride.current
+        ? readLogoOverride.current()
+        : actual.readLogoDataUrl(blob),
+  };
+});
 
 import BrandingSection from "./branding-section";
 
@@ -125,6 +144,7 @@ function fill(label: string, value: string): void {
 
 beforeEach(() => {
   user = userEvent.setup();
+  readLogoOverride.current = null;
   state.domains[0].logoDarkMime = null;
   state.domains[0].logoDarkEtag = null;
   save.mockReset();
@@ -139,7 +159,7 @@ beforeEach(() => {
 
 describe("BrandingSection", () => {
   it("lists each configured domain with its link and status", () => {
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     expect(screen.getByText("portal.example.com")).toBeInTheDocument();
     expect(screen.getByText("https://www.example.com/")).toBeInTheDocument();
@@ -148,7 +168,7 @@ describe("BrandingSection", () => {
 
   it("reports a failed load instead of an empty list", () => {
     state.error = new Error("boom");
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     expect(
       screen.getByText("Couldn't load the configured domains.")
@@ -156,7 +176,7 @@ describe("BrandingSection", () => {
   });
 
   it("saves a new domain with the picked file as a data: URL", async () => {
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     await user.click(screen.getByRole("button", { name: "Add domain" }));
     fill("Domain", "New.Example.COM");
@@ -183,7 +203,7 @@ describe("BrandingSection", () => {
   });
 
   it("refuses an unsupported file without calling the API", async () => {
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     await user.click(screen.getByRole("button", { name: "Add domain" }));
     fill("Domain", "new.example.com");
@@ -200,7 +220,7 @@ describe("BrandingSection", () => {
   });
 
   it("refuses a domain that is not a plausible host", async () => {
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     await user.click(screen.getByRole("button", { name: "Add domain" }));
     fill("Domain", "not..a..domain");
@@ -215,7 +235,7 @@ describe("BrandingSection", () => {
   });
 
   it("refuses a home URL whose scheme would run on the sign-in page", async () => {
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     await user.click(screen.getByRole("button", { name: "Edit" }));
     fill("Logo link", "javascript:alert(1)");
@@ -228,7 +248,7 @@ describe("BrandingSection", () => {
   });
 
   it("resends the stored logo when an edit changes only the link", async () => {
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     await user.click(screen.getByRole("button", { name: "Edit" }));
     fill("Logo link", "https://moved.example.test/");
@@ -249,7 +269,7 @@ describe("BrandingSection", () => {
   });
 
   it("does not let an edit change the domain, which would create a second row", async () => {
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     await user.click(screen.getByRole("button", { name: "Edit" }));
 
@@ -257,7 +277,7 @@ describe("BrandingSection", () => {
   });
 
   it("takes two clicks to remove a domain", async () => {
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     await user.click(screen.getByRole("button", { name: "Remove" }));
     expect(remove).not.toHaveBeenCalled();
@@ -269,7 +289,7 @@ describe("BrandingSection", () => {
   });
 
   it("sends both files when a dark variant is picked", async () => {
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     await user.click(screen.getByRole("button", { name: "Add domain" }));
     fill("Domain", "new.example.com");
@@ -296,7 +316,7 @@ describe("BrandingSection", () => {
   });
 
   it("says so when one logo covers both grounds", async () => {
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     await user.click(screen.getByRole("button", { name: "Add domain" }));
     await user.upload(screen.getByLabelText("Logo"), pngFile());
@@ -317,7 +337,7 @@ describe("BrandingSection", () => {
           ? "data:image/png;base64,STOREDDARK"
           : "data:image/png;base64,STORED"
     );
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     await user.click(screen.getByRole("button", { name: "Edit" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -335,7 +355,7 @@ describe("BrandingSection", () => {
   it("clears a stored dark variant when it is removed", async () => {
     state.domains[0].logoDarkMime = "image/png";
     state.domains[0].logoDarkEtag = "dark-1";
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     await user.click(screen.getByRole("button", { name: "Edit" }));
     await user.click(
@@ -360,8 +380,75 @@ describe("BrandingSection", () => {
   it("marks a row that ships two logos", () => {
     state.domains[0].logoDarkMime = "image/png";
     state.domains[0].logoDarkEtag = "dark-1";
-    render(<BrandingSection dict={dict} />);
+    render(<BrandingSection dict={dict} lang="en" />);
 
     expect(screen.getByText("Two logos")).toBeInTheDocument();
+  });
+
+  it("shows the audit timestamp in the route language, not the browser's", () => {
+    render(<BrandingSection dict={dict} lang="de" />);
+
+    const german = new Date("2026-09-05T03:04:46.807Z").toLocaleString("de");
+    expect(
+      screen.getByText(`Updated by owner@example.test, ${german}`)
+    ).toBeInTheDocument();
+  });
+
+  it("does not lose a file picked a moment before Save is clicked", async () => {
+    let finishRead: (dataUrl: string) => void = () => {};
+    readLogoOverride.current = () =>
+      new Promise((resolve) => {
+        finishRead = resolve;
+      });
+    render(<BrandingSection dict={dict} lang="en" />);
+
+    await user.click(screen.getByRole("button", { name: "Add domain" }));
+    fill("Domain", "new.example.com");
+    await user.upload(screen.getByLabelText("Logo"), pngFile());
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // The read is still in flight, so nothing has been sent — and crucially
+    // the form has not claimed no logo was chosen.
+    expect(save).not.toHaveBeenCalled();
+    expect(screen.queryByText("Choose a logo file.")).not.toBeInTheDocument();
+
+    finishRead("data:image/png;base64,SLOW");
+
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith(
+        "new.example.com",
+        expect.objectContaining({ logoDataUrl: "data:image/png;base64,SLOW" })
+      )
+    );
+  });
+
+  it("keeps the newest of two quick picks, whichever read finishes first", async () => {
+    const finish: Array<(dataUrl: string) => void> = [];
+    readLogoOverride.current = () =>
+      new Promise((resolve) => {
+        finish.push(resolve);
+      });
+    render(<BrandingSection dict={dict} lang="en" />);
+
+    await user.click(screen.getByRole("button", { name: "Add domain" }));
+    fill("Domain", "new.example.com");
+    await user.upload(screen.getByLabelText("Logo"), pngFile());
+    await user.upload(
+      screen.getByLabelText("Logo"),
+      new File([new Uint8Array([9])], "second.png", { type: "image/png" })
+    );
+
+    // Out of order on purpose: the second pick resolves before the first.
+    finish[1]("data:image/png;base64,SECOND");
+    finish[0]("data:image/png;base64,FIRST");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith(
+        "new.example.com",
+        expect.objectContaining({ logoDataUrl: "data:image/png;base64,SECOND" })
+      )
+    );
   });
 });

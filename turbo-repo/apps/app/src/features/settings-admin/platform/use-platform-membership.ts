@@ -23,8 +23,12 @@ export function useIsPlatformOwner(): {
     dedupingInterval: 300_000,
   });
 
+  // Shape-checked rather than trusted: `data` is whatever the proxy returned,
+  // and a body without `roleCodes` would otherwise throw inside a render.
+  const roleCodes = Array.isArray(data?.roleCodes) ? data.roleCodes : [];
+
   return {
-    isPlatformOwner: data?.roleCodes.includes(PLATFORM_OWNER_ROLE) ?? false,
+    isPlatformOwner: roleCodes.includes(PLATFORM_OWNER_ROLE),
     isLoading,
   };
 }

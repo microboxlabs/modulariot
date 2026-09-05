@@ -15,18 +15,27 @@ import type { DomainBrandingAdmin, SetDomainBranding } from "./platform.types";
 interface BrandingSectionProps {
   /** `pages.userSettings.platform.branding`. */
   readonly dict: I18nRecord;
+  readonly lang: string;
 }
 
 /**
  * Settings › Platform › Branding: one logo per domain, plus the bundled
  * default every domain without a row falls back to.
  */
-export default function BrandingSection({ dict }: BrandingSectionProps) {
+export default function BrandingSection({
+  dict,
+  lang,
+}: BrandingSectionProps) {
   const { domains, isLoading, isSaving, error, save, remove } =
     useDomainBrandings();
   const [editing, setEditing] = useState<DomainBrandingAdmin | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
   const [submitError, setSubmitError] = useState<Error | null>(null);
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditing(null);
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -44,8 +53,7 @@ export default function BrandingSection({ dict }: BrandingSectionProps) {
     setSubmitError(null);
     try {
       await save(domain, value);
-      setModalOpen(false);
-      setEditing(null);
+      closeModal();
       toast.success(tr("toast.saved", dict, { domain }));
     } catch (err) {
       setSubmitError(err instanceof Error ? err : new Error(String(err)));
@@ -87,6 +95,7 @@ export default function BrandingSection({ dict }: BrandingSectionProps) {
             error={error}
             onEdit={openEdit}
             onRemove={(domain) => void handleRemove(domain)}
+            lang={lang}
             dict={dict}
           />
         </div>
@@ -97,10 +106,7 @@ export default function BrandingSection({ dict }: BrandingSectionProps) {
       <DomainBrandingModal
         show={isModalOpen}
         initial={editing}
-        onClose={() => {
-          setModalOpen(false);
-          setEditing(null);
-        }}
+        onClose={closeModal}
         onSubmit={(domain, value) => void handleSubmit(domain, value)}
         isSaving={isSaving}
         error={submitError}

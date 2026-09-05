@@ -148,4 +148,19 @@ describe("branding logo proxy", () => {
 
     expect(response.status).toBe(404);
   });
+
+  it("answers 502 when the body stream fails after the headers arrive", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "Content-Type": "image/png" }),
+      arrayBuffer: async () => {
+        throw new Error("stream closed");
+      },
+    });
+
+    const response = await GET(request({ host: "portal.example.com" }));
+
+    expect(response.status).toBe(502);
+  });
 });

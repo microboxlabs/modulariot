@@ -6,12 +6,13 @@ import {
   fetchPlatformOwnerRole,
   updatePlatformOwnerRole,
 } from "./platform-data-service";
+import { ApiError } from "../data/json-client";
 import type { PlatformRole } from "./platform.types";
 
 /** Who holds `PLATFORM_OWNER`, and the write that replaces the list. */
 export function usePlatformOwnerRole() {
   const [isSaving, setIsSaving] = useState(false);
-  const { data, error, isLoading, mutate } = useSWR<PlatformRole, Error>(
+  const { data, error, isLoading, mutate } = useSWR<PlatformRole, ApiError>(
     "platform-owner-role",
     fetchPlatformOwnerRole,
     { revalidateOnFocus: false, revalidateOnReconnect: false }

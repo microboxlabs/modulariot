@@ -7,12 +7,15 @@ import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import { getDomainBranding } from "@/features/branding/domain-branding.service";
 import DomainLogo from "@/features/branding/domain-logo";
 
-export async function SimpleNavbar() {
+export async function SimpleNavbar({
+  logoAlt,
+}: Readonly<{ logoAlt?: string }>) {
   const branding = await getDomainBranding();
   const brand = branding?.logoUrl ? (
     <DomainLogo
       logoUrl={branding.logoUrl}
       logoUrlDark={branding.logoUrlDark}
+      alt={logoAlt}
     />
   ) : (
     <LynxBrand

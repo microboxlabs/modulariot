@@ -270,6 +270,10 @@ export default function DomainBrandingModal({
               <button
                 type="button"
                 onClick={() => {
+                  // Forget any read still running for this ground: its
+                  // completion would otherwise re-accept the bytes and undo
+                  // the removal, and Save would store the logo just removed.
+                  latestRead.current.dark = null;
                   setDarkLogoDataUrl(null);
                   setDarkLogoCleared(true);
                 }}

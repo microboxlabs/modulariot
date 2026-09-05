@@ -60,4 +60,12 @@ describe("DomainLogo", () => {
     expect(screen.getByTestId("org-logo")).toHaveAttribute("src", LIGHT);
     expect(screen.getByTestId("org-logo-dark")).toHaveAttribute("src", DARK);
   });
+
+  it("uses the alt text the caller translated", () => {
+    render(
+      <DomainLogo logoUrl={LIGHT} logoUrlDark={DARK} alt="Logo de la organización" />,
+    );
+
+    expect(screen.getAllByAltText("Logo de la organización")).toHaveLength(2);
+  });
 });

@@ -27,7 +27,7 @@ const {
       ],
       isLoading: false,
       isSaving: false,
-      error: null as Error | null,
+      error: null as ApiError | null,
     },
     save: vi.fn(),
     remove: vi.fn(),
@@ -58,6 +58,7 @@ vi.mock("./domain-branding-form", async (importOriginal) => {
   };
 });
 
+import { ApiError } from "../data/json-client";
 import BrandingSection from "./branding-section";
 
 const dict = {
@@ -97,7 +98,7 @@ const dict = {
     darkLogoHelp: "Use it when the main logo does not read on dark.",
     removeDarkLogo: "Remove the dark-background logo",
     darkPreviewAlt: "Dark-background logo preview",
-    sameOnBoth: "This domain uses the same logo on both grounds.",
+    sameOnBoth: "This domain uses the same logo on both backgrounds.",
     currentLogo: "Current logo",
     newLogo: "New logo",
     previewAlt: "Logo preview",
@@ -167,7 +168,7 @@ describe("BrandingSection", () => {
   });
 
   it("reports a failed load instead of an empty list", () => {
-    state.error = new Error("boom");
+    state.error = new ApiError({ status: 500, url: "/domain-brandings" });
     render(<BrandingSection dict={dict} lang="en" />);
 
     expect(
@@ -323,7 +324,7 @@ describe("BrandingSection", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText("This domain uses the same logo on both grounds.")
+        screen.getByText("This domain uses the same logo on both backgrounds.")
       ).toBeInTheDocument()
     );
   });
@@ -448,6 +449,41 @@ describe("BrandingSection", () => {
       expect(save).toHaveBeenCalledWith(
         "new.example.com",
         expect.objectContaining({ logoDataUrl: "data:image/png;base64,SECOND" })
+      )
+    );
+  });
+
+  it("stays removed when the dark read lands after the removal", async () => {
+    // Reachable when editing a domain that already ships a dark logo: the
+    // remove control is on screen while a replacement is still being read.
+    state.domains[0].logoDarkMime = "image/png";
+    state.domains[0].logoDarkEtag = "dark-1";
+    fetchStoredLogoDataUrl.mockResolvedValue("data:image/png;base64,STORED");
+    render(<BrandingSection dict={dict} lang="en" />);
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+
+    let finishDarkRead: (dataUrl: string) => void = () => {};
+    readLogoOverride.current = () =>
+      new Promise((resolve) => {
+        finishDarkRead = resolve;
+      });
+    await user.upload(
+      screen.getByLabelText("Dark-background logo (optional)"),
+      new File([new Uint8Array([7])], "dark.png", { type: "image/png" })
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Remove the dark-background logo" })
+    );
+
+    // The read completes after the operator asked for the variant to go.
+    finishDarkRead("data:image/png;base64,LATEDARK");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith(
+        "portal.example.com",
+        expect.objectContaining({ logoDarkDataUrl: null })
       )
     );
   });

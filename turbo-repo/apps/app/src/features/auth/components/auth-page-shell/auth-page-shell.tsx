@@ -7,6 +7,7 @@ type AuthPageShellProps = PropsWithChildren<{
   /** Per-domain logo URL; if provided, shown instead of the default logo */
   orgLogoUrl?: string | null;
   orgLogoUrlDark?: string | null;
+  logoAlt?: string;
   /** Where the brand links to; unlinked when the domain configures no home URL */
   homeUrl?: string | null;
   footerMessages: FooterSignInProps["messages"];
@@ -20,6 +21,7 @@ type AuthPageShellProps = PropsWithChildren<{
 export default function AuthPageShell({
   orgLogoUrl,
   orgLogoUrlDark,
+  logoAlt,
   homeUrl,
   footerMessages,
   children,
@@ -30,6 +32,7 @@ export default function AuthPageShell({
         orgLogoUrl={orgLogoUrl}
         orgLogoUrlDark={orgLogoUrlDark}
         homeUrl={homeUrl}
+        logoAlt={logoAlt}
       />
       <div className="flex flex-1 flex-col items-center justify-center">
         <div className="w-full md:max-w-lg">{children}</div>

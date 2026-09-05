@@ -15,7 +15,7 @@ export default async function SimpleLayout({
   const [dict] = await getDictionary(lang);
   return (
     <>
-      <SimpleNavbar />
+      <SimpleNavbar logoAlt={dict("common.organizationLogoAlt")} />
       {children}
       <FooterSecuredLayout messages={dict} />
     </>

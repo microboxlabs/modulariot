@@ -9,7 +9,7 @@ export default async function Page({
 }: ParamsWithLang<{ version: string }>) {
   const paramsResult = await params;
   const { lang, version } = paramsResult;
-  const [, dict] = await getDictionary(lang);
+  const [t, dict] = await getDictionary(lang);
   const branding = await getDomainBranding();
 
   return (
@@ -17,6 +17,7 @@ export default async function Page({
       <NavbarSignIn
         orgLogoUrl={branding?.logoUrl}
         orgLogoUrlDark={branding?.logoUrlDark}
+        logoAlt={t("common.organizationLogoAlt")}
         homeUrl={branding?.homeUrl}
       />
       <div className="flex w-1/3 min-w-[400px] flex-col gap-4 pb-5 px-5 text-gray-900 dark:text-gray-100">

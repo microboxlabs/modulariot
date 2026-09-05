@@ -82,8 +82,10 @@ export async function GET(
     headers: {
       "Content-Type":
         upstream.headers.get("content-type") ?? "application/octet-stream",
-      // An admin preview is per-user and changes as soon as it is replaced.
-      "Cache-Control": "private, max-age=60",
+      // Not cached at all. `private` still permits a browser store, and a
+      // parked domain's logo is not served publicly — another account on the
+      // same profile could read it back without the ownership check running.
+      "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy": "default-src 'none'; sandbox",
     },

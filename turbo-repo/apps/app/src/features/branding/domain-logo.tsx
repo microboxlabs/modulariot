@@ -5,6 +5,8 @@ interface DomainLogoProps {
   readonly className?: string;
   readonly width?: number;
   readonly testId?: string;
+  /** Translated; the default is a fallback for callers with no dictionary. */
+  readonly alt?: string;
 }
 
 /**
@@ -23,13 +25,14 @@ export default function DomainLogo({
   className = "mr-3 h-8",
   width = 150,
   testId,
+  alt = "Organization logo",
 }: Readonly<DomainLogoProps>) {
   if (!logoUrlDark) {
     return (
       /* eslint-disable-next-line @next/next/no-img-element */
       <img
         className={className}
-        alt="Organization logo"
+        alt={alt}
         src={logoUrl}
         data-testid={testId}
         width={width}
@@ -42,7 +45,7 @@ export default function DomainLogo({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         className={`${className} dark:hidden`}
-        alt="Organization logo"
+        alt={alt}
         src={logoUrl}
         data-testid={testId}
         width={width}
@@ -50,7 +53,7 @@ export default function DomainLogo({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         className={`hidden ${className} dark:block`}
-        alt="Organization logo"
+        alt={alt}
         src={logoUrlDark}
         data-testid={testId ? `${testId}-dark` : undefined}
         width={width}

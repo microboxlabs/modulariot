@@ -1470,7 +1470,7 @@
             "darkLogoHelp": "Use it when the main logo does not read on a dark background. Leave it empty to use the main one on both.",
             "removeDarkLogo": "Remove the dark-background logo",
             "darkPreviewAlt": "Dark-background logo preview",
-            "sameOnBoth": "This domain uses the same logo on both grounds.",
+            "sameOnBoth": "This domain uses the same logo on both backgrounds.",
             "currentLogo": "Current logo",
             "newLogo": "New logo",
             "previewAlt": "Logo preview",
@@ -2697,7 +2697,8 @@
     "all": "All",
     "delete": "Delete",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "organizationLogoAlt": "Organization logo"
   },
   "dashboard": {
     "addWidget": "Add Widget",

@@ -7,12 +7,14 @@ interface TotemNavbarProps {
   readonly orgLogoUrl?: string | null;
   readonly orgLogoUrlDark?: string | null;
   readonly homeUrl?: string | null;
+  readonly logoAlt?: string;
 }
 
 export default function TotemNavbar({
   orgLogoUrl,
   orgLogoUrlDark,
   homeUrl,
+  logoAlt,
 }: Readonly<TotemNavbarProps>) {
   return (
     <div className="w-full h-fit">
@@ -23,6 +25,7 @@ export default function TotemNavbar({
               logoUrl={orgLogoUrl}
               logoUrlDark={orgLogoUrlDark}
               testId="org-logo"
+              alt={logoAlt}
             />
           ) : (
             <AppLogo />

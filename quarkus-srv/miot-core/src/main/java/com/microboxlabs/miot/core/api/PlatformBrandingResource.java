@@ -98,9 +98,12 @@ public class PlatformBrandingResource {
                 .map(logo -> logo == null
                         ? Response.status(Response.Status.NOT_FOUND).build()
                         : Response.ok(logo.content(), logo.mime())
-                                // Per-user and superseded the moment it is
-                                // replaced, so it is never shared or held long.
-                                .header("Cache-Control", "private, max-age=60")
+                                // Not cached at all. "private" still permits a
+                                // browser store, and a parked domain's logo is
+                                // not served publicly — another account on the
+                                // same profile could read it back without this
+                                // ownership check ever running.
+                                .header("Cache-Control", "no-store")
                                 .header("X-Content-Type-Options", "nosniff")
                                 .header("Content-Security-Policy",
                                         "default-src 'none'; sandbox")

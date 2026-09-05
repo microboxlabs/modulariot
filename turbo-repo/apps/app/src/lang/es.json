@@ -2697,7 +2697,8 @@
     "all": "Todos",
     "delete": "Eliminar",
     "yes": "Sí",
-    "no": "No"
+    "no": "No",
+    "organizationLogoAlt": "Logo de la organización"
   },
   "dashboard": {
     "addWidget": "Agregar Widget",

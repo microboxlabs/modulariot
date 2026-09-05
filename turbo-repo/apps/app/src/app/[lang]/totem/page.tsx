@@ -17,6 +17,7 @@ export default async function TotemPage({ params }: ParamsWithLang) {
       <TotemNavbar
         orgLogoUrl={branding?.logoUrl}
         orgLogoUrlDark={branding?.logoUrlDark}
+        logoAlt={_dict("common.organizationLogoAlt")}
         homeUrl={branding?.homeUrl}
       />
       <div className="flex flex-grow w-full justify-center items-center overflow-y-auto">

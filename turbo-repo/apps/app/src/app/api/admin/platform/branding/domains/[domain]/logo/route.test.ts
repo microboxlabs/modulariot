@@ -62,7 +62,9 @@ describe("admin logo preview proxy", () => {
     expect(response.headers.get("content-security-policy")).toBe(
       "default-src 'none'; sandbox",
     );
-    expect(response.headers.get("cache-control")).toBe("private, max-age=60");
+    // Not merely private: a parked domain's logo is not public, so it must
+    // not sit in a shared browser profile's cache either.
+    expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
   it("requires a session", async () => {

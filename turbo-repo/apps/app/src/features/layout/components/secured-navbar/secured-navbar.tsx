@@ -8,6 +8,7 @@ import { useMediaQuery } from "../../hooks/use-media-query";
 import UserDropdown from "../user-dropdown/user-dropdown";
 import { SecuredNavBarProps } from "./secured-navbar.types";
 import { LynxBrand } from "@modulariot/ui/brand/logo";
+import { tr } from "@/features/i18n/tr.service";
 import DomainLogo from "@/features/branding/domain-logo";
 import { twMerge } from "tailwind-merge";
 /* import { useSearch } from "@/features/search/context/search-context"; */
@@ -31,12 +32,14 @@ function NavbarLogo({
   logoUrlDark,
   initialOrgLogo,
   initialOrgLogoDark,
+  logoAlt,
 }: Readonly<{
   isLoading: boolean;
   logoUrlLight: string | null;
   logoUrlDark: string | null;
   initialOrgLogo?: string | null;
   initialOrgLogoDark?: string | null;
+  logoAlt: string;
 }>) {
   if (isLoading) {
     // While loading, show the server-fetched org logo if available instead of a skeleton
@@ -46,6 +49,7 @@ function NavbarLogo({
           logoUrl={initialOrgLogo}
           logoUrlDark={initialOrgLogoDark}
           className="mr-3 h-8 object-contain"
+          alt={logoAlt}
         />
       );
     }
@@ -111,6 +115,7 @@ function NavbarLogo({
         logoUrl={initialOrgLogo}
         logoUrlDark={initialOrgLogoDark}
         className="mr-3 h-8 object-contain"
+        alt={logoAlt}
       />
     );
   }
@@ -190,6 +195,7 @@ export function SecuredNavbar({
                 logoUrlDark={logoUrlDark}
                 initialOrgLogo={initialOrgLogo}
                 initialOrgLogoDark={initialOrgLogoDark}
+                logoAlt={tr("common.organizationLogoAlt", dict)}
               />
             </NavbarBrand>
           </div>

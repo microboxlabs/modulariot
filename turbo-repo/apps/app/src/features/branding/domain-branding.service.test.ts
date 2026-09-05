@@ -100,4 +100,26 @@ describe("getDomainBranding", () => {
       logoUrlDark: null,
     });
   });
+
+  it("ignores a dark flag that is truthy but not the boolean true", async () => {
+    // A stray "false" would otherwise emit a dark URL that 404s, and the dark
+    // <img> would replace the light one with a broken image.
+    fetchMock.mockResolvedValue(
+      summary({ hasDarkLogo: "false", logoDarkEtag: "dark456" }),
+    );
+
+    await expect(getDomainBranding()).resolves.toMatchObject({
+      logoUrlDark: null,
+    });
+  });
+
+  it("ignores a dark flag with no validator to go with it", async () => {
+    fetchMock.mockResolvedValue(
+      summary({ hasDarkLogo: true, logoDarkEtag: null }),
+    );
+
+    await expect(getDomainBranding()).resolves.toMatchObject({
+      logoUrlDark: null,
+    });
+  });
 });

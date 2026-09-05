@@ -37,7 +37,13 @@ export async function getDomainBranding(): Promise<DomainBranding | null> {
 
   return {
     logoUrl: logoUrl(summary.logoEtag),
-    logoUrlDark: summary.hasDarkLogo ? logoUrl(summary.logoDarkEtag, "dark") : null,
+    // Strict, and the validator has to be there too: a truthy-but-not-true
+    // flag would emit a URL that 404s, and the dark <img> would replace the
+    // light one with a broken image rather than fall back to it.
+    logoUrlDark:
+      summary.hasDarkLogo === true && summary.logoDarkEtag
+        ? logoUrl(summary.logoDarkEtag, "dark")
+        : null,
     homeUrl: summary.homeUrl ?? null,
   };
 }

@@ -10,19 +10,26 @@ interface NavbarSignInProps {
   orgLogoUrlDark?: string | null;
   /** Where the brand links to; unlinked when the domain configures no home URL */
   homeUrl?: string | null;
+  /** Translated alt text for the branded logo. */
+  logoAlt?: string;
 }
 
 export default function NavbarSignIn({
   orgLogoUrl,
   orgLogoUrlDark,
   homeUrl,
-}: NavbarSignInProps = {}) {
+  logoAlt,
+}: Readonly<NavbarSignInProps> = {}) {
   return (
     <div className="w-full h-fit dark:bg-gray-800">
       <Navbar fluid className="dark:bg-transparent">
         <NavbarBrand data-testid="login-navbar" href={homeUrl ?? undefined}>
           {orgLogoUrl ? (
-            <DomainLogo logoUrl={orgLogoUrl} logoUrlDark={orgLogoUrlDark} />
+            <DomainLogo
+              logoUrl={orgLogoUrl}
+              logoUrlDark={orgLogoUrlDark}
+              alt={logoAlt}
+            />
           ) : (
             <AppLogo />
           )}

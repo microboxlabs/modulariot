@@ -11,6 +11,7 @@ export type SecuredNavBarProps = {
   /** Server-fetched org logo used as fallback while client-side logos load */
   initialOrgLogo?: string | null;
   initialOrgLogoDark?: string | null;
+  logoAlt?: string;
   /** Threaded down to SpotlightSearch so its results stay in sync with the sidebar's Harness settings gate. */
   isHarnessSettingsEnabled?: boolean;
 };

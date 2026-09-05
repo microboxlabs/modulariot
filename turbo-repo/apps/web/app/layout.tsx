@@ -2,9 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { ThemeModeScript } from "flowbite-react";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { Inter } from "next/font/google";
+import { parseGoogleAnalyticsId } from "@/lib/google-analytics";
 import "./globals.css";
 
-const googleAnalyticsId = process.env.GA_MEASUREMENT_ID;
+const googleAnalyticsId = parseGoogleAnalyticsId(process.env.GA_MEASUREMENT_ID);
 
 const inter = Inter({
   subsets: ["latin"],

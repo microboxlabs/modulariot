@@ -9,7 +9,8 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { useVisiblePages } from "../hooks/use-visible-pages";
-import { filterHarnessSettings } from "../models/pages";
+import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
+import { filterSettings } from "../models/pages";
 import { SidebarItem } from "../types/common.types";
 import {
   getMyTasks,
@@ -157,6 +158,7 @@ export function SidebarNavigationProvider({
   const calendarDynamicItems = useCalendarDynamicItems();
   const dashboardDynamicItems = useDashboardDynamicItems();
   const pages = useVisiblePages();
+  const { isPlatformOwner } = useIsPlatformOwner();
 
   useEffect(() => {
     if (error && (error.status === 401 || error.status === 403)) {
@@ -220,10 +222,10 @@ export function SidebarNavigationProvider({
       dashboards: dashboardDynamicItems,
     };
 
-    const resolvedItems = filterHarnessSettings(
-      pages,
-      isHarnessSettingsEnabled
-    ).map((page) => {
+    const resolvedItems = filterSettings(pages, {
+      harness: isHarnessSettingsEnabled,
+      platformOwner: isPlatformOwner,
+    }).map((page) => {
       const dynamic = page.dynamicItemsSource
         ? (dynamicMap[page.dynamicItemsSource] ?? [])
         : [];
@@ -243,6 +245,7 @@ export function SidebarNavigationProvider({
     symptomsCount,
     error,
     isHarnessSettingsEnabled,
+    isPlatformOwner,
   ]);
 
   return (

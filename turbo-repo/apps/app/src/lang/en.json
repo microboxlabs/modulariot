@@ -1422,6 +1422,103 @@
       "subtitle": "The trip you are looking for does not exist or is not available."
     },
     "userSettings": {
+      "platform": {
+        "title": "Platform",
+        "description": "Settings that belong to no organization: they apply across every domain and account.",
+        "listTitle": "Platform settings",
+        "notOwnerTitle": "You don't have access to this section",
+        "notOwnerBody": "Only platform administrators can configure branding by domain.",
+        "branding": {
+          "title": "Branding",
+          "menuHint": "One logo per domain",
+          "domainsTitle": "Domains",
+          "domainsDescription": "One logo per domain, plus the link it points to.",
+          "loading": "Loading…",
+          "loadError": "Couldn't load the configured domains.",
+          "domainsEmpty": "No domains configured yet.",
+          "addDomain": "Add domain",
+          "logoAlt": "{domain} logo",
+          "noHomeUrl": "No link",
+          "updatedBy": "Updated by {who} · {when}",
+          "previewLight": "Light background",
+          "previewDark": "Dark background",
+          "defaultTitle": "Default logo",
+          "defaultDescription": "What every domain without an entry shows. Changing it takes a new release of the application, not a setting.",
+          "hasDarkLogo": "Two logos",
+          "statusActive": "Active",
+          "statusInactive": "Inactive",
+          "edit": "Edit",
+          "remove": "Remove",
+          "removeConfirm": "Confirm",
+          "cancel": "Cancel",
+          "saveError": "Couldn't save the change.",
+          "toast": {
+            "saved": "Saved the branding for {domain}.",
+            "removed": "Removed the branding for {domain}."
+          },
+          "modal": {
+            "addTitle": "Add domain",
+            "editTitle": "Edit domain",
+            "subtitle": "Upload the logo people will see when they arrive on this domain.",
+            "editSubtitle": "Change this domain's logo or link.",
+            "domainLabel": "Domain",
+            "domainPlaceholder": "portal.example.com",
+            "domainHelp": "No protocol and no port. The domain can't be changed afterwards: to rename it, remove the entry and create a new one.",
+            "logoLabel": "Logo",
+            "logoHelp": "SVG, PNG, JPEG or WebP, up to {size} KB.",
+            "darkLogoLabel": "Dark-background logo (optional)",
+            "darkLogoHelp": "Use it when the main logo does not read on a dark background. Leave it empty to use the main one on both.",
+            "removeDarkLogo": "Remove the dark-background logo",
+            "darkPreviewAlt": "Dark-background logo preview",
+            "sameOnBoth": "This domain uses the same logo on both backgrounds.",
+            "currentLogo": "Current logo",
+            "newLogo": "New logo",
+            "previewAlt": "Logo preview",
+            "homeUrlLabel": "Logo link",
+            "homeUrlPlaceholder": "https://www.example.com/",
+            "homeUrlHelp": "Where the logo goes when clicked. Leave it empty to render the logo unlinked.",
+            "activeLabel": "Active",
+            "activeHelp": "Turning this off returns the domain to the default logo without losing what's configured.",
+            "save": "Save",
+            "saving": "Saving…",
+            "cancel": "Cancel",
+            "errors": {
+              "domain": "Enter a valid domain, for example portal.example.com.",
+              "logoRequired": "Choose a logo file.",
+              "logoType": "Unsupported format. Use SVG, PNG, JPEG or WebP.",
+              "logoEmpty": "The file is empty.",
+              "logoSize": "The file is over the size limit.",
+              "logoUnreadable": "Couldn't read the logo file.",
+              "homeUrlLength": "The link is too long.",
+              "homeUrlMalformed": "The link is not a valid URL.",
+              "homeUrlScheme": "The link must start with http:// or https://.",
+              "homeUrlUserInfo": "The link can't include a username or password."
+            }
+          }
+        },
+        "superusers": {
+          "title": "Superusers",
+          "description": "Who can administer platform-wide settings, branding for every domain included.",
+          "menuHint": "Who administers the platform",
+          "owners": {
+            "empty": "No administrators yet.",
+            "loadError": "Couldn't load the administrator list.",
+            "saveError": "Couldn't save the change.",
+            "addLabel": "Administrator email",
+            "addPlaceholder": "person@example.com",
+            "add": "Add",
+            "removeLabel": "Remove {email}",
+            "added": "Administrator added.",
+            "removed": "Administrator removed.",
+            "invalidEmail": "Enter a valid email address.",
+            "duplicate": "That address is already on the list.",
+            "duplicateBootstrap": "That address already administers the platform through the deployment's configuration.",
+            "lastOwnerHelp": "The last administrator can't be removed: nobody would be able to get back in.",
+            "bootstrapBadge": "From configuration",
+            "bootstrapHelp": "The marked administrators come from the deployment's configuration and can only be changed there. They exist so access can be recovered if the list is ever emptied."
+          }
+        }
+      },
       "organizations": {
         "title": "Organizations",
         "description": "Review your organizations and their members. Organization owners can manage access and integrations.",
@@ -1678,7 +1775,8 @@
         "dataSources": "Data Sources",
         "credentials": "Credentials",
         "connections": "Connections",
-        "harness": "Harness"
+        "harness": "Harness",
+        "platform": "Platform"
       },
       "symptoms": {
         "config": {
@@ -2435,7 +2533,8 @@
         "subtitle1": "Consolidation",
         "subtitle2": "Document Separation",
         "subtitle3": "Client System Validation",
-        "subtitle4": "GPS Validation"
+        "subtitle4": "GPS Validation",
+        "platform": "Platform"
       }
     },
     "calendar": {
@@ -2598,7 +2697,8 @@
     "all": "All",
     "delete": "Delete",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "organizationLogoAlt": "Organization logo"
   },
   "dashboard": {
     "addWidget": "Add Widget",

@@ -8,6 +8,8 @@ import { useMediaQuery } from "../../hooks/use-media-query";
 import UserDropdown from "../user-dropdown/user-dropdown";
 import { SecuredNavBarProps } from "./secured-navbar.types";
 import { LynxBrand } from "@modulariot/ui/brand/logo";
+import { tr } from "@/features/i18n/tr.service";
+import DomainLogo from "@/features/branding/domain-logo";
 import { twMerge } from "tailwind-merge";
 /* import { useSearch } from "@/features/search/context/search-context"; */
 import { usePathname } from "next/navigation";
@@ -29,23 +31,25 @@ function NavbarLogo({
   logoUrlLight,
   logoUrlDark,
   initialOrgLogo,
+  initialOrgLogoDark,
+  logoAlt,
 }: Readonly<{
   isLoading: boolean;
   logoUrlLight: string | null;
   logoUrlDark: string | null;
   initialOrgLogo?: string | null;
+  initialOrgLogoDark?: string | null;
+  logoAlt: string;
 }>) {
   if (isLoading) {
     // While loading, show the server-fetched org logo if available instead of a skeleton
     if (initialOrgLogo) {
       return (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img
+        <DomainLogo
+          logoUrl={initialOrgLogo}
+          logoUrlDark={initialOrgLogoDark}
           className="mr-3 h-8 object-contain"
-          alt="Company logo"
-          src={initialOrgLogo}
-          width={150}
-          height={32}
+          alt={logoAlt}
         />
       );
     }
@@ -107,13 +111,11 @@ function NavbarLogo({
   // No custom logos from SWR - use server-fetched org logo or default
   if (initialOrgLogo) {
     return (
-      /* eslint-disable-next-line @next/next/no-img-element */
-      <img
+      <DomainLogo
+        logoUrl={initialOrgLogo}
+        logoUrlDark={initialOrgLogoDark}
         className="mr-3 h-8 object-contain"
-        alt="Company logo"
-        src={initialOrgLogo}
-        width={150}
-        height={32}
+        alt={logoAlt}
       />
     );
   }
@@ -134,6 +136,7 @@ export function SecuredNavbar({
   isUserMenuEnabled = true,
   dict,
   initialOrgLogo,
+  initialOrgLogoDark,
   isHarnessSettingsEnabled = false,
 }: SecuredNavBarProps & { dict: I18nRecord }) {
   const sidebar = useSidebarContext();
@@ -191,6 +194,8 @@ export function SecuredNavbar({
                 logoUrlLight={logoUrlLight}
                 logoUrlDark={logoUrlDark}
                 initialOrgLogo={initialOrgLogo}
+                initialOrgLogoDark={initialOrgLogoDark}
+                logoAlt={tr("common.organizationLogoAlt", dict)}
               />
             </NavbarBrand>
           </div>

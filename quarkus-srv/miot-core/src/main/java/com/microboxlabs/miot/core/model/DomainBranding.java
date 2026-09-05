@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.model;
 
 import com.microboxlabs.miot.core.api.dto.DomainBrandingDto;
 import com.microboxlabs.miot.core.branding.DomainBrandingMetadata;
+import com.microboxlabs.miot.core.branding.LogoImage;
 import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import io.smallrye.mutiny.Uni;
 import jakarta.persistence.Column;
@@ -40,6 +41,19 @@ public class DomainBranding extends PanacheEntityBase {
     @Column(name = "logo_etag", nullable = false)
     public String logoEtag;
 
+    // The dark variant is optional: most domains ship one logo that reads on
+    // both grounds, and a row without these columns serves the light one
+    // everywhere. V0.1.7 keeps all three null or all three set.
+
+    @Column(name = "logo_dark_content")
+    public byte[] logoDarkContent;
+
+    @Column(name = "logo_dark_mime")
+    public String logoDarkMime;
+
+    @Column(name = "logo_dark_etag")
+    public String logoDarkEtag;
+
     @Column(name = "home_url")
     public String homeUrl;
 
@@ -55,13 +69,21 @@ public class DomainBranding extends PanacheEntityBase {
     @Column(name = "updated_by")
     public String updatedBy;
 
-    public static Uni<DomainBranding> findByDomain(String domain) {
-        return find("domain = ?1", domain).firstResult();
+    /**
+     * Sets or clears the dark variant, all three columns together.
+     *
+     * <p>V0.1.7 constrains them to be all set or all null, and this is where
+     * that holds: a caller passing {@code null} means "no dark variant", not
+     * "leave two of the columns as they were".
+     */
+    public void setDarkLogo(LogoImage logo) {
+        logoDarkContent = logo == null ? null : logo.content();
+        logoDarkMime = logo == null ? null : logo.mime();
+        logoDarkEtag = logo == null ? null : logo.etag();
     }
 
-    /** Loads the row with its bytes; only the endpoint serving the image needs this. */
-    public static Uni<DomainBranding> findActiveByDomain(String domain) {
-        return find("domain = ?1 and active = true", domain).firstResult();
+    public static Uni<DomainBranding> findByDomain(String domain) {
+        return find("domain = ?1", domain).firstResult();
     }
 
     // The projecting finders below leave logo_content in the database. It is an

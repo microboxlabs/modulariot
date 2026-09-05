@@ -1422,6 +1422,103 @@
       "subtitle": "El viaje que estás buscando no existe o no se encuentra disponible."
     },
     "userSettings": {
+      "platform": {
+        "title": "Plataforma",
+        "description": "Ajustes que no pertenecen a ninguna organización: valen para todos los dominios y cuentas.",
+        "listTitle": "Ajustes de plataforma",
+        "notOwnerTitle": "No tienes acceso a esta sección",
+        "notOwnerBody": "Solo quienes administran la plataforma pueden configurar la marca por dominio.",
+        "branding": {
+          "title": "Marca",
+          "menuHint": "Un logo por dominio",
+          "domainsTitle": "Dominios",
+          "domainsDescription": "Un logo por dominio, más el enlace al que apunta.",
+          "loading": "Cargando…",
+          "loadError": "No se pudieron cargar los dominios configurados.",
+          "domainsEmpty": "Todavía no hay dominios configurados.",
+          "addDomain": "Agregar dominio",
+          "logoAlt": "Logo de {domain}",
+          "noHomeUrl": "Sin enlace",
+          "updatedBy": "Actualizado por {who} · {when}",
+          "previewLight": "Fondo claro",
+          "previewDark": "Fondo oscuro",
+          "defaultTitle": "Logo por defecto",
+          "defaultDescription": "Lo que se muestra en cualquier dominio sin configuración. Para cambiarlo hace falta una nueva versión de la aplicación, no un ajuste.",
+          "hasDarkLogo": "Dos logos",
+          "statusActive": "Activo",
+          "statusInactive": "Inactivo",
+          "edit": "Editar",
+          "remove": "Eliminar",
+          "removeConfirm": "Confirmar",
+          "cancel": "Cancelar",
+          "saveError": "No se pudo guardar el cambio.",
+          "toast": {
+            "saved": "Se guardó la marca de {domain}.",
+            "removed": "Se eliminó la marca de {domain}."
+          },
+          "modal": {
+            "addTitle": "Agregar dominio",
+            "editTitle": "Editar dominio",
+            "subtitle": "Sube el logo que verán quienes entren por este dominio.",
+            "editSubtitle": "Cambia el logo o el enlace de este dominio.",
+            "domainLabel": "Dominio",
+            "domainPlaceholder": "portal.ejemplo.com",
+            "domainHelp": "Sin protocolo ni puerto. El dominio no se puede cambiar después: para renombrarlo, elimina el registro y crea uno nuevo.",
+            "logoLabel": "Logo",
+            "logoHelp": "SVG, PNG, JPEG o WebP, hasta {size} KB.",
+            "darkLogoLabel": "Logo para fondo oscuro (opcional)",
+            "darkLogoHelp": "Úsalo cuando el logo principal no se lea sobre fondo oscuro. Si lo dejas vacío, se usa el principal en ambos.",
+            "removeDarkLogo": "Quitar el logo de fondo oscuro",
+            "darkPreviewAlt": "Vista previa del logo para fondo oscuro",
+            "sameOnBoth": "Este dominio usa el mismo logo en ambos fondos.",
+            "currentLogo": "Logo actual",
+            "newLogo": "Logo nuevo",
+            "previewAlt": "Vista previa del logo",
+            "homeUrlLabel": "Enlace del logo",
+            "homeUrlPlaceholder": "https://www.ejemplo.com/",
+            "homeUrlHelp": "A dónde lleva el logo al hacer clic. Déjalo vacío para que no sea un enlace.",
+            "activeLabel": "Activo",
+            "activeHelp": "Al desactivarlo, el dominio vuelve al logo por defecto sin perder lo configurado.",
+            "save": "Guardar",
+            "saving": "Guardando…",
+            "cancel": "Cancelar",
+            "errors": {
+              "domain": "Escribe un dominio válido, por ejemplo portal.ejemplo.com.",
+              "logoRequired": "Elige un archivo de logo.",
+              "logoType": "Formato no admitido. Usa SVG, PNG, JPEG o WebP.",
+              "logoEmpty": "El archivo está vacío.",
+              "logoSize": "El archivo supera el tamaño máximo.",
+              "logoUnreadable": "No se pudo leer el archivo del logo.",
+              "homeUrlLength": "El enlace es demasiado largo.",
+              "homeUrlMalformed": "El enlace no es una URL válida.",
+              "homeUrlScheme": "El enlace debe empezar con http:// o https://.",
+              "homeUrlUserInfo": "El enlace no puede incluir usuario ni contraseña."
+            }
+          }
+        },
+        "superusers": {
+          "title": "Superusuarios",
+          "description": "Quiénes pueden administrar la configuración de toda la plataforma, incluida la marca de cada dominio.",
+          "menuHint": "Quién administra la plataforma",
+          "owners": {
+            "empty": "Todavía no hay administradores.",
+            "loadError": "No se pudo cargar la lista de administradores.",
+            "saveError": "No se pudo guardar el cambio.",
+            "addLabel": "Correo del administrador",
+            "addPlaceholder": "persona@ejemplo.com",
+            "add": "Agregar",
+            "removeLabel": "Quitar a {email}",
+            "added": "Se agregó el administrador.",
+            "removed": "Se quitó el administrador.",
+            "invalidEmail": "Escribe un correo válido.",
+            "duplicate": "Ese correo ya está en la lista.",
+            "duplicateBootstrap": "Ese correo ya administra la plataforma desde la configuración del despliegue.",
+            "lastOwnerHelp": "No se puede quitar al último administrador: nadie podría volver a entrar.",
+            "bootstrapBadge": "Desde la configuración",
+            "bootstrapHelp": "Los administradores marcados vienen de la configuración del despliegue y solo se cambian ahí. Existen para poder recuperar el acceso si la lista queda vacía."
+          }
+        }
+      },
       "organizations": {
         "title": "Organizaciones",
         "description": "Revisa tus organizaciones y sus miembros. Los propietarios pueden administrar accesos e integraciones.",
@@ -1678,7 +1775,8 @@
         "dataSources": "Fuentes de Datos",
         "credentials": "Credenciales",
         "connections": "Conexiones",
-        "harness": "Harness"
+        "harness": "Harness",
+        "platform": "Plataforma"
       },
       "symptoms": {
         "config": {
@@ -2435,7 +2533,8 @@
         "collaboratorsManagement": "Colaboradores",
         "searchPlaceholder": "Buscar...",
         "createDashboard": "Nuevo dashboard",
-        "closePanel": "Cerrar panel"
+        "closePanel": "Cerrar panel",
+        "platform": "Plataforma"
       }
     },
     "calendar": {
@@ -2598,7 +2697,8 @@
     "all": "Todos",
     "delete": "Eliminar",
     "yes": "Sí",
-    "no": "No"
+    "no": "No",
+    "organizationLogoAlt": "Logo de la organización"
   },
   "dashboard": {
     "addWidget": "Agregar Widget",

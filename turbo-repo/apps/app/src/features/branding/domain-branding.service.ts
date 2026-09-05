@@ -31,9 +31,19 @@ export async function getDomainBranding(): Promise<DomainBranding | null> {
   if (!summary?.hasLogo) return null;
 
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-  const version = encodeURIComponent(summary.logoEtag ?? "");
+  const logoUrl = (etag: string | null, variant?: "dark") =>
+    `${basePath}/api/branding/logo?v=${encodeURIComponent(etag ?? "")}` +
+    (variant ? `&variant=${variant}` : "");
+
   return {
-    logoUrl: `${basePath}/api/branding/logo?v=${version}`,
+    logoUrl: logoUrl(summary.logoEtag),
+    // Strict, and the validator has to be there too: a truthy-but-not-true
+    // flag would emit a URL that 404s, and the dark <img> would replace the
+    // light one with a broken image rather than fall back to it.
+    logoUrlDark:
+      summary.hasDarkLogo === true && summary.logoDarkEtag
+        ? logoUrl(summary.logoDarkEtag, "dark")
+        : null,
     homeUrl: summary.homeUrl ?? null,
   };
 }

@@ -66,22 +66,34 @@ export function visiblePages(devToolsEnabled: boolean): SidebarItem[] {
 }
 
 const HARNESS_SETTINGS_HREF = "/users/settings/harness";
+const PLATFORM_SETTINGS_HREF = "/users/settings/platform";
+
+/** Which flag decides whether a gated Settings entry is offered. */
+export interface SettingsGates {
+  /** `ENABLE_HARNESS_SETTINGS` on the deployment. */
+  readonly harness: boolean;
+  /** Whether the signed-in user holds `PLATFORM_OWNER`. */
+  readonly platformOwner: boolean;
+}
 
 /**
- * Strips the Harness settings entry unless its own feature flag is on.
- * Shared by the sidebar and Spotlight so a user with the flag off can't
- * find the link through one nav surface but not the other — both would
- * otherwise need to duplicate this href check independently.
+ * Strips the Settings entries the caller cannot use.
+ *
+ * Shared by the sidebar and Spotlight so an entry cannot be missing from one
+ * nav surface and reachable through the other — which is what would happen if
+ * each applied its own href checks.
  */
-export function filterHarnessSettings(
+export function filterSettings(
   input: SidebarItem[],
-  isHarnessSettingsEnabled: boolean
+  gates: SettingsGates
 ): SidebarItem[] {
-  if (isHarnessSettingsEnabled) return input;
+  if (gates.harness && gates.platformOwner) return input;
+
   return input.map((page) => ({
     ...page,
-    items: (page.items ?? []).filter(
-      (item) => item.href !== HARNESS_SETTINGS_HREF
-    ),
+    items: (page.items ?? []).filter((item) => {
+      if (!gates.harness && item.href === HARNESS_SETTINGS_HREF) return false;
+      return gates.platformOwner || item.href !== PLATFORM_SETTINGS_HREF;
+    }),
   }));
 }

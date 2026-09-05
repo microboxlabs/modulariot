@@ -1,29 +1,34 @@
 import { Navbar, NavbarBrand } from "flowbite-react";
 import CustomThemeToggle from "@/features/theme/components/CustomThemeToggle";
 import AppLogo from "@/features/common/components/app-logo/app-logo";
+import DomainLogo from "@/features/branding/domain-logo";
 
 interface NavbarSignInProps {
   /** Per-domain logo URL; if provided, shown instead of the default logo */
   orgLogoUrl?: string | null;
+  /** Dark-background variant; null uses the light one on both grounds */
+  orgLogoUrlDark?: string | null;
   /** Where the brand links to; unlinked when the domain configures no home URL */
   homeUrl?: string | null;
+  /** Translated alt text for the branded logo. */
+  logoAlt?: string;
 }
 
 export default function NavbarSignIn({
   orgLogoUrl,
+  orgLogoUrlDark,
   homeUrl,
-}: NavbarSignInProps = {}) {
+  logoAlt,
+}: Readonly<NavbarSignInProps> = {}) {
   return (
     <div className="w-full h-fit dark:bg-gray-800">
       <Navbar fluid className="dark:bg-transparent">
         <NavbarBrand data-testid="login-navbar" href={homeUrl ?? undefined}>
           {orgLogoUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              className="mr-3 h-8"
-              alt="Organization logo"
-              src={orgLogoUrl}
-              width={150}
+            <DomainLogo
+              logoUrl={orgLogoUrl}
+              logoUrlDark={orgLogoUrlDark}
+              alt={logoAlt}
             />
           ) : (
             <AppLogo />

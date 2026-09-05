@@ -87,6 +87,7 @@
   {
     "label": "settings",
     "items": [
+      { "href": "/users/settings/platform", "label": "platform", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/organizations", "label": "organizations", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/data-sources", "label": "dataSources", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/credentials", "label": "credentials", "requiredGroups": [], "blockedGroups": [] },

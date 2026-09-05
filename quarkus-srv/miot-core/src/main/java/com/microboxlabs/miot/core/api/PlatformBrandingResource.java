@@ -4,6 +4,7 @@ import com.microboxlabs.miot.core.api.dto.DomainBrandingDto;
 import com.microboxlabs.miot.core.api.dto.SetDomainBrandingRequest;
 import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
 import com.microboxlabs.miot.core.branding.DomainBrandingService;
+import com.microboxlabs.miot.core.branding.LogoVariant;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -66,6 +67,47 @@ public class PlatformBrandingResource {
             @PathParam("domain") String domain, SetDomainBrandingRequest request) {
         return authorizer.requirePlatformOwner()
                 .flatMap(callerEmail -> service.upsert(domain, request, callerEmail));
+    }
+
+    /**
+     * The stored image, including for a domain that is switched off.
+     *
+     * <p>Separate from the public {@code /branding/{domain}/logo} because that
+     * one serves only active domains: the settings UI has to preview and
+     * re-read an inactive one, which deactivating is meant to preserve.
+     */
+    @GET
+    @Path("/{domain}/logo")
+    @Produces(MediaType.WILDCARD)
+    @Operation(summary = "One domain's stored logo, active or not")
+    public Uni<Response> logo(@PathParam("domain") String domain) {
+        return serve(domain, LogoVariant.LIGHT);
+    }
+
+    @GET
+    @Path("/{domain}/logo/dark")
+    @Produces(MediaType.WILDCARD)
+    @Operation(summary = "One domain's stored dark-background logo, active or not")
+    public Uni<Response> darkLogo(@PathParam("domain") String domain) {
+        return serve(domain, LogoVariant.DARK);
+    }
+
+    private Uni<Response> serve(String domain, LogoVariant variant) {
+        return authorizer.requirePlatformOwner()
+                .flatMap(ignored -> service.findLogoForOwner(domain, variant))
+                .map(logo -> logo == null
+                        ? Response.status(Response.Status.NOT_FOUND).build()
+                        : Response.ok(logo.content(), logo.mime())
+                                // Not cached at all. "private" still permits a
+                                // browser store, and a parked domain's logo is
+                                // not served publicly — another account on the
+                                // same profile could read it back without this
+                                // ownership check ever running.
+                                .header("Cache-Control", "no-store")
+                                .header("X-Content-Type-Options", "nosniff")
+                                .header("Content-Security-Policy",
+                                        "default-src 'none'; sandbox")
+                                .build());
     }
 
     @DELETE

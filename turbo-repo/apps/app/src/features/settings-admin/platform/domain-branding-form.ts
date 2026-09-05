@@ -13,12 +13,12 @@
 export const MAX_LOGO_BYTES = 256 * 1024;
 
 /** `LogoImage.ALLOWED_MIMES`, and `chk_domain_branding_mime` in V0.1.5. */
-export const ALLOWED_LOGO_MIMES = [
+export const ALLOWED_LOGO_MIMES: readonly string[] = [
   "image/svg+xml",
   "image/png",
   "image/jpeg",
   "image/webp",
-] as const;
+];
 
 /** The `accept` attribute for the file input, from the same allowlist. */
 export const LOGO_ACCEPT = ALLOWED_LOGO_MIMES.join(",");
@@ -30,7 +30,7 @@ export function checkLogoFile(file: {
   size: number;
 }): LogoProblem | null {
   const mime = file.type.trim().toLowerCase();
-  if (!ALLOWED_LOGO_MIMES.some((allowed) => allowed === mime)) return "type";
+  if (!ALLOWED_LOGO_MIMES.includes(mime)) return "type";
   if (file.size === 0) return "empty";
   if (file.size > MAX_LOGO_BYTES) return "size";
   return null;

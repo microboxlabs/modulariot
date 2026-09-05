@@ -6,21 +6,8 @@ import { HiOutlineKey, HiOutlineLockClosed, HiX } from "react-icons/hi";
 import { toast } from "sonner";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { isPlausibleEmail } from "./assignee-email";
 import { usePlatformOwnerRole } from "./use-platform-owner-role";
-
-/** `PlatformRoleService.MAX_PERSON_ID_LENGTH`. */
-const MAX_ASSIGNEE_LENGTH = 255;
-
-/**
- * Deliberately loose: the modulith matches this against the JWT's `email`
- * claim, and the authority on what an address may look like is the identity
- * provider, not this form. The check only catches obvious typos.
- */
-function isPlausibleEmail(value: string): boolean {
-  return (
-    value.length <= MAX_ASSIGNEE_LENGTH && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-  );
-}
 
 interface PlatformOwnersCardProps {
   readonly dict: I18nRecord;
@@ -65,7 +52,10 @@ export default function PlatformOwnersCard({ dict }: PlatformOwnersCardProps) {
     }
     setProblemKey(null);
     setDraft("");
-    await replace([...assignees, candidate].sort(), "owners.added");
+    await replace(
+      [...assignees, candidate].sort((left, right) => left.localeCompare(right)),
+      "owners.added"
+    );
   };
 
   function renderBody(): ReactNode {

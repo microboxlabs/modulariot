@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   ConfigError,
   DEFAULT_CLOCK_TOLERANCE_SECONDS,
+  DEFAULT_DOCUMENTS_PATH,
+  DEFAULT_ORPHAN_MIN_AGE_SECONDS,
+  DEFAULT_ORPHAN_SWEEP_INTERVAL_SECONDS,
   DEFAULT_SQLITE_PATH,
   readServerConfig,
 } from "./config";
@@ -36,6 +39,66 @@ describe("readServerConfig", () => {
     expect(() =>
       readServerConfig({ ...base, MIOT_DASHBOARD_STORE: "postgres" }),
     ).toThrowError(/memory, sqlite/);
+  });
+
+  describe("documents", () => {
+    const sqlite = { ...base, MIOT_DASHBOARD_STORE: "sqlite" };
+
+    it("keeps configs inline unless told otherwise", () => {
+      const config = readServerConfig(sqlite);
+      expect(config.documents).toBe("inline");
+      expect(config.documentsPath).toBe(DEFAULT_DOCUMENTS_PATH);
+    });
+
+    it("takes a directory for the fs backend", () => {
+      const config = readServerConfig({
+        ...sqlite,
+        MIOT_DASHBOARD_DOCUMENTS: "fs",
+        MIOT_DASHBOARD_DOCUMENTS_PATH: "/var/lib/miot/documents",
+      });
+      expect(config.documents).toBe("fs");
+      expect(config.documentsPath).toBe("/var/lib/miot/documents");
+    });
+
+    it("rejects a backend it does not have", () => {
+      expect(() =>
+        readServerConfig({ ...sqlite, MIOT_DASHBOARD_DOCUMENTS: "s3" }),
+      ).toThrowError(/inline, fs/);
+    });
+
+    it("refuses a document backend the memory store would ignore", () => {
+      expect(() =>
+        readServerConfig({ ...base, MIOT_DASHBOARD_DOCUMENTS: "fs" }),
+      ).toThrowError(/memory store/);
+    });
+
+    it("sweeps hourly, keeping a day of leftovers, unless told otherwise", () => {
+      const config = readServerConfig(sqlite);
+      expect(config.orphanSweepIntervalSeconds).toBe(
+        DEFAULT_ORPHAN_SWEEP_INTERVAL_SECONDS,
+      );
+      expect(config.orphanMinAgeSeconds).toBe(DEFAULT_ORPHAN_MIN_AGE_SECONDS);
+
+      const tuned = readServerConfig({
+        ...sqlite,
+        MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL: "0",
+        MIOT_DASHBOARD_ORPHAN_MIN_AGE: "600",
+      });
+      expect(tuned.orphanSweepIntervalSeconds).toBe(0);
+      expect(tuned.orphanMinAgeSeconds).toBe(600);
+    });
+
+    it("rejects a sweep setting that is not a whole number of seconds", () => {
+      expect(() =>
+        readServerConfig({ ...sqlite, MIOT_DASHBOARD_ORPHAN_MIN_AGE: "1h" }),
+      ).toThrowError(/whole number of seconds/);
+      expect(() =>
+        readServerConfig({
+          ...sqlite,
+          MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL: "-1",
+        }),
+      ).toThrowError(ConfigError);
+    });
   });
 
   describe("the store", () => {

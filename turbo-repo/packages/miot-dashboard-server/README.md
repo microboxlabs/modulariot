@@ -2,47 +2,28 @@
 
 Framework-agnostic backend services for MIOT embeddable dashboards.
 
-`@microboxlabs/miot-dashboard-ui` renders dashboards and is deliberately
-tenant-unaware. This package is why it can afford to be: persistence,
-identity, tenant isolation, datasource credentials and embed tokens are
-enforced here, exactly once, on the server.
+`@microboxlabs/miot-dashboard-ui` renders dashboards and does not know about
+tenants. This package handles that instead: saving data, verifying users,
+keeping tenants separate, and securing datasource credentials and embed
+tokens — all on the server, in one place.
 
-A host mounts it by implementing a handful of seams. Nothing else about the
-host — its framework, its identity provider, its database — reaches this
-package.
+A host plugs it in by implementing a few interfaces. The host's framework,
+identity provider, and database stay outside this package.
 
-## Status
+## Two ways to use it
 
-**P2b — the server persists dashboards, verifies who is asking, and asks the
-host what they may see.** Access control from P1 is reachable over HTTP in both
-shapes the project supports: mount the library in a server you already have, or
-run the server this package ships. Dashboards survive a restart. Callers
-authenticate with a bearer JWT or with a ticket their emitter validates, rather
-than with a header nobody checks, and scope membership comes from the host's
-own membership service rather than from a file. What is still missing before a
-deployment: a PostgreSQL store for running more than one instance, and CORS for
-a front-end on another origin. The query proxy, datasource administration and
-embed tokens land in later phases and all go through the same authorization
-point.
-
-## Two shapes, one codebase
-
-Integrate into an existing backend, or run the server when there is nothing to
-integrate into. Neither is a fallback for the other, and no logic is duplicated
-between them.
+Mount it in your backend, or run the standalone server. Same code either way.
 
 | Layer                                 | Entry             | Assumes   |
 | ------------------------------------- | ----------------- | --------- |
-| Core: seams, access control           | `.`               | nothing   |
+| Core: interfaces, access control      | `.`               | nothing   |
 | HTTP handler: `Request` to `Response` | `./http`          | Web types |
 | Identity: JWT verification            | `./identity`      | Node      |
 | Persistence: composite, SQL, SQLite   | `./store-sql`     | Node      |
-| In-memory seams                       | `./testing`       | nothing   |
+| In-memory defaults                    | `./testing`       | nothing   |
 | Server: listener, probes, docs        | `./server`, `bin` | Node      |
 
-Each layer is usable without the one below it in this table. A host that mounts
-the handler never pulls in a listener; a standalone deployment never pulls in a
-framework.
+Import only the layer you need.
 
 ### Mounting it
 
@@ -63,27 +44,29 @@ export const PUT = handle;
 
 ### Running it
 
-From anywhere in the monorepo, as a turbo task. This reloads on change and
-starts with the example seed on port 3070:
+**Dev mode** — from the monorepo:
 
 ```bash
 npx turbo run dev:server --filter=@microboxlabs/miot-dashboard-server
 ```
+
+Reloads when you change files. Serves example dashboards on port 3070.
 
 ```bash
 curl -H 'x-dev-user: alice' -H 'x-dev-tenant: acme' \
   http://127.0.0.1:3070/scopes/ops/dashboards
 ```
 
-To run the built output rather than the source, which is what a deployment
-runs. `start` depends on `build`, so this compiles first:
+**Production mode** — from the monorepo:
 
 ```bash
 MIOT_DASHBOARD_INSECURE_AUTH=true MIOT_DASHBOARD_SEED=example \
   npx turbo run start --filter=@microboxlabs/miot-dashboard-server
 ```
 
-Outside this repo:
+Builds first, then runs the server.
+
+**Production mode** — on its own:
 
 ```bash
 MIOT_DASHBOARD_INSECURE_AUTH=true \
@@ -91,10 +74,25 @@ MIOT_DASHBOARD_SEED=example \
   npx @microboxlabs/miot-dashboard-server
 ```
 
-`PORT`, `HOST` and `MIOT_DASHBOARD_BASE_PATH` are read from the environment.
-`MIOT_DASHBOARD_SEED` is a path to a JSON seed file, resolved from your working
-directory; the single reserved value `example` means the one shipped with the
-package, which is what makes the line above work from anywhere.
+| Variable | Default | Purpose |
+| -------- | ------- | ------- |
+| `PORT` | `3070` | Port to listen on |
+| `HOST` | `127.0.0.1` | Address to bind |
+| `MIOT_DASHBOARD_BASE_PATH` | (empty) | URL prefix for API routes |
+| `MIOT_DASHBOARD_SEED` | — | Path to a seed JSON file, or `example` for bundled sample data |
+| `MIOT_DASHBOARD_INSECURE_AUTH` | off | Local dev only: trust identity headers without verification |
+| `MIOT_DASHBOARD_STORE` | `memory` | Where dashboards are saved: `memory` or `sqlite` |
+| `MIOT_DASHBOARD_SQLITE_PATH` | `./data/dashboards.db` | Database file when store is `sqlite` |
+| `MIOT_DASHBOARD_DOCUMENTS` | `inline` | Where config bytes go: `inline` or `fs` |
+| `MIOT_DASHBOARD_DOCUMENTS_PATH` | `./data/documents` | Directory when documents is `fs` |
+| `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` | `3600` | Seconds between orphan cleanups; `0` to disable |
+| `MIOT_DASHBOARD_ORPHAN_MIN_AGE` | `86400` | Minimum age in seconds before an orphan is deleted |
+| `MIOT_DASHBOARD_DOCS` | on | Serve OpenAPI at `/openapi.yaml` and UI at `/docs` |
+| `MIOT_DASHBOARD_SCOPES_URL` | — | Host URL for scope membership; omit to use the seed file |
+
+JWT, ticket, and scope auth variables are listed under
+[Authenticating callers](#authenticating-callers) and
+[Scope membership](#scope-membership).
 
 ### Storing dashboards
 
@@ -110,34 +108,41 @@ MIOT_DASHBOARD_STORE=sqlite MIOT_DASHBOARD_SQLITE_PATH=./data/dashboards.db \
   npx turbo run dev:server --filter=@microboxlabs/miot-dashboard-server
 ```
 
-Turborepo runs tasks with a filtered environment, so a variable the task does
-not declare is removed rather than passed on — and the server would start with
-the default store without saying why. `dev:server`, `start` and `test:api`
-declare `MIOT_DASHBOARD_*`, `PORT` and `HOST` in `passThroughEnv` for that
-reason. The startup line names the store it opened, which is the quickest way
-to see that a setting arrived.
+When running via turbo, pass env vars on the command line — undeclared vars are
+dropped.
 
-The path is relative to the working directory, which for a turbo task is this
-package: the default puts the database at
-`turbo-repo/packages/miot-dashboard-server/data/dashboards.db`. That directory
-is gitignored, because a database holding real dashboards must not reach this
-repository.
+Paths are relative to the working directory. Default database:
+`data/dashboards.db` in this package (gitignored). Created on first run;
+migrations run at startup. Seeds skip slugs that already exist.
 
-The file and its parent directories are created on first run, and migrations
-run on every start, applying only what that database has not recorded. A seed
-writes a dashboard only if its slug is absent, so it does not overwrite edits
-made since the last start.
+Config bytes are stored separately from metadata (rows and permissions):
 
-The store is built from two parts: a **metadata** database holding a row per
-dashboard and its permissions, and a **document** store holding the config
-bytes. A save writes the config under a new key and then updates the row to
-point at it, so a read never sees a partly written dashboard and the document
-store needs no locking. That is what will allow a bucket or a directory as the
-document store later. `sqlite` keeps both parts in the same file.
+| Where | Config bytes live |
+| ----- | ----------------- |
+| `inline` (default) | In the SQLite database |
+| `fs` | One file per dashboard in a directory |
 
-`node:sqlite` runs without a flag from Node 22.13; from 22.5 it needed
-`--experimental-sqlite`. On earlier versions the server reports that and names
-the alternative store.
+```bash
+MIOT_DASHBOARD_STORE=sqlite MIOT_DASHBOARD_DOCUMENTS=fs \
+MIOT_DASHBOARD_DOCUMENTS_PATH=./data/documents \
+  npx turbo run dev:server --filter=@microboxlabs/miot-dashboard-server
+```
+
+With `fs`, each config is `<tenant>/<uuid>.json` under the documents directory.
+
+Leftover files from failed saves or deletes are removed at startup and on a
+schedule — see `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` and
+`MIOT_DASHBOARD_ORPHAN_MIN_AGE` in the env table. Set the interval to `0` to
+disable.
+
+Library users: `sweepOrphanDocuments` in `./store-sql`, or `.sweep()` on the
+store from `openSqliteStore`.
+
+| Node | SQLite support |
+| ---- | -------------- |
+| 22.13+ | Built-in (`node:sqlite`) |
+| 22.5–22.12 | Needs `--experimental-sqlite` |
+| Earlier | Use `memory` store |
 
 ### Authenticating callers
 
@@ -165,52 +170,13 @@ MIOT_DASHBOARD_JWT_JWKS_URL=https://your-tenant.auth0.com/.well-known/jwks.json 
 | `MIOT_DASHBOARD_JWT_NAME_CLAIM`      | the claim holding a display name; defaults to `name`                    |
 | `MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE` | seconds of clock difference allowed on `exp`; default 30, capped at 300 |
 
-Exactly one key source. **The algorithm is not configurable** — it follows from
-the key source, because a verifier that accepts both RS256 and HS256 can be
-defeated: the RS256 public key is published, and an attacker signs an HS256
-token using it as the shared secret. Deriving the algorithm from the key source
-means "accept either" cannot be configured. This is the one part of
-verification a library does not decide: `jose` accepts any algorithm the key
-supports unless it is told which one to allow.
-
-Five things to know before deploying it:
-
-- **`jose` has to be installed.** Verification is delegated to it, and it is an
-  optional peer dependency so that a host mounting the library with its own
-  identity resolver installs nothing: `npm install jose`. If it is missing the
-  server reports that and exits, rather than starting and refusing every
-  request.
-- **The issuer is compared exactly**, trailing slash included, as OpenID
-  Connect requires: a rule that treats two spellings as equal treats two
-  different issuers as equal. Auth0 publishes its issuer _with_ the slash, so
-  copy it from a token rather than typing it.
-- **There is no default tenant claim.** No registered claim carries a tenant
-  and every provider uses a different name, so a default would put every caller
-  in the same tenant without any error. For Auth0 this is a namespaced custom
-  claim that an Action has to add; a stock token does not carry one.
-- **A pasted key needs no egress.** `MIOT_DASHBOARD_JWT_PUBLIC_KEY` verifies
-  the same tokens without reaching the identity provider, which is what a
-  cluster with no outbound access needs. It has to be replaced by hand when the
-  provider rotates.
-- **Identity is not membership.** Verifying a token establishes who the caller
-  is and which tenant they are in. Which scopes they belong to is a separate
-  question, answered by the `ScopeAuthority` seam — see
-  [Scope membership](#scope-membership) below. Started with a verified issuer
-  and neither a seed nor a membership URL, every request is a `403`, and the
-  server says so at startup.
-
-A refused credential is a `401` with no detail. The reason is logged instead,
-so that a misconfiguration can be diagnosed:
-
-```json
-{ "level": "warn", "msg": "credential refused", "reason": "token has expired" }
-```
+Set exactly one key source. JWT verifies who the caller is, not scope membership — see
+[Scope membership](#scope-membership).
 
 #### Tickets
 
-Where callers hold an opaque ticket rather than a token, the server validates
-it against whoever issued it. A ticket carries no proof of its own, so this is
-one call to the emitter per ticket per cache interval.
+Callers can send an opaque ticket instead of a JWT. The server validates it
+with the issuer; results are cached (see env table below).
 
 ```bash
 MIOT_DASHBOARD_TICKET_HEADER=x-alf-ticket \
@@ -243,42 +209,25 @@ MIOT_DASHBOARD_TICKET_TENANT=acme \
 | `MIOT_DASHBOARD_TICKET_NEGATIVE_CACHE`  | seconds a rejection is reused; default 30                                                      |
 | `MIOT_DASHBOARD_TICKET_TIMEOUT`         | milliseconds to wait for the emitter; default 5000                                             |
 
-Worth knowing:
+JWT and ticket auth can run together — they read different headers.
 
-- **Both schemes can run at once.** They read different headers, so a
-  deployment facing a front-end with tokens and a service with tickets
-  configures both and neither shadows the other.
-- **The tenant has no default**, for the reason it has none for JWTs. Set
-  `MIOT_DASHBOARD_TICKET_TENANT` where the emitter serves one tenant, or
-  `MIOT_DASHBOARD_TICKET_TENANT_PATH` to read it from the answer.
-- **The cache interval is how long a revoked ticket keeps working.** Sixty
-  seconds by default. Lower it where that matters more than the load on the
-  emitter; `0` validates on every request.
-- **An unreachable emitter is a `500`, not a `401`.** The two are different
-  facts, and reporting an outage as a refusal makes a broken server look like a
-  working one that has locked everybody out.
+Cached tickets stay valid until the cache expires (`MIOT_DASHBOARD_TICKET_CACHE`;
+set to `0` to validate every request). If the issuer is unreachable, the server
+returns `500`, not `401`.
 
-#### The development alternative
+#### Local dev only
 
-`MIOT_DASHBOARD_INSECURE_AUTH` reads the caller's identity straight from
-request headers with no verification, so anyone who can reach the port can
-claim to be anyone. It exists to exercise the API before an identity provider
-is wired up, and the server fails closed around it in three directions: it
-refuses to start under `NODE_ENV=production`, it refuses to start **on any
-address but loopback** — reaching the port is being every user in every tenant,
-so the port must not leave the machine — and it refuses to start alongside any
-verified scheme's variables, because a server that silently preferred one would
-be checking credentials in one environment and trusting headers in another.
+Set `MIOT_DASHBOARD_INSECURE_AUTH=true` to trust identity headers without
+verification — for testing before an identity provider is wired up.
 
-`NODE_ENV` is not a security boundary; it is a variable nobody has to set. The
-bind-address check is the one that holds either way.
+The server refuses to start if `NODE_ENV=production`, if `HOST` is not
+loopback, or if JWT/ticket variables are also set.
 
 ### Scope membership
 
-Verifying a credential says who the caller is. It does not say which scopes
-they may see, and this server does not keep that list: the host already has
-one. Point it at the host's own membership service and it asks, caching the
-answer briefly.
+Auth proves who the caller is, not which scopes they can access. Set
+`MIOT_DASHBOARD_SCOPES_URL` to ask the host's membership service; omit it to
+use the seed file (dev and tests only).
 
 ```bash
 MIOT_DASHBOARD_SCOPES_URL='https://ecm.internal/alfresco/api/-default-/public/alfresco/versions/1/people/{userId}/sites/{scopeId}' \
@@ -302,107 +251,51 @@ MIOT_DASHBOARD_SCOPES_SERVICE_VALUE="Basic $ECM_SERVICE_CREDENTIAL" \
 | `MIOT_DASHBOARD_SCOPES_NEGATIVE_CACHE` | seconds a non-membership is reused; default 30                                                                   |
 | `MIOT_DASHBOARD_SCOPES_TIMEOUT`        | milliseconds to wait; default 5000                                                                               |
 
-Worth knowing:
+Per-dashboard permissions stay in this server's store. Cached results follow
+`MIOT_DASHBOARD_SCOPES_CACHE` and `MIOT_DASHBOARD_SCOPES_NEGATIVE_CACHE`. A
+host `401` means this server's credential failed — not "not a member".
 
-- **Only scope membership is delegated.** Per-dashboard permission assignments
-  stay in this server's own store, because a dashboard is a row here with
-  nothing in the host to hang an access list on. The `authorityId` on an
-  assignment is still a host group id, so the two fit together.
-- **The two cache settings are different risks.** How long a membership is
-  reused is how long a revoked member keeps working; how long a non-membership
-  is reused is how long a new member waits.
-- **`401` from the host is an error, not a denial.** It means this server's own
-  credential was refused, and reading that as "not a member" would deny every
-  caller while looking healthy. Only the statuses in
-  `MIOT_DASHBOARD_SCOPES_ABSENT_STATUS` mean no.
-- **Without a URL, membership comes from the seed file.** That is right for a
-  demo and for the tests, and wrong for a deployment, where nobody maintains
-  it.
+### Try the API
 
-### Reading it
+| Path            | Is                                                              |
+| --------------- | --------------------------------------------------------------- |
+| `/openapi.yaml` | OpenAPI spec                                                    |
+| `/docs`         | Swagger UI — authorize with dev user/tenant headers to try it |
 
-The standalone server publishes its own contract:
-
-| Path            | Is                                            |
-| --------------- | --------------------------------------------- |
-| `/openapi.yaml` | `contract/openapi.yaml`, served byte for byte |
-| `/docs`         | that document, rendered with Swagger UI       |
-
-The page has "Try it out" wired up, and the spec declares the two development
-headers as security schemes, so **Authorize** with a user and a tenant is
-enough to drive the whole API from the browser against a seeded dev server.
-Set `MIOT_DASHBOARD_DOCS=false` to serve neither.
-
-Swagger UI's assets are an **optional** dependency and are never loaded from a
-CDN — a dashboard server inside a cluster with no egress has to be able to
-render its own documentation, and a page that quietly fetches 1.5 MB from a
-third party is not something to hide in a docs route. The trade is that
-`/docs` needs `swagger-ui-dist` installed alongside the package:
-
-```bash
-npm install swagger-ui-dist
-```
-
-Without it `/openapi.yaml` still works and `/docs` says exactly that. In this
-repository it is already a dev dependency, so the turbo task above renders.
-
-The document and the router are held together by
-`src/server/docs.test.ts`, which probes every path and method in both
-directions: a documented operation the router does not serve fails, and a
-served operation the document omits fails too. That check exists because the
-contract spent P1 describing one of the seven operations, and rendering a
-stale document is worse than not rendering one.
-
-### Exercising it
-
-`rest-api/` is a Bruno collection covering the whole surface, including the
-cases worth seeing fail: an unauthenticated call, a cross-tenant probe, a
-Consumer's write, a stale revision.
+For automated coverage, `rest-api/` is a Bruno collection (auth and tenant
+isolation failures):
 
 ```bash
 npx turbo run test:api --filter=@microboxlabs/miot-dashboard-server
 ```
 
-Run it against the seeded dev server above; both default to port 3070. The
-seed puts a dashboard at the same scope and slug in two different tenants, so
-an isolation mistake shows up as a failing assertion rather than as a subtle
-bug.
+Start the dev server first (port 3070). Run via turbo — Bruno needs the
+collection root.
 
-The collection carries its own `package.json`, and it is load-bearing: `npx`
-resets the working directory to the nearest one, and the Bruno CLI resolves
-the collection from the working directory. Without it the run fails with "You
-can run only at the root of a collection" even though the collection file is
-right there.
+## What the host provides
 
-## The seams
+When you mount the library, your app implements these interfaces. The
+standalone server uses in-memory defaults from `./testing` (dev only).
 
-A host mounting the library implements these. The standalone server supplies
-in-memory defaults from `./testing`, which are for development only.
+| Interface              | Your app answers                                           |
+| ---------------------- | ---------------------------------------------------------- |
+| `IdentityResolver`     | Who is calling, and which tenant?                          |
+| `ScopeAuthority`       | What role does this user have in the requested scope?      |
+| `ServerDashboardStore` | Where are dashboard configs and permissions stored?        |
+| `CredentialsVault`     | What secret authenticates a datasource query?              |
+| `AuditSink`            | Where do audit logs go?                                    |
+| `CapabilityPolicy`     | Optional — how roles map to capabilities                   |
 
-| Seam                   | Answers                                                      |
-| ---------------------- | ------------------------------------------------------------ |
-| `IdentityResolver`     | Who is this request, and which tenant are they in?           |
-| `ScopeAuthority`       | What is this identity's role in the scope the request names? |
-| `ServerDashboardStore` | Where do dashboard configs and permissions live?             |
-| `CredentialsVault`     | What secret authenticates a query to this datasource?        |
-| `AuditSink`            | Where does the record of who-did-what go?                    |
-| `CapabilityPolicy`     | Optional. How do role assignments become capabilities?       |
-
-## The invariant
-
-`tenantId` is resolved from the caller's **credential**, never from a request
-path or body. A caller may name any `scopeId` they like; if it does not belong
-to the tenant their credential resolves to, the request is refused.
-
-Everything else in this package depends on that being true, and it is the
-property the security review should attack first.
+**Tenant rule:** `tenantId` always comes from the credential, never from the
+URL or request body. A caller cannot access another tenant by changing
+`scopeId` in the path.
 
 ## Access control
 
 ```ts
 const access = createAccessControl({
-  identity: myIdentityResolver, // credential → { userId, tenantId, ... }
-  scopes: myScopeAuthority, // (identity, scopeId) → role | null
+  identity: myIdentityResolver,
+  scopes: myScopeAuthority,
   store: myDashboardStore,
   audit: myAuditSink, // optional
 });
@@ -415,38 +308,30 @@ const decision = await access.authorize(request, {
 // decision.dashboard.capabilities, .record, .ref — or a DashboardServerError
 ```
 
-`authorize` runs in a fixed order, and the order is the guarantee:
+`authorize` checks in order:
 
-1. **Identity** from the credential. None → `401`.
-2. **Scope**: the URL's `scopeId` is checked against that identity through
-   `ScopeAuthority`. No standing → `403` with reason `TENANT_SCOPE`. No store
-   call has happened yet, so the answer is the same whether the scope belongs
-   to another tenant, does not exist, or the caller simply is not a member.
-3. **Dashboard** (when the target names one): record and assignments are
-   loaded under the credential's tenant, the `CapabilityPolicy` turns them
-   into capabilities, and the identity's ceiling is intersected on top.
-4. **Action**: the capability the action needs. Missing → `403` with reason
-   `CAPABILITY`.
+1. **Identity** — no credential → `401`
+2. **Scope** — not a member → `403` (`TENANT_SCOPE`)
+3. **Dashboard** — load record, compute capabilities
+4. **Action** — missing capability → `403` (`CAPABILITY`)
 
-Every decision is audited, denials included. An embed principal may only
-load the one dashboard its token names and run its queries, read-only; any
-other target or action is `403` with reason `EMBED_SCOPE`.
+Denials are audited. Embed tokens are read-only and locked to one dashboard
+(`403` `EMBED_SCOPE` otherwise).
 
-`access.capabilities(request, scopeId, slug)` is the server half of the UI
-package's Seam F — the endpoint an embed host calls to learn what to render.
+`access.capabilities(request, scopeId, slug)` tells an embed host what the
+caller can do.
 
 ### Roles
 
-| Role          | Default capabilities                                |
-| ------------- | --------------------------------------------------- |
-| `Consumer`    | view                                                |
-| `Contributor` | view; edit dashboards they created; create in scope |
-| `Editor`      | edit, share                                         |
-| `Coordinator` | everything, including delete and permissions        |
+| Role          | Can do                                           |
+| ------------- | ------------------------------------------------ |
+| `Consumer`    | View                                             |
+| `Contributor` | View; edit own dashboards; create in scope     |
+| `Editor`      | Edit, share                                      |
+| `Coordinator` | Full access, including delete and permissions  |
 
-The mapping is the default `CapabilityPolicy`; a host with a different model
-supplies its own. A policy can narrow, never widen past the identity's
-ceiling.
+Override with a custom `CapabilityPolicy` if your role model differs. A policy
+can only restrict, never grant more than the identity allows.
 
 ### Errors
 
@@ -473,25 +358,3 @@ One envelope, from every adapter:
   and emits `from "sqlite"`, which fails to resolve. The guard rejects the
   static form because the tests import the TypeScript source and do not detect
   it.
-- No Alfresco. Alfresco is one host's `ServerDashboardStore` implementation,
-  supplied from outside, never something this package knows about.
-
-## Entries
-
-| Entry         | Holds                                                |
-| ------------- | ---------------------------------------------------- |
-| `.`           | seams, access control, roles, errors                 |
-| `./http`      | the fetch-shaped handler                             |
-| `./identity`  | JWT verification, key rings, the verifying resolver  |
-| `./store-sql` | composite store, SQL metadata store, SQLite driver   |
-| `./testing`   | in-memory seams, for dev servers and for integrators |
-| `./server`    | Node listener, probes, config, contract and docs     |
-| `bin`         | `npx @microboxlabs/miot-dashboard-server`            |
-
-Separate entries so that mounting the library never drags in a listener, and
-running the server never drags in a framework.
-
-The handler is written against Web standard `Request` and `Response` rather
-than any framework's types. Next route handlers already speak those, so a Next
-binding is a re-export rather than a translation, and no framework's version
-churn reaches consumers.

@@ -6,10 +6,14 @@
  * database-backed one. SQLite-only behaviour is in `sqlite.test.ts`.
  */
 
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { DashboardServerError } from "../access/errors";
 import type { ServerDashboardStore } from "../seams/store";
 import { createMemoryStore } from "../testing";
+import { createFsDocumentStore } from "./fs-documents";
 import { openSqliteStore, SQLITE_MEMORY } from "./sqlite";
 
 interface Opened {
@@ -31,6 +35,23 @@ const BACKENDS = [
     open: async (): Promise<Opened> => {
       const opened = await openSqliteStore({ path: SQLITE_MEMORY });
       return { store: opened.store, close: opened.close };
+    },
+  },
+  {
+    name: "sqlite + fs documents",
+    open: async (): Promise<Opened> => {
+      const root = mkdtempSync(join(tmpdir(), "miot-contract-"));
+      const opened = await openSqliteStore({
+        path: SQLITE_MEMORY,
+        documents: createFsDocumentStore({ root }),
+      });
+      return {
+        store: opened.store,
+        close: async () => {
+          await opened.close();
+          rmSync(root, { recursive: true, force: true });
+        },
+      };
     },
   },
 ];

@@ -11,6 +11,11 @@ export type { CompositeStoreOptions } from "./store/composite";
 
 export { createSqlMetadataStore } from "./store/sql/metadata";
 export { createSqlDocumentStore } from "./store/sql/documents";
+export type { SqlDocumentStoreOptions } from "./store/sql/documents";
+export { createFsDocumentStore } from "./store/fs-documents";
+export type { FsDocumentStoreOptions } from "./store/fs-documents";
+export { sweepOrphanDocuments } from "./store/sweep";
+export type { SweepOptions, SweepResult } from "./store/sweep";
 export { MIGRATIONS, runMigrations } from "./store/sql/migrations";
 export type { Migration } from "./store/sql/migrations";
 export {
@@ -30,4 +35,4 @@ export type {
   DashboardMetadataStore,
   DashboardMetadataWrite,
 } from "./seams/metadata";
-export type { DashboardDocumentStore } from "./seams/documents";
+export type { DashboardDocumentStore, StoredDocument } from "./seams/documents";

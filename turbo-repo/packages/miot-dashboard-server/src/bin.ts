@@ -27,7 +27,9 @@ import { createRefusalLog } from "./server/refusal-log";
 import { seedDashboards } from "./server/seed";
 import { serve } from "./server/serve";
 import type { ServerDashboardStore } from "./seams/store";
+import { createFsDocumentStore } from "./store/fs-documents";
 import { openSqliteStore } from "./store/sqlite";
+import type { SweepResult } from "./store/sweep";
 import {
   createMemoryStore,
   createRecordingAuditSink,
@@ -140,6 +142,8 @@ interface AssembledStore {
   store: ServerDashboardStore;
   close(): Promise<void>;
   describe: string;
+  /** Absent when the store has no documents to sweep. */
+  sweep?: (olderThan: Date) => Promise<SweepResult>;
 }
 
 /** Build the store named by the configuration. */
@@ -157,13 +161,63 @@ async function openStore(
     };
   }
 
-  const opened = await openSqliteStore({ path: config.sqlitePath });
+  const opened = await openSqliteStore({
+    path: config.sqlitePath,
+    ...(config.documents === "fs"
+      ? { documents: createFsDocumentStore({ root: config.documentsPath }) }
+      : {}),
+    onOrphan: (key, error) =>
+      log({
+        level: "warn",
+        msg: "document left behind",
+        key,
+        error: String(error),
+      }),
+  });
   await seedDashboards(opened.store, dashboards);
+  const documents =
+    config.documents === "fs"
+      ? `documents in ${config.documentsPath}`
+      : "documents inline";
   return {
     store: opened.store,
     close: opened.close,
-    describe: `sqlite at ${config.sqlitePath}`,
+    describe: `sqlite at ${config.sqlitePath}, ${documents}`,
+    sweep: opened.sweep,
   };
+}
+
+/**
+ * Runs the orphan sweep now and then every interval. The timer does not keep
+ * the process alive, so shutdown needs no bookkeeping for it.
+ */
+function scheduleSweep(config: ServerConfig, assembled: AssembledStore): void {
+  const { sweep } = assembled;
+  if (sweep === undefined || config.orphanSweepIntervalSeconds === 0) return;
+
+  const run = async () => {
+    const olderThan = new Date(Date.now() - config.orphanMinAgeSeconds * 1_000);
+    try {
+      const result = await sweep(olderThan);
+      log({
+        level: "info",
+        msg: "orphan sweep",
+        deleted: result.deleted.length,
+        recent: result.recent,
+        unknownAge: result.unknownAge,
+        referenced: result.referenced,
+        failed: result.failed.length,
+      });
+    } catch (error) {
+      log({ level: "error", msg: "orphan sweep failed", error: String(error) });
+    }
+  };
+
+  void run();
+  setInterval(
+    () => void run(),
+    config.orphanSweepIntervalSeconds * 1_000,
+  ).unref();
 }
 
 const log = (line: Record<string, unknown>) => {
@@ -202,6 +256,7 @@ async function main(): Promise<void> {
 
   const assembled = await openStore(config, seed);
   log({ level: "info", msg: "store", store: assembled.describe });
+  scheduleSweep(config, assembled);
   log({ level: "info", msg: "identity", auth: auth.describe });
   log({ level: "info", msg: "scopes", membership: scopes.describe });
 

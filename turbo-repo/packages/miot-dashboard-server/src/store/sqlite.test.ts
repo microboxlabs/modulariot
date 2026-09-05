@@ -4,12 +4,20 @@
  * shared with the in-memory store is in `store-contract.test.ts`.
  */
 
-import { mkdtempSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ServerDashboardStore } from "../seams/store";
 import { createCompositeStore } from "./composite";
+import { createFsDocumentStore } from "./fs-documents";
 import { createSqlDocumentStore } from "./sql/documents";
 import { createSqlMetadataStore } from "./sql/metadata";
 import { MIGRATIONS, runMigrations } from "./sql/migrations";
@@ -433,6 +441,116 @@ describe("the driver", () => {
       expect(await documentCount(driver)).toBe(1);
     } finally {
       await driver.close();
+    }
+  });
+});
+
+describe("the orphan sweep", () => {
+  /** A document row no dashboard references, written at `createdAt`. */
+  const orphanRow = (
+    driver: SqlDriver,
+    key: string,
+    createdAt: string | null,
+  ) =>
+    driver.all(
+      "INSERT INTO dashboard_documents (document_key, body, created_at) VALUES (?, ?, ?)",
+      [key, "{}", createdAt],
+    );
+
+  it("removes old unreferenced inline documents and keeps the rest", async () => {
+    const path = join(temporaryDirectory(), "dashboards.db");
+    const opened = await openSqliteStore({ path });
+    // A second connection to the same file, to plant rows the store did not write.
+    const driver = createSqliteDriver({ path });
+    try {
+      await opened.store.save(ref, config, { updatedBy: "ana" });
+      await orphanRow(
+        driver,
+        "acme/old-orphan.json",
+        "2020-01-01T00:00:00.000Z",
+      );
+      await orphanRow(driver, "acme/new-orphan.json", new Date().toISOString());
+      await orphanRow(driver, "acme/undated.json", null);
+
+      const result = await opened.sweep(new Date(Date.now() - 60_000));
+
+      expect(result.deleted).toEqual(["acme/old-orphan.json"]);
+      expect(result).toMatchObject({ recent: 1, unknownAge: 1, referenced: 1 });
+      expect(await documentCount(driver)).toBe(3);
+      expect(await opened.store.load(ref)).not.toBeNull();
+    } finally {
+      await driver.close();
+      await opened.close();
+    }
+  });
+
+  it("removes old unreferenced files from the fs backend", async () => {
+    const directory = temporaryDirectory();
+    const root = join(directory, "documents");
+    const opened = await openSqliteStore({
+      path: join(directory, "dashboards.db"),
+      documents: createFsDocumentStore({ root }),
+    });
+    try {
+      await opened.store.save(ref, config, { updatedBy: "ana" });
+      mkdirSync(join(root, "acme"), { recursive: true });
+      const stray = join(root, "acme", "stray.json");
+      writeFileSync(stray, "{}");
+      const old = new Date("2020-01-01T00:00:00Z");
+      utimesSync(stray, old, old);
+
+      const result = await opened.sweep(new Date(Date.now() - 60_000));
+
+      expect(result.deleted).toEqual(["acme/stray.json"]);
+      expect(result.referenced).toBe(1);
+      expect(existsSync(stray)).toBe(false);
+      expect(await opened.store.load(ref)).toMatchObject({ config });
+    } finally {
+      await opened.close();
+    }
+  });
+
+  it("dates the documents the inline backend writes", async () => {
+    const { driver, store } = await assemble();
+    try {
+      await store.save(ref, config, { updatedBy: "ana" });
+      const rows = await driver.all<{ created_at: string | null }>(
+        "SELECT created_at FROM dashboard_documents",
+      );
+      expect(rows[0]?.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    } finally {
+      await driver.close();
+    }
+  });
+});
+
+describe("a database from version 1", () => {
+  it("gains the column and leaves its existing documents undated", async () => {
+    const path = join(temporaryDirectory(), "dashboards.db");
+    const driver = createSqliteDriver({ path });
+    const [first] = MIGRATIONS;
+    for (const statement of first!.statements) await driver.exec(statement);
+    await driver.exec(
+      `CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`,
+    );
+    await driver.all(
+      "INSERT INTO schema_migrations (version, name, applied_at) VALUES (1, ?, ?)",
+      [first!.name, "2026-09-01T00:00:00.000Z"],
+    );
+    await driver.all(
+      "INSERT INTO dashboard_documents (document_key, body) VALUES (?, ?)",
+      ["acme/legacy.json", "{}"],
+    );
+    await driver.close();
+
+    const opened = await openSqliteStore({ path });
+    try {
+      expect(opened.applied).toEqual([2]);
+      const result = await opened.sweep(new Date());
+      expect(result.deleted).toEqual([]);
+      expect(result.unknownAge).toBe(1);
+    } finally {
+      await opened.close();
     }
   });
 });

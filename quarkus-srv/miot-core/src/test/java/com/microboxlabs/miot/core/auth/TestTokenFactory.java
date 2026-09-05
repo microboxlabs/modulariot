@@ -47,6 +47,18 @@ public final class TestTokenFactory {
         return signWebToken(email, Instant.now().minusSeconds(60));
     }
 
+    /**
+     * A web token carrying no {@code email} claim — what an Auth0 token issued
+     * without the email scope looks like. Not the same as an M2M token, which
+     * is HS256 and only accepted on {@code @M2MAuth} resources.
+     */
+    public static String signWebTokenWithoutEmail() {
+        JwtClaims claims = baseClaims(WEB_AUDIENCE, Instant.now().plusSeconds(300));
+        claims.setSubject("auth0|no-email");
+        claims.setStringClaim("azp", "web-client-id");
+        return signRs256(claims);
+    }
+
     public static String signWebToken(String email, Instant expiration) {
         JwtClaims claims = baseClaims(WEB_AUDIENCE, expiration);
         claims.setSubject("auth0|" + email);

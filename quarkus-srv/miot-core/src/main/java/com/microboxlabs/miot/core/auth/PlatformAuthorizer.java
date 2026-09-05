@@ -96,6 +96,11 @@ public class PlatformAuthorizer {
                 PlatformRoleDefinition.OWNER.roleCode(), normalize(email)));
     }
 
+    /** The caller's email, or null when the token carries no {@code email} claim. */
+    public String callerEmail() {
+        return resolveEmail();
+    }
+
     /**
      * @throws ForbiddenException when the request carries no usable identity
      */

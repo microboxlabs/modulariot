@@ -18,6 +18,9 @@ import java.util.Set;
 @ApplicationScoped
 public class PlatformRoleService {
 
+    /** Matches {@code platform_role_assignments.person_id}. */
+    private static final int MAX_PERSON_ID_LENGTH = 255;
+
     private final PlatformAuthorizer authorizer;
 
     @Inject
@@ -41,16 +44,21 @@ public class PlatformRoleService {
             Set<String> assigneeIds = normalizeAssignees(request);
             requireAWayBackIn(assigneeIds, authorizer.bootstrapOwners());
 
-            return Panache.withTransaction(() ->
-                            replaceAssignments(role.roleCode(), assigneeIds, caller))
+            return Panache.withTransaction(() -> lockForReplacement()
+                            .flatMap(ignored -> replaceAssignments(
+                                    role.roleCode(), assigneeIds, caller)))
                     .flatMap(ignored -> loadDto(role));
         });
     }
 
-    /** Answers for any authenticated caller; an empty list is the normal reply. */
+    /**
+     * Answers for any authenticated caller; an empty list is the normal reply.
+     * A token carrying no {@code email} claim — one issued without the email
+     * scope — holds no platform role, so it gets that empty list rather than a
+     * 403: the question "what do I hold" has an answer even when it is nothing.
+     */
     public Uni<PlatformRoleMembershipDto> rolesOfCaller() {
-        String email = authorizer.requireCallerEmail();
-        return authorizer.isPlatformOwner(email)
+        return authorizer.isPlatformOwner(authorizer.callerEmail())
                 .map(owner -> new PlatformRoleMembershipDto(Boolean.TRUE.equals(owner)
                         ? List.of(PlatformRoleDefinition.OWNER.roleCode())
                         : List.of()));
@@ -66,6 +74,23 @@ public class PlatformRoleService {
             throw new BadRequestException(
                     "Removing every assignee would leave nobody able to administer the platform");
         }
+    }
+
+    /**
+     * Without this, two concurrent replacements each delete the rows the other
+     * is about to replace and then insert their own, so the table ends up
+     * holding the union of both sets — an owner one request meant to remove
+     * survives it. SHARE ROW EXCLUSIVE conflicts with itself but not with plain
+     * SELECT, so replacements serialize while {@code PlatformAuthorizer}'s
+     * reads carry on unblocked.
+     */
+    private Uni<Void> lockForReplacement() {
+        return Panache.getSession()
+                .flatMap(session -> session.createNativeQuery(
+                                "lock table miot_core.platform_role_assignments"
+                                        + " in share row exclusive mode")
+                        .executeUpdate())
+                .replaceWithVoid();
     }
 
     @SuppressWarnings("java:S3252")
@@ -96,7 +121,8 @@ public class PlatformRoleService {
 
     /**
      * Lower-cased to match what {@code PlatformAuthorizer} compares against; a
-     * grant that differed only in case would silently never apply.
+     * grant that differed only in case would silently never apply. Length is
+     * checked here rather than left to the column, which would surface as a 500.
      */
     static Set<String> normalizeAssignees(SetPlatformRoleRequest request) {
         if (request == null || request.assigneeIds() == null) {
@@ -104,9 +130,15 @@ public class PlatformRoleService {
         }
         Set<String> normalized = new HashSet<>();
         for (String personId : request.assigneeIds()) {
-            if (personId != null && !personId.isBlank()) {
-                normalized.add(PlatformAuthorizer.normalize(personId));
+            if (personId == null || personId.isBlank()) {
+                continue;
             }
+            String assignee = PlatformAuthorizer.normalize(personId);
+            if (assignee.length() > MAX_PERSON_ID_LENGTH) {
+                throw new BadRequestException(
+                        "Assignee id exceeds " + MAX_PERSON_ID_LENGTH + " characters");
+            }
+            normalized.add(assignee);
         }
         return normalized;
     }

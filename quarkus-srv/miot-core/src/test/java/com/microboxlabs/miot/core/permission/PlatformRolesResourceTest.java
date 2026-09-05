@@ -93,6 +93,23 @@ class PlatformRolesResourceTest {
     }
 
     @Test
+    void aTokenWithoutAnEmailClaimHoldsNoRoleRatherThanBeingRefused() {
+        given().header("Authorization",
+                        "Bearer " + TestTokenFactory.signWebTokenWithoutEmail())
+                .when().get("/api/v1/platform/roles/me")
+                .then().statusCode(200)
+                .body("roleCodes", empty());
+    }
+
+    @Test
+    void anAssigneeLongerThanTheColumnIsRejectedRatherThanFailingInTheDatabase() {
+        as(PlatformTestProfile.OWNER_EMAIL)
+                .body("{\"assigneeIds\":[\"" + "a".repeat(250) + "@test.example\"]}")
+                .when().put(ROLE_PATH)
+                .then().statusCode(400);
+    }
+
+    @Test
     void unknownRoleCodesAreRejected() {
         as(PlatformTestProfile.OWNER_EMAIL)
                 .when().get("/api/v1/platform/roles/ORGANIZATION_OWNER")

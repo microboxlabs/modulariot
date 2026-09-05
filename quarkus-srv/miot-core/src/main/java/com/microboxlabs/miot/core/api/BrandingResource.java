@@ -3,7 +3,6 @@ package com.microboxlabs.miot.core.api;
 import com.microboxlabs.miot.core.api.dto.DomainBrandingSummaryDto;
 import com.microboxlabs.miot.core.branding.DomainBrandingService;
 import com.microboxlabs.miot.core.branding.EntityTagMatch;
-import com.microboxlabs.miot.core.branding.LogoImage;
 import com.microboxlabs.miot.core.branding.LogoVariant;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;

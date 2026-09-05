@@ -1,4 +1,8 @@
 {
+  "legalLinks": {
+    "privacy": "Política de privacidad",
+    "terms": "Términos del servicio"
+  },
   "nav": {
     "cta": "Solicitar demo",
     "mega": {
@@ -177,11 +181,11 @@
     }
   },
   "hero": {
-    "kicker": "Código abierto — motor y datos auditables",
+    "kicker": "ModularIoT — Monitoreo de flotas y análisis IoT",
     "titlePre": "De detectar a ",
     "titleHighlight": "reducir",
     "titlePost": ".",
-    "subtitle": "Convertimos tus alertas en mejoras reales para tu operación.",
+    "subtitle": "ModularIoT, de MicroboxLabs, conecta dispositivos GPS y sensores IoT para que los equipos monitoreen flotas en tiempo real, investiguen alertas y coordinen respuestas operacionales. Inicia sesión en la aplicación ModularIoT para acceder a los paneles y herramientas de tu organización.",
     "ctaPrimary": "Agenda demo técnico de 20 min",
     "ctaSecondary": "Ver precios",
     "livePanel": {

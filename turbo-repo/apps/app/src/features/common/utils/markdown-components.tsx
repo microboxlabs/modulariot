@@ -1,5 +1,6 @@
 import React from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { twMerge } from "tailwind-merge";
@@ -56,10 +57,12 @@ const DOCUMENT_COMPONENTS = {
     </pre>
   ),
   code: ({ className, children }: React.HTMLAttributes<HTMLElement>) => {
-    // Fenced blocks land inside <pre>, tagged language-xxx by remark — let
-    // pre's background/border show through and just set the text color.
+    // Fenced blocks land inside <pre>, tagged language-xxx by remark and
+    // then `hljs …` by rehype-highlight — let pre's background/border show
+    // through and set only the base text color (the .hljs-* token spans
+    // rehype-highlight injects colour themselves, see globals.css).
     // Inline code (no className, not inside a <pre>) gets its own pill.
-    if (className?.startsWith("language-")) {
+    if (className?.includes("language-")) {
       return (
         <code className={twMerge(className, "text-gray-800 dark:text-gray-200")}>
           {children}
@@ -112,7 +115,11 @@ export function MarkdownContent({
     // conflict in the caller's favor, like it should.
     return (
       <article className={twMerge("prose dark:prose-invert max-w-none", className)}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ ...DOCUMENT_COMPONENTS, ...components } as never}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
+          components={{ ...DOCUMENT_COMPONENTS, ...components } as never}
+        >
           {children}
         </ReactMarkdown>
       </article>

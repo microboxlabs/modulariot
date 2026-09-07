@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { filterSettings, pages, visiblePages, DEV_PAGE_LABEL } from "./pages";
+import {
+  filterSettings,
+  pages,
+  visiblePages,
+  DEV_PAGE_LABEL,
+  STORYTELLING_PAGE_LABEL,
+} from "./pages";
 
 function settingsHrefs(input: ReturnType<typeof visiblePages>): string[] {
   const settings = input.find((page) => page.label === "settings");
@@ -9,12 +15,21 @@ function settingsHrefs(input: ReturnType<typeof visiblePages>): string[] {
 
 describe("visiblePages", () => {
   it("hides the Dev section unless dev tools are on", () => {
-    expect(visiblePages(false).some((p) => p.label === DEV_PAGE_LABEL)).toBe(
-      false,
-    );
-    expect(visiblePages(true).some((p) => p.label === DEV_PAGE_LABEL)).toBe(
-      true,
-    );
+    expect(
+      visiblePages(false, false).some((p) => p.label === DEV_PAGE_LABEL),
+    ).toBe(false);
+    expect(
+      visiblePages(true, false).some((p) => p.label === DEV_PAGE_LABEL),
+    ).toBe(true);
+  });
+
+  it("hides the Storytelling section unless storytelling is on", () => {
+    expect(
+      visiblePages(false, false).some((p) => p.label === STORYTELLING_PAGE_LABEL),
+    ).toBe(false);
+    expect(
+      visiblePages(false, true).some((p) => p.label === STORYTELLING_PAGE_LABEL),
+    ).toBe(true);
   });
 });
 

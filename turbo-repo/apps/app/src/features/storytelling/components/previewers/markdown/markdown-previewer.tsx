@@ -1,7 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { forwardRef, isValidElement, useEffect, useImperativeHandle, useRef, useState } from "react";
+import {
+  Children,
+  forwardRef,
+  isValidElement,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import type { Components } from "react-markdown";
 import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -10,14 +18,25 @@ import { focusSearchMatch, searchInDom } from "../../../dom-search";
 import type { SearchableHandle } from "../searchable";
 import { MermaidDiagram } from "./mermaid-diagram";
 
+/** Flatten a React child tree to its plain text — rehype-highlight may have
+ * split the code into <span> token nodes by the time `pre` sees it, so a
+ * plain String() would stringify element objects. */
+function textOf(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  if (isValidElement<{ children?: ReactNode }>(node)) return textOf(node.props.children);
+  return "";
+}
+
 /** Pull the fenced-block language + source out of a <pre>'s lone <code>
  * child, the shape react-markdown hands `pre` for ``` fences. */
 function fencedCode(children: ReactNode): { lang: string; source: string } | null {
-  const child = Array.isArray(children) ? children[0] : children;
+  const child = Children.toArray(children).find((c) => isValidElement(c));
   if (!isValidElement<{ className?: string; children?: ReactNode }>(child)) return null;
   const match = /language-(\w+)/.exec(child.props.className ?? "");
   if (!match) return null;
-  return { lang: match[1], source: String(child.props.children ?? "") };
+  return { lang: match[1], source: textOf(child.props.children) };
 }
 
 /** `pre` override for MarkdownContent: a ```mermaid fence becomes a rendered

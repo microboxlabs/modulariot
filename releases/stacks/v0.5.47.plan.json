@@ -1,0 +1,406 @@
+{
+  "stack_version": "0.5.47",
+  "stack_tag": "miot-stack@v0.5.47",
+  "milestone": "MIOT-0.5.47",
+  "pull_requests": [
+    {
+      "number": 742,
+      "title": "Feat harness steering plan c",
+      "source_issues": [
+        {
+          "number": 747,
+          "title": "feat(harness): live steering channel — inject guidance mid-run & gracefully interrupt"
+        }
+      ]
+    },
+    {
+      "number": 847,
+      "title": "feat(miot-chat): real answer streaming, inline loading, no truncation, markdown",
+      "source_issues": [
+        {
+          "number": 747,
+          "title": "feat(harness): live steering channel — inject guidance mid-run & gracefully interrupt"
+        }
+      ]
+    },
+    {
+      "number": 1115,
+      "title": "Harness settings screen",
+      "source_issues": [
+        {
+          "number": 1161,
+          "title": "Add Harness settings screen"
+        }
+      ]
+    },
+    {
+      "number": 1118,
+      "title": "Added google analytics implementation",
+      "source_issues": [
+        {
+          "number": 1143,
+          "title": "Add Google Analytics tracking to the web app"
+        }
+      ]
+    },
+    {
+      "number": 1130,
+      "title": "feat(dash-server-p0): scaffold miot-dashboard-server with the four host seams",
+      "source_issues": [
+        {
+          "number": 1145,
+          "title": "feat(dash-server-p0): scaffold miot-dashboard-server with the four host seams"
+        }
+      ]
+    },
+    {
+      "number": 1141,
+      "title": "ci: update harness actions to Node.js 24",
+      "source_issues": [
+        {
+          "number": 1140,
+          "title": "ci: update Resolve harness image actions to Node.js 24"
+        }
+      ]
+    },
+    {
+      "number": 1142,
+      "title": "chore(quarkus): upgrade platform to 3.33.3.1 LTS",
+      "source_issues": [
+        {
+          "number": 1162,
+          "title": "Upgrade Quarkus platform to 3.33.3.1 LTS"
+        }
+      ]
+    },
+    {
+      "number": 1147,
+      "title": "feat(dash-server-p1): access control — identity, tenancy and capabilities",
+      "source_issues": [
+        {
+          "number": 1146,
+          "title": "feat(dash-server-p1): access control — identity, tenancy and capabilities"
+        }
+      ]
+    },
+    {
+      "number": 1164,
+      "title": "feat(core): per-domain branding backend",
+      "source_issues": [
+        {
+          "number": 1163,
+          "title": "Per-domain branding: one logo per domain, decoupled from the ECM"
+        }
+      ]
+    },
+    {
+      "number": 1168,
+      "title": "fix(calendar-sync): overbook when ETD capacity is exhausted",
+      "source_issues": [
+        {
+          "number": 1167,
+          "title": "bug: overbook calendar allocation when ETD capacity is exhausted"
+        }
+      ]
+    },
+    {
+      "number": 1169,
+      "title": "feat(branding): app reads the per-domain logo from the modulith (P1)",
+      "source_issues": [
+        {
+          "number": 1170,
+          "title": "App reads the per-domain logo from the modulith (P1)"
+        }
+      ]
+    },
+    {
+      "number": 1171,
+      "title": "feat(branding-p2): platform owner becomes a database role",
+      "source_issues": [
+        {
+          "number": 1172,
+          "title": "Platform owner becomes a database role (branding p2)"
+        }
+      ]
+    },
+    {
+      "number": 1174,
+      "title": "feat(branding): Settings › Platform — per-domain logos, light and dark, and the superusers who set them",
+      "source_issues": [
+        {
+          "number": 1175,
+          "title": "Settings UI for per-domain logos and platform owners"
+        }
+      ]
+    },
+    {
+      "number": 1177,
+      "title": "fix(web): resolve OAuth branding website verification issues",
+      "source_issues": [
+        {
+          "number": 1176,
+          "title": "bug: resolve Google OAuth website branding verification issues"
+        }
+      ]
+    },
+    {
+      "number": 1180,
+      "title": "feat(calendar): let a calendar serve one service type",
+      "source_issues": [
+        {
+          "number": 1181,
+          "title": "Let a calendar serve one service type"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    ".github/workflows/app-release-train.yml",
+    "miot-harness/src/miot_harness/agents/agentic_planner.py",
+    "miot-harness/src/miot_harness/agents/llm_streaming.py",
+    "miot-harness/src/miot_harness/api/server.py",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/miot-search/SKILL.md",
+    "miot-harness/src/miot_harness/runtime/approvals.py",
+    "miot-harness/src/miot_harness/runtime/context.py",
+    "miot-harness/src/miot_harness/runtime/control.py",
+    "miot-harness/src/miot_harness/runtime/event_types.json",
+    "miot-harness/src/miot_harness/runtime/events.py",
+    "miot-harness/src/miot_harness/runtime/factory.py",
+    "miot-harness/src/miot_harness/runtime/steering.py",
+    "miot-harness/src/miot_harness/runtime/supervisor.py",
+    "miot-harness/src/miot_harness/runtime/tool.py",
+    "miot-harness/tests/agents/test_agentic_steering.py",
+    "miot-harness/tests/api/test_approvals.py",
+    "miot-harness/tests/api/test_decisions.py",
+    "miot-harness/tests/api/test_decisions_e2e.py",
+    "miot-harness/tests/api/test_steering.py",
+    "miot-harness/tests/api/test_steering_e2e.py",
+    "miot-harness/tests/runtime/test_control.py",
+    "miot-harness/tests/runtime/test_request_choice.py",
+    "miot-harness/tests/runtime/test_steering_registry.py",
+    "miot-harness/tests/runtime/test_supervisor_steering.py",
+    "miot-harness/tests/runtime/test_tool_decisions.py",
+    "miot-harness/tests/test_events.py",
+    "miot-harness/tests/test_llm_streaming.py",
+    "quarkus-srv/.env.sample",
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/BrandingResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/PlatformBrandingResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/PlatformRolesResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/DomainBrandingDto.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/DomainBrandingSummaryDto.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/PlatformRoleDto.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/PlatformRoleMembershipDto.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/SetDomainBrandingRequest.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/SetPlatformRoleRequest.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/PlatformAuthorizer.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/branding/DomainBrandingMetadata.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/branding/DomainBrandingService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/branding/DomainName.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/branding/EntityTagMatch.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/branding/HomeUrl.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/branding/LogoImage.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/branding/LogoVariant.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/model/DomainBranding.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/model/PlatformRoleAssignment.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/permission/PlatformRoleDefinition.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/permission/PlatformRoleService.java",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.5__create_domain_branding.sql",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.6__create_platform_role_assignments.sql",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.7__add_domain_branding_dark_logo.sql",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth/PlatformAuthorizerTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth/PlatformTestProfile.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth/TestTokenFactory.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/branding/BrandingResourceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/branding/DomainBrandingTestProfile.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/branding/DomainNameTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/branding/EntityTagMatchTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/branding/HomeUrlTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/branding/LogoImageTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/permission/PlatformRoleDefinitionTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/permission/PlatformRoleServiceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/permission/PlatformRolesResourceTest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarBookingsClient.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarSyncExecutor.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/calendar/CalendarSyncExecutorTest.java",
+    "quarkus-srv/miot-symptoms/pom.xml",
+    "quarkus-srv/pom.xml",
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/connections/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/credentials/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/data-sources/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/harness/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/organizations/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/platform/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/release/[version]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/sign-in/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/totem/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/totem/totem-navbar.tsx",
+    "turbo-repo/apps/app/src/app/api/admin/platform/branding/domains/[domain]/logo/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/branding/domains/[domain]/logo/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/branding/domains/[domain]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/branding/domains/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/roles/[roleCode]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/roles/me/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/branding/logo/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/branding/logo/route.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/[calendarId]/route.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/route.ts",
+    "turbo-repo/apps/app/src/app/api/task/mytasks/route.ts",
+    "turbo-repo/apps/app/src/app/api/user/site/route.ts",
+    "turbo-repo/apps/app/src/app/api/utils/quarkus-proxy.ts",
+    "turbo-repo/apps/app/src/app/globals.css",
+    "turbo-repo/apps/app/src/features/auth/components/auth-page-shell/auth-page-shell.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/navbar-sign-in.tsx",
+    "turbo-repo/apps/app/src/features/branding/domain-branding.service.test.ts",
+    "turbo-repo/apps/app/src/features/branding/domain-branding.service.ts",
+    "turbo-repo/apps/app/src/features/branding/domain-branding.types.ts",
+    "turbo-repo/apps/app/src/features/branding/domain-logo.test.tsx",
+    "turbo-repo/apps/app/src/features/branding/domain-logo.tsx",
+    "turbo-repo/apps/app/src/features/branding/domain-name.test.ts",
+    "turbo-repo/apps/app/src/features/branding/domain-name.ts",
+    "turbo-repo/apps/app/src/features/branding/request-domain.test.ts",
+    "turbo-repo/apps/app/src/features/branding/request-domain.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/calendar-landing/create-calendar-modal.config.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/calendar-landing/create-calendar-modal.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/calendar-rules/filter-manager.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/calendar-search-context.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-search-autocomplete.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-search-match-type.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-search-tags.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-sidebar-client.tsx",
+    "turbo-repo/apps/app/src/features/calendar/services/service-types.ts",
+    "turbo-repo/apps/app/src/features/common/providers/alfresco-api/alfresco-api.provider.ts",
+    "turbo-repo/apps/app/src/features/common/providers/alfresco-api/alfresco-api.types.ts",
+    "turbo-repo/apps/app/src/features/credentials/auth0-clients-data-service.ts",
+    "turbo-repo/apps/app/src/features/credentials/components/credentials-page-content.tsx",
+    "turbo-repo/apps/app/src/features/credentials/credentials-data-service.ts",
+    "turbo-repo/apps/app/src/features/credentials/use-m2m-clients.ts",
+    "turbo-repo/apps/app/src/features/data-sources/components/data-sources-page-content.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/integration-config-page-content.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/integration-config-data-service.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-layout.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/secured-navbar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/secured-navbar.types.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-search.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-sidebar/secured-sidebar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-task-layout.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/simple-layout.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/simple-navbar/simple-navbar.tsx",
+    "turbo-repo/apps/app/src/features/layout/context/sidebar-navigation-context.test.tsx",
+    "turbo-repo/apps/app/src/features/layout/context/sidebar-navigation-context.tsx",
+    "turbo-repo/apps/app/src/features/layout/models/pages-config.json",
+    "turbo-repo/apps/app/src/features/layout/models/pages.test.ts",
+    "turbo-repo/apps/app/src/features/layout/models/pages.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/components/harness-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/harness-seats-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/organizations-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/data/json-client.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/data/settings-admin-data-service.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/gps-webhooks/gps-webhook-data-service.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/hooks/use-org-members.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/assignee-email.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/assignee-email.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/branding-section.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/branding-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/default-logo-card.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/default-logo-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/domain-branding-form.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/domain-branding-form.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/domain-branding-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/domain-list.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/logo-preview.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-data-service.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-data-service.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-owners-card.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-owners-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-section-list.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-domain-brandings.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-platform-admin-hooks.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-platform-membership.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-platform-membership.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-platform-owner-role.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp-data-service.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/web/.env.example",
+    "turbo-repo/apps/web/app/layout.tsx",
+    "turbo-repo/apps/web/app/privacy/page.tsx",
+    "turbo-repo/apps/web/components/v2/sections/Footer.tsx",
+    "turbo-repo/apps/web/lib/google-analytics.test.mjs",
+    "turbo-repo/apps/web/lib/google-analytics.ts",
+    "turbo-repo/apps/web/messages/br.json",
+    "turbo-repo/apps/web/messages/en.json",
+    "turbo-repo/apps/web/messages/es.json",
+    "turbo-repo/apps/web/package.json",
+    "turbo-repo/package-lock.json",
+    "turbo-repo/packages/miot-calendar-client/src/types.ts",
+    "turbo-repo/packages/miot-chat/package.json",
+    "turbo-repo/packages/miot-chat/src/tui/__tests__/components/AssistantTurn.test.tsx",
+    "turbo-repo/packages/miot-chat/src/tui/__tests__/components/TopLine.test.tsx",
+    "turbo-repo/packages/miot-chat/src/tui/__tests__/components/Transcript.test.tsx",
+    "turbo-repo/packages/miot-chat/src/tui/__tests__/transcript.project.test.ts",
+    "turbo-repo/packages/miot-chat/src/tui/chrome/TopLine.tsx",
+    "turbo-repo/packages/miot-chat/src/tui/transcript/AssistantTurn.tsx",
+    "turbo-repo/packages/miot-chat/src/tui/transcript/Transcript.tsx",
+    "turbo-repo/packages/miot-chat/src/tui/transcript/project.ts",
+    "turbo-repo/packages/miot-dashboard-server/README.md",
+    "turbo-repo/packages/miot-dashboard-server/contract/openapi.yaml",
+    "turbo-repo/packages/miot-dashboard-server/eslint.config.mjs",
+    "turbo-repo/packages/miot-dashboard-server/package.json",
+    "turbo-repo/packages/miot-dashboard-server/scripts/guard-imports.mjs",
+    "turbo-repo/packages/miot-dashboard-server/src/access/access-control.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/access/access-control.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/access/capabilities.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/access/errors.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/access/errors.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/access/roles.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/access/roles.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/index.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/audit.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/credentials.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/identity.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/store.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/test/fixtures.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/test/fixtures.ts",
+    "turbo-repo/packages/miot-dashboard-server/tsconfig.json",
+    "turbo-repo/packages/miot-dashboard-server/tsup.config.ts",
+    "turbo-repo/packages/miot-harness-client/src/types.ts",
+    "turbo-repo/turbo.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.47",
+      "tag": "app@v0.5.47"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.45",
+      "version": "0.5.47",
+      "tag": "docs@v0.5.47"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.45",
+      "version": "0.5.47",
+      "tag": "web@v0.5.47"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.28",
+      "version": "0.5.29",
+      "tag": "modulith@v0.5.29"
+    },
+    "harness": {
+      "changed": true,
+      "changed_since": "harness@v0.1.6",
+      "version": "0.1.7",
+      "tag": "harness@v0.1.7"
+    }
+  }
+}

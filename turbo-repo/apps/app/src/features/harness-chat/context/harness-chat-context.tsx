@@ -19,6 +19,15 @@ interface HarnessChatContextProps {
   /** Set once by `openWithMessage`; consumed (and cleared) by HarnessChat. */
   pendingMessage: string | null;
   clearPendingMessage(): void;
+  /**
+   * Which worker persona the chat is currently wearing (see the worker dock),
+   * or `null` for the plain harness identity. Drives the panel header and the
+   * assistant message avatar.
+   */
+  activeWorkerId: string | null;
+  setActiveWorker(id: string | null): void;
+  /** Opens the panel wearing worker `id`. Mirrors `openWithMessage`. */
+  openWithWorker(id: string): void;
 }
 
 const HarnessChatContext = createContext<HarnessChatContextProps | null>(
@@ -28,15 +37,28 @@ const HarnessChatContext = createContext<HarnessChatContextProps | null>(
 export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
   const [isOpen, setIsOpen] = useState(true);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [activeWorkerId, setActiveWorkerId] = useState<string | null>(null);
 
   const open = useCallback(() => setIsOpen(true), []);
-  const close = useCallback(() => setIsOpen(false), []);
+  const close = useCallback(() => {
+    setIsOpen(false);
+    // closing the panel sends the worker "character" home to its dock button
+    setActiveWorkerId(null);
+  }, []);
   const toggle = useCallback(() => setIsOpen((s) => !s), []);
   const openWithMessage = useCallback((text: string) => {
     setIsOpen(true);
     setPendingMessage(text);
   }, []);
   const clearPendingMessage = useCallback(() => setPendingMessage(null), []);
+  const setActiveWorker = useCallback(
+    (id: string | null) => setActiveWorkerId(id),
+    []
+  );
+  const openWithWorker = useCallback((id: string) => {
+    setActiveWorkerId(id);
+    setIsOpen(true);
+  }, []);
 
   const value = useMemo<HarnessChatContextProps>(
     () => ({
@@ -47,8 +69,22 @@ export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
       openWithMessage,
       pendingMessage,
       clearPendingMessage,
+      activeWorkerId,
+      setActiveWorker,
+      openWithWorker,
     }),
-    [isOpen, open, close, toggle, openWithMessage, pendingMessage, clearPendingMessage]
+    [
+      isOpen,
+      open,
+      close,
+      toggle,
+      openWithMessage,
+      pendingMessage,
+      clearPendingMessage,
+      activeWorkerId,
+      setActiveWorker,
+      openWithWorker,
+    ]
   );
 
   return (

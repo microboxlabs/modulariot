@@ -5153,6 +5153,11 @@
       "toggleButton": "Alternar el chat del harness",
       "resizePanel": "Redimensionar panel del chat",
       "emptyChatTitle": "Chat vacío",
+      "workerDock": {
+        "label": "Trabajadores",
+        "openWorker": "Chatear con {name}",
+        "backToHarness": "Volver al harness"
+      },
       "history": {
         "label": "Historial",
         "backToChat": "Volver al chat",

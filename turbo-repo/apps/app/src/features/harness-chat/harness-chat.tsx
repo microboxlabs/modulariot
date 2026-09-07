@@ -19,6 +19,10 @@ import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
+import { findWorker } from "@/features/worker-dock/workers";
+import { workerHex } from "@/features/worker-dock/worker-colors";
+import { WorkerBadge } from "@/features/worker-dock/worker-badge";
+import { WorkerOrbView } from "@/features/worker-dock/worker-orb-view";
 import { StandaloneDictionaryProvider } from "@/features/dashboard/context/standalone-dictionary-context";
 import type { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Thread } from "./thread";
@@ -34,6 +38,7 @@ function createSession(initialMessage: string | null = null): Session {
 
 const headerButtonClass =
   "flex h-6 w-6 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100";
+
 
 export default function HarnessChat({
   extensions = DEFAULT_HARNESS_EXTENSIONS,
@@ -69,8 +74,10 @@ const HarnessChatPanel: FC<{
   locale: string;
 }> = ({ extensions, skills, locale }) => {
   const tr = useHarnessChatTr();
-  const { isOpen, close, pendingMessage, clearPendingMessage } =
+  const { isOpen, close, pendingMessage, clearPendingMessage, activeWorkerId, setActiveWorker } =
     useHarnessChatContext();
+  const activeWorker = findWorker(activeWorkerId);
+  const activeWorkerColor = activeWorker ? workerHex(activeWorker.color) : null;
   const { width, isDragging, startDrag, toggleMinMax, onHandleKeyDown, bounds } =
     useResizablePanelWidth();
   const [sessions, setSessions] = useState<Session[]>(() => [createSession()]);
@@ -122,8 +129,44 @@ const HarnessChatPanel: FC<{
     [sessions],
   );
 
-  const activeTitle =
-    sessions.find((s) => s.id === activeId)?.title ?? tr("harnessChat.ui.emptyChatTitle");
+  const activeSession = sessions.find((s) => s.id === activeId);
+  const activeTitle = activeSession?.title ?? tr("harnessChat.ui.emptyChatTitle");
+  // The session title is set from the first user message, so a non-null title
+  // means the conversation has started — the worker "character" then lives with
+  // the messages, and the header keeps only a small static badge.
+  const chatHasStarted = (activeSession?.title ?? null) !== null;
+
+  // How the header renders the worker: "present" = the live orb waits here (and
+  // grew in); "leaving" = it plays its sink-out; "gone" = replaced by the small
+  // badge. Only the empty→started transition plays the sink; opening a worker
+  // onto an existing conversation jumps straight to the badge.
+  const [headerPhase, setHeaderPhase] = useState<"present" | "leaving" | "gone">(
+    () => (activeWorker && chatHasStarted ? "gone" : "present"),
+  );
+  // A fresh activation lands "present" on an empty chat (orb rises in) or
+  // straight to "gone" on one that already has messages (no flash). Only when
+  // the SAME worker's chat goes empty→started do we play the "leaving" sink.
+  const prevWorkerId = useRef(activeWorkerId);
+  useEffect(() => {
+    const changed = prevWorkerId.current !== activeWorkerId;
+    prevWorkerId.current = activeWorkerId;
+    if (!activeWorker) {
+      setHeaderPhase("present");
+      return;
+    }
+    if (changed) {
+      setHeaderPhase(chatHasStarted ? "gone" : "present");
+      return;
+    }
+    if (chatHasStarted) setHeaderPhase((p) => (p === "present" ? "leaving" : p));
+    else setHeaderPhase("present");
+  }, [activeWorker, activeWorkerId, chatHasStarted]);
+  // "leaving" hands off to the badge once the orb's sink-out has played.
+  useEffect(() => {
+    if (headerPhase !== "leaving") return;
+    const t = setTimeout(() => setHeaderPhase("gone"), 380);
+    return () => clearTimeout(t);
+  }, [headerPhase]);
 
   return (
     <div
@@ -177,7 +220,14 @@ const HarnessChatPanel: FC<{
         </div>
       )}
       <div className="flex w-full min-w-0 flex-col text-gray-700 antialiased dark:text-gray-300">
-        <div className="h-15 flex shrink-0 items-center gap-1 border-b border-gray-200 px-3 text-xs font-medium text-gray-600 dark:border-gray-700 dark:text-gray-300">
+        <div
+          className="h-15 flex shrink-0 items-center gap-1 border-b border-gray-200 px-3 text-xs font-medium text-gray-600 transition-colors duration-300 dark:border-gray-700 dark:text-gray-300"
+          style={
+            activeWorkerColor && view !== "history"
+              ? { backgroundColor: `color-mix(in srgb, ${activeWorkerColor} 8%, transparent)` }
+              : undefined
+          }
+        >
           {view === "history" ? (
             <>
               <button
@@ -192,10 +242,54 @@ const HarnessChatPanel: FC<{
             </>
           ) : (
             <>
-              <LuSparkles className="h-3.5 w-3.5 shrink-0" />
-              <span className="flex-1 truncate" title={activeTitle}>
-                {activeTitle}
-              </span>
+              {activeWorker ? (
+                <>
+                  <span className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden">
+                    {/* the disc left behind — expands in as the orb sinks out */}
+                    {headerPhase !== "present" && (
+                      <WorkerBadge
+                        color={workerHex(activeWorker.color)}
+                        className="absolute inset-0 m-auto h-5 w-5"
+                      />
+                    )}
+                    {/* empty chat → the character waits here (rises in from
+                        below, keyed per persona); once the chat starts it plays
+                        its sink-out and hands off to the disc */}
+                    {headerPhase !== "gone" && (
+                      <WorkerOrbView
+                        key={activeWorker.id}
+                        color={workerHex(activeWorker.color)}
+                        mode={headerPhase === "leaving" ? "exit" : "follow"}
+                        entrance
+                        entranceDelayMs={320}
+                        className="absolute inset-0 h-full w-full"
+                      />
+                    )}
+                  </span>
+                  <span
+                    className="flex-1 truncate text-[13px] font-semibold"
+                    style={{ color: workerHex(activeWorker.color) }}
+                    title={`${activeWorker.name} · ${activeWorker.role}`}
+                  >
+                    {activeWorker.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveWorker(null)}
+                    aria-label={tr("harnessChat.ui.workerDock.backToHarness")}
+                    className={headerButtonClass}
+                  >
+                    <LuArrowLeft className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <LuSparkles className="h-3.5 w-3.5 shrink-0" />
+                  <span className="flex-1 truncate" title={activeTitle}>
+                    {activeTitle}
+                  </span>
+                </>
+              )}
               <button
                 type="button"
                 onClick={() => setView("history")}

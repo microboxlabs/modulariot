@@ -20,9 +20,14 @@ import {
   LuThumbsDown,
   LuThumbsUp,
 } from "react-icons/lu";
-import { useState, type FC } from "react";
+import { useEffect, useState, type FC } from "react";
 import { twMerge } from "tailwind-merge";
 import { MarkdownContent } from "@/features/common/utils/markdown-components";
+import { findWorker } from "@/features/worker-dock/workers";
+import { workerHex } from "@/features/worker-dock/worker-colors";
+import { CssOrb } from "@/features/worker-dock/css-orb";
+import { WorkerOrbView } from "@/features/worker-dock/worker-orb-view";
+import { useHarnessChatContext } from "../context/harness-chat-context";
 import { useRunCancel } from "../context/run-cancel-context";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
 import { SentAttachment } from "./attachments";
@@ -176,12 +181,70 @@ const CancelledNotice: FC = () => {
   );
 };
 
+const HarnessAvatar: FC<{ leaving?: boolean }> = ({ leaving }) => (
+  <div
+    className="mt-0.5 flex h-5 w-5 shrink-0 origin-center items-center justify-center rounded-[7px] bg-linear-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)] transition-transform duration-300 ease-in"
+    style={{ transform: leaving ? "scale(0)" : "scale(1)" }}
+  >
+    <BsStars className="h-3 w-3 text-white" />
+  </div>
+);
+
+// How long the outgoing avatar is given to play its "disappear" before the
+// incoming one is mounted and plays its "appear".
+const AVATAR_SWAP_MS = 380;
+
+const AssistantAvatar: FC = () => {
+  const { activeWorkerId } = useHarnessChatContext();
+  const isLast = useAuiState((s) => s.message.isLast);
+  const target = findWorker(activeWorkerId);
+
+  // `shown` is the persona on screen right now (null = the plain harness icon);
+  // when `target` changes we play `shown` out for AVATAR_SWAP_MS, then swap so
+  // the new one plays in. Only the live (last) avatar animates — older ones
+  // just recolour.
+  const [shown, setShown] = useState(target);
+  const [leaving, setLeaving] = useState(false);
+
+  useEffect(() => {
+    if (!isLast) {
+      setShown(target);
+      setLeaving(false);
+      return;
+    }
+    if (target?.id === shown?.id) return;
+    setLeaving(true);
+    const t = setTimeout(() => {
+      setShown(target);
+      setLeaving(false);
+    }, AVATAR_SWAP_MS);
+    return () => clearTimeout(t);
+  }, [target, shown, isLast]);
+
+  if (!isLast) {
+    return target ? (
+      <CssOrb color={workerHex(target.color)} className="mt-0.5 h-8 w-8" />
+    ) : (
+      <HarnessAvatar />
+    );
+  }
+  if (!shown) return <HarnessAvatar leaving={leaving} />;
+
+  return (
+    <WorkerOrbView
+      key={shown.id}
+      color={workerHex(shown.color)}
+      mode={leaving ? "exit" : "follow"}
+      entrance
+      className="mt-0.5 h-8 w-8"
+    />
+  );
+};
+
 export const AssistantMessage: FC = () => (
   <MessagePrimitive.Root className="group/message flex flex-col gap-1">
-    <div className="flex gap-2">
-      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[7px] bg-linear-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)]">
-        <BsStars className="h-3 w-3 text-white" />
-      </div>
+    <div className="flex gap-2.5">
+      <AssistantAvatar />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <MessagePrimitive.Parts
           components={{ Text: AssistantText, Reasoning: AssistantReasoning }}
@@ -195,7 +258,7 @@ export const AssistantMessage: FC = () => (
 
 const AssistantActionBar: FC = () => (
   // Same as UserActionBar: tabbable controls have to become visible on focus.
-  <ActionBarPrimitive.Root className="ml-6 flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/message:opacity-100">
+  <ActionBarPrimitive.Root className="ml-10.5 flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/message:opacity-100">
     <ActionBarPrimitive.Copy className={actionButtonClass}>
       <LuCopy className="h-3 w-3" />
     </ActionBarPrimitive.Copy>

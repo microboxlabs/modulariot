@@ -45,6 +45,10 @@ const nextConfig = {
   transpilePackages: [
     "@microboxlabs/miot-calendar-client",
     "@microboxlabs/miot-calendar-ui",
+    // ESM-only three.js stack used by the worker dock orbs
+    "three",
+    "@react-three/fiber",
+    "@react-three/drei",
   ],
 };
 

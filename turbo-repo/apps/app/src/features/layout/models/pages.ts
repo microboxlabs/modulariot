@@ -77,3 +77,36 @@ export function visiblePages(devToolsEnabled: boolean, storytellingEnabled: bool
     return true;
   });
 }
+
+const HARNESS_SETTINGS_HREF = "/users/settings/harness";
+const PLATFORM_SETTINGS_HREF = "/users/settings/platform";
+
+/** Which flag decides whether a gated Settings entry is offered. */
+export interface SettingsGates {
+  /** `ENABLE_HARNESS_SETTINGS` on the deployment. */
+  readonly harness: boolean;
+  /** Whether the signed-in user holds `PLATFORM_OWNER`. */
+  readonly platformOwner: boolean;
+}
+
+/**
+ * Strips the Settings entries the caller cannot use.
+ *
+ * Shared by the sidebar and Spotlight so an entry cannot be missing from one
+ * nav surface and reachable through the other — which is what would happen if
+ * each applied its own href checks.
+ */
+export function filterSettings(
+  input: SidebarItem[],
+  gates: SettingsGates
+): SidebarItem[] {
+  if (gates.harness && gates.platformOwner) return input;
+
+  return input.map((page) => ({
+    ...page,
+    items: (page.items ?? []).filter((item) => {
+      if (!gates.harness && item.href === HARNESS_SETTINGS_HREF) return false;
+      return gates.platformOwner || item.href !== PLATFORM_SETTINGS_HREF;
+    }),
+  }));
+}

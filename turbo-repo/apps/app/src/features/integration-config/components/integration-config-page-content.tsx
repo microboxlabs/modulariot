@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Alert, Button, Spinner } from "flowbite-react";
 import { HiOutlineLink, HiPlus } from "react-icons/hi";
 import { toast } from "sonner";
-import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
+import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
@@ -25,6 +25,7 @@ interface IntegrationConfigPageContentProps {
   readonly dict: I18nRecord;
   /** `pages.userSettings.breadcrumb` — the trail is shared with the other settings pages. */
   readonly breadcrumbDict: I18nRecord;
+  readonly lang: string;
 }
 
 /**
@@ -44,6 +45,7 @@ interface IntegrationConfigPageContentProps {
 export function IntegrationConfigPageContent({
   dict,
   breadcrumbDict,
+  lang,
 }: Readonly<IntegrationConfigPageContentProps>) {
   const { activeOrg } = useOrgScopes();
   const orgSlug = activeOrg?.slug ?? null;
@@ -157,22 +159,22 @@ export function IntegrationConfigPageContent({
   }
 
   return (
-    // Same shell as Settings › Credentials: a full-width sticky breadcrumb bar over a
-    // capped, centred content column, so a wide monitor doesn't strand the row actions
-    // far from the names they belong to.
-    <div className="flex h-full w-full flex-col overflow-auto">
-      <div className="sticky top-0 z-10 flex w-full items-center justify-between bg-white p-5 dark:bg-gray-900 dark:text-white">
-        <ClientBreadcrumb
+    // Same shell as Settings › Credentials: a full-width breadcrumb bar
+    // (outside the scroll container, so it never moves — including during
+    // rubber-band overscroll) over a capped, independently-scrolling
+    // content column, so a wide monitor doesn't strand the row actions far
+    // from the names they belong to.
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+        <Breadcrumb
           dict={breadcrumbDict}
-          path={[
-            { label: "user" },
-            { label: "settings" },
-            { label: "connections" },
-          ]}
+          lang={lang}
+          path={["user", "settings", "connections"]}
+          disableLinks
         />
       </div>
 
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pt-2 pb-6 dark:bg-gray-900">
+      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-2 pb-6 dark:bg-gray-900">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <HiOutlineLink className="h-6 w-6 shrink-0 text-gray-500 dark:text-gray-400" />

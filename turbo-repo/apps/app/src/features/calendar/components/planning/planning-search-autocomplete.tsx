@@ -1,7 +1,8 @@
 "use client";
 
+import type { PlanningSearchMatchType } from "./planning-search-match-type";
 import { useCallback, useMemo } from "react";
-import { FaTruck, FaMapMarkerAlt, FaCalendarAlt } from "react-icons/fa";
+import { FaTruck, FaMapMarkerAlt, FaCalendarAlt, FaTag } from "react-icons/fa";
 import {
   PlanningSearchAutocomplete as GenericSearchAutocomplete,
   type SearchAutocompleteField,
@@ -10,14 +11,7 @@ import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { SelectedService } from "./planning-selection-context";
 
-type MatchType =
-  | "id"
-  | "cliente"
-  | "origen"
-  | "destino"
-  | "lugarCarguio"
-  | "permanencia"
-  | "tipoViaje";
+type MatchType = PlanningSearchMatchType;
 
 export interface PlanningSearchAutocompleteProps {
   dict: I18nDictionary;
@@ -42,6 +36,7 @@ const SEARCHABLE_FIELDS: readonly MatchType[] = [
   "destino",
   "permanencia",
   "tipoViaje",
+  "tipoServicio",
 ] as const;
 
 const FIELD_ICON: Record<MatchType, React.ReactNode> = {
@@ -56,6 +51,24 @@ const FIELD_ICON: Record<MatchType, React.ReactNode> = {
     <FaCalendarAlt className="w-4 h-4 text-gray-600 dark:text-gray-400" />
   ),
   tipoViaje: <FaTruck className="w-4 h-4 text-gray-600 dark:text-gray-400" />,
+  tipoServicio: <FaTag className="w-4 h-4 text-gray-600 dark:text-gray-400" />,
+};
+
+/**
+ * How each match type reads its value off a service. Most are the field of the
+ * same name; `tipoServicio` is not, because the service type is carried on
+ * `mintral_serviceType` — the raw Alfresco value — and `tipoServicio` is what
+ * the search calls it.
+ */
+const FIELD_ACCESSOR: Record<MatchType, (s: SelectedService) => string> = {
+  id: (s) => s.id,
+  cliente: (s) => s.cliente,
+  origen: (s) => s.origen,
+  destino: (s) => s.destino,
+  lugarCarguio: (s) => s.lugarCarguio,
+  permanencia: (s) => s.permanencia,
+  tipoViaje: (s) => s.tipoViaje,
+  tipoServicio: (s) => s.mintral_serviceType ?? "",
 };
 
 /**
@@ -77,7 +90,7 @@ export function PlanningSearchAutocomplete({
     () =>
       SEARCHABLE_FIELDS.map((matchType) => ({
         matchType,
-        get: (service) => service[matchType],
+        get: FIELD_ACCESSOR[matchType],
         label: tr(`pages.planning.sidebar.search.matchType.${matchType}`, dict),
         icon: FIELD_ICON[matchType],
       })),

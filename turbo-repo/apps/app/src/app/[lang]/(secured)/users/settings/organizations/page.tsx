@@ -16,7 +16,7 @@ export default async function OrganizationsPage({ params }: ParamsWithLang) {
       path="/users/settings/organizations"
       fallbackPath={`/${lang}/shipping`}
     >
-      <OrganizationsPageContent dict={userSettings} />
+      <OrganizationsPageContent dict={userSettings} lang={lang} />
     </RouteGuard>
   );
 }

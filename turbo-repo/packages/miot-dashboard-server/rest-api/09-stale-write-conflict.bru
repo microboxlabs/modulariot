@@ -1,0 +1,35 @@
+meta {
+  name: A stale revision is 409
+  type: http
+  seq: 9
+}
+
+put {
+  url: {{baseUrl}}/scopes/{{scopeId}}/dashboards/bruno-scratch
+  body: json
+  auth: none
+}
+
+headers {
+  x-dev-user: {{user}}
+  x-dev-tenant: {{tenant}}
+  if-match: 0
+}
+
+body:json {
+  {
+    "version": 2,
+    "title": "This write is based on a revision that has moved on"
+  }
+}
+
+docs {
+  Run this after the previous request, which leaves the dashboard at revision 1
+  or higher. Claiming revision 0 is refused rather than merged, so two editors,
+  or an editor and the generation skill, cannot silently overwrite each other.
+}
+
+assert {
+  res.status: eq 409
+  res.body.code: eq CONFLICT
+}

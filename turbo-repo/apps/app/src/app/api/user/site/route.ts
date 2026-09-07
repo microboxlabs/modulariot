@@ -4,8 +4,8 @@ import {
   getUserSites,
   getSiteLogos,
   getSiteLogoContent,
-  getPublicOrgLogo,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { getDomainBranding } from "@/features/branding/domain-branding.service";
 import type { UserSiteResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import { handleApiError, unauthorizedResponse } from "@/app/api/utils/api-error-handler";
 
@@ -19,15 +19,19 @@ export async function GET() {
     // Get user's sites
     const sites = await getUserSites(session);
 
-    // First, try to get the public organization logo
-    const publicLogo = await getPublicOrgLogo();
+    // Per-domain logo, used when the site has no branding of its own. A domain
+    // that ships only one logo uses it on both grounds, which is what this
+    // fell back to for every domain before the dark variant existed.
+    const branding = await getDomainBranding();
+    const publicLogo = branding?.logoUrl ?? null;
+    const publicLogoDark = branding?.logoUrlDark ?? publicLogo;
 
     if (!sites || sites.length === 0) {
       // Return public logo if available, otherwise null
       const response: UserSiteResponse = {
         site: null,
         logoUrlLight: publicLogo,
-        logoUrlDark: publicLogo,
+        logoUrlDark: publicLogoDark,
       };
       return NextResponse.json(response);
     }
@@ -52,7 +56,7 @@ export async function GET() {
     const response: UserSiteResponse = {
       site: primarySite,
       logoUrlLight: siteLogoLight ?? publicLogo,
-      logoUrlDark: siteLogoDark ?? publicLogo,
+      logoUrlDark: siteLogoDark ?? publicLogoDark,
     };
 
     return NextResponse.json(response);

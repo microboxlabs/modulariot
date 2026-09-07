@@ -1,0 +1,21 @@
+meta {
+  name: Health probe
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/health
+  body: none
+  auth: none
+}
+
+docs {
+  Process-level probe, served by the standalone server only. A host that mounts
+  the library keeps its own probes, so this path is a 404 there by design.
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq ok
+}

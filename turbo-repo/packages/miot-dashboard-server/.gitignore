@@ -1,0 +1,9 @@
+# The default MIOT_DASHBOARD_SQLITE_PATH is ./data/dashboards.db, so running
+# the server here creates a database holding real dashboards. This repository
+# is public.
+data/
+
+# WAL and shared-memory files sit beside a database wherever it is put.
+*.db
+*.db-wal
+*.db-shm

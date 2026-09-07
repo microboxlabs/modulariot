@@ -47,14 +47,15 @@ import org.jboss.logging.Logger;
  * converge, so it is thrown as a {@link NonRetryableJobException} and parked
  * immediately (alerting the planner) rather than retried. The one exception is a
  * create 409 where a sibling won the race and a booking now exists: that re-runs
- * (retryable) and converges via the move path. The ETD <b>auto-pick</b>
- * no-capacity case stays retryable and self-heals separately (see
- * {@code pickSlotFromEtd}).
+ * (retryable) and converges via the move path. The ETD <b>auto-pick</b> first
+ * prefers ordinary capacity and, when the whole window is exhausted, explicitly
+ * overbooks the earliest real slot (never a CLOSED or OVERFLOW grid slot).
  */
 @ApplicationScoped
 public class CalendarSyncExecutor implements ModulithJobHandler {
 
     private static final Logger LOG = Logger.getLogger(CalendarSyncExecutor.class);
+    private static final String FOR_RESOURCE = " for ";
 
     /** ETD auto-pick horizon — matches ECM's stale-planned cleanup window (#257). */
     private static final int SLOT_SEARCH_WINDOW_HOURS = 48;
@@ -195,14 +196,9 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
             // the successful unassign and must be reported as such.
             String syncStatus = str(payload, CalendarSyncFeature.PAYLOAD_SYNC_STATUS);
             if (syncStatus != null) {
-                try {
-                    client.patchByResource(resourceId, calendarId, null, null, syncStatus, null);
-                } catch (CalendarBookingsHttpException e) {
-                    if (e.getStatus() == 404 || e.getStatus() == 409) {
-                        return JobOutcome.skipped("Booking unassigned for " + resourceId
-                                + "; sync-status patch skipped (" + e.getStatus() + ")");
-                    }
-                    throw e;
+                JobOutcome syncOutcome = applyUnassignSyncStatus(resourceId, calendarId, syncStatus);
+                if (syncOutcome != null) {
+                    return syncOutcome;
                 }
             }
             return JobOutcome.succeeded("Booking unassigned for " + resourceId
@@ -221,13 +217,26 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         }
     }
 
+    private JobOutcome applyUnassignSyncStatus(String resourceId, UUID calendarId, String syncStatus) {
+        try {
+            client.patchByResource(resourceId, calendarId, null, null, syncStatus, null);
+            return null;
+        } catch (CalendarBookingsHttpException e) {
+            if (e.getStatus() == 404 || e.getStatus() == 409) {
+                return JobOutcome.skipped("Booking unassigned for " + resourceId
+                        + "; sync-status patch skipped (" + e.getStatus() + ")");
+            }
+            throw e;
+        }
+    }
+
     private JobOutcome executePatch(Map<String, Object> payload, String resourceId, UUID calendarId) {
         String targetStatus = str(payload, CalendarSyncFeature.PAYLOAD_TARGET_STATUS);
         String syncStatus = str(payload, CalendarSyncFeature.PAYLOAD_SYNC_STATUS);
         Map<String, Object> resourceData = asMap(payload.get(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA));
         try {
             client.patchByResource(resourceId, calendarId, targetStatus, resourceData, syncStatus, null);
-            return JobOutcome.succeeded("Booking patched to " + targetStatus + " for " + resourceId);
+            return JobOutcome.succeeded("Booking patched to " + targetStatus + FOR_RESOURCE + resourceId);
         } catch (CalendarBookingsHttpException e) {
             if (e.getStatus() == 404) {
                 JobOutcome materialized = materializeFromPatch(payload, resourceId, calendarId,
@@ -315,16 +324,15 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         SlotInfo slot = resolveSlotForCreate(payload, calendarId, resourceId);
         if (slot == null) {
             // No explicit slot and no ETD (or an unparseable one): there is no slot
-            // intent to act on. (An ETD with no free capacity throws instead — that
-            // path retries and self-heals when a slot frees.)
+            // intent to act on. An ETD with no real slot in the horizon throws;
+            // exhausted capacity alone is handled by the overbooking fallback.
             return JobOutcome.skipped("No slot intent to create booking for " + resourceId);
         }
         String resourceType = strOr(payload, CalendarSyncFeature.PAYLOAD_RESOURCE_TYPE,
                 CalendarSyncFeature.DEFAULT_RESOURCE_TYPE);
         UUID bookingId;
         try {
-            bookingId = client.create(calendarId, slot.date(), slot.hour(), slot.minutes(),
-                    resourceId, resourceType, resourceData);
+            bookingId = createBooking(slot, resourceId, resourceType, resourceData);
         } catch (CalendarBookingsHttpException e) {
             if (e.getStatus() == 409) {
                 throw createConflict(e, resourceId, calendarId, slot);
@@ -335,49 +343,68 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
                 str(payload, CalendarSyncFeature.PAYLOAD_SYNC_STATUS));
         LOG.infof("calendar_sync ensure created booking %s for %s at %s %02d:%02d -> %s",
                 bookingId, resourceId, slot.date(), slot.hour(), slot.minutes(), targetStatus);
-        return JobOutcome.succeeded("Ensured (created) booking " + bookingId + " for " + resourceId
+        return JobOutcome.succeeded("Ensured (created) booking " + bookingId + FOR_RESOURCE + resourceId
                 + (targetStatus == null ? "" : " -> " + targetStatus));
+    }
+
+    private UUID createBooking(SlotInfo slot, String resourceId, String resourceType,
+                               Map<String, Object> resourceData) {
+        if (slot.overbooked()) {
+            return client.createOverbooked(slot.calendarId(), slot.date(), slot.hour(), slot.minutes(),
+                    resourceId, resourceType, resourceData);
+        }
+        return client.create(slot.calendarId(), slot.date(), slot.hour(), slot.minutes(),
+                resourceId, resourceType, resourceData);
     }
 
     private JobOutcome ensureExisting(CalendarBookingsClient.BookingView booking, Map<String, Object> payload,
                                       String resourceId, UUID calendarId,
                                       String targetStatus, Map<String, Object> resourceData) {
-        boolean moved = false;
         SlotInfo explicit = resolveExplicitSlot(payload, calendarId);
-        if (explicit != null && slotDiffers(booking, explicit)) {
-            try {
-                client.move(booking.id(), explicit.date(), explicit.hour(), explicit.minutes());
-            } catch (CalendarBookingsHttpException e) {
-                if (e.getStatus() == 409) {
-                    // The chosen slot rejected the move (e.g. it is at full capacity).
-                    // Retrying the same explicit slot cannot converge, so park now —
-                    // the planner is alerted — instead of backing off to the same 409.
-                    throw new NonRetryableJobException("Cannot move booking " + booking.id() + " for "
-                            + resourceId + " to " + slotLabel(explicit) + " — rejected by calendar (409): "
-                            + e.getMessage(), e);
-                }
-                throw e;
-            }
-            moved = true;
-        }
+        boolean moved = moveIfNeeded(booking, explicit, resourceId);
         // Forward-only status, plus a shallow resource-data merge so a re-plan keeps
         // the row current. 404/409 are benign (raced delete / status regression).
         // The payload's syncStatus rides along (null leaves it untouched) — the
         // existing-booking path must not drop the confirmation window the push
         // opened, exactly like applyStatus on the create path.
+        patchExisting(payload, resourceId, calendarId, targetStatus, resourceData);
+        return JobOutcome.succeeded("Ensured (existing) booking " + booking.id() + FOR_RESOURCE + resourceId
+                + (moved ? " [moved]" : "") + (targetStatus == null ? "" : " -> " + targetStatus));
+    }
+
+    private boolean moveIfNeeded(CalendarBookingsClient.BookingView booking, SlotInfo explicit,
+                                 String resourceId) {
+        if (explicit == null || !slotDiffers(booking, explicit)) {
+            return false;
+        }
+        try {
+            client.move(booking.id(), explicit.date(), explicit.hour(), explicit.minutes());
+            return true;
+        } catch (CalendarBookingsHttpException e) {
+            if (e.getStatus() == 409) {
+                // Retrying the same rejected explicit slot cannot converge, so park now.
+                throw new NonRetryableJobException("Cannot move booking " + booking.id() + FOR_RESOURCE
+                        + resourceId + " to " + slotLabel(explicit) + " — rejected by calendar (409): "
+                        + e.getMessage(), e);
+            }
+            throw e;
+        }
+    }
+
+    private void patchExisting(Map<String, Object> payload, String resourceId, UUID calendarId,
+                               String targetStatus, Map<String, Object> resourceData) {
         String syncStatus = str(payload, CalendarSyncFeature.PAYLOAD_SYNC_STATUS);
-        if (targetStatus != null || syncStatus != null
-                || (resourceData != null && !resourceData.isEmpty())) {
-            try {
-                client.patchByResource(resourceId, calendarId, targetStatus, resourceData, syncStatus, null);
-            } catch (CalendarBookingsHttpException e) {
-                if (benignSkip(e, resourceId, targetStatus) == null) {
-                    throw e;
-                }
+        if (targetStatus == null && syncStatus == null
+                && (resourceData == null || resourceData.isEmpty())) {
+            return;
+        }
+        try {
+            client.patchByResource(resourceId, calendarId, targetStatus, resourceData, syncStatus, null);
+        } catch (CalendarBookingsHttpException e) {
+            if (benignSkip(e, resourceId, targetStatus) == null) {
+                throw e;
             }
         }
-        return JobOutcome.succeeded("Ensured (existing) booking " + booking.id() + " for " + resourceId
-                + (moved ? " [moved]" : "") + (targetStatus == null ? "" : " -> " + targetStatus));
     }
 
     /**
@@ -409,7 +436,7 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
      * Slot for a create: an explicit slot from the payload wins; otherwise auto-pick
      * the next-available slot from the ETD at run time. Returns {@code null} when
      * there is no slot intent (no explicit slot and no/unparseable ETD); throws
-     * (retryable) when an ETD is present but no slot has capacity.
+     * (retryable) when an ETD is present but the horizon contains no real slot.
      */
     private SlotInfo resolveSlotForCreate(Map<String, Object> payload, UUID calendarId, String resourceId) {
         SlotInfo explicit = resolveExplicitSlot(payload, calendarId);
@@ -429,9 +456,10 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
     }
 
     /**
-     * Earliest available slot in {@code [max(now, etd), +48h]}. Throws (retryable) if
-     * none has capacity, so the job backs off and re-picks against fresh availability
-     * — a transient no-slot self-heals when a slot frees.
+     * Earliest available slot in {@code [max(now, etd), +48h]}. When ordinary
+     * capacity is exhausted, fall back to the earliest real slot and mark the
+     * create as an explicit overbooking request. CLOSED slots and generated
+     * OVERFLOW placeholders remain non-bookable.
      */
     private SlotInfo pickSlotFromEtd(LocalDateTime etd, UUID calendarId, String resourceId) {
         LocalDateTime now = LocalDateTime.now(clock);
@@ -443,13 +471,29 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
                 .filter(s -> s.availableCapacity() > 0)
                 .filter(s -> withinWindow(s, searchStart, searchEnd))
                 .min(SLOT_ORDER);
-        if (pick.isEmpty()) {
+        if (pick.isPresent()) {
+            var picked = pick.get();
+            return new SlotInfo(calendarId, picked.date(), picked.hour(), picked.minutes(), false);
+        }
+
+        var overbookPick = client.listSlots(
+                        calendarId, searchStart.toLocalDate(), searchEnd.toLocalDate()).stream()
+                .filter(CalendarSyncExecutor::isOverbookable)
+                .filter(s -> withinWindow(s, searchStart, searchEnd))
+                .min(SLOT_ORDER);
+        if (overbookPick.isEmpty()) {
             throw new IllegalStateException(String.format(
-                    "No available calendar slot for %s in [%s, %s] (etd=%s) — will retry",
+                    "No bookable calendar slot for %s in [%s, %s] (etd=%s) — will retry",
                     resourceId, searchStart, searchEnd, etd));
         }
-        var picked = pick.get();
-        return new SlotInfo(calendarId, picked.date(), picked.hour(), picked.minutes());
+        var picked = overbookPick.get();
+        LOG.warnf("calendar_sync ensure: capacity exhausted for %s — overbooking %s %02d:%02d",
+                resourceId, picked.date(), picked.hour(), picked.minutes());
+        return new SlotInfo(calendarId, picked.date(), picked.hour(), picked.minutes(), true);
+    }
+
+    private static boolean isOverbookable(CalendarBookingsClient.AvailableSlot slot) {
+        return "OPEN".equals(slot.status()) || "FULL".equals(slot.status());
     }
 
     /**
@@ -581,7 +625,7 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
                     "calendar_sync ensure: incomplete explicit slot (slotDate/slotHour/slotMinutes must be "
                             + "all-or-nothing): slotDate=" + date + " slotHour=" + hour + " slotMinutes=" + minutes);
         }
-        return new SlotInfo(calendarId, LocalDate.parse(date), toInt(hour), toInt(minutes));
+        return new SlotInfo(calendarId, LocalDate.parse(date), toInt(hour), toInt(minutes), false);
     }
 
     private static boolean withinWindow(CalendarBookingsClient.AvailableSlot slot,
@@ -654,6 +698,6 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
     }
 
     /** Resolved slot for an ensure create/move. */
-    private record SlotInfo(UUID calendarId, LocalDate date, int hour, int minutes) {
+    private record SlotInfo(UUID calendarId, LocalDate date, int hour, int minutes, boolean overbooked) {
     }
 }

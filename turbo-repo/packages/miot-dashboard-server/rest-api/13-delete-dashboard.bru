@@ -1,0 +1,26 @@
+meta {
+  name: Delete a dashboard
+  type: http
+  seq: 13
+}
+
+delete {
+  url: {{baseUrl}}/scopes/{{scopeId}}/dashboards/bruno-scratch
+  body: none
+  auth: none
+}
+
+headers {
+  x-dev-user: {{user}}
+  x-dev-tenant: {{tenant}}
+}
+
+docs {
+  Deleting needs canDelete, which by default only a Coordinator has. Running
+  this twice returns 404 the second time, which also cleans up after the
+  create request so the collection can be run repeatedly.
+}
+
+assert {
+  res.status: eq 204
+}

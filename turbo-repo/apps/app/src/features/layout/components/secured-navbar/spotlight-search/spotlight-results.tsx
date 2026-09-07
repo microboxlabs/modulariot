@@ -31,6 +31,21 @@ function SectionHeader({ Icon, label, iconClass, labelClass, dividerClass }: Rea
   );
 }
 
+/** The committed question, rendered like a sent chat message — right-aligned,
+ * above the progress/answer for it. Present the moment a question is
+ * committed (before the run even reaches its first progress frame) and
+ * stays up for as long as that answer is on screen, including after the
+ * input has been cleared for the next question. */
+function HarnessQuestionBubble({ text }: Readonly<{ text: string }>) {
+  return (
+    <div className="px-4 pt-3 pb-1 flex justify-end">
+      <div className="animate-spotlight-bubble max-w-[85%] rounded-lg rounded-br-none bg-gray-100 px-3 py-1.5 text-sm text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+        {text}
+      </div>
+    </div>
+  );
+}
+
 /** Gold-badge stars icon + one-line notice — the error and empty states share it. */
 function HarnessNotice({ label }: Readonly<{ label: string }>) {
   return (
@@ -137,12 +152,15 @@ interface SpotlightResultsProps {
   harnessItems: SpotlightItem[];
   isHarnessLoading: boolean;
   harnessQueried: boolean;
+  /** The committed question, shown as a locked chat bubble — empty when no
+   * question is active. */
+  harnessQuestion: string;
   harnessProgress: HarnessStreamProgress;
   harnessProgressLabels: HarnessProgressLabels;
   harnessError: boolean;
   harnessErrorLabel: string;
   harnessRetryItem: SpotlightItem | null;
-  harnessPrompt: SpotlightItem | null;
+  harnessTakeToChatItem: SpotlightItem | null;
   selectedItemId: string | null;
   onSelect: (item: SpotlightItem) => void;
   onHover: (id: string | null) => void;
@@ -156,12 +174,13 @@ export const SpotlightResults = memo(function SpotlightResults({
   harnessItems,
   isHarnessLoading,
   harnessQueried,
+  harnessQuestion,
   harnessProgress,
   harnessProgressLabels,
   harnessError,
   harnessErrorLabel,
   harnessRetryItem,
-  harnessPrompt,
+  harnessTakeToChatItem,
   selectedItemId,
   onSelect,
   onHover,
@@ -173,25 +192,25 @@ export const SpotlightResults = memo(function SpotlightResults({
   const showHarnessResults = isHarnessLoading || harnessItems.length > 0;
   const showHarnessEmpty =
     harnessQueried && !isHarnessLoading && !harnessError && harnessItems.length === 0;
+  const showHarnessSection =
+    !!harnessQuestion || showHarnessResults || showHarnessEmpty || harnessError;
 
-  if (!harnessPrompt && !hasStaticResults && !showHarnessResults && !showHarnessEmpty && !harnessError)
-    return null;
+  if (!hasStaticResults && !showHarnessSection) return null;
 
-  const hasSeparator =
-    (harnessPrompt || showHarnessResults || showHarnessEmpty || harnessError) && hasStaticResults;
+  const hasSeparator = showHarnessSection && hasStaticResults;
 
   return (
     <div className="max-h-[60vh] overflow-y-auto">
-      {/* ── Harness section — prompt (before commit) OR answer + gotos (after commit) ── */}
-      {(harnessPrompt || showHarnessResults || showHarnessEmpty || harnessError) && (
+      {/* ── Harness section — locked question + answer/gotos, once the query is
+          committed. Before that, asking Harness is the input's own implicit
+          default action (Enter fires it), so it has no row of its own here. ── */}
+      {showHarnessSection && (
         <div>
-          {harnessPrompt && (
-            <SpotlightResultItem
-              item={harnessPrompt}
-              isSelected={harnessPrompt.id === selectedItemId}
-              onSelect={onSelect}
-              onHover={onHover}
-            />
+          {harnessQuestion && (
+            // Keyed by its own text so a brand-new question always remounts
+            // (and re-plays the entrance animation) instead of just patching
+            // the text of the previous bubble in place.
+            <HarnessQuestionBubble key={harnessQuestion} text={harnessQuestion} />
           )}
           {harnessError && (
             <>
@@ -225,6 +244,14 @@ export const SpotlightResults = memo(function SpotlightResults({
                 />
               ))
             )
+          )}
+          {harnessTakeToChatItem && (
+            <SpotlightResultItem
+              item={harnessTakeToChatItem}
+              isSelected={harnessTakeToChatItem.id === selectedItemId}
+              onSelect={onSelect}
+              onHover={onHover}
+            />
           )}
         </div>
       )}

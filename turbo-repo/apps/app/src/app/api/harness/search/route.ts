@@ -80,7 +80,9 @@ export async function POST(request: Request) {
 
     if (!answer) return NextResponse.json({ results: [] });
 
-    return NextResponse.json({ results: [toSearchResult(run_id, answer)] });
+    return NextResponse.json({
+      results: [toSearchResult(run_id, answer, record.conversation_id)],
+    });
   } catch (err: unknown) {
     const isAbort = (err as { name?: string }).name === "AbortError";
     if (!isAbort) {

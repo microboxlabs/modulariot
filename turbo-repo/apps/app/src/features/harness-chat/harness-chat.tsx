@@ -7,7 +7,10 @@ import { HttpAgent } from "@ag-ui/client";
 import { twMerge } from "tailwind-merge";
 import { LuArrowLeft, LuHistory, LuPlus, LuSparkles, LuX } from "react-icons/lu";
 import { createHarnessAttachmentAdapter } from "./harness-chat-attachments";
-import { useHarnessChatContext } from "./context/harness-chat-context";
+import {
+  useHarnessChatContext,
+  type PendingHarnessConversation,
+} from "./context/harness-chat-context";
 import {
   HarnessChatI18nProvider,
   useHarnessChatTr,
@@ -17,18 +20,23 @@ import { buildHarnessToolkit, type HarnessExtension } from "./harness-extension"
 import { DEFAULT_HARNESS_EXTENSIONS } from "./extensions";
 import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
+import { InitialConversationSeeder } from "./components/initial-conversation-seeder";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
 import { StandaloneDictionaryProvider } from "@/features/dashboard/context/standalone-dictionary-context";
 import type { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Thread } from "./thread";
 
-function createSession(initialMessage: string | null = null): Session {
+function createSession(
+  initialMessage: string | null = null,
+  initialConversation: PendingHarnessConversation | null = null,
+): Session {
   return {
     id: crypto.randomUUID(),
     createdAt: Date.now(),
     title: null,
     initialMessage,
+    initialConversation,
   };
 }
 
@@ -69,20 +77,32 @@ const HarnessChatPanel: FC<{
   locale: string;
 }> = ({ extensions, skills, locale }) => {
   const tr = useHarnessChatTr();
-  const { isOpen, close, pendingMessage, clearPendingMessage } =
-    useHarnessChatContext();
+  const {
+    isOpen,
+    close,
+    pendingMessage,
+    clearPendingMessage,
+    pendingConversation,
+    clearPendingConversation,
+  } = useHarnessChatContext();
   const { width, isDragging, startDrag, toggleMinMax, onHandleKeyDown, bounds } =
     useResizablePanelWidth();
   const [sessions, setSessions] = useState<Session[]>(() => [createSession()]);
   const [activeId, setActiveId] = useState(() => sessions[0].id);
   const [view, setView] = useState<View>("chat");
 
-  const newChat = useCallback((initialMessage: string | null = null) => {
-    const session = createSession(initialMessage);
-    setSessions((prev) => [session, ...prev]);
-    setActiveId(session.id);
-    setView("chat");
-  }, []);
+  const newChat = useCallback(
+    (
+      initialMessage: string | null = null,
+      initialConversation: PendingHarnessConversation | null = null,
+    ) => {
+      const session = createSession(initialMessage, initialConversation);
+      setSessions((prev) => [session, ...prev]);
+      setActiveId(session.id);
+      setView("chat");
+    },
+    [],
+  );
 
   // A search-bar "open chat" action landed while we were mounted — start a
   // fresh conversation with that text as the first (auto-sent) message.
@@ -91,6 +111,14 @@ const HarnessChatPanel: FC<{
     newChat(pendingMessage);
     clearPendingMessage();
   }, [pendingMessage, newChat, clearPendingMessage]);
+
+  // A spotlight "Take to chat" handoff landed while we were mounted — start a
+  // fresh conversation pre-seeded with that question + answer (not auto-sent).
+  useEffect(() => {
+    if (!pendingConversation) return;
+    newChat(null, pendingConversation);
+    clearPendingConversation();
+  }, [pendingConversation, newChat, clearPendingConversation]);
 
   const selectSession = useCallback((id: string) => {
     setActiveId(id);
@@ -241,6 +269,7 @@ const HarnessChatPanel: FC<{
               active={session.id === activeId}
               shouldFocus={isOpen && view === "chat"}
               initialMessage={session.initialMessage}
+              initialConversation={session.initialConversation}
               onTitleChange={updateSessionTitle}
               extensions={extensions}
               skills={skills}
@@ -257,6 +286,7 @@ const SessionHost: FC<{
   active: boolean;
   shouldFocus: boolean;
   initialMessage: string | null;
+  initialConversation: PendingHarnessConversation | null;
   onTitleChange: (id: string, title: string | null) => void;
   extensions: HarnessExtension[];
   skills: HarnessSkill[];
@@ -265,15 +295,27 @@ const SessionHost: FC<{
   active,
   shouldFocus,
   initialMessage,
+  initialConversation,
   onTitleChange,
   extensions,
   skills,
 }) => {
   // One agent instance per session — its conversation state (threadId, the
   // harness's round-tripped conversationId) shouldn't leak across concurrent
-  // chat sessions.
+  // chat sessions. A "Take to chat" handoff seeds the harness conversation id
+  // up front so the user's next message continues that same conversation
+  // server-side instead of starting a new one.
   const agent = useMemo(
-    () => new HttpAgent({ url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/chat/stream` }),
+    () =>
+      new HttpAgent({
+        url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/chat/stream`,
+        ...(initialConversation?.conversationId && {
+          initialState: { harnessConversationId: initialConversation.conversationId },
+        }),
+      }),
+    // Only the id changing should ever re-key this — it's read once at
+    // session creation, same as `initialMessage` below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
   const tr = useHarnessChatTr();
@@ -311,6 +353,7 @@ const SessionHost: FC<{
       >
         <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
         <InitialMessageSender initialMessage={initialMessage} />
+        <InitialConversationSeeder conversation={initialConversation} />
         <Thread skills={skills} />
       </AssistantRuntimeProvider>
     </div>

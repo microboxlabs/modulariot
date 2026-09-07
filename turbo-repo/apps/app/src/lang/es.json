@@ -5005,7 +5005,10 @@
     },
     "harnessError": "Algo salió mal al buscar la respuesta.",
     "harnessRetry": "Reintentar",
-    "openChat": "Abrir chat"
+    "openChat": "Abrir chat",
+    "takeToChat": "Continuar en el chat",
+    "cancelHarness": "Cancelar",
+    "askHarness": "Preguntar a Harness"
   },
   "harnessChat": {
     "stream": {

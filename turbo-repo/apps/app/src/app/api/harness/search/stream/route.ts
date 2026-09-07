@@ -186,7 +186,9 @@ export async function POST(request: Request) {
         // The answer text is only on the final run record, not in the stream.
         const record = await client.runs.get(run_id, { signal: controller.signal });
         send("search.result", {
-          results: record.answer ? [toSearchResult(run_id, record.answer)] : [],
+          results: record.answer
+            ? [toSearchResult(run_id, record.answer, record.conversation_id)]
+            : [],
           // Ground-or-flag assumptions (with the connection stamped by the
           // harness) so the spotlight can offer an elicit chip → candidate.
           assumptions: record.assumptions ?? [],

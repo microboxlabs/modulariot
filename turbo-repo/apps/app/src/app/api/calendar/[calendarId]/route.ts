@@ -7,10 +7,16 @@ import {
 } from "../../utils/calendar-route-utils";
 import { NextResponse } from "next/server";
 
+// Mirrors miot-calendar's ALLOWED_FILTER_KEYS. Zod strips what it does not
+// declare, so a key missing here is dropped silently: the request succeeds and
+// the calendar simply never gets it.
 const CalendarFilterSchema = z
   .object({
     origin: z.string().optional(),
     destination: z.string().optional(),
+    // Scopes isDefault together with origin, so one delegación can send its
+    // otr trips to a different calendar than its v trips.
+    serviceType: z.string().optional(),
   })
   .optional();
 

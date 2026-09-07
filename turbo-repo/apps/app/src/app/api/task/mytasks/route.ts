@@ -34,6 +34,11 @@ export async function GET(req: NextRequest) {
   const carrierName = url.searchParams.get("carrierName");
   const origin = url.searchParams.get("origin");
   const destination = url.searchParams.get("destination");
+  // Scopes the list to one service type (v / otr / ote). Server-side on
+  // purpose: a calendar that serves otr must not offer every v trip as
+  // plannable, and filtering after the page loads yields short pages
+  // rather than a scoped list.
+  const serviceType = url.searchParams.get("serviceType");
   const customer = url.searchParams.get("customer");
   const editable = url.searchParams.get("editable");
   const originType = url.searchParams.get("originType");
@@ -64,6 +69,7 @@ export async function GET(req: NextRequest) {
       carrierName: carrierName ? carrierName : undefined,
       origin: origin ? origin.toUpperCase() : undefined,
       destination: destination ? destination.toUpperCase() : undefined,
+      serviceType: serviceType ? serviceType.toLowerCase() : undefined,
       clientAbbreviation: customer ? customer : undefined,
       originIsSitrans: originType ? originType === "INTERNAL" : undefined,
       editable: editable ? editable === "true" : undefined,
@@ -94,6 +100,7 @@ export async function GET(req: NextRequest) {
               carrierName: carrierName ? carrierName : undefined,
               origin: origin ? origin.toUpperCase() : undefined,
               destination: destination ? destination.toUpperCase() : undefined,
+      serviceType: serviceType ? serviceType.toLowerCase() : undefined,
               clientAbbreviation: customer ? customer : undefined,
               originIsSitrans: originType
                 ? originType === "INTERNAL"

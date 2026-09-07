@@ -1,17 +1,11 @@
 "use client";
 
+import type { PlanningSearchMatchType } from "./planning-search-match-type";
 import { PlanningSearchTags as GenericSearchTags } from "@microboxlabs/miot-calendar-ui";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 
-type MatchType =
-  | "id"
-  | "cliente"
-  | "origen"
-  | "destino"
-  | "lugarCarguio"
-  | "permanencia"
-  | "tipoViaje";
+type MatchType = PlanningSearchMatchType;
 
 export interface SearchTag {
   matchType: MatchType;
@@ -45,6 +39,10 @@ function freightTagLabel(dict: I18nDictionary, matchType: string): string {
       dict
     ),
     tipoViaje: tr("pages.planning.sidebar.search.matchType.tipoViaje", dict),
+    tipoServicio: tr(
+      "pages.planning.sidebar.search.matchType.tipoServicio",
+      dict
+    ),
   };
   const label = labels[matchType as MatchType] ?? matchType;
   return label.charAt(0).toUpperCase() + label.slice(1);

@@ -43,6 +43,7 @@ const SEARCH_PARAM_KEYS = [
   "customer",
   "origin",
   "destination",
+  "serviceType",
   "licensePlate",
   "tipoViaje",
   "assignment",

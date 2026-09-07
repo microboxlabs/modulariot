@@ -455,7 +455,8 @@
             "destino": "destino",
             "lugarCarguio": "lugarCarguio",
             "permanencia": "permanencia",
-            "tipoViaje": "tipoViaje"
+            "tipoViaje": "tipoViaje",
+            "tipoServicio": "Tipo de servicio"
           },
           "locationCodes": {
             "SCL": "Santiago",
@@ -2632,15 +2633,17 @@
         },
         "taskFilter": {
           "title": "Filtro de tareas",
-          "description": "Filtra las tareas por origen y destino.",
+          "description": "Filtra las tareas por origen, destino y tipo de servicio.",
           "originLabel": "Origen",
           "destinationLabel": "Destino",
+          "serviceTypeLabel": "Tipo de servicio",
+          "serviceTypeAny": "Todos los tipos",
           "originPlaceholder": "Selecciona un origen",
           "destinationPlaceholder": "Selecciona un destino",
           "hint": "Solo se mostrarán las tareas que coincidan con los filtros seleccionados.",
           "save": "Guardar",
-          "defaultLabel": "Calendario por defecto para este origen",
-          "defaultHint": "Los servicios creados automáticamente (fuera del planificador) para este origen se reservarán en este calendario. Si ningún calendario del origen está marcado, esos servicios avanzan sin reserva.",
+          "defaultLabel": "Calendario por defecto para este origen y tipo de servicio",
+          "defaultHint": "Los servicios creados automáticamente (fuera del planificador) para este origen y tipo de servicio se reservarán en este calendario. Si ningún calendario coincide, esos servicios avanzan sin reserva.",
           "defaultNeedsOrigin": "Sin origen, este calendario recibirá los servicios de cualquier origen que no tenga uno propio.",
           "saveSuccess": "Filtro de tareas guardado correctamente",
           "saveError": "Error al guardar el filtro de tareas"
@@ -4449,7 +4452,9 @@
       "timezoneLabel": "Zona Horaria",
       "groupLabel": "Grupo",
       "activeLabel": "Activo",
-      "isDefaultLabel": "Calendario por defecto para el origen",
+      "filterServiceTypeLabel": "Tipo de servicio",
+      "filterServiceTypeAny": "Todos",
+      "isDefaultLabel": "Calendario por defecto para el origen y tipo de servicio",
       "submit": "Crear Calendario",
       "group": {
         "searchPlaceholder": "Buscar o crear un grupo...",

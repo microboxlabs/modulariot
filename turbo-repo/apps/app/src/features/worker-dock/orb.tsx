@@ -47,16 +47,22 @@ export function Orb({
   mode,
   entrance = false,
   entranceDelayMs = 140,
+  notify = false,
 }: Readonly<{
   color: string;
   mode: OrbMode;
   entrance?: boolean;
   /** Hold before the appear starts — e.g. wait out the chat panel sliding open. */
   entranceDelayMs?: number;
+  /** Notification "special state": the orb shrinks + slides left and a 3D "!"
+   *  scales in out front-right. */
+  notify?: boolean;
 }>) {
   const root = useRef<Group>(null);
   const leftEye = useRef<Group>(null);
   const rightEye = useRef<Group>(null);
+  const bang = useRef<Group>(null);
+  const bangAmt = useRef(0);
   const hop = useRef(0);
   const enter = useRef(entrance ? 0 : 1);
   const enterDelay = useRef(entrance ? entranceDelayMs : 0);
@@ -118,16 +124,23 @@ export function Orb({
       hop.current * q,
     );
 
+    // ── notification "special state" ── the orb shrinks and slides left to
+    // make room for the "!" out front-right (see the sibling `bang` group).
+    bangAmt.current = MathUtils.damp(bangAmt.current, notify ? 1 : 0, 12, delta);
+    const nsmooth = bangAmt.current * bangAmt.current * (3 - 2 * bangAmt.current);
+    const nScale = 1 - nsmooth * 0.32;
+    const nShiftX = nsmooth * -0.5;
+
     const s = off.scale ?? 1;
     g.position.set(
-      (off.px ?? 0) + (hv.px ?? 0),
+      (off.px ?? 0) + (hv.px ?? 0) + nShiftX,
       idleBob + (off.py ?? 0) + (hv.py ?? 0),
       (off.pz ?? 0) + (hv.pz ?? 0),
     );
     g.scale.set(
-      Math.max(0.001, s * (off.sx ?? 1) * (hv.sx ?? 1)),
-      Math.max(0.001, s * (off.sy ?? 1) * (hv.sy ?? 1)),
-      Math.max(0.001, s * (off.sz ?? 1) * (hv.sz ?? 1)),
+      Math.max(0.001, s * (off.sx ?? 1) * (hv.sx ?? 1) * nScale),
+      Math.max(0.001, s * (off.sy ?? 1) * (hv.sy ?? 1) * nScale),
+      Math.max(0.001, s * (off.sz ?? 1) * (hv.sz ?? 1) * nScale),
     );
     g.rotation.set(
       (off.rx ?? 0) + (hv.rx ?? 0),
@@ -159,6 +172,22 @@ export function Orb({
       eye.position.y = MathUtils.damp(eye.position.y, dy, 10, delta);
       eye.position.z = MathUtils.damp(eye.position.z, dz, 10, delta);
     }
+
+    // ── the "!" mark ── sits out in front and to the right (independent of the
+    // orb's own transform), scales in with the special state, then bobs + pulses
+    const b = bang.current;
+    if (b) {
+      const v = bangAmt.current;
+      b.visible = v > 0.01;
+      const pop = 1 + Math.sin(t * 7) * 0.08;
+      b.scale.setScalar(v * pop * 1.15);
+      b.position.set(
+        0.62,
+        0.14 + Math.sin(t * 3.5) * 0.05 * v,
+        1.15,
+      );
+      b.rotation.z = -0.12 + Math.sin(t * 5) * 0.12 * v;
+    }
   });
 
   return (
@@ -186,6 +215,35 @@ export function Orb({
             <meshBasicMaterial color="#ffffff" toneMapped={false} />
           </mesh>
         </group>
+      </group>
+
+      {/* "!" mark — a solid 3D glyph living OUT FRONT of the orb (sibling of
+          `root`, so the orb's shrink/slide in the special state doesn't move
+          it). depthTest off so nothing clips it. */}
+      <group
+        ref={bang}
+        rotation={[0.12, -0.16, 0]}
+        scale={0}
+        visible={false}
+      >
+        <mesh position={[0, 0.19, 0]} renderOrder={20}>
+          <capsuleGeometry args={[0.14, 0.42, 8, 20]} />
+          <meshBasicMaterial
+            color="#ffffff"
+            toneMapped={false}
+            depthTest={false}
+            depthWrite={false}
+          />
+        </mesh>
+        <mesh position={[0, -0.34, 0]} renderOrder={20}>
+          <sphereGeometry args={[0.15, 20, 20]} />
+          <meshBasicMaterial
+            color="#ffffff"
+            toneMapped={false}
+            depthTest={false}
+            depthWrite={false}
+          />
+        </mesh>
       </group>
     </>
   );

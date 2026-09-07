@@ -22,9 +22,13 @@ export const WorkerOrbView = forwardRef<
     mode: OrbMode;
     entrance?: boolean;
     entranceDelayMs?: number;
+    notify?: boolean;
     className?: string;
   }>
->(function WorkerOrbView({ color, mode, entrance, entranceDelayMs, className }, ref) {
+>(function WorkerOrbView(
+  { color, mode, entrance, entranceDelayMs, notify, className },
+  ref,
+) {
   return (
     <View ref={ref} className={twMerge("relative shrink-0", className)}>
       <Orb
@@ -32,6 +36,7 @@ export const WorkerOrbView = forwardRef<
         mode={mode}
         entrance={entrance}
         entranceDelayMs={entranceDelayMs}
+        notify={notify}
       />
     </View>
   );

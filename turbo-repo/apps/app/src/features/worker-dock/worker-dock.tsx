@@ -170,6 +170,7 @@ export function WorkerDock({ dict }: Readonly<{ dict: I18nRecord }>) {
       close();
       return;
     }
+    clearNotified(id);
     setExitingId(id);
     openWithWorker(id);
     window.setTimeout(
@@ -219,6 +220,21 @@ export function WorkerDock({ dict }: Readonly<{ dict: I18nRecord }>) {
   const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [nudge, setNudge] = useState<Nudge | null>(null);
   const nudgeWorker = findWorker(nudge?.id);
+  // The bubble closes itself after a few seconds, but the "!" on the orb stays
+  // until you actually open that worker.
+  const [notifiedIds, setNotifiedIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const clearNotified = useCallback(
+    (id: string) =>
+      setNotifiedIds((s) => {
+        if (!s.has(id)) return s;
+        const next = new Set(s);
+        next.delete(id);
+        return next;
+      }),
+    [],
+  );
   const awayRef = useRef(awayId);
   awayRef.current = awayId;
 
@@ -240,6 +256,7 @@ export function WorkerDock({ dict }: Readonly<{ dict: I18nRecord }>) {
       text: NUDGE_LINES[Math.floor(Math.random() * NUDGE_LINES.length)],
       rect,
     });
+    setNotifiedIds((s) => new Set(s).add(worker.id));
   }, []);
 
   useEffect(() => {
@@ -275,7 +292,7 @@ export function WorkerDock({ dict }: Readonly<{ dict: I18nRecord }>) {
         const showOrb = !isAway || isExiting;
         const orbMode = isExiting
           ? "exit"
-          : hover?.id === w.id || nudge?.id === w.id
+          : hover?.id === w.id
             ? "hover"
             : "idle";
 
@@ -329,6 +346,7 @@ export function WorkerDock({ dict }: Readonly<{ dict: I18nRecord }>) {
                   color={hex}
                   mode={orbMode}
                   entrance={isReturning}
+                  notify={notifiedIds.has(w.id)}
                   className="absolute inset-0 h-full w-full"
                 />
               )}

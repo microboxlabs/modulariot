@@ -1,5 +1,8 @@
 "use client";
 
+import type { PlanningSearchMatchType } from "./planning-search-match-type";
+import { normalizeServiceType } from "@/features/calendar/services/service-types";
+
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -33,14 +36,7 @@ interface PlanningSidebarClientProps {
   dict: I18nDictionary;
 }
 
-type PlanningSearchMatchType =
-  | "id"
-  | "cliente"
-  | "origen"
-  | "destino"
-  | "lugarCarguio"
-  | "permanencia"
-  | "tipoViaje";
+
 
 /**
  * Determine trip type from serviceKind or executionType
@@ -218,10 +214,14 @@ export function PlanningSidebarClient({
   const [searchQuery, setSearchQuery] = useState("");
 
   // Seed search tags from the active calendar's stored filter (origin /
-  // destination delegate codes). Re-seed only when the filter signature
-  // changes — i.e. when the user navigates to a different calendar or
-  // updates the calendar's filter via the gear menu. Manual chip removals
+  // destination delegate codes, service type). Re-seed only when the filter
+  // signature changes — i.e. when the user navigates to a different calendar
+  // or updates the calendar's filter via the gear menu. Manual chip removals
   // are session-only and must not get re-seeded.
+  //
+  // Every filter key belongs in the signature: one left out is one whose edit
+  // in the gear menu never re-seeds, and the sidebar keeps listing what the
+  // operator just excluded.
   const { calendars } = useCalendars();
   const activeCalendar = useMemo(
     () => calendars.find((c) => c.id === calendarId),
@@ -230,7 +230,7 @@ export function PlanningSidebarClient({
   const lastSeededSigRef = useRef<string | null>(null);
   useEffect(() => {
     if (!activeCalendar) return;
-    const sig = `${activeCalendar.id}|${activeCalendar.filter?.origin ?? ""}|${activeCalendar.filter?.destination ?? ""}`;
+    const sig = `${activeCalendar.id}|${activeCalendar.filter?.origin ?? ""}|${activeCalendar.filter?.destination ?? ""}|${activeCalendar.filter?.serviceType ?? ""}`;
     if (lastSeededSigRef.current === sig) return;
     lastSeededSigRef.current = sig;
 
@@ -244,6 +244,14 @@ export function PlanningSidebarClient({
         matchType: "destino",
         value: activeCalendar.filter.destination,
       });
+    }
+    // An OTR calendar that still offered every v trip as plannable would be
+    // the routing bug pointing the other way.
+    const seededServiceType = normalizeServiceType(
+      activeCalendar.filter?.serviceType
+    );
+    if (seededServiceType) {
+      seeded.push({ matchType: "tipoServicio", value: seededServiceType });
     }
     setSearchTags(seeded);
   }, [activeCalendar]);
@@ -271,6 +279,11 @@ export function PlanningSidebarClient({
           break;
         case "destino":
           params.push(`destination=${tag.value.toUpperCase()}`);
+          break;
+        case "tipoServicio":
+          // Server-side on purpose: filtering after the page loads yields
+          // short pages, not a scoped list.
+          params.push(`serviceType=${tag.value.toLowerCase()}`);
           break;
         // lugarCarguio, permanencia, tipoViaje don't have direct API mappings
         // They will be filtered client-side if needed
@@ -376,14 +389,7 @@ export function PlanningSidebarClient({
     };
   }, [selectedSlot]);
 
-  type MatchType =
-    | "id"
-    | "cliente"
-    | "origen"
-    | "destino"
-    | "lugarCarguio"
-    | "permanencia"
-    | "tipoViaje";
+  type MatchType = PlanningSearchMatchType;
 
   // Helper function to check if service matches a match type
   const matchesService = useCallback(
@@ -407,6 +413,10 @@ export function PlanningSidebarClient({
           return service.permanencia.toLowerCase().includes(query);
         case "tipoViaje":
           return service.tipoViaje.toLowerCase().includes(query);
+        case "tipoServicio":
+          return (service.mintral_serviceType ?? "")
+            .toLowerCase()
+            .includes(query);
         default:
           return false;
       }
@@ -463,6 +473,10 @@ export function PlanningSidebarClient({
               return service.permanencia.toLowerCase().includes(lowerQuery);
             case "tipoViaje":
               return service.tipoViaje.toLowerCase().includes(lowerQuery);
+            case "tipoServicio":
+              return (service.mintral_serviceType ?? "")
+                .toLowerCase()
+                .includes(lowerQuery);
             default:
               return true;
           }
@@ -534,14 +548,7 @@ export function PlanningSidebarClient({
   };
 
   const handleMatchTypeSelect = (
-    matchType:
-      | "id"
-      | "cliente"
-      | "origen"
-      | "destino"
-      | "lugarCarguio"
-      | "permanencia"
-      | "tipoViaje",
+    matchType: PlanningSearchMatchType,
     query: string
   ) => {
     // Add tag if not already present (check both matchType and value)
@@ -560,14 +567,7 @@ export function PlanningSidebarClient({
 
   const handleTagsChange = (
     tags: Array<{
-      matchType:
-        | "id"
-        | "cliente"
-        | "origen"
-        | "destino"
-        | "lugarCarguio"
-        | "permanencia"
-        | "tipoViaje";
+      matchType: PlanningSearchMatchType;
       value: string;
     }>
   ) => {

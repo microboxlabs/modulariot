@@ -455,7 +455,8 @@
             "destino": "destination",
             "lugarCarguio": "loading place",
             "permanencia": "permanence",
-            "tipoViaje": "trip type"
+            "tipoViaje": "trip type",
+            "tipoServicio": "Service type"
           },
           "locationCodes": {
             "SCL": "Santiago",
@@ -2632,16 +2633,18 @@
         },
         "taskFilter": {
           "title": "Task filter",
-          "description": "Filter tasks by origin and destination.",
+          "description": "Filter tasks by origin, destination and service type.",
           "originLabel": "Origin",
           "destinationLabel": "Destination",
+          "serviceTypeLabel": "Service type",
+          "serviceTypeAny": "All types",
           "originPlaceholder": "Select an origin",
           "destinationPlaceholder": "Select a destination",
           "hint": "Only tasks matching the selected filters will be shown.",
           "save": "Save",
-          "defaultLabel": "Default calendar for this origin",
-          "defaultHint": "Services created automatically (outside the planner) for this origin will be booked into this calendar. If no calendar for the origin is marked, those services move on with no booking.",
-          "defaultNeedsOrigin": "With no origin, this calendar receives the services of every origin that has none of its own.",
+          "defaultLabel": "Default calendar for this origin and service type",
+          "defaultHint": "Services created automatically (outside the planner) for this origin and service type are booked into this calendar. If no calendar matches, those services move on with no booking.",
+          "defaultNeedsOrigin": "With no origin, this calendar receives services from every origin that has none of its own.",
           "saveSuccess": "Task filter saved successfully",
           "saveError": "Error saving the task filter"
         }
@@ -4449,7 +4452,9 @@
       "timezoneLabel": "Timezone",
       "groupLabel": "Group",
       "activeLabel": "Active",
-      "isDefaultLabel": "Default calendar for the origin",
+      "filterServiceTypeLabel": "Service type",
+      "filterServiceTypeAny": "All",
+      "isDefaultLabel": "Default calendar for the origin and service type",
       "submit": "Create Calendar",
       "group": {
         "searchPlaceholder": "Search or create a group...",

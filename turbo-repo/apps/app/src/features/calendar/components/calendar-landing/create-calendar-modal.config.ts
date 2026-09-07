@@ -1,4 +1,17 @@
 import type { DynamicFormConfig } from "@/features/dynamic-forms";
+import {
+  SERVICE_TYPES,
+  serviceTypeLabel,
+} from "@/features/calendar/services/service-types";
+
+/** Service types a calendar can serve, plus "any" — see SERVICE_TYPES. */
+export const SERVICE_TYPE_OPTIONS = [
+  { value: "", labelKey: "create.filterServiceTypeAny" },
+  ...SERVICE_TYPES.map((code) => ({
+    value: code,
+    labelKey: serviceTypeLabel(code),
+  })),
+];
 
 // Curated IANA timezone list (Latin America–focused + UTC + common EU/US)
 export const TIMEZONE_OPTIONS = [
@@ -73,14 +86,24 @@ export const CREATE_CALENDAR_FORM_CONFIG: DynamicFormConfig = {
       placeholder: "ANF",
     },
     {
+      // Closed set (SERVICE_TYPES): a typo in free text would create a
+      // calendar no trip ever resolves to. Empty = every type the origin
+      // does not claim specifically.
+      name: "filterServiceType",
+      labelKey: "create.filterServiceTypeLabel",
+      type: "select",
+      defaultValue: "",
+      options: SERVICE_TYPE_OPTIONS,
+    },
+    {
       name: "active",
       labelKey: "create.activeLabel",
       type: "checkbox",
       defaultValue: true,
     },
     {
-      // Scoped by filterOrigin above — the calendar that receives services
-      // created for that origin outside the planner.
+      // Scoped by filterOrigin and filterServiceType above — the calendar
+      // that receives services created for that pair outside the planner.
       name: "isDefault",
       labelKey: "create.isDefaultLabel",
       type: "checkbox",

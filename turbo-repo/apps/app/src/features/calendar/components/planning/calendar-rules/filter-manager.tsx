@@ -1,15 +1,22 @@
 "use client";
 
-import { Button, Checkbox, TextInput, Label } from "flowbite-react";
+import { Button, Checkbox, TextInput, Label, Select } from "flowbite-react";
 import { useCallback, useEffect, useState } from "react";
 import { HiCheck } from "react-icons/hi";
 import type { CalendarFilter } from "@microboxlabs/miot-calendar-client";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import {
+  SERVICE_TYPES,
+  normalizeServiceType,
+  serviceTypeLabel,
+} from "@/features/calendar/services/service-types";
 
 export interface FilterManagerMessages {
   originLabel: string;
   destinationLabel: string;
+  serviceTypeLabel: string;
+  serviceTypeAny: string;
   originPlaceholder: string;
   destinationPlaceholder: string;
   hint: string;
@@ -27,6 +34,8 @@ export function getFilterManagerMessages(
   return {
     originLabel: tr(`${FILTER_MANAGER_BASE}.originLabel`, dict),
     destinationLabel: tr(`${FILTER_MANAGER_BASE}.destinationLabel`, dict),
+    serviceTypeLabel: tr(`${FILTER_MANAGER_BASE}.serviceTypeLabel`, dict),
+    serviceTypeAny: tr(`${FILTER_MANAGER_BASE}.serviceTypeAny`, dict),
     originPlaceholder: tr(`${FILTER_MANAGER_BASE}.originPlaceholder`, dict),
     destinationPlaceholder: tr(
       `${FILTER_MANAGER_BASE}.destinationPlaceholder`,
@@ -49,10 +58,15 @@ interface FilterManagerProps {
 
 /**
  * Task filter manager — lets the user constrain the planning sidebar's
- * task list to a specific origin and/or destination delegate code, and mark
- * the calendar as the default for that origin: the one a service created
- * outside the planner gets booked into. Both live here because the default is
- * scoped by the very origin the field above sets.
+ * task list to a specific origin, destination delegate code and/or service
+ * type, and mark the calendar as the default for that origin and type: the one
+ * a service created outside the planner gets booked into. They live here
+ * together because the default is scoped by the very fields above it.
+ *
+ * The whole key set is rebuilt on every save. The BFF replaces `filter`
+ * wholesale rather than merging key by key, so an editor that owned only some
+ * of these would wipe the rest — a calendar would stop being the OTR default
+ * with nobody having touched that setting.
  */
 export default function FilterManager({
   messages,
@@ -64,6 +78,9 @@ export default function FilterManager({
   const [destination, setDestination] = useState<string>(
     initialFilter?.destination ?? ""
   );
+  const [serviceType, setServiceType] = useState<string>(
+    normalizeServiceType(initialFilter?.serviceType) ?? ""
+  );
   const [isDefault, setIsDefault] = useState<boolean>(
     initialIsDefault ?? false
   );
@@ -71,7 +88,12 @@ export default function FilterManager({
   useEffect(() => {
     setOrigin(initialFilter?.origin ?? "");
     setDestination(initialFilter?.destination ?? "");
-  }, [initialFilter?.origin, initialFilter?.destination]);
+    setServiceType(normalizeServiceType(initialFilter?.serviceType) ?? "");
+  }, [
+    initialFilter?.origin,
+    initialFilter?.destination,
+    initialFilter?.serviceType,
+  ]);
 
   useEffect(() => {
     setIsDefault(initialIsDefault ?? false);
@@ -85,10 +107,12 @@ export default function FilterManager({
     const next: CalendarFilter = {};
     const o = origin.trim();
     const d = destination.trim();
+    const t = normalizeServiceType(serviceType);
     if (o) next.origin = o;
     if (d) next.destination = d;
+    if (t) next.serviceType = t;
     onFilterChange?.(next, isDefault);
-  }, [origin, destination, isDefault, onFilterChange]);
+  }, [origin, destination, serviceType, isDefault, onFilterChange]);
 
   return (
     <div className="p-4 space-y-4">
@@ -126,6 +150,28 @@ export default function FilterManager({
             sizing="sm"
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label
+          htmlFor="filter-service-type"
+          className="text-xs font-medium text-gray-700 dark:text-gray-300"
+        >
+          {messages.serviceTypeLabel}
+        </Label>
+        <Select
+          id="filter-service-type"
+          value={serviceType}
+          onChange={(e) => setServiceType(e.target.value)}
+          sizing="sm"
+        >
+          <option value="">{messages.serviceTypeAny}</option>
+          {SERVICE_TYPES.map((code) => (
+            <option key={code} value={code}>
+              {serviceTypeLabel(code)}
+            </option>
+          ))}
+        </Select>
       </div>
 
       <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">

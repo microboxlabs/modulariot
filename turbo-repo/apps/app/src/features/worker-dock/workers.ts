@@ -17,10 +17,10 @@ export type Worker = {
 };
 
 export const WORKERS: readonly Worker[] = [
-  { id: "carlos-contabilidad", name: "Carlos el de contabilidad", role: "Contabilidad", color: "blue" },
-  { id: "marta-rrhh", name: "Marta de recursos humanos", role: "Recursos humanos", color: "rose" },
-  { id: "diego-soporte", name: "Diego de soporte técnico", role: "Soporte técnico", color: "emerald" },
-  { id: "lucia-ventas", name: "Lucía del área de ventas", role: "Ventas", color: "amber" },
+  { id: "carlos-contabilidad", name: "Carlos contabilidad", role: "Contabilidad", color: "blue" },
+  { id: "marta-rrhh", name: "Marta recursos humanos", role: "Recursos humanos", color: "rose" },
+  { id: "diego-soporte", name: "Diego soporte técnico", role: "Soporte técnico", color: "emerald" },
+  { id: "lucia-ventas", name: "Lucía ventas", role: "Ventas", color: "amber" },
 ];
 
 export function findWorker(id: string | null | undefined): Worker | null {

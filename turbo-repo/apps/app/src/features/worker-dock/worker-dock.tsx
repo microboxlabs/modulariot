@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
 import { tr } from "@/features/i18n/tr.service";
@@ -19,10 +19,23 @@ const RETURN_MS = 780;
 // ...and when, within that, the disc it lands on top of starts fading away.
 const BADGE_FADE_AT_MS = 240;
 
+// ── demo "the worker has something for you" nudges (testing) ──
+const NUDGE_LINES = [
+  "I have an update",
+  "I got you something",
+  "Got a sec?",
+  "News from my desk",
+  "Just finished something",
+  "Take a look at this",
+];
+const NUDGE_VISIBLE_MS = 4500;
+const NUDGE_EVERY_MS = 15000;
+
 type Hover = { id: string; rect: DOMRect };
+type Nudge = { key: number; id: string; text: string; rect: DOMRect };
 
 /** Name pill shown left of a hovered dock orb, in that worker's colour — fades
- *  + eases in from the button. */
+ *  + eases in from the button. Name prominent, role as a smaller subtitle. */
 function WorkerTooltip({
   name,
   role,
@@ -44,7 +57,7 @@ function WorkerTooltip({
   return createPortal(
     <div
       role="tooltip"
-      className="pointer-events-none fixed z-60 flex items-baseline gap-2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg ring-1 ring-black/10 transition-[opacity,transform] duration-200 ease-out [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]"
+      className="pointer-events-none fixed z-60 whitespace-nowrap rounded-md px-3 py-1.5 text-white shadow-lg transition-[opacity,transform] duration-200 ease-out [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]"
       style={{
         left: rect.left - 10,
         top: rect.top + rect.height / 2,
@@ -56,8 +69,65 @@ function WorkerTooltip({
           : "translate(calc(-100% + 7px), -50%) scale(0.94)",
       }}
     >
-      <span>{name}</span>
-      <span className="text-[11px] font-normal text-white/75">{role}</span>
+      {/* given name, then the role to its right — the rest of `name` is the
+          department, which the role already says */}
+      <span className="inline-flex items-baseline gap-1.5">
+        <span className="text-xs font-semibold">{name.split(" ")[0]}</span>
+        <span className="text-[11px] font-normal text-white/70">({role})</span>
+      </span>
+    </div>,
+    document.body,
+  );
+}
+
+/** A little speech bubble that pops from the left of a worker's face when it
+ *  has something new, then eases itself back out. */
+function WorkerNudge({
+  text,
+  color,
+  rect,
+}: Readonly<{ text: string; color: string; rect: DOMRect }>) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    let r2 = 0;
+    const r1 = requestAnimationFrame(() => {
+      r2 = requestAnimationFrame(() => setShown(true));
+    });
+    const out = setTimeout(() => setShown(false), NUDGE_VISIBLE_MS - 260);
+    return () => {
+      cancelAnimationFrame(r1);
+      cancelAnimationFrame(r2);
+      clearTimeout(out);
+    };
+  }, []);
+
+  return createPortal(
+    <div
+      className="pointer-events-none fixed z-60 max-w-96 whitespace-nowrap rounded-md px-3.5 py-2 text-[13px] font-semibold leading-snug text-white shadow-lg transition-[opacity,transform] duration-260 ease-[cubic-bezier(.34,1.4,.64,1)] [text-shadow:0_1px_2px_rgba(0,0,0,0.3)]"
+      style={{
+        left: rect.left - 12,
+        top: rect.top + rect.height / 2,
+        backgroundColor: color,
+        transformOrigin: "right center",
+        opacity: shown ? 1 : 0,
+        transform: shown
+          ? "translate(-100%, -50%) scale(1)"
+          : "translate(calc(-100% + 12px), -50%) scale(0.7)",
+      }}
+    >
+      {text}
+      {/* clean triangle tail pointing at the orb — a border triangle, overlapping
+          the edge by 1px so there's no seam with the bubble */}
+      <span
+        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[calc(100%-1px)]"
+        style={{
+          width: 0,
+          height: 0,
+          borderTop: "5px solid transparent",
+          borderBottom: "5px solid transparent",
+          borderLeft: `6px solid ${color}`,
+        }}
+      />
     </div>,
     document.body,
   );
@@ -143,6 +213,54 @@ export function WorkerDock({ dict }: Readonly<{ dict: I18nRecord }>) {
     setHover((h) => (h?.id === id ? null : h));
   const hoverWorker = findWorker(hover?.id);
 
+  // ── demo nudges ── a worker occasionally pipes up with a message next to
+  // its face, which then closes itself. Fires on a timer, and can be poked
+  // manually from the console via `window.nudgeWorker()` / `nudgeWorker(id)`.
+  const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [nudge, setNudge] = useState<Nudge | null>(null);
+  const nudgeWorker = findWorker(nudge?.id);
+  const awayRef = useRef(awayId);
+  awayRef.current = awayId;
+
+  const triggerNudge = useCallback((workerId?: string) => {
+    const candidates = WORKERS.filter(
+      (w) => w.id !== awayRef.current && btnRefs.current[w.id],
+    );
+    if (candidates.length === 0) return;
+    const worker = workerId
+      ? candidates.find((w) => w.id === workerId)
+      : candidates[Math.floor(Math.random() * candidates.length)];
+    const el = worker && btnRefs.current[worker.id];
+    if (!worker || !el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0) return; // dock hidden (below lg) — nothing to point at
+    setNudge({
+      key: Date.now(),
+      id: worker.id,
+      text: NUDGE_LINES[Math.floor(Math.random() * NUDGE_LINES.length)],
+      rect,
+    });
+  }, []);
+
+  useEffect(() => {
+    const iv = window.setInterval(() => triggerNudge(), NUDGE_EVERY_MS);
+    (window as unknown as { nudgeWorker: typeof triggerNudge }).nudgeWorker =
+      triggerNudge;
+    return () => {
+      window.clearInterval(iv);
+      delete (window as unknown as { nudgeWorker?: unknown }).nudgeWorker;
+    };
+  }, [triggerNudge]);
+
+  useEffect(() => {
+    if (!nudge) return;
+    const t = setTimeout(
+      () => setNudge((n) => (n?.key === nudge.key ? null : n)),
+      NUDGE_VISIBLE_MS,
+    );
+    return () => clearTimeout(t);
+  }, [nudge]);
+
   return (
     <div
       aria-label={tr("harnessChat.ui.workerDock.label", dict)}
@@ -157,7 +275,7 @@ export function WorkerDock({ dict }: Readonly<{ dict: I18nRecord }>) {
         const showOrb = !isAway || isExiting;
         const orbMode = isExiting
           ? "exit"
-          : hover?.id === w.id
+          : hover?.id === w.id || nudge?.id === w.id
             ? "hover"
             : "idle";
 
@@ -165,6 +283,9 @@ export function WorkerDock({ dict }: Readonly<{ dict: I18nRecord }>) {
           <button
             key={w.id}
             type="button"
+            ref={(el) => {
+              btnRefs.current[w.id] = el;
+            }}
             data-worker-dock-btn={w.id}
             onClick={(e) => {
               e.currentTarget.blur();
@@ -216,13 +337,22 @@ export function WorkerDock({ dict }: Readonly<{ dict: I18nRecord }>) {
         );
       })}
 
-      {hover && hoverWorker && hover.id !== awayId && (
+      {hover && hoverWorker && hover.id !== awayId && hover.id !== nudge?.id && (
         <WorkerTooltip
           key={hover.id}
           name={hoverWorker.name}
           role={hoverWorker.role}
           color={WORKER_COLORS[hoverWorker.color].hex}
           rect={hover.rect}
+        />
+      )}
+
+      {nudge && nudgeWorker && (
+        <WorkerNudge
+          key={nudge.key}
+          text={nudge.text}
+          color={WORKER_COLORS[nudgeWorker.color].hex}
+          rect={nudge.rect}
         />
       )}
     </div>

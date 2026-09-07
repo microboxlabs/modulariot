@@ -104,21 +104,29 @@ const HarnessChatPanel: FC<{
     [],
   );
 
-  // A search-bar "open chat" action landed while we were mounted — start a
-  // fresh conversation with that text as the first (auto-sent) message.
+  // A search-bar "open chat" action, or a spotlight "Take to chat" handoff,
+  // landed while we were mounted — start a fresh conversation for it. Both
+  // pending slots are handled by this one effect (rather than two independent
+  // ones) so that if they were ever both set at once, only one `newChat` ever
+  // fires per render — `pendingMessage` takes precedence — instead of two
+  // sessions racing to become the active one.
   useEffect(() => {
-    if (!pendingMessage) return;
-    newChat(pendingMessage);
-    clearPendingMessage();
-  }, [pendingMessage, newChat, clearPendingMessage]);
-
-  // A spotlight "Take to chat" handoff landed while we were mounted — start a
-  // fresh conversation pre-seeded with that question + answer (not auto-sent).
-  useEffect(() => {
-    if (!pendingConversation) return;
-    newChat(null, pendingConversation);
-    clearPendingConversation();
-  }, [pendingConversation, newChat, clearPendingConversation]);
+    if (pendingMessage) {
+      newChat(pendingMessage);
+      clearPendingMessage();
+      return;
+    }
+    if (pendingConversation) {
+      newChat(null, pendingConversation);
+      clearPendingConversation();
+    }
+  }, [
+    pendingMessage,
+    pendingConversation,
+    newChat,
+    clearPendingMessage,
+    clearPendingConversation,
+  ]);
 
   const selectSession = useCallback((id: string) => {
     setActiveId(id);

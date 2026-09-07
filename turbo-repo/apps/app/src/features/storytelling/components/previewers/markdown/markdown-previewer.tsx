@@ -1,11 +1,38 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { forwardRef, isValidElement, useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { Components } from "react-markdown";
 import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { focusSearchMatch, searchInDom } from "../../../dom-search";
 import type { SearchableHandle } from "../searchable";
+import { MermaidDiagram } from "./mermaid-diagram";
+
+/** Pull the fenced-block language + source out of a <pre>'s lone <code>
+ * child, the shape react-markdown hands `pre` for ``` fences. */
+function fencedCode(children: ReactNode): { lang: string; source: string } | null {
+  const child = Array.isArray(children) ? children[0] : children;
+  if (!isValidElement<{ className?: string; children?: ReactNode }>(child)) return null;
+  const match = /language-(\w+)/.exec(child.props.className ?? "");
+  if (!match) return null;
+  return { lang: match[1], source: String(child.props.children ?? "") };
+}
+
+/** `pre` override for MarkdownContent: a ```mermaid fence becomes a rendered
+ * diagram; every other fence keeps the default code-block chrome. */
+const MERMAID_COMPONENTS: Components = {
+  pre({ children }) {
+    const fence = fencedCode(children);
+    if (fence?.lang === "mermaid") return <MermaidDiagram code={fence.source} />;
+    return (
+      <pre className="overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+        {children}
+      </pre>
+    );
+  },
+};
 
 const base_path = process.env.NEXT_PUBLIC_BASE_PATH;
 export const MARKDOWN_PREVIEW_URL = `${base_path ?? ""}/api/storytelling/markdown-preview`;
@@ -187,7 +214,7 @@ export const MarkdownPreviewer = forwardRef<SearchableHandle, MarkdownPreviewerP
           ref={containerRef}
           className="h-full min-h-0 flex-1 overflow-y-auto bg-white dark:bg-gray-900"
         >
-          <MarkdownContent variant="document" className="mx-auto max-w-4xl px-6 py-10">
+          <MarkdownContent variant="document" className="mx-auto max-w-4xl px-6 py-10" components={MERMAID_COMPONENTS}>
             {content}
           </MarkdownContent>
         </div>

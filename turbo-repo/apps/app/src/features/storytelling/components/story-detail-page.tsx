@@ -37,7 +37,7 @@ import {
   type SearchableHandle,
 } from "./previewers";
 
-const SEARCHABLE_TYPES = new Set(["html", "markdown", "ppt"]);
+const SEARCHABLE_TYPES = new Set(["html", "markdown", "ppt", "pdf"]);
 
 const base_path = process.env.NEXT_PUBLIC_BASE_PATH;
 const GENERATE_PPTX_URL = `${base_path ?? ""}/api/storytelling/generate-pptx`;
@@ -83,11 +83,9 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
   }, [story, dict, lang, router]);
 
   // Find-in-page, delegated to whichever previewer is mounted — Html,
-  // Markdown, and Ppt all implement SearchableHandle (see previewers/
+  // Markdown, Ppt, and Pdf all implement SearchableHandle (see previewers/
   // searchable.ts); only one previewer ever renders at a time (switched on
-  // artifactType below), so one ref covers all three. Pdf doesn't yet: it
-  // renders with pdf.js (previewers/pdf/pdf-previewer.tsx) but only paints
-  // page canvases — there's no text layer to search until one is added.
+  // artifactType below), so one ref covers them all.
   const previewerRef = useRef<SearchableHandle>(null);
   const [previewerReady, setPreviewerReady] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -290,7 +288,12 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
         <PptPreviewer ref={previewerRef} deck={story.deck} onReadyChange={setPreviewerReady} />
       )}
       {artifactType === "pdf" && (
-        <PdfPreviewer title={story.title} dict={dict} onReadyChange={setPreviewerReady} />
+        <PdfPreviewer
+          ref={previewerRef}
+          title={story.title}
+          dict={dict}
+          onReadyChange={setPreviewerReady}
+        />
       )}
       <StoryDeleteDialog
         stories={deleting ? [story] : []}

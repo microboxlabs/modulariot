@@ -1,5 +1,5 @@
 import React from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { twMerge } from "tailwind-merge";
@@ -88,12 +88,20 @@ interface MarkdownContentProps {
    * for callers that opt into "document".
    */
   readonly variant?: "compact" | "document";
+  /**
+   * Extra element renderers merged over the variant's built-in map (they
+   * win on collision). Only consulted for "document" — the place a
+   * page-length preview may need to special-case a block, e.g. turning a
+   * ```mermaid fence into a rendered diagram (markdown-previewer.tsx).
+   */
+  readonly components?: Components;
 }
 
 export function MarkdownContent({
   children,
   className,
   variant = "compact",
+  components,
 }: Readonly<MarkdownContentProps>) {
   if (variant === "document") {
     // twMerge, not plain concatenation — max-w-none here is only a default,
@@ -104,7 +112,7 @@ export function MarkdownContent({
     // conflict in the caller's favor, like it should.
     return (
       <article className={twMerge("prose dark:prose-invert max-w-none", className)}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={DOCUMENT_COMPONENTS as never}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ ...DOCUMENT_COMPONENTS, ...components } as never}>
           {children}
         </ReactMarkdown>
       </article>

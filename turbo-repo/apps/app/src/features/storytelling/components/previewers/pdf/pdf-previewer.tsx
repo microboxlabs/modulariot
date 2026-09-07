@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import type { ForwardedRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import {
   HiArrowsPointingOut,
@@ -11,6 +12,8 @@ import {
 } from "react-icons/hi2";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { focusSearchMatch, searchInDom } from "../../../dom-search";
+import type { SearchableHandle } from "../searchable";
 import { useContainerWidth } from "../use-container-width";
 
 const base_path = process.env.NEXT_PUBLIC_BASE_PATH;
@@ -206,14 +209,19 @@ async function detectSectionsFromText(
 interface PdfPreviewerProps {
   readonly title: string;
   readonly dict: I18nRecord;
-  /** Same readiness contract the other previewers use — PDF has no
-   * find-in-page yet, but kept optional for when it gets one. */
+  /** Lets the header know when the search box can accept input. */
   readonly onReadyChange?: (ready: boolean) => void;
 }
 
+type PdfTextLayer = { render: () => Promise<unknown>; cancel: () => void };
+
 /** One page: renders to a canvas the first time it scrolls near the viewport
  * and re-renders whenever the zoom changes. Holds a tall placeholder until
- * its first paint so the scrollbar and page-position indicator behave. */
+ * its first paint so the scrollbar and page-position indicator behave. A
+ * transparent layer of positioned text spans (pdf.js's TextLayer) sits over
+ * the canvas so the page's text can be selected and found-in-page — rendered
+ * eagerly, not gated on scroll like the canvas, since the header's
+ * find-in-page has to match text on pages not yet scrolled to. */
 function PdfPage({
   pdf,
   pageNumber,
@@ -227,8 +235,49 @@ function PdfPage({
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textLayerRef = useRef<HTMLDivElement>(null);
   const [rendered, setRendered] = useState(false);
   const renderedScaleRef = useRef(0);
+
+  // Transparent selectable text layer, kept in step with the canvas's scale.
+  useEffect(() => {
+    const container = textLayerRef.current;
+    if (!container) return;
+    let cancelled = false;
+    let layer: PdfTextLayer | null = null;
+
+    void (async () => {
+      const pdfjs = await import("pdfjs-dist");
+      const page = await pdf.getPage(pageNumber);
+      if (cancelled || !textLayerRef.current) return;
+      const viewport = page.getViewport({ scale });
+      container.replaceChildren();
+      container.style.setProperty("--total-scale-factor", `${scale}`);
+      container.style.setProperty("--scale-round-x", "1px");
+      container.style.setProperty("--scale-round-y", "1px");
+      container.style.width = `${Math.floor(viewport.width)}px`;
+      container.style.height = `${Math.floor(viewport.height)}px`;
+      layer = new pdfjs.TextLayer({
+        textContentSource: page.streamTextContent(),
+        container,
+        viewport,
+      }) as unknown as PdfTextLayer;
+      try {
+        await layer.render();
+      } catch {
+        // superseded by a newer scale — the next pass rebuilds it
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      try {
+        layer?.cancel();
+      } catch {
+        /* noop */
+      }
+    };
+  }, [pdf, pageNumber, scale]);
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -288,11 +337,12 @@ function PdfPage({
         registerRef(pageNumber, el);
       }}
       data-page={pageNumber}
-      className={`shrink-0 shadow-md ring-1 ring-black/5 dark:ring-white/10 ${
+      className={`relative shrink-0 shadow-md ring-1 ring-black/5 dark:ring-white/10 ${
         rendered ? "w-fit" : "min-h-[60vh] w-full max-w-3xl"
       }`}
     >
       <canvas ref={canvasRef} className="block bg-white" />
+      <div ref={textLayerRef} className="pdf-text-layer" />
     </div>
   );
 }
@@ -402,9 +452,20 @@ type RailMode = "page" | "section";
  * like the PPT previewer's slide rail — lists either page thumbnails or the
  * document's outline (its section titles), toggled at the rail's top; the
  * section tab only appears for PDFs that actually carry an outline.
+ *
+ * Searchable: each page canvas is overlaid with pdf.js's transparent text
+ * layer, so the header's find-in-page (story-detail-page.tsx) just scopes
+ * dom-search.ts to the scroll container — the same approach as the Markdown
+ * previewer, over the text spans instead of rendered Markdown. Written as a
+ * plain function wrapped in forwardRef (rather than inlined) to keep the
+ * body's diff/blame intact through the conversion.
  */
-export function PdfPreviewer({ title, dict, onReadyChange }: PdfPreviewerProps) {
+function PdfPreviewerImpl(
+  { title, dict, onReadyChange }: PdfPreviewerProps,
+  ref: ForwardedRef<SearchableHandle>
+) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const matchStateRef = useRef({ count: 0, current: -1 });
   const pageEls = useRef(new Map<number, HTMLDivElement>());
   const { ref: railRef, width: railWidth } = useContainerWidth<HTMLDivElement>();
 
@@ -607,6 +668,33 @@ export function PdfPreviewer({ title, dict, onReadyChange }: PdfPreviewerProps) 
     );
   }, []);
 
+  // Find-in-page over the pages' text layers — dom-search.ts scoped to the
+  // scroll container, the same contract MarkdownPreviewer/PptPreviewer meet.
+  useImperativeHandle(
+    ref,
+    () => ({
+      search(query: string) {
+        const el = scrollRef.current;
+        if (!el) return 0;
+        const count = searchInDom(el, query);
+        matchStateRef.current = { count, current: count > 0 ? 0 : -1 };
+        if (count > 0) focusSearchMatch(el, 0);
+        return count;
+      },
+      stepMatch(delta: number) {
+        const { count, current } = matchStateRef.current;
+        if (count === 0) return -1;
+        const el = scrollRef.current;
+        if (!el) return current;
+        const next = (current + delta + count) % count;
+        matchStateRef.current.current = next;
+        focusSearchMatch(el, next);
+        return next;
+      },
+    }),
+    []
+  );
+
   if (failed) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gray-100 p-6 text-center dark:bg-gray-950">
@@ -778,3 +866,6 @@ export function PdfPreviewer({ title, dict, onReadyChange }: PdfPreviewerProps) 
     </div>
   );
 }
+
+export const PdfPreviewer = forwardRef(PdfPreviewerImpl);
+PdfPreviewer.displayName = "PdfPreviewer";

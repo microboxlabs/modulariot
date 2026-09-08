@@ -68,7 +68,7 @@ export function createHarnessHistoryAdapter(threadId: string): ThreadHistoryAdap
       if (items.length === 0) return empty;
 
       const repository = ExportedMessageRepository.fromBranchableArray(items, {
-        headId: items[items.length - 1].message.id,
+        headId: items.at(-1)?.message.id ?? null,
       });
 
       return {
@@ -166,11 +166,16 @@ function reviveMessage(payload: Record<string, unknown>): ThreadMessage | null {
   if (!payload || typeof payload !== "object" || typeof payload.id !== "string") {
     return null;
   }
-  const createdAt = payload.createdAt;
   return {
     ...payload,
-    createdAt: createdAt instanceof Date ? createdAt : new Date(String(createdAt ?? Date.now())),
+    createdAt: reviveDate(payload.createdAt),
   } as unknown as ThreadMessage;
+}
+
+function reviveDate(value: unknown): Date {
+  if (value instanceof Date) return value;
+  if (typeof value === "string" || typeof value === "number") return new Date(value);
+  return new Date();
 }
 
 /** Rebuilds a value, letting `visit` replace any string leaf by its key. */

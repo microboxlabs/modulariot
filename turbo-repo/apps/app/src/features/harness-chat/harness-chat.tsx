@@ -47,6 +47,13 @@ function createSession(initialMessage: string | null = null): Session {
   };
 }
 
+/** Keeps whatever the panel already has — the fresh session it opened with,
+ * and anything started since the fetch went out — and appends the rest. */
+function mergeStoredThreads(current: Session[], threads: StoredThread[]): Session[] {
+  const known = new Set(current.map((session) => session.id));
+  return [...current, ...threads.filter((t) => !known.has(t.id)).map(toSession)];
+}
+
 function toSession(thread: StoredThread): Session {
   return {
     id: thread.id,
@@ -147,10 +154,7 @@ const HarnessChatPanel: FC<{
     listThreads(controller.signal)
       .then((threads) => {
         if (controller.signal.aborted || !threads?.length) return;
-        setSessions((prev) => [
-          ...prev,
-          ...threads.filter((t) => !prev.some((s) => s.id === t.id)).map(toSession),
-        ]);
+        setSessions((prev) => mergeStoredThreads(prev, threads));
       })
       .finally(() => {
         if (!controller.signal.aborted) setIsLoadingHistory(false);

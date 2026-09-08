@@ -19,6 +19,15 @@ interface HarnessChatContextProps {
   /** Set once by `openWithMessage`; consumed (and cleared) by HarnessChat. */
   pendingMessage: string | null;
   clearPendingMessage(): void;
+  /**
+   * Opens the panel and adds `label` as an attachment chip on the CURRENT
+   * chat's composer — like attaching a file, not sending a message. The
+   * user is left to write their own message around it (or remove it).
+   */
+  attachReference(label: string): void;
+  /** Set once by `attachReference`; consumed (and cleared) by HarnessChat. */
+  pendingAttachment: string | null;
+  clearPendingAttachment(): void;
 }
 
 const HarnessChatContext = createContext<HarnessChatContextProps | null>(
@@ -28,6 +37,7 @@ const HarnessChatContext = createContext<HarnessChatContextProps | null>(
 export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
   const [isOpen, setIsOpen] = useState(true);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<string | null>(null);
 
   const open = useCallback(() => setIsOpen(true), []);
   const close = useCallback(() => setIsOpen(false), []);
@@ -37,6 +47,11 @@ export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
     setPendingMessage(text);
   }, []);
   const clearPendingMessage = useCallback(() => setPendingMessage(null), []);
+  const attachReference = useCallback((label: string) => {
+    setIsOpen(true);
+    setPendingAttachment(label);
+  }, []);
+  const clearPendingAttachment = useCallback(() => setPendingAttachment(null), []);
 
   const value = useMemo<HarnessChatContextProps>(
     () => ({
@@ -47,8 +62,22 @@ export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
       openWithMessage,
       pendingMessage,
       clearPendingMessage,
+      attachReference,
+      pendingAttachment,
+      clearPendingAttachment,
     }),
-    [isOpen, open, close, toggle, openWithMessage, pendingMessage, clearPendingMessage]
+    [
+      isOpen,
+      open,
+      close,
+      toggle,
+      openWithMessage,
+      pendingMessage,
+      clearPendingMessage,
+      attachReference,
+      pendingAttachment,
+      clearPendingAttachment,
+    ]
   );
 
   return (

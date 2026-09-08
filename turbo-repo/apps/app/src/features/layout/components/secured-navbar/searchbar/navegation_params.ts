@@ -118,6 +118,8 @@ const collaborators_management_params: ParamType[] = [
   setParam("rut", "text"),
 ];
 
+const storytelling_params: ParamType[] = [setParam("name", "text")];
+
 const symptoms_params: ParamType[] = [
   setParam("asset_id", "text"),
   setParam("trip_id", "text"),
@@ -169,6 +171,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
       dict,
       true
     ),
+    storytelling: getParamsFixed(storytelling_params, dict),
   };
 }
 

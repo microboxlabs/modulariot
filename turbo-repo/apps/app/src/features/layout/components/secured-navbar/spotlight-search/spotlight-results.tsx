@@ -61,7 +61,14 @@ function MarkdownBlock({ value }: Readonly<{ value: string }>) {
 
   return (
     <div className="text-sm text-gray-700 dark:text-gray-200">
-      <MarkdownContent>{displayed}</MarkdownContent>
+      {/* "document" variant (prose + GFM) instead of the compact per-element
+          mapping — same component/styling as the storytelling markdown
+          previewer, just sized down (prose-sm) for a dropdown result
+          instead of a full page, and max-w-none since the dropdown itself
+          already constrains the width. */}
+      <MarkdownContent variant="document" className="prose-sm max-w-none">
+        {displayed}
+      </MarkdownContent>
     </div>
   );
 }

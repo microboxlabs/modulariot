@@ -30,10 +30,13 @@ export const HistoryList: FC<{
     });
   };
 
-  const allSelected = sessions.length > 0 && selectedIds.size === sessions.length;
+  // Only a thread's owner can delete it, so a shared one is not selectable —
+  // ticking it would offer a delete that does nothing.
+  const deletable = sessions.filter((session) => session.owned);
+  const allSelected = deletable.length > 0 && selectedIds.size === deletable.length;
 
   const toggleSelectAll = () => {
-    setSelectedIds(allSelected ? new Set() : new Set(sessions.map((s) => s.id)));
+    setSelectedIds(allSelected ? new Set() : new Set(deletable.map((s) => s.id)));
   };
 
   const deleteSelected = () => {
@@ -93,6 +96,7 @@ export const HistoryList: FC<{
                 checked={selectedIds.has(session.id)}
                 onChange={() => toggleOne(session.id)}
                 onClick={(e) => e.stopPropagation()}
+                disabled={!session.owned}
                 className="shrink-0"
               />
               <button
@@ -141,6 +145,7 @@ export const HistoryList: FC<{
                   <LuUsers className="h-3 w-3" />
                 </button>
               )}
+              {session.owned && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -155,6 +160,7 @@ export const HistoryList: FC<{
               >
                 <LuTrash2 className="h-3 w-3" />
               </button>
+              )}
             </div>
 
             {shareOpenId === session.id && (

@@ -7,11 +7,13 @@ import StoryDetailPage from "@/features/storytelling/components/story-detail-pag
 
 type StoryRouteParams = ParamsWithLang<{ id: string }>;
 
+const enable_storytelling = process.env.ENABLE_STORYTELLING === "true";
+
 export default async function StoryDetailRoute({ params }: StoryRouteParams) {
   // Testing-only for now — see ENABLE_STORYTELLING in
   // runtime-config.types.ts, and features/layout/models/pages.ts for the
   // matching nav-entry filter.
-  if (process.env.ENABLE_STORYTELLING !== "true") {
+  if (!enable_storytelling) {
     notFound();
   }
 

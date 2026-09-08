@@ -4,11 +4,13 @@ import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { RouteGuard } from "@/features/auth/components/route-guard";
 import StorytellingPageContent from "@/features/storytelling/components/storytelling-page-content";
 
+const enable_storytelling = process.env.ENABLE_STORYTELLING === "true";
+
 export default async function StorytellingPage({ params }: ParamsWithLang) {
   // Testing-only for now — see ENABLE_STORYTELLING in
   // runtime-config.types.ts, and features/layout/models/pages.ts for the
   // matching nav-entry filter.
-  if (process.env.ENABLE_STORYTELLING !== "true") {
+  if (!enable_storytelling) {
     notFound();
   }
 

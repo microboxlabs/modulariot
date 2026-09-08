@@ -1,13 +1,63 @@
 import { getBiometricVerification } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { describeError } from "@/features/common/providers/fetcher-error";
+import { maskRut } from "@/features/totem/diagnostics/totem-diagnostics";
+import { createLogger } from "@/lib/logger";
+import { generateRequestId } from "@/features/common/utils/access-log";
 import { NextRequest, NextResponse } from "next/server";
 
+const totemLogger = createLogger("totem");
+
+function upstreamBody(error: unknown): Record<string, unknown> | null {
+  const info = (error as { info?: unknown })?.info;
+  const text =
+    typeof info === "string"
+      ? info
+      : typeof (info as { responseText?: unknown })?.responseText === "string"
+        ? ((info as { responseText: string }).responseText)
+        : null;
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
+  const requestId =
+    request.headers.get("x-request-id") ?? generateRequestId();
+  const startedAt = Date.now();
+  let rut = "";
   try {
     const data = await request.json();
+    rut = maskRut(typeof data?.driverId === "string" ? data.driverId : "");
     const result = await getBiometricVerification(data);
+    totemLogger.info(
+      {
+        requestId,
+        rut,
+        deviceId: data?.deviceId,
+        deviceLocation: data?.deviceLocation,
+        durationMs: Date.now() - startedAt,
+      },
+      "biometric verify ok"
+    );
     return NextResponse.json(result);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json(JSON.parse((error as any)?.info) , { status: (error as any)?.status || 500 });
+    const described = describeError(error);
+    totemLogger.error(
+      { requestId, rut, durationMs: Date.now() - startedAt, ...described, err: error as Error },
+      "biometric verify failed"
+    );
+    const body = upstreamBody(error) ?? {
+      success: false,
+      message: described.message,
+      code: described.code,
+    };
+    return NextResponse.json(
+      { ...body, requestId },
+      { status: described.status || 500 }
+    );
   }
 }

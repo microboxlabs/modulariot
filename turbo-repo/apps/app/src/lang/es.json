@@ -3804,7 +3804,9 @@
     "driver_without_trip2": "no posee un viaje asignado.",
     "unable_to_validate_rut": "No se ha podido validar el rut",
     "gps_validation": "Validación GPS",
-    "last_signal": "Última señal"
+    "last_signal": "Última señal",
+    "id_card_manual_access_error_timeout": "La verificación tardó demasiado. Reintentar por favor.",
+    "fingerprint_plugin_unavailable": "El lector de huella no está disponible en este equipo."
   },
   "notifications": {
     "client": "Cliente",

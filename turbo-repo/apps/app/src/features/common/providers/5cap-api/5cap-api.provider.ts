@@ -9,6 +9,17 @@ import {
   ValidateIdCardRequest,
 } from "./5cap-api.provider.types";
 
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+function callTimeout(): AbortSignal | undefined {
+  const raw = process.env.CAP_API_TIMEOUT_MS;
+  const ms = raw ? parseInt(raw, 10) : DEFAULT_TIMEOUT_MS;
+  if (!Number.isFinite(ms) || ms <= 0) return undefined;
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms).unref?.();
+  return controller.signal;
+}
+
 export function login(): Promise<LoginResult> {
   const url = `${process.env.CAP_API_URL}/auth/login`;
   return fetcher(url, {
@@ -17,6 +28,7 @@ export function login(): Promise<LoginResult> {
       "Content-Type": "application/json",
     },
     method: "POST",
+    signal: callTimeout(),
     body: JSON.stringify({
       user_name: process.env.CAP_USER as string,
       user_pin: process.env.CAP_USER_PIN as string,
@@ -47,6 +59,7 @@ export function createContent(
       "Content-Type": "application/json",
     },
     method: "POST",
+    signal: callTimeout(),
     body: JSON.stringify(contentRequest),
   });
 }
@@ -61,6 +74,7 @@ export function createContentSign(
       "Content-Type": "application/json",
     },
     method: "POST",
+    signal: callTimeout(),
     body: JSON.stringify(contentRequest),
   });
 }
@@ -75,6 +89,7 @@ export function signIdCard(
       "Content-Type": "application/json",
     },
     method: "POST",
+    signal: callTimeout(),
     body: JSON.stringify(contentRequest),
   });
 }
@@ -89,6 +104,7 @@ export function getDocument(
       "Content-Type": "application/json",
     },
     method: "POST",
+    signal: callTimeout(),
     body: JSON.stringify(contentRequest),
   });
 }
@@ -103,6 +119,7 @@ export function validateIdCard(
       "Content-Type": "application/json",
     },
     method: "POST",
+    signal: callTimeout(),
     body: JSON.stringify(contentRequest),
   });
 }

@@ -3804,7 +3804,9 @@
     "biometric_verification_error": "Error verifying biometric data",
     "Query return 2 results instead of max 1": "More than one trip assigned",
     "Driver already verified": "Driver already verified",
-    "no_active_task_found": "You do not have a trip assigned for today. Please check with the Transport department."
+    "no_active_task_found": "You do not have a trip assigned for today. Please check with the Transport department.",
+    "id_card_manual_access_error_timeout": "Verification took too long. Please try again.",
+    "fingerprint_plugin_unavailable": "The fingerprint reader is not available on this device."
   },
   "notifications": {
     "client": "Client",

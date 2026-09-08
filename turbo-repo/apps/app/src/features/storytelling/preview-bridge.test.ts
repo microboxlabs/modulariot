@@ -10,6 +10,11 @@ describe("PREVIEW_BRIDGE_SCRIPT", () => {
   it("carries the wire-protocol source tag", () => {
     expect(PREVIEW_BRIDGE_SCRIPT).toContain(JSON.stringify(BRIDGE_SOURCE));
   });
+
+  it("takes its channel port from the handshake message and checks the sender", () => {
+    expect(PREVIEW_BRIDGE_SCRIPT).toContain("e.ports[0]");
+    expect(PREVIEW_BRIDGE_SCRIPT).toContain("e.source !== parent");
+  });
 });
 
 describe("jsonForInlineScript", () => {

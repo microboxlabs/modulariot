@@ -67,8 +67,8 @@ function buildSandboxedDoc(html: string, dataJson: string): string {
  *
  * Everything that used to poke at `contentDocument` from here — the injected
  * per-card "Ask Harness" toolbar, dark-mode mirroring, find-in-page — now
- * runs inside the iframe (see preview-bridge.ts) and is driven over
- * `postMessage`.
+ * runs inside the iframe (see preview-bridge.ts), driven over a private
+ * `MessageChannel` the parent hands over during the load handshake.
  */
 export const HtmlPreviewer = forwardRef<SearchableHandle, HtmlPreviewerProps>(
   function HtmlPreviewer({ title, dict, onReadyChange }, ref) {
@@ -78,6 +78,11 @@ export const HtmlPreviewer = forwardRef<SearchableHandle, HtmlPreviewerProps>(
     const [loadFailed, setLoadFailed] = useState(false);
     const [iframeReady, setIframeReady] = useState(false);
 
+    // Our end of the private MessageChannel to the sandboxed bridge — set on
+    // the iframe's `load`. All parent↔bridge traffic after the handshake runs
+    // over this, so it needs no target-origin and can't be redirected by a
+    // frame navigation.
+    const portRef = useRef<MessagePort | null>(null);
     // requestId → resolver for in-flight search/step calls awaiting a
     // `result` message back from the bridge.
     const pendingRef = useRef(new Map<number, (value: number) => void>());
@@ -114,47 +119,56 @@ export const HtmlPreviewer = forwardRef<SearchableHandle, HtmlPreviewerProps>(
       };
     }, []);
 
-    // Handshake once the document has loaded: tell the bridge our origin (so
-    // it can target its replies) and the current theme. targetOrigin is "*"
-    // because the sandboxed frame has an opaque origin that no specific value
-    // would match; nothing sensitive travels parent→bridge.
+    // Handshake once the document has loaded: hand the bridge one end of a
+    // fresh MessageChannel, plus the current theme.
     const handleIframeLoad = useCallback(() => {
-      iframeRef.current?.contentWindow?.postMessage(
-        {
-          source: BRIDGE_SOURCE,
-          type: "init",
-          dark: isDark(),
-          parentOrigin: window.location.origin,
-        },
-        "*",
-      );
-      // The bridge normally answers with `ready`; if the artifact's markup is
-      // odd enough that it never runs, still drop the loading overlay so the
-      // frame (and a degraded search box) aren't hidden forever.
-      window.setTimeout(() => setIframeReady(true), 2_000);
-    }, []);
+      const contentWindow = iframeRef.current?.contentWindow;
+      if (!contentWindow || portRef.current) return;
 
-    useEffect(() => {
-      const pending = pendingRef.current;
-      function onMessage(e: MessageEvent) {
-        if (e.source !== iframeRef.current?.contentWindow) return;
+      const channel = new MessageChannel();
+      portRef.current = channel.port1;
+      channel.port1.onmessage = (e: MessageEvent) => {
         const data = e.data as BridgeToParent | undefined;
-        if (!data || data.source !== BRIDGE_SOURCE) return;
+        if (data?.source !== BRIDGE_SOURCE) return;
         if (data.type === "ready") {
           setIframeReady(true);
         } else if (data.type === "askHarness") {
           attachReference(data.label);
         } else if (data.type === "result") {
-          const resolve = pending.get(data.requestId);
+          const resolve = pendingRef.current.get(data.requestId);
           if (resolve) {
-            pending.delete(data.requestId);
+            pendingRef.current.delete(data.requestId);
             resolve(data.value);
           }
         }
-      }
-      window.addEventListener("message", onMessage);
-      return () => window.removeEventListener("message", onMessage);
+      };
+      channel.port1.start();
+
+      // The one unavoidable "*": the sandboxed frame's opaque origin matches
+      // no specific target value. This message carries only a theme flag and
+      // the transferred port; every later exchange rides the port, which a
+      // navigation can't intercept, and the bridge only accepts a port from
+      // its direct parent.
+      contentWindow.postMessage( // NOSONAR: opaque sandbox origin leaves "*" as the only option here
+        { source: BRIDGE_SOURCE, type: "init", dark: isDark() },
+        "*",
+        [channel.port2],
+      );
+
+      // The bridge normally answers with `ready`; if the artifact's markup is
+      // odd enough that it never runs, still drop the loading overlay so the
+      // frame (and a degraded search box) aren't hidden forever.
+      window.setTimeout(() => setIframeReady(true), 2_000);
     }, [attachReference]);
+
+    // Tear the channel down with the component.
+    useEffect(() => {
+      const ports = pendingRef.current;
+      return () => {
+        portRef.current?.close();
+        ports.clear();
+      };
+    }, []);
 
     // Theme is a class toggled on the parent <html> at any time (device
     // preference change, manual toggle) — forward it so the bridge keeps the
@@ -162,10 +176,11 @@ export const HtmlPreviewer = forwardRef<SearchableHandle, HtmlPreviewerProps>(
     useEffect(() => {
       const target = document.documentElement;
       const observer = new MutationObserver(() => {
-        iframeRef.current?.contentWindow?.postMessage(
-          { source: BRIDGE_SOURCE, type: "syncTheme", dark: target.classList.contains("dark") },
-          "*",
-        );
+        portRef.current?.postMessage({
+          source: BRIDGE_SOURCE,
+          type: "syncTheme",
+          dark: target.classList.contains("dark"),
+        });
       });
       observer.observe(target, { attributes: true, attributeFilter: ["class"] });
       return () => observer.disconnect();
@@ -173,13 +188,13 @@ export const HtmlPreviewer = forwardRef<SearchableHandle, HtmlPreviewerProps>(
 
     const callBridge = useCallback(
       (type: "search" | "step", payload: Record<string, unknown>, fallback: number) => {
-        const contentWindow = iframeRef.current?.contentWindow;
-        if (!contentWindow) return Promise.resolve(fallback);
+        const port = portRef.current;
+        if (!port) return Promise.resolve(fallback);
         const requestId = ++requestIdRef.current;
         const pending = pendingRef.current;
         return new Promise<number>((resolve) => {
           pending.set(requestId, resolve);
-          contentWindow.postMessage({ source: BRIDGE_SOURCE, type, requestId, ...payload }, "*");
+          port.postMessage({ source: BRIDGE_SOURCE, type, requestId, ...payload });
           setTimeout(() => {
             if (pending.delete(requestId)) resolve(fallback);
           }, BRIDGE_CALL_TIMEOUT_MS);

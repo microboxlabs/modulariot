@@ -20,15 +20,21 @@
  */
 
 /** Wire protocol. Every frame carries `source: "miot-preview-bridge"` so it's
- * distinguishable from unrelated postMessage traffic (analytics, embeds…). */
+ * distinguishable from unrelated traffic on the shared handshake channel. */
 export const BRIDGE_SOURCE = "miot-preview-bridge";
 
+/**
+ * Parent → bridge. Only `init` travels as a window `postMessage` (carrying
+ * one end of a private `MessageChannel`); everything after that goes over
+ * that port, so a frame navigation can't redirect it.
+ */
 export type ParentToBridge =
-  | { source: typeof BRIDGE_SOURCE; type: "init"; dark: boolean; parentOrigin: string }
+  | { source: typeof BRIDGE_SOURCE; type: "init"; dark: boolean }
   | { source: typeof BRIDGE_SOURCE; type: "syncTheme"; dark: boolean }
   | { source: typeof BRIDGE_SOURCE; type: "search"; requestId: number; query: string }
   | { source: typeof BRIDGE_SOURCE; type: "step"; requestId: number; delta: number };
 
+/** Bridge → parent, all over the `MessageChannel` port. */
 export type BridgeToParent =
   | { source: typeof BRIDGE_SOURCE; type: "ready" }
   | { source: typeof BRIDGE_SOURCE; type: "askHarness"; label: string }
@@ -36,8 +42,8 @@ export type BridgeToParent =
 
 /**
  * The script, as a string, to inject into the artifact's `<head>` (before its
- * own body scripts run so the message listener is ready when the parent sends
- * `init`). `BRIDGE_SOURCE` is inlined so the IIFE stays dependency-free.
+ * own body scripts run so the handshake listener is ready when the parent
+ * sends `init`). `BRIDGE_SOURCE` is inlined so the IIFE stays dependency-free.
  */
 export const PREVIEW_BRIDGE_SCRIPT = `
 (function () {
@@ -53,13 +59,13 @@ export const PREVIEW_BRIDGE_SCRIPT = `
     '<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">' +
     '<path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.73 1.73 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.73 1.73 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.73 1.73 0 0 0 3.407 2.31zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"></path></svg>';
 
-  var parentOrigin = null;
+  var port = null;
   var matchState = { count: 0, current: -1 };
 
   function post(msg) {
-    if (parentOrigin === null) return;
+    if (port === null) return;
     msg.source = SOURCE;
-    parent.postMessage(msg, parentOrigin);
+    port.postMessage(msg);
   }
 
   function injectStyles() {
@@ -197,25 +203,32 @@ export const PREVIEW_BRIDGE_SCRIPT = `
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  window.addEventListener("message", function (e) {
+  function onPortMessage(e) {
     var d = e.data;
     if (!d || d.source !== SOURCE) return;
-    if (d.type === "init") {
-      parentOrigin = d.parentOrigin;
-      syncTheme(d.dark);
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", onReady);
-      } else {
-        onReady();
-      }
-      post({ type: "ready" });
-      return;
-    }
-    // Everything else must come from the parent window we handshook with.
-    if (e.source !== parent) return;
     if (d.type === "syncTheme") syncTheme(d.dark);
     else if (d.type === "search") post({ type: "result", requestId: d.requestId, value: search(d.query) });
     else if (d.type === "step") post({ type: "result", requestId: d.requestId, value: step(d.delta) });
+  }
+
+  // The parent hands us one end of a private MessageChannel in its first (and
+  // only) window-level message — verified to be from our direct parent frame.
+  // Everything after that is point-to-point over the port, which no frame
+  // navigation can redirect.
+  window.addEventListener("message", function (e) {
+    if (e.source !== parent || port !== null) return;
+    var d = e.data;
+    if (!d || d.source !== SOURCE || d.type !== "init" || !e.ports || !e.ports[0]) return;
+    port = e.ports[0];
+    port.onmessage = onPortMessage;
+    port.start();
+    syncTheme(d.dark);
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", onReady);
+    } else {
+      onReady();
+    }
+    post({ type: "ready" });
   });
 })();
 `;
@@ -228,8 +241,8 @@ export const PREVIEW_BRIDGE_SCRIPT = `
  * literals — all as `\uXXXX` escapes that leave the parsed value untouched.
  */
 export function jsonForInlineScript(jsonText: string): string {
-  return JSON.stringify(jsonText).replace(
-    /[<>&\u2028\u2029]/g,
-    (ch) => "\\u" + ch.charCodeAt(0).toString(16).padStart(4, "0"),
-  );
+  return JSON.stringify(jsonText).replace(/[<>&\u2028\u2029]/g, (ch) => {
+    const hex = (ch.codePointAt(0) ?? 0).toString(16).padStart(4, "0");
+    return String.raw`\u${hex}`;
+  });
 }

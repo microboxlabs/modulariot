@@ -56,6 +56,15 @@ export const StoredServiceSchema = z
     loadPalletUtilization: z.number().optional(),
     loadVolumeUtilization: z.number().optional(),
     serviceCategory: z.string().optional(),
+    /**
+     * Where each event happened — `miot` when an operator drove it through
+     * this module, `alerce` when the upstream sync did (see
+     * `service-origin.ts`). Typed as a plain string rather than an enum so a
+     * value this build does not know cannot fail the parse and drop the whole
+     * stored blob with it.
+     */
+    plannedIn: z.string().optional(),
+    assignedIn: z.string().optional(),
     expectedDepartureDate: z.string().optional(),
     presentationDate: z.string().optional(),
     assignedDriver: z.string().optional(),

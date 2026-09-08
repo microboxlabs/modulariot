@@ -720,6 +720,12 @@
         "clear": "Limpiar búsqueda",
         "otherCalendar": "En otro calendario: {calendar}",
         "error": "La búsqueda falló"
+      },
+      "source": {
+        "label": "Origen del servicio",
+        "all": "Todos",
+        "miot": "Planificados aquí",
+        "synced": "Sincronizados"
       }
     },
     "shipping": {

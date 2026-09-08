@@ -110,6 +110,14 @@ export interface SelectedService {
    * feed. `null` = unknown (row wasn't on the loaded page when selected);
    * absent = booking written before this field existed.
    */
+  /**
+   * Where this service was planned / assigned: `miot` for an operator working
+   * through this module, `alerce` for the upstream sync. Absent on every
+   * booking written before the stamp, and on the sync's own — `service-origin.ts`
+   * reads absent as synced.
+   */
+  plannedIn?: string;
+  assignedIn?: string;
   assignedCarrierAccreditation?: AccreditationLevel | null;
   assignedDriverAccreditation?: AccreditationLevel | null;
   assignedDriver2Accreditation?: AccreditationLevel | null;

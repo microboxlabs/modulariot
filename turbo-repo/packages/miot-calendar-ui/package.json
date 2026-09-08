@@ -27,7 +27,7 @@
     "check-types": "tsc --noEmit"
   },
   "peerDependencies": {
-    "next": ">=15",
+    "next": "^16.3.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "swr": "^2.2.5"

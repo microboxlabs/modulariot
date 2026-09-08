@@ -1,0 +1,312 @@
+package com.microboxlabs.miot.integrations.service;
+
+import com.microboxlabs.miot.integrations.domain.HarnessThread;
+import com.microboxlabs.miot.integrations.domain.HarnessThreadMessage;
+import com.microboxlabs.miot.integrations.domain.HarnessThreadShare;
+import com.microboxlabs.miot.integrations.dto.ThreadMessageRequest;
+import com.microboxlabs.miot.integrations.dto.ThreadPatchRequest;
+import com.microboxlabs.miot.integrations.dto.ThreadResponse;
+import com.microboxlabs.miot.integrations.dto.ThreadShareRequest;
+import com.microboxlabs.miot.integrations.dto.ThreadUpsertRequest;
+import com.microboxlabs.miot.integrations.persistence.HarnessThreadRepository;
+import io.vertx.core.json.JsonObject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * Chat threads for the harness panel: transcripts the app reloads after a
+ * refresh, plus the sharing and expiry the owner controls.
+ *
+ * <p>Access is deliberately blunt. A thread is private to its owner; anyone
+ * else reaches it only through an explicit share, and a share grants reading
+ * only — appending, renaming, sharing and deleting stay with the owner. A
+ * caller who may not see a thread gets the same answer as one asking for a
+ * thread that does not exist, so the API never confirms an id.
+ *
+ * <p>Validation throws {@link IllegalArgumentException}, which the resource
+ * maps to HTTP 400; "not visible to you" is signalled by a null return, which
+ * the resource maps to 404.
+ */
+@ApplicationScoped
+public class HarnessThreadService {
+
+    /** Payload shape of a stored message when the client does not name one. */
+    static final String DEFAULT_FORMAT = "aui-v1";
+
+    /** Column width of harness_thread.title. */
+    private static final int MAX_TITLE_LENGTH = 280;
+
+    private static final int MAX_FORMAT_LENGTH = 32;
+
+    private static final int DEFAULT_LIMIT = 100;
+
+    private static final int MAX_LIMIT = 200;
+
+    /**
+     * Ceiling on one stored message. The client strips attachment bodies before
+     * persisting — the PDF adapter inlines up to 20 MB as a data URL — but the
+     * server cannot take that on trust, and a transcript is not a blob store.
+     */
+    private static final int MAX_PAYLOAD_BYTES = 256 * 1024;
+
+    private static final Set<String> PERMISSIONS = Set.of("read");
+
+    private final HarnessThreadRepository repository;
+
+    @Inject
+    public HarnessThreadService(HarnessThreadRepository repository) {
+        this.repository = repository;
+    }
+
+    /** The caller's own threads followed by the ones shared with them, each
+     * newest-activity first. */
+    public List<ThreadResponse> listVisible(String tenantCode, String userId, Integer limit) {
+        int bounded = boundLimit(limit);
+        List<ThreadResponse> out = new ArrayList<>();
+        for (HarnessThread thread : repository.listOwned(tenantCode, userId, bounded)) {
+            out.add(toResponse(thread, userId, repository.listShares(thread.id())));
+        }
+        for (HarnessThread thread : repository.listSharedWith(tenantCode, userId, bounded)) {
+            out.add(toResponse(thread, userId, List.of()));
+        }
+        return out;
+    }
+
+    public ThreadResponse create(String tenantCode, String userId, ThreadUpsertRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("thread body is required");
+        }
+        HarnessThread saved = repository.upsert(new HarnessThread(
+                requireUuid(request.id(), "id"),
+                tenantCode,
+                requireUser(userId),
+                truncateTitle(request.title()),
+                request.expiresAt(),
+                null,
+                null,
+                null));
+        // The upsert's owner guard did not match, so this id is someone else's.
+        return saved == null ? null : toResponse(saved, userId, repository.listShares(saved.id()));
+    }
+
+    public ThreadResponse get(String tenantCode, String userId, String threadId) {
+        HarnessThread thread = visibleThread(tenantCode, userId, threadId);
+        if (thread == null) {
+            return null;
+        }
+        boolean owned = Objects.equals(thread.ownerId(), userId);
+        return toResponse(thread, userId, owned ? repository.listShares(thread.id()) : List.of());
+    }
+
+    public ThreadResponse patch(
+            String tenantCode, String userId, String threadId, ThreadPatchRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("patch body is required");
+        }
+        String id = requireUuid(threadId, "threadId");
+        if (ownedThread(tenantCode, userId, id) == null) {
+            return null;
+        }
+        HarnessThread saved = repository.update(
+                id,
+                requireUser(userId),
+                truncateTitle(request.title()),
+                request.expiresAt(),
+                Boolean.TRUE.equals(request.clearExpiry()));
+        return saved == null ? null : toResponse(saved, userId, repository.listShares(saved.id()));
+    }
+
+    public boolean delete(String tenantCode, String userId, String threadId) {
+        return repository.softDelete(
+                requireUuid(threadId, "threadId"), tenantCode, requireUser(userId));
+    }
+
+    /**
+     * Appends (or rewrites) one message. Creates the thread when it is not there
+     * yet: the panel mints the id and only persists once there is something to
+     * say, so the first message routinely arrives before any explicit create.
+     */
+    public HarnessThreadMessage appendMessage(
+            String tenantCode, String userId, String threadId, ThreadMessageRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("message body is required");
+        }
+        String id = requireUuid(threadId, "threadId");
+        String messageId = requireText(request.id(), "message id", 128);
+        Map<String, Object> payload = requirePayload(request.payload());
+
+        HarnessThread existing = repository.find(id, tenantCode);
+        if (existing == null) {
+            HarnessThread created = repository.upsert(new HarnessThread(
+                    id, tenantCode, requireUser(userId), null, null, null, null, null));
+            if (created == null) {
+                return null;
+            }
+        } else if (!Objects.equals(existing.ownerId(), userId)) {
+            // Readers of a shared thread never write to it.
+            return null;
+        }
+
+        return repository.appendMessage(new HarnessThreadMessage(
+                id,
+                messageId,
+                blankToNull(request.parentId()),
+                format(request.format()),
+                payload,
+                null));
+    }
+
+    /** The thread's messages in append order, or null when it is not visible. */
+    public List<HarnessThreadMessage> listMessages(String tenantCode, String userId, String threadId) {
+        HarnessThread thread = visibleThread(tenantCode, userId, threadId);
+        return thread == null ? null : repository.listMessages(thread.id());
+    }
+
+    public HarnessThreadShare share(
+            String tenantCode, String userId, String threadId, ThreadShareRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("share body is required");
+        }
+        String id = requireUuid(threadId, "threadId");
+        String principal = requireText(request.principal(), "principal", 256);
+        String permission = request.permission() == null || request.permission().isBlank()
+                ? "read"
+                : request.permission();
+        if (!PERMISSIONS.contains(permission)) {
+            throw new IllegalArgumentException("permission must be one of " + PERMISSIONS);
+        }
+        if (Objects.equals(principal, userId)) {
+            throw new IllegalArgumentException("a thread is already visible to its owner");
+        }
+        if (ownedThread(tenantCode, userId, id) == null) {
+            return null;
+        }
+        return repository.upsertShare(
+                new HarnessThreadShare(id, principal, permission, requireUser(userId), null));
+    }
+
+    public Boolean revokeShare(String tenantCode, String userId, String threadId, String principal) {
+        String id = requireUuid(threadId, "threadId");
+        if (ownedThread(tenantCode, userId, id) == null) {
+            return null;
+        }
+        return repository.deleteShare(id, requireText(principal, "principal", 256));
+    }
+
+    private HarnessThread visibleThread(String tenantCode, String userId, String threadId) {
+        HarnessThread thread = repository.find(requireUuid(threadId, "threadId"), tenantCode);
+        if (thread == null) {
+            return null;
+        }
+        if (Objects.equals(thread.ownerId(), userId)) {
+            return thread;
+        }
+        boolean shared = repository.listShares(thread.id()).stream()
+                .anyMatch(share -> Objects.equals(share.principal(), userId));
+        return shared ? thread : null;
+    }
+
+    private HarnessThread ownedThread(String tenantCode, String userId, String threadId) {
+        HarnessThread thread = repository.find(threadId, tenantCode);
+        return thread != null && Objects.equals(thread.ownerId(), userId) ? thread : null;
+    }
+
+    private ThreadResponse toResponse(
+            HarnessThread thread, String userId, List<HarnessThreadShare> shares) {
+        boolean owned = Objects.equals(thread.ownerId(), userId);
+        Set<String> principals = new LinkedHashSet<>();
+        for (HarnessThreadShare share : shares) {
+            principals.add(share.principal());
+        }
+        return new ThreadResponse(
+                thread.id(),
+                thread.title(),
+                thread.ownerId(),
+                owned,
+                thread.expiresAt(),
+                thread.lastMessageAt(),
+                thread.createdAt(),
+                thread.updatedAt(),
+                List.copyOf(principals));
+    }
+
+    private static int boundLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_LIMIT;
+        }
+        return Math.min(limit, MAX_LIMIT);
+    }
+
+    private static String requireUuid(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(field + " is required");
+        }
+        try {
+            return UUID.fromString(value).toString();
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(field + " must be a UUID");
+        }
+    }
+
+    private static String requireUser(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("an authenticated user is required");
+        }
+        return userId;
+    }
+
+    private static String requireText(String value, String field, int maxLength) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(field + " is required");
+        }
+        if (value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " must be at most " + maxLength + " characters");
+        }
+        return value;
+    }
+
+    private static Map<String, Object> requirePayload(Map<String, Object> payload) {
+        if (payload == null || payload.isEmpty()) {
+            throw new IllegalArgumentException("payload is required");
+        }
+        int size = new JsonObject(payload).encode().length();
+        if (size > MAX_PAYLOAD_BYTES) {
+            throw new IllegalArgumentException(
+                    "payload is too large (" + size + " bytes, limit " + MAX_PAYLOAD_BYTES + ")");
+        }
+        return payload;
+    }
+
+    private static String format(String value) {
+        if (value == null || value.isBlank()) {
+            return DEFAULT_FORMAT;
+        }
+        if (value.length() > MAX_FORMAT_LENGTH) {
+            throw new IllegalArgumentException(
+                    "format must be at most " + MAX_FORMAT_LENGTH + " characters");
+        }
+        return value;
+    }
+
+    private static String truncateTitle(String title) {
+        if (title == null) {
+            return null;
+        }
+        String trimmed = title.strip();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed.length() <= MAX_TITLE_LENGTH ? trimmed : trimmed.substring(0, MAX_TITLE_LENGTH);
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+}

@@ -14,6 +14,11 @@ import type { PositionedShift } from "@microboxlabs/miot-calendar-ui";
 import { useServiceActions } from "./use-service-actions";
 import { useCalendarViewMode } from "./use-calendar-view-mode";
 import { generateTimeSlots } from "@/features/calendar/services/calendar.service";
+import { useSearchParams } from "next/navigation";
+import {
+  matchesPlannerSource,
+  parsePlannerSource,
+} from "@/features/calendar/services/service-origin";
 
 // ============================================================================
 // Types
@@ -97,7 +102,7 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
   const {
     selectedSlot,
     selectSlot,
-    plannedServices,
+    plannedServices: allPlannedServices,
     timeSlots: configuredTimeSlots,
     getTimeWindowForSlot,
     getRemainingQuota,
@@ -117,6 +122,22 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     focusedItemId,
     andenesCount,
   } = usePlanningSelection();
+
+  // The source filter hides chips; it must not shrink what the calendar
+  // counts. Quota, "window full" and the add affordance all come off the
+  // provider's own full list (`getRemainingQuota`), so filtering here — at
+  // what the grid DRAWS — keeps a filtered board honest about its capacity.
+  // Filtering the load instead would have reported free slots that are taken.
+  const plannerSource = parsePlannerSource(useSearchParams().get("source"));
+  const plannedServices = useMemo(
+    () =>
+      plannerSource
+        ? allPlannedServices.filter((ps) =>
+            matchesPlannerSource(ps.service, plannerSource)
+          )
+        : allPlannedServices,
+    [allPlannedServices, plannerSource]
+  );
 
   // Use shared hook for context menu and delete modal
   const serviceActions = useServiceActions({

@@ -76,10 +76,6 @@ import { useCalendarViewMode } from "./use-calendar-view-mode";
 import type { SelectedService, TaskStage } from "./planning-selection-types";
 import { ServiceEvent } from "./service-event";
 import { mapBookingToPlannedService } from "@/features/calendar/services/booking-service-mapper";
-import {
-  matchesPlannerSource,
-  parsePlannerSource,
-} from "@/features/calendar/services/service-origin";
 import { withAssignmentCleared } from "@/features/calendar/services/assignment-reset";
 import { CALENDAR_LIVE_TASK_COLUMNS } from "@/features/calendar/services/workflow-stage";
 
@@ -350,18 +346,16 @@ export function PlanningSelectionProvider({
       endDate: anchor.add(30, "day").format("YYYY-MM-DD"),
     };
   }, [searchParams]);
-  // Preset, not locked: the planner picks it from the header and it lives in
-  // the URL, so a filtered board is a link someone can send.
-  const plannerSource = parsePlannerSource(searchParams.get("source"));
-  const bookingsKey = `${calendarId ?? ""}:${bookingsRange.startDate}:${bookingsRange.endDate}:${plannerSource ?? "all"}`;
+  const bookingsKey = `${calendarId ?? ""}:${bookingsRange.startDate}:${bookingsRange.endDate}`;
   const bookingsLoadErrorMessage = useMemo(
     () => tr("pages.planning.sidebar.notifications.bookingsLoadError", dict),
     [dict]
   );
 
-  // Keyed into `bookingsKey` rather than filtered downstream: the loader is
-  // held in a ref and only re-runs when the key changes, so a filter the key
-  // ignores would leave the grid showing the previous selection.
+  // Deliberately unfiltered by the source selector: the provider counts this
+  // list for slot quota and the "window full" gate, so a filtered load would
+  // offer slots that are already taken. `use-planning-grid` filters what the
+  // grid draws instead.
   const loadBookings = useCallback(
     async (signal: AbortSignal) => {
       const ids = new Map<string, string>();
@@ -380,13 +374,12 @@ export function PlanningSelectionProvider({
         // booking the grid declines to draw. Null = no slot, nothing to place.
         const mapped = mapBookingToPlannedService(booking);
         if (!mapped) continue;
-        if (!matchesPlannerSource(mapped.planned.service, plannerSource)) continue;
         planned.push(mapped.planned);
         ids.set(mapped.planned.service.id, mapped.bookingId);
       }
       return { planned, ids };
     },
-    [calendarId, bookingsRange.startDate, bookingsRange.endDate, plannerSource]
+    [calendarId, bookingsRange.startDate, bookingsRange.endDate]
   );
 
   // Resolve the live task + the workflow transition/processVariables tuple for a

@@ -20,6 +20,7 @@ import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
 import { PendingAttachmentReceiver } from "./components/pending-attachment-receiver";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
+import { HarnessReadOnlyProvider } from "./context/harness-read-only-context";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
 import { createHarnessHistoryAdapter } from "./harness-history-adapter";
 import {
@@ -202,8 +203,13 @@ const HarnessChatPanel: FC<{
     // title arrives with the first user message, which may still be racing its
     // own append.
     if (title && persistedTitles.current.get(id) !== title) {
+      // Recorded up front so the watcher's next call does not re-send it, and
+      // dropped again if the write failed — otherwise one lost request leaves
+      // the thread permanently untitled while its messages save fine.
       persistedTitles.current.set(id, title);
-      void createThread({ id, title });
+      void createThread({ id, title }).then((saved) => {
+        if (!saved) persistedTitles.current.delete(id);
+      });
     }
   }, []);
 
@@ -381,6 +387,7 @@ const HarnessChatPanel: FC<{
               pendingAttachmentLabel={session.id === activeId ? pendingAttachment : null}
               onAttachmentConsumed={clearPendingAttachment}
               onTitleChange={updateSessionTitle}
+              readOnly={!session.owned}
               extensions={resolvedExtensions}
               skills={skills}
             />
@@ -399,6 +406,7 @@ const SessionHost: FC<{
   pendingAttachmentLabel: string | null;
   onAttachmentConsumed: () => void;
   onTitleChange: (id: string, title: string | null) => void;
+  readOnly: boolean;
   extensions: HarnessExtension[];
   skills: HarnessSkill[];
 }> = ({
@@ -409,6 +417,7 @@ const SessionHost: FC<{
   pendingAttachmentLabel,
   onAttachmentConsumed,
   onTitleChange,
+  readOnly,
   extensions,
   skills,
 }) => {
@@ -460,13 +469,21 @@ const SessionHost: FC<{
         runtime={runtime}
         config={AuiConfig({ tools: Tools({ toolkit }) })}
       >
-        <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
-        <InitialMessageSender initialMessage={initialMessage} />
-        <PendingAttachmentReceiver
-          label={pendingAttachmentLabel}
-          onConsumed={onAttachmentConsumed}
-        />
-        <Thread skills={skills} />
+        <HarnessReadOnlyProvider readOnly={readOnly}>
+          {/* A shared thread is somebody else's conversation: it has a title
+              already, takes no pending message, and offers nothing that runs. */}
+          {!readOnly && (
+            <>
+              <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
+              <InitialMessageSender initialMessage={initialMessage} />
+              <PendingAttachmentReceiver
+                label={pendingAttachmentLabel}
+                onConsumed={onAttachmentConsumed}
+              />
+            </>
+          )}
+          <Thread skills={skills} />
+        </HarnessReadOnlyProvider>
       </AssistantRuntimeProvider>
     </div>
   );

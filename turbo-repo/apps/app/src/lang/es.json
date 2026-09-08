@@ -5261,7 +5261,8 @@
         "editCancel": "Cancelar",
         "editSave": "Guardar",
         "thoughtProcess": "Proceso de pensamiento",
-        "executionCanceled": "La ejecución fue cancelada."
+        "executionCanceled": "La ejecución fue cancelada.",
+        "readOnly": "Este chat es de solo lectura: lo compartió otra persona."
       },
       "attachments": {
         "removeImage": "Quitar imagen"

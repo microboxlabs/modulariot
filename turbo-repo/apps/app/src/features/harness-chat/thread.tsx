@@ -8,9 +8,11 @@ import { Composer } from "./components/composer";
 import { RunCancelProvider } from "./context/run-cancel-context";
 import { useHarnessChatTr } from "./context/harness-chat-i18n-context";
 import type { HarnessSkill } from "./harness-chat-types";
+import { useHarnessReadOnly } from "./context/harness-read-only-context";
 
 export const Thread: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
   const tr = useHarnessChatTr();
+  const readOnly = useHarnessReadOnly();
   return (
     <RunCancelProvider>
       <ComposerPrimitive.AttachmentDropzone className="group relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -33,7 +35,13 @@ export const Thread: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
             />
           </ThreadPrimitive.Viewport>
 
-          <Composer skills={skills} />
+          {readOnly ? (
+            <p className="shrink-0 border-t border-gray-200 px-3 py-2 text-center text-[11px] text-gray-400 dark:border-gray-700">
+              {tr("harnessChat.ui.thread.readOnly")}
+            </p>
+          ) : (
+            <Composer skills={skills} />
+          )}
         </ThreadPrimitive.Root>
       </ComposerPrimitive.AttachmentDropzone>
     </RunCancelProvider>

@@ -67,9 +67,8 @@ export function createHarnessHistoryAdapter(threadId: string): ThreadHistoryAdap
         );
       if (items.length === 0) return empty;
 
-      const repository = ExportedMessageRepository.fromBranchableArray(items, {
-        headId: items.at(-1)?.message.id ?? null,
-      });
+      const headId = items.at(-1)?.message.id ?? null;
+      const repository = ExportedMessageRepository.fromBranchableArray(items, { headId });
 
       return {
         ...repository,
@@ -79,7 +78,7 @@ export function createHarnessHistoryAdapter(threadId: string): ThreadHistoryAdap
         // the first run after a reload instead of every turn.
         state: {
           harnessConversationId: threadId,
-          harnessReplayTurns: toReplayTurns(items.map((item) => item.message)),
+          harnessReplayTurns: toReplayTurns(activeBranch(items, headId)),
         },
       };
     },
@@ -110,14 +109,23 @@ function toStoredMessage(item: ExportedMessageRepositoryItem): StoredMessage {
  * keeping a 20 MB data URL per message to redraw a PDF thumbnail is not a
  * trade worth making, and the answer that discussed it is what people come
  * back for.
+ *
+ * The part goes rather than its body: an image part with an empty `image`
+ * renders as a broken image, and a file part with empty `data` renders as a
+ * link to the current page. With no part left, the attachment renders as what
+ * it now is — a name, and nothing to open.
  */
 export function stripInlineContent<T>(message: T): T {
-  return mapDeep(message, (key, value) => {
-    if (key !== "data" && key !== "image") return value;
-    if (typeof value !== "string") return value;
-    if (!value.startsWith("data:") && value.length <= MAX_INLINE_LENGTH) return value;
-    return "";
+  return pruneDeep(message, (value) => {
+    if (!isRecord(value)) return false;
+    const body = value.type === "image" ? value.image : value.type === "file" ? value.data : null;
+    if (typeof body !== "string") return false;
+    return body.startsWith("data:") || body.length > MAX_INLINE_LENGTH;
   });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 /**
@@ -146,6 +154,35 @@ export function toReplayTurns(
   }
 
   return turns.slice(-maxTurns);
+}
+
+/**
+ * The messages actually on the branch ending at `headId`, oldest first.
+ *
+ * Editing a message or reloading an answer forks the thread, and every fork
+ * stays in storage. Replaying all of it would hand the harness abandoned
+ * questions and superseded answers as though the conversation had contained
+ * them.
+ */
+export function activeBranch(
+  items: readonly { parentId: string | null; message: ThreadMessage }[],
+  headId: string | null,
+): ThreadMessage[] {
+  if (!headId) return [];
+  const byId = new Map(items.map((item) => [item.message.id, item]));
+  const branch: ThreadMessage[] = [];
+  const seen = new Set<string>();
+
+  let cursor: string | null = headId;
+  while (cursor && !seen.has(cursor)) {
+    seen.add(cursor);
+    const item = byId.get(cursor);
+    if (!item) break;
+    branch.push(item.message);
+    cursor = item.parentId;
+  }
+
+  return branch.reverse();
 }
 
 function textOf(message: ThreadMessage): string {
@@ -178,18 +215,17 @@ function reviveDate(value: unknown): Date {
   return new Date();
 }
 
-/** Rebuilds a value, letting `visit` replace any string leaf by its key. */
-function mapDeep<T>(value: T, visit: (key: string, value: unknown) => unknown): T {
+/** Rebuilds a value, dropping every array entry `drop` selects. */
+function pruneDeep<T>(value: T, drop: (entry: unknown) => boolean): T {
   if (Array.isArray(value)) {
-    return value.map((entry) => mapDeep(entry, visit)) as unknown as T;
+    return value.filter((entry) => !drop(entry)).map((entry) => pruneDeep(entry, drop)) as T;
   }
   if (value === null || typeof value !== "object" || value instanceof Date) {
     return value;
   }
   const out: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    const replaced = visit(key, entry);
-    out[key] = replaced === entry ? mapDeep(entry, visit) : replaced;
+    out[key] = pruneDeep(entry, drop);
   }
   return out as unknown as T;
 }

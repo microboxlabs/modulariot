@@ -501,7 +501,10 @@ function conversationOf(body: RunAgentInputBody): {
   conversationId: string | null;
   replayTurns: ConversationTurn[];
 } {
-  const conversationId = body.state?.harnessConversationId ?? body.threadId ?? null;
+  // The body is unvalidated JSON: `isValidRunAgentInputBody` checks the
+  // messages, not this, so a number or an object here would otherwise be
+  // forwarded as a conversation id.
+  const conversationId = text(body.state?.harnessConversationId) ?? text(body.threadId);
   const raw = body.state?.harnessReplayTurns;
   if (!conversationId || !Array.isArray(raw)) return { conversationId, replayTurns: [] };
 
@@ -515,6 +518,10 @@ function conversationOf(body: RunAgentInputBody): {
     )
     .slice(-MAX_REPLAY_TURNS);
   return { conversationId, replayTurns };
+}
+
+function text(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 type RunTelemetry = { route: string | undefined; tools: string[] };

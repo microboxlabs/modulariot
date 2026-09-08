@@ -5261,7 +5261,8 @@
         "editCancel": "Cancel",
         "editSave": "Save",
         "thoughtProcess": "Thought process",
-        "executionCanceled": "Execution was canceled."
+        "executionCanceled": "Execution was canceled.",
+        "readOnly": "This chat is read-only — someone else shared it with you."
       },
       "attachments": {
         "removeImage": "Remove image"

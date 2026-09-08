@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ThreadMessage } from "@assistant-ui/react";
 import {
+  activeBranch,
   createHarnessHistoryAdapter,
   stripInlineContent,
   toReplayTurns,
@@ -35,7 +36,7 @@ function assistantMessage(id: string, text: string) {
 }
 
 describe("stripInlineContent", () => {
-  it("drops an inlined attachment body but keeps what names it", () => {
+  it("drops an inlined attachment, keeping the message around it", () => {
     const message = {
       id: "m1",
       role: "user",
@@ -48,23 +49,57 @@ describe("stripInlineContent", () => {
           data: `data:application/pdf;base64,${"A".repeat(50_000)}`,
         },
       ],
+      attachments: [
+        {
+          name: "report.pdf",
+          type: "document",
+          content: [
+            {
+              type: "file",
+              filename: "report.pdf",
+              data: `data:application/pdf;base64,${"A".repeat(50_000)}`,
+            },
+          ],
+        },
+      ],
     };
 
     const stored = stripInlineContent(message);
 
-    expect(stored.content[1]).toEqual({
-      type: "file",
-      filename: "report.pdf",
-      mimeType: "application/pdf",
-      data: "",
+    // The part goes rather than its body: an emptied file part renders as a
+    // link to the current page, and an emptied image as a broken image.
+    expect(stored.content).toEqual([{ type: "text", text: "look at this" }]);
+    expect(stored.attachments[0]).toEqual({
+      name: "report.pdf",
+      type: "document",
+      content: [],
     });
-    expect(stored.content[0]).toEqual({ type: "text", text: "look at this" });
   });
 
   it("keeps a short remote reference, which costs nothing to store", () => {
     const message = { content: [{ type: "image", image: "https://example.test/a.png" }] };
 
     expect(stripInlineContent(message).content[0].image).toBe("https://example.test/a.png");
+  });
+});
+
+describe("activeBranch", () => {
+  it("follows the head back to the root, ignoring abandoned forks", () => {
+    const items = [
+      { parentId: null, message: userMessage("m1", "first question") },
+      { parentId: "m1", message: assistantMessage("m2", "first answer") },
+      // The user edited m1: m3 forks from the same parent and m4 answers it.
+      { parentId: null, message: userMessage("m3", "edited question") },
+      { parentId: "m3", message: assistantMessage("m4", "second answer") },
+    ];
+
+    const branch = activeBranch(items, "m4").map((m) => m.id);
+
+    expect(branch).toEqual(["m3", "m4"]);
+  });
+
+  it("is empty without a head", () => {
+    expect(activeBranch([], null)).toEqual([]);
   });
 });
 
@@ -170,6 +205,36 @@ describe("createHarnessHistoryAdapter", () => {
     });
   });
 
+  it("replays only the branch the thread ended on", async () => {
+    const row = (id: string, parentId: string | null, role: string, text: string) => ({
+      id,
+      parentId,
+      format: "aui-v1",
+      payload: {
+        id,
+        role,
+        content: [{ type: "text", text }],
+        createdAt: "2026-09-08T12:00:00.000Z",
+      },
+    });
+    listMessagesMock.mockResolvedValue([
+      row("m1", null, "user", "first question"),
+      row("m2", "m1", "assistant", "first answer"),
+      row("m3", null, "user", "edited question"),
+      row("m4", "m3", "assistant", "second answer"),
+    ]);
+
+    const loaded = await createHarnessHistoryAdapter("thread-1").load();
+
+    expect(loaded.messages).toHaveLength(4);
+    expect(loaded.state).toEqual({
+      harnessConversationId: "thread-1",
+      harnessReplayTurns: [
+        { user_message: "edited question", assistant_answer: "second answer" },
+      ],
+    });
+  });
+
   it("skips messages written in a format it does not know", async () => {
     listMessagesMock.mockResolvedValue([
       {
@@ -207,8 +272,8 @@ describe("createHarnessHistoryAdapter", () => {
       payload: expect.objectContaining({ id: "m2", role: "user" }),
     });
     const stored = appendMessageMock.mock.calls[0][1].payload as {
-      content: { data: string }[];
+      content: unknown[];
     };
-    expect(stored.content[0].data).toBe("");
+    expect(stored.content).toEqual([]);
   });
 });

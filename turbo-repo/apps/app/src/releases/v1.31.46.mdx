@@ -1,0 +1,79 @@
+# 🔔 Release Notes v1.31.46 — ModularIoT
+
+### Fecha: 07/09/2026
+
+**Objetivo**: Ampliar la coordinación de viajes para soportar nuevos tipos de servicio, mejorar la asignación de calendarios y consolidar la identidad de marca por dominio. Esta versión también fortalece las capacidades de dashboards, Harness, seguridad de dependencias y operación de la plataforma.
+
+## 🚀 Evolutivos
+
+- **📍 Calendarios por tipo de servicio**
+  - **Punto clave**: Los calendarios pueden asociarse a un único tipo de servicio (`v`, `otr` u `ote`), permitiendo que los viajes de carga se asignen a calendarios predeterminados adecuados.
+  - **Detalle técnico**: Se actualizaron los editores de calendarios, el filtro completo, el selector compartido de tipos de servicio y el chip `tipoServicio`. *(Integración OSS — MIOT-0.5.47)*
+
+- **📍 Marca por dominio**
+  - **Punto clave**: La plataforma permite administrar un logotipo por dominio, con previsualización para temas claro y oscuro y configuración desde Ajustes.
+  - **Detalle técnico**: La aplicación obtiene la marca desde el modulith mediante un proxy de imagen, desacoplándola del ECM; el rol de propietario de plataforma se gestiona mediante roles de base de datos con una API específica. *(Integración OSS — MIOT-0.5.47)*
+
+- **📍 Plataforma de dashboards embebibles**
+  - **Punto clave**: Se incorporó el paquete `@microboxlabs/miot-dashboard-server` con una base independiente de framework y controles centralizados de identidad, tenancy y capacidades.
+  - **Detalle técnico**: Incluye contratos para resolución de identidad, almacenamiento, credenciales y auditoría, políticas de capacidades, aislamiento entre tenants y soporte seguro para principals embebidos. *(Integración OSS — MIOT-0.5.47)*
+
+- **📍 Configuración inicial de Harness**
+  - **Punto clave**: Se añadió la pantalla inicial de configuración de Harness, protegida mediante `ENABLE_HARNESS_SETTINGS=true`.
+  - **Detalle técnico**: La interfaz queda preparada para futuras definiciones de API. *(Integración OSS — MIOT-0.5.47)*
+
+- **📍 Steering en ejecuciones de Harness**
+  - **Punto clave**: Los operadores pueden inyectar orientación durante una ejecución activa y solicitar una interrupción cooperativa que conserve la respuesta parcial.
+  - **Detalle técnico**: Las indicaciones se consumen en el siguiente límite de planificación, se diferencian de la cancelación forzada y se reflejan en eventos, tipos del cliente y la transcripción. *(Integración OSS — MIOT-0.5.47)*
+
+## 🔧 Integraciones
+
+- **🔌 Ingesta de viajes `otr` y `ote`**
+  - **Alcance**: El coordinador deja de limitar la búsqueda de servicios al tipo `v`, permitiendo procesar otros tipos de viaje presentes en el feed de Alerce.
+  - **Detalle técnico**: Se eliminan los filtros de tipo en las rutas Java de consulta y resincronización, se mantiene un watermark global compartido y se retira el atributo de timestamp específico de `otr`. La función RPC de base de datos debe reflejar igualmente la eliminación del filtro. *(Integración de cliente — Release 1.31.46)*
+
+- **🔌 Observabilidad del sitio web**
+  - **Alcance**: Se incorporó Google Analytics al sitio de marketing cuando está configurado `GA_MEASUREMENT_ID`, sin activar el seguimiento cuando la variable no existe. *(Integración OSS — MIOT-0.5.47)*
+
+- **🔌 Plataforma Quarkus**
+  - **Alcance**: Se actualizó Quarkus a la versión LTS 3.33.3.1 y se alinearon los proveedores Bouncy Castle en la versión 1.84 para mantener una base de dependencias coherente. *(Integración OSS — MIOT-0.5.47)*
+
+- **🔌 Automatización de imágenes de Harness**
+  - **Alcance**: Las acciones `docker/setup-buildx-action` y `docker/login-action` del flujo de imágenes de Harness se actualizaron a v4, compatible con Node.js 24. *(Integración OSS — MIOT-0.5.47)*
+
+## 🐛 Correcciones
+
+- **🐛 Verificación de marca para Google OAuth**
+  - **Impacto**: La verificación de marca de Google no encontraba suficiente información sobre privacidad, propósito de la aplicación ni correspondencia entre el nombre configurado y el sitio.
+  - **Solución**: La web pública y la página de privacidad explican la funcionalidad de ModularIoT, el uso de datos de Google, sus políticas de conservación y eliminación, e incluyen enlaces públicos a privacidad y términos en el pie de página. *(Integración OSS — MIOT-0.5.47)*
+
+- **🐛 Asignación de calendarios sin capacidad**
+  - **Impacto**: Los trabajos de sincronización podían reintentarse indefinidamente cuando todos los espacios del horizonte de 48 horas estaban completos.
+  - **Solución**: Se selecciona el primer espacio real disponible y, cuando la capacidad está agotada, se permite una reserva excepcional con `allowOverbooking: true`, sin utilizar espacios cerrados ni placeholders `OVERFLOW`. *(Integración OSS — MIOT-0.5.47)*
+
+## 📊 Beneficios
+
+- Mayor cobertura operativa para viajes `v`, `otr` y `ote` dentro del flujo de coordinación.
+- Asignación más precisa de viajes a calendarios según su tipo de servicio.
+- Menos bloqueos por saturación de capacidad en la planificación de calendarios.
+- Identidad visual configurable por dominio, independiente del ECM compartido.
+- Controles de acceso y aislamiento de tenants más consistentes para dashboards embebibles.
+- Mayor capacidad de intervención operativa durante ejecuciones activas de Harness.
+- Dependencias de plataforma y automatizaciones de CI/CD alineadas con versiones soportadas.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.47`
+- **App**: `app@v0.5.47` — actualizado.
+- **Docs**: `docs@v0.5.47` — actualizado.
+- **Web**: `web@v0.5.47` — actualizado.
+- **Modulith**: `modulith@v0.5.29` — actualizado.
+- **Harness**: `harness@v0.1.7` — actualizado.
+
+Los hashes exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.46 amplía la plataforma para escenarios de coordinación con múltiples tipos de viaje y mejora la asignación operativa cuando la capacidad de los calendarios está comprometida.
+
+Además, establece una base más sólida para la personalización por dominio, los dashboards multi-tenant y la operación asistida de Harness, junto con actualizaciones relevantes de seguridad, dependencias y automatización.

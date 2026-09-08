@@ -1,0 +1,35 @@
+meta {
+  name: A Consumer's write is 403 CAPABILITY
+  type: http
+  seq: 10
+}
+
+put {
+  url: {{baseUrl}}/scopes/{{scopeId}}/dashboards/bruno-scratch
+  body: json
+  auth: none
+}
+
+headers {
+  x-dev-user: {{consumer}}
+  x-dev-tenant: {{tenant}}
+}
+
+body:json {
+  {
+    "version": 2,
+    "title": "Should not be stored"
+  }
+}
+
+docs {
+  A different 403 from the cross-tenant one, and the distinction matters to a
+  UI: CAPABILITY means the caller is inside the scope but lacks the right,
+  so an edit affordance is hidden. TENANT_SCOPE means the resource is not
+  theirs to know about at all.
+}
+
+assert {
+  res.status: eq 403
+  res.body.reason: eq CAPABILITY
+}

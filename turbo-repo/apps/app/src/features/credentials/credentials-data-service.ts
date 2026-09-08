@@ -1,6 +1,6 @@
 "use client";
 
-import { ApiError } from "@/features/settings-admin/data/settings-admin-data-service";
+import { ApiError } from "@/features/settings-admin/data/json-client";
 import {
   AUTH0_M2M_PROVIDER,
   buildAuth0TokenUrl,

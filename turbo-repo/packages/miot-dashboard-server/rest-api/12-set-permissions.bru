@@ -1,0 +1,35 @@
+meta {
+  name: Replace role assignments
+  type: http
+  seq: 12
+}
+
+put {
+  url: {{baseUrl}}/scopes/{{scopeId}}/dashboards/{{slug}}/permissions
+  body: json
+  auth: none
+}
+
+headers {
+  x-dev-user: {{user}}
+  x-dev-tenant: {{tenant}}
+}
+
+body:json {
+  {
+    "assignments": [
+      { "authorityId": "connie", "role": "Editor" },
+      { "authorityId": "GROUP_analysts", "role": "Coordinator" }
+    ]
+  }
+}
+
+docs {
+  Assignments name a user or a group. An authority id that matches one of the
+  caller's groups raises them the same way their own id would. An unknown role
+  is rejected with 400 rather than stored.
+}
+
+assert {
+  res.status: eq 204
+}

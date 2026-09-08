@@ -1,0 +1,28 @@
+meta {
+  name: Effective capabilities on one dashboard
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/scopes/{{scopeId}}/dashboards/{{slug}}/capabilities
+  body: none
+  auth: none
+}
+
+headers {
+  x-dev-user: {{user}}
+  x-dev-tenant: {{tenant}}
+}
+
+docs {
+  The server half of the UI package's capability seam. This is what an embed
+  host calls to decide what to render. Swap the user variable to connie to see
+  a narrower answer for a Consumer.
+}
+
+assert {
+  res.status: eq 200
+  res.body.canEdit: eq true
+  res.body.canManagePermissions: eq true
+}

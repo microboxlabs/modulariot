@@ -1,0 +1,29 @@
+meta {
+  name: A scope outside the credential's tenant is 403
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/scopes/finance/dashboards/{{slug}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-dev-user: {{otherUser}}
+  x-dev-tenant: {{otherTenant}}
+}
+
+docs {
+  A foreign scope, a scope that does not exist, and a scope the caller simply
+  is not a member of all return exactly this response. They are deliberately
+  indistinguishable, and no store call happens before the refusal, so the API
+  cannot be used to enumerate scope ids.
+}
+
+assert {
+  res.status: eq 403
+  res.body.code: eq FORBIDDEN
+  res.body.reason: eq TENANT_SCOPE
+}

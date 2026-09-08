@@ -12,6 +12,7 @@ import {
   FinishedWorkflowsResponse,
   FastTasksResponse,
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import { normalizeServiceType } from "@/features/calendar/services/service-types";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -34,6 +35,13 @@ export async function GET(req: NextRequest) {
   const carrierName = url.searchParams.get("carrierName");
   const origin = url.searchParams.get("origin");
   const destination = url.searchParams.get("destination");
+  // Scopes the list to one service type (v / otr / ote). Server-side on
+  // purpose: a calendar that serves otr must not offer every v trip as
+  // plannable, and filtering after the page loads yields short pages
+  // rather than a scoped list. Normalized rather than lower-cased: the kanban
+  // sends `all` for every type, which is not one of the three and so is no
+  // filter at all.
+  const serviceType = url.searchParams.get("serviceType");
   const customer = url.searchParams.get("customer");
   const editable = url.searchParams.get("editable");
   const originType = url.searchParams.get("originType");
@@ -43,14 +51,12 @@ export async function GET(req: NextRequest) {
   const date_range_to = url.searchParams.get("date_range_to");
   const calendarId = url.searchParams.get("calendarId");
   const rawQ = url.searchParams.get("q");
-  // Mintral service IDs are stored as `v<digits>`; a purely numeric typed
-  // query won't prefix-match that column otherwise. Mirrors the `service=`
-  // normalization a few lines down so the autocomplete and the structured
-  // chip filter behave the same way for digit-only input.
-  let q: string | undefined;
-  if (rawQ) {
-    q = /^\d+$/.test(rawQ) ? `v${rawQ}` : rawQ;
-  }
+  // Pass the typed query through as-is. The coordinator matches it against both
+  // `mintral_key` — the Alerce key, `<serviceType><code>`: `v1457216`,
+  // `otr1152392` — and `mintral_serviceCode`, the bare number, so a digit-only
+  // query finds the trip whatever its service type. Prefixing `v` here, as this
+  // did, hid every `otr` and `ote` trip behind an empty result.
+  const q = rawQ ?? undefined;
 
   let data: Record<string, KanbanBoard> = {};
   let total = 0;
@@ -59,13 +65,14 @@ export async function GET(req: NextRequest) {
     from: from ? Number.parseInt(from) : 0,
     size: size ? Number.parseInt(size) : 10,
     filter: {
-      mintralKey: serviceCode ? `v${serviceCode}` : undefined,
+      mintralKey: serviceCode || undefined,
       licensePlate: licensePlate ? licensePlate.toUpperCase() : undefined,
       driverId: driverId ? driverId : undefined,
       carrierId: carrierId ? carrierId : undefined,
       carrierName: carrierName ? carrierName : undefined,
       origin: origin ? origin.toUpperCase() : undefined,
       destination: destination ? destination.toUpperCase() : undefined,
+      serviceType: normalizeServiceType(serviceType),
       clientAbbreviation: customer ? customer : undefined,
       originIsSitrans: originType ? originType === "INTERNAL" : undefined,
       editable: editable ? editable === "true" : undefined,
@@ -87,7 +94,7 @@ export async function GET(req: NextRequest) {
             size: size ? Number.parseInt(size) : 10,
             definitionKey: column,
             filter: {
-              mintralKey: serviceCode ? `v${serviceCode}` : undefined,
+              mintralKey: serviceCode || undefined,
               licensePlate: licensePlate
                 ? licensePlate.toUpperCase()
                 : undefined,
@@ -96,6 +103,7 @@ export async function GET(req: NextRequest) {
               carrierName: carrierName ? carrierName : undefined,
               origin: origin ? origin.toUpperCase() : undefined,
               destination: destination ? destination.toUpperCase() : undefined,
+      serviceType: normalizeServiceType(serviceType),
               clientAbbreviation: customer ? customer : undefined,
               originIsSitrans: originType
                 ? originType === "INTERNAL"

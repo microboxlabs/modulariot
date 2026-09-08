@@ -25,6 +25,7 @@ export default async function CredentialsPage({ params }: ParamsWithLang) {
       <CredentialsPageContent
         dict={userSettings}
         rootDict={dictionary as unknown as I18nRecord}
+        lang={lang}
       />
     </RouteGuard>
   );

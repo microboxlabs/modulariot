@@ -11,9 +11,11 @@ import { buildNavBarMessages, isHarnessUiEnabled } from "../utils/utils";
 import { SecuredSidebar } from "./secured-sidebar/secured-sidebar";
 import FooterSecuredLayout from "./footer-secured/footer-secured";
 import SseListener from "@/features/sse/components/sse-listener/sse-listener";
-import { getPublicOrgLogo } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { getDomainBranding } from "@/features/branding/domain-branding.service";
 import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
 import { KioskShell } from "./kiosk-shell";
+
+const isHarnessSettingsEnabled = process.env.ENABLE_HARNESS_SETTINGS === "true";
 
 export default async function SecuredLayout({
   children,
@@ -29,7 +31,7 @@ export default async function SecuredLayout({
   if (!session?.user) {
     redirect(`/${lang}/sign-in`);
   }
-  const initialOrgLogo = await getPublicOrgLogo();
+  const branding = await getDomainBranding();
   // When false/unset, SpotlightSearch isn't rendered at all below, which
   // also removes its Cmd+K listener — there's no client-side toggle to
   // bypass. Also gates the harness-chat toggle in SecuredNavbar.
@@ -38,15 +40,14 @@ export default async function SecuredLayout({
     <RuntimeConfigProvider>
       <SidebarProvider>
         <KioskShell>
-          <SseListener
-            dictionary={dictionary}
-            tenantId={session.user.email}
-          />
+          <SseListener dictionary={dictionary} tenantId={session.user.email} />
           <SecuredNavbar
             messages={navBarMessages}
             dict={dictionary as I18nRecord}
-            initialOrgLogo={initialOrgLogo}
+            initialOrgLogo={branding?.logoUrl}
+            initialOrgLogoDark={branding?.logoUrlDark}
             isSeachEnabled={isSeachEnabled}
+            isHarnessSettingsEnabled={isHarnessSettingsEnabled}
           />
           <div
             data-testid="content-with-sidebar"
@@ -57,13 +58,15 @@ export default async function SecuredLayout({
                 ((dictionary.layout as I18nRecord)?.secured as I18nRecord)
                   ?.sidebar as I18nRecord
               }
+              isHarnessSettingsEnabled={isHarnessSettingsEnabled}
             />
-            <LayoutContent dict={dictionary as I18nRecord}>{children}</LayoutContent>
+            <LayoutContent dict={dictionary as I18nRecord}>
+              {children}
+            </LayoutContent>
           </div>
           <FooterSecuredLayout messages={dict} />
         </KioskShell>
       </SidebarProvider>
-      
     </RuntimeConfigProvider>
   );
 }

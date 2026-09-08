@@ -17,6 +17,7 @@ import type {
   CalendarGroupResponse,
   CalendarRequest,
 } from "@microboxlabs/miot-calendar-client";
+import { normalizeServiceType } from "@/features/calendar/services/service-types";
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -78,13 +79,20 @@ export function CreateCalendarModal({
     setIsProcessing(true);
 
     try {
+      // Every key this filter can carry is set here. The BFF replaces
+      // `filter` wholesale rather than merging, so an editor that owned only
+      // some of them would wipe the rest on save.
       const filter: CalendarFilter = {};
       const filterOrigin = (formValues.filterOrigin as string)?.trim();
       const filterDestination = (
         formValues.filterDestination as string
       )?.trim();
+      const filterServiceType = normalizeServiceType(
+        formValues.filterServiceType as string
+      );
       if (filterOrigin) filter.origin = filterOrigin;
       if (filterDestination) filter.destination = filterDestination;
+      if (filterServiceType) filter.serviceType = filterServiceType;
 
       const body: CalendarRequest = {
         name: formValues.name as string,
@@ -178,11 +186,14 @@ export function CreateCalendarModal({
           dict={dict}
         />
 
-        {/* filter: origin + destination side by side */}
+        {/* filter: origin + destination + service type side by side */}
         <div className="flex gap-3">
           {standardFields
             .filter(
-              (f) => f.name === "filterOrigin" || f.name === "filterDestination"
+              (f) =>
+                f.name === "filterOrigin" ||
+                f.name === "filterDestination" ||
+                f.name === "filterServiceType"
             )
             .map((field) => (
               <div key={field.name} className="flex-1">

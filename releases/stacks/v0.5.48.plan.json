@@ -1,0 +1,53 @@
+{
+  "stack_version": "0.5.48",
+  "stack_tag": "miot-stack@v0.5.48",
+  "milestone": "MIOT-0.5.48",
+  "pull_requests": [
+    {
+      "number": 1188,
+      "title": "feat(kanban): filter the boards by service type, opening on V",
+      "source_issues": [
+        {
+          "number": 1187,
+          "title": "feat(kanban): service-type filter (V / OTR / OTE)"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/navegation_params.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.48",
+      "tag": "app@v0.5.48"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.47",
+      "version": "0.5.47",
+      "tag": "docs@v0.5.47"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.5.47",
+      "version": "0.5.47",
+      "tag": "web@v0.5.47"
+    },
+    "modulith": {
+      "changed": false,
+      "changed_since": "modulith@v0.5.29",
+      "version": "0.5.29",
+      "tag": "modulith@v0.5.29"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.7",
+      "version": "0.1.7",
+      "tag": "harness@v0.1.7"
+    }
+  }
+}

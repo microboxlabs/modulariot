@@ -127,6 +127,17 @@ export interface CalendarGroupResponse {
 export interface CalendarFilter {
   origin?: string;
   destination?: string;
+  /**
+   * Service type this calendar serves: `v`, `otr` or `ote`. Together with
+   * {@link CalendarFilter.origin} it scopes {@link CalendarRequest.isDefault},
+   * so one delegación can send its `otr` trips somewhere other than the
+   * calendar its `v` trips use. Stored lower-cased by miot-calendar.
+   *
+   * Omitted means the calendar serves every type its origin does not claim
+   * specifically — which is every calendar that predates this key, and why
+   * adding it moves nothing.
+   */
+  serviceType?: string;
 }
 
 export interface CalendarRequest {
@@ -140,10 +151,10 @@ export interface CalendarRequest {
   filter?: CalendarFilter;
   autoSlotManager?: boolean;
   /**
-   * Mark this calendar as the default for its {@link CalendarFilter.origin} —
-   * the one an integrating system books into when it was given no calendar.
-   * Setting it demotes the previous default for the same origin; omitting it
-   * leaves the current value alone.
+   * Mark this calendar as the default for its {@link CalendarFilter.origin}
+   * and {@link CalendarFilter.serviceType} — the one an integrating system
+   * books into when it was given no calendar. Setting it demotes the previous
+   * default for the same pair; omitting it leaves the current value alone.
    */
   isDefault?: boolean;
 }
@@ -161,7 +172,7 @@ export interface CalendarResponse {
   groups?: CalendarGroupResponse[];
   filter?: CalendarFilter;
   hasSlotManager?: boolean;
-  /** Whether this is the default calendar for its filter origin. */
+  /** Whether this is the default calendar for its filter origin and service type. */
   isDefault?: boolean;
 }
 

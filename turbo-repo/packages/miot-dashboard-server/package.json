@@ -1,0 +1,88 @@
+{
+  "name": "@microboxlabs/miot-dashboard-server",
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/microboxlabs/modulariot",
+    "directory": "packages/miot-dashboard-server"
+  },
+  "description": "Framework-agnostic backend services for MIOT embeddable dashboards: persistence, identity and tenancy, datasource proxying, embed tokens.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./http": {
+      "types": "./dist/http.d.ts",
+      "import": "./dist/http.js"
+    },
+    "./identity": {
+      "types": "./dist/identity.d.ts",
+      "import": "./dist/identity.js"
+    },
+    "./store-sql": {
+      "types": "./dist/store-sql.d.ts",
+      "import": "./dist/store-sql.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    }
+  },
+  "bin": {
+    "miot-dashboard-server": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "contract",
+    "examples"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "dev:server": "MIOT_DASHBOARD_INSECURE_AUTH=true MIOT_DASHBOARD_SEED=examples/seed.json tsx watch src/bin.ts",
+    "start": "node dist/bin.js",
+    "test:api": "npm --prefix rest-api run test:api",
+    "lint": "eslint .",
+    "check-types": "tsc --noEmit && node scripts/guard-imports.mjs",
+    "guard": "node scripts/guard-imports.mjs"
+  },
+  "peerDependencies": {
+    "jose": "^6.0.0",
+    "swagger-ui-dist": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "jose": {
+      "optional": true
+    },
+    "swagger-ui-dist": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "@types/node": "^20.19.0",
+    "jose": "^6.2.10",
+    "swagger-ui-dist": "^5.32.14",
+    "tsup": "^8.0.0",
+    "tsx": "^4.22.0",
+    "typescript": "5.8.2",
+    "vitest": "^4.0.18",
+    "yaml": "^2.8.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

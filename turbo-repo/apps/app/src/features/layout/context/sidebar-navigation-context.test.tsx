@@ -81,7 +81,9 @@ function setDefaultMocks({
   // API returns arbitrary process-task keys. Use unknown intermediary to avoid
   // constructing the full type shape in test mocks.
   vi.mocked(useMyTasksCount).mockReturnValue({
-    data: { totals: taskTotals } as unknown as ReturnType<typeof useMyTasksCount>["data"],
+    data: { totals: taskTotals } as unknown as ReturnType<
+      typeof useMyTasksCount
+    >["data"],
     error: error ? makeFetcherError(error.status) : undefined,
     isLoading: false,
   });
@@ -115,7 +117,9 @@ function setDefaultMocks({
 }
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <SidebarNavigationProvider>{children}</SidebarNavigationProvider>
+  <SidebarNavigationProvider isHarnessSettingsEnabled={false}>
+    {children}
+  </SidebarNavigationProvider>
 );
 
 // ---------------------------------------------------------------------------

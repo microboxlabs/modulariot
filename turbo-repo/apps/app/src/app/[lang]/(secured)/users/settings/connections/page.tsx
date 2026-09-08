@@ -29,6 +29,7 @@ export default async function IntegrationConnectionsPage({
       <IntegrationConfigPageContent
         dict={dict ?? {}}
         breadcrumbDict={breadcrumbDict ?? {}}
+        lang={lang}
       />
     </RouteGuard>
   );

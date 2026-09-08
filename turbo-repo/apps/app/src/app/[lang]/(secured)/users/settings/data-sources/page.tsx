@@ -30,7 +30,11 @@ export default async function DataSourcesPage({ params }: ParamsWithLang) {
         path="/users/settings/data-sources"
         fallbackPath={`/${lang}/shipping`}
       >
-        <DataSourcesPageContent dict={userSettings} siteId={siteId} />
+        <DataSourcesPageContent
+          dict={userSettings}
+          siteId={siteId}
+          lang={lang}
+        />
       </RouteGuard>
     );
   } catch (e: unknown) {

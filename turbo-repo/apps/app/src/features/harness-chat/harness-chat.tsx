@@ -14,7 +14,8 @@ import {
 } from "./context/harness-chat-i18n-context";
 import { useResizablePanelWidth } from "./hooks/use-resizable-panel-width";
 import { buildHarnessToolkit, type HarnessExtension } from "./harness-extension";
-import { DEFAULT_HARNESS_EXTENSIONS } from "./extensions";
+import { resolveDefaultHarnessExtensions } from "./extensions";
+import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
 import { PendingAttachmentReceiver } from "./components/pending-attachment-receiver";
@@ -37,11 +38,14 @@ const headerButtonClass =
   "flex h-6 w-6 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100";
 
 export default function HarnessChat({
-  extensions = DEFAULT_HARNESS_EXTENSIONS,
+  extensions,
   skills,
   dict,
   locale,
 }: Readonly<{
+  /** Override the built-in card set. When omitted, the default list is
+   * resolved from runtime config (see `resolveDefaultHarnessExtensions`) so
+   * flag-gated cards aren't registered while their feature is off. */
   extensions?: HarnessExtension[];
   /**
    * Slash-command skills the composer's "/" menu offers. No built-in
@@ -65,11 +69,24 @@ export default function HarnessChat({
 }
 
 const HarnessChatPanel: FC<{
-  extensions: HarnessExtension[];
+  extensions?: HarnessExtension[];
   skills: HarnessSkill[];
   locale: string;
 }> = ({ extensions, skills, locale }) => {
   const tr = useHarnessChatTr();
+  const runtimeConfig = useRuntimeConfig();
+  // An explicit `extensions` prop wins; otherwise resolve the default set
+  // against runtime config so `create_story` isn't registered (and offered
+  // to the harness) while ENABLE_STORYTELLING is off. `null` config (still
+  // loading) is treated as off, same as use-visible-pages.
+  const resolvedExtensions = useMemo(
+    () =>
+      extensions ??
+      resolveDefaultHarnessExtensions({
+        storytellingEnabled: runtimeConfig?.ENABLE_STORYTELLING === "true",
+      }),
+    [extensions, runtimeConfig],
+  );
   const {
     isOpen,
     close,
@@ -254,7 +271,7 @@ const HarnessChatPanel: FC<{
               pendingAttachmentLabel={session.id === activeId ? pendingAttachment : null}
               onAttachmentConsumed={clearPendingAttachment}
               onTitleChange={updateSessionTitle}
-              extensions={extensions}
+              extensions={resolvedExtensions}
               skills={skills}
             />
           ))}

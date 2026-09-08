@@ -10,6 +10,9 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { HiAdjustments } from "react-icons/hi";
 import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
+import FichaSintoma, { Campo } from "./ficha-sintoma";
+import FuentesCondicion from "./fuentes-condicion";
+import { TextInput, Select as DsSelect } from "flowbite-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -37,24 +40,15 @@ type AuditRow = {
   changed_at: string; reason: string | null;
   new_state: Record<string, unknown> | null;
 };
-type Combo = {
-  level_key: string; display_name: string; color: string; ord: number;
-  floor_channels: string[]; operator_required: boolean;
-  enabled: boolean; criteria: Record<string, unknown> | null; treatment_type: string | null;
-};
-type Detalle = {
-  rule_id: number; is_active: boolean; display_name: string | null; name: string;
-  description: string | null; base_type: string; cloned_from: number | null;
-  org_id: string | null; editable: boolean; combinaciones: Combo[];
-};
 type MiRegla = { rule_id: number; name: string; active: boolean; niveles: number; cost_monthly_usd: number | null };
 type Cuota = { usadas: number; limite: number };
 type Cuotas = { reglas: Cuota; lugares: Cuota; trayectos: Cuota };
 
-const TABS = ["catalogo", "constructor", "esquema", "auditoria"] as const;
+const TABS = ["catalogo", "constructor", "fuentes", "esquema", "auditoria"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
-  catalogo: "Catálogo de síntomas", constructor: "Constructor",
+  catalogo: "Catálogo de síntomas", constructor: "Ficha del síntoma",
+  fuentes: "Fuentes de condición",
   esquema: "Esquema de criticidad", auditoria: "Auditoría",
 };
 
@@ -66,12 +60,17 @@ export default function SymptomRulesPageContent() {
   const [pendientes, setPendientes] = useState<Record<number, boolean>>({});
   const [aplicando, setAplicando] = useState(false);
   const [reglaSel, setReglaSel] = useState<number | null>(null);
-  const [fanout, setFanout] = useState<Record<string, unknown> | null>(null);
+  const [slugSel, setSlugSel] = useState<string | null>(null);
+  const [nuevoAbierto, setNuevoAbierto] = useState(false);
+  const [nuevo, setNuevo] = useState({ nombre: "", familia: "", descripcion: "" });
+  const [creando, setCreando] = useState(false);
   const [msgCons, setMsgCons] = useState<string | null>(null);
   const [resultado, setResultado] = useState<string | null>(null);
 
   const { data: cat, mutate: refrescar } = useSWR<Catalogo>(
     "/app/api/atc/rpc/fn_symptom_list?p_org_id=org_demo", fetcher);
+  const { data: familiasCat } = useSWR<{ family_key: string; name: string; color: string }[]>(
+    nuevoAbierto ? "/app/api/atc/rpc/fn_pt4_familias" : null, fetcher);
   const { data: esquema } = useSWR<EsquemaNivel[]>(
     tab === "esquema" ? "/app/api/atc/rpc/fn_pt4_criticality_scheme" : null, fetcher);
   const { data: audit } = useSWR<AuditRow[]>(
@@ -80,9 +79,6 @@ export default function SymptomRulesPageContent() {
     carrierMode ? "/app/api/atc/rpc/fn_pt4_quota_status" : null, fetcher);
   const { data: mias, mutate: refrescarMias } = useSWR<{ reglas: MiRegla[]; cuota: Cuota }>(
     carrierMode ? "/app/api/atc/rpc/fn_pt4_my_rules" : null, fetcher);
-  const { data: det, mutate: refrescarDet } = useSWR<Detalle>(
-    tab === "constructor" && reglaSel != null
-      ? `/app/api/atc/rpc/fn_pt4_rule_detail?p_rule_id=${reglaSel}` : null, fetcher);
 
   const familias = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -127,26 +123,32 @@ export default function SymptomRulesPageContent() {
       headers: { "content-type": "application/json" }, body: JSON.stringify(body),
     }).then((r) => r.json());
 
+  const crearSintoma = async () => {
+    setCreando(true);
+    const res = await post("fn_pt4_create_rule", {
+      p_nombre: nuevo.nombre, p_familia: nuevo.familia,
+      p_descripcion: nuevo.descripcion || null, p_actor: "app-settings" });
+    setCreando(false);
+    if (res?.ok) {
+      setNuevoAbierto(false);
+      setNuevo({ nombre: "", familia: "", descripcion: "" });
+      setReglaSel(Number(res.rule_id)); setSlugSel(String(res.slug));
+      setTab("constructor");
+      setMsgCons("Síntoma creado (apagado). Define su regla del motor, criticidades y automatismos; enciéndelo cuando esté listo.");
+      void refrescar();
+    } else {
+      setResultado(`No creado — ${res?.detalle ?? res?.error ?? "error"}`);
+    }
+  };
+
   const clonar = async (ruleId: number, nombre: string) => {
     const res = await post("fn_pt4_clone_rule", {
       p_rule_id: ruleId, p_new_name: `${nombre} — copia`, p_actor: "app-settings" });
     if (res?.ok) {
-      setReglaSel(Number(res.rule_id ?? res.new_rule_id));
-      setTab("constructor"); setFanout(null); setMsgCons("Clon creado (apagado). Ajusta sus niveles y actívalo cuando esté listo.");
+      setReglaSel(Number(res.rule_id ?? res.new_rule_id)); setSlugSel(null);
+      setTab("constructor"); setMsgCons("Clon creado (apagado). Ajusta sus niveles y actívalo cuando esté listo.");
       void refrescarMias();
     } else setMsgCons(`No se pudo clonar — ${res?.detalle ?? res?.error ?? "error"}`);
-  };
-
-  const guardarCombo = async (cb: Combo, enabled: boolean, treatment: string | null) => {
-    const res = await post("fn_pt4_save_combination", {
-      p_rule_id: reglaSel, p_level_key: cb.level_key, p_enabled: enabled,
-      p_criteria: cb.criteria, p_treatment: treatment, p_actor: "app-settings" });
-    setMsgCons(res?.ok === false ? `No guardado — ${res?.detalle ?? res?.error}` : "Combinación guardada (auditada).");
-    void refrescarDet(); void refrescar();
-  };
-
-  const estimar = async () => {
-    setFanout(await post("fn_pt4_estimate", { p_rule_id: reglaSel }));
   };
 
   const activarRegla = async (r: MiRegla) => {
@@ -213,15 +215,60 @@ export default function SymptomRulesPageContent() {
         ))}
         <span className="flex-1" />
         {tab === "catalogo" && (
-          <input value={busca} onChange={(e) => setBusca(e.target.value)}
-                 placeholder="Buscar síntoma…"
-                 className="mb-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-900 dark:text-white w-[220px]" />
+          <div className="flex items-center gap-2 mb-1">
+            <TextInput sizing="sm" value={busca} onChange={(e) => setBusca(e.target.value)}
+                       aria-label="Buscar síntoma" placeholder="Buscar síntoma…" className="w-[220px]" />
+            <button onClick={() => setNuevoAbierto((v) => !v)}
+                    className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-1.5">
+              + Nuevo síntoma
+            </button>
+          </div>
         )}
       </div>
 
       {/* ── Catálogo ── */}
       {tab === "catalogo" && (
         <div className="space-y-4 pb-16">
+          {nuevoAbierto && (
+            <section className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 flex flex-col gap-4">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Nuevo síntoma</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Campo id="ns-nombre" label="Nombre *">
+                  <TextInput id="ns-nombre" sizing="sm" value={nuevo.nombre}
+                             onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} />
+                </Campo>
+                <Campo id="ns-familia" label="Familia *"
+                       ayuda="Dónde aparece en el catálogo">
+                  <DsSelect id="ns-familia" sizing="sm" value={nuevo.familia}
+                            onChange={(e) => setNuevo({ ...nuevo, familia: e.target.value })}>
+                    <option value="">— elegir familia —</option>
+                    {(familiasCat ?? []).map((f) => (
+                      <option key={f.family_key} value={f.family_key}>{f.name}</option>
+                    ))}
+                  </DsSelect>
+                </Campo>
+                <Campo id="ns-descr" label="Descripción">
+                  <TextInput id="ns-descr" sizing="sm" value={nuevo.descripcion}
+                             onChange={(e) => setNuevo({ ...nuevo, descripcion: e.target.value })} />
+                </Campo>
+              </div>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                Se crea apagado, con un matcher mínimo por definir — al crearlo se abre su ficha
+                para configurar la regla del motor, las criticidades y los automatismos.
+              </p>
+              <div className="flex gap-2">
+                <button disabled={creando || !nuevo.nombre.trim() || !nuevo.familia}
+                        onClick={() => void crearSintoma()}
+                        className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-1.5 disabled:opacity-50">
+                  {creando ? "Creando…" : "Crear y abrir ficha"}
+                </button>
+                <button onClick={() => setNuevoAbierto(false)}
+                        className="rounded-lg border border-gray-300 dark:border-gray-600 text-sm px-3 py-1.5 text-gray-900 dark:text-white">
+                  Cancelar
+                </button>
+              </div>
+            </section>
+          )}
           {carrierMode && mias && (
             <section>
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white pb-1.5">
@@ -242,7 +289,7 @@ export default function SymptomRulesPageContent() {
                         {r.cost_monthly_usd != null && <> · US$ {r.cost_monthly_usd}/mes</>}</div>
                     </div>
                     <button className="text-xs text-blue-600 hover:underline"
-                            onClick={() => { setReglaSel(r.rule_id); setFanout(null); setTab("constructor"); }}>
+                            onClick={() => { setReglaSel(r.rule_id); setSlugSel(null); setTab("constructor"); }}>
                       editar
                     </button>
                   </div>
@@ -308,7 +355,7 @@ export default function SymptomRulesPageContent() {
                           {c.rule_id != null && (
                             <>
                               <button className="text-blue-600 hover:underline"
-                                      onClick={() => { setReglaSel(c.rule_id); setFanout(null); setTab("constructor"); }}>
+                                      onClick={() => { setReglaSel(c.rule_id); setSlugSel(c.slug ?? null); setTab("constructor"); }}>
                                 abrir
                               </button>
                               <button className="text-blue-600 hover:underline"
@@ -325,6 +372,31 @@ export default function SymptomRulesPageContent() {
               </div>
             </section>
           ))}
+          {!carrierMode && (cat?.custom ?? []).length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 pb-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Síntomas propios</h2>
+                <span className="text-xs text-gray-500">{(cat?.custom ?? []).length} · creados o clonados por la torre</span>
+              </div>
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-2">
+                {(cat?.custom ?? []).map((c) => (
+                  <div key={c.rule_id ?? c.slug} className="rounded-lg border border-blue-300 dark:border-blue-800 px-3 py-2.5 flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{c.name}</div>
+                      <div className="text-[11px] text-gray-500">{c.active ? "encendido" : "apagado"} · {c.fired_24h} disparos 24 h</div>
+                    </div>
+                    {c.rule_id != null && (
+                      <button className="text-xs text-blue-600 hover:underline"
+                              onClick={() => { setReglaSel(c.rule_id); setSlugSel(c.slug ?? null); setTab("constructor"); }}>
+                        abrir
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
           {cat && familias.length === 0 && (
             <div className="text-sm text-gray-500">Sin resultados para «{busca}»</div>
           )}
@@ -349,65 +421,22 @@ export default function SymptomRulesPageContent() {
         </div>
       )}
 
-      {/* ── Constructor: combinaciones por nivel + fanout (PT4-b) ── */}
+      {/* ── Ficha del síntoma (S3 — contrato mockup_ficha_sintoma) ── */}
       {tab === "constructor" && (
-        <div className="space-y-4 pb-16">
-          {reglaSel == null && (
+        <div className="pb-8">
+          {reglaSel == null ? (
             <div className="text-sm text-gray-500">
-              Elige una regla desde el catálogo («abrir») o clona una caja para crear la tuya.
+              Elige un síntoma desde el catálogo («abrir») o clona una caja para crear la tuya.
             </div>
+          ) : (
+            <FichaSintoma key={reglaSel} ruleId={reglaSel} slug={slugSel} />
           )}
-          {reglaSel != null && !det && <div className="text-sm text-gray-500">Cargando regla…</div>}
-          {det && (
-            <>
-              <div className="flex items-center gap-3 flex-wrap">
-                <div>
-                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {det.display_name ?? det.name}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {det.base_type}{det.cloned_from != null && <> · clon de #{det.cloned_from}</>}
-                    {det.org_id && <> · org {det.org_id}</>} · {det.is_active ? "encendida" : "apagada"}
-                    {!det.editable && " · solo lectura para tu organización"}
-                  </div>
-                </div>
-                <span className="flex-1" />
-                <button onClick={() => void estimar()}
-                        className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700">
-                  Estimar impacto
-                </button>
-              </div>
-
-              {fanout && (
-                <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm flex items-center gap-4 flex-wrap">
-                  <span className="font-medium text-gray-900 dark:text-white">Fanout (dry-run)</span>
-                  <span>riesgo: <b style={{ color: String(fanout.risk_level) === "low" ? "#0E9F6E"
-                    : String(fanout.risk_level) === "moderate" ? "#D97706"
-                    : String(fanout.risk_level) === "unknown" ? "#6B7280" : "#E11D48" }}>
-                    {String(fanout.risk_level)}</b></span>
-                  <span>{Number(fanout.matches_per_hour ?? 0)} coincidencias/h</span>
-                  <span>US$ {Number(fanout.cost_monthly_usd_estimate ?? 0)}/mes estimado</span>
-                  {typeof fanout.error === "string" && (
-                    <span className="text-gray-500">{fanout.error}</span>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                {det.combinaciones.map((cb) => (
-                  <ComboFila key={cb.level_key} cb={cb} editable={det.editable}
-                             onGuardar={(en, tr) => void guardarCombo(cb, en, tr)} />
-                ))}
-              </div>
-              <p className="text-[11px] text-gray-500">
-                Los pisos de notificación del esquema no se pueden rebajar; el código negro
-                exige gestión de operador. Cada guardado queda en la auditoría.
-              </p>
-            </>
-          )}
-          {msgCons && <div className="text-sm text-gray-700 dark:text-gray-300">{msgCons}</div>}
+          {msgCons && <div className="text-sm text-gray-700 dark:text-gray-300 pt-2">{msgCons}</div>}
         </div>
       )}
+
+      {/* ── Fuentes de condición (X6a — capa declarativa) ── */}
+      {tab === "fuentes" && <FuentesCondicion carrierMode={carrierMode} />}
 
       {/* ── Esquema de criticidad (constitución, read-only) ── */}
       {tab === "esquema" && (
@@ -480,46 +509,6 @@ export default function SymptomRulesPageContent() {
           )}
           {!audit && <div className="text-sm text-gray-500">Cargando auditoría…</div>}
         </div>
-      )}
-    </div>
-  );
-}
-
-// Fila de combinación del constructor: nivel + tratamiento + guardar.
-function ComboFila({ cb, editable, onGuardar }: {
-  cb: Combo; editable: boolean;
-  onGuardar: (enabled: boolean, treatment: string | null) => void;
-}) {
-  const [en, setEn] = useState(cb.enabled);
-  const [tr, setTr] = useState(cb.treatment_type ?? "registro");
-  const cambiado = en !== cb.enabled || tr !== (cb.treatment_type ?? "registro");
-  return (
-    <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center gap-4 flex-wrap">
-      <span className="inline-flex items-center gap-2 w-[180px] font-medium text-sm text-gray-900 dark:text-white">
-        <span className="w-2.5 h-2.5 rounded-full" style={{ background: cb.color }} />
-        {cb.display_name}
-      </span>
-      <label className={`relative inline-flex items-center ${editable ? "cursor-pointer" : "opacity-50"}`}>
-        <input type="checkbox" className="sr-only peer" checked={en} disabled={!editable}
-               onChange={() => setEn(!en)} />
-        <span className="w-9 h-5 bg-gray-200 dark:bg-gray-600 rounded-full peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />
-      </label>
-      <select value={tr} disabled={!editable || cb.operator_required}
-              onChange={(e) => setTr(e.target.value)}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-sm text-gray-900 dark:text-white">
-        <option value="registro">Registro</option>
-        <option value="notificacion">Notificación</option>
-        <option value="gestion_operador">Gestión de operador</option>
-      </select>
-      <span className="text-[11px] text-gray-500 flex-1">
-        piso: {cb.floor_channels.join(", ") || "—"}
-        {cb.operator_required && " · operador requerido (no rebajable)"}
-      </span>
-      {editable && cambiado && (
-        <button onClick={() => onGuardar(en, cb.operator_required ? "gestion_operador" : tr)}
-                className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5">
-          Guardar
-        </button>
       )}
     </div>
   );

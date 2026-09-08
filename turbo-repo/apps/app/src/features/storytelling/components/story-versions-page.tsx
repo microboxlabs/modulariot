@@ -172,7 +172,10 @@ function VersionCard({
           <span className="min-w-0 truncate text-[11px] text-gray-400 dark:text-gray-500">
             {tr("attribution", dict, {
               name: version.createdBy,
-              date: formatDateString(version.createdAt, "date", locale),
+              // "UTC": version.createdAt is stored date-only (YYYY-MM-DD) and
+              // parsed as UTC midnight, so it must be read back in UTC or
+              // formatDateString's America/Santiago default shows the day before.
+              date: formatDateString(version.createdAt, "date", locale, "UTC"),
             })}
           </span>
         </div>

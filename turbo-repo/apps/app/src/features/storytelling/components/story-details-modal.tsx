@@ -34,7 +34,10 @@ export default function StoryDetailsModal({
   dict,
 }: StoryDetailsModalProps) {
   const locale = lang === "en" ? "en-US" : "es-CL";
-  const fmt = (date: string) => formatDateString(date, "date", locale);
+  // "UTC" because story dates are stored date-only (YYYY-MM-DD) and parsed as
+  // UTC midnight — without it formatDateString's America/Santiago default
+  // rolls them back to the previous calendar day.
+  const fmt = (date: string) => formatDateString(date, "date", locale, "UTC");
 
   return (
     <Modal

@@ -124,7 +124,6 @@ value you have confirmed; never emit a literal placeholder.
 | `/users/settings/platform` | platform settings, ajustes de plataforma, branding, marca, logo, logotipo, logo por dominio, superusers, superusuarios, platform administrators, administradores de la plataforma | Platform-scope settings: per-domain logos and the superusers who may set them (platform administrators only) | — |
 | `/admin/console/logs` | admin logs, logs, registros (admins only) | Operational logs | — |
 | `/admin/console/message-templates` | message templates, plantillas de mensaje (admins only) | Message templates | — |
-| `/storytelling` | storytelling, stories, historias, artifacts, artefactos | AI-generated and curated stories (detail at `/storytelling/{id}`, version history at `/storytelling/{id}/versions`) | `name`, `artifactType`, `creator`, `createdAt_from`/`createdAt_to` |
 
 Kanban params (for `/planning`, `/shipping`, `/delivery`, `/finished`,
 `/mytasks`): `service`, `licensePlate`, `driverId`, `carrierId`, `origin`,

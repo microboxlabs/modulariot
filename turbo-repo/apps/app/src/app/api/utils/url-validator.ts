@@ -36,6 +36,11 @@ function isPrivateIPv6(ip: string): boolean {
 export async function validateTargetUrl(
   rawUrl: string
 ): Promise<{ valid: true } | { valid: false; reason: string }> {
+  // Dev-only escape hatch: allow private/loopback data sources on a local
+  // workstation (e.g. a PostgREST lab on localhost). Never set in production.
+  if (process.env.ALLOW_PRIVATE_DATASOURCE_URLS === "true") {
+    return { valid: true };
+  }
   let parsed: URL;
   try {
     parsed = new URL(rawUrl);

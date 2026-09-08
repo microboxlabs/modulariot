@@ -15,6 +15,38 @@ export const DS = {
   nivel: { A: "#0E9F6E", B: "#1C64F2", C: "#F1B300", D: "#E11D48" } as Record<string, string>,
 };
 
+// ── Tooltip-tarjeta (estilo card del Coordinador): título + badge + filas ──
+export type TipTono = "rojo" | "verde" | "gris" | "azul" | "ambar" | "negro" | "violeta";
+const TIP_TONOS: Record<TipTono, [string, string]> = {
+  rojo: ["rgba(225,29,72,0.14)", "#E11D48"], verde: ["rgba(14,159,110,0.16)", "#0E9F6E"],
+  gris: ["rgba(107,114,128,0.18)", "#6B7280"], azul: ["rgba(28,100,242,0.14)", "#1C64F2"],
+  ambar: ["rgba(241,179,0,0.2)", "#B45309"], negro: ["rgba(17,25,40,0.85)", "#FFFFFF"],
+  violeta: ["rgba(126,58,242,0.16)", "#7E3AF2"],
+};
+export function tipCard(o: {
+  titulo: string;
+  badge?: { texto: string; tono: TipTono };
+  filas: [string, string][];
+  pie?: string;
+}): string {
+  const badge = o.badge
+    ? `<span style="margin-left:8px;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:600;` +
+      `background:${TIP_TONOS[o.badge.tono][0]};color:${TIP_TONOS[o.badge.tono][1]}">${o.badge.texto}</span>`
+    : "";
+  const filas = o.filas.map(([k, v]) =>
+    `<tr><td style="padding:1px 10px 1px 0;opacity:.62;white-space:nowrap;font-size:10.5px">${k}</td>` +
+    `<td style="padding:1px 0;font-size:11.5px;font-weight:500">${v}</td></tr>`).join("");
+  const pie = o.pie
+    ? `<div style="margin-top:6px;padding-top:5px;border-top:1px solid rgba(128,128,128,.25);` +
+      `font-size:10px;opacity:.6;font-style:italic">${o.pie}</div>`
+    : "";
+  return `<div style="min-width:210px;max-width:320px">` +
+    `<div style="font-weight:700;font-size:12.5px;display:flex;align-items:center">${o.titulo}${badge}</div>` +
+    `<table style="margin-top:5px;border-collapse:collapse">${filas}</table>${pie}</div>`;
+}
+export const fmtDur = (h: number) =>
+  h >= 48 ? `${(h / 24).toFixed(1)} días` : `${h.toFixed(1)} h`;
+
 // Modo oscuro (prefers-color-scheme) → paleta de ejes/rejilla para ECharts
 export function useTemaChart() {
   const [dark, setDark] = useState(false);
@@ -55,7 +87,13 @@ export function EChart({ option, height = 200, onEvents }: {
     return () => { ro.disconnect(); inst.current?.dispose(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  useEffect(() => { inst.current?.setOption(option, true); }, [option]);
+  useEffect(() => {
+    // Merge puro: las series se ACTUALIZAN en su lugar (los puntos con `name`
+    // interpolan su posición — efecto motion chart) y ejes/grilla/zoom no se
+    // recrean. Contrato: cada gráfico mantiene NÚMERO Y ORDEN de series
+    // constante entre renders (series vacías en vez de ausentes).
+    inst.current?.setOption(option);
+  }, [option]);
   return <div ref={ref} style={{ width: "100%", height, minHeight: 0 }} />;
 }
 

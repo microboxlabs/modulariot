@@ -46,6 +46,7 @@ export function Simulador() {
     setCorriendo(true);
     setError(null);
     try {
+      // golPost ya valida el status y devuelve el JSON parseado
       const r = await golPost("fn_dx_gol_simular", {
           p_tipo: tipo,
           p_nodo_id: nodoId,
@@ -53,8 +54,7 @@ export function Simulador() {
           p_hora_ini: tipo === "restriccion_horaria" ? horaIni : null,
           p_hora_fin: tipo === "restriccion_horaria" ? horaFin : null,
         });
-      if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-      setRes(await r.json());
+      setRes(r as Resultado);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

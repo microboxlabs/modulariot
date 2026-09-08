@@ -19,7 +19,11 @@ export function usePeriodo() {
     q.set("dias", String(d));
     router.replace(`${pathname}?${q.toString()}`);
   };
-  return { dias, setDias, qs: `dias=${dias}` };
+  // qs conserva TODOS los params activos (filtros incluidos) para que la
+  // navegación N1→N2→N3 no pierda el contexto filtrado
+  const nav = new URLSearchParams(sp.toString());
+  nav.set("dias", String(dias));
+  return { dias, setDias, qs: nav.toString() };
 }
 
 export function PeriodoChips({ dias, onChange }: { dias: number; onChange: (d: number) => void }) {

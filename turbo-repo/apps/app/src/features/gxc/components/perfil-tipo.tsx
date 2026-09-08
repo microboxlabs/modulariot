@@ -20,6 +20,9 @@ import {
   type PoblacionGxc, type EntidadGxc, pct, deltaTasa,
 } from "../model";
 import { usePeriodo, PeriodoChips } from "./periodo";
+import { useGxcFiltros, GxcFiltrosBar } from "./filtros";
+import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 type Tema = ReturnType<typeof useTemaChart>;
 
@@ -150,17 +153,20 @@ function opcionCuadrante(
   };
 }
 
-export function PerfilTipo({ lang }: { lang: string }) {
+export function PerfilTipo({ lang, dict }: { lang: string; dict: I18nRecord }) {
   const params = useParams<{ tipo: string }>();
   const tipo = params.tipo;
   const router = useRouter();
   const tema = useTemaChart();
   const { dias, setDias, qs } = usePeriodo();
+  const { carrierMode } = useCarrierMode();
+  const gx = useGxcFiltros(carrierMode);
+  const q = gx.q(dias);
   const meta = TIPO_META[tipo];
   const [busca, setBusca] = useState("");
 
   const { data } = useSWR<PoblacionGxc>(
-    meta ? `/rpc/fn_dx_gol_gxc_poblacion?p_tipo=${tipo}&p_dias=${dias}` : null,
+    meta ? `/rpc/fn_dx_gol_gxc_poblacion?p_tipo=${tipo}&${q}` : null,
     fetcher, { refreshInterval: 300_000, keepPreviousData: true });
 
   const bl = data?.baseline;
@@ -176,7 +182,7 @@ export function PerfilTipo({ lang }: { lang: string }) {
   // serie por día: [viajes, con señal, con consecuencia, ...mix en el orden de mix_claves]
   type Evolucion = { dias: number[]; mix_claves?: string[]; entidades: { id: string; serie: number[][] }[] };
   const { data: evo } = useSWR<Evolucion>(
-    meta && playerOn ? `/rpc/fn_dx_gol_gxc_poblacion_evolucion?p_tipo=${tipo}&p_dias=${dias}` : null,
+    meta && playerOn ? `/rpc/fn_dx_gol_gxc_poblacion_evolucion?p_tipo=${tipo}&${q}` : null,
     fetcher, { revalidateOnFocus: false, keepPreviousData: true });
 
   const cuadranteFinal = useMemo(() => {
@@ -199,7 +205,7 @@ export function PerfilTipo({ lang }: { lang: string }) {
   }, [reproduciendo, velIdx, evo?.dias.length]);
 
   useEffect(() => { setCursorIdx(null); setReproduciendo(false); setPlayerOn(false); setZoomWin(null); },
-    [dias, tipo]);
+    [dias, tipo, q]);
 
   // Frame del día: acumulado hasta cursor; la burbuja nace al pasar el piso de 5 viajes
   const frame = useMemo<{ rank: Punto[]; sub: Punto[] } | null>(() => {
@@ -302,7 +308,7 @@ export function PerfilTipo({ lang }: { lang: string }) {
 
   return (
     <div className="gemelo-scope h-full w-full overflow-y-auto"><div className="p-4 space-y-4 max-w-[1440px] mx-auto">
-      <div className="h-[calc(100vh-64px-40px-48px)] grid grid-rows-[auto_1fr] gap-2.5 overflow-hidden">
+      <div className="h-[calc(100vh-64px-40px-48px)] grid grid-rows-[auto_auto_1fr] gap-2.5 overflow-hidden">
         <div className="flex items-center gap-3 flex-wrap flex-none">
           <Link href={`/${lang}/gxc?${qs}`} className="text-[13px] hover:underline" style={{ color: "var(--muted)" }}>
             ← GxC
@@ -315,6 +321,16 @@ export function PerfilTipo({ lang }: { lang: string }) {
           </span>
           <span className="flex-1" />
           <PeriodoChips dias={dias} onChange={setDias} />
+        </div>
+
+        {/* Misma interacción de filtros que Despachos */}
+        <div className="flex items-center gap-2 flex-wrap flex-none">
+          <GxcFiltrosBar dict={dict} carrierMode={carrierMode} />
+          {gx.conRango && (
+            <span className="text-[11px]" style={{ color: "var(--muted)" }}>
+              el rango de fechas manda sobre los chips de período
+            </span>
+          )}
         </div>
 
         <div className="grid md:grid-cols-[1.55fr_1fr] gap-2.5 min-h-0">

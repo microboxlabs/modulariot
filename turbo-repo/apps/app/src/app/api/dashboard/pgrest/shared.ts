@@ -80,6 +80,13 @@ export function parseDataSourceParam(req: NextRequest): string | null {
   return new URL(req.url).searchParams.get("dataSourceId");
 }
 
+// Dev-only cache of resolved data source docs (keyed by nodeRef, 60s TTL).
+// A dashboard refresh fires one Alfresco lookup per widget; on a local
+// workstation that burst against a remote dev ECM fails intermittently.
+// Active only under the same local-lab flag as the private-URL bypass.
+const DEV_DS_CACHE_TTL_MS = 60_000;
+const devDsCache = new Map<string, { ds: AlfrescoDataSource; expires: number }>();
+
 /**
  * Resolve credentials for a specific data source stored in Alfresco.
  * Returns `{ baseUrl, token }` on success or a NextResponse error to forward.
@@ -88,14 +95,29 @@ export async function resolveDataSourceCredentials(
   session: Session,
   dataSourceId: string
 ): Promise<{ baseUrl: string; token: string; authMethod: AuthMethod } | NextResponse> {
+  const devCacheEnabled = process.env.ALLOW_PRIVATE_DATASOURCE_URLS === "true";
   let ds: AlfrescoDataSource;
   try {
-    ds = await getDataSource(session, dataSourceId);
+    const cached = devCacheEnabled ? devDsCache.get(dataSourceId) : undefined;
+    if (cached && cached.expires > Date.now()) {
+      ds = cached.ds;
+    } else {
+      ds = await getDataSource(session, dataSourceId);
+      if (devCacheEnabled) {
+        devDsCache.set(dataSourceId, { ds, expires: Date.now() + DEV_DS_CACHE_TTL_MS });
+      }
+    }
   } catch {
-    return NextResponse.json(
-      { error: "Data source not found" },
-      { status: 404 }
-    );
+    // On a burst failure, fall back to a stale cache entry before erroring.
+    const stale = devCacheEnabled ? devDsCache.get(dataSourceId) : undefined;
+    if (stale) {
+      ds = stale.ds;
+    } else {
+      return NextResponse.json(
+        { error: "Data source not found" },
+        { status: 404 }
+      );
+    }
   }
 
   if (!ds?.nodeRef) {

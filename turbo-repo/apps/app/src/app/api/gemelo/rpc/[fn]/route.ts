@@ -33,6 +33,20 @@ export async function GET(
   if (scopeResult.resolved && isCarrierOrg(scopeResult.scope)) {
     const guard = requireCarrierData(scopeResult.scope);
     if (guard) return guard;
+    // Una org carrier no puede filtrar por transportista: se borra la
+    // clave 'carriers' del objeto de filtros (fail-closed, PT3). El resto
+    // de dimensiones (patente/conductor/ruta) opera DENTRO de su tenant.
+    const rawFiltros = search.get("p_filtros");
+    if (rawFiltros) {
+      try {
+        const f = JSON.parse(rawFiltros) as Record<string, unknown>;
+        delete f.carriers;
+        if (Object.keys(f).length) search.set("p_filtros", JSON.stringify(f));
+        else search.delete("p_filtros");
+      } catch {
+        search.delete("p_filtros");
+      }
+    }
     if (GOL_RPC_CARRIER_OPEN.has(fn)) {
       // agregados anónimos: sin inyección y sin override posible
       search.delete("p_carrier_rut");

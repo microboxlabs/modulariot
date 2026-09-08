@@ -84,14 +84,20 @@ export type EntidadGxc = {
 export type PoblacionGxc = {
   tipo: string;
   periodo: { dias: number; fin: number; composicion_equivalente: boolean };
-  baseline: {
-    tasa_consecuencia: number; tasa_exposicion: number;
-    contraste: { con_exposicion: number | null; sin_exposicion: number | null };
-    mix?: Record<string, number>; viajes?: number;
-    umbral_cons_alto: number; umbral_exp_alto: number; piso_viajes: number;
-  } | null;
+  baseline: BaselineGxc | null;
+  /** población completa sin filtros — contraste cuando hay p_filtros */
+  baseline_global?: BaselineGxc | null;
+  filtros?: Record<string, string[]> | null;
   entidades: EntidadGxc[];
   n: number; n_rankeables: number;
+};
+
+export type BaselineGxc = {
+  ambito?: "global" | "ajustado";
+  tasa_consecuencia: number; tasa_exposicion: number;
+  contraste: { con_exposicion: number | null; sin_exposicion: number | null };
+  mix?: Record<string, number>; viajes?: number;
+  umbral_cons_alto: number; umbral_exp_alto: number; piso_viajes: number;
 };
 
 export type PerfilGxc = {

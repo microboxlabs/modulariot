@@ -40,7 +40,12 @@ export function useTripPositions(tripId: string, assetId: string) {
 
     eventSource.onerror = () => {
       setPositions([...positionBuffer]);
-      console.error("EventSource connection failed", eventSource.readyState, size);
+      // El fin normal de un stream SSE también dispara onerror: solo es
+      // falla real si el servidor cerró sin entregar ninguna posición.
+      if (size === 0) {
+        console.error("EventSource connection failed", eventSource.readyState, size);
+        setError(new Error("No se pudo cargar el recorrido del viaje"));
+      }
       eventSource.close();
       setIsLoading(false);
     };

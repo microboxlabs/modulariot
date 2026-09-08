@@ -16,6 +16,9 @@ import { golFetcher as fetcher } from "@/features/gemelo-common/fetcher";
 import { EChart, Widget, useTemaChart, tipCard, fmtDur } from "@/features/gemelo-common/ds-widgets";
 import { TIPO_META, MIX_META, TIPO_MIX, DUENIO_META, type PerfilGxc, pct } from "../model";
 import { usePeriodo, PeriodoChips } from "./periodo";
+import { useGxcFiltros, GxcFiltrosBar } from "./filtros";
+import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 
 type Tema = ReturnType<typeof useTemaChart>;
 
@@ -335,27 +338,31 @@ function narrar(p: PerfilGxc): Frase[] {
   return frases;
 }
 
-export function Perfil({ lang }: { lang: string }) {
+export function Perfil({ lang, dict }: { lang: string; dict: I18nRecord }) {
   const params = useParams<{ tipo: string; id: string }>();
   const router = useRouter();
   const tema = useTemaChart();
   const tipo = params.tipo;
   const id = decodeURIComponent(params.id);
   const { dias, setDias, qs } = usePeriodo();
+  const { carrierMode } = useCarrierMode();
+  const gx = useGxcFiltros(carrierMode);
+  const q = gx.q(dias);
   const meta = TIPO_META[tipo];
 
   const { data: p } = useSWR<PerfilGxc>(
-    `/rpc/fn_dx_gol_gxc_perfil?p_tipo=${tipo}&p_id=${encodeURIComponent(id)}&p_dias=${dias}`,
+    `/rpc/fn_dx_gol_gxc_perfil?p_tipo=${tipo}&p_id=${encodeURIComponent(id)}&${q}`,
     fetcher, { refreshInterval: 300_000, keepPreviousData: true });
 
   // Línea base anónima del período (agregados de la operación completa),
   // con la MISMA composición de consecuencias que este tipo de sujeto:
-  // la referencia contra la que se lee el mix propio.
+  // la referencia contra la que se lee el mix propio. Con filtros activos,
+  // la referencia se ajusta al mismo subconjunto.
   const { data: blAnon } = useSWR<{
     viajes: number; tasa_consecuencia: number;
     mix: Record<string, number>;
     contraste: { con_exposicion: number | null; sin_exposicion: number | null };
-  }>(`/rpc/fn_dx_gol_gxc_baseline?p_dias=${dias}&p_tipo=${tipo}`,
+  }>(`/rpc/fn_dx_gol_gxc_baseline?${q}&p_tipo=${tipo}`,
     fetcher, { refreshInterval: 300_000, keepPreviousData: true });
 
   const cap = p?.capitulos;
@@ -479,6 +486,16 @@ export function Perfil({ lang }: { lang: string }) {
                 href={`/${lang}/gemelo/replay?tele_dias=${dias}&${paramTele[tipo]}=${encodeURIComponent(id)}`}>
             Ver en mapa →
           </Link>
+        )}
+      </div>
+
+      {/* Misma interacción de filtros que Despachos — acota la historia del sujeto */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <GxcFiltrosBar dict={dict} carrierMode={carrierMode} />
+        {gx.conRango && (
+          <span className="text-[11px]" style={{ color: "var(--muted)" }}>
+            el rango de fechas manda sobre los chips de período
+          </span>
         )}
       </div>
 

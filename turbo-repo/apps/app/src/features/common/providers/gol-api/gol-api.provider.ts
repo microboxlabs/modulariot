@@ -45,6 +45,7 @@ export const GOL_RPC_ALLOWLIST = new Set([
   "fn_dx_gol_gxc_perfil",
   "fn_dx_gol_gxc_baseline",
   "fn_dx_gol_gxc_poblacion_evolucion",
+  "fn_dx_gol_gxc_resumen",
   "fn_dx_gol_simular",
 ]);
 
@@ -58,6 +59,7 @@ export const GOL_RPC_CARRIER_FILTERABLE = new Set([
   "fn_dx_gol_gxc_poblacion",
   "fn_dx_gol_gxc_perfil",
   "fn_dx_gol_gxc_poblacion_evolucion",
+  "fn_dx_gol_gxc_resumen",
 ]);
 
 /**

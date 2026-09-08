@@ -65,6 +65,20 @@ class HarnessContext(BaseModel):
     permission_policy: PermissionPolicy | None = Field(default=None, exclude=True)
 
 
+# Bounds on a replayed transcript, enforced where the body is parsed rather
+# than after the fact: pydantic builds every nested turn before the supervisor
+# gets to slice, so an unbounded list is an unbounded parse.
+MAX_CONVERSATION_HISTORY_TURNS = 50
+MAX_CONVERSATION_MESSAGE_CHARS = 20_000
+
+
+class ConversationTurnInput(BaseModel):
+    """One prior exchange a caller replays into a conversation it owns."""
+
+    user_message: str = Field(max_length=MAX_CONVERSATION_MESSAGE_CHARS)
+    assistant_answer: str = Field(max_length=MAX_CONVERSATION_MESSAGE_CHARS)
+
+
 class UserRequest(BaseModel):
     message: str
     thread_id: str = "demo-thread"
@@ -90,6 +104,19 @@ class UserRequest(BaseModel):
     route_context: dict[str, Any] = Field(default_factory=dict)
     mode: RunMode = "auto"
     conversation_id: str | None = None
+    # Prior turns of `conversation_id`, replayed by the caller when the
+    # harness has never seen that id — after a restart, or when a user
+    # reopens a chat the process has since forgotten. `ConversationStore` is
+    # in memory, so without this a conversation lives only as long as the
+    # process does. Seeded once, on the first run that finds the id unknown;
+    # from then on the harness's own append and compaction own the history.
+    #
+    # Caller-asserted, exactly like `message`: the app replays what it stored
+    # for this user's own conversation, and nothing here reaches the model
+    # that the user could not have typed themselves.
+    conversation_history: list[ConversationTurnInput] = Field(
+        default_factory=list, max_length=MAX_CONVERSATION_HISTORY_TURNS
+    )
     debug: bool = False
     # Optional skill to activate for this run. When set and resolvable,
     # the supervisor injects that skill's SKILL.md body as run guidance so

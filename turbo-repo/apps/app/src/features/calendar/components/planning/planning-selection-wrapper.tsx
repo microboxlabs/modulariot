@@ -76,6 +76,7 @@ import { useCalendarViewMode } from "./use-calendar-view-mode";
 import type { SelectedService, TaskStage } from "./planning-selection-types";
 import { ServiceEvent } from "./service-event";
 import { mapBookingToPlannedService } from "@/features/calendar/services/booking-service-mapper";
+import { withAssignmentCleared } from "@/features/calendar/services/assignment-reset";
 import { CALENDAR_LIVE_TASK_COLUMNS } from "@/features/calendar/services/workflow-stage";
 
 
@@ -351,6 +352,10 @@ export function PlanningSelectionProvider({
     [dict]
   );
 
+  // Deliberately unfiltered by the source selector: the provider counts this
+  // list for slot quota and the "window full" gate, so a filtered load would
+  // offer slots that are already taken. `use-planning-grid` filters what the
+  // grid draws instead.
   const loadBookings = useCallback(
     async (signal: AbortSignal) => {
       const ids = new Map<string, string>();
@@ -726,20 +731,7 @@ export function PlanningSelectionProvider({
               )
             );
           }
-          // Return the service with its assignment tuple cleared.
-          return {
-            ...service,
-            assignedCarrier: undefined,
-            assignedDriver: undefined,
-            assignedDriver2: undefined,
-            assignedTruck: undefined,
-            assignedTrailer: undefined,
-            assignedCarrierAccreditation: undefined,
-            assignedDriverAccreditation: undefined,
-            assignedDriver2Accreditation: undefined,
-            assignedTruckAccreditation: undefined,
-            assignedTrailerAccreditation: undefined,
-          };
+          return withAssignmentCleared(service);
         },
       },
       i18n: {

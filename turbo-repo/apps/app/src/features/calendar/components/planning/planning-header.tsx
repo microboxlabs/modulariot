@@ -33,6 +33,7 @@ import {
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
 import { CalendarSearchNavigator } from "./calendar-search-navigator";
+import PlanningSourceFilter from "./planning-source-filter";
 import type { CalendarFilter } from "@microboxlabs/miot-calendar-client";
 
 dayjs.extend(weekOfYear);
@@ -161,6 +162,9 @@ export default function PlanningHeader({
       <div className="flex flex-wrap items-center gap-4">
         {/* Search match navigator — renders only while a search is active. */}
         <CalendarSearchNavigator dict={dict} />
+
+        {/* Planned here vs placed by the sync. */}
+        <PlanningSourceFilter dict={dict} />
 
         {/* Today Button */}
         <CalendarNavigation

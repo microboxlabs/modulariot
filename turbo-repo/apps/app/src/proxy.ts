@@ -9,6 +9,10 @@ type NextMiddlewareFunction = (
 ) => NextResponse | Response | Promise<NextResponse | Response> | null | undefined;
 import { getLocaleFromHeaders } from "./features/i18n/i18n.service";
 import { locales } from "./features/i18n/tr.service";
+import {
+  defaultPlannerSourceFor,
+  defaultServiceTypeFor,
+} from "./features/layout/services/kanban-default-filters";
 import { createManagedLogger } from "./lib/logger";
 // import { logger } from "./lib/logger";
 // import {
@@ -92,9 +96,35 @@ const middleware = auth(async function middleware(request: NextRequest) {
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
 
+  // Kanban sections land on a service type, and it rides in the URL so the
+  // filter bar shows what the board is filtered by. Done here rather than per
+  // page so every way in — a sidebar preset link, the post-login landing, a
+  // pasted URL — arrives already carrying it.
+  const defaultServiceType = defaultServiceTypeFor(
+    pathname,
+    request.nextUrl.searchParams.get("serviceType")
+  );
+  if (defaultServiceType) {
+    request.nextUrl.searchParams.set("serviceType", defaultServiceType);
+  }
+
+  // The planner opens on the calendar's own work for the same reason: the
+  // board says which services were planned and assigned through it, and the
+  // URL says so too.
+  const defaultSource = defaultPlannerSourceFor(
+    pathname,
+    request.nextUrl.searchParams.get("source")
+  );
+  if (defaultSource) {
+    request.nextUrl.searchParams.set("source", defaultSource);
+  }
+
   let response: NextResponse;
   if (pathnameHasLocale) {
-    response = NextResponse.next();
+    response =
+      defaultServiceType || defaultSource
+        ? NextResponse.redirect(request.nextUrl.toString())
+        : NextResponse.next();
   } else {
     const locale = getLocaleFromHeaders(request.headers);
     request.nextUrl.pathname = `${prefixApp}${locale}${pathname}`;

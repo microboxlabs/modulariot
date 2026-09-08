@@ -448,6 +448,7 @@
           "noResultsFor": "No se encontraron resultados para",
           "minCharacters": "Escribe al menos 2 caracteres",
           "clear": "Limpiar búsqueda",
+          "locked": "Filtro fijado por el calendario",
           "matchType": {
             "id": "id",
             "cliente": "cliente",
@@ -719,6 +720,12 @@
         "clear": "Limpiar búsqueda",
         "otherCalendar": "En otro calendario: {calendar}",
         "error": "La búsqueda falló"
+      },
+      "source": {
+        "label": "Origen del servicio",
+        "all": "Todos",
+        "miot": "Calendario",
+        "synced": "Sincronizados"
       }
     },
     "shipping": {
@@ -4260,6 +4267,7 @@
   },
   "searchbar": {
     "service": "Servicio",
+    "serviceType": "Tipo de servicio",
     "licensePlate": "Patente",
     "driverId": "RUT conductor",
     "carrierId": "RUT transportista",
@@ -5136,6 +5144,7 @@
     "detail": {
       "aiGeneratedBadge": "Generado por IA",
       "loading": "Cargando panel…",
+      "loadError": "No se pudo cargar este panel.",
       "search": {
         "placeholder": "Buscar…",
         "previous": "Coincidencia anterior",

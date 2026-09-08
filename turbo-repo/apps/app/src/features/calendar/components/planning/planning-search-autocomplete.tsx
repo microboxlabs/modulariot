@@ -22,6 +22,12 @@ export interface PlanningSearchAutocompleteProps {
   onQueryChange?: (q: string) => void;
   hasActiveFilter?: boolean;
   isLoading?: boolean;
+  /**
+   * Fields the calendar being planned already fixes. Not offered: searching
+   * one could only ask for services this calendar cannot take, and the chip
+   * stating it cannot be removed to make room.
+   */
+  lockedMatchTypes?: readonly MatchType[];
 }
 
 /**
@@ -85,16 +91,19 @@ export function PlanningSearchAutocomplete({
   onClear,
   onQueryChange,
   isLoading,
+  lockedMatchTypes,
 }: Readonly<PlanningSearchAutocompleteProps>) {
   const fields = useMemo<ReadonlyArray<SearchAutocompleteField<SelectedService>>>(
     () =>
-      SEARCHABLE_FIELDS.map((matchType) => ({
+      SEARCHABLE_FIELDS.filter(
+        (matchType) => !lockedMatchTypes?.includes(matchType)
+      ).map((matchType) => ({
         matchType,
         get: FIELD_ACCESSOR[matchType],
         label: tr(`pages.planning.sidebar.search.matchType.${matchType}`, dict),
         icon: FIELD_ICON[matchType],
       })),
-    [dict]
+    [dict, lockedMatchTypes]
   );
 
   // Translate the box's chrome strings from our own dict so it works both inside

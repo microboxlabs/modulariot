@@ -23,7 +23,7 @@ describe("visiblePages", () => {
     ).toBe(true);
   });
 
-  it("hides the Storytelling section unless storytelling is on", () => {
+  it("hides Storytelling unless storytelling testing is on", () => {
     expect(
       visiblePages(false, false).some((p) => p.label === STORYTELLING_PAGE_LABEL),
     ).toBe(false);

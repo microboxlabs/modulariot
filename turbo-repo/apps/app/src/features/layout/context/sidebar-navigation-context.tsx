@@ -23,6 +23,7 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import type { CalendarGroupResponse } from "@microboxlabs/miot-calendar-client";
 import { useDashboardDynamicItems } from "@/features/dashboard/hooks/use-dashboard-dynamic-items";
+import { DEFAULT_SERVICE_TYPE } from "@/features/calendar/services/service-types";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
   PLANNING_COORDINATOR_PROCESS_TASKS,
@@ -67,6 +68,13 @@ function useTaskDynamicItems(): SidebarItem[] {
           .join("&")
           .replace("position=", "");
 
+        // The count has to be counting what the link opens, and opening
+        // /mytasks lands the default service type on the URL. A preset that
+        // names its own type keeps it.
+        const countPart = filterPart.includes("serviceType=")
+          ? filterPart
+          : `${filterPart}&serviceType=${DEFAULT_SERVICE_TYPE}`;
+
         return getMyTasks(
           [
             ...SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
@@ -76,7 +84,7 @@ function useTaskDynamicItems(): SidebarItem[] {
           false,
           0,
           2000,
-          filterPart + "&editable=true"
+          countPart + "&editable=true"
         ).then((total) => ({
           item: {
             href: `/mytasks?${filterPart}`,

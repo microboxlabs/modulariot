@@ -12,6 +12,7 @@ import {
   FinishedWorkflowsResponse,
   FastTasksResponse,
 } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import { normalizeServiceType } from "@/features/calendar/services/service-types";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -37,7 +38,9 @@ export async function GET(req: NextRequest) {
   // Scopes the list to one service type (v / otr / ote). Server-side on
   // purpose: a calendar that serves otr must not offer every v trip as
   // plannable, and filtering after the page loads yields short pages
-  // rather than a scoped list.
+  // rather than a scoped list. Normalized rather than lower-cased: the kanban
+  // sends `all` for every type, which is not one of the three and so is no
+  // filter at all.
   const serviceType = url.searchParams.get("serviceType");
   const customer = url.searchParams.get("customer");
   const editable = url.searchParams.get("editable");
@@ -69,7 +72,7 @@ export async function GET(req: NextRequest) {
       carrierName: carrierName ? carrierName : undefined,
       origin: origin ? origin.toUpperCase() : undefined,
       destination: destination ? destination.toUpperCase() : undefined,
-      serviceType: serviceType ? serviceType.toLowerCase() : undefined,
+      serviceType: normalizeServiceType(serviceType),
       clientAbbreviation: customer ? customer : undefined,
       originIsSitrans: originType ? originType === "INTERNAL" : undefined,
       editable: editable ? editable === "true" : undefined,
@@ -100,7 +103,7 @@ export async function GET(req: NextRequest) {
               carrierName: carrierName ? carrierName : undefined,
               origin: origin ? origin.toUpperCase() : undefined,
               destination: destination ? destination.toUpperCase() : undefined,
-      serviceType: serviceType ? serviceType.toLowerCase() : undefined,
+      serviceType: normalizeServiceType(serviceType),
               clientAbbreviation: customer ? customer : undefined,
               originIsSitrans: originType
                 ? originType === "INTERNAL"

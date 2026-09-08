@@ -9,11 +9,11 @@ const FILE_PATH = path.join(
 );
 
 export async function GET() {
-  // Same gate the storytelling pages use (see [id]/page.tsx) — otherwise an
-  // authenticated user could hit this route directly and pull the demo
-  // content even with the feature flag off.
+  // Testing-only fixture — gated the same way the /storytelling pages are
+  // (see ENABLE_STORYTELLING in runtime-config.types.ts). No auth middleware
+  // sits in front of /api, so this fail-closed check has to live here.
   if (process.env.ENABLE_STORYTELLING !== "true") {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return new NextResponse(null, { status: 404 });
   }
 
   const session = await auth();

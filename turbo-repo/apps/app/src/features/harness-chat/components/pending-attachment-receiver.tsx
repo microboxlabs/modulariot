@@ -17,7 +17,14 @@ export const PendingAttachmentReceiver: FC<{
   const consumedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!label || consumedRef.current === label) return;
+    // Parent clears the pending value to null right after we consume it.
+    // Reset the guard on that pass so clicking "Ask Harness" for the *same*
+    // component again isn't silently ignored forever.
+    if (!label) {
+      consumedRef.current = null;
+      return;
+    }
+    if (consumedRef.current === label) return;
     consumedRef.current = label;
     void aui.composer.addAttachment({
       type: "file",

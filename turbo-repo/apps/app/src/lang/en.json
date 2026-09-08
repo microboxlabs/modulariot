@@ -448,6 +448,7 @@
           "noResultsFor": "No results found for",
           "minCharacters": "Type at least 2 characters",
           "clear": "Clear search",
+          "locked": "Fixed by this calendar",
           "matchType": {
             "id": "id",
             "cliente": "client",
@@ -719,6 +720,12 @@
         "clear": "Clear search",
         "otherCalendar": "In another calendar: {calendar}",
         "error": "Search failed"
+      },
+      "source": {
+        "label": "Service source",
+        "all": "All",
+        "miot": "Calendar",
+        "synced": "Synced"
       }
     },
     "shipping": {
@@ -4260,6 +4267,7 @@
   },
   "searchbar": {
     "service": "Service",
+    "serviceType": "Service type",
     "licensePlate": "License Plate",
     "driverId": "Driver RUT",
     "carrierId": "Carrier RUT",
@@ -5136,6 +5144,7 @@
     "detail": {
       "aiGeneratedBadge": "AI Generated",
       "loading": "Loading dashboard…",
+      "loadError": "Couldn't load this dashboard.",
       "search": {
         "placeholder": "Search…",
         "previous": "Previous match",

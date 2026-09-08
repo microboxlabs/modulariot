@@ -30,6 +30,8 @@ import java.util.UUID;
 @ApplicationScoped
 public class HarnessThreadRepository {
 
+    private static final String CREATED_AT = "created_at";
+
     private static final String THREAD_COLUMNS =
             "id, tenant_code, owner_id, title, expires_at, last_message_at, created_at, updated_at";
 
@@ -267,7 +269,7 @@ public class HarnessThreadRepository {
                 row.getString("title"),
                 row.getOffsetDateTime("expires_at"),
                 row.getOffsetDateTime("last_message_at"),
-                row.getOffsetDateTime("created_at"),
+                row.getOffsetDateTime(CREATED_AT),
                 row.getOffsetDateTime("updated_at"));
     }
 
@@ -278,7 +280,7 @@ public class HarnessThreadRepository {
                 row.getString("parent_id"),
                 row.getString("format"),
                 toMap(row.getJsonObject("payload")),
-                row.getOffsetDateTime("created_at"));
+                row.getOffsetDateTime(CREATED_AT));
     }
 
     private HarnessThreadShare mapShare(Row row) {
@@ -287,7 +289,7 @@ public class HarnessThreadRepository {
                 row.getString("principal"),
                 row.getString("permission"),
                 row.getString("created_by"),
-                row.getOffsetDateTime("created_at"));
+                row.getOffsetDateTime(CREATED_AT));
     }
 
     private JsonObject toJson(Map<String, Object> value) {

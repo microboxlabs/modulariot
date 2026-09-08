@@ -5,6 +5,7 @@ import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -45,7 +46,7 @@ public class HarnessThreadPurgeJob {
             return;
         }
         try {
-            int removed = repository.purge(OffsetDateTime.now().minusDays(graceDays));
+            int removed = repository.purge(OffsetDateTime.now(ZoneOffset.UTC).minusDays(graceDays));
             if (removed > 0) {
                 LOG.infof("Purged %d harness chat thread(s)", removed);
             }

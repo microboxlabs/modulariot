@@ -27,6 +27,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
@@ -78,9 +79,8 @@ public class OrgHarnessThreadsResource {
     public Uni<Response> listThreads(
             @PathParam("organizationId") String organizationId,
             @QueryParam("limit") Integer limit) {
-        String tenant = tenantCode(organizationId);
-        String userId = currentUserId();
-        return guarded(() -> Response.ok(service.listVisible(tenant, userId, limit)).build());
+        return withActor(organizationId, (tenant, userId) ->
+                Response.ok(service.listVisible(tenant, userId, limit)).build());
     }
 
     @POST
@@ -88,9 +88,8 @@ public class OrgHarnessThreadsResource {
     public Uni<Response> createThread(
             @PathParam("organizationId") String organizationId,
             ThreadUpsertRequest request) {
-        String tenant = tenantCode(organizationId);
-        String userId = currentUserId();
-        return guarded(() -> found(service.create(tenant, userId, request), Response.Status.CREATED));
+        return withActor(organizationId, (tenant, userId) ->
+                found(service.create(tenant, userId, request), Response.Status.CREATED));
     }
 
     @GET
@@ -99,9 +98,8 @@ public class OrgHarnessThreadsResource {
     public Uni<Response> getThread(
             @PathParam("organizationId") String organizationId,
             @PathParam("threadId") String threadId) {
-        String tenant = tenantCode(organizationId);
-        String userId = currentUserId();
-        return guarded(() -> found(service.get(tenant, userId, threadId), Response.Status.OK));
+        return withActor(organizationId, (tenant, userId) ->
+                found(service.get(tenant, userId, threadId), Response.Status.OK));
     }
 
     @PATCH
@@ -111,9 +109,8 @@ public class OrgHarnessThreadsResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("threadId") String threadId,
             ThreadPatchRequest request) {
-        String tenant = tenantCode(organizationId);
-        String userId = currentUserId();
-        return guarded(() -> found(service.patch(tenant, userId, threadId, request), Response.Status.OK));
+        return withActor(organizationId, (tenant, userId) ->
+                found(service.patch(tenant, userId, threadId, request), Response.Status.OK));
     }
 
     @DELETE
@@ -122,11 +119,8 @@ public class OrgHarnessThreadsResource {
     public Uni<Response> deleteThread(
             @PathParam("organizationId") String organizationId,
             @PathParam("threadId") String threadId) {
-        String tenant = tenantCode(organizationId);
-        String userId = currentUserId();
-        return guarded(() -> service.delete(tenant, userId, threadId)
-                ? Response.noContent().build()
-                : notFound());
+        return withActor(organizationId, (tenant, userId) ->
+                service.delete(tenant, userId, threadId) ? Response.noContent().build() : notFound());
     }
 
     @GET
@@ -135,9 +129,8 @@ public class OrgHarnessThreadsResource {
     public Uni<Response> listMessages(
             @PathParam("organizationId") String organizationId,
             @PathParam("threadId") String threadId) {
-        String tenant = tenantCode(organizationId);
-        String userId = currentUserId();
-        return guarded(() -> found(service.listMessages(tenant, userId, threadId), Response.Status.OK));
+        return withActor(organizationId, (tenant, userId) ->
+                found(service.listMessages(tenant, userId, threadId), Response.Status.OK));
     }
 
     @POST
@@ -147,10 +140,8 @@ public class OrgHarnessThreadsResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("threadId") String threadId,
             ThreadMessageRequest request) {
-        String tenant = tenantCode(organizationId);
-        String userId = currentUserId();
-        return guarded(() -> found(
-                service.appendMessage(tenant, userId, threadId, request), Response.Status.CREATED));
+        return withActor(organizationId, (tenant, userId) ->
+                found(service.appendMessage(tenant, userId, threadId, request), Response.Status.CREATED));
     }
 
     @POST
@@ -160,10 +151,8 @@ public class OrgHarnessThreadsResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("threadId") String threadId,
             ThreadShareRequest request) {
-        String tenant = tenantCode(organizationId);
-        String userId = currentUserId();
-        return guarded(() -> found(
-                service.share(tenant, userId, threadId, request), Response.Status.CREATED));
+        return withActor(organizationId, (tenant, userId) ->
+                found(service.share(tenant, userId, threadId, request), Response.Status.CREATED));
     }
 
     @DELETE
@@ -173,12 +162,27 @@ public class OrgHarnessThreadsResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("threadId") String threadId,
             @PathParam("principal") String principal) {
+        return withActor(organizationId, (tenant, userId) ->
+                service.revokeShare(tenant, userId, threadId, principal)
+                        ? Response.noContent().build()
+                        : notFound());
+    }
+
+    /**
+     * Resolves the tenant and the person acting, then runs the work on the
+     * worker pool. {@code @Authenticated} guarantees an identity, not that it
+     * names anybody: a token carrying neither an email nor a principal name
+     * cannot own a thread, and that is a 401 rather than something for the
+     * service to guess at.
+     */
+    private Uni<Response> withActor(String organizationId, BiFunction<String, String, Response> work) {
         String tenant = tenantCode(organizationId);
         String userId = currentUserId();
-        return guarded(() -> {
-            Boolean revoked = service.revokeShare(tenant, userId, threadId, principal);
-            return revoked == null || !revoked ? notFound() : Response.noContent().build();
-        });
+        if (userId == null || userId.isBlank()) {
+            return Uni.createFrom().item(
+                    errorResponse(Response.Status.UNAUTHORIZED, "no user identity on the request"));
+        }
+        return guarded(() -> work.apply(tenant, userId));
     }
 
     /**

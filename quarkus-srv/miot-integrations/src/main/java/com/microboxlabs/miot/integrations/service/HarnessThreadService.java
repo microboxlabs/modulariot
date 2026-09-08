@@ -32,7 +32,9 @@ import java.util.UUID;
  *
  * <p>Validation throws {@link IllegalArgumentException}, which the resource
  * maps to HTTP 400; "not visible to you" is signalled by a null return, which
- * the resource maps to 404.
+ * the resource maps to 404. {@code userId} is required to be a non-blank
+ * identity — the resource refuses the request with 401 before calling here, so
+ * these methods never have to decide what an anonymous caller owns.
  */
 @ApplicationScoped
 public class HarnessThreadService {
@@ -57,6 +59,8 @@ public class HarnessThreadService {
     private static final int MAX_PAYLOAD_BYTES = 256 * 1024;
 
     private static final Set<String> PERMISSIONS = Set.of("read");
+
+    private static final String THREAD_ID = "threadId";
 
     private final HarnessThreadRepository repository;
 
@@ -86,7 +90,7 @@ public class HarnessThreadService {
         HarnessThread saved = repository.upsert(new HarnessThread(
                 requireUuid(request.id(), "id"),
                 tenantCode,
-                requireUser(userId),
+                userId,
                 truncateTitle(request.title()),
                 request.expiresAt(),
                 null,
@@ -110,13 +114,13 @@ public class HarnessThreadService {
         if (request == null) {
             throw new IllegalArgumentException("patch body is required");
         }
-        String id = requireUuid(threadId, "threadId");
+        String id = requireUuid(threadId, THREAD_ID);
         if (ownedThread(tenantCode, userId, id) == null) {
             return null;
         }
         HarnessThread saved = repository.update(
                 id,
-                requireUser(userId),
+                userId,
                 truncateTitle(request.title()),
                 request.expiresAt(),
                 Boolean.TRUE.equals(request.clearExpiry()));
@@ -124,8 +128,7 @@ public class HarnessThreadService {
     }
 
     public boolean delete(String tenantCode, String userId, String threadId) {
-        return repository.softDelete(
-                requireUuid(threadId, "threadId"), tenantCode, requireUser(userId));
+        return repository.softDelete(requireUuid(threadId, THREAD_ID), tenantCode, userId);
     }
 
     /**
@@ -138,14 +141,14 @@ public class HarnessThreadService {
         if (request == null) {
             throw new IllegalArgumentException("message body is required");
         }
-        String id = requireUuid(threadId, "threadId");
+        String id = requireUuid(threadId, THREAD_ID);
         String messageId = requireText(request.id(), "message id", 128);
         Map<String, Object> payload = requirePayload(request.payload());
 
         HarnessThread existing = repository.find(id, tenantCode);
         if (existing == null) {
             HarnessThread created = repository.upsert(new HarnessThread(
-                    id, tenantCode, requireUser(userId), null, null, null, null, null));
+                    id, tenantCode, userId, null, null, null, null, null));
             if (created == null) {
                 return null;
             }
@@ -174,7 +177,7 @@ public class HarnessThreadService {
         if (request == null) {
             throw new IllegalArgumentException("share body is required");
         }
-        String id = requireUuid(threadId, "threadId");
+        String id = requireUuid(threadId, THREAD_ID);
         String principal = requireText(request.principal(), "principal", 256);
         String permission = request.permission() == null || request.permission().isBlank()
                 ? "read"
@@ -189,19 +192,22 @@ public class HarnessThreadService {
             return null;
         }
         return repository.upsertShare(
-                new HarnessThreadShare(id, principal, permission, requireUser(userId), null));
+                new HarnessThreadShare(id, principal, permission, userId, null));
     }
 
-    public Boolean revokeShare(String tenantCode, String userId, String threadId, String principal) {
-        String id = requireUuid(threadId, "threadId");
+    /** @return false when the thread is not the caller's to change, and when
+     * that principal had no access to begin with — both are "nothing happened"
+     * to a caller who may not be told the thread exists. */
+    public boolean revokeShare(String tenantCode, String userId, String threadId, String principal) {
+        String id = requireUuid(threadId, THREAD_ID);
         if (ownedThread(tenantCode, userId, id) == null) {
-            return null;
+            return false;
         }
         return repository.deleteShare(id, requireText(principal, "principal", 256));
     }
 
     private HarnessThread visibleThread(String tenantCode, String userId, String threadId) {
-        HarnessThread thread = repository.find(requireUuid(threadId, "threadId"), tenantCode);
+        HarnessThread thread = repository.find(requireUuid(threadId, THREAD_ID), tenantCode);
         if (thread == null) {
             return null;
         }
@@ -253,13 +259,6 @@ public class HarnessThreadService {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException(field + " must be a UUID");
         }
-    }
-
-    private static String requireUser(String userId) {
-        if (userId == null || userId.isBlank()) {
-            throw new IllegalArgumentException("an authenticated user is required");
-        }
-        return userId;
     }
 
     private static String requireText(String value, String field, int maxLength) {

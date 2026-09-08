@@ -5247,7 +5247,13 @@
         "selectAll": "Select all",
         "delete": "Delete",
         "deleteCount": "Delete ({count})",
-        "deleteChat": "Delete chat"
+        "deleteChat": "Delete chat",
+        "loading": "Loading…",
+        "share": "Share chat",
+        "sharePlaceholder": "the person's email",
+        "shareSubmit": "Share",
+        "sharedWithYou": "Shared with you",
+        "revokeShare": "Remove access"
       },
       "thread": {
         "dropToAttach": "Drop to attach",

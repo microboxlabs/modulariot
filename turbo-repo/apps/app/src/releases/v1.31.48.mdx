@@ -1,0 +1,37 @@
+# 🔔 Release Notes v1.31.48 — ModularIoT
+
+### Fecha: 08/09/2026
+
+**Objetivo**: Esta versión mejora la precisión del planificador de calendario al distinguir servicios gestionados en la aplicación de los sincronizados, y refuerza la consistencia de los filtros heredados del calendario para evitar decisiones de planificación incoherentes.
+
+## 🚀 Evolutivos
+
+- **Gestión de filtros del planificador**
+  - **Punto clave**: La grilla del planificador ya distingue los servicios planificados o asignados por `miot` de los que provienen de sincronización, y los filtros impuestos por el calendario quedan bloqueados para evitar que se rompa la restricción del propio calendario.
+  - **Detalle técnico**: Se añadió un selector de origen con valores `miot`, `synced` y visualización global, y la lógica de filtrado considera operativo un servicio cuando cualquiera de los estados de planificación o asignación indica `miot`. Además, los chips heredados del calendario se muestran como fijos, no se eliminan con la búsqueda ni se pierden al limpiar la búsqueda, manteniendo la semántica de la vista. *(Integración OSS — MIOT-0.5.49)*
+
+## 📊 Beneficios
+
+- Los planificadores ven claramente qué servicios se gestionaron dentro de ModularIoT y cuáles llegaron desde sincronización.
+- La grilla del planificador se vuelve más útil al enfocarse en la carga operativa real de cada calendario.
+- Las restricciones configuradas por el calendario no se pierden por errores de interacción en la barra lateral.
+- La búsqueda y la limpieza de filtros mantienen un comportamiento más predecible para operadores y supervisores.
+- La lógica de origen y asignación reduce la ambigüedad entre decisiones del usuario y datos proyectados por sistemas upstream.
+- La coordinación operativa mejora al reforzar la relación entre la planificación, la asignación y la vista de disponibilidad del calendario.
+
+## 🧾 Versiones del stack
+
+- `miot-stack@v0.5.49`
+- `app@v0.5.49` (cambio: sí)
+- `docs@v0.5.49` (cambio: sí)
+- `web@v0.5.49` (cambio: sí)
+- `modulith@v0.5.29` (cambio: no)
+- `harness@v0.1.7` (cambio: no)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el asset `stack-manifest.json` de la release.
+
+## 📌 Conclusión
+
+Con esta entrega, la planificación en ModularIoT gana claridad operativa: los servicios gestionados por la aplicación quedan separados de los sincronizados y la visualización del calendario se vuelve más fiable para tomar decisiones de asignación. Esto mejora la experiencia del operador sin perder rigor en la restricción de cada calendario.
+
+La versión refuerza la consistencia entre la lógica de origen, la barra de filtros y la grilla de planificación, reduciendo errores de contexto y dejando una base más sólida para la coordinación de flujos industriales con datos provenientes de sistemas externos.

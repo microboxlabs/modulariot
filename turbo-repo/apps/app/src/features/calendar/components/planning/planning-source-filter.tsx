@@ -4,6 +4,8 @@ import { useCallback } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Dropdown, DropdownItem, Button } from "flowbite-react";
 import { ChevronDown } from "flowbite-react-icons/outline";
+import { HiCalendar, HiRefresh, HiViewGrid } from "react-icons/hi";
+import type { IconType } from "react-icons";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -17,8 +19,19 @@ interface PlanningSourceFilterProps {
 }
 
 /**
+ * One icon per state, carried by both the trigger and the menu. The calendar
+ * glyph is the point of the control: a service planned through the calendar is
+ * the intended route, and the sync arrows are what arrived without it.
+ */
+const SOURCE_ICONS: Record<"all" | PlannerSource, IconType> = {
+  all: HiViewGrid,
+  miot: HiCalendar,
+  synced: HiRefresh,
+};
+
+/**
  * Grid filter for where a service was planned or assigned: everything, only
- * what this module's operators drove, or only what the upstream sync placed.
+ * what came through the calendar, or only what the upstream sync placed.
  *
  * Preset rather than locked — unlike the sidebar's calendar-imposed chips this
  * is the planner's own choice, so it clears from here and rides the URL, which
@@ -46,6 +59,7 @@ export default function PlanningSourceFilter({
   );
 
   const label = tr(`pages.planning.source.${active ?? "all"}`, dict);
+  const ActiveIcon = SOURCE_ICONS[active ?? "all"];
 
   return (
     <Dropdown
@@ -56,29 +70,33 @@ export default function PlanningSourceFilter({
         <Button
           color="alternative"
           size="sm"
-          // Filtering hides bookings, so the control says so on its own face:
-          // a planner who left it set days ago must not read a short board as
-          // an empty one.
-          className={
-            active
-              ? "flex items-center gap-1 border-blue-500 text-blue-700 dark:text-blue-400"
-              : "flex items-center gap-1"
-          }
+          className="flex items-center gap-1.5"
           // Names the control AND its value: an aria-label replaces the
           // visible text, so without the value a screen reader announces the
           // filter without saying which one is on.
           aria-label={`${tr("pages.planning.source.label", dict)}: ${label}`}
         >
+          {/* Filtering hides bookings, so the icon and the label together say
+              which state is on — a planner who left it set days ago must not
+              read a short board as an empty one. */}
+          <ActiveIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
           {label}
           <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
         </Button>
       )}
     >
-      <DropdownItem onClick={() => select(undefined)}>
+      <DropdownItem
+        icon={SOURCE_ICONS.all}
+        onClick={() => select(undefined)}
+      >
         {tr("pages.planning.source.all", dict)}
       </DropdownItem>
       {PLANNER_SOURCES.map((source) => (
-        <DropdownItem key={source} onClick={() => select(source)}>
+        <DropdownItem
+          key={source}
+          icon={SOURCE_ICONS[source]}
+          onClick={() => select(source)}
+        >
           {tr(`pages.planning.source.${source}`, dict)}
         </DropdownItem>
       ))}

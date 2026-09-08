@@ -724,7 +724,7 @@
       "source": {
         "label": "Origen del servicio",
         "all": "Todos",
-        "miot": "Planificados aquí",
+        "miot": "Calendario",
         "synced": "Sincronizados"
       }
     },

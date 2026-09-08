@@ -11,7 +11,7 @@ def _resolve(
     supervisor: HarnessSupervisor, request: UserRequest, *, env: str
 ) -> tuple[PermissionPolicy, bool]:
     settings = HarnessSettings(datasource_dsn=None, env=env)  # type: ignore[arg-type]
-    return supervisor._resolve_policy(request, settings=settings)
+    return supervisor._resolve_policy(request, request.to_context(), settings=settings)
 
 
 def _supervisor(**kw: object) -> HarnessSupervisor:
@@ -54,12 +54,18 @@ def test_sticky_policy_reused_when_request_omits_mode() -> None:
         permission_mode=PermissionMode.AUTO_SAFE,
         rules=[PermissionRule(tool="run_sql", decision=PermissionDecision.ALLOW)],
     )
-    sup._resolve_policy(first, settings=HarnessSettings(datasource_dsn=None, env="local"))  # type: ignore[arg-type]
+    sup._resolve_policy(
+        first,
+        first.to_context(),
+        settings=HarnessSettings(datasource_dsn=None, env="local"),  # type: ignore[arg-type]
+    )
     second = UserRequest(
         message="again", tenant_id="demo-tenant", conversation_id="c1"
     )  # no mode/rules
     policy, _ = sup._resolve_policy(
-        second, settings=HarnessSettings(datasource_dsn=None, env="local")  # type: ignore[arg-type]
+        second,
+        second.to_context(),
+        settings=HarnessSettings(datasource_dsn=None, env="local"),  # type: ignore[arg-type]
     )
     assert policy.mode is PermissionMode.AUTO_SAFE
     assert policy.rules[0].tool == "run_sql"

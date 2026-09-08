@@ -48,7 +48,11 @@ from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.spans import agent_span
 from miot_harness.runtime.answer_render import render_answer_with_format
 from miot_harness.runtime.approvals import ApprovalRegistry
-from miot_harness.runtime.context import HarnessContext, UserRequest
+from miot_harness.runtime.context import (
+    MAX_CONVERSATION_HISTORY_TURNS,
+    HarnessContext,
+    UserRequest,
+)
 from miot_harness.runtime.conversation import (
     ConversationHistory,
     ConversationStore,
@@ -74,11 +78,11 @@ from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
-# Ceiling on how many replayed turns a caller may seed a conversation with.
-# The token budget below governs what actually reaches the model; this bounds
-# the work of seeding itself, since the store keeps every turn it is given
-# until compaction fires.
-_MAX_SEEDED_TURNS = 50
+# Ceiling on how many replayed turns are seeded. The request model rejects a
+# longer list outright (`MAX_CONVERSATION_HISTORY_TURNS`); this keeps the same
+# bound for callers that build a UserRequest directly, and the token budget
+# still governs what actually reaches the model.
+_MAX_SEEDED_TURNS = MAX_CONVERSATION_HISTORY_TURNS
 
 _JSON_BLOCKS_INSTRUCTION = (
     "# Output format: JSON blocks\n\n"
@@ -209,7 +213,7 @@ class HarnessSupervisor:
                 update={"approval_registry": self.approval_registry}
             )
         settings = get_settings()
-        effective_policy, mode_denied = self._resolve_policy(request, settings=settings)
+        effective_policy, mode_denied = self._resolve_policy(request, ctx, settings=settings)
         ctx = ctx.model_copy(update={"permission_policy": effective_policy})
         record = HarnessRunRecord(
             run_id=ctx.run_id,
@@ -272,7 +276,7 @@ class HarnessSupervisor:
         # Hydrate prior turns from `ConversationStore` so LLM-bearing agents
         # actually carry context across `/runs` calls (plan 13 §E5). Empty
         # list when no store, no conversation_id, or no prior history.
-        prior_messages = self._hydrate_history(request)
+        prior_messages = self._hydrate_history(request, ctx)
         prior_messages = self._inject_skill(request, ctx, prior_messages)
         prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
 
@@ -342,9 +346,10 @@ class HarnessSupervisor:
             return record
 
         # Persist the turn so the next call in this conversation sees it.
-        if self.conversation_store is not None and request.conversation_id and record.answer:
+        conversation_key = self._conversation_key(request, ctx)
+        if self.conversation_store is not None and conversation_key and record.answer:
             self.conversation_store.append(
-                request.conversation_id,
+                conversation_key,
                 ConversationTurn(
                     user_message=request.message,
                     assistant_answer=record.answer,
@@ -500,7 +505,23 @@ class HarnessSupervisor:
             return prior_messages
         return [SystemMessage(content=_JSON_BLOCKS_INSTRUCTION), *prior_messages]
 
-    def _hydrate_history(self, request: UserRequest) -> list[BaseMessage]:
+    @staticmethod
+    def _conversation_key(request: UserRequest, ctx: HarnessContext) -> str | None:
+        """Store key for this run's conversation, or None for a one-shot.
+
+        Namespaced by the *resolved* tenant and user, not by the caller's
+        `conversation_id` alone. That id comes from the request body, so an
+        unnamespaced store lets any caller read another tenant's conversation
+        as prior context simply by naming its id — and, now that callers can
+        seed, write into one. The raw id still goes on the record, where
+        Langfuse groups by it.
+        """
+
+        if not request.conversation_id:
+            return None
+        return f"{ctx.tenant_id}/{ctx.user_id}/{request.conversation_id}"
+
+    def _hydrate_history(self, request: UserRequest, ctx: HarnessContext) -> list[BaseMessage]:
         """Read prior turns from `ConversationStore` and trim them to fit the
         `conversation_token_budget` (via `trim_messages`).
 
@@ -518,16 +539,36 @@ class HarnessSupervisor:
         make per-turn cost wildly variable.
         """
 
-        if self.conversation_store is None or not request.conversation_id:
+        key = self._conversation_key(request, ctx)
+        if self.conversation_store is None or key is None:
             return []
-        history = self.conversation_store.get(request.conversation_id)
-        if history is None:
-            history = self._seed_history(request)
+        history = self.conversation_store.get(key)
+        if self._needs_seeding(history, request):
+            history = self._seed_history(request, key)
         if history is None:
             return []
         return to_messages(history, max_tokens=self.conversation_token_budget)
 
-    def _seed_history(self, request: UserRequest) -> ConversationHistory | None:
+    @staticmethod
+    def _needs_seeding(history: ConversationHistory | None, request: UserRequest) -> bool:
+        """Whether the caller's replay should be taken over what is held here.
+
+        An id this process has never seen, obviously. Also one whose local tail
+        is shorter than the replay and has not been compacted yet: with more
+        than one replica, turn 3 can land elsewhere and come back to a replica
+        holding a staler history than the caller's. A compacted history is left
+        alone — its summary carries context the replay no longer has.
+        """
+
+        if not request.conversation_history:
+            return False
+        if history is None:
+            return True
+        return history.summary is None and len(history.turns) < len(
+            request.conversation_history
+        )
+
+    def _seed_history(self, request: UserRequest, key: str) -> ConversationHistory | None:
         """Prime the store from `request.conversation_history`.
 
         The store is in-memory, so a conversation the caller still has on
@@ -536,27 +577,26 @@ class HarnessSupervisor:
         lives. Rather than answer that turn with no context, take the caller's
         replay of the turns it recorded.
 
-        Only fires when the id is genuinely unknown — once seeded, the run's
-        own append at the end of `run()` and `summarize_if_needed` own the
-        history, so a caller replaying the same turns again changes nothing.
+        Fires for an id this process does not know, and for one whose local
+        tail is shorter than the replay (see `_needs_seeding`). Otherwise the
+        run's own append and `summarize_if_needed` own the history, so a caller
+        replaying the same turns again changes nothing.
 
         Returns None when there is nothing to seed with.
         """
 
         if self.conversation_store is None or not request.conversation_history:
             return None
-        conversation_id = request.conversation_id
-        if not conversation_id:
-            return None
+        self.conversation_store.reset(key)
         for turn in request.conversation_history[-_MAX_SEEDED_TURNS:]:
             self.conversation_store.append(
-                conversation_id,
+                key,
                 ConversationTurn(
                     user_message=turn.user_message,
                     assistant_answer=turn.assistant_answer,
                 ),
             )
-        return self.conversation_store.get(conversation_id)
+        return self.conversation_store.get(key)
 
     def _root_span_kwargs(
         self, ctx: HarnessContext, route: HarnessRoute | None
@@ -588,6 +628,7 @@ class HarnessSupervisor:
     def _resolve_policy(
         self,
         request: UserRequest,
+        ctx: HarnessContext,
         *,
         settings: HarnessSettings,
     ) -> tuple[PermissionPolicy, bool]:
@@ -602,16 +643,17 @@ class HarnessSupervisor:
         mode-less turn inherits DEFAULT rather than re-triggering the denial.
         """
 
+        # Same namespacing as the history store: a sticky permission posture
+        # keyed on the caller's conversation_id alone would be another
+        # tenant's to set.
+        policy_key = self._conversation_key(request, ctx)
         requested: PermissionMode | None = None
         rules: list[PermissionRule] = []
         if request.permission_mode is not None or request.rules:
             requested = request.permission_mode or PermissionMode.DEFAULT
             rules = list(request.rules)
-        elif (
-            self.conversation_policy_store is not None
-            and request.conversation_id
-        ):
-            sticky = self.conversation_policy_store.get(request.conversation_id)
+        elif self.conversation_policy_store is not None and policy_key is not None:
+            sticky = self.conversation_policy_store.get(policy_key)
             if sticky is not None:
                 requested = sticky.mode
                 rules = list(sticky.rules)
@@ -626,11 +668,8 @@ class HarnessSupervisor:
             requested, settings=settings, tenant_id=request.tenant_id
         )
         policy = PermissionPolicy(mode=effective, rules=rules)
-        if (
-            self.conversation_policy_store is not None
-            and request.conversation_id
-        ):
-            self.conversation_policy_store.set(request.conversation_id, policy)
+        if self.conversation_policy_store is not None and policy_key is not None:
+            self.conversation_policy_store.set(policy_key, policy)
         return policy, denied
 
     async def _resolve_route(self, request: UserRequest) -> RouteResult:

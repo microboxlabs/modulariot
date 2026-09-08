@@ -54,6 +54,8 @@ class ConversationStore(Protocol):
 
     def append(self, conversation_id: str, turn: ConversationTurn) -> None: ...
 
+    def reset(self, conversation_id: str) -> None: ...
+
     async def summarize_if_needed(
         self,
         conversation_id: str,
@@ -75,6 +77,15 @@ class InMemoryConversationStore:
 
     def get(self, conversation_id: str) -> ConversationHistory | None:
         return self._histories.get(conversation_id)
+
+    def reset(self, conversation_id: str) -> None:
+        """Forgets a conversation, so the next append starts a fresh history.
+
+        Used when a caller replays a transcript longer than the one held here
+        and the local copy has to be replaced rather than appended to.
+        """
+
+        self._histories.pop(conversation_id, None)
 
     def append(self, conversation_id: str, turn: ConversationTurn) -> None:
         history = self._histories.get(conversation_id)

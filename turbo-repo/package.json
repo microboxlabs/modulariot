@@ -24,7 +24,7 @@
     "husky": "^9.1.7",
     "patch-package": "^8.0.1",
     "prettier": "^3.5.3",
-    "sharp": "0.35.3",
+    "sharp": "0.35.4",
     "turbo": "^2.9.18",
     "typescript": "5.8.2"
   },

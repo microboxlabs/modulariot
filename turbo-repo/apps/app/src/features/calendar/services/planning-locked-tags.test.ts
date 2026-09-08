@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  hasOperatorTags,
   isMatchTypeLocked,
   lockedTagsForCalendar,
   withLockedTags,
@@ -53,6 +54,20 @@ describe("isMatchTypeLocked", () => {
     expect(isMatchTypeLocked(tags, "origen")).toBe(true);
     expect(isMatchTypeLocked(tags, "cliente")).toBe(false);
     expect(isMatchTypeLocked(tags, "destino")).toBe(false);
+  });
+});
+
+describe("hasOperatorTags", () => {
+  it("does not count the calendar's own chips", () => {
+    // A constrained calendar is never chip-less, so counting the locked ones
+    // would leave the legacy match-type filter set for good.
+    expect(hasOperatorTags([ORIGIN_TAG, TYPE_TAG])).toBe(false);
+    expect(hasOperatorTags([])).toBe(false);
+  });
+
+  it("counts what the operator added", () => {
+    expect(hasOperatorTags([ORIGIN_TAG, TYPED])).toBe(true);
+    expect(hasOperatorTags([TYPED])).toBe(true);
   });
 });
 

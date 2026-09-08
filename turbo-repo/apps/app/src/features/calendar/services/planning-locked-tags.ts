@@ -43,6 +43,15 @@ export function lockedTagsForCalendar(
   return tags;
 }
 
+/**
+ * Whether any chip is the operator's own. The locked ones are the calendar
+ * speaking, so a list of nothing but those is an operator who has filtered
+ * nothing — which is what the legacy match-type filter keys off.
+ */
+export function hasOperatorTags(tags: readonly PlanningSearchTag[]): boolean {
+  return tags.some((tag) => !tag.locked);
+}
+
 /** Whether the calendar already fixes this field, leaving nothing to search. */
 export function isMatchTypeLocked(
   tags: readonly PlanningSearchTag[],

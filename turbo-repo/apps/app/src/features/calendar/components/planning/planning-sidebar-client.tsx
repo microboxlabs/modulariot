@@ -2,6 +2,7 @@
 
 import type { PlanningSearchMatchType } from "./planning-search-match-type";
 import {
+  hasOperatorTags,
   isMatchTypeLocked,
   lockedTagsForCalendar,
   withLockedTags,
@@ -543,13 +544,16 @@ export function PlanningSidebarClient({
     matchType: PlanningSearchMatchType,
     query: string
   ) => {
+    // The autocomplete does not offer a field the calendar fixes; a pick that
+    // reaches here anyway is ignored outright. Returning before every state
+    // update matters: `filterMatchType` outlives the chips, and would start
+    // filtering the moment the calendar's own filter is edited away.
+    if (isMatchTypeLocked(searchTags, matchType)) {
+      return;
+    }
+
     // Add tag if not already present (check both matchType and value)
     setSearchTags((prev) => {
-      // The autocomplete does not offer a field the calendar fixes; a pick
-      // that reaches here anyway must not shadow the locked chip.
-      if (isMatchTypeLocked(prev, matchType)) {
-        return prev;
-      }
       const exists = prev.some(
         (tag) => tag.matchType === matchType && tag.value === query
       );
@@ -566,8 +570,10 @@ export function PlanningSidebarClient({
     const next = withLockedTags(tags, searchTags);
     setSearchTags(next);
 
-    // If every chip the operator added is gone, clear the rest of the filters
-    if (next.length === 0) {
+    // If every chip the operator added is gone, clear the rest of the filters.
+    // Counting the locked ones would leave them set for good on a constrained
+    // calendar, to surface later as a filter nobody asked for.
+    if (!hasOperatorTags(next)) {
       setFilterMatchType(null);
       setFilteredServiceId(null);
     }

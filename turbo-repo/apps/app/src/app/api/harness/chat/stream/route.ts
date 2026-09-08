@@ -368,10 +368,10 @@ function demoShowDashlet(send: Sender, text: string, tr: TrFn): boolean {
  * the tool call a fresh id and lets the card do the actual creation. Nothing
  * renders in the chat for this one — that's the point (see CreateStoryCard). */
 function demoCreateStory(send: Sender, text: string): boolean {
-  // Loose on purpose, same as demoShowDashlet's fallback below — any phrase
-  // with "story"/"stories" in it (create/show/make/new a story, etc.), not
-  // just the literal "create a story".
-  if (!/\bstor(y|ies)\b/i.test(text)) return false;
+  // Needs an explicit creation verb before "story"/"stories" — "create a
+  // story", "make me a new story", etc. — so unrelated prompts that merely
+  // mention a story ("summarize user story 123") still reach the harness.
+  if (!/\b(?:create|make|generate|new|build)\b.*\bstor(?:y|ies)\b/i.test(text)) return false;
   createStoryToolCall(send, { id: crypto.randomUUID().slice(0, 8) });
   return true;
 }

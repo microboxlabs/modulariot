@@ -6,6 +6,7 @@ import { HiCheck, HiEllipsisVertical, HiShare, HiSparkles, HiTrash } from "react
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { getArtifactTypeMeta } from "../artifact-type-meta";
+import { isStoryShareable } from "../storytelling-store";
 import type { StoryItem } from "../storytelling.types";
 
 interface StoryCardProps {
@@ -109,9 +110,11 @@ export default function StoryCard({
               </button>
             )}
           >
-            <DropdownItem icon={HiShare} onClick={() => onShare(story)}>
-              {tr("menu.share", dict)}
-            </DropdownItem>
+            {isStoryShareable(story) && (
+              <DropdownItem icon={HiShare} onClick={() => onShare(story)}>
+                {tr("menu.share", dict)}
+              </DropdownItem>
+            )}
             <DropdownItem
               icon={HiTrash}
               onClick={() => onDelete(story)}

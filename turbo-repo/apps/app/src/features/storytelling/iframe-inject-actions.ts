@@ -85,7 +85,8 @@ export function injectActionPills(doc: Document, handlers: InjectActionHandlers)
         pointer-events: none;
         transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
       }
-      .${TARGET_CLASS}:hover > .${TOOLBAR_CLASS} {
+      .${TARGET_CLASS}:hover > .${TOOLBAR_CLASS},
+      .${TARGET_CLASS}:focus-within > .${TOOLBAR_CLASS} {
         opacity: 1;
         pointer-events: auto;
       }

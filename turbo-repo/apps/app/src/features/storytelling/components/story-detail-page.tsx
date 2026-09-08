@@ -19,7 +19,7 @@ import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/Client
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { getStory, removeStory } from "../storytelling-store";
+import { getStory, isStoryShareable, removeStory } from "../storytelling-store";
 import { StoryDeleteDialog } from "./story-delete-dialog";
 import {
   HTML_DOWNLOAD_FILENAME,
@@ -260,15 +260,17 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
                 <HiArrowDownTray className="h-4 w-4" />
               </button>
             )}
-            <button
-              type="button"
-              onClick={handleShare}
-              title={tr("menu.share", dict)}
-              aria-label={tr("menu.share", dict)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-            >
-              <HiShare className="h-4 w-4" />
-            </button>
+            {story && isStoryShareable(story) && (
+              <button
+                type="button"
+                onClick={handleShare}
+                title={tr("menu.share", dict)}
+                aria-label={tr("menu.share", dict)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+              >
+                <HiShare className="h-4 w-4" />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setDeleting(true)}

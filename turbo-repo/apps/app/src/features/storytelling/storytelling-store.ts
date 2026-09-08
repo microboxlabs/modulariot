@@ -46,6 +46,17 @@ export function getStories(): StoryItem[] {
   return readAll();
 }
 
+/**
+ * Whether a story's share link can actually resolve in someone else's
+ * browser. Seed stories ship in the bundle so every client has them; AI
+ * stories live only in the creating browser's localStorage (no backend
+ * yet), so a shared URL to one just shows "Story not found". Hide sharing
+ * for those until there's server-side persistence.
+ */
+export function isStoryShareable(story: StoryItem): boolean {
+  return story.source !== "ai";
+}
+
 export function getStory(id: string): StoryItem | undefined {
   return readAll().find((story) => story.id === id);
 }

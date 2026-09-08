@@ -25,6 +25,7 @@ import { twMerge } from "tailwind-merge";
 import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import { useRunCancel } from "../context/run-cancel-context";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
+import { useHarnessReadOnly } from "../context/harness-read-only-context";
 import { SentAttachment } from "./attachments";
 
 const actionButtonClass =
@@ -64,18 +65,23 @@ export const UserMessage: FC = () => {
   );
 };
 
-const UserActionBar: FC = () => (
+const UserActionBar: FC = () => {
+  const readOnly = useHarnessReadOnly();
+  return (
   // focus-within reveals the bar for keyboard users — Edit and Copy are
   // tabbable whether or not a pointer happens to be over the message.
   <ActionBarPrimitive.Root className="flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/message:opacity-100">
-    <ActionBarPrimitive.Edit className={actionButtonClass}>
-      <LuPencil className="h-3 w-3" />
-    </ActionBarPrimitive.Edit>
+    {!readOnly && (
+      <ActionBarPrimitive.Edit className={actionButtonClass}>
+        <LuPencil className="h-3 w-3" />
+      </ActionBarPrimitive.Edit>
+    )}
     <ActionBarPrimitive.Copy className={actionButtonClass}>
       <LuCopy className="h-3 w-3" />
     </ActionBarPrimitive.Copy>
   </ActionBarPrimitive.Root>
-);
+  );
+};
 
 const EditComposer: FC = () => {
   const tr = useHarnessChatTr();
@@ -193,7 +199,9 @@ export const AssistantMessage: FC = () => (
   </MessagePrimitive.Root>
 );
 
-const AssistantActionBar: FC = () => (
+const AssistantActionBar: FC = () => {
+  const readOnly = useHarnessReadOnly();
+  return (
   // Same as UserActionBar: tabbable controls have to become visible on focus.
   <ActionBarPrimitive.Root className="ml-6 flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/message:opacity-100">
     <ActionBarPrimitive.Copy className={actionButtonClass}>
@@ -205,11 +213,14 @@ const AssistantActionBar: FC = () => (
     <ActionBarPrimitive.FeedbackNegative className={actionButtonClass}>
       <LuThumbsDown className="h-3 w-3" />
     </ActionBarPrimitive.FeedbackNegative>
-    <ActionBarPrimitive.Reload className={actionButtonClass}>
-      <LuRotateCcw className="h-3 w-3" />
-    </ActionBarPrimitive.Reload>
+    {!readOnly && (
+      <ActionBarPrimitive.Reload className={actionButtonClass}>
+        <LuRotateCcw className="h-3 w-3" />
+      </ActionBarPrimitive.Reload>
+    )}
     <ActionBarPrimitive.ExportMarkdown className={actionButtonClass}>
       <LuFileDown className="h-3 w-3" />
     </ActionBarPrimitive.ExportMarkdown>
   </ActionBarPrimitive.Root>
-);
+  );
+};

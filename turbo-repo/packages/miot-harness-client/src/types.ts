@@ -1,5 +1,16 @@
 export type RunMode = "auto" | "canned" | "meta" | "agentic";
 
+/**
+ * One prior exchange replayed into a conversation the caller owns. The harness
+ * keeps conversations in memory, so a caller holding a transcript the harness
+ * has forgotten (a restart, a chat reopened later) hands the turns back rather
+ * than losing the context.
+ */
+export interface ConversationTurn {
+  user_message: string;
+  assistant_answer: string;
+}
+
 export interface UserRequest {
   message: string;
   thread_id?: string;
@@ -8,6 +19,9 @@ export interface UserRequest {
   route_context?: Record<string, unknown>;
   mode?: RunMode;
   conversation_id?: string | null;
+  /** Seeds `conversation_id` when the harness does not know it. Ignored for a
+   * conversation it already holds. */
+  conversation_history?: ConversationTurn[];
   answer_format?: string;
   skill_id?: string;
   debug?: boolean;

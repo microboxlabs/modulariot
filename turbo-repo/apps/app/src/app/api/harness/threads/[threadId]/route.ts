@@ -1,0 +1,34 @@
+import { forwardToQuarkus } from "@/app/api/utils/quarkus-proxy";
+import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
+
+/** Rename a thread or change when it expires. */
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ threadId: string }> },
+) {
+  const result = await resolveTenantScope();
+  if (!result.resolved) return result.response;
+
+  const body = await request.json().catch(() => null);
+  return forwardToQuarkus(await threadPath(result.scope.activeOrg.slug, params), {
+    method: "PATCH",
+    body,
+  });
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ threadId: string }> },
+) {
+  const result = await resolveTenantScope();
+  if (!result.resolved) return result.response;
+
+  return forwardToQuarkus(await threadPath(result.scope.activeOrg.slug, params), {
+    method: "DELETE",
+  });
+}
+
+async function threadPath(slug: string, params: Promise<{ threadId: string }>) {
+  const { threadId } = await params;
+  return `/api/v1/orgs/${encodeURIComponent(slug)}/chat/threads/${encodeURIComponent(threadId)}`;
+}

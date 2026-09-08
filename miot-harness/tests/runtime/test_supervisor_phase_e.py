@@ -20,7 +20,7 @@ import pytest
 from langchain_core.language_models import FakeListChatModel
 
 from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
-from miot_harness.runtime.context import UserRequest
+from miot_harness.runtime.context import ConversationTurnInput, UserRequest
 from miot_harness.runtime.conversation import (
     ConversationTurn,
     InMemoryConversationStore,
@@ -28,7 +28,7 @@ from miot_harness.runtime.conversation import (
 from miot_harness.runtime.intent_router import LLMIntentRouter
 from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import JsonRunStore
-from miot_harness.runtime.supervisor import HarnessSupervisor
+from miot_harness.runtime.supervisor import _MAX_SEEDED_TURNS, HarnessSupervisor
 from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry
 from tests.fixtures.fake_provider import FAKE_PROFILE
@@ -397,6 +397,136 @@ async def test_supervisor_hydrates_prior_messages_into_data_graph_state(
     assert prior[0].content == "estado del coordinador"
     assert isinstance(prior[1], AIMessage)
     assert prior[1].content == "first-turn answer"
+
+
+@pytest.mark.asyncio
+async def test_caller_supplied_history_seeds_an_unknown_conversation(
+    tmp_path: Any,
+) -> None:
+    """A conversation the harness has never seen — a restart, or a chat
+    reopened long after the process that held it — arrives with the caller's
+    own record of the turns. Those must reach the graph as prior messages and
+    land in the store, so the run's own append continues the same history.
+    """
+
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    store = InMemoryConversationStore()
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "resumed", "_events": []})
+    supervisor = _build_supervisor(
+        tmp_path,
+        data_graph=data_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
+        conversation_store=store,
+    )
+
+    await supervisor.run(
+        UserRequest(
+            message="and last week?",
+            tenant_id="orion",
+            conversation_id="conv-seed-1",
+            conversation_history=[
+                ConversationTurnInput(
+                    user_message="how many trips yesterday?",
+                    assistant_answer="41 trips",
+                )
+            ],
+        )
+    )
+
+    prior = data_graph.ainvoke.call_args[0][0].get("prior_messages")
+    assert prior is not None and len(prior) == 2
+    assert isinstance(prior[0], HumanMessage)
+    assert prior[0].content == "how many trips yesterday?"
+    assert isinstance(prior[1], AIMessage)
+    assert prior[1].content == "41 trips"
+
+    history = store.get("conv-seed-1")
+    assert history is not None
+    assert [turn.user_message for turn in history.turns] == [
+        "how many trips yesterday?",
+        "and last week?",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_caller_supplied_history_never_overwrites_what_the_store_holds(
+    tmp_path: Any,
+) -> None:
+    """Seeding fires only for an id the store does not know. A caller
+    replaying turns for a live conversation must change nothing — otherwise
+    every turn of a chat would duplicate its own history.
+    """
+
+    store = InMemoryConversationStore()
+    store.append(
+        "conv-seed-2",
+        ConversationTurn(user_message="real question", assistant_answer="real answer"),
+    )
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "next", "_events": []})
+    supervisor = _build_supervisor(
+        tmp_path,
+        data_graph=data_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
+        conversation_store=store,
+    )
+
+    await supervisor.run(
+        UserRequest(
+            message="follow-up",
+            tenant_id="orion",
+            conversation_id="conv-seed-2",
+            conversation_history=[
+                ConversationTurnInput(
+                    user_message="replayed question",
+                    assistant_answer="replayed answer",
+                )
+            ],
+        )
+    )
+
+    history = store.get("conv-seed-2")
+    assert history is not None
+    assert [turn.user_message for turn in history.turns] == ["real question", "follow-up"]
+
+
+@pytest.mark.asyncio
+async def test_caller_supplied_history_is_capped_to_the_most_recent_turns(
+    tmp_path: Any,
+) -> None:
+    """A client can hold a transcript far longer than the store's compaction
+    would ever keep. Seeding takes the recent tail rather than everything.
+    """
+
+    store = InMemoryConversationStore()
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "ok", "_events": []})
+    supervisor = _build_supervisor(
+        tmp_path,
+        data_graph=data_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
+        conversation_store=store,
+    )
+
+    await supervisor.run(
+        UserRequest(
+            message="now what?",
+            tenant_id="orion",
+            conversation_id="conv-seed-3",
+            conversation_history=[
+                ConversationTurnInput(user_message=f"q{i}", assistant_answer=f"a{i}")
+                for i in range(_MAX_SEEDED_TURNS + 10)
+            ],
+        )
+    )
+
+    history = store.get("conv-seed-3")
+    assert history is not None
+    # The seeded tail, plus this run's own turn.
+    assert len(history.turns) == _MAX_SEEDED_TURNS + 1
+    assert history.turns[0].user_message == "q10"
 
 
 @pytest.mark.asyncio

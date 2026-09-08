@@ -50,6 +50,7 @@ from miot_harness.runtime.answer_render import render_answer_with_format
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.context import HarnessContext, UserRequest
 from miot_harness.runtime.conversation import (
+    ConversationHistory,
     ConversationStore,
     ConversationTurn,
     to_messages,
@@ -72,6 +73,12 @@ from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
+
+# Ceiling on how many replayed turns a caller may seed a conversation with.
+# The token budget below governs what actually reaches the model; this bounds
+# the work of seeding itself, since the store keeps every turn it is given
+# until compaction fires.
+_MAX_SEEDED_TURNS = 50
 
 _JSON_BLOCKS_INSTRUCTION = (
     "# Output format: JSON blocks\n\n"
@@ -500,7 +507,8 @@ class HarnessSupervisor:
         Returns an empty list when:
         - no `conversation_store` injected (Plan 12 deploys),
         - request has no `conversation_id`,
-        - the store has no prior history for that id (first turn of a chat).
+        - the store has no prior history for that id and the caller replayed
+          none either (first turn of a chat).
 
         This is the read-half of the `ConversationStore` contract — the
         write-half (append after each run) already lives at the bottom of
@@ -514,8 +522,41 @@ class HarnessSupervisor:
             return []
         history = self.conversation_store.get(request.conversation_id)
         if history is None:
+            history = self._seed_history(request)
+        if history is None:
             return []
         return to_messages(history, max_tokens=self.conversation_token_budget)
+
+    def _seed_history(self, request: UserRequest) -> ConversationHistory | None:
+        """Prime the store from `request.conversation_history`.
+
+        The store is in-memory, so a conversation the caller still has on
+        screen can be one the harness no longer knows: a restart drops every
+        history, and clients keep their transcripts far longer than a process
+        lives. Rather than answer that turn with no context, take the caller's
+        replay of the turns it recorded.
+
+        Only fires when the id is genuinely unknown — once seeded, the run's
+        own append at the end of `run()` and `summarize_if_needed` own the
+        history, so a caller replaying the same turns again changes nothing.
+
+        Returns None when there is nothing to seed with.
+        """
+
+        if self.conversation_store is None or not request.conversation_history:
+            return None
+        conversation_id = request.conversation_id
+        if not conversation_id:
+            return None
+        for turn in request.conversation_history[-_MAX_SEEDED_TURNS:]:
+            self.conversation_store.append(
+                conversation_id,
+                ConversationTurn(
+                    user_message=turn.user_message,
+                    assistant_answer=turn.assistant_answer,
+                ),
+            )
+        return self.conversation_store.get(conversation_id)
 
     def _root_span_kwargs(
         self, ctx: HarnessContext, route: HarnessRoute | None

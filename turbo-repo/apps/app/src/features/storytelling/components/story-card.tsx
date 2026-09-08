@@ -39,7 +39,8 @@ export default function StoryCard({
   const editedDate = formatDateString(
     story.updatedAt,
     "date",
-    lang === "en" ? "en-US" : "es-CL"
+    lang === "en" ? "en-US" : "es-CL",
+    "UTC"
   );
 
   return (

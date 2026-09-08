@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import useSWR from "swr";
-import type { ApiError } from "@/features/settings-admin/data/settings-admin-data-service";
+import type { ApiError } from "@/features/settings-admin/data/json-client";
 import {
   fetchM2MClients,
   type M2MClientDirectory,

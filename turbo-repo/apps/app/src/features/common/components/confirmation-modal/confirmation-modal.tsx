@@ -39,6 +39,8 @@ export type ConfirmationModalProps = Readonly<{
   size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl";
   /** Whether to show the icon */
   showIcon?: boolean;
+  /** Frost the backdrop instead of the plain flowbite dim (same technique as ImageViewer). */
+  blurBackdrop?: boolean;
 }>;
 
 const variantConfig: Record<
@@ -92,6 +94,7 @@ export default function ConfirmationModal({
   variant = "danger",
   size = "md",
   showIcon = true,
+  blurBackdrop = false,
 }: ConfirmationModalProps) {
   const config = variantConfig[variant];
   const IconComponent = config.icon;
@@ -101,7 +104,13 @@ export default function ConfirmationModal({
   };
 
   return (
-    <Modal dismissible show={isOpen} onClose={onClose} size={size}>
+    <Modal
+      dismissible
+      show={isOpen}
+      onClose={onClose}
+      size={size}
+      className={blurBackdrop ? "backdrop-blur-[10px]" : undefined}
+    >
       <ModalHeader className="border-none">
         <div className="flex items-center gap-3">
           {showIcon && (

@@ -4,7 +4,7 @@
 // phases P1–P6 (see .cursor/plans/calendar-ui-package-extraction.plan.md).
 
 /** Package marker. */
-export const MIOT_CALENDAR_UI_VERSION = "0.1.0";
+export const MIOT_CALENDAR_UI_VERSION = "0.3.0";
 
 // Time-window primitives: the canonical TimeSlot/TimeWindow/TimeBlock config
 // model, color presets, type guards, and pattern/quota utilities.

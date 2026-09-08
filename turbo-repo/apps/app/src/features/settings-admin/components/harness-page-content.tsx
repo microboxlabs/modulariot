@@ -683,7 +683,7 @@ export default function HarnessPageContent({
         show={showSeatsModal}
         currentSeats={purchasedSeats}
         currentBillingCycle={billingCycle}
-        minSeats={Math.max(1, members.length)}
+        minSeats={Math.max(1, activeCount)}
         pricePerSeat={PRICE_PER_SEAT_USD}
         onClose={() => setShowSeatsModal(false)}
         onSave={(seats, cycle) => {
@@ -735,7 +735,7 @@ function OptionDropdown({
         <button
           type="button"
           disabled={disabled}
-          aria-label={ariaLabel}
+          aria-label={ariaLabel ? `${ariaLabel}: ${current?.label ?? ""}` : undefined}
           className={triggerClassName}
         >
           {current?.label}

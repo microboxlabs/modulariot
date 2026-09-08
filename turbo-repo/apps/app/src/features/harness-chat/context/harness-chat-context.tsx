@@ -37,6 +37,15 @@ interface HarnessChatContextProps {
   /** Set once by `openWithConversation`; consumed (and cleared) by HarnessChat. */
   pendingConversation: PendingHarnessConversation | null;
   clearPendingConversation(): void;
+  /**
+   * Opens the panel and adds `label` as an attachment chip on the CURRENT
+   * chat's composer — like attaching a file, not sending a message. The
+   * user is left to write their own message around it (or remove it).
+   */
+  attachReference(label: string): void;
+  /** Set once by `attachReference`; consumed (and cleared) by HarnessChat. */
+  pendingAttachment: string | null;
+  clearPendingAttachment(): void;
 }
 
 const HarnessChatContext = createContext<HarnessChatContextProps | null>(
@@ -48,6 +57,7 @@ export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [pendingConversation, setPendingConversation] =
     useState<PendingHarnessConversation | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<string | null>(null);
 
   const open = useCallback(() => setIsOpen(true), []);
   const close = useCallback(() => setIsOpen(false), []);
@@ -62,6 +72,11 @@ export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
     setPendingConversation(conversation);
   }, []);
   const clearPendingConversation = useCallback(() => setPendingConversation(null), []);
+  const attachReference = useCallback((label: string) => {
+    setIsOpen(true);
+    setPendingAttachment(label);
+  }, []);
+  const clearPendingAttachment = useCallback(() => setPendingAttachment(null), []);
 
   const value = useMemo<HarnessChatContextProps>(
     () => ({
@@ -75,6 +90,9 @@ export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
       openWithConversation,
       pendingConversation,
       clearPendingConversation,
+      attachReference,
+      pendingAttachment,
+      clearPendingAttachment,
     }),
     [
       isOpen,
@@ -87,6 +105,9 @@ export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
       openWithConversation,
       pendingConversation,
       clearPendingConversation,
+      attachReference,
+      pendingAttachment,
+      clearPendingAttachment,
     ]
   );
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { ApiError } from "@/features/settings-admin/data/settings-admin-data-service";
+import { ApiError } from "@/features/settings-admin/data/json-client";
 
 /**
  * Reads the Auth0 M2M client directory through the org admin proxy. Mirrors

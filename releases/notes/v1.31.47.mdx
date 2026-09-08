@@ -1,0 +1,41 @@
+# 🔔 Release Notes v1.31.47 — ModularIoT
+
+### Fecha: 08/09/2026
+
+**Objetivo**: Esta versión mejora la navegación operativa en kanban y pulimenta la búsqueda rápida de la plataforma, con un enfoque en mayor claridad de filtrado y consistencia entre experiencias del usuario.
+
+## 🚀 Evolutivos
+
+- **Selector de tipo de servicio para kanban**
+  - **Key point**: Se añadió un selector de tipo de servicio en la barra de filtros del kanban para distinguir `V`, `OTR` y `OTE` en cada sección de trabajo, con un valor por defecto alineado a `v` para que la vista abra con el tipo relevante. *(Integración OSS — MIOT-0.5.48)*
+  - **Technical detail**: El filtro se integra con el parámetro `serviceType` en la URL y reutiliza la misma fuente compartida de tipos para mantener la misma definición entre kanban y calendario, evitando listas duplicadas y ajustando el comportamiento del estado visible del tablero.
+
+- **Mejora de la búsqueda spotlight**
+  - **Key point**: Se corrigió la búsqueda spotlight para reforzar la experiencia de consulta, agregando la opción de pasar al chat en la respuesta y eliminando la duplicidad de “Ask to harness” cuando ya se había escrito contenido. *(Integración OSS — MIOT-0.5.48)*
+  - **Technical detail**: La mejora reduce la fricción al interactuar con la búsqueda contextual y mantiene la UI más limpia, con menos opciones repetidas y una respuesta más directa en flujos de trabajo frecuentes.
+
+## 📊 Beneficios
+
+- Mayor claridad al segmentar tareas por tipo de servicio en los tableros operativos.
+- Mejor consistencia entre filtros del kanban y del calendario al reutilizar la misma configuración de tipos.
+- Reducción de ruido visual y duplicación de acciones en la búsqueda spotlight.
+- Flujo más directo para pasar de una búsqueda contextual al chat del asistente.
+- Menor dependencia de definiciones duplicadas en la lógica de filtros y la capa de presentación.
+- Experiencia de operación más predecible para equipos con múltiples tipos de servicio y rutas de trabajo.
+
+## 🧾 Versiones del stack
+
+- `miot-stack@v0.5.48` — versión del stack principal para esta release.
+- `app@v0.5.48` — aplicación actualizada en esta entrega. Cambio: sí.
+- `docs@v0.5.47` — documentación del paquete; no hubo cambio.
+- `web@v0.5.47` — web del producto; no hubo cambio.
+- `modulith@v0.5.29` — componente modular; no hubo cambio.
+- `harness@v0.1.7` — componente de soporte; no hubo cambio.
+
+Los digestos exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el asset `stack-manifest.json` de la release.
+
+## 📌 Conclusión
+
+Esta release consolida una mejora muy concreta en la operación diaria: los equipos pueden filtrar el trabajo por tipo de servicio sin perder contexto ni depender de definiciones desalineadas entre vistas. Eso facilita la supervisión y priorización en tableros de trabajo con varios tipos de servicio activos.
+
+La segunda pieza clave es la refinación de la búsqueda spotlight, que deja la experiencia de consulta más clara y menos redundante. En conjunto, la versión refuerza la productividad operativa, reduce fricción en la interfaz y mantiene la plataforma más coherente entre sus distintos flujos de trabajo.

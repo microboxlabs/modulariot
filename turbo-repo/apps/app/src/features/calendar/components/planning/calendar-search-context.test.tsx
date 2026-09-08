@@ -49,13 +49,14 @@ vi.mock("next/navigation", () => ({
 function match(
   id: string,
   calendarId: string,
-  date = "2026-07-20"
+  date = "2026-07-20",
+  service: Partial<SelectedService> = {}
 ): MappedBooking {
   return {
     bookingId: `bk-${id}`,
     calendarId,
     planned: {
-      service: { id } as SelectedService,
+      service: { id, ...service } as SelectedService,
       slot: { date: new Date(`${date}T00:00:00`), hour: 10, minutes: 0 },
     },
   };
@@ -287,6 +288,35 @@ describe("CalendarSearchProvider — navigation", () => {
     mount();
     act(() => ctx.goNext());
     expect(pushedParams().get("view")).toBe("day");
+  });
+
+  it("drops a source filter that would hide the match it is jumping to", () => {
+    // The search reads every origin; the grid does not. Landing on a match the
+    // filter excludes would show an empty grid, so navigating wins — the same
+    // rule the month → day drill-down follows.
+    url = "focus=bk-svc-1&source=miot";
+    searchResult = result({
+      matches: [
+        match("svc-1", "cal-A", "2026-07-20", { plannedIn: "miot" }),
+        match("svc-2", "cal-A", "2026-07-25"),
+      ],
+    });
+    mount();
+    act(() => ctx.goNext());
+    expect(pushedParams().get("source")).toBeNull();
+  });
+
+  it("keeps the filter when the match is on its side of it", () => {
+    url = "focus=bk-svc-1&source=miot";
+    searchResult = result({
+      matches: [
+        match("svc-1", "cal-A", "2026-07-20", { plannedIn: "miot" }),
+        match("svc-2", "cal-A", "2026-07-25", { assignedIn: "miot" }),
+      ],
+    });
+    mount();
+    act(() => ctx.goNext());
+    expect(pushedParams().get("source")).toBe("miot");
   });
 
   it("preserves a week view rather than forcing a drill-down", () => {

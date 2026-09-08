@@ -9,7 +9,8 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { useVisiblePages } from "../hooks/use-visible-pages";
-import { filterHarnessSettings } from "../models/pages";
+import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
+import { filterSettings } from "../models/pages";
 import { SidebarItem } from "../types/common.types";
 import {
   getMyTasks,
@@ -22,6 +23,7 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import type { CalendarGroupResponse } from "@microboxlabs/miot-calendar-client";
 import { useDashboardDynamicItems } from "@/features/dashboard/hooks/use-dashboard-dynamic-items";
+import { DEFAULT_SERVICE_TYPE } from "@/features/calendar/services/service-types";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
   PLANNING_COORDINATOR_PROCESS_TASKS,
@@ -66,6 +68,13 @@ function useTaskDynamicItems(): SidebarItem[] {
           .join("&")
           .replace("position=", "");
 
+        // The count has to be counting what the link opens, and opening
+        // /mytasks lands the default service type on the URL. A preset that
+        // names its own type keeps it.
+        const countPart = filterPart.includes("serviceType=")
+          ? filterPart
+          : `${filterPart}&serviceType=${DEFAULT_SERVICE_TYPE}`;
+
         return getMyTasks(
           [
             ...SHIPPING_COORDINATOR_PROCESS_TASKS_V2,
@@ -75,7 +84,7 @@ function useTaskDynamicItems(): SidebarItem[] {
           false,
           0,
           2000,
-          filterPart + "&editable=true"
+          countPart + "&editable=true"
         ).then((total) => ({
           item: {
             href: `/mytasks?${filterPart}`,
@@ -157,6 +166,7 @@ export function SidebarNavigationProvider({
   const calendarDynamicItems = useCalendarDynamicItems();
   const dashboardDynamicItems = useDashboardDynamicItems();
   const pages = useVisiblePages();
+  const { isPlatformOwner } = useIsPlatformOwner();
 
   useEffect(() => {
     if (error && (error.status === 401 || error.status === 403)) {
@@ -220,10 +230,10 @@ export function SidebarNavigationProvider({
       dashboards: dashboardDynamicItems,
     };
 
-    const resolvedItems = filterHarnessSettings(
-      pages,
-      isHarnessSettingsEnabled
-    ).map((page) => {
+    const resolvedItems = filterSettings(pages, {
+      harness: isHarnessSettingsEnabled,
+      platformOwner: isPlatformOwner,
+    }).map((page) => {
       const dynamic = page.dynamicItemsSource
         ? (dynamicMap[page.dynamicItemsSource] ?? [])
         : [];
@@ -243,6 +253,7 @@ export function SidebarNavigationProvider({
     symptomsCount,
     error,
     isHarnessSettingsEnabled,
+    isPlatformOwner,
   ]);
 
   return (

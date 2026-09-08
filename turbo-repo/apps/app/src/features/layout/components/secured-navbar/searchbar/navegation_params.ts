@@ -2,12 +2,24 @@
 
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import {
+  DEFAULT_SERVICE_TYPE,
+  SERVICE_TYPES,
+  serviceTypeLabel,
+} from "@/features/calendar/services/service-types";
+import type { DashboardFilterOption } from "@/features/dashboard/types/dashboard.types";
 
 export type NavParam = {
   label: string;
   param: { key: string; type: string };
   unique: boolean;
-  options?: { value: string; label: string }[];
+  options?: DashboardFilterOption[];
+  /**
+   * Value the URL is given when this param names no choice (see
+   * `defaultServiceTypeFor`). Clearing such a param writes `FILTER_ANY` rather
+   * than dropping it, or landing would put the default straight back.
+   */
+  defaultValue?: string;
 };
 
 export type ParamType =
@@ -15,12 +27,25 @@ export type ParamType =
   | {
       param: string;
       type: "date_range" | "text" | "bool" | "selector";
-      options?: any[];
+      options?: DashboardFilterOption[];
+      defaultValue?: string;
     };
+
+/** Same closed set the calendar filter offers, so both name a type alike. */
+const SERVICE_TYPE_OPTIONS = SERVICE_TYPES.map((code) => ({
+  value: code,
+  label: serviceTypeLabel(code),
+}));
 
 function kanban_params(searchbarDict: I18nRecord): ParamType[] {
   return [
     setParam("service", "text"),
+    setParam(
+      "serviceType",
+      "selector",
+      SERVICE_TYPE_OPTIONS,
+      DEFAULT_SERVICE_TYPE
+    ),
     setParam("licensePlate", "text"),
     setParam("driverId", "text"),
     setParam("carrierId", "text"),
@@ -93,6 +118,8 @@ const collaborators_management_params: ParamType[] = [
   setParam("rut", "text"),
 ];
 
+const storytelling_params: ParamType[] = [setParam("name", "text")];
+
 const symptoms_params: ParamType[] = [
   setParam("asset_id", "text"),
   setParam("trip_id", "text"),
@@ -109,9 +136,10 @@ const symptoms_params: ParamType[] = [
 function setParam(
   param: ParamType,
   type: "date_range" | "text" | "bool" | "selector",
-  options?: any[]
+  options?: DashboardFilterOption[],
+  defaultValue?: string
 ) {
-  return { param, type, options } as ParamType;
+  return { param, type, options, defaultValue } as ParamType;
 }
 
 export function getNavegationParams(dict: I18nRecord, size: number) {
@@ -143,6 +171,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
       dict,
       true
     ),
+    storytelling: getParamsFixed(storytelling_params, dict),
   };
 }
 
@@ -168,6 +197,8 @@ function getParamsFixed(
       },
       unique,
       options: typeof param === "string" ? undefined : param.options,
+      defaultValue:
+        typeof param === "string" ? undefined : param.defaultValue,
     };
   });
 }

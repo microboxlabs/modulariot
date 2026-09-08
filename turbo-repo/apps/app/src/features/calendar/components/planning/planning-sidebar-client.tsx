@@ -1,5 +1,14 @@
 "use client";
 
+import type { PlanningSearchMatchType } from "./planning-search-match-type";
+import {
+  hasOperatorTags,
+  isMatchTypeLocked,
+  lockedTagsForCalendar,
+  withLockedTags,
+  type PlanningSearchTag,
+} from "@/features/calendar/services/planning-locked-tags";
+
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
@@ -33,14 +42,7 @@ interface PlanningSidebarClientProps {
   dict: I18nDictionary;
 }
 
-type PlanningSearchMatchType =
-  | "id"
-  | "cliente"
-  | "origen"
-  | "destino"
-  | "lugarCarguio"
-  | "permanencia"
-  | "tipoViaje";
+
 
 /**
  * Determine trip type from serviceKind or executionType
@@ -210,18 +212,20 @@ export function PlanningSidebarClient({
     matchType: PlanningSearchMatchType;
     query: string;
   } | null>(null);
-  const [searchTags, setSearchTags] = useState<
-    Array<{ matchType: PlanningSearchMatchType; value: string }>
-  >([]);
+  const [searchTags, setSearchTags] = useState<PlanningSearchTag[]>([]);
   // Debounced text from the autocomplete. Flows into `apiParams` as `q=` so
   // the backend prefix-search reaches services beyond the loaded page.
   const [searchQuery, setSearchQuery] = useState("");
 
   // Seed search tags from the active calendar's stored filter (origin /
-  // destination delegate codes). Re-seed only when the filter signature
-  // changes — i.e. when the user navigates to a different calendar or
-  // updates the calendar's filter via the gear menu. Manual chip removals
-  // are session-only and must not get re-seeded.
+  // destination delegate codes, service type). Those chips are locked: they
+  // say what this calendar can take, so removing one would list services it
+  // cannot plan. Re-seed only when the filter signature changes — navigating
+  // to another calendar, or editing this one's filter in the gear menu.
+  //
+  // Every filter key belongs in the signature: one left out is one whose edit
+  // in the gear menu never re-seeds, and the sidebar keeps listing what the
+  // operator just excluded.
   const { calendars } = useCalendars();
   const activeCalendar = useMemo(
     () => calendars.find((c) => c.id === calendarId),
@@ -230,22 +234,13 @@ export function PlanningSidebarClient({
   const lastSeededSigRef = useRef<string | null>(null);
   useEffect(() => {
     if (!activeCalendar) return;
-    const sig = `${activeCalendar.id}|${activeCalendar.filter?.origin ?? ""}|${activeCalendar.filter?.destination ?? ""}`;
+    const sig = `${activeCalendar.id}|${activeCalendar.filter?.origin ?? ""}|${activeCalendar.filter?.destination ?? ""}|${activeCalendar.filter?.serviceType ?? ""}`;
     if (lastSeededSigRef.current === sig) return;
     lastSeededSigRef.current = sig;
 
-    const seeded: Array<{ matchType: PlanningSearchMatchType; value: string }> =
-      [];
-    if (activeCalendar.filter?.origin) {
-      seeded.push({ matchType: "origen", value: activeCalendar.filter.origin });
-    }
-    if (activeCalendar.filter?.destination) {
-      seeded.push({
-        matchType: "destino",
-        value: activeCalendar.filter.destination,
-      });
-    }
-    setSearchTags(seeded);
+    // An OTR calendar that still offered every v trip as plannable would be
+    // the routing bug pointing the other way.
+    setSearchTags(lockedTagsForCalendar(activeCalendar.filter));
   }, [activeCalendar]);
 
   // Build API params from search tags
@@ -271,6 +266,11 @@ export function PlanningSidebarClient({
           break;
         case "destino":
           params.push(`destination=${tag.value.toUpperCase()}`);
+          break;
+        case "tipoServicio":
+          // Server-side on purpose: filtering after the page loads yields
+          // short pages, not a scoped list.
+          params.push(`serviceType=${tag.value.toLowerCase()}`);
           break;
         // lugarCarguio, permanencia, tipoViaje don't have direct API mappings
         // They will be filtered client-side if needed
@@ -376,14 +376,7 @@ export function PlanningSidebarClient({
     };
   }, [selectedSlot]);
 
-  type MatchType =
-    | "id"
-    | "cliente"
-    | "origen"
-    | "destino"
-    | "lugarCarguio"
-    | "permanencia"
-    | "tipoViaje";
+  type MatchType = PlanningSearchMatchType;
 
   // Helper function to check if service matches a match type
   const matchesService = useCallback(
@@ -407,6 +400,10 @@ export function PlanningSidebarClient({
           return service.permanencia.toLowerCase().includes(query);
         case "tipoViaje":
           return service.tipoViaje.toLowerCase().includes(query);
+        case "tipoServicio":
+          return (service.mintral_serviceType ?? "")
+            .toLowerCase()
+            .includes(query);
         default:
           return false;
       }
@@ -463,6 +460,10 @@ export function PlanningSidebarClient({
               return service.permanencia.toLowerCase().includes(lowerQuery);
             case "tipoViaje":
               return service.tipoViaje.toLowerCase().includes(lowerQuery);
+            case "tipoServicio":
+              return (service.mintral_serviceType ?? "")
+                .toLowerCase()
+                .includes(lowerQuery);
             default:
               return true;
           }
@@ -527,23 +528,30 @@ export function PlanningSidebarClient({
     setFilteredServiceId(service.id);
   };
 
+  const lockedMatchTypes = useMemo(
+    () => searchTags.filter((t) => t.locked).map((t) => t.matchType),
+    [searchTags]
+  );
+
   const handleSearchClear = () => {
     setFilteredServiceId(null);
     setFilterMatchType(null);
-    setSearchTags([]);
+    // Clearing drops what the operator typed, not what the calendar is.
+    setSearchTags((prev) => withLockedTags([], prev));
   };
 
   const handleMatchTypeSelect = (
-    matchType:
-      | "id"
-      | "cliente"
-      | "origen"
-      | "destino"
-      | "lugarCarguio"
-      | "permanencia"
-      | "tipoViaje",
+    matchType: PlanningSearchMatchType,
     query: string
   ) => {
+    // The autocomplete does not offer a field the calendar fixes; a pick that
+    // reaches here anyway is ignored outright. Returning before every state
+    // update matters: `filterMatchType` outlives the chips, and would start
+    // filtering the moment the calendar's own filter is edited away.
+    if (isMatchTypeLocked(searchTags, matchType)) {
+      return;
+    }
+
     // Add tag if not already present (check both matchType and value)
     setSearchTags((prev) => {
       const exists = prev.some(
@@ -558,23 +566,14 @@ export function PlanningSidebarClient({
     setFilteredServiceId(null); // Clear service ID filter
   };
 
-  const handleTagsChange = (
-    tags: Array<{
-      matchType:
-        | "id"
-        | "cliente"
-        | "origen"
-        | "destino"
-        | "lugarCarguio"
-        | "permanencia"
-        | "tipoViaje";
-      value: string;
-    }>
-  ) => {
-    setSearchTags(tags);
+  const handleTagsChange = (tags: PlanningSearchTag[]) => {
+    const next = withLockedTags(tags, searchTags);
+    setSearchTags(next);
 
-    // If all tags are removed, clear all filters
-    if (tags.length === 0) {
+    // If every chip the operator added is gone, clear the rest of the filters.
+    // Counting the locked ones would leave them set for good on a constrained
+    // calendar, to surface later as a filter nobody asked for.
+    if (!hasOperatorTags(next)) {
       setFilterMatchType(null);
       setFilteredServiceId(null);
     }
@@ -696,6 +695,7 @@ export function PlanningSidebarClient({
           onQueryChange={setSearchQuery}
           hasActiveFilter={searchTags.length > 0}
           isLoading={isLoadingTasks}
+          lockedMatchTypes={lockedMatchTypes}
         />
       }
       tags={

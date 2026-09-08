@@ -8,6 +8,7 @@ import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
 import { FaDev, FaTruckLoading } from "react-icons/fa";
 import { HiCog, HiLightningBolt } from "react-icons/hi";
+import { HiSparkles } from "react-icons/hi2";
 import { LuTowerControl } from "react-icons/lu";
 import type { FC, ComponentProps } from "react";
 import pagesConfig from "./pages-config.json";
@@ -23,6 +24,7 @@ const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   fleetManagement: TruckIcon,
   whereIsMyLoad: FaTruckLoading as FC<ComponentProps<"svg">>,
   integrations: HiLightningBolt as FC<ComponentProps<"svg">>,
+  storytelling: HiSparkles as FC<ComponentProps<"svg">>,
   settings: HiCog as FC<ComponentProps<"svg">>,
   dev: FaDev as FC<ComponentProps<"svg">>,
 };
@@ -33,6 +35,13 @@ const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
  * reach. Hidden unless dev tools are switched on.
  */
 export const DEV_PAGE_LABEL = "dev";
+
+/**
+ * Storytelling is still testing-only content (see storytelling-store.ts,
+ * the `testing/` fixtures) — hidden unless ENABLE_STORYTELLING is
+ * switched on, same mechanism as DEV_PAGE_LABEL above.
+ */
+export const STORYTELLING_PAGE_LABEL = "storytelling";
 
 // cpd-off — sidebar configuration data, structural repetition is intentional
 /**
@@ -50,38 +59,54 @@ export const pages: SidebarItem[] = pagesConfig.map((p) => ({
 // cpd-on
 
 /**
- * `pages` minus the Dev section unless dev tools are enabled.
+ * `pages` minus the Dev section unless dev tools are enabled, and minus
+ * Storytelling unless storytelling testing is enabled.
  *
- * The flag arrives as an argument rather than being read here because it now
- * comes from the runtime config (`ENABLE_DEV_TOOLS`, fetched from
- * /api/runtime-config) instead of a build-time `NEXT_PUBLIC_` var. That's
- * what lets one built image be dev-tools-on in dev and off in prod; a
+ * Both flags arrive as arguments rather than being read here because they
+ * come from the runtime config (`ENABLE_DEV_TOOLS` / `ENABLE_STORYTELLING`,
+ * fetched from /api/runtime-config) instead of a build-time `NEXT_PUBLIC_`
+ * var. That's what lets one built image be on in dev and off in prod; a
  * NEXT_PUBLIC_ value is inlined at build time and can't be changed per
  * deploy. Module scope can't await that fetch, so the filter moved out to
  * the consumers — see `useVisiblePages`.
  */
-export function visiblePages(devToolsEnabled: boolean): SidebarItem[] {
-  if (devToolsEnabled) return pages;
-  return pages.filter((p) => p.label !== DEV_PAGE_LABEL);
+export function visiblePages(devToolsEnabled: boolean, storytellingEnabled: boolean): SidebarItem[] {
+  return pages.filter((p) => {
+    if (p.label === DEV_PAGE_LABEL) return devToolsEnabled;
+    if (p.label === STORYTELLING_PAGE_LABEL) return storytellingEnabled;
+    return true;
+  });
 }
 
 const HARNESS_SETTINGS_HREF = "/users/settings/harness";
+const PLATFORM_SETTINGS_HREF = "/users/settings/platform";
+
+/** Which flag decides whether a gated Settings entry is offered. */
+export interface SettingsGates {
+  /** `ENABLE_HARNESS_SETTINGS` on the deployment. */
+  readonly harness: boolean;
+  /** Whether the signed-in user holds `PLATFORM_OWNER`. */
+  readonly platformOwner: boolean;
+}
 
 /**
- * Strips the Harness settings entry unless its own feature flag is on.
- * Shared by the sidebar and Spotlight so a user with the flag off can't
- * find the link through one nav surface but not the other — both would
- * otherwise need to duplicate this href check independently.
+ * Strips the Settings entries the caller cannot use.
+ *
+ * Shared by the sidebar and Spotlight so an entry cannot be missing from one
+ * nav surface and reachable through the other — which is what would happen if
+ * each applied its own href checks.
  */
-export function filterHarnessSettings(
+export function filterSettings(
   input: SidebarItem[],
-  isHarnessSettingsEnabled: boolean
+  gates: SettingsGates
 ): SidebarItem[] {
-  if (isHarnessSettingsEnabled) return input;
+  if (gates.harness && gates.platformOwner) return input;
+
   return input.map((page) => ({
     ...page,
-    items: (page.items ?? []).filter(
-      (item) => item.href !== HARNESS_SETTINGS_HREF
-    ),
+    items: (page.items ?? []).filter((item) => {
+      if (!gates.harness && item.href === HARNESS_SETTINGS_HREF) return false;
+      return gates.platformOwner || item.href !== PLATFORM_SETTINGS_HREF;
+    }),
   }));
 }

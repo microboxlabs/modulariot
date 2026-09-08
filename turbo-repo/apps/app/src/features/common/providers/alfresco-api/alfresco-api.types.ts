@@ -233,6 +233,8 @@ export type FinishedWorkflowsRequest = {
     carrierName?: string;
     origin?: string;
     destination?: string;
+    /** Service type (v / otr / ote), matched against `mintral_serviceType`. */
+    serviceType?: string;
     customerCode?: string;
     clientAbbreviation?: string;
     editable?: boolean;

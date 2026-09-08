@@ -68,9 +68,9 @@ export default function HarnessSeatsModal({
 
   useEffect(() => {
     if (!show) return;
-    setSeats(currentSeats);
+    setSeats(Math.max(currentSeats, minSeats));
     setBillingCycle(currentBillingCycle);
-  }, [show, currentSeats, currentBillingCycle]);
+  }, [show, currentSeats, currentBillingCycle, minSeats]);
 
   const adjustSeats = (delta: number) =>
     setSeats((current) => Math.max(minSeats, current + delta));
@@ -229,6 +229,7 @@ function BillingCard({
       <button
         type="button"
         onClick={onSelect}
+        aria-pressed={selected}
         className="flex w-full cursor-pointer flex-col gap-4 text-left"
       >
         <div className="flex items-center justify-between">

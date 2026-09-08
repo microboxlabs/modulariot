@@ -44,6 +44,20 @@ export async function forwardToQuarkus(
   return proxyToUpstream(baseUrl, path, buildAuthHeaders(session), init);
 }
 
+/**
+ * The caller's credentials for an upstream call, or null when there is no
+ * session. Exported for the routes that stream bytes rather than JSON and so
+ * cannot go through {@link forwardToQuarkus}.
+ */
+export async function quarkusAuthHeaders(): Promise<Record<
+  string,
+  string
+> | null> {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+  return buildAuthHeaders(session);
+}
+
 function buildAuthHeaders(session: Session): Record<string, string> {
   const headers: Record<string, string> = { Accept: "application/json" };
   const token = session.user?.rawJWT ?? session.user?.ticket;

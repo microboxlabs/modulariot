@@ -3,6 +3,10 @@ import {
   normalizeServiceType,
 } from "@/features/calendar/services/service-types";
 import {
+  ORIGIN_MIOT,
+  parsePlannerSource,
+} from "@/features/calendar/services/service-origin";
+import {
   resolveSection,
   segmentsOf,
 } from "@/features/layout/components/secured-navbar/resolve-section";
@@ -43,5 +47,29 @@ export function defaultServiceTypeFor(
   const section = resolveSection(segmentsOf(pathname));
   return section && SERVICE_TYPE_SECTIONS.has(section)
     ? DEFAULT_SERVICE_TYPE
+    : undefined;
+}
+
+/**
+ * The planner's source filter opens on the calendar's own work: services
+ * planned and assigned through it, rather than everything the sync projected
+ * in. Same shape as the service type above — written into the URL so the
+ * control shows what the board is filtered by, and so a filtered board stays a
+ * link someone can send.
+ *
+ * `all` is the operator asking for everything, and must survive landing: it is
+ * why the selector writes the sentinel instead of dropping the param, which
+ * would put the default straight back on the next navigation.
+ */
+export function defaultPlannerSourceFor(
+  pathname: string,
+  current: string | null | undefined
+): string | undefined {
+  if (current === FILTER_ANY || parsePlannerSource(current)) {
+    return undefined;
+  }
+
+  return resolveSection(segmentsOf(pathname)) === "calendar-planning"
+    ? ORIGIN_MIOT
     : undefined;
 }

@@ -13,6 +13,7 @@ import {
   PLANNER_SOURCES,
   type PlannerSource,
 } from "@/features/calendar/services/service-origin";
+import { FILTER_ANY } from "@/features/layout/services/kanban-default-filters";
 
 interface PlanningSourceFilterProps {
   dict: I18nDictionary;
@@ -45,14 +46,14 @@ export default function PlanningSourceFilter({
   const searchParams = useSearchParams();
   const active = parsePlannerSource(searchParams.get("source"));
 
+  // "Todos" writes the `all` sentinel rather than dropping the param: the
+  // planner defaults to the calendar's own work (`defaultPlannerSourceFor`),
+  // so a missing param would be re-filled on the next navigation and the
+  // choice would not survive landing.
   const select = useCallback(
-    (source: PlannerSource | undefined) => {
+    (source: PlannerSource | typeof FILTER_ANY) => {
       const params = new URLSearchParams(searchParams.toString());
-      if (source) {
-        params.set("source", source);
-      } else {
-        params.delete("source");
-      }
+      params.set("source", source);
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
     [router, pathname, searchParams]
@@ -87,7 +88,7 @@ export default function PlanningSourceFilter({
     >
       <DropdownItem
         icon={SOURCE_ICONS.all}
-        onClick={() => select(undefined)}
+        onClick={() => select(FILTER_ANY)}
       >
         {tr("pages.planning.source.all", dict)}
       </DropdownItem>

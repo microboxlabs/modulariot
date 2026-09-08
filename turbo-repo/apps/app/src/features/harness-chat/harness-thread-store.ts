@@ -80,12 +80,7 @@ export async function appendMessage(
   threadId: string,
   message: StoredMessage,
 ): Promise<boolean> {
-  const res = await sendJson(
-    `${BASE}/${encodeURIComponent(threadId)}/messages`,
-    "POST",
-    message,
-  );
-  return res;
+  return sendJson(`${BASE}/${encodeURIComponent(threadId)}/messages`, "POST", message);
 }
 
 export async function shareThread(threadId: string, principal: string): Promise<boolean> {

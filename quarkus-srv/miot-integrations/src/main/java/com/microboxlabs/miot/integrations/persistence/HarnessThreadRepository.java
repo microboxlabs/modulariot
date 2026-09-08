@@ -10,16 +10,19 @@ import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
+import jakarta.inject.Inject;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
  * Storage for the harness chat panel's threads (Vert.x reactive PG, blocking via
- * {@code await().indefinitely()}, JSONB via {@code JsonObject} — same shape as
+ * a bounded {@code await()}, JSONB via {@code JsonObject} — same shape as
  * {@code InteractionEpisodeRepository}). The {@code protected} constructor lets
  * unit tests subclass with a null pool.
  *
@@ -159,10 +162,26 @@ public class HarnessThreadRepository {
             WHERE (expires_at IS NOT NULL AND expires_at <= now())
                OR (deleted_at IS NOT NULL AND deleted_at <= $1)""";
 
-    private final Instance<Pool> clientInstance;
+    /** Used when the configured window is absent or not a positive duration. */
+    private static final Duration DEFAULT_QUERY_TIMEOUT = Duration.ofSeconds(10);
 
-    protected HarnessThreadRepository(Instance<Pool> clientInstance) {
+    private final Instance<Pool> clientInstance;
+    private final Duration queryTimeout;
+
+    @Inject
+    public HarnessThreadRepository(
+            Instance<Pool> clientInstance,
+            @ConfigProperty(name = "miot.harness-threads.query-timeout", defaultValue = "10s")
+            Duration queryTimeout) {
         this.clientInstance = clientInstance;
+        this.queryTimeout = queryTimeout.isZero() || queryTimeout.isNegative()
+                ? DEFAULT_QUERY_TIMEOUT
+                : queryTimeout;
+    }
+
+    /** For unit tests, which subclass with no pool and never reach the wire. */
+    protected HarnessThreadRepository(Instance<Pool> clientInstance) {
+        this(clientInstance, DEFAULT_QUERY_TIMEOUT);
     }
 
     /** Creates the thread, or renames an existing one the same owner holds.
@@ -271,8 +290,14 @@ public class HarnessThreadRepository {
         return execute(PURGE_EXPIRED, Tuple.of(deletedBefore)).rowCount();
     }
 
+    // Bounded rather than indefinite: when a pooled connection dies without the
+    // server closing it cleanly — a dropped tunnel, a bounced pgbouncer — the
+    // query never completes and an unbounded await parks the caller forever.
+    // The panel loads its history on every mount, so that hangs a user-facing
+    // read; the purge job would skip every later pass (ConcurrentExecution.SKIP)
+    // while never logging a failure, because nothing ever throws.
     private RowSet<Row> execute(String sql, Tuple params) {
-        return client().preparedQuery(sql).execute(params).await().indefinitely();
+        return client().preparedQuery(sql).execute(params).await().atMost(queryTimeout);
     }
 
     private Pool client() {

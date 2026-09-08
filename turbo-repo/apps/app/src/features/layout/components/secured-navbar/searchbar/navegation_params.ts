@@ -7,29 +7,27 @@ import {
   SERVICE_TYPES,
   serviceTypeLabel,
 } from "@/features/calendar/services/service-types";
+import type { DashboardFilterOption } from "@/features/dashboard/types/dashboard.types";
 
 export type NavParam = {
   label: string;
   param: { key: string; type: string };
   unique: boolean;
-  options?: { value: string; label: string }[];
+  options?: DashboardFilterOption[];
   /**
-   * Value the URL is given when this param is absent (see
+   * Value the URL is given when this param names no choice (see
    * `defaultServiceTypeFor`). Clearing such a param writes `FILTER_ANY` rather
    * than dropping it, or landing would put the default straight back.
    */
   defaultValue?: string;
 };
 
-/** What a param with a `defaultValue` says for "every value, no filter". */
-export const FILTER_ANY = "all";
-
 export type ParamType =
   | string
   | {
       param: string;
       type: "date_range" | "text" | "bool" | "selector";
-      options?: any[];
+      options?: DashboardFilterOption[];
       defaultValue?: string;
     };
 
@@ -136,7 +134,7 @@ const symptoms_params: ParamType[] = [
 function setParam(
   param: ParamType,
   type: "date_range" | "text" | "bool" | "selector",
-  options?: any[],
+  options?: DashboardFilterOption[],
   defaultValue?: string
 ) {
   return { param, type, options, defaultValue } as ParamType;

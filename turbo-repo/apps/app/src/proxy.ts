@@ -89,7 +89,7 @@ const middleware = auth(async function middleware(request: NextRequest) {
   // pasted URL — arrives already carrying it.
   const defaultServiceType = defaultServiceTypeFor(
     pathname,
-    request.nextUrl.searchParams.has("serviceType")
+    request.nextUrl.searchParams.get("serviceType")
   );
   if (defaultServiceType) {
     request.nextUrl.searchParams.set("serviceType", defaultServiceType);

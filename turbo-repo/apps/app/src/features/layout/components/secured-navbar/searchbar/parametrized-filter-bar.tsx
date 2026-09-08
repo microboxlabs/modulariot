@@ -9,10 +9,35 @@ import { DateFilterBadge } from "@/features/dashboard/components/dashboard-filte
 import { getCategories } from "./parametrized-searchbar";
 import { useSymptomNames, toSymptomOptions } from "@/features/symptoms/hooks/use-symptom-names";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { FILTER_ANY, type NavParam } from "./navegation_params";
+import type { NavParam } from "./navegation_params";
+import { FILTER_ANY } from "@/features/layout/services/kanban-default-filters";
 
 /** Selector whose options are aggregated from data rather than declared statically. */
 const SYMPTOM_NAME_KEY = "symptom_name";
+
+/**
+ * What the badge shows as picked. `FILTER_ANY` is the operator asking for every
+ * value, so nothing is picked.
+ *
+ * `guarded` params are written by this bar and normalized on the way in, so a
+ * value outside their options can only come from a hand-edited URL: the API
+ * ignores it, and the badge must not claim to be filtering by it. Params whose
+ * options arrive asynchronously are left alone — there, an unknown value means
+ * the options have not loaded yet.
+ */
+function selectedValues(
+  filter: DashboardFilterParam,
+  raw: string | null,
+  guarded: boolean
+): string[] {
+  if (!raw || raw === FILTER_ANY) return [];
+
+  const values = raw.split(",").filter(Boolean);
+  if (!guarded) return values;
+
+  const allowed = new Set((filter.options ?? []).map((o) => o.value));
+  return values.filter((v) => allowed.has(v));
+}
 
 interface ParametrizedFilterBarProps {
   readonly dict: I18nRecord;
@@ -134,9 +159,11 @@ export default function ParametrizedFilterBar({
           );
         }
         if (f.type === "select") {
-          const raw = searchParams.get(f.key);
-          const values =
-            raw && raw !== FILTER_ANY ? raw.split(",").filter(Boolean) : [];
+          const values = selectedValues(
+            f,
+            searchParams.get(f.key),
+            keysWithDefault.has(f.key)
+          );
           return (
             <SelectFilterBadge
               key={f.key}

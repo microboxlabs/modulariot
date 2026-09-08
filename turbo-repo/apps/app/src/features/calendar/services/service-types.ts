@@ -15,6 +15,13 @@ export const SERVICE_TYPES = ["v", "otr", "ote"] as const;
 
 export type ServiceTypeCode = (typeof SERVICE_TYPES)[number];
 
+/**
+ * The type a kanban URL is given when it names none. It is appended to the URL
+ * rather than applied behind it, so the board never filters by something the
+ * filter bar doesn't show.
+ */
+export const DEFAULT_SERVICE_TYPE: ServiceTypeCode = "v";
+
 /** How a service type is written for people: the kanban's `1152392-OTR`. */
 export function serviceTypeLabel(code: string): string {
   return code.trim().toUpperCase();

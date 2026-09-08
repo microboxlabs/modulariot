@@ -9,7 +9,10 @@ type NextMiddlewareFunction = (
 ) => NextResponse | Response | Promise<NextResponse | Response> | null | undefined;
 import { getLocaleFromHeaders } from "./features/i18n/i18n.service";
 import { locales } from "./features/i18n/tr.service";
-import { defaultServiceTypeFor } from "./features/layout/services/kanban-default-filters";
+import {
+  defaultPlannerSourceFor,
+  defaultServiceTypeFor,
+} from "./features/layout/services/kanban-default-filters";
 import { createManagedLogger } from "./lib/logger";
 // import { logger } from "./lib/logger";
 // import {
@@ -95,11 +98,23 @@ const middleware = auth(async function middleware(request: NextRequest) {
     request.nextUrl.searchParams.set("serviceType", defaultServiceType);
   }
 
+  // The planner opens on the calendar's own work for the same reason: the
+  // board says which services were planned and assigned through it, and the
+  // URL says so too.
+  const defaultSource = defaultPlannerSourceFor(
+    pathname,
+    request.nextUrl.searchParams.get("source")
+  );
+  if (defaultSource) {
+    request.nextUrl.searchParams.set("source", defaultSource);
+  }
+
   let response: NextResponse;
   if (pathnameHasLocale) {
-    response = defaultServiceType
-      ? NextResponse.redirect(request.nextUrl.toString())
-      : NextResponse.next();
+    response =
+      defaultServiceType || defaultSource
+        ? NextResponse.redirect(request.nextUrl.toString())
+        : NextResponse.next();
   } else {
     const locale = getLocaleFromHeaders(request.headers);
     request.nextUrl.pathname = `${prefixApp}${locale}${pathname}`;

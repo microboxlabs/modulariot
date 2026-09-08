@@ -720,6 +720,12 @@
         "clear": "Clear search",
         "otherCalendar": "In another calendar: {calendar}",
         "error": "Search failed"
+      },
+      "source": {
+        "label": "Service source",
+        "all": "All",
+        "miot": "Calendar",
+        "synced": "Synced"
       }
     },
     "shipping": {

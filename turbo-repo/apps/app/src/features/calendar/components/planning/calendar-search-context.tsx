@@ -18,6 +18,10 @@ import {
   type CalendarSearchResult,
 } from "@/features/calendar/services/use-calendar-search";
 import type { MappedBooking } from "@/features/calendar/services/booking-service-mapper";
+import {
+  matchesPlannerSource,
+  parsePlannerSource,
+} from "@/features/calendar/services/service-origin";
 
 /** URL param carrying the match the navigator is parked on. */
 export const FOCUS_PARAM = "focus";
@@ -141,6 +145,18 @@ export function CalendarSearchProvider({
       // Month cells cap at 3 chips + "+N more", so a match can be highlighted
       // and still invisible. Drop to the day view, where it is always drawn.
       if (params.get("view") === "month") params.set("view", "day");
+
+      // Same rule for the source filter, which hides bookings outright: the
+      // search reads every origin, so stepping onto a match the filter excludes
+      // would land on an empty grid. Navigating to a hit wins over the filter.
+      if (
+        !matchesPlannerSource(
+          match.planned.service,
+          parsePlannerSource(params.get("source"))
+        )
+      ) {
+        params.delete("source");
+      }
 
       let path = pathname;
       if (calendarId && match.calendarId !== calendarId) {

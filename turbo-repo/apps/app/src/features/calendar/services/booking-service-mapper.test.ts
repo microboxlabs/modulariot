@@ -114,3 +114,35 @@ describe("mapBookingToPlannedService — service type recovery", () => {
     expect(mapped?.planned.service.mintral_serviceType).toBeUndefined();
   });
 });
+
+describe("mapBookingToPlannedService — plan/assign origin", () => {
+  it("carries both stamps through to the service", () => {
+    const mapped = mapBookingToPlannedService(
+      booking({
+        resource: {
+          id: "1658427-V",
+          type: "service",
+          data: { plannedIn: "miot", assignedIn: "alerce" },
+        },
+      })
+    );
+    expect(mapped?.planned.service.plannedIn).toBe("miot");
+    expect(mapped?.planned.service.assignedIn).toBe("alerce");
+  });
+
+  it("keeps the rest of the stored data when a stamp holds an unknown value", () => {
+    // The keys are typed as plain strings for this: a value a later ECM
+    // release writes must not fail the parse and drop the whole blob with it.
+    const mapped = mapBookingToPlannedService(
+      booking({
+        resource: {
+          id: "1658427-V",
+          type: "service",
+          data: { origen: "ANF", plannedIn: "something-new" },
+        },
+      })
+    );
+    expect(mapped?.planned.service.origen).toBe("ANF");
+    expect(mapped?.planned.service.plannedIn).toBe("something-new");
+  });
+});

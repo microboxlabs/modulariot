@@ -15,12 +15,14 @@ interface StoryShareModalProps {
   readonly dict: I18nRecord;
 }
 
-// Manually prefixed with the "/app" basePath — this builds a plain string,
-// not a next/link href, so unlike <Link> it won't get that prefix for free
-// (same reason Breadcrumb.tsx prepends it by hand for its own raw <a> hrefs).
+// Manually prefixed with the basePath — this builds a plain string, not a
+// next/link href, so unlike <Link> it won't get that prefix for free (same
+// reason Breadcrumb.tsx prepends it by hand for its own raw <a> hrefs).
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 function shareUrl(story: StoryItem, lang: string): string {
   if (typeof window === "undefined") return story.title;
-  return `${window.location.origin}/app/${lang}/storytelling/${encodeURIComponent(story.id)}`;
+  return `${window.location.origin}${BASE_PATH}/${lang}/storytelling/${encodeURIComponent(story.id)}`;
 }
 
 const ROW =
@@ -81,6 +83,9 @@ export default function StoryShareModal({ story, lang, onClose, dict }: StorySha
               <FaWhatsapp className="h-5 w-5 shrink-0 text-gray-400" />
               {tr("share.whatsapp", dict)}
             </button>
+            <p className="px-1 pt-1 text-xs text-gray-400 dark:text-gray-500">
+              {tr("share.demoNotice", dict)}
+            </p>
           </ModalBody>
         </>
       )}

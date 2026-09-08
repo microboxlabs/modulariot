@@ -107,14 +107,18 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
 
   const runSearch = useCallback((query: string) => {
     setSearchQuery(query);
-    const count = previewerRef.current?.search(query) ?? 0;
-    setMatchCount(count);
-    setCurrentMatch(count > 0 ? 0 : -1);
+    // HtmlPreviewer's handle is async (sandboxed iframe over postMessage);
+    // Markdown/PPT resolve synchronously. `Promise.resolve` covers both.
+    void Promise.resolve(previewerRef.current?.search(query) ?? 0).then((count) => {
+      setMatchCount(count);
+      setCurrentMatch(count > 0 ? 0 : -1);
+    });
   }, []);
 
   const stepMatch = useCallback((delta: number) => {
-    const next = previewerRef.current?.stepMatch(delta);
-    if (next !== undefined) setCurrentMatch(next);
+    void Promise.resolve(previewerRef.current?.stepMatch(delta)).then((next) => {
+      if (next !== undefined && next !== null) setCurrentMatch(next);
+    });
   }, []);
 
   if (!story) {

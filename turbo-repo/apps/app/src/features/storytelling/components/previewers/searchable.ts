@@ -5,8 +5,10 @@
  * way to script their built-in PDF viewer's search from outside — that
  * would need swapping the renderer for a JS-based one (pdfjs-dist). */
 export interface SearchableHandle {
-  /** Highlights every match, returns the count. */
-  search(query: string): number;
+  /** Highlights every match, returns the count. Async for HtmlPreviewer,
+   * whose sandboxed iframe answers over postMessage; the in-document
+   * previewers (Markdown, PPT) return synchronously. */
+  search(query: string): number | Promise<number>;
   /** Moves to the next/previous match (delta ±1), returns the new 0-based index. */
-  stepMatch(delta: number): number;
+  stepMatch(delta: number): number | Promise<number>;
 }

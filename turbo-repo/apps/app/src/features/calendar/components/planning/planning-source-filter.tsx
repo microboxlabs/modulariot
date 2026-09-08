@@ -64,7 +64,10 @@ export default function PlanningSourceFilter({
               ? "flex items-center gap-1 border-blue-500 text-blue-700 dark:text-blue-400"
               : "flex items-center gap-1"
           }
-          aria-label={tr("pages.planning.source.label", dict)}
+          // Names the control AND its value: an aria-label replaces the
+          // visible text, so without the value a screen reader announces the
+          // filter without saying which one is on.
+          aria-label={`${tr("pages.planning.source.label", dict)}: ${label}`}
         >
           {label}
           <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />

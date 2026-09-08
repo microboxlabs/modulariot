@@ -103,14 +103,6 @@ export interface SelectedService {
   assignedTruckExternalId?: string | null;
   assignedTrailerExternalId?: string | null;
   /**
-   * Accreditation level of each assigned resource, captured from the
-   * accredited-resources row at selection time (same lifecycle as the
-   * external-id slots) and persisted on the booking so the calendar card /
-   * chip can show the assignment's accreditation without re-querying the
-   * feed. `null` = unknown (row wasn't on the loaded page when selected);
-   * absent = booking written before this field existed.
-   */
-  /**
    * Where this service was planned / assigned: `miot` for an operator working
    * through this module, `alerce` for the upstream sync. Absent on every
    * booking written before the stamp, and on the sync's own — `service-origin.ts`
@@ -118,6 +110,14 @@ export interface SelectedService {
    */
   plannedIn?: string;
   assignedIn?: string;
+  /**
+   * Accreditation level of each assigned resource, captured from the
+   * accredited-resources row at selection time (same lifecycle as the
+   * external-id slots) and persisted on the booking so the calendar card /
+   * chip can show the assignment's accreditation without re-querying the
+   * feed. `null` = unknown (row wasn't on the loaded page when selected);
+   * absent = booking written before this field existed.
+   */
   assignedCarrierAccreditation?: AccreditationLevel | null;
   assignedDriverAccreditation?: AccreditationLevel | null;
   assignedDriver2Accreditation?: AccreditationLevel | null;

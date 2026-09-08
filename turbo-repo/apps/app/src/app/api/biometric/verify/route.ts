@@ -7,14 +7,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 const totemLogger = createLogger("totem");
 
+function upstreamText(info: unknown): string | null {
+  if (typeof info === "string") return info;
+  const responseText = (info as { responseText?: unknown })?.responseText;
+  return typeof responseText === "string" ? responseText : null;
+}
+
 function upstreamBody(error: unknown): Record<string, unknown> | null {
-  const info = (error as { info?: unknown })?.info;
-  const text =
-    typeof info === "string"
-      ? info
-      : typeof (info as { responseText?: unknown })?.responseText === "string"
-        ? ((info as { responseText: string }).responseText)
-        : null;
+  const text = upstreamText((error as { info?: unknown })?.info);
   if (!text) return null;
   try {
     const parsed = JSON.parse(text);

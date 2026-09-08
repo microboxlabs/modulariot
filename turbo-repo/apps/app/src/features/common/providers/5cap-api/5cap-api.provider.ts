@@ -13,7 +13,7 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 
 function callTimeout(): AbortSignal | undefined {
   const raw = process.env.CAP_API_TIMEOUT_MS;
-  const ms = raw ? parseInt(raw, 10) : DEFAULT_TIMEOUT_MS;
+  const ms = raw ? Number.parseInt(raw, 10) : DEFAULT_TIMEOUT_MS;
   if (!Number.isFinite(ms) || ms <= 0) return undefined;
   const controller = new AbortController();
   setTimeout(() => controller.abort(), ms).unref?.();

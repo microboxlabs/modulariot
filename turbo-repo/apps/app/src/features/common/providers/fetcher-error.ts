@@ -42,12 +42,12 @@ export function describeError(err: unknown): DescribedError {
   }
   const e = err as Partial<FetcherError> & Error;
   const status = typeof e.status === "number" ? e.status : 500;
-  const code =
-    typeof e.code === "string"
-      ? e.code
-      : err.name === "AbortError" || err.name === "TimeoutError"
-        ? "TIMEOUT"
-        : "UNKNOWN";
   const message = messageFromInfo(e.info ?? null) ?? err.message;
-  return { status, code, message };
+  return { status, code: codeOf(e), message };
+}
+
+function codeOf(err: Partial<FetcherError> & Error): string {
+  if (typeof err.code === "string") return err.code;
+  if (err.name === "AbortError" || err.name === "TimeoutError") return "TIMEOUT";
+  return "UNKNOWN";
 }

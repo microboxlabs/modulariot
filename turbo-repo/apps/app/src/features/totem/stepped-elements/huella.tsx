@@ -38,6 +38,20 @@ function classifyIdCardFailure(
   return "invalid";
 }
 
+const ID_CARD_FAILURE_KEY: Record<IdCardFailure, string> = {
+  timeout: "id_card_manual_access_error_timeout",
+  unavailable: "id_card_manual_access_error_400",
+  invalid: "id_card_manual_access_error",
+};
+
+function idCardFailureText(
+  dict: I18nRecord,
+  failure: IdCardFailure | null
+): string {
+  const key = ID_CARD_FAILURE_KEY[failure ?? "invalid"];
+  return (dict.totem as I18nRecord)[key] as string;
+}
+
 export default function Huella({
   setCurrentStep,
   currentStep,
@@ -401,14 +415,7 @@ export default function Huella({
           </div>
           {status === "error-id-card" && (
             <p className="text-xs text-red-500 text-center px-14">
-              {idCardFailure === "timeout"
-                ? ((dict.totem as I18nRecord)
-                    .id_card_manual_access_error_timeout as string)
-                : idCardFailure === "unavailable"
-                  ? ((dict.totem as I18nRecord)
-                      .id_card_manual_access_error_400 as string)
-                  : ((dict.totem as I18nRecord)
-                      .id_card_manual_access_error as string)}
+              {idCardFailureText(dict, idCardFailure)}
             </p>
           )}
           <Button

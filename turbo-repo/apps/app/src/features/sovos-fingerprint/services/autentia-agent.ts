@@ -1,11 +1,11 @@
-import { AutentiaError } from "./autentia";
+import { AutentiaError, fieldText, readErc, readErcText, tokenMatches } from "./autentia";
 import type { AutentiaParamsGet } from "./autentia.types";
 import { randomToken } from "@/features/totem/diagnostics/totem-diagnostics";
 
 /**
  * Native client for the local fingerprint agent. Same request the legacy
  * `pluginautentiav3.js` sends, without jQuery, blockUI or jsrsasign.
- * Not wired into the totem yet; see docs/totem-fingerprint-plugin.md.
+ * Not wired into the totem yet.
  */
 
 export const AUTENTIA_AGENT_BASE_URL = "https://plugin.autentia.mb:7777";
@@ -50,11 +50,24 @@ export type AgentTransactionOptions = {
   subtle?: SubtleCrypto;
 };
 
+export type AgentVerification = {
+  hash: Hash;
+  encoding: Encoding;
+  tokenBlanked: boolean;
+};
+
 export type AgentTransactionResult = {
   params: AutentiaParamsGet;
   token: number;
-  verifiedWith: { hash: Hash; encoding: Encoding; tokenBlanked: boolean };
+  verifiedWith: AgentVerification;
   durationMs: number;
+};
+
+type AgentResponse = {
+  ParamsGet?: Record<string, unknown>;
+  token?: string | number;
+  signature?: string;
+  error?: unknown;
 };
 
 export function buildTransactionRequest(
@@ -91,7 +104,7 @@ function hexToBytes(hex: string): Uint8Array {
   }
   const out = new Uint8Array(clean.length / 2);
   for (let i = 0; i < out.length; i++) {
-    out[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+    out[i] = Number.parseInt(clean.slice(i * 2, i * 2 + 2), 16);
   }
   return out;
 }
@@ -99,14 +112,14 @@ function hexToBytes(hex: string): Uint8Array {
 function base64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.codePointAt(i)! & 0xff;
   return out;
 }
 
 function encode(text: string, encoding: Encoding): Uint8Array {
   if (encoding === "utf-8") return new TextEncoder().encode(text);
   const out = new Uint8Array(text.length);
-  for (let i = 0; i < text.length; i++) out[i] = text.charCodeAt(i) & 0xff;
+  for (let i = 0; i < text.length; i++) out[i] = text.codePointAt(i)! & 0xff;
   return out;
 }
 
@@ -124,15 +137,13 @@ export async function verifyAgentSignature(
   signatureHex: string,
   publicKeySpkiB64 = AUTENTIA_PUBLIC_KEY_SPKI_B64,
   subtle: SubtleCrypto = globalThis.crypto.subtle
-): Promise<AgentTransactionResult["verifiedWith"] | null> {
+): Promise<AgentVerification | null> {
   const signature = hexToBytes(signatureHex);
+  const unsigned = responseText.replace(SIGNATURE_FIELD, '"signature":""');
   const candidates = [
-    { text: responseText.replace(SIGNATURE_FIELD, '"signature":""'), tokenBlanked: false },
+    { text: unsigned, tokenBlanked: false },
+    { text: unsigned.replace(TOKEN_FIELD, '"token":""'), tokenBlanked: true },
   ];
-  candidates.push({
-    text: candidates[0].text.replace(TOKEN_FIELD, '"token":""'),
-    tokenBlanked: true,
-  });
   const keyBytes = base64ToBytes(publicKeySpkiB64);
 
   for (const hash of ["SHA-256", "SHA-1"] as Hash[]) {
@@ -158,11 +169,79 @@ export async function verifyAgentSignature(
   return null;
 }
 
-function readErc(params: Record<string, unknown>): number | undefined {
-  const raw = params.Erc ?? params.erc;
-  if (raw === undefined || raw === null) return undefined;
-  const n = typeof raw === "number" ? raw : parseInt(String(raw), 10);
-  return Number.isNaN(n) ? undefined : n;
+async function postToAgent(
+  url: string,
+  body: AgentRequest,
+  timeoutMs: number,
+  fetchImpl: typeof fetch
+): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetchImpl(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain; charset=ISO8859_1" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new AutentiaError(
+        "AGENT_UNREACHABLE",
+        `fingerprint agent answered HTTP ${response.status}`
+      );
+    }
+    return await response.text();
+  } catch (err) {
+    if (err instanceof AutentiaError) throw err;
+    if ((err as Error)?.name === "AbortError") {
+      throw new AutentiaError(
+        "TIMEOUT",
+        `fingerprint agent did not answer within ${timeoutMs}ms`
+      );
+    }
+    throw new AutentiaError(
+      "AGENT_UNREACHABLE",
+      err instanceof Error ? err.message : fieldText(err)
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Parses the agent's body and rejects anything that is not a successful transaction for `token`. */
+function parseAgentResponse(text: string, token: number): AgentResponse & { ParamsGet: Record<string, unknown>; signature: string } {
+  let parsed: AgentResponse;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new AutentiaError("INVALID_RESPONSE", "fingerprint agent answered with non-JSON text");
+  }
+  if (parsed.error) {
+    throw new AutentiaError(
+      "INVALID_RESPONSE",
+      fieldText(parsed.error) || "fingerprint agent reported an error"
+    );
+  }
+  const params = parsed.ParamsGet;
+  if (!params) {
+    throw new AutentiaError("INVALID_RESPONSE", "fingerprint agent answered without ParamsGet");
+  }
+  const erc = readErc(params);
+  if (erc !== 0) {
+    const ercText = readErcText(params);
+    throw new AutentiaError(
+      "TRANSACTION_FAILED",
+      ercText || `rut validation failed (Erc=${erc ?? "missing"})`,
+      { erc, ercText, ercDesc: fieldText(params.ErcDesc) || undefined }
+    );
+  }
+  if (!tokenMatches(token, parsed.token)) {
+    throw new AutentiaError("TOKEN_MISMATCH", "fingerprint agent echoed another transaction's token");
+  }
+  if (typeof parsed.signature !== "string" || parsed.signature.length === 0) {
+    throw new AutentiaError("SIGNATURE_INVALID", "fingerprint agent answered without a signature");
+  }
+  return { ...parsed, ParamsGet: params, signature: parsed.signature };
 }
 
 export async function runAgentTransaction(
@@ -182,82 +261,17 @@ export async function runAgentTransaction(
 
   const token = randomToken();
   const body = buildTransactionRequest(autentiaPath, { Rut: rut }, outputs, giveFocus, token);
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
 
-  let text: string;
-  try {
-    const response = await fetchImpl(`${baseUrl}/json-handler/${token}`, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain; charset=ISO8859_1" },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      throw new AutentiaError(
-        "AGENT_UNREACHABLE",
-        `fingerprint agent answered HTTP ${response.status}`
-      );
-    }
-    text = await response.text();
-  } catch (err) {
-    if (err instanceof AutentiaError) throw err;
-    if ((err as Error)?.name === "AbortError") {
-      throw new AutentiaError("TIMEOUT", `fingerprint agent did not answer within ${timeoutMs}ms`);
-    }
-    throw new AutentiaError(
-      "AGENT_UNREACHABLE",
-      err instanceof Error ? err.message : String(err)
-    );
-  } finally {
-    clearTimeout(timer);
-  }
-
-  let parsed: {
-    ParamsGet?: Record<string, unknown>;
-    token?: string | number;
-    signature?: string;
-    error?: unknown;
-  };
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new AutentiaError("INVALID_RESPONSE", "fingerprint agent answered with non-JSON text");
-  }
-  if (parsed.error) {
-    throw new AutentiaError("INVALID_RESPONSE", String(parsed.error));
-  }
-  const params = parsed.ParamsGet;
-  if (!params) {
-    throw new AutentiaError("INVALID_RESPONSE", "fingerprint agent answered without ParamsGet");
-  }
-  const erc = readErc(params);
-  if (erc !== 0) {
-    const ercText = String(params.ercText ?? params.ErcText ?? params.ErcDesc ?? "");
-    throw new AutentiaError(
-      "TRANSACTION_FAILED",
-      ercText || `rut validation failed (Erc=${erc ?? "missing"})`,
-      { erc, ercText, ercDesc: params.ErcDesc as string | undefined }
-    );
-  }
-  const echoed =
-    typeof parsed.token === "number"
-      ? parsed.token
-      : parseFloat(String(parsed.token ?? "").replace(",", "."));
-  if (echoed !== token) {
-    throw new AutentiaError("TOKEN_MISMATCH", "fingerprint agent echoed another transaction's token");
-  }
-  if (typeof parsed.signature !== "string" || parsed.signature.length === 0) {
-    throw new AutentiaError("SIGNATURE_INVALID", "fingerprint agent answered without a signature");
-  }
+  const text = await postToAgent(`${baseUrl}/json-handler/${token}`, body, timeoutMs, fetchImpl);
+  const parsed = parseAgentResponse(text, token);
   const verifiedWith = await verifyAgentSignature(text, parsed.signature, publicKeySpkiB64, subtle);
   if (!verifiedWith) {
     throw new AutentiaError("SIGNATURE_INVALID", "fingerprint agent signature did not verify");
   }
 
   return {
-    params: params as unknown as AutentiaParamsGet,
+    params: parsed.ParamsGet as unknown as AutentiaParamsGet,
     token,
     verifiedWith,
     durationMs: Date.now() - startedAt,

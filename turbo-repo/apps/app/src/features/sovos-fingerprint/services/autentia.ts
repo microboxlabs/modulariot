@@ -49,26 +49,34 @@ export type ValidateRutOptions = {
   autentiaPath?: string;
 };
 
-function readErc(params: Partial<AutentiaParamsGet> | undefined): number | undefined {
-  const raw = params?.Erc ?? (params as { erc?: unknown } | undefined)?.erc;
-  if (raw === undefined || raw === null) return undefined;
-  const n = typeof raw === "number" ? raw : parseInt(String(raw), 10);
+/** Text from a plugin field that may be a string, a number, or absent. */
+export function fieldText(raw: unknown): string {
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "number" || typeof raw === "boolean") return String(raw);
+  return "";
+}
+
+/** The plugin returns `Erc` on success paths and `erc` on its own error paths. */
+export function readErc(params: Record<string, unknown> | undefined): number | undefined {
+  const raw = params?.Erc ?? params?.erc;
+  if (typeof raw === "number") return Number.isNaN(raw) ? undefined : raw;
+  if (typeof raw !== "string") return undefined;
+  const n = Number.parseInt(raw, 10);
   return Number.isNaN(n) ? undefined : n;
 }
 
-function readErcText(params: Partial<AutentiaParamsGet> | undefined): string {
+export function readErcText(params: Record<string, unknown> | undefined): string {
   return (
-    params?.ercText ??
-    (params as { ErcText?: string } | undefined)?.ErcText ??
-    (params as { ErcDesc?: string } | undefined)?.ErcDesc ??
-    ""
+    fieldText(params?.ercText) ||
+    fieldText(params?.ErcText) ||
+    fieldText(params?.ErcDesc)
   );
 }
 
-function tokenMatches(expected: number, received: unknown): boolean {
+export function tokenMatches(expected: number, received: unknown): boolean {
   if (typeof received === "number") return received === expected;
   if (typeof received !== "string") return false;
-  return parseFloat(received.replace(",", ".")) === expected;
+  return Number.parseFloat(received.replace(",", ".")) === expected;
 }
 
 function unblockPluginOverlay() {
@@ -83,7 +91,7 @@ function unblockPluginOverlay() {
 
 function envTimeout(): number {
   const raw = process.env.NEXT_PUBLIC_AUTENTIA_TIMEOUT_MS;
-  const n = raw ? parseInt(raw, 10) : NaN;
+  const n = raw ? Number.parseInt(raw, 10) : Number.NaN;
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_AUTENTIA_TIMEOUT_MS;
 }
 
@@ -137,14 +145,16 @@ export function validateRut(
     }, timeoutMs);
 
     const onResult = (result: CallbackParams) => {
-      const params = result?.ParamsGet;
+      const params = result?.ParamsGet as Record<string, unknown> | undefined;
       const fatal = (result as { error?: unknown } | undefined)?.error;
       if (fatal) {
         finish(() =>
           reject(
-            new AutentiaError("INVALID_RESPONSE", String(fatal), {
-              ercText: readErcText(params),
-            })
+            new AutentiaError(
+              "INVALID_RESPONSE",
+              fieldText(fatal) || "Autentia plugin reported a fatal error",
+              { ercText: readErcText(params) }
+            )
           )
         );
         return;
@@ -168,7 +178,7 @@ export function validateRut(
             new AutentiaError(
               "TRANSACTION_FAILED",
               ercText || `rut validation failed (Erc=${erc ?? "missing"})`,
-              { erc, ercText, ercDesc: params.ErcDesc }
+              { erc, ercText, ercDesc: fieldText(params.ErcDesc) || undefined }
             )
           )
         );
@@ -185,7 +195,7 @@ export function validateRut(
         );
         return;
       }
-      finish(() => resolve(params));
+      finish(() => resolve(params as unknown as AutentiaParamsGet));
     };
 
     try {

@@ -23,10 +23,14 @@ CREATE TABLE miot_integrations.harness_thread (
 CREATE INDEX idx_harness_thread_owner
     ON miot_integrations.harness_thread(tenant_code, owner_id, last_message_at DESC)
     WHERE deleted_at IS NULL;
--- The purge job's driver.
+-- The purge job's two driving branches: threads past their expiry, and
+-- threads a user deleted once the grace window closes.
 CREATE INDEX idx_harness_thread_expiry
     ON miot_integrations.harness_thread(expires_at)
     WHERE expires_at IS NOT NULL;
+CREATE INDEX idx_harness_thread_deleted
+    ON miot_integrations.harness_thread(deleted_at)
+    WHERE deleted_at IS NOT NULL;
 
 -- One row per assistant-ui message. `payload` is the message as the client
 -- serialized it, opaque here: the modulith stores and returns it without

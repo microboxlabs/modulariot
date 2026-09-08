@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.jobs;
 
 import com.microboxlabs.miot.integrations.persistence.HarnessThreadRepository;
+import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -18,6 +19,7 @@ import org.jboss.logging.Logger;
  * this pass deletes only what users deleted themselves.
  */
 @ApplicationScoped
+@IfBuildProperty(name = "miot.component.integrations.enabled", stringValue = "true")
 public class HarnessThreadPurgeJob {
 
     private static final Logger LOG = Logger.getLogger(HarnessThreadPurgeJob.class);
@@ -35,7 +37,13 @@ public class HarnessThreadPurgeJob {
             int graceDays) {
         this.repository = repository;
         this.enabled = enabled;
-        this.graceDays = graceDays;
+        // A negative grace window would put the cutoff in the future, and the
+        // next pass would delete every thread anyone had just deleted instead
+        // of holding them.
+        if (graceDays < 0) {
+            LOG.warnf("Ignoring negative purge grace window (%d days); using 0", graceDays);
+        }
+        this.graceDays = Math.max(0, graceDays);
     }
 
     @Scheduled(

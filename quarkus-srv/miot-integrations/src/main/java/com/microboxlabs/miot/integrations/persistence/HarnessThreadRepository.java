@@ -40,17 +40,24 @@ public class HarnessThreadRepository {
 
     // Creating a thread is idempotent: the panel mints the id up front and
     // creates the row lazily on the first message, so a retry must not fail.
-    // The owner guard on the UPDATE half stops one user's retry from taking
-    // over another user's thread if the two ever minted the same id.
+    // The guards on the UPDATE half stop one user's retry from taking over
+    // another user's thread if the two ever minted the same id, and stop a
+    // deleted or expired thread being written back to life — `find` hides
+    // those, so messages appended to one would be unreadable and would leave
+    // with it when the purge runs.
     private static final String UPSERT_THREAD = """
             INSERT INTO miot_integrations.harness_thread (
                 id, tenant_code, owner_id, title, expires_at, last_message_at
             ) VALUES ($1, $2, $3, $4, $5, now())
             ON CONFLICT (id) DO UPDATE
                 SET title = COALESCE(EXCLUDED.title, miot_integrations.harness_thread.title),
+                    expires_at = COALESCE(EXCLUDED.expires_at, miot_integrations.harness_thread.expires_at),
                     updated_at = now()
                 WHERE miot_integrations.harness_thread.tenant_code = EXCLUDED.tenant_code
                   AND miot_integrations.harness_thread.owner_id = EXCLUDED.owner_id
+                  AND miot_integrations.harness_thread.deleted_at IS NULL
+                  AND (miot_integrations.harness_thread.expires_at IS NULL
+                       OR miot_integrations.harness_thread.expires_at > now())
             RETURNING %s""".formatted(THREAD_COLUMNS);
 
     private static final String LIST_OWNED = """
@@ -90,20 +97,26 @@ public class HarnessThreadRepository {
             SET deleted_at = now(), updated_at = now()
             WHERE id = $1 AND tenant_code = $2 AND owner_id = $3 AND deleted_at IS NULL""";
 
-    private static final String TOUCH_THREAD = """
-            UPDATE miot_integrations.harness_thread
-            SET last_message_at = now(), updated_at = now()
-            WHERE id = $1""";
-
+    // One statement, so the message and the thread's activity stamp cannot
+    // disagree: as two autocommit round trips, a failure between them left the
+    // message stored, the endpoint reporting an error, and the thread ordered
+    // by a stale last_message_at.
     private static final String UPSERT_MESSAGE = """
-            INSERT INTO miot_integrations.harness_thread_message (
-                thread_id, id, parent_id, format, payload
-            ) VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (thread_id, id) DO UPDATE
-                SET parent_id = EXCLUDED.parent_id,
-                    format = EXCLUDED.format,
-                    payload = EXCLUDED.payload
-            RETURNING thread_id, id, parent_id, format, payload, created_at""";
+            WITH upserted AS (
+                INSERT INTO miot_integrations.harness_thread_message (
+                    thread_id, id, parent_id, format, payload
+                ) VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (thread_id, id) DO UPDATE
+                    SET parent_id = EXCLUDED.parent_id,
+                        format = EXCLUDED.format,
+                        payload = EXCLUDED.payload
+                RETURNING thread_id, id, parent_id, format, payload, created_at
+            ), touched AS (
+                UPDATE miot_integrations.harness_thread
+                SET last_message_at = now(), updated_at = now()
+                WHERE id = $1
+            )
+            SELECT thread_id, id, parent_id, format, payload, created_at FROM upserted""";
 
     // `seq` rather than created_at: a run appends several messages inside the
     // same millisecond and the client replays them in append order.
@@ -124,6 +137,14 @@ public class HarnessThreadRepository {
     private static final String DELETE_SHARE = """
             DELETE FROM miot_integrations.harness_thread_share
             WHERE thread_id = $1 AND principal = $2""";
+
+    // The listing needs shares for every thread it returns, and one query per
+    // thread would be up to 200 sequential round trips for one request.
+    private static final String LIST_SHARES_FOR = """
+            SELECT thread_id, principal, permission, created_by, created_at
+            FROM miot_integrations.harness_thread_share
+            WHERE thread_id = ANY($1)
+            ORDER BY thread_id, principal""";
 
     private static final String LIST_SHARES = """
             SELECT thread_id, principal, permission, created_by, created_at
@@ -194,9 +215,7 @@ public class HarnessThreadRepository {
                 .addString(message.parentId())
                 .addString(message.format())
                 .addJsonObject(toJson(message.payload()));
-        HarnessThreadMessage saved = firstMessage(execute(UPSERT_MESSAGE, params));
-        execute(TOUCH_THREAD, Tuple.of(UUID.fromString(message.threadId())));
-        return saved;
+        return firstMessage(execute(UPSERT_MESSAGE, params));
     }
 
     public List<HarnessThreadMessage> listMessages(String threadId) {
@@ -220,6 +239,21 @@ public class HarnessThreadRepository {
 
     public boolean deleteShare(String threadId, String principal) {
         return execute(DELETE_SHARE, Tuple.of(UUID.fromString(threadId), principal)).rowCount() > 0;
+    }
+
+    /** Shares for several threads at once, grouped by thread id. */
+    public Map<String, List<HarnessThreadShare>> listSharesFor(List<String> threadIds) {
+        if (threadIds.isEmpty()) {
+            return Map.of();
+        }
+        UUID[] ids = threadIds.stream().map(UUID::fromString).toArray(UUID[]::new);
+        RowSet<Row> rows = execute(LIST_SHARES_FOR, Tuple.tuple().addArrayOfUUID(ids));
+        Map<String, List<HarnessThreadShare>> out = new LinkedHashMap<>();
+        for (Row row : rows) {
+            HarnessThreadShare share = mapShare(row);
+            out.computeIfAbsent(share.threadId(), key -> new ArrayList<>()).add(share);
+        }
+        return out;
     }
 
     public List<HarnessThreadShare> listShares(String threadId) {

@@ -92,6 +92,68 @@ class HarnessThreadServiceTest {
     }
 
     @Test
+    void listingReadsEveryThreadsSharesInOneGo() {
+        var repo = new FakeRepository();
+        var service = new HarnessThreadService(repo);
+        for (int i = 0; i < 5; i++) {
+            newThread(service, OWNER);
+        }
+
+        service.listVisible(TENANT, OWNER, null);
+
+        assertEquals(1, repo.batchedShareLookups,
+                "one query for the listing, not one per thread");
+    }
+
+    @Test
+    void theLimitCapsTheWholeResponse() {
+        var repo = new FakeRepository();
+        var service = new HarnessThreadService(repo);
+        String mine = newThread(service, OTHER);
+        String theirs = newThread(service, OWNER);
+        service.share(TENANT, OWNER, theirs, new ThreadShareRequest(OTHER, null));
+
+        List<ThreadResponse> visible = service.listVisible(TENANT, OTHER, 1);
+
+        assertEquals(List.of(mine), visible.stream().map(ThreadResponse::id).toList());
+    }
+
+    @Test
+    void aParentIdTooLongForTheColumnIsRejected() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String id = newThread(service, OWNER);
+        var request = new ThreadMessageRequest("m1", "p".repeat(129), null, PAYLOAD);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.appendMessage(TENANT, OWNER, id, request));
+    }
+
+    @Test
+    void payloadSizeIsMeasuredInBytesNotCharacters() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String id = newThread(service, OWNER);
+        // Three bytes each in UTF-8, so this clears the cap on length() and
+        // busts it on the bytes that actually reach JSONB.
+        Map<String, Object> payload = Map.of("data", "€".repeat(100 * 1024));
+        var request = new ThreadMessageRequest("m1", null, null, payload);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.appendMessage(TENANT, OWNER, id, request));
+    }
+
+    @Test
+    void titlesAreCutOnCodePointBoundaries() {
+        var repo = new FakeRepository();
+        var service = new HarnessThreadService(repo);
+
+        var saved = service.create(TENANT, OWNER,
+                new ThreadUpsertRequest(UUID.randomUUID().toString(), "\uD83D\uDE80".repeat(400), null));
+
+        assertEquals(280, saved.title().codePointCount(0, saved.title().length()));
+        assertEquals("\uD83D\uDE80".repeat(280), saved.title());
+    }
+
+    @Test
     void creatingATakenIdIsRefusedRatherThanHijacked() {
         var repo = new FakeRepository();
         var service = new HarnessThreadService(repo);
@@ -170,6 +232,7 @@ class HarnessThreadServiceTest {
                 new ThreadUpsertRequest(UUID.randomUUID().toString(), "y".repeat(400), null));
 
         assertEquals(280, saved.title().length());
+        assertEquals("y".repeat(280), saved.title());
     }
 
     private static String newThread(HarnessThreadService service, String owner) {
@@ -183,6 +246,7 @@ class HarnessThreadServiceTest {
         final Map<String, HarnessThread> threads = new LinkedHashMap<>();
         final Map<String, List<HarnessThreadMessage>> messages = new LinkedHashMap<>();
         final Map<String, List<HarnessThreadShare>> shares = new LinkedHashMap<>();
+        int batchedShareLookups;
 
         FakeRepository() {
             super(null);
@@ -293,6 +357,19 @@ class HarnessThreadServiceTest {
         @Override
         public List<HarnessThreadShare> listShares(String threadId) {
             return List.copyOf(shares.getOrDefault(threadId, List.of()));
+        }
+
+        @Override
+        public Map<String, List<HarnessThreadShare>> listSharesFor(List<String> threadIds) {
+            batchedShareLookups++;
+            Map<String, List<HarnessThreadShare>> out = new LinkedHashMap<>();
+            for (String id : threadIds) {
+                List<HarnessThreadShare> current = shares.get(id);
+                if (current != null && !current.isEmpty()) {
+                    out.put(id, List.copyOf(current));
+                }
+            }
+            return out;
         }
     }
 }

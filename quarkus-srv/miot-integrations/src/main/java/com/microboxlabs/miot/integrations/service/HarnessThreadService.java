@@ -12,6 +12,7 @@ import com.microboxlabs.miot.integrations.persistence.HarnessThreadRepository;
 import io.vertx.core.json.JsonObject;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -73,12 +74,22 @@ public class HarnessThreadService {
      * newest-activity first. */
     public List<ThreadResponse> listVisible(String tenantCode, String userId, Integer limit) {
         int bounded = boundLimit(limit);
+        List<HarnessThread> owned = repository.listOwned(tenantCode, userId, bounded);
+        // One query for every thread's shares, not one per thread.
+        Map<String, List<HarnessThreadShare>> shares =
+                repository.listSharesFor(owned.stream().map(HarnessThread::id).toList());
+
         List<ThreadResponse> out = new ArrayList<>();
-        for (HarnessThread thread : repository.listOwned(tenantCode, userId, bounded)) {
-            out.add(toResponse(thread, userId, repository.listShares(thread.id())));
+        for (HarnessThread thread : owned) {
+            out.add(toResponse(thread, userId, shares.getOrDefault(thread.id(), List.of())));
         }
-        for (HarnessThread thread : repository.listSharedWith(tenantCode, userId, bounded)) {
-            out.add(toResponse(thread, userId, List.of()));
+        // `limit` caps the response, not each half of it: asking for 100 and
+        // getting 200 back would break any caller paging on the number.
+        int remaining = bounded - out.size();
+        if (remaining > 0) {
+            for (HarnessThread thread : repository.listSharedWith(tenantCode, userId, remaining)) {
+                out.add(toResponse(thread, userId, List.of()));
+            }
         }
         return out;
     }
@@ -160,7 +171,7 @@ public class HarnessThreadService {
         return repository.appendMessage(new HarnessThreadMessage(
                 id,
                 messageId,
-                blankToNull(request.parentId()),
+                optionalText(request.parentId(), "parentId", 128),
                 format(request.format()),
                 payload,
                 null));
@@ -275,7 +286,7 @@ public class HarnessThreadService {
         if (payload == null || payload.isEmpty()) {
             throw new IllegalArgumentException("payload is required");
         }
-        int size = new JsonObject(payload).encode().length();
+        int size = new JsonObject(payload).encode().getBytes(StandardCharsets.UTF_8).length;
         if (size > MAX_PAYLOAD_BYTES) {
             throw new IllegalArgumentException(
                     "payload is too large (" + size + " bytes, limit " + MAX_PAYLOAD_BYTES + ")");
@@ -302,10 +313,17 @@ public class HarnessThreadService {
         if (trimmed.isEmpty()) {
             return null;
         }
-        return trimmed.length() <= MAX_TITLE_LENGTH ? trimmed : trimmed.substring(0, MAX_TITLE_LENGTH);
+        // By code point, not by char: VARCHAR(280) counts characters, and
+        // cutting mid-surrogate would corrupt a title ending in an emoji.
+        if (trimmed.codePointCount(0, trimmed.length()) <= MAX_TITLE_LENGTH) {
+            return trimmed;
+        }
+        return trimmed.substring(0, trimmed.offsetByCodePoints(0, MAX_TITLE_LENGTH));
     }
 
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
+    /** Like {@link #requireText} for a field that may legitimately be absent —
+     * a length it cannot store is still a 400 rather than a database error. */
+    private static String optionalText(String value, String field, int maxLength) {
+        return value == null || value.isBlank() ? null : requireText(value, field, maxLength);
     }
 }

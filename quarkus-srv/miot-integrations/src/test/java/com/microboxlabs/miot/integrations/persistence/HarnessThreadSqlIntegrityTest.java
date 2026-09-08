@@ -25,6 +25,32 @@ class HarnessThreadSqlIntegrityTest {
     }
 
     @Test
+    void theConflictBranchRefusesAThreadThatIsAlreadyGone() throws Exception {
+        String sql = readStaticString("UPSERT_THREAD");
+        assertTrue(sql.contains("harness_thread.deleted_at IS NULL"),
+                "a deleted thread must not be written back to life by a retry");
+        assertTrue(sql.contains("harness_thread.expires_at > now()"),
+                "nor an expired one, which the reads already hide");
+        assertTrue(sql.contains("expires_at = COALESCE(EXCLUDED.expires_at"),
+                "an explicit create after a lazy one must not drop the expiry it asked for");
+    }
+
+    @Test
+    void aMessageAndItsThreadsActivityStampMoveTogether() throws Exception {
+        String sql = readStaticString("UPSERT_MESSAGE");
+        assertTrue(sql.startsWith("WITH upserted AS ("),
+                "one statement, so a failure cannot store the message and lose the stamp");
+        assertTrue(sql.contains("SET last_message_at = now()"),
+                "the thread's ordering key moves with the message");
+    }
+
+    @Test
+    void sharesForAListingAreFetchedInOneQuery() throws Exception {
+        assertTrue(readStaticString("LIST_SHARES_FOR").contains("thread_id = ANY($1)"),
+                "the listing must not run one share query per thread");
+    }
+
+    @Test
     void listingsScopeToTenantAndHideExpiredThreads() throws Exception {
         String owned = readStaticString("LIST_OWNED");
         assertTrue(owned.contains("tenant_code = $1") && owned.contains("owner_id = $2"),

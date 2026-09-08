@@ -1,14 +1,11 @@
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { auth } from "@/auth";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { HarnessExtensionsView } from "./harness-extensions-view";
 
+// ENABLE_DEV_TOOLS gating lives in ../layout.tsx (covers every /dev page).
 export default async function HarnessExtensionsPage(props: ParamsWithLang) {
   const { lang } = await props.params;
-
-  if (process.env.ENABLE_DEV_TOOLS !== "true") {
-    notFound();
-  }
 
   const session = await auth();
   if (!session) {

@@ -1,5 +1,4 @@
 import "server-only";
-import { notFound } from "next/navigation";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { RouteGuard } from "@/features/auth/components/route-guard";
@@ -7,14 +6,9 @@ import StoryDetailPage from "@/features/storytelling/components/story-detail-pag
 
 type StoryRouteParams = ParamsWithLang<{ id: string }>;
 
+// ENABLE_STORYTELLING gating lives in ../layout.tsx (covers this route and
+// the storytelling list page).
 export default async function StoryDetailRoute({ params }: StoryRouteParams) {
-  // Testing-only for now — see ENABLE_STORYTELLING in
-  // runtime-config.types.ts, and features/layout/models/pages.ts for the
-  // matching nav-entry filter.
-  if (process.env.ENABLE_STORYTELLING !== "true") {
-    notFound();
-  }
-
   const { lang, id } = await params;
   const [, dictionary] = await getDictionary(lang);
   const dict = (dictionary.storytelling as I18nRecord) ?? {};

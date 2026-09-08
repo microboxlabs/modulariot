@@ -1,15 +1,12 @@
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { auth } from "@/auth";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { ComponentsView } from "./components-view";
 
+// ENABLE_DEV_TOOLS gating lives in ../layout.tsx (covers every /dev page).
 export default async function ComponentsPage(props: ParamsWithLang) {
   const { lang } = await props.params;
-
-  if (process.env.ENABLE_DEV_TOOLS !== "true") {
-    notFound();
-  }
 
   const session = await auth();
   if (!session) {

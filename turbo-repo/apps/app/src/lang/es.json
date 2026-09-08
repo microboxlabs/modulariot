@@ -4257,6 +4257,7 @@
   },
   "searchbar": {
     "service": "Servicio",
+    "serviceType": "Tipo de servicio",
     "licensePlate": "Patente",
     "driverId": "RUT conductor",
     "carrierId": "RUT transportista",

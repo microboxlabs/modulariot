@@ -2,6 +2,10 @@
 
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import {
+  SERVICE_TYPES,
+  serviceTypeLabel,
+} from "@/features/calendar/services/service-types";
 
 export type NavParam = {
   label: string;
@@ -18,9 +22,16 @@ export type ParamType =
       options?: any[];
     };
 
+/** Same closed set the calendar filter offers, so both name a type alike. */
+const SERVICE_TYPE_OPTIONS = SERVICE_TYPES.map((code) => ({
+  value: code,
+  label: serviceTypeLabel(code),
+}));
+
 function kanban_params(searchbarDict: I18nRecord): ParamType[] {
   return [
     setParam("service", "text"),
+    setParam("serviceType", "selector", SERVICE_TYPE_OPTIONS),
     setParam("licensePlate", "text"),
     setParam("driverId", "text"),
     setParam("carrierId", "text"),

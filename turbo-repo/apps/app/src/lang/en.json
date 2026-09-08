@@ -4257,6 +4257,7 @@
   },
   "searchbar": {
     "service": "Service",
+    "serviceType": "Service type",
     "licensePlate": "License Plate",
     "driverId": "Driver RUT",
     "carrierId": "Carrier RUT",

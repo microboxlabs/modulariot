@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { DashboardFilterParam } from "@/features/dashboard/types/dashboard.types";
 import { TextFilterBadge } from "@/features/dashboard/components/dashboard-filters-card/text-filter-badge";
@@ -9,7 +9,7 @@ import { DateFilterBadge } from "@/features/dashboard/components/dashboard-filte
 import { getCategories } from "./parametrized-searchbar";
 import { useSymptomNames, toSymptomOptions } from "@/features/symptoms/hooks/use-symptom-names";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import type { NavParam } from "./navegation_params";
+import { FILTER_ANY, type NavParam } from "./navegation_params";
 
 /** Selector whose options are aggregated from data rather than declared statically. */
 const SYMPTOM_NAME_KEY = "symptom_name";
@@ -92,18 +92,30 @@ export default function ParametrizedFilterBar({
     [searchParams, push]
   );
 
+  const keysWithDefault = useMemo(
+    () =>
+      new Set(
+        navegation_params.filter((p) => p.defaultValue).map((p) => p.param.key)
+      ),
+    [navegation_params]
+  );
+
   const clearFilter = useCallback(
     (key: string, type: string) => {
       const params = new URLSearchParams(searchParams.toString());
       if (type === "date_range") {
         params.delete(`${key}_from`);
         params.delete(`${key}_to`);
+      } else if (keysWithDefault.has(key)) {
+        // Dropping it would read as "not chosen yet" and land the default
+        // straight back; `all` is the operator saying every value.
+        params.set(key, FILTER_ANY);
       } else {
         params.delete(key);
       }
       push(params);
     },
-    [searchParams, push]
+    [searchParams, push, keysWithDefault]
   );
 
   return (
@@ -123,7 +135,8 @@ export default function ParametrizedFilterBar({
         }
         if (f.type === "select") {
           const raw = searchParams.get(f.key);
-          const values = raw ? raw.split(",").filter(Boolean) : [];
+          const values =
+            raw && raw !== FILTER_ANY ? raw.split(",").filter(Boolean) : [];
           return (
             <SelectFilterBadge
               key={f.key}

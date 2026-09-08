@@ -216,7 +216,19 @@ public class OrgHarnessThreadsResource {
         return tenantContext.getTenantCode() != null ? tenantContext.getTenantCode() : tenantContext.getClientId();
     }
 
+    /**
+     * The person a thread belongs to, and the value another owner types to
+     * share one with them — so it has to be the email the org filter already
+     * resolved (JWT {@code email} claim, or the dev impersonation header), not
+     * the principal name, which is an opaque subject nobody can be expected to
+     * know. Falls back to the principal only so a token without the claim
+     * still gets its own private threads rather than sharing one identity.
+     */
     private String currentUserId() {
+        String email = organizationContext.getUserEmail();
+        if (email != null && !email.isBlank()) {
+            return email;
+        }
         return identity == null || identity.getPrincipal() == null
                 ? null
                 : identity.getPrincipal().getName();

@@ -1,13 +1,19 @@
 "use client";
 
 import { useCallback } from "react";
-import { HiX } from "react-icons/hi";
+import { HiLockClosed, HiX } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import { useCalendarHost } from "../../context/calendar-provider";
 
 export interface SearchTag {
   matchType: string;
   value: string;
+  /**
+   * The chip states a constraint of what is being planned rather than a
+   * choice the operator made, so it carries no remove button: dropping it
+   * would list what this view cannot plan.
+   */
+  locked?: boolean;
 }
 
 export interface PlanningSearchTagsProps {
@@ -34,8 +40,14 @@ export function PlanningSearchTags({
     host.i18n.dict
   );
 
+  const lockedLabel = host.i18n.tr(
+    "pages.planning.sidebar.search.locked",
+    host.i18n.dict
+  );
+
   const handleRemove = useCallback(
     (index: number) => {
+      if (tags[index]?.locked) return;
       onTagsChange(tags.filter((_, i) => i !== index));
     },
     [tags, onTagsChange]
@@ -62,17 +74,25 @@ export function PlanningSearchTags({
           <span className="text-xs font-medium text-blue-900 dark:text-blue-100">
             {labelFor(tag.matchType)}: {tag.value}
           </span>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRemove(index);
-            }}
-            className="ml-0.5 p-0.5 rounded hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors"
-            aria-label={clearLabel}
-          >
-            <HiX className="w-3 h-3 text-blue-700 dark:text-blue-300" />
-          </button>
+          {tag.locked ? (
+            <HiLockClosed
+              className="ml-0.5 w-3 h-3 text-blue-700 dark:text-blue-300"
+              aria-label={lockedLabel}
+              role="img"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRemove(index);
+              }}
+              className="ml-0.5 p-0.5 rounded hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors"
+              aria-label={clearLabel}
+            >
+              <HiX className="w-3 h-3 text-blue-700 dark:text-blue-300" />
+            </button>
+          )}
         </div>
       ))}
     </div>

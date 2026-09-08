@@ -448,6 +448,7 @@
           "noResultsFor": "No results found for",
           "minCharacters": "Type at least 2 characters",
           "clear": "Clear search",
+          "locked": "Fixed by this calendar",
           "matchType": {
             "id": "id",
             "cliente": "client",

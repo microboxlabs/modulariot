@@ -448,6 +448,7 @@
           "noResultsFor": "No se encontraron resultados para",
           "minCharacters": "Escribe al menos 2 caracteres",
           "clear": "Limpiar búsqueda",
+          "locked": "Filtro fijado por el calendario",
           "matchType": {
             "id": "id",
             "cliente": "cliente",

@@ -10,6 +10,8 @@ type MatchType = PlanningSearchMatchType;
 export interface SearchTag {
   matchType: MatchType;
   value: string;
+  /** Fixed by the calendar being planned; shown without a remove button. */
+  locked?: boolean;
 }
 
 export interface PlanningSearchTagsProps {

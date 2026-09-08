@@ -117,11 +117,18 @@ function toStoredMessage(item: ExportedMessageRepositoryItem): StoredMessage {
  */
 export function stripInlineContent<T>(message: T): T {
   return pruneDeep(message, (value) => {
-    if (!isRecord(value)) return false;
-    const body = value.type === "image" ? value.image : value.type === "file" ? value.data : null;
-    if (typeof body !== "string") return false;
+    const body = attachmentBody(value);
+    if (body === null) return false;
     return body.startsWith("data:") || body.length > MAX_INLINE_LENGTH;
   });
+}
+
+/** The inlined body of an image or file part, if that is what this is. */
+function attachmentBody(value: unknown): string | null {
+  if (!isRecord(value)) return null;
+  const body = value.type === "image" ? value.image : value.data;
+  if (value.type !== "image" && value.type !== "file") return null;
+  return typeof body === "string" ? body : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

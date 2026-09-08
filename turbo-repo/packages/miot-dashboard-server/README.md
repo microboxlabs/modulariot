@@ -13,15 +13,17 @@ package.
 
 ## Status
 
-**P2b — the server persists dashboards and verifies who is asking for them.**
-Access control from P1 is reachable over HTTP in both shapes the project
-supports: mount the library in a server you already have, or run the server
-this package ships. Dashboards survive a restart, and callers authenticate
-with a bearer JWT rather than a header nobody checks. What is still missing
-before a deployment: scope membership comes from a seed file rather than from
-the host's own membership system, and a PostgreSQL store for running more than
-one instance. The query proxy, datasource administration and embed tokens land
-in later phases and all go through the same authorization point.
+**P2b — the server persists dashboards, verifies who is asking, and asks the
+host what they may see.** Access control from P1 is reachable over HTTP in both
+shapes the project supports: mount the library in a server you already have, or
+run the server this package ships. Dashboards survive a restart. Callers
+authenticate with a bearer JWT or with a ticket their emitter validates, rather
+than with a header nobody checks, and scope membership comes from the host's
+own membership service rather than from a file. What is still missing before a
+deployment: a PostgreSQL store for running more than one instance, and CORS for
+a front-end on another origin. The query proxy, datasource administration and
+embed tokens land in later phases and all go through the same authorization
+point.
 
 ## Two shapes, one codebase
 
@@ -191,10 +193,11 @@ Five things to know before deploying it:
   cluster with no outbound access needs. It has to be replaced by hand when the
   provider rotates.
 - **Identity is not membership.** Verifying a token establishes who the caller
-  is and which tenant they are in. Which scopes they belong to comes from the
-  `ScopeAuthority` seam, and the standalone server still reads that from the
-  seed file. Started with a verified issuer and no seed, every request is a
-  `403`, and the server says so at startup.
+  is and which tenant they are in. Which scopes they belong to is a separate
+  question, answered by the `ScopeAuthority` seam — see
+  [Scope membership](#scope-membership) below. Started with a verified issuer
+  and neither a seed nor a membership URL, every request is a `403`, and the
+  server says so at startup.
 
 A refused credential is a `401` with no detail. The reason is logged instead,
 so that a misconfiguration can be diagnosed:
@@ -202,6 +205,58 @@ so that a misconfiguration can be diagnosed:
 ```json
 { "level": "warn", "msg": "credential refused", "reason": "token has expired" }
 ```
+
+#### Tickets
+
+Where callers hold an opaque ticket rather than a token, the server validates
+it against whoever issued it. A ticket carries no proof of its own, so this is
+one call to the emitter per ticket per cache interval.
+
+```bash
+MIOT_DASHBOARD_TICKET_HEADER=x-alf-ticket \
+MIOT_DASHBOARD_TICKET_VALIDATE_URL=https://ecm.internal/alfresco/api/-default-/public/authentication/versions/1/tickets/-me- \
+MIOT_DASHBOARD_TICKET_PRESENT_NAME=authorization \
+MIOT_DASHBOARD_TICKET_PRESENT_VALUE='Basic {ticketBase64}' \
+MIOT_DASHBOARD_TICKET_USER_PATH=entry.id \
+MIOT_DASHBOARD_TICKET_TENANT=acme \
+  npx turbo run start --filter=@microboxlabs/miot-dashboard-server
+```
+
+| Variable                                | Is                                                                                             |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `MIOT_DASHBOARD_TICKET_HEADER`          | required; the request header callers present the ticket in                                     |
+| `MIOT_DASHBOARD_TICKET_VALIDATE_URL`    | required; the emitter's endpoint, over `{ticket}` / `{ticketBase64}`                           |
+| `MIOT_DASHBOARD_TICKET_VALIDATE_METHOD` | `GET` (default) or `POST`; `POST` is the default when presenting in the body                   |
+| `MIOT_DASHBOARD_TICKET_USER_PATH`       | required; dotted path to the user id in the answer                                             |
+| `MIOT_DASHBOARD_TICKET_TENANT`          | the single tenant this emitter serves                                                          |
+| `MIOT_DASHBOARD_TICKET_TENANT_PATH`     | or: dotted path to the tenant in the answer. Exactly one of the two                            |
+| `MIOT_DASHBOARD_TICKET_SCHEME`          | a scheme prefix to strip, for a header holding `Ticket <value>`                                |
+| `MIOT_DASHBOARD_TICKET_PRESENT`         | `header` (default), `query` or `body`                                                          |
+| `MIOT_DASHBOARD_TICKET_PRESENT_NAME`    | the header or query parameter the emitter reads it from                                        |
+| `MIOT_DASHBOARD_TICKET_PRESENT_VALUE`   | header value template, e.g. `Basic {ticketBase64}`                                             |
+| `MIOT_DASHBOARD_TICKET_SERVICE_HEADER`  | a credential of this server's own, sent as well as the ticket (name)                           |
+| `MIOT_DASHBOARD_TICKET_SERVICE_VALUE`   | its value                                                                                      |
+| `MIOT_DASHBOARD_TICKET_GROUPS_PATH`     | dotted path to group ids in the answer                                                         |
+| `MIOT_DASHBOARD_TICKET_NAME_PATH`       | dotted path to a display name                                                                  |
+| `MIOT_DASHBOARD_TICKET_INVALID_STATUS`  | statuses meaning "not valid"; default `401,404`, and required when a service credential is set |
+| `MIOT_DASHBOARD_TICKET_CACHE`           | seconds a validated ticket is reused; default 60                                               |
+| `MIOT_DASHBOARD_TICKET_NEGATIVE_CACHE`  | seconds a rejection is reused; default 30                                                      |
+| `MIOT_DASHBOARD_TICKET_TIMEOUT`         | milliseconds to wait for the emitter; default 5000                                             |
+
+Worth knowing:
+
+- **Both schemes can run at once.** They read different headers, so a
+  deployment facing a front-end with tokens and a service with tickets
+  configures both and neither shadows the other.
+- **The tenant has no default**, for the reason it has none for JWTs. Set
+  `MIOT_DASHBOARD_TICKET_TENANT` where the emitter serves one tenant, or
+  `MIOT_DASHBOARD_TICKET_TENANT_PATH` to read it from the answer.
+- **The cache interval is how long a revoked ticket keeps working.** Sixty
+  seconds by default. Lower it where that matters more than the load on the
+  emitter; `0` validates on every request.
+- **An unreachable emitter is a `500`, not a `401`.** The two are different
+  facts, and reporting an outage as a refusal makes a broken server look like a
+  working one that has locked everybody out.
 
 #### The development alternative
 
@@ -211,12 +266,58 @@ claim to be anyone. It exists to exercise the API before an identity provider
 is wired up, and the server fails closed around it in three directions: it
 refuses to start under `NODE_ENV=production`, it refuses to start **on any
 address but loopback** — reaching the port is being every user in every tenant,
-so the port must not leave the machine — and it refuses to start alongside the
-JWT variables, because a server that silently preferred one would be verifying
-tokens in one environment and trusting headers in another.
+so the port must not leave the machine — and it refuses to start alongside any
+verified scheme's variables, because a server that silently preferred one would
+be checking credentials in one environment and trusting headers in another.
 
 `NODE_ENV` is not a security boundary; it is a variable nobody has to set. The
 bind-address check is the one that holds either way.
+
+### Scope membership
+
+Verifying a credential says who the caller is. It does not say which scopes
+they may see, and this server does not keep that list: the host already has
+one. Point it at the host's own membership service and it asks, caching the
+answer briefly.
+
+```bash
+MIOT_DASHBOARD_SCOPES_URL='https://ecm.internal/alfresco/api/-default-/public/alfresco/versions/1/people/{userId}/sites/{scopeId}' \
+MIOT_DASHBOARD_SCOPES_ROLE_PATH=entry.role \
+MIOT_DASHBOARD_SCOPES_ROLE_MAP='SiteManager=Coordinator,SiteCollaborator=Editor,SiteContributor=Contributor,SiteConsumer=Consumer' \
+MIOT_DASHBOARD_SCOPES_SERVICE_HEADER=authorization \
+MIOT_DASHBOARD_SCOPES_SERVICE_VALUE="Basic $ECM_SERVICE_CREDENTIAL" \
+  npx turbo run start --filter=@microboxlabs/miot-dashboard-server
+```
+
+| Variable                               | Is                                                                                                               |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `MIOT_DASHBOARD_SCOPES_URL`            | the membership endpoint, over `{tenantId}` `{scopeId}` `{userId}`; a `GET` must place `{userId}` and `{scopeId}` |
+| `MIOT_DASHBOARD_SCOPES_METHOD`         | `GET` (default) or `POST`, which sends the question as a JSON body                                               |
+| `MIOT_DASHBOARD_SCOPES_ROLE_PATH`      | dotted path to the role in the answer; default `role`                                                            |
+| `MIOT_DASHBOARD_SCOPES_ROLE_MAP`       | `<host role>=<role>` pairs; without it the answer must already be a role                                         |
+| `MIOT_DASHBOARD_SCOPES_SERVICE_HEADER` | this server's credential for asking about other people (name)                                                    |
+| `MIOT_DASHBOARD_SCOPES_SERVICE_VALUE`  | its value                                                                                                        |
+| `MIOT_DASHBOARD_SCOPES_ABSENT_STATUS`  | statuses meaning "not a member"; default `404`                                                                   |
+| `MIOT_DASHBOARD_SCOPES_CACHE`          | seconds a membership is reused; default 60                                                                       |
+| `MIOT_DASHBOARD_SCOPES_NEGATIVE_CACHE` | seconds a non-membership is reused; default 30                                                                   |
+| `MIOT_DASHBOARD_SCOPES_TIMEOUT`        | milliseconds to wait; default 5000                                                                               |
+
+Worth knowing:
+
+- **Only scope membership is delegated.** Per-dashboard permission assignments
+  stay in this server's own store, because a dashboard is a row here with
+  nothing in the host to hang an access list on. The `authorityId` on an
+  assignment is still a host group id, so the two fit together.
+- **The two cache settings are different risks.** How long a membership is
+  reused is how long a revoked member keeps working; how long a non-membership
+  is reused is how long a new member waits.
+- **`401` from the host is an error, not a denial.** It means this server's own
+  credential was refused, and reading that as "not a member" would deny every
+  caller while looking healthy. Only the statuses in
+  `MIOT_DASHBOARD_SCOPES_ABSENT_STATUS` mean no.
+- **Without a URL, membership comes from the seed file.** That is right for a
+  demo and for the tests, and wrong for a deployment, where nobody maintains
+  it.
 
 ### Reading it
 

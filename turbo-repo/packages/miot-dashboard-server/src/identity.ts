@@ -10,6 +10,11 @@
  * This entry is the only part of the package that uses `jose`, which is an
  * optional peer dependency and is imported when a key source is built rather
  * than when the module loads.
+ *
+ * It covers both halves of `seams/identity.ts`. `IdentityResolver` binds a
+ * credential to a tenant, from a JWT this server verifies itself or from a
+ * ticket its emitter validates. `ScopeAuthority` binds that identity to a
+ * scope, by asking whatever system already knows who belongs to what.
  */
 
 export {
@@ -36,3 +41,18 @@ export {
   type JwtClaimMapping,
   type JwtIdentityOptions,
 } from "./identity/resolver";
+
+export {
+  createTicketIdentityResolver,
+  type TicketClaimPaths,
+  type TicketIdentityOptions,
+  type TicketPresentation,
+  type TicketTenantSource,
+} from "./identity/ticket";
+
+export { createFirstMatchIdentityResolver } from "./identity/chain";
+
+export {
+  createHttpScopeAuthority,
+  type HttpScopeAuthorityOptions,
+} from "./identity/scope-http";

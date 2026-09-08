@@ -165,9 +165,18 @@ const jwtBase = {
   MIOT_DASHBOARD_JWT_JWKS_URL: "https://issuer.test/.well-known/jwks.json",
 };
 
+/**
+ * The JWT half of a verified configuration. More than one scheme can be
+ * configured at once, so `auth` is the set and this reaches into it.
+ */
+const jwtAuthOf = (env: Record<string, string | undefined>) => {
+  const { auth } = readServerConfig(env);
+  return auth.kind === "verified" ? auth.jwt : undefined;
+};
+
 describe("readServerConfig: JWT authentication", () => {
   it("reads issuer, audience and claim names", () => {
-    const config = readServerConfig({
+    const jwt = jwtAuthOf({
       ...jwtBase,
       MIOT_DASHBOARD_JWT_AUDIENCE: "miot-dashboards, another-api",
       MIOT_DASHBOARD_JWT_USER_CLAIM: "email",
@@ -175,8 +184,7 @@ describe("readServerConfig: JWT authentication", () => {
       MIOT_DASHBOARD_JWT_NAME_CLAIM: "nickname",
     });
 
-    expect(config.auth).toEqual({
-      kind: "jwt",
+    expect(jwt).toEqual({
       issuer: "https://issuer.test/",
       audience: ["miot-dashboards", "another-api"],
       algorithm: "RS256",
@@ -197,14 +205,13 @@ describe("readServerConfig: JWT authentication", () => {
   it("derives the algorithm from the key source", () => {
     // The algorithm is never configured on its own, so "accept either"
     // cannot be requested.
-    const rsa = readServerConfig(jwtBase).auth;
-    expect(rsa).toMatchObject({ algorithm: "RS256" });
+    expect(jwtAuthOf(jwtBase)).toMatchObject({ algorithm: "RS256" });
 
-    const hmac = readServerConfig({
+    const hmac = jwtAuthOf({
       ...jwtBase,
       MIOT_DASHBOARD_JWT_JWKS_URL: undefined,
       MIOT_DASHBOARD_JWT_SECRET: "x".repeat(32),
-    }).auth;
+    });
     expect(hmac).toMatchObject({ algorithm: "HS256" });
   });
 
@@ -213,11 +220,11 @@ describe("readServerConfig: JWT authentication", () => {
     // bytes, so a trimmed secret stops matching the issuer's.
     const secret = `${"x".repeat(32)}   y`;
     expect(
-      readServerConfig({
+      jwtAuthOf({
         ...jwtBase,
         MIOT_DASHBOARD_JWT_JWKS_URL: undefined,
         MIOT_DASHBOARD_JWT_SECRET: secret,
-      }).auth,
+      }),
     ).toMatchObject({ key: { kind: "secret", secret } });
   });
 
@@ -267,14 +274,14 @@ describe("readServerConfig: JWT authentication", () => {
   });
 
   it("restores the newlines a PEM loses on its way through the environment", () => {
-    const config = readServerConfig({
+    const jwt = jwtAuthOf({
       ...jwtBase,
       MIOT_DASHBOARD_JWT_JWKS_URL: undefined,
       MIOT_DASHBOARD_JWT_PUBLIC_KEY:
         "-----BEGIN PUBLIC KEY-----\\nMIIBIjAN\\n-----END PUBLIC KEY-----",
     });
 
-    expect(config.auth).toMatchObject({
+    expect(jwt).toMatchObject({
       algorithm: "RS256",
       key: {
         kind: "publicKey",
@@ -297,10 +304,279 @@ describe("readServerConfig: JWT authentication", () => {
 
   it("accepts a clock tolerance inside the cap", () => {
     expect(
-      readServerConfig({
+      jwtAuthOf({
         ...jwtBase,
         MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE: "120",
-      }).auth,
+      }),
     ).toMatchObject({ clockToleranceSeconds: 120 });
+  });
+});
+
+const ticketBase = {
+  MIOT_DASHBOARD_TICKET_HEADER: "x-ticket",
+  MIOT_DASHBOARD_TICKET_VALIDATE_URL: "https://emitter.test/tickets/-me-",
+  MIOT_DASHBOARD_TICKET_PRESENT_NAME: "authorization",
+  MIOT_DASHBOARD_TICKET_PRESENT_VALUE: "Basic {ticketBase64}",
+  MIOT_DASHBOARD_TICKET_USER_PATH: "entry.id",
+  MIOT_DASHBOARD_TICKET_TENANT: "acme",
+};
+
+const ticketAuthOf = (env: Record<string, string | undefined>) => {
+  const { auth } = readServerConfig(env);
+  return auth.kind === "verified" ? auth.ticket : undefined;
+};
+
+describe("readServerConfig: ticket authentication", () => {
+  it("reads the header, the emitter and where the identity sits", () => {
+    expect(
+      ticketAuthOf({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_GROUPS_PATH: "entry.groups",
+        MIOT_DASHBOARD_TICKET_NAME_PATH: "entry.displayName",
+      }),
+    ).toEqual({
+      header: "x-ticket",
+      scheme: undefined,
+      url: "https://emitter.test/tickets/-me-",
+      method: "GET",
+      present: {
+        kind: "header",
+        name: "authorization",
+        value: "Basic {ticketBase64}",
+      },
+      serviceHeader: undefined,
+      tenant: { kind: "fixed", tenantId: "acme" },
+      claims: {
+        userId: "entry.id",
+        groups: "entry.groups",
+        displayName: "entry.displayName",
+      },
+      absentStatuses: [401, 404],
+      cacheSeconds: 60,
+      negativeCacheSeconds: 30,
+      requestTimeoutMs: 5000,
+    });
+  });
+
+  it.each([
+    ["MIOT_DASHBOARD_TICKET_VALIDATE_URL", /VALIDATE_URL is required/],
+    ["MIOT_DASHBOARD_TICKET_USER_PATH", /USER_PATH is required/],
+  ])("refuses to start without %s", (key, message) => {
+    expect(() =>
+      readServerConfig({ ...ticketBase, [key]: undefined }),
+    ).toThrowError(message);
+  });
+
+  it("refuses to start without a tenant", () => {
+    // Without one every ticket holder would land in the same tenant.
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_TENANT: undefined,
+      }),
+    ).toThrowError(/needs a tenant/);
+  });
+
+  it("refuses a fixed tenant and a tenant path at once", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_TENANT_PATH: "entry.org",
+      }),
+    ).toThrowError(/exactly one/);
+  });
+
+  it("reads the tenant from the emitter's answer", () => {
+    expect(
+      ticketAuthOf({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_TENANT: undefined,
+        MIOT_DASHBOARD_TICKET_TENANT_PATH: "entry.org",
+      }),
+    ).toMatchObject({ tenant: { kind: "path", path: "entry.org" } });
+  });
+
+  it("needs a name and a value to present the ticket in a header", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_PRESENT_VALUE: undefined,
+      }),
+    ).toThrowError(/PRESENT_NAME and MIOT_DASHBOARD_TICKET_PRESENT_VALUE/);
+  });
+
+  it("needs a parameter name to present the ticket in the query", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_PRESENT: "query",
+        MIOT_DASHBOARD_TICKET_PRESENT_NAME: undefined,
+      }),
+    ).toThrowError(/PRESENT_NAME is required/);
+  });
+
+  it("takes a body presentation with nothing else to configure", () => {
+    expect(
+      ticketAuthOf({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_PRESENT: "body",
+        MIOT_DASHBOARD_TICKET_PRESENT_NAME: undefined,
+        MIOT_DASHBOARD_TICKET_PRESENT_VALUE: undefined,
+      }),
+    ).toMatchObject({ present: { kind: "body" } });
+  });
+
+  it("refuses a presentation it does not know", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_PRESENT: "cookie",
+      }),
+    ).toThrowError(/header, query or body/);
+  });
+
+  it("needs both halves of a service credential, or neither", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_SERVICE_HEADER: "x-api-key",
+      }),
+    ).toThrowError(/must be set together/);
+  });
+
+  it("accepts JWT and tickets at the same time", () => {
+    // They read different headers, so a deployment can face a front-end
+    // holding a token and a service holding a ticket.
+    const { auth } = readServerConfig({ ...jwtBase, ...ticketBase });
+    expect(auth.kind).toBe("verified");
+    expect(auth.kind === "verified" && auth.jwt).toBeDefined();
+    expect(auth.kind === "verified" && auth.ticket).toBeDefined();
+  });
+
+  it("refuses tickets alongside unverified header auth", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_INSECURE_AUTH: "true",
+      }),
+    ).toThrowError(/Two identity providers/);
+  });
+
+  it.each(["-1", "3601", "1.5", "soon"])(
+    "refuses a cache of %j seconds",
+    (value) => {
+      expect(() =>
+        readServerConfig({ ...ticketBase, MIOT_DASHBOARD_TICKET_CACHE: value }),
+      ).toThrowError(ConfigError);
+    },
+  );
+
+  it("refuses a status list that is not statuses", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_INVALID_STATUS: "401,nope",
+      }),
+    ).toThrowError(/HTTP statuses/);
+  });
+});
+
+describe("readServerConfig: scope membership", () => {
+  it("reads membership from the seed file unless a URL is set", () => {
+    expect(readServerConfig(jwtBase).scopes).toEqual({ kind: "seed" });
+  });
+
+  it("delegates to the host when a URL is set", () => {
+    expect(
+      readServerConfig({
+        ...jwtBase,
+        MIOT_DASHBOARD_SCOPES_URL:
+          "https://host.test/people/{userId}/sites/{scopeId}",
+        MIOT_DASHBOARD_SCOPES_ROLE_PATH: "entry.role",
+        MIOT_DASHBOARD_SCOPES_ROLE_MAP:
+          "SiteManager=Coordinator, SiteConsumer=Consumer",
+        MIOT_DASHBOARD_SCOPES_SERVICE_HEADER: "authorization",
+        MIOT_DASHBOARD_SCOPES_SERVICE_VALUE: "Bearer service-token",
+      }).scopes,
+    ).toEqual({
+      kind: "http",
+      url: "https://host.test/people/{userId}/sites/{scopeId}",
+      method: "GET",
+      rolePath: "entry.role",
+      roleMap: { SiteManager: "Coordinator", SiteConsumer: "Consumer" },
+      serviceHeader: { name: "authorization", value: "Bearer service-token" },
+      absentStatuses: [404],
+      cacheSeconds: 60,
+      negativeCacheSeconds: 30,
+      requestTimeoutMs: 5000,
+    });
+  });
+
+  it("refuses a mapping onto a role that does not exist", () => {
+    expect(() =>
+      readServerConfig({
+        ...jwtBase,
+        MIOT_DASHBOARD_SCOPES_URL: "https://host.test/{scopeId}",
+        MIOT_DASHBOARD_SCOPES_ROLE_MAP: "SiteManager=Admin",
+      }),
+    ).toThrowError(/not one of Consumer, Contributor, Editor, Coordinator/);
+  });
+
+  it("refuses a mapping that is not pairs", () => {
+    expect(() =>
+      readServerConfig({
+        ...jwtBase,
+        MIOT_DASHBOARD_SCOPES_URL: "https://host.test/{scopeId}",
+        MIOT_DASHBOARD_SCOPES_ROLE_MAP: "SiteManager",
+      }),
+    ).toThrowError(/<host role>=<role>/);
+  });
+
+  it("builds the mapping without a prototype to walk into", () => {
+    const { scopes } = readServerConfig({
+      ...jwtBase,
+      MIOT_DASHBOARD_SCOPES_URL: "https://host.test/{scopeId}",
+      MIOT_DASHBOARD_SCOPES_ROLE_MAP: "SiteManager=Coordinator",
+    });
+    // A host role literally named "constructor" must not resolve to a
+    // function, and neither must one named "__proto__".
+    expect(
+      scopes.kind === "http" && scopes.roleMap?.constructor,
+    ).toBeUndefined();
+  });
+});
+
+describe("readServerConfig: ticket presentation and service credential", () => {
+  it("defaults the method to POST when the ticket goes in the body", () => {
+    expect(
+      ticketAuthOf({ ...ticketBase, MIOT_DASHBOARD_TICKET_PRESENT: "body" }),
+    ).toMatchObject({ method: "POST", present: { kind: "body" } });
+  });
+
+  it("refuses body presentation with an explicit GET", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_PRESENT: "body",
+        MIOT_DASHBOARD_TICKET_VALIDATE_METHOD: "GET",
+      }),
+    ).toThrowError(/VALIDATE_METHOD=POST/);
+  });
+
+  it("requires the invalid statuses when a service credential is sent", () => {
+    const withService = {
+      ...ticketBase,
+      MIOT_DASHBOARD_TICKET_SERVICE_HEADER: "authorization",
+      MIOT_DASHBOARD_TICKET_SERVICE_VALUE: "Bearer service-token",
+    };
+    expect(() => readServerConfig(withService)).toThrowError(
+      /MIOT_DASHBOARD_TICKET_INVALID_STATUS must be set/,
+    );
+    expect(
+      ticketAuthOf({
+        ...withService,
+        MIOT_DASHBOARD_TICKET_INVALID_STATUS: "404",
+      }),
+    ).toMatchObject({ absentStatuses: [404] });
   });
 });

@@ -36,6 +36,7 @@ You provide these in the host app (the package does not bundle them):
 | `next` | `>=15` |
 | `tailwindcss` | `^4` (v4 — the `@import "tailwindcss"` / `@source` model) |
 | `flowbite-react` | `^0.12` |
+| `swr` | `^2.2.5` (the grid loads bookings through it) |
 
 The whole package is a **React Client Component** boundary (it ships a
 `"use client"` banner). Import it from inside your client tree; React Server
@@ -183,6 +184,7 @@ import {
 | `toItem` | ✓ | Map your domain object → `CalendarItem`. |
 | `bookingApi` | — | Override booking CRUD (default is built from `client`). |
 | `getLiveTask` | — | Resolve a host workflow task for an item (returns `{ taskId, stage }`). |
+| `resolveWorkflowStage` | — | Live workflow stage for a planned item; overlaid onto chips at render time. |
 | `renderItemCard` | — | Override the sidebar card. |
 | `renderItemChip` | — | Override the grid chip. |
 | `assignPanel` | — | Opt-in assign UI (`ReactNode` or `(ctx) => ReactNode`). |

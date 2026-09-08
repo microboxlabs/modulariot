@@ -4,6 +4,7 @@ import type { PlanningSearchMatchType } from "./planning-search-match-type";
 import { PlanningSearchTags as GenericSearchTags } from "@microboxlabs/miot-calendar-ui";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { serviceTypeLabel } from "@/features/calendar/services/service-types";
 
 type MatchType = PlanningSearchMatchType;
 
@@ -51,6 +52,20 @@ function freightTagLabel(dict: I18nDictionary, matchType: string): string {
 }
 
 /**
+ * How a chip's value reads. Service types are stored lower-cased — that is the
+ * form the coordinator holds and matches on — but every other surface writes
+ * them as the kanban does on `1681596-V`, so the chip does too.
+ */
+export function freightTagValue(tag: {
+  matchType: string;
+  value: string;
+}): string {
+  return tag.matchType === "tipoServicio"
+    ? serviceTypeLabel(tag.value)
+    : tag.value;
+}
+
+/**
  * Freight-domain shim over the generic package {@link GenericSearchTags}. Keeps
  * the historical `./planning-search-tags` import path + props while delegating
  * the chrome to the package; match-type labels are resolved via the app's `tr`.
@@ -65,6 +80,7 @@ export function PlanningSearchTags({
       tags={tags}
       onTagsChange={(next) => onTagsChange(next as SearchTag[])}
       labelFor={(matchType) => freightTagLabel(dict, matchType)}
+      valueFor={freightTagValue}
     />
   );
 }

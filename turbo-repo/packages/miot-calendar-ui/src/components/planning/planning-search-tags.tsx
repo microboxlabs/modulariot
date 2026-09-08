@@ -21,6 +21,11 @@ export interface PlanningSearchTagsProps {
   onTagsChange: (tags: SearchTag[]) => void;
   /** Resolve the display label for a tag's matchType (host owns i18n). */
   labelFor: (matchType: string) => string;
+  /**
+   * How a tag's value reads on screen, when that differs from the value the
+   * filter matches on. Defaults to the value itself.
+   */
+  valueFor?: (tag: SearchTag) => string;
 }
 
 /**
@@ -33,6 +38,7 @@ export function PlanningSearchTags({
   tags,
   onTagsChange,
   labelFor,
+  valueFor,
 }: Readonly<PlanningSearchTagsProps>) {
   const host = useCalendarHost();
   const clearLabel = host.i18n.tr(
@@ -72,7 +78,7 @@ export function PlanningSearchTags({
           )}
         >
           <span className="text-xs font-medium text-blue-900 dark:text-blue-100">
-            {labelFor(tag.matchType)}: {tag.value}
+            {labelFor(tag.matchType)}: {valueFor ? valueFor(tag) : tag.value}
           </span>
           {tag.locked ? (
             <HiLockClosed

@@ -70,9 +70,30 @@ export function errorToFields(err: unknown): TotemDiagnosticFields {
   };
 }
 
+export function randomId(bytes = 6): string {
+  const c = globalThis.crypto;
+  if (c?.getRandomValues) {
+    const buf = new Uint8Array(bytes);
+    c.getRandomValues(buf);
+    return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  return Date.now().toString(16).slice(-bytes * 2).padStart(bytes * 2, "0");
+}
+
+/** Random integer below 1e15, the range the legacy plugin uses for its transaction token. */
+export function randomToken(): number {
+  const c = globalThis.crypto;
+  if (c?.getRandomValues) {
+    const buf = new Uint32Array(2);
+    c.getRandomValues(buf);
+    return (buf[0] * 0x100000000 + buf[1]) % 1e15;
+  }
+  return Date.now() % 1e15;
+}
+
 function getSessionId(): string {
   if (!sessionId) {
-    sessionId = Math.random().toString(36).slice(2, 10);
+    sessionId = randomId();
   }
   return sessionId;
 }

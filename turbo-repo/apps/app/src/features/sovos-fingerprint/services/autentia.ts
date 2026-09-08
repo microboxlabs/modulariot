@@ -1,4 +1,5 @@
 import { AutentiaParamsGet, CallbackParams } from "./autentia.types";
+import { randomToken } from "@/features/totem/diagnostics/totem-diagnostics";
 
 const defaultOutputs = [
   "Erc",
@@ -98,7 +99,7 @@ export function validateRut(
   const autentiaPath =
     options.autentiaPath ?? process.env.NEXT_PUBLIC_AUTENTIA_PATH ?? "";
   const giveFocusToAutentia = true;
-  const token = Math.floor(Math.random() * 1e15);
+  const token = randomToken();
 
   return new Promise<AutentiaParamsGet>((resolve, reject) => {
     let settled = false;

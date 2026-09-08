@@ -1,5 +1,6 @@
 import { AutentiaError } from "./autentia";
 import type { AutentiaParamsGet } from "./autentia.types";
+import { randomToken } from "@/features/totem/diagnostics/totem-diagnostics";
 
 /**
  * Native client for the local fingerprint agent. Same request the legacy
@@ -179,7 +180,7 @@ export async function runAgentTransaction(
     subtle = globalThis.crypto.subtle,
   } = options;
 
-  const token = Math.floor(Math.random() * 1e15);
+  const token = randomToken();
   const body = buildTransactionRequest(autentiaPath, { Rut: rut }, outputs, giveFocus, token);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

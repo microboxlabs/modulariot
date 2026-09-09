@@ -93,11 +93,22 @@ function probeResponse(pathname: string): Response | null {
 }
 
 export function createRequestHandler(options: ServeOptions) {
+  const log = options.log ?? defaultLog;
   const api = createDashboardHandler({
     identity: options.identity,
     tenants: options.tenants,
     scopes: options.scopes,
     store: options.store,
+    // The 500 body says nothing on purpose, so without this a failing
+    // database is a wall of INTERNAL_ERROR and an empty log.
+    onError: (error, request) =>
+      log({
+        level: "error",
+        msg: "request failed",
+        method: request.method,
+        path: pathnameOf(request.url),
+        error: error instanceof Error ? error.message : String(error),
+      }),
     ...(options.cors ? { cors: options.cors } : {}),
     ...(options.audit ? { audit: options.audit } : {}),
     ...(options.basePath ? { basePath: options.basePath } : {}),

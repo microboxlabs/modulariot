@@ -20,20 +20,27 @@ export function validateCors(options: CorsOptions): void {
     try {
       parsed = new URL(origin);
     } catch {
-      throw new Error("CORS origins must be exact HTTP(S) origins");
+      throw new Error(`"${origin}" is not an HTTP(S) origin`);
     }
-    if (
-      !["http:", "https:"].includes(parsed.protocol) ||
-      parsed.origin !== origin
-    ) {
+    // Split from the shape check below so the message says which rule was
+    // broken: a scheme this does not serve is a different mistake from a
+    // well-formed https origin with a path stuck on the end.
+    if (!["http:", "https:"].includes(parsed.protocol)) {
       throw new Error(
-        "CORS origins must be exact HTTP(S) origins without paths or credentials",
+        `"${origin}" uses ${parsed.protocol}//; a CORS origin must be http ` +
+          "or https",
+      );
+    }
+    if (parsed.origin !== origin) {
+      throw new Error(
+        `"${origin}" must be an exact origin, with no path, trailing slash ` +
+          "or credentials",
       );
     }
   }
   for (const header of options.headers ?? []) {
     if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(header)) {
-      throw new Error("CORS headers must be HTTP header names");
+      throw new Error(`"${header}" is not an HTTP header name`);
     }
   }
 }

@@ -5264,6 +5264,8 @@
         "editSave": "Guardar",
         "thoughtProcess": "Proceso de pensamiento",
         "executionCanceled": "La ejecución fue cancelada.",
+        "runFailed": "No se pudo obtener una respuesta.",
+        "retry": "Reintentar",
         "readOnly": "Este chat es de solo lectura: lo compartió otra persona."
       },
       "attachments": {

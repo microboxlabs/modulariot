@@ -9,20 +9,10 @@ import {
 import {
   AUI_MESSAGE_FORMAT,
   appendMessage,
+  getThread,
   listMessages,
   type StoredMessage,
 } from "./harness-thread-store";
-
-/** One prior exchange, in the shape the harness accepts as replayed context. */
-export type ReplayTurn = { user_message: string; assistant_answer: string };
-
-/**
- * How many turns a reloaded thread replays to the harness. The harness keeps
- * conversations in memory, so a thread it has forgotten needs its context
- * handed back; it caps and token-trims what it accepts, and this bounds what
- * we put on the wire in the first place.
- */
-const MAX_REPLAY_TURNS = 20;
 
 /**
  * Anything longer is assumed to be inline content rather than a reference and
@@ -46,14 +36,19 @@ const MAX_INLINE_LENGTH = 2048;
 export function createHarnessHistoryAdapter(threadId: string): ThreadHistoryAdapter {
   return {
     async load() {
-      // A thread with no stored messages still carries its id: that is what
-      // the harness groups its runs by, and it has to be in state before the
-      // first run of a reopened chat.
-      const empty = {
-        messages: [],
-        state: { harnessConversationId: threadId, harnessReplayTurns: [] },
+      const [thread, stored] = await Promise.all([getThread(threadId), listMessages(threadId)]);
+      // Both fields ride the AG-UI state the chat route reads with every run.
+      // The id is what the harness groups its runs by, so it has to be in
+      // state before the first run of a reopened chat, stored messages or
+      // not. The summary is what the harness compacted older turns into: the
+      // runtime sends the recent transcript itself, but a restarted harness
+      // has no other way to get the part before it. The route's own
+      // STATE_SNAPSHOT at the end of each run refreshes this object.
+      const state = {
+        harnessConversationId: threadId,
+        harnessConversationSummary: thread?.summary ?? null,
       };
-      const stored = await listMessages(threadId);
+      const empty = { messages: [], state };
       if (!stored?.length) return empty;
 
       const items = stored
@@ -68,19 +63,7 @@ export function createHarnessHistoryAdapter(threadId: string): ThreadHistoryAdap
       if (items.length === 0) return empty;
 
       const headId = items.at(-1)?.message.id ?? null;
-      const repository = ExportedMessageRepository.fromBranchableArray(items, { headId });
-
-      return {
-        ...repository,
-        // Both fields ride the same AG-UI state the chat route reads. The
-        // route's own STATE_SNAPSHOT at the end of a run replaces this object
-        // with the conversation id alone, which is what keeps the replay to
-        // the first run after a reload instead of every turn.
-        state: {
-          harnessConversationId: threadId,
-          harnessReplayTurns: toReplayTurns(activeBranch(items, headId)),
-        },
-      };
+      return { ...ExportedMessageRepository.fromBranchableArray(items, { headId }), state };
     },
 
     async append(item: ExportedMessageRepositoryItem) {
@@ -133,72 +116,6 @@ function attachmentBody(value: unknown): string | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-/**
- * Pairs each user message with the answer that followed it. Only text parts
- * carry over: the harness's conversation memory is a list of
- * {user_message, assistant_answer} strings, and tool calls or cards have no
- * place in it.
- */
-export function toReplayTurns(
-  messages: readonly ThreadMessage[],
-  maxTurns = MAX_REPLAY_TURNS,
-): ReplayTurn[] {
-  const turns: ReplayTurn[] = [];
-  let pendingUser: string | null = null;
-
-  for (const message of messages) {
-    const text = textOf(message);
-    if (message.role === "user") {
-      // Two user messages in a row (the first got no answer): the later one
-      // is the question the assistant actually replied to.
-      pendingUser = text || pendingUser;
-    } else if (message.role === "assistant" && pendingUser && text) {
-      turns.push({ user_message: pendingUser, assistant_answer: text });
-      pendingUser = null;
-    }
-  }
-
-  return turns.slice(-maxTurns);
-}
-
-/**
- * The messages actually on the branch ending at `headId`, oldest first.
- *
- * Editing a message or reloading an answer forks the thread, and every fork
- * stays in storage. Replaying all of it would hand the harness abandoned
- * questions and superseded answers as though the conversation had contained
- * them.
- */
-export function activeBranch(
-  items: readonly { parentId: string | null; message: ThreadMessage }[],
-  headId: string | null,
-): ThreadMessage[] {
-  if (!headId) return [];
-  const byId = new Map(items.map((item) => [item.message.id, item]));
-  const branch: ThreadMessage[] = [];
-  const seen = new Set<string>();
-
-  let cursor: string | null = headId;
-  while (cursor && !seen.has(cursor)) {
-    seen.add(cursor);
-    const item = byId.get(cursor);
-    if (!item) break;
-    branch.push(item.message);
-    cursor = item.parentId;
-  }
-
-  return branch.reverse();
-}
-
-function textOf(message: ThreadMessage): string {
-  if (!Array.isArray(message.content)) return "";
-  return message.content
-    .filter((part): part is { type: "text"; text: string } => part?.type === "text")
-    .map((part) => part.text)
-    .join("")
-    .trim();
 }
 
 /**

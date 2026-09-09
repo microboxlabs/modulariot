@@ -3,7 +3,6 @@ import type { Session } from "next-auth";
 import {
   createMiotHarnessClient,
   TERMINAL_EVENT_TYPES,
-  type ConversationTurn,
   type HarnessEvent,
 } from "@microboxlabs/miot-harness-client";
 import { requireAuth } from "../../../utils/alfresco-crud-client";
@@ -23,6 +22,7 @@ import { getAllDashlets, getAllDashletMetas } from "@/features/dashboard/dashlet
 import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.service";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
+import { conversationOf, type AgUiMessage, type RunAgentInputBody } from "./conversation";
 
 /**
  * AG-UI streaming relay for the harness-chat panel: `RunAgentInput` in,
@@ -177,24 +177,6 @@ function createStoryToolCall(send: Sender, args: CreateStoryArgs): void {
   send({ type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) });
   send({ type: "TOOL_CALL_END", toolCallId });
 }
-
-type AgUiMessage = {
-  id: string;
-  role: "developer" | "system" | "assistant" | "user" | "tool" | "activity" | "reasoning";
-  content?: unknown;
-  toolCallId?: string;
-};
-
-type RunAgentInputBody = {
-  threadId?: string;
-  runId?: string;
-  state?: {
-    harnessConversationId?: string | null;
-    /** Prior turns of a thread the client just reloaded — see `conversationOf`. */
-    harnessReplayTurns?: unknown;
-  } | null;
-  messages?: AgUiMessage[];
-};
 
 // The full AG-UI role set (confirmed against @ag-ui/core's message schema) —
 // "reasoning" matters in particular: this route's own narration streams as
@@ -477,53 +459,6 @@ async function connectToHarness(session: Session): Promise<HarnessConnection> {
   return { ok: true, client, orgSlug, token, userEmail };
 }
 
-/** How many replayed turns this route forwards. The harness caps and
- * token-trims again on its side; this bounds the request body. */
-const MAX_REPLAY_TURNS = 20;
-
-/**
- * The conversation a run belongs to, plus any context the client had to hand
- * back with it.
- *
- * The id falls back to the AG-UI `threadId`, which the panel sets to its
- * session id. Without that fallback nothing mints one at all: `conversation_id`
- * stays null on every run and the harness answers each turn knowing nothing of
- * the last. `state.harnessConversationId` still wins when present, since that
- * is the value the harness itself echoed back.
- *
- * `harnessReplayTurns` arrives from the history adapter when it hydrates a
- * thread from storage. The harness keeps conversations in memory, so one it has
- * forgotten needs them handed back; it ignores them for a conversation it still
- * holds. The STATE_SNAPSHOT at the end of a run replaces the state with the id
- * alone, which is what keeps this to one replay per reload.
- */
-function conversationOf(body: RunAgentInputBody): {
-  conversationId: string | null;
-  replayTurns: ConversationTurn[];
-} {
-  // The body is unvalidated JSON: `isValidRunAgentInputBody` checks the
-  // messages, not this, so a number or an object here would otherwise be
-  // forwarded as a conversation id.
-  const conversationId = text(body.state?.harnessConversationId) ?? text(body.threadId);
-  const raw = body.state?.harnessReplayTurns;
-  if (!conversationId || !Array.isArray(raw)) return { conversationId, replayTurns: [] };
-
-  const replayTurns = raw
-    .filter(
-      (turn): turn is ConversationTurn =>
-        !!turn &&
-        typeof turn === "object" &&
-        typeof (turn as ConversationTurn).user_message === "string" &&
-        typeof (turn as ConversationTurn).assistant_answer === "string",
-    )
-    .slice(-MAX_REPLAY_TURNS);
-  return { conversationId, replayTurns };
-}
-
-function text(value: unknown): string | null {
-  return typeof value === "string" && value.length > 0 ? value : null;
-}
-
 type RunTelemetry = { route: string | undefined; tools: string[] };
 
 /** How the harness event stream ended. `completed` and `failed` mirror the
@@ -674,7 +609,7 @@ async function run(
     return;
   }
   const { client, orgSlug, token, userEmail } = connection;
-  const { conversationId, replayTurns } = conversationOf(body);
+  const { conversationId, replayTurns, summary } = conversationOf(body, messages);
 
   let activeRunId: string | null = null;
   let runSettled = false;
@@ -706,6 +641,7 @@ async function run(
         ...(userEmail && { user_id: userEmail }),
         ...(conversationId && { conversation_id: conversationId }),
         ...(replayTurns.length > 0 && { conversation_history: replayTurns }),
+        ...(summary && { conversation_summary: summary }),
       },
       { signal: controller.signal },
     );
@@ -744,7 +680,15 @@ async function run(
 
     const record = await client.runs.get(run_id, { signal: controller.signal });
     sendText(send, blocksToText(record.answer, tr));
-    send({ type: "STATE_SNAPSHOT", snapshot: { harnessConversationId: record.conversation_id } });
+    send({
+      type: "STATE_SNAPSHOT",
+      snapshot: {
+        harnessConversationId: record.conversation_id,
+        // What the harness holds now, compacted or seeded; the panel stores
+        // it with the thread so the next process can be handed it back.
+        harnessConversationSummary: record.conversation_summary ?? null,
+      },
+    });
     send({ type: "RUN_FINISHED", runId, threadId });
 
     void recordEpisode({

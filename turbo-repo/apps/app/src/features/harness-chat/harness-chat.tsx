@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FC } from "react";
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
-import { HttpAgent } from "@ag-ui/client";
 import { twMerge } from "tailwind-merge";
 import { LuArrowLeft, LuHistory, LuPlus, LuSparkles, LuX } from "react-icons/lu";
 import { createHarnessAttachmentAdapter } from "./harness-chat-attachments";
@@ -19,10 +18,12 @@ import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-conte
 import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
 import { PendingAttachmentReceiver } from "./components/pending-attachment-receiver";
+import { SessionSummaryWatcher } from "./components/session-summary-watcher";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
 import { HarnessReadOnlyProvider } from "./context/harness-read-only-context";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
 import { createHarnessHistoryAdapter } from "./harness-history-adapter";
+import { HarnessRunAgent } from "./harness-run-agent";
 import {
   createThread,
   deleteThread,
@@ -444,7 +445,7 @@ const SessionHost: FC<{
   // conversation instead of starting a new one.
   const agent = useMemo(
     () =>
-      new HttpAgent({
+      new HarnessRunAgent({
         url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/chat/stream`,
         threadId: sessionId,
       }),
@@ -490,6 +491,7 @@ const SessionHost: FC<{
           {!readOnly && (
             <>
               <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
+              <SessionSummaryWatcher sessionId={sessionId} />
               <InitialMessageSender initialMessage={initialMessage} />
               <PendingAttachmentReceiver
                 label={pendingAttachmentLabel}

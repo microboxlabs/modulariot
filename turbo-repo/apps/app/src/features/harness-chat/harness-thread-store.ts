@@ -21,6 +21,8 @@ export const AUI_MESSAGE_FORMAT = "aui-v1";
 export type StoredThread = {
   id: string;
   title: string | null;
+  /** The harness's compacted memory of the conversation; null until it compacts. */
+  summary: string | null;
   ownerId: string;
   owned: boolean;
   expiresAt: string | null;
@@ -35,7 +37,14 @@ export type StoredMessage = {
   parentId: string | null;
   format: string;
   payload: Record<string, unknown>;
+  /** Append position, and the cursor a page continues from. Absent on a
+   * message this client is sending. */
+  seq?: number;
 };
+
+/** One read of a thread's messages fetches at most this many; a shorter
+ * page is the last one. Matches the store's own default. */
+const MESSAGE_PAGE = 500;
 
 export async function listThreads(signal?: AbortSignal): Promise<StoredThread[] | null> {
   const res = await fetch(BASE, { signal }).catch(() => null);
@@ -47,6 +56,12 @@ export async function createThread(
   thread: { id: string; title?: string | null; expiresAt?: string | null },
 ): Promise<StoredThread | null> {
   return postJson<StoredThread>(BASE, thread);
+}
+
+export async function getThread(id: string, signal?: AbortSignal): Promise<StoredThread | null> {
+  const res = await fetch(`${BASE}/${encodeURIComponent(id)}`, { signal }).catch(() => null);
+  if (!res?.ok) return null;
+  return (await res.json().catch(() => null)) as StoredThread | null;
 }
 
 export async function renameThread(id: string, title: string): Promise<void> {
@@ -62,18 +77,44 @@ export async function setThreadExpiry(id: string, expiresAt: string | null): Pro
   });
 }
 
+export async function setThreadSummary(id: string, summary: string): Promise<boolean> {
+  return sendJson(`${BASE}/${encodeURIComponent(id)}`, "PATCH", { summary });
+}
+
 export async function deleteThread(id: string): Promise<void> {
   await sendJson(`${BASE}/${encodeURIComponent(id)}`, "DELETE");
 }
 
+/** Every message of the thread, read a page at a time. A page that cannot
+ * be read fails the whole load: a transcript with a hole in it has messages
+ * whose parent is missing, which is worse than no transcript. */
 export async function listMessages(
   threadId: string,
   signal?: AbortSignal,
 ): Promise<StoredMessage[] | null> {
-  const res = await fetch(`${BASE}/${encodeURIComponent(threadId)}/messages`, { signal })
+  const all: StoredMessage[] = [];
+  let after = 0;
+  for (;;) {
+    const page = await listMessagePage(threadId, after, signal);
+    if (page === null) return null;
+    all.push(...page);
+    const last = page.at(-1);
+    if (page.length < MESSAGE_PAGE || typeof last?.seq !== "number") return all;
+    after = last.seq;
+  }
+}
+
+async function listMessagePage(
+  threadId: string,
+  after: number,
+  signal?: AbortSignal,
+): Promise<StoredMessage[] | null> {
+  const query = `?after=${after}&limit=${MESSAGE_PAGE}`;
+  const res = await fetch(`${BASE}/${encodeURIComponent(threadId)}/messages${query}`, { signal })
     .catch(() => null);
   if (!res?.ok) return null;
-  return (await res.json().catch(() => null)) as StoredMessage[] | null;
+  const page = (await res.json().catch(() => null)) as StoredMessage[] | null;
+  return Array.isArray(page) ? page : null;
 }
 
 export async function appendMessage(

@@ -156,3 +156,14 @@ it.each([
     withCors(async () => new Response(), { origins: [origin] }),
   ).toThrow(origin);
 });
+
+it("says the scheme is the problem when the scheme is the problem", () => {
+  // Not "no path, trailing slash or credentials" — none of those is why
+  // ftp:// was refused, and an operator would go looking for the wrong thing.
+  expect(() =>
+    withCors(async () => new Response(), { origins: ["ftp://host"] }),
+  ).toThrow(/must be http or https/);
+  expect(() =>
+    withCors(async () => new Response(), { origins: ["https://host/path"] }),
+  ).toThrow(/no path, trailing slash or credentials/);
+});

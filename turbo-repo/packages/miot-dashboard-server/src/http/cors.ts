@@ -22,10 +22,16 @@ export function validateCors(options: CorsOptions): void {
     } catch {
       throw new Error(`"${origin}" is not an HTTP(S) origin`);
     }
-    if (
-      !["http:", "https:"].includes(parsed.protocol) ||
-      parsed.origin !== origin
-    ) {
+    // Split from the shape check below so the message says which rule was
+    // broken: a scheme this does not serve is a different mistake from a
+    // well-formed https origin with a path stuck on the end.
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error(
+        `"${origin}" uses ${parsed.protocol}//; a CORS origin must be http ` +
+          "or https",
+      );
+    }
+    if (parsed.origin !== origin) {
       throw new Error(
         `"${origin}" must be an exact origin, with no path, trailing slash ` +
           "or credentials",

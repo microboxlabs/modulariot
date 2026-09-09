@@ -23,7 +23,7 @@ import {
   createAccessControl,
   type AccessControlOptions,
 } from "../access/access-control";
-import { DashboardServerError } from "../access/errors";
+import { DashboardServerError, isDashboardServerError } from "../access/errors";
 import { isDashboardRole } from "../access/roles";
 import type { PermissionAssignment } from "../seams/store";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
@@ -37,6 +37,16 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    */
   basePath?: string;
   cors?: CorsOptions;
+  /**
+   * Called with anything thrown that this handler turned into a response.
+   *
+   * The wire envelope for an unexpected error is deliberately bare — an
+   * upstream exception is the most likely place for a connection string or a
+   * token to surface. That redaction leaves the operator with a 500 and no
+   * cause, so the error is handed here instead, where a host decides what to
+   * do with it. The standalone server logs it.
+   */
+  onError?: (error: unknown, request: Request) => void;
 }
 
 export type DashboardHandler = (request: Request) => Promise<Response>;
@@ -188,6 +198,10 @@ export function createDashboardHandler(
       if (match === null) return errorResponse(notFound());
       return await dispatch(request, match);
     } catch (error) {
+      // A DashboardServerError is an answer this code chose — a 404, a 403, a
+      // 409 — and says so on the wire. Anything else reached here by
+      // surprise, and is the only kind worth waking someone for.
+      if (!isDashboardServerError(error)) options.onError?.(error, request);
       return errorResponse(error);
     }
   };

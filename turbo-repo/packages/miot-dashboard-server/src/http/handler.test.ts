@@ -640,3 +640,79 @@ describe("standalone server extras", () => {
     }
   });
 });
+
+describe("onError", () => {
+  const base = () => ({
+    identity: createInsecureHeaderIdentityResolver(),
+    tenants: createMemoryTenantAuthority(MEMBERSHIPS),
+    scopes: createMemoryScopeAuthority(MEMBERSHIPS),
+    store: createMemoryStore({ seed: seedFor() }),
+  });
+  const get = (
+    handler: ReturnType<typeof createDashboardHandler>,
+    slug: string,
+  ) =>
+    handler(
+      new Request(`http://local/tenants/acme/scopes/ops/dashboards/${slug}`, {
+        headers: { "x-dev-user": "alice" },
+      }),
+    );
+
+  it("hands over an unexpected error and still says nothing on the wire", async () => {
+    // The envelope is bare on purpose: an upstream exception is the most
+    // likely place a connection string surfaces. Without this hook the
+    // operator is left with a 500 and no cause anywhere at all.
+    const seen: unknown[] = [];
+    const store = createMemoryStore({ seed: seedFor() });
+    const handler = createDashboardHandler({
+      ...base(),
+      store: {
+        ...store,
+        load: () =>
+          Promise.reject(new Error("password=hunter2 host unreachable")),
+      },
+      onError: (error) => seen.push(error),
+    });
+
+    const response = await get(handler, "fleet");
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "An unexpected error occurred",
+      status: 500,
+      code: "INTERNAL_ERROR",
+    });
+    expect(seen).toHaveLength(1);
+    expect((seen[0] as Error).message).toContain("host unreachable");
+  });
+
+  it("stays quiet for an answer the code chose", async () => {
+    // A 404 is not a surprise, and must not read as a fault in the log.
+    const seen: unknown[] = [];
+    const handler = createDashboardHandler({
+      ...base(),
+      onError: (e) => seen.push(e),
+    });
+    const response = await handler(
+      new Request("http://local/nothing/here", {
+        headers: { "x-dev-user": "alice" },
+      }),
+    );
+    expect(response.status).toBe(404);
+    expect(seen).toEqual([]);
+  });
+
+  it("stays quiet for a refusal too", async () => {
+    const seen: unknown[] = [];
+    const handler = createDashboardHandler({
+      ...base(),
+      onError: (e) => seen.push(e),
+    });
+    const response = await handler(
+      new Request("http://local/tenants/globex/scopes/ops/dashboards/fleet", {
+        headers: { "x-dev-user": "alice" },
+      }),
+    );
+    expect(response.status).toBe(403);
+    expect(seen).toEqual([]);
+  });
+});

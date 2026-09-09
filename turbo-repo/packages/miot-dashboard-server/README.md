@@ -344,6 +344,7 @@ const access = createAccessControl({
 });
 
 const decision = await access.authorize(request, {
+  tenantId,
   scopeId,
   slug,
   action: "dashboard.save",
@@ -354,15 +355,20 @@ const decision = await access.authorize(request, {
 `authorize` checks in order:
 
 1. **Identity** — no credential → `401`
-2. **Scope** — not a member → `403` (`TENANT_SCOPE`)
-3. **Dashboard** — load record, compute capabilities
-4. **Action** — missing capability → `403` (`CAPABILITY`)
+2. **Tenant** — not entitled to the tenant the path names → `403` (`TENANT_SCOPE`)
+3. **Scope** — not a member of the scope → `403` (`TENANT_SCOPE`)
+4. **Dashboard** — load record, compute capabilities
+5. **Action** — missing capability → `403` (`CAPABILITY`)
+
+Steps 2 and 3 share a reason code on purpose: a tenant the caller has no
+standing in and one that does not exist answer alike, so the path cannot be
+used to enumerate tenants.
 
 Denials are audited. Embed tokens are read-only and locked to one dashboard
 (`403` `EMBED_SCOPE` otherwise).
 
-`access.capabilities(request, scopeId, slug)` tells an embed host what the
-caller can do.
+`access.capabilities(request, { tenantId, scopeId, slug })` tells an embed host
+what the caller can do.
 
 ### Roles
 

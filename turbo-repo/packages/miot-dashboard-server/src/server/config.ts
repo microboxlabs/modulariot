@@ -825,8 +825,8 @@ function readAuth(env: ConfigEnv, host: string): AuthConfig {
 
   throw new ConfigError(
     "No identity provider is configured. Either set MIOT_DASHBOARD_JWT_ISSUER, " +
-      "MIOT_DASHBOARD_JWT_AUDIENCE, MIOT_DASHBOARD_JWT_TENANT_CLAIM and one key " +
-      "source (MIOT_DASHBOARD_JWT_JWKS_URL, MIOT_DASHBOARD_JWT_PUBLIC_KEY or " +
+      "MIOT_DASHBOARD_JWT_AUDIENCE and one key source " +
+      "(MIOT_DASHBOARD_JWT_JWKS_URL, MIOT_DASHBOARD_JWT_PUBLIC_KEY or " +
       "MIOT_DASHBOARD_JWT_SECRET) to verify bearer tokens; or set " +
       "MIOT_DASHBOARD_TICKET_HEADER and MIOT_DASHBOARD_TICKET_VALIDATE_URL to " +
       "validate tickets against their emitter; or opt into " +

@@ -15,8 +15,9 @@ headers {
 }
 
 docs {
-  The tenant comes from the credential, never from the URL. The scope in the
-  path is checked against that tenant before the store is touched.
+  The request names the tenant, as {{tenant}} in the path. The credential is
+  checked for standing in that tenant, and then in the scope, before the store
+  is touched.
 }
 
 assert {

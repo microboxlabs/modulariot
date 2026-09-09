@@ -81,7 +81,7 @@ describe("createHttpTenantAuthority", () => {
     expect(calls).toHaveLength(1);
   });
 
-  it("caches a no separately from a yes", async () => {
+  it("does not cache a no when the negative cache is zero seconds", async () => {
     const { fetchImpl, calls } = answering(404);
     const tenants = authority(fetchImpl, { negativeCacheSeconds: 0 });
     await tenants.mayActAs(ana, "acme");

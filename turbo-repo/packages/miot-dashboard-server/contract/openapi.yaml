@@ -53,7 +53,6 @@ security:
   - ticketAuth: []
   - embedToken: []
   - devUser: []
-    devTenant: []
 
 paths:
   /tenants/{tenantId}/scopes/{scopeId}/dashboards:
@@ -63,8 +62,8 @@ paths:
       summary: Dashboards in one scope
       description: >
         Every dashboard in the scope, for a caller with any standing in it.
-        The list is drawn under the credential's tenant, so two tenants sharing
-        a scope identifier never see each other's entries.
+        The list is drawn under the tenant in the request path, so two tenants
+        sharing a scope identifier never see each other's entries.
       parameters:
         - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
@@ -308,14 +307,6 @@ components:
         port can then claim to be anyone, which is why the server refuses this
         setting under NODE_ENV=production. It is documented here so that "Try
         it out" works against a dev server before an identity provider exists.
-    devTenant:
-      type: apiKey
-      in: header
-      name: X-Dev-Tenant
-      description: >
-        **Development only.** The tenant the unverified identity above belongs
-        to. Sent together with X-Dev-User; either alone resolves to no identity
-        at all, and the request is 401.
 
   parameters:
     tenantId:

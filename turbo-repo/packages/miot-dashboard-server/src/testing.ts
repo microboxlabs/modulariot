@@ -16,7 +16,7 @@
 import { DashboardServerError } from "./access/errors";
 import { dashboardDisplayName } from "./store/composite";
 import type { DashboardRole } from "./access/roles";
-import { FULL_CAPABILITIES } from "./access/roles";
+import { FULL_CAPABILITIES, isDashboardRole } from "./access/roles";
 import type { AuditEvent, AuditSink } from "./seams/audit";
 import type {
   CredentialsVault,
@@ -194,6 +194,25 @@ export type Memberships = Record<
 >;
 
 /**
+ * One level of the seed, by own property only.
+ *
+ * A tenant, scope or user id arrives from the request, and a plain object
+ * inherits `constructor`, `toString` and the rest of `Object.prototype`. Read
+ * with `[]`, a scope named "constructor" resolves to a function rather than to
+ * nothing, and the lookup continues into it instead of stopping. Nothing found
+ * that way is a valid role today, so this fails closed either way — but on the
+ * strength of what `Object.prototype` happens to hold, which is not a property
+ * worth resting on.
+ */
+function own<T>(
+  source: Record<string, T> | undefined,
+  key: string,
+): T | undefined {
+  if (source === undefined || !Object.hasOwn(source, key)) return undefined;
+  return source[key];
+}
+
+/**
  * Scope authority backed by a plain object. Absent means denied, which is the
  * correct default and the reason the real seam has no default implementation.
  */
@@ -202,9 +221,10 @@ export function createMemoryScopeAuthority(
 ): ScopeAuthority {
   return {
     resolveScopeRole(identity, scopeId) {
-      return Promise.resolve(
-        memberships[identity.tenantId]?.[scopeId]?.[identity.userId] ?? null,
-      );
+      const scopes = own(memberships, identity.tenantId);
+      const members = own(scopes, scopeId);
+      const role = own(members, identity.userId);
+      return Promise.resolve(isDashboardRole(role) ? role : null);
     },
   };
 }
@@ -219,11 +239,11 @@ export function createMemoryTenantAuthority(
 ): TenantAuthority {
   return {
     mayActAs(principal, tenantId) {
-      const scopes = memberships[tenantId];
+      const scopes = own(memberships, tenantId);
       return Promise.resolve(
         scopes !== undefined &&
           Object.values(scopes).some(
-            (members) => members[principal.userId] !== undefined,
+            (members) => own(members, principal.userId) !== undefined,
           ),
       );
     },

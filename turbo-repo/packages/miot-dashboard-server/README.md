@@ -202,7 +202,7 @@ and [GCS generation preconditions](https://cloud.google.com/storage/docs/request
 
 Library users can import `createS3DocumentStore` or `createGcsDocumentStore`
 from `./store-cloud` and pass the resulting `documents` to either SQL store.
-A supplied S3 `client` or GCS `bucketImpl` remains owned by the host.
+A supplied S3 `client` or GCS `storageImpl` remains owned by the host.
 
 The choice is recorded the first time the database is opened. Opening it later
 with the other one is refused at startup: the bodies do not move on their own,

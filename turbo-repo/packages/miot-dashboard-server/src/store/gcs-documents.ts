@@ -14,7 +14,7 @@ interface GcsFile {
     },
   ): Promise<unknown>;
   download(): Promise<[Uint8Array]>;
-  delete(options: { ignoreNotFound: boolean }): Promise<unknown>;
+  delete(): Promise<unknown>;
 }
 
 export interface GcsDocumentBucket {
@@ -24,27 +24,40 @@ export interface GcsDocumentBucket {
     autoPaginate: false;
     pageToken?: string;
   }): Promise<[GcsFile[], { pageToken?: string } | null, unknown?]>;
+  /** Tells a missing object apart from a missing bucket: both answer 404. */
+  exists(): Promise<[boolean]>;
+}
+
+/** The narrow slice of the SDK's `Storage` this store needs. Injected rather
+ * than a ready-made bucket so `bucket` below stays the one name in play, the
+ * way the S3 store always sends `options.bucket`. */
+export interface GcsDocumentStorage {
+  bucket(name: string): GcsDocumentBucket;
 }
 
 export interface GcsDocumentStoreOptions {
   bucket: string;
   prefix?: string;
-  /** Host-owned bucket; otherwise uses Application Default Credentials. */
-  bucketImpl?: GcsDocumentBucket;
+  /** Host-owned storage; otherwise uses Application Default Credentials. */
+  storageImpl?: GcsDocumentStorage;
 }
 
-function loadBucket(name: string): GcsDocumentBucket {
+function loadStorage(): GcsDocumentStorage {
   let sdk;
   try {
     sdk = createRequire(import.meta.url)("@google-cloud/storage") as {
-      Storage: new () => { bucket(name: string): GcsDocumentBucket };
+      Storage: new () => GcsDocumentStorage;
     };
   } catch {
     throw new Error(
       "GCS documents require the optional peer: npm install @google-cloud/storage",
     );
   }
-  return new sdk.Storage().bucket(name);
+  return new sdk.Storage();
+}
+
+function isNotFound(error: unknown): boolean {
+  return (error as { code?: number })?.code === 404;
 }
 
 export function createGcsDocumentStore(
@@ -53,7 +66,23 @@ export function createGcsDocumentStore(
   if (!options.bucket.trim())
     throw new Error("GCS document bucket is required");
   const keys = bucketKeys(options.prefix);
-  const bucket = options.bucketImpl ?? loadBucket(options.bucket);
+  const bucket = (options.storageImpl ?? loadStorage()).bucket(options.bucket);
+
+  // GCS answers 404 for a missing object AND for a missing or unreachable
+  // bucket. Reporting the second as "no such document" would turn a
+  // configuration failure into a silent empty read, so a 404 only counts as
+  // absence once the bucket is known to be there — the same line the S3 store
+  // draws between NoSuchKey and NoSuchBucket. Checked at most once: a bucket
+  // that exists does not stop existing under us, and the check costs a round
+  // trip we do not want on every miss.
+  let bucketSeen = false;
+  const objectIsAbsent = async (): Promise<boolean> => {
+    if (bucketSeen) return true;
+    const [exists] = await bucket.exists();
+    bucketSeen = exists;
+    return exists;
+  };
+
   return {
     async put(key, body) {
       await bucket.file(keys.full(key)).save(Buffer.from(body), {
@@ -65,14 +94,23 @@ export function createGcsDocumentStore(
     async get(key) {
       try {
         const [body] = await bucket.file(keys.full(key)).download();
+        bucketSeen = true;
         return new Uint8Array(body);
       } catch (error) {
-        if ((error as { code?: number })?.code === 404) return null;
+        if (isNotFound(error) && (await objectIsAbsent())) return null;
         throw error;
       }
     },
     async delete(key) {
-      await bucket.file(keys.full(key)).delete({ ignoreNotFound: true });
+      try {
+        await bucket.file(keys.full(key)).delete();
+        bucketSeen = true;
+      } catch (error) {
+        // Deleting an absent document is a no-op, as it is on S3; a missing
+        // bucket is not, and must reach the caller's orphan reporting.
+        if (isNotFound(error) && (await objectIsAbsent())) return;
+        throw error;
+      }
     },
     async *list() {
       let pageToken: string | undefined;
@@ -82,6 +120,7 @@ export function createGcsDocumentStore(
           autoPaginate: false,
           ...(pageToken ? { pageToken } : {}),
         });
+        bucketSeen = true;
         for (const file of files) {
           const key = keys.relative(file.name);
           if (key !== null)

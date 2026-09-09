@@ -42,14 +42,17 @@ function gcs() {
     getFiles: vi
       .fn<GcsDocumentBucket["getFiles"]>()
       .mockResolvedValue([[], null]),
+    exists: vi.fn<GcsDocumentBucket["exists"]>().mockResolvedValue([true]),
   };
+  const storage = { bucket: vi.fn().mockReturnValue(bucket) };
   return {
     file,
     bucket,
+    storage,
     store: createGcsDocumentStore({
       bucket: "configs",
       prefix: "app",
-      bucketImpl: bucket,
+      storageImpl: storage,
     }),
   };
 }
@@ -135,7 +138,11 @@ describe("GCS documents", () => {
     });
     expect(await store.get("acme/one")).toEqual(bytes);
     await store.delete("acme/one");
-    expect(file.delete).toHaveBeenCalledWith({ ignoreNotFound: true });
+    expect(file.delete).toHaveBeenCalledWith();
+  });
+  it("addresses the configured bucket even with storage injected", async () => {
+    const { storage } = gcs();
+    expect(storage.bucket).toHaveBeenCalledWith("configs");
   });
   it("keeps missing files distinct from provider failures", async () => {
     const { file, store } = gcs();
@@ -147,6 +154,25 @@ describe("GCS documents", () => {
     await expect(store.put("acme/one", bytes)).rejects.toMatchObject({
       code: 412,
     });
+  });
+  it("reports a missing bucket rather than an absent document", async () => {
+    // GCS answers 404 for both; only the object case is absence.
+    const { file, bucket, store } = gcs();
+    bucket.exists.mockResolvedValue([false]);
+    file.download.mockRejectedValueOnce({ code: 404 });
+    await expect(store.get("acme/one")).rejects.toMatchObject({ code: 404 });
+    file.delete.mockRejectedValueOnce({ code: 404 });
+    await expect(store.delete("acme/one")).rejects.toMatchObject({ code: 404 });
+  });
+  it("still treats a missing object as absent, and deleting it as done", async () => {
+    const { file, bucket, store } = gcs();
+    file.delete.mockRejectedValueOnce({ code: 404 });
+    await expect(store.delete("acme/one")).resolves.toBeUndefined();
+    expect(bucket.exists).toHaveBeenCalledTimes(1);
+    // The bucket is known to be there now, so no further existence checks.
+    file.download.mockRejectedValueOnce({ code: 404 });
+    expect(await store.get("acme/one")).toBeNull();
+    expect(bucket.exists).toHaveBeenCalledTimes(1);
   });
   it("paginates and leaves unknown creation times unsweepable", async () => {
     const { file, bucket, store } = gcs();

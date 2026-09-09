@@ -8,4 +8,5 @@ export { createGcsDocumentStore } from "./store/gcs-documents";
 export type {
   GcsDocumentStoreOptions,
   GcsDocumentBucket,
+  GcsDocumentStorage,
 } from "./store/gcs-documents";

@@ -34,10 +34,7 @@ function versionOf(config: unknown): number | null {
  */
 export function migrateConfig(config: unknown): MigrationResult {
   if (typeof config !== "object" || config === null || Array.isArray(config)) {
-    return {
-      ok: false,
-      reason: `config is ${describe(config)}, not an object`,
-    };
+    return { ok: false, reason: `config is not an object (${label(config)})` };
   }
 
   const version = versionOf(config);
@@ -68,8 +65,15 @@ export function migrateConfig(config: unknown): MigrationResult {
   };
 }
 
-function describe(value: unknown): string {
+/**
+ * A type name an operator can read, written out rather than assembled from
+ * `typeof` — "a undefined" is not a sentence, and these reasons are the whole
+ * output of a dry run.
+ */
+function label(value: unknown): string {
   if (value === null) return "null";
+  if (value === undefined) return "undefined";
   if (Array.isArray(value)) return "an array";
-  return `a ${typeof value}`;
+  const type = typeof value;
+  return type === "object" ? "an object" : `a ${type}`;
 }

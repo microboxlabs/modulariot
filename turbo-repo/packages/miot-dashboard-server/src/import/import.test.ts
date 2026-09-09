@@ -196,6 +196,67 @@ describe("importDashboards", () => {
     expect(setPermissions).not.toHaveBeenCalled();
   });
 
+  it("undoes the create when the assignments fail, so a re-run retries it", async () => {
+    // Otherwise the config is in the store without its assignments, the next
+    // run sees it exists and skips it forever, and the report calls "failed"
+    // something that is actually present with permissions nobody chose.
+    const inner = createMemoryStore();
+    let permissionsWork = false;
+    const store: ServerDashboardStore = {
+      ...inner,
+      setPermissions: (r, a) =>
+        permissionsWork
+          ? inner.setPermissions(r, a)
+          : Promise.reject(new Error("permission store down")),
+    };
+    const source = sourceOf({
+      ref: ref("fleet"),
+      config: v2("Fleet"),
+      assignments: [{ authorityId: "connie", role: "Editor" }],
+    });
+
+    const first = await importDashboards({ source, store, dryRun: false });
+    expect(first.imported).toEqual([]);
+    expect(first.failed[0]?.reason).toMatch(/removed again/);
+    await expect(inner.load(ref("fleet"))).resolves.toBeNull();
+
+    // The retry is real, not a skip.
+    permissionsWork = true;
+    const second = await importDashboards({ source, store, dryRun: false });
+    expect(second.imported).toEqual(["acme/ops/fleet"]);
+    await expect(inner.getPermissions(ref("fleet"))).resolves.toEqual([
+      { authorityId: "connie", role: "Editor" },
+    ]);
+  });
+
+  it("keeps a dashboard someone edited while the assignments were failing", async () => {
+    // Undoing the create is for tidying up this run's own write. A row that
+    // has moved on belongs to whoever moved it.
+    const inner = createMemoryStore();
+    const store: ServerDashboardStore = {
+      ...inner,
+      setPermissions: async (r) => {
+        await inner.save(r, v2("Edited mid-import"), { updatedBy: "erin" });
+        throw new Error("permission store down");
+      },
+    };
+
+    const result = await importDashboards({
+      source: sourceOf({
+        ref: ref("fleet"),
+        config: v2("Fleet"),
+        assignments: [{ authorityId: "connie", role: "Editor" }],
+      }),
+      store,
+      dryRun: false,
+    });
+
+    expect(result.failed[0]?.reason).toMatch(/could not be removed/);
+    await expect(inner.load(ref("fleet"))).resolves.toMatchObject({
+      config: v2("Edited mid-import"),
+    });
+  });
+
   it("does not overwrite a dashboard created between the check and the write", async () => {
     // The window the existence check cannot close. Another importer, or a
     // person, creates it after the load and before the save; expecting

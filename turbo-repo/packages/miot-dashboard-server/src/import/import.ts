@@ -1,7 +1,8 @@
 /**
  * The one-time import: legacy dashboards in, current store out.
  *
- * Three rules, all of them because this runs once against real data:
+ * Every rule here exists because this runs once against real data and cannot
+ * be undone:
  *
  *  - It reports before it writes. `dryRun` defaults to true, so the harmless
  *    thing is what happens when someone forgets the flag.
@@ -10,10 +11,12 @@
  *    instead of finishing quietly.
  *  - It never overwrites. A dashboard already in the store is left alone, so
  *    a second run after a partial one is safe and adds only what is missing.
+ *  - It leaves nothing half-written. A dashboard whose assignments fail to
+ *    save is removed again, so a re-run retries it rather than skipping it
+ *    forever with permissions nobody chose.
  */
 
-import { isDashboardServerError } from "../access/errors";
-import type { ServerDashboardStore } from "../seams/store";
+import type { ServerDashboardRef, ServerDashboardStore } from "../seams/store";
 import { refLabel, type LegacyDashboardSource } from "./legacy";
 import { migrateConfig } from "./migrate";
 
@@ -25,7 +28,7 @@ export interface ImportOptions {
    * been. Pass false to apply.
    */
   dryRun?: boolean;
-  /** Recorded as `updatedBy` when the source does not name one. */
+  /** Recorded as the author when the source names neither creator nor editor. */
   importedBy?: string;
   /** One line per dashboard, for a long run against a real estate. */
   onProgress?: (line: Record<string, unknown>) => void;
@@ -43,7 +46,11 @@ export interface ImportResult {
   skipped: string[];
   /** Could not be converted. Still in the source, nothing written. */
   refused: ImportRefusal[];
-  /** Converted, but the store rejected the write. Apply runs only. */
+  /**
+   * Converted, but not imported. The reason says what is in the store: for a
+   * failed create, nothing; for failed assignments, whether the create was
+   * undone.
+   */
   failed: ImportRefusal[];
   dryRun: boolean;
 }
@@ -100,27 +107,69 @@ export async function importDashboards(
         // saves again, which is a label rather than a permission.
         updatedBy: legacy.createdBy ?? legacy.updatedBy ?? importedBy,
       });
-
-      // After the config, and only for what was actually written: a failed
-      // save must not leave permissions behind for a dashboard that is not
-      // there. Verbatim, because widening access is the one thing a one-way
-      // migration cannot be walked back from.
-      if (legacy.assignments !== undefined && legacy.assignments.length > 0) {
-        await store.setPermissions(legacy.ref, [...legacy.assignments]);
-      }
-
-      result.imported.push(ref);
-      options.onProgress?.({ msg: "imported", ref });
     } catch (error) {
-      const reason = isDashboardServerError(error)
-        ? error.message
-        : error instanceof Error
-          ? error.message
-          : String(error);
+      // The first write, so a failure leaves the store as it was and a re-run
+      // retries this dashboard.
+      const reason = reasonOf(error);
       result.failed.push({ ref, reason });
       options.onProgress?.({ msg: "failed", ref, reason });
+      continue;
     }
+
+    if (legacy.assignments !== undefined && legacy.assignments.length > 0) {
+      try {
+        // Verbatim, and only once the config is written: a failed save must
+        // not leave permissions behind for a dashboard that is not there.
+        await store.setPermissions(legacy.ref, [...legacy.assignments]);
+      } catch (error) {
+        // The config is in the store and its assignments are not. Left alone,
+        // the next run sees that it exists and skips it forever, so the
+        // estate keeps a dashboard carrying permissions nobody chose while
+        // the report calls it failed. Undo the create, so a re-run is a real
+        // retry rather than a skip.
+        const reason = reasonOf(error);
+        const undone = await undoCreate(store, legacy.ref);
+        const full = undone
+          ? `${reason} — the dashboard was removed again, so a re-run retries it`
+          : `${reason} — AND it could not be removed, so it is in the store ` +
+            "without its assignments and a re-run will skip it";
+        result.failed.push({ ref, reason: full });
+        options.onProgress?.({ msg: "failed", ref, reason: full });
+        continue;
+      }
+    }
+
+    result.imported.push(ref);
+    options.onProgress?.({ msg: "imported", ref });
   }
 
   return result;
+}
+
+/**
+ * Remove a dashboard this run has just created, and say whether the store is
+ * back where it started.
+ *
+ * Only while it is still the row this run wrote. Revision 1 is a dashboard
+ * nobody has touched since the create; anything higher was edited while the
+ * assignments were failing, and deleting someone's work to tidy up an import
+ * is worse than the state being tidied.
+ */
+async function undoCreate(
+  store: ServerDashboardStore,
+  ref: ServerDashboardRef,
+): Promise<boolean> {
+  try {
+    const current = await store.load(ref);
+    if (current === null) return true;
+    if (current.revision !== 1) return false;
+    await store.remove(ref);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function reasonOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

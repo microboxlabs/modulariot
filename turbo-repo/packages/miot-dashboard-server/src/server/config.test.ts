@@ -42,6 +42,60 @@ describe("readServerConfig", () => {
     ).toThrowError(/memory, sqlite/);
   });
 
+  describe("tenant entitlement", () => {
+    it("falls back to the seed file when no host is configured", () => {
+      // Dev and tests only. `bin.ts` warns about it at startup rather than
+      // here, because a seed is the right answer for a dev server.
+      expect(readServerConfig(base).tenants).toEqual({ kind: "seed" });
+    });
+
+    it("asks the host when a url is set, with the lookup defaults", () => {
+      const { tenants } = readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_TENANTS_URL:
+          "https://host.test/people/{userId}/tenants/{tenantId}",
+      });
+      expect(tenants).toMatchObject({
+        kind: "http",
+        url: "https://host.test/people/{userId}/tenants/{tenantId}",
+        method: "GET",
+        absentStatuses: [404],
+      });
+    });
+
+    it("reads the lookup settings that tune it", () => {
+      const { tenants } = readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_TENANTS_URL: "https://host.test/entitlements",
+        MIOT_DASHBOARD_TENANTS_METHOD: "post",
+        MIOT_DASHBOARD_TENANTS_ENTITLED_PATH: "entry.entitled",
+        MIOT_DASHBOARD_TENANTS_ABSENT_STATUS: "404,410",
+        MIOT_DASHBOARD_TENANTS_CACHE: "120",
+        MIOT_DASHBOARD_TENANTS_NEGATIVE_CACHE: "5",
+        MIOT_DASHBOARD_TENANTS_TIMEOUT: "2500",
+      });
+      expect(tenants).toMatchObject({
+        kind: "http",
+        method: "POST",
+        entitledPath: "entry.entitled",
+        absentStatuses: [404, 410],
+        cacheSeconds: 120,
+        negativeCacheSeconds: 5,
+        requestTimeoutMs: 2500,
+      });
+    });
+
+    it("refuses a method that is neither GET nor POST", () => {
+      expect(() =>
+        readServerConfig({
+          ...base,
+          MIOT_DASHBOARD_TENANTS_URL: "https://host.test/e",
+          MIOT_DASHBOARD_TENANTS_METHOD: "DELETE",
+        }),
+      ).toThrowError(/must be GET or POST/);
+    });
+  });
+
   describe("documents", () => {
     const sqlite = { ...base, MIOT_DASHBOARD_STORE: "sqlite" };
 
@@ -260,7 +314,6 @@ describe("readServerConfig", () => {
 const jwtBase = {
   MIOT_DASHBOARD_JWT_ISSUER: "https://issuer.test/",
   MIOT_DASHBOARD_JWT_AUDIENCE: "miot-dashboards",
-  MIOT_DASHBOARD_JWT_TENANT_CLAIM: "https://miot.dev/tenant_id",
   MIOT_DASHBOARD_JWT_JWKS_URL: "https://issuer.test/.well-known/jwks.json",
 };
 
@@ -292,7 +345,6 @@ describe("readServerConfig: JWT authentication", () => {
         url: "https://issuer.test/.well-known/jwks.json",
       },
       claims: {
-        tenantId: "https://miot.dev/tenant_id",
         userId: "email",
         groups: "https://miot.dev/groups",
         displayName: "nickname",
@@ -358,7 +410,6 @@ describe("readServerConfig: JWT authentication", () => {
   it.each([
     ["MIOT_DASHBOARD_JWT_ISSUER", /ISSUER is required/],
     ["MIOT_DASHBOARD_JWT_AUDIENCE", /AUDIENCE is required/],
-    ["MIOT_DASHBOARD_JWT_TENANT_CLAIM", /TENANT_CLAIM is required/],
     ["MIOT_DASHBOARD_JWT_JWKS_URL", /needs a key/],
   ])("refuses to start without %s", (key, message) => {
     expect(() =>
@@ -417,7 +468,6 @@ const ticketBase = {
   MIOT_DASHBOARD_TICKET_PRESENT_NAME: "authorization",
   MIOT_DASHBOARD_TICKET_PRESENT_VALUE: "Basic {ticketBase64}",
   MIOT_DASHBOARD_TICKET_USER_PATH: "entry.id",
-  MIOT_DASHBOARD_TICKET_TENANT: "acme",
 };
 
 const ticketAuthOf = (env: Record<string, string | undefined>) => {
@@ -444,7 +494,6 @@ describe("readServerConfig: ticket authentication", () => {
         value: "Basic {ticketBase64}",
       },
       serviceHeader: undefined,
-      tenant: { kind: "fixed", tenantId: "acme" },
       claims: {
         userId: "entry.id",
         groups: "entry.groups",
@@ -464,35 +513,6 @@ describe("readServerConfig: ticket authentication", () => {
     expect(() =>
       readServerConfig({ ...ticketBase, [key]: undefined }),
     ).toThrowError(message);
-  });
-
-  it("refuses to start without a tenant", () => {
-    // Without one every ticket holder would land in the same tenant.
-    expect(() =>
-      readServerConfig({
-        ...ticketBase,
-        MIOT_DASHBOARD_TICKET_TENANT: undefined,
-      }),
-    ).toThrowError(/needs a tenant/);
-  });
-
-  it("refuses a fixed tenant and a tenant path at once", () => {
-    expect(() =>
-      readServerConfig({
-        ...ticketBase,
-        MIOT_DASHBOARD_TICKET_TENANT_PATH: "entry.org",
-      }),
-    ).toThrowError(/exactly one/);
-  });
-
-  it("reads the tenant from the emitter's answer", () => {
-    expect(
-      ticketAuthOf({
-        ...ticketBase,
-        MIOT_DASHBOARD_TICKET_TENANT: undefined,
-        MIOT_DASHBOARD_TICKET_TENANT_PATH: "entry.org",
-      }),
-    ).toMatchObject({ tenant: { kind: "path", path: "entry.org" } });
   });
 
   it("needs a name and a value to present the ticket in a header", () => {

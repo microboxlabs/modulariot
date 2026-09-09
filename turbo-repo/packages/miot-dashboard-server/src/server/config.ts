@@ -8,10 +8,7 @@
  */
 
 import type { JwtAlgorithm } from "../identity/jwt";
-import type {
-  TicketPresentation,
-  TicketTenantSource,
-} from "../identity/ticket";
+import type { TicketPresentation } from "../identity/ticket";
 import { DASHBOARD_ROLES, type DashboardRole } from "../access/roles";
 import { isLoopbackHost } from "../net/loopback";
 
@@ -21,6 +18,8 @@ export interface ServerConfig {
   basePath: string;
   /** Which identity provider the server was told to use. */
   auth: AuthConfig;
+  /** Who may act in the tenant a request names: one fixed, the seed, or the host. */
+  tenants: TenantConfig;
   /** Where scope membership is answered: the seed file, or the host. */
   scopes: ScopeConfig;
   /** `memory` is discarded on restart; `sqlite` writes to one file. */
@@ -73,7 +72,6 @@ export interface JwtAuthConfig {
   algorithm: JwtAlgorithm;
   key: JwtKeySource;
   claims: {
-    tenantId: string;
     userId: string | undefined;
     groups: string | undefined;
     displayName: string | undefined;
@@ -96,12 +94,36 @@ export interface TicketAuthConfig {
   present: TicketPresentation;
   /** A credential this server sends to the emitter, beyond the ticket itself. */
   serviceHeader: HeaderCredential | undefined;
-  tenant: TicketTenantSource;
   claims: {
     userId: string;
     groups: string | undefined;
     displayName: string | undefined;
   };
+  absentStatuses: number[];
+  cacheSeconds: number;
+  negativeCacheSeconds: number;
+  requestTimeoutMs: number;
+}
+
+export type TenantConfig = SeedTenantConfig | HttpTenantConfig;
+
+/**
+ * Entitlement from the seed file: a principal may act in a tenant when the
+ * seed puts them in one of its scopes. Correct for a demo and for the tests;
+ * in a deployment nobody maintains it, which is why the server says so at
+ * startup.
+ */
+export interface SeedTenantConfig {
+  kind: "seed";
+}
+
+export interface HttpTenantConfig {
+  kind: "http";
+  url: string;
+  method: HttpMethod;
+  /** Dotted path to a boolean that can refuse a 200. Absent means status decides. */
+  entitledPath: string | undefined;
+  serviceHeader: HeaderCredential | undefined;
   absentStatuses: number[];
   cacheSeconds: number;
   negativeCacheSeconds: number;
@@ -205,7 +227,6 @@ const JWT_ENV_KEYS = [
   "MIOT_DASHBOARD_JWT_JWKS_URL",
   "MIOT_DASHBOARD_JWT_PUBLIC_KEY",
   "MIOT_DASHBOARD_JWT_SECRET",
-  "MIOT_DASHBOARD_JWT_TENANT_CLAIM",
   "MIOT_DASHBOARD_JWT_USER_CLAIM",
   "MIOT_DASHBOARD_JWT_GROUPS_CLAIM",
   "MIOT_DASHBOARD_JWT_NAME_CLAIM",
@@ -355,13 +376,6 @@ function readJwtAuth(env: ConfigEnv): JwtAuthConfig {
     algorithm: key.kind === "secret" ? "HS256" : "RS256",
     key,
     claims: {
-      tenantId: required(
-        env,
-        "MIOT_DASHBOARD_JWT_TENANT_CLAIM",
-        "the claim carrying the tenant. No registered claim carries one and " +
-          "every provider uses a different name, so there is no default: a " +
-          "wrong default would put every caller in the same tenant.",
-      ),
       userId: trimmed(env.MIOT_DASHBOARD_JWT_USER_CLAIM),
       groups: trimmed(env.MIOT_DASHBOARD_JWT_GROUPS_CLAIM),
       displayName: trimmed(env.MIOT_DASHBOARD_JWT_NAME_CLAIM),
@@ -513,8 +527,6 @@ const TICKET_ENV_KEYS = [
   "MIOT_DASHBOARD_TICKET_PRESENT_VALUE",
   "MIOT_DASHBOARD_TICKET_SERVICE_HEADER",
   "MIOT_DASHBOARD_TICKET_SERVICE_VALUE",
-  "MIOT_DASHBOARD_TICKET_TENANT",
-  "MIOT_DASHBOARD_TICKET_TENANT_PATH",
   "MIOT_DASHBOARD_TICKET_USER_PATH",
   "MIOT_DASHBOARD_TICKET_GROUPS_PATH",
   "MIOT_DASHBOARD_TICKET_NAME_PATH",
@@ -558,28 +570,6 @@ function readTicketPresentation(env: ConfigEnv): TicketPresentation {
     );
   }
   return { kind: "header", name, value };
-}
-
-function readTicketTenant(env: ConfigEnv): TicketTenantSource {
-  const fixed = trimmed(env.MIOT_DASHBOARD_TICKET_TENANT);
-  const path = trimmed(env.MIOT_DASHBOARD_TICKET_TENANT_PATH);
-
-  if (fixed !== undefined && path !== undefined) {
-    throw new ConfigError(
-      "Set exactly one of MIOT_DASHBOARD_TICKET_TENANT and " +
-        "MIOT_DASHBOARD_TICKET_TENANT_PATH. The first names the single " +
-        "tenant this emitter serves; the second reads it from the emitter's " +
-        "answer.",
-    );
-  }
-  if (fixed !== undefined) return { kind: "fixed", tenantId: fixed };
-  if (path !== undefined) return { kind: "path", path };
-  throw new ConfigError(
-    "Ticket authentication needs a tenant. Set MIOT_DASHBOARD_TICKET_TENANT " +
-      "when the emitter serves one tenant, or MIOT_DASHBOARD_TICKET_TENANT_PATH " +
-      "to read it from the validation response. There is no default: without " +
-      "one, every ticket holder would land in the same tenant.",
-  );
 }
 
 function readTicketAuth(env: ConfigEnv): TicketAuthConfig {
@@ -630,7 +620,6 @@ function readTicketAuth(env: ConfigEnv): TicketAuthConfig {
     method,
     present,
     serviceHeader,
-    tenant: readTicketTenant(env),
     claims: {
       userId: required(
         env,
@@ -663,6 +652,49 @@ function readTicketAuth(env: ConfigEnv): TicketAuthConfig {
     requestTimeoutMs: readWholeNumber(
       env,
       "MIOT_DASHBOARD_TICKET_TIMEOUT",
+      DEFAULT_LOOKUP_TIMEOUT_MS,
+      MAX_LOOKUP_TIMEOUT_MS,
+      "milliseconds",
+    ),
+  };
+}
+
+function readTenants(env: ConfigEnv): TenantConfig {
+  const url = trimmed(env.MIOT_DASHBOARD_TENANTS_URL);
+  if (url === undefined) return { kind: "seed" };
+
+  return {
+    kind: "http",
+    url,
+    method: readMethod(env, "MIOT_DASHBOARD_TENANTS_METHOD") ?? "GET",
+    entitledPath: trimmed(env.MIOT_DASHBOARD_TENANTS_ENTITLED_PATH),
+    serviceHeader: readHeaderCredential(
+      env,
+      "MIOT_DASHBOARD_TENANTS_SERVICE_HEADER",
+      "MIOT_DASHBOARD_TENANTS_SERVICE_VALUE",
+    ),
+    absentStatuses: readStatuses(
+      env,
+      "MIOT_DASHBOARD_TENANTS_ABSENT_STATUS",
+      [404],
+    ),
+    cacheSeconds: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_TENANTS_CACHE",
+      DEFAULT_LOOKUP_CACHE_SECONDS,
+      MAX_LOOKUP_CACHE_SECONDS,
+      "seconds",
+    ),
+    negativeCacheSeconds: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_TENANTS_NEGATIVE_CACHE",
+      DEFAULT_NEGATIVE_CACHE_SECONDS,
+      MAX_LOOKUP_CACHE_SECONDS,
+      "seconds",
+    ),
+    requestTimeoutMs: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_TENANTS_TIMEOUT",
       DEFAULT_LOOKUP_TIMEOUT_MS,
       MAX_LOOKUP_TIMEOUT_MS,
       "milliseconds",
@@ -774,8 +806,8 @@ function readAuth(env: ConfigEnv, host: string): AuthConfig {
 
   throw new ConfigError(
     "No identity provider is configured. Either set MIOT_DASHBOARD_JWT_ISSUER, " +
-      "MIOT_DASHBOARD_JWT_AUDIENCE, MIOT_DASHBOARD_JWT_TENANT_CLAIM and one key " +
-      "source (MIOT_DASHBOARD_JWT_JWKS_URL, MIOT_DASHBOARD_JWT_PUBLIC_KEY or " +
+      "MIOT_DASHBOARD_JWT_AUDIENCE and one key source " +
+      "(MIOT_DASHBOARD_JWT_JWKS_URL, MIOT_DASHBOARD_JWT_PUBLIC_KEY or " +
       "MIOT_DASHBOARD_JWT_SECRET) to verify bearer tokens; or set " +
       "MIOT_DASHBOARD_TICKET_HEADER and MIOT_DASHBOARD_TICKET_VALIDATE_URL to " +
       "validate tickets against their emitter; or opt into " +
@@ -792,7 +824,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
   if (!(STORE_KINDS as readonly string[]).includes(store)) {
     throw new ConfigError(
       `MIOT_DASHBOARD_STORE="${store}" is not supported. Choose one of: ` +
-        `${STORE_KINDS.join(", ")}. A PostgreSQL store lands with P2b-3.`,
+        `${STORE_KINDS.join(", ")}. A PostgreSQL store is planned.`,
     );
   }
 
@@ -800,7 +832,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
   if (!(DOCUMENTS_KINDS as readonly string[]).includes(documents)) {
     throw new ConfigError(
       `MIOT_DASHBOARD_DOCUMENTS="${documents}" is not supported. Choose one of: ` +
-        `${DOCUMENTS_KINDS.join(", ")}. Buckets land with P2b-3.`,
+        `${DOCUMENTS_KINDS.join(", ")}. Object storage is planned.`,
     );
   }
   if (store === "memory" && env.MIOT_DASHBOARD_DOCUMENTS !== undefined) {
@@ -817,6 +849,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     host,
     basePath: env.MIOT_DASHBOARD_BASE_PATH ?? "",
     auth,
+    tenants: readTenants(env),
     scopes: readScopes(env),
     store: store as StoreKind,
     sqlitePath: env.MIOT_DASHBOARD_SQLITE_PATH ?? DEFAULT_SQLITE_PATH,

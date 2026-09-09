@@ -10,13 +10,18 @@
 import { createServer, type Server } from "node:http";
 import { createDashboardHandler, pathnameOf } from "../http/handler";
 import type { AuditSink } from "../seams/audit";
-import type { IdentityResolver, ScopeAuthority } from "../seams/identity";
+import type {
+  IdentityResolver,
+  ScopeAuthority,
+  TenantAuthority,
+} from "../seams/identity";
 import type { ServerDashboardStore } from "../seams/store";
 import { createDocsHandler, DOCS_PATH, SPEC_PATH } from "./docs";
 import { toNodeListener } from "./node-adapter";
 
 export interface ServeOptions {
   identity: IdentityResolver<Request>;
+  tenants: TenantAuthority;
   scopes: ScopeAuthority;
   store: ServerDashboardStore;
   audit?: AuditSink;
@@ -88,6 +93,7 @@ function probeResponse(pathname: string): Response | null {
 export function createRequestHandler(options: ServeOptions) {
   const api = createDashboardHandler({
     identity: options.identity,
+    tenants: options.tenants,
     scopes: options.scopes,
     store: options.store,
     ...(options.audit ? { audit: options.audit } : {}),

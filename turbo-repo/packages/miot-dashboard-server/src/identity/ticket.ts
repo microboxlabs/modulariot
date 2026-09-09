@@ -3,9 +3,10 @@
  *
  * A JWT carries its own proof, so this server can check it alone. A ticket
  * carries none — it is a reference, and only the system that minted it knows
- * whether it is still good. So every field of the resulting identity comes
+ * whether it is still good. So every field of the resulting principal comes
  * from the emitter's answer, and a ticket this server cannot validate is a
- * ticket it refuses.
+ * ticket it refuses. The tenant is not among those fields: which tenant the
+ * caller is acting in belongs to the request, not the credential.
  *
  * Nothing here is vendor-specific. The header the caller uses, how the ticket
  * is presented to the emitter, and where the identity sits in the response are
@@ -30,7 +31,7 @@ import {
 } from "../net/endpoint";
 import { createLookupCache } from "../net/lookup-cache";
 import type {
-  DashboardIdentity,
+  DashboardPrincipal,
   DashboardPrincipalKind,
   IdentityResolver,
 } from "../seams/identity";
@@ -55,17 +56,6 @@ export interface TicketClaimPaths {
   displayName?: string;
 }
 
-/**
- * Where the tenant comes from. There is no third option and no default: a
- * ticket resolver that cannot say which tenant a caller is in would put every
- * caller in the same one.
- */
-export type TicketTenantSource =
-  /** The emitter serves one tenant, named here. */
-  | { kind: "fixed"; tenantId: string }
-  /** The emitter says which tenant, at this path in the response. */
-  | { kind: "path"; path: string };
-
 export interface TicketIdentityOptions {
   /**
    * The request header the caller presents the ticket in. Required: there is
@@ -85,7 +75,6 @@ export interface TicketIdentityOptions {
   present: TicketPresentation;
   /** Sent with every validation, for an emitter that also wants a service credential. */
   headers?: Readonly<Record<string, string>>;
-  tenant: TicketTenantSource;
   claims: TicketClaimPaths;
   /**
    * Statuses meaning "this ticket is not valid". Default `[401, 404]`, which
@@ -214,7 +203,7 @@ export function createTicketIdentityResolver(
     return null;
   };
 
-  function identityFrom(body: unknown): DashboardIdentity | null {
+  function principalFrom(body: unknown): DashboardPrincipal | null {
     const userId = readIdentifierAt(body, options.claims.userId);
     if (userId === null) {
       return reject(
@@ -222,21 +211,6 @@ export function createTicketIdentityResolver(
           `"${options.claims.userId}", which is where this server reads the ` +
           "user id from",
       );
-    }
-
-    let tenantId: string;
-    if (options.tenant.kind === "fixed") {
-      tenantId = options.tenant.tenantId;
-    } else {
-      const fromResponse = readIdentifierAt(body, options.tenant.path);
-      if (fromResponse === null) {
-        return reject(
-          "the ticket was accepted but the response carries no usable " +
-            `"${options.tenant.path}", which is where this server reads the ` +
-            "tenant from",
-        );
-      }
-      tenantId = fromResponse;
     }
 
     const groups =
@@ -250,7 +224,6 @@ export function createTicketIdentityResolver(
 
     return {
       userId,
-      tenantId,
       kind,
       // An upper bound, not a grant: the scope authority and the permission
       // assignments decide what this principal may do on a dashboard.
@@ -260,7 +233,7 @@ export function createTicketIdentityResolver(
     };
   }
 
-  const validate = createLookupCache<string, DashboardIdentity>({
+  const validate = createLookupCache<string, DashboardPrincipal>({
     ttlMs: (options.cacheSeconds ?? DEFAULT_CACHE_SECONDS) * 1000,
     negativeTtlMs:
       (options.negativeCacheSeconds ?? DEFAULT_NEGATIVE_CACHE_SECONDS) * 1000,
@@ -300,12 +273,12 @@ export function createTicketIdentityResolver(
       if (outcome.kind === "absent") {
         return reject("the ticket emitter did not accept the presented ticket");
       }
-      return identityFrom(outcome.body);
+      return principalFrom(outcome.body);
     },
   });
 
   return {
-    async resolve(request: Request): Promise<DashboardIdentity | null> {
+    async resolve(request: Request): Promise<DashboardPrincipal | null> {
       const ticket = ticketFrom(request, options.header, options.scheme);
       // No credential is an anonymous request, not a refusal. Reporting it
       // would log every unauthenticated request.

@@ -317,9 +317,9 @@ function page(basePath: string): string {
     tryItOutEnabled: true,
     // Deliberately off. Swagger UI persists credentials to localStorage, where
     // they outlive the tab and the browser restart, on the API's own origin.
-    // The spec declares a real bearer scheme, so once P2b lands a verifying
-    // resolver that would be a live token left behind for the next person on
-    // the machine. Re-authorizing after a reload is the cheaper cost.
+    // The spec declares a real bearer scheme and the resolver verifies it, so
+    // a persisted credential is a live token left behind for the next person
+    // on the machine. Re-authorizing after a reload is the cheaper cost.
     persistAuthorization: false,
     defaultModelsExpandDepth: 1,
     requestInterceptor: function (req) {

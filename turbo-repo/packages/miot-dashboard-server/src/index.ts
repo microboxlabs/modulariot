@@ -16,8 +16,10 @@ export {
   NO_CAPABILITIES,
   type DashboardCapabilities,
   type DashboardPrincipalKind,
+  type DashboardPrincipal,
   type DashboardIdentity,
   type IdentityResolver,
+  type TenantAuthority,
   type ScopeAuthority,
 } from "./seams/identity";
 

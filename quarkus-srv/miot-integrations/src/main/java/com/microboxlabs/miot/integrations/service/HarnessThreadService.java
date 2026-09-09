@@ -196,11 +196,9 @@ public class HarnessThreadService {
     public List<HarnessThreadMessage> listMessages(
             String tenantCode, String userId, String threadId, Long after, Integer limit) {
         HarnessThread thread = visibleThread(tenantCode, userId, threadId);
-        if (thread == null) {
-            return null;
-        }
-        long afterSeq = after == null || after < 0 ? 0 : after;
-        return repository.listMessages(thread.id(), afterSeq, boundMessagePage(limit));
+        return thread == null
+                ? null
+                : repository.listMessages(thread.id(), afterSeq(after), boundMessagePage(limit));
     }
 
     public HarnessThreadShare share(
@@ -273,6 +271,11 @@ public class HarnessThreadService {
                 thread.createdAt(),
                 thread.updatedAt(),
                 List.copyOf(principals));
+    }
+
+    /** A missing or negative cursor reads from the start. */
+    private static long afterSeq(Long after) {
+        return after == null || after < 0 ? 0 : after;
     }
 
     private static int boundMessagePage(Integer limit) {

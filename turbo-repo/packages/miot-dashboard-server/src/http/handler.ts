@@ -38,13 +38,19 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
   basePath?: string;
   cors?: CorsOptions;
   /**
-   * Called with anything thrown that this handler turned into a response.
+   * Called with what this handler did not choose: anything thrown that is not
+   * a `DashboardServerError`, and so became a bare 500. A 404, a 403 or a 409
+   * is an answer this code decided on and already says so on the wire, so it
+   * does not arrive here — nothing routine reads as a fault.
    *
-   * The wire envelope for an unexpected error is deliberately bare — an
-   * upstream exception is the most likely place for a connection string or a
-   * token to surface. That redaction leaves the operator with a 500 and no
-   * cause, so the error is handed here instead, where a host decides what to
-   * do with it. The standalone server logs it.
+   * The 500 envelope is deliberately bare, because an upstream exception is
+   * the most likely place a connection string or a token surfaces. That
+   * redaction leaves the operator with a 500 and no cause, so the error is
+   * handed here instead and a host decides what to do with it. The standalone
+   * server logs it.
+   *
+   * Anything this throws is swallowed: a failing logger must not turn a
+   * request that had an answer into one that does not.
    */
   onError?: (error: unknown, request: Request) => void;
 }
@@ -62,6 +68,19 @@ export function createDashboardHandler(
   options: DashboardHandlerOptions,
 ): DashboardHandler {
   const access = createAccessControl<Request>(options);
+
+  /**
+   * The hook belongs to the host, so it is not trusted to return. A logger
+   * that throws would otherwise escape the catch it was called from and turn
+   * a request that had an answer — the 500 envelope — into one that does not.
+   */
+  const reportError = (error: unknown, request: Request): void => {
+    try {
+      options.onError?.(error, request);
+    } catch {
+      // Nothing left to report it to.
+    }
+  };
   const basePath = normalizeBasePath(options.basePath);
 
   async function dispatch(
@@ -201,7 +220,7 @@ export function createDashboardHandler(
       // A DashboardServerError is an answer this code chose — a 404, a 403, a
       // 409 — and says so on the wire. Anything else reached here by
       // surprise, and is the only kind worth waking someone for.
-      if (!isDashboardServerError(error)) options.onError?.(error, request);
+      if (!isDashboardServerError(error)) reportError(error, request);
       return errorResponse(error);
     }
   };

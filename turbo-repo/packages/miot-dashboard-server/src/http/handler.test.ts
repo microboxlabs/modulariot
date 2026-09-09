@@ -701,6 +701,27 @@ describe("onError", () => {
     expect(seen).toEqual([]);
   });
 
+  it("still answers when the host's own hook throws", async () => {
+    // The hook is the host's code. A logger that throws must not cost the
+    // caller the response the handler had already decided on.
+    const store = createMemoryStore({ seed: seedFor() });
+    const handler = createDashboardHandler({
+      ...base(),
+      store: {
+        ...store,
+        load: () => Promise.reject(new Error("host unreachable")),
+      },
+      onError: () => {
+        throw new Error("the logger is down too");
+      },
+    });
+    const response = await get(handler, "fleet");
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "INTERNAL_ERROR",
+    });
+  });
+
   it("stays quiet for a refusal too", async () => {
     const seen: unknown[] = [];
     const handler = createDashboardHandler({

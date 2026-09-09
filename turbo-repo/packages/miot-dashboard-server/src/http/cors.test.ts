@@ -150,7 +150,9 @@ it.each([
   "ftp://host",
   "https://host/",
 ])("refuses unsafe CORS origin %s at construction", (origin) => {
+  // The message names the value: these arrive as one comma-separated
+  // variable, so "one of them is wrong" is not enough to act on.
   expect(() =>
     withCors(async () => new Response(), { origins: [origin] }),
-  ).toThrow("CORS origins");
+  ).toThrow(origin);
 });

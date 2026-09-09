@@ -208,6 +208,37 @@ describe("readServerConfig", () => {
     });
   });
 
+  describe("CORS", () => {
+    it("stays off unless origins are set", () => {
+      expect(readServerConfig(base).cors).toBeUndefined();
+    });
+
+    it("ignores the empty entry a trailing comma leaves", () => {
+      // The ordinary way to write an env list. Failing startup over an origin
+      // the operator never typed sends them looking at the one they did.
+      const { cors } = readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_CORS_ORIGINS: "https://a.example, https://b.example,",
+      });
+      expect(cors?.origins).toEqual(["https://a.example", "https://b.example"]);
+    });
+
+    it("refuses a list that turns CORS on with nothing in it", () => {
+      expect(() =>
+        readServerConfig({ ...base, MIOT_DASHBOARD_CORS_ORIGINS: " , " }),
+      ).toThrowError(/lists no origin/);
+    });
+
+    it("names the origin it rejected", () => {
+      expect(() =>
+        readServerConfig({
+          ...base,
+          MIOT_DASHBOARD_CORS_ORIGINS: "https://a.example,https://b.example/x",
+        }),
+      ).toThrowError(/https:\/\/b\.example\/x/);
+    });
+  });
+
   describe("documents", () => {
     const sqlite = { ...base, MIOT_DASHBOARD_STORE: "sqlite" };
 

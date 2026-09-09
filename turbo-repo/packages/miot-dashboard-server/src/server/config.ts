@@ -967,13 +967,26 @@ function readCors(env: ConfigEnv): CorsOptions | undefined {
   const raw = trimmed(env.MIOT_DASHBOARD_CORS_ORIGINS);
   if (raw === undefined) return undefined;
   const cors: CorsOptions = {
-    origins: raw.split(",").map((value) => value.trim()),
+    // Empty entries dropped, as the header list already does: a trailing
+    // comma is the ordinary way to write one of these and should not be a
+    // startup failure about an origin the operator never typed.
+    origins: raw
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
     credentials: readBoolean(env.MIOT_DASHBOARD_CORS_CREDENTIALS),
     headers: (env.MIOT_DASHBOARD_CORS_HEADERS ?? "")
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean),
   };
+  if (cors.origins.length === 0) {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_CORS_ORIGINS is set but lists no origin. Unset it to " +
+        "leave CORS off; an empty list turns it on and then refuses every " +
+        "browser that asks.",
+    );
+  }
   try {
     validateCors(cors);
   } catch (error) {

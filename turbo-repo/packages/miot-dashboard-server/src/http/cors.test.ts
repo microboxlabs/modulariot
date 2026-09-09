@@ -150,7 +150,20 @@ it.each([
   "ftp://host",
   "https://host/",
 ])("refuses unsafe CORS origin %s at construction", (origin) => {
+  // The message names the value: these arrive as one comma-separated
+  // variable, so "one of them is wrong" is not enough to act on.
   expect(() =>
     withCors(async () => new Response(), { origins: [origin] }),
-  ).toThrow("CORS origins");
+  ).toThrow(origin);
+});
+
+it("says the scheme is the problem when the scheme is the problem", () => {
+  // Not "no path, trailing slash or credentials" — none of those is why
+  // ftp:// was refused, and an operator would go looking for the wrong thing.
+  expect(() =>
+    withCors(async () => new Response(), { origins: ["ftp://host"] }),
+  ).toThrow(/must be http or https/);
+  expect(() =>
+    withCors(async () => new Response(), { origins: ["https://host/path"] }),
+  ).toThrow(/no path, trailing slash or credentials/);
 });

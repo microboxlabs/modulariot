@@ -10,7 +10,7 @@ import {
   getGroupsForPerson,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { RouteGuard } from "@/features/auth/components/route-guard";
-import { parseAllowedGroups } from "@/features/dashboard/types/dashboard.types";
+import { parseAllowedGroups } from "@microboxlabs/miot-dashboard-server";
 import { logger } from "@/lib/logger";
 import type { Session } from "next-auth";
 

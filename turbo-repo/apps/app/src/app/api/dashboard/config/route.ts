@@ -11,7 +11,7 @@ import {
   unauthorizedResponse,
   badRequestResponse,
 } from "@/app/api/utils/api-error-handler";
-import { parseAllowedGroups } from "@/features/dashboard/types/dashboard.types";
+import { parseAllowedGroups } from "@microboxlabs/miot-dashboard-server";
 import type { DashboardStorageSchema } from "@/features/dashboard/types/dashboard.types";
 
 function forbiddenResponse() {

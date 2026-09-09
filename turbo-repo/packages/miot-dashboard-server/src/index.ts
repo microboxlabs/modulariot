@@ -94,6 +94,7 @@ export {
 // ---- Capability policies ----
 export {
   createAllowedGroupsPolicy,
+  configAllowsGroups,
   parseAllowedGroups,
   ALLOWED_GROUPS_FIELD,
 } from "./access/allowed-groups";

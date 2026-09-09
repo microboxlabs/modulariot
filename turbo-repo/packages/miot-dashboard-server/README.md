@@ -500,6 +500,49 @@ One envelope, from every adapter:
 `reason` is present on `403` only. Foreign exceptions are reduced to a generic
 `500`; their messages never reach the wire. See `contract/openapi.yaml`.
 
+## Importing dashboards that already exist
+
+`importDashboards` moves an existing estate into this store once, so the store
+is single-version from the start and nothing downstream carries a reader for a
+shape that is no longer written.
+
+Where the dashboards come from is a seam. This package does not know what the
+host stored them in, and `npm run guard` stops it learning.
+
+```ts
+const result = await importDashboards({
+  source: myLegacySource, // read(): AsyncIterable<LegacyDashboard>
+  store: myDashboardStore,
+  dryRun: false, // defaults to true
+});
+```
+
+| It returns | Meaning                                                      |
+| ---------- | ------------------------------------------------------------ |
+| `imported` | written — or, on a dry run, what would be                    |
+| `skipped`  | already in the store, untouched                              |
+| `refused`  | could not be converted, with the reason; nothing was written |
+| `failed`   | converted, but the store rejected the write                  |
+
+Three things it will not do:
+
+- **Write without being asked.** `dryRun` defaults to true, so a forgotten
+  flag reports instead of migrating.
+- **Drop anything quietly.** A config it cannot convert is returned in
+  `refused` with what was wrong, so a run that left work behind says so.
+- **Overwrite.** A dashboard already present is skipped, and the write expects
+  revision zero, so one created between the check and the write is a conflict
+  rather than a silent replacement. Running it twice is safe.
+
+`createdBy` is carried across, not replaced by whoever ran the import: a store
+records it on the first write only, and the capability policy reads it to
+decide whether a Contributor may edit their own dashboard. Permission
+assignments are carried verbatim, and only after the config was written.
+
+There is no conversion from an older version, and the refusal says so by name
+rather than guessing. If a real older config turns up, the dry run is what
+finds it — and the conversion should be written against that example.
+
 ## Boundaries (enforced by `npm run guard`, part of `check-types`)
 
 - No React — this is a backend. The UI package's React entries are off-limits;

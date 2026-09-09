@@ -15,6 +15,13 @@
  * export const { GET, PUT, DELETE, OPTIONS } = createNextRouteHandlers({
  *   basePath: "/api/dashboards",
  *   identity, tenants, scopes, store,
+ *   // A host rule that only ever takes access away, e.g. the `allowedGroups`
+ *   // audience an existing config already carries. Optional; the key is
+ *   // `policy`, not `capabilities`.
+ *   policy: createAllowedGroupsPolicy(),
+ *   // Absent, no `Access-Control-*` header is set and a preflight has no
+ *   // answer — which reads as a broken endpoint rather than a missing option.
+ *   cors: { origins: ["https://app.example"] },
  * });
  * ```
  *

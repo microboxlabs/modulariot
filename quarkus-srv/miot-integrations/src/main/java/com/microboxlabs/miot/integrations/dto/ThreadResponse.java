@@ -12,6 +12,7 @@ import java.util.List;
 public record ThreadResponse(
         String id,
         String title,
+        String summary,
         String ownerId,
         boolean owned,
         OffsetDateTime expiresAt,

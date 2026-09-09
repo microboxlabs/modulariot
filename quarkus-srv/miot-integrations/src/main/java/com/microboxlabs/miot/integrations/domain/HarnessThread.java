@@ -17,6 +17,8 @@ public record HarnessThread(
         String tenantCode,
         String ownerId,
         String title,
+        /** Compacted context the harness produced for this conversation; null until it compacts. */
+        String summary,
         OffsetDateTime expiresAt,
         OffsetDateTime lastMessageAt,
         OffsetDateTime createdAt,

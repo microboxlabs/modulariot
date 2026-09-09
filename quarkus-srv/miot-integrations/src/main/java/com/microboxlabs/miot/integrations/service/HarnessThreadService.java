@@ -48,6 +48,14 @@ public class HarnessThreadService {
 
     private static final int MAX_FORMAT_LENGTH = 32;
 
+    /** Matches what the harness accepts back; its own summaries are a few
+     * hundred words, so anything near this is not one of them. */
+    private static final int MAX_SUMMARY_LENGTH = 8_000;
+
+    private static final int DEFAULT_MESSAGE_PAGE = 500;
+
+    private static final int MAX_MESSAGE_PAGE = 1_000;
+
     private static final int DEFAULT_LIMIT = 100;
 
     private static final int MAX_LIMIT = 200;
@@ -103,6 +111,7 @@ public class HarnessThreadService {
                 tenantCode,
                 userId,
                 truncateTitle(request.title()),
+                null,
                 request.expiresAt(),
                 null,
                 null,
@@ -134,7 +143,8 @@ public class HarnessThreadService {
                 userId,
                 truncateTitle(request.title()),
                 request.expiresAt(),
-                Boolean.TRUE.equals(request.clearExpiry()));
+                Boolean.TRUE.equals(request.clearExpiry()),
+                optionalText(request.summary(), "summary", MAX_SUMMARY_LENGTH));
         return saved == null ? null : toResponse(saved, userId, repository.listShares(saved.id()));
     }
 
@@ -159,7 +169,7 @@ public class HarnessThreadService {
         HarnessThread existing = repository.find(id, tenantCode);
         if (existing == null) {
             HarnessThread created = repository.upsert(new HarnessThread(
-                    id, tenantCode, userId, null, null, null, null, null));
+                    id, tenantCode, userId, null, null, null, null, null, null));
             if (created == null) {
                 return null;
             }
@@ -174,13 +184,23 @@ public class HarnessThreadService {
                 optionalText(request.parentId(), "parentId", 128),
                 format(request.format()),
                 payload,
+                0,
                 null));
     }
 
-    /** The thread's messages in append order, or null when it is not visible. */
-    public List<HarnessThreadMessage> listMessages(String tenantCode, String userId, String threadId) {
+    /**
+     * One page of the thread's messages in append order, or null when it is
+     * not visible. {@code after} is the last seq the caller already holds; a
+     * page shorter than {@code limit} is the last one.
+     */
+    public List<HarnessThreadMessage> listMessages(
+            String tenantCode, String userId, String threadId, Long after, Integer limit) {
         HarnessThread thread = visibleThread(tenantCode, userId, threadId);
-        return thread == null ? null : repository.listMessages(thread.id());
+        if (thread == null) {
+            return null;
+        }
+        long afterSeq = after == null || after < 0 ? 0 : after;
+        return repository.listMessages(thread.id(), afterSeq, boundMessagePage(limit));
     }
 
     public HarnessThreadShare share(
@@ -245,6 +265,7 @@ public class HarnessThreadService {
         return new ThreadResponse(
                 thread.id(),
                 thread.title(),
+                thread.summary(),
                 thread.ownerId(),
                 owned,
                 thread.expiresAt(),
@@ -252,6 +273,13 @@ public class HarnessThreadService {
                 thread.createdAt(),
                 thread.updatedAt(),
                 List.copyOf(principals));
+    }
+
+    private static int boundMessagePage(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_MESSAGE_PAGE;
+        }
+        return Math.min(limit, MAX_MESSAGE_PAGE);
     }
 
     private static int boundLimit(Integer limit) {

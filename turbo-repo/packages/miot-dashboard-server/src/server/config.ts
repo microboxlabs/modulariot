@@ -871,7 +871,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
   if (!(STORE_KINDS as readonly string[]).includes(store)) {
     throw new ConfigError(
       `MIOT_DASHBOARD_STORE="${store}" is not supported. Choose one of: ` +
-        `${STORE_KINDS.join(", ")}. A PostgreSQL store lands with P2b-3.`,
+        `${STORE_KINDS.join(", ")}. A PostgreSQL store is planned.`,
     );
   }
 
@@ -879,7 +879,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
   if (!(DOCUMENTS_KINDS as readonly string[]).includes(documents)) {
     throw new ConfigError(
       `MIOT_DASHBOARD_DOCUMENTS="${documents}" is not supported. Choose one of: ` +
-        `${DOCUMENTS_KINDS.join(", ")}. Buckets land with P2b-3.`,
+        `${DOCUMENTS_KINDS.join(", ")}. Object storage is planned.`,
     );
   }
   if (store === "memory" && env.MIOT_DASHBOARD_DOCUMENTS !== undefined) {

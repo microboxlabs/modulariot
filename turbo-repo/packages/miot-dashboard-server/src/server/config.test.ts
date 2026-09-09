@@ -757,3 +757,14 @@ describe("readServerConfig: ticket presentation and service credential", () => {
     ).toMatchObject({ absentStatuses: [404] });
   });
 });
+
+it("refuses an unbounded PostgreSQL connection wait", () => {
+  expect(() =>
+    readServerConfig({
+      MIOT_DASHBOARD_INSECURE_AUTH: "true",
+      MIOT_DASHBOARD_STORE: "postgres",
+      MIOT_DASHBOARD_POSTGRES_URL: "postgres://localhost/test",
+      MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT: "0",
+    }),
+  ).toThrow("must be at least 1");
+});

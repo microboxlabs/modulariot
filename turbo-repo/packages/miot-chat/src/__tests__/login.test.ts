@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from "vitest";
 import { Command } from "commander";
 import { registerLoginCommand } from "../commands/login.js";
 
@@ -37,10 +45,8 @@ function createProgram(): Command {
 }
 
 describe("login command", () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let exitSpy: ReturnType<typeof vi.spyOn<any, any>>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let stderrSpy: ReturnType<typeof vi.spyOn<any, any>>;
+  let exitSpy: MockInstance<typeof process.exit>;
+  let stderrSpy: MockInstance<typeof process.stderr.write>;
 
   beforeEach(() => {
     vi.spyOn(console, "error").mockImplementation(() => {});

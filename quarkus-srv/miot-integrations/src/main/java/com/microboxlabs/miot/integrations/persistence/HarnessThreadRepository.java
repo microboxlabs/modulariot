@@ -37,7 +37,7 @@ public class HarnessThreadRepository {
     private static final String CREATED_AT = "created_at";
 
     private static final String THREAD_COLUMNS =
-            "id, tenant_code, owner_id, title, expires_at, last_message_at, created_at, updated_at";
+            "id, tenant_code, owner_id, title, summary, expires_at, last_message_at, created_at, updated_at";
 
     /** A thread is visible while it is neither soft-deleted nor past its expiry. */
     private static final String LIVE = "deleted_at IS NULL AND (expires_at IS NULL OR expires_at > now())";
@@ -72,7 +72,7 @@ public class HarnessThreadRepository {
             LIMIT $3""".formatted(THREAD_COLUMNS, LIVE);
 
     private static final String LIST_SHARED_WITH = """
-            SELECT t.id, t.tenant_code, t.owner_id, t.title, t.expires_at,
+            SELECT t.id, t.tenant_code, t.owner_id, t.title, t.summary, t.expires_at,
                    t.last_message_at, t.created_at, t.updated_at
             FROM miot_integrations.harness_thread t
             JOIN miot_integrations.harness_thread_share s ON s.thread_id = t.id
@@ -90,6 +90,7 @@ public class HarnessThreadRepository {
             UPDATE miot_integrations.harness_thread
             SET title = COALESCE($3, title),
                 expires_at = CASE WHEN $5 THEN NULL ELSE COALESCE($4, expires_at) END,
+                summary = COALESCE($6, summary),
                 updated_at = now()
             WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL
             RETURNING %s""".formatted(THREAD_COLUMNS);
@@ -114,21 +115,24 @@ public class HarnessThreadRepository {
                     SET parent_id = EXCLUDED.parent_id,
                         format = EXCLUDED.format,
                         payload = EXCLUDED.payload
-                RETURNING thread_id, id, parent_id, format, payload, created_at
+                RETURNING thread_id, id, parent_id, format, payload, seq, created_at
             ), touched AS (
                 UPDATE miot_integrations.harness_thread
                 SET last_message_at = now(), updated_at = now()
                 WHERE id = $1
             )
-            SELECT thread_id, id, parent_id, format, payload, created_at FROM upserted""";
+            SELECT thread_id, id, parent_id, format, payload, seq, created_at FROM upserted""";
 
     // `seq` rather than created_at: a run appends several messages inside the
-    // same millisecond and the client replays them in append order.
+    // same millisecond and the client replays them in append order. It is also
+    // the page cursor — a client reads from the last seq it holds, so a page
+    // boundary never repeats or skips a message.
     private static final String LIST_MESSAGES = """
-            SELECT thread_id, id, parent_id, format, payload, created_at
+            SELECT thread_id, id, parent_id, format, payload, seq, created_at
             FROM miot_integrations.harness_thread_message
-            WHERE thread_id = $1
-            ORDER BY seq ASC""";
+            WHERE thread_id = $1 AND seq > $2
+            ORDER BY seq ASC
+            LIMIT $3""";
 
     private static final String UPSERT_SHARE = """
             INSERT INTO miot_integrations.harness_thread_share (
@@ -215,13 +219,19 @@ public class HarnessThreadRepository {
     /** Applies a partial update. Returns null when the caller does not own the
      * thread, since the owner guard lives in the WHERE clause. */
     public HarnessThread update(
-            String threadId, String ownerId, String title, OffsetDateTime expiresAt, boolean clearExpiry) {
+            String threadId,
+            String ownerId,
+            String title,
+            OffsetDateTime expiresAt,
+            boolean clearExpiry,
+            String summary) {
         Tuple params = Tuple.tuple()
                 .addUUID(UUID.fromString(threadId))
                 .addString(ownerId)
                 .addString(title)
                 .addValue(expiresAt)
-                .addBoolean(clearExpiry);
+                .addBoolean(clearExpiry)
+                .addString(summary);
         return firstThread(execute(UPDATE_THREAD, params));
     }
 
@@ -241,8 +251,9 @@ public class HarnessThreadRepository {
         return firstMessage(execute(UPSERT_MESSAGE, params));
     }
 
-    public List<HarnessThreadMessage> listMessages(String threadId) {
-        RowSet<Row> rows = execute(LIST_MESSAGES, Tuple.of(UUID.fromString(threadId)));
+    /** Messages after {@code afterSeq} in append order, at most {@code limit}. */
+    public List<HarnessThreadMessage> listMessages(String threadId, long afterSeq, int limit) {
+        RowSet<Row> rows = execute(LIST_MESSAGES, Tuple.of(UUID.fromString(threadId), afterSeq, limit));
         List<HarnessThreadMessage> out = new ArrayList<>();
         for (Row row : rows) {
             out.add(mapMessage(row));
@@ -336,6 +347,7 @@ public class HarnessThreadRepository {
                 row.getString("tenant_code"),
                 row.getString("owner_id"),
                 row.getString("title"),
+                row.getString("summary"),
                 row.getOffsetDateTime("expires_at"),
                 row.getOffsetDateTime("last_message_at"),
                 row.getOffsetDateTime(CREATED_AT),
@@ -349,6 +361,7 @@ public class HarnessThreadRepository {
                 row.getString("parent_id"),
                 row.getString("format"),
                 toMap(row.getJsonObject("payload")),
+                row.getLong("seq"),
                 row.getOffsetDateTime(CREATED_AT));
     }
 

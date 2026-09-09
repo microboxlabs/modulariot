@@ -5249,6 +5249,8 @@
         "deleteCount": "Eliminar ({count})",
         "deleteChat": "Eliminar chat",
         "loading": "Cargando…",
+        "loadFailed": "No se pudieron cargar los chats guardados.",
+        "retry": "Reintentar",
         "share": "Compartir chat",
         "sharePlaceholder": "correo de la persona",
         "shareSubmit": "Compartir",

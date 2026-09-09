@@ -39,7 +39,7 @@ class HarnessThreadServiceTest {
         String id = newThread(service, OWNER);
 
         assertNull(service.get(TENANT, OTHER, id), "another user must not see the thread");
-        assertNull(service.listMessages(TENANT, OTHER, id));
+        assertNull(service.listMessages(TENANT, OTHER, id, null, null));
         assertTrue(service.listVisible(TENANT, OTHER, null).isEmpty());
     }
 
@@ -53,11 +53,11 @@ class HarnessThreadServiceTest {
         assertNotNull(service.share(TENANT, OWNER, id, new ThreadShareRequest(OTHER, "read")));
 
         assertNotNull(service.get(TENANT, OTHER, id), "a shared thread is readable");
-        assertEquals(1, service.listMessages(TENANT, OTHER, id).size());
+        assertEquals(1, service.listMessages(TENANT, OTHER, id, null, null).size());
         assertNull(
                 service.appendMessage(TENANT, OTHER, id, new ThreadMessageRequest("m2", "m1", null, PAYLOAD)),
                 "a reader must not append to someone else's conversation");
-        assertNull(service.patch(TENANT, OTHER, id, new ThreadPatchRequest("mine now", null, null)));
+        assertNull(service.patch(TENANT, OTHER, id, new ThreadPatchRequest("mine now", null, null, null)));
         assertFalse(service.delete(TENANT, OTHER, id));
     }
 
@@ -188,9 +188,9 @@ class HarnessThreadServiceTest {
         assertNull(service.create(TENANT, OWNER, new ThreadUpsertRequest(id, "t", null)).expiresAt(),
                 "threads do not expire unless someone says so");
 
-        assertEquals(expiry, service.patch(TENANT, OWNER, id, new ThreadPatchRequest(null, expiry, null))
+        assertEquals(expiry, service.patch(TENANT, OWNER, id, new ThreadPatchRequest(null, expiry, null, null))
                 .expiresAt());
-        assertNull(service.patch(TENANT, OWNER, id, new ThreadPatchRequest(null, null, true)).expiresAt(),
+        assertNull(service.patch(TENANT, OWNER, id, new ThreadPatchRequest(null, null, true, null)).expiresAt(),
                 "clearExpiry is how a caller asks for 'never'");
     }
 
@@ -235,6 +235,63 @@ class HarnessThreadServiceTest {
         assertEquals("y".repeat(280), saved.title());
     }
 
+    @Test
+    void theSummaryRoundTripsAndSurvivesUnrelatedPatches() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String id = newThread(service, OWNER);
+
+        assertNull(service.get(TENANT, OWNER, id).summary(), "nothing compacted yet");
+        assertEquals("so far: trips", service.patch(TENANT, OWNER, id,
+                new ThreadPatchRequest(null, null, null, "so far: trips")).summary());
+        assertEquals("so far: trips", service.patch(TENANT, OWNER, id,
+                new ThreadPatchRequest("renamed", null, null, null)).summary(),
+                "a patch that says nothing about the summary leaves it alone");
+        assertEquals("so far: trips", service.listVisible(TENANT, OWNER, null).get(0).summary());
+    }
+
+    @Test
+    void aSummaryLongerThanTheHarnessAcceptsIsRefused() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String id = newThread(service, OWNER);
+        var request = new ThreadPatchRequest(null, null, null, "s".repeat(8_001));
+
+        assertThrows(IllegalArgumentException.class, () -> service.patch(TENANT, OWNER, id, request));
+    }
+
+    @Test
+    void theSummaryLimitCountsCharactersTheWayTheHarnessDoes() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String id = newThread(service, OWNER);
+        // 4,001 emoji: 8,002 UTF-16 units but 4,001 characters, under the limit.
+        String summary = "\uD83D\uDE80".repeat(4_001);
+
+        assertEquals(summary, service.patch(TENANT, OWNER, id,
+                new ThreadPatchRequest(null, null, null, summary)).summary());
+    }
+
+    @Test
+    void messagesPageFromTheLastSeqTheCallerHolds() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String id = newThread(service, OWNER);
+        for (int i = 1; i <= 5; i++) {
+            service.appendMessage(TENANT, OWNER, id, new ThreadMessageRequest("m" + i, null, null, PAYLOAD));
+        }
+
+        List<HarnessThreadMessage> first = service.listMessages(TENANT, OWNER, id, null, 2);
+        assertEquals(List.of("m1", "m2"), first.stream().map(HarnessThreadMessage::id).toList());
+
+        long cursor = first.get(first.size() - 1).seq();
+        List<HarnessThreadMessage> second = service.listMessages(TENANT, OWNER, id, cursor, 2);
+        assertEquals(List.of("m3", "m4"), second.stream().map(HarnessThreadMessage::id).toList());
+
+        List<HarnessThreadMessage> last = service.listMessages(TENANT, OWNER, id, second.get(1).seq(), 2);
+        assertEquals(List.of("m5"), last.stream().map(HarnessThreadMessage::id).toList(),
+                "a short page is the last one");
+
+        assertEquals(5, service.listMessages(TENANT, OWNER, id, -7L, 5_000).size(),
+                "a negative cursor reads from the start and an oversized page is capped, not refused");
+    }
+
     private static String newThread(HarnessThreadService service, String owner) {
         String id = UUID.randomUUID().toString();
         service.create(TENANT, owner, new ThreadUpsertRequest(id, "chat", null));
@@ -247,6 +304,7 @@ class HarnessThreadServiceTest {
         final Map<String, List<HarnessThreadMessage>> messages = new LinkedHashMap<>();
         final Map<String, List<HarnessThreadShare>> shares = new LinkedHashMap<>();
         int batchedShareLookups;
+        long nextSeq;
 
         FakeRepository() {
             super(null);
@@ -263,7 +321,7 @@ class HarnessThreadServiceTest {
                 HarnessThread renamed = new HarnessThread(
                         existing.id(), existing.tenantCode(), existing.ownerId(),
                         thread.title() == null ? existing.title() : thread.title(),
-                        existing.expiresAt(), existing.lastMessageAt(),
+                        existing.summary(), existing.expiresAt(), existing.lastMessageAt(),
                         existing.createdAt(), OffsetDateTime.now());
                 threads.put(renamed.id(), renamed);
                 return renamed;
@@ -271,7 +329,7 @@ class HarnessThreadServiceTest {
             OffsetDateTime now = OffsetDateTime.now();
             HarnessThread created = new HarnessThread(
                     thread.id(), thread.tenantCode(), thread.ownerId(), thread.title(),
-                    thread.expiresAt(), now, now, now);
+                    thread.summary(), thread.expiresAt(), now, now, now);
             threads.put(created.id(), created);
             return created;
         }
@@ -304,7 +362,7 @@ class HarnessThreadServiceTest {
         @Override
         public HarnessThread update(
                 String threadId, String ownerId, String title,
-                OffsetDateTime expiresAt, boolean clearExpiry) {
+                OffsetDateTime expiresAt, boolean clearExpiry, String summary) {
             HarnessThread thread = threads.get(threadId);
             if (thread == null || !Objects.equals(thread.ownerId(), ownerId)) {
                 return null;
@@ -312,6 +370,7 @@ class HarnessThreadServiceTest {
             HarnessThread updated = new HarnessThread(
                     thread.id(), thread.tenantCode(), thread.ownerId(),
                     title == null ? thread.title() : title,
+                    summary == null ? thread.summary() : summary,
                     clearExpiry ? null : (expiresAt == null ? thread.expiresAt() : expiresAt),
                     thread.lastMessageAt(), thread.createdAt(), OffsetDateTime.now());
             threads.put(updated.id(), updated);
@@ -330,13 +389,21 @@ class HarnessThreadServiceTest {
 
         @Override
         public HarnessThreadMessage appendMessage(HarnessThreadMessage message) {
-            messages.computeIfAbsent(message.threadId(), k -> new ArrayList<>()).add(message);
-            return message;
+            List<HarnessThreadMessage> stored = messages.computeIfAbsent(
+                    message.threadId(), k -> new ArrayList<>());
+            HarnessThreadMessage numbered = new HarnessThreadMessage(
+                    message.threadId(), message.id(), message.parentId(), message.format(),
+                    message.payload(), ++nextSeq, message.createdAt());
+            stored.add(numbered);
+            return numbered;
         }
 
         @Override
-        public List<HarnessThreadMessage> listMessages(String threadId) {
-            return messages.getOrDefault(threadId, List.of());
+        public List<HarnessThreadMessage> listMessages(String threadId, long afterSeq, int limit) {
+            return messages.getOrDefault(threadId, List.of()).stream()
+                    .filter(m -> m.seq() > afterSeq)
+                    .limit(limit)
+                    .toList();
         }
 
         @Override

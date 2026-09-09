@@ -134,6 +134,7 @@ const HarnessChatPanel: FC<{
   const [activeId, setActiveId] = useState(() => sessions[0].id);
   const [view, setView] = useState<View>("chat");
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [historyFailed, setHistoryFailed] = useState(false);
   // Only the sessions the user has actually opened carry a runtime. Every
   // mounted session loads its own transcript, so mounting all of them would
   // fetch the whole history on boot; keeping the opened ones mounted is what
@@ -149,20 +150,32 @@ const HarnessChatPanel: FC<{
 
   // Stored threads land under the fresh session the panel opens with, so the
   // user starts on an empty chat with their history one click away. A store
-  // that cannot be reached leaves the panel exactly as it behaved before it
-  // had one: this session only, forgotten on reload.
-  useEffect(() => {
-    const controller = new AbortController();
-    listThreads(controller.signal)
+  // that cannot be reached leaves the panel working on this session alone —
+  // but it says so, because "you have no past chats" and "we could not read
+  // them" are the same empty list otherwise.
+  const loadHistory = useCallback((signal?: AbortSignal) => {
+    setIsLoadingHistory(true);
+    setHistoryFailed(false);
+    return listThreads(signal)
       .then((threads) => {
-        if (controller.signal.aborted || !threads?.length) return;
-        setSessions((prev) => mergeStoredThreads(prev, threads));
+        if (signal?.aborted) return;
+        // null is the store reporting a failure; [] is a user with no threads.
+        if (threads === null) {
+          setHistoryFailed(true);
+          return;
+        }
+        if (threads.length > 0) setSessions((prev) => mergeStoredThreads(prev, threads));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setIsLoadingHistory(false);
+        if (!signal?.aborted) setIsLoadingHistory(false);
       });
-    return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadHistory(controller.signal);
+    return () => controller.abort();
+  }, [loadHistory]);
 
   const newChat = useCallback(
     (initialMessage: string | null = null) => {
@@ -367,6 +380,8 @@ const HarnessChatPanel: FC<{
             sessions={sessions}
             activeId={activeId}
             isLoading={isLoadingHistory}
+            hasFailed={historyFailed}
+            onRetry={() => void loadHistory()}
             onSelect={selectSession}
             onDelete={(ids) => deleteSessions(ids)}
             onShare={shareSession}

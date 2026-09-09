@@ -11,12 +11,25 @@ export const HistoryList: FC<{
   sessions: Session[];
   activeId: string;
   isLoading: boolean;
+  hasFailed: boolean;
+  onRetry: () => void;
   onSelect: (id: string) => void;
   onDelete: (ids: string[]) => void;
   onShare: (id: string, principal: string) => void;
   onUnshare: (id: string, principal: string) => void;
   locale: string;
-}> = ({ sessions, activeId, isLoading, onSelect, onDelete, onShare, onUnshare, locale }) => {
+}> = ({
+  sessions,
+  activeId,
+  isLoading,
+  hasFailed,
+  onRetry,
+  onSelect,
+  onDelete,
+  onShare,
+  onUnshare,
+  locale,
+}) => {
   const tr = useHarnessChatTr();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [shareOpenId, setShareOpenId] = useState<string | null>(null);
@@ -83,6 +96,22 @@ export const HistoryList: FC<{
           <p className="px-2 py-3 text-[11px] text-gray-400">
             {tr("harnessChat.ui.history.loading")}
           </p>
+        )}
+        {/* Stored chats are missing from the list below, not absent. Saying so
+            beats an empty panel that reads as "you have no past chats". */}
+        {hasFailed && !isLoading && (
+          <div className="px-2 py-3">
+            <p className="text-[11px] text-amber-600 dark:text-amber-500">
+              {tr("harnessChat.ui.history.loadFailed")}
+            </p>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-1 text-[11px] font-medium text-blue-600 hover:underline dark:text-blue-400"
+            >
+              {tr("harnessChat.ui.history.retry")}
+            </button>
+          </div>
         )}
         {sessions.map((session) => (
           <div key={session.id} className="flex flex-col">

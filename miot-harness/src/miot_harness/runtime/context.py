@@ -69,6 +69,9 @@ class HarnessContext(BaseModel):
 # than after the fact: pydantic builds every nested turn before the supervisor
 # gets to slice, so an unbounded list is an unbounded parse.
 MAX_CONVERSATION_HISTORY_TURNS = 50
+# A compacted summary the caller stored from an earlier run's record. Sized
+# well above what the summarizer produces so a legitimate one never trips it.
+MAX_CONVERSATION_SUMMARY_CHARS = 8_000
 MAX_CONVERSATION_MESSAGE_CHARS = 20_000
 
 
@@ -116,6 +119,13 @@ class UserRequest(BaseModel):
     # that the user could not have typed themselves.
     conversation_history: list[ConversationTurnInput] = Field(
         default_factory=list, max_length=MAX_CONVERSATION_HISTORY_TURNS
+    )
+    # The summary the harness produced when it compacted this conversation,
+    # handed back with the replay. Compaction clears the turns it covered, so
+    # a replay alone cannot restore what a restarted process lost; this can.
+    # Applied only when the history is seeded, like the turns.
+    conversation_summary: str | None = Field(
+        default=None, max_length=MAX_CONVERSATION_SUMMARY_CHARS
     )
     debug: bool = False
     # Optional skill to activate for this run. When set and resolvable,

@@ -229,3 +229,65 @@ def test_system_prompt_omits_data_query_without_curated_catalog() -> None:
     assert "DATA_AGENTIC" in prompt
     assert "DATA_META" in prompt
     assert FAKE_PROFILE.display_name in prompt
+
+
+def test_routing_input_is_the_bare_message_without_context() -> None:
+    from miot_harness.runtime.intent_router import render_routing_input
+
+    assert render_routing_input("y bueno", ()) == "y bueno"
+
+
+def test_routing_input_shows_prior_turns_and_marks_the_message() -> None:
+    from miot_harness.runtime.conversation import ConversationTurn
+    from miot_harness.runtime.intent_router import render_routing_input
+
+    rendered = render_routing_input(
+        "and last week?",
+        [ConversationTurn(user_message="how many trips today?", assistant_answer="41")],
+    )
+    assert rendered.startswith("Previous turns, for context only:")
+    assert "User: how many trips today?" in rendered
+    assert "Assistant: 41" in rendered
+    assert rendered.endswith("Classify this message: and last week?")
+
+
+def test_routing_input_clips_long_answers() -> None:
+    from miot_harness.runtime.conversation import ConversationTurn
+    from miot_harness.runtime.intent_router import render_routing_input
+
+    rendered = render_routing_input(
+        "more",
+        [ConversationTurn(user_message="q", assistant_answer="x" * 2_000)],
+    )
+    assert "x" * 301 not in rendered
+    assert "…" in rendered
+
+
+@pytest.mark.asyncio
+async def test_router_sends_prior_turns_to_the_model() -> None:
+    from langchain_core.messages import BaseMessage
+
+    from miot_harness.runtime.conversation import ConversationTurn
+
+    seen: list[list[BaseMessage]] = []
+
+    class RecordingModel(FakeListChatModel):
+        def _call(self, messages: list[BaseMessage], *args: object, **kwargs: object) -> str:
+            seen.append(list(messages))
+            return super()._call(messages, *args, **kwargs)  # type: ignore[arg-type]
+
+    router = LLMIntentRouter(
+        RecordingModel(responses=[_scripted_json("DATA_AGENTIC", 0.9)]),
+        keyword_fallback=_nexo_fallback(),
+    )
+    result = await router.route(
+        "and last week?",
+        prior_turns=[ConversationTurn(user_message="trips today?", assistant_answer="41")],
+    )
+
+    assert result.route is HarnessRoute.DATA_AGENTIC
+    assert len(seen) == 1
+    human = seen[0][-1]
+    assert isinstance(human.content, str)
+    assert "User: trips today?" in human.content
+    assert human.content.endswith("Classify this message: and last week?")

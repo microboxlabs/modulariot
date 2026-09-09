@@ -5249,6 +5249,8 @@
         "deleteCount": "Delete ({count})",
         "deleteChat": "Delete chat",
         "loading": "Loading…",
+        "loadFailed": "Could not load your saved chats.",
+        "retry": "Try again",
         "share": "Share chat",
         "sharePlaceholder": "the person's email",
         "shareSubmit": "Share",

@@ -17,12 +17,14 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from miot_harness.datasource.provider import DataSourceProfile
+from miot_harness.runtime.conversation import ConversationTurn
 from miot_harness.runtime.router import HarnessRoute, IntentRouter, RouteResult
 
 logger = logging.getLogger(__name__)
@@ -155,6 +157,30 @@ def _parse_decision(raw: str) -> _RouterDecision | None:
     return _RouterDecision(route=route, confidence=confidence, reasoning=reasoning)
 
 
+# Per-turn cap inside the routing prompt. Enough to see what the exchange
+# was about; the router does not need the answer's body.
+_CONTEXT_TURN_CHARS = 300
+
+
+def render_routing_input(message: str, prior_turns: Sequence[ConversationTurn]) -> str:
+    if not prior_turns:
+        return message
+    lines = ["Previous turns, for context only:"]
+    for turn in prior_turns:
+        lines.append(f"User: {_clip(turn.user_message)}")
+        lines.append(f"Assistant: {_clip(turn.assistant_answer)}")
+    lines.append("")
+    lines.append(f"Classify this message: {message}")
+    return "\n".join(lines)
+
+
+def _clip(text: str) -> str:
+    text = " ".join(text.split())
+    if len(text) <= _CONTEXT_TURN_CHARS:
+        return text
+    return text[:_CONTEXT_TURN_CHARS] + "…"
+
+
 class LLMIntentRouter:
     """Async LLM-driven router with a deterministic keyword fallback.
 
@@ -177,12 +203,22 @@ class LLMIntentRouter:
         self._fallback = keyword_fallback or IntentRouter()
         self._system_prompt = _render_system_prompt(profile)
 
-    async def route(self, message: str) -> RouteResult:
+    async def route(
+        self,
+        message: str,
+        *,
+        prior_turns: Sequence[ConversationTurn] = (),
+    ) -> RouteResult:
+        """Classify `message`. `prior_turns` are the exchanges just before
+        it, so a follow-up that names nothing on its own ("and last week?")
+        is routed by what it follows. The keyword fallback sees the bare
+        message either way."""
+
         try:
             response = await self._model.ainvoke(
                 [
                     SystemMessage(content=self._system_prompt),
-                    HumanMessage(content=message),
+                    HumanMessage(content=render_routing_input(message, prior_turns)),
                 ]
             )
         except Exception as exc:  # noqa: BLE001 — fallback on ANY model failure

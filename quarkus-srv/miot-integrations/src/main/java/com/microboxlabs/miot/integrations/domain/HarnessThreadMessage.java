@@ -18,5 +18,7 @@ public record HarnessThreadMessage(
         String parentId,
         String format,
         Map<String, Object> payload,
+        /** Append position within the thread; 0 for a message not yet stored. */
+        long seq,
         OffsetDateTime createdAt) {
 }

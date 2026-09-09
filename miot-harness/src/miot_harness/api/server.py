@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import get_chat_model
+from miot_harness.agents.conversation_summarizer import build_conversation_summarizer
 from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
 from miot_harness.api.identity import (
@@ -143,6 +144,16 @@ def _make_lifespan(
         # decide whether to keep listening or treat the run as final.
         app.state.harness = harness
         app.state.event_bus = harness.event_bus
+        # Conversation compaction is independent of the datasource: turns
+        # accumulate on the direct and disabled paths too. Without a model
+        # the history just keeps growing, as before.
+        try:
+            harness.conversation_summarizer = build_conversation_summarizer(
+                get_chat_model(settings.agents_summarizer_model)
+            )
+        except Exception as exc:  # noqa: BLE001
+            harness.conversation_summarizer = None
+            logger.warning("Conversation compaction disabled: %s", exc)
         app.state.in_flight = {}
         # Parallel map from in-flight run_id → tenant_id, populated by
         # /runs:start and cleared in the task's done-callback. Lets

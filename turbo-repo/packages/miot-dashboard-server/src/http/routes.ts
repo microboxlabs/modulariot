@@ -29,8 +29,9 @@ export interface RouteMatch {
  * Match a pathname against the contract's routes.
  *
  * Segments are decoded, so a scope or slug containing a slash survives the
- * round trip as long as the caller percent-encoded it. Empty segments are
- * refused rather than treated as a wildcard.
+ * round trip as long as the caller percent-encoded it. A decoded value is
+ * refused when it is empty, or when it holds a `.` or `..` component — an
+ * identifier this hands back has to survive being put in a URL again.
  */
 export function matchRoute(pathname: string): RouteMatch | null {
   const segments = pathname.split("/").filter((s) => s.length > 0);
@@ -69,11 +70,20 @@ export function matchRoute(pathname: string): RouteMatch | null {
   return null;
 }
 
-/** A present, decodable, non-empty segment, or null. */
+/** A present, decodable, non-empty, non-traversing segment, or null. */
 function decodeSegment(segment: string | undefined): string | null {
   if (segment === undefined) return null;
   const decoded = safeDecode(segment);
-  return decoded === null || decoded.length === 0 ? null : decoded;
+  if (decoded === null || decoded.length === 0) return null;
+  // A slash inside a decoded segment is deliberate above, which is what makes
+  // `..` reachable here. An identifier the server hands back in a listing has
+  // to survive being put back into a URL: a client that builds one from
+  // "../../escape" has it normalized to a different resource before the
+  // request is even sent, and the store would have accepted the name.
+  if (decoded.split("/").some((part) => part === "." || part === "..")) {
+    return null;
+  }
+  return decoded;
 }
 
 /** `decodeURIComponent` throws on a malformed sequence; a bad URL is not a crash. */

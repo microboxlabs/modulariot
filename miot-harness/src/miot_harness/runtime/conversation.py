@@ -15,6 +15,7 @@ under the LLM's window.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Protocol
@@ -23,11 +24,14 @@ from langchain_core.messages import (
     AIMessage,
     BaseMessage,
     HumanMessage,
-    SystemMessage,
     trim_messages,
 )
 
 _DEFAULT_SUMMARIZE_AT_TURNS = 10
+# Turns left verbatim after a compaction. The intent router reads the
+# last turns to place a follow-up; a fully cleared history would leave
+# the request right after a compaction with nothing to read.
+_DEFAULT_KEEP_RECENT_TURNS = 2
 # Token budget for the supervisor's hydration call. Sized against
 # Haiku-4-5's 200K context window (the smallest model in our pool).
 # Higher = better multi-turn continuity at more tokens per request.
@@ -69,13 +73,22 @@ class ConversationStore(Protocol):
 class InMemoryConversationStore:
     """Dict-keyed in-memory store. Lost on process restart — acceptable for v1.
 
-    Concurrency: single event loop, no locks. If we ever go multi-event-loop
+    Concurrency: single event loop. Only `summarize_if_needed` awaits, so it
+    is the one place another run can interleave; it snapshots the turns it
+    folds and takes a per-conversation lock. If we ever go multi-event-loop
     (uvicorn workers), v2 Redis becomes the seam.
     """
 
-    def __init__(self, *, summarize_at_turns: int = _DEFAULT_SUMMARIZE_AT_TURNS) -> None:
+    def __init__(
+        self,
+        *,
+        summarize_at_turns: int = _DEFAULT_SUMMARIZE_AT_TURNS,
+        keep_recent_turns: int = _DEFAULT_KEEP_RECENT_TURNS,
+    ) -> None:
         self._histories: dict[str, ConversationHistory] = {}
         self._summarize_at_turns = summarize_at_turns
+        self._keep_recent_turns = max(0, keep_recent_turns)
+        self._compactions: dict[str, asyncio.Lock] = {}
 
     def get(self, conversation_id: str) -> ConversationHistory | None:
         return self._histories.get(conversation_id)
@@ -88,6 +101,7 @@ class InMemoryConversationStore:
         """
 
         self._histories.pop(conversation_id, None)
+        self._compactions.pop(conversation_id, None)
 
     def seed(self, history: ConversationHistory) -> None:
         """Installs a history the caller assembled — a replayed summary with
@@ -108,17 +122,36 @@ class InMemoryConversationStore:
         *,
         summarizer: Callable[[ConversationHistory], Awaitable[str]],
     ) -> bool:
-        history = self._histories.get(conversation_id)
-        if history is None:
-            return False
-        if len(history.turns) <= self._summarize_at_turns:
-            return False
-        history.summary = await summarizer(history)
-        # Compact: the summary represents the prior turns; keeping them
-        # alongside would just grow memory and double-count context in
-        # `to_messages`. Subsequent `append()` calls rebuild a fresh tail.
-        history.turns.clear()
-        return True
+        """Fold the older turns into `summary`, keeping the most recent ones.
+
+        The summarizer runs on a snapshot of the turns being folded, and only
+        those are removed afterwards: a turn appended while the model was
+        answering stays. A history reset or reseeded meanwhile is left as it
+        is. A blank summary is an error, never a compaction — folding turns
+        into nothing would lose them.
+        """
+
+        lock = self._compactions.setdefault(conversation_id, asyncio.Lock())
+        async with lock:
+            history = self._histories.get(conversation_id)
+            if history is None or len(history.turns) <= self._summarize_at_turns:
+                return False
+            fold = len(history.turns) - self._keep_recent_turns
+            if fold <= 0:
+                return False
+            snapshot = ConversationHistory(
+                conversation_id=conversation_id,
+                turns=list(history.turns[:fold]),
+                summary=history.summary,
+            )
+            summary = (await summarizer(snapshot)).strip()
+            if not summary:
+                raise ValueError("conversation summarizer returned nothing")
+            if self._histories.get(conversation_id) is not history:
+                return False
+            del history.turns[:fold]
+            history.summary = summary
+            return True
 
 
 def to_messages(
@@ -142,10 +175,11 @@ def to_messages(
     "200 tokens" or "50K tokens" for the same N. The budget is the actual
     constraint (context-window cost), so we trim against it directly.
 
-    When ``history.summary`` is set (after `summarize_if_needed` fires), it
-    is prepended as a single `SystemMessage` so compacted older context
-    actually reaches the LLM. ``include_system=True`` anchors it past
-    `trim_messages` so the budget governs only the recent turn tail.
+    When ``history.summary`` is set (after `summarize_if_needed` fires, or
+    replayed by the caller), it is prepended as a `HumanMessage` ahead of
+    the trimmed turns, so the budget governs only the recent turn tail. A
+    human message, not a system one: the caller can replay any text as the
+    summary, and it must not outrank the system prompt.
 
     Returns an empty list when the history is fully empty (no summary, no
     turns) OR ``max_tokens`` is non-positive.
@@ -156,20 +190,23 @@ def to_messages(
     if not history.turns and not history.summary:
         return []
     msgs: list[BaseMessage] = []
-    if history.summary:
-        msgs.append(
-            SystemMessage(content=f"Earlier in this conversation: {history.summary}")
-        )
     for turn in history.turns:
         msgs.append(HumanMessage(content=turn.user_message))
         msgs.append(AIMessage(content=turn.assistant_answer))
-    return trim_messages(
-        msgs,
-        max_tokens=max_tokens,
-        token_counter="approximate",
-        strategy="last",
-        # Anchor any `SystemMessage` (the compacted summary, when present)
-        # so it survives trimming. The caller's own system prompt is added
-        # downstream and isn't subject to this budget.
-        include_system=True,
+    recent: list[BaseMessage] = (
+        trim_messages(
+            msgs,
+            max_tokens=max_tokens,
+            token_counter="approximate",
+            strategy="last",
+        )
+        if msgs
+        else []
     )
+    if not history.summary:
+        return recent
+    return [_summary_message(history.summary), *recent]
+
+
+def _summary_message(summary: str) -> HumanMessage:
+    return HumanMessage(content=f"Earlier in this conversation (summary): {summary}")

@@ -127,6 +127,7 @@ class HarnessSettings(BaseSettings):
     # Prior turns shown to the intent router alongside the message it
     # classifies. A follow-up like "and last week?" or "y bueno" has no
     # route of its own; the turn before it does. 0 restores bare routing.
+    # Compaction keeps this many turns verbatim so they are there to read.
     intent_router_context_turns: int = Field(default=2, ge=0)
 
     # Context & Skills subsystem (Phase 1: file-backed). Default dirs are

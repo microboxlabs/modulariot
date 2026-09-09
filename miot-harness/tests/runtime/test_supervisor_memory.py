@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from langchain_core.language_models import FakeListChatModel
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import HumanMessage
 
 from miot_harness.runtime.context import ConversationTurnInput, UserRequest
 from miot_harness.runtime.conversation import ConversationTurn, InMemoryConversationStore
@@ -36,7 +36,7 @@ async def test_history_is_compacted_once_past_the_turn_cap(tmp_path: Any) -> Non
     """Past the store's cap the older turns fold into a summary, and the run
     record carries that summary so the caller can persist it."""
 
-    store = InMemoryConversationStore(summarize_at_turns=2)
+    store = InMemoryConversationStore(summarize_at_turns=2, keep_recent_turns=0)
     summarized: list[str] = []
 
     async def summarizer(history: Any) -> str:
@@ -123,9 +123,9 @@ async def test_a_replayed_summary_reaches_the_graph_ahead_of_the_turns(
     )
 
     prior = graph.ainvoke.call_args[0][0]["prior_messages"]
-    system = [m for m in prior if isinstance(m, SystemMessage)]
-    assert any("user is auditing last month's trips" in str(m.content) for m in system)
-    assert [m.content for m in prior if not isinstance(m, SystemMessage)] == ["q8", "a8"]
+    assert isinstance(prior[0], HumanMessage)
+    assert "user is auditing last month's trips" in str(prior[0].content)
+    assert [m.content for m in prior[1:]] == ["q8", "a8"]
 
     history = store.get(_store_key("conv-sum"))
     assert history is not None
@@ -236,3 +236,46 @@ async def test_router_is_shown_the_turns_before_the_message(tmp_path: Any) -> No
     )
 
     assert [turn.user_message for turn in seen[0]] == ["q2", "q3"]
+
+
+@pytest.mark.asyncio
+async def test_router_still_sees_the_last_turns_right_after_a_compaction(
+    tmp_path: Any,
+) -> None:
+    seen: list[list[ConversationTurn]] = []
+
+    class RecordingRouter(LLMIntentRouter):
+        async def route(self, message: str, *, prior_turns: Any = ()) -> Any:
+            seen.append(list(prior_turns))
+            return await super().route(message, prior_turns=prior_turns)
+
+    router = RecordingRouter(
+        FakeListChatModel(responses=[json.dumps({"route": "DATA_AGENTIC", "confidence": 0.9})] * 4),
+        keyword_fallback=IntentRouter(),
+    )
+    store = InMemoryConversationStore(summarize_at_turns=2, keep_recent_turns=2)
+    supervisor = _build_supervisor(
+        tmp_path,
+        agentic_graph=_graph(),
+        llm_router=router,
+        conversation_store=store,
+    )
+    supervisor.router_context_turns = 2
+
+    async def summarizer(history: Any) -> str:
+        return "folded: " + ",".join(turn.user_message for turn in history.turns)
+
+    supervisor.conversation_summarizer = summarizer
+
+    for message in ("q1", "q2", "q3", "q4"):
+        await supervisor.run(
+            UserRequest(message=message, tenant_id="orion", conversation_id="conv-tail")
+        )
+
+    # Compaction fired after q3 (folding q1) and again after q4 (folding q2);
+    # q4 itself was routed between the two, against the kept q2, q3.
+    history = store.get(_store_key("conv-tail"))
+    assert history is not None
+    assert history.summary == "folded: q2"
+    assert [turn.user_message for turn in history.turns] == ["q3", "q4"]
+    assert [turn.user_message for turn in seen[3]] == ["q2", "q3"]

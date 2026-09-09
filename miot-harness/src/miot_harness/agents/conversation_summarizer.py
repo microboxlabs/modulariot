@@ -17,6 +17,7 @@ from collections.abc import Awaitable, Callable
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from miot_harness.runtime.context import MAX_CONVERSATION_SUMMARY_CHARS
 from miot_harness.runtime.conversation import ConversationHistory
 
 ConversationSummarizer = Callable[[ConversationHistory], Awaitable[str]]
@@ -52,9 +53,14 @@ def build_conversation_summarizer(model: BaseChatModel) -> ConversationSummarize
             ]
         )
         text = response.content if hasattr(response, "content") else str(response)
-        text = text if isinstance(text, str) else str(text)
-        # An empty answer would erase what the previous summary held.
-        return text.strip() or (history.summary or "")
+        text = (text if isinstance(text, str) else str(text)).strip()
+        if not text:
+            # Folding turns into nothing loses them; the store keeps them
+            # and the next run tries again.
+            raise ValueError("conversation summarizer returned nothing")
+        # The caller replays the summary under the request's limit; a
+        # model that ignores the word cap must not produce one it cannot.
+        return text[:MAX_CONVERSATION_SUMMARY_CHARS]
 
     return summarize
 

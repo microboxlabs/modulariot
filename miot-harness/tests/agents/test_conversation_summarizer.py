@@ -9,6 +9,7 @@ from miot_harness.agents.conversation_summarizer import (
     build_conversation_summarizer,
     render_history,
 )
+from miot_harness.runtime.context import MAX_CONVERSATION_SUMMARY_CHARS
 from miot_harness.runtime.conversation import ConversationHistory, ConversationTurn
 
 
@@ -49,6 +50,13 @@ async def test_summarizer_returns_the_model_text_trimmed() -> None:
 
 
 @pytest.mark.asyncio
-async def test_empty_answer_keeps_the_previous_summary() -> None:
+async def test_an_empty_answer_is_an_error_not_a_summary() -> None:
     summarize = build_conversation_summarizer(FakeListChatModel(responses=["   "]))
-    assert await summarize(_history(summary="kept")) == "kept"
+    with pytest.raises(ValueError):
+        await summarize(_history(summary="kept"))
+
+
+@pytest.mark.asyncio
+async def test_a_runaway_answer_is_cut_to_what_the_caller_can_replay() -> None:
+    summarize = build_conversation_summarizer(FakeListChatModel(responses=["s" * 9_000]))
+    assert len(await summarize(_history())) == MAX_CONVERSATION_SUMMARY_CHARS

@@ -144,6 +144,16 @@ def _make_lifespan(
         # decide whether to keep listening or treat the run as final.
         app.state.harness = harness
         app.state.event_bus = harness.event_bus
+        # Conversation compaction is independent of the datasource: turns
+        # accumulate on the direct and disabled paths too. Without a model
+        # the history just keeps growing, as before.
+        try:
+            harness.conversation_summarizer = build_conversation_summarizer(
+                get_chat_model(settings.agents_summarizer_model)
+            )
+        except Exception as exc:  # noqa: BLE001
+            harness.conversation_summarizer = None
+            logger.warning("Conversation compaction disabled: %s", exc)
         app.state.in_flight = {}
         # Parallel map from in-flight run_id → tenant_id, populated by
         # /runs:start and cleared in the task's done-callback. Lets
@@ -586,9 +596,6 @@ def _make_lifespan(
                     keyword_fallback=IntentRouter(data_keywords=provider.profile.router_keywords),
                     profile=provider.profile,
                 )
-                harness.conversation_summarizer = build_conversation_summarizer(
-                    get_chat_model(settings.agents_summarizer_model)
-                )
                 logger.info(
                     "Datasource %s: Phase E wired "
                     "(LLM router=%s, agentic_graph, meta_agent)",
@@ -626,7 +633,6 @@ def _make_lifespan(
                 harness.meta_primer = ""  # meta path gates on meta_model
                 harness.meta_catalog = []
                 harness.llm_router = None
-                harness.conversation_summarizer = None
                 try:
                     await provider.close()
                 except Exception as close_exc:  # noqa: BLE001

@@ -5,14 +5,13 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/scopes/{{scopeId}}/dashboards/{{slug}}
+  url: {{baseUrl}}/tenants/{{tenant}}/scopes/{{scopeId}}/dashboards/{{slug}}
   body: none
   auth: none
 }
 
 headers {
   x-dev-user: {{user}}
-  x-dev-tenant: {{tenant}}
 }
 
 assert {

@@ -8,7 +8,11 @@
  */
 
 import type { JwtAlgorithm } from "../identity/jwt";
+import type { TicketPresentation } from "../identity/ticket";
+import { DASHBOARD_ROLES, type DashboardRole } from "../access/roles";
 import { isLoopbackHost } from "../net/loopback";
+import { validateCors, type CorsOptions } from "../http/cors";
+import { bucketKeys } from "../store/bucket-keys";
 
 export interface ServerConfig {
   port: number;
@@ -16,25 +20,58 @@ export interface ServerConfig {
   basePath: string;
   /** Which identity provider the server was told to use. */
   auth: AuthConfig;
-  /** `memory` is discarded on restart; `sqlite` writes to one file. */
+  /** Who may act in the tenant a request names: one fixed, the seed, or the host. */
+  tenants: TenantConfig;
+  /** Where scope membership is answered: the seed file, or the host. */
+  scopes: ScopeConfig;
+  /**
+   * `memory` is discarded on restart, `sqlite` writes to one file, `postgres`
+   * connects to a server.
+   */
   store: StoreKind;
   /** Database file for the sqlite store. Ignored by the memory store. */
   sqlitePath: string;
+  /** Connection string, and pool size, for the postgres store. */
+  postgres: PostgresConfig | undefined;
+  /** Where the sqlite store keeps config bodies. */
+  documents: DocumentsKind;
+  /** Directory for the `fs` document backend. */
+  documentsPath: string;
+  cloudDocuments:
+    | { bucket: string; prefix: string; region: string | undefined }
+    | undefined;
+  /** Seconds between orphan sweeps; `0` means never. */
+  orphanSweepIntervalSeconds: number;
+  /** An unreferenced document younger than this is a save in progress. */
+  orphanMinAgeSeconds: number;
   /** Seed file, so a dev server can start with data. */
   seedPath: string | undefined;
   /** Serve the contract at /openapi.yaml and render it at /docs. */
   docs: boolean;
+  cors: CorsOptions | undefined;
 }
 
-export type AuthConfig = InsecureAuthConfig | JwtAuthConfig;
+export type AuthConfig = InsecureAuthConfig | VerifiedAuthConfig;
 
 /** Identity read from request headers, unverified. Loopback only. */
 export interface InsecureAuthConfig {
   kind: "insecure";
 }
 
+/**
+ * The verified schemes, of which at least one is present.
+ *
+ * More than one may be, because a deployment can face a front-end holding a
+ * JWT and a service holding a ticket at the same time. They read different
+ * headers, so they do not compete.
+ */
+export interface VerifiedAuthConfig {
+  kind: "verified";
+  jwt: JwtAuthConfig | undefined;
+  ticket: TicketAuthConfig | undefined;
+}
+
 export interface JwtAuthConfig {
-  kind: "jwt";
   issuer: string;
   audience: string[];
   /**
@@ -46,7 +83,6 @@ export interface JwtAuthConfig {
   algorithm: JwtAlgorithm;
   key: JwtKeySource;
   claims: {
-    tenantId: string;
     userId: string | undefined;
     groups: string | undefined;
     displayName: string | undefined;
@@ -59,11 +95,110 @@ export type JwtKeySource =
   | { kind: "publicKey"; pem: string }
   | { kind: "secret"; secret: string };
 
-export const STORE_KINDS = ["memory", "sqlite"] as const;
+export interface TicketAuthConfig {
+  /** Request header the caller presents the ticket in. */
+  header: string;
+  /** Scheme prefix to strip from that header, when the caller sends one. */
+  scheme: string | undefined;
+  url: string;
+  method: HttpMethod;
+  present: TicketPresentation;
+  /** A credential this server sends to the emitter, beyond the ticket itself. */
+  serviceHeader: HeaderCredential | undefined;
+  claims: {
+    userId: string;
+    groups: string | undefined;
+    displayName: string | undefined;
+  };
+  absentStatuses: number[];
+  cacheSeconds: number;
+  negativeCacheSeconds: number;
+  requestTimeoutMs: number;
+}
+
+export type TenantConfig = SeedTenantConfig | HttpTenantConfig;
+
+/**
+ * Entitlement from the seed file: a principal may act in a tenant when the
+ * seed puts them in one of its scopes. Correct for a demo and for the tests;
+ * in a deployment nobody maintains it, which is why the server says so at
+ * startup.
+ */
+export interface SeedTenantConfig {
+  kind: "seed";
+}
+
+export interface HttpTenantConfig {
+  kind: "http";
+  url: string;
+  method: HttpMethod;
+  /** Dotted path to a boolean that can refuse a 200. Absent means status decides. */
+  entitledPath: string | undefined;
+  serviceHeader: HeaderCredential | undefined;
+  absentStatuses: number[];
+  cacheSeconds: number;
+  negativeCacheSeconds: number;
+  requestTimeoutMs: number;
+}
+
+export type ScopeConfig = SeedScopeConfig | HttpScopeConfig;
+
+/**
+ * Membership from the seed file. Correct for a demo and for the tests; in a
+ * deployment nobody maintains it, which is why the server says so at startup.
+ */
+export interface SeedScopeConfig {
+  kind: "seed";
+}
+
+export interface HttpScopeConfig {
+  kind: "http";
+  url: string;
+  method: HttpMethod;
+  rolePath: string;
+  /** Host role names mapped onto this package's. Empty means they match. */
+  roleMap: Record<string, DashboardRole> | undefined;
+  serviceHeader: HeaderCredential | undefined;
+  absentStatuses: number[];
+  cacheSeconds: number;
+  negativeCacheSeconds: number;
+  requestTimeoutMs: number;
+}
+
+export type HttpMethod = "GET" | "POST";
+
+/** A header this server sends. The value is a credential; never log it. */
+export interface HeaderCredential {
+  name: string;
+  value: string;
+}
+
+export const STORE_KINDS = ["memory", "sqlite", "postgres"] as const;
 export type StoreKind = (typeof STORE_KINDS)[number];
+
+export interface PostgresConfig {
+  url: string;
+  poolSize: number;
+  connectionTimeoutMs: number;
+}
+
+export const DOCUMENTS_KINDS = ["inline", "fs", "s3", "gcs"] as const;
+export type DocumentsKind = (typeof DOCUMENTS_KINDS)[number];
 
 /** A relative path, so the default contains no hostname and no credential. */
 export const DEFAULT_SQLITE_PATH = "./data/dashboards.db";
+export const DEFAULT_DOCUMENTS_PATH = "./data/documents";
+
+export const DEFAULT_POSTGRES_POOL_SIZE = 10;
+export const DEFAULT_POSTGRES_CONNECTION_TIMEOUT_MS = 5_000;
+
+export const DEFAULT_ORPHAN_SWEEP_INTERVAL_SECONDS = 3_600;
+/**
+ * A day. A save holds its document unreferenced for milliseconds, so the
+ * limit is set by how long a leftover is worth keeping as history, not by
+ * the race it guards.
+ */
+export const DEFAULT_ORPHAN_MIN_AGE_SECONDS = 86_400;
 
 export const DEFAULT_CLOCK_TOLERANCE_SECONDS = 30;
 
@@ -112,7 +247,6 @@ const JWT_ENV_KEYS = [
   "MIOT_DASHBOARD_JWT_JWKS_URL",
   "MIOT_DASHBOARD_JWT_PUBLIC_KEY",
   "MIOT_DASHBOARD_JWT_SECRET",
-  "MIOT_DASHBOARD_JWT_TENANT_CLAIM",
   "MIOT_DASHBOARD_JWT_USER_CLAIM",
   "MIOT_DASHBOARD_JWT_GROUPS_CLAIM",
   "MIOT_DASHBOARD_JWT_NAME_CLAIM",
@@ -192,6 +326,32 @@ function readKeySource(env: ConfigEnv): JwtKeySource {
   return { kind: "secret", secret: secret as string };
 }
 
+/**
+ * The largest delay `setTimeout` and `setInterval` accept. Above it Node
+ * silently uses 1ms, so a sweep asked for every 35 days would run every
+ * millisecond instead.
+ */
+export const MAX_TIMER_SECONDS = Math.floor(2_147_483_647 / 1000);
+
+function readSeconds(
+  env: ConfigEnv,
+  key: string,
+  fallback: number,
+  min = 0,
+  max = MAX_TIMER_SECONDS,
+): number {
+  const raw = trimmed(env[key]);
+  if (raw === undefined) return fallback;
+  const seconds = Number(raw);
+  if (!Number.isInteger(seconds) || seconds < min || seconds > max) {
+    throw new ConfigError(
+      `${key} must be a whole number of seconds between ${min} and ${max}, ` +
+        `got "${raw}"`,
+    );
+  }
+  return seconds;
+}
+
 function readClockTolerance(env: ConfigEnv): number {
   const raw = trimmed(env.MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE);
   if (raw === undefined) return DEFAULT_CLOCK_TOLERANCE_SECONDS;
@@ -226,7 +386,6 @@ function readJwtAuth(env: ConfigEnv): JwtAuthConfig {
   const key = readKeySource(env);
 
   return {
-    kind: "jwt",
     issuer: required(
       env,
       "MIOT_DASHBOARD_JWT_ISSUER",
@@ -237,18 +396,418 @@ function readJwtAuth(env: ConfigEnv): JwtAuthConfig {
     algorithm: key.kind === "secret" ? "HS256" : "RS256",
     key,
     claims: {
-      tenantId: required(
-        env,
-        "MIOT_DASHBOARD_JWT_TENANT_CLAIM",
-        "the claim carrying the tenant. No registered claim carries one and " +
-          "every provider uses a different name, so there is no default: a " +
-          "wrong default would put every caller in the same tenant.",
-      ),
       userId: trimmed(env.MIOT_DASHBOARD_JWT_USER_CLAIM),
       groups: trimmed(env.MIOT_DASHBOARD_JWT_GROUPS_CLAIM),
       displayName: trimmed(env.MIOT_DASHBOARD_JWT_NAME_CLAIM),
     },
     clockToleranceSeconds: readClockTolerance(env),
+  };
+}
+
+// ------------------------------------------- delegated to the host over HTTP ----
+
+/**
+ * Defaults for both host lookups. Sixty seconds is short enough that a
+ * revoked membership or ticket stops working while someone is still looking
+ * at the screen, and long enough that the host sees a fraction of this
+ * server's traffic.
+ */
+const DEFAULT_LOOKUP_CACHE_SECONDS = 60;
+const DEFAULT_NEGATIVE_CACHE_SECONDS = 30;
+const DEFAULT_LOOKUP_TIMEOUT_MS = 5000;
+const MAX_LOOKUP_CACHE_SECONDS = 3600;
+const MAX_LOOKUP_TIMEOUT_MS = 30_000;
+
+function readWholeNumber(
+  env: ConfigEnv,
+  key: string,
+  fallback: number,
+  max: number,
+  units: string,
+): number {
+  const raw = trimmed(env[key]);
+  if (raw === undefined) return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0 || value > max) {
+    throw new ConfigError(
+      `${key} must be a whole number of ${units} between 0 and ${max}, got "${raw}"`,
+    );
+  }
+  return value;
+}
+
+function readMethod(env: ConfigEnv, key: string): HttpMethod | undefined {
+  const raw = trimmed(env[key]);
+  if (raw === undefined) return undefined;
+  const method = raw.toUpperCase();
+  if (method !== "GET" && method !== "POST") {
+    throw new ConfigError(`${key} must be GET or POST, got "${raw}"`);
+  }
+  return method;
+}
+
+function readStatuses(
+  env: ConfigEnv,
+  key: string,
+  fallback: readonly number[],
+): number[] {
+  const raw = trimmed(env[key]);
+  if (raw === undefined) return [...fallback];
+  const statuses = raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+    .map((entry) => {
+      const status = Number(entry);
+      if (!Number.isInteger(status) || status < 100 || status > 599) {
+        throw new ConfigError(
+          `${key} must be a comma-separated list of HTTP statuses, got "${entry}"`,
+        );
+      }
+      return status;
+    });
+  if (statuses.length === 0) {
+    throw new ConfigError(`${key} must name at least one status`);
+  }
+  return statuses;
+}
+
+/**
+ * A header this server sends to the host, as a name and a value.
+ *
+ * Both or neither: a name with no value sends an empty credential, and a value
+ * with no name is a credential that was configured and then not sent — the
+ * kind of mistake that looks like it worked until the host starts enforcing.
+ */
+function readHeaderCredential(
+  env: ConfigEnv,
+  nameKey: string,
+  valueKey: string,
+): HeaderCredential | undefined {
+  const name = trimmed(env[nameKey]);
+  const value = env[valueKey];
+  if (name === undefined && (value === undefined || value.length === 0)) {
+    return undefined;
+  }
+  if (name === undefined || value === undefined || value.length === 0) {
+    throw new ConfigError(
+      `${nameKey} and ${valueKey} must be set together; one without the ` +
+        "other either sends an empty credential or configures one that is " +
+        "never sent",
+    );
+  }
+  return { name, value };
+}
+
+/** `SiteManager=Coordinator,SiteConsumer=Consumer` into a lookup. */
+function readRoleMap(
+  env: ConfigEnv,
+  key: string,
+): Record<string, DashboardRole> | undefined {
+  const raw = trimmed(env[key]);
+  if (raw === undefined) return undefined;
+
+  const map: Record<string, DashboardRole> = Object.create(null) as Record<
+    string,
+    DashboardRole
+  >;
+  for (const pair of raw.split(",")) {
+    const entry = pair.trim();
+    if (entry.length === 0) continue;
+    const separator = entry.indexOf("=");
+    if (separator < 1) {
+      throw new ConfigError(
+        `${key} must be a comma-separated list of <host role>=<role>, got "${entry}"`,
+      );
+    }
+    const from = entry.slice(0, separator).trim();
+    const to = entry.slice(separator + 1).trim();
+    if (!(DASHBOARD_ROLES as readonly string[]).includes(to)) {
+      throw new ConfigError(
+        `${key} maps "${from}" to "${to}", which is not one of ` +
+          `${DASHBOARD_ROLES.join(", ")}`,
+      );
+    }
+    map[from] = to as DashboardRole;
+  }
+  if (Object.keys(map).length === 0) {
+    throw new ConfigError(`${key} must map at least one role`);
+  }
+  return map;
+}
+
+/** Every variable that only means anything to the ticket resolver. */
+const TICKET_ENV_KEYS = [
+  "MIOT_DASHBOARD_TICKET_HEADER",
+  "MIOT_DASHBOARD_TICKET_SCHEME",
+  "MIOT_DASHBOARD_TICKET_VALIDATE_URL",
+  "MIOT_DASHBOARD_TICKET_VALIDATE_METHOD",
+  "MIOT_DASHBOARD_TICKET_PRESENT",
+  "MIOT_DASHBOARD_TICKET_PRESENT_NAME",
+  "MIOT_DASHBOARD_TICKET_PRESENT_VALUE",
+  "MIOT_DASHBOARD_TICKET_SERVICE_HEADER",
+  "MIOT_DASHBOARD_TICKET_SERVICE_VALUE",
+  "MIOT_DASHBOARD_TICKET_USER_PATH",
+  "MIOT_DASHBOARD_TICKET_GROUPS_PATH",
+  "MIOT_DASHBOARD_TICKET_NAME_PATH",
+  "MIOT_DASHBOARD_TICKET_INVALID_STATUS",
+  "MIOT_DASHBOARD_TICKET_CACHE",
+  "MIOT_DASHBOARD_TICKET_NEGATIVE_CACHE",
+  "MIOT_DASHBOARD_TICKET_TIMEOUT",
+] as const;
+
+function readTicketPresentation(env: ConfigEnv): TicketPresentation {
+  const kind = (
+    trimmed(env.MIOT_DASHBOARD_TICKET_PRESENT) ?? "header"
+  ).toLowerCase();
+  const name = trimmed(env.MIOT_DASHBOARD_TICKET_PRESENT_NAME);
+
+  if (kind === "body") return { kind: "body" };
+  if (kind === "query") {
+    if (name === undefined) {
+      throw new ConfigError(
+        "MIOT_DASHBOARD_TICKET_PRESENT_NAME is required when " +
+          'MIOT_DASHBOARD_TICKET_PRESENT="query": it names the query parameter',
+      );
+    }
+    return { kind: "query", name };
+  }
+  if (kind !== "header") {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_TICKET_PRESENT must be header, query or body, got " +
+        `"${kind}"`,
+    );
+  }
+
+  const value = trimmed(env.MIOT_DASHBOARD_TICKET_PRESENT_VALUE);
+  if (name === undefined || value === undefined) {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_TICKET_PRESENT_NAME and " +
+        "MIOT_DASHBOARD_TICKET_PRESENT_VALUE are required when the ticket is " +
+        "presented in a header. The value is a template over {ticket} and " +
+        "{ticketBase64}, so an emitter wanting basic authentication takes " +
+        '"Basic {ticketBase64}".',
+    );
+  }
+  return { kind: "header", name, value };
+}
+
+function readTicketAuth(env: ConfigEnv): TicketAuthConfig {
+  const present = readTicketPresentation(env);
+  const method =
+    readMethod(env, "MIOT_DASHBOARD_TICKET_VALIDATE_METHOD") ??
+    (present.kind === "body" ? "POST" : "GET");
+  if (present.kind === "body" && method === "GET") {
+    throw new ConfigError(
+      'MIOT_DASHBOARD_TICKET_PRESENT="body" needs ' +
+        "MIOT_DASHBOARD_TICKET_VALIDATE_METHOD=POST (the default when unset): " +
+        "a GET carries no body, so the emitter would never see the ticket.",
+    );
+  }
+
+  const serviceHeader = readHeaderCredential(
+    env,
+    "MIOT_DASHBOARD_TICKET_SERVICE_HEADER",
+    "MIOT_DASHBOARD_TICKET_SERVICE_VALUE",
+  );
+  if (
+    serviceHeader !== undefined &&
+    trimmed(env.MIOT_DASHBOARD_TICKET_INVALID_STATUS) === undefined
+  ) {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_TICKET_INVALID_STATUS must be set when " +
+        "MIOT_DASHBOARD_TICKET_SERVICE_HEADER is. The default includes 401, " +
+        "and with this server's own credential on the request a 401 could " +
+        "be that credential being refused, which must fail the request " +
+        "rather than pass as an invalid ticket.",
+    );
+  }
+
+  return {
+    header: required(
+      env,
+      "MIOT_DASHBOARD_TICKET_HEADER",
+      "the request header callers present the ticket in. No standard header " +
+        "carries one, so there is no default.",
+    ),
+    scheme: trimmed(env.MIOT_DASHBOARD_TICKET_SCHEME),
+    url: required(
+      env,
+      "MIOT_DASHBOARD_TICKET_VALIDATE_URL",
+      "the emitter's endpoint for checking a ticket. A ticket carries no " +
+        "proof of its own, so only the emitter can say whether it is valid.",
+    ),
+    method,
+    present,
+    serviceHeader,
+    claims: {
+      userId: required(
+        env,
+        "MIOT_DASHBOARD_TICKET_USER_PATH",
+        "where the user id sits in the emitter's answer, as a dotted path " +
+          'into the JSON it returns, such as "entry.id".',
+      ),
+      groups: trimmed(env.MIOT_DASHBOARD_TICKET_GROUPS_PATH),
+      displayName: trimmed(env.MIOT_DASHBOARD_TICKET_NAME_PATH),
+    },
+    absentStatuses: readStatuses(
+      env,
+      "MIOT_DASHBOARD_TICKET_INVALID_STATUS",
+      [401, 404],
+    ),
+    cacheSeconds: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_TICKET_CACHE",
+      DEFAULT_LOOKUP_CACHE_SECONDS,
+      MAX_LOOKUP_CACHE_SECONDS,
+      "seconds",
+    ),
+    negativeCacheSeconds: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_TICKET_NEGATIVE_CACHE",
+      DEFAULT_NEGATIVE_CACHE_SECONDS,
+      MAX_LOOKUP_CACHE_SECONDS,
+      "seconds",
+    ),
+    requestTimeoutMs: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_TICKET_TIMEOUT",
+      DEFAULT_LOOKUP_TIMEOUT_MS,
+      MAX_LOOKUP_TIMEOUT_MS,
+      "milliseconds",
+    ),
+  };
+}
+
+function readPostgres(env: ConfigEnv): PostgresConfig {
+  const url = required(
+    env,
+    "MIOT_DASHBOARD_POSTGRES_URL",
+    "the connection string for the postgres store, such as " +
+      '"postgres://user:password@host:5432/dashboards". There is no default: ' +
+      "a guessed one would connect to whatever is listening locally.",
+  );
+  // Caught here rather than by the driver, which reports it on the first
+  // statement — by which time the server is up and answering probes.
+  if (!/^postgres(ql)?:\/\//i.test(url)) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_POSTGRES_URL must start with "postgres://" or ` +
+        `"postgresql://", got "${url.slice(0, 12)}..."`,
+    );
+  }
+  const poolSize = readWholeNumber(
+    env,
+    "MIOT_DASHBOARD_POSTGRES_POOL_SIZE",
+    DEFAULT_POSTGRES_POOL_SIZE,
+    1_000,
+    "connections",
+  );
+  if (poolSize === 0) {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_POSTGRES_POOL_SIZE must be at least 1. A pool of zero " +
+        "connections never serves a request, and the server would start and " +
+        "then hang on the first one.",
+    );
+  }
+  const connectionTimeoutMs = readWholeNumber(
+    env,
+    "MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT",
+    DEFAULT_POSTGRES_CONNECTION_TIMEOUT_MS,
+    MAX_LOOKUP_TIMEOUT_MS,
+    "milliseconds",
+  );
+  if (connectionTimeoutMs === 0) {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT must be at least 1; zero disables the timeout and can block startup indefinitely.",
+    );
+  }
+  return { url, poolSize, connectionTimeoutMs };
+}
+
+function readTenants(env: ConfigEnv): TenantConfig {
+  const url = trimmed(env.MIOT_DASHBOARD_TENANTS_URL);
+  if (url === undefined) return { kind: "seed" };
+
+  return {
+    kind: "http",
+    url,
+    method: readMethod(env, "MIOT_DASHBOARD_TENANTS_METHOD") ?? "GET",
+    entitledPath: trimmed(env.MIOT_DASHBOARD_TENANTS_ENTITLED_PATH),
+    serviceHeader: readHeaderCredential(
+      env,
+      "MIOT_DASHBOARD_TENANTS_SERVICE_HEADER",
+      "MIOT_DASHBOARD_TENANTS_SERVICE_VALUE",
+    ),
+    absentStatuses: readStatuses(
+      env,
+      "MIOT_DASHBOARD_TENANTS_ABSENT_STATUS",
+      [404],
+    ),
+    cacheSeconds: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_TENANTS_CACHE",
+      DEFAULT_LOOKUP_CACHE_SECONDS,
+      MAX_LOOKUP_CACHE_SECONDS,
+      "seconds",
+    ),
+    negativeCacheSeconds: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_TENANTS_NEGATIVE_CACHE",
+      DEFAULT_NEGATIVE_CACHE_SECONDS,
+      MAX_LOOKUP_CACHE_SECONDS,
+      "seconds",
+    ),
+    requestTimeoutMs: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_TENANTS_TIMEOUT",
+      DEFAULT_LOOKUP_TIMEOUT_MS,
+      MAX_LOOKUP_TIMEOUT_MS,
+      "milliseconds",
+    ),
+  };
+}
+
+function readScopes(env: ConfigEnv): ScopeConfig {
+  const url = trimmed(env.MIOT_DASHBOARD_SCOPES_URL);
+  if (url === undefined) return { kind: "seed" };
+
+  return {
+    kind: "http",
+    url,
+    method: readMethod(env, "MIOT_DASHBOARD_SCOPES_METHOD") ?? "GET",
+    rolePath: trimmed(env.MIOT_DASHBOARD_SCOPES_ROLE_PATH) ?? "role",
+    roleMap: readRoleMap(env, "MIOT_DASHBOARD_SCOPES_ROLE_MAP"),
+    serviceHeader: readHeaderCredential(
+      env,
+      "MIOT_DASHBOARD_SCOPES_SERVICE_HEADER",
+      "MIOT_DASHBOARD_SCOPES_SERVICE_VALUE",
+    ),
+    absentStatuses: readStatuses(
+      env,
+      "MIOT_DASHBOARD_SCOPES_ABSENT_STATUS",
+      [404],
+    ),
+    cacheSeconds: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_SCOPES_CACHE",
+      DEFAULT_LOOKUP_CACHE_SECONDS,
+      MAX_LOOKUP_CACHE_SECONDS,
+      "seconds",
+    ),
+    negativeCacheSeconds: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_SCOPES_NEGATIVE_CACHE",
+      DEFAULT_NEGATIVE_CACHE_SECONDS,
+      MAX_LOOKUP_CACHE_SECONDS,
+      "seconds",
+    ),
+    requestTimeoutMs: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_SCOPES_TIMEOUT",
+      DEFAULT_LOOKUP_TIMEOUT_MS,
+      MAX_LOOKUP_TIMEOUT_MS,
+      "milliseconds",
+    ),
   };
 }
 
@@ -260,13 +819,17 @@ function readJwtAuth(env: ConfigEnv): JwtAuthConfig {
 function readAuth(env: ConfigEnv, host: string): AuthConfig {
   const insecure = readBoolean(env.MIOT_DASHBOARD_INSECURE_AUTH);
   const jwtKeys = JWT_ENV_KEYS.filter((key) => trimmed(env[key]) !== undefined);
+  const ticketKeys = TICKET_ENV_KEYS.filter(
+    (key) => trimmed(env[key]) !== undefined,
+  );
+  const verifiedKeys = [...jwtKeys, ...ticketKeys];
 
-  if (insecure && jwtKeys.length > 0) {
+  if (insecure && verifiedKeys.length > 0) {
     throw new ConfigError(
       "Two identity providers are configured: MIOT_DASHBOARD_INSECURE_AUTH " +
-        `is on and ${jwtKeys.join(", ")} is set. Unset one: a server that ` +
-        "preferred either would verify tokens in one environment and trust " +
-        "headers in another.",
+        `is on and ${verifiedKeys.join(", ")} is set. Unset one: a server ` +
+        "that preferred either would verify credentials in one environment " +
+        "and trust headers in another.",
     );
   }
 
@@ -295,13 +858,24 @@ function readAuth(env: ConfigEnv, host: string): AuthConfig {
     return { kind: "insecure" };
   }
 
-  if (jwtKeys.length > 0) return readJwtAuth(env);
+  // Both may be configured. A JWT arrives in Authorization and a ticket in a
+  // header the operator names, so the two are read from different places and
+  // a request carrying neither is anonymous either way.
+  if (verifiedKeys.length > 0) {
+    return {
+      kind: "verified",
+      jwt: jwtKeys.length > 0 ? readJwtAuth(env) : undefined,
+      ticket: ticketKeys.length > 0 ? readTicketAuth(env) : undefined,
+    };
+  }
 
   throw new ConfigError(
     "No identity provider is configured. Either set MIOT_DASHBOARD_JWT_ISSUER, " +
-      "MIOT_DASHBOARD_JWT_AUDIENCE, MIOT_DASHBOARD_JWT_TENANT_CLAIM and one key " +
-      "source (MIOT_DASHBOARD_JWT_JWKS_URL, MIOT_DASHBOARD_JWT_PUBLIC_KEY or " +
-      "MIOT_DASHBOARD_JWT_SECRET) to verify bearer tokens, or opt into " +
+      "MIOT_DASHBOARD_JWT_AUDIENCE and one key source " +
+      "(MIOT_DASHBOARD_JWT_JWKS_URL, MIOT_DASHBOARD_JWT_PUBLIC_KEY or " +
+      "MIOT_DASHBOARD_JWT_SECRET) to verify bearer tokens; or set " +
+      "MIOT_DASHBOARD_TICKET_HEADER and MIOT_DASHBOARD_TICKET_VALIDATE_URL to " +
+      "validate tickets against their emitter; or opt into " +
       "MIOT_DASHBOARD_INSECURE_AUTH=true, which reads identity from request " +
       "headers without verification and is for local use only.",
   );
@@ -315,7 +889,23 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
   if (!(STORE_KINDS as readonly string[]).includes(store)) {
     throw new ConfigError(
       `MIOT_DASHBOARD_STORE="${store}" is not supported. Choose one of: ` +
-        `${STORE_KINDS.join(", ")}. A PostgreSQL store lands with P2b-3.`,
+        `${STORE_KINDS.join(", ")}.`,
+    );
+  }
+
+  const documents = env.MIOT_DASHBOARD_DOCUMENTS ?? "inline";
+  if (!(DOCUMENTS_KINDS as readonly string[]).includes(documents)) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_DOCUMENTS="${documents}" is not supported. Choose one of: ` +
+        `${DOCUMENTS_KINDS.join(", ")}.`,
+    );
+  }
+  if (store === "memory" && env.MIOT_DASHBOARD_DOCUMENTS !== undefined) {
+    // Refused rather than ignored: a setting that does nothing would be
+    // taken for one that worked.
+    throw new ConfigError(
+      "MIOT_DASHBOARD_DOCUMENTS has no effect with the memory store, which " +
+        "keeps nothing. Set MIOT_DASHBOARD_STORE to sqlite or postgres as well.",
     );
   }
 
@@ -324,9 +914,85 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     host,
     basePath: env.MIOT_DASHBOARD_BASE_PATH ?? "",
     auth,
+    tenants: readTenants(env),
+    scopes: readScopes(env),
     store: store as StoreKind,
     sqlitePath: env.MIOT_DASHBOARD_SQLITE_PATH ?? DEFAULT_SQLITE_PATH,
+    postgres: store === "postgres" ? readPostgres(env) : undefined,
+    documents: documents as DocumentsKind,
+    documentsPath: env.MIOT_DASHBOARD_DOCUMENTS_PATH ?? DEFAULT_DOCUMENTS_PATH,
+    cloudDocuments:
+      documents === "s3" || documents === "gcs"
+        ? readCloudDocuments(env)
+        : undefined,
+    orphanSweepIntervalSeconds: readSeconds(
+      env,
+      "MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL",
+      DEFAULT_ORPHAN_SWEEP_INTERVAL_SECONDS,
+    ),
+    orphanMinAgeSeconds: readSeconds(
+      env,
+      "MIOT_DASHBOARD_ORPHAN_MIN_AGE",
+      DEFAULT_ORPHAN_MIN_AGE_SECONDS,
+      // Never zero. The gap between a document being written and its row
+      // being committed is what this window covers; with no window a sweep
+      // running in that gap deletes the document, and the save then commits
+      // a row pointing at nothing.
+      1,
+    ),
     seedPath: env.MIOT_DASHBOARD_SEED,
     docs: readBooleanUnlessDisabled(env.MIOT_DASHBOARD_DOCS),
+    cors: readCors(env),
   };
+}
+
+function readCloudDocuments(env: ConfigEnv) {
+  const bucket = required(
+    env,
+    "MIOT_DASHBOARD_DOCUMENTS_BUCKET",
+    "the bucket holding config documents",
+  );
+  let prefix: string;
+  try {
+    prefix = bucketKeys(env.MIOT_DASHBOARD_DOCUMENTS_PREFIX).prefix;
+  } catch {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_DOCUMENTS_PREFIX must be a relative bucket prefix",
+    );
+  }
+  return { bucket, prefix, region: trimmed(env.MIOT_DASHBOARD_S3_REGION) };
+}
+
+function readCors(env: ConfigEnv): CorsOptions | undefined {
+  const raw = trimmed(env.MIOT_DASHBOARD_CORS_ORIGINS);
+  if (raw === undefined) return undefined;
+  const cors: CorsOptions = {
+    // Empty entries dropped, as the header list already does: a trailing
+    // comma is the ordinary way to write one of these and should not be a
+    // startup failure about an origin the operator never typed.
+    origins: raw
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+    credentials: readBoolean(env.MIOT_DASHBOARD_CORS_CREDENTIALS),
+    headers: (env.MIOT_DASHBOARD_CORS_HEADERS ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  };
+  if (cors.origins.length === 0) {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_CORS_ORIGINS is set but lists no origin. Unset it to " +
+        "leave CORS off; an empty list turns it on and then refuses every " +
+        "browser that asks.",
+    );
+  }
+  try {
+    validateCors(cors);
+  } catch (error) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_CORS: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  return cors;
 }

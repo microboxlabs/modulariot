@@ -22,6 +22,7 @@ import { getAllDashlets, getAllDashletMetas } from "@/features/dashboard/dashlet
 import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.service";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
+import { conversationOf, type AgUiMessage, type RunAgentInputBody } from "./conversation";
 
 /**
  * AG-UI streaming relay for the harness-chat panel: `RunAgentInput` in,
@@ -176,20 +177,6 @@ function createStoryToolCall(send: Sender, args: CreateStoryArgs): void {
   send({ type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) });
   send({ type: "TOOL_CALL_END", toolCallId });
 }
-
-type AgUiMessage = {
-  id: string;
-  role: "developer" | "system" | "assistant" | "user" | "tool" | "activity" | "reasoning";
-  content?: unknown;
-  toolCallId?: string;
-};
-
-type RunAgentInputBody = {
-  threadId?: string;
-  runId?: string;
-  state?: { harnessConversationId?: string | null } | null;
-  messages?: AgUiMessage[];
-};
 
 // The full AG-UI role set (confirmed against @ag-ui/core's message schema) —
 // "reasoning" matters in particular: this route's own narration streams as
@@ -622,7 +609,7 @@ async function run(
     return;
   }
   const { client, orgSlug, token, userEmail } = connection;
-  const conversationId = body.state?.harnessConversationId ?? null;
+  const { conversationId, replayTurns, summary } = conversationOf(body, messages);
 
   let activeRunId: string | null = null;
   let runSettled = false;
@@ -653,6 +640,8 @@ async function run(
         mode: "auto",
         ...(userEmail && { user_id: userEmail }),
         ...(conversationId && { conversation_id: conversationId }),
+        ...(replayTurns.length > 0 && { conversation_history: replayTurns }),
+        ...(summary && { conversation_summary: summary }),
       },
       { signal: controller.signal },
     );
@@ -691,7 +680,15 @@ async function run(
 
     const record = await client.runs.get(run_id, { signal: controller.signal });
     sendText(send, blocksToText(record.answer, tr));
-    send({ type: "STATE_SNAPSHOT", snapshot: { harnessConversationId: record.conversation_id } });
+    send({
+      type: "STATE_SNAPSHOT",
+      snapshot: {
+        harnessConversationId: record.conversation_id,
+        // What the harness holds now, compacted or seeded; the panel stores
+        // it with the thread so the next process can be handed it back.
+        harnessConversationSummary: record.conversation_summary ?? null,
+      },
+    });
     send({ type: "RUN_FINISHED", runId, threadId });
 
     void recordEpisode({

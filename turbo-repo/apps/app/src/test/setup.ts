@@ -1,5 +1,18 @@
-import "@testing-library/jest-dom";
-import { vi } from "vitest";
+import * as matchers from "@testing-library/jest-dom/matchers";
+import type { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
+import { expect, vi } from "vitest";
+
+// jest-dom's bundled augmentation targets the pre-Vitest 5 Assertion interface.
+declare module "vitest" {
+  // Module augmentation requires an interface to merge the matcher signatures.
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  interface Matchers<
+    R extends void | Promise<void> = void | Promise<void>,
+    T = unknown,
+  > extends TestingLibraryMatchers<T, R> {}
+}
+
+expect.extend(matchers);
 
 // Basic global mocks for browser APIs
 // mockImplementation must be a `function`, not an arrow function — vitest's

@@ -60,6 +60,23 @@ export const MIGRATIONS: readonly Migration[] = [
        )`,
     ],
   },
+  {
+    version: 2,
+    name: "document creation time, for the orphan sweep",
+    // Nullable: rows written before this version have no known age, and the
+    // sweep leaves those alone rather than guessing.
+    statements: [`ALTER TABLE dashboard_documents ADD COLUMN created_at TEXT`],
+  },
+  {
+    version: 3,
+    name: "store settings, to pin the document backend",
+    statements: [
+      `CREATE TABLE store_settings (
+         name  TEXT PRIMARY KEY,
+         value TEXT NOT NULL
+       )`,
+    ],
+  },
 ];
 
 const MIGRATIONS_TABLE = `CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -77,15 +94,20 @@ export async function runMigrations(
   driver: SqlDriver,
   now: () => Date = () => new Date(),
 ): Promise<number[]> {
-  await driver.exec(MIGRATIONS_TABLE);
-
   // Reading the applied versions and writing the missing ones happen in one
   // transaction. Read outside it and two processes starting together both
   // decide version 1 is absent; the second then runs `CREATE TABLE` on a table
-  // that now exists and fails to start. SQLite's BEGIN IMMEDIATE serializes
-  // this. A PostgreSQL driver will need an advisory lock as well, since its
-  // transactions do not block one another this way.
+  // that now exists and fails to start.
   return driver.transaction(async () => {
+    // Before the read, not after: a lock taken afterwards lets both processes
+    // read the same empty table first, which is the whole race.
+    const lock = driver.dialect.migrationLock;
+    if (lock !== null) await driver.all(lock);
+
+    // PostgreSQL's IF NOT EXISTS does not serialize concurrent catalog
+    // inserts. The history table must be created under the same lock.
+    await driver.exec(MIGRATIONS_TABLE);
+
     const applied = await driver.all<{ version: number }>(
       "SELECT version FROM schema_migrations",
     );

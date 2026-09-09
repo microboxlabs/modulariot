@@ -2,11 +2,69 @@ import { describe, expect, it } from "vitest";
 import {
   ConfigError,
   DEFAULT_CLOCK_TOLERANCE_SECONDS,
+  DEFAULT_DOCUMENTS_PATH,
+  DEFAULT_ORPHAN_MIN_AGE_SECONDS,
+  DEFAULT_ORPHAN_SWEEP_INTERVAL_SECONDS,
   DEFAULT_SQLITE_PATH,
+  MAX_TIMER_SECONDS,
   readServerConfig,
 } from "./config";
 
 const base = { MIOT_DASHBOARD_INSECURE_AUTH: "true" };
+
+describe("cloud documents and CORS configuration", () => {
+  it.each(["s3", "gcs"])(
+    "requires a bucket for %s and normalizes its prefix",
+    (documents) => {
+      const env = {
+        ...base,
+        MIOT_DASHBOARD_STORE: "sqlite",
+        MIOT_DASHBOARD_DOCUMENTS: documents,
+      };
+      expect(() => readServerConfig(env)).toThrow(
+        "MIOT_DASHBOARD_DOCUMENTS_BUCKET",
+      );
+      expect(
+        readServerConfig({
+          ...env,
+          MIOT_DASHBOARD_DOCUMENTS_BUCKET: "configs",
+          MIOT_DASHBOARD_DOCUMENTS_PREFIX: "app",
+        }).cloudDocuments,
+      ).toEqual({ bucket: "configs", prefix: "app/", region: undefined });
+    },
+  );
+  it("rejects a bucket prefix outside its namespace", () => {
+    expect(() =>
+      readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_STORE: "sqlite",
+        MIOT_DASHBOARD_DOCUMENTS: "s3",
+        MIOT_DASHBOARD_DOCUMENTS_BUCKET: "configs",
+        MIOT_DASHBOARD_DOCUMENTS_PREFIX: "../escape",
+      }),
+    ).toThrow("PREFIX");
+  });
+  it("defaults CORS off and parses exact origins and custom headers", () => {
+    expect(readServerConfig(base).cors).toBeUndefined();
+    expect(
+      readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_CORS_ORIGINS: "https://one.example, https://two.example",
+        MIOT_DASHBOARD_CORS_CREDENTIALS: "true",
+        MIOT_DASHBOARD_CORS_HEADERS: "x-ticket",
+      }).cors,
+    ).toEqual({
+      origins: ["https://one.example", "https://two.example"],
+      credentials: true,
+      headers: ["x-ticket"],
+    });
+  });
+  it("rejects unsafe origins before the server starts", () => {
+    expect(() =>
+      readServerConfig({ ...base, MIOT_DASHBOARD_CORS_ORIGINS: "*" }),
+    ).toThrow(ConfigError);
+  });
+});
 
 describe("readServerConfig", () => {
   it("defaults to a loopback address, so a dev server is not reachable off-box", () => {
@@ -31,11 +89,249 @@ describe("readServerConfig", () => {
 
   it("rejects a store it cannot build rather than silently using memory", () => {
     expect(() =>
-      readServerConfig({ ...base, MIOT_DASHBOARD_STORE: "postgres" }),
+      readServerConfig({ ...base, MIOT_DASHBOARD_STORE: "mysql" }),
     ).toThrowError(/not supported/i);
     expect(() =>
-      readServerConfig({ ...base, MIOT_DASHBOARD_STORE: "postgres" }),
-    ).toThrowError(/memory, sqlite/);
+      readServerConfig({ ...base, MIOT_DASHBOARD_STORE: "mysql" }),
+    ).toThrowError(/memory, sqlite, postgres/);
+  });
+
+  describe("the postgres store", () => {
+    const postgres = { ...base, MIOT_DASHBOARD_STORE: "postgres" };
+
+    it("needs a connection string, which has no default", () => {
+      // A default would connect to whatever is listening locally, which on a
+      // developer's machine is usually a database with other data in it.
+      expect(() => readServerConfig(postgres)).toThrowError(
+        /MIOT_DASHBOARD_POSTGRES_URL/,
+      );
+    });
+
+    it("refuses a connection string that is not postgres", () => {
+      // The driver would report this on the first statement, by which time
+      // the server is up and answering its readiness probe.
+      expect(() =>
+        readServerConfig({
+          ...postgres,
+          MIOT_DASHBOARD_POSTGRES_URL: "mysql://host/db",
+        }),
+      ).toThrowError(/must start with "postgres:\/\/"/);
+    });
+
+    it("refuses a pool of no connections", () => {
+      expect(() =>
+        readServerConfig({
+          ...postgres,
+          MIOT_DASHBOARD_POSTGRES_URL: "postgres://host/db",
+          MIOT_DASHBOARD_POSTGRES_POOL_SIZE: "0",
+        }),
+      ).toThrowError(/at least 1/);
+    });
+
+    it("reads the url, the pool size and the timeout", () => {
+      const config = readServerConfig({
+        ...postgres,
+        MIOT_DASHBOARD_POSTGRES_URL: "postgresql://host:5432/db",
+        MIOT_DASHBOARD_POSTGRES_POOL_SIZE: "25",
+        MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT: "1500",
+      });
+      expect(config.postgres).toEqual({
+        url: "postgresql://host:5432/db",
+        poolSize: 25,
+        connectionTimeoutMs: 1500,
+      });
+    });
+
+    it("leaves the postgres settings unread for the other stores", () => {
+      // Read unconditionally, a stray MIOT_DASHBOARD_POSTGRES_URL would fail
+      // a server that is deliberately running on sqlite.
+      const config = readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_STORE: "sqlite",
+        MIOT_DASHBOARD_POSTGRES_URL: "not a url",
+      });
+      expect(config.postgres).toBeUndefined();
+    });
+  });
+
+  describe("tenant entitlement", () => {
+    it("falls back to the seed file when no host is configured", () => {
+      // Dev and tests only. `bin.ts` warns about it at startup rather than
+      // here, because a seed is the right answer for a dev server.
+      expect(readServerConfig(base).tenants).toEqual({ kind: "seed" });
+    });
+
+    it("asks the host when a url is set, with the lookup defaults", () => {
+      const { tenants } = readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_TENANTS_URL:
+          "https://host.test/people/{userId}/tenants/{tenantId}",
+      });
+      expect(tenants).toMatchObject({
+        kind: "http",
+        url: "https://host.test/people/{userId}/tenants/{tenantId}",
+        method: "GET",
+        absentStatuses: [404],
+      });
+    });
+
+    it("reads the lookup settings that tune it", () => {
+      const { tenants } = readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_TENANTS_URL: "https://host.test/entitlements",
+        MIOT_DASHBOARD_TENANTS_METHOD: "post",
+        MIOT_DASHBOARD_TENANTS_ENTITLED_PATH: "entry.entitled",
+        MIOT_DASHBOARD_TENANTS_ABSENT_STATUS: "404,410",
+        MIOT_DASHBOARD_TENANTS_CACHE: "120",
+        MIOT_DASHBOARD_TENANTS_NEGATIVE_CACHE: "5",
+        MIOT_DASHBOARD_TENANTS_TIMEOUT: "2500",
+      });
+      expect(tenants).toMatchObject({
+        kind: "http",
+        method: "POST",
+        entitledPath: "entry.entitled",
+        absentStatuses: [404, 410],
+        cacheSeconds: 120,
+        negativeCacheSeconds: 5,
+        requestTimeoutMs: 2500,
+      });
+    });
+
+    it("refuses a method that is neither GET nor POST", () => {
+      expect(() =>
+        readServerConfig({
+          ...base,
+          MIOT_DASHBOARD_TENANTS_URL: "https://host.test/e",
+          MIOT_DASHBOARD_TENANTS_METHOD: "DELETE",
+        }),
+      ).toThrowError(/must be GET or POST/);
+    });
+  });
+
+  describe("CORS", () => {
+    it("stays off unless origins are set", () => {
+      expect(readServerConfig(base).cors).toBeUndefined();
+    });
+
+    it("ignores the empty entry a trailing comma leaves", () => {
+      // The ordinary way to write an env list. Failing startup over an origin
+      // the operator never typed sends them looking at the one they did.
+      const { cors } = readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_CORS_ORIGINS: "https://a.example, https://b.example,",
+      });
+      expect(cors?.origins).toEqual(["https://a.example", "https://b.example"]);
+    });
+
+    it("refuses a list that turns CORS on with nothing in it", () => {
+      expect(() =>
+        readServerConfig({ ...base, MIOT_DASHBOARD_CORS_ORIGINS: " , " }),
+      ).toThrowError(/lists no origin/);
+    });
+
+    it("names the origin it rejected", () => {
+      expect(() =>
+        readServerConfig({
+          ...base,
+          MIOT_DASHBOARD_CORS_ORIGINS: "https://a.example,https://b.example/x",
+        }),
+      ).toThrowError(/https:\/\/b\.example\/x/);
+    });
+  });
+
+  describe("documents", () => {
+    const sqlite = { ...base, MIOT_DASHBOARD_STORE: "sqlite" };
+
+    it("keeps configs inline unless told otherwise", () => {
+      const config = readServerConfig(sqlite);
+      expect(config.documents).toBe("inline");
+      expect(config.documentsPath).toBe(DEFAULT_DOCUMENTS_PATH);
+    });
+
+    it("takes a directory for the fs backend", () => {
+      const config = readServerConfig({
+        ...sqlite,
+        MIOT_DASHBOARD_DOCUMENTS: "fs",
+        MIOT_DASHBOARD_DOCUMENTS_PATH: "/var/lib/miot/documents",
+      });
+      expect(config.documents).toBe("fs");
+      expect(config.documentsPath).toBe("/var/lib/miot/documents");
+    });
+
+    it("rejects a backend it does not have", () => {
+      expect(() =>
+        readServerConfig({ ...sqlite, MIOT_DASHBOARD_DOCUMENTS: "azure" }),
+      ).toThrowError(/inline, fs/);
+    });
+
+    it("refuses a document backend the memory store would ignore", () => {
+      expect(() =>
+        readServerConfig({ ...base, MIOT_DASHBOARD_DOCUMENTS: "fs" }),
+      ).toThrowError(/memory store/);
+    });
+
+    it("sweeps hourly, keeping a day of leftovers, unless told otherwise", () => {
+      const config = readServerConfig(sqlite);
+      expect(config.orphanSweepIntervalSeconds).toBe(
+        DEFAULT_ORPHAN_SWEEP_INTERVAL_SECONDS,
+      );
+      expect(config.orphanMinAgeSeconds).toBe(DEFAULT_ORPHAN_MIN_AGE_SECONDS);
+
+      const tuned = readServerConfig({
+        ...sqlite,
+        MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL: "0",
+        MIOT_DASHBOARD_ORPHAN_MIN_AGE: "600",
+      });
+      expect(tuned.orphanSweepIntervalSeconds).toBe(0);
+      expect(tuned.orphanMinAgeSeconds).toBe(600);
+    });
+
+    it("rejects a sweep setting that is not a whole number of seconds", () => {
+      expect(() =>
+        readServerConfig({ ...sqlite, MIOT_DASHBOARD_ORPHAN_MIN_AGE: "1h" }),
+      ).toThrowError(/whole number of seconds/);
+      expect(() =>
+        readServerConfig({
+          ...sqlite,
+          MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL: "-1",
+        }),
+      ).toThrowError(ConfigError);
+    });
+
+    it("rejects a minimum age of zero", () => {
+      // Zero removes the window between a document being written and its row
+      // being committed. A sweep landing in that window deletes the document,
+      // and the save then commits a row pointing at nothing.
+      expect(() =>
+        readServerConfig({ ...sqlite, MIOT_DASHBOARD_ORPHAN_MIN_AGE: "0" }),
+      ).toThrowError(/between 1 and/);
+    });
+
+    it("still allows a sweep interval of zero, which means never", () => {
+      expect(
+        readServerConfig({
+          ...sqlite,
+          MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL: "0",
+        }).orphanSweepIntervalSeconds,
+      ).toBe(0);
+    });
+
+    it("rejects an interval larger than a timer can hold", () => {
+      // setInterval silently uses 1ms above 2^31-1, so a sweep asked for every
+      // 35 days would run roughly every millisecond instead.
+      expect(() =>
+        readServerConfig({
+          ...sqlite,
+          MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL: String(MAX_TIMER_SECONDS + 1),
+        }),
+      ).toThrowError(new RegExp(`between 0 and ${MAX_TIMER_SECONDS}`));
+      expect(
+        readServerConfig({
+          ...sqlite,
+          MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL: String(MAX_TIMER_SECONDS),
+        }).orphanSweepIntervalSeconds,
+      ).toBe(MAX_TIMER_SECONDS);
+    });
   });
 
   describe("the store", () => {
@@ -161,13 +457,21 @@ describe("readServerConfig", () => {
 const jwtBase = {
   MIOT_DASHBOARD_JWT_ISSUER: "https://issuer.test/",
   MIOT_DASHBOARD_JWT_AUDIENCE: "miot-dashboards",
-  MIOT_DASHBOARD_JWT_TENANT_CLAIM: "https://miot.dev/tenant_id",
   MIOT_DASHBOARD_JWT_JWKS_URL: "https://issuer.test/.well-known/jwks.json",
+};
+
+/**
+ * The JWT half of a verified configuration. More than one scheme can be
+ * configured at once, so `auth` is the set and this reaches into it.
+ */
+const jwtAuthOf = (env: Record<string, string | undefined>) => {
+  const { auth } = readServerConfig(env);
+  return auth.kind === "verified" ? auth.jwt : undefined;
 };
 
 describe("readServerConfig: JWT authentication", () => {
   it("reads issuer, audience and claim names", () => {
-    const config = readServerConfig({
+    const jwt = jwtAuthOf({
       ...jwtBase,
       MIOT_DASHBOARD_JWT_AUDIENCE: "miot-dashboards, another-api",
       MIOT_DASHBOARD_JWT_USER_CLAIM: "email",
@@ -175,8 +479,7 @@ describe("readServerConfig: JWT authentication", () => {
       MIOT_DASHBOARD_JWT_NAME_CLAIM: "nickname",
     });
 
-    expect(config.auth).toEqual({
-      kind: "jwt",
+    expect(jwt).toEqual({
       issuer: "https://issuer.test/",
       audience: ["miot-dashboards", "another-api"],
       algorithm: "RS256",
@@ -185,7 +488,6 @@ describe("readServerConfig: JWT authentication", () => {
         url: "https://issuer.test/.well-known/jwks.json",
       },
       claims: {
-        tenantId: "https://miot.dev/tenant_id",
         userId: "email",
         groups: "https://miot.dev/groups",
         displayName: "nickname",
@@ -197,14 +499,13 @@ describe("readServerConfig: JWT authentication", () => {
   it("derives the algorithm from the key source", () => {
     // The algorithm is never configured on its own, so "accept either"
     // cannot be requested.
-    const rsa = readServerConfig(jwtBase).auth;
-    expect(rsa).toMatchObject({ algorithm: "RS256" });
+    expect(jwtAuthOf(jwtBase)).toMatchObject({ algorithm: "RS256" });
 
-    const hmac = readServerConfig({
+    const hmac = jwtAuthOf({
       ...jwtBase,
       MIOT_DASHBOARD_JWT_JWKS_URL: undefined,
       MIOT_DASHBOARD_JWT_SECRET: "x".repeat(32),
-    }).auth;
+    });
     expect(hmac).toMatchObject({ algorithm: "HS256" });
   });
 
@@ -213,11 +514,11 @@ describe("readServerConfig: JWT authentication", () => {
     // bytes, so a trimmed secret stops matching the issuer's.
     const secret = `${"x".repeat(32)}   y`;
     expect(
-      readServerConfig({
+      jwtAuthOf({
         ...jwtBase,
         MIOT_DASHBOARD_JWT_JWKS_URL: undefined,
         MIOT_DASHBOARD_JWT_SECRET: secret,
-      }).auth,
+      }),
     ).toMatchObject({ key: { kind: "secret", secret } });
   });
 
@@ -252,7 +553,6 @@ describe("readServerConfig: JWT authentication", () => {
   it.each([
     ["MIOT_DASHBOARD_JWT_ISSUER", /ISSUER is required/],
     ["MIOT_DASHBOARD_JWT_AUDIENCE", /AUDIENCE is required/],
-    ["MIOT_DASHBOARD_JWT_TENANT_CLAIM", /TENANT_CLAIM is required/],
     ["MIOT_DASHBOARD_JWT_JWKS_URL", /needs a key/],
   ])("refuses to start without %s", (key, message) => {
     expect(() =>
@@ -267,14 +567,14 @@ describe("readServerConfig: JWT authentication", () => {
   });
 
   it("restores the newlines a PEM loses on its way through the environment", () => {
-    const config = readServerConfig({
+    const jwt = jwtAuthOf({
       ...jwtBase,
       MIOT_DASHBOARD_JWT_JWKS_URL: undefined,
       MIOT_DASHBOARD_JWT_PUBLIC_KEY:
         "-----BEGIN PUBLIC KEY-----\\nMIIBIjAN\\n-----END PUBLIC KEY-----",
     });
 
-    expect(config.auth).toMatchObject({
+    expect(jwt).toMatchObject({
       algorithm: "RS256",
       key: {
         kind: "publicKey",
@@ -297,10 +597,259 @@ describe("readServerConfig: JWT authentication", () => {
 
   it("accepts a clock tolerance inside the cap", () => {
     expect(
-      readServerConfig({
+      jwtAuthOf({
         ...jwtBase,
         MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE: "120",
-      }).auth,
+      }),
     ).toMatchObject({ clockToleranceSeconds: 120 });
   });
+});
+
+const ticketBase = {
+  MIOT_DASHBOARD_TICKET_HEADER: "x-ticket",
+  MIOT_DASHBOARD_TICKET_VALIDATE_URL: "https://emitter.test/tickets/-me-",
+  MIOT_DASHBOARD_TICKET_PRESENT_NAME: "authorization",
+  MIOT_DASHBOARD_TICKET_PRESENT_VALUE: "Basic {ticketBase64}",
+  MIOT_DASHBOARD_TICKET_USER_PATH: "entry.id",
+};
+
+const ticketAuthOf = (env: Record<string, string | undefined>) => {
+  const { auth } = readServerConfig(env);
+  return auth.kind === "verified" ? auth.ticket : undefined;
+};
+
+describe("readServerConfig: ticket authentication", () => {
+  it("reads the header, the emitter and where the identity sits", () => {
+    expect(
+      ticketAuthOf({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_GROUPS_PATH: "entry.groups",
+        MIOT_DASHBOARD_TICKET_NAME_PATH: "entry.displayName",
+      }),
+    ).toEqual({
+      header: "x-ticket",
+      scheme: undefined,
+      url: "https://emitter.test/tickets/-me-",
+      method: "GET",
+      present: {
+        kind: "header",
+        name: "authorization",
+        value: "Basic {ticketBase64}",
+      },
+      serviceHeader: undefined,
+      claims: {
+        userId: "entry.id",
+        groups: "entry.groups",
+        displayName: "entry.displayName",
+      },
+      absentStatuses: [401, 404],
+      cacheSeconds: 60,
+      negativeCacheSeconds: 30,
+      requestTimeoutMs: 5000,
+    });
+  });
+
+  it.each([
+    ["MIOT_DASHBOARD_TICKET_VALIDATE_URL", /VALIDATE_URL is required/],
+    ["MIOT_DASHBOARD_TICKET_USER_PATH", /USER_PATH is required/],
+  ])("refuses to start without %s", (key, message) => {
+    expect(() =>
+      readServerConfig({ ...ticketBase, [key]: undefined }),
+    ).toThrowError(message);
+  });
+
+  it("needs a name and a value to present the ticket in a header", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_PRESENT_VALUE: undefined,
+      }),
+    ).toThrowError(/PRESENT_NAME and MIOT_DASHBOARD_TICKET_PRESENT_VALUE/);
+  });
+
+  it("needs a parameter name to present the ticket in the query", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_PRESENT: "query",
+        MIOT_DASHBOARD_TICKET_PRESENT_NAME: undefined,
+      }),
+    ).toThrowError(/PRESENT_NAME is required/);
+  });
+
+  it("takes a body presentation with nothing else to configure", () => {
+    expect(
+      ticketAuthOf({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_PRESENT: "body",
+        MIOT_DASHBOARD_TICKET_PRESENT_NAME: undefined,
+        MIOT_DASHBOARD_TICKET_PRESENT_VALUE: undefined,
+      }),
+    ).toMatchObject({ present: { kind: "body" } });
+  });
+
+  it("refuses a presentation it does not know", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_PRESENT: "cookie",
+      }),
+    ).toThrowError(/header, query or body/);
+  });
+
+  it("needs both halves of a service credential, or neither", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_SERVICE_HEADER: "x-api-key",
+      }),
+    ).toThrowError(/must be set together/);
+  });
+
+  it("accepts JWT and tickets at the same time", () => {
+    // They read different headers, so a deployment can face a front-end
+    // holding a token and a service holding a ticket.
+    const { auth } = readServerConfig({ ...jwtBase, ...ticketBase });
+    expect(auth.kind).toBe("verified");
+    expect(auth.kind === "verified" && auth.jwt).toBeDefined();
+    expect(auth.kind === "verified" && auth.ticket).toBeDefined();
+  });
+
+  it("refuses tickets alongside unverified header auth", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_INSECURE_AUTH: "true",
+      }),
+    ).toThrowError(/Two identity providers/);
+  });
+
+  it.each(["-1", "3601", "1.5", "soon"])(
+    "refuses a cache of %j seconds",
+    (value) => {
+      expect(() =>
+        readServerConfig({ ...ticketBase, MIOT_DASHBOARD_TICKET_CACHE: value }),
+      ).toThrowError(ConfigError);
+    },
+  );
+
+  it("refuses a status list that is not statuses", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_INVALID_STATUS: "401,nope",
+      }),
+    ).toThrowError(/HTTP statuses/);
+  });
+});
+
+describe("readServerConfig: scope membership", () => {
+  it("reads membership from the seed file unless a URL is set", () => {
+    expect(readServerConfig(jwtBase).scopes).toEqual({ kind: "seed" });
+  });
+
+  it("delegates to the host when a URL is set", () => {
+    expect(
+      readServerConfig({
+        ...jwtBase,
+        MIOT_DASHBOARD_SCOPES_URL:
+          "https://host.test/people/{userId}/sites/{scopeId}",
+        MIOT_DASHBOARD_SCOPES_ROLE_PATH: "entry.role",
+        MIOT_DASHBOARD_SCOPES_ROLE_MAP:
+          "SiteManager=Coordinator, SiteConsumer=Consumer",
+        MIOT_DASHBOARD_SCOPES_SERVICE_HEADER: "authorization",
+        MIOT_DASHBOARD_SCOPES_SERVICE_VALUE: "Bearer service-token",
+      }).scopes,
+    ).toEqual({
+      kind: "http",
+      url: "https://host.test/people/{userId}/sites/{scopeId}",
+      method: "GET",
+      rolePath: "entry.role",
+      roleMap: { SiteManager: "Coordinator", SiteConsumer: "Consumer" },
+      serviceHeader: { name: "authorization", value: "Bearer service-token" },
+      absentStatuses: [404],
+      cacheSeconds: 60,
+      negativeCacheSeconds: 30,
+      requestTimeoutMs: 5000,
+    });
+  });
+
+  it("refuses a mapping onto a role that does not exist", () => {
+    expect(() =>
+      readServerConfig({
+        ...jwtBase,
+        MIOT_DASHBOARD_SCOPES_URL: "https://host.test/{scopeId}",
+        MIOT_DASHBOARD_SCOPES_ROLE_MAP: "SiteManager=Admin",
+      }),
+    ).toThrowError(/not one of Consumer, Contributor, Editor, Coordinator/);
+  });
+
+  it("refuses a mapping that is not pairs", () => {
+    expect(() =>
+      readServerConfig({
+        ...jwtBase,
+        MIOT_DASHBOARD_SCOPES_URL: "https://host.test/{scopeId}",
+        MIOT_DASHBOARD_SCOPES_ROLE_MAP: "SiteManager",
+      }),
+    ).toThrowError(/<host role>=<role>/);
+  });
+
+  it("builds the mapping without a prototype to walk into", () => {
+    const { scopes } = readServerConfig({
+      ...jwtBase,
+      MIOT_DASHBOARD_SCOPES_URL: "https://host.test/{scopeId}",
+      MIOT_DASHBOARD_SCOPES_ROLE_MAP: "SiteManager=Coordinator",
+    });
+    // A host role literally named "constructor" must not resolve to a
+    // function, and neither must one named "__proto__".
+    expect(
+      scopes.kind === "http" && scopes.roleMap?.constructor,
+    ).toBeUndefined();
+  });
+});
+
+describe("readServerConfig: ticket presentation and service credential", () => {
+  it("defaults the method to POST when the ticket goes in the body", () => {
+    expect(
+      ticketAuthOf({ ...ticketBase, MIOT_DASHBOARD_TICKET_PRESENT: "body" }),
+    ).toMatchObject({ method: "POST", present: { kind: "body" } });
+  });
+
+  it("refuses body presentation with an explicit GET", () => {
+    expect(() =>
+      readServerConfig({
+        ...ticketBase,
+        MIOT_DASHBOARD_TICKET_PRESENT: "body",
+        MIOT_DASHBOARD_TICKET_VALIDATE_METHOD: "GET",
+      }),
+    ).toThrowError(/VALIDATE_METHOD=POST/);
+  });
+
+  it("requires the invalid statuses when a service credential is sent", () => {
+    const withService = {
+      ...ticketBase,
+      MIOT_DASHBOARD_TICKET_SERVICE_HEADER: "authorization",
+      MIOT_DASHBOARD_TICKET_SERVICE_VALUE: "Bearer service-token",
+    };
+    expect(() => readServerConfig(withService)).toThrowError(
+      /MIOT_DASHBOARD_TICKET_INVALID_STATUS must be set/,
+    );
+    expect(
+      ticketAuthOf({
+        ...withService,
+        MIOT_DASHBOARD_TICKET_INVALID_STATUS: "404",
+      }),
+    ).toMatchObject({ absentStatuses: [404] });
+  });
+});
+
+it("refuses an unbounded PostgreSQL connection wait", () => {
+  expect(() =>
+    readServerConfig({
+      MIOT_DASHBOARD_INSECURE_AUTH: "true",
+      MIOT_DASHBOARD_STORE: "postgres",
+      MIOT_DASHBOARD_POSTGRES_URL: "postgres://localhost/test",
+      MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT: "0",
+    }),
+  ).toThrow("must be at least 1");
 });

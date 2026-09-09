@@ -11,12 +11,12 @@ import { openSqliteStore, type OpenedStore } from "../store/sqlite";
 import {
   createInsecureHeaderIdentityResolver,
   createMemoryScopeAuthority,
+  createMemoryTenantAuthority,
 } from "../testing";
 import { serve, type RunningServer } from "./serve";
 
 const AS_ANA = {
   "x-dev-user": "ana",
-  "x-dev-tenant": "acme",
   "content-type": "application/json",
 };
 
@@ -42,6 +42,9 @@ describe("a restart", () => {
     const opened = await openSqliteStore({ path });
     const running = await serve({
       identity: createInsecureHeaderIdentityResolver(),
+      tenants: createMemoryTenantAuthority({
+        acme: { ops: { ana: "Coordinator" } },
+      }),
       scopes: createMemoryScopeAuthority({
         acme: { ops: { ana: "Coordinator" } },
       }),
@@ -58,14 +61,17 @@ describe("a restart", () => {
     const first = await boot();
     try {
       const saved = await fetch(
-        `${first.running.url}/scopes/ops/dashboards/fleet`,
+        `${first.running.url}/tenants/acme/scopes/ops/dashboards/fleet`,
         { method: "PUT", headers: AS_ANA, body: JSON.stringify(config) },
       );
       expect(saved.status).toBe(200);
 
-      const listed = await fetch(`${first.running.url}/scopes/ops/dashboards`, {
-        headers: AS_ANA,
-      });
+      const listed = await fetch(
+        `${first.running.url}/tenants/acme/scopes/ops/dashboards`,
+        {
+          headers: AS_ANA,
+        },
+      );
       expect(await listed.json()).toEqual({
         data: [{ slug: "fleet", name: "Fleet" }],
       });
@@ -78,7 +84,7 @@ describe("a restart", () => {
     const second = await boot();
     try {
       const loaded = await fetch(
-        `${second.running.url}/scopes/ops/dashboards/fleet`,
+        `${second.running.url}/tenants/acme/scopes/ops/dashboards/fleet`,
         { headers: AS_ANA },
       );
       expect(loaded.status).toBe(200);
@@ -86,7 +92,7 @@ describe("a restart", () => {
 
       // The revision persisted, so an If-Match from before the restart matches.
       const conflicting = await fetch(
-        `${second.running.url}/scopes/ops/dashboards/fleet`,
+        `${second.running.url}/tenants/acme/scopes/ops/dashboards/fleet`,
         {
           method: "PUT",
           headers: { ...AS_ANA, "if-match": "1" },
@@ -103,11 +109,14 @@ describe("a restart", () => {
   it("keeps one tenant's data out of another's, across a restart", async () => {
     const first = await boot();
     try {
-      await fetch(`${first.running.url}/scopes/ops/dashboards/private`, {
-        method: "PUT",
-        headers: AS_ANA,
-        body: JSON.stringify({ version: 2, name: "Acme only" }),
-      });
+      await fetch(
+        `${first.running.url}/tenants/acme/scopes/ops/dashboards/private`,
+        {
+          method: "PUT",
+          headers: AS_ANA,
+          body: JSON.stringify({ version: 2, name: "Acme only" }),
+        },
+      );
     } finally {
       await first.running.close();
       await first.opened.close();
@@ -115,11 +124,12 @@ describe("a restart", () => {
 
     const second = await boot();
     try {
-      // Same scope id, different tenant on the credential. 403 and not 404:
-      // the two are not distinguishable from outside.
+      // Same scope id and slug, a tenant this caller is not in. 403 and not
+      // 404: the two are not distinguishable from outside, so naming tenants
+      // at random tells an attacker nothing about which ones exist.
       const theirs = await fetch(
-        `${second.running.url}/scopes/ops/dashboards/private`,
-        { headers: { ...AS_ANA, "x-dev-tenant": "globex" } },
+        `${second.running.url}/tenants/globex/scopes/ops/dashboards/private`,
+        { headers: { ...AS_ANA } },
       );
       expect(theirs.status).toBe(403);
     } finally {

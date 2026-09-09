@@ -10,17 +10,24 @@
 import { createServer, type Server } from "node:http";
 import { createDashboardHandler, pathnameOf } from "../http/handler";
 import type { AuditSink } from "../seams/audit";
-import type { IdentityResolver, ScopeAuthority } from "../seams/identity";
+import type {
+  IdentityResolver,
+  ScopeAuthority,
+  TenantAuthority,
+} from "../seams/identity";
 import type { ServerDashboardStore } from "../seams/store";
 import { createDocsHandler, DOCS_PATH, SPEC_PATH } from "./docs";
 import { toNodeListener } from "./node-adapter";
+import type { CorsOptions } from "../http/cors";
 
 export interface ServeOptions {
   identity: IdentityResolver<Request>;
+  tenants: TenantAuthority;
   scopes: ScopeAuthority;
   store: ServerDashboardStore;
   audit?: AuditSink;
   basePath?: string;
+  cors?: CorsOptions;
   port: number;
   host: string;
   /**
@@ -86,10 +93,23 @@ function probeResponse(pathname: string): Response | null {
 }
 
 export function createRequestHandler(options: ServeOptions) {
+  const log = options.log ?? defaultLog;
   const api = createDashboardHandler({
     identity: options.identity,
+    tenants: options.tenants,
     scopes: options.scopes,
     store: options.store,
+    // The 500 body says nothing on purpose, so without this a failing
+    // database is a wall of INTERNAL_ERROR and an empty log.
+    onError: (error, request) =>
+      log({
+        level: "error",
+        msg: "request failed",
+        method: request.method,
+        path: pathnameOf(request.url),
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    ...(options.cors ? { cors: options.cors } : {}),
     ...(options.audit ? { audit: options.audit } : {}),
     ...(options.basePath ? { basePath: options.basePath } : {}),
   });

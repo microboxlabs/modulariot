@@ -119,6 +119,17 @@ class HarnessSettings(BaseSettings):
     # strictly positive; 0 or negative is meaningless as a budget.
     conversation_token_budget: int = Field(default=24_000, gt=0)
 
+    # Turns a conversation may hold before its older part is folded into a
+    # summary (`ConversationStore.summarize_if_needed`). The token budget
+    # above bounds what reaches the model; this bounds what accumulates.
+    conversation_summarize_at_turns: int = Field(default=10, gt=0)
+
+    # Prior turns shown to the intent router alongside the message it
+    # classifies. A follow-up like "and last week?" or "y bueno" has no
+    # route of its own; the turn before it does. 0 restores bare routing.
+    # Compaction keeps this many turns verbatim so they are there to read.
+    intent_router_context_turns: int = Field(default=2, ge=0)
+
     # Context & Skills subsystem (Phase 1: file-backed). Default dirs are
     # packaged in the image so it boots with zero mounted config; a K8s
     # ConfigMap/volume overrides them. The loader handles a missing dir

@@ -1,5 +1,16 @@
 export type RunMode = "auto" | "canned" | "meta" | "agentic";
 
+/**
+ * One prior exchange replayed into a conversation the caller owns. The harness
+ * keeps conversations in memory, so a caller holding a transcript the harness
+ * has forgotten (a restart, a chat reopened later) hands the turns back rather
+ * than losing the context.
+ */
+export interface ConversationTurn {
+  user_message: string;
+  assistant_answer: string;
+}
+
 export interface UserRequest {
   message: string;
   thread_id?: string;
@@ -8,6 +19,12 @@ export interface UserRequest {
   route_context?: Record<string, unknown>;
   mode?: RunMode;
   conversation_id?: string | null;
+  /** Seeds `conversation_id` when the harness does not know it. Ignored for a
+   * conversation it already holds. */
+  conversation_history?: ConversationTurn[];
+  /** The summary the harness compacted this conversation into, handed back
+   * with the replay. Covers turns older than `conversation_history`. */
+  conversation_summary?: string | null;
   answer_format?: string;
   skill_id?: string;
   debug?: boolean;
@@ -161,6 +178,9 @@ export interface HarnessRunRecord {
   artifacts: Array<Record<string, unknown>>;
   answer: string | null;
   conversation_id: string | null;
+  /** The conversation's compacted summary as of the end of this run. Optional
+   * for harness versions predating compaction. */
+  conversation_summary?: string | null;
   /**
    * Ground-or-flag assumptions declared by the synthesizer. Optional for
    * back-compat with harness versions / persisted records predating the field.

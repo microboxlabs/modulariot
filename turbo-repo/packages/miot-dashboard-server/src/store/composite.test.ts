@@ -63,6 +63,8 @@ function recorder(
       },
       getPermissions: () => Promise.resolve([]),
       setPermissions: () => Promise.resolve(),
+      documentKeys: () =>
+        Promise.resolve(new Set(row === null ? [] : [row.documentKey])),
     },
     documents: {
       put: (key, body) => {

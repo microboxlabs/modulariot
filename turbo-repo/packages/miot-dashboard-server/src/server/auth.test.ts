@@ -13,9 +13,19 @@ import {
   validClaims,
   type TestKeyPair,
 } from "../test/tokens";
-import { createMemoryScopeAuthority, createMemoryStore } from "../testing";
-import { buildIdentityResolver } from "./auth";
-import { ConfigError, type JwtAuthConfig } from "./config";
+import { FULL_CAPABILITIES } from "../access/roles";
+import {
+  createMemoryScopeAuthority,
+  createMemoryStore,
+  createMemoryTenantAuthority,
+} from "../testing";
+import { buildIdentityResolver, buildScopeAuthority } from "./auth";
+import {
+  ConfigError,
+  type AuthConfig,
+  type JwtAuthConfig,
+  type TicketAuthConfig,
+} from "./config";
 import { serve, type RunningServer } from "./serve";
 
 const ISSUER = "https://issuer.test/";
@@ -39,19 +49,24 @@ const fakeJwks = (): typeof fetch =>
     )) as unknown as typeof fetch;
 
 const jwtConfig = (overrides: Partial<JwtAuthConfig> = {}): JwtAuthConfig => ({
-  kind: "jwt",
   issuer: ISSUER,
   audience: [AUDIENCE],
   algorithm: "RS256",
   key: { kind: "jwks", url: JWKS_URL },
   claims: {
-    tenantId: TENANT_CLAIM,
     userId: undefined,
     groups: undefined,
     displayName: undefined,
   },
   clockToleranceSeconds: 30,
   ...overrides,
+});
+
+/** JWT-only verified auth, which is what most of these tests exercise. */
+const jwtAuth = (overrides: Partial<JwtAuthConfig> = {}): AuthConfig => ({
+  kind: "verified",
+  jwt: jwtConfig(overrides),
+  ticket: undefined,
 });
 
 const tokenFor = (claims: Record<string, unknown> = {}): Promise<string> =>
@@ -68,7 +83,7 @@ const tokenFor = (claims: Record<string, unknown> = {}): Promise<string> =>
 
 describe("buildIdentityResolver", () => {
   it("builds a resolver that verifies against the JWKS endpoint", async () => {
-    const { identity } = await buildIdentityResolver(jwtConfig(), {
+    const { identity } = await buildIdentityResolver(jwtAuth(), {
       fetchImpl: fakeJwks(),
     });
     const request = new Request("https://server.test/", {
@@ -77,13 +92,12 @@ describe("buildIdentityResolver", () => {
 
     await expect(identity.resolve(request)).resolves.toMatchObject({
       userId: "auth0|ana",
-      tenantId: "acme",
     });
   });
 
   it("describes the configuration without printing key material", async () => {
     const { describe: line } = await buildIdentityResolver(
-      jwtConfig({
+      jwtAuth({
         algorithm: "HS256",
         key: { kind: "secret", secret: "s".repeat(40) },
       }),
@@ -99,7 +113,7 @@ describe("buildIdentityResolver", () => {
     // every request.
     await expect(
       buildIdentityResolver(
-        jwtConfig({
+        jwtAuth({
           algorithm: "HS256",
           key: { kind: "secret", secret: "too-short" },
         }),
@@ -108,7 +122,7 @@ describe("buildIdentityResolver", () => {
 
     await expect(
       buildIdentityResolver(
-        jwtConfig({ key: { kind: "publicKey", pem: "not a pem" } }),
+        jwtAuth({ key: { kind: "publicKey", pem: "not a pem" } }),
       ),
     ).rejects.toThrow(ConfigError);
   });
@@ -120,7 +134,7 @@ describe("buildIdentityResolver", () => {
     expect(line).toContain("unverified");
 
     const request = new Request("https://server.test/", {
-      headers: { "x-dev-user": "ana", "x-dev-tenant": "acme" },
+      headers: { "x-dev-user": "ana" },
     });
     await expect(identity.resolve(request)).resolves.toMatchObject({
       userId: "ana",
@@ -132,11 +146,14 @@ describe("the server behind a verifying resolver", () => {
   let running: RunningServer;
 
   beforeAll(async () => {
-    const { identity } = await buildIdentityResolver(jwtConfig(), {
+    const { identity } = await buildIdentityResolver(jwtAuth(), {
       fetchImpl: fakeJwks(),
     });
     running = await serve({
       identity,
+      tenants: createMemoryTenantAuthority({
+        acme: { ops: { "auth0|ana": "Coordinator" } },
+      }),
       scopes: createMemoryScopeAuthority({
         acme: { ops: { "auth0|ana": "Coordinator" } },
       }),
@@ -154,7 +171,8 @@ describe("the server behind a verifying resolver", () => {
     await running.close();
   });
 
-  const dashboardUrl = () => `${running.url}/scopes/ops/dashboards/fleet`;
+  const dashboardUrl = () =>
+    `${running.url}/tenants/acme/scopes/ops/dashboards/fleet`;
 
   const put = (token: string | null) =>
     fetch(dashboardUrl(), {
@@ -193,7 +211,6 @@ describe("the server behind a verifying resolver", () => {
     ["an expired token", { exp: 1_600_000_000 }],
     ["a token for another API", { aud: "another-api" }],
     ["a token from another issuer", { iss: "https://elsewhere.test/" }],
-    ["a token carrying no tenant", { [TENANT_CLAIM]: undefined }],
   ])("answers 401 for %s", async (_name, claims) => {
     const response = await put(await tokenFor(claims));
     expect(response.status).toBe(401);
@@ -214,16 +231,201 @@ describe("the server behind a verifying resolver", () => {
     expect((await put(forged)).status).toBe(401);
   });
 
-  it("keeps a caller inside the tenant their token names", async () => {
-    // The header is the one the insecure resolver would have believed.
-    const response = await fetch(dashboardUrl(), {
-      headers: {
-        authorization: `Bearer ${await tokenFor({ [TENANT_CLAIM]: "other-tenant" })}`,
-        "x-dev-tenant": "acme",
-      },
-    });
-    // A caller from another tenant has no standing in this scope, and the
-    // answer must not distinguish that from the scope not existing.
+  it("keeps a caller out of a tenant they have no standing in", async () => {
+    // Same verified token, a tenant the path names and the tenant authority
+    // refuses. The answer must not distinguish that from the tenant not
+    // existing, so naming them at random reveals nothing.
+    const response = await fetch(
+      `${running.url}/tenants/other-tenant/scopes/ops/dashboards/fleet`,
+      { headers: { authorization: `Bearer ${await tokenFor()}` } },
+    );
     expect(response.status).toBe(403);
+  });
+});
+
+// ---------------------------------------------------------------- tickets ----
+
+const TICKET_URL = "https://emitter.test/tickets/-me-";
+
+const ticketConfig = (
+  overrides: Partial<TicketAuthConfig> = {},
+): TicketAuthConfig => ({
+  header: "x-ticket",
+  scheme: undefined,
+  url: TICKET_URL,
+  method: "GET",
+  present: {
+    kind: "header",
+    name: "authorization",
+    value: "Basic {ticketBase64}",
+  },
+  serviceHeader: undefined,
+  claims: { userId: "entry.id", groups: undefined, displayName: undefined },
+  absentStatuses: [401, 404],
+  cacheSeconds: 60,
+  negativeCacheSeconds: 30,
+  requestTimeoutMs: 5000,
+  ...overrides,
+});
+
+const emitterAnswering = (status: number, body: unknown = {}): typeof fetch =>
+  (() =>
+    Promise.resolve(
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "content-type": "application/json" },
+      }),
+    )) as unknown as typeof fetch;
+
+describe("buildIdentityResolver: tickets", () => {
+  it("builds a resolver that validates against the emitter", async () => {
+    const { identity, describe: line } = await buildIdentityResolver(
+      { kind: "verified", jwt: undefined, ticket: ticketConfig() },
+      { fetchImpl: emitterAnswering(200, { entry: { id: "ana" } }) },
+    );
+
+    expect(line).toContain(TICKET_URL);
+    await expect(
+      identity.resolve(
+        new Request("https://server.test/", {
+          headers: { "x-ticket": "TICKET_1" },
+        }),
+      ),
+    ).resolves.toMatchObject({ userId: "ana" });
+  });
+
+  it("never puts the service credential in the startup line", async () => {
+    const { describe: line } = await buildIdentityResolver(
+      {
+        kind: "verified",
+        jwt: undefined,
+        ticket: ticketConfig({
+          serviceHeader: { name: "x-api-key", value: "SUPER_SECRET" },
+        }),
+      },
+      { fetchImpl: emitterAnswering(200, { entry: { id: "ana" } }) },
+    );
+    expect(line).not.toContain("SUPER_SECRET");
+  });
+
+  it("reports a validation URL that is not https as a configuration error", async () => {
+    await expect(
+      buildIdentityResolver({
+        kind: "verified",
+        jwt: undefined,
+        ticket: ticketConfig({ url: "http://emitter.test/x" }),
+      }),
+    ).rejects.toThrowError(ConfigError);
+  });
+
+  it("accepts a token or a ticket when both are configured", async () => {
+    // The two read different headers, so neither shadows the other.
+    const both = await buildIdentityResolver(
+      { kind: "verified", jwt: jwtConfig(), ticket: ticketConfig() },
+      {
+        fetchImpl: ((input: unknown) =>
+          String(input).startsWith(TICKET_URL)
+            ? Promise.resolve(
+                new Response(JSON.stringify({ entry: { id: "tina" } }), {
+                  headers: { "content-type": "application/json" },
+                }),
+              )
+            : Promise.resolve(
+                new Response(JSON.stringify({ keys: [pair.jwk] }), {
+                  headers: { "content-type": "application/json" },
+                }),
+              )) as unknown as typeof fetch,
+      },
+    );
+
+    await expect(
+      both.identity.resolve(
+        new Request("https://server.test/", {
+          headers: { authorization: `Bearer ${await tokenFor()}` },
+        }),
+      ),
+    ).resolves.toMatchObject({ userId: "auth0|ana" });
+
+    await expect(
+      both.identity.resolve(
+        new Request("https://server.test/", {
+          headers: { "x-ticket": "TICKET_1" },
+        }),
+      ),
+    ).resolves.toMatchObject({ userId: "tina" });
+
+    expect(both.describe).toContain("also");
+  });
+});
+
+// ------------------------------------------------------- scope membership ----
+
+describe("buildScopeAuthority", () => {
+  it("uses the seed file when no URL is configured", async () => {
+    const { scopes, describe: line } = buildScopeAuthority(
+      { kind: "seed" },
+      { memberships: { acme: { ops: { ana: "Editor" } } } },
+    );
+    expect(line).toContain("seed");
+    await expect(
+      scopes.resolveScopeRole(
+        {
+          userId: "ana",
+          tenantId: "acme",
+          kind: "user",
+          capabilities: { ...FULL_CAPABILITIES },
+        },
+        "ops",
+      ),
+    ).resolves.toBe("Editor");
+  });
+
+  it("asks the host when a URL is configured", async () => {
+    const { scopes } = buildScopeAuthority(
+      {
+        kind: "http",
+        url: "https://host.test/people/{userId}/sites/{scopeId}",
+        method: "GET",
+        rolePath: "entry.role",
+        roleMap: { SiteManager: "Coordinator" },
+        serviceHeader: undefined,
+        absentStatuses: [404],
+        cacheSeconds: 60,
+        negativeCacheSeconds: 30,
+        requestTimeoutMs: 5000,
+      },
+      {
+        fetchImpl: emitterAnswering(200, { entry: { role: "SiteManager" } }),
+      },
+    );
+
+    await expect(
+      scopes.resolveScopeRole(
+        {
+          userId: "ana",
+          tenantId: "acme",
+          kind: "user",
+          capabilities: { ...FULL_CAPABILITIES },
+        },
+        "ops",
+      ),
+    ).resolves.toBe("Coordinator");
+  });
+
+  it("reports a membership URL that is not https as a configuration error", () => {
+    expect(() =>
+      buildScopeAuthority({
+        kind: "http",
+        url: "http://host.test/{scopeId}",
+        method: "GET",
+        rolePath: "role",
+        roleMap: undefined,
+        serviceHeader: undefined,
+        absentStatuses: [404],
+        cacheSeconds: 60,
+        negativeCacheSeconds: 30,
+        requestTimeoutMs: 5000,
+      }),
+    ).toThrowError(ConfigError);
   });
 });

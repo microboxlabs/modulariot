@@ -5250,7 +5250,15 @@
         "selectAll": "Select all",
         "delete": "Delete",
         "deleteCount": "Delete ({count})",
-        "deleteChat": "Delete chat"
+        "deleteChat": "Delete chat",
+        "loading": "Loading…",
+        "loadFailed": "Could not load your saved chats.",
+        "retry": "Try again",
+        "share": "Share chat",
+        "sharePlaceholder": "the person's email",
+        "shareSubmit": "Share",
+        "sharedWithYou": "Shared with you",
+        "revokeShare": "Remove access"
       },
       "thread": {
         "dropToAttach": "Drop to attach",
@@ -5258,7 +5266,10 @@
         "editCancel": "Cancel",
         "editSave": "Save",
         "thoughtProcess": "Thought process",
-        "executionCanceled": "Execution was canceled."
+        "executionCanceled": "Execution was canceled.",
+        "runFailed": "Could not get an answer.",
+        "retry": "Try again",
+        "readOnly": "This chat is read-only — someone else shared it with you."
       },
       "attachments": {
         "removeImage": "Remove image"

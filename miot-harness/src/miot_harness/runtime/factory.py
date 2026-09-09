@@ -32,8 +32,12 @@ def build_harness(workspace_dir: Path) -> HarnessSupervisor:
         tools=build_default_registry(),
         stories=StorytellingModule(),
         run_store=JsonRunStore(workspace_dir),
-        conversation_store=InMemoryConversationStore(),
+        conversation_store=InMemoryConversationStore(
+            summarize_at_turns=settings.conversation_summarize_at_turns,
+            keep_recent_turns=settings.intent_router_context_turns,
+        ),
         conversation_token_budget=settings.conversation_token_budget,
+        router_context_turns=settings.intent_router_context_turns,
         # Always-on event bus: zero cost when no subscribers (publish
         # iterates an empty list). The SSE endpoint reads this bus to
         # stream live events while a run is in-flight.

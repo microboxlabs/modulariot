@@ -61,6 +61,13 @@ export interface DashboardMetadataStore {
     assignments: PermissionAssignment[],
   ): Promise<void>;
 
+  /**
+   * Every `documentKey` a row currently references, for
+   * `sweepOrphanDocuments`. One key per dashboard, so the whole set fits in
+   * memory.
+   */
+  documentKeys(): Promise<Set<string>>;
+
   /** Optional: implementations that hold a connection close it here. */
   close?(): Promise<void>;
 }

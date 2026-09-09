@@ -5250,7 +5250,15 @@
         "selectAll": "Seleccionar todo",
         "delete": "Eliminar",
         "deleteCount": "Eliminar ({count})",
-        "deleteChat": "Eliminar chat"
+        "deleteChat": "Eliminar chat",
+        "loading": "Cargando…",
+        "loadFailed": "No se pudieron cargar los chats guardados.",
+        "retry": "Reintentar",
+        "share": "Compartir chat",
+        "sharePlaceholder": "correo de la persona",
+        "shareSubmit": "Compartir",
+        "sharedWithYou": "Compartido contigo",
+        "revokeShare": "Quitar acceso"
       },
       "thread": {
         "dropToAttach": "Suelta para adjuntar",
@@ -5258,7 +5266,10 @@
         "editCancel": "Cancelar",
         "editSave": "Guardar",
         "thoughtProcess": "Proceso de pensamiento",
-        "executionCanceled": "La ejecución fue cancelada."
+        "executionCanceled": "La ejecución fue cancelada.",
+        "runFailed": "No se pudo obtener una respuesta.",
+        "retry": "Reintentar",
+        "readOnly": "Este chat es de solo lectura: lo compartió otra persona."
       },
       "attachments": {
         "removeImage": "Quitar imagen"

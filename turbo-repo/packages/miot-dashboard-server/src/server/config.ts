@@ -709,17 +709,19 @@ function readPostgres(env: ConfigEnv): PostgresConfig {
         "then hang on the first one.",
     );
   }
-  return {
-    url,
-    poolSize,
-    connectionTimeoutMs: readWholeNumber(
-      env,
-      "MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT",
-      DEFAULT_POSTGRES_CONNECTION_TIMEOUT_MS,
-      MAX_LOOKUP_TIMEOUT_MS,
-      "milliseconds",
-    ),
-  };
+  const connectionTimeoutMs = readWholeNumber(
+    env,
+    "MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT",
+    DEFAULT_POSTGRES_CONNECTION_TIMEOUT_MS,
+    MAX_LOOKUP_TIMEOUT_MS,
+    "milliseconds",
+  );
+  if (connectionTimeoutMs === 0) {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT must be at least 1; zero disables the timeout and can block startup indefinitely.",
+    );
+  }
+  return { url, poolSize, connectionTimeoutMs };
 }
 
 function readTenants(env: ConfigEnv): TenantConfig {

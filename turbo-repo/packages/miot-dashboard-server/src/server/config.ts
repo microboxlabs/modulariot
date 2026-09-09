@@ -22,10 +22,15 @@ export interface ServerConfig {
   tenants: TenantConfig;
   /** Where scope membership is answered: the seed file, or the host. */
   scopes: ScopeConfig;
-  /** `memory` is discarded on restart; `sqlite` writes to one file. */
+  /**
+   * `memory` is discarded on restart, `sqlite` writes to one file, `postgres`
+   * connects to a server.
+   */
   store: StoreKind;
   /** Database file for the sqlite store. Ignored by the memory store. */
   sqlitePath: string;
+  /** Connection string, and pool size, for the postgres store. */
+  postgres: PostgresConfig | undefined;
   /** Where the sqlite store keeps config bodies. */
   documents: DocumentsKind;
   /** Directory for the `fs` document backend. */
@@ -162,8 +167,14 @@ export interface HeaderCredential {
   value: string;
 }
 
-export const STORE_KINDS = ["memory", "sqlite"] as const;
+export const STORE_KINDS = ["memory", "sqlite", "postgres"] as const;
 export type StoreKind = (typeof STORE_KINDS)[number];
+
+export interface PostgresConfig {
+  url: string;
+  poolSize: number;
+  connectionTimeoutMs: number;
+}
 
 export const DOCUMENTS_KINDS = ["inline", "fs"] as const;
 export type DocumentsKind = (typeof DOCUMENTS_KINDS)[number];
@@ -171,6 +182,9 @@ export type DocumentsKind = (typeof DOCUMENTS_KINDS)[number];
 /** A relative path, so the default contains no hostname and no credential. */
 export const DEFAULT_SQLITE_PATH = "./data/dashboards.db";
 export const DEFAULT_DOCUMENTS_PATH = "./data/documents";
+
+export const DEFAULT_POSTGRES_POOL_SIZE = 10;
+export const DEFAULT_POSTGRES_CONNECTION_TIMEOUT_MS = 5_000;
 
 export const DEFAULT_ORPHAN_SWEEP_INTERVAL_SECONDS = 3_600;
 /**
@@ -659,6 +673,49 @@ function readTicketAuth(env: ConfigEnv): TicketAuthConfig {
   };
 }
 
+function readPostgres(env: ConfigEnv): PostgresConfig {
+  const url = required(
+    env,
+    "MIOT_DASHBOARD_POSTGRES_URL",
+    "the connection string for the postgres store, such as " +
+      '"postgres://user:password@host:5432/dashboards". There is no default: ' +
+      "a guessed one would connect to whatever is listening locally.",
+  );
+  // Caught here rather than by the driver, which reports it on the first
+  // statement — by which time the server is up and answering probes.
+  if (!/^postgres(ql)?:\/\//i.test(url)) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_POSTGRES_URL must start with "postgres://" or ` +
+        `"postgresql://", got "${url.slice(0, 12)}..."`,
+    );
+  }
+  const poolSize = readWholeNumber(
+    env,
+    "MIOT_DASHBOARD_POSTGRES_POOL_SIZE",
+    DEFAULT_POSTGRES_POOL_SIZE,
+    1_000,
+    "connections",
+  );
+  if (poolSize === 0) {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_POSTGRES_POOL_SIZE must be at least 1. A pool of zero " +
+        "connections never serves a request, and the server would start and " +
+        "then hang on the first one.",
+    );
+  }
+  return {
+    url,
+    poolSize,
+    connectionTimeoutMs: readWholeNumber(
+      env,
+      "MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT",
+      DEFAULT_POSTGRES_CONNECTION_TIMEOUT_MS,
+      MAX_LOOKUP_TIMEOUT_MS,
+      "milliseconds",
+    ),
+  };
+}
+
 function readTenants(env: ConfigEnv): TenantConfig {
   const url = trimmed(env.MIOT_DASHBOARD_TENANTS_URL);
   if (url === undefined) return { kind: "seed" };
@@ -824,7 +881,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
   if (!(STORE_KINDS as readonly string[]).includes(store)) {
     throw new ConfigError(
       `MIOT_DASHBOARD_STORE="${store}" is not supported. Choose one of: ` +
-        `${STORE_KINDS.join(", ")}. A PostgreSQL store is planned.`,
+        `${STORE_KINDS.join(", ")}.`,
     );
   }
 
@@ -840,7 +897,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     // taken for one that worked.
     throw new ConfigError(
       "MIOT_DASHBOARD_DOCUMENTS has no effect with the memory store, which " +
-        "keeps nothing. Set MIOT_DASHBOARD_STORE=sqlite as well.",
+        "keeps nothing. Set MIOT_DASHBOARD_STORE to sqlite or postgres as well.",
     );
   }
 
@@ -853,6 +910,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     scopes: readScopes(env),
     store: store as StoreKind,
     sqlitePath: env.MIOT_DASHBOARD_SQLITE_PATH ?? DEFAULT_SQLITE_PATH,
+    postgres: store === "postgres" ? readPostgres(env) : undefined,
     documents: documents as DocumentsKind,
     documentsPath: env.MIOT_DASHBOARD_DOCUMENTS_PATH ?? DEFAULT_DOCUMENTS_PATH,
     orphanSweepIntervalSeconds: readSeconds(

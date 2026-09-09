@@ -81,8 +81,9 @@ MIOT_DASHBOARD_SEED=example \
 | `MIOT_DASHBOARD_BASE_PATH`             | (empty)                | URL prefix for API routes                                      |
 | `MIOT_DASHBOARD_SEED`                  | —                      | Path to a seed JSON file, or `example` for bundled sample data |
 | `MIOT_DASHBOARD_INSECURE_AUTH`         | off                    | Local dev only: trust identity headers without verification    |
-| `MIOT_DASHBOARD_STORE`                 | `memory`               | Where dashboards are saved: `memory` or `sqlite`               |
+| `MIOT_DASHBOARD_STORE`                 | `memory`               | Where dashboards are saved: `memory`, `sqlite` or `postgres`   |
 | `MIOT_DASHBOARD_SQLITE_PATH`           | `./data/dashboards.db` | Database file when store is `sqlite`                           |
+| `MIOT_DASHBOARD_POSTGRES_URL`          | —                      | Connection string when store is `postgres`; no default         |
 | `MIOT_DASHBOARD_DOCUMENTS`             | `inline`               | Where config bytes go: `inline` or `fs`                        |
 | `MIOT_DASHBOARD_DOCUMENTS_PATH`        | `./data/documents`     | Directory when documents is `fs`                               |
 | `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` | `3600`                 | Seconds between orphan cleanups; `0` to disable, max 2147483   |
@@ -102,6 +103,7 @@ JWT, ticket, and scope auth variables are listed under
 | ------------------ | ---------------------- | --------------------------------------- |
 | `memory` (default) | until the process ends | nothing                                 |
 | `sqlite`           | in one file            | nothing — `node:sqlite` is part of Node |
+| `postgres`         | on a database server   | `npm install pg`, and a server          |
 
 ```bash
 MIOT_DASHBOARD_STORE=sqlite MIOT_DASHBOARD_SQLITE_PATH=./data/dashboards.db \
@@ -115,11 +117,40 @@ Paths are relative to the working directory. Default database:
 `data/dashboards.db` in this package (gitignored). Created on first run;
 migrations run at startup. Seeds skip slugs that already exist.
 
+#### PostgreSQL
+
+`pg` is an optional peer dependency, so it is installed only where it is used.
+Both engines run the same schema and the same statements, and the contract
+suite runs against both.
+
+```bash
+MIOT_DASHBOARD_STORE=postgres \
+MIOT_DASHBOARD_POSTGRES_URL=postgres://user:password@host:5432/dashboards \
+  npx turbo run start --filter=@microboxlabs/miot-dashboard-server
+```
+
+| Variable                                     | Is                                        |
+| -------------------------------------------- | ----------------------------------------- |
+| `MIOT_DASHBOARD_POSTGRES_URL`                | required; no default                      |
+| `MIOT_DASHBOARD_POSTGRES_POOL_SIZE`          | pooled connections; default 10            |
+| `MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT` | ms to wait for a connection; default 5000 |
+
+Two things differ from SQLite, and both are about more than one server running
+at once. Migrations take an advisory lock, because PostgreSQL readers do not
+block and two servers starting together would otherwise both find the schema
+absent and both create it. Writing permissions locks the dashboard row, so it
+cannot be deleted between the check that it exists and the rows written
+against it.
+
+To run the contract suite against a real server, point
+`MIOT_DASHBOARD_TEST_POSTGRES_URL` at a **throwaway** database — the suite
+empties it between tests — and install `pg`.
+
 Config bytes are stored separately from metadata (rows and permissions):
 
 | Where              | Config bytes live                     |
 | ------------------ | ------------------------------------- |
-| `inline` (default) | In the SQLite database                |
+| `inline` (default) | In the same database as the metadata  |
 | `fs`               | One file per dashboard in a directory |
 
 ```bash

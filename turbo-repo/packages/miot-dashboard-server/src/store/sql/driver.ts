@@ -11,14 +11,49 @@ export type SqlValue = string | number | null;
 export interface SqlDialect {
   /** How parameter `n` (1-based) is written: `?` for SQLite, `$n` for Postgres. */
   placeholder(n: number): string;
+  /**
+   * Appended to a SELECT whose row the same transaction is about to change,
+   * so a concurrent transaction waits rather than reading the row this one is
+   * midway through replacing.
+   *
+   * Empty for SQLite, where the write transaction already excludes every
+   * other writer for its whole length, so there is no window to hold.
+   */
+  readonly rowLock: string;
+  /**
+   * Run first inside the migration transaction to serialize the runner across
+   * connections, or null where the transaction already does that.
+   *
+   * Null for SQLite: `BEGIN IMMEDIATE` takes the database's single write lock
+   * before the runner reads which versions are applied, so a second process
+   * waits at BEGIN. PostgreSQL readers never block, so without this two
+   * processes starting together both read an empty `schema_migrations` and
+   * both run `CREATE TABLE`.
+   */
+  readonly migrationLock: string | null;
 }
 
 export const SQLITE_DIALECT: SqlDialect = {
   placeholder: () => "?",
+  rowLock: "",
+  migrationLock: null,
 };
+
+/**
+ * The advisory lock key. Two 32-bit halves rather than one 64-bit number so
+ * the value is legible in `pg_locks`: the first is "miot" read as ASCII, the
+ * second numbers the lock. The key is global to the database, so it has to be
+ * one no other application would pick by accident — a small number like 1
+ * would be.
+ */
+const MIGRATION_LOCK_KEY = "1835626356, 1";
 
 export const POSTGRES_DIALECT: SqlDialect = {
   placeholder: (n) => `$${n}`,
+  rowLock: " FOR UPDATE",
+  // `_xact_` so the lock is released by COMMIT or ROLLBACK rather than needing
+  // a matching unlock, which a crash mid-migration would never run.
+  migrationLock: `SELECT pg_advisory_xact_lock(${MIGRATION_LOCK_KEY})`,
 };
 
 export interface SqlDriver {

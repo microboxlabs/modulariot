@@ -28,7 +28,15 @@ export type { SqlDialect, SqlDriver, SqlValue } from "./store/sql/driver";
 export { createSqliteDriver } from "./store/sqlite-driver";
 export type { SqliteDriverOptions } from "./store/sqlite-driver";
 export { openSqliteStore, SQLITE_MEMORY } from "./store/sqlite";
-export type { OpenedStore, SqliteStoreOptions } from "./store/sqlite";
+export type { SqliteStoreOptions } from "./store/sqlite";
+
+export { createPostgresDriver } from "./store/postgres-driver";
+export type { PostgresDriverOptions } from "./store/postgres-driver";
+export { openPostgresStore } from "./store/postgres";
+export type { PostgresStoreOptions } from "./store/postgres";
+
+export { openSqlStore } from "./store/sql/open";
+export type { OpenedStore, SqlStoreOptions } from "./store/sql/open";
 
 export type {
   DashboardMetadataRow,

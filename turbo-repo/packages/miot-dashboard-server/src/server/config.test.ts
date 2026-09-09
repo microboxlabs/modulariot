@@ -35,11 +35,69 @@ describe("readServerConfig", () => {
 
   it("rejects a store it cannot build rather than silently using memory", () => {
     expect(() =>
-      readServerConfig({ ...base, MIOT_DASHBOARD_STORE: "postgres" }),
+      readServerConfig({ ...base, MIOT_DASHBOARD_STORE: "mysql" }),
     ).toThrowError(/not supported/i);
     expect(() =>
-      readServerConfig({ ...base, MIOT_DASHBOARD_STORE: "postgres" }),
-    ).toThrowError(/memory, sqlite/);
+      readServerConfig({ ...base, MIOT_DASHBOARD_STORE: "mysql" }),
+    ).toThrowError(/memory, sqlite, postgres/);
+  });
+
+  describe("the postgres store", () => {
+    const postgres = { ...base, MIOT_DASHBOARD_STORE: "postgres" };
+
+    it("needs a connection string, which has no default", () => {
+      // A default would connect to whatever is listening locally, which on a
+      // developer's machine is usually a database with other data in it.
+      expect(() => readServerConfig(postgres)).toThrowError(
+        /MIOT_DASHBOARD_POSTGRES_URL/,
+      );
+    });
+
+    it("refuses a connection string that is not postgres", () => {
+      // The driver would report this on the first statement, by which time
+      // the server is up and answering its readiness probe.
+      expect(() =>
+        readServerConfig({
+          ...postgres,
+          MIOT_DASHBOARD_POSTGRES_URL: "mysql://host/db",
+        }),
+      ).toThrowError(/must start with "postgres:\/\/"/);
+    });
+
+    it("refuses a pool of no connections", () => {
+      expect(() =>
+        readServerConfig({
+          ...postgres,
+          MIOT_DASHBOARD_POSTGRES_URL: "postgres://host/db",
+          MIOT_DASHBOARD_POSTGRES_POOL_SIZE: "0",
+        }),
+      ).toThrowError(/at least 1/);
+    });
+
+    it("reads the url, the pool size and the timeout", () => {
+      const config = readServerConfig({
+        ...postgres,
+        MIOT_DASHBOARD_POSTGRES_URL: "postgresql://host:5432/db",
+        MIOT_DASHBOARD_POSTGRES_POOL_SIZE: "25",
+        MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT: "1500",
+      });
+      expect(config.postgres).toEqual({
+        url: "postgresql://host:5432/db",
+        poolSize: 25,
+        connectionTimeoutMs: 1500,
+      });
+    });
+
+    it("leaves the postgres settings unread for the other stores", () => {
+      // Read unconditionally, a stray MIOT_DASHBOARD_POSTGRES_URL would fail
+      // a server that is deliberately running on sqlite.
+      const config = readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_STORE: "sqlite",
+        MIOT_DASHBOARD_POSTGRES_URL: "not a url",
+      });
+      expect(config.postgres).toBeUndefined();
+    });
   });
 
   describe("tenant entitlement", () => {

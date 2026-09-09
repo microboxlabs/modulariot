@@ -33,6 +33,7 @@ import { seedDashboards } from "./server/seed";
 import { serve } from "./server/serve";
 import type { ServerDashboardStore } from "./seams/store";
 import { createFsDocumentStore } from "./store/fs-documents";
+import { openPostgresStore } from "./store/postgres";
 import { openSqliteStore } from "./store/sqlite";
 import type { SweepResult } from "./store/sweep";
 import {
@@ -166,31 +167,60 @@ async function openStore(
     };
   }
 
-  const opened = await openSqliteStore({
-    path: config.sqlitePath,
+  const shared = {
     documentBackend: config.documents,
     ...(config.documents === "fs"
       ? { documents: createFsDocumentStore({ root: config.documentsPath }) }
       : {}),
-    onOrphan: (key, error) =>
+    onOrphan: (key: string, error: unknown) =>
       log({
         level: "warn",
         msg: "document left behind",
         key,
         error: String(error),
       }),
-  });
+  };
+
+  // `postgres` is set exactly when the store is postgres, which is also what
+  // makes the connection string available without a non-null assertion.
+  const { postgres } = config;
+  const opened =
+    postgres !== undefined
+      ? await openPostgresStore({
+          url: postgres.url,
+          poolSize: postgres.poolSize,
+          connectionTimeoutMs: postgres.connectionTimeoutMs,
+          ...shared,
+        })
+      : await openSqliteStore({ path: config.sqlitePath, ...shared });
+
   await seedDashboards(opened.store, dashboards);
   const documents =
     config.documents === "fs"
       ? `documents in ${config.documentsPath}`
       : "documents inline";
+  // The connection string carries a password, so the log names the database
+  // and the host it came from, never the string itself.
+  const where =
+    postgres !== undefined
+      ? `postgres at ${describeDatabase(postgres.url)}`
+      : `sqlite at ${config.sqlitePath}`;
   return {
     store: opened.store,
     close: opened.close,
-    describe: `sqlite at ${config.sqlitePath}, ${documents}`,
+    describe: `${where}, ${documents}`,
     sweep: opened.sweep,
   };
+}
+
+/** `host:port/database` from a connection string, with the credentials left out. */
+function describeDatabase(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.host}${parsed.pathname}`;
+  } catch {
+    return "an unparseable connection string";
+  }
 }
 
 const log = (line: Record<string, unknown>) => {

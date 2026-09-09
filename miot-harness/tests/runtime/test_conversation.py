@@ -188,3 +188,17 @@ def test_to_messages_returns_all_when_budget_exceeds_history_cost() -> None:
     msgs = to_messages(history, max_tokens=100_000)
     assert len(msgs) == 6  # 3 turns × 2 messages
     assert [m.content for m in msgs] == ["q0", "a0", "q1", "a1", "q2", "a2"]
+
+
+def test_seed_installs_a_history_with_no_turns() -> None:
+    """A replayed summary can arrive with nothing else — every turn it covers
+    was compacted away — and `append` has nothing to attach it to."""
+
+    store = InMemoryConversationStore()
+    store.seed(ConversationHistory(conversation_id="convZ", summary="the gist"))
+
+    history = store.get("convZ")
+    assert history is not None
+    assert history.summary == "the gist"
+    assert history.turns == []
+    assert to_messages(history)[0].content == "Earlier in this conversation: the gist"

@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import get_chat_model
+from miot_harness.agents.conversation_summarizer import build_conversation_summarizer
 from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
 from miot_harness.api.identity import (
@@ -585,6 +586,9 @@ def _make_lifespan(
                     keyword_fallback=IntentRouter(data_keywords=provider.profile.router_keywords),
                     profile=provider.profile,
                 )
+                harness.conversation_summarizer = build_conversation_summarizer(
+                    get_chat_model(settings.agents_summarizer_model)
+                )
                 logger.info(
                     "Datasource %s: Phase E wired "
                     "(LLM router=%s, agentic_graph, meta_agent)",
@@ -622,6 +626,7 @@ def _make_lifespan(
                 harness.meta_primer = ""  # meta path gates on meta_model
                 harness.meta_catalog = []
                 harness.llm_router = None
+                harness.conversation_summarizer = None
                 try:
                     await provider.close()
                 except Exception as close_exc:  # noqa: BLE001

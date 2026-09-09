@@ -56,6 +56,8 @@ class ConversationStore(Protocol):
 
     def reset(self, conversation_id: str) -> None: ...
 
+    def seed(self, history: ConversationHistory) -> None: ...
+
     async def summarize_if_needed(
         self,
         conversation_id: str,
@@ -86,6 +88,12 @@ class InMemoryConversationStore:
         """
 
         self._histories.pop(conversation_id, None)
+
+    def seed(self, history: ConversationHistory) -> None:
+        """Installs a history the caller assembled — a replayed summary with
+        no turns has nothing for `append` to attach to."""
+
+        self._histories[history.conversation_id] = history
 
     def append(self, conversation_id: str, turn: ConversationTurn) -> None:
         history = self._histories.get(conversation_id)

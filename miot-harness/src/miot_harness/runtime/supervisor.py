@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
@@ -115,6 +116,10 @@ class HarnessSupervisor:
         meta_catalog: list[MetaAgentCatalogEntry] | None = None,
         conversation_store: ConversationStore | None = None,
         conversation_token_budget: int = 24_000,
+        # Folds a conversation's older turns into its summary once the store's
+        # turn cap is passed. None leaves histories to the token trim alone.
+        conversation_summarizer: Callable[[ConversationHistory], Awaitable[str]] | None = None,
+        router_context_turns: int = 2,
         # Empty default = no lock configured yet; the lifespan overwrites
         # this from the active datasource profile at boot. An empty lock
         # refuses gated (agentic/canned) modes until configured — secure by
@@ -141,6 +146,8 @@ class HarnessSupervisor:
         self.meta_catalog: list[MetaAgentCatalogEntry] = meta_catalog or []
         self.conversation_store = conversation_store
         self.conversation_token_budget = conversation_token_budget
+        self.conversation_summarizer = conversation_summarizer
+        self.router_context_turns = router_context_turns
         self.tenant_lock = tenant_lock
         self.event_bus = event_bus
         self.checkpoint_every_n_events = checkpoint_every_n_events
@@ -237,11 +244,17 @@ class HarnessSupervisor:
                 )
             )
 
+        # Hydrate prior turns from `ConversationStore` before routing: the
+        # router reads the last of them, and a replayed transcript has to be
+        # seeded first for there to be any. Empty list when no store, no
+        # conversation_id, or no prior history.
+        prior_messages = self._hydrate_history(request, ctx)
+
         # Route via the LLM router when injected; else fall back to the
         # keyword router (Plan 12 default; the "auto" mode confidence
         # fallback also lands here under the hood).
         try:
-            route = await self._resolve_route(request)
+            route = await self._resolve_route(request, ctx)
         except ModeAccessDenied as exc:
             record.answer = str(exc)
             record.status = "completed"
@@ -273,10 +286,6 @@ class HarnessSupervisor:
             )
         )
 
-        # Hydrate prior turns from `ConversationStore` so LLM-bearing agents
-        # actually carry context across `/runs` calls (plan 13 §E5). Empty
-        # list when no store, no conversation_id, or no prior history.
-        prior_messages = self._hydrate_history(request, ctx)
         prior_messages = self._inject_skill(request, ctx, prior_messages)
         prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
 
@@ -355,6 +364,9 @@ class HarnessSupervisor:
                     assistant_answer=record.answer,
                 ),
             )
+            await self._compact_history(conversation_key)
+            history = self.conversation_store.get(conversation_key)
+            record.conversation_summary = history.summary if history else None
 
         record.status = "completed"
         progress(HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed"))
@@ -505,6 +517,35 @@ class HarnessSupervisor:
             return prior_messages
         return [SystemMessage(content=_JSON_BLOCKS_INSTRUCTION), *prior_messages]
 
+    def _recent_turns(self, request: UserRequest, ctx: HarnessContext) -> list[ConversationTurn]:
+        """The last few stored turns, for the router. Call after
+        `_hydrate_history`, which is what seeds a replayed conversation."""
+
+        key = self._conversation_key(request, ctx)
+        if self.conversation_store is None or key is None or self.router_context_turns <= 0:
+            return []
+        history = self.conversation_store.get(key)
+        if history is None:
+            return []
+        return history.turns[-self.router_context_turns :]
+
+    async def _compact_history(self, key: str) -> None:
+        """Fold older turns into the summary once the store's cap is passed.
+
+        A summarizer failure leaves the history as it was: the turns are
+        still there and the next run tries again. The answer is already
+        composed by now, so nothing here may fail the run.
+        """
+
+        if self.conversation_store is None or self.conversation_summarizer is None:
+            return
+        try:
+            await self.conversation_store.summarize_if_needed(
+                key, summarizer=self.conversation_summarizer
+            )
+        except Exception:  # noqa: BLE001 — memory upkeep must not fail the run
+            logger.warning("Conversation compaction failed; keeping the full history")
+
     @staticmethod
     def _conversation_key(request: UserRequest, ctx: HarnessContext) -> str | None:
         """Store key for this run's conversation, or None for a one-shot.
@@ -560,7 +601,7 @@ class HarnessSupervisor:
         alone — its summary carries context the replay no longer has.
         """
 
-        if not request.conversation_history:
+        if not request.conversation_history and not request.conversation_summary:
             return False
         if history is None:
             return True
@@ -585,7 +626,9 @@ class HarnessSupervisor:
         Returns None when there is nothing to seed with.
         """
 
-        if self.conversation_store is None or not request.conversation_history:
+        if self.conversation_store is None:
+            return None
+        if not request.conversation_history and not request.conversation_summary:
             return None
         self.conversation_store.reset(key)
         for turn in request.conversation_history[-_MAX_SEEDED_TURNS:]:
@@ -596,7 +639,15 @@ class HarnessSupervisor:
                     assistant_answer=turn.assistant_answer,
                 ),
             )
-        return self.conversation_store.get(key)
+        history = self.conversation_store.get(key)
+        if request.conversation_summary:
+            # The caller's summary covers turns older than the ones it
+            # replayed — the compaction that produced it cleared them here.
+            if history is None:
+                history = ConversationHistory(conversation_id=key)
+                self.conversation_store.seed(history)
+            history.summary = request.conversation_summary
+        return history
 
     def _root_span_kwargs(
         self, ctx: HarnessContext, route: HarnessRoute | None
@@ -672,7 +723,7 @@ class HarnessSupervisor:
             self.conversation_policy_store.set(policy_key, policy)
         return policy, denied
 
-    async def _resolve_route(self, request: UserRequest) -> RouteResult:
+    async def _resolve_route(self, request: UserRequest, ctx: HarnessContext) -> RouteResult:
         """Use the LLM router when available; else the keyword router.
 
         The LLM router has its own keyword-fallback for low-confidence,
@@ -684,6 +735,7 @@ class HarnessSupervisor:
                 request,
                 llm_router=self.llm_router,
                 tenant_lock=self.tenant_lock,
+                prior_turns=self._recent_turns(request, ctx),
             )
         # Plan 12 default: keyword router on the message; explicit modes
         # are ignored because the keyword router doesn't know about them.

@@ -64,12 +64,22 @@ export function withCors(
       .map((h) => h.trim().toLowerCase())
       .filter(Boolean);
     const allowed = origin !== null && origins.has(origin);
+    // Only a preflight is refused. A preflight is the browser asking
+    // permission, so a no belongs there — and every write to this API is
+    // preflighted, because PUT and DELETE are, and so is any POST carrying
+    // JSON or a credential header.
+    //
+    // An actual request is never refused on its Origin alone. Browsers send
+    // Origin on every non-GET request including a same-origin one, so
+    // refusing an unlisted origin here turns each configured deployment's own
+    // front end, and its own /docs page, into a 403 the moment CORS is set.
+    // Withholding the header below is what stops a cross-origin reader.
     const denied =
+      preflight &&
       origin !== null &&
       (!allowed ||
-        (preflight &&
-          (!METHODS.includes(requestedMethod) ||
-            requestedHeaders.some((h) => !headers.has(h)))));
+        !METHODS.includes(requestedMethod) ||
+        requestedHeaders.some((h) => !headers.has(h)));
     const response = denied
       ? errorResponse(
           new DashboardServerError(

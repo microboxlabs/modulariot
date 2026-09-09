@@ -91,6 +91,13 @@ export {
   type DashboardAction,
 } from "./access/access-control";
 
+// ---- Capability policies ----
+export {
+  createAllowedGroupsPolicy,
+  parseAllowedGroups,
+  ALLOWED_GROUPS_FIELD,
+} from "./access/allowed-groups";
+
 // ---- One-time import ----
 export { importDashboards } from "./import/import";
 export type {

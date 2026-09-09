@@ -38,6 +38,10 @@
       "types": "./dist/server.d.ts",
       "import": "./dist/server.js"
     },
+    "./next": {
+      "types": "./dist/next.d.ts",
+      "import": "./dist/next.js"
+    },
     "./store-cloud": {
       "types": "./dist/store-cloud.d.ts",
       "import": "./dist/store-cloud.js"

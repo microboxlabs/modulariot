@@ -500,6 +500,60 @@ One envelope, from every adapter:
 `reason` is present on `403` only. Foreign exceptions are reduced to a generic
 `500`; their messages never reach the wire. See `contract/openapi.yaml`.
 
+## Mounting inside Next
+
+`@microboxlabs/miot-dashboard-server/next` returns the route handlers an App
+Router route exports. It imports nothing from `next`: the handler is already
+`(Request) => Promise<Response>`, which is exactly what a route file exports.
+
+```ts
+// app/api/dashboards/[...path]/route.ts
+export const runtime = "nodejs";
+export const { GET, PUT, DELETE, OPTIONS } = createNextRouteHandlers({
+  basePath: "/api/dashboards",
+  identity,
+  tenants,
+  scopes,
+  store,
+});
+```
+
+Two things bite otherwise:
+
+- **`runtime = "nodejs"` is not optional.** The stores here use `node:sqlite`
+  or `pg`, and neither exists on the edge runtime.
+- **`basePath` must match where the route is mounted.** Next hands the handler
+  the whole pathname, so without it every request is an unknown path.
+
+`OPTIONS` is exported for CORS preflight. Leave it out and Next answers
+preflight itself, and the browser is told the request is not allowed for a
+reason no configuration will explain.
+
+## Restricting a dashboard to named groups
+
+Some hosts keep a dashboard's audience inside the config: an `allowedGroups`
+list, where only members of one of those groups may see it.
+
+```ts
+createDashboardHandler({ ...seams, policy: createAllowedGroupsPolicy() });
+```
+
+| `allowedGroups` | Who sees it                                    |
+| --------------- | ---------------------------------------------- |
+| absent or null  | anyone with standing in the scope              |
+| `[]`            | anyone with standing in the scope              |
+| `["a", "b"]`    | callers holding `a` or `b`                     |
+| anything else   | **nobody** — the value is refused, not ignored |
+
+The last row is the point. A list that failed to parse is the case where
+something wrote a shape nobody expected, and reading that as "no restriction"
+publishes a dashboard that was meant to be restricted — the failure that
+cannot be noticed by looking at it.
+
+The policy only ever takes access away: what it allows is decided by the
+policy underneath, which the access control still intersects with the
+caller's own ceiling.
+
 ## Importing dashboards that already exist
 
 `importDashboards` moves an existing estate into this store once, so the store

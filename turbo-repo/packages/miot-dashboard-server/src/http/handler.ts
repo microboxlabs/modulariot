@@ -28,6 +28,7 @@ import { isDashboardRole } from "../access/roles";
 import type { PermissionAssignment } from "../seams/store";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
+import { withCors, type CorsOptions } from "./cors";
 
 export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
   /**
@@ -35,6 +36,7 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    * Stripped before matching. Defaults to the root.
    */
   basePath?: string;
+  cors?: CorsOptions;
 }
 
 export type DashboardHandler = (request: Request) => Promise<Response>;
@@ -177,7 +179,7 @@ export function createDashboardHandler(
     }
   }
 
-  return async function handle(request: Request): Promise<Response> {
+  const handle = async function handle(request: Request): Promise<Response> {
     try {
       const pathname = pathnameOf(request.url);
       const routable = stripBasePath(pathname, basePath);
@@ -189,6 +191,7 @@ export function createDashboardHandler(
       return errorResponse(error);
     }
   };
+  return options.cors ? withCors(handle, options.cors) : handle;
 }
 
 // ------------------------------------------------------------- helpers ----

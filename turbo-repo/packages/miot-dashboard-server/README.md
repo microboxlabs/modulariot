@@ -84,8 +84,14 @@ MIOT_DASHBOARD_SEED=example \
 | `MIOT_DASHBOARD_STORE`                 | `memory`               | Where dashboards are saved: `memory`, `sqlite` or `postgres`   |
 | `MIOT_DASHBOARD_SQLITE_PATH`           | `./data/dashboards.db` | Database file when store is `sqlite`                           |
 | `MIOT_DASHBOARD_POSTGRES_URL`          | —                      | Connection string when store is `postgres`; no default         |
-| `MIOT_DASHBOARD_DOCUMENTS`             | `inline`               | Where config bytes go: `inline` or `fs`                        |
+| `MIOT_DASHBOARD_DOCUMENTS`             | `inline`               | Where config bytes go: `inline`, `fs`, `s3` or `gcs`           |
 | `MIOT_DASHBOARD_DOCUMENTS_PATH`        | `./data/documents`     | Directory when documents is `fs`                               |
+| `MIOT_DASHBOARD_DOCUMENTS_BUCKET`      | —                      | Required bucket for `s3` or `gcs`                              |
+| `MIOT_DASHBOARD_DOCUMENTS_PREFIX`      | `dashboards/`          | Dedicated object prefix for `s3` or `gcs`                      |
+| `MIOT_DASHBOARD_S3_REGION`             | SDK default            | AWS region for `s3`                                            |
+| `MIOT_DASHBOARD_CORS_ORIGINS`          | off                    | Comma-separated exact HTTP(S) origins                          |
+| `MIOT_DASHBOARD_CORS_CREDENTIALS`      | false                  | Permit browser cookies/HTTP authentication for allowed origins |
+| `MIOT_DASHBOARD_CORS_HEADERS`          | —                      | Extra permitted request headers, e.g. `x-ticket`               |
 | `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` | `3600`                 | Seconds between orphan cleanups; `0` to disable, max 2147483   |
 | `MIOT_DASHBOARD_ORPHAN_MIN_AGE`        | `86400`                | Minimum age in seconds before an orphan is deleted; at least 1 |
 | `MIOT_DASHBOARD_DOCS`                  | on                     | Serve OpenAPI at `/openapi.yaml` and UI at `/docs`             |
@@ -156,10 +162,12 @@ terminated, using temporary schemas in that database.
 
 Config bytes are stored separately from metadata (rows and permissions):
 
-| Where              | Config bytes live                     |
-| ------------------ | ------------------------------------- |
-| `inline` (default) | In the same database as the metadata  |
-| `fs`               | One file per dashboard in a directory |
+| Where              | Config bytes live                                               |
+| ------------------ | --------------------------------------------------------------- |
+| `inline` (default) | In the same database as the metadata                            |
+| `fs`               | One file per dashboard in a directory                           |
+| `s3`               | Objects in an S3 bucket, using optional `@aws-sdk/client-s3`    |
+| `gcs`              | Objects in a GCS bucket, using optional `@google-cloud/storage` |
 
 ```bash
 MIOT_DASHBOARD_STORE=sqlite MIOT_DASHBOARD_DOCUMENTS=fs \
@@ -168,6 +176,33 @@ MIOT_DASHBOARD_DOCUMENTS_PATH=./data/documents \
 ```
 
 With `fs`, each config is `<tenant>/<uuid>.json` under the documents directory.
+
+Cloud documents use the same keys under a dedicated prefix. Install the
+selected SDK (`npm install @aws-sdk/client-s3` or `npm install
+@google-cloud/storage`), set the bucket, and use the SDK's standard credential
+chain: AWS environment/workload credentials or Google Application Default
+Credentials. The server does not accept cloud credentials from API requests.
+When launching through turbo, use `--env-mode=loose` to retain SDK environment
+variables; alternatively launch the built `dist/bin.js` directly.
+
+```bash
+MIOT_DASHBOARD_STORE=postgres \
+MIOT_DASHBOARD_POSTGRES_URL=postgres://user:password@host:5432/dashboards \
+MIOT_DASHBOARD_DOCUMENTS=s3 MIOT_DASHBOARD_DOCUMENTS_BUCKET=my-configs \
+MIOT_DASHBOARD_S3_REGION=us-east-1 node dist/bin.js
+```
+
+Configure an identity provider as described below. The cloud service account
+needs object read, create, delete and list permissions under the prefix.
+The bucket and prefix are recorded with the backend choice; changing either
+requires migrating the documents. Listings paginate for the orphan sweep and
+objects with unknown creation times are retained. Writes use provider
+preconditions to refuse overwrites: [S3 conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html)
+and [GCS generation preconditions](https://cloud.google.com/storage/docs/request-preconditions).
+
+Library users can import `createS3DocumentStore` or `createGcsDocumentStore`
+from `./store-cloud` and pass the resulting `documents` to either SQL store.
+A supplied S3 `client` or GCS `bucketImpl` remains owned by the host.
 
 The choice is recorded the first time the database is opened. Opening it later
 with the other one is refused at startup: the bodies do not move on their own,
@@ -191,6 +226,20 @@ store from `openSqliteStore`.
 | 22.13+     | Built-in (`node:sqlite`)      |
 | 22.5–22.12 | Needs `--experimental-sqlite` |
 | Earlier    | Use `memory` store            |
+
+### Cross-origin browsers
+
+CORS is off unless `MIOT_DASHBOARD_CORS_ORIGINS` is set. Origins must match
+exactly (for example `https://dashboards.example`); wildcards, paths and opaque
+`null` origins are rejected. Preflight permits `Authorization`, `Content-Type`
+and `If-Match`; add a ticket header through `MIOT_DASHBOARD_CORS_HEADERS`.
+Preflight does not require credentials, while actual requests always go
+through the normal identity, tenant and scope checks. Allowed origins can
+read error responses too. Credentials are opt-in and responses vary by origin.
+
+Library users can pass `cors: { origins: ["https://dashboards.example"] }` to
+`createDashboardHandler` or `serve`, or wrap a fetch handler with `withCors`
+from `./http`.
 
 ### Authenticating callers
 

@@ -32,7 +32,7 @@ import { startSweepSchedule } from "./server/sweep-schedule";
 import { seedDashboards } from "./server/seed";
 import { serve } from "./server/serve";
 import type { ServerDashboardStore } from "./seams/store";
-import { createFsDocumentStore } from "./store/fs-documents";
+import { buildDocumentStore } from "./server/documents";
 import { openPostgresStore } from "./store/postgres";
 import { openSqliteStore } from "./store/sqlite";
 import type { SweepResult } from "./store/sweep";
@@ -168,10 +168,7 @@ async function openStore(
   }
 
   const shared = {
-    documentBackend: config.documents,
-    ...(config.documents === "fs"
-      ? { documents: createFsDocumentStore({ root: config.documentsPath }) }
-      : {}),
+    ...buildDocumentStore(config),
     onOrphan: (key: string, error: unknown) =>
       log({
         level: "warn",
@@ -204,7 +201,7 @@ async function openStore(
   const documents =
     config.documents === "fs"
       ? `documents in ${config.documentsPath}`
-      : "documents inline";
+      : `documents ${config.documents}`;
   // The connection string carries a password, so the log names the database
   // and the host it came from, never the string itself.
   const where =
@@ -294,6 +291,7 @@ async function main(): Promise<void> {
     port: config.port,
     host: config.host,
     docs: config.docs,
+    ...(config.cors ? { cors: config.cors } : {}),
     ...(config.basePath ? { basePath: config.basePath } : {}),
   });
 

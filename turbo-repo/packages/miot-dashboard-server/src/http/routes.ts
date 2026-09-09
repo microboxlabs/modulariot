@@ -29,9 +29,9 @@ export interface RouteMatch {
  * Match a pathname against the contract's routes.
  *
  * Segments are decoded, so a scope or slug containing a slash survives the
- * round trip as long as the caller percent-encoded it. Empty segments, and
- * decoded values holding a `.` or `..` component, are refused rather than
- * treated as a wildcard.
+ * round trip as long as the caller percent-encoded it. A decoded value is
+ * refused when it is empty, or when it holds a `.` or `..` component — an
+ * identifier this hands back has to survive being put in a URL again.
  */
 export function matchRoute(pathname: string): RouteMatch | null {
   const segments = pathname.split("/").filter((s) => s.length > 0);

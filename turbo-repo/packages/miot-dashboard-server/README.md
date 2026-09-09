@@ -101,6 +101,28 @@ JWT, ticket, and scope auth variables are listed under
 [Authenticating callers](#authenticating-callers) and
 [Scope membership](#scope-membership).
 
+### Probes
+
+Served on the same port, before authentication, and not part of the API
+contract.
+
+| Path      | Answers              | Use as    |
+| --------- | -------------------- | --------- |
+| `/livez`  | `{"status":"ok"}`    | liveness  |
+| `/health` | `{"status":"ok"}`    | liveness  |
+| `/readyz` | `{"status":"ready"}` | readiness |
+
+Both liveness paths are the same response under two names, so a deployment can
+use whichever its platform expects. None of them reaches the store, and none
+needs a credential.
+
+The store is proved at startup instead: migrations run before the listener
+opens, so a server that cannot reach its database exits rather than listening.
+
+```
+Failed to start: error: database "no_such_db" does not exist
+```
+
 ### Storing dashboards
 
 `MIOT_DASHBOARD_STORE` selects the store.

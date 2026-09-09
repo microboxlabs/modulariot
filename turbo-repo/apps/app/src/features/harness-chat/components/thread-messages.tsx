@@ -182,6 +182,29 @@ const CancelledNotice: FC = () => {
   );
 };
 
+// A run that ended in RUN_ERROR leaves an assistant message with no parts,
+// which renders as nothing at all: the user's question sits there with no
+// answer and no hint that one was attempted. Cancelled runs are the
+// CancelledNotice above; this is the other way a message ends incomplete.
+const FailedRunNotice: FC = () => {
+  const tr = useHarnessChatTr();
+  const readOnly = useHarnessReadOnly();
+  const status = useAuiState((s) => s.message.status);
+  if (status?.type !== "incomplete" || status.reason !== "error") return null;
+  return (
+    <div className="flex max-w-[90%] flex-col gap-1">
+      <p className="text-xs text-amber-600 dark:text-amber-500">
+        {tr("harnessChat.ui.thread.runFailed")}
+      </p>
+      {!readOnly && (
+        <ActionBarPrimitive.Reload className="w-fit text-xs font-medium text-blue-600 hover:underline dark:text-blue-400">
+          {tr("harnessChat.ui.thread.retry")}
+        </ActionBarPrimitive.Reload>
+      )}
+    </div>
+  );
+};
+
 export const AssistantMessage: FC = () => (
   <MessagePrimitive.Root className="group/message flex flex-col gap-1">
     <div className="flex gap-2">
@@ -193,6 +216,7 @@ export const AssistantMessage: FC = () => (
           components={{ Text: AssistantText, Reasoning: AssistantReasoning }}
         />
         <CancelledNotice />
+        <FailedRunNotice />
       </div>
     </div>
     <AssistantActionBar />

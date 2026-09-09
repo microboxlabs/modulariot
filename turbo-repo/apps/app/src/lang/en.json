@@ -5262,6 +5262,8 @@
         "editSave": "Save",
         "thoughtProcess": "Thought process",
         "executionCanceled": "Execution was canceled.",
+        "runFailed": "Could not get an answer.",
+        "retry": "Try again",
         "readOnly": "This chat is read-only — someone else shared it with you."
       },
       "attachments": {

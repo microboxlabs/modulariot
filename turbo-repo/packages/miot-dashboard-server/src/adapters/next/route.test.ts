@@ -125,12 +125,31 @@ describe("createNextRouteHandlers", () => {
     expect(response.status).toBe(403);
   });
 
-  it("does not import next", async () => {
-    // The guard enforces the direction; this records why the file is allowed
-    // to sit under adapters/next at all without a peer dependency.
-    const source = await import("node:fs/promises").then((fs) =>
-      fs.readFile(new URL("./route.ts", import.meta.url), "utf8"),
+  it("imports nothing from next, in any import form", async () => {
+    // The guard *permits* `next` under adapters/next/, which is the whole
+    // reason this is checked here instead. Every source file in the
+    // directory, and every spelling — `from "next"`, `import("next")`,
+    // `require("next")`, `require.resolve("next")`, `next/server` — because a
+    // single-form check would pass while the peer dependency came back.
+    const { readdir, readFile } = await import("node:fs/promises");
+    const here = new URL(".", import.meta.url);
+    const files = (await readdir(here)).filter(
+      (name) => name.endsWith(".ts") && !name.endsWith(".test.ts"),
     );
-    expect(source).not.toMatch(/from "next/);
+    expect(files).toContain("route.ts");
+
+    // The same shape the import guard scans with: every module specifier,
+    // whatever keyword introduced it.
+    const specifier =
+      /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*(?:\.resolve\s*)?\(\s*)["']([^"']+)["']/g;
+
+    for (const name of files) {
+      const source = await readFile(new URL(name, here), "utf8");
+      const imported = [...source.matchAll(specifier)].map((m) => m[1]);
+      const fromNext = imported.filter(
+        (id) => id === "next" || id?.startsWith("next/"),
+      );
+      expect(fromNext, `${name} imports from next`).toEqual([]);
+    }
   });
 });

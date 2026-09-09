@@ -4,6 +4,13 @@
  * The in-memory store is used by these tests, by the dev server and by
  * integrators before they write their own, so it has to behave like the
  * database-backed one. SQLite-only behaviour is in `sqlite.test.ts`.
+ *
+ * PostgreSQL joins the list when `MIOT_DASHBOARD_TEST_POSTGRES_URL` names a
+ * database to use, and is skipped otherwise: it needs a server and the `pg`
+ * optional peer, neither of which a plain `npm test` has. Everything the two
+ * engines share is here, so pointing that variable at a throwaway database is
+ * the whole of running the contract against PostgreSQL. The database is
+ * emptied between tests, so do not point it at one holding anything.
  */
 
 import { mkdtempSync, rmSync } from "node:fs";
@@ -14,6 +21,9 @@ import { DashboardServerError } from "../access/errors";
 import type { ServerDashboardStore } from "../seams/store";
 import { createMemoryStore } from "../testing";
 import { createFsDocumentStore } from "./fs-documents";
+import { openPostgresStore } from "./postgres";
+import { createPostgresDriver } from "./postgres-driver";
+import { runMigrations } from "./sql/migrations";
 import { openSqliteStore, SQLITE_MEMORY } from "./sqlite";
 
 interface Opened {
@@ -55,6 +65,29 @@ const BACKENDS = [
     },
   },
 ];
+
+const POSTGRES_URL = process.env.MIOT_DASHBOARD_TEST_POSTGRES_URL;
+if (POSTGRES_URL !== undefined && POSTGRES_URL !== "") {
+  BACKENDS.push({
+    name: "postgres + inline documents",
+    open: async (): Promise<Opened> => {
+      // Emptied on the way in, not on the way out: a run killed part way
+      // through otherwise leaves rows that fail the next one for a reason
+      // that has nothing to do with the code. The migration runner has to go
+      // first, since on a fresh database there is nothing to empty yet.
+      const driver = createPostgresDriver({ url: POSTGRES_URL });
+      await runMigrations(driver);
+      await driver.exec(
+        "TRUNCATE dashboards, dashboard_permissions, dashboard_documents," +
+          " store_settings",
+      );
+      await driver.close();
+
+      const opened = await openPostgresStore({ url: POSTGRES_URL });
+      return { store: opened.store, close: opened.close };
+    },
+  });
+}
 
 const ref = { tenantId: "acme", scopeId: "ops", slug: "fleet" };
 const other = { tenantId: "acme", scopeId: "ops", slug: "spares" };

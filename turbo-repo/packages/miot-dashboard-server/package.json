@@ -60,10 +60,14 @@
   },
   "peerDependencies": {
     "jose": "^6.0.0",
+    "pg": "^8.0.0",
     "swagger-ui-dist": "^5.0.0"
   },
   "peerDependenciesMeta": {
     "jose": {
+      "optional": true
+    },
+    "pg": {
       "optional": true
     },
     "swagger-ui-dist": {

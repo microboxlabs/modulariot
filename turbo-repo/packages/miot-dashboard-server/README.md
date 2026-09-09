@@ -234,22 +234,19 @@ A request names its tenant in the path, and the server checks it before
 anything else. One credential can therefore serve someone who works in
 several tenants: switching is a different URL, not a new token.
 
-Pick one of three sources.
+Ask the host, the same way scope membership is answered:
 
 ```bash
-# One tenant for the whole deployment.
-MIOT_DASHBOARD_TENANT=acme
-
-# Or ask the host, so a new grant applies without re-issuing anyone's token.
 MIOT_DASHBOARD_TENANTS_URL='https://host.internal/people/{userId}/tenants/{tenantId}'
 ```
 
-Set neither and entitlement comes from the seed file, for dev and tests.
+Omit it and entitlement comes from the seed file, for dev and tests. A grant
+made through the host applies without re-issuing anyone's token, which is the
+reason this is a lookup rather than a claim.
 
 | Variable                                | Is                                                                 |
 | --------------------------------------- | ------------------------------------------------------------------ |
-| `MIOT_DASHBOARD_TENANT`                 | the single tenant this deployment serves                           |
-| `MIOT_DASHBOARD_TENANTS_URL`            | or: the entitlement endpoint, over `{tenantId}` `{userId}`         |
+| `MIOT_DASHBOARD_TENANTS_URL`            | the entitlement endpoint, over `{tenantId}` `{userId}`             |
 | `MIOT_DASHBOARD_TENANTS_METHOD`         | `GET` (default) or `POST`, which sends the question as a JSON body |
 | `MIOT_DASHBOARD_TENANTS_ENTITLED_PATH`  | dotted path to a boolean, for a host that answers 200 either way   |
 | `MIOT_DASHBOARD_TENANTS_SERVICE_HEADER` | this server's credential for asking about other people (name)      |

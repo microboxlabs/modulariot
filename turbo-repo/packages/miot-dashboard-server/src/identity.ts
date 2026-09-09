@@ -58,7 +58,6 @@ export {
 } from "./identity/scope-http";
 
 export {
-  createFixedTenantAuthority,
   createHttpTenantAuthority,
   type HttpTenantAuthorityOptions,
 } from "./identity/tenant-http";

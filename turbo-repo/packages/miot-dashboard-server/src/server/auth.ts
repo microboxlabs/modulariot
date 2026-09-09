@@ -9,7 +9,6 @@
 
 import {
   createFirstMatchIdentityResolver,
-  createFixedTenantAuthority,
   createHttpScopeAuthority,
   createHttpTenantAuthority,
   createJwksKeyRing,
@@ -278,13 +277,6 @@ export function buildTenantAuthority(
   config: TenantConfig,
   options: BuildScopeOptions = {},
 ): AssembledTenants {
-  if (config.kind === "fixed") {
-    return {
-      tenants: createFixedTenantAuthority(config.tenantId),
-      describe: `the single tenant "${config.tenantId}"`,
-    };
-  }
-
   if (config.kind === "seed") {
     const memberships = options.memberships ?? {};
     return {

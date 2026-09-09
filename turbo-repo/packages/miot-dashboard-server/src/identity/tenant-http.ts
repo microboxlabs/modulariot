@@ -192,24 +192,3 @@ export function createHttpTenantAuthority(
     },
   };
 }
-
-/**
- * The whole deployment serves one tenant, named here.
- *
- * For a single-tenant install this is the honest shape: there is nothing to
- * look up, and any authenticated principal acts in the one tenant there is. A
- * request naming a different one is refused, so the path segment still cannot
- * reach across.
- */
-export function createFixedTenantAuthority(tenantId: string): TenantAuthority {
-  if (tenantId.trim().length === 0) {
-    throw new EndpointError(
-      "A fixed tenant authority needs a tenant id; an empty one would refuse " +
-        "every request",
-    );
-  }
-  return {
-    mayActAs: (_principal, requested) =>
-      Promise.resolve(requested === tenantId),
-  };
-}

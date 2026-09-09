@@ -42,6 +42,60 @@ describe("readServerConfig", () => {
     ).toThrowError(/memory, sqlite/);
   });
 
+  describe("tenant entitlement", () => {
+    it("falls back to the seed file when no host is configured", () => {
+      // Dev and tests only. `bin.ts` warns about it at startup rather than
+      // here, because a seed is the right answer for a dev server.
+      expect(readServerConfig(base).tenants).toEqual({ kind: "seed" });
+    });
+
+    it("asks the host when a url is set, with the lookup defaults", () => {
+      const { tenants } = readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_TENANTS_URL:
+          "https://host.test/people/{userId}/tenants/{tenantId}",
+      });
+      expect(tenants).toMatchObject({
+        kind: "http",
+        url: "https://host.test/people/{userId}/tenants/{tenantId}",
+        method: "GET",
+        absentStatuses: [404],
+      });
+    });
+
+    it("reads the lookup settings that tune it", () => {
+      const { tenants } = readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_TENANTS_URL: "https://host.test/entitlements",
+        MIOT_DASHBOARD_TENANTS_METHOD: "post",
+        MIOT_DASHBOARD_TENANTS_ENTITLED_PATH: "entry.entitled",
+        MIOT_DASHBOARD_TENANTS_ABSENT_STATUS: "404,410",
+        MIOT_DASHBOARD_TENANTS_CACHE: "120",
+        MIOT_DASHBOARD_TENANTS_NEGATIVE_CACHE: "5",
+        MIOT_DASHBOARD_TENANTS_TIMEOUT: "2500",
+      });
+      expect(tenants).toMatchObject({
+        kind: "http",
+        method: "POST",
+        entitledPath: "entry.entitled",
+        absentStatuses: [404, 410],
+        cacheSeconds: 120,
+        negativeCacheSeconds: 5,
+        requestTimeoutMs: 2500,
+      });
+    });
+
+    it("refuses a method that is neither GET nor POST", () => {
+      expect(() =>
+        readServerConfig({
+          ...base,
+          MIOT_DASHBOARD_TENANTS_URL: "https://host.test/e",
+          MIOT_DASHBOARD_TENANTS_METHOD: "DELETE",
+        }),
+      ).toThrowError(/must be GET or POST/);
+    });
+  });
+
   describe("documents", () => {
     const sqlite = { ...base, MIOT_DASHBOARD_STORE: "sqlite" };
 

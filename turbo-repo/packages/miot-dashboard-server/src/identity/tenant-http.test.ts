@@ -3,7 +3,6 @@ import { FULL_CAPABILITIES } from "../access/roles";
 import { EndpointError } from "../net/endpoint";
 import type { DashboardPrincipal } from "../seams/identity";
 import {
-  createFixedTenantAuthority,
   createHttpTenantAuthority,
   type HttpTenantAuthorityOptions,
 } from "./tenant-http";
@@ -215,17 +214,5 @@ describe("createHttpTenantAuthority", () => {
         }),
       ).toThrow();
     });
-  });
-});
-
-describe("createFixedTenantAuthority", () => {
-  it("allows the one tenant and refuses every other", async () => {
-    const tenants = createFixedTenantAuthority("acme");
-    await expect(tenants.mayActAs(ana, "acme")).resolves.toBe(true);
-    await expect(tenants.mayActAs(ana, "globex")).resolves.toBe(false);
-  });
-
-  it("refuses to be built with an empty tenant", () => {
-    expect(() => createFixedTenantAuthority("  ")).toThrow(EndpointError);
   });
 });

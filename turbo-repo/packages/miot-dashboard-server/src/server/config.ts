@@ -105,16 +105,7 @@ export interface TicketAuthConfig {
   requestTimeoutMs: number;
 }
 
-export type TenantConfig =
-  | FixedTenantConfig
-  | SeedTenantConfig
-  | HttpTenantConfig;
-
-/** One tenant for the whole deployment. Any other one in a path is refused. */
-export interface FixedTenantConfig {
-  kind: "fixed";
-  tenantId: string;
-}
+export type TenantConfig = SeedTenantConfig | HttpTenantConfig;
 
 /**
  * Entitlement from the seed file: a principal may act in a tenant when the
@@ -670,16 +661,6 @@ function readTicketAuth(env: ConfigEnv): TicketAuthConfig {
 
 function readTenants(env: ConfigEnv): TenantConfig {
   const url = trimmed(env.MIOT_DASHBOARD_TENANTS_URL);
-  const fixed = trimmed(env.MIOT_DASHBOARD_TENANT);
-
-  if (url !== undefined && fixed !== undefined) {
-    throw new ConfigError(
-      "MIOT_DASHBOARD_TENANT and MIOT_DASHBOARD_TENANTS_URL are both set. " +
-        "The first says there is one tenant and the second says to ask the " +
-        "host which ones a caller may use; unset one.",
-    );
-  }
-  if (fixed !== undefined) return { kind: "fixed", tenantId: fixed };
   if (url === undefined) return { kind: "seed" };
 
   return {
@@ -835,35 +816,7 @@ function readAuth(env: ConfigEnv, host: string): AuthConfig {
   );
 }
 
-/**
- * Settings that used to bind the tenant to the credential.
- *
- * Refused rather than ignored. Each one used to decide which tenant a caller
- * landed in; leaving them set while the tenant comes from the request would
- * be a server that silently stopped honouring its own configuration.
- */
-const WITHDRAWN_TENANT_KEYS = [
-  "MIOT_DASHBOARD_JWT_TENANT_CLAIM",
-  "MIOT_DASHBOARD_TICKET_TENANT",
-  "MIOT_DASHBOARD_TICKET_TENANT_PATH",
-] as const;
-
-function refuseWithdrawnKeys(env: ConfigEnv): void {
-  const set = WITHDRAWN_TENANT_KEYS.filter(
-    (key) => trimmed(env[key]) !== undefined,
-  );
-  if (set.length === 0) return;
-  throw new ConfigError(
-    `${set.join(", ")} no longer has any effect. The tenant now comes from ` +
-      "the request path and is checked against a tenant authority, so one " +
-      "credential can serve a caller who works in several tenants. Set " +
-      "MIOT_DASHBOARD_TENANT for a single-tenant deployment, or " +
-      "MIOT_DASHBOARD_TENANTS_URL to ask the host.",
-  );
-}
-
 export function readServerConfig(env: ConfigEnv): ServerConfig {
-  refuseWithdrawnKeys(env);
   const host = env.HOST ?? "127.0.0.1";
   const auth = readAuth(env, host);
 

@@ -90,3 +90,15 @@ export {
   type DashboardAccess,
   type DashboardAction,
 } from "./access/access-control";
+
+// ---- One-time import ----
+export { importDashboards } from "./import/import";
+export type {
+  ImportOptions,
+  ImportRefusal,
+  ImportResult,
+} from "./import/import";
+export { refLabel } from "./import/legacy";
+export type { LegacyDashboard, LegacyDashboardSource } from "./import/legacy";
+export { migrateConfig, CURRENT_CONFIG_VERSION } from "./import/migrate";
+export type { MigrationResult } from "./import/migrate";

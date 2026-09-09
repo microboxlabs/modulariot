@@ -90,3 +90,31 @@ describe("matchRoute", () => {
     expect(matchRoute("/tenants/acme/scopes/%E0%A4%A/dashboards")).toBeNull();
   });
 });
+
+describe("traversal in a decoded segment", () => {
+  // Slashes inside a segment are deliberate, which is what makes `..`
+  // reachable. The store would have accepted the name, and it would then come
+  // back in a listing as an identifier no client can safely put in a URL.
+  it.each([
+    "/tenants/acme/scopes/ops/dashboards/..%2f..%2fescape",
+    "/tenants/acme/scopes/ops/dashboards/a%2f..%2fb",
+    "/tenants/acme/scopes/ops/dashboards/.",
+    "/tenants/acme/scopes/ops/dashboards/..",
+    "/tenants/acme/scopes/ops%2f..%2fother/dashboards/fleet",
+    "/tenants/..%2fother/scopes/ops/dashboards/fleet",
+  ])("refuses %s", (path) => {
+    expect(matchRoute(path)).toBeNull();
+  });
+
+  it("still allows a slash inside a slug, and a dot that is not a component", () => {
+    expect(matchRoute("/tenants/acme/scopes/ops/dashboards/a%2fb")).toEqual({
+      route: "dashboard",
+      tenantId: "acme",
+      scopeId: "ops",
+      slug: "a/b",
+    });
+    expect(
+      matchRoute("/tenants/acme/scopes/ops/dashboards/v1.2.report")?.slug,
+    ).toBe("v1.2.report");
+  });
+});

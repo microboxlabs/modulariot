@@ -197,6 +197,17 @@ describe("createHttpTenantAuthority", () => {
       ).toThrow(/scheme, credentials, host or port/);
     });
 
+    it("refuses placeholders that sit in the fragment", () => {
+      // Both are present, so the presence check is satisfied, but a fragment
+      // is never sent: every caller would ask about the same URL and a single
+      // yes would entitle all of them.
+      expect(() =>
+        createHttpTenantAuthority({
+          url: "https://host.test/entitlements#{userId}/{tenantId}",
+        }),
+      ).toThrow(/fragment/);
+    });
+
     it("refuses a url that is not https", () => {
       expect(() =>
         createHttpTenantAuthority({

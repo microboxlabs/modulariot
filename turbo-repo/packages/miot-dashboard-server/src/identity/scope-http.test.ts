@@ -41,6 +41,17 @@ describe("createHttpScopeAuthority", () => {
     ).toThrowError(EndpointError);
   });
 
+  it("refuses placeholders that sit in the fragment", () => {
+    // The same trap as the tenant lookup: `{userId}` and `{scopeId}` are both
+    // present, so the presence check passes, but a fragment is never sent and
+    // every caller would ask the host the same question.
+    expect(() =>
+      authority(answering(200), {
+        url: "https://host.test/members#{userId}/{scopeId}",
+      }),
+    ).toThrowError(/fragment/);
+  });
+
   it("takes a role the host already spells the same way", async () => {
     const scopes = authority(answering(200, { role: "Editor" }));
     await expect(scopes.resolveScopeRole(ana, "ops")).resolves.toBe("Editor");

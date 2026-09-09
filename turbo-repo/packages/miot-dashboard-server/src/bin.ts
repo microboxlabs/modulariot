@@ -190,6 +190,12 @@ async function openStore(
           url: postgres.url,
           poolSize: postgres.poolSize,
           connectionTimeoutMs: postgres.connectionTimeoutMs,
+          onPoolError: (error) =>
+            log({
+              level: "warn",
+              msg: "postgres idle connection lost",
+              error: error.message,
+            }),
           ...shared,
         })
       : await openSqliteStore({ path: config.sqlitePath, ...shared });

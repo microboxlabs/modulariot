@@ -59,20 +59,21 @@ async function pinDocumentBackend(
   backend: string,
 ): Promise<void> {
   const p = driver.dialect;
+  // Concurrent first opens must agree on one winner. Both engines wait for
+  // a competing insert before ignoring the conflict; the read then checks
+  // the backend that actually won, including when this caller lost.
+  await driver.all(
+    `INSERT INTO store_settings (name, value)
+     VALUES (${p.placeholder(1)}, ${p.placeholder(2)})
+     ON CONFLICT (name) DO NOTHING`,
+    [DOCUMENT_BACKEND_SETTING, backend],
+  );
   const rows = await driver.all<{ value: string }>(
     `SELECT value FROM store_settings WHERE name = ${p.placeholder(1)}`,
     [DOCUMENT_BACKEND_SETTING],
   );
   const recorded = rows[0]?.value;
 
-  if (recorded === undefined) {
-    await driver.all(
-      `INSERT INTO store_settings (name, value)
-       VALUES (${p.placeholder(1)}, ${p.placeholder(2)})`,
-      [DOCUMENT_BACKEND_SETTING, backend],
-    );
-    return;
-  }
   if (recorded !== backend) {
     throw new Error(
       `This database was written with the "${recorded}" document backend and ` +

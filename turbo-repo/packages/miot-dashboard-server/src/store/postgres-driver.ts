@@ -22,6 +22,7 @@ interface PoolClient {
 }
 
 interface Pool {
+  on(event: "error", listener: (error: Error) => void): void;
   connect(): Promise<PoolClient>;
   query(
     text: string,
@@ -73,6 +74,8 @@ export interface PostgresDriverOptions {
   idleTimeoutMs?: number;
   /** Shown in `pg_stat_activity`, so a DBA can tell whose connection it is. */
   applicationName?: string;
+  /** Reports a lost idle connection. The pool discards it and reconnects on demand. */
+  onPoolError?: (error: Error) => void;
   /** Injected by the tests. Defaults to the real `pg` pool. */
   poolImpl?: Pool;
 }
@@ -94,6 +97,10 @@ export function createPostgresDriver(
       idleTimeoutMillis: options.idleTimeoutMs ?? 30_000,
       application_name: options.applicationName ?? "miot-dashboard-server",
     });
+
+  // pg removes broken idle clients before emitting this event. Without a
+  // listener, Node treats the event as uncaught and terminates the host.
+  pool.on("error", (error) => options.onPoolError?.(error));
 
   /**
    * The client a transaction checked out, readable only from the calls that

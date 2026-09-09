@@ -94,8 +94,6 @@ export async function runMigrations(
   driver: SqlDriver,
   now: () => Date = () => new Date(),
 ): Promise<number[]> {
-  await driver.exec(MIGRATIONS_TABLE);
-
   // Reading the applied versions and writing the missing ones happen in one
   // transaction. Read outside it and two processes starting together both
   // decide version 1 is absent; the second then runs `CREATE TABLE` on a table
@@ -105,6 +103,10 @@ export async function runMigrations(
     // read the same empty table first, which is the whole race.
     const lock = driver.dialect.migrationLock;
     if (lock !== null) await driver.all(lock);
+
+    // PostgreSQL's IF NOT EXISTS does not serialize concurrent catalog
+    // inserts. The history table must be created under the same lock.
+    await driver.exec(MIGRATIONS_TABLE);
 
     const applied = await driver.all<{ version: number }>(
       "SELECT version FROM schema_migrations",

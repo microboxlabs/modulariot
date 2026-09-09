@@ -8,6 +8,7 @@
  */
 
 import { createRequire } from "node:module";
+import { EventEmitter } from "node:events";
 import { describe, expect, it } from "vitest";
 import { createPostgresDriver } from "./postgres-driver";
 
@@ -29,6 +30,7 @@ interface Issued {
 
 /** A pool that hands out numbered clients and records what ran on each. */
 function fakePool(options: { rollbackThrows?: boolean } = {}) {
+  const events = new EventEmitter();
   const issued: Issued[] = [];
   const released: { client: number; destroyed: boolean }[] = [];
   let clients = 0;
@@ -44,11 +46,15 @@ function fakePool(options: { rollbackThrows?: boolean } = {}) {
     };
 
   return {
+    events,
     issued,
     released,
     clientCount: () => clients,
     ended: () => ended,
     pool: {
+      on: (event: "error", listener: (error: Error) => void) => {
+        events.on(event, listener);
+      },
       connect: () => {
         const client = ++clients;
         return Promise.resolve({
@@ -71,6 +77,27 @@ const open = (fake: ReturnType<typeof fakePool>) =>
   createPostgresDriver({ url: "postgres://ignored", poolImpl: fake.pool });
 
 describe("createPostgresDriver", () => {
+  it("handles a lost idle connection without an uncaught error event", () => {
+    const fake = fakePool();
+    open(fake);
+    expect(() =>
+      fake.events.emit("error", new Error("connection lost")),
+    ).not.toThrow();
+  });
+
+  it("reports idle connection errors to the host", () => {
+    const fake = fakePool();
+    const errors: Error[] = [];
+    createPostgresDriver({
+      url: "postgres://ignored",
+      poolImpl: fake.pool,
+      onPoolError: (error) => errors.push(error),
+    });
+    const error = new Error("connection lost");
+    fake.events.emit("error", error);
+    expect(errors).toEqual([error]);
+  });
+
   it("runs a statement outside a transaction on the pool", async () => {
     const fake = fakePool();
     await open(fake).all("SELECT 1", ["a"]);

@@ -142,9 +142,17 @@ absent and both create it. Writing permissions locks the dashboard row, so it
 cannot be deleted between the check that it exists and the rows written
 against it.
 
+The document backend is pinned atomically on first open, so concurrent servers
+must agree on where config bodies live. If an idle connection drops, the pool
+discards it and reconnects on demand; the standalone server logs a warning.
+Library callers can receive these errors through `onPoolError` on
+`openPostgresStore` or `createPostgresDriver`.
+
 To run the contract suite against a real server, point
 `MIOT_DASHBOARD_TEST_POSTGRES_URL` at a **throwaway** database — the suite
-empties it between tests — and install `pg`.
+empties it between tests — and install `pg`. The PostgreSQL-specific tests
+also exercise concurrent startup and recovery after an idle connection is
+terminated, using temporary schemas in that database.
 
 Config bytes are stored separately from metadata (rows and permissions):
 

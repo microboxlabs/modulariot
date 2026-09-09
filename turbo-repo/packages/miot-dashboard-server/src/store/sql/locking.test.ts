@@ -71,9 +71,13 @@ describe("the migration lock", () => {
 
     const lock = sql.findIndex((s) => s.includes("pg_advisory_xact_lock"));
     const read = sql.findIndex((s) => s.includes("SELECT version"));
+    const create = sql.findIndex((s) =>
+      s.includes("CREATE TABLE IF NOT EXISTS"),
+    );
     expect(lock).toBeGreaterThan(-1);
     expect(sql.indexOf("BEGIN")).toBeLessThan(lock);
     expect(lock).toBeLessThan(read);
+    expect(lock).toBeLessThan(create);
   });
 
   it("is not taken on SQLite, where BEGIN IMMEDIATE already serializes", async () => {

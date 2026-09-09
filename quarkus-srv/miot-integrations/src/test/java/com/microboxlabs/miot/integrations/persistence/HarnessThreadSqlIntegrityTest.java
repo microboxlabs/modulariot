@@ -80,6 +80,8 @@ class HarnessThreadSqlIntegrityTest {
 
     @Test
     void mutationsAreOwnerScoped() throws Exception {
+        assertTrue(readStaticString("UPDATE_THREAD").contains("summary = COALESCE($6, summary)"),
+                "a patch without a summary must leave the stored one alone");
         assertTrue(readStaticString("UPDATE_THREAD").contains("owner_id = $2"),
                 "only the owner may rename a thread or change its expiry");
         String delete = readStaticString("SOFT_DELETE_THREAD");
@@ -97,6 +99,10 @@ class HarnessThreadSqlIntegrityTest {
         String list = readStaticString("LIST_MESSAGES");
         assertTrue(list.contains("ORDER BY seq ASC"),
                 "replay must follow append order, not created_at (same-millisecond writes)");
+        assertTrue(list.contains("seq > $2") && list.contains("LIMIT $3"),
+                "a page starts after the caller's last seq, so a boundary never repeats a message");
+        assertTrue(list.contains("payload, seq, created_at"),
+                "the page carries seq, which is the cursor the caller continues from");
     }
 
     @Test

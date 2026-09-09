@@ -125,12 +125,14 @@ public class OrgHarnessThreadsResource {
 
     @GET
     @Path("/{threadId}/messages")
-    @Operation(summary = "Replay a thread's messages in append order")
+    @Operation(summary = "Replay a thread's messages in append order, one page at a time")
     public Uni<Response> listMessages(
             @PathParam("organizationId") String organizationId,
-            @PathParam("threadId") String threadId) {
+            @PathParam("threadId") String threadId,
+            @QueryParam("after") Long after,
+            @QueryParam("limit") Integer limit) {
         return withActor(organizationId, (tenant, userId) ->
-                found(service.listMessages(tenant, userId, threadId), Response.Status.OK));
+                found(service.listMessages(tenant, userId, threadId, after, limit), Response.Status.OK));
     }
 
     @POST

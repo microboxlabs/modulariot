@@ -259,6 +259,17 @@ class HarnessThreadServiceTest {
     }
 
     @Test
+    void theSummaryLimitCountsCharactersTheWayTheHarnessDoes() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String id = newThread(service, OWNER);
+        // 4,001 emoji: 8,002 UTF-16 units but 4,001 characters, under the limit.
+        String summary = "\uD83D\uDE80".repeat(4_001);
+
+        assertEquals(summary, service.patch(TENANT, OWNER, id,
+                new ThreadPatchRequest(null, null, null, summary)).summary());
+    }
+
+    @Test
     void messagesPageFromTheLastSeqTheCallerHolds() {
         var service = new HarnessThreadService(new FakeRepository());
         String id = newThread(service, OWNER);

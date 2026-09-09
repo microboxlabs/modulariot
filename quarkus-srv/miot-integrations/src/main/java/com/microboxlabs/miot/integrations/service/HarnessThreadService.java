@@ -307,7 +307,9 @@ public class HarnessThreadService {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(field + " is required");
         }
-        if (value.length() > maxLength) {
+        // Code points, like truncateTitle and the harness's own limit on the
+        // summary: an emoji is one character, not two.
+        if (value.codePointCount(0, value.length()) > maxLength) {
             throw new IllegalArgumentException(field + " must be at most " + maxLength + " characters");
         }
         return value;

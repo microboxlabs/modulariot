@@ -10,6 +10,7 @@ import type { ServerDashboardRef, ServerDashboardStore } from "../seams/store";
 import { createCompositeStore } from "./composite";
 import { createSqlDocumentStore } from "./sql/documents";
 import { createSqlMetadataStore } from "./sql/metadata";
+import type { SqlDriver } from "./sql/driver";
 import { runMigrations } from "./sql/migrations";
 import { createSqliteDriver } from "./sqlite-driver";
 import { sweepOrphanDocuments, type SweepResult } from "./sweep";
@@ -22,6 +23,16 @@ export interface SqliteStoreOptions {
   path: string;
   /** Where config bodies go. Defaults to the same database. */
   documents?: DashboardDocumentStore;
+  /**
+   * Names the backend `documents` is, and is recorded in the database the
+   * first time it is opened. Opening the same database with a different one
+   * is refused: the bodies do not move, so every existing row would point at
+   * a document the new backend has never heard of.
+   *
+   * Defaults to `inline` when `documents` is absent and `external` when it is
+   * present, so a caller that does not care still cannot switch by accident.
+   */
+  documentBackend?: string;
   now?: () => Date;
   newDocumentKey?: (ref: ServerDashboardRef) => string;
   onOrphan?: (key: string, error: unknown) => void;
@@ -36,6 +47,44 @@ export interface OpenedStore {
   close(): Promise<void>;
 }
 
+const DOCUMENT_BACKEND_SETTING = "document_backend";
+
+/**
+ * Record the backend on first open, and refuse a different one afterwards.
+ *
+ * Without this the server starts, lists dashboards from metadata rows that
+ * are all still there, and answers 500 the moment anyone opens one — the
+ * bodies live in the backend that is no longer configured.
+ */
+async function pinDocumentBackend(
+  driver: SqlDriver,
+  backend: string,
+): Promise<void> {
+  const p = driver.dialect;
+  const rows = await driver.all<{ value: string }>(
+    `SELECT value FROM store_settings WHERE name = ${p.placeholder(1)}`,
+    [DOCUMENT_BACKEND_SETTING],
+  );
+  const recorded = rows[0]?.value;
+
+  if (recorded === undefined) {
+    await driver.all(
+      `INSERT INTO store_settings (name, value)
+       VALUES (${p.placeholder(1)}, ${p.placeholder(2)})`,
+      [DOCUMENT_BACKEND_SETTING, backend],
+    );
+    return;
+  }
+  if (recorded !== backend) {
+    throw new Error(
+      `This database was written with the "${recorded}" document backend and ` +
+        `is now being opened with "${backend}". The bodies do not move on ` +
+        `their own, so every dashboard in it would fail to load. Set the ` +
+        `backend back to "${recorded}", or migrate the documents first.`,
+    );
+  }
+}
+
 export async function openSqliteStore(
   options: SqliteStoreOptions,
 ): Promise<OpenedStore> {
@@ -48,6 +97,11 @@ export async function openSqliteStore(
   const driver = createSqliteDriver({ path });
   try {
     const applied = await runMigrations(driver);
+    await pinDocumentBackend(
+      driver,
+      options.documentBackend ??
+        (options.documents === undefined ? "inline" : "external"),
+    );
     const documents = options.documents ?? createSqlDocumentStore(driver);
     const metadata = createSqlMetadataStore(driver);
     const store = createCompositeStore({

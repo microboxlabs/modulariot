@@ -67,6 +67,16 @@ export const MIGRATIONS: readonly Migration[] = [
     // sweep leaves those alone rather than guessing.
     statements: [`ALTER TABLE dashboard_documents ADD COLUMN created_at TEXT`],
   },
+  {
+    version: 3,
+    name: "store settings, to pin the document backend",
+    statements: [
+      `CREATE TABLE store_settings (
+         name  TEXT PRIMARY KEY,
+         value TEXT NOT NULL
+       )`,
+    ],
+  },
 ];
 
 const MIGRATIONS_TABLE = `CREATE TABLE IF NOT EXISTS schema_migrations (

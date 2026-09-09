@@ -74,21 +74,21 @@ MIOT_DASHBOARD_SEED=example \
   npx @microboxlabs/miot-dashboard-server
 ```
 
-| Variable | Default | Purpose |
-| -------- | ------- | ------- |
-| `PORT` | `3070` | Port to listen on |
-| `HOST` | `127.0.0.1` | Address to bind |
-| `MIOT_DASHBOARD_BASE_PATH` | (empty) | URL prefix for API routes |
-| `MIOT_DASHBOARD_SEED` | — | Path to a seed JSON file, or `example` for bundled sample data |
-| `MIOT_DASHBOARD_INSECURE_AUTH` | off | Local dev only: trust identity headers without verification |
-| `MIOT_DASHBOARD_STORE` | `memory` | Where dashboards are saved: `memory` or `sqlite` |
-| `MIOT_DASHBOARD_SQLITE_PATH` | `./data/dashboards.db` | Database file when store is `sqlite` |
-| `MIOT_DASHBOARD_DOCUMENTS` | `inline` | Where config bytes go: `inline` or `fs` |
-| `MIOT_DASHBOARD_DOCUMENTS_PATH` | `./data/documents` | Directory when documents is `fs` |
-| `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` | `3600` | Seconds between orphan cleanups; `0` to disable |
-| `MIOT_DASHBOARD_ORPHAN_MIN_AGE` | `86400` | Minimum age in seconds before an orphan is deleted |
-| `MIOT_DASHBOARD_DOCS` | on | Serve OpenAPI at `/openapi.yaml` and UI at `/docs` |
-| `MIOT_DASHBOARD_SCOPES_URL` | — | Host URL for scope membership; omit to use the seed file |
+| Variable                               | Default                | Purpose                                                        |
+| -------------------------------------- | ---------------------- | -------------------------------------------------------------- |
+| `PORT`                                 | `3070`                 | Port to listen on                                              |
+| `HOST`                                 | `127.0.0.1`            | Address to bind                                                |
+| `MIOT_DASHBOARD_BASE_PATH`             | (empty)                | URL prefix for API routes                                      |
+| `MIOT_DASHBOARD_SEED`                  | —                      | Path to a seed JSON file, or `example` for bundled sample data |
+| `MIOT_DASHBOARD_INSECURE_AUTH`         | off                    | Local dev only: trust identity headers without verification    |
+| `MIOT_DASHBOARD_STORE`                 | `memory`               | Where dashboards are saved: `memory` or `sqlite`               |
+| `MIOT_DASHBOARD_SQLITE_PATH`           | `./data/dashboards.db` | Database file when store is `sqlite`                           |
+| `MIOT_DASHBOARD_DOCUMENTS`             | `inline`               | Where config bytes go: `inline` or `fs`                        |
+| `MIOT_DASHBOARD_DOCUMENTS_PATH`        | `./data/documents`     | Directory when documents is `fs`                               |
+| `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` | `3600`                 | Seconds between orphan cleanups; `0` to disable, max 2147483   |
+| `MIOT_DASHBOARD_ORPHAN_MIN_AGE`        | `86400`                | Minimum age in seconds before an orphan is deleted; at least 1 |
+| `MIOT_DASHBOARD_DOCS`                  | on                     | Serve OpenAPI at `/openapi.yaml` and UI at `/docs`             |
+| `MIOT_DASHBOARD_SCOPES_URL`            | —                      | Host URL for scope membership; omit to use the seed file       |
 
 JWT, ticket, and scope auth variables are listed under
 [Authenticating callers](#authenticating-callers) and
@@ -117,10 +117,10 @@ migrations run at startup. Seeds skip slugs that already exist.
 
 Config bytes are stored separately from metadata (rows and permissions):
 
-| Where | Config bytes live |
-| ----- | ----------------- |
-| `inline` (default) | In the SQLite database |
-| `fs` | One file per dashboard in a directory |
+| Where              | Config bytes live                     |
+| ------------------ | ------------------------------------- |
+| `inline` (default) | In the SQLite database                |
+| `fs`               | One file per dashboard in a directory |
 
 ```bash
 MIOT_DASHBOARD_STORE=sqlite MIOT_DASHBOARD_DOCUMENTS=fs \
@@ -130,19 +130,28 @@ MIOT_DASHBOARD_DOCUMENTS_PATH=./data/documents \
 
 With `fs`, each config is `<tenant>/<uuid>.json` under the documents directory.
 
+The choice is recorded the first time the database is opened. Opening it later
+with the other one is refused at startup: the bodies do not move on their own,
+so every dashboard would fail to load. Move the documents first, or set it
+back.
+
 Leftover files from failed saves or deletes are removed at startup and on a
 schedule — see `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` and
 `MIOT_DASHBOARD_ORPHAN_MIN_AGE` in the env table. Set the interval to `0` to
 disable.
 
+The minimum age cannot be `0`. It covers the gap between a document being
+written and its row being committed; with no gap, a sweep running in it
+deletes a document the save is about to reference.
+
 Library users: `sweepOrphanDocuments` in `./store-sql`, or `.sweep()` on the
 store from `openSqliteStore`.
 
-| Node | SQLite support |
-| ---- | -------------- |
-| 22.13+ | Built-in (`node:sqlite`) |
+| Node       | SQLite support                |
+| ---------- | ----------------------------- |
+| 22.13+     | Built-in (`node:sqlite`)      |
 | 22.5–22.12 | Needs `--experimental-sqlite` |
-| Earlier | Use `memory` store |
+| Earlier    | Use `memory` store            |
 
 ### Authenticating callers
 
@@ -256,9 +265,9 @@ host `401` means this server's credential failed — not "not a member".
 
 ### Try the API
 
-| Path            | Is                                                              |
-| --------------- | --------------------------------------------------------------- |
-| `/openapi.yaml` | OpenAPI spec                                                    |
+| Path            | Is                                                            |
+| --------------- | ------------------------------------------------------------- |
+| `/openapi.yaml` | OpenAPI spec                                                  |
 | `/docs`         | Swagger UI — authorize with dev user/tenant headers to try it |
 
 For automated coverage, `rest-api/` is a Bruno collection (auth and tenant
@@ -276,14 +285,14 @@ collection root.
 When you mount the library, your app implements these interfaces. The
 standalone server uses in-memory defaults from `./testing` (dev only).
 
-| Interface              | Your app answers                                           |
-| ---------------------- | ---------------------------------------------------------- |
-| `IdentityResolver`     | Who is calling, and which tenant?                          |
-| `ScopeAuthority`       | What role does this user have in the requested scope?      |
-| `ServerDashboardStore` | Where are dashboard configs and permissions stored?        |
-| `CredentialsVault`     | What secret authenticates a datasource query?              |
-| `AuditSink`            | Where do audit logs go?                                    |
-| `CapabilityPolicy`     | Optional — how roles map to capabilities                   |
+| Interface              | Your app answers                                      |
+| ---------------------- | ----------------------------------------------------- |
+| `IdentityResolver`     | Who is calling, and which tenant?                     |
+| `ScopeAuthority`       | What role does this user have in the requested scope? |
+| `ServerDashboardStore` | Where are dashboard configs and permissions stored?   |
+| `CredentialsVault`     | What secret authenticates a datasource query?         |
+| `AuditSink`            | Where do audit logs go?                               |
+| `CapabilityPolicy`     | Optional — how roles map to capabilities              |
 
 **Tenant rule:** `tenantId` always comes from the credential, never from the
 URL or request body. A caller cannot access another tenant by changing
@@ -322,12 +331,12 @@ caller can do.
 
 ### Roles
 
-| Role          | Can do                                           |
-| ------------- | ------------------------------------------------ |
-| `Consumer`    | View                                             |
-| `Contributor` | View; edit own dashboards; create in scope     |
-| `Editor`      | Edit, share                                      |
-| `Coordinator` | Full access, including delete and permissions  |
+| Role          | Can do                                        |
+| ------------- | --------------------------------------------- |
+| `Consumer`    | View                                          |
+| `Contributor` | View; edit own dashboards; create in scope    |
+| `Editor`      | Edit, share                                   |
+| `Coordinator` | Full access, including delete and permissions |
 
 Override with a custom `CapabilityPolicy` if your role model differs. A policy
 can only restrict, never grant more than the identity allows.

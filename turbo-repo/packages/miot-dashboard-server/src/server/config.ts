@@ -285,13 +285,27 @@ function readKeySource(env: ConfigEnv): JwtKeySource {
   return { kind: "secret", secret: secret as string };
 }
 
-function readSeconds(env: ConfigEnv, key: string, fallback: number): number {
+/**
+ * The largest delay `setTimeout` and `setInterval` accept. Above it Node
+ * silently uses 1ms, so a sweep asked for every 35 days would run every
+ * millisecond instead.
+ */
+export const MAX_TIMER_SECONDS = Math.floor(2_147_483_647 / 1000);
+
+function readSeconds(
+  env: ConfigEnv,
+  key: string,
+  fallback: number,
+  min = 0,
+  max = MAX_TIMER_SECONDS,
+): number {
   const raw = trimmed(env[key]);
   if (raw === undefined) return fallback;
   const seconds = Number(raw);
-  if (!Number.isInteger(seconds) || seconds < 0) {
+  if (!Number.isInteger(seconds) || seconds < min || seconds > max) {
     throw new ConfigError(
-      `${key} must be a whole number of seconds, got "${raw}"`,
+      `${key} must be a whole number of seconds between ${min} and ${max}, ` +
+        `got "${raw}"`,
     );
   }
   return seconds;
@@ -791,6 +805,11 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
       env,
       "MIOT_DASHBOARD_ORPHAN_MIN_AGE",
       DEFAULT_ORPHAN_MIN_AGE_SECONDS,
+      // Never zero. The gap between a document being written and its row
+      // being committed is what this window covers; with no window a sweep
+      // running in that gap deletes the document, and the save then commits
+      // a row pointing at nothing.
+      1,
     ),
     seedPath: env.MIOT_DASHBOARD_SEED,
     docs: readBooleanUnlessDisabled(env.MIOT_DASHBOARD_DOCS),

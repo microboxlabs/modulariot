@@ -3,9 +3,17 @@
  */
 
 import { mkdtempSync, readdirSync, rmSync, utimesSync } from "node:fs";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createFsDocumentStore, resolveDocumentPath } from "./fs-documents";
 
 const body = (text: string) => new TextEncoder().encode(text);
@@ -123,5 +131,87 @@ describe("keys that must not become paths", () => {
     await expect(store.put("../x", body("x"))).rejects.toThrow(
       /not a path under/,
     );
+  });
+});
+
+describe("containment against symbolic links", () => {
+  let root: string;
+  let outside: string;
+
+  beforeEach(async () => {
+    const base = await mkdtemp(join(tmpdir(), "miot-fs-link-"));
+    root = join(base, "root");
+    outside = join(base, "outside");
+    await mkdir(root, { recursive: true });
+    await mkdir(outside, { recursive: true });
+    await writeFile(join(outside, "secret.json"), '{"secret":true}');
+    // What a misconfigured deployment, or anyone who can write in the root,
+    // leaves behind. `resolve` does not follow it, so the lexical check alone
+    // lets every operation through it.
+    await symlink(outside, join(root, "acme"));
+  });
+
+  it("refuses to read through a linked directory", async () => {
+    const store = createFsDocumentStore({ root });
+    await expect(store.get("acme/secret.json")).rejects.toThrow(
+      /outside the root/,
+    );
+  });
+
+  it("refuses to write through a linked directory", async () => {
+    const store = createFsDocumentStore({ root });
+    await expect(store.put("acme/planted.json", body("{}"))).rejects.toThrow(
+      /outside the root/,
+    );
+    await expect(readdir(outside)).resolves.toEqual(["secret.json"]);
+  });
+
+  it("refuses to delete through a linked directory", async () => {
+    const store = createFsDocumentStore({ root });
+    await expect(store.delete("acme/secret.json")).rejects.toThrow(
+      /outside the root/,
+    );
+    await expect(readdir(outside)).resolves.toEqual(["secret.json"]);
+  });
+
+  it("refuses to read a document that is itself a link", async () => {
+    const store = createFsDocumentStore({ root });
+    await mkdir(join(root, "globex"), { recursive: true });
+    await symlink(join(outside, "secret.json"), join(root, "globex/x.json"));
+    await expect(store.get("globex/x.json")).rejects.toThrow(
+      /symbolic link|outside the root/,
+    );
+  });
+
+  it("still works when the root itself is reached through a link", async () => {
+    // `/tmp` is a link to `/private/tmp` on macOS, so this is the normal case
+    // rather than an exotic one.
+    const base = await mkdtemp(join(tmpdir(), "miot-fs-realroot-"));
+    const real = join(base, "real");
+    const via = join(base, "via");
+    await mkdir(real, { recursive: true });
+    await symlink(real, via);
+    const store = createFsDocumentStore({ root: via });
+    await store.put("acme/one.json", body("{}"));
+    await expect(store.get("acme/one.json")).resolves.not.toBeNull();
+  });
+});
+
+describe("listing while documents are being removed", () => {
+  it("skips an entry that disappears between the listing and its stat", async () => {
+    const root = await mkdtemp(join(tmpdir(), "miot-fs-race-"));
+    const store = createFsDocumentStore({ root });
+    for (const name of ["a", "b", "c", "d"]) {
+      await store.put(`t/${name}.json`, body("{}"));
+    }
+
+    const seen: string[] = [];
+    for await (const document of store.list!()) {
+      seen.push(document.key);
+      // A save that completed during the sweep removed its old document.
+      if (seen.length === 1) await rm(join(root, "t/d.json"), { force: true });
+    }
+    // Whatever it managed to see, it did not abandon the rest of the listing.
+    expect(seen.length).toBeGreaterThanOrEqual(3);
   });
 });

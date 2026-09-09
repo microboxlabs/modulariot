@@ -6,6 +6,7 @@ import {
   DEFAULT_ORPHAN_MIN_AGE_SECONDS,
   DEFAULT_ORPHAN_SWEEP_INTERVAL_SECONDS,
   DEFAULT_SQLITE_PATH,
+  MAX_TIMER_SECONDS,
   readServerConfig,
 } from "./config";
 
@@ -98,6 +99,41 @@ describe("readServerConfig", () => {
           MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL: "-1",
         }),
       ).toThrowError(ConfigError);
+    });
+
+    it("rejects a minimum age of zero", () => {
+      // Zero removes the window between a document being written and its row
+      // being committed. A sweep landing in that window deletes the document,
+      // and the save then commits a row pointing at nothing.
+      expect(() =>
+        readServerConfig({ ...sqlite, MIOT_DASHBOARD_ORPHAN_MIN_AGE: "0" }),
+      ).toThrowError(/between 1 and/);
+    });
+
+    it("still allows a sweep interval of zero, which means never", () => {
+      expect(
+        readServerConfig({
+          ...sqlite,
+          MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL: "0",
+        }).orphanSweepIntervalSeconds,
+      ).toBe(0);
+    });
+
+    it("rejects an interval larger than a timer can hold", () => {
+      // setInterval silently uses 1ms above 2^31-1, so a sweep asked for every
+      // 35 days would run roughly every millisecond instead.
+      expect(() =>
+        readServerConfig({
+          ...sqlite,
+          MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL: String(MAX_TIMER_SECONDS + 1),
+        }),
+      ).toThrowError(new RegExp(`between 0 and ${MAX_TIMER_SECONDS}`));
+      expect(
+        readServerConfig({
+          ...sqlite,
+          MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL: String(MAX_TIMER_SECONDS),
+        }).orphanSweepIntervalSeconds,
+      ).toBe(MAX_TIMER_SECONDS);
     });
   });
 

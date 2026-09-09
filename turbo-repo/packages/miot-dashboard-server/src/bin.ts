@@ -24,6 +24,7 @@ import {
   type ServerConfig,
 } from "./server/config";
 import { createRefusalLog } from "./server/refusal-log";
+import { startSweepSchedule } from "./server/sweep-schedule";
 import { seedDashboards } from "./server/seed";
 import { serve } from "./server/serve";
 import type { ServerDashboardStore } from "./seams/store";
@@ -163,6 +164,7 @@ async function openStore(
 
   const opened = await openSqliteStore({
     path: config.sqlitePath,
+    documentBackend: config.documents,
     ...(config.documents === "fs"
       ? { documents: createFsDocumentStore({ root: config.documentsPath }) }
       : {}),
@@ -185,39 +187,6 @@ async function openStore(
     describe: `sqlite at ${config.sqlitePath}, ${documents}`,
     sweep: opened.sweep,
   };
-}
-
-/**
- * Runs the orphan sweep now and then every interval. The timer does not keep
- * the process alive, so shutdown needs no bookkeeping for it.
- */
-function scheduleSweep(config: ServerConfig, assembled: AssembledStore): void {
-  const { sweep } = assembled;
-  if (sweep === undefined || config.orphanSweepIntervalSeconds === 0) return;
-
-  const run = async () => {
-    const olderThan = new Date(Date.now() - config.orphanMinAgeSeconds * 1_000);
-    try {
-      const result = await sweep(olderThan);
-      log({
-        level: "info",
-        msg: "orphan sweep",
-        deleted: result.deleted.length,
-        recent: result.recent,
-        unknownAge: result.unknownAge,
-        referenced: result.referenced,
-        failed: result.failed.length,
-      });
-    } catch (error) {
-      log({ level: "error", msg: "orphan sweep failed", error: String(error) });
-    }
-  };
-
-  void run();
-  setInterval(
-    () => void run(),
-    config.orphanSweepIntervalSeconds * 1_000,
-  ).unref();
 }
 
 const log = (line: Record<string, unknown>) => {
@@ -256,7 +225,15 @@ async function main(): Promise<void> {
 
   const assembled = await openStore(config, seed);
   log({ level: "info", msg: "store", store: assembled.describe });
-  scheduleSweep(config, assembled);
+  const stopSweep =
+    assembled.sweep === undefined
+      ? () => Promise.resolve()
+      : startSweepSchedule({
+          sweep: assembled.sweep,
+          intervalSeconds: config.orphanSweepIntervalSeconds,
+          minAgeSeconds: config.orphanMinAgeSeconds,
+          log,
+        });
   log({ level: "info", msg: "identity", auth: auth.describe });
   log({ level: "info", msg: "scopes", membership: scopes.describe });
 
@@ -277,6 +254,8 @@ async function main(): Promise<void> {
     // database closes.
     running
       .close()
+      // Then the sweep, before the store it reads from is closed.
+      .then(() => stopSweep())
       .then(() => assembled.close())
       .then(() => process.exit(0))
       .catch(() => process.exit(1));

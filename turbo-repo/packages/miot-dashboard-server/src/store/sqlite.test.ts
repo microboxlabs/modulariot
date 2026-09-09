@@ -545,12 +545,74 @@ describe("a database from version 1", () => {
 
     const opened = await openSqliteStore({ path });
     try {
-      expect(opened.applied).toEqual([2]);
+      expect(opened.applied).toEqual([2, 3]);
       const result = await opened.sweep(new Date());
       expect(result.deleted).toEqual([]);
       expect(result.unknownAge).toBe(1);
     } finally {
       await opened.close();
+    }
+  });
+});
+
+describe("the document backend recorded in the database", () => {
+  it("refuses to open a database written with a different one", async () => {
+    // The failure it prevents: the server starts, lists dashboards from
+    // metadata rows that are all still there, and answers 500 the moment
+    // anyone opens one, because the bodies are in the other backend.
+    const directory = mkdtempSync(join(tmpdir(), "miot-backend-"));
+    const path = join(directory, "dashboards.db");
+    try {
+      const inline = await openSqliteStore({ path });
+      await inline.store.save(
+        ref,
+        { version: 2, name: "inline" },
+        { updatedBy: "ana" },
+      );
+      await inline.close();
+
+      await expect(
+        openSqliteStore({
+          path,
+          documents: createFsDocumentStore({ root: join(directory, "docs") }),
+          documentBackend: "fs",
+        }),
+      ).rejects.toThrow(/"inline".*"fs"|written with the "inline"/);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("opens again with the same backend", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "miot-backend-same-"));
+    const path = join(directory, "dashboards.db");
+    const root = join(directory, "docs");
+    try {
+      const first = await openSqliteStore({
+        path,
+        documents: createFsDocumentStore({ root }),
+        documentBackend: "fs",
+      });
+      await first.store.save(
+        ref,
+        { version: 2, name: "on disk" },
+        { updatedBy: "ana" },
+      );
+      await first.close();
+
+      const second = await openSqliteStore({
+        path,
+        documents: createFsDocumentStore({ root }),
+        documentBackend: "fs",
+      });
+      try {
+        const record = await second.store.load(ref);
+        expect(record?.config).toEqual({ version: 2, name: "on disk" });
+      } finally {
+        await second.close();
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
     }
   });
 });

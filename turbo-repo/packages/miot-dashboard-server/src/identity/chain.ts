@@ -11,7 +11,7 @@
  * not — turning an outage into a different identity rather than an error.
  */
 
-import type { DashboardIdentity, IdentityResolver } from "../seams/identity";
+import type { DashboardPrincipal, IdentityResolver } from "../seams/identity";
 
 export function createFirstMatchIdentityResolver(
   resolvers: readonly IdentityResolver<Request>[],
@@ -24,10 +24,10 @@ export function createFirstMatchIdentityResolver(
   }
 
   return {
-    async resolve(request: Request): Promise<DashboardIdentity | null> {
+    async resolve(request: Request): Promise<DashboardPrincipal | null> {
       for (const resolver of resolvers) {
-        const identity = await resolver.resolve(request);
-        if (identity !== null) return identity;
+        const principal = await resolver.resolve(request);
+        if (principal !== null) return principal;
       }
       return null;
     },

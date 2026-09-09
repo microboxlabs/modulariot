@@ -62,6 +62,7 @@ export function createDashboardHandler(
       case "dashboards": {
         if (method !== "GET") return methodNotAllowed();
         const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
           scopeId: match.scopeId,
           action: "dashboard.list",
         });
@@ -76,6 +77,7 @@ export function createDashboardHandler(
         const slug = requireSlug(match);
         if (method === "GET") {
           const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
             scopeId: match.scopeId,
             slug,
             action: "dashboard.load",
@@ -91,6 +93,7 @@ export function createDashboardHandler(
           // the request schema, and parsing work done for someone with no
           // standing to ask for it.
           const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
             scopeId: match.scopeId,
             slug,
             action: "dashboard.save",
@@ -112,6 +115,7 @@ export function createDashboardHandler(
         }
         if (method === "DELETE") {
           const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
             scopeId: match.scopeId,
             slug,
             action: "dashboard.delete",
@@ -129,11 +133,11 @@ export function createDashboardHandler(
 
       case "capabilities": {
         if (method !== "GET") return methodNotAllowed();
-        const capabilities = await access.capabilities(
-          request,
-          match.scopeId,
-          requireSlug(match),
-        );
+        const capabilities = await access.capabilities(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          slug: requireSlug(match),
+        });
         return jsonResponse(capabilities);
       }
 
@@ -141,6 +145,7 @@ export function createDashboardHandler(
         const slug = requireSlug(match);
         if (method === "GET") {
           const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
             scopeId: match.scopeId,
             slug,
             action: "dashboard.permissions.read",
@@ -155,6 +160,7 @@ export function createDashboardHandler(
           // the valid roles, so an unauthenticated caller could read the
           // permission vocabulary straight out of the 400s.
           const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
             scopeId: match.scopeId,
             slug,
             action: "dashboard.permissions.write",

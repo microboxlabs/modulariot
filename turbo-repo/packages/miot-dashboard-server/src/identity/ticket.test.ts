@@ -29,7 +29,6 @@ const resolver = (
       name: "authorization",
       value: "Basic {ticketBase64}",
     },
-    tenant: { kind: "fixed", tenantId: "acme" },
     claims: { userId: "entry.id" },
     fetchImpl,
     ...options,
@@ -69,7 +68,6 @@ describe("createTicketIdentityResolver", () => {
 
     expect(identity).toMatchObject({
       userId: "ana",
-      tenantId: "acme",
       kind: "user",
       displayName: "Ana",
       groups: ["engineering"],
@@ -124,25 +122,14 @@ describe("createTicketIdentityResolver", () => {
     expect(onReject).toHaveBeenCalledWith(expect.stringContaining("entry.id"));
   });
 
-  it("reads the tenant from the emitter's answer when configured to", async () => {
-    const identity = await resolver(
+  it("produces no tenant, whatever the emitter answers", async () => {
+    // Even an emitter that names a tenant does not get to bind the credential
+    // to it: which tenant the caller is acting in belongs to the request.
+    const principal = await resolver(
       answering(200, { entry: { id: "ana", org: "beta" } }),
-      { tenant: { kind: "path", path: "entry.org" } },
     ).resolve(carrying({ "x-ticket": "TICKET_1" }));
-    expect(identity).toMatchObject({ tenantId: "beta" });
-  });
-
-  it("refuses when the tenant path matches nothing", async () => {
-    // Falling back to a fixed tenant here would put every ticket holder from
-    // every emitter into one tenant.
-    const onReject = vi.fn();
-    await expect(
-      resolver(answering(200, { entry: { id: "ana" } }), {
-        tenant: { kind: "path", path: "entry.org" },
-        onReject,
-      }).resolve(carrying({ "x-ticket": "TICKET_1" })),
-    ).resolves.toBeNull();
-    expect(onReject).toHaveBeenCalledWith(expect.stringContaining("entry.org"));
+    expect(principal).not.toBeNull();
+    expect(principal).not.toHaveProperty("tenantId");
   });
 
   it("presents the ticket base64-encoded, byte for byte", async () => {

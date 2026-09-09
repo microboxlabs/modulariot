@@ -57,6 +57,17 @@ describe("secureUrlProblem", () => {
   it("reports something that is not a URL at all", () => {
     expect(secureUrlProblem("not a url", "The URL")).toMatch(/not a URL/);
   });
+
+  it("refuses a fragment, which is never sent", () => {
+    // The danger is not the fragment itself but what it hides: a lookup URL
+    // whose only per-caller placeholder sits after the #, which passes a
+    // check that the placeholder is present and then asks the host the same
+    // question for everybody.
+    expect(secureUrlProblem("https://host.test/x#u/t", "The URL")).toMatch(
+      /fragment/,
+    );
+    expect(secureUrlProblem("https://host.test/x?u=1", "The URL")).toBeNull();
+  });
 });
 
 describe("fetchJson", () => {

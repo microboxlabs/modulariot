@@ -44,6 +44,19 @@ export function secureUrlProblem(raw: string, what: string): string | null {
       "answer it decides who this server lets in."
     );
   }
+  // A fragment is never sent. Left in, it silently deletes whatever it holds
+  // from the request, and a placeholder that sits in it satisfies a check for
+  // the placeholder being present while contributing nothing to the URL that
+  // is actually fetched — so every caller asks the same question, and one yes
+  // answers for all of them.
+  if (url.hash !== "") {
+    return (
+      `${what} has a fragment ("${url.hash}"), which is never sent with a ` +
+      "request. Anything after the # is dropped, including a placeholder " +
+      "that would otherwise make the question specific to one caller. Move " +
+      "it into the path or the query."
+    );
+  }
   return null;
 }
 

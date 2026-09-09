@@ -11,10 +11,11 @@
  * optional peer dependency and is imported when a key source is built rather
  * than when the module loads.
  *
- * It covers both halves of `seams/identity.ts`. `IdentityResolver` binds a
- * credential to a tenant, from a JWT this server verifies itself or from a
- * ticket its emitter validates. `ScopeAuthority` binds that identity to a
- * scope, by asking whatever system already knows who belongs to what.
+ * It covers all three halves of `seams/identity.ts`. `IdentityResolver` says
+ * who is calling, from a JWT this server verifies itself or from a ticket its
+ * emitter validates. `TenantAuthority` says whether they may act in the
+ * tenant the request names, and `ScopeAuthority` what their standing is in a
+ * scope inside it — both by asking whatever system already knows.
  */
 
 export {
@@ -47,7 +48,6 @@ export {
   type TicketClaimPaths,
   type TicketIdentityOptions,
   type TicketPresentation,
-  type TicketTenantSource,
 } from "./identity/ticket";
 
 export { createFirstMatchIdentityResolver } from "./identity/chain";
@@ -56,3 +56,8 @@ export {
   createHttpScopeAuthority,
   type HttpScopeAuthorityOptions,
 } from "./identity/scope-http";
+
+export {
+  createHttpTenantAuthority,
+  type HttpTenantAuthorityOptions,
+} from "./identity/tenant-http";

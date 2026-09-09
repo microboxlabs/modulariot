@@ -24,7 +24,7 @@ function resolverFor(
     audience: "miot-dashboards",
     algorithm: "RS256",
     keys: pair.publicKey,
-    claims: { tenantId: TENANT_CLAIM },
+    claims: {},
     ...overrides,
   });
 }
@@ -55,11 +55,10 @@ describe("createJwtIdentityResolver", () => {
 
     await expect(
       resolverFor({
-        claims: { tenantId: TENANT_CLAIM, groups: "groups" },
+        claims: { groups: "groups" },
       }).resolve(requestWith(token)),
     ).resolves.toEqual({
       userId: "auth0|alice",
-      tenantId: "tenant-a",
       kind: "user",
       displayName: "Alice",
       groups: ["GROUP_finance", "GROUP_ops"],
@@ -73,17 +72,15 @@ describe("createJwtIdentityResolver", () => {
     });
   });
 
-  it("takes the tenant from the token and ignores anything the request says", async () => {
-    // A caller can name any tenant in a header, a path or a body and it
-    // changes nothing.
-    const token = await tokenFor({ [TENANT_CLAIM]: "tenant-a" });
-    const identity = await resolverFor().resolve(
-      requestWith(token, {
-        "x-dev-tenant": "tenant-b",
-        "x-tenant-id": "tenant-b",
-      }),
+  it("produces no tenant, whatever the token carries", async () => {
+    // The tenant is a property of the request, checked by the TenantAuthority.
+    // A resolver that reported one here would bind the credential to it and
+    // put the choice back where a caller with two tenants cannot use it.
+    const principal = await resolverFor().resolve(
+      requestWith(await tokenFor({ [TENANT_CLAIM]: "tenant-a" })),
     );
-    expect(identity?.tenantId).toBe("tenant-a");
+    expect(principal).not.toBeNull();
+    expect(principal).not.toHaveProperty("tenantId");
   });
 
   it("has no identity for a request that presents no credential", async () => {
@@ -107,12 +104,12 @@ describe("createJwtIdentityResolver", () => {
   });
 
   it("tolerates extra spacing in the Authorization header", async () => {
-    const token = await tokenFor({ [TENANT_CLAIM]: "tenant-a" });
+    const token = await tokenFor({ sub: "auth0|alice" });
     await expect(
       resolverFor().resolve(
         requestWith(null, { authorization: `  bearer   ${token}  ` }),
       ),
-    ).resolves.toMatchObject({ tenantId: "tenant-a" });
+    ).resolves.toMatchObject({ userId: "auth0|alice" });
   });
 
   it("refuses a token it cannot verify, and says why in the log only", async () => {
@@ -129,37 +126,15 @@ describe("createJwtIdentityResolver", () => {
     expect(onReject).toHaveBeenCalledWith(expect.stringMatching(/aud/));
   });
 
-  it("refuses a verified token that carries no tenant", async () => {
+  it("accepts a verified token that carries no tenant claim", async () => {
+    // Nothing reads one any more, so a token without it is a normal token.
     const onReject = vi.fn();
-    const token = await tokenFor({ sub: "auth0|alice" });
-
     await expect(
-      resolverFor({ onReject }).resolve(requestWith(token)),
-    ).resolves.toBeNull();
-    expect(onReject).toHaveBeenCalledWith(
-      expect.stringContaining(TENANT_CLAIM),
-    );
-  });
-
-  it("does not fall back to a header when the token has no tenant", async () => {
-    // A missing claim is where a fallback would be added for convenience,
-    // and it would let the caller choose their own tenant.
-    const token = await tokenFor({ sub: "auth0|alice" });
-    await expect(
-      resolverFor().resolve(
-        requestWith(token, {
-          "x-dev-tenant": "tenant-a",
-          "x-tenant-id": "tenant-a",
-        }),
+      resolverFor({ onReject }).resolve(
+        requestWith(await tokenFor({ sub: "auth0|alice" })),
       ),
-    ).resolves.toBeNull();
-  });
-
-  it("accepts a numeric tenant claim", async () => {
-    const token = await tokenFor({ [TENANT_CLAIM]: 42 });
-    await expect(
-      resolverFor().resolve(requestWith(token)),
-    ).resolves.toMatchObject({ tenantId: "42" });
+    ).resolves.toMatchObject({ userId: "auth0|alice" });
+    expect(onReject).not.toHaveBeenCalled();
   });
 
   it("lets a key source failure through instead of answering 401", async () => {
@@ -211,7 +186,7 @@ describe("createJwtIdentityResolver", () => {
       });
       await expect(
         resolverFor({
-          claims: { tenantId: TENANT_CLAIM, groups: "scope" },
+          claims: { groups: "scope" },
         }).resolve(requestWith(token)),
       ).resolves.toMatchObject({ groups: ["GROUP_finance", "GROUP_ops"] });
     });
@@ -232,7 +207,7 @@ describe("createJwtIdentityResolver", () => {
       });
       await expect(
         resolverFor({
-          claims: { tenantId: TENANT_CLAIM, groups: "groups" },
+          claims: { groups: "groups" },
         }).resolve(requestWith(token)),
       ).resolves.toMatchObject({ groups: ["GROUP_finance", "GROUP_ops"] });
     });
@@ -243,12 +218,6 @@ describe("createJwtIdentityResolver", () => {
       // Without one, any token this issuer signed for any of its APIs would
       // be accepted here.
       expect(() => resolverFor({ audience: [] })).toThrow(/audience/);
-    });
-
-    it("refuses to be built without a tenant claim", () => {
-      expect(() => resolverFor({ claims: { tenantId: "" } })).toThrow(
-        /tenant claim/,
-      );
     });
   });
 });

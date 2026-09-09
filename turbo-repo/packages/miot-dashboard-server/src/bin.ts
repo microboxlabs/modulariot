@@ -17,7 +17,11 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildIdentityResolver, buildScopeAuthority } from "./server/auth";
+import {
+  buildIdentityResolver,
+  buildScopeAuthority,
+  buildTenantAuthority,
+} from "./server/auth";
 import {
   ConfigError,
   readServerConfig,
@@ -204,6 +208,10 @@ async function main(): Promise<void> {
   const onReject = createRefusalLog({ write: log });
 
   const auth = await buildIdentityResolver(config.auth, { onReject });
+  const tenants = buildTenantAuthority(config.tenants, {
+    memberships,
+    onReject,
+  });
   const scopes = buildScopeAuthority(config.scopes, { memberships, onReject });
 
   if (config.auth.kind === "insecure") {
@@ -212,14 +220,17 @@ async function main(): Promise<void> {
         "(MIOT_DASHBOARD_INSECURE_AUTH). Local use only.\n",
     );
   }
-  if (config.scopes.kind === "seed" && Object.keys(memberships).length === 0) {
-    // The scope authority denies by default, so with no memberships every
-    // request is a 403 and the server looks broken rather than misconfigured.
+  if (
+    (config.scopes.kind === "seed" || config.tenants.kind === "seed") &&
+    Object.keys(memberships).length === 0
+  ) {
+    // Both authorities deny by default, so with no memberships every request
+    // is a 403 and the server looks broken rather than misconfigured.
     process.stderr.write(
-      "WARNING: no scope memberships are configured, so every request will be " +
-        "refused with 403 TENANT_SCOPE. Read them from MIOT_DASHBOARD_SEED for " +
-        "local use, or set MIOT_DASHBOARD_SCOPES_URL to ask the host's own " +
-        "membership system.\n",
+      "WARNING: no memberships are configured, so every request will be " +
+        "refused with 403 TENANT_SCOPE. Read them from MIOT_DASHBOARD_SEED " +
+        "for local use, or set MIOT_DASHBOARD_TENANTS_URL and " +
+        "MIOT_DASHBOARD_SCOPES_URL to ask the host's own systems.\n",
     );
   }
 
@@ -235,10 +246,12 @@ async function main(): Promise<void> {
           log,
         });
   log({ level: "info", msg: "identity", auth: auth.describe });
+  log({ level: "info", msg: "tenants", entitlement: tenants.describe });
   log({ level: "info", msg: "scopes", membership: scopes.describe });
 
   const running = await serve({
     identity: auth.identity,
+    tenants: tenants.tenants,
     scopes: scopes.scopes,
     store: assembled.store,
     audit: createRecordingAuditSink(),

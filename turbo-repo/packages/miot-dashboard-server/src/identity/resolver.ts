@@ -1,19 +1,16 @@
 /**
- * The verifying identity resolver: a bearer JWT in, a `DashboardIdentity` out.
+ * The verifying identity resolver: a bearer JWT in, a `DashboardPrincipal`
+ * out.
  *
- * The rule from `seams/identity.ts` is enforced here: `tenantId` is read from
- * a claim in the signed token and from nowhere else. No header, query
- * parameter or path segment can change it.
- *
- * There is no default tenant claim. No registered claim carries a tenant and
- * every provider uses a different name, so a wrong default would put every
- * caller in the same tenant without any error. The claim name is required
- * configuration.
+ * No tenant. A token says who the caller is; which tenant they are acting in
+ * is a property of the request, decided by the `TenantAuthority`. Reading a
+ * tenant claim here would bind one token to one tenant and make a person who
+ * works in two of them re-authenticate to switch.
  */
 
 import { FULL_CAPABILITIES } from "../access/roles";
 import type {
-  DashboardIdentity,
+  DashboardPrincipal,
   DashboardPrincipalKind,
   IdentityResolver,
 } from "../seams/identity";
@@ -26,8 +23,6 @@ import {
 } from "./jwt";
 
 export interface JwtClaimMapping {
-  /** Claim carrying the tenant. Required; see the note above. */
-  tenantId: string;
   /** Claim carrying the user id. Defaults to `sub`. */
   userId?: string;
   /**
@@ -133,10 +128,6 @@ export function createJwtIdentityResolver(
         "API — would be accepted here.",
     );
   }
-  if (options.claims.tenantId.length === 0) {
-    throw new TypeError("A JWT identity resolver needs a tenant claim name");
-  }
-
   const kindOf = options.principalKind ?? defaultPrincipalKind;
   const reject = (reason: string): null => {
     options.onReject?.(reason);
@@ -144,7 +135,7 @@ export function createJwtIdentityResolver(
   };
 
   return {
-    async resolve(request: Request): Promise<DashboardIdentity | null> {
+    async resolve(request: Request): Promise<DashboardPrincipal | null> {
       const token = bearerToken(request.headers.get("authorization"));
       // No credential is an anonymous request, not a refusal. Reporting it
       // would log every unauthenticated request.
@@ -169,14 +160,6 @@ export function createJwtIdentityResolver(
         throw error;
       }
 
-      const tenantId = readIdentifier(claims, options.claims.tenantId);
-      if (tenantId === null) {
-        return reject(
-          `the token carries no usable "${options.claims.tenantId}" claim, ` +
-            "which is the claim this server reads the tenant from",
-        );
-      }
-
       const userClaim = options.claims.userId ?? "sub";
       const userId = readIdentifier(claims, userClaim);
       if (userId === null) {
@@ -191,7 +174,6 @@ export function createJwtIdentityResolver(
 
       return {
         userId,
-        tenantId,
         kind: kindOf(claims),
         // An upper bound, not a grant: what this principal may do on a
         // dashboard is decided by the scope authority and the permission

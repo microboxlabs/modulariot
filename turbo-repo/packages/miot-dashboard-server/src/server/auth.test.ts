@@ -14,7 +14,11 @@ import {
   type TestKeyPair,
 } from "../test/tokens";
 import { FULL_CAPABILITIES } from "../access/roles";
-import { createMemoryScopeAuthority, createMemoryStore } from "../testing";
+import {
+  createMemoryScopeAuthority,
+  createMemoryStore,
+  createMemoryTenantAuthority,
+} from "../testing";
 import { buildIdentityResolver, buildScopeAuthority } from "./auth";
 import {
   ConfigError,
@@ -50,7 +54,6 @@ const jwtConfig = (overrides: Partial<JwtAuthConfig> = {}): JwtAuthConfig => ({
   algorithm: "RS256",
   key: { kind: "jwks", url: JWKS_URL },
   claims: {
-    tenantId: TENANT_CLAIM,
     userId: undefined,
     groups: undefined,
     displayName: undefined,
@@ -89,7 +92,6 @@ describe("buildIdentityResolver", () => {
 
     await expect(identity.resolve(request)).resolves.toMatchObject({
       userId: "auth0|ana",
-      tenantId: "acme",
     });
   });
 
@@ -132,7 +134,7 @@ describe("buildIdentityResolver", () => {
     expect(line).toContain("unverified");
 
     const request = new Request("https://server.test/", {
-      headers: { "x-dev-user": "ana", "x-dev-tenant": "acme" },
+      headers: { "x-dev-user": "ana" },
     });
     await expect(identity.resolve(request)).resolves.toMatchObject({
       userId: "ana",
@@ -149,6 +151,9 @@ describe("the server behind a verifying resolver", () => {
     });
     running = await serve({
       identity,
+      tenants: createMemoryTenantAuthority({
+        acme: { ops: { "auth0|ana": "Coordinator" } },
+      }),
       scopes: createMemoryScopeAuthority({
         acme: { ops: { "auth0|ana": "Coordinator" } },
       }),
@@ -166,7 +171,8 @@ describe("the server behind a verifying resolver", () => {
     await running.close();
   });
 
-  const dashboardUrl = () => `${running.url}/scopes/ops/dashboards/fleet`;
+  const dashboardUrl = () =>
+    `${running.url}/tenants/acme/scopes/ops/dashboards/fleet`;
 
   const put = (token: string | null) =>
     fetch(dashboardUrl(), {
@@ -205,7 +211,6 @@ describe("the server behind a verifying resolver", () => {
     ["an expired token", { exp: 1_600_000_000 }],
     ["a token for another API", { aud: "another-api" }],
     ["a token from another issuer", { iss: "https://elsewhere.test/" }],
-    ["a token carrying no tenant", { [TENANT_CLAIM]: undefined }],
   ])("answers 401 for %s", async (_name, claims) => {
     const response = await put(await tokenFor(claims));
     expect(response.status).toBe(401);
@@ -226,16 +231,14 @@ describe("the server behind a verifying resolver", () => {
     expect((await put(forged)).status).toBe(401);
   });
 
-  it("keeps a caller inside the tenant their token names", async () => {
-    // The header is the one the insecure resolver would have believed.
-    const response = await fetch(dashboardUrl(), {
-      headers: {
-        authorization: `Bearer ${await tokenFor({ [TENANT_CLAIM]: "other-tenant" })}`,
-        "x-dev-tenant": "acme",
-      },
-    });
-    // A caller from another tenant has no standing in this scope, and the
-    // answer must not distinguish that from the scope not existing.
+  it("keeps a caller out of a tenant they have no standing in", async () => {
+    // Same verified token, a tenant the path names and the tenant authority
+    // refuses. The answer must not distinguish that from the tenant not
+    // existing, so naming them at random reveals nothing.
+    const response = await fetch(
+      `${running.url}/tenants/other-tenant/scopes/ops/dashboards/fleet`,
+      { headers: { authorization: `Bearer ${await tokenFor()}` } },
+    );
     expect(response.status).toBe(403);
   });
 });
@@ -257,7 +260,6 @@ const ticketConfig = (
     value: "Basic {ticketBase64}",
   },
   serviceHeader: undefined,
-  tenant: { kind: "fixed", tenantId: "acme" },
   claims: { userId: "entry.id", groups: undefined, displayName: undefined },
   absentStatuses: [401, 404],
   cacheSeconds: 60,
@@ -289,7 +291,7 @@ describe("buildIdentityResolver: tickets", () => {
           headers: { "x-ticket": "TICKET_1" },
         }),
       ),
-    ).resolves.toMatchObject({ userId: "ana", tenantId: "acme" });
+    ).resolves.toMatchObject({ userId: "ana" });
   });
 
   it("never puts the service credential in the startup line", async () => {

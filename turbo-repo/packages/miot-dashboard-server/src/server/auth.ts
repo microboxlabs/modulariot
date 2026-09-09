@@ -10,6 +10,7 @@
 import {
   createFirstMatchIdentityResolver,
   createHttpScopeAuthority,
+  createHttpTenantAuthority,
   createJwksKeyRing,
   createJwtIdentityResolver,
   createTicketIdentityResolver,
@@ -19,10 +20,15 @@ import {
 } from "../identity";
 import type { KeyRing } from "../identity/jwt";
 import { EndpointError } from "../net/endpoint";
-import type { IdentityResolver, ScopeAuthority } from "../seams/identity";
+import type {
+  IdentityResolver,
+  ScopeAuthority,
+  TenantAuthority,
+} from "../seams/identity";
 import {
   createInsecureHeaderIdentityResolver,
   createMemoryScopeAuthority,
+  createMemoryTenantAuthority,
   type Memberships,
 } from "../testing";
 import {
@@ -31,6 +37,7 @@ import {
   type HeaderCredential,
   type JwtAuthConfig,
   type ScopeConfig,
+  type TenantConfig,
   type TicketAuthConfig,
 } from "./config";
 
@@ -42,6 +49,11 @@ export interface AssembledIdentity {
 
 export interface AssembledScopes {
   scopes: ScopeAuthority;
+  describe: string;
+}
+
+export interface AssembledTenants {
+  tenants: TenantAuthority;
   describe: string;
 }
 
@@ -130,7 +142,6 @@ async function buildJwtResolver(
       algorithm: auth.algorithm,
       keys,
       claims: {
-        tenantId: auth.claims.tenantId,
         ...(auth.claims.userId ? { userId: auth.claims.userId } : {}),
         ...(auth.claims.groups ? { groups: auth.claims.groups } : {}),
         ...(auth.claims.displayName
@@ -159,7 +170,6 @@ function buildTicketResolver(
       method: auth.method,
       present: auth.present,
       headers: asHeaders(auth.serviceHeader),
-      tenant: auth.tenant,
       claims: {
         userId: auth.claims.userId,
         ...(auth.claims.groups ? { groups: auth.claims.groups } : {}),
@@ -179,15 +189,11 @@ function buildTicketResolver(
     throw error;
   }
 
-  const tenant =
-    auth.tenant.kind === "fixed"
-      ? `tenant ${auth.tenant.tenantId}`
-      : `tenant from "${auth.tenant.path}"`;
   return {
     identity,
     describe:
       `tickets from the "${auth.header}" header, validated at ${auth.url}, ` +
-      `${tenant}, cached ${auth.cacheSeconds}s`,
+      `cached ${auth.cacheSeconds}s`,
   };
 }
 
@@ -251,6 +257,41 @@ export function buildScopeAuthority(
         headers: asHeaders(config.serviceHeader),
         rolePath: config.rolePath,
         ...(config.roleMap ? { roleMap: config.roleMap } : {}),
+        absentStatuses: config.absentStatuses,
+        cacheSeconds: config.cacheSeconds,
+        negativeCacheSeconds: config.negativeCacheSeconds,
+        requestTimeoutMs: config.requestTimeoutMs,
+        ...(options.onReject ? { onReject: options.onReject } : {}),
+        ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+        ...(options.now ? { now: options.now } : {}),
+      }),
+      describe: `${config.method} ${config.url}, cached ${config.cacheSeconds}s`,
+    };
+  } catch (error) {
+    if (error instanceof EndpointError) throw new ConfigError(error.message);
+    throw error;
+  }
+}
+
+export function buildTenantAuthority(
+  config: TenantConfig,
+  options: BuildScopeOptions = {},
+): AssembledTenants {
+  if (config.kind === "seed") {
+    const memberships = options.memberships ?? {};
+    return {
+      tenants: createMemoryTenantAuthority(memberships),
+      describe: `the seed file (${Object.keys(memberships).length} tenants)`,
+    };
+  }
+
+  try {
+    return {
+      tenants: createHttpTenantAuthority({
+        url: config.url,
+        method: config.method,
+        headers: asHeaders(config.serviceHeader),
+        ...(config.entitledPath ? { entitledPath: config.entitledPath } : {}),
         absentStatuses: config.absentStatuses,
         cacheSeconds: config.cacheSeconds,
         negativeCacheSeconds: config.negativeCacheSeconds,

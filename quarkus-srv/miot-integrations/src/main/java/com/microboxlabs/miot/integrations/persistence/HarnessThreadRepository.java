@@ -3,6 +3,7 @@ package com.microboxlabs.miot.integrations.persistence;
 import com.microboxlabs.miot.integrations.domain.HarnessThread;
 import com.microboxlabs.miot.integrations.domain.HarnessThreadMessage;
 import com.microboxlabs.miot.integrations.domain.HarnessThreadShare;
+import io.smallrye.mutiny.Uni;
 import io.vertx.core.json.JsonObject;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
@@ -162,7 +163,10 @@ public class HarnessThreadRepository {
             WHERE (expires_at IS NOT NULL AND expires_at <= now())
                OR (deleted_at IS NOT NULL AND deleted_at <= $1)""";
 
-    /** Used when the configured window is absent or not a positive duration. */
+    /** Used when the configured window is not a positive duration. Mutiny
+     * rejects a zero or negative {@code atMost} with IllegalArgumentException,
+     * so without this a typo in the setting would fail every query rather
+     * than merely widen the window. */
     private static final Duration DEFAULT_QUERY_TIMEOUT = Duration.ofSeconds(10);
 
     private final Instance<Pool> clientInstance;
@@ -297,7 +301,13 @@ public class HarnessThreadRepository {
     // read; the purge job would skip every later pass (ConcurrentExecution.SKIP)
     // while never logging a failure, because nothing ever throws.
     private RowSet<Row> execute(String sql, Tuple params) {
-        return client().preparedQuery(sql).execute(params).await().atMost(queryTimeout);
+        return awaitRows(client().preparedQuery(sql).execute(params));
+    }
+
+    /** The blocking wait itself, separated so a test can drive it with a query
+     * that never answers — the case this bound exists for. */
+    RowSet<Row> awaitRows(Uni<RowSet<Row>> query) {
+        return query.await().atMost(queryTimeout);
     }
 
     private Pool client() {

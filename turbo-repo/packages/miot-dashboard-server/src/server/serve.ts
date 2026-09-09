@@ -18,6 +18,7 @@ import type {
 import type { ServerDashboardStore } from "../seams/store";
 import { createDocsHandler, DOCS_PATH, SPEC_PATH } from "./docs";
 import { toNodeListener } from "./node-adapter";
+import type { CorsOptions } from "../http/cors";
 
 export interface ServeOptions {
   identity: IdentityResolver<Request>;
@@ -26,6 +27,7 @@ export interface ServeOptions {
   store: ServerDashboardStore;
   audit?: AuditSink;
   basePath?: string;
+  cors?: CorsOptions;
   port: number;
   host: string;
   /**
@@ -96,6 +98,7 @@ export function createRequestHandler(options: ServeOptions) {
     tenants: options.tenants,
     scopes: options.scopes,
     store: options.store,
+    ...(options.cors ? { cors: options.cors } : {}),
     ...(options.audit ? { audit: options.audit } : {}),
     ...(options.basePath ? { basePath: options.basePath } : {}),
   });

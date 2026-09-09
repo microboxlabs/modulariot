@@ -12,6 +12,60 @@ import {
 
 const base = { MIOT_DASHBOARD_INSECURE_AUTH: "true" };
 
+describe("cloud documents and CORS configuration", () => {
+  it.each(["s3", "gcs"])(
+    "requires a bucket for %s and normalizes its prefix",
+    (documents) => {
+      const env = {
+        ...base,
+        MIOT_DASHBOARD_STORE: "sqlite",
+        MIOT_DASHBOARD_DOCUMENTS: documents,
+      };
+      expect(() => readServerConfig(env)).toThrow(
+        "MIOT_DASHBOARD_DOCUMENTS_BUCKET",
+      );
+      expect(
+        readServerConfig({
+          ...env,
+          MIOT_DASHBOARD_DOCUMENTS_BUCKET: "configs",
+          MIOT_DASHBOARD_DOCUMENTS_PREFIX: "app",
+        }).cloudDocuments,
+      ).toEqual({ bucket: "configs", prefix: "app/", region: undefined });
+    },
+  );
+  it("rejects a bucket prefix outside its namespace", () => {
+    expect(() =>
+      readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_STORE: "sqlite",
+        MIOT_DASHBOARD_DOCUMENTS: "s3",
+        MIOT_DASHBOARD_DOCUMENTS_BUCKET: "configs",
+        MIOT_DASHBOARD_DOCUMENTS_PREFIX: "../escape",
+      }),
+    ).toThrow("PREFIX");
+  });
+  it("defaults CORS off and parses exact origins and custom headers", () => {
+    expect(readServerConfig(base).cors).toBeUndefined();
+    expect(
+      readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_CORS_ORIGINS: "https://one.example, https://two.example",
+        MIOT_DASHBOARD_CORS_CREDENTIALS: "true",
+        MIOT_DASHBOARD_CORS_HEADERS: "x-ticket",
+      }).cors,
+    ).toEqual({
+      origins: ["https://one.example", "https://two.example"],
+      credentials: true,
+      headers: ["x-ticket"],
+    });
+  });
+  it("rejects unsafe origins before the server starts", () => {
+    expect(() =>
+      readServerConfig({ ...base, MIOT_DASHBOARD_CORS_ORIGINS: "*" }),
+    ).toThrow(ConfigError);
+  });
+});
+
 describe("readServerConfig", () => {
   it("defaults to a loopback address, so a dev server is not reachable off-box", () => {
     const config = readServerConfig(base);
@@ -175,7 +229,7 @@ describe("readServerConfig", () => {
 
     it("rejects a backend it does not have", () => {
       expect(() =>
-        readServerConfig({ ...sqlite, MIOT_DASHBOARD_DOCUMENTS: "s3" }),
+        readServerConfig({ ...sqlite, MIOT_DASHBOARD_DOCUMENTS: "azure" }),
       ).toThrowError(/inline, fs/);
     });
 

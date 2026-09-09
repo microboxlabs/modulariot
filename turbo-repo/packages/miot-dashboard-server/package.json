@@ -37,6 +37,10 @@
     "./server": {
       "types": "./dist/server.d.ts",
       "import": "./dist/server.js"
+    },
+    "./store-cloud": {
+      "types": "./dist/store-cloud.d.ts",
+      "import": "./dist/store-cloud.js"
     }
   },
   "bin": {
@@ -61,7 +65,9 @@
   "peerDependencies": {
     "jose": "^6.0.0",
     "pg": "^8.0.0",
-    "swagger-ui-dist": "^5.0.0"
+    "swagger-ui-dist": "^5.0.0",
+    "@aws-sdk/client-s3": "^3.1128.0",
+    "@google-cloud/storage": "^7.22.0"
   },
   "peerDependenciesMeta": {
     "jose": {
@@ -71,6 +77,12 @@
       "optional": true
     },
     "swagger-ui-dist": {
+      "optional": true
+    },
+    "@aws-sdk/client-s3": {
+      "optional": true
+    },
+    "@google-cloud/storage": {
       "optional": true
     }
   },

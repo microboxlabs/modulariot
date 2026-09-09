@@ -11,6 +11,8 @@ import type { JwtAlgorithm } from "../identity/jwt";
 import type { TicketPresentation } from "../identity/ticket";
 import { DASHBOARD_ROLES, type DashboardRole } from "../access/roles";
 import { isLoopbackHost } from "../net/loopback";
+import { validateCors, type CorsOptions } from "../http/cors";
+import { bucketKeys } from "../store/bucket-keys";
 
 export interface ServerConfig {
   port: number;
@@ -35,6 +37,9 @@ export interface ServerConfig {
   documents: DocumentsKind;
   /** Directory for the `fs` document backend. */
   documentsPath: string;
+  cloudDocuments:
+    | { bucket: string; prefix: string; region: string | undefined }
+    | undefined;
   /** Seconds between orphan sweeps; `0` means never. */
   orphanSweepIntervalSeconds: number;
   /** An unreferenced document younger than this is a save in progress. */
@@ -43,6 +48,7 @@ export interface ServerConfig {
   seedPath: string | undefined;
   /** Serve the contract at /openapi.yaml and render it at /docs. */
   docs: boolean;
+  cors: CorsOptions | undefined;
 }
 
 export type AuthConfig = InsecureAuthConfig | VerifiedAuthConfig;
@@ -176,7 +182,7 @@ export interface PostgresConfig {
   connectionTimeoutMs: number;
 }
 
-export const DOCUMENTS_KINDS = ["inline", "fs"] as const;
+export const DOCUMENTS_KINDS = ["inline", "fs", "s3", "gcs"] as const;
 export type DocumentsKind = (typeof DOCUMENTS_KINDS)[number];
 
 /** A relative path, so the default contains no hostname and no credential. */
@@ -891,7 +897,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
   if (!(DOCUMENTS_KINDS as readonly string[]).includes(documents)) {
     throw new ConfigError(
       `MIOT_DASHBOARD_DOCUMENTS="${documents}" is not supported. Choose one of: ` +
-        `${DOCUMENTS_KINDS.join(", ")}. Object storage is planned.`,
+        `${DOCUMENTS_KINDS.join(", ")}.`,
     );
   }
   if (store === "memory" && env.MIOT_DASHBOARD_DOCUMENTS !== undefined) {
@@ -915,6 +921,10 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     postgres: store === "postgres" ? readPostgres(env) : undefined,
     documents: documents as DocumentsKind,
     documentsPath: env.MIOT_DASHBOARD_DOCUMENTS_PATH ?? DEFAULT_DOCUMENTS_PATH,
+    cloudDocuments:
+      documents === "s3" || documents === "gcs"
+        ? readCloudDocuments(env)
+        : undefined,
     orphanSweepIntervalSeconds: readSeconds(
       env,
       "MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL",
@@ -932,5 +942,44 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     ),
     seedPath: env.MIOT_DASHBOARD_SEED,
     docs: readBooleanUnlessDisabled(env.MIOT_DASHBOARD_DOCS),
+    cors: readCors(env),
   };
+}
+
+function readCloudDocuments(env: ConfigEnv) {
+  const bucket = required(
+    env,
+    "MIOT_DASHBOARD_DOCUMENTS_BUCKET",
+    "the bucket holding config documents",
+  );
+  let prefix: string;
+  try {
+    prefix = bucketKeys(env.MIOT_DASHBOARD_DOCUMENTS_PREFIX).prefix;
+  } catch {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_DOCUMENTS_PREFIX must be a relative bucket prefix",
+    );
+  }
+  return { bucket, prefix, region: trimmed(env.MIOT_DASHBOARD_S3_REGION) };
+}
+
+function readCors(env: ConfigEnv): CorsOptions | undefined {
+  const raw = trimmed(env.MIOT_DASHBOARD_CORS_ORIGINS);
+  if (raw === undefined) return undefined;
+  const cors: CorsOptions = {
+    origins: raw.split(",").map((value) => value.trim()),
+    credentials: readBoolean(env.MIOT_DASHBOARD_CORS_CREDENTIALS),
+    headers: (env.MIOT_DASHBOARD_CORS_HEADERS ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  };
+  try {
+    validateCors(cors);
+  } catch (error) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_CORS: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  return cors;
 }

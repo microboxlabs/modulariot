@@ -13,6 +13,7 @@ export {
 } from "./http/handler";
 
 export { matchRoute, type RouteMatch, type RouteName } from "./http/routes";
+export { withCors, type CorsOptions } from "./http/cors";
 
 export {
   errorResponse,

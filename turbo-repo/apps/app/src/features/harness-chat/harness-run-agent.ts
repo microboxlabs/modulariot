@@ -30,8 +30,11 @@ export class HarnessRunAgent extends HttpAgent {
 }
 
 export function withModel(input: RunAgentInput, model: string | null): RunAgentInput {
-  if (!model) return input;
-  return { ...input, state: { ...input.state, harnessModel: model } };
+  if (model) return { ...input, state: { ...input.state, harnessModel: model } };
+  if (!input.state || !("harnessModel" in input.state)) return input;
+  const state = { ...input.state };
+  delete state.harnessModel;
+  return { ...input, state };
 }
 
 export function trimRunInput(input: RunAgentInput): RunAgentInput {

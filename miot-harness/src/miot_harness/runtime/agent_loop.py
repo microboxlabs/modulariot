@@ -702,7 +702,7 @@ class AgentLoopRunners:
         return model is None or model in self.models
 
     def runner_for(self, model: str | None) -> AgentLoopRunner:
-        name = model or self.default_model
+        name = self.default_model if model is None else model
         if name not in self.models:
             raise ValueError(f"model {name!r} is not in the agent loop allowlist")
         runner = self._runners.get(name)

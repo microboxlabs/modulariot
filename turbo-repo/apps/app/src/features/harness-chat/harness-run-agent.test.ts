@@ -100,4 +100,12 @@ describe("withModel", () => {
     const base = input([]);
     expect(withModel(base, null)).toBe(base);
   });
+
+  it("drops a previously picked model when the default is chosen again", () => {
+    const base = {
+      ...input([]),
+      state: { harnessConversationId: "t1", harnessModel: "claude-sonnet-4-6" },
+    };
+    expect(withModel(base, null).state).toEqual({ harnessConversationId: "t1" });
+  });
 });

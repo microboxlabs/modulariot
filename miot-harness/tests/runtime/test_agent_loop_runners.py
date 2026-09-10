@@ -57,3 +57,8 @@ async def test_run_dispatches_on_the_context_model_and_builds_once() -> None:
 def test_unknown_model_is_refused_even_by_a_direct_caller() -> None:
     with pytest.raises(ValueError, match="allowlist"):
         _runners([]).runner_for("claude-haiku-4-5")
+
+
+def test_empty_model_name_is_refused_not_defaulted() -> None:
+    with pytest.raises(ValueError, match="allowlist"):
+        _runners([]).runner_for("")

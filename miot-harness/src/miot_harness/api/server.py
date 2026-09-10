@@ -568,7 +568,11 @@ def _make_lifespan(
                             **(
                                 {"effort": settings.agents_planner_effort}
                                 if supports_effort(name)
-                                else {"thinking_budget_tokens": synth_thinking_budget}
+                                else {
+                                    "thinking_budget_tokens": (
+                                        settings.agents_synthesizer_thinking_budget
+                                    )
+                                }
                             ),
                         ),
                         registry=harness.tools,

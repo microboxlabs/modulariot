@@ -131,7 +131,11 @@ def get_chat_model(
 
         if not settings.openai_api_key:
             raise RuntimeError("OPENAI_API_KEY is not set; cannot construct OpenAI chat model")
-        return ChatOpenAI(model=name, api_key=SecretStr(settings.openai_api_key))
+        return ChatOpenAI(
+            model=name,
+            api_key=SecretStr(settings.openai_api_key),
+            timeout=timeout if timeout is not None else 60,
+        )
 
     raise ValueError(
         f"Unsupported chat model name: {name!r}. Expected a claude-* / gpt-* / o1-* / o3-* prefix."

@@ -1,12 +1,14 @@
 """Generic, policy-driven safe-query primitives (Tier B / Layer 2).
 
 Backend-agnostic read-only primitives for ANY Postgres connection, parameterised
-by a `TableAccessPolicy`. The difference from the Nexo primitives is the
-execution envelope: every statement runs inside ``conn.transaction(readonly=True)``
-(``BEGIN READ ONLY`` — PgBouncer-safe) with ``SET LOCAL statement_timeout``, so
-the harness enforces read-only + a time budget IN-PROCESS without depending on a
-dedicated least-privilege DB role existing (that role is recommended prod
-hardening, layered on top — not a prerequisite).
+by a `TableAccessPolicy`. Two execution envelopes (see `datasource/pool.py`):
+
+- transaction (default): every statement runs inside
+  ``conn.transaction(readonly=True)`` with ``SET LOCAL statement_timeout`` —
+  PgBouncer-safe, read-only enforced in-process without a least-privilege role.
+- session: read-only and the timeout are connection startup settings on a
+  `SessionPool`; a call is one round trip. Requires a role whose grants enforce
+  read-only on their own.
 
 - ``safe_list_tables`` — tables in the policy's allowed schema(s) (introspection).
 - ``safe_describe``   — columns + types of a policy-allowed table.
@@ -75,15 +77,15 @@ async def fetch_readonly(
     *args: Any,
     statement_timeout_ms: int | None,
 ) -> list[Any]:
-    """Run a query inside a READ ONLY transaction with a statement timeout.
+    """Run a query in the read-only envelope with a statement timeout.
 
-    `BEGIN READ ONLY` is the hard backstop: even if the gate were bypassed, the
-    DB refuses writes. `SET LOCAL statement_timeout` bounds runtime. Both are
-    per-transaction (PgBouncer-safe), never startup parameters.
+    Transaction pools: `BEGIN READ ONLY` + `SET LOCAL statement_timeout`, so
+    even a bypassed gate cannot write. Session pools: both are connection
+    settings, one round trip; a call asking for a timeout other than the pinned
+    one takes the transaction path so the requested budget still applies.
     """
     async with pool.acquire() as conn:
-        if _session_envelope(pool):
-            # Read-only and the timeout are connection settings; one round trip.
+        if _session_envelope(pool, statement_timeout_ms):
             return list(await conn.fetch(sql, *args))
         async with conn.transaction(readonly=True):
             if statement_timeout_ms:
@@ -94,8 +96,13 @@ async def fetch_readonly(
             return list(rows)
 
 
-def _session_envelope(pool: Any) -> bool:
-    return bool(getattr(pool, "session_envelope", False))
+def _session_envelope(pool: Any, statement_timeout_ms: int | None) -> bool:
+    """True when the pool pins read-only + timeout as session settings AND the
+    call's timeout is the pinned one (or unspecified)."""
+    if not getattr(pool, "session_envelope", False):
+        return False
+    pinned = getattr(pool, "statement_timeout_ms", None)
+    return statement_timeout_ms is None or int(statement_timeout_ms) == pinned
 
 
 def _split_qualified(table: str) -> tuple[str, str]:
@@ -311,7 +318,7 @@ async def safe_run_select(
         return list(await conn.fetch(wrapped))
 
     async with pool.acquire() as conn:
-        if _session_envelope(pool):
+        if _session_envelope(pool, statement_timeout_ms):
             rows = await _gated_fetch(conn)
         else:
             async with conn.transaction(readonly=True):

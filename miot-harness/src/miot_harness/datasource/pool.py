@@ -11,8 +11,12 @@ round trips per query including the pool's reset on release.
 **session** — `default_transaction_read_only=on` and `statement_timeout` as
 connection startup settings, and no reset on release. One round trip per
 query. Only for connections with no transaction-mode pooler in front (a 1:1
-proxy, or the server itself). The server still refuses every write: each
-statement runs in its own implicit read-only transaction.
+proxy, or the server itself), and only with a role whose grants alone enforce
+read-only: `default_transaction_read_only` is a session setting, so the
+transaction envelope's guarantee (a started read-only transaction cannot be
+switched) becomes the role's grants plus the SQL gate, which admits only
+`pg_catalog` builtins from its allowlist. A call that passes a different
+timeout than the pinned one falls back to the transaction envelope.
 
 This lives under `datasource/` (not `integrations/nexo/`) so generic
 connections can build pools without importing the Nexo integration.
@@ -30,12 +34,14 @@ ENVELOPES = ("transaction", "session")
 class SessionPool:
     """An asyncpg pool whose connections carry the read-only envelope as
     session state. `fetch_readonly` and friends check `session_envelope` and
-    skip the per-call BEGIN / SET LOCAL / COMMIT."""
+    skip the per-call BEGIN / SET LOCAL / COMMIT when the call's timeout is
+    the pinned one."""
 
     session_envelope = True
 
-    def __init__(self, inner: asyncpg.Pool) -> None:
+    def __init__(self, inner: asyncpg.Pool, *, statement_timeout_ms: int) -> None:
         self._inner = inner
+        self.statement_timeout_ms = statement_timeout_ms
 
     def acquire(self) -> Any:
         return self._inner.acquire()
@@ -72,9 +78,10 @@ async def create_pg_pool(
     if application_name:
         settings["application_name"] = application_name
     if envelope == "session":
+        if not statement_timeout_ms or statement_timeout_ms <= 0:
+            raise ValueError("the session envelope requires a positive statement_timeout_ms")
         settings["default_transaction_read_only"] = "on"
-        if statement_timeout_ms:
-            settings["statement_timeout"] = str(int(statement_timeout_ms))
+        settings["statement_timeout"] = str(int(statement_timeout_ms))
         extra["reset"] = _no_reset
     if settings:
         extra["server_settings"] = settings
@@ -85,5 +92,5 @@ async def create_pg_pool(
         **extra,
     )
     if envelope == "session":
-        return SessionPool(pool)
+        return SessionPool(pool, statement_timeout_ms=int(statement_timeout_ms or 0))
     return pool

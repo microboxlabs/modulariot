@@ -1,0 +1,186 @@
+name: Dashboard Server CI
+
+on:
+  push:
+    paths:
+      - 'turbo-repo/packages/miot-dashboard-server/**'
+      - 'turbo-repo/packages/miot-dashboard-contract/**'
+      - 'turbo-repo/package-lock.json'
+      - 'turbo-repo/docker/dashboard-server.Dockerfile'
+      - '.github/workflows/dashboard-server.yml'
+    branches: [trunk, main]
+  pull_request:
+    paths:
+      - 'turbo-repo/packages/miot-dashboard-server/**'
+      - 'turbo-repo/packages/miot-dashboard-contract/**'
+      - 'turbo-repo/package-lock.json'
+      - 'turbo-repo/docker/dashboard-server.Dockerfile'
+      - '.github/workflows/dashboard-server.yml'
+    branches: [trunk, main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: "24"
+  GHCR_REGISTRY: ghcr.io
+  IMAGE_OWNER: microboxlabs
+  IMAGE_NAME: miot-dashboard-server
+  PACKAGE_DIR: turbo-repo/packages/miot-dashboard-server
+
+jobs:
+  build:
+    name: Build and publish dashboard server image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      image-digest: ${{ steps.docker.outputs.digest }}
+      short-sha: ${{ steps.vars.outputs.short_sha }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: turbo-repo/package-lock.json
+
+      - name: Resolve image metadata
+        id: vars
+        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: turbo-repo
+
+      - name: Build the package
+        run: npx turbo run build --filter=@microboxlabs/miot-dashboard-server
+        working-directory: turbo-repo
+
+      # jose and swagger-ui-dist are optional peers, so they are taken from the
+      # install that just built dist/ rather than resolved a second time. Both
+      # are hoisted to the workspace root; the package's own node_modules holds
+      # only workspace links.
+      - name: Prepare Docker context
+        run: |
+          set -euo pipefail
+          context=/tmp/build-dashboard-server
+          mkdir -p "$context/node_modules"
+          cp -r "$PACKAGE_DIR/dist" "$context/dist"
+          cp -r "$PACKAGE_DIR/examples" "$context/examples"
+          cp -r "$PACKAGE_DIR/contract" "$context/contract"
+          for dep in jose swagger-ui-dist; do
+            if [[ ! -d "turbo-repo/node_modules/$dep" ]]; then
+              echo "turbo-repo/node_modules/$dep is missing; the image would start without it." >&2
+              exit 1
+            fi
+            cp -r "turbo-repo/node_modules/$dep" "$context/node_modules/$dep"
+          done
+          version="$(node -p "require('./$PACKAGE_DIR/package.json').version")"
+          node -e '
+            const [file, version] = process.argv.slice(1);
+            require("fs").writeFileSync(file, JSON.stringify({
+              name: "miot-dashboard-server-runtime",
+              private: true,
+              version,
+              type: "module",
+            }, null, 2) + "\n");
+          ' "$context/package.json" "$version"
+          cp turbo-repo/docker/dashboard-server.Dockerfile "$context/"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Loaded into the local daemon first so the smoke test below runs the
+      # image that is about to be pushed, not the source it was built from.
+      # The bundler rewrites some `node:` specifiers, so "it imports in the
+      # repo" is not evidence that it imports in the image.
+      - name: Build image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: /tmp/build-dashboard-server/
+          file: /tmp/build-dashboard-server/dashboard-server.Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ env.IMAGE_NAME }}:ci
+
+      - name: Smoke-test the image
+        run: |
+          set -euo pipefail
+          # A random secret, so the run proves the verified path assembles
+          # rather than that an insecure fallback exists. sqlite and fs
+          # documents are exercised because both write to /data.
+          docker run -d --name dashboard-smoke -p 3070:3070 \
+            -e MIOT_DASHBOARD_STORE=sqlite \
+            -e MIOT_DASHBOARD_DOCUMENTS=fs \
+            -e MIOT_DASHBOARD_JWT_ISSUER=https://issuer.invalid/ \
+            -e MIOT_DASHBOARD_JWT_AUDIENCE=smoke \
+            -e MIOT_DASHBOARD_JWT_SECRET="$(openssl rand -hex 32)" \
+            "$IMAGE_NAME:ci"
+
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:3070/livez >/dev/null 2>&1; then
+              ready=yes
+              break
+            fi
+            sleep 1
+          done
+          if [[ "${ready:-no}" != "yes" ]]; then
+            echo "The container never answered /livez." >&2
+            docker logs dashboard-smoke >&2 || true
+            exit 1
+          fi
+
+          curl -fsS http://localhost:3070/readyz | grep -q '"ready"'
+          # No credential: the server must refuse rather than answer.
+          status="$(curl -s -o /dev/null -w '%{http_code}' \
+            http://localhost:3070/tenants/t/scopes/s/dashboards)"
+          if [[ "$status" != "401" ]]; then
+            echo "An unauthenticated list returned $status, expected 401." >&2
+            docker logs dashboard-smoke >&2 || true
+            exit 1
+          fi
+          curl -fsS http://localhost:3070/openapi.yaml | head -1
+
+          docker logs dashboard-smoke
+          docker rm -f dashboard-smoke
+
+      - name: Push image
+        id: docker
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: /tmp/build-dashboard-server/
+          file: /tmp/build-dashboard-server/dashboard-server.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:sha-${{ steps.vars.outputs.short_sha }}
+          labels: |
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.description=Standalone backend for MIOT embeddable dashboards
+            org.opencontainers.image.vendor=MicroboxLabs
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          provenance: true
+          sbom: true
+
+      - name: Image summary
+        if: github.event_name != 'pull_request'
+        run: |
+          {
+            echo "# Dashboard Server Image"
+            echo ""
+            echo "- Digest: \`${{ steps.docker.outputs.digest }}\`"
+            echo "- Tags: \`latest\`, \`sha-${{ steps.vars.outputs.short_sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

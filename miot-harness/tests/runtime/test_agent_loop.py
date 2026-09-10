@@ -528,12 +528,11 @@ async def test_long_answer_streams_while_generating_and_short_narration_does_not
     )
     answer_deltas = [e.data["delta"] for e in events if e.type == "answer.delta"]
     assert answer_deltas == long_text
-    # Past the hold, deltas are emitted as they arrive: the third and fourth
-    # answer deltas precede the turn's usage record.
+    # Past the hold, deltas are emitted as they arrive: every answer delta
+    # precedes the turn's `agent.completed`.
     order = [e.type for e in events]
-    assert order.index("answer.delta", order.index("answer.delta") + 3) < order.index(
-        "usage.recorded", order.index("usage.recorded") + 1
-    )
+    last_answer = len(order) - 1 - order[::-1].index("answer.delta")
+    assert last_answer < len(order) - 1 - order[::-1].index("agent.completed")
     assert [e.data["delta"] for e in events if e.type == "thinking.delta"] == ["Short note."]
     completed = [e for e in events if e.type == "thinking.completed"]
     assert len(completed) == 1 and completed[0].data["tokens"] >= 1

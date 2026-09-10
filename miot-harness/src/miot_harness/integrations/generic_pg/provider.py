@@ -14,6 +14,7 @@ BOTH `settings.generic_query_enabled` is true AND the connection declares
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from pathlib import Path
 
 import asyncpg
@@ -33,6 +34,7 @@ from miot_harness.datasource.provider import (
     DataSourceProfile,
     DataSourceProvider,
 )
+from miot_harness.datasource.routine_introspect import introspect_routines
 from miot_harness.datasource.safe_query import DEFAULT_STATEMENT_TIMEOUT_MS
 from miot_harness.datasource.safe_sql import HARD_LIMIT_CAP
 from miot_harness.datasource.schema_introspect import SchemaSummary, introspect_schema
@@ -208,6 +210,23 @@ class GenericPgProvider(DataSourceProvider):
                         exc,
                         exc_info=True,  # keep the traceback for catalog/permission diag
                     )
+                if schema_summary is not None:
+                    try:
+                        catalog = await introspect_routines(
+                            pool=self._pool,
+                            policy=policy,
+                            limit=1,
+                            statement_timeout_ms=statement_timeout_ms,
+                        )
+                        schema_summary = replace(
+                            schema_summary, routine_count=catalog.total
+                        )
+                    except Exception as exc:  # noqa: BLE001 — count is best-effort
+                        logger.error(
+                            "generic_pg %s: routine survey failed (%s); continuing",
+                            name,
+                            exc,
+                        )
             # Detect knowledge packs (best-effort) from the full table set.
             knowledge_cards: list[KnowledgeCard] = []
             if schema_summary is not None and settings.generic_knowledge_packs_enabled:

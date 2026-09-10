@@ -47,6 +47,8 @@ class SchemaSummary:
     # The FULL set of bare table names (uncapped) — for knowledge-pack
     # fingerprinting, which must see every table, not just the displayed slice.
     all_table_names: frozenset[str] = frozenset()
+    # Executable, non-extension routines in the same schemas (0 when not surveyed).
+    routine_count: int = 0
 
     @property
     def truncated(self) -> bool:
@@ -70,6 +72,12 @@ class SchemaSummary:
         if self.truncated:
             extra = self.total_tables - len(self.tables)
             lines.append(f"- (+{extra} more — use the connection's list_tables tool)")
+        if self.routine_count:
+            lines.append(
+                f"Functions: {self.routine_count} callable — `{self.connection}_functions` "
+                f"lists them with the analyst's notes, `{self.connection}_definition` "
+                "shows a view or function body."
+            )
         return "\n".join(lines)
 
 

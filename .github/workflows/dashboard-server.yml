@@ -119,7 +119,12 @@ jobs:
           # A random secret, so the run proves the verified path assembles
           # rather than that an insecure fallback exists. sqlite and fs
           # documents are exercised because both write to /data.
+          # --read-only, because the chart runs it with
+          # readOnlyRootFilesystem: true and mounts a volume at /data. If the
+          # server ever writes anywhere else, it has to fail here rather than
+          # in a cluster.
           docker run -d --name dashboard-smoke -p 3070:3070 \
+            --read-only --volume dashboard-smoke-data:/data \
             -e MIOT_DASHBOARD_STORE=sqlite \
             -e MIOT_DASHBOARD_DOCUMENTS=fs \
             -e MIOT_DASHBOARD_JWT_ISSUER=https://issuer.invalid/ \

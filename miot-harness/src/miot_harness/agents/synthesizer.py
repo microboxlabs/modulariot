@@ -32,6 +32,7 @@ from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.plan import DataEvidence
 from miot_harness.runtime.tool import Progress
+from miot_harness.utils.truncation import excerpt_for_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,8 @@ Per-status phrasing (each evidence line carries status=... and rows=...):
   distinguir 'sin datos' de 'snapshot vacío'"."""
 
 # Guidance for LIVE datasources (generic pg): current data, no snapshot model.
+_SYNTH_EXCERPT_CHARS = 3000
+
 _SYNTH_LIVE_RULES = """\
 - This is a LIVE datasource: the evidence is the current state. Do NOT add
   freshness/snapshot/timestamp caveats and do NOT treat a missing refresh
@@ -89,6 +92,9 @@ Rules:
   count or total MUST come from an aggregate/COUNT result, not from counting
   sample rows.
 - Do not pad the answer with attributes or values that are not in the evidence.
+- Each evidence excerpt shows at most 5 rows; `rows=` is the number the tool
+  returned and a `total` field is an exact count. Never call a result
+  truncated or incomplete because its excerpt is.
 {freshness_rules}
 """
 
@@ -181,11 +187,13 @@ def _render_evidence_for_synth(evidence: list[DataEvidence]) -> str:
         stale = " STALE" if ev.is_stale else ""
         # SAMPLE flags fuzzy grep/ILIKE evidence — illustrative, never a total.
         sample = " SAMPLE" if ev.is_sample else ""
-        snippet = json.dumps(ev.output, default=str)[:1200]
+        snippet, note = excerpt_for_prompt(ev.output, _SYNTH_EXCERPT_CHARS)
         header = (
             f"tool={ev.tool} source={ev.source} refreshed_at={refreshed}{stale}{sample} "
             f"status={ev.freshness_status} rows={ev.sample_size}"
         )
+        if note:
+            header += f" excerpt={note}"
         # The exact SQL that ran (when the tool ran one): the synthesizer quotes
         # this verbatim if asked what query produced the answer.
         if ev.executed_sql:

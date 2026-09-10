@@ -91,6 +91,9 @@ _LOAD_SKILL_SCHEMA = {
     },
 }
 
+# Text before the first tool call is narration; only past this many chars
+# does a turn's text stream as the answer while still being generated.
+_NARRATION_HOLD_CHARS = 400
 # Room for the `excerpt` note and the JSON envelope around the output.
 _EXCERPT_ENVELOPE_CHARS = 120
 _MIN_EXCERPT_CHARS = 40
@@ -183,17 +186,51 @@ async def _stream_turn(
     """
     agg: AIMessageChunk | None = None
     text_parts: list[str] = []
+    held: list[str] = []
+    held_chars = 0
+    streaming = False
+    answer_index = 0
+    tool_call_seen = False
     thinking_chars = 0
     thinking_index = 0
+
+    def emit_answer(delta: str) -> None:
+        nonlocal answer_index
+        progress(
+            HarnessEvent(
+                run_id=run_id,
+                type="answer.delta",
+                message="",
+                data={"agent": "agent_loop", "delta": delta, "index": answer_index},
+            )
+        )
+        answer_index += 1
+
     async for chunk in model.astream(messages):
         agg = chunk if agg is None else agg + chunk
+        if getattr(chunk, "tool_call_chunks", None):
+            tool_call_seen = True
         for kind, delta in _chunk_deltas(chunk):
-            if kind == "text":
-                text_parts.append(delta)
+            if kind != "text":
+                thinking_chars += len(delta)
+                progress(_thinking_delta(run_id, delta, thinking_index))
+                thinking_index += 1
                 continue
-            thinking_chars += len(delta)
-            progress(_thinking_delta(run_id, delta, thinking_index))
-            thinking_index += 1
+            text_parts.append(delta)
+            if tool_call_seen:
+                continue
+            # Narration before tool calls is short. Text is held up to
+            # _NARRATION_HOLD_CHARS; past that it is the answer and streams.
+            if not streaming and held_chars + len(delta) <= _NARRATION_HOLD_CHARS:
+                held.append(delta)
+                held_chars += len(delta)
+                continue
+            if not streaming:
+                for part in held:
+                    emit_answer(part)
+                held.clear()
+                streaming = True
+            emit_answer(delta)
     if agg is None:
         return AIMessage(content="")
     message = message_chunk_to_message(agg)
@@ -205,15 +242,8 @@ async def _stream_turn(
             thinking_chars += len(narration)
             progress(_thinking_delta(run_id, narration, thinking_index))
     else:
-        for index, delta in enumerate(part for part in text_parts if part):
-            progress(
-                HarnessEvent(
-                    run_id=run_id,
-                    type="answer.delta",
-                    message="",
-                    data={"agent": "agent_loop", "delta": delta, "index": index},
-                )
-            )
+        for part in held:
+            emit_answer(part)
     if thinking_chars:
         progress(
             HarnessEvent(
@@ -222,7 +252,7 @@ async def _stream_turn(
                 message="agent_loop thinking done",
                 data={
                     "agent": "agent_loop",
-                    "tokens": thinking_chars // 4,
+                    "tokens": max(1, thinking_chars // 4),
                     "length": thinking_chars,
                 },
             )
@@ -589,11 +619,7 @@ class AgentLoopRunner:
         budget = cap - len(json.dumps(header, default=str)) - _EXCERPT_ENVELOPE_CHARS
         for _ in range(3):
             if budget < _MIN_EXCERPT_CHARS:
-                text = json.dumps(
-                    {**header, "excerpt": "omitted: tool result cap too small", "output": None},
-                    default=str,
-                )
-                return text[:cap]
+                break
             excerpt, note = excerpt_for_prompt(ev.output, budget)
             try:
                 output: Any = json.loads(excerpt)
@@ -605,4 +631,12 @@ class AgentLoopRunner:
             if len(text) <= cap:
                 return text
             budget -= len(text) - cap
-        return text[:cap]
+        # Compact valid envelope: fits any cap the setting allows.
+        return json.dumps(
+            {
+                "tool": ev.tool[:64],
+                "rows_returned": ev.sample_size,
+                "excerpt": "omitted: tool result cap too small",
+                "output": None,
+            }
+        )

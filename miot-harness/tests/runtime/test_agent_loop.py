@@ -565,3 +565,60 @@ async def test_text_past_the_hold_is_not_replayed_when_a_tool_call_follows(monke
     assert answer_deltas == [*long_text, "done"]
     assert [e for e in events if e.type == "thinking.delta"] == []
     assert [e for e in events if e.type == "thinking.completed"] == []
+
+
+@pytest.mark.asyncio
+async def test_tool_capped_rows_are_reported_as_an_excerpt_with_the_exact_total(monkeypatch):
+    # Nexo table tools keep five rows and report `truncated` and `total_count`.
+    async def fake_invoke_step(step, **kwargs):
+        ev = _evidence()
+        ev = ev.model_copy(
+            update={
+                "output": {
+                    "rows": [{"k": i} for i in range(5)],
+                    "total_count": 58,
+                    "truncated": True,
+                },
+                "sample_size": 5,
+            }
+        )
+        return {"evidence": [ev]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    model = ScriptedModel([_tool_call_msg(), AIMessage(content="ok")])
+    await _runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=lambda e: None
+    )
+    payload = json.loads(_text(next(m for m in model.calls[1] if isinstance(m, ToolMessage))))
+    assert payload["rows_returned"] == 5
+    assert payload["total"] == 58
+    assert payload["excerpt"] == "first 5 of 58 rows"
+    assert len(payload["output"]["rows"]) == 5
+
+
+@pytest.mark.asyncio
+async def test_text_sharing_a_frame_with_a_tool_call_chunk_still_streams(monkeypatch):
+    async def fake_invoke_step(step, **kwargs):
+        return {"evidence": [_evidence()]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    long_text = ["word " * 30] * 4  # 600 chars, past the hold
+    mixed = AIMessageChunk(
+        content=[{"type": "text", "text": "tail.", "index": 0}],
+        tool_call_chunks=[
+            {"name": "fake_kpi_summary", "args": "{}", "id": "c1", "index": 1,
+             "type": "tool_call_chunk"}
+        ],
+    )
+    turns = [
+        [*(AIMessageChunk(content=part) for part in long_text), mixed],
+        [AIMessageChunk(content="done")],
+    ]
+    model = ChunkedModel(turns)
+    events: list[Any] = []
+    await _runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    answer_deltas = [e.data["delta"] for e in events if e.type == "answer.delta"]
+    assert answer_deltas == [*long_text, "tail.", "done"]
+    assert [e for e in events if e.type == "thinking.delta"] == []

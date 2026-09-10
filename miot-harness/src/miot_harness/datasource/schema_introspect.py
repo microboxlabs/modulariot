@@ -108,6 +108,13 @@ def _fmt_estimate(rows: int | None) -> str:
 # Table list + type + row estimate from pg_catalog (reltuples is a planner
 # statistic — free, no COUNT(*)). relkind: r=table, v=view, m=matview,
 # p=partitioned, f=foreign.
+#
+# The privilege predicates keep the index to relations this role can read.
+# Without them a narrowly granted role gets an index of everything in the
+# schema, and max_tables can cut away the relations it is allowed to query.
+# Both are needed: a table ACL is independent of its schema's USAGE grant, so
+# has_table_privilege alone passes relations that fail with "permission denied
+# for schema". Qualified with pg_catalog so search_path cannot shadow them.
 _TABLES_QUERY = """
 SELECT n.nspname AS table_schema,
        c.relname AS table_name,
@@ -124,6 +131,8 @@ FROM pg_catalog.pg_class c
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = ANY($1::text[])
   AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
+  AND pg_catalog.has_table_privilege(c.oid, 'SELECT')
+  AND pg_catalog.has_schema_privilege(n.oid, 'USAGE')
 ORDER BY n.nspname, c.relname
 """
 

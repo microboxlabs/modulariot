@@ -101,7 +101,9 @@ class _FunctionsInput(BaseModel):
 
 
 class _FunctionsOutput(BaseModel):
-    functions: list[dict[str, Any]] = Field(default_factory=list)
+    # `rows` so the evidence builder counts them; `total` is the match count
+    # before the limit, which the row cap on traces never removes.
+    rows: list[dict[str, Any]] = Field(default_factory=list)
     total: int = 0
     source: str = ""
 
@@ -113,7 +115,7 @@ class _DefinitionInput(BaseModel):
 
 
 class _DefinitionOutput(BaseModel):
-    definitions: list[dict[str, Any]] = Field(default_factory=list)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
     source: str = ""
 
 
@@ -130,6 +132,11 @@ class _KnowledgeOutput(BaseModel):
     body: str = ""
     available: list[dict[str, str]] = Field(default_factory=list)
     source: str = ""
+
+
+def _first_line(text: str, limit: int = 160) -> str:
+    line = text.strip().splitlines()[0].strip() if text.strip() else ""
+    return line if len(line) <= limit else line[: limit - 1] + "…"
 
 
 def build_generic_tools(
@@ -274,8 +281,10 @@ def build_generic_tools(
             limit=max(0, min(parsed.limit, max_rows)),
             statement_timeout_ms=statement_timeout_ms,
         )
+        # One compact row per routine: the description's first line only, so
+        # fifty rows fit the trace budget. The full text comes with definition.
         return _FunctionsOutput(
-            functions=[
+            rows=[
                 {
                     "name": r.qualified,
                     "args": r.args,
@@ -283,8 +292,7 @@ def build_generic_tools(
                     "kind": r.kind,
                     "volatility": r.volatility,
                     "language": r.language,
-                    "title": r.description.title,
-                    "description": r.description.body,
+                    "summary": _first_line(r.description.title or r.description.body),
                     "meta": r.description.meta,
                 }
                 for r in catalog.routines
@@ -303,7 +311,7 @@ def build_generic_tools(
             statement_timeout_ms=statement_timeout_ms,
         )
         return _DefinitionOutput(
-            definitions=[
+            rows=[
                 {
                     "name": d.qualified,
                     "kind": d.kind,
@@ -416,8 +424,10 @@ def build_generic_tools(
                 f"List the SQL functions and procedures this connection can execute "
                 f"{scope}, with arguments, return type, volatility and the analyst's "
                 "notes (`@meta`: source_tables, multitenancy, side_effects). "
-                "Optional ILIKE pattern on name or description. Read these before "
-                "writing a query someone may already have written."
+                "Optional ILIKE pattern on name or description. `total` is the "
+                "match count; rows carry a one-line summary (definition has the "
+                "full text). Read these before writing a query someone may "
+                "already have written."
             ),
             input_model=_FunctionsInput,
             output_model=_FunctionsOutput,

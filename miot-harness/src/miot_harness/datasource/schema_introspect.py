@@ -108,6 +108,12 @@ def _fmt_estimate(rows: int | None) -> str:
 # Table list + type + row estimate from pg_catalog (reltuples is a planner
 # statistic — free, no COUNT(*)). relkind: r=table, v=view, m=matview,
 # p=partitioned, f=foreign.
+#
+# has_table_privilege keeps the index to what this connection's role can
+# actually read, matching `list_tables` (information_schema is privilege-filtered
+# by the server). Without it a role granted seven relations out of 112 gets an
+# index of 112, capped at max_tables, and the cap can drop every relation it is
+# allowed to query.
 _TABLES_QUERY = """
 SELECT n.nspname AS table_schema,
        c.relname AS table_name,
@@ -124,6 +130,7 @@ FROM pg_catalog.pg_class c
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = ANY($1::text[])
   AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
+  AND has_table_privilege(c.oid, 'SELECT')
 ORDER BY n.nspname, c.relname
 """
 

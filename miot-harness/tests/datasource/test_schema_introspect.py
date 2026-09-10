@@ -150,3 +150,16 @@ async def test_composite_foreign_key_pairs_positionally() -> None:
         "a_id → s.parent.x_id",
         "b_id → s.parent.y_id",
     ]
+
+
+@pytest.mark.asyncio
+async def test_index_query_only_lists_readable_relations() -> None:
+    """The index must not advertise relations the connection cannot SELECT.
+
+    `list_tables` reads information_schema, which the server already filters by
+    privilege. The boot index reads pg_catalog, which it does not.
+    """
+    pool = RecordingPool(fetch_return=_table_rows())
+    await introspect_schema(pool=pool, policy=ACS, connection="acs")
+    sql = pool.conn.fetched[-1][0]
+    assert "has_table_privilege(c.oid, 'SELECT')" in sql

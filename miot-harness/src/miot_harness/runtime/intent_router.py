@@ -57,15 +57,18 @@ _CURATED_DATA_ROUTES = """\
 # inventing a curated function that doesn't exist, dead-ending the run in the
 # canned filter_expert seat.
 _PRIMITIVES_DATA_ROUTES = """\
-- DATA_META: A schema/primer/introspection question that needs no SQL.
-  Examples: "what data do you have?", "how is this field calculated?",
-  "what columns does this table have?".
-- DATA_AGENTIC: ANY data question about {display_name} — it has no canned
-  catalog and is queried only with composable primitives
-  (describe/select/grep/query), so every lookup, count, filter and
-  drilldown takes this route. Examples: "tell me about service 1585735",
-  "show me rows where some_metric > 6", "how many X last week", "tell me
-  more about that"."""
+- DATA_META: A question answered from the primer text alone, with no tool
+  call. Examples: "what data do you have?", "how is this field
+  calculated?", "what is this datasource for?".
+- DATA_AGENTIC: ANY data or catalog question about {display_name} — it has
+  no canned catalog and is queried only with composable primitives
+  (describe/select/grep/query/functions/definition), so every lookup,
+  count, filter and drilldown takes this route, and so does listing or
+  reading tables, columns, functions, views or their definitions.
+  Examples: "tell me about service 1585735", "show me rows where
+  some_metric > 6", "how many X last week", "what columns does this table
+  have?", "which functions deal with symptoms?", "what does function X
+  do?", "tell me more about that"."""
 
 _SYSTEM_PROMPT_TEMPLATE = """You are the intent router for the ModularIoT harness.
 

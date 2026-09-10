@@ -291,3 +291,20 @@ async def test_router_sends_prior_turns_to_the_model() -> None:
     assert isinstance(human.content, str)
     assert "User: trips today?" in human.content
     assert human.content.endswith("Classify this message: and last week?")
+
+
+def test_primitives_prompt_sends_catalog_questions_to_agentic() -> None:
+    """With no curated catalog, listing or reading functions, views and
+    definitions needs the primitive tools, so it is DATA_AGENTIC. DATA_META is
+    only what the primer text answers by itself."""
+
+    from dataclasses import replace
+
+    prompt = _render_system_prompt(replace(FAKE_PROFILE, has_curated_catalog=False))
+    agentic = prompt[prompt.index("- DATA_AGENTIC") : prompt.index("- STORYTELLING_RUN")]
+    meta = prompt[prompt.index("- DATA_META") : prompt.index("- DATA_AGENTIC")]
+    assert "functions/definition" in agentic
+    assert "which functions deal with symptoms?" in agentic
+    assert "what does function X" in agentic
+    assert "primer text alone" in meta
+    assert "columns" not in meta

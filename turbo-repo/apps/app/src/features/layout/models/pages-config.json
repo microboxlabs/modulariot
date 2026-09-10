@@ -43,7 +43,7 @@
     "href": "/reports",
     "items": [
       { "href": "/geographic-view", "label": "geographicView", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/symptoms", "label": "symptoms", "requiredGroups": [], "blockedGroups": ["GROUP_MINTRAL_REVISOR"] },
+      { "href": "/symptoms", "label": "symptoms", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/signal-history", "label": "signalHistory", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/whatsapp/conversations", "label": "conversations", "requiredGroups": ["GROUP_CONVERSATIONS"], "blockedGroups": [] }
     ],

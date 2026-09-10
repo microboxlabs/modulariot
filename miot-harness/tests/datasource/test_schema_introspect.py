@@ -154,12 +154,15 @@ async def test_composite_foreign_key_pairs_positionally() -> None:
 
 @pytest.mark.asyncio
 async def test_index_query_only_lists_readable_relations() -> None:
-    """The index must not advertise relations the connection cannot SELECT.
+    """The index must not advertise relations the connection cannot read.
 
-    `list_tables` reads information_schema, which the server already filters by
-    privilege. The boot index reads pg_catalog, which it does not.
+    pg_catalog shows every relation regardless of grants. Two predicates are
+    needed, not one: a table ACL is independent of its schema's USAGE, so a
+    relation can pass has_table_privilege and still refuse every query with
+    "permission denied for schema" (verified against PostgreSQL 16).
     """
     pool = RecordingPool(fetch_return=_table_rows())
     await introspect_schema(pool=pool, policy=ACS, connection="acs")
     sql = pool.conn.fetched[-1][0]
     assert "has_table_privilege(c.oid, 'SELECT')" in sql
+    assert "has_schema_privilege(n.oid, 'USAGE')" in sql

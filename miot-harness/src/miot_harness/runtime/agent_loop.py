@@ -218,8 +218,7 @@ async def _stream_turn(
                 thinking_index += 1
                 continue
             if streaming:
-                if not tool_call_seen:
-                    emit_answer(delta)
+                emit_answer(delta)
                 continue
             if tool_call_seen or held_chars + len(delta) <= _NARRATION_HOLD_CHARS:
                 held.append(delta)
@@ -615,14 +614,17 @@ class AgentLoopRunner:
             "executed_sql": ev.executed_sql,
         }
         # The exact total lives outside the output, which may be cut or dropped.
-        if isinstance(ev.output, dict) and "total" in ev.output:
-            header["total"] = ev.output["total"]
+        total = _result_total(ev.output)
+        if total is not None:
+            header["total"] = total
+        upstream = _upstream_note(ev.output, ev.sample_size, total)
         cap = self.settings.agents_agent_loop_tool_result_max_chars
         budget = cap - len(json.dumps(header, default=str)) - _EXCERPT_ENVELOPE_CHARS
         for _ in range(3):
             if budget < _MIN_EXCERPT_CHARS:
                 break
             excerpt, note = excerpt_for_prompt(ev.output, budget)
+            note = "; ".join(part for part in (upstream, note) if part)
             try:
                 output: Any = json.loads(excerpt)
             except ValueError:
@@ -643,6 +645,25 @@ class AgentLoopRunner:
                 "output": None,
             }
         )
+
+
+def _result_total(output: Any) -> Any:
+    """The exact row count a tool reports (`total` or `total_count`), or None."""
+    if not isinstance(output, dict):
+        return None
+    for key in ("total", "total_count"):
+        if output.get(key) is not None:
+            return output[key]
+    return None
+
+
+def _upstream_note(output: Any, rows_returned: int | None, total: Any) -> str:
+    """Truncation the tool itself performed before the evidence was built."""
+    if not isinstance(output, dict):
+        return ""
+    if not output.get("truncated"):
+        return ""
+    return f"first {rows_returned} of {total} rows"
 
 
 class AgentLoopRunners:

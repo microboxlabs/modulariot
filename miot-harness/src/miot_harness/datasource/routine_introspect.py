@@ -179,7 +179,8 @@ async def fetch_definition(
     statement_timeout_ms: int | None = DEFAULT_STATEMENT_TIMEOUT_MS,
 ) -> list[ObjectDefinition]:
     """Definitions for a schema-qualified view or routine. Overloaded routines
-    return one entry each. A plain table returns an empty list: use describe."""
+    return one entry each. A relation name wins over a same-named routine: a
+    plain table returns an empty list (use describe)."""
     schema, _, obj = name.partition(".")
     if not schema or not obj or "." in obj:
         raise UnsupportedConstruct(
@@ -211,7 +212,7 @@ async def fetch_definition(
                 truncated=truncated,
             )
         )
-    if out:
+    if rel_rows:
         return out
     fn_rows = await fetch_readonly(
         pool, _ROUTINE_DEF_QUERY, schema, obj, statement_timeout_ms=statement_timeout_ms

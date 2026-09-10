@@ -139,3 +139,18 @@ async def test_definition_refuses_outside_allowlist_before_querying() -> None:
     with pytest.raises(UnsupportedConstruct):
         await fetch_definition(pool=pool, policy=PUBLIC, name="bare_name")
     assert pool.conn.fetched == []
+
+
+@pytest.mark.asyncio
+async def test_definition_of_a_table_does_not_fall_through_to_a_same_named_routine() -> None:
+    def respond(sql: str) -> list:
+        if "pg_get_viewdef" in sql:
+            return [{"relkind": "r", "definition": None, "description": None}]
+        if "pg_get_functiondef" in sql:
+            return [{"kind": "f", "definition": "CREATE FUNCTION symptoms()", "description": ""}]
+        return []
+
+    pool = RecordingPool(responder=respond)
+    defs = await fetch_definition(pool=pool, policy=PUBLIC, name="public.symptoms")
+    assert defs == []
+    assert len(pool.conn.fetched) == 1  # the routine query never ran

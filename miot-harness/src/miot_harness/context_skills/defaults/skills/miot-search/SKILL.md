@@ -141,9 +141,10 @@ assume any specific connection exists.
 
 1. Orient first: `<connection>_knowledge` (curated schema cards) or
    `<connection>_list_tables`, then `<connection>_describe` on a candidate
-   table. `<connection>_functions` lists the SQL functions already written
-   for that database with their notes; `<connection>_definition` shows a
-   view or function body. Read those before writing a join by hand.
+   table. `<connection>_functions` lists the routines (functions and
+   procedures) already written for that database with their notes;
+   `<connection>_definition` shows a view or routine body. Read those before
+   writing a join by hand.
 2. Look up: `<connection>_grep` to find the identifier across a table's text
    columns, or `<connection>_select` with a narrow `where` and a small
    `limit`.

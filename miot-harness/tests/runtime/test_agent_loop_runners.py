@@ -43,9 +43,7 @@ async def test_run_dispatches_on_the_context_model_and_builds_once() -> None:
     built: list[str] = []
     runners = _runners(built)
     ctx = UserRequest(message="q", tenant_id="acme", model="claude-sonnet-4-6").to_context()
-    delta = await runners.run(
-        user_message="q", ctx=ctx, prior_messages=[], progress=lambda e: None
-    )
+    delta = await runners.run(user_message="q", ctx=ctx, prior_messages=[], progress=lambda e: None)
     assert delta["answer"] == "from claude-sonnet-4-6"
     assert built == ["claude-sonnet-4-6"]
     assert runners.runner_for("claude-sonnet-4-6") is runners.runner_for("claude-sonnet-4-6")

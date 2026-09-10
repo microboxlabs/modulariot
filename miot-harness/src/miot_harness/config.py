@@ -90,6 +90,13 @@ class HarnessSettings(BaseSettings):
     # always allowed and is the default. One runner, with its own prompt-cache
     # prefix, is built per model on first use.
     agents_agent_loop_models: list[str] = Field(default_factory=list)
+    # Seats the conversation model can call. Empty model name disables the
+    # seat; its tool then never appears in the prompt.
+    agents_advisor_model: str = "claude-opus-4-8"
+    agents_advisor_max_consults: int = Field(default=2, ge=0)
+    agents_workhorse_model: str = "claude-sonnet-4-6"
+    agents_workhorse_max_turns: int = Field(default=6, ge=1)
+    agents_workhorse_max_parallel: int = Field(default=3, ge=1)
     # Small "did we answer it?" judge. Held separate from the synthesizer so it
     # can stay cheap. Empty string disables the LLM judge (rules-only verify).
     agents_verifier_model: str = "claude-haiku-4-5"

@@ -52,6 +52,13 @@ from miot_harness.runtime.agent_prompt import (
     cached_system_message,
     render_skills_index,
 )
+from miot_harness.runtime.agent_seats import (
+    ADVISOR_TOOL,
+    DELEGATE_TOOL,
+    LoopSeats,
+    seat_tool_schemas,
+    seats_prompt_block,
+)
 from miot_harness.runtime.agentic_graph import _provenance_entry
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.data_graph import instrument_model
@@ -260,23 +267,30 @@ class AgentLoopRunner:
         profile: DataSourceProfile,
         provenance_log: ProvenanceLog | None = None,
         context_skills: ContextSkillsBundle | None = None,
+        seats: LoopSeats | None = None,
     ) -> None:
         self.registry = registry
         self.settings = settings
         self.profile = profile
         self.provenance_log = provenance_log
         self.context_skills = context_skills
+        self.seats = seats
         skills_index = render_skills_index(context_skills, profile)
         self.native_tools = build_native_tools(registry, profile=profile)
+        extras = seat_tool_schemas(seats)
         if skills_index:
+            extras.append(_LOAD_SKILL_SCHEMA)
+        if extras:
             # Re-sort so the tool list stays deterministically ordered — the
             # same byte-stability contract build_native_tools guarantees.
             self.native_tools = sorted(
-                [*self.native_tools, _LOAD_SKILL_SCHEMA],
+                [*self.native_tools, *extras],
                 key=lambda t: t["name"],
             )
         self.system_message = cached_system_message(
-            build_agent_system_prompt(profile, skills_index=skills_index)
+            build_agent_system_prompt(
+                profile, skills_index=skills_index, seats_block=seats_prompt_block(seats)
+            )
         )
         # Bind once — adding/removing/reordering tools mid-conversation
         # invalidates the whole cache (tools render at position 0).
@@ -319,6 +333,7 @@ class AgentLoopRunner:
         evidence: list[DataEvidence] = []
         usage_log: list[dict[str, Any]] = []
         loaded_skills: set[str] = set()
+        consults = 0
         answer: str | None = None
         max_turns = self.settings.agents_agentic_max_turns
 
@@ -358,8 +373,10 @@ class AgentLoopRunner:
             if not tool_calls or capped:
                 answer = response_text(response).strip()
                 break
+            delegations: list[dict[str, Any]] = []
             for call in tool_calls:
-                if call.get("name") == _LOAD_SKILL_TOOL:
+                name = call.get("name")
+                if name == _LOAD_SKILL_TOOL:
                     messages.append(
                         self._load_skill(
                             call, ctx=ctx, loaded_skills=loaded_skills,
@@ -367,12 +384,31 @@ class AgentLoopRunner:
                         )
                     )
                     continue
+                advisor = self.seats.advisor if self.seats is not None else None
+                if name == ADVISOR_TOOL and advisor is not None:
+                    consults += 1
+                    messages.append(
+                        await advisor.consult(
+                            call, ctx=ctx, consult=consults, progress=progress
+                        )
+                    )
+                    continue
+                workhorse = self.seats.workhorse if self.seats is not None else None
+                if name == DELEGATE_TOOL and workhorse is not None:
+                    delegations.append(call)
+                    continue
                 messages.append(
                     await self._execute_tool_call(
                         call, ctx=ctx, user_message=user_message,
                         evidence=evidence, progress=progress,
                     )
                 )
+            if delegations and self.seats is not None and self.seats.workhorse is not None:
+                for msg, found in await self.seats.workhorse.delegate_all(
+                    delegations, ctx=ctx, progress=progress
+                ):
+                    messages.append(msg)
+                    evidence.extend(found)
 
         if not answer:
             answer = (
@@ -595,6 +631,7 @@ class AgentLoopRunners:
         profile: DataSourceProfile,
         provenance_log: ProvenanceLog | None = None,
         context_skills: ContextSkillsBundle | None = None,
+        seats: LoopSeats | None = None,
     ) -> None:
         self.default_model = default_model
         self.models = tuple(dict.fromkeys([default_model, *models]))
@@ -605,6 +642,7 @@ class AgentLoopRunners:
             "profile": profile,
             "provenance_log": provenance_log,
             "context_skills": context_skills,
+            "seats": seats,
         }
         self._runners: dict[str, AgentLoopRunner] = {}
 

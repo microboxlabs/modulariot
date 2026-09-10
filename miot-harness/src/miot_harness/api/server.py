@@ -47,7 +47,8 @@ from miot_harness.datasource.provider import BootResult, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
-from miot_harness.runtime.agent_loop import AgentLoopRunners
+from miot_harness.runtime.agent_loop import AgentLoopRunner, AgentLoopRunners
+from miot_harness.runtime.agent_seats import AdvisorSeat, LoopSeats, WorkhorseSeat
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.data_graph import build_data_graph
@@ -557,6 +558,45 @@ def _make_lifespan(
                 # model/effort; the runner freezes prompt + tool list at boot
                 # so every request shares one prompt-cache prefix.
                 if settings.agents_agent_loop_enabled:
+                    loop_provenance = ProvenanceLog(
+                        settings.provenance_log_dir,
+                        enabled=settings.provenance_log_enabled,
+                    )
+                    seats = LoopSeats(
+                        advisor=(
+                            AdvisorSeat(
+                                model=get_chat_model(settings.agents_advisor_model),
+                                display_name=effective_profile.display_name,
+                                max_consults=settings.agents_advisor_max_consults,
+                            )
+                            if settings.agents_advisor_model
+                            else None
+                        ),
+                        workhorse=(
+                            WorkhorseSeat(
+                                build=lambda: AgentLoopRunner(
+                                    model=get_chat_model(
+                                        settings.agents_workhorse_model,
+                                        timeout=settings.agents_agent_loop_llm_timeout_seconds,
+                                    ),
+                                    registry=harness.tools,
+                                    settings=settings.model_copy(
+                                        update={
+                                            "agents_agentic_max_turns": (
+                                                settings.agents_workhorse_max_turns
+                                            )
+                                        }
+                                    ),
+                                    profile=effective_profile,
+                                    provenance_log=loop_provenance,
+                                    context_skills=harness.context_skills,
+                                ),
+                                max_parallel=settings.agents_workhorse_max_parallel,
+                            )
+                            if settings.agents_workhorse_model
+                            else None
+                        ),
+                    )
                     harness.agent_loop = AgentLoopRunners(
                         default_model=settings.agents_planner_model,
                         models=settings.agents_agent_loop_models,
@@ -568,13 +608,11 @@ def _make_lifespan(
                         registry=harness.tools,
                         settings=settings,
                         profile=effective_profile,
-                        provenance_log=ProvenanceLog(
-                            settings.provenance_log_dir,
-                            enabled=settings.provenance_log_enabled,
-                        ),
+                        provenance_log=loop_provenance,
                         # Skills index in the frozen prefix + lazy
                         # `load_skill` bodies (booted above, before wiring).
                         context_skills=harness.context_skills,
+                        seats=seats,
                     )
                 harness.meta_model = get_chat_model(
                     settings.intent_router_model,

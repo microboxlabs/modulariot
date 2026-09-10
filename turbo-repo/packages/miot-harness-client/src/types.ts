@@ -69,6 +69,8 @@ export const HARNESS_EVENT_TYPES = [
   "verification.completed",
   "grounding.gap",
   "answer.delta",
+  "advisor.consulted",
+  "delegate.completed",
   "answer.completed",
   "run.completed",
   "run.failed",

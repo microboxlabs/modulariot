@@ -46,6 +46,8 @@ const FORWARDED_EVENTS: ReadonlySet<string> = new Set([
   "thinking.delta",
   "thinking.completed",
   "verification.completed",
+  "advisor.consulted",
+  "delegate.completed",
   "answer.completed",
   "run.completed",
   "run.failed",

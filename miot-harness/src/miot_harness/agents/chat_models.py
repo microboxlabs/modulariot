@@ -10,6 +10,7 @@ plain ANTHROPIC_API_KEY / OPENAI_API_KEY env vars).
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
 from langchain_core.language_models import BaseChatModel
@@ -48,6 +49,14 @@ def response_text(response: Any) -> str:
 # latency/cost premium. See ChatAnthropic.effort.
 Effort = Literal["low", "medium", "high", "xhigh", "max"]
 _EFFORT_LEVELS: frozenset[str] = frozenset(("low", "medium", "high", "xhigh", "max"))
+
+# Models on the Opus 4.7+ adaptive-thinking path (`effort`). Everything else on
+# `claude-*` takes the pre-4.7 `thinking_budget_tokens` path.
+_EFFORT_MODELS_RE = re.compile(r"^claude-(opus-4-(7|8|9)|(opus|sonnet|haiku|fable|mythos)-[5-9])")
+
+
+def supports_effort(name: str) -> bool:
+    return _EFFORT_MODELS_RE.match(name) is not None
 
 
 def get_chat_model(

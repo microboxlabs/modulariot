@@ -65,16 +65,16 @@ export function conversationOf(
   };
 }
 
-/**
- * Pairs each user message with the answer that followed it, up to but not
- * including the message this run is for. Only text carries over: the
- * harness's memory is a list of {user_message, assistant_answer} strings.
- */
 /** The model the panel asked for, or null for the harness default. */
 export function modelOf(body: RunAgentInputBody): string | null {
   return text(body.state?.harnessModel) ?? null;
 }
 
+/**
+ * Pairs each user message with the answer that followed it, up to but not
+ * including the message this run is for. Only text carries over: the
+ * harness's memory is a list of {user_message, assistant_answer} strings.
+ */
 export function priorTurns(messages: AgUiMessage[]): ConversationTurn[] {
   const current = messages.findLastIndex((m) => m.role === "user");
   const turns: ConversationTurn[] = [];

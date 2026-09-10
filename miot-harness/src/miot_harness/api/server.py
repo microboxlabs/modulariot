@@ -370,8 +370,9 @@ def _make_lifespan(
                         )
                     )
                 # total_tables (not tables) so the header + truncation note still
-                # render when the index is capped to 0 (generic_schema_max_tables=0).
-                if summary is not None and summary.total_tables:
+                # render when the index is capped to 0 (generic_schema_max_tables=0);
+                # routine_count so a schema that only holds functions still renders.
+                if summary is not None and (summary.total_tables or summary.routine_count):
                     parts.append(summary.render())
                 if parts:
                     ckb_blocks.append(f"## {conn.name}\n" + "\n\n".join(parts))

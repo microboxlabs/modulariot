@@ -14,6 +14,10 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from miot_harness.datasource.knowledge.models import KnowledgeCard
+from miot_harness.datasource.routine_introspect import (
+    fetch_definition,
+    introspect_routines,
+)
 from miot_harness.datasource.safe_query import (
     safe_describe,
     safe_explain,
@@ -85,6 +89,31 @@ class _ExplainOutput(BaseModel):
     total_cost: float = 0.0
     node_type: str | None = None
     plan: dict[str, Any] = Field(default_factory=dict)
+    source: str = ""
+
+
+class _FunctionsInput(BaseModel):
+    pattern: str | None = Field(
+        default=None,
+        description="ILIKE pattern on the function name or its description, e.g. %symptom%",
+    )
+    limit: int = 50
+
+
+class _FunctionsOutput(BaseModel):
+    functions: list[dict[str, Any]] = Field(default_factory=list)
+    total: int = 0
+    source: str = ""
+
+
+class _DefinitionInput(BaseModel):
+    name: str = Field(
+        description="Schema-qualified view or function, e.g. public.v_trips"
+    )
+
+
+class _DefinitionOutput(BaseModel):
+    definitions: list[dict[str, Any]] = Field(default_factory=list)
     source: str = ""
 
 
@@ -235,6 +264,58 @@ def build_generic_tools(
             source=source_label,
         )
 
+    async def call_functions(
+        ctx: HarnessContext, parsed: _FunctionsInput, progress: Progress
+    ) -> _FunctionsOutput:
+        catalog = await introspect_routines(
+            pool=pool,
+            policy=policy,
+            pattern=parsed.pattern,
+            limit=max(0, min(parsed.limit, max_rows)),
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        return _FunctionsOutput(
+            functions=[
+                {
+                    "name": r.qualified,
+                    "args": r.args,
+                    "returns": r.returns,
+                    "kind": r.kind,
+                    "volatility": r.volatility,
+                    "language": r.language,
+                    "title": r.description.title,
+                    "description": r.description.body,
+                    "meta": r.description.meta,
+                }
+                for r in catalog.routines
+            ],
+            total=catalog.total,
+            source=source_label,
+        )
+
+    async def call_definition(
+        ctx: HarnessContext, parsed: _DefinitionInput, progress: Progress
+    ) -> _DefinitionOutput:
+        defs = await fetch_definition(
+            pool=pool,
+            policy=policy,
+            name=parsed.name,
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        return _DefinitionOutput(
+            definitions=[
+                {
+                    "name": d.qualified,
+                    "kind": d.kind,
+                    "definition": d.definition,
+                    "description": d.description,
+                    "truncated": d.truncated,
+                }
+                for d in defs
+            ],
+            source=source_label,
+        )
+
     async def call_knowledge(
         ctx: HarnessContext, parsed: _KnowledgeInput, progress: Progress
     ) -> _KnowledgeOutput:
@@ -327,6 +408,32 @@ def build_generic_tools(
             input_model=_ExplainInput,
             output_model=_ExplainOutput,
             call=call_explain,
+            **common,
+        ),
+        HarnessTool(
+            name=f"{tool_prefix}functions",
+            description=(
+                f"List the SQL functions and procedures this connection can execute "
+                f"{scope}, with arguments, return type, volatility and the analyst's "
+                "notes (`@meta`: source_tables, multitenancy, side_effects). "
+                "Optional ILIKE pattern on name or description. Read these before "
+                "writing a query someone may already have written."
+            ),
+            input_model=_FunctionsInput,
+            output_model=_FunctionsOutput,
+            call=call_functions,
+            **common,
+        ),
+        HarnessTool(
+            name=f"{tool_prefix}definition",
+            description=(
+                f"Source of a view or function {scope}: the SQL body, so you can "
+                "see how tables are joined and filtered. Overloads return one "
+                "entry each; a plain table returns nothing (use describe)."
+            ),
+            input_model=_DefinitionInput,
+            output_model=_DefinitionOutput,
+            call=call_definition,
             **common,
         ),
     ]

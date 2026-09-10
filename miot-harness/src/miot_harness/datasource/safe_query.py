@@ -308,7 +308,7 @@ async def safe_run_select(
                     f"plan total_cost={total_cost:.1f} exceeds threshold "
                     f"{cost_threshold:.1f}"
                 )
-        return await conn.fetch(wrapped)
+        return list(await conn.fetch(wrapped))
 
     async with pool.acquire() as conn:
         if _session_envelope(pool):

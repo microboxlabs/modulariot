@@ -92,9 +92,12 @@ LIMIT $3
 
 
 def _substring_pattern(pattern: str | None) -> str | None:
+    """A pattern with `%` is ILIKE as written; anything else is a literal
+    substring, so `_` in a name like fn_dx_x matches itself, not any char."""
     if pattern is None or "%" in pattern:
         return pattern
-    return f"%{pattern}%"
+    literal = pattern.replace("\\", "\\\\").replace("_", "\\_")
+    return f"%{literal}%"
 
 
 async def introspect_routines(

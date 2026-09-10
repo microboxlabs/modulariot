@@ -172,6 +172,11 @@ async def test_routines_bare_pattern_is_a_substring_match() -> None:
     assert pool.conn.fetched[-1][1][1] == "%symptom%"
     await introspect_routines(pool=pool, policy=PUBLIC, pattern="symptom%")
     assert pool.conn.fetched[-1][1][1] == "symptom%"
+    # A bare name is literal: its underscores are escaped, not one-char wildcards.
+    await introspect_routines(pool=pool, policy=PUBLIC, pattern="fn_dx_")
+    assert pool.conn.fetched[-1][1][1] == "%fn\\_dx\\_%"
+    await introspect_routines(pool=pool, policy=PUBLIC, pattern="fn_%")
+    assert pool.conn.fetched[-1][1][1] == "fn_%"
     await introspect_routines(pool=pool, policy=PUBLIC, pattern=None)
     assert pool.conn.fetched[-1][1][1] is None
 

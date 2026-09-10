@@ -121,3 +121,10 @@ def test_supports_effort_splits_model_generations():
     assert not supports_effort("claude-sonnet-4-6")
     assert not supports_effort("claude-haiku-4-5")
     assert not supports_effort("gpt-4.1")
+
+
+def test_get_chat_model_passes_timeout_to_openai(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-test")
+    get_settings.cache_clear()
+    model = get_chat_model("gpt-4o", timeout=300)
+    assert model.request_timeout == 300

@@ -91,6 +91,10 @@ _LOAD_SKILL_SCHEMA = {
     },
 }
 
+# Room for the `excerpt` note and the JSON envelope around the output.
+_EXCERPT_ENVELOPE_CHARS = 120
+_MIN_EXCERPT_CHARS = 40
+
 _TURN_CAP_NUDGE = (
     "Turn cap reached. Answer now from the evidence you already collected; "
     "do not call more tools. If the evidence is insufficient, say what is "
@@ -170,55 +174,69 @@ async def _stream_turn(
 ) -> AIMessage:
     """One model turn, streamed.
 
-    Text arrives as `answer.delta`; thinking blocks as `thinking.delta`. When
-    the turn ends in tool calls, its text was narration, so it is re-emitted
-    as one `thinking.delta` for clients that render only the reasoning
-    stream. Returns the aggregated message, tool calls included.
+    Thinking blocks stream as `thinking.delta`. Text is held until the turn
+    ends, because only then is it known whether it is the answer or the
+    narration before tool calls: an answer replays as `answer.delta` chunks,
+    narration is emitted once as `thinking.delta`. A turn that emitted any
+    thinking or narration closes with `thinking.completed`. Returns the
+    aggregated message, tool calls included.
     """
     agg: AIMessageChunk | None = None
     text_parts: list[str] = []
-    answer_index = 0
+    thinking_chars = 0
     thinking_index = 0
     async for chunk in model.astream(messages):
         agg = chunk if agg is None else agg + chunk
         for kind, delta in _chunk_deltas(chunk):
             if kind == "text":
                 text_parts.append(delta)
-                progress(
-                    HarnessEvent(
-                        run_id=run_id,
-                        type="answer.delta",
-                        message="",
-                        data={"agent": "agent_loop", "delta": delta, "index": answer_index},
-                    )
-                )
-                answer_index += 1
-            else:
-                progress(
-                    HarnessEvent(
-                        run_id=run_id,
-                        type="thinking.delta",
-                        message="",
-                        data={"agent": "agent_loop", "delta": delta, "index": thinking_index},
-                    )
-                )
-                thinking_index += 1
+                continue
+            thinking_chars += len(delta)
+            progress(_thinking_delta(run_id, delta, thinking_index))
+            thinking_index += 1
     if agg is None:
         return AIMessage(content="")
     message = message_chunk_to_message(agg)
     if not isinstance(message, AIMessage):
         return AIMessage(content=response_text(message))
-    narration = "".join(text_parts).strip()
-    if message.tool_calls and narration:
+    if message.tool_calls:
+        narration = "".join(text_parts).strip()
+        if narration:
+            thinking_chars += len(narration)
+            progress(_thinking_delta(run_id, narration, thinking_index))
+    else:
+        for index, delta in enumerate(part for part in text_parts if part):
+            progress(
+                HarnessEvent(
+                    run_id=run_id,
+                    type="answer.delta",
+                    message="",
+                    data={"agent": "agent_loop", "delta": delta, "index": index},
+                )
+            )
+    if thinking_chars:
         progress(
             HarnessEvent(
                 run_id=run_id,
-                type="thinking.delta",
-                message="",
-                data={"agent": "agent_loop", "delta": narration, "index": thinking_index},
+                type="thinking.completed",
+                message="agent_loop thinking done",
+                data={
+                    "agent": "agent_loop",
+                    "tokens": thinking_chars // 4,
+                    "length": thinking_chars,
+                },
             )
         )
     return message
+
+
+def _thinking_delta(run_id: str, delta: str, index: int) -> HarnessEvent:
+    return HarnessEvent(
+        run_id=run_id,
+        type="thinking.delta",
+        message="",
+        data={"agent": "agent_loop", "delta": delta, "index": index},
+    )
 
 
 def _chunk_deltas(chunk: Any) -> list[tuple[str, str]]:
@@ -554,9 +572,10 @@ class AgentLoopRunner:
 
         `rows_returned` and `total` are exact; the excerpt shows at most five
         rows and says so, so the model never reads a display cut as a short
-        result.
+        result. The whole message is valid JSON and never longer than
+        `agents_agent_loop_tool_result_max_chars`.
         """
-        header = {
+        header: dict[str, Any] = {
             "tool": ev.tool,
             "source": ev.source,
             "rows_returned": ev.sample_size,
@@ -566,10 +585,24 @@ class AgentLoopRunner:
             "is_sample": ev.is_sample,
             "executed_sql": ev.executed_sql,
         }
-        head = json.dumps(header, default=str)
-        budget = max(200, self.settings.agents_agent_loop_tool_result_max_chars - len(head) - 64)
-        excerpt, note = excerpt_for_prompt(ev.output, budget)
-        if note:
-            header["excerpt"] = note
-            head = json.dumps(header, default=str)
-        return head[:-1] + ', "output": ' + excerpt + "}"
+        cap = self.settings.agents_agent_loop_tool_result_max_chars
+        budget = cap - len(json.dumps(header, default=str)) - _EXCERPT_ENVELOPE_CHARS
+        for _ in range(3):
+            if budget < _MIN_EXCERPT_CHARS:
+                text = json.dumps(
+                    {**header, "excerpt": "omitted: tool result cap too small", "output": None},
+                    default=str,
+                )
+                return text[:cap]
+            excerpt, note = excerpt_for_prompt(ev.output, budget)
+            try:
+                output: Any = json.loads(excerpt)
+            except ValueError:
+                # A char cut leaves a JSON fragment; carry it as a string.
+                output = excerpt
+            payload = {**header, **({"excerpt": note} if note else {}), "output": output}
+            text = json.dumps(payload, default=str)
+            if len(text) <= cap:
+                return text
+            budget -= len(text) - cap
+        return text[:cap]

@@ -109,16 +109,12 @@ def _fmt_estimate(rows: int | None) -> str:
 # statistic — free, no COUNT(*)). relkind: r=table, v=view, m=matview,
 # p=partitioned, f=foreign.
 #
-# The privilege predicates keep the index to what this connection's role can
-# actually read. Without them a role granted seven relations out of 112 gets an
-# index of 112, capped at max_tables, and the cap can drop every relation it is
-# allowed to query.
-#
-# Both are needed: a table ACL is independent of its schema's USAGE, so
-# has_table_privilege alone reports a relation that every query against it
-# refuses with "permission denied for schema". information_schema.tables — what
-# `list_tables` reads — has the same blind spot, so this index is the stricter
-# of the two.
+# The privilege predicates keep the index to relations this role can read.
+# Without them a narrowly granted role gets an index of everything in the
+# schema, and max_tables can cut away the relations it is allowed to query.
+# Both are needed: a table ACL is independent of its schema's USAGE grant, so
+# has_table_privilege alone passes relations that fail with "permission denied
+# for schema". Qualified with pg_catalog so search_path cannot shadow them.
 _TABLES_QUERY = """
 SELECT n.nspname AS table_schema,
        c.relname AS table_name,
@@ -135,8 +131,8 @@ FROM pg_catalog.pg_class c
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = ANY($1::text[])
   AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
-  AND has_table_privilege(c.oid, 'SELECT')
-  AND has_schema_privilege(n.oid, 'USAGE')
+  AND pg_catalog.has_table_privilege(c.oid, 'SELECT')
+  AND pg_catalog.has_schema_privilege(n.oid, 'USAGE')
 ORDER BY n.nspname, c.relname
 """
 

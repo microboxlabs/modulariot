@@ -164,5 +164,5 @@ async def test_index_query_only_lists_readable_relations() -> None:
     pool = RecordingPool(fetch_return=_table_rows())
     await introspect_schema(pool=pool, policy=ACS, connection="acs")
     sql = pool.conn.fetched[-1][0]
-    assert "has_table_privilege(c.oid, 'SELECT')" in sql
-    assert "has_schema_privilege(n.oid, 'USAGE')" in sql
+    assert "pg_catalog.has_table_privilege(c.oid, 'SELECT')" in sql
+    assert "pg_catalog.has_schema_privilege(n.oid, 'USAGE')" in sql

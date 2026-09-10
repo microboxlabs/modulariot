@@ -54,6 +54,26 @@ function audienceOf(config: unknown): unknown {
 }
 
 /**
+ * Whether a caller holding `held` may see a dashboard stored as `config`.
+ *
+ * The policy below is this predicate plus delegation, and a host mounting its
+ * own routes needs the predicate on its own — the app this rule came from
+ * applies it in two places that never build a capability context. Both go
+ * through here so the rule cannot end up enforced two ways.
+ */
+export function configAllowsGroups(
+  config: unknown,
+  held: readonly string[],
+): boolean {
+  const audience = parseAllowedGroups(audienceOf(config));
+  if (!audience.valid) return false;
+  if (audience.groups === undefined || audience.groups.length === 0) {
+    return true;
+  }
+  return audience.groups.some((group) => held.includes(group));
+}
+
+/**
  * Wrap a policy so a dashboard naming an audience is visible only to it.
  *
  * A dashboard that does not exist yet has no audience to enforce, so a first
@@ -68,15 +88,11 @@ export function createAllowedGroupsPolicy(
     ): DashboardCapabilities | null | Promise<DashboardCapabilities | null> {
       if (context.record === null) return inner.resolve(context);
 
-      const audience = parseAllowedGroups(audienceOf(context.record.config));
-      if (!audience.valid) return null;
-      if (audience.groups === undefined || audience.groups.length === 0) {
-        return inner.resolve(context);
-      }
-
-      const held = new Set(context.identity.groups ?? []);
-      const inAudience = audience.groups.some((group) => held.has(group));
-      return inAudience ? inner.resolve(context) : null;
+      const allowed = configAllowsGroups(
+        context.record.config,
+        context.identity.groups ?? [],
+      );
+      return allowed ? inner.resolve(context) : null;
     },
   };
 }

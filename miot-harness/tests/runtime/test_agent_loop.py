@@ -502,6 +502,7 @@ async def test_tool_result_never_exceeds_the_cap_and_stays_json(monkeypatch):
         assert len(text) <= cap, cap
         payload = json.loads(text)
         assert payload["rows_returned"] == 50
+        assert payload["total"] == 58, cap
         assert "excerpt" in payload
     # A char-cut excerpt travels as a string, so the message parses.
     assert isinstance(payload["output"], (str, type(None)))

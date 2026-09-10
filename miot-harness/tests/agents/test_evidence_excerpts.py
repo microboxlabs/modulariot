@@ -36,6 +36,30 @@ def test_excerpt_reports_char_cut_and_keeps_scalars() -> None:
     assert note == "cut at 200 chars"
 
 
+def test_excerpt_keeps_rows_and_total_past_the_key_cap() -> None:
+    payload = {f"k{i:02d}": i for i in range(25)}
+    payload["rows"] = _catalog_rows(50)
+    payload["total"] = 58
+    text, note = excerpt_for_prompt(payload, 5000)
+    assert text.count('"name"') == 5
+    assert '"total": 58' in text
+    assert "first 5 of 50 rows" in note
+    assert "omitted keys: k18, k19, k20, k21, k22, k23, k24" in note
+
+
+def test_excerpt_puts_nested_containers_after_rows_and_notes_capped_lists() -> None:
+    payload = {
+        "meta": {"big": "x" * 500},
+        "columns": [f"c{i}" for i in range(9)],
+        "rows": [{"n": i} for i in range(7)],
+        "sql": "select 1",
+    }
+    text, note = excerpt_for_prompt(payload, 5000)
+    assert text.startswith('{"sql": "select 1", "rows": [')
+    assert text.index('"meta"') > text.index('"rows"')
+    assert note == "first 5 of 7 rows, first 5 of 9 columns"
+
+
 def test_excerpt_silent_when_nothing_hidden() -> None:
     text, note = excerpt_for_prompt({"rows": [{"n": 1}]}, 200)
     assert note == ""

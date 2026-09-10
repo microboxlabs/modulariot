@@ -137,8 +137,43 @@ async def test_definition_refuses_outside_allowlist_before_querying() -> None:
     with pytest.raises(AllowlistViolation):
         await fetch_definition(pool=pool, policy=PUBLIC, name="ims.secret_fn")
     with pytest.raises(UnsupportedConstruct):
-        await fetch_definition(pool=pool, policy=PUBLIC, name="bare_name")
+        await fetch_definition(pool=pool, policy=PUBLIC, name="a.b.c")
     assert pool.conn.fetched == []
+
+
+@pytest.mark.asyncio
+async def test_definition_resolves_an_unqualified_name_across_allowed_schemas() -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def respond(sql: str) -> list:
+        # Schema order is sorted: public first (miss), then reports (hit).
+        calls.append(("view" if "pg_get_viewdef" in sql else "routine",))
+        if len(calls) == 4:
+            return [{"kind": "f", "definition": "CREATE FUNCTION fn()", "description": ""}]
+        return []
+
+    policy = SchemaAllowlistPolicy(frozenset({"public", "reports"}))
+    pool = RecordingPool(responder=respond)
+    defs = await fetch_definition(pool=pool, policy=policy, name="fn")
+    assert [d.qualified for d in defs] == ["reports.fn"]
+    assert [args[0] for _, args in pool.conn.fetched] == ["public", "public", "reports", "reports"]
+
+
+@pytest.mark.asyncio
+async def test_definition_unqualified_name_not_found_returns_empty() -> None:
+    pool = RecordingPool(fetch_return=[])
+    assert await fetch_definition(pool=pool, policy=PUBLIC, name="nope") == []
+
+
+@pytest.mark.asyncio
+async def test_routines_bare_pattern_is_a_substring_match() -> None:
+    pool = RecordingPool(fetch_return=_routine_rows())
+    await introspect_routines(pool=pool, policy=PUBLIC, pattern="symptom")
+    assert pool.conn.fetched[-1][1][1] == "%symptom%"
+    await introspect_routines(pool=pool, policy=PUBLIC, pattern="symptom%")
+    assert pool.conn.fetched[-1][1][1] == "symptom%"
+    await introspect_routines(pool=pool, policy=PUBLIC, pattern=None)
+    assert pool.conn.fetched[-1][1][1] is None
 
 
 @pytest.mark.asyncio

@@ -95,7 +95,10 @@ class _ExplainOutput(BaseModel):
 class _FunctionsInput(BaseModel):
     pattern: str | None = Field(
         default=None,
-        description="ILIKE pattern on the function name or its description, e.g. %symptom%",
+        description=(
+            "Case-insensitive substring of the function name or its description, "
+            "e.g. symptom; % wildcards are optional"
+        ),
     )
     limit: int = 50
 
@@ -110,7 +113,10 @@ class _FunctionsOutput(BaseModel):
 
 class _DefinitionInput(BaseModel):
     name: str = Field(
-        description="Schema-qualified view or function, e.g. public.v_trips"
+        description=(
+            "View or function name, e.g. v_trips or public.v_trips; an unqualified "
+            "name is looked up in every allowed schema"
+        )
     )
 
 

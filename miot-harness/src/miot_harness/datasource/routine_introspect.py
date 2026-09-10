@@ -91,6 +91,12 @@ LIMIT $3
 """
 
 
+def _substring_pattern(pattern: str | None) -> str | None:
+    if pattern is None or "%" in pattern:
+        return pattern
+    return f"%{pattern}%"
+
+
 async def introspect_routines(
     *,
     pool: object,
@@ -99,8 +105,9 @@ async def introspect_routines(
     limit: int = 50,
     statement_timeout_ms: int | None = DEFAULT_STATEMENT_TIMEOUT_MS,
 ) -> RoutineCatalog:
-    """Executable routines in the policy's schemas, optionally filtered by an
-    ILIKE pattern on name or description. `limit=0` returns only the total."""
+    """Executable routines in the policy's schemas, optionally filtered by a
+    case-insensitive pattern on name or description. A pattern without `%` is
+    a substring match. `limit=0` returns only the total."""
     schemas = policy.allowed_schemas()
     if not schemas:
         return RoutineCatalog(routines=(), total=0)
@@ -108,7 +115,7 @@ async def introspect_routines(
         pool,
         _ROUTINES_QUERY,
         sorted(schemas),
-        pattern,
+        _substring_pattern(pattern),
         # LIMIT 0 would drop the window row that carries the total.
         max(1, limit),
         statement_timeout_ms=statement_timeout_ms,
@@ -178,19 +185,46 @@ async def fetch_definition(
     max_chars: int = 20_000,
     statement_timeout_ms: int | None = DEFAULT_STATEMENT_TIMEOUT_MS,
 ) -> list[ObjectDefinition]:
-    """Definitions for a schema-qualified view or routine. Overloaded routines
-    return one entry each. A relation name wins over a same-named routine: a
-    plain table returns an empty list (use describe)."""
-    schema, _, obj = name.partition(".")
-    if not schema or not obj or "." in obj:
-        raise UnsupportedConstruct(
-            f"object {name!r} must be schema-qualified as 'schema.name'"
-        )
+    """Definitions for a view or routine. Overloaded routines return one entry
+    each. A relation name wins over a same-named routine: a plain table returns
+    an empty list (use describe). An unqualified name is looked up in each
+    allowed schema in order and the first schema with a match wins."""
     schemas = policy.allowed_schemas()
-    if schemas is None or schema not in schemas:
-        raise AllowlistViolation(
-            f"{name!r} is outside the allowlist ({policy.describe()})"
+    if name.count(".") > 1 or not name or name.endswith("."):
+        raise UnsupportedConstruct(f"object {name!r} must be 'name' or 'schema.name'")
+    if "." in name:
+        schema, _, obj = name.partition(".")
+        if schemas is None or schema not in schemas:
+            raise AllowlistViolation(
+                f"{name!r} is outside the allowlist ({policy.describe()})"
+            )
+        candidates = [schema]
+    else:
+        if not schemas:
+            raise AllowlistViolation(
+                f"{name!r} is outside the allowlist ({policy.describe()})"
+            )
+        obj = name
+        candidates = sorted(schemas)
+    for schema in candidates:
+        out = await _definition_in_schema(
+            pool, policy, schema, obj, max_chars, statement_timeout_ms
         )
+        if out is not None:
+            return out
+    return []
+
+
+async def _definition_in_schema(
+    pool: object,
+    policy: TableAccessPolicy,
+    schema: str,
+    obj: str,
+    max_chars: int,
+    statement_timeout_ms: int | None,
+) -> list[ObjectDefinition] | None:
+    """Definitions of `schema.obj`, or None when nothing by that name exists."""
+    qualified = f"{schema}.{obj}"
     out: list[ObjectDefinition] = []
     rel_rows = await fetch_readonly(
         pool, _RELATION_DEF_QUERY, schema, obj, statement_timeout_ms=statement_timeout_ms
@@ -200,12 +234,12 @@ async def fetch_definition(
             continue
         if not policy.is_allowed(schema=schema, table=obj):
             raise AllowlistViolation(
-                f"{name!r} is outside the allowlist ({policy.describe()})"
+                f"{qualified!r} is outside the allowlist ({policy.describe()})"
             )
         text, truncated = _clip(r["definition"], max_chars)
         out.append(
             ObjectDefinition(
-                qualified=name,
+                qualified=qualified,
                 kind=_RELKIND.get(r["relkind"], r["relkind"]),
                 definition=text,
                 description=r["description"] or "",
@@ -221,11 +255,11 @@ async def fetch_definition(
         text, truncated = _clip(r["definition"] or "", max_chars)
         out.append(
             ObjectDefinition(
-                qualified=name,
+                qualified=qualified,
                 kind=_KIND.get(r["kind"], r["kind"]),
                 definition=text,
                 description=r["description"] or "",
                 truncated=truncated,
             )
         )
-    return out
+    return out if fn_rows else None

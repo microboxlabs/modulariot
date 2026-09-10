@@ -536,3 +536,31 @@ async def test_long_answer_streams_while_generating_and_short_narration_does_not
     assert [e.data["delta"] for e in events if e.type == "thinking.delta"] == ["Short note."]
     completed = [e for e in events if e.type == "thinking.completed"]
     assert len(completed) == 1 and completed[0].data["tokens"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_text_past_the_hold_is_not_replayed_when_a_tool_call_follows(monkeypatch):
+    async def fake_invoke_step(step, **kwargs):
+        return {"evidence": [_evidence()]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    long_text = ["word " * 30] * 4  # 600 chars, past the hold
+    turns = [
+        [
+            *(AIMessageChunk(content=part) for part in long_text),
+            _tc_chunk(1, name="fake_kpi_summary", args="{}", call_id="c1"),
+        ],
+        [AIMessageChunk(content="done")],
+    ]
+    model = ChunkedModel(turns)
+    events: list[Any] = []
+    delta = await _runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    assert delta["answer"] == "done"
+    # The streamed text went out once, as answer deltas, and the late tool
+    # call did not replay it as thinking.
+    answer_deltas = [e.data["delta"] for e in events if e.type == "answer.delta"]
+    assert answer_deltas == [*long_text, "done"]
+    assert [e for e in events if e.type == "thinking.delta"] == []
+    assert [e for e in events if e.type == "thinking.completed"] == []

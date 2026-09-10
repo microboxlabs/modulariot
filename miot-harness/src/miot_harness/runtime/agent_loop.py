@@ -185,15 +185,15 @@ async def _stream_turn(
 ) -> AIMessage:
     """One model turn, streamed.
 
-    Thinking blocks stream as `thinking.delta`. Text is held until the turn
-    ends, because only then is it known whether it is the answer or the
-    narration before tool calls: an answer replays as `answer.delta` chunks,
-    narration is emitted once as `thinking.delta`. A turn that emitted any
-    thinking or narration closes with `thinking.completed`. Returns the
-    aggregated message, tool calls included.
+    Thinking blocks stream as `thinking.delta`. Text is held up to
+    `_NARRATION_HOLD_CHARS`: if the turn ends in tool calls, the held text is
+    the narration and goes out once as `thinking.delta`; otherwise it is the
+    answer and replays as `answer.delta`. Text past the hold streams as
+    `answer.delta` as it arrives and is never re-emitted, even when a tool
+    call follows. A turn that emitted any thinking or narration closes with
+    `thinking.completed`. Returns the aggregated message, tool calls included.
     """
     agg: AIMessageChunk | None = None
-    text_parts: list[str] = []
     held: list[str] = []
     held_chars = 0
     streaming = False
@@ -224,20 +224,18 @@ async def _stream_turn(
                 progress(_thinking_delta(run_id, delta, thinking_index))
                 thinking_index += 1
                 continue
-            text_parts.append(delta)
-            if tool_call_seen:
+            if streaming:
+                if not tool_call_seen:
+                    emit_answer(delta)
                 continue
-            # Narration before tool calls is short. Text is held up to
-            # _NARRATION_HOLD_CHARS; past that it is the answer and streams.
-            if not streaming and held_chars + len(delta) <= _NARRATION_HOLD_CHARS:
+            if tool_call_seen or held_chars + len(delta) <= _NARRATION_HOLD_CHARS:
                 held.append(delta)
                 held_chars += len(delta)
                 continue
-            if not streaming:
-                for part in held:
-                    emit_answer(part)
-                held.clear()
-                streaming = True
+            for part in held:
+                emit_answer(part)
+            held.clear()
+            streaming = True
             emit_answer(delta)
     if agg is None:
         return AIMessage(content="")
@@ -245,7 +243,7 @@ async def _stream_turn(
     if not isinstance(message, AIMessage):
         return AIMessage(content=response_text(message))
     if message.tool_calls:
-        narration = "".join(text_parts).strip()
+        narration = "".join(held).strip()
         if narration:
             thinking_chars += len(narration)
             progress(_thinking_delta(run_id, narration, thinking_index))

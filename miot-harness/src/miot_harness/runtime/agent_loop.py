@@ -29,10 +29,13 @@ from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
+    AIMessage,
+    AIMessageChunk,
     BaseMessage,
     HumanMessage,
     SystemMessage,
     ToolMessage,
+    message_chunk_to_message,
 )
 
 from miot_harness.agents.chat_models import response_text
@@ -57,7 +60,7 @@ from miot_harness.runtime.router import HarnessRoute
 from miot_harness.runtime.tenancy import tenancy_gate_decision
 from miot_harness.runtime.tool import Progress
 from miot_harness.tools.registry import ToolRegistry
-from miot_harness.utils.truncation import truncate_for_trace
+from miot_harness.utils.truncation import excerpt_for_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +165,79 @@ def _mark_message(msg: BaseMessage) -> BaseMessage | None:
     return msg.model_copy(update={"content": blocks})
 
 
+async def _stream_turn(
+    model: Any, messages: list[BaseMessage], *, progress: Progress, run_id: str
+) -> AIMessage:
+    """One model turn, streamed.
+
+    Text arrives as `answer.delta`; thinking blocks as `thinking.delta`. When
+    the turn ends in tool calls, its text was narration, so it is re-emitted
+    as one `thinking.delta` for clients that render only the reasoning
+    stream. Returns the aggregated message, tool calls included.
+    """
+    agg: AIMessageChunk | None = None
+    text_parts: list[str] = []
+    answer_index = 0
+    thinking_index = 0
+    async for chunk in model.astream(messages):
+        agg = chunk if agg is None else agg + chunk
+        for kind, delta in _chunk_deltas(chunk):
+            if kind == "text":
+                text_parts.append(delta)
+                progress(
+                    HarnessEvent(
+                        run_id=run_id,
+                        type="answer.delta",
+                        message="",
+                        data={"agent": "agent_loop", "delta": delta, "index": answer_index},
+                    )
+                )
+                answer_index += 1
+            else:
+                progress(
+                    HarnessEvent(
+                        run_id=run_id,
+                        type="thinking.delta",
+                        message="",
+                        data={"agent": "agent_loop", "delta": delta, "index": thinking_index},
+                    )
+                )
+                thinking_index += 1
+    if agg is None:
+        return AIMessage(content="")
+    message = message_chunk_to_message(agg)
+    if not isinstance(message, AIMessage):
+        return AIMessage(content=response_text(message))
+    narration = "".join(text_parts).strip()
+    if message.tool_calls and narration:
+        progress(
+            HarnessEvent(
+                run_id=run_id,
+                type="thinking.delta",
+                message="",
+                data={"agent": "agent_loop", "delta": narration, "index": thinking_index},
+            )
+        )
+    return message
+
+
+def _chunk_deltas(chunk: Any) -> list[tuple[str, str]]:
+    """(kind, text) pairs in a streamed chunk; kind is `text` or `thinking`."""
+    content = getattr(chunk, "content", None)
+    if isinstance(content, str):
+        return [("text", content)] if content else []
+    out: list[tuple[str, str]] = []
+    if isinstance(content, list):
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "text" and block.get("text"):
+                out.append(("text", str(block["text"])))
+            elif block.get("type") == "thinking" and block.get("thinking"):
+                out.append(("thinking", str(block["thinking"])))
+    return out
+
+
 class AgentLoopRunner:
     """One cached tool-calling agent for the DATA_AGENTIC route.
 
@@ -258,7 +334,9 @@ class AgentLoopRunner:
                 )
             )
             start = monotonic()
-            response = await model.ainvoke(_with_tail_marker(messages))
+            response = await _stream_turn(
+                model, _with_tail_marker(messages), progress=progress, run_id=ctx.run_id
+            )
             usage_log.append(dict(getattr(response, "usage_metadata", None) or {}))
             messages.append(response)
             tool_calls = list(getattr(response, "tool_calls", None) or [])
@@ -472,21 +550,26 @@ class AgentLoopRunner:
         return ToolMessage(content=content, tool_call_id=call_id)
 
     def _render_tool_result(self, ev: DataEvidence) -> str:
-        payload, _info = truncate_for_trace(
-            {
-                "tool": ev.tool,
-                "source": ev.source,
-                "rows_returned": ev.sample_size,
-                "refreshed_at": ev.refreshed_at,
-                "is_stale": ev.is_stale,
-                "freshness_status": ev.freshness_status,
-                "is_sample": ev.is_sample,
-                "executed_sql": ev.executed_sql,
-                "output": ev.output,
-            }
-        )
-        text = json.dumps(payload, default=str)
-        cap = self.settings.agents_agent_loop_tool_result_max_chars
-        if len(text) > cap:
-            text = text[:cap] + '... [truncated]"}'
-        return text
+        """The tool output as the model sees it: an excerpt plus what it hides.
+
+        `rows_returned` and `total` are exact; the excerpt shows at most five
+        rows and says so, so the model never reads a display cut as a short
+        result.
+        """
+        header = {
+            "tool": ev.tool,
+            "source": ev.source,
+            "rows_returned": ev.sample_size,
+            "refreshed_at": ev.refreshed_at,
+            "is_stale": ev.is_stale,
+            "freshness_status": ev.freshness_status,
+            "is_sample": ev.is_sample,
+            "executed_sql": ev.executed_sql,
+        }
+        head = json.dumps(header, default=str)
+        budget = max(200, self.settings.agents_agent_loop_tool_result_max_chars - len(head) - 64)
+        excerpt, note = excerpt_for_prompt(ev.output, budget)
+        if note:
+            header["excerpt"] = note
+            head = json.dumps(header, default=str)
+        return head[:-1] + ', "output": ' + excerpt + "}"

@@ -30,8 +30,10 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
  * verifies it itself and re-derives the caller, so the proxy asserts no
  * identity and there is nothing for it to be trusted about.
  *
- * <p>Methods return {@code Uni<Response>} so upstream status codes and the
- * {@code ETag} the write protocol depends on reach the caller unchanged.
+ * <p>Methods return {@code Uni<Response>} so upstream status codes reach the
+ * caller unchanged — a stale write is a 409, and a dashboard the caller may
+ * not see is a 200 with a null body rather than a 404, which is the upstream
+ * refusing to say whether it exists.
  */
 @RegisterRestClient(configKey = "dashboards")
 @Produces(MediaType.APPLICATION_JSON)
@@ -54,7 +56,7 @@ public interface DashboardClient {
             @HeaderParam("Authorization") String authorization);
 
     /**
-     * {@code If-Match} carries the revision the caller believes it is
+     * {@code If-Match} carries the integer revision the caller believes it is
      * replacing. Forwarded rather than generated here: the precondition is
      * between the browser that read the dashboard and the store that holds it,
      * and a proxy inventing one would turn a conflict into a silent overwrite.

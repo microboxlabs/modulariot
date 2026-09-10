@@ -27,8 +27,12 @@ import org.junit.jupiter.api.Test;
  * {@code DualJwtAuthMechanism} + {@code OrganizationRequestFilter} chain as
  * the harness proxy, maps the organization onto the dashboard server's
  * tenant + scope address space, and passes upstream responses through
- * unchanged — including the statuses and the {@code ETag} the write protocol
- * depends on.
+ * unchanged — statuses, body and headers alike.
+ *
+ * <p>The {@code ETag} stub below is deliberate even though the dashboard
+ * server does not currently set one: it pins that this proxy does not drop a
+ * response header if it ever does. The precondition that is real today is
+ * {@code If-Match} carrying an integer revision, and a stale write is a 409.
  */
 @QuarkusTest
 @TestProfile(DashboardProxyTestProfile.class)
@@ -88,9 +92,9 @@ class DashboardProxyResourceTest {
         DashboardWireMock.server().stubFor(
                 WireMock.put(WireMock.urlEqualTo(siteScopePath("/stale")))
                         .willReturn(WireMock.aResponse()
-                                .withStatus(412)
+                                .withStatus(409)
                                 .withHeader("Content-Type", "application/json")
-                                .withBody("{\"code\":\"PRECONDITION_FAILED\"}")));
+                                .withBody("{\"code\":\"CONFLICT\"}")));
     }
 
     @AfterEach
@@ -201,7 +205,7 @@ class DashboardProxyResourceTest {
     }
 
     @Test
-    void staleWriteKeepsTheUpstreamPreconditionStatus() {
+    void staleWriteKeepsTheUpstreamConflictStatus() {
         Response resp = given()
                 .header("Authorization", "Bearer " + memberToken())
                 .header("If-Match", "\"1\"")
@@ -210,7 +214,9 @@ class DashboardProxyResourceTest {
                 .when()
                 .put("/api/v1/orgs/" + SITE_ORG + "/dashboards/stale");
 
-        assertThat(resp.statusCode(), is(412));
+        // 409, the status a stale write actually gets from the dashboard
+        // server — verified against a running one, not assumed.
+        assertThat(resp.statusCode(), is(409));
     }
 
     @Test

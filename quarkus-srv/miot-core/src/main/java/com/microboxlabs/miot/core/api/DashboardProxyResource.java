@@ -175,9 +175,13 @@ public class DashboardProxyResource {
      * REST Reactive throws {@link WebApplicationException} for any non-2xx
      * response; unwrap it so the original status reaches the caller instead of
      * becoming a proxy-side 500 — which matters more here than for a run API,
-     * because 401, 403, 404, 409 and 412 are all load-bearing in the dashboard
-     * contract. {@code Response.fromResponse} carries the {@code ETag} the
-     * write protocol depends on.
+     * because 401, 403 and 409 are all load-bearing in the dashboard contract:
+     * a stale write is a 409 the browser has to see to re-read and retry.
+     *
+     * <p>{@code Response.fromResponse} also carries response headers through.
+     * The dashboard server does not currently set {@code ETag} — the revision
+     * travels in the body and comes back as {@code If-Match} — so that costs
+     * nothing today and is what keeps this honest if it ever does.
      */
     private static Uni<Response> passThrough(Uni<Response> upstream) {
         return upstream

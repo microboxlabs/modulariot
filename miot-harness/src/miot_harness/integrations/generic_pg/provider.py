@@ -28,7 +28,7 @@ from miot_harness.datasource.knowledge.loader import (
     probe_version,
 )
 from miot_harness.datasource.knowledge.models import DetectedPack, KnowledgeCard
-from miot_harness.datasource.pool import create_pg_pool
+from miot_harness.datasource.pool import ENVELOPES, create_pg_pool
 from miot_harness.datasource.provider import (
     BootResult,
     DataSourceProfile,
@@ -144,6 +144,9 @@ class GenericPgProvider(DataSourceProvider):
             explain_cost_threshold = float(
                 opts.get("explain_cost_threshold", _DEFAULT_EXPLAIN_COST_THRESHOLD)
             )
+            envelope = str(opts.get("envelope", "transaction"))
+            if envelope not in ENVELOPES:
+                raise ValueError(f"envelope must be one of {ENVELOPES}")
         except (TypeError, ValueError) as exc:
             return BootResult(
                 enabled=False, registered=(), reason=f"connection {name!r}: invalid option ({exc})"
@@ -188,7 +191,10 @@ class GenericPgProvider(DataSourceProvider):
         detected: tuple[DetectedPack, ...] = ()
         try:
             self._pool = await create_pg_pool(
-                connection.dsn, application_name=application_name
+                connection.dsn,
+                application_name=application_name,
+                envelope=envelope,
+                statement_timeout_ms=statement_timeout_ms,
             )
             # Introspect first (best-effort): the schema index AND knowledge-pack
             # fingerprinting both need the table set. A failure here must not

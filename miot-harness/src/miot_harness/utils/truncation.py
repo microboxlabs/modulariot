@@ -14,6 +14,7 @@ event payload / agent-visible trace is capped.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 DEFAULT_ROW_CAP = 5
@@ -94,3 +95,28 @@ def truncate_for_trace(payload: Any) -> tuple[Any, dict[str, Any]]:
     if isinstance(payload, dict):
         return _truncate_dict(payload, DEFAULT_DICT_KEY_CAP)
     return payload, {"truncated": False, "total_count": 1}
+
+
+def excerpt_for_prompt(payload: Any, max_chars: int) -> tuple[str, str]:
+    """Render a tool output for a judge or synthesizer prompt.
+
+    Returns (text, note). `text` is the row-capped payload as JSON, cut at
+    `max_chars`. `note` says what the excerpt hides ("first 5 of 50 rows",
+    "cut at 2000 chars") or is empty when nothing was hidden.
+    """
+    capped, info = truncate_for_trace(payload)
+    notes: list[str] = []
+    rows = payload.get("rows") if isinstance(payload, dict) else None
+    if isinstance(rows, list) and len(rows) > DEFAULT_ROW_CAP:
+        notes.append(f"first {DEFAULT_ROW_CAP} of {len(rows)} rows")
+    elif isinstance(payload, list) and len(payload) > DEFAULT_ROW_CAP:
+        notes.append(f"first {DEFAULT_ROW_CAP} of {len(payload)} rows")
+    if isinstance(capped, dict):
+        # Scalars (counts, sql) before lists so a char cut only trims rows.
+        scalars = {k: v for k, v in capped.items() if not isinstance(v, list)}
+        capped = {**scalars, **{k: v for k, v in capped.items() if k not in scalars}}
+    text = json.dumps(capped, default=str)
+    if len(text) > max_chars:
+        text = text[:max_chars] + " ..."
+        notes.append(f"cut at {max_chars} chars")
+    return text, ", ".join(notes)

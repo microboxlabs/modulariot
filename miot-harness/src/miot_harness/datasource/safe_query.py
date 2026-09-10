@@ -82,6 +82,9 @@ async def fetch_readonly(
     per-transaction (PgBouncer-safe), never startup parameters.
     """
     async with pool.acquire() as conn:
+        if _session_envelope(pool):
+            # Read-only and the timeout are connection settings; one round trip.
+            return list(await conn.fetch(sql, *args))
         async with conn.transaction(readonly=True):
             if statement_timeout_ms:
                 await conn.execute(
@@ -89,6 +92,10 @@ async def fetch_readonly(
                 )
             rows = await conn.fetch(sql, *args)
             return list(rows)
+
+
+def _session_envelope(pool: Any) -> bool:
+    return bool(getattr(pool, "session_envelope", False))
 
 
 def _split_qualified(table: str) -> tuple[str, str]:
@@ -292,22 +299,28 @@ async def safe_run_select(
     cap = max(1, min(int(max_rows), HARD_LIMIT_CAP))
     wrapped = f"SELECT * FROM ({inner}) AS _miot_q LIMIT {cap}"
 
-    async with pool.acquire() as conn:
-        async with conn.transaction(readonly=True):
-            if statement_timeout_ms:
-                await conn.execute(
-                    f"SET LOCAL statement_timeout = {int(statement_timeout_ms)}"
+    async def _gated_fetch(conn: Any) -> list[Any]:
+        if cost_threshold is not None:
+            plan_rows = await conn.fetch(f"EXPLAIN (FORMAT JSON) {wrapped}")
+            total_cost = float(_plan_from_explain(plan_rows).get("Total Cost", 0.0))
+            if total_cost > cost_threshold:
+                raise CostGateViolation(
+                    f"plan total_cost={total_cost:.1f} exceeds threshold "
+                    f"{cost_threshold:.1f}"
                 )
-            if cost_threshold is not None:
-                plan_rows = await conn.fetch(f"EXPLAIN (FORMAT JSON) {wrapped}")
-                total_cost = float(_plan_from_explain(plan_rows).get("Total Cost", 0.0))
-                if total_cost > cost_threshold:
-                    raise CostGateViolation(
-                        f"plan total_cost={total_cost:.1f} exceeds threshold "
-                        f"{cost_threshold:.1f}"
+        return await conn.fetch(wrapped)
+
+    async with pool.acquire() as conn:
+        if _session_envelope(pool):
+            rows = await _gated_fetch(conn)
+        else:
+            async with conn.transaction(readonly=True):
+                if statement_timeout_ms:
+                    await conn.execute(
+                        f"SET LOCAL statement_timeout = {int(statement_timeout_ms)}"
                     )
-            rows = await conn.fetch(wrapped)
-            # SELECT * over a JOIN can yield duplicate column labels; dict(r)
-            # would silently keep only the last. Preserve every column by
-            # suffixing collisions (id_, id__2, …) so no data is lost.
-            return QueryRun(rows=[_record_to_dict(r) for r in rows], sql=wrapped)
+                rows = await _gated_fetch(conn)
+    # SELECT * over a JOIN can yield duplicate column labels; dict(r) would
+    # silently keep only the last. Preserve every column by suffixing
+    # collisions (id_, id__2, …) so no data is lost.
+    return QueryRun(rows=[_record_to_dict(r) for r in rows], sql=wrapped)

@@ -56,8 +56,12 @@ class ScriptedModel:
 
 def _evidence(tool: str = "fake_kpi_summary") -> DataEvidence:
     return DataEvidence(
-        step_id="s1", tool=tool, source="FakeSource", refreshed_at=None,
-        output={"rows": [{"k": 1}]}, sample_size=1,
+        step_id="s1",
+        tool=tool,
+        source="FakeSource",
+        refreshed_at=None,
+        output={"rows": [{"k": 1}]},
+        sample_size=1,
     )
 
 
@@ -71,8 +75,11 @@ def _settings() -> HarnessSettings:
 
 def _runner(model: ScriptedModel) -> AgentLoopRunner:
     return AgentLoopRunner(
-        model=model, registry=_registry(), settings=_settings(),
-        profile=FAKE_PROFILE, provenance_log=None,
+        model=model,
+        registry=_registry(),
+        settings=_settings(),
+        profile=FAKE_PROFILE,
+        provenance_log=None,
     )
 
 
@@ -115,8 +122,11 @@ def _skills_bundle() -> ContextSkillsBundle:
 
 def _skilled_runner(model: ScriptedModel) -> AgentLoopRunner:
     return AgentLoopRunner(
-        model=model, registry=_registry(), settings=_settings(),
-        profile=FAKE_PROFILE, provenance_log=None,
+        model=model,
+        registry=_registry(),
+        settings=_settings(),
+        profile=FAKE_PROFILE,
+        provenance_log=None,
         context_skills=_skills_bundle(),
     )
 
@@ -157,9 +167,7 @@ async def test_direct_answer_no_tools():
     assert delta["answer"] == "the answer"
     assert delta["evidence"] == []
     # tools bound once, sorted
-    assert [t["name"] for t in model.bound_tools] == sorted(
-        t["name"] for t in model.bound_tools
-    )
+    assert [t["name"] for t in model.bound_tools] == sorted(t["name"] for t in model.bound_tools)
 
 
 @pytest.mark.asyncio
@@ -278,9 +286,7 @@ async def test_load_skill_bound_and_indexed_only_with_bundle():
 
 @pytest.mark.asyncio
 async def test_load_skill_returns_body_without_evidence():
-    model = ScriptedModel(
-        [_load_skill_msg("pending-deliveries", "c1"), AIMessage(content="ok")]
-    )
+    model = ScriptedModel([_load_skill_msg("pending-deliveries", "c1"), AIMessage(content="ok")])
     events: list[Any] = []
     delta = await _skilled_runner(model).run(
         user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
@@ -299,9 +305,7 @@ async def test_load_skill_returns_body_without_evidence():
 
 @pytest.mark.asyncio
 async def test_load_skill_unknown_id_is_error_feedback():
-    model = ScriptedModel(
-        [_load_skill_msg("nope", "c1"), AIMessage(content="answered anyway")]
-    )
+    model = ScriptedModel([_load_skill_msg("nope", "c1"), AIMessage(content="answered anyway")])
     events: list[Any] = []
     delta = await _skilled_runner(model).run(
         user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
@@ -321,9 +325,7 @@ async def test_load_skill_refuses_skill_bound_to_another_connection():
     )
     runner = _skilled_runner(model)
     assert "other-conn-skill" not in runner.system_message.content[0]["text"]
-    await runner.run(
-        user_message="q", ctx=_ctx(), prior_messages=[], progress=lambda e: None
-    )
+    await runner.run(user_message="q", ctx=_ctx(), prior_messages=[], progress=lambda e: None)
     tm = model.calls[1][-1]
     assert tm.status == "error"
     assert _OTHER_CONN_BODY not in _text(tm)
@@ -484,7 +486,7 @@ async def test_tool_result_never_exceeds_the_cap_and_stays_json(monkeypatch):
         return {"evidence": [ev]}
 
     monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
-    for cap in (6000, 1200, 500, 300):
+    for cap in (6000, 1200, 500, 300, 200):
         model = ScriptedModel([_tool_call_msg(), AIMessage(content="ok")])
         runner = AgentLoopRunner(
             model=model,
@@ -503,3 +505,34 @@ async def test_tool_result_never_exceeds_the_cap_and_stays_json(monkeypatch):
         assert "excerpt" in payload
     # A char-cut excerpt travels as a string, so the message parses.
     assert isinstance(payload["output"], (str, type(None)))
+
+
+@pytest.mark.asyncio
+async def test_long_answer_streams_while_generating_and_short_narration_does_not(monkeypatch):
+    async def fake_invoke_step(step, **kwargs):
+        return {"evidence": [_evidence()]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    long_text = ["word " * 30] * 4  # 600 chars, past the hold
+    turns = [
+        [
+            AIMessageChunk(content="Short note."),
+            _tc_chunk(1, name="fake_kpi_summary", args="{}", call_id="c1"),
+        ],
+        [AIMessageChunk(content=part) for part in long_text],
+    ]
+    model = ChunkedModel(turns)
+    events: list[Any] = []
+    await _runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    answer_deltas = [e.data["delta"] for e in events if e.type == "answer.delta"]
+    assert answer_deltas == long_text
+    # Past the hold, deltas are emitted as they arrive: every answer delta
+    # precedes the turn's `agent.completed`.
+    order = [e.type for e in events]
+    last_answer = len(order) - 1 - order[::-1].index("answer.delta")
+    assert last_answer < len(order) - 1 - order[::-1].index("agent.completed")
+    assert [e.data["delta"] for e in events if e.type == "thinking.delta"] == ["Short note."]
+    completed = [e for e in events if e.type == "thinking.completed"]
+    assert len(completed) == 1 and completed[0].data["tokens"] >= 1

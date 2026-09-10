@@ -80,7 +80,9 @@ class HarnessSettings(BaseSettings):
     agents_agent_loop_enabled: bool = False
     # Per-tool-result cap on the JSON fed back to the model. Bounds context
     # growth (and cache-write size) when a tool returns a large row set.
-    agents_agent_loop_tool_result_max_chars: int = Field(default=6000, gt=0)
+    # Minimum holds the compact envelope the loop falls back to (tool name,
+    # row count, note), so a tool message is always valid JSON.
+    agents_agent_loop_tool_result_max_chars: int = Field(default=6000, ge=200)
     # LLM timeout for the agent loop (seconds). The loop's final turn writes
     # the full user-facing answer and adaptive-thinking turns can exceed the
     # current hard 60s default. 300s (5 minutes) suits multi-step planning.

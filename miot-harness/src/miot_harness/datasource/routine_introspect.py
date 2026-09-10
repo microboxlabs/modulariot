@@ -193,7 +193,7 @@ async def fetch_definition(
     an empty list (use describe). An unqualified name is looked up in each
     allowed schema in order and the first schema with a match wins."""
     schemas = policy.allowed_schemas()
-    if name.count(".") > 1 or not name or name.endswith("."):
+    if name.count(".") > 1 or not name or name.startswith(".") or name.endswith("."):
         raise UnsupportedConstruct(f"object {name!r} must be 'name' or 'schema.name'")
     if "." in name:
         schema, _, obj = name.partition(".")

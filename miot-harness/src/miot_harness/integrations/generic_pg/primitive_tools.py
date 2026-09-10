@@ -97,7 +97,8 @@ class _FunctionsInput(BaseModel):
         default=None,
         description=(
             "Case-insensitive substring of the function name or its description, "
-            "e.g. symptom; % wildcards are optional"
+            "e.g. symptom or fn_dx. A pattern containing % is applied as ILIKE, "
+            "where _ matches one character"
         ),
     )
     limit: int = 50

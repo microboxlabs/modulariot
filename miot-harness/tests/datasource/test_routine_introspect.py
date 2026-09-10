@@ -136,8 +136,9 @@ async def test_definition_refuses_outside_allowlist_before_querying() -> None:
     pool = RecordingPool(fetch_return=[])
     with pytest.raises(AllowlistViolation):
         await fetch_definition(pool=pool, policy=PUBLIC, name="ims.secret_fn")
-    with pytest.raises(UnsupportedConstruct):
-        await fetch_definition(pool=pool, policy=PUBLIC, name="a.b.c")
+    for bad in ("a.b.c", ".obj", "public.", ""):
+        with pytest.raises(UnsupportedConstruct):
+            await fetch_definition(pool=pool, policy=PUBLIC, name=bad)
     assert pool.conn.fetched == []
 
 

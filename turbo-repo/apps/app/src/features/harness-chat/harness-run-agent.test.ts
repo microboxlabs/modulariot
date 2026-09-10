@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RunAgentInput } from "@ag-ui/client";
-import { trimRunInput } from "./harness-run-agent";
+import { trimRunInput, withModel } from "./harness-run-agent";
 
 function input(messages: RunAgentInput["messages"]): RunAgentInput {
   return {
@@ -84,5 +84,20 @@ describe("trimRunInput", () => {
 
     expect(trimmed.messages).toHaveLength(60);
     expect(trimmed.messages.at(-1)?.id).toBe("a99");
+  });
+});
+
+describe("withModel", () => {
+  it("puts the picked model in state next to the conversation fields", () => {
+    const base = { ...input([]), state: { harnessConversationId: "t1" } };
+    expect(withModel(base, "claude-sonnet-4-6").state).toEqual({
+      harnessConversationId: "t1",
+      harnessModel: "claude-sonnet-4-6",
+    });
+  });
+
+  it("leaves the input alone when no model is picked", () => {
+    const base = input([]);
+    expect(withModel(base, null)).toBe(base);
   });
 });

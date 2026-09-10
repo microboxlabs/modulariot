@@ -28,6 +28,15 @@ export interface UserRequest {
   answer_format?: string;
   skill_id?: string;
   debug?: boolean;
+  /** Conversation model for the agent loop; one of `models.list()`. Omit
+   * for the harness default. */
+  model?: string;
+}
+
+/** GET /models: the models a run may name in `model`. */
+export interface ModelsInfo {
+  default: string | null;
+  models: string[];
 }
 
 /**

@@ -43,6 +43,9 @@ class HarnessContext(BaseModel):
     # Phase E (plan 13): the mode the caller requested. Set from
     # `UserRequest.mode` so per-mode cost can split in Langfuse panels.
     mode: RunMode = "auto"
+    # The conversation model the caller chose for the agent loop, or None for
+    # the deployment default. Validated against the allowlist at the API.
+    model: str | None = None
     # The caller-requested output format for the final answer string. Read by
     # HarnessSupervisor._finalize_answer to render record.answer before save.
     answer_format: AnswerFormat = "markdown"
@@ -106,6 +109,9 @@ class UserRequest(BaseModel):
     )
     route_context: dict[str, Any] = Field(default_factory=dict)
     mode: RunMode = "auto"
+    # Conversation model for the agent loop; one of GET /models, or omitted
+    # for the default.
+    model: str | None = Field(default=None, max_length=80)
     conversation_id: str | None = None
     # Prior turns of `conversation_id`, replayed by the caller when the
     # harness has never seen that id — after a restart, or when a user
@@ -191,6 +197,7 @@ class UserRequest(BaseModel):
             user_id=self.user_id,
             route_context=self.route_context,
             mode=self.mode,
+            model=self.model,
             conversation_id=self.conversation_id,
             debug=self.debug,
             answer_format=self.answer_format,

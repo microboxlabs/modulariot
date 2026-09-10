@@ -24,6 +24,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
+from collections.abc import Callable
 from time import monotonic
 from typing import Any
 
@@ -573,3 +574,65 @@ class AgentLoopRunner:
             header["excerpt"] = note
             head = json.dumps(header, default=str)
         return head[:-1] + ', "output": ' + excerpt + "}"
+
+
+class AgentLoopRunners:
+    """One `AgentLoopRunner` per conversation model, built on first use.
+
+    Each runner binds its own model and freezes its own prompt-cache prefix.
+    `run` dispatches on `ctx.model`; an unknown model is refused here as well
+    as at the API, so a direct caller cannot bypass the allowlist.
+    """
+
+    def __init__(
+        self,
+        *,
+        default_model: str,
+        models: tuple[str, ...] | list[str],
+        build_model: Callable[[str], BaseChatModel],
+        registry: ToolRegistry,
+        settings: HarnessSettings,
+        profile: DataSourceProfile,
+        provenance_log: ProvenanceLog | None = None,
+        context_skills: ContextSkillsBundle | None = None,
+    ) -> None:
+        self.default_model = default_model
+        self.models = tuple(dict.fromkeys([default_model, *models]))
+        self._build_model = build_model
+        self._kwargs: dict[str, Any] = {
+            "registry": registry,
+            "settings": settings,
+            "profile": profile,
+            "provenance_log": provenance_log,
+            "context_skills": context_skills,
+        }
+        self._runners: dict[str, AgentLoopRunner] = {}
+
+    def allowed(self, model: str | None) -> bool:
+        return model is None or model in self.models
+
+    def runner_for(self, model: str | None) -> AgentLoopRunner:
+        name = model or self.default_model
+        if name not in self.models:
+            raise ValueError(f"model {name!r} is not in the agent loop allowlist")
+        runner = self._runners.get(name)
+        if runner is None:
+            runner = AgentLoopRunner(model=self._build_model(name), **self._kwargs)
+            self._runners[name] = runner
+        return runner
+
+    async def run(
+        self,
+        *,
+        user_message: str,
+        ctx: HarnessContext,
+        prior_messages: list[BaseMessage],
+        progress: Progress,
+    ) -> dict[str, Any]:
+        runner = self.runner_for(ctx.model)
+        return await runner.run(
+            user_message=user_message,
+            ctx=ctx,
+            prior_messages=prior_messages,
+            progress=progress,
+        )

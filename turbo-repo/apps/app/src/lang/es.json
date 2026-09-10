@@ -5318,6 +5318,7 @@
       },
       "composer": {
         "placeholder": "Pregúntale al harness…",
+        "model": "Modelo",
         "cancelRun": "Cancelar",
         "pdfTooLarge": "El PDF es demasiado grande ({size} MB) — el límite es {limit} MB."
       },

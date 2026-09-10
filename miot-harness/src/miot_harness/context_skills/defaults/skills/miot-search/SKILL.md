@@ -145,7 +145,8 @@ assume any specific connection exists.
    table. `<connection>_functions` lists the routines (functions and
    procedures) already written for that database with their notes;
    `<connection>_definition` shows a view or routine body. Read those before
-   writing a join by hand.
+   writing a join by hand. `<connection>_call` runs one of those functions
+   with named arguments when it already answers the question.
 2. Look up: `<connection>_grep` to find the identifier across a table's text
    columns, or `<connection>_select` with a narrow `where` and a small
    `limit`.

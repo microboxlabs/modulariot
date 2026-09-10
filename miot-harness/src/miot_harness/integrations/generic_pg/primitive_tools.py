@@ -14,6 +14,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from miot_harness.datasource.knowledge.models import KnowledgeCard
+from miot_harness.datasource.routine_call import safe_call_routine
 from miot_harness.datasource.routine_introspect import (
     fetch_definition,
     introspect_routines,
@@ -121,6 +122,22 @@ class _DefinitionInput(BaseModel):
     )
 
 
+class _CallInput(BaseModel):
+    name: str = Field(
+        description=(
+            "Function name, e.g. api_modular_symptoms_dashboard or "
+            "public.api_modular_symptoms_dashboard"
+        )
+    )
+    args: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "IN arguments by name, e.g. {\"p_client_id\": \"abc\"}; arguments "
+            "with defaults may be omitted. Values are cast to the declared types."
+        ),
+    )
+
+
 class _DefinitionOutput(BaseModel):
     rows: list[dict[str, Any]] = Field(default_factory=list)
     source: str = ""
@@ -157,6 +174,7 @@ def build_generic_tools(
     explain_cost_threshold: float,
     statement_timeout_ms: int,
     knowledge_cards: list[KnowledgeCard] | None = None,
+    call_security_definer: bool = False,
 ) -> list[HarnessTool[Any, Any]]:
     """Build the generic safe-query primitives as registrable HarnessTools.
 
@@ -331,6 +349,21 @@ def build_generic_tools(
             source=source_label,
         )
 
+    async def call_routine(
+        ctx: HarnessContext, parsed: _CallInput, progress: Progress
+    ) -> _RowsOutput:
+        run = await safe_call_routine(
+            pool=pool,
+            policy=policy,
+            name=parsed.name,
+            args=parsed.args,
+            max_rows=max_rows,
+            cost_threshold=explain_cost_threshold,
+            allow_security_definer=call_security_definer,
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        return _RowsOutput(rows=run.rows, source=source_label, executed_sql=run.sql)
+
     async def call_knowledge(
         ctx: HarnessContext, parsed: _KnowledgeInput, progress: Progress
     ) -> _KnowledgeOutput:
@@ -451,6 +484,22 @@ def build_generic_tools(
             input_model=_DefinitionInput,
             output_model=_DefinitionOutput,
             call=call_definition,
+            **common,
+        ),
+        HarnessTool(
+            name=f"{tool_prefix}call",
+            description=(
+                f"Run one of the connection's SQL functions {scope} with named "
+                "arguments and return its rows: `SELECT * FROM fn(p_a => …)` "
+                "inside the read-only envelope (a function that writes fails), "
+                "with the row cap, statement timeout and EXPLAIN cost gate of "
+                "query. Procedures, SECURITY DEFINER functions and functions "
+                "whose `@meta` declares side effects are refused. Use functions "
+                "to find the name and arguments first."
+            ),
+            input_model=_CallInput,
+            output_model=_RowsOutput,
+            call=call_routine,
             **common,
         ),
     ]

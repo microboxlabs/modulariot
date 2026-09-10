@@ -22,7 +22,7 @@ import { getAllDashlets, getAllDashletMetas } from "@/features/dashboard/dashlet
 import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.service";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
-import { conversationOf, type AgUiMessage, type RunAgentInputBody } from "./conversation";
+import { conversationOf, modelOf, type AgUiMessage, type RunAgentInputBody } from "./conversation";
 
 /**
  * AG-UI streaming relay for the harness-chat panel: `RunAgentInput` in,
@@ -610,6 +610,7 @@ async function run(
   }
   const { client, orgSlug, token, userEmail } = connection;
   const { conversationId, replayTurns, summary } = conversationOf(body, messages);
+  const model = modelOf(body);
 
   let activeRunId: string | null = null;
   let runSettled = false;
@@ -638,6 +639,7 @@ async function run(
         skill_id: "miot-search",
         answer_format: "json",
         mode: "auto",
+        ...(model && { model }),
         ...(userEmail && { user_id: userEmail }),
         ...(conversationId && { conversation_id: conversationId }),
         ...(replayTurns.length > 0 && { conversation_history: replayTurns }),

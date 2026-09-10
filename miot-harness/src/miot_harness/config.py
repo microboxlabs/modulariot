@@ -87,6 +87,11 @@ class HarnessSettings(BaseSettings):
     # the full user-facing answer and adaptive-thinking turns can exceed the
     # current hard 60s default. 300s (5 minutes) suits multi-step planning.
     agents_agent_loop_llm_timeout_seconds: int = Field(default=300, gt=0)
+    # Conversation models a caller may pick for the agent loop
+    # (`UserRequest.model`), as a JSON list in the env. The planner model is
+    # always allowed and is the default. One runner, with its own prompt-cache
+    # prefix, is built per model on first use.
+    agents_agent_loop_models: list[str] = Field(default_factory=list)
     # Small "did we answer it?" judge. Held separate from the synthesizer so it
     # can stay cheap. Empty string disables the LLM judge (rules-only verify).
     agents_verifier_model: str = "claude-haiku-4-5"

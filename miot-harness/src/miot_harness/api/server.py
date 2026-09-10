@@ -17,7 +17,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from pydantic import BaseModel, Field
 from traceloop.sdk import Traceloop
 
-from miot_harness.agents.chat_models import get_chat_model
+from miot_harness.agents.chat_models import get_chat_model, supports_effort
 from miot_harness.agents.conversation_summarizer import build_conversation_summarizer
 from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
@@ -600,10 +600,16 @@ def _make_lifespan(
                     harness.agent_loop = AgentLoopRunners(
                         default_model=settings.agents_planner_model,
                         models=settings.agents_agent_loop_models,
+                        # Reasoning knob per model generation: `effort` on the
+                        # adaptive-thinking models, a thinking budget on the rest.
                         build_model=lambda name: get_chat_model(
                             name,
-                            effort=settings.agents_planner_effort,
                             timeout=settings.agents_agent_loop_llm_timeout_seconds,
+                            **(
+                                {"effort": settings.agents_planner_effort}
+                                if supports_effort(name)
+                                else {"thinking_budget_tokens": synth_thinking_budget}
+                            ),
                         ),
                         registry=harness.tools,
                         settings=settings,

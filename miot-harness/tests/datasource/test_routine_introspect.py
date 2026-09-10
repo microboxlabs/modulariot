@@ -56,6 +56,7 @@ async def test_routines_are_privilege_filtered_and_read_only() -> None:
     sql, args = pool.conn.fetched[-1]
     assert "pg_catalog.has_function_privilege(p.oid, 'EXECUTE')" in sql
     assert "pg_catalog.has_schema_privilege(n.oid, 'USAGE')" in sql
+    assert "dep.classid = 'pg_catalog.pg_proc'::regclass" in sql
     assert "dep.deptype = 'e'" in sql
     assert args[0] == ["public"] and args[1] == "%asset%"
     assert pool.conn.txn_readonly is True
@@ -111,6 +112,9 @@ async def test_definition_falls_through_to_overloaded_routines() -> None:
     defs = await fetch_definition(pool=pool, policy=PUBLIC, name="public.f")
     assert [d.description for d in defs] == ["a", "b"]
     assert all(d.kind == "function" for d in defs)
+    routine_sql = pool.conn.fetched[-1][0]
+    assert "dep.classid = 'pg_catalog.pg_proc'::regclass" in routine_sql
+    assert "dep.deptype = 'e'" in routine_sql
 
 
 @pytest.mark.asyncio

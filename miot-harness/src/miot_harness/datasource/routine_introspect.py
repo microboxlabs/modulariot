@@ -80,7 +80,8 @@ WHERE n.nspname = ANY($1::text[])
   AND l.lanname NOT IN ('c', 'internal')
   AND NOT EXISTS (
         SELECT 1 FROM pg_catalog.pg_depend dep
-        WHERE dep.objid = p.oid AND dep.deptype = 'e'
+        WHERE dep.classid = 'pg_catalog.pg_proc'::regclass
+          AND dep.objid = p.oid AND dep.deptype = 'e'
       )
   AND pg_catalog.has_function_privilege(p.oid, 'EXECUTE')
   AND pg_catalog.has_schema_privilege(n.oid, 'USAGE')
@@ -152,6 +153,11 @@ JOIN pg_catalog.pg_language l ON l.oid = p.prolang
 WHERE n.nspname = $1 AND p.proname = $2
   AND p.prokind IN ('f', 'p')
   AND l.lanname NOT IN ('c', 'internal')
+  AND NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_depend dep
+        WHERE dep.classid = 'pg_catalog.pg_proc'::regclass
+          AND dep.objid = p.oid AND dep.deptype = 'e'
+      )
   AND pg_catalog.has_function_privilege(p.oid, 'EXECUTE')
   AND pg_catalog.has_schema_privilege(n.oid, 'USAGE')
 ORDER BY p.oid

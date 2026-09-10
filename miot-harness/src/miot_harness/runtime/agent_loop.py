@@ -614,6 +614,9 @@ class AgentLoopRunner:
             "is_sample": ev.is_sample,
             "executed_sql": ev.executed_sql,
         }
+        # The exact total lives outside the output, which may be cut or dropped.
+        if isinstance(ev.output, dict) and "total" in ev.output:
+            header["total"] = ev.output["total"]
         cap = self.settings.agents_agent_loop_tool_result_max_chars
         budget = cap - len(json.dumps(header, default=str)) - _EXCERPT_ENVELOPE_CHARS
         for _ in range(3):
@@ -635,6 +638,7 @@ class AgentLoopRunner:
             {
                 "tool": ev.tool[:64],
                 "rows_returned": ev.sample_size,
+                **({"total": header["total"]} if "total" in header else {}),
                 "excerpt": "omitted: tool result cap too small",
                 "output": None,
             }

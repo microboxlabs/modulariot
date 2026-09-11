@@ -137,7 +137,7 @@ const host: CalendarHost<Appointment> = {
   bookingApi: undefined,   // omit → package builds CRUD from `client`; override to proxy
   getLiveTask: undefined,  // optional workflow-task resolver, keyed by a business code
   resolveWorkflowStage: undefined, // live stage for a planned item, overlaid at render time
-  resolveItemOverlay: (appt) => ({ client: liveClient(appt.code) }), // live fields, same join
+  resolveItemOverlay: (appt) => ({ clinic: liveClinic(appt.id) }), // live fields, same join
   renderItemCard: (item) => <MyCard appt={item.raw as Appointment} />,
   renderItemChip: undefined, // omit → default chip
   assignPanel: undefined,    // optional => the assign flow is opt-in

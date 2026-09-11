@@ -205,6 +205,18 @@ describe("mapBookingToPlannedService — client name", () => {
     expect(mapped?.planned.service.cliente).toBe("ACME");
   });
 
+  // `unlessResourceId` returns "" for a null label because `&&` binds tighter
+  // than `?:` — its result is the condition, never the value. Pinning that,
+  // since a null leaking through would put a non-string on SelectedService.
+  it("normalizes a null label to an empty string, not null", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      label: null,
+    } as unknown as BookingResponse["resource"]);
+    expect(mapped?.planned.service.cliente).toBe("");
+  });
+
   it("prefers the stored blob over a label the id was baked into", () => {
     const mapped = withResource({
       id: "1658427-V",

@@ -13,6 +13,6 @@ export type GpsValidationModalProps = {
 };
 
 export type MapComponentProps = {
-  // eslint-disable-next-line no-undef
-  pointer: google.maps.LatLng | google.maps.LatLngLiteral;
+  readonly pointer: { lat: number; lng: number };
+  readonly msg?: I18nRecord;
 };

@@ -312,7 +312,6 @@ export default function MapVisualization({
       <style>
         {`
           .mapboxgl-ctrl-logo { display: none !important; }
-          .mapboxgl-ctrl-attrib-inner { display: block !important; }
           .mapboxgl-ctrl-attrib a { color: #333 !important; text-decoration: none !important; }
           .mapboxgl-ctrl-attrib a:hover { text-decoration: underline !important; }
         `}
@@ -346,7 +345,9 @@ export default function MapVisualization({
           initialViewState={{
             longitude: -62.136105,
             latitude: -21.756514,
-            zoom: 2.5,
+            zoom: 2,
+            pitch: 45,
+            bearing: 45,
           }}
           preserveDrawingBuffer={true}
           antialias={true}

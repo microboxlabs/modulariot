@@ -9,6 +9,17 @@ import {
   useState,
 } from "react";
 
+/** A prior question + answer (e.g. from the spotlight search) handed off to
+ * the chat panel so the conversation can continue from where it left off. */
+export interface PendingHarnessConversation {
+  userText: string;
+  answerText: string;
+  /** The harness's conversation id for that answer, when known — lets the
+   * next chat message continue the same harness-side conversation instead
+   * of starting a fresh one. */
+  conversationId?: string;
+}
+
 interface HarnessChatContextProps {
   isOpen: boolean;
   open(): void;
@@ -19,6 +30,13 @@ interface HarnessChatContextProps {
   /** Set once by `openWithMessage`; consumed (and cleared) by HarnessChat. */
   pendingMessage: string | null;
   clearPendingMessage(): void;
+  /** Opens the panel and starts a new chat pre-seeded with a prior question +
+   * answer, so the user can pick the conversation back up instead of asking
+   * the same thing again. Nothing is auto-sent — the user keeps typing from there. */
+  openWithConversation(conversation: PendingHarnessConversation): void;
+  /** Set once by `openWithConversation`; consumed (and cleared) by HarnessChat. */
+  pendingConversation: PendingHarnessConversation | null;
+  clearPendingConversation(): void;
   /**
    * Opens the panel and adds `label` as an attachment chip on the CURRENT
    * chat's composer — like attaching a file, not sending a message. The
@@ -37,6 +55,8 @@ const HarnessChatContext = createContext<HarnessChatContextProps | null>(
 export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
   const [isOpen, setIsOpen] = useState(true);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [pendingConversation, setPendingConversation] =
+    useState<PendingHarnessConversation | null>(null);
   const [pendingAttachment, setPendingAttachment] = useState<string | null>(null);
 
   const open = useCallback(() => setIsOpen(true), []);
@@ -47,6 +67,11 @@ export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
     setPendingMessage(text);
   }, []);
   const clearPendingMessage = useCallback(() => setPendingMessage(null), []);
+  const openWithConversation = useCallback((conversation: PendingHarnessConversation) => {
+    setIsOpen(true);
+    setPendingConversation(conversation);
+  }, []);
+  const clearPendingConversation = useCallback(() => setPendingConversation(null), []);
   const attachReference = useCallback((label: string) => {
     setIsOpen(true);
     setPendingAttachment(label);
@@ -62,6 +87,9 @@ export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
       openWithMessage,
       pendingMessage,
       clearPendingMessage,
+      openWithConversation,
+      pendingConversation,
+      clearPendingConversation,
       attachReference,
       pendingAttachment,
       clearPendingAttachment,
@@ -74,6 +102,9 @@ export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
       openWithMessage,
       pendingMessage,
       clearPendingMessage,
+      openWithConversation,
+      pendingConversation,
+      clearPendingConversation,
       attachReference,
       pendingAttachment,
       clearPendingAttachment,

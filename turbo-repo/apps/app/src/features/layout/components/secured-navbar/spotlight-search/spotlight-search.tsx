@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { usePermissions } from "@/features/auth/hooks/use-permissions";
 import { useHarnessChatContext } from "@/features/harness-chat/context/harness-chat-context";
 import { BsStars } from "react-icons/bs";
-import { HiArrowRight, HiSearch } from "react-icons/hi";
+import { HiArrowRight, HiChatAlt, HiSearch } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { SpotlightItem, SpotlightResultKind, HarnessBlock } from "./types";
@@ -59,6 +59,11 @@ const KIND_ICONS: Record<SpotlightResultKind, IconConfig> = {
   },
   "harness-goto": {
     icon: HiArrowRight,
+    iconColor: "text-white",
+    iconBg: "bg-linear-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)]",
+  },
+  "harness-continue": {
+    icon: HiChatAlt,
     iconColor: "text-white",
     iconBg: "bg-linear-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)]",
   },
@@ -286,37 +291,34 @@ export default function SpotlightSearch({
     [router, close]
   );
 
-  // ── Committed query — only set when user explicitly asks Harness ─────────
+  // ── Committed query — only set when user explicitly asks Harness. Stays
+  // set (and its answer stays on screen) after the run finishes, even once
+  // the user starts typing a new, different question — see `showHarnessPrompt`
+  // below. It's only ever replaced by a new commit or cleared by an explicit
+  // cancel, never merely by editing the input. ─────────────────────────────
   const [committedQuery, setCommittedQuery] = useState("");
   // Bumped by the retry row to re-fire the same committed query.
   const [searchAttempt, setSearchAttempt] = useState(0);
-
-  // Set by `askHarness` so the reset effect below can tell "query changed
-  // because we just asked this exact question" apart from the user typing —
-  // otherwise the effect would immediately wipe the commit it just made.
-  const askedQueryRef = useRef<string | null>(null);
-
-  // Reset when user types a new query so harness results clear.
-  useEffect(() => {
-    if (askedQueryRef.current === query) {
-      askedQueryRef.current = null;
-      return;
-    }
-    setCommittedQuery("");
-    setSearchAttempt(0);
-  }, [query]);
 
   // Empty-state suggestion click: sets the query and commits it in one shot,
   // firing the harness search immediately instead of requiring a second click.
   const askHarness = useCallback(
     (text: string) => {
       const trimmed = text.trim();
-      askedQueryRef.current = trimmed;
+      setSearchAttempt(0);
       setQuery(trimmed);
       setCommittedQuery(trimmed);
     },
     [setQuery]
   );
+
+  // Cancels an in-flight (or just-finished) run and unlocks the input,
+  // leaving whatever text is still there editable — the user can tweak it
+  // and resubmit, or type something else entirely.
+  const handleCancelHarness = useCallback(() => {
+    setSearchAttempt(0);
+    setCommittedQuery("");
+  }, []);
 
   // Empty-state "Try asking" recommendations — clicking one asks Harness directly.
   const harnessSuggestionItems = useMemo<SpotlightItem[]>(
@@ -349,20 +351,34 @@ export default function SpotlightSearch({
     progress: harnessProgress,
   } = useHarnessSearch(committedQuery, searchAttempt);
 
-  // ── "Ask Harness" prompt item — first selectable row while uncommitted ────
+  // ── "Ask Harness" — the input's own implicit default action for whatever
+  // text hasn't been asked yet: no row of its own in the results list, but
+  // it's selectableItems[0] whenever the input text differs from the last
+  // committed question — including right after an answer lands, the moment
+  // the user starts typing something new (the still-visible answer/"Take to
+  // chat" row loses the default focus at that point, without disappearing —
+  // see `selectableItems` below). Enter then re-asks with the new text
+  // rather than re-triggering "Take to chat". The input's icon (ModeIcon
+  // below) is the only visual cue for what Enter currently does.
   const isEmpty = !query.trim();
-  const showHarnessPrompt = !isEmpty && !committedQuery;
+  const showHarnessPrompt = !isEmpty && query.trim() !== committedQuery;
+  // The empty-state (recents/suggestions) only applies with nothing typed AND
+  // no committed question still on screen — an emptied-out input right after
+  // an answer lands must keep showing that answer, not fall back to it.
+  const showEmptyState = isEmpty && !committedQuery;
 
   const harnessPromptItem = useMemo(
     () => ({
       id: "__harness-prompt__",
       label: query.trim(),
-      sublabel: "Ask Harness",
       kind: "harness" as const,
       icon: BsStars,
       keywords: [],
       isHarnessPrompt: true,
-      onSelect: () => setCommittedQuery(query.trim()),
+      onSelect: () => {
+        setSearchAttempt(0);
+        setCommittedQuery(query.trim());
+      },
     }),
     [query]
   );
@@ -397,26 +413,77 @@ export default function SpotlightSearch({
     [harnessResults, onOpenHarnessUrl]
   );
 
+  // ── "Take to chat" — hands the just-answered Q&A off to the full chat
+  //    panel so the user can keep the conversation going there ─────────────
+  const harnessAnswerText = useMemo(
+    () =>
+      harnessResults
+        .flatMap((r) => (r.blocks ?? []).filter((b) => b.type === "markdown").map((b) => b.value))
+        .join("\n\n"),
+    [harnessResults]
+  );
+
+  const harnessConversationId = useMemo(
+    () => harnessResults.find((r) => r.conversationId)?.conversationId,
+    [harnessResults]
+  );
+
+  const handleTakeToChat = useCallback(() => {
+    harnessChat.openWithConversation({
+      userText: committedQuery,
+      answerText: harnessAnswerText,
+      conversationId: harnessConversationId,
+    });
+  }, [harnessChat, committedQuery, harnessAnswerText, harnessConversationId]);
+
+  const harnessTakeToChatItem = useMemo<SpotlightItem | null>(() => {
+    if (isHarnessLoading || hasHarnessError || !harnessAnswerText) return null;
+    return {
+      id: "__harness-take-to-chat__",
+      label: tr("spotlight.takeToChat", dict),
+      kind: "harness-continue" as const,
+      icon: HiChatAlt,
+      keywords: [],
+      onSelect: handleTakeToChat,
+    };
+  }, [isHarnessLoading, hasHarnessError, harnessAnswerText, dict, handleTakeToChat]);
+
+  // Once the answer lands, unlock the input by clearing it — the just-answered
+  // exchange (and its "Take to chat" row) stays right where it is, on screen,
+  // until a new question replaces it. Guarded against the input already
+  // having moved on to something else (the user started typing a follow-up
+  // before this ran) — that new text must never be clobbered.
+  useEffect(() => {
+    if (harnessProgress.phase !== "done") return;
+    if (!query.trim() || query.trim() !== committedQuery) return;
+    setQuery("");
+  }, [harnessProgress.phase, committedQuery, query, setQuery]);
+
   // ── Flat selectable list (no group headers) ───────────────────────────────
-  // Order matches visual layout: prompt → harness gotos → static navigate.
-  // Harness markdown answers are non-interactive prose — excluded from keyboard nav.
-  // Empty state (no query yet) has its own layout — recent → ask suggestions →
-  // goto suggestions — matching SpotlightEmptyState's render order.
+  // Order matches visual layout: prompt → take-to-chat → harness gotos →
+  // static navigate. The prompt for fresh, uncommitted text always outranks
+  // "Take to chat" for a prior answer, so typing a follow-up re-points Enter
+  // at asking it rather than re-triggering the old answer's handoff. Harness
+  // markdown answers are non-interactive prose — excluded from keyboard nav.
+  // Empty state (no query yet) has its own layout — recent → ask suggestions
+  // → goto suggestions — matching SpotlightEmptyState's render order.
   const selectableItems = useMemo(
     () =>
-      isEmpty
+      showEmptyState
         ? [...recentItems, ...harnessSuggestionItems, ...suggestedGotoItems]
         : [
             ...(showHarnessPrompt ? [harnessPromptItem] : []),
+            ...(harnessTakeToChatItem ? [harnessTakeToChatItem] : []),
             ...(harnessRetryItem ? [harnessRetryItem] : []),
             ...harnessGoToItems,
             ...staticResults.filter((i) => !i.isGroupHeader),
           ],
     [
-      isEmpty,
+      showEmptyState,
       recentItems,
       harnessSuggestionItems,
       suggestedGotoItems,
+      harnessTakeToChatItem,
       showHarnessPrompt,
       harnessPromptItem,
       harnessRetryItem,
@@ -458,8 +525,13 @@ export default function SpotlightSearch({
         return; // keep modal open so the answer can appear
       }
       // Learning-loop signal: the user engaged with a harness result (the
-      // answer row `harness:${runId}` or a "go to" link). Best-effort.
-      if (item.kind === "harness" || item.kind === "harness-goto") {
+      // answer row `harness:${runId}`, a "go to" link, or the "take to chat"
+      // handoff). Best-effort.
+      if (
+        item.kind === "harness" ||
+        item.kind === "harness-goto" ||
+        item.kind === "harness-continue"
+      ) {
         const runId = item.id.startsWith("harness:")
           ? item.id.slice("harness:".length)
           : undefined;
@@ -522,14 +594,21 @@ export default function SpotlightSearch({
                 ModeIcon={ModeIcon}
                 iconColor={iconColor}
                 iconBg={iconBg}
-                showOpenChat={!isEmpty}
+                showOpenChat={!isEmpty && !isHarnessLoading}
                 onOpenChat={handleOpenChatAction}
                 openChatLabel={tr("spotlight.openChat", dict)}
+                locked={isHarnessLoading}
+                showCancelHarness={isHarnessLoading}
+                onCancelHarness={handleCancelHarness}
+                cancelHarnessLabel={tr("spotlight.cancelHarness", dict)}
+                showAskHarness={showHarnessPrompt}
+                onAskHarness={harnessPromptItem.onSelect}
+                askHarnessLabel={tr("spotlight.askHarness", dict)}
               />
 
               <div className="border-t border-gray-100 dark:border-gray-700" />
 
-              {isEmpty && (
+              {showEmptyState && (
                 <SpotlightEmptyState
                   recentItems={recentItems}
                   recentLabel={tr("spotlight.recent", dict)}
@@ -543,18 +622,19 @@ export default function SpotlightSearch({
                 />
               )}
 
-              {!isEmpty && hasResults && (
+              {!showEmptyState && hasResults && (
                 <SpotlightResults
                   staticItems={staticResults}
                   harnessItems={harnessResults}
                   isHarnessLoading={isHarnessLoading}
                   harnessQueried={!!committedQuery}
+                  harnessQuestion={committedQuery}
                   harnessProgress={harnessProgress}
                   harnessProgressLabels={harnessProgressLabels}
                   harnessError={hasHarnessError}
                   harnessErrorLabel={tr("spotlight.harnessError", dict)}
                   harnessRetryItem={harnessRetryItem}
-                  harnessPrompt={showHarnessPrompt ? harnessPromptItem : null}
+                  harnessTakeToChatItem={harnessTakeToChatItem}
                   selectedItemId={selectableItems[selectedIndex]?.id ?? null}
                   onSelect={handleSelectAction}
                   onHover={setHoveredId}
@@ -570,7 +650,7 @@ export default function SpotlightSearch({
                 dict={spotlightDict?.elicit as I18nRecord | undefined}
               />
 
-              <SpotlightFooter hasResults={!isEmpty && hasResults} />
+              <SpotlightFooter hasResults={!showEmptyState && hasResults} />
             </div>
           </dialog>
         </SpotlightBackdrop>

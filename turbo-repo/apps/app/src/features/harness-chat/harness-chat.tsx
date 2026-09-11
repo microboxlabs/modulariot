@@ -6,7 +6,10 @@ import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { twMerge } from "tailwind-merge";
 import { LuArrowLeft, LuHistory, LuPlus, LuSparkles, LuX } from "react-icons/lu";
 import { createHarnessAttachmentAdapter } from "./harness-chat-attachments";
-import { useHarnessChatContext } from "./context/harness-chat-context";
+import {
+  useHarnessChatContext,
+  type PendingHarnessConversation,
+} from "./context/harness-chat-context";
 import {
   HarnessChatI18nProvider,
   useHarnessChatTr,
@@ -17,6 +20,7 @@ import { resolveDefaultHarnessExtensions } from "./extensions";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
+import { InitialConversationSeeder } from "./components/initial-conversation-seeder";
 import { PendingAttachmentReceiver } from "./components/pending-attachment-receiver";
 import { SessionSummaryWatcher } from "./components/session-summary-watcher";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
@@ -37,7 +41,10 @@ import { StandaloneDictionaryProvider } from "@/features/dashboard/context/stand
 import type { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Thread } from "./thread";
 
-function createSession(initialMessage: string | null = null): Session {
+function createSession(
+  initialMessage: string | null = null,
+  initialConversation: PendingHarnessConversation | null = null,
+): Session {
   return {
     // A UUID, not any id: it is stored as the thread's primary key and sent to
     // the harness as the conversation id.
@@ -45,6 +52,7 @@ function createSession(initialMessage: string | null = null): Session {
     createdAt: Date.now(),
     title: null,
     initialMessage,
+    initialConversation,
     owned: true,
     sharedWith: [],
   };
@@ -63,6 +71,7 @@ function toSession(thread: StoredThread): Session {
     createdAt: Date.parse(thread.lastMessageAt ?? thread.createdAt),
     title: thread.title,
     initialMessage: null,
+    initialConversation: null,
     owned: thread.owned,
     sharedWith: thread.sharedWith ?? [],
   };
@@ -126,6 +135,8 @@ const HarnessChatPanel: FC<{
     close,
     pendingMessage,
     clearPendingMessage,
+    pendingConversation,
+    clearPendingConversation,
     pendingAttachment,
     clearPendingAttachment,
   } = useHarnessChatContext();
@@ -179,8 +190,11 @@ const HarnessChatPanel: FC<{
   }, [loadHistory]);
 
   const newChat = useCallback(
-    (initialMessage: string | null = null) => {
-      const session = createSession(initialMessage);
+    (
+      initialMessage: string | null = null,
+      initialConversation: PendingHarnessConversation | null = null,
+    ) => {
+      const session = createSession(initialMessage, initialConversation);
       setSessions((prev) => [session, ...prev]);
       setActiveId(session.id);
       mount(session.id);
@@ -189,13 +203,29 @@ const HarnessChatPanel: FC<{
     [mount],
   );
 
-  // A search-bar "open chat" action landed while we were mounted — start a
-  // fresh conversation with that text as the first (auto-sent) message.
+  // A search-bar "open chat" action, or a spotlight "Take to chat" handoff,
+  // landed while we were mounted — start a fresh conversation for it. Both
+  // pending slots are handled by this one effect (rather than two independent
+  // ones) so that if they were ever both set at once, only one `newChat` ever
+  // fires per render — `pendingMessage` takes precedence — instead of two
+  // sessions racing to become the active one.
   useEffect(() => {
-    if (!pendingMessage) return;
-    newChat(pendingMessage);
-    clearPendingMessage();
-  }, [pendingMessage, newChat, clearPendingMessage]);
+    if (pendingMessage) {
+      newChat(pendingMessage);
+      clearPendingMessage();
+      return;
+    }
+    if (pendingConversation) {
+      newChat(null, pendingConversation);
+      clearPendingConversation();
+    }
+  }, [
+    pendingMessage,
+    pendingConversation,
+    newChat,
+    clearPendingMessage,
+    clearPendingConversation,
+  ]);
 
   const selectSession = useCallback(
     (id: string) => {
@@ -398,6 +428,7 @@ const HarnessChatPanel: FC<{
               active={session.id === activeId}
               shouldFocus={isOpen && view === "chat"}
               initialMessage={session.initialMessage}
+              initialConversation={session.initialConversation}
               // Only the active session should receive it — every session's
               // SessionHost stays mounted (just hidden), so a session-agnostic
               // prop would add the same attachment to all of them at once.
@@ -420,6 +451,7 @@ const SessionHost: FC<{
   active: boolean;
   shouldFocus: boolean;
   initialMessage: string | null;
+  initialConversation: PendingHarnessConversation | null;
   pendingAttachmentLabel: string | null;
   onAttachmentConsumed: () => void;
   onTitleChange: (id: string, title: string | null) => void;
@@ -431,6 +463,7 @@ const SessionHost: FC<{
   active,
   shouldFocus,
   initialMessage,
+  initialConversation,
   pendingAttachmentLabel,
   onAttachmentConsumed,
   onTitleChange,
@@ -443,13 +476,20 @@ const SessionHost: FC<{
   // chat sessions. The session id is handed over as the AG-UI threadId, which
   // is what the chat route falls back to for the harness conversation id: the
   // same value survives a reload, so a reopened thread continues its
-  // conversation instead of starting a new one.
+  // conversation instead of starting a new one. A spotlight "Take to chat"
+  // handoff instead seeds the specific conversation id its answer came from,
+  // so the user's next message continues that conversation server-side.
   const agent = useMemo(
     () =>
       new HarnessRunAgent({
         url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/chat/stream`,
         threadId: sessionId,
+        ...(initialConversation?.conversationId && {
+          initialState: { harnessConversationId: initialConversation.conversationId },
+        }),
       }),
+    // `initialConversation` is read once at session creation, same as sessionId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [sessionId],
   );
   const tr = useHarnessChatTr();
@@ -501,6 +541,7 @@ const SessionHost: FC<{
               <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
               <SessionSummaryWatcher sessionId={sessionId} />
               <InitialMessageSender initialMessage={initialMessage} />
+              <InitialConversationSeeder conversation={initialConversation} />
               <PendingAttachmentReceiver
                 label={pendingAttachmentLabel}
                 onConsumed={onAttachmentConsumed}

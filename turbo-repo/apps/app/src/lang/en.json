@@ -5240,7 +5240,10 @@
     },
     "harnessError": "Something went wrong while searching.",
     "harnessRetry": "Retry",
-    "openChat": "Open chat"
+    "openChat": "Open chat",
+    "takeToChat": "Continue in chat",
+    "cancelHarness": "Cancel",
+    "askHarness": "Ask Harness"
   },
   "harnessChat": {
     "stream": {

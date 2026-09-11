@@ -16,7 +16,7 @@ import { PinLayer } from "@/features/geographic-view/components/layers/pin_layer
 import { MapComponentProps } from "./gps-validation-modal.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 
-const defaultMapZoom = 18;
+const defaultMapZoom = 5;
 
 function buildGoogleMapsUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps?q=${lat},${lng}`;

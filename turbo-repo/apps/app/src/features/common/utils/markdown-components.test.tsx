@@ -94,8 +94,14 @@ describe("MarkdownContent — compact variant (chat bubbles, spotlight)", () => 
   });
 });
 
-describe("MarkdownContent — document variant tables", () => {
+describe("MarkdownContent — document variant tables (opted out of prose, same styling as compact)", () => {
   const table = "| A | B |\n| --- | --- |\n| 1 | 2 |\n";
+
+  it("opts the table out of prose entirely, so nothing here is prose's own typography scale", () => {
+    const { container } = render(<MarkdownContent variant="document">{table}</MarkdownContent>);
+    const wrapper = container.querySelector("table")?.parentElement;
+    expect(wrapper?.className).toContain("not-prose");
+  });
 
   it("keeps every cell on one line, same as the compact variant", () => {
     const { container } = render(<MarkdownContent variant="document">{table}</MarkdownContent>);
@@ -114,12 +120,17 @@ describe("MarkdownContent — document variant tables", () => {
 
   it("highlights the header row with its own background and a darker bottom border", () => {
     const { container } = render(<MarkdownContent variant="document">{table}</MarkdownContent>);
-    expect(container.querySelector("thead")?.className).toContain("bg-gray-100");
-    // The border override lives on the <article> (a prose-thead: variant,
-    // not a plain className on <thead> — see MarkdownContent's comment).
-    expect(container.querySelector("article")?.className).toContain(
-      "prose-thead:border-gray-300"
-    );
+    const thead = container.querySelector("thead")?.className;
+    expect(thead).toContain("bg-gray-100");
+    expect(thead).toContain("border-gray-300");
+  });
+
+  it("wraps the table in the same card chrome as a code block", () => {
+    const { container } = render(<MarkdownContent variant="document">{table}</MarkdownContent>);
+    const wrapper = container.querySelector("table")?.parentElement;
+    expect(wrapper?.className).toContain("bg-gray-50");
+    expect(wrapper?.className).toContain("rounded-lg");
+    expect(wrapper?.className).toContain("border");
   });
 
   it("disables rubber-band bounce on the table's own horizontal scroll", () => {

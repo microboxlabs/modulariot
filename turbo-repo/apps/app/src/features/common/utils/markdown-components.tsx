@@ -143,51 +143,43 @@ const DOCUMENT_COMPONENTS = {
       </code>
     );
   },
-  // GFM tables render at their natural width, which can easily exceed a
-  // narrow host (a spotlight dropdown, a chat bubble column). Scoping the
-  // scrollbar to the table itself — rather than leaving the host container
-  // to pick up an implicit overflow-x from its own overflow-y-auto — means
-  // only the table pans, not the whole results list/thread around it. Same
-  // card chrome as `pre` above, so a table reads as the same kind of
-  // "embedded block" as a code fence within the document. whitespace-nowrap
-  // on every cell keeps a wide cell growing the table sideways (scrollable)
-  // instead of wrapping and growing it vertically instead. overscroll-x-none
-  // stops the browser's own elastic bounce/rubber-band from firing on this
-  // card when panning hits its horizontal edge (macOS trackpads especially).
+  // Tables opt all the way out of prose (`not-prose`) and use the exact
+  // same plain, hand-styled table/thead/tbody/tr/th/td as the compact
+  // variant below (chat, spotlight) — verbatim, not just "the same idea".
+  // Two rounds of trying to tune the *default* prose table (padding via
+  // prose-td:/prose-th:, border color via prose-thead:) landed real CSS
+  // rules (verified in the compiled stylesheet) that still wasn't visibly
+  // showing up, which not-prose sidesteps entirely: with it, none of
+  // prose's own `:where(table/thead/tr/th/td)` selectors match inside this
+  // subtree at all, so there's no cascade fight over specificity/order left
+  // to get wrong — our classes are the only ones in play, full stop.
   table: ({ children }: React.TableHTMLAttributes<HTMLTableElement>) => (
-    <div className="overflow-x-auto overscroll-x-none rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
-      <table className="whitespace-nowrap">{children}</table>
+    <div className="not-prose mb-5 overflow-x-auto overscroll-x-none rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+      <table className="w-full border-collapse whitespace-nowrap text-left text-xs">
+        {children}
+      </table>
     </div>
   ),
-  // Same highlighted-header treatment as the compact variant's `thead`
-  // below — prose doesn't give thead a background of its own, so this adds
-  // one rather than fighting prose's specificity to change one. Prose
-  // already draws its own border-bottom under thead, though, so that gets
-  // strengthened separately via the prose-thead: override variant on the
-  // article itself (see MarkdownContent) instead of a plain border
-  // className here, which would be racing prose's own rule at equal
-  // specificity — same reason prose-th:/prose-td: exist for padding below.
   thead: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
-    <thead className="bg-gray-100 dark:bg-gray-600">{children}</thead>
+    <thead className="border-b border-gray-300 bg-gray-100 dark:border-gray-700 dark:bg-gray-600">
+      {children}
+    </thead>
   ),
-  // divide-x draws a faint rule between columns (header row included, since
-  // GFM maps both header and body rows to the same `tr`) — a border, not a
-  // padding/margin, so it layers over prose's own cell spacing without
-  // fighting its specificity the way a plain padding override would.
-  // dark:divide-gray-700, not -800: this table's card is dark:bg-gray-800
-  // (see `table` above) — a divider in that same shade doesn't show up
-  // against its own background. gray-700 is the step up from it, same as
-  // Typography's own prose-invert row borders use for the same reason. It
-  // also stays visibly distinct from the header's own gray-200/gray-600
-  // wash above, so the column line doesn't vanish inside the header band.
+  tbody: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">{children}</tbody>
+  ),
   tr: ({ children }: React.HTMLAttributes<HTMLTableRowElement>) => (
     <tr className="divide-x divide-gray-100 dark:divide-gray-700">{children}</tr>
   ),
   th: ({ children }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
-    <th className="whitespace-nowrap">{children}</th>
+    <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-gray-700 dark:text-gray-200">
+      {children}
+    </th>
   ),
   td: ({ children }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
-    <td className="whitespace-nowrap">{children}</td>
+    <td className="whitespace-nowrap px-2 py-1.5 align-top text-gray-600 dark:text-gray-300">
+      {children}
+    </td>
   ),
 };
 
@@ -229,17 +221,7 @@ export function MarkdownContent({
     // stylesheet, not whichever the caller passed — twMerge resolves the
     // conflict in the caller's favor, like it should.
     return (
-      // prose-th:/prose-td:/prose-thead: (Typography's own override
-      // variants, not plain utilities — those lose to prose's descendant
-      // selectors) give table rows a bit more breathing room, and the
-      // header's own border-bottom a darker, clearer color, than the
-      // plugin's default — same 1px weight, just more contrast.
-      <article
-        className={twMerge(
-          "prose dark:prose-invert max-w-none prose-th:py-2 prose-td:py-2 prose-thead:border-gray-300 dark:prose-thead:border-gray-700",
-          className
-        )}
-      >
+      <article className={twMerge("prose dark:prose-invert max-w-none", className)}>
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}

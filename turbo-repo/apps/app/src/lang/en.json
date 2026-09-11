@@ -5274,6 +5274,7 @@
       "composer": {
         "placeholder": "Ask the harness…",
         "cancelRun": "Cancel",
+        "model": "Model",
         "pdfTooLarge": "PDF is too large ({size} MB) — the limit is {limit} MB."
       },
       "showDashlet": {

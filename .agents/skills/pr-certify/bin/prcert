@@ -1,0 +1,1025 @@
+#!/usr/bin/env python3
+"""prcert - certify a pull request against Copilot, CodeRabbit and SonarCloud.
+
+Read-only subcommands print JSON on stdout. Write subcommands (request, reply,
+resolve, stamp) touch the PR. See SKILL.md for the loop that drives them.
+"""
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+
+CONFIG_DIR = os.path.expanduser("~/.claude/pr-certify")
+CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
+
+COPILOT_BOT = "copilot-pull-request-reviewer"
+CODERABBIT_BOT = "coderabbitai"
+STAMP_MARK = "<!-- pr-certify:v1"
+
+DEFAULTS = {
+    "maxRounds": 5,
+    "sonarHost": "https://sonarcloud.io",
+    "sonarTokenEnv": "SONAR_TOKEN",
+    "balanced": {
+        "loc": 300,
+        "files": 20,
+        "pathHints": [
+            "auth", "security", "secret", "token", "jwt", "crypt", "password",
+            "payment", "billing", "permission", "tenant", "migration", "flyway",
+            "webhook", "session", "cors", "csrf",
+        ],
+        "labels": ["security", "breaking", "migration"],
+    },
+}
+
+BASE_CONFIG = {"orgs": {}, "gate": {"enforce": True}, "defaults": DEFAULTS}
+
+
+def die(msg, code=1):
+    print(msg, file=sys.stderr)
+    sys.exit(code)
+
+
+def load_config():
+    if not os.path.exists(CONFIG_PATH):
+        return json.loads(json.dumps(BASE_CONFIG))
+    with open(CONFIG_PATH) as fh:
+        cfg = json.load(fh)
+    merged = json.loads(json.dumps(BASE_CONFIG))
+    merged.update(cfg)
+    d = json.loads(json.dumps(DEFAULTS))
+    d.update(merged.get("defaults") or {})
+    b = json.loads(json.dumps(DEFAULTS["balanced"]))
+    b.update(d.get("balanced") or {})
+    d["balanced"] = b
+    merged["defaults"] = d
+    return merged
+
+
+def save_config(cfg):
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(CONFIG_PATH, "w") as fh:
+        json.dump(cfg, fh, indent=2)
+        fh.write("\n")
+
+
+def org_settings(cfg, owner):
+    org = (cfg.get("orgs") or {}).get(owner)
+    if org is None:
+        return None
+    out = json.loads(json.dumps(cfg["defaults"]))
+    for k, v in org.items():
+        if k == "balanced" and isinstance(v, dict):
+            out["balanced"].update(v)
+        else:
+            out[k] = v
+    return out
+
+
+# --- github plumbing ---------------------------------------------------------
+
+def gh(args, check=True, stdin=None):
+    p = subprocess.run(["gh"] + args, capture_output=True, text=True, input=stdin)
+    if check and p.returncode != 0:
+        die("gh %s failed: %s" % (" ".join(args), (p.stderr or p.stdout).strip()))
+    return p.stdout, p.returncode, p.stderr
+
+
+PR_QUERY = """
+query($owner:String!, $name:String!, $number:Int!) {
+  repository(owner:$owner, name:$name) {
+    defaultBranchRef { name }
+    pullRequest(number:$number) {
+      number title url state isDraft mergeable
+      baseRefName headRefName headRefOid
+      additions deletions changedFiles
+      author { login }
+      labels(first:50) { nodes { name } }
+      files(first:100) { nodes { path additions deletions } }
+      commits(last:1) { nodes { commit { oid pushedDate
+        statusCheckRollup { state contexts(first:100) { nodes {
+          __typename
+          ... on CheckRun { name conclusion status detailsUrl }
+          ... on StatusContext { context state targetUrl description }
+        } } }
+      } } }
+      reviews(last:60) { nodes { author { login } state submittedAt body commit { oid } } }
+      reviewThreads(first:100) { nodes {
+        id isResolved isOutdated path line startLine
+        comments(first:30) { nodes { databaseId author { login } body url createdAt } }
+      } }
+      reviewRequests(first:20) { nodes { requestedReviewer {
+        __typename
+        ... on User { login }
+        ... on Bot { login }
+        ... on Team { slug }
+      } } }
+      comments(last:60) { nodes { databaseId author { login } body createdAt } }
+    }
+  }
+}
+"""
+
+
+def fetch_pr(owner, name, number):
+    out, _, _ = gh([
+        "api", "graphql",
+        "-F", "owner=%s" % owner, "-F", "name=%s" % name, "-F", "number=%d" % number,
+        "-f", "query=%s" % PR_QUERY,
+    ])
+    data = json.loads(out)
+    if data.get("errors"):
+        die("graphql: %s" % json.dumps(data["errors"]))
+    repo = (data.get("data") or {}).get("repository") or {}
+    pr = repo.get("pullRequest")
+    if not pr:
+        die("pull request %s/%s#%d not found" % (owner, name, number))
+    pr["_defaultBranch"] = (repo.get("defaultBranchRef") or {}).get("name")
+    return pr
+
+
+def resolve_target(args):
+    repo = args.repo
+    if not repo:
+        out, rc, err = gh(["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"], check=False)
+        if rc != 0:
+            die("not in a GitHub repo and --repo not given: %s" % err.strip())
+        repo = out.strip()
+    owner, _, name = repo.partition("/")
+    number = args.pr
+    if not number:
+        out, rc, err = gh(["pr", "view", "--repo", repo, "--json", "number", "-q", ".number"], check=False)
+        if rc != 0:
+            die("no PR for the current branch; pass --pr N")
+        number = int(out.strip())
+    return owner, name, int(number)
+
+
+# --- signal extraction -------------------------------------------------------
+
+def bot_login(login):
+    return (login or "").replace("[bot]", "")
+
+
+def check_contexts(pr):
+    commits = (pr.get("commits") or {}).get("nodes") or []
+    if not commits:
+        return []
+    rollup = (commits[0].get("commit") or {}).get("statusCheckRollup")
+    if not rollup:
+        return []
+    out = []
+    for n in (rollup.get("contexts") or {}).get("nodes") or []:
+        if n.get("__typename") == "CheckRun":
+            out.append({
+                "name": n.get("name"),
+                "state": (n.get("conclusion") or n.get("status") or "").upper(),
+                "url": n.get("detailsUrl"),
+                "description": None,
+            })
+        else:
+            out.append({
+                "name": n.get("context"),
+                "state": (n.get("state") or "").upper(),
+                "url": n.get("targetUrl"),
+                "description": n.get("description"),
+            })
+    return out
+
+
+PASSING = {"SUCCESS", "NEUTRAL", "SKIPPED", "COMPLETED"}
+PENDING = {"PENDING", "IN_PROGRESS", "QUEUED", "WAITING", "REQUESTED", "EXPECTED", ""}
+
+
+def checks_summary(pr):
+    ctx = check_contexts(pr)
+    failing = [c for c in ctx if c["state"] not in PASSING and c["state"] not in PENDING]
+    pending = [c for c in ctx if c["state"] in PENDING]
+    return {
+        "total": len(ctx),
+        "failing": failing,
+        "pending": [c["name"] for c in pending],
+        "contexts": ctx,
+        "settled": len(pending) == 0,
+        "green": len(ctx) > 0 and not failing and not pending,
+    }
+
+
+COPILOT_VERDICTS = [
+    ("\U0001F7E2", "clean"),      # green circle - Approval recommended
+    ("\U0001F7E1", "changes"),    # yellow circle - Changes recommended
+    ("\U0001F535", "unclear"),    # blue circle - Needs a closer look
+]
+
+
+def latest_review(pr, login):
+    revs = [r for r in ((pr.get("reviews") or {}).get("nodes") or [])
+            if bot_login((r.get("author") or {}).get("login")) == login and (r.get("body") or "").strip()]
+    revs.sort(key=lambda r: r.get("submittedAt") or "")
+    return revs[-1] if revs else None
+
+
+def unresolved_threads(pr, logins):
+    out = []
+    for t in ((pr.get("reviewThreads") or {}).get("nodes") or []):
+        if t.get("isResolved"):
+            continue
+        comments = (t.get("comments") or {}).get("nodes") or []
+        if not comments:
+            continue
+        author = bot_login((comments[0].get("author") or {}).get("login"))
+        if logins and author not in logins:
+            continue
+        out.append({
+            "threadId": t.get("id"),
+            "source": author,
+            "path": t.get("path"),
+            "line": t.get("line") or t.get("startLine"),
+            "isOutdated": bool(t.get("isOutdated")),
+            "replyToId": comments[0].get("databaseId"),
+            "url": comments[0].get("url"),
+            "body": comments[0].get("body") or "",
+            "replies": [bot_login((c.get("author") or {}).get("login")) for c in comments[1:]],
+        })
+    return out
+
+
+def copilot_state(pr):
+    head = pr.get("headRefOid")
+    rev = latest_review(pr, COPILOT_BOT)
+    requested = any(bot_login((r.get("requestedReviewer") or {}).get("login"))
+                    in (COPILOT_BOT, "Copilot", "copilot")
+                    for r in ((pr.get("reviewRequests") or {}).get("nodes") or []))
+    if not rev:
+        return {"provider": "copilot", "available": True, "fresh": False, "verdict": None,
+                "pending": requested, "headline": None, "reviewedSha": None}
+    headline = (rev.get("body") or "").strip().splitlines()[0][:120]
+    verdict = None
+    for mark, name in COPILOT_VERDICTS:
+        if mark in headline:
+            verdict = name
+            break
+    sha = (rev.get("commit") or {}).get("oid")
+    fresh = sha == head
+    if verdict is None:
+        # older review format with no emoji headline: fall back to open threads
+        verdict = "changes" if any(t["source"] == COPILOT_BOT and not t["isOutdated"]
+                                   for t in unresolved_threads(pr, {COPILOT_BOT})) else "clean"
+    return {"provider": "copilot", "available": True, "fresh": fresh, "verdict": verdict,
+            "pending": requested, "headline": headline, "reviewedSha": sha,
+            "reviewedAt": rev.get("submittedAt")}
+
+
+CR_ACTIONABLE = re.compile(r"Actionable comments posted:\s*(\d+)")
+CR_OFF = re.compile(r"rate limited|reviews are disabled|review skipped", re.I)
+
+
+def coderabbit_state(pr):
+    head = pr.get("headRefOid")
+    ctx = [c for c in check_contexts(pr) if (c["name"] or "").lower().startswith("coderabbit")]
+    has_history = bool(latest_review(pr, CODERABBIT_BOT)) or bool(ctx)
+    if not has_history:
+        return {"provider": "coderabbit", "available": False, "fresh": False,
+                "verdict": None, "reason": "no CodeRabbit check or review on this PR"}
+    off = next((c for c in ctx if c.get("description") and CR_OFF.search(c["description"])), None)
+    rev = latest_review(pr, CODERABBIT_BOT)
+    sha = (rev.get("commit") or {}).get("oid") if rev else None
+    fresh = sha == head
+    actionable = None
+    if rev:
+        m = CR_ACTIONABLE.search(rev.get("body") or "")
+        if m:
+            actionable = int(m.group(1))
+    if off and not fresh:
+        return {"provider": "coderabbit", "available": False, "fresh": False, "verdict": None,
+                "reason": off["description"], "reviewedSha": sha}
+    verdict = None
+    if fresh and actionable is not None:
+        verdict = "clean" if actionable == 0 else "changes"
+    return {"provider": "coderabbit", "available": True, "fresh": fresh, "verdict": verdict,
+            "actionable": actionable, "reviewedSha": sha,
+            "reviewedAt": rev.get("submittedAt") if rev else None,
+            "note": off["description"] if off else None}
+
+
+# --- sonar -------------------------------------------------------------------
+
+SONAR_ID = re.compile(r"[?&]id=([^&]+)")
+
+
+def sonar_keys(pr, repo_root=None):
+    keys = []
+    for c in check_contexts(pr):
+        blob = "%s %s" % (c.get("name") or "", c.get("url") or "")
+        if "sonar" not in blob.lower():
+            continue
+        m = SONAR_ID.search(c.get("url") or "")
+        if m:
+            k = urllib.parse.unquote(m.group(1))
+            if k not in keys:
+                keys.append(k)
+    if not keys and repo_root:
+        for dirpath, dirnames, filenames in os.walk(repo_root):
+            dirnames[:] = [d for d in dirnames if d not in (".git", "node_modules", "target", "dist", ".venv")]
+            if "sonar-project.properties" in filenames:
+                with open(os.path.join(dirpath, "sonar-project.properties")) as fh:
+                    for line in fh:
+                        if line.strip().startswith("sonar.projectKey="):
+                            k = line.split("=", 1)[1].strip()
+                            if k and k not in keys:
+                                keys.append(k)
+    return keys
+
+
+def sonar_get(host, token, path, params):
+    """curl, not urllib: the system trust store is the one that works on macOS."""
+    url = "%s/%s?%s" % (host.rstrip("/"), path.lstrip("/"), urllib.parse.urlencode(params))
+    cmd = ["curl", "-sS", "--max-time", "45", "-w", "\n%{http_code}"]
+    if token:
+        cmd += ["-u", "%s:" % token]
+    cmd.append(url)
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    if p.returncode != 0:
+        return {"_error": (p.stderr or "curl exit %d" % p.returncode).strip()[:200], "_url": url}
+    body, _, code = p.stdout.rpartition("\n")
+    if code.strip() != "200":
+        return {"_error": "HTTP %s" % code.strip(), "_url": url, "_body": body[:300]}
+    try:
+        return json.loads(body)
+    except ValueError as e:
+        return {"_error": "bad JSON: %s" % e, "_url": url}
+
+
+def sonar_state(pr, settings, repo_root):
+    keys = sonar_keys(pr, repo_root)
+    if not keys:
+        return {"provider": "sonar", "available": False, "verdict": None,
+                "reason": "no SonarCloud check or sonar-project.properties found"}
+    token = os.environ.get(settings["sonarTokenEnv"], "")
+    if not token:
+        return {"provider": "sonar", "available": False, "verdict": None, "projects": keys,
+                "reason": "%s is not set in this shell" % settings["sonarTokenEnv"]}
+    host = settings["sonarHost"]
+    projects = []
+    for key in keys:
+        gate = sonar_get(host, token, "api/qualitygates/project_status",
+                         {"projectKey": key, "pullRequest": str(pr["number"])})
+        issues = sonar_get(host, token, "api/issues/search",
+                           {"componentKeys": key, "pullRequest": str(pr["number"]),
+                            "resolved": "false", "ps": "1"})
+        hotspots = sonar_get(host, token, "api/hotspots/search",
+                             {"projectKey": key, "pullRequest": str(pr["number"]),
+                              "status": "TO_REVIEW", "ps": "1"})
+        status = ((gate.get("projectStatus") or {}).get("status")) if "_error" not in gate else None
+        failed = [c for c in ((gate.get("projectStatus") or {}).get("conditions") or [])
+                  if c.get("status") == "ERROR"]
+        projects.append({
+            "key": key,
+            "gate": status,
+            "failedConditions": failed,
+            "openIssues": issues.get("total") if "_error" not in issues else None,
+            "hotspotsToReview": (hotspots.get("paging") or {}).get("total",
+                                 len(hotspots.get("hotspots") or [])) if "_error" not in hotspots else None,
+            "error": gate.get("_error") or issues.get("_error") or hotspots.get("_error"),
+        })
+    errored = [p for p in projects if p["error"]]
+    if errored and len(errored) == len(projects):
+        if all("404" in (p["error"] or "") for p in errored):
+            reason = "no analysis for this PR on %s" % ", ".join(p["key"] for p in projects)
+        else:
+            reason = errored[0]["error"]
+        return {"provider": "sonar", "available": False, "verdict": None, "projects": projects,
+                "reason": reason}
+    bad = [p for p in projects
+           if p["gate"] not in ("OK", None) or (p["openIssues"] or 0) > 0 or (p["hotspotsToReview"] or 0) > 0]
+    unknown = [p for p in projects if p["gate"] is None and not p["error"]]
+    verdict = "changes" if bad else ("unclear" if unknown else "clean")
+    return {"provider": "sonar", "available": True, "fresh": True, "verdict": verdict, "projects": projects}
+
+
+# --- classify ----------------------------------------------------------------
+
+def classify(pr, settings):
+    b = settings["balanced"]
+    files = [f["path"] for f in ((pr.get("files") or {}).get("nodes") or [])]
+    labels = [l["name"].lower() for l in ((pr.get("labels") or {}).get("nodes") or [])]
+    loc = (pr.get("additions") or 0) + (pr.get("deletions") or 0)
+    reasons = []
+    if loc > b["loc"]:
+        reasons.append("%d changed lines (> %d)" % (loc, b["loc"]))
+    if (pr.get("changedFiles") or 0) > b["files"]:
+        reasons.append("%d changed files (> %d)" % (pr["changedFiles"], b["files"]))
+    hits = sorted({h for h in b["pathHints"] for f in files if h in f.lower()})
+    if hits:
+        reasons.append("sensitive paths: %s" % ", ".join(hits))
+    lab = sorted(set(labels) & {x.lower() for x in b["labels"]})
+    if lab:
+        reasons.append("labels: %s" % ", ".join(lab))
+    tops = sorted({f.split("/")[0] for f in files if "/" in f})
+    if len(tops) > 2:
+        reasons.append("spans %d top-level dirs: %s" % (len(tops), ", ".join(tops[:6])))
+    return {"level": "balanced" if reasons else "lite", "reasons": reasons,
+            "loc": loc, "changedFiles": pr.get("changedFiles"), "topLevel": tops}
+
+
+# --- stamp -------------------------------------------------------------------
+
+STAMP_RE = re.compile(r"<!-- pr-certify:v1\s+(.*?)\s*-->", re.S)
+
+
+def read_stamp(pr):
+    for c in reversed(((pr.get("comments") or {}).get("nodes") or [])):
+        m = STAMP_RE.search(c.get("body") or "")
+        if m:
+            attrs = dict(re.findall(r"(\w+)=([^\s]+)", m.group(1)))
+            attrs["_commentId"] = c.get("databaseId")
+            return attrs
+    return None
+
+
+# --- certification -----------------------------------------------------------
+
+def assess(pr, settings, repo_root, cfg=None):
+    head = pr["headRefOid"]
+    cop = copilot_state(pr)
+    crb = coderabbit_state(pr)
+    son = sonar_state(pr, settings, repo_root)
+    chk = checks_summary(pr)
+    threads = unresolved_threads(pr, {COPILOT_BOT, CODERABBIT_BOT})
+    live_threads = [t for t in threads if not t["isOutdated"]]
+    stale_base = pr.get("baseRefName") != pr.get("_defaultBranch")
+
+    blockers, warnings = [], []
+
+    if pr.get("isDraft"):
+        blockers.append("PR is a draft")
+    if not cop["fresh"]:
+        blockers.append("Copilot has not reviewed head %s (last: %s)" % (head[:8], (cop.get("reviewedSha") or "never")[:8]))
+    elif cop["verdict"] == "changes":
+        blockers.append("Copilot: changes recommended")
+    elif cop["verdict"] == "unclear":
+        warnings.append("Copilot: needs a closer look - human judgement required")
+
+    if not crb["available"]:
+        warnings.append("CodeRabbit unavailable: %s" % crb.get("reason", "unknown"))
+    elif not crb["fresh"]:
+        blockers.append("CodeRabbit has not reviewed head %s (last: %s)" % (head[:8], (crb.get("reviewedSha") or "never")[:8]))
+    elif crb["verdict"] == "changes":
+        blockers.append("CodeRabbit: %s actionable comment(s)" % crb.get("actionable"))
+    elif crb["verdict"] is None:
+        warnings.append("CodeRabbit review on head has no actionable-count line")
+
+    if not son["available"]:
+        warnings.append("SonarCloud unavailable: %s" % son.get("reason", "unknown"))
+    elif son["verdict"] == "changes":
+        for p in son["projects"]:
+            bits = []
+            if p["gate"] not in ("OK", None):
+                bits.append("gate %s" % p["gate"])
+            if (p["openIssues"] or 0) > 0:
+                bits.append("%d open issue(s)" % p["openIssues"])
+            if (p["hotspotsToReview"] or 0) > 0:
+                bits.append("%d hotspot(s) to review" % p["hotspotsToReview"])
+            if bits:
+                blockers.append("SonarCloud %s: %s" % (p["key"], ", ".join(bits)))
+
+    if live_threads:
+        blockers.append("%d unresolved bot review thread(s)" % len(live_threads))
+    if chk["failing"]:
+        blockers.append("failing checks: %s" % ", ".join(c["name"] for c in chk["failing"][:6]))
+    if chk["pending"]:
+        blockers.append("checks still running: %s" % ", ".join(chk["pending"][:6]))
+    if chk["total"] == 0:
+        warnings.append("no checks reported on head - stacked PR or CI not triggered; skip is not pass")
+    if stale_base:
+        warnings.append("base is %s, not the default branch %s - CI and CodeRabbit may be disabled"
+                        % (pr.get("baseRefName"), pr.get("_defaultBranch")))
+
+    settled = cop["fresh"] and chk["settled"] and (not crb["available"] or crb["fresh"])
+
+    return {
+        "repo": pr["url"].split("/pull/")[0].replace("https://github.com/", ""),
+        "pr": pr["number"], "title": pr["title"], "url": pr["url"],
+        "head": head, "base": pr.get("baseRefName"), "defaultBranch": pr.get("_defaultBranch"),
+        "isDraft": pr.get("isDraft"), "mergeable": pr.get("mergeable"),
+        "classification": classify(pr, settings),
+        "providers": {"copilot": cop, "coderabbit": crb, "sonar": son},
+        "checks": {k: chk[k] for k in ("total", "failing", "pending", "settled", "green")},
+        "unresolvedThreads": live_threads,
+        "outdatedUnresolvedThreads": [t for t in threads if t["isOutdated"]],
+        "stamp": read_stamp(pr),
+        "blockers": blockers, "warnings": warnings,
+        "certified": not blockers,
+        "settled": settled,
+    }
+
+
+# --- findings ----------------------------------------------------------------
+
+CR_TAGS = re.compile(r"_([^_\n]+?)_")
+SEVERITY_WORDS = {"critical", "major", "minor", "trivial", "nitpick", "blocker", "info"}
+CR_PROMPT = re.compile(
+    r"<details>\s*<summary>[^<]*Prompt for AI Agents</summary>\s*(.*?)</details>", re.S)
+CR_FIX = re.compile(
+    r"<details>\s*<summary>[^<]*(?:Suggested fix|Committable suggestion|Apply this diff)[^<]*</summary>\s*(.*?)</details>", re.S)
+
+
+def parse_thread(t):
+    body = t["body"]
+    out = dict(t)
+    out["severity"] = None
+    out["title"] = None
+    out["agentPrompt"] = None
+    out["suggestedFix"] = None
+    lines = [l for l in body.splitlines() if l.strip()]
+    tags = [re.sub(r"[^A-Za-z ]", "", t).strip().lower()
+            for t in CR_TAGS.findall(lines[0] if lines else "")]
+    out["tags"] = [t for t in tags if t]
+    out["severity"] = next((t for t in tags if t in SEVERITY_WORDS), None)
+    for l in lines[:6]:
+        b = re.match(r"^\*\*(.+?)\*\*", l.strip())
+        if b:
+            out["title"] = b.group(1)
+            break
+    if out["title"] is None and lines:
+        out["title"] = re.sub(r"[*_`]", "", lines[0])[:120]
+    mp = CR_PROMPT.search(body)
+    if mp:
+        out["agentPrompt"] = mp.group(1).strip()
+    mf = CR_FIX.search(body)
+    if mf:
+        out["suggestedFix"] = mf.group(1).strip()
+    return out
+
+
+def sonar_findings(pr, settings, repo_root, limit):
+    keys = sonar_keys(pr, repo_root)
+    token = os.environ.get(settings["sonarTokenEnv"], "")
+    if not keys or not token:
+        return []
+    host = settings["sonarHost"]
+    out = []
+    for key in keys:
+        res = sonar_get(host, token, "api/issues/search",
+                        {"componentKeys": key, "pullRequest": str(pr["number"]),
+                         "resolved": "false", "ps": str(limit),
+                         "additionalFields": "_all"})
+        for i in res.get("issues") or []:
+            out.append({
+                "source": "sonar", "kind": "issue", "project": key,
+                "id": i.get("key"), "rule": i.get("rule"),
+                "severity": (i.get("severity") or "").lower(),
+                "type": i.get("type"),
+                "path": (i.get("component") or "").split(":", 1)[-1],
+                "line": i.get("line"),
+                "title": i.get("message"),
+                "effort": i.get("effort"),
+                "url": "%s/project/issues?id=%s&pullRequest=%s&open=%s" % (
+                    host.rstrip("/"), urllib.parse.quote(key), pr["number"], i.get("key")),
+            })
+        hs = sonar_get(host, token, "api/hotspots/search",
+                       {"projectKey": key, "pullRequest": str(pr["number"]),
+                        "status": "TO_REVIEW", "ps": str(limit)})
+        for h in hs.get("hotspots") or []:
+            out.append({
+                "source": "sonar", "kind": "hotspot", "project": key,
+                "id": h.get("key"), "rule": h.get("ruleKey"),
+                "severity": (h.get("vulnerabilityProbability") or "").lower(),
+                "type": "SECURITY_HOTSPOT",
+                "path": (h.get("component") or "").split(":", 1)[-1],
+                "line": h.get("line"),
+                "title": h.get("message"),
+                "url": "%s/project/security_hotspots?id=%s&pullRequest=%s&hotspots=%s" % (
+                    host.rstrip("/"), urllib.parse.quote(key), pr["number"], h.get("key")),
+            })
+    return out
+
+
+def sonar_rule_docs(settings, rules, organization):
+    token = os.environ.get(settings["sonarTokenEnv"], "")
+    docs = {}
+    for r in sorted(set(rules)):
+        res = sonar_get(settings["sonarHost"], token, "api/rules/show",
+                        {"key": r, "organization": organization})
+        rule = res.get("rule") or {}
+        if not rule:
+            continue
+        text = rule.get("htmlDesc") or ""
+        for sec in rule.get("descriptionSections") or []:
+            text += "\n\n## %s\n%s" % (sec.get("key"), sec.get("content") or "")
+        text = re.sub(r"<[^>]+>", "", text)
+        text = re.sub(r"\n{3,}", "\n\n", text).strip()
+        docs[r] = {"name": rule.get("name"), "severity": rule.get("severity"),
+                   "type": rule.get("type"), "doc": text[:6000]}
+    return docs
+
+
+def collect_findings(pr, settings, repo_root, args):
+    threads = unresolved_threads(pr, {COPILOT_BOT, CODERABBIT_BOT})
+    items = []
+    for t in threads:
+        if t["isOutdated"] and not args.include_outdated:
+            continue
+        p = parse_thread(t)
+        p["source"] = "copilot" if t["source"] == COPILOT_BOT else "coderabbit"
+        p["kind"] = "review-thread"
+        items.append(p)
+    items += sonar_findings(pr, settings, repo_root, args.limit)
+    chk = checks_summary(pr)
+    for c in chk["failing"]:
+        items.append({"source": "checks", "kind": "failing-check", "title": c["name"],
+                      "severity": "major", "url": c["url"], "state": c["state"],
+                      "path": None, "line": None})
+    return items
+
+
+# --- write actions -----------------------------------------------------------
+
+def cmd_request(args, ctx):
+    pr, owner, name = ctx["pr"], ctx["owner"], ctx["name"]
+    done = []
+    if args.copilot:
+        gh(["api", "-X", "DELETE",
+            "repos/%s/%s/pulls/%d/requested_reviewers" % (owner, name, pr["number"]),
+            "-f", "reviewers[]=Copilot"], check=False)
+        out, rc, err = gh(["api", "-X", "POST",
+                           "repos/%s/%s/pulls/%d/requested_reviewers" % (owner, name, pr["number"]),
+                           "-f", "reviewers[]=Copilot"], check=False)
+        done.append({"provider": "copilot", "ok": rc == 0, "error": None if rc == 0 else err.strip()[:300]})
+    if args.coderabbit:
+        body = "@coderabbitai full review" if args.full else "@coderabbitai review"
+        out, rc, err = gh(["api", "-X", "POST",
+                           "repos/%s/%s/issues/%d/comments" % (owner, name, pr["number"]),
+                           "-f", "body=%s" % body], check=False)
+        done.append({"provider": "coderabbit", "ok": rc == 0, "error": None if rc == 0 else err.strip()[:300]})
+    print(json.dumps({"head": pr["headRefOid"], "requested": done}, indent=2))
+
+
+def cmd_reply(args, ctx):
+    owner, name, pr = ctx["owner"], ctx["name"], ctx["pr"]
+    body = args.body
+    if body == "-":
+        body = sys.stdin.read()
+    if args.comment_id:
+        out, rc, err = gh(["api", "-X", "POST",
+                           "repos/%s/%s/pulls/%d/comments/%s/replies" % (owner, name, pr["number"], args.comment_id),
+                           "-f", "body=%s" % body], check=False)
+        if rc != 0:
+            die("reply failed: %s" % err.strip())
+    else:
+        q = ("mutation($id:ID!,$body:String!){addPullRequestReviewThreadReply("
+             "input:{pullRequestReviewThreadId:$id,body:$body}){comment{url}}}")
+        out, rc, err = gh(["api", "graphql", "-F", "id=%s" % args.thread_id,
+                           "-F", "body=%s" % body, "-f", "query=%s" % q], check=False)
+        if rc != 0:
+            die("reply failed: %s" % err.strip())
+    print(json.dumps({"replied": args.thread_id or args.comment_id}))
+
+
+def cmd_resolve(args, ctx):
+    q = "mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{id isResolved}}}"
+    results = []
+    for tid in args.thread_id:
+        out, rc, err = gh(["api", "graphql", "-F", "id=%s" % tid, "-f", "query=%s" % q], check=False)
+        ok = rc == 0 and '"isResolved": true' in out.replace('":true', '": true')
+        results.append({"threadId": tid, "ok": ok, "error": None if rc == 0 else err.strip()[:200]})
+    print(json.dumps({"resolved": results}, indent=2))
+
+
+def render_stamp(state, rounds, notes):
+    c = state["classification"]
+    verdict = "ok" if state["certified"] else "blocked"
+    p = state["providers"]
+
+    def line(key, st):
+        if not st.get("available"):
+            return "| %s | n/a | %s |" % (key, st.get("reason") or st.get("note") or "not enabled")
+        v = st.get("verdict") or "pending"
+        extra = ""
+        if key == "copilot":
+            extra = st.get("headline") or ""
+        elif key == "coderabbit":
+            extra = "actionable: %s" % st.get("actionable")
+        elif key == "sonar":
+            extra = "; ".join("%s gate=%s issues=%s hotspots=%s" % (
+                x["key"], x["gate"], x["openIssues"], x["hotspotsToReview"]) for x in st.get("projects") or [])
+        fresh = "" if st.get("fresh", True) else " (stale head)"
+        return "| %s | %s%s | %s |" % (key, v, fresh, extra.replace("|", "/")[:180])
+
+    body = [
+        "%s sha=%s verdict=%s level=%s rounds=%d -->" % (STAMP_MARK, state["head"], verdict, c["level"], rounds),
+        "",
+        "## PR certification - %s" % ("READY TO MERGE" if state["certified"] else "NOT CERTIFIED"),
+        "",
+        "Head `%s` - review depth **%s**%s" % (
+            state["head"][:8], c["level"],
+            (" (" + "; ".join(c["reasons"]) + ")") if c["reasons"] else ""),
+        "",
+        "| reviewer | verdict | detail |",
+        "| --- | --- | --- |",
+        line("copilot", p["copilot"]),
+        line("coderabbit", p["coderabbit"]),
+        line("sonar", p["sonar"]),
+        "| checks | %s | %d total, %d failing, %d pending |" % (
+            "green" if state["checks"]["green"] else "not green",
+            state["checks"]["total"], len(state["checks"]["failing"]), len(state["checks"]["pending"])),
+        "",
+    ]
+    if state["blockers"]:
+        body += ["**Blocking:**", ""] + ["- %s" % b for b in state["blockers"]] + [""]
+    if state["warnings"]:
+        body += ["**Warnings:**", ""] + ["- %s" % w for w in state["warnings"]] + [""]
+    if notes:
+        body += ["**Notes:**", "", notes, ""]
+    body += ["<sub>Re-run the `pr-certify` skill after any new push; this stamp is only valid for the head SHA above.</sub>"]
+    return "\n".join(body)
+
+
+def cmd_stamp(args, ctx):
+    state = ctx["state"]
+    pr, owner, name = ctx["pr"], ctx["owner"], ctx["name"]
+    notes = args.notes
+    if notes == "-":
+        notes = sys.stdin.read()
+    body = render_stamp(state, args.rounds, notes)
+    prev = state.get("stamp")
+    if prev and prev.get("_commentId"):
+        gh(["api", "-X", "PATCH",
+            "repos/%s/%s/issues/comments/%s" % (owner, name, prev["_commentId"]),
+            "-f", "body=%s" % body])
+        action = "updated"
+    else:
+        gh(["api", "-X", "POST",
+            "repos/%s/%s/issues/%d/comments" % (owner, name, pr["number"]),
+            "-f", "body=%s" % body])
+        action = "posted"
+    print(json.dumps({"stamp": action, "verdict": "ok" if state["certified"] else "blocked",
+                      "head": state["head"], "url": state["url"]}, indent=2))
+
+
+# --- gate --------------------------------------------------------------------
+
+def cmd_gate(args, ctx):
+    cfg, state = ctx["cfg"], ctx["state"]
+    if not (cfg.get("gate") or {}).get("enforce", True):
+        print("gate disabled in config")
+        return 0
+    if not state.get("orgEnabled"):
+        print("org not in the pr-certify allowlist; not gating")
+        return 0
+    stamp = state.get("stamp")
+    if not stamp:
+        print("No pr-certify stamp on %s. Run the pr-certify skill before merging." % state["url"])
+        return 3
+    if stamp.get("sha") != state["head"]:
+        print("Stamp is for %s but head is %s - new commits landed since certification. Re-run pr-certify."
+              % ((stamp.get("sha") or "?")[:8], state["head"][:8]))
+        return 3
+    if stamp.get("verdict") != "ok":
+        print("Stamp says verdict=%s. Blockers: %s" % (stamp.get("verdict"), "; ".join(state["blockers"]) or "see PR"))
+        return 3
+    print("certified sha=%s level=%s" % (stamp["sha"][:8], stamp.get("level")))
+    return 0
+
+
+# --- ruleset -----------------------------------------------------------------
+
+def cmd_ruleset(args, ctx):
+    owner, name = ctx["owner"], ctx["name"]
+    default = ctx["pr"].get("_defaultBranch") or "main"
+    payload = {
+        "name": args.name,
+        "target": "branch",
+        "enforcement": "active",
+        "conditions": {"ref_name": {"include": ["refs/heads/%s" % default], "exclude": []}},
+        "rules": [{
+            "type": "copilot_code_review",
+            "parameters": {"review_on_push": True, "review_draft_pull_requests": False},
+        }],
+    }
+    out, rc, err = gh(["api", "-X", "POST", "repos/%s/%s/rulesets" % (owner, name),
+                       "--input", "-"], check=False, stdin=json.dumps(payload))
+    if rc != 0:
+        die("ruleset create failed (needs repo admin): %s" % (err or out).strip()[:600])
+    r = json.loads(out)
+    print(json.dumps({"created": r.get("id"), "name": r.get("name"), "target": default}, indent=2))
+
+
+# --- config ------------------------------------------------------------------
+
+def cmd_config(args, ctx=None):
+    cfg = load_config()
+    changed = False
+    for org in args.enable_org or []:
+        cfg.setdefault("orgs", {}).setdefault(org, {})
+        changed = True
+    for org in args.disable_org or []:
+        cfg.get("orgs", {}).pop(org, None)
+        changed = True
+    if args.gate is not None:
+        cfg.setdefault("gate", {})["enforce"] = args.gate == "on"
+        changed = True
+    if changed:
+        save_config(cfg)
+    cfg["_path"] = CONFIG_PATH
+    print(json.dumps(cfg, indent=2))
+
+
+# --- rendering ---------------------------------------------------------------
+
+def human_status(s):
+    lines = []
+    mark = "OK " if s["certified"] else "NO "
+    lines.append("%s#%d  %s" % (s["repo"], s["pr"], s["title"]))
+    lines.append("head %s  base %s  depth %s%s" % (
+        s["head"][:8], s["base"], s["classification"]["level"],
+        (" <- " + "; ".join(s["classification"]["reasons"])) if s["classification"]["reasons"] else ""))
+    lines.append("")
+    for key in ("copilot", "coderabbit", "sonar"):
+        p = s["providers"][key]
+        if not p.get("available"):
+            lines.append("  %-11s n/a       %s" % (key, p.get("reason") or "not enabled"))
+            continue
+        if p.get("verdict"):
+            verdict = p["verdict"]
+        elif p.get("pending"):
+            verdict = "requested"
+        else:
+            verdict = "none"
+        fresh = "head" if p.get("fresh") else "STALE"
+        lines.append("  %-11s %-9s %s" % (key, verdict, fresh))
+    c = s["checks"]
+    lines.append("  %-11s %-9s %d total / %d failing / %d pending" % (
+        "checks", "green" if c["green"] else "not green", c["total"], len(c["failing"]), len(c["pending"])))
+    lines.append("  %-11s %d unresolved" % ("threads", len(s["unresolvedThreads"])))
+    lines.append("")
+    lines.append("%sCERTIFIED" % mark)
+    for b in s["blockers"]:
+        lines.append("  blocker: %s" % b)
+    for w in s["warnings"]:
+        lines.append("  warn:    %s" % w)
+    return "\n".join(lines)
+
+
+def human_findings(items):
+    if not items:
+        return "no open findings"
+    lines = []
+    for i, f in enumerate(items, 1):
+        loc = "%s:%s" % (f.get("path") or "-", f.get("line") or "-")
+        lines.append("%2d. [%s/%s] %s  %s" % (
+            i, f.get("source"), f.get("severity") or f.get("kind"), loc, (f.get("title") or "")[:100]))
+    return "\n".join(lines)
+
+
+# --- main --------------------------------------------------------------------
+
+def build_ctx(args, need_state=True):
+    cfg = load_config()
+    owner, name, number = resolve_target(args)
+    settings = org_settings(cfg, owner)
+    enabled = settings is not None
+    if settings is None:
+        settings = cfg["defaults"]
+    pr = fetch_pr(owner, name, number)
+    root = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                          capture_output=True, text=True).stdout.strip() or None
+    ctx = {"cfg": cfg, "owner": owner, "name": name, "pr": pr,
+           "settings": settings, "orgEnabled": enabled, "root": root}
+    if need_state:
+        st = assess(pr, settings, root, cfg)
+        st["orgEnabled"] = enabled
+        if not enabled:
+            st["warnings"].insert(0, "org '%s' is not enabled; run: prcert config --enable-org %s" % (owner, owner))
+        ctx["state"] = st
+    return ctx
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="prcert", description=__doc__)
+    ap.add_argument("--repo", help="owner/name (default: current repo)")
+    ap.add_argument("--pr", type=int, help="PR number (default: PR for current branch)")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    p = sub.add_parser("status", help="full certification state for the PR")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--certified", action="store_true", help="exit 0 when certified, 3 otherwise")
+    p.add_argument("--settled", action="store_true", help="exit 0 when reviews and checks have landed on head")
+
+    p = sub.add_parser("classify", help="lite vs balanced review depth")
+    p.add_argument("--json", action="store_true")
+
+    p = sub.add_parser("findings", help="open findings from all reviewers")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--limit", type=int, default=100)
+    p.add_argument("--include-outdated", action="store_true")
+    p.add_argument("--with-rule-docs", action="store_true", help="attach SonarCloud rule documentation")
+
+    p = sub.add_parser("request", help="request or re-request reviews on the current head")
+    p.add_argument("--copilot", action="store_true")
+    p.add_argument("--coderabbit", action="store_true")
+    p.add_argument("--full", action="store_true", help="CodeRabbit: full review instead of incremental")
+    p.add_argument("--all", action="store_true")
+
+    p = sub.add_parser("reply", help="reply inside a review thread")
+    g = p.add_mutually_exclusive_group(required=True)
+    g.add_argument("--thread-id", help="GraphQL review thread id")
+    g.add_argument("--comment-id", help="REST review comment databaseId")
+    p.add_argument("--body", required=True, help="reply text, or - to read stdin")
+
+    p = sub.add_parser("resolve", help="mark review threads resolved")
+    p.add_argument("--thread-id", action="append", required=True)
+
+    p = sub.add_parser("stamp", help="post or update the certification comment")
+    p.add_argument("--rounds", type=int, default=1)
+    p.add_argument("--notes", default="", help="extra markdown, or - to read stdin")
+
+    p = sub.add_parser("gate", help="exit 0 if the PR head is certified, 3 otherwise")
+    p.add_argument("--command", help="ignored; accepted so hooks can pass context")
+
+    p = sub.add_parser("ruleset", help="create a copilot_code_review ruleset (review on push)")
+    p.add_argument("--name", default="copilot auto review")
+
+    p = sub.add_parser("config", help="show or edit the org allowlist")
+    p.add_argument("--enable-org", action="append")
+    p.add_argument("--disable-org", action="append")
+    p.add_argument("--gate", choices=["on", "off"])
+
+    args = ap.parse_args()
+
+    if args.cmd == "config":
+        cmd_config(args)
+        return 0
+
+    if args.cmd == "request":
+        ctx = build_ctx(args, need_state=False)
+        if args.all or not (args.copilot or args.coderabbit):
+            args.copilot = True
+            crb = coderabbit_state(ctx["pr"])
+            args.coderabbit = crb.get("available", False)
+        cmd_request(args, ctx)
+        return 0
+
+    if args.cmd in ("reply", "resolve"):
+        ctx = build_ctx(args, need_state=False)
+        (cmd_reply if args.cmd == "reply" else cmd_resolve)(args, ctx)
+        return 0
+
+    ctx = build_ctx(args)
+    state = ctx["state"]
+
+    if args.cmd == "status":
+        if args.certified:
+            print(human_status(state), file=sys.stderr)
+            return 0 if state["certified"] else 3
+        if args.settled:
+            print("settled" if state["settled"] else "waiting: %s" % (
+                ", ".join(state["checks"]["pending"][:4]) or "reviews"), file=sys.stderr)
+            return 0 if state["settled"] else 3
+        print(json.dumps(state, indent=2) if args.json else human_status(state))
+        return 0
+
+    if args.cmd == "classify":
+        c = state["classification"]
+        print(json.dumps(c, indent=2) if args.json else
+              "%s%s" % (c["level"], ("  <- " + "; ".join(c["reasons"])) if c["reasons"] else ""))
+        return 0
+
+    if args.cmd == "findings":
+        items = collect_findings(ctx["pr"], ctx["settings"], ctx["root"], args)
+        if args.with_rule_docs:
+            rules = [f["rule"] for f in items if f.get("source") == "sonar" and f.get("rule")]
+            org = ctx["settings"].get("sonarOrg") or next(
+                (f["project"].split("_", 1)[0] for f in items if f.get("project")), ctx["owner"])
+            docs = sonar_rule_docs(ctx["settings"], rules, org)
+            payload = {"head": state["head"], "findings": items, "ruleDocs": docs}
+        else:
+            payload = {"head": state["head"], "findings": items}
+        print(json.dumps(payload, indent=2) if args.json else human_findings(items))
+        return 0
+
+    if args.cmd == "stamp":
+        cmd_stamp(args, ctx)
+        return 0
+
+    if args.cmd == "gate":
+        return cmd_gate(args, ctx)
+
+    if args.cmd == "ruleset":
+        cmd_ruleset(args, ctx)
+        return 0
+
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main() or 0)
+    except KeyboardInterrupt:
+        sys.exit(130)

@@ -180,20 +180,6 @@ function createStoryToolCall(send: Sender, args: CreateStoryArgs): void {
   send({ type: "TOOL_CALL_END", toolCallId });
 }
 
-export type AgUiMessage = {
-  id: string;
-  role: "developer" | "system" | "assistant" | "user" | "tool" | "activity" | "reasoning";
-  content?: unknown;
-  toolCallId?: string;
-};
-
-type RunAgentInputBody = {
-  threadId?: string;
-  runId?: string;
-  state?: { harnessConversationId?: string | null } | null;
-  messages?: AgUiMessage[];
-};
-
 // The full AG-UI role set (confirmed against @ag-ui/core's message schema) —
 // "reasoning" matters in particular: this route's own narration streams as
 // REASONING_* events, which the client stores as role:"reasoning" messages

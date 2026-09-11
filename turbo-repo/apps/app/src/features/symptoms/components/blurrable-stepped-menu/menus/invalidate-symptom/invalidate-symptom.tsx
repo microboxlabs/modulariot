@@ -4,7 +4,7 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { Button, Textarea, Select } from "flowbite-react";
+import { Button, Textarea } from "flowbite-react";
 import { useState } from "react";
 import { MdBlock } from "react-icons/md";
 import { useRouter } from "next/navigation";
@@ -32,22 +32,8 @@ export default function InvalidateSymptom({
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [motivo, setMotivo] = useState("");
-  const motivos = [
-    { key: "inv_motivo_gps", label: tr("symptoms.inv_motivo_gps", dict) },
-    { key: "inv_motivo_map", label: tr("symptoms.inv_motivo_map", dict) },
-    { key: "inv_motivo_rule", label: tr("symptoms.inv_motivo_rule", dict) },
-    { key: "inv_motivo_duplicate", label: tr("symptoms.inv_motivo_duplicate", dict) },
-    { key: "motivo_other", label: tr("symptoms.motivo_other", dict) },
-  ];
-  const motivoLabel = motivos.find((m) => m.key === motivo)?.label ?? "";
-  const razonCompleta = motivo
-    ? `Motivo: ${motivoLabel}` + (reason.trim() ? ` · ${reason.trim()}` : "")
-    : reason.trim();
-  const puedeGuardar = motivo !== "" && reason.trim().length > 0;
-
   const handleSubmit = async () => {
-    if (!puedeGuardar || isSubmitting) return;
+    if (!reason.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
     try {
@@ -55,13 +41,13 @@ export default function InvalidateSymptom({
         ...treatmentRequest,
         status: "active",
         treatment_type: "invalidar sintoma",
-        description: razonCompleta,
+        description: reason,
       });
 
       setTreatmentRequest({
         ...treatmentRequest,
         status: "active",
-        description: razonCompleta,
+        description: reason,
         treatment_id: treatmentResult.treatment_id,
       });
 
@@ -72,7 +58,7 @@ export default function InvalidateSymptom({
           symptom_id: treatmentData?.symptom_info?.id.toString() ?? "",
           asset_id: treatmentData?.trip_info?.asset_id ?? "",
           trip_id: treatmentData?.trip_info?.trip_id ?? "",
-          reason: razonCompleta,
+          reason,
           invalidated_by: treatmentRequest.assigned_to,
           treatment_id: treatmentResult.treatment_id,
         }),
@@ -107,28 +93,6 @@ export default function InvalidateSymptom({
           prescriptionKey="symptoms.invalidate_symptom"
         />
 
-        <div className="w-full flex flex-col gap-1 bg-blue-50 dark:bg-gray-700 p-3 rounded-lg">
-          <p className="text-sm font-light text-blue-900 dark:text-blue-200">
-            {tr("symptoms.invalidate_semantics", dict)}
-          </p>
-        </div>
-
-        <div className="w-full flex flex-col gap-2 mt-1">
-          <h1 className="w-full text-left text-sm font-light justify-self-end text-gray-900 dark:text-white">
-            {tr("symptoms.invalidate_motivo", dict)} *
-          </h1>
-          <Select value={motivo} onChange={(e) => setMotivo(e.target.value)}>
-            <option value="" disabled>
-              {tr("symptoms.reason_required", dict)}
-            </option>
-            {motivos.map((m) => (
-              <option key={m.key} value={m.key}>
-                {m.label}
-              </option>
-            ))}
-          </Select>
-        </div>
-
         <div className="w-full flex flex-col gap-2 mt-2">
           <h1 className="w-full text-left text-sm font-light justify-self-end text-gray-900 dark:text-white">
             {tr("symptoms.invalidate_reason", dict)}
@@ -155,17 +119,12 @@ export default function InvalidateSymptom({
             {tr("symptoms.invalidate_alert", dict)}
           </p>
         </div>
-        <div className="w-full flex flex-col gap-2 bg-green-50 dark:bg-gray-700 p-3 rounded-lg">
-          <p className="text-sm font-light text-green-800 dark:text-green-300">
-            {tr("symptoms.invalidate_learning", dict)}
-          </p>
-        </div>
 
         <div className="w-full flex flex-col gap-2">
           <Button
             color="blue"
             onClick={handleSubmit}
-            disabled={!puedeGuardar || isSubmitting}
+            disabled={reason.trim().length === 0 || isSubmitting}
           >
             {tr("symptoms.save_and_confirm", dict)}
           </Button>

@@ -82,8 +82,6 @@ export default function SymptomsTable({
         (dict.symptoms as I18nRecord).condition as string,
         (dict.symptoms as I18nRecord).symptom as string,
         (dict.symptoms as I18nRecord).active_time as string,
-        (dict.symptoms as I18nRecord).sla_column as string,
-        (dict.symptoms as I18nRecord).recurrence as string,
         (dict.symptoms as I18nRecord).trip as string,
         (dict.symptoms as I18nRecord).driver as string,
         (dict.symptoms as I18nRecord).creation_date as string,
@@ -95,23 +93,10 @@ export default function SymptomsTable({
         "",
       ];
 
-  // Recurrencia derivada en la vista (demo): mismas patente+síntoma en la página
-  const recuento: Record<string, number> = {};
-  (tableData?.data ?? []).forEach((it) => {
-    const k = `${it.licensePlate}|${it.alertType}`;
-    recuento[k] = (recuento[k] ?? 0) + 1;
-  });
-
   const content = [
     ...(tableData && tableData.data
       ? tableData.data.map((item, index) => (
-          <TableItem
-            key={index}
-            data={item}
-            dict={dict}
-            compact={compact}
-            recurrenceCount={recuento[`${item.licensePlate}|${item.alertType}`] ?? 1}
-          />
+          <TableItem key={index} data={item} dict={dict} compact={compact} />
         ))
       : []),
   ];

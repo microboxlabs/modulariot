@@ -126,7 +126,7 @@ export default function SideInfo({
         className={`absolute bottom-5 left-5 right-5 flex flex-col justify-self-end w-full px-5 ${loading ? "opacity-50" : "opacity-100"}`}
       >
         <GroupAllowed
-          notAllowedTo={[]} /* DEMO LOCAL: era GROUP_MINTRAL_REVISOR */
+          notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
           userGroups={userGroups}
         >
           <ButtonGroup className="w-full">

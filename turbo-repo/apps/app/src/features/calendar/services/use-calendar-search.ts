@@ -22,6 +22,15 @@ import type {
   BookingResponse,
 } from "@microboxlabs/miot-calendar-client";
 
+/**
+ * Resolve a service's live client, given what its booking stored. Takes the
+ * stored value because the rule depends on it — see `resolveLiveClient`.
+ */
+export type ResolveClient = (
+  serviceCode: string | undefined,
+  storedClient: string | undefined
+) => string | undefined;
+
 export interface CalendarSearchResult {
   /** A search is running (at least one filter badge has a value). */
   active: boolean;
@@ -48,8 +57,17 @@ export interface CalendarSearchResult {
  * Other filters still narrow a ±30-day client-side set because they live in the
  * generic resource payload. The key is `null` while no search is active, so a
  * planner who never searches never pays for either request.
+ *
+ * `resolveClient` is the same live-task join the grid applies to its own
+ * planned services (`resolveItemOverlay` on the host). It has to be repeated
+ * here because this hook maps its own independently fetched bookings: without
+ * it, a row whose client only exists on the live task would render in the grid
+ * and still miss `?customer=`, and the two surfaces would disagree about what
+ * the client is.
  */
-export function useCalendarSearch(): CalendarSearchResult {
+export function useCalendarSearch(
+  resolveClient?: ResolveClient
+): CalendarSearchResult {
   const searchParams = useSearchParams();
 
   const params = useMemo(
@@ -90,11 +108,12 @@ export function useCalendarSearch(): CalendarSearchResult {
     const mapped = data.data
       .map(mapBookingToPlannedService)
       .filter((m): m is MappedBooking => m !== null)
+      .map((m) => withResolvedClient(m, resolveClient))
       .filter((m) => matchesCalendarSearch(m.planned.service, params));
     // Grouped by calendar so stepping stays put instead of remounting the grid
     // on every hop — see orderMatchesByCalendar.
     return orderMatchesByCalendar(mapped, (m) => slotTime(m).valueOf());
-  }, [active, data, params]);
+  }, [active, data, params, resolveClient]);
 
   return {
     active,
@@ -102,6 +121,29 @@ export function useCalendarSearch(): CalendarSearchResult {
     matches,
     isLoading: active && isLoading,
     error: error as Error | undefined,
+  };
+}
+
+/**
+ * Overlay the live client onto a mapped booking, so the filter matches on the
+ * same value the grid shows.
+ *
+ * Both surfaces have to run the same rule, not merely a rule: if this one
+ * differed, a booking would render under one client and answer to another.
+ * `resolveLiveClient` is that rule, and the host's `resolveItemOverlay` calls
+ * it too. An unchanged match is returned as-is.
+ */
+export function withResolvedClient(
+  match: MappedBooking,
+  resolveClient?: ResolveClient
+): MappedBooking {
+  const service = match.planned.service;
+  if (!resolveClient) return match;
+  const client = resolveClient(service.mintral_serviceCode, service.cliente);
+  if (!client || client === service.cliente) return match;
+  return {
+    ...match,
+    planned: { ...match.planned, service: { ...service, cliente: client } },
   };
 }
 

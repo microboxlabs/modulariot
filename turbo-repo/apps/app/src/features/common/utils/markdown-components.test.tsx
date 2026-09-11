@@ -79,6 +79,17 @@ describe("MarkdownContent — compact variant (chat bubbles, spotlight)", () => 
       expect(row.className).toContain("divide-x");
     }
   });
+
+  it("highlights the header row with its own background", () => {
+    const { container } = render(<MarkdownContent>{table}</MarkdownContent>);
+    expect(container.querySelector("thead")?.className).toContain("bg-gray-200");
+  });
+
+  it("disables rubber-band bounce on the table's own horizontal scroll", () => {
+    const { container } = render(<MarkdownContent>{table}</MarkdownContent>);
+    const wrapper = container.querySelector("table")?.parentElement;
+    expect(wrapper?.className).toContain("overscroll-x-none");
+  });
 });
 
 describe("MarkdownContent — document variant tables", () => {
@@ -97,5 +108,16 @@ describe("MarkdownContent — document variant tables", () => {
     for (const row of container.querySelectorAll("tr")) {
       expect(row.className).toContain("divide-x");
     }
+  });
+
+  it("highlights the header row with its own background", () => {
+    const { container } = render(<MarkdownContent variant="document">{table}</MarkdownContent>);
+    expect(container.querySelector("thead")?.className).toContain("bg-gray-200");
+  });
+
+  it("disables rubber-band bounce on the table's own horizontal scroll", () => {
+    const { container } = render(<MarkdownContent variant="document">{table}</MarkdownContent>);
+    const wrapper = container.querySelector("table")?.parentElement;
+    expect(wrapper?.className).toContain("overscroll-x-none");
   });
 });

@@ -55,16 +55,29 @@ const MARKDOWN_COMPONENTS = {
   // whitespace-nowrap on every cell: a wrapped cell grows the table's row
   // height instead of its width, which defeats the point of scoping the
   // scroll to overflow-x-auto above — cells stay one line and the table
-  // grows sideways (scrollable) instead of vertically.
+  // grows sideways (scrollable) instead of vertically. overscroll-x-none:
+  // without it, panning this card to its horizontal edge lets the browser's
+  // own elastic bounce/rubber-band kick in on the card itself (macOS
+  // trackpads especially) — jarring for a table-sized scroller nested
+  // inside a much bigger vertically-scrolling one.
   table: ({ children }: React.TableHTMLAttributes<HTMLTableElement>) => (
-    <div className="mb-1.5 last:mb-0 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+    <div className="mb-1.5 last:mb-0 overflow-x-auto overscroll-x-none rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
       <table className="w-full border-collapse whitespace-nowrap text-left text-xs">
         {children}
       </table>
     </div>
   ),
+  // Same "highlighted table header" treatment used elsewhere in the app
+  // (schema-panel.tsx) — a solid wash, not just the border below, so the
+  // header row reads as a distinct band rather than blending into the
+  // first data row. One step past the column divider's own shade in both
+  // themes (gray-200/gray-600 vs. the divider's gray-100/gray-700) so that
+  // divider still shows up as a contrasting line across the header too,
+  // instead of vanishing into a background painted the same color.
   thead: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
-    <thead className="border-b border-gray-200 dark:border-gray-700">{children}</thead>
+    <thead className="border-b border-gray-200 bg-gray-200 dark:border-gray-700 dark:bg-gray-600">
+      {children}
+    </thead>
   ),
   // dark:divide-gray-700, not -800: the card behind this table is
   // dark:bg-gray-800 (see `table` above) — a divider in that same shade is
@@ -135,11 +148,19 @@ const DOCUMENT_COMPONENTS = {
   // card chrome as `pre` above, so a table reads as the same kind of
   // "embedded block" as a code fence within the document. whitespace-nowrap
   // on every cell keeps a wide cell growing the table sideways (scrollable)
-  // instead of wrapping and growing it vertically instead.
+  // instead of wrapping and growing it vertically instead. overscroll-x-none
+  // stops the browser's own elastic bounce/rubber-band from firing on this
+  // card when panning hits its horizontal edge (macOS trackpads especially).
   table: ({ children }: React.TableHTMLAttributes<HTMLTableElement>) => (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+    <div className="overflow-x-auto overscroll-x-none rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
       <table className="whitespace-nowrap">{children}</table>
     </div>
+  ),
+  // Same highlighted-header treatment as the compact variant's `thead`
+  // below — prose doesn't give thead a background of its own, so this adds
+  // one rather than fighting prose's specificity to change one.
+  thead: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <thead className="bg-gray-200 dark:bg-gray-600">{children}</thead>
   ),
   // divide-x draws a faint rule between columns (header row included, since
   // GFM maps both header and body rows to the same `tr`) — a border, not a
@@ -148,7 +169,9 @@ const DOCUMENT_COMPONENTS = {
   // dark:divide-gray-700, not -800: this table's card is dark:bg-gray-800
   // (see `table` above) — a divider in that same shade doesn't show up
   // against its own background. gray-700 is the step up from it, same as
-  // Typography's own prose-invert row borders use for the same reason.
+  // Typography's own prose-invert row borders use for the same reason. It
+  // also stays visibly distinct from the header's own gray-200/gray-600
+  // wash above, so the column line doesn't vanish inside the header band.
   tr: ({ children }: React.HTMLAttributes<HTMLTableRowElement>) => (
     <tr className="divide-x divide-gray-100 dark:divide-gray-700">{children}</tr>
   ),

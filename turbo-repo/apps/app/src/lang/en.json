@@ -1784,8 +1784,7 @@
         "credentials": "Credentials",
         "connections": "Connections",
         "harness": "Harness",
-        "platform": "Platform",
-        "symptomRules": "Symptom rules"
+        "platform": "Platform"
       },
       "symptoms": {
         "config": {
@@ -1888,8 +1887,7 @@
         "title": "Settings",
         "general": "General",
         "dataSources": "Data Sources",
-        "credentials": "Credentials",
-        "symptomRules": "Symptom rules"
+        "credentials": "Credentials"
       },
       "credentials": {
         "title": "Credentials",
@@ -2545,8 +2543,7 @@
         "subtitle2": "Document Separation",
         "subtitle3": "Client System Validation",
         "subtitle4": "GPS Validation",
-        "platform": "Platform",
-        "symptomRules": "Symptom rules"
+        "platform": "Platform"
       }
     },
     "calendar": {
@@ -3698,49 +3695,7 @@
       "Fatigue And Drowsiness": "Fatigue and drowsiness",
       "Fatigue And Drowsiness Sensor": "Fatigue and drowsiness sensor"
     },
-    "speed limit": "Speed limit exceeded",
-    "call_target": "Who to call?",
-    "target_driver": "Driver",
-    "target_carrier": "Carrier / Transport lead",
-    "target_ops": "Operations manager",
-    "target_mining": "Mining manager",
-    "target_other": "Other",
-    "target_phone": "Recipient phone",
-    "escalation_note": "Recipient other than the driver: it will be recorded as an escalation proposed by the operator.",
-    "ignore_reason": "Ignore reason",
-    "ignore_note": "Note / evidence",
-    "reason_required": "Select a reason to continue",
-    "note_required_other": "With reason “Other”, the note is required",
-    "ignore_semantics": "Ignore = the event is real but does not require management. If the symptom is NOT real (data or rule), use Invalidate symptom.",
-    "invalidate_semantics": "Invalidate = the symptom is NOT real (bad data or miscalibrated rule). If the event is real but does not require management, use Ignore condition.",
-    "ignore_learning": "This reason feeds calibration: “wrong map/limit” goes to the correction backlog and recurring zones are proposed as exclusions.",
-    "invalidate_learning": "Invalidation with a reason is the engine's learning label: it tunes the rule that produced the symptom.",
-    "motivo_map": "False positive — wrong map/limit",
-    "motivo_shadow": "Known GPS shadow zone",
-    "motivo_maneuver": "Justified maneuver (overtaking)",
-    "motivo_authorized": "Authorized operating condition",
-    "motivo_duplicate": "Duplicated symptom",
-    "motivo_other": "Other (detail in the note)",
-    "inv_motivo_gps": "Wrong GPS data",
-    "inv_motivo_map": "Wrong map/limit",
-    "inv_motivo_rule": "Miscalibrated rule",
-    "inv_motivo_duplicate": "Duplicated symptom",
-    "invalidate_motivo": "Invalidation reason",
-    "call_result": "Call result",
-    "result_pending": "Select the result…",
-    "result_commits": "Answers — commits to correct",
-    "result_corrected": "Answers — condition already corrected",
-    "result_rejects": "Answers — rejects or argues",
-    "result_no_answer": "No answer",
-    "result_voicemail": "Voicemail / phone off",
-    "call_note": "Call note",
-    "escalate_offer": "Per the symptom parametrization, with no answer the declared escalation applies:",
-    "escalate_to": "Escalate to",
-    "register_escalation": "Record the escalation in the treatment",
-    "sla_column": "SLA",
-    "recurrence": "Recurrence",
-    "sla_left": "left",
-    "sla_overdue": "overdue by"
+    "speed limit": "Speed limit exceeded"
   },
   "geographic_view": {
     "speed": "Speed",
@@ -5318,7 +5273,6 @@
       },
       "composer": {
         "placeholder": "Ask the harness…",
-        "model": "Model",
         "cancelRun": "Cancel",
         "pdfTooLarge": "PDF is too large ({size} MB) — the limit is {limit} MB."
       },
@@ -5337,8 +5291,5 @@
         "submit": "Submit"
       }
     }
-  },
-  "moduleNames": {
-    "CARRIER_PORTAL": "Carrier portal"
   }
 }

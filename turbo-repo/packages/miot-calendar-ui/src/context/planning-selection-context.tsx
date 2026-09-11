@@ -46,7 +46,10 @@ import {
   preEditSnapshot,
   rollbackPlannedService,
 } from "../services/booking-persistence";
-import { mergeWorkflowStages } from "../services/workflow-stage-merge";
+import {
+  mergeItemOverlays,
+  mergeWorkflowStages,
+} from "../services/workflow-stage-merge";
 
 dayjs.extend(isoWeek);
 dayjs.extend(isSameOrAfter);
@@ -296,10 +299,17 @@ export function PlanningSelectionProvider<
   // the SWR cache — instead of inside `loadBookings` keeps the stage
   // reactive: a live-index refresh re-labels chips without refetching
   // bookings (the fetcher is deliberately identity-stable, see above).
+  // Item fields ride the same join for the same reason: a booking row written
+  // outside the planner knows nothing the planner put on the item.
   const resolveWorkflowStage = host.resolveWorkflowStage;
+  const resolveItemOverlay = host.resolveItemOverlay;
   const plannedServices = useMemo(
-    () => mergeWorkflowStages(rawPlannedServices, resolveWorkflowStage),
-    [rawPlannedServices, resolveWorkflowStage]
+    () =>
+      mergeItemOverlays(
+        mergeWorkflowStages(rawPlannedServices, resolveWorkflowStage),
+        resolveItemOverlay
+      ),
+    [rawPlannedServices, resolveWorkflowStage, resolveItemOverlay]
   );
   const bookingIds = bookingsData?.ids ?? emptyBookingIdsRef.current;
   const bookingsLoadError = bookingsError ? bookingsLoadErrorMessage : null;

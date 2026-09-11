@@ -29,6 +29,14 @@ export const StoredServiceSchema = z
      * keeping the raw code lets the live-task lookup work without parsing.
      */
     mintral_serviceCode: z.string().optional(),
+    /**
+     * Client name as the kanban task reports it. Persisted because
+     * `resource.label` is not a reliable carrier: ECM's booking listeners
+     * create the row without a label at all (ecm-coordinator
+     * `OnCreateAssignDriverBinding`), so a label-derived client silently
+     * degrades to the resource id — the service code shown as a client name.
+     */
+    cliente: z.string().optional(),
     origen: z.string().optional(),
     lugarCarguio: z.string().optional(),
     destino: z.string().optional(),
@@ -105,6 +113,24 @@ function serviceTypeFromResourceId(id: string): string | undefined {
 }
 
 /**
+ * Resolve the client name for a booking without ever falling back to the
+ * resource id. The stored blob is the only carrier the planner writes on
+ * purpose; `resource.label` is accepted as a legacy second source, but only
+ * when it is not just the resource id echoed back — rows written before this
+ * baked the id into the label, and re-reading it would keep the service code
+ * masquerading as a client name. "" when neither is usable; the live-task
+ * overlay fills it in at render time.
+ */
+function clientFromBooking(
+  booking: BookingResponse,
+  storedClient: string | undefined
+): string {
+  if (storedClient) return storedClient;
+  const label = booking.resource.label;
+  return label && label !== booking.resource.id ? label : "";
+}
+
+/**
  * Canonical booking → planned-service transform.
  *
  * Shared by the grid loader and the calendar search on purpose: if search
@@ -147,7 +173,7 @@ export function mapBookingToPlannedService(
     ...storedService,
     // Canonical booking fields always win over stored data.
     id: booking.resource.id,
-    cliente: booking.resource.label ?? booking.resource.id,
+    cliente: clientFromBooking(booking, storedService.cliente),
     // Recover the code from the `${code}-${type}` resource id prefix for
     // legacy bookings written before mintral_serviceCode was persisted.
     mintral_serviceCode:

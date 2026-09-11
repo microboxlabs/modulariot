@@ -146,3 +146,52 @@ describe("mapBookingToPlannedService — plan/assign origin", () => {
     expect(mapped?.planned.service.plannedIn).toBe("something-new");
   });
 });
+
+describe("mapBookingToPlannedService — client name", () => {
+  function withResource(resource: BookingResponse["resource"]) {
+    return mapBookingToPlannedService(booking({ resource }));
+  }
+
+  it("reads the client from the stored blob the planner persists", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      data: { mintral_serviceCode: "1658427", cliente: "ACME" },
+    });
+    expect(mapped?.planned.service.cliente).toBe("ACME");
+  });
+
+  it("never falls back to the resource id — an ECM-written row carries no label", () => {
+    expect(mapBookingToPlannedService(booking())?.planned.service.cliente).toBe(
+      ""
+    );
+  });
+
+  it("ignores a label that is just the resource id echoed back", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      label: "1658427-V",
+    });
+    expect(mapped?.planned.service.cliente).toBe("");
+  });
+
+  it("still accepts a real label from rows written before the blob carried it", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      label: "ACME",
+    });
+    expect(mapped?.planned.service.cliente).toBe("ACME");
+  });
+
+  it("prefers the stored blob over a label the id was baked into", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      label: "1658427-V",
+      data: { cliente: "ACME" },
+    });
+    expect(mapped?.planned.service.cliente).toBe("ACME");
+  });
+});

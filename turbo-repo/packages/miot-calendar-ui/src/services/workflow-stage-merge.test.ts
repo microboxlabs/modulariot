@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { mergeWorkflowStages } from "./workflow-stage-merge";
+import {
+  mergeItemOverlays,
+  mergeWorkflowStages,
+} from "./workflow-stage-merge";
 import type { PlannedService } from "../types/planning";
 
-type Item = { id: string; code?: string };
+type Item = { id: string; code?: string; client?: string };
 
 const slot = { date: new Date("2026-07-13T00:00:00Z"), hour: 5, minutes: 0 };
 
@@ -53,5 +56,44 @@ describe("mergeWorkflowStages", () => {
     );
     expect(out[0]).toBe(input[0]);
     expect(out[1]).not.toBe(input[1]);
+  });
+});
+
+describe("mergeItemOverlays", () => {
+  it("returns the input array untouched when no resolver is given", () => {
+    const input = [planned("1"), planned("2")];
+    expect(mergeItemOverlays(input)).toBe(input);
+  });
+
+  it("overlays the resolved fields onto matching items", () => {
+    const input = [planned("1"), planned("2")];
+    const out = mergeItemOverlays(input, (item) =>
+      item.id === "1" ? { client: "ACME" } : undefined
+    );
+    expect(out[0].service.client).toBe("ACME");
+    expect(out[1].service.client).toBeUndefined();
+  });
+
+  it("leaves the item alone when the overlay repeats what it already has", () => {
+    const input = [planned("1")];
+    const out = mergeItemOverlays(input, (item) => ({ code: item.code }));
+    expect(out).toBe(input);
+  });
+
+  it("ignores undefined values rather than erasing the item's own", () => {
+    const input = [planned("1")];
+    const out = mergeItemOverlays(input, () => ({ code: undefined }));
+    expect(out).toBe(input);
+    expect(out[0].service.code).toBe("1");
+  });
+
+  it("keeps identity for untouched entries and preserves the slot", () => {
+    const input = [planned("1"), planned("2", "finished")];
+    const out = mergeItemOverlays(input, (item) =>
+      item.id === "2" ? { client: "ACME" } : undefined
+    );
+    expect(out[0]).toBe(input[0]);
+    expect(out[1].slot).toBe(input[1].slot);
+    expect(out[1].workflowStage).toBe("finished");
   });
 });

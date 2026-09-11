@@ -80,8 +80,13 @@ import { withAssignmentCleared } from "@/features/calendar/services/assignment-r
 import { CALENDAR_LIVE_TASK_COLUMNS } from "@/features/calendar/services/workflow-stage";
 
 
-/** The live Alfresco task representing a service right now. */
-type LiveTask = { taskId: string; stage: TaskStage };
+/**
+ * The live Alfresco task representing a service right now. `client` rides
+ * along because the booking row is not a reliable carrier for it: ECM's
+ * listeners create the row without one, so the kanban task is the only live
+ * source for the client name of an already-planned service.
+ */
+type LiveTask = { taskId: string; stage: TaskStage; client?: string };
 
 /** A pending re-assign of an already-presented service (the two-step dance). */
 type ReassignPlan = { presentTaskId: string; tuple: AssignProcessVariables };
@@ -103,7 +108,9 @@ function buildLiveTaskIndex(
     if (!stage) continue;
     for (const task of board.tasks) {
       const code = task.mintral_serviceCode;
-      if (code) map.set(code, { taskId: task.id, stage });
+      if (!code) continue;
+      const client = task.client || task.clientCode || undefined;
+      map.set(code, { taskId: task.id, stage, ...(client ? { client } : {}) });
     }
   }
   return map;
@@ -553,6 +560,13 @@ export function PlanningSelectionProvider({
       // read from the row's lifecycle status.
       resolveWorkflowStage: (service) =>
         getLiveTask(service.mintral_serviceCode)?.stage,
+      // Same join for the client name: a booking ECM's listener wrote carries
+      // none, and the mapper refuses to invent one from the resource id. The
+      // next planner write persists what the task supplies here onto the row.
+      resolveItemOverlay: (service) => {
+        const client = getLiveTask(service.mintral_serviceCode)?.client;
+        return client ? { cliente: client } : undefined;
+      },
       hooks: {
         shouldPersistBooking: (item, slot, ctx) => {
           const service = item.raw as SelectedService;

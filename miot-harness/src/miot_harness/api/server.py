@@ -599,7 +599,7 @@ def _make_lifespan(
                         ),
                     )
                     harness.agent_loop = AgentLoopRunners(
-                        default_model=settings.agents_planner_model,
+                        default_model=settings.agents_agent_loop_model,
                         models=settings.agents_agent_loop_models,
                         # Reasoning knob per model generation: `effort` on the
                         # adaptive-thinking models, a thinking budget on the rest.

@@ -73,11 +73,13 @@ class HarnessSettings(BaseSettings):
     # so they exercise the rules-only path.
     agents_agentic_verify_enabled: bool = True
     agents_agentic_max_replans: int = Field(default=2, ge=0)
-    # Single-agent tool-calling loop (spec 2026-07-02). When enabled, the
-    # DATA_AGENTIC route runs one cached native tool-use loop instead of the
-    # planner/verifier/synthesizer/critic panel. Default off until golden
-    # evals show parity with the legacy agentic graph.
-    agents_agent_loop_enabled: bool = False
+    # Single-agent tool-calling loop. The DATA_AGENTIC route runs one cached
+    # native tool-use loop instead of the planner/verifier/synthesizer/critic
+    # panel. False switches that panel back on.
+    agents_agent_loop_enabled: bool = True
+    # The conversation model of the loop: the seat that talks to the user
+    # and calls tools. The advisor seat runs a stronger model.
+    agents_agent_loop_model: str = "claude-sonnet-4-6"
     # Per-tool-result cap on the JSON fed back to the model. Bounds context
     # growth (and cache-write size) when a tool returns a large row set.
     # Minimum holds the compact envelope the loop falls back to (tool name,
@@ -88,7 +90,7 @@ class HarnessSettings(BaseSettings):
     # current hard 60s default. 300s (5 minutes) suits multi-step planning.
     agents_agent_loop_llm_timeout_seconds: int = Field(default=300, gt=0)
     # Conversation models a caller may pick for the agent loop
-    # (`UserRequest.model`), as a JSON list in the env. The planner model is
+    # (`UserRequest.model`), as a JSON list in the env. The loop model is
     # always allowed and is the default. One runner, with its own prompt-cache
     # prefix, is built per model on first use.
     agents_agent_loop_models: list[str] = Field(default_factory=list)

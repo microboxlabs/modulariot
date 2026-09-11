@@ -69,13 +69,20 @@ const MARKDOWN_COMPONENTS = {
   tbody: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{children}</tbody>
   ),
+  // divide-x on every row (header row included, since GFM maps both to the
+  // same `tr`) draws a faint rule between columns — the same light token
+  // tbody already uses between rows, so it reads as a grid line, not a
+  // strong border.
+  tr: ({ children }: React.HTMLAttributes<HTMLTableRowElement>) => (
+    <tr className="divide-x divide-gray-100 dark:divide-gray-800">{children}</tr>
+  ),
   th: ({ children }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
-    <th className="whitespace-nowrap px-2 py-1 font-semibold text-gray-700 dark:text-gray-200">
+    <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-gray-700 dark:text-gray-200">
       {children}
     </th>
   ),
   td: ({ children }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
-    <td className="whitespace-nowrap px-2 py-1 align-top text-gray-600 dark:text-gray-300">
+    <td className="whitespace-nowrap px-2 py-1.5 align-top text-gray-600 dark:text-gray-300">
       {children}
     </td>
   ),
@@ -129,6 +136,13 @@ const DOCUMENT_COMPONENTS = {
       <table className="whitespace-nowrap">{children}</table>
     </div>
   ),
+  // divide-x draws a faint rule between columns (header row included, since
+  // GFM maps both header and body rows to the same `tr`) — a border, not a
+  // padding/margin, so it layers over prose's own cell spacing without
+  // fighting its specificity the way a plain padding override would.
+  tr: ({ children }: React.HTMLAttributes<HTMLTableRowElement>) => (
+    <tr className="divide-x divide-gray-100 dark:divide-gray-800">{children}</tr>
+  ),
   th: ({ children }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
     <th className="whitespace-nowrap">{children}</th>
   ),
@@ -175,7 +189,15 @@ export function MarkdownContent({
     // stylesheet, not whichever the caller passed — twMerge resolves the
     // conflict in the caller's favor, like it should.
     return (
-      <article className={twMerge("prose dark:prose-invert max-w-none", className)}>
+      // prose-th:/prose-td: (Typography's own override variants, not plain
+      // padding utilities — those lose to prose's descendant selectors) give
+      // table rows a bit more breathing room than the plugin's default.
+      <article
+        className={twMerge(
+          "prose dark:prose-invert max-w-none prose-th:py-2 prose-td:py-2",
+          className
+        )}
+      >
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}

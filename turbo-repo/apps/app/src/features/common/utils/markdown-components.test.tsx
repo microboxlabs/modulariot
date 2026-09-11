@@ -72,6 +72,13 @@ describe("MarkdownContent — compact variant (chat bubbles, spotlight)", () => 
       expect(cell.className).toContain("whitespace-nowrap");
     }
   });
+
+  it("draws a faint divider between columns on every row", () => {
+    const { container } = render(<MarkdownContent>{table}</MarkdownContent>);
+    for (const row of container.querySelectorAll("tr")) {
+      expect(row.className).toContain("divide-x");
+    }
+  });
 });
 
 describe("MarkdownContent — document variant tables", () => {
@@ -82,6 +89,13 @@ describe("MarkdownContent — document variant tables", () => {
     expect(container.querySelector("table")?.className).toContain("whitespace-nowrap");
     for (const cell of container.querySelectorAll("th, td")) {
       expect(cell.className).toContain("whitespace-nowrap");
+    }
+  });
+
+  it("draws a faint divider between columns on every row", () => {
+    const { container } = render(<MarkdownContent variant="document">{table}</MarkdownContent>);
+    for (const row of container.querySelectorAll("tr")) {
+      expect(row.className).toContain("divide-x");
     }
   });
 });

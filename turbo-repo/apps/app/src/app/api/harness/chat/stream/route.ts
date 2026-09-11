@@ -46,6 +46,8 @@ const FORWARDED_EVENTS: ReadonlySet<string> = new Set([
   "thinking.delta",
   "thinking.completed",
   "verification.completed",
+  "advisor.consulted",
+  "delegate.completed",
   "answer.completed",
   "run.completed",
   "run.failed",
@@ -494,9 +496,26 @@ function narrateForwardedEvent(
   tr: TrFn,
 ): void {
   appendNarrationDiff(send, narrator, progress, tr);
+  const line = seatNarration(event);
+  if (line) appendNarration(send, narrator, line);
   if (event.type !== "thinking.delta") return;
   const delta = event.data.delta;
   if (typeof delta === "string") appendNarration(send, narrator, delta);
+}
+
+/** One narration line for a seat event, or null for any other event. */
+export function seatNarration(event: { type: string; data: Record<string, unknown> }): string | null {
+  if (event.type === "advisor.consulted") {
+    const signal = typeof event.data.signal === "string" ? event.data.signal : "?";
+    const note = typeof event.data.note === "string" ? event.data.note.split("\n")[0] : "";
+    const suffix = note ? " — " + note : "";
+    return "\nAdvisor: " + signal + suffix;
+  }
+  if (event.type === "delegate.completed") {
+    const tools = Array.isArray(event.data.tools_run) ? event.data.tools_run.join(", ") : "";
+    return tools ? "\nDelegated: ran " + tools : "\nDelegated";
+  }
+  return null;
 }
 
 /** Relays the harness run's own event stream to the browser as live

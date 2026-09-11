@@ -34,7 +34,7 @@ Investigation rules:
   primitives are a fallback for questions the curated catalog cannot answer.
 - Never repeat a tool call you already made with identical arguments.
 - Read any knowledge card at most once, then ACT on what it says.
-{skills_block}
+{skills_block}{seats_block}
 Rigor — do not answer from incomplete or fuzzy evidence:
 - A grep / ILIKE result is a FUZZY sample, never an authoritative count or
   list. Do not report a total or enumerate items from a grep — run a precise
@@ -110,7 +110,7 @@ def render_skills_index(
 
 
 def build_agent_system_prompt(
-    profile: DataSourceProfile, *, skills_index: str = ""
+    profile: DataSourceProfile, *, skills_index: str = "", seats_block: str = ""
 ) -> str:
     skills_block = (
         _SKILLS_BLOCK_TEMPLATE.format(index=skills_index) if skills_index else ""
@@ -121,6 +121,7 @@ def build_agent_system_prompt(
         primer=profile.primer,
         tool_prefix=profile.tool_prefix,
         skills_block=skills_block,
+        seats_block=seats_block,
     )
 
 

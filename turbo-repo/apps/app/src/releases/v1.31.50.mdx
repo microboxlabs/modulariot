@@ -1,0 +1,36 @@
+# 🔔 Release Notes v1.31.50 — ModularIoT
+
+### Fecha: 11/09/2026
+
+**Objetivo**: Este lanzamiento corrige un problema de inventario en la experiencia de búsqueda y deja preparado el stack para la versión 1.31.50 de ModularIoT. Se centra en mantener la consistencia operativa y evitar regresiones en rutas internas y en la integración de funcionalidades del ecosistema.
+
+## 🐛 Correcciones
+
+- **🐛 Inventario de rutas de `miot-search`** *(Integración OSS — MIOT-0.5.51)*
+  - **Impacto**: La página de habilidades podía quedar con una entrada colgante para `/users/settings/symptom-rules`, lo que rompía la validación de rutas esperadas.
+  - **Solución**: Se eliminó la fila pendiente del inventario de `miot-search` tras confirmar que la ruta había existido solo por una inserción accidental y fue revertida sin dejar una referencia válida.
+
+## 📊 Beneficios
+
+- Se evita la aparición de rutas inexistentes en la vista de habilidades, reduciendo errores de validación y confusión operativa.
+- Se mejora la estabilidad del inventario de `miot-search` al eliminar entradas colgantes y mantener coherencia con las páginas realmente publicadas.
+- Se reduce la necesidad de intervención manual para corregir regresiones de navegación o validación tras reversiones de rutas.
+- La corrección fortalece la calidad del flujo de integración del módulo de búsqueda dentro de la plataforma ModularIoT.
+- Se mantiene la consistencia entre la experiencia del usuario y la capa técnica de enrutado, con menos riesgo de fallos en pruebas y validaciones.
+
+## 🧾 Versiones del stack
+
+- `miot-stack@v0.5.51`
+- `app@v0.5.51` (cambio: sí)
+- `docs@v0.5.50` (cambio: no)
+- `web@v0.5.50` (cambio: no)
+- `modulith@v0.5.30` (cambio: no)
+- `harness@v0.1.8` (cambio: no)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el asset `stack-manifest.json` del lanzamiento.
+
+## 📌 Conclusión
+
+Esta versión refuerza la confiabilidad del stack y la experiencia del usuario al cerrar una regresión puntual en el inventario de rutas de `miot-search`. La corrección es pequeña en alcance, pero importante para mantener la calidad de las validaciones internas y evitar errores visibles en la navegación de habilidades.
+
+El lanzamiento se enmarca en un esfuerzo continuo de estabilidad para el ecosistema ModularIoT, con especial atención a la consistencia entre los componentes de la plataforma, la validación de integraciones y la preparación del stack para despliegues con control y trazabilidad.

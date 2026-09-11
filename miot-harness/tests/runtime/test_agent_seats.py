@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -9,12 +10,14 @@ import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 
 import miot_harness.runtime.agent_loop as agent_loop_mod
+import miot_harness.runtime.agent_seats as seats_mod
 from miot_harness.config import HarnessSettings
 from miot_harness.runtime.agent_loop import AgentLoopRunner
 from miot_harness.runtime.agent_seats import (
     ADVISOR_TOOL,
     DELEGATE_TOOL,
     AdvisorSeat,
+    AdvisorTranscripts,
     LoopSeats,
     WorkhorseSeat,
 )
@@ -165,3 +168,63 @@ async def test_delegate_runs_briefs_concurrently_and_merges_evidence(monkeypatch
     # The brief reached the inner loop as its user message, with the expected shape.
     briefs = {_text(inner.calls[i][-1]) for i in (0, 2)}
     assert any(b.endswith("Return: a number") for b in briefs)
+
+
+def test_signal_is_read_from_the_start_of_the_reply_only() -> None:
+    from miot_harness.runtime.agent_seats import _parse_signal
+
+    assert _parse_signal("ENDORSE\nGood.") == ("ENDORSE", "Good.")
+    bold = _parse_signal("**CORRECTION**: run COUNT(*) first")
+    assert bold == ("CORRECTION", "run COUNT(*) first")
+    signal, note = _parse_signal("I cannot ENDORSE this; STOP")
+    assert signal == "PLAN" and note == "I cannot ENDORSE this; STOP"
+
+
+def test_advisor_transcripts_are_scoped_by_tenant_user_and_conversation() -> None:
+    a = UserRequest(message="q", tenant_id="acme", mode="agentic", conversation_id="c1")
+    b = UserRequest(message="q", tenant_id="other", mode="agentic", conversation_id="c1")
+    one_shot = UserRequest(message="q", tenant_id="acme", mode="agentic")
+    keys = {AdvisorTranscripts.key_for(r.to_context()) for r in (a, b, one_shot)}
+    assert len(keys) == 3
+    assert AdvisorTranscripts.key_for(a.to_context()).endswith("/conv/c1")
+    ctx = one_shot.to_context()
+    assert AdvisorTranscripts.key_for(ctx).endswith(f"/run/{ctx.run_id}")
+
+
+@pytest.mark.asyncio
+async def test_advisor_model_is_instrumented_for_the_run(monkeypatch) -> None:
+    seen: list[tuple[str, str]] = []
+
+    def fake_instrument(model, agent_name, ctx, *, progress=None, span_prefix="datasource"):
+        seen.append((agent_name, span_prefix))
+        return model
+
+    monkeypatch.setattr(seats_mod, "instrument_model", fake_instrument)
+    advisor, _ = _advisor(["ENDORSE\nok"])
+    advisor.span_prefix = "fake"
+    consult = _call(ADVISOR_TOOL, {"assignment": "a", "delta": "d", "decision": "x"}, "a1")
+    await advisor.consult(consult, ctx=_ctx(), consult=1, progress=lambda e: None)
+    assert seen == [("advisor", "fake")]
+
+
+@pytest.mark.asyncio
+async def test_workhorse_gate_is_shared_across_parent_runs() -> None:
+    running = 0
+    peak = 0
+
+    class SlowLoop:
+        async def run(self, **kwargs):
+            nonlocal running, peak
+            running += 1
+            peak = max(peak, running)
+            await asyncio.sleep(0.01)
+            running -= 1
+            return {"answer": "ok", "evidence": [], "usage_log": []}
+
+    seat = WorkhorseSeat(build=SlowLoop, max_parallel=1)
+    calls = [_call(DELEGATE_TOOL, {"brief": "b"}, f"d{i}") for i in range(2)]
+    await asyncio.gather(
+        seat.delegate_all(calls, ctx=_ctx("x"), progress=lambda e: None),
+        seat.delegate_all(calls, ctx=_ctx("y"), progress=lambda e: None),
+    )
+    assert peak == 1

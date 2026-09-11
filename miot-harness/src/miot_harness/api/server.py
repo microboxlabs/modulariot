@@ -568,6 +568,7 @@ def _make_lifespan(
                                 model=get_chat_model(settings.agents_advisor_model),
                                 display_name=effective_profile.display_name,
                                 max_consults=settings.agents_advisor_max_consults,
+                                span_prefix=effective_profile.name,
                             )
                             if settings.agents_advisor_model
                             else None

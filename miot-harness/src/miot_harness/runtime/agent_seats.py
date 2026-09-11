@@ -32,6 +32,7 @@ from langchain_core.messages import (
 
 from miot_harness.agents.chat_models import response_text
 from miot_harness.runtime.context import HarnessContext
+from miot_harness.runtime.data_graph import instrument_model
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.plan import DataEvidence
 from miot_harness.runtime.tool import Progress
@@ -44,7 +45,10 @@ SIGNALS = ("ENDORSE", "CORRECTION", "PLAN", "STOP")
 
 # Consults per conversation kept for the advisor (2 messages each).
 _TRANSCRIPT_CAP = 24
-_SIGNAL_RE = re.compile(r"\b(ENDORSE|CORRECTION|PLAN|STOP)\b")
+# Conversations kept; the oldest is dropped past this.
+_TRANSCRIPT_KEYS_CAP = 512
+# The signal is the first word of the reply; prose never counts.
+_SIGNAL_RE = re.compile(r"^[\s*#>-]*(ENDORSE|CORRECTION|PLAN|STOP)\b")
 
 ADVISOR_SCHEMA: dict[str, Any] = {
     "name": ADVISOR_TOOL,
@@ -157,11 +161,28 @@ def seats_prompt_block(seats: LoopSeats | None) -> str:
 
 
 class AdvisorTranscripts:
-    """Per-conversation advisor history, capped, in memory."""
+    """Advisor history in memory, keyed by tenant, user and conversation.
 
-    def __init__(self, cap: int = _TRANSCRIPT_CAP) -> None:
+    `lock(key)` serialises one consult's read, model call and append so
+    concurrent runs on one conversation see each other's exchanges.
+    """
+
+    def __init__(self, cap: int = _TRANSCRIPT_CAP, keys_cap: int = _TRANSCRIPT_KEYS_CAP) -> None:
         self._cap = cap
+        self._keys_cap = keys_cap
         self._by_key: dict[str, list[BaseMessage]] = {}
+        self._locks: dict[str, asyncio.Lock] = {}
+
+    @staticmethod
+    def key_for(ctx: HarnessContext) -> str:
+        scope = f"conv/{ctx.conversation_id}" if ctx.conversation_id else f"run/{ctx.run_id}"
+        return f"{ctx.tenant_id}/{ctx.user_id}/{scope}"
+
+    def lock(self, key: str) -> asyncio.Lock:
+        lock = self._locks.get(key)
+        if lock is None:
+            lock = self._locks[key] = asyncio.Lock()
+        return lock
 
     def get(self, key: str) -> list[BaseMessage]:
         return list(self._by_key.get(key, []))
@@ -171,6 +192,10 @@ class AdvisorTranscripts:
         kept.extend(messages)
         if len(kept) > self._cap:
             del kept[: len(kept) - self._cap]
+        while len(self._by_key) > self._keys_cap:
+            oldest = next(iter(self._by_key))
+            del self._by_key[oldest]
+            self._locks.pop(oldest, None)
 
 
 @dataclass
@@ -178,6 +203,7 @@ class AdvisorSeat:
     model: BaseChatModel
     display_name: str
     max_consults: int = 2
+    span_prefix: str = "agent_loop"
     transcripts: AdvisorTranscripts = field(default_factory=AdvisorTranscripts)
 
     async def consult(
@@ -201,13 +227,8 @@ class AdvisorSeat:
                 "max_consults": self.max_consults,
             }
             return ToolMessage(content=json.dumps(payload), tool_call_id=call_id)
-        key = ctx.conversation_id or ctx.thread_id
+        key = self.transcripts.key_for(ctx)
         human = HumanMessage(content=_render_consult(args))
-        messages: list[BaseMessage] = [
-            SystemMessage(content=_ADVISOR_SYSTEM.format(display_name=self.display_name)),
-            *self.transcripts.get(key),
-            human,
-        ]
         progress(
             HarnessEvent(
                 run_id=ctx.run_id,
@@ -216,10 +237,19 @@ class AdvisorSeat:
                 data={"agent": "advisor", "graph": "agent_loop", "turn": consult},
             )
         )
-        response = await self.model.ainvoke(messages)
-        text = response_text(response).strip()
-        signal, note = _parse_signal(text)
-        self.transcripts.extend(key, [human, AIMessage(content=text)])
+        model = instrument_model(
+            self.model, "advisor", ctx, progress=progress, span_prefix=self.span_prefix
+        )
+        async with self.transcripts.lock(key):
+            messages: list[BaseMessage] = [
+                SystemMessage(content=_ADVISOR_SYSTEM.format(display_name=self.display_name)),
+                *self.transcripts.get(key),
+                human,
+            ]
+            response = await model.ainvoke(messages)
+            text = response_text(response).strip()
+            signal, note = _parse_signal(text)
+            self.transcripts.extend(key, [human, AIMessage(content=text)])
         payload = {
             "signal": signal,
             "note": note,
@@ -257,12 +287,10 @@ def _render_consult(args: dict[str, Any]) -> str:
 
 
 def _parse_signal(text: str) -> tuple[str, str]:
-    match = _SIGNAL_RE.search(text)
+    match = _SIGNAL_RE.match(text)
     if match is None:
         return "PLAN", text
-    signal = match.group(1)
-    note = (text[: match.start()] + text[match.end() :]).strip(" :\n-")
-    return signal, note
+    return match.group(1), text[match.end() :].strip(" :\n-*")
 
 
 class SubLoop(Protocol):
@@ -283,6 +311,7 @@ class WorkhorseSeat:
     build: Callable[[], SubLoop]
     max_parallel: int = 3
     _loop: SubLoop | None = None
+    _gate: asyncio.Semaphore | None = None
 
     def loop(self) -> SubLoop:
         if self._loop is None:
@@ -296,7 +325,10 @@ class WorkhorseSeat:
         ctx: HarnessContext,
         progress: Progress,
     ) -> list[tuple[ToolMessage, list[DataEvidence]]]:
-        gate = asyncio.Semaphore(max(1, self.max_parallel))
+        # One gate per seat: the bound holds across concurrent parent runs.
+        if self._gate is None:
+            self._gate = asyncio.Semaphore(max(1, self.max_parallel))
+        gate = self._gate
 
         async def one(call: dict[str, Any]) -> tuple[ToolMessage, list[DataEvidence]]:
             async with gate:

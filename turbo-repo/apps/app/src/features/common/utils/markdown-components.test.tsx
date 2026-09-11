@@ -56,4 +56,12 @@ describe("MarkdownContent — compact variant (chat bubbles, spotlight)", () => 
     const wrapper = container.querySelector("table")?.parentElement;
     expect(wrapper?.className).toContain("overflow-x-auto");
   });
+
+  it("wraps the table in the same card chrome as a code block", () => {
+    const { container } = render(<MarkdownContent>{table}</MarkdownContent>);
+    const wrapper = container.querySelector("table")?.parentElement;
+    expect(wrapper?.className).toContain("bg-gray-50");
+    expect(wrapper?.className).toContain("rounded-lg");
+    expect(wrapper?.className).toContain("border");
+  });
 });

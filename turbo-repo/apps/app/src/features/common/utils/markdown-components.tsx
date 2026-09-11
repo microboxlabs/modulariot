@@ -46,11 +46,14 @@ const MARKDOWN_COMPONENTS = {
   // this map (not Tailwind Typography's prose scale — see the "document"
   // variant below for that — which sizes for a standalone page, not a chat
   // bubble or a dropdown row: ~2x the text size and multiple line-heights
-  // of margin around every block). overflow-x-auto is scoped to the table
-  // itself so a too-wide table scrolls on its own instead of dragging its
-  // host (spotlight's results list, the chat thread) into a sideways scroll.
+  // of margin around every block). The card chrome (border/rounded/bg) is
+  // the same gray-50/gray-800 + border pairing the code-block `pre` below
+  // uses, so a table reads as the same kind of "embedded block" as code.
+  // overflow-x-auto is scoped to the card itself so a too-wide table scrolls
+  // on its own instead of dragging its host (spotlight's results list, the
+  // chat thread) into a sideways scroll.
   table: ({ children }: React.TableHTMLAttributes<HTMLTableElement>) => (
-    <div className="mb-1.5 last:mb-0 overflow-x-auto">
+    <div className="mb-1.5 last:mb-0 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
       <table className="w-full border-collapse text-left text-xs">{children}</table>
     </div>
   ),
@@ -106,9 +109,11 @@ const DOCUMENT_COMPONENTS = {
   // narrow host (a spotlight dropdown, a chat bubble column). Scoping the
   // scrollbar to the table itself — rather than leaving the host container
   // to pick up an implicit overflow-x from its own overflow-y-auto — means
-  // only the table pans, not the whole results list/thread around it.
+  // only the table pans, not the whole results list/thread around it. Same
+  // card chrome as `pre` above, so a table reads as the same kind of
+  // "embedded block" as a code fence within the document.
   table: ({ children }: React.TableHTMLAttributes<HTMLTableElement>) => (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
       <table>{children}</table>
     </div>
   ),

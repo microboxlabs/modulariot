@@ -1,0 +1,97 @@
+# 🔔 Release Notes v1.31.49 — ModularIoT
+
+### Fecha: 11/09/2026
+
+**Objetivo**: Esta versión amplía las capacidades de ASK MIOT Harness y del servidor de dashboards, mejora la persistencia de conversaciones y fortalece la integración con conexiones PostgreSQL. También corrige incidencias del calendario, la navegación del dashboard y la interpretación de resultados del agente.
+
+## 🚀 Evolutivos
+
+- **📍 Bucle agéntico para ASK MIOT Harness**
+  - **Punto clave**: El bucle agéntico queda habilitado por defecto para `data_agentic`, con Sonnet 4.6 como modelo conversacional y el grafo de planificación como alternativa.
+  - **Detalle técnico**: Incorpora consultas al asesor, delegación a agentes de trabajo, eventos de ciclo completos y transmisión incremental de respuestas y razonamientos. *(Integración OSS — MIOT-0.5.50)*
+
+- **📍 Catálogo y ejecución de funciones PostgreSQL**
+  - **Punto clave**: Las conexiones genéricas pueden descubrir funciones y definiciones de vistas, buscar funciones por texto y resolver nombres sin calificar.
+  - **Detalle técnico**: Añade ejecución de funciones con argumentos nominales dentro de un sobre de solo lectura con transacción, límite de tiempo, límite de filas y control de coste. *(Integración OSS — MIOT-0.5.50)*
+
+- **📍 Conversaciones persistentes de Harness**
+  - **Punto clave**: El historial del chat se conserva entre recargas y reinicios, con resúmenes para conversaciones extensas, paginación y recuperación del contexto.
+  - **Detalle técnico**: Los hilos, mensajes y resúmenes se almacenan en el modulith; el cliente reconstruye el historial desde AG-UI y muestra estados claros cuando la lectura falla. *(Integración OSS — MIOT-0.5.50)*
+
+- **📍 Visor de artefactos de storytelling**
+  - **Punto clave**: Se incorpora un visor para artefactos HTML, Markdown, PPT y PDF, con búsqueda, descargas, uso compartido y eliminación individual o masiva.
+  - **Detalle técnico**: La generación PPT produce tanto la vista interactiva como archivos `.pptx`; la funcionalidad permanece protegida por `ENABLE_STORYTELLING`. *(Integración OSS — MIOT-0.5.50)*
+
+- **📍 Experiencia de planificación del calendario**
+  - **Punto clave**: Las reservas planificadas conservan correctamente el nombre del cliente y sus valores almacenados.
+  - **Detalle técnico**: El planificador puede aplicar datos del índice de tareas activas mediante overlays sin volver a consultar las reservas. *(Integración OSS — MIOT-0.5.50)*
+
+## 🔧 Integraciones
+
+- **🔌 Servidor de dashboards independiente**
+  - **Alcance**: Se consolida `@microboxlabs/miot-dashboard-server` como paquete reutilizable, servidor desplegable y conjunto de handlers HTTP estándar, con adaptador para Next.js, contrato OpenAPI, autenticación, autorización y aislamiento multiinquilino. *(Integración OSS — MIOT-0.5.50)*
+
+- **🔌 Persistencia y almacenamiento de documentos**
+  - **Alcance**: Se añaden almacenes de documentos en filesystem, S3 y GCS, importación única de dashboards existentes, limpieza de documentos huérfanos y soporte de CORS configurable. *(Integración OSS — MIOT-0.5.50)*
+
+- **🔌 Despliegue del dashboard mediante imagen y Helm**
+  - **Alcance**: Se publica una imagen de `dashboard-server` con comprobaciones de salud, autenticación y documentación OpenAPI, junto con un subchart Helm opcional y correcciones de instalación y configuración. *(Integración OSS — MIOT-0.5.50)*
+
+- **🔌 Identidad, tenants y autorización**
+  - **Alcance**: El tenant del dashboard se resuelve desde la solicitud, se habilita el cambio entre tenants sin volver a autenticarse y se incorporan autenticación por ticket y membresía real de scopes. Las reglas `allowedGroups` quedan centralizadas. *(Integración OSS — MIOT-0.5.50)*
+
+- **🔌 Índice de esquema y sesiones de conexión**
+  - **Alcance**: El índice del harness solo incluye relaciones legibles por cada conexión y las conexiones sin pooler pueden usar un sobre de sesión con límites de lectura y tiempo configurados desde el arranque. *(Integración OSS — MIOT-0.5.50)*
+
+## 🐛 Correcciones
+
+- **🐛 Cliente incorrecto en servicios planificados**
+  - **Impacto**: El calendario mostraba el código del servicio como nombre del cliente en la tarjeta, el panel lateral y los filtros.
+  - **Solución**: `cliente` se conserva en el esquema persistido, se resuelve desde los datos almacenados y puede recuperarse mediante el índice de tareas activas, sin usar el identificador del recurso como nombre. *(Integración OSS — MIOT-0.5.50)*
+
+- **🐛 Persistencia de valores superpuestos en el calendario**
+  - **Impacto**: El panel podía confirmar un valor de overlay obsoleto cuando el índice del servicio dejaba de responder.
+  - **Solución**: Las selecciones planificadas se resuelven contra la entrada original sin overlay antes de persistirse. *(Integración OSS — MIOT-0.5.50)*
+
+- **🐛 Resultados de herramientas interpretados como vacíos**
+  - **Impacto**: Las respuestas de catálogo se registraban con `sample_size = 0`, provocando consultas repetidas del agente.
+  - **Solución**: La evidencia reconoce correctamente las claves `functions` y `definitions`, y los extractos conservan filas y valores escalares relevantes para el juez y el sintetizador. *(Integración OSS — MIOT-0.5.50)*
+
+- **🐛 Configuración y observabilidad del dashboard**
+  - **Impacto**: Las listas CORS con coma final fallaban al iniciar, los errores 500 perdían su causa y ciertos identificadores podían contener segmentos de ruta inseguros.
+  - **Solución**: Se ignoran entradas vacías válidas, se registran los errores subyacentes y se rechazan los segmentos `.` y `..` después de decodificarlos. *(Integración OSS — MIOT-0.5.50)*
+
+- **🐛 Consultas del historial bloqueadas**
+  - **Impacto**: Una conexión de base de datos detenida podía bloquear indefinidamente el historial del chat y los trabajos de limpieza.
+  - **Solución**: Las consultas tienen un tiempo máximo configurable, con valor predeterminado de 10 segundos y protección frente a valores no válidos. *(Integración OSS — MIOT-0.5.50)*
+
+- **🐛 Instalación y empaquetado del dashboard**
+  - **Impacto**: El chart podía renderizar configuraciones incompletas y el paquete publicado no incluía el texto de licencia declarado.
+  - **Solución**: Se endurecen las validaciones del chart, se completan los ejemplos de instalación y se incorpora la licencia Apache-2.0 al tarball. *(Integración OSS — MIOT-0.5.50)*
+
+## 📊 Beneficios
+
+- Mayor continuidad de las conversaciones de Harness entre recargas, reinicios y ejecuciones largas.
+- Respuestas del agente visibles progresivamente, con mejor aprovechamiento de herramientas y evidencia.
+- Descubrimiento y ejecución más seguros de funciones y definiciones PostgreSQL.
+- Dashboards desplegables de forma independiente mediante paquete, imagen de contenedor o Helm.
+- Mejor aislamiento multiinquilino y control de acceso basado en identidad y membresías reales.
+- Menor riesgo de pérdida de contexto, bloqueos de base de datos y persistencia de datos incorrectos en el calendario.
+- Mayor trazabilidad operativa mediante errores subyacentes, límites explícitos y comprobaciones de salud.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.50`
+- **App**: `app@v0.5.50` — actualizado
+- **Docs**: `docs@v0.5.50` — actualizado
+- **Web**: `web@v0.5.50` — actualizado
+- **Modulith**: `modulith@v0.5.30` — actualizado
+- **Harness**: `harness@v0.1.8` — actualizado
+
+Los hashes exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.49 refuerza ModularIoT como plataforma operativa para coordinación industrial, combinando un Harness más persistente y observable con capacidades agénticas orientadas a datos.
+
+La nueva base de dashboards facilita la integración en distintos entornos, mejora el aislamiento por tenant y prepara despliegues independientes con almacenamiento configurable. Las correcciones incluidas reducen errores visibles para los usuarios y riesgos operativos en producción.

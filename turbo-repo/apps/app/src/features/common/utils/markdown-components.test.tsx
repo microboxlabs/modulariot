@@ -40,3 +40,20 @@ describe("MarkdownContent — document variant", () => {
     expect(container.querySelector('[data-testid="custom-pre"]')).not.toBeNull();
   });
 });
+
+describe("MarkdownContent — compact variant (chat bubbles, spotlight)", () => {
+  const table = "| A | B |\n| --- | --- |\n| 1 | 2 |\n";
+
+  it("renders a GFM table as a real <table>, not literal pipe text", () => {
+    const { container } = render(<MarkdownContent>{table}</MarkdownContent>);
+    expect(container.querySelector("table")).not.toBeNull();
+    expect(container.querySelectorAll("th")).toHaveLength(2);
+    expect(container.querySelectorAll("td")).toHaveLength(2);
+  });
+
+  it("scopes the table's own horizontal scroll instead of leaving it to the host", () => {
+    const { container } = render(<MarkdownContent>{table}</MarkdownContent>);
+    const wrapper = container.querySelector("table")?.parentElement;
+    expect(wrapper?.className).toContain("overflow-x-auto");
+  });
+});

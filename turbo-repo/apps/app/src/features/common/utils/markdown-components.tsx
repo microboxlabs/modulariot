@@ -42,6 +42,33 @@ const MARKDOWN_COMPONENTS = {
   a: ({ children, href }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
     <a href={href} className="underline opacity-80 hover:opacity-100" target="_blank" rel="noopener noreferrer">{children}</a>
   ),
+  // GFM tables, styled to the same tight/small scale as everything else in
+  // this map (not Tailwind Typography's prose scale — see the "document"
+  // variant below for that — which sizes for a standalone page, not a chat
+  // bubble or a dropdown row: ~2x the text size and multiple line-heights
+  // of margin around every block). overflow-x-auto is scoped to the table
+  // itself so a too-wide table scrolls on its own instead of dragging its
+  // host (spotlight's results list, the chat thread) into a sideways scroll.
+  table: ({ children }: React.TableHTMLAttributes<HTMLTableElement>) => (
+    <div className="mb-1.5 last:mb-0 overflow-x-auto">
+      <table className="w-full border-collapse text-left text-xs">{children}</table>
+    </div>
+  ),
+  thead: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <thead className="border-b border-gray-200 dark:border-gray-700">{children}</thead>
+  ),
+  tbody: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{children}</tbody>
+  ),
+  th: ({ children }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
+    <th className="px-2 py-1 font-semibold text-gray-700 dark:text-gray-200">{children}</th>
+  ),
+  td: ({ children }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
+    <td className="px-2 py-1 align-top text-gray-600 dark:text-gray-300">{children}</td>
+  ),
+  del: ({ children }: React.HTMLAttributes<HTMLElement>) => (
+    <del className="opacity-70">{children}</del>
+  ),
 };
 
 // Prose's default `pre`/`code` colors are fixed (a dark gray background
@@ -91,14 +118,15 @@ interface MarkdownContentProps {
   readonly children: string;
   readonly className?: string;
   /**
-   * "compact" (default) is the original hand-mapped element styling above —
-   * tuned for and used by chat bubbles (thread-messages.tsx), spotlight
-   * search results, and KPI stat descriptions. "document" is Tailwind's
-   * typography plugin (`prose`) with GFM (tables, strikethrough) instead —
-   * full document styling for a page-length preview, which the compact
-   * mapping was never meant to cover (no table support, minimal spacing).
-   * Existing callers are unaffected either way — this only changes anything
-   * for callers that opt into "document".
+   * "compact" (default) is the hand-mapped element styling above, GFM
+   * included (tables, strikethrough) — tuned for and used by chat bubbles
+   * (thread-messages.tsx), spotlight search results, and KPI stat
+   * descriptions: small text, tight margins, sized to sit inside a bubble
+   * or a dropdown row. "document" is Tailwind's typography plugin (`prose`)
+   * instead — full document styling (bigger type scale, ~1 line of margin
+   * around every block) for a page-length preview, used by the storytelling
+   * markdown artifact. Deliberately NOT what the compact callers use: prose
+   * is sized for a standalone page, not a few lines of chat.
    */
   readonly variant?: "compact" | "document";
   /**
@@ -138,7 +166,7 @@ export function MarkdownContent({
 
   return (
     <div className={className}>
-      <ReactMarkdown remarkPlugins={[remarkBreaks]} components={MARKDOWN_COMPONENTS as never}>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MARKDOWN_COMPONENTS as never}>
         {children}
       </ReactMarkdown>
     </div>

@@ -16,8 +16,10 @@ export {
   NO_CAPABILITIES,
   type DashboardCapabilities,
   type DashboardPrincipalKind,
+  type DashboardPrincipal,
   type DashboardIdentity,
   type IdentityResolver,
+  type TenantAuthority,
   type ScopeAuthority,
 } from "./seams/identity";
 
@@ -88,3 +90,23 @@ export {
   type DashboardAccess,
   type DashboardAction,
 } from "./access/access-control";
+
+// ---- Capability policies ----
+export {
+  createAllowedGroupsPolicy,
+  configAllowsGroups,
+  parseAllowedGroups,
+  ALLOWED_GROUPS_FIELD,
+} from "./access/allowed-groups";
+
+// ---- One-time import ----
+export { importDashboards } from "./import/import";
+export type {
+  ImportOptions,
+  ImportRefusal,
+  ImportResult,
+} from "./import/import";
+export { refLabel } from "./import/legacy";
+export type { LegacyDashboard, LegacyDashboardSource } from "./import/legacy";
+export { migrateConfig, CURRENT_CONFIG_VERSION } from "./import/migrate";
+export type { MigrationResult } from "./import/migrate";

@@ -46,7 +46,11 @@ import {
   preEditSnapshot,
   rollbackPlannedService,
 } from "../services/booking-persistence";
-import { mergeWorkflowStages } from "../services/workflow-stage-merge";
+import {
+  applyItemOverlay,
+  mergeItemOverlays,
+  mergeWorkflowStages,
+} from "../services/workflow-stage-merge";
 
 dayjs.extend(isoWeek);
 dayjs.extend(isSameOrAfter);
@@ -296,13 +300,36 @@ export function PlanningSelectionProvider<
   // the SWR cache — instead of inside `loadBookings` keeps the stage
   // reactive: a live-index refresh re-labels chips without refetching
   // bookings (the fetcher is deliberately identity-stable, see above).
+  // Item fields ride the same join for the same reason: a booking row written
+  // outside the planner knows nothing the planner put on the item.
   const resolveWorkflowStage = host.resolveWorkflowStage;
+  const resolveItemOverlay = host.resolveItemOverlay;
   const plannedServices = useMemo(
-    () => mergeWorkflowStages(rawPlannedServices, resolveWorkflowStage),
-    [rawPlannedServices, resolveWorkflowStage]
+    () =>
+      mergeItemOverlays(
+        mergeWorkflowStages(rawPlannedServices, resolveWorkflowStage),
+        resolveItemOverlay
+      ),
+    [rawPlannedServices, resolveWorkflowStage, resolveItemOverlay]
   );
   const bookingIds = bookingsData?.ids ?? emptyBookingIdsRef.current;
   const bookingsLoadError = bookingsError ? bookingsLoadErrorMessage : null;
+
+  // `selectedService` is a snapshot taken when the item was opened, so it
+  // predates any overlay resolved since — open a booking before the live index
+  // answers and the grid would correct itself while the sidebar kept the stale
+  // copy. Re-resolve the overlay against the selection instead of looking the
+  // entry up in `plannedServices`: a host's item ids need not be unique across
+  // the lists it draws from, so a lookup could hand back a same-id item loaded
+  // from elsewhere, with that list's defaults in every field the overlay does
+  // not name.
+  const liveSelectedService = useMemo(
+    () =>
+      selectedService
+        ? applyItemOverlay(selectedService, resolveItemOverlay?.(selectedService))
+        : null,
+    [selectedService, resolveItemOverlay]
+  );
 
   const setPlannedServices: Dispatch<
     SetStateAction<PlannedService<TItem>[]>
@@ -589,12 +616,12 @@ export function PlanningSelectionProvider<
         throw new Error("confirmService: caller lacks mutate permission");
       }
       const slotToUse = finalSlot ?? selectedSlot;
-      if (!slotToUse || !selectedService) return false;
+      if (!slotToUse || !liveSelectedService) return false;
 
       const effectiveItem = (
         serviceOverrides
-          ? { ...selectedService, ...serviceOverrides }
-          : selectedService
+          ? { ...liveSelectedService, ...serviceOverrides }
+          : liveSelectedService
       ) as TItem;
 
       const existingInSlot = getServicesForSlot(slotToUse);
@@ -669,7 +696,7 @@ export function PlanningSelectionProvider<
     [
       canMutateBookings,
       selectedSlot,
-      selectedService,
+      liveSelectedService,
       getServicesForSlot,
       plannedServices,
       reassigningService,
@@ -874,7 +901,7 @@ export function PlanningSelectionProvider<
     () => ({
       calendarId,
       selectedSlot,
-      selectedService,
+      selectedService: liveSelectedService,
       plannedServices,
       timeSlots,
       timeWindows,
@@ -930,7 +957,7 @@ export function PlanningSelectionProvider<
     [
       calendarId,
       selectedSlot,
-      selectedService,
+      liveSelectedService,
       plannedServices,
       timeSlots,
       timeWindows,

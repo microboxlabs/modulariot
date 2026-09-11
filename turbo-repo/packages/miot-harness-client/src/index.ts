@@ -11,11 +11,13 @@ export type { SSEFrame } from "./sse.js";
 export { TERMINAL_EVENT_TYPES } from "./types.js";
 export type {
   ClientConfig,
+  ConversationTurn,
   ErrorResponse,
   HarnessAssumption,
   HarnessEvent,
   HarnessEventType,
   HarnessRunRecord,
+  ModelsInfo,
   RunMode,
   SkillSummary,
   UserRequest,

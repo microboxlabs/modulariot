@@ -292,15 +292,20 @@ def test_agent_loop_settings_defaults(monkeypatch):
     from miot_harness.config import HarnessSettings
 
     s = HarnessSettings()
-    assert s.agents_agent_loop_enabled is False
+    assert s.agents_agent_loop_enabled is True
+    assert s.agents_agent_loop_model == "claude-sonnet-4-6"
+    assert s.agents_advisor_model == "claude-opus-4-8"
     assert s.agents_agent_loop_tool_result_max_chars == 6000
 
 
 def test_agent_loop_settings_env_override(monkeypatch):
-    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_ENABLED", "true")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_ENABLED", "false")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL", "claude-opus-4-8")
     from miot_harness.config import HarnessSettings
 
-    assert HarnessSettings().agents_agent_loop_enabled is True
+    s = HarnessSettings()
+    assert s.agents_agent_loop_enabled is False
+    assert s.agents_agent_loop_model == "claude-opus-4-8"
 
 
 def test_agent_loop_llm_timeout_default(monkeypatch):

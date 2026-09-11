@@ -9,10 +9,11 @@ export default defineConfig({
   //   store-sql — persistence: composite store, SQL metadata, SQLite driver
   //   testing — in-memory seams; shippable, no test framework imported
   //   server  — Node listener, probes, lifecycle (the only Node-assuming entry)
+  //   next    — App Router route handlers, for a host mounting in Next
   //
-  // The Next adapter gets its own entry when it lands; keeping these apart is
-  // what stops a host that mounts the library from pulling in a listener, and
-  // a standalone deployment from pulling in a framework.
+  // Keeping these apart is what stops a host that mounts the library from
+  // pulling in a listener, and a standalone deployment from pulling in a
+  // framework.
   // All entries sit directly in src/, so the bundler emits them flat into
   // dist/ rather than mirroring a subdirectory into the published paths.
   entry: [
@@ -20,8 +21,10 @@ export default defineConfig({
     "src/http.ts",
     "src/identity.ts",
     "src/store-sql.ts",
+    "src/store-cloud.ts",
     "src/testing.ts",
     "src/server.ts",
+    "src/next.ts",
     "src/bin.ts",
   ],
   format: ["esm"],

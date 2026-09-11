@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FC } from "react";
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
-import { HttpAgent } from "@ag-ui/client";
 import { twMerge } from "tailwind-merge";
 import { LuArrowLeft, LuHistory, LuPlus, LuSparkles, LuX } from "react-icons/lu";
 import { createHarnessAttachmentAdapter } from "./harness-chat-attachments";
@@ -19,18 +18,53 @@ import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-conte
 import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
 import { PendingAttachmentReceiver } from "./components/pending-attachment-receiver";
+import { SessionSummaryWatcher } from "./components/session-summary-watcher";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
+import { HarnessModelProvider } from "./context/harness-model-context";
+import { HarnessReadOnlyProvider } from "./context/harness-read-only-context";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
+import { createHarnessHistoryAdapter } from "./harness-history-adapter";
+import { HarnessRunAgent } from "./harness-run-agent";
+import {
+  createThread,
+  deleteThread,
+  listThreads,
+  revokeShare,
+  shareThread,
+  type StoredThread,
+} from "./harness-thread-store";
 import { StandaloneDictionaryProvider } from "@/features/dashboard/context/standalone-dictionary-context";
 import type { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Thread } from "./thread";
 
 function createSession(initialMessage: string | null = null): Session {
   return {
+    // A UUID, not any id: it is stored as the thread's primary key and sent to
+    // the harness as the conversation id.
     id: crypto.randomUUID(),
     createdAt: Date.now(),
     title: null,
     initialMessage,
+    owned: true,
+    sharedWith: [],
+  };
+}
+
+/** Keeps whatever the panel already has — the fresh session it opened with,
+ * and anything started since the fetch went out — and appends the rest. */
+function mergeStoredThreads(current: Session[], threads: StoredThread[]): Session[] {
+  const known = new Set(current.map((session) => session.id));
+  return [...current, ...threads.filter((t) => !known.has(t.id)).map(toSession)];
+}
+
+function toSession(thread: StoredThread): Session {
+  return {
+    id: thread.id,
+    createdAt: Date.parse(thread.lastMessageAt ?? thread.createdAt),
+    title: thread.title,
+    initialMessage: null,
+    owned: thread.owned,
+    sharedWith: thread.sharedWith ?? [],
   };
 }
 
@@ -100,13 +134,60 @@ const HarnessChatPanel: FC<{
   const [sessions, setSessions] = useState<Session[]>(() => [createSession()]);
   const [activeId, setActiveId] = useState(() => sessions[0].id);
   const [view, setView] = useState<View>("chat");
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [historyFailed, setHistoryFailed] = useState(false);
+  // Only the sessions the user has actually opened carry a runtime. Every
+  // mounted session loads its own transcript, so mounting all of them would
+  // fetch the whole history on boot; keeping the opened ones mounted is what
+  // lets a run finish while the user reads another chat.
+  const [mountedIds, setMountedIds] = useState<Set<string>>(() => new Set([activeId]));
+  // Titles already written upstream. The watcher fires on every message
+  // change; without this every one of them would be a PATCH.
+  const persistedTitles = useRef(new Map<string, string>());
 
-  const newChat = useCallback((initialMessage: string | null = null) => {
-    const session = createSession(initialMessage);
-    setSessions((prev) => [session, ...prev]);
-    setActiveId(session.id);
-    setView("chat");
+  const mount = useCallback((id: string) => {
+    setMountedIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
   }, []);
+
+  // Stored threads land under the fresh session the panel opens with, so the
+  // user starts on an empty chat with their history one click away. A store
+  // that cannot be reached leaves the panel working on this session alone —
+  // but it says so, because "you have no past chats" and "we could not read
+  // them" are the same empty list otherwise.
+  const loadHistory = useCallback((signal?: AbortSignal) => {
+    setIsLoadingHistory(true);
+    setHistoryFailed(false);
+    return listThreads(signal)
+      .then((threads) => {
+        if (signal?.aborted) return;
+        // null is the store reporting a failure; [] is a user with no threads.
+        if (threads === null) {
+          setHistoryFailed(true);
+          return;
+        }
+        if (threads.length > 0) setSessions((prev) => mergeStoredThreads(prev, threads));
+      })
+      .finally(() => {
+        if (!signal?.aborted) setIsLoadingHistory(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadHistory(controller.signal);
+    return () => controller.abort();
+  }, [loadHistory]);
+
+  const newChat = useCallback(
+    (initialMessage: string | null = null) => {
+      const session = createSession(initialMessage);
+      setSessions((prev) => [session, ...prev]);
+      setActiveId(session.id);
+      mount(session.id);
+      setView("chat");
+    },
+    [mount],
+  );
 
   // A search-bar "open chat" action landed while we were mounted — start a
   // fresh conversation with that text as the first (auto-sent) message.
@@ -116,10 +197,14 @@ const HarnessChatPanel: FC<{
     clearPendingMessage();
   }, [pendingMessage, newChat, clearPendingMessage]);
 
-  const selectSession = useCallback((id: string) => {
-    setActiveId(id);
-    setView("chat");
-  }, []);
+  const selectSession = useCallback(
+    (id: string) => {
+      setActiveId(id);
+      mount(id);
+      setView("chat");
+    },
+    [mount],
+  );
 
   const updateSessionTitle = useCallback((id: string, title: string | null) => {
     setSessions((prev) => {
@@ -129,6 +214,38 @@ const HarnessChatPanel: FC<{
       next[idx] = { ...next[idx], title };
       return next;
     });
+    // An upsert, so this doubles as "make sure the thread row exists" — the
+    // title arrives with the first user message, which may still be racing its
+    // own append.
+    if (title && persistedTitles.current.get(id) !== title) {
+      // Recorded up front so the watcher's next call does not re-send it, and
+      // dropped again if the write failed — otherwise one lost request leaves
+      // the thread permanently untitled while its messages save fine.
+      persistedTitles.current.set(id, title);
+      void createThread({ id, title }).then((saved) => {
+        if (!saved) persistedTitles.current.delete(id);
+      });
+    }
+  }, []);
+
+  const shareSession = useCallback(async (id: string, principal: string) => {
+    if (!(await shareThread(id, principal))) return;
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === id && !s.sharedWith.includes(principal)
+          ? { ...s, sharedWith: [...s.sharedWith, principal] }
+          : s,
+      ),
+    );
+  }, []);
+
+  const unshareSession = useCallback(async (id: string, principal: string) => {
+    if (!(await revokeShare(id, principal))) return;
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === id ? { ...s, sharedWith: s.sharedWith.filter((p) => p !== principal) } : s,
+      ),
+    );
   }, []);
 
   // Computed from the current `sessions` closure rather than inside
@@ -141,9 +258,20 @@ const HarnessChatPanel: FC<{
       const filtered = sessions.filter((s) => !idSet.has(s.id));
       const nextSessions = filtered.length > 0 ? filtered : [createSession()];
       setSessions(nextSessions);
-      setActiveId((current) => (idSet.has(current) ? nextSessions[0].id : current));
+      if (idSet.has(activeId)) {
+        setActiveId(nextSessions[0].id);
+        mount(nextSessions[0].id);
+      }
+      for (const session of sessions) {
+        if (!idSet.has(session.id)) continue;
+        persistedTitles.current.delete(session.id);
+        // Only the owner may delete upstream. A thread someone shared just
+        // leaves this list until the next load; giving it back is the owner's
+        // call, not the reader's.
+        if (session.owned) void deleteThread(session.id);
+      }
     },
-    [sessions],
+    [sessions, activeId, mount],
   );
 
   const activeTitle =
@@ -252,13 +380,18 @@ const HarnessChatPanel: FC<{
           <HistoryList
             sessions={sessions}
             activeId={activeId}
+            isLoading={isLoadingHistory}
+            hasFailed={historyFailed}
+            onRetry={() => void loadHistory()}
             onSelect={selectSession}
             onDelete={(ids) => deleteSessions(ids)}
+            onShare={shareSession}
+            onUnshare={unshareSession}
             locale={locale}
           />
         )}
         <div className={twMerge("flex min-h-0 flex-1 flex-col", view === "history" && "hidden")}>
-          {sessions.map((session) => (
+          {sessions.filter((session) => mountedIds.has(session.id)).map((session) => (
             <SessionHost
               key={session.id}
               sessionId={session.id}
@@ -271,6 +404,7 @@ const HarnessChatPanel: FC<{
               pendingAttachmentLabel={session.id === activeId ? pendingAttachment : null}
               onAttachmentConsumed={clearPendingAttachment}
               onTitleChange={updateSessionTitle}
+              readOnly={!session.owned}
               extensions={resolvedExtensions}
               skills={skills}
             />
@@ -289,6 +423,7 @@ const SessionHost: FC<{
   pendingAttachmentLabel: string | null;
   onAttachmentConsumed: () => void;
   onTitleChange: (id: string, title: string | null) => void;
+  readOnly: boolean;
   extensions: HarnessExtension[];
   skills: HarnessSkill[];
 }> = ({
@@ -299,24 +434,39 @@ const SessionHost: FC<{
   pendingAttachmentLabel,
   onAttachmentConsumed,
   onTitleChange,
+  readOnly,
   extensions,
   skills,
 }) => {
   // One agent instance per session — its conversation state (threadId, the
   // harness's round-tripped conversationId) shouldn't leak across concurrent
-  // chat sessions.
+  // chat sessions. The session id is handed over as the AG-UI threadId, which
+  // is what the chat route falls back to for the harness conversation id: the
+  // same value survives a reload, so a reopened thread continues its
+  // conversation instead of starting a new one.
   const agent = useMemo(
-    () => new HttpAgent({ url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/chat/stream` }),
-    [],
+    () =>
+      new HarnessRunAgent({
+        url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/chat/stream`,
+        threadId: sessionId,
+      }),
+    [sessionId],
   );
   const tr = useHarnessChatTr();
   const attachmentAdapter = useMemo(() => createHarnessAttachmentAdapter(tr), [tr]);
+  const history = useMemo(() => createHarnessHistoryAdapter(sessionId), [sessionId]);
   const runtime = useAgUiRuntime({
     agent,
-    adapters: { attachments: attachmentAdapter },
+    adapters: { attachments: attachmentAdapter, history },
   });
   const containerRef = useRef<HTMLDivElement>(null);
   const toolkit = useMemo(() => buildHarnessToolkit(extensions), [extensions]);
+  // The picked model rides on the agent so every run of this session carries
+  // it; null keeps the harness default.
+  const [model, setModel] = useState<string | null>(null);
+  useEffect(() => {
+    agent.model = model;
+  }, [agent, model]);
 
   // Panel just opened (button or ⌘/Ctrl+C) while this is the active session —
   // send focus straight to the composer input. When it closes (or this stops
@@ -342,13 +492,24 @@ const SessionHost: FC<{
         runtime={runtime}
         config={AuiConfig({ tools: Tools({ toolkit }) })}
       >
-        <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
-        <InitialMessageSender initialMessage={initialMessage} />
-        <PendingAttachmentReceiver
-          label={pendingAttachmentLabel}
-          onConsumed={onAttachmentConsumed}
-        />
-        <Thread skills={skills} />
+        <HarnessReadOnlyProvider readOnly={readOnly}>
+          <HarnessModelProvider model={model} onChange={setModel}>
+          {/* A shared thread is somebody else's conversation: it has a title
+              already, takes no pending message, and offers nothing that runs. */}
+          {!readOnly && (
+            <>
+              <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
+              <SessionSummaryWatcher sessionId={sessionId} />
+              <InitialMessageSender initialMessage={initialMessage} />
+              <PendingAttachmentReceiver
+                label={pendingAttachmentLabel}
+                onConsumed={onAttachmentConsumed}
+              />
+            </>
+          )}
+          <Thread skills={skills} />
+          </HarnessModelProvider>
+        </HarnessReadOnlyProvider>
       </AssistantRuntimeProvider>
     </div>
   );

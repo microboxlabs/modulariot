@@ -200,6 +200,24 @@ def validate_select_sql(sql: str, *, table_policy: TableAccessPolicy) -> exp.Exp
                 f"function {picked!r} is not in the safe-query allowlist"
             )
 
+    # 3b. A schema-qualified call (`public.lower(x)`) names a user routine that
+    #     merely shares an allowlisted name; only pg_catalog may qualify one.
+    #     `OPERATOR(schema.op)` is the same trick for operators — refused.
+    for dot in ast.find_all(exp.Dot):
+        if isinstance(dot.expression, exp.Func):
+            qualifier = dot.this.sql(dialect="postgres").lower()
+            if qualifier != "pg_catalog":
+                raise UnsupportedConstruct(
+                    "schema-qualified function "
+                    f"{dot.sql(dialect='postgres')[:60]!r} is not allowed; "
+                    "only pg_catalog builtins may be called"
+                )
+    for op in ast.find_all(exp.Operator):
+        raise UnsupportedConstruct(
+            "OPERATOR() syntax is rejected by the safe-query gate "
+            f"(found at: {op.sql(dialect='postgres')[:60]!r})"
+        )
+
     # 4. Every table reference must be allowed by the policy. CTE aliases
     #    referenced in the outer SELECT show up as exp.Table too — collect their
     #    alias names from `exp.With` and exempt them from the policy check (the

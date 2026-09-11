@@ -136,6 +136,9 @@ async def test_boot_registers_generic_tools(monkeypatch: pytest.MonkeyPatch) -> 
         "acs_query",
         "acs_grep",
         "acs_explain",
+        "acs_functions",
+        "acs_definition",
+        "acs_call",
     ):
         assert name in registry.names()
         assert registry.get(name).kind == "primitive"

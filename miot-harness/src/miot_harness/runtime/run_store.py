@@ -30,6 +30,10 @@ class HarnessRunRecord(BaseModel):
     # one-shot requests; set when the caller passes `conversation_id`.
     # Langfuse groups runs by this attribute.
     conversation_id: str | None = None
+    # The conversation's compacted summary as of the end of this run, when
+    # the store holds one. Callers persist it with their transcript and
+    # replay it (`UserRequest.conversation_summary`) after a restart.
+    conversation_summary: str | None = None
     # Issue #522 R2 + Plan 07 gap 8: the identity this run executed
     # under. `tenant_id` is recorded so the SSE replay endpoint can
     # refuse a cross-tenant subscriber even for terminal runs that have

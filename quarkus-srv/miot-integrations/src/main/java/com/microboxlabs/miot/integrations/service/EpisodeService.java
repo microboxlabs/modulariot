@@ -18,7 +18,7 @@ import java.util.Set;
 @ApplicationScoped
 public class EpisodeService {
 
-    private static final Set<String> SURFACES = Set.of("spotlight", "cli");
+    private static final Set<String> SURFACES = Set.of("spotlight", "cli", "chat");
 
     private final InteractionEpisodeRepository repository;
 

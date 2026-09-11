@@ -23,11 +23,12 @@ import {
   createAccessControl,
   type AccessControlOptions,
 } from "../access/access-control";
-import { DashboardServerError } from "../access/errors";
+import { DashboardServerError, isDashboardServerError } from "../access/errors";
 import { isDashboardRole } from "../access/roles";
 import type { PermissionAssignment } from "../seams/store";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
+import { withCors, type CorsOptions } from "./cors";
 
 export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
   /**
@@ -35,6 +36,23 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    * Stripped before matching. Defaults to the root.
    */
   basePath?: string;
+  cors?: CorsOptions;
+  /**
+   * Called with what this handler did not choose: anything thrown that is not
+   * a `DashboardServerError`, and so became a bare 500. A 404, a 403 or a 409
+   * is an answer this code decided on and already says so on the wire, so it
+   * does not arrive here — nothing routine reads as a fault.
+   *
+   * The 500 envelope is deliberately bare, because an upstream exception is
+   * the most likely place a connection string or a token surfaces. That
+   * redaction leaves the operator with a 500 and no cause, so the error is
+   * handed here instead and a host decides what to do with it. The standalone
+   * server logs it.
+   *
+   * Anything this throws is swallowed: a failing logger must not turn a
+   * request that had an answer into one that does not.
+   */
+  onError?: (error: unknown, request: Request) => void;
 }
 
 export type DashboardHandler = (request: Request) => Promise<Response>;
@@ -50,6 +68,19 @@ export function createDashboardHandler(
   options: DashboardHandlerOptions,
 ): DashboardHandler {
   const access = createAccessControl<Request>(options);
+
+  /**
+   * The hook belongs to the host, so it is not trusted to return. A logger
+   * that throws would otherwise escape the catch it was called from and turn
+   * a request that had an answer — the 500 envelope — into one that does not.
+   */
+  const reportError = (error: unknown, request: Request): void => {
+    try {
+      options.onError?.(error, request);
+    } catch {
+      // Nothing left to report it to.
+    }
+  };
   const basePath = normalizeBasePath(options.basePath);
 
   async function dispatch(
@@ -62,6 +93,7 @@ export function createDashboardHandler(
       case "dashboards": {
         if (method !== "GET") return methodNotAllowed();
         const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
           scopeId: match.scopeId,
           action: "dashboard.list",
         });
@@ -76,6 +108,7 @@ export function createDashboardHandler(
         const slug = requireSlug(match);
         if (method === "GET") {
           const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
             scopeId: match.scopeId,
             slug,
             action: "dashboard.load",
@@ -91,6 +124,7 @@ export function createDashboardHandler(
           // the request schema, and parsing work done for someone with no
           // standing to ask for it.
           const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
             scopeId: match.scopeId,
             slug,
             action: "dashboard.save",
@@ -112,6 +146,7 @@ export function createDashboardHandler(
         }
         if (method === "DELETE") {
           const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
             scopeId: match.scopeId,
             slug,
             action: "dashboard.delete",
@@ -129,11 +164,11 @@ export function createDashboardHandler(
 
       case "capabilities": {
         if (method !== "GET") return methodNotAllowed();
-        const capabilities = await access.capabilities(
-          request,
-          match.scopeId,
-          requireSlug(match),
-        );
+        const capabilities = await access.capabilities(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          slug: requireSlug(match),
+        });
         return jsonResponse(capabilities);
       }
 
@@ -141,6 +176,7 @@ export function createDashboardHandler(
         const slug = requireSlug(match);
         if (method === "GET") {
           const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
             scopeId: match.scopeId,
             slug,
             action: "dashboard.permissions.read",
@@ -155,6 +191,7 @@ export function createDashboardHandler(
           // the valid roles, so an unauthenticated caller could read the
           // permission vocabulary straight out of the 400s.
           const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
             scopeId: match.scopeId,
             slug,
             action: "dashboard.permissions.write",
@@ -171,7 +208,7 @@ export function createDashboardHandler(
     }
   }
 
-  return async function handle(request: Request): Promise<Response> {
+  const handle = async function handle(request: Request): Promise<Response> {
     try {
       const pathname = pathnameOf(request.url);
       const routable = stripBasePath(pathname, basePath);
@@ -180,9 +217,14 @@ export function createDashboardHandler(
       if (match === null) return errorResponse(notFound());
       return await dispatch(request, match);
     } catch (error) {
+      // A DashboardServerError is an answer this code chose — a 404, a 403, a
+      // 409 — and says so on the wire. Anything else reached here by
+      // surprise, and is the only kind worth waking someone for.
+      if (!isDashboardServerError(error)) reportError(error, request);
       return errorResponse(error);
     }
   };
+  return options.cors ? withCors(handle, options.cors) : handle;
 }
 
 // ------------------------------------------------------------- helpers ----

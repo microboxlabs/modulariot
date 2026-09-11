@@ -30,8 +30,10 @@ import { noopAuditSink } from "../seams/audit";
 import type {
   DashboardCapabilities,
   DashboardIdentity,
+  DashboardPrincipal,
   IdentityResolver,
   ScopeAuthority,
+  TenantAuthority,
 } from "../seams/identity";
 import type {
   DashboardRecord,
@@ -52,6 +54,8 @@ import {
 export type DashboardAction = Exclude<AuditAction, "embed.token.redeem">;
 
 export interface AccessTarget {
+  /** Named by the request, and refused unless the `TenantAuthority` allows it. */
+  tenantId: string;
   scopeId: string;
   /** Required for dashboard-level actions; optional for scope-level ones. */
   slug?: string;
@@ -77,6 +81,7 @@ export interface AccessDecision {
 
 export interface AccessControlOptions<TRequest> {
   identity: IdentityResolver<TRequest>;
+  tenants: TenantAuthority;
   scopes: ScopeAuthority;
   store: ServerDashboardStore;
   /** Defaults to `roleCapabilityPolicy`. */
@@ -102,8 +107,7 @@ export interface AccessControl<TRequest> {
    */
   capabilities(
     request: TRequest,
-    scopeId: string,
-    slug: string,
+    target: { tenantId: string; scopeId: string; slug: string },
   ): Promise<DashboardCapabilities>;
 }
 
@@ -207,9 +211,8 @@ function scopeActionAllowed(
 }
 
 function targetLabel(target: AccessTarget): string {
-  return target.slug === undefined
-    ? target.scopeId
-    : `${target.scopeId}/${target.slug}`;
+  const scope = `${target.tenantId}/${target.scopeId}`;
+  return target.slug === undefined ? scope : `${scope}/${target.slug}`;
 }
 
 export function createAccessControl<TRequest>(
@@ -217,6 +220,7 @@ export function createAccessControl<TRequest>(
 ): AccessControl<TRequest> {
   const {
     identity: identities,
+    tenants,
     scopes,
     store,
     policy = roleCapabilityPolicy,
@@ -226,7 +230,7 @@ export function createAccessControl<TRequest>(
   } = options;
 
   async function record(
-    identity: DashboardIdentity | null,
+    principal: DashboardPrincipal | null,
     target: AccessTarget,
     outcome: "allowed" | "denied",
     detail?: Record<string, string | number | boolean>,
@@ -234,8 +238,11 @@ export function createAccessControl<TRequest>(
     try {
       await audit.record({
         at: now().toISOString(),
-        ...(identity
-          ? { tenantId: identity.tenantId, userId: identity.userId }
+        // The tenant that was asked for, which is the one worth recording:
+        // on a refusal there is no bound tenant, and "which tenant did they
+        // try" is exactly the question a reader of the log has.
+        ...(principal
+          ? { tenantId: target.tenantId, userId: principal.userId }
           : {}),
         action: target.action,
         outcome,
@@ -248,14 +255,14 @@ export function createAccessControl<TRequest>(
   }
 
   async function deny(
-    identity: DashboardIdentity | null,
+    principal: DashboardPrincipal | null,
     target: AccessTarget,
     reason: ForbiddenReason,
     message: string,
   ): Promise<never> {
-    await record(identity, target, "denied", {
+    await record(principal, target, "denied", {
       reason,
-      principal: identity?.kind ?? "anonymous",
+      principal: principal?.kind ?? "anonymous",
     });
     throw DashboardServerError.forbidden(reason, message);
   }
@@ -269,9 +276,10 @@ export function createAccessControl<TRequest>(
       assignments: PermissionAssignment[],
     ) => Promise<DashboardCapabilities | null>,
   ): Promise<DashboardAccess | null> {
-    // tenantId comes from the credential, never from the target: this is the
-    // one place a store reference is assembled, and it cannot name another
-    // tenant.
+    // From the identity, not the target: the two hold the same value, but
+    // only the identity's has been through the TenantAuthority. This is the
+    // one place a store reference is assembled, so taking the unchecked one
+    // here is the whole isolation bug.
     const ref: ServerDashboardRef = {
       tenantId: identity.tenantId,
       scopeId: target.scopeId,
@@ -297,6 +305,7 @@ export function createAccessControl<TRequest>(
     if (
       !scope ||
       !EMBED_ACTIONS.has(target.action) ||
+      target.tenantId !== scope.tenantId ||
       target.scopeId !== scope.scopeId ||
       (target.slug !== undefined && target.slug !== scope.slug)
     ) {
@@ -418,24 +427,43 @@ export function createAccessControl<TRequest>(
     request: TRequest,
     target: AccessTarget,
   ): Promise<AccessDecision> {
-    const identity = await identities.resolve(request);
-    if (identity === null) {
+    const principal = await identities.resolve(request);
+    if (principal === null) {
       await record(null, target, "denied", { reason: "UNAUTHENTICATED" });
       throw DashboardServerError.unauthenticated();
     }
-    return identity.kind === "embed"
-      ? authorizeEmbed(identity, target)
-      : authorizeUser(identity, target);
+
+    // An embed token carries its own tenant and is good for one dashboard, so
+    // there is nothing for the TenantAuthority to decide. Binding it here
+    // keeps `authorizeEmbed` comparing two values it can see.
+    if (principal.kind === "embed") {
+      const bound: DashboardIdentity = {
+        ...principal,
+        tenantId: principal.embedScope?.tenantId ?? target.tenantId,
+      };
+      return authorizeEmbed(bound, target);
+    }
+
+    // Deliberately the same refusal as an unknown scope: a caller enumerating
+    // tenant ids must not be able to tell "not yours" from "no such tenant".
+    if (!(await tenants.mayActAs(principal, target.tenantId))) {
+      return deny(
+        principal,
+        target,
+        "TENANT_SCOPE",
+        "The requested scope is not accessible with these credentials",
+      );
+    }
+
+    return authorizeUser({ ...principal, tenantId: target.tenantId }, target);
   }
 
   async function capabilities(
     request: TRequest,
-    scopeId: string,
-    slug: string,
+    target: { tenantId: string; scopeId: string; slug: string },
   ): Promise<DashboardCapabilities> {
     const decision = await authorize(request, {
-      scopeId,
-      slug,
+      ...target,
       action: "dashboard.load",
     });
     if (!decision.dashboard || decision.dashboard.record === null) {

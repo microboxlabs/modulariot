@@ -16,6 +16,21 @@ export interface DashboardDocumentStore {
   /** Deleting a key that does not exist succeeds. */
   delete(key: string): Promise<void>;
 
+  /**
+   * Optional: every stored document, for `sweepOrphanDocuments`. A backend
+   * that cannot enumerate its keys cannot be swept.
+   */
+  list?(): AsyncIterable<StoredDocument>;
+
   /** Optional: implementations that hold a connection close it here. */
   close?(): Promise<void>;
+}
+
+export interface StoredDocument {
+  key: string;
+  /**
+   * When the document was written, or `null` when the backend does not know.
+   * The sweep leaves a document of unknown age alone.
+   */
+  createdAt: Date | null;
 }

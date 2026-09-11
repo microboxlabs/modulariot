@@ -11,6 +11,11 @@ export type { CompositeStoreOptions } from "./store/composite";
 
 export { createSqlMetadataStore } from "./store/sql/metadata";
 export { createSqlDocumentStore } from "./store/sql/documents";
+export type { SqlDocumentStoreOptions } from "./store/sql/documents";
+export { createFsDocumentStore } from "./store/fs-documents";
+export type { FsDocumentStoreOptions } from "./store/fs-documents";
+export { sweepOrphanDocuments } from "./store/sweep";
+export type { SweepOptions, SweepResult } from "./store/sweep";
 export { MIGRATIONS, runMigrations } from "./store/sql/migrations";
 export type { Migration } from "./store/sql/migrations";
 export {
@@ -23,11 +28,19 @@ export type { SqlDialect, SqlDriver, SqlValue } from "./store/sql/driver";
 export { createSqliteDriver } from "./store/sqlite-driver";
 export type { SqliteDriverOptions } from "./store/sqlite-driver";
 export { openSqliteStore, SQLITE_MEMORY } from "./store/sqlite";
-export type { OpenedStore, SqliteStoreOptions } from "./store/sqlite";
+export type { SqliteStoreOptions } from "./store/sqlite";
+
+export { createPostgresDriver } from "./store/postgres-driver";
+export type { PostgresDriverOptions } from "./store/postgres-driver";
+export { openPostgresStore } from "./store/postgres";
+export type { PostgresStoreOptions } from "./store/postgres";
+
+export { openSqlStore } from "./store/sql/open";
+export type { OpenedStore, SqlStoreOptions } from "./store/sql/open";
 
 export type {
   DashboardMetadataRow,
   DashboardMetadataStore,
   DashboardMetadataWrite,
 } from "./seams/metadata";
-export type { DashboardDocumentStore } from "./seams/documents";
+export type { DashboardDocumentStore, StoredDocument } from "./seams/documents";

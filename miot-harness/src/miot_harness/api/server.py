@@ -17,7 +17,8 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from pydantic import BaseModel, Field
 from traceloop.sdk import Traceloop
 
-from miot_harness.agents.chat_models import get_chat_model
+from miot_harness.agents.chat_models import get_chat_model, supports_effort
+from miot_harness.agents.conversation_summarizer import build_conversation_summarizer
 from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
 from miot_harness.api.identity import (
@@ -46,7 +47,8 @@ from miot_harness.datasource.provider import BootResult, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
-from miot_harness.runtime.agent_loop import AgentLoopRunner
+from miot_harness.runtime.agent_loop import AgentLoopRunner, AgentLoopRunners
+from miot_harness.runtime.agent_seats import AdvisorSeat, LoopSeats, WorkhorseSeat
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.data_graph import build_data_graph
@@ -143,6 +145,16 @@ def _make_lifespan(
         # decide whether to keep listening or treat the run as final.
         app.state.harness = harness
         app.state.event_bus = harness.event_bus
+        # Conversation compaction is independent of the datasource: turns
+        # accumulate on the direct and disabled paths too. Without a model
+        # the history just keeps growing, as before.
+        try:
+            harness.conversation_summarizer = build_conversation_summarizer(
+                get_chat_model(settings.agents_summarizer_model)
+            )
+        except Exception as exc:  # noqa: BLE001
+            harness.conversation_summarizer = None
+            logger.warning("Conversation compaction disabled: %s", exc)
         app.state.in_flight = {}
         # Parallel map from in-flight run_id → tenant_id, populated by
         # /runs:start and cleared in the task's done-callback. Lets
@@ -359,8 +371,9 @@ def _make_lifespan(
                         )
                     )
                 # total_tables (not tables) so the header + truncation note still
-                # render when the index is capped to 0 (generic_schema_max_tables=0).
-                if summary is not None and summary.total_tables:
+                # render when the index is capped to 0 (generic_schema_max_tables=0);
+                # routine_count so a schema that only holds functions still renders.
+                if summary is not None and (summary.total_tables or summary.routine_count):
                     parts.append(summary.render())
                 if parts:
                     ckb_blocks.append(f"## {conn.name}\n" + "\n\n".join(parts))
@@ -545,22 +558,72 @@ def _make_lifespan(
                 # model/effort; the runner freezes prompt + tool list at boot
                 # so every request shares one prompt-cache prefix.
                 if settings.agents_agent_loop_enabled:
-                    harness.agent_loop = AgentLoopRunner(
-                        model=get_chat_model(
-                            settings.agents_planner_model,
-                            effort=settings.agents_planner_effort,
+                    loop_provenance = ProvenanceLog(
+                        settings.provenance_log_dir,
+                        enabled=settings.provenance_log_enabled,
+                    )
+                    seats = LoopSeats(
+                        advisor=(
+                            AdvisorSeat(
+                                model=get_chat_model(settings.agents_advisor_model),
+                                display_name=effective_profile.display_name,
+                                max_consults=settings.agents_advisor_max_consults,
+                                span_prefix=effective_profile.name,
+                            )
+                            if settings.agents_advisor_model
+                            else None
+                        ),
+                        workhorse=(
+                            WorkhorseSeat(
+                                build=lambda: AgentLoopRunner(
+                                    model=get_chat_model(
+                                        settings.agents_workhorse_model,
+                                        timeout=settings.agents_agent_loop_llm_timeout_seconds,
+                                    ),
+                                    registry=harness.tools,
+                                    settings=settings.model_copy(
+                                        update={
+                                            "agents_agentic_max_turns": (
+                                                settings.agents_workhorse_max_turns
+                                            )
+                                        }
+                                    ),
+                                    profile=effective_profile,
+                                    provenance_log=loop_provenance,
+                                    context_skills=harness.context_skills,
+                                ),
+                                max_parallel=settings.agents_workhorse_max_parallel,
+                            )
+                            if settings.agents_workhorse_model
+                            else None
+                        ),
+                    )
+                    harness.agent_loop = AgentLoopRunners(
+                        default_model=settings.agents_agent_loop_model,
+                        models=settings.agents_agent_loop_models,
+                        # Reasoning knob per model generation: `effort` on the
+                        # adaptive-thinking models, a thinking budget on the rest.
+                        build_model=lambda name: get_chat_model(
+                            name,
                             timeout=settings.agents_agent_loop_llm_timeout_seconds,
+                            **(
+                                {"effort": settings.agents_planner_effort}
+                                if supports_effort(name)
+                                else {
+                                    "thinking_budget_tokens": (
+                                        settings.agents_synthesizer_thinking_budget
+                                    )
+                                }
+                            ),
                         ),
                         registry=harness.tools,
                         settings=settings,
                         profile=effective_profile,
-                        provenance_log=ProvenanceLog(
-                            settings.provenance_log_dir,
-                            enabled=settings.provenance_log_enabled,
-                        ),
+                        provenance_log=loop_provenance,
                         # Skills index in the frozen prefix + lazy
                         # `load_skill` bodies (booted above, before wiring).
                         context_skills=harness.context_skills,
+                        seats=seats,
                     )
                 harness.meta_model = get_chat_model(
                     settings.intent_router_model,
@@ -920,6 +983,27 @@ def create_app() -> FastAPI:
             "connections": conns,
         }
 
+    def _enforce_model_allowlist(request: UserRequest) -> None:
+        if request.model is None:
+            return
+        loop = getattr(app.state.harness, "agent_loop", None)
+        if loop is None or not loop.allowed(request.model):
+            raise HTTPException(
+                status_code=400,
+                detail=f"model {request.model!r} is not available; see GET /models",
+            )
+
+    @app.get("/models")
+    async def get_models(
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, Any]:
+        """Conversation models a run may name in `model`. Empty when the agent
+        loop is off: the planner graph has no per-run model."""
+        loop = getattr(app.state.harness, "agent_loop", None)
+        if loop is None:
+            return {"default": None, "models": []}
+        return {"default": loop.default_model, "models": list(loop.models)}
+
     @app.post("/runs", response_model=HarnessRunRecord)
     async def create_run(
         request: UserRequest,
@@ -936,6 +1020,7 @@ def create_app() -> FastAPI:
             request = request.model_copy(update={"debug": True})
         request = _apply_tenant_override(request, auth)
         _enforce_debug_allowlist(request, settings)
+        _enforce_model_allowlist(request)
         return await harness.run(request)
 
     @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
@@ -986,6 +1071,7 @@ def create_app() -> FastAPI:
             request = request.model_copy(update={"debug": True})
         request = _apply_tenant_override(request, auth)
         _enforce_debug_allowlist(request, settings)
+        _enforce_model_allowlist(request)
         run_id = f"run_{uuid4().hex}"
         task = asyncio.create_task(
             app.state.harness.run(request, run_id_override=run_id)

@@ -34,7 +34,7 @@ Investigation rules:
   primitives are a fallback for questions the curated catalog cannot answer.
 - Never repeat a tool call you already made with identical arguments.
 - Read any knowledge card at most once, then ACT on what it says.
-{skills_block}
+{skills_block}{seats_block}
 Rigor — do not answer from incomplete or fuzzy evidence:
 - A grep / ILIKE result is a FUZZY sample, never an authoritative count or
   list. Do not report a total or enumerate items from a grep — run a precise
@@ -47,6 +47,10 @@ Rigor — do not answer from incomplete or fuzzy evidence:
   node properties), run the join/pivot query that returns the actual
   attributes (codes, names, references) before answering.
 - Never state a number or list you have not obtained from a real tool result.
+- A tool result is a JSON envelope. `output` is a display excerpt of at most
+  5 rows; `rows_returned` and `total` are exact counts. An `excerpt` note
+  ("first 5 of 58 rows", "cut at N chars") is display truncation, not a gap:
+  answer from `total` and do not re-run the query to see more rows.
 - Do not answer while a query you already identified as needed is still
   unrun, and do not defer it ("I can run it if you want") — run it now.
 
@@ -106,7 +110,7 @@ def render_skills_index(
 
 
 def build_agent_system_prompt(
-    profile: DataSourceProfile, *, skills_index: str = ""
+    profile: DataSourceProfile, *, skills_index: str = "", seats_block: str = ""
 ) -> str:
     skills_block = (
         _SKILLS_BLOCK_TEMPLATE.format(index=skills_index) if skills_index else ""
@@ -117,6 +121,7 @@ def build_agent_system_prompt(
         primer=profile.primer,
         tool_prefix=profile.tool_prefix,
         skills_block=skills_block,
+        seats_block=seats_block,
     )
 
 

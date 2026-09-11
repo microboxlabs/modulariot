@@ -35,6 +35,7 @@ import type { RouteName } from "../http/routes";
 import {
   createInsecureHeaderIdentityResolver,
   createMemoryScopeAuthority,
+  createMemoryTenantAuthority,
   createMemoryStore,
 } from "../testing";
 
@@ -338,7 +339,7 @@ describe("asset serving", () => {
 describe("routing", () => {
   it("declines paths that are not its own, so the API still sees them", () => {
     const handler = createDocsHandler();
-    expect(handler(get("/scopes/ops/dashboards"))).toBeNull();
+    expect(handler(get("/tenants/acme/scopes/ops/dashboards"))).toBeNull();
     expect(handler(get("/health"))).toBeNull();
     expect(handler(get("/openapi.json"))).toBeNull();
     expect(handler(get("/docsomething"))).toBeNull();
@@ -359,6 +360,7 @@ describe("served by the standalone server", () => {
   beforeAll(async () => {
     running = await serve({
       identity: createInsecureHeaderIdentityResolver(),
+      tenants: createMemoryTenantAuthority({}),
       scopes: createMemoryScopeAuthority({}),
       store: createMemoryStore(),
       port: 0,
@@ -386,14 +388,15 @@ describe("served by the standalone server", () => {
   it("still answers the probes and the API", async () => {
     expect((await fetch(`${running.url}/health`)).status).toBe(200);
     // Unauthenticated, so 401 — but reached the API rather than the docs.
-    expect((await fetch(`${running.url}/scopes/ops/dashboards`)).status).toBe(
-      401,
-    );
+    expect(
+      (await fetch(`${running.url}/tenants/acme/scopes/ops/dashboards`)).status,
+    ).toBe(401);
   });
 
   it("serves neither when docs are turned off", async () => {
     const off = await serve({
       identity: createInsecureHeaderIdentityResolver(),
+      tenants: createMemoryTenantAuthority({}),
       scopes: createMemoryScopeAuthority({}),
       store: createMemoryStore(),
       port: 0,
@@ -426,7 +429,7 @@ describe("served by the standalone server", () => {
  */
 describe("the spec against the router", () => {
   const METHODS = ["GET", "PUT", "POST", "PATCH", "DELETE"] as const;
-  const EXAMPLE = { scopeId: "ops", slug: "fleet" };
+  const EXAMPLE = { tenantId: "acme", scopeId: "ops", slug: "fleet" };
 
   /**
    * Where each of the router's routes lives, as an exhaustive
@@ -437,14 +440,17 @@ describe("the spec against the router", () => {
    * ship undocumented.
    */
   const ROUTE_PATHS: Readonly<Record<RouteName, string>> = {
-    dashboards: "/scopes/{scopeId}/dashboards",
-    dashboard: "/scopes/{scopeId}/dashboards/{slug}",
-    capabilities: "/scopes/{scopeId}/dashboards/{slug}/capabilities",
-    permissions: "/scopes/{scopeId}/dashboards/{slug}/permissions",
+    dashboards: "/tenants/{tenantId}/scopes/{scopeId}/dashboards",
+    dashboard: "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}",
+    capabilities:
+      "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/capabilities",
+    permissions:
+      "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/permissions",
   };
 
   const concrete = (template: string) =>
     template
+      .replace("{tenantId}", EXAMPLE.tenantId)
       .replace("{scopeId}", EXAMPLE.scopeId)
       .replace("{slug}", EXAMPLE.slug);
 
@@ -472,6 +478,7 @@ describe("the spec against the router", () => {
   beforeAll(async () => {
     running = await serve({
       identity: createInsecureHeaderIdentityResolver(),
+      tenants: createMemoryTenantAuthority({}),
       scopes: createMemoryScopeAuthority({}),
       store: createMemoryStore(),
       port: 0,

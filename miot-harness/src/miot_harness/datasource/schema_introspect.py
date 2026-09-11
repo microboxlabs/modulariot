@@ -47,6 +47,8 @@ class SchemaSummary:
     # The FULL set of bare table names (uncapped) — for knowledge-pack
     # fingerprinting, which must see every table, not just the displayed slice.
     all_table_names: frozenset[str] = frozenset()
+    # Executable, non-extension routines in the same schemas (0 when not surveyed).
+    routine_count: int = 0
 
     @property
     def truncated(self) -> bool:
@@ -70,6 +72,12 @@ class SchemaSummary:
         if self.truncated:
             extra = self.total_tables - len(self.tables)
             lines.append(f"- (+{extra} more — use the connection's list_tables tool)")
+        if self.routine_count:
+            lines.append(
+                f"Functions: {self.routine_count} callable — `{self.connection}_functions` "
+                f"lists them with the analyst's notes, `{self.connection}_definition` "
+                "shows a view or function body."
+            )
         return "\n".join(lines)
 
 
@@ -108,6 +116,13 @@ def _fmt_estimate(rows: int | None) -> str:
 # Table list + type + row estimate from pg_catalog (reltuples is a planner
 # statistic — free, no COUNT(*)). relkind: r=table, v=view, m=matview,
 # p=partitioned, f=foreign.
+#
+# The privilege predicates keep the index to relations this role can read.
+# Without them a narrowly granted role gets an index of everything in the
+# schema, and max_tables can cut away the relations it is allowed to query.
+# Both are needed: a table ACL is independent of its schema's USAGE grant, so
+# has_table_privilege alone passes relations that fail with "permission denied
+# for schema". Qualified with pg_catalog so search_path cannot shadow them.
 _TABLES_QUERY = """
 SELECT n.nspname AS table_schema,
        c.relname AS table_name,
@@ -124,6 +139,8 @@ FROM pg_catalog.pg_class c
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = ANY($1::text[])
   AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
+  AND pg_catalog.has_table_privilege(c.oid, 'SELECT')
+  AND pg_catalog.has_schema_privilege(n.oid, 'USAGE')
 ORDER BY n.nspname, c.relname
 """
 

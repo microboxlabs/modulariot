@@ -22,6 +22,7 @@ import { getAllDashlets, getAllDashletMetas } from "@/features/dashboard/dashlet
 import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.service";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
+import { conversationOf, modelOf, type AgUiMessage, type RunAgentInputBody } from "./conversation";
 
 /**
  * AG-UI streaming relay for the harness-chat panel: `RunAgentInput` in,
@@ -45,6 +46,8 @@ const FORWARDED_EVENTS: ReadonlySet<string> = new Set([
   "thinking.delta",
   "thinking.completed",
   "verification.completed",
+  "advisor.consulted",
+  "delegate.completed",
   "answer.completed",
   "run.completed",
   "run.failed",
@@ -512,9 +515,26 @@ function narrateForwardedEvent(
   tr: TrFn,
 ): void {
   appendNarrationDiff(send, narrator, progress, tr);
+  const line = seatNarration(event);
+  if (line) appendNarration(send, narrator, line);
   if (event.type !== "thinking.delta") return;
   const delta = event.data.delta;
   if (typeof delta === "string") appendNarration(send, narrator, delta);
+}
+
+/** One narration line for a seat event, or null for any other event. */
+export function seatNarration(event: { type: string; data: Record<string, unknown> }): string | null {
+  if (event.type === "advisor.consulted") {
+    const signal = typeof event.data.signal === "string" ? event.data.signal : "?";
+    const note = typeof event.data.note === "string" ? event.data.note.split("\n")[0] : "";
+    const suffix = note ? " — " + note : "";
+    return "\nAdvisor: " + signal + suffix;
+  }
+  if (event.type === "delegate.completed") {
+    const tools = Array.isArray(event.data.tools_run) ? event.data.tools_run.join(", ") : "";
+    return tools ? "\nDelegated: ran " + tools : "\nDelegated";
+  }
+  return null;
 }
 
 /** Relays the harness run's own event stream to the browser as live
@@ -627,7 +647,8 @@ async function run(
     return;
   }
   const { client, orgSlug, token, userEmail } = connection;
-  const conversationId = body.state?.harnessConversationId ?? null;
+  const { conversationId, replayTurns, summary } = conversationOf(body, messages);
+  const model = modelOf(body);
 
   let activeRunId: string | null = null;
   let runSettled = false;
@@ -656,8 +677,11 @@ async function run(
         skill_id: "miot-search",
         answer_format: "json",
         mode: "auto",
+        ...(model && { model }),
         ...(userEmail && { user_id: userEmail }),
         ...(conversationId && { conversation_id: conversationId }),
+        ...(replayTurns.length > 0 && { conversation_history: replayTurns }),
+        ...(summary && { conversation_summary: summary }),
       },
       { signal: controller.signal },
     );
@@ -696,7 +720,15 @@ async function run(
 
     const record = await client.runs.get(run_id, { signal: controller.signal });
     sendText(send, blocksToText(record.answer, tr));
-    send({ type: "STATE_SNAPSHOT", snapshot: { harnessConversationId: record.conversation_id } });
+    send({
+      type: "STATE_SNAPSHOT",
+      snapshot: {
+        harnessConversationId: record.conversation_id,
+        // What the harness holds now, compacted or seeded; the panel stores
+        // it with the thread so the next process can be handed it back.
+        harnessConversationSummary: record.conversation_summary ?? null,
+      },
+    });
     send({ type: "RUN_FINISHED", runId, threadId });
 
     void recordEpisode({

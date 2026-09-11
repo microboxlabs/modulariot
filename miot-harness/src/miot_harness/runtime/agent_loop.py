@@ -24,15 +24,19 @@ from __future__ import annotations
 import copy
 import json
 import logging
+from collections.abc import Callable
 from time import monotonic
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
+    AIMessage,
+    AIMessageChunk,
     BaseMessage,
     HumanMessage,
     SystemMessage,
     ToolMessage,
+    message_chunk_to_message,
 )
 
 from miot_harness.agents.chat_models import response_text
@@ -48,6 +52,13 @@ from miot_harness.runtime.agent_prompt import (
     cached_system_message,
     render_skills_index,
 )
+from miot_harness.runtime.agent_seats import (
+    ADVISOR_TOOL,
+    DELEGATE_TOOL,
+    LoopSeats,
+    seat_tool_schemas,
+    seats_prompt_block,
+)
 from miot_harness.runtime.agentic_graph import _provenance_entry
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.data_graph import instrument_model
@@ -57,7 +68,7 @@ from miot_harness.runtime.router import HarnessRoute
 from miot_harness.runtime.tenancy import tenancy_gate_decision
 from miot_harness.runtime.tool import Progress
 from miot_harness.tools.registry import ToolRegistry
-from miot_harness.utils.truncation import truncate_for_trace
+from miot_harness.utils.truncation import excerpt_for_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +98,13 @@ _LOAD_SKILL_SCHEMA = {
         "required": ["skill_id"],
     },
 }
+
+# Text before the first tool call is narration; only past this many chars
+# does a turn's text stream as the answer while still being generated.
+_NARRATION_HOLD_CHARS = 400
+# Room for the `excerpt` note and the JSON envelope around the output.
+_EXCERPT_ENVELOPE_CHARS = 120
+_MIN_EXCERPT_CHARS = 40
 
 _TURN_CAP_NUDGE = (
     "Turn cap reached. Answer now from the evidence you already collected; "
@@ -162,6 +180,117 @@ def _mark_message(msg: BaseMessage) -> BaseMessage | None:
     return msg.model_copy(update={"content": blocks})
 
 
+async def _stream_turn(
+    model: Any, messages: list[BaseMessage], *, progress: Progress, run_id: str
+) -> AIMessage:
+    """One model turn, streamed.
+
+    Thinking blocks stream as `thinking.delta`. Text is held up to
+    `_NARRATION_HOLD_CHARS`: if the turn ends in tool calls, the held text is
+    the narration and goes out once as `thinking.delta`; otherwise it is the
+    answer and replays as `answer.delta`. Text past the hold streams as
+    `answer.delta` as it arrives and is never re-emitted, even when a tool
+    call follows. A turn that emitted any thinking or narration closes with
+    `thinking.completed`. Returns the aggregated message, tool calls included.
+    """
+    agg: AIMessageChunk | None = None
+    held: list[str] = []
+    held_chars = 0
+    streaming = False
+    answer_index = 0
+    tool_call_seen = False
+    thinking_chars = 0
+    thinking_index = 0
+
+    def emit_answer(delta: str) -> None:
+        nonlocal answer_index
+        progress(
+            HarnessEvent(
+                run_id=run_id,
+                type="answer.delta",
+                message="",
+                data={"agent": "agent_loop", "delta": delta, "index": answer_index},
+            )
+        )
+        answer_index += 1
+
+    async for chunk in model.astream(messages):
+        agg = chunk if agg is None else agg + chunk
+        if getattr(chunk, "tool_call_chunks", None):
+            tool_call_seen = True
+        for kind, delta in _chunk_deltas(chunk):
+            if kind != "text":
+                thinking_chars += len(delta)
+                progress(_thinking_delta(run_id, delta, thinking_index))
+                thinking_index += 1
+                continue
+            if streaming:
+                emit_answer(delta)
+                continue
+            if tool_call_seen or held_chars + len(delta) <= _NARRATION_HOLD_CHARS:
+                held.append(delta)
+                held_chars += len(delta)
+                continue
+            for part in held:
+                emit_answer(part)
+            held.clear()
+            streaming = True
+            emit_answer(delta)
+    if agg is None:
+        return AIMessage(content="")
+    message = message_chunk_to_message(agg)
+    if not isinstance(message, AIMessage):
+        return AIMessage(content=response_text(message))
+    if message.tool_calls:
+        narration = "".join(held).strip()
+        if narration:
+            thinking_chars += len(narration)
+            progress(_thinking_delta(run_id, narration, thinking_index))
+    else:
+        for part in held:
+            emit_answer(part)
+    if thinking_chars:
+        progress(
+            HarnessEvent(
+                run_id=run_id,
+                type="thinking.completed",
+                message="agent_loop thinking done",
+                data={
+                    "agent": "agent_loop",
+                    "tokens": max(1, thinking_chars // 4),
+                    "length": thinking_chars,
+                },
+            )
+        )
+    return message
+
+
+def _thinking_delta(run_id: str, delta: str, index: int) -> HarnessEvent:
+    return HarnessEvent(
+        run_id=run_id,
+        type="thinking.delta",
+        message="",
+        data={"agent": "agent_loop", "delta": delta, "index": index},
+    )
+
+
+def _chunk_deltas(chunk: Any) -> list[tuple[str, str]]:
+    """(kind, text) pairs in a streamed chunk; kind is `text` or `thinking`."""
+    content = getattr(chunk, "content", None)
+    if isinstance(content, str):
+        return [("text", content)] if content else []
+    out: list[tuple[str, str]] = []
+    if isinstance(content, list):
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "text" and block.get("text"):
+                out.append(("text", str(block["text"])))
+            elif block.get("type") == "thinking" and block.get("thinking"):
+                out.append(("thinking", str(block["thinking"])))
+    return out
+
+
 class AgentLoopRunner:
     """One cached tool-calling agent for the DATA_AGENTIC route.
 
@@ -183,23 +312,30 @@ class AgentLoopRunner:
         profile: DataSourceProfile,
         provenance_log: ProvenanceLog | None = None,
         context_skills: ContextSkillsBundle | None = None,
+        seats: LoopSeats | None = None,
     ) -> None:
         self.registry = registry
         self.settings = settings
         self.profile = profile
         self.provenance_log = provenance_log
         self.context_skills = context_skills
+        self.seats = seats
         skills_index = render_skills_index(context_skills, profile)
         self.native_tools = build_native_tools(registry, profile=profile)
+        extras = seat_tool_schemas(seats)
         if skills_index:
+            extras.append(_LOAD_SKILL_SCHEMA)
+        if extras:
             # Re-sort so the tool list stays deterministically ordered — the
             # same byte-stability contract build_native_tools guarantees.
             self.native_tools = sorted(
-                [*self.native_tools, _LOAD_SKILL_SCHEMA],
+                [*self.native_tools, *extras],
                 key=lambda t: t["name"],
             )
         self.system_message = cached_system_message(
-            build_agent_system_prompt(profile, skills_index=skills_index)
+            build_agent_system_prompt(
+                profile, skills_index=skills_index, seats_block=seats_prompt_block(seats)
+            )
         )
         # Bind once — adding/removing/reordering tools mid-conversation
         # invalidates the whole cache (tools render at position 0).
@@ -242,6 +378,7 @@ class AgentLoopRunner:
         evidence: list[DataEvidence] = []
         usage_log: list[dict[str, Any]] = []
         loaded_skills: set[str] = set()
+        consults = 0
         answer: str | None = None
         max_turns = self.settings.agents_agentic_max_turns
 
@@ -258,7 +395,9 @@ class AgentLoopRunner:
                 )
             )
             start = monotonic()
-            response = await model.ainvoke(_with_tail_marker(messages))
+            response = await _stream_turn(
+                model, _with_tail_marker(messages), progress=progress, run_id=ctx.run_id
+            )
             usage_log.append(dict(getattr(response, "usage_metadata", None) or {}))
             messages.append(response)
             tool_calls = list(getattr(response, "tool_calls", None) or [])
@@ -279,8 +418,10 @@ class AgentLoopRunner:
             if not tool_calls or capped:
                 answer = response_text(response).strip()
                 break
+            delegations: list[dict[str, Any]] = []
             for call in tool_calls:
-                if call.get("name") == _LOAD_SKILL_TOOL:
+                name = call.get("name")
+                if name == _LOAD_SKILL_TOOL:
                     messages.append(
                         self._load_skill(
                             call, ctx=ctx, loaded_skills=loaded_skills,
@@ -288,12 +429,31 @@ class AgentLoopRunner:
                         )
                     )
                     continue
+                advisor = self.seats.advisor if self.seats is not None else None
+                if name == ADVISOR_TOOL and advisor is not None:
+                    consults += 1
+                    messages.append(
+                        await advisor.consult(
+                            call, ctx=ctx, consult=consults, progress=progress
+                        )
+                    )
+                    continue
+                workhorse = self.seats.workhorse if self.seats is not None else None
+                if name == DELEGATE_TOOL and workhorse is not None:
+                    delegations.append(call)
+                    continue
                 messages.append(
                     await self._execute_tool_call(
                         call, ctx=ctx, user_message=user_message,
                         evidence=evidence, progress=progress,
                     )
                 )
+            if delegations and self.seats is not None and self.seats.workhorse is not None:
+                for msg, found in await self.seats.workhorse.delegate_all(
+                    delegations, ctx=ctx, progress=progress
+                ):
+                    messages.append(msg)
+                    evidence.extend(found)
 
         if not answer:
             answer = (
@@ -472,21 +632,135 @@ class AgentLoopRunner:
         return ToolMessage(content=content, tool_call_id=call_id)
 
     def _render_tool_result(self, ev: DataEvidence) -> str:
-        payload, _info = truncate_for_trace(
+        """The tool output as the model sees it: an excerpt plus what it hides.
+
+        `rows_returned` and `total` are exact; the excerpt shows at most five
+        rows and says so, so the model never reads a display cut as a short
+        result. The whole message is valid JSON and never longer than
+        `agents_agent_loop_tool_result_max_chars`.
+        """
+        header: dict[str, Any] = {
+            "tool": ev.tool,
+            "source": ev.source,
+            "rows_returned": ev.sample_size,
+            "refreshed_at": ev.refreshed_at,
+            "is_stale": ev.is_stale,
+            "freshness_status": ev.freshness_status,
+            "is_sample": ev.is_sample,
+            "executed_sql": ev.executed_sql,
+        }
+        # The exact total lives outside the output, which may be cut or dropped.
+        total = _result_total(ev.output)
+        if total is not None:
+            header["total"] = total
+        upstream = _upstream_note(ev.output, ev.sample_size, total)
+        cap = self.settings.agents_agent_loop_tool_result_max_chars
+        budget = cap - len(json.dumps(header, default=str)) - _EXCERPT_ENVELOPE_CHARS
+        for _ in range(3):
+            if budget < _MIN_EXCERPT_CHARS:
+                break
+            excerpt, note = excerpt_for_prompt(ev.output, budget)
+            note = "; ".join(part for part in (upstream, note) if part)
+            try:
+                output: Any = json.loads(excerpt)
+            except ValueError:
+                # A char cut leaves a JSON fragment; carry it as a string.
+                output = excerpt
+            payload = {**header, **({"excerpt": note} if note else {}), "output": output}
+            text = json.dumps(payload, default=str)
+            if len(text) <= cap:
+                return text
+            budget -= len(text) - cap
+        # Compact valid envelope: fits any cap the setting allows.
+        return json.dumps(
             {
-                "tool": ev.tool,
-                "source": ev.source,
+                "tool": ev.tool[:64],
                 "rows_returned": ev.sample_size,
-                "refreshed_at": ev.refreshed_at,
-                "is_stale": ev.is_stale,
-                "freshness_status": ev.freshness_status,
-                "is_sample": ev.is_sample,
-                "executed_sql": ev.executed_sql,
-                "output": ev.output,
+                **({"total": header["total"]} if "total" in header else {}),
+                "excerpt": "omitted: tool result cap too small",
+                "output": None,
             }
         )
-        text = json.dumps(payload, default=str)
-        cap = self.settings.agents_agent_loop_tool_result_max_chars
-        if len(text) > cap:
-            text = text[:cap] + '... [truncated]"}'
-        return text
+
+
+def _result_total(output: Any) -> Any:
+    """The exact row count a tool reports (`total` or `total_count`), or None."""
+    if not isinstance(output, dict):
+        return None
+    for key in ("total", "total_count"):
+        if output.get(key) is not None:
+            return output[key]
+    return None
+
+
+def _upstream_note(output: Any, rows_returned: int | None, total: Any) -> str:
+    """Truncation the tool itself performed before the evidence was built."""
+    if not isinstance(output, dict):
+        return ""
+    if not output.get("truncated"):
+        return ""
+    return f"first {rows_returned} of {total} rows"
+
+
+class AgentLoopRunners:
+    """One `AgentLoopRunner` per conversation model, built on first use.
+
+    Each runner binds its own model and freezes its own prompt-cache prefix.
+    `run` dispatches on `ctx.model`; an unknown model is refused here as well
+    as at the API, so a direct caller cannot bypass the allowlist.
+    """
+
+    def __init__(
+        self,
+        *,
+        default_model: str,
+        models: tuple[str, ...] | list[str],
+        build_model: Callable[[str], BaseChatModel],
+        registry: ToolRegistry,
+        settings: HarnessSettings,
+        profile: DataSourceProfile,
+        provenance_log: ProvenanceLog | None = None,
+        context_skills: ContextSkillsBundle | None = None,
+        seats: LoopSeats | None = None,
+    ) -> None:
+        self.default_model = default_model
+        self.models = tuple(dict.fromkeys([default_model, *models]))
+        self._build_model = build_model
+        self._kwargs: dict[str, Any] = {
+            "registry": registry,
+            "settings": settings,
+            "profile": profile,
+            "provenance_log": provenance_log,
+            "context_skills": context_skills,
+            "seats": seats,
+        }
+        self._runners: dict[str, AgentLoopRunner] = {}
+
+    def allowed(self, model: str | None) -> bool:
+        return model is None or model in self.models
+
+    def runner_for(self, model: str | None) -> AgentLoopRunner:
+        name = self.default_model if model is None else model
+        if name not in self.models:
+            raise ValueError(f"model {name!r} is not in the agent loop allowlist")
+        runner = self._runners.get(name)
+        if runner is None:
+            runner = AgentLoopRunner(model=self._build_model(name), **self._kwargs)
+            self._runners[name] = runner
+        return runner
+
+    async def run(
+        self,
+        *,
+        user_message: str,
+        ctx: HarnessContext,
+        prior_messages: list[BaseMessage],
+        progress: Progress,
+    ) -> dict[str, Any]:
+        runner = self.runner_for(ctx.model)
+        return await runner.run(
+            user_message=user_message,
+            ctx=ctx,
+            prior_messages=prior_messages,
+            progress=progress,
+        )

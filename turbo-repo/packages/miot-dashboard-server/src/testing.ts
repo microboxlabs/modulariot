@@ -16,16 +16,17 @@
 import { DashboardServerError } from "./access/errors";
 import { dashboardDisplayName } from "./store/composite";
 import type { DashboardRole } from "./access/roles";
-import { FULL_CAPABILITIES } from "./access/roles";
+import { FULL_CAPABILITIES, isDashboardRole } from "./access/roles";
 import type { AuditEvent, AuditSink } from "./seams/audit";
 import type {
   CredentialsVault,
   DataSourceCredential,
 } from "./seams/credentials";
 import type {
-  DashboardIdentity,
+  DashboardPrincipal,
   IdentityResolver,
   ScopeAuthority,
+  TenantAuthority,
 } from "./seams/identity";
 import type {
   DashboardRecord,
@@ -193,6 +194,25 @@ export type Memberships = Record<
 >;
 
 /**
+ * One level of the seed, by own property only.
+ *
+ * A tenant, scope or user id arrives from the request, and a plain object
+ * inherits `constructor`, `toString` and the rest of `Object.prototype`. Read
+ * with `[]`, a scope named "constructor" resolves to a function rather than to
+ * nothing, and the lookup continues into it instead of stopping. Nothing found
+ * that way is a valid role today, so this fails closed either way — but on the
+ * strength of what `Object.prototype` happens to hold, which is not a property
+ * worth resting on.
+ */
+function own<T>(
+  source: Record<string, T> | undefined,
+  key: string,
+): T | undefined {
+  if (source === undefined || !Object.hasOwn(source, key)) return undefined;
+  return source[key];
+}
+
+/**
  * Scope authority backed by a plain object. Absent means denied, which is the
  * correct default and the reason the real seam has no default implementation.
  */
@@ -201,8 +221,30 @@ export function createMemoryScopeAuthority(
 ): ScopeAuthority {
   return {
     resolveScopeRole(identity, scopeId) {
+      const scopes = own(memberships, identity.tenantId);
+      const members = own(scopes, scopeId);
+      const role = own(members, identity.userId);
+      return Promise.resolve(isDashboardRole(role) ? role : null);
+    },
+  };
+}
+
+/**
+ * Tenant authority backed by the same object. A principal may act in a tenant
+ * when the seed puts them in at least one of its scopes, which is what "is a
+ * member of this tenant" means in a seed with no separate tenant roster.
+ */
+export function createMemoryTenantAuthority(
+  memberships: Memberships,
+): TenantAuthority {
+  return {
+    mayActAs(principal, tenantId) {
+      const scopes = own(memberships, tenantId);
       return Promise.resolve(
-        memberships[identity.tenantId]?.[scopeId]?.[identity.userId] ?? null,
+        scopes !== undefined &&
+          Object.values(scopes).some(
+            (members) => own(members, principal.userId) !== undefined,
+          ),
       );
     },
   };
@@ -211,7 +253,6 @@ export function createMemoryScopeAuthority(
 export interface InsecureHeaderIdentityOptions {
   /** Header carrying the user id. Absent header means unauthenticated. */
   userHeader?: string;
-  tenantHeader?: string;
   /** Comma-separated group list. */
   groupsHeader?: string;
 }
@@ -221,7 +262,7 @@ export interface InsecureHeaderIdentityOptions {
  * any kind.
  *
  * Named "insecure" deliberately and at every call site: anyone who can reach
- * the server can claim to be anyone in any tenant. It exists so the package
+ * the server can claim to be anyone. It exists so the package
  * can be exercised over HTTP — by Bruno, by an integrator, by a developer —
  * before a real identity provider is wired up.
  *
@@ -231,29 +272,23 @@ export interface InsecureHeaderIdentityOptions {
 export function createInsecureHeaderIdentityResolver(
   options: InsecureHeaderIdentityOptions = {},
 ): IdentityResolver<Request> {
-  const {
-    userHeader = "x-dev-user",
-    tenantHeader = "x-dev-tenant",
-    groupsHeader = "x-dev-groups",
-  } = options;
+  const { userHeader = "x-dev-user", groupsHeader = "x-dev-groups" } = options;
 
   return {
     resolve(request: Request) {
       const userId = request.headers.get(userHeader);
-      const tenantId = request.headers.get(tenantHeader);
-      if (!userId || !tenantId) return Promise.resolve(null);
+      if (!userId) return Promise.resolve(null);
       const groups = (request.headers.get(groupsHeader) ?? "")
         .split(",")
         .map((g) => g.trim())
         .filter((g) => g.length > 0);
-      const identity: DashboardIdentity = {
+      const principal: DashboardPrincipal = {
         userId,
-        tenantId,
         kind: "user",
         capabilities: { ...FULL_CAPABILITIES },
         ...(groups.length > 0 ? { groups } : {}),
       };
-      return Promise.resolve(identity);
+      return Promise.resolve(principal);
     },
   };
 }

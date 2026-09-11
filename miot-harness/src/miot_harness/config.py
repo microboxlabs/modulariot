@@ -73,18 +73,34 @@ class HarnessSettings(BaseSettings):
     # so they exercise the rules-only path.
     agents_agentic_verify_enabled: bool = True
     agents_agentic_max_replans: int = Field(default=2, ge=0)
-    # Single-agent tool-calling loop (spec 2026-07-02). When enabled, the
-    # DATA_AGENTIC route runs one cached native tool-use loop instead of the
-    # planner/verifier/synthesizer/critic panel. Default off until golden
-    # evals show parity with the legacy agentic graph.
-    agents_agent_loop_enabled: bool = False
+    # Single-agent tool-calling loop. The DATA_AGENTIC route runs one cached
+    # native tool-use loop instead of the planner/verifier/synthesizer/critic
+    # panel. False switches that panel back on.
+    agents_agent_loop_enabled: bool = True
+    # The conversation model of the loop: the seat that talks to the user
+    # and calls tools. The advisor seat runs a stronger model.
+    agents_agent_loop_model: str = "claude-sonnet-4-6"
     # Per-tool-result cap on the JSON fed back to the model. Bounds context
     # growth (and cache-write size) when a tool returns a large row set.
-    agents_agent_loop_tool_result_max_chars: int = Field(default=6000, gt=0)
+    # Minimum holds the compact envelope the loop falls back to (tool name,
+    # row count, note), so a tool message is always valid JSON.
+    agents_agent_loop_tool_result_max_chars: int = Field(default=6000, ge=200)
     # LLM timeout for the agent loop (seconds). The loop's final turn writes
     # the full user-facing answer and adaptive-thinking turns can exceed the
     # current hard 60s default. 300s (5 minutes) suits multi-step planning.
     agents_agent_loop_llm_timeout_seconds: int = Field(default=300, gt=0)
+    # Conversation models a caller may pick for the agent loop
+    # (`UserRequest.model`), as a JSON list in the env. The loop model is
+    # always allowed and is the default. One runner, with its own prompt-cache
+    # prefix, is built per model on first use.
+    agents_agent_loop_models: list[str] = Field(default_factory=list)
+    # Seats the conversation model can call. Empty model name disables the
+    # seat; its tool then never appears in the prompt.
+    agents_advisor_model: str = "claude-opus-4-8"
+    agents_advisor_max_consults: int = Field(default=2, ge=0)
+    agents_workhorse_model: str = "claude-sonnet-4-6"
+    agents_workhorse_max_turns: int = Field(default=6, ge=1)
+    agents_workhorse_max_parallel: int = Field(default=3, ge=1)
     # Small "did we answer it?" judge. Held separate from the synthesizer so it
     # can stay cheap. Empty string disables the LLM judge (rules-only verify).
     agents_verifier_model: str = "claude-haiku-4-5"
@@ -118,6 +134,17 @@ class HarnessSettings(BaseSettings):
     # outputs (3–5K tokens each) blow a uniform turn count. Must be
     # strictly positive; 0 or negative is meaningless as a budget.
     conversation_token_budget: int = Field(default=24_000, gt=0)
+
+    # Turns a conversation may hold before its older part is folded into a
+    # summary (`ConversationStore.summarize_if_needed`). The token budget
+    # above bounds what reaches the model; this bounds what accumulates.
+    conversation_summarize_at_turns: int = Field(default=10, gt=0)
+
+    # Prior turns shown to the intent router alongside the message it
+    # classifies. A follow-up like "and last week?" or "y bueno" has no
+    # route of its own; the turn before it does. 0 restores bare routing.
+    # Compaction keeps this many turns verbatim so they are there to read.
+    intent_router_context_turns: int = Field(default=2, ge=0)
 
     # Context & Skills subsystem (Phase 1: file-backed). Default dirs are
     # packaged in the image so it boots with zero mounted config; a K8s

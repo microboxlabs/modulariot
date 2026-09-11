@@ -1784,7 +1784,8 @@
         "credentials": "Credenciales",
         "connections": "Conexiones",
         "harness": "Harness",
-        "platform": "Plataforma"
+        "platform": "Plataforma",
+        "symptomRules": "Reglas de síntomas"
       },
       "symptoms": {
         "config": {
@@ -1887,7 +1888,8 @@
         "title": "Ajustes",
         "general": "General",
         "dataSources": "Fuentes de Datos",
-        "credentials": "Credenciales"
+        "credentials": "Credenciales",
+        "symptomRules": "Reglas de síntomas"
       },
       "credentials": {
         "title": "Credenciales",
@@ -2543,7 +2545,8 @@
         "searchPlaceholder": "Buscar...",
         "createDashboard": "Nuevo dashboard",
         "closePanel": "Cerrar panel",
-        "platform": "Plataforma"
+        "platform": "Plataforma",
+        "symptomRules": "Reglas de síntomas"
       }
     },
     "calendar": {
@@ -3697,7 +3700,49 @@
       "Deviation_Eta_Early": "Plan de Ruta Adelantado",
       "Fatigue And Drowsiness": "Fatiga y Somnolencia",
       "Fatigue And Drowsiness Sensor": "Sensor de Fatiga y Somnolencia"
-    }
+    },
+    "call_target": "¿A quién llamar?",
+    "target_driver": "Conductor",
+    "target_carrier": "Transportista / Jefe de transporte",
+    "target_ops": "Gerente de operaciones",
+    "target_mining": "Gerente de minería",
+    "target_other": "Otro",
+    "target_phone": "Teléfono del destinatario",
+    "escalation_note": "Destinatario distinto del conductor: quedará registrado como escalamiento propuesto por el operador.",
+    "ignore_reason": "Motivo de la ignoración",
+    "ignore_note": "Nota / evidencia",
+    "reason_required": "Seleccione un motivo para continuar",
+    "note_required_other": "Con motivo «Otro», la nota es obligatoria",
+    "ignore_semantics": "Ignorar = el evento es real, pero no amerita gestión. Si el síntoma NO es real (dato o regla), use Invalidar síntoma.",
+    "invalidate_semantics": "Invalidar = el síntoma NO es real (dato erróneo o regla mal calibrada). Si el evento es real pero no amerita gestión, use Ignorar condición.",
+    "ignore_learning": "Este motivo alimenta la calibración: «límite/mapa erróneo» entra al backlog de corrección y las zonas recurrentes se proponen como exclusión.",
+    "invalidate_learning": "La invalidación con motivo es la etiqueta de aprendizaje del motor: ajusta la calibración de la regla que generó el síntoma.",
+    "motivo_map": "Falso positivo — límite/mapa erróneo",
+    "motivo_shadow": "Zona conocida de sombra GPS",
+    "motivo_maneuver": "Maniobra justificada (adelantamiento)",
+    "motivo_authorized": "Condición operativa autorizada",
+    "motivo_duplicate": "Síntoma duplicado",
+    "motivo_other": "Otro (detallar en la nota)",
+    "inv_motivo_gps": "Dato GPS erróneo",
+    "inv_motivo_map": "Límite/mapa erróneo",
+    "inv_motivo_rule": "Regla mal calibrada",
+    "inv_motivo_duplicate": "Síntoma duplicado",
+    "invalidate_motivo": "Motivo de la invalidación",
+    "call_result": "Resultado de la llamada",
+    "result_pending": "Seleccione el resultado…",
+    "result_commits": "Contesta — compromete corrección",
+    "result_corrected": "Contesta — condición ya corregida",
+    "result_rejects": "Contesta — rechaza o discute",
+    "result_no_answer": "No contesta",
+    "result_voicemail": "Buzón de voz / apagado",
+    "call_note": "Nota de la llamada",
+    "escalate_offer": "Según la parametrización del síntoma, al no obtener respuesta corresponde escalar:",
+    "escalate_to": "Escalar a",
+    "register_escalation": "Registrar el escalamiento en el tratamiento",
+    "sla_column": "SLA",
+    "recurrence": "Recurrencia",
+    "sla_left": "quedan",
+    "sla_overdue": "vencido hace"
   },
   "geographic_view": {
     "speed": "Velocidad",
@@ -5321,7 +5366,15 @@
         "selectAll": "Seleccionar todo",
         "delete": "Eliminar",
         "deleteCount": "Eliminar ({count})",
-        "deleteChat": "Eliminar chat"
+        "deleteChat": "Eliminar chat",
+        "loading": "Cargando…",
+        "loadFailed": "No se pudieron cargar los chats guardados.",
+        "retry": "Reintentar",
+        "share": "Compartir chat",
+        "sharePlaceholder": "correo de la persona",
+        "shareSubmit": "Compartir",
+        "sharedWithYou": "Compartido contigo",
+        "revokeShare": "Quitar acceso"
       },
       "thread": {
         "dropToAttach": "Suelta para adjuntar",
@@ -5329,13 +5382,17 @@
         "editCancel": "Cancelar",
         "editSave": "Guardar",
         "thoughtProcess": "Proceso de pensamiento",
-        "executionCanceled": "La ejecución fue cancelada."
+        "executionCanceled": "La ejecución fue cancelada.",
+        "runFailed": "No se pudo obtener una respuesta.",
+        "retry": "Reintentar",
+        "readOnly": "Este chat es de solo lectura: lo compartió otra persona."
       },
       "attachments": {
         "removeImage": "Quitar imagen"
       },
       "composer": {
         "placeholder": "Pregúntale al harness…",
+        "model": "Modelo",
         "cancelRun": "Cancelar",
         "pdfTooLarge": "El PDF es demasiado grande ({size} MB) — el límite es {limit} MB."
       },
@@ -5354,5 +5411,8 @@
         "submit": "Enviar"
       }
     }
+  },
+  "moduleNames": {
+    "CARRIER_PORTAL": "Portal transportista"
   }
 }

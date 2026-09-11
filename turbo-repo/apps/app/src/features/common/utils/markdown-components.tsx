@@ -70,12 +70,15 @@ const MARKDOWN_COMPONENTS = {
   // Same "highlighted table header" treatment used elsewhere in the app
   // (schema-panel.tsx) — a solid wash, not just the border below, so the
   // header row reads as a distinct band rather than blending into the
-  // first data row. One step past the column divider's own shade in both
-  // themes (gray-200/gray-600 vs. the divider's gray-100/gray-700) so that
-  // divider still shows up as a contrasting line across the header too,
-  // instead of vanishing into a background painted the same color.
+  // first data row. Light mode stays a notch lighter (gray-100) than dark
+  // mode's gray-600 — gray-200 read as too heavy against this card's
+  // near-white gray-50 in daylight, even though the equivalent jump reads
+  // fine on the dark surface. The border-b below picks up the emphasis
+  // instead — same 1px weight, just a darker gray-300/gray-700 than the
+  // card's own border, so the header still reads as clearly separated from
+  // the body by color, not by making the rule itself thicker.
   thead: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
-    <thead className="border-b border-gray-200 bg-gray-200 dark:border-gray-700 dark:bg-gray-600">
+    <thead className="border-b border-gray-300 bg-gray-100 dark:border-gray-700 dark:bg-gray-600">
       {children}
     </thead>
   ),
@@ -158,9 +161,14 @@ const DOCUMENT_COMPONENTS = {
   ),
   // Same highlighted-header treatment as the compact variant's `thead`
   // below — prose doesn't give thead a background of its own, so this adds
-  // one rather than fighting prose's specificity to change one.
+  // one rather than fighting prose's specificity to change one. Prose
+  // already draws its own border-bottom under thead, though, so that gets
+  // strengthened separately via the prose-thead: override variant on the
+  // article itself (see MarkdownContent) instead of a plain border
+  // className here, which would be racing prose's own rule at equal
+  // specificity — same reason prose-th:/prose-td: exist for padding below.
   thead: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
-    <thead className="bg-gray-200 dark:bg-gray-600">{children}</thead>
+    <thead className="bg-gray-100 dark:bg-gray-600">{children}</thead>
   ),
   // divide-x draws a faint rule between columns (header row included, since
   // GFM maps both header and body rows to the same `tr`) — a border, not a
@@ -221,12 +229,14 @@ export function MarkdownContent({
     // stylesheet, not whichever the caller passed — twMerge resolves the
     // conflict in the caller's favor, like it should.
     return (
-      // prose-th:/prose-td: (Typography's own override variants, not plain
-      // padding utilities — those lose to prose's descendant selectors) give
-      // table rows a bit more breathing room than the plugin's default.
+      // prose-th:/prose-td:/prose-thead: (Typography's own override
+      // variants, not plain utilities — those lose to prose's descendant
+      // selectors) give table rows a bit more breathing room, and the
+      // header's own border-bottom a darker, clearer color, than the
+      // plugin's default — same 1px weight, just more contrast.
       <article
         className={twMerge(
-          "prose dark:prose-invert max-w-none prose-th:py-2 prose-td:py-2",
+          "prose dark:prose-invert max-w-none prose-th:py-2 prose-td:py-2 prose-thead:border-gray-300 dark:prose-thead:border-gray-700",
           className
         )}
       >

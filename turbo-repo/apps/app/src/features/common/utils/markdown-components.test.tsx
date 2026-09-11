@@ -80,9 +80,11 @@ describe("MarkdownContent — compact variant (chat bubbles, spotlight)", () => 
     }
   });
 
-  it("highlights the header row with its own background", () => {
+  it("highlights the header row with its own background and a darker bottom border", () => {
     const { container } = render(<MarkdownContent>{table}</MarkdownContent>);
-    expect(container.querySelector("thead")?.className).toContain("bg-gray-200");
+    const thead = container.querySelector("thead")?.className;
+    expect(thead).toContain("bg-gray-100");
+    expect(thead).toContain("border-gray-300");
   });
 
   it("disables rubber-band bounce on the table's own horizontal scroll", () => {
@@ -110,9 +112,14 @@ describe("MarkdownContent — document variant tables", () => {
     }
   });
 
-  it("highlights the header row with its own background", () => {
+  it("highlights the header row with its own background and a darker bottom border", () => {
     const { container } = render(<MarkdownContent variant="document">{table}</MarkdownContent>);
-    expect(container.querySelector("thead")?.className).toContain("bg-gray-200");
+    expect(container.querySelector("thead")?.className).toContain("bg-gray-100");
+    // The border override lives on the <article> (a prose-thead: variant,
+    // not a plain className on <thead> — see MarkdownContent's comment).
+    expect(container.querySelector("article")?.className).toContain(
+      "prose-thead:border-gray-300"
+    );
   });
 
   it("disables rubber-band bounce on the table's own horizontal scroll", () => {

@@ -125,6 +125,13 @@ export function applyHarnessEvent(
       });
     }
 
+    case "advisor.consulted":
+    case "delegate.completed":
+      // Seat events from the agent loop. The web narrator renders them inline
+      // (`seatNarration`); the TUI treats them as internal node boundaries and
+      // keeps the transcript to one row per agent, like agent.completed below.
+      return slice;
+
     case "agent.completed":
       // The agent.started row already carries the agent boundary; the
       // duration is surfaced inline by the REPL renderer. Skipping the

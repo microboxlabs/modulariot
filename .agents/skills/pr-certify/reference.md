@@ -52,7 +52,9 @@ does.
 environment assignment on the merge command itself — `gh pr merge 42; echo PR_CERTIFY_BYPASS=1`
 does not skip the gate.
 
-`python3 hooks/test_cmd.py` runs the 29 cases that pin this down.
+`python3 hooks/test_cmd.py` runs the 40 cases that pin this down, including the multi-line ones:
+`shlex` drops newlines, so lines are lexed separately and rejoined with an explicit separator —
+without that, the second command of any multi-line script was invisible to the gate.
 
 ## Subcommands
 
@@ -86,7 +88,7 @@ current branch.
   "providers": {
     "copilot":    { "available": true, "fresh": false, "verdict": "changes",
                     "pending": false, "headline": "### 🟡 Changes recommended",
-                    "reviewedSha": "...", "reviewedAt": "..." },
+                    "effort": "lite", "reviewedSha": "...", "reviewedAt": "..." },
     "coderabbit": { "available": false, "reason": "Review rate limited", ... },
     "sonar":      { "available": true, "verdict": "clean",
                     "projects": [ { "key": "...", "gate": "OK", "openIssues": 0,
@@ -173,7 +175,9 @@ rollup, reviews, review threads and comments.
 | stamp | `POST`/`PATCH` `/repos/{o}/{r}/issues[/comments]` |
 | auto re-review | `POST /repos/{o}/{r}/rulesets` with rule `copilot_code_review` |
 
-**SonarCloud** — over `curl` (macOS python has no usable CA bundle), basic auth `$SONAR_TOKEN:`.
+**SonarCloud** — over `curl` (macOS python has no usable CA bundle). The URL and the credential go
+in through `curl -K -` on stdin, never argv, where `ps` would expose the token to every process on
+the machine for the life of the request.
 
 | what | endpoint |
 |---|---|
@@ -190,6 +194,10 @@ As of September 2026:
   `reviewDraftPullRequests` only; `requested_reviewers` takes no depth argument; there is no
   Copilot mutation in the GraphQL schema. Effort level is a repo/org default set in the web UI,
   overridable per review only in the Reviewers menu. Tracked as cli#14188.
+
+  It is readable after the fact, though: the review body carries
+  `**Review effort level:** Lite`, which `prcert` surfaces as `providers.copilot.effort` and warns
+  about when it undershoots the classification.
 - **Request Copilot through GraphQL, by node id.** `requestReviews(botIds:[…], union:true)` is the
   only form observed to queue a review every time. `prcert` reads the id off the PR when Copilot has
   touched it before, and otherwise uses the global `BOT_kgDOCnlnWA`.

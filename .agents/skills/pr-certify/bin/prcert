@@ -268,6 +268,7 @@ def checks_summary(pr):
     }
 
 
+COPILOT_EFFORT = re.compile(r"Review effort level:\s*\**\s*(\w+)")
 COPILOT_VERDICTS = [
     ("\U0001F7E2", "clean"),      # green circle - Approval recommended
     ("\U0001F7E1", "changes"),    # yellow circle - Changes recommended
@@ -328,8 +329,10 @@ def copilot_state(pr):
         # older review format with no emoji headline: fall back to open threads
         verdict = "changes" if any(t["source"] == COPILOT_BOT and not t["isOutdated"]
                                    for t in unresolved_threads(pr, {COPILOT_BOT})) else "clean"
+    effort = COPILOT_EFFORT.search(rev.get("body") or "")
     return {"provider": "copilot", "available": True, "fresh": fresh, "verdict": verdict,
             "pending": requested, "headline": headline, "reviewedSha": sha,
+            "effort": effort.group(1).lower() if effort else None,
             "reviewedAt": rev.get("submittedAt")}
 
 
@@ -413,11 +416,13 @@ def sonar_keys(pr, repo_root=None):
 def sonar_get(host, token, path, params):
     """curl, not urllib: the system trust store is the one that works on macOS."""
     url = "%s/%s?%s" % (host.rstrip("/"), path.lstrip("/"), urllib.parse.urlencode(params))
-    cmd = ["curl", "-sS", "--max-time", "45", "-w", "\n%{http_code}"]
+    # The URL and the credential go in over stdin: anything in argv is readable
+    # by every other process on the machine for the life of the request.
+    config = ['url = "%s"' % url.replace("\\", "\\\\").replace('"', '\\"')]
     if token:
-        cmd += ["-u", "%s:" % token]
-    cmd.append(url)
-    p = subprocess.run(cmd, capture_output=True, text=True)
+        config.append('user = "%s:"' % token.replace("\\", "\\\\").replace('"', '\\"'))
+    p = subprocess.run(["curl", "-sS", "--max-time", "45", "-w", "\n%{http_code}", "-K", "-"],
+                       capture_output=True, text=True, input="\n".join(config) + "\n")
     if p.returncode != 0:
         return {"_error": (p.stderr or "curl exit %d" % p.returncode).strip()[:200], "_url": url}
     body, _, code = p.stdout.rpartition("\n")
@@ -539,7 +544,15 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False):
 
     if pr.get("isDraft"):
         blockers.append("PR is a draft")
+    if pr.get("mergeable") == "CONFLICTING":
+        blockers.append("PR conflicts with %s - rebase before reviewing again" % pr.get("baseRefName"))
+    elif pr.get("mergeable") == "UNKNOWN":
+        warnings.append("GitHub has not finished computing mergeability")
     require_copilot = settings.get("requireCopilot", True)
+    depth = classify(pr, settings)
+    if depth["level"] == "balanced" and cop.get("effort") == "lite":
+        warnings.append("classified balanced but Copilot reviewed at Lite - cover the gap locally "
+                        "or pick Balanced in the PR's Reviewers menu")
     if not cop["fresh"]:
         msg = "Copilot has not reviewed head %s (last: %s)" % (head[:8], (cop.get("reviewedSha") or "never")[:8])
         (blockers if require_copilot else warnings).append(msg)
@@ -597,7 +610,7 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False):
         "pr": pr["number"], "title": pr["title"], "url": pr["url"],
         "head": head, "base": pr.get("baseRefName"), "defaultBranch": pr.get("_defaultBranch"),
         "isDraft": pr.get("isDraft"), "mergeable": pr.get("mergeable"),
-        "classification": classify(pr, settings),
+        "classification": depth,
         "providers": {"copilot": cop, "coderabbit": crb, "sonar": son},
         "checks": {k: chk[k] for k in ("total", "ran", "skipped", "failing", "pending",
                                        "settled", "truncated", "green")},
@@ -822,6 +835,8 @@ def render_stamp(state, rounds, notes):
         extra = ""
         if key == "copilot":
             extra = st.get("headline") or ""
+            if st.get("effort"):
+                extra += " (effort: %s)" % st["effort"]
         elif key == "coderabbit":
             extra = "actionable: %s" % st.get("actionable")
         elif key == "sonar":
@@ -978,7 +993,8 @@ def human_status(s):
         else:
             verdict = "none"
         fresh = "head" if p.get("fresh") else "STALE"
-        lines.append("  %-11s %-9s %s" % (key, verdict, fresh))
+        extra = "  effort: %s" % p["effort"] if p.get("effort") else ""
+        lines.append("  %-11s %-9s %s%s" % (key, verdict, fresh, extra))
     c = s["checks"]
     lines.append("  %-11s %-9s %d ran / %d skipped / %d failing / %d pending" % (
         "checks", "green" if c["green"] else "not green", c["ran"],

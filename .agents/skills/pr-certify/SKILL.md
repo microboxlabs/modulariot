@@ -42,7 +42,9 @@ reaction to what this prints.
 Stop here and report if:
 - the org is not in the allowlist (the warning names the command to fix it),
 - the PR is a draft — ask whether to mark it ready or certify the draft anyway,
-- `mergeable` is `CONFLICTING` — rebase first; a review of a conflicted diff is not useful.
+- the PR conflicts with its base — rebase first; a review of a conflicted diff is not useful.
+
+Drafts and conflicts are blockers, not advice: neither can certify.
 
 ### 1. Classify the depth
 
@@ -59,9 +61,12 @@ only `reviewOnPush` and `reviewDraftPullRequests`, and `requested_reviewers` tak
 effort level is whatever the repo or org default is, changeable only in the web UI.
 
 So when the verdict is `balanced`, close the gap locally: run `/code-review high` over the PR diff
-and fold its findings into the same triage queue in step 4. Tell the user the depth verdict and
-that Copilot itself ran at the repo default; if they want Copilot's own Balanced pass, they must
-select it in the PR's Reviewers menu.
+and fold its findings into the same triage queue in step 4.
+
+Copilot does state the level it used, in its review body, and `prcert` reads it back as
+`providers.copilot.effort`. When the classification says `balanced` and Copilot reviewed at `lite`,
+`status` warns about the mismatch — tell the user, and that Copilot's own Balanced pass has to be
+picked in the PR's Reviewers menu.
 
 ### 2. Request reviews on the current head
 

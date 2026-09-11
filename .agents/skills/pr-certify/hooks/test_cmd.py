@@ -18,6 +18,11 @@ INVOKES = [
     ("for x in 1; do gh pr merge 5; done", True),
     ("false || gh pr merge 5", True),
     ("if x; then ! gh pr merge 5; fi", True),
+    ("if gh pr merge 5; then echo ok; fi", True),
+    ("while gh pr merge 5; do :; done", True),
+    ("until gh pr merge 5; do :; done", True),
+    ("git push\ngh pr merge 5", True),
+    ("printf '<<EOF'\nmentions\nEOF\ngh pr merge 5", True),
     # text that only mentions one
     ("printf '%s' '; gh pr merge 42'", False),
     ("echo 'gh pr merge'", False),
@@ -26,6 +31,8 @@ INVOKES = [
     ("git commit -F - <<'EOF'\nmentions gh pr merge\nEOF", False),
     ("echo then gh pr merge", False),
     ("echo do then gh pr merge 5", False),
+    ("git commit -F - <<'EOF'\ngh pr merge 5\nEOF", False),
+    ("echo 'multi\nline gh pr merge 5'", False),
     # near misses
     ("gh pr view 5", False),
     ("mygh pr merge 5", False),
@@ -49,8 +56,20 @@ CREATE = [
 ]
 
 
+TARGETS = [
+    ("gh pr merge 5", [["5"]]),
+    ("gh pr merge 5 --repo acme/repo", [["5", "--repo", "acme/repo"]]),
+    ("echo 'gh pr merge 1'; gh pr merge 2 --repo acme/repo", [["2", "--repo", "acme/repo"]]),
+    ("gh pr merge 1; gh pr merge 2", [["1"], ["2"]]),
+]
+
+
 def main():
     failures = []
+    for cmd, want in TARGETS:
+        got = _cmd.invocations(cmd, "merge")
+        if got != want:
+            failures.append(("invocations", cmd, want, got))
     for cmd, want in INVOKES:
         got = _cmd.invokes(cmd, "merge")
         if got != want:
@@ -64,7 +83,7 @@ def main():
         if got != want:
             failures.append(("bypasses", cmd, want, got))
 
-    total = len(INVOKES) + len(CREATE) + len(BYPASSES)
+    total = len(INVOKES) + len(CREATE) + len(BYPASSES) + len(TARGETS)
     for kind, cmd, want, got in failures:
         print("FAIL %s: %r want %s got %s" % (kind, cmd, want, got))
     print("%d/%d passed" % (total - len(failures), total))

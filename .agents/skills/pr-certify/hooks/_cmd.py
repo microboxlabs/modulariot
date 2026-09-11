@@ -94,6 +94,7 @@ def scan(cmd):
     pending = []          # heredocs opened on the current line, not yet closed
     quote = None
     arith = 0             # depth of $(( )) - `<<` inside one is a shift
+    stack = []            # quote states suspended by a command substitution
     i = 0
     at_word_start = True
 
@@ -123,9 +124,32 @@ def scan(cmd):
             if c == "\\" and quote == '"' and i + 1 < n:
                 i += 2
                 continue
+            # A double quote suppresses word splitting, not command substitution:
+            # the inside of $( ) or ` ` is live shell code even in the middle of one.
+            if quote == '"' and cmd.startswith("$(", i):
+                stack.append(quote)
+                quote = None
+                live[i] = live[i + 1] = True
+                i += 2
+                at_word_start = True
+                continue
+            if quote == '"' and c == "`":
+                stack.append(quote)
+                quote = None
+                live[i] = True
+                i += 1
+                at_word_start = True
+                continue
             if c == quote:
                 quote = None
             i += 1
+            continue
+
+        if stack and (c == ")" or c == "`"):
+            live[i] = True
+            quote = stack.pop()
+            i += 1
+            at_word_start = False
             continue
 
         if c in "'\"":
@@ -191,6 +215,19 @@ def scan(cmd):
 
 def strip_heredocs(cmd):
     return scan(cmd)[0]
+
+
+def mention_count(cmd, subcommand, depth=0):
+    """How many `gh pr <sub>` occurrences sit in live shell code."""
+    _, live = scan(cmd)
+    pattern = re.compile(r"\bgh\b[^;&|()\n]*?\bpr\b[^;&|()\n]*?\b(?:%s)\b" % subcommand)
+    count = sum(1 for m in pattern.finditer(cmd)
+                if all(live[k] for k in range(m.start(), m.end()) if cmd[k] != "\n"))
+    tokens = tokenize(cmd)
+    if tokens and depth < MAX_NESTING:
+        for payload in shell_payloads(tokens):
+            count += mention_count(payload, subcommand, depth + 1)
+    return count
 
 
 def mentions(cmd, subcommand, depth=0):
@@ -271,11 +308,16 @@ def is_punctuation(token):
 def _at_command_position(tokens, i):
     """A command starts the input, follows an operator, or follows a keyword or
     wrapper that is itself at a command position — `echo then gh` is three
-    arguments, not a keyword."""
+    arguments, not a keyword. Leading redirections and assignments are prefixes,
+    so `> out gh pr merge 5` is still a command."""
     j = i - 1
     while j >= 0:
         if ASSIGNMENT.match(tokens[j]):
             j -= 1
+            continue
+        if (j >= 1 and not is_punctuation(tokens[j]) and is_punctuation(tokens[j - 1])
+                and set(tokens[j - 1]) <= REDIRECT):
+            j -= 2
             continue
         if is_punctuation(tokens[j]):
             return True
@@ -314,10 +356,21 @@ def _matches(tokens, i, wanted):
 
 
 def shell_payloads(tokens):
-    """Script text handed to a child shell with -c, which the outer parse sees as data."""
+    """Script text run by a child shell or by eval, which the outer parse sees as data."""
     out = []
     for i, tok in enumerate(tokens):
-        if tok not in SHELLS or not _at_command_position(tokens, i):
+        if not _at_command_position(tokens, i):
+            continue
+        if tok == "eval":
+            j = i + 1
+            argv = []
+            while j < len(tokens) and not is_punctuation(tokens[j]):
+                argv.append(tokens[j])
+                j += 1
+            if argv:
+                out.append(" ".join(argv))
+            continue
+        if tok not in SHELLS:
             continue
         j = i + 1
         while j < len(tokens) and tokens[j].startswith("-"):

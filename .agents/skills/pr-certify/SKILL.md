@@ -61,7 +61,8 @@ only `reviewOnPush` and `reviewDraftPullRequests`, and `requested_reviewers` tak
 effort level is whatever the repo or org default is, changeable only in the web UI.
 
 So when the verdict is `balanced`, close the gap locally: run `/code-review high` over the PR diff
-and fold its findings into the same triage queue in step 4.
+and fold its findings into the same triage queue in step 4. Then pass `--deep-review` to `status`
+and `stamp` — without it, a `balanced` PR that Copilot reviewed at Lite does not certify.
 
 Copilot does state the level it used, in its review body, and `prcert` reads it back as
 `providers.copilot.effort`. When the classification says `balanced` and Copilot reviewed at `lite`,
@@ -165,12 +166,19 @@ Go back to step 2 with the new head. Stop when `prcert status` reports certified
 ### 8. Stamp
 
 ```bash
-prcert stamp --rounds <n>
+prcert stamp --rounds <n> [--deep-review]
 ```
 
-Posts (or updates) a comment on the PR carrying `<!-- pr-certify:v1 sha=… verdict=… -->` plus a
-readable table of every reviewer's verdict. The stamp is bound to the head SHA: one more commit
-and it is void.
+Posts (or updates) a comment on the PR carrying
+`<!-- pr-certify:v1 sha=… verdict=… level=… deep=… checks=… -->` plus a readable table of every
+reviewer's verdict. The stamp is bound to the head SHA: one more commit and it is void.
+
+Pass `--deep-review` when step 1's local `/code-review high` covered this head. A `balanced` PR
+that Copilot reviewed at Lite blocks until that is recorded, and the gate checks it.
+
+**The stamp is a comment, so anyone who can comment can write one.** `prcert` only honours a stamp
+from an `OWNER`, `MEMBER` or `COLLABORATOR` — someone who could merge the PR anyway. A stamp from
+outside that set is reported and refused.
 
 Stamp even when the PR is **not** certified. `verdict=blocked` plus the blocker list records where
 the loop stopped, for the next session and for the user.
@@ -219,6 +227,12 @@ reviewed. Treat stale as unreviewed.
 - **CodeRabbit can report `pass` without reviewing.** Its check carries `Review rate limited` or
   `reviews are disabled for this base branch` and no review arrives. `prcert` marks it `n/a` and
   downgrades it to a warning rather than waiting. Say so in the report.
+- **CodeRabbit refuses a repeat incremental review.** It answers a ping with "Already reviewed the
+  last commit", and no review follows. `prcert` treats that reply as terminal and `request` escalates
+  to `@coderabbitai full review` by itself.
+- **An org can opt out per reviewer.** `requireCopilot`, `requireCodeRabbit` and `requireSonar`
+  turn a missing verdict from a blocker into a warning. Absent that, a reviewer that produced no
+  analysis at all blocks — silence is not a pass.
 - **Stacked PRs get no CI.** A PR whose base is not the default branch may run no checks at all,
   and `skipping` is not `pass`. `prcert` counts skipped checks separately: a PR whose checks all
   skipped reports `ran 0` and is never green. It also warns when the check list is empty or the

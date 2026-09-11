@@ -80,7 +80,8 @@ def save_config(cfg):
 
 
 def org_settings(cfg, owner):
-    org = (cfg.get("orgs") or {}).get(owner)
+    orgs = {k.lower(): v for k, v in (cfg.get("orgs") or {}).items()}
+    org = orgs.get((owner or "").lower())
     if org is None:
         return None
     out = json.loads(json.dumps(cfg["defaults"]))
@@ -148,7 +149,7 @@ query($owner:String!, $name:String!, $number:Int!) {
         ... on Bot { login id }
         ... on Team { slug }
       } } }
-      comments(last:100) { nodes { databaseId author { login } body createdAt } }
+      comments(last:100) { nodes { databaseId author { login } authorAssociation body createdAt } }
     }
   }
 }
@@ -384,6 +385,21 @@ def coderabbit_reset(pr):
 
 
 CR_PING = re.compile(r"@coderabbitai\s+(?:full\s+)?review", re.I)
+CR_DECLINED = re.compile(r"Action not completed|Already reviewed the last commit", re.I)
+
+
+def coderabbit_declined(pr):
+    """CodeRabbit answers a ping it will not act on; that reply is a terminal state."""
+    for c in reversed(((pr.get("comments") or {}).get("nodes") or [])):
+        body = c.get("body") or ""
+        if bot_login((c.get("author") or {}).get("login")) != CODERABBIT_BOT:
+            continue
+        if CR_DECLINED.search(body):
+            return ("CodeRabbit declined the incremental review - "
+                    "it already reviewed that commit; ask for `@coderabbitai full review`")
+        if CR_ACTIONABLE.search(body) or CR_OFF.search(body):
+            return None
+    return None
 
 
 def coderabbit_pending(pr, reviewed_at):
@@ -400,7 +416,7 @@ def coderabbit_state(pr):
     ctx = [c for c in check_contexts(pr) if (c["name"] or "").lower().startswith("coderabbit")]
     has_history = bool(latest_review(pr, CODERABBIT_BOT)) or bool(ctx)
     if not has_history:
-        if coderabbit_pending(pr, None):
+        if coderabbit_pending(pr, None) and not coderabbit_declined(pr):
             return {"provider": "coderabbit", "available": True, "fresh": False, "verdict": None,
                     "pending": True, "reason": None}
         return {"provider": "coderabbit", "available": False, "fresh": False,
@@ -415,10 +431,11 @@ def coderabbit_state(pr):
         m = CR_ACTIONABLE.search(rev.get("body") or "")
         if m:
             actionable = int(m.group(1))
-    if off and not fresh and not pending:
-        reason = off["description"]
+    declined = coderabbit_declined(pr)
+    if (off or declined) and not fresh:
+        reason = declined or off["description"]
         resets = coderabbit_reset(pr)
-        if resets:
+        if resets and not declined:
             reason = "%s (next review in %s)" % (reason, resets)
         return {"provider": "coderabbit", "available": False, "fresh": False, "verdict": None,
                 "reason": reason, "resetsIn": resets, "reviewedSha": sha}
@@ -563,21 +580,36 @@ def classify(pr, settings):
 # --- stamp -------------------------------------------------------------------
 
 STAMP_RE = re.compile(r"<!-- pr-certify:v1\s+(.*?)\s*-->", re.S)
+# Only someone who could merge the PR anyway can vouch for it.
+TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
 
 
-def read_stamp(pr):
+def read_stamp(pr, viewer=None):
+    """The newest stamp written by someone with write access.
+
+    The marker is plain text in a comment, so anyone who can comment could forge
+    one. A stamp from outside the trusted set is reported but never honoured.
+    """
+    forged = None
     for c in reversed(((pr.get("comments") or {}).get("nodes") or [])):
         m = STAMP_RE.search(c.get("body") or "")
-        if m:
-            attrs = dict(re.findall(r"(\w+)=([^\s]+)", m.group(1)))
-            attrs["_commentId"] = c.get("databaseId")
+        if not m:
+            continue
+        attrs = dict(re.findall(r"(\w+)=([^\s]+)", m.group(1)))
+        attrs["_commentId"] = c.get("databaseId")
+        attrs["_author"] = (c.get("author") or {}).get("login")
+        attrs["_association"] = c.get("authorAssociation")
+        if c.get("authorAssociation") in TRUSTED:
             return attrs
-    return None
+        if forged is None:
+            attrs["_untrusted"] = True
+            forged = attrs
+    return forged
 
 
 # --- certification -----------------------------------------------------------
 
-def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True):
+def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True, deep_review=False):
     head = pr["headRefOid"]
     cop = copilot_state(pr)
     crb = coderabbit_state(pr)
@@ -597,9 +629,11 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True):
         warnings.append("GitHub has not finished computing mergeability")
     require_copilot = settings.get("requireCopilot", True)
     depth = classify(pr, settings)
-    if depth["level"] == "balanced" and cop.get("effort") == "lite":
-        warnings.append("classified balanced but Copilot reviewed at Lite - cover the gap locally "
-                        "or pick Balanced in the PR's Reviewers menu")
+    prior = read_stamp(pr)
+    covered = deep_review or (prior or {}).get("deep") == head
+    if depth["level"] == "balanced" and cop.get("effort") == "lite" and not covered:
+        blockers.append("classified balanced but Copilot reviewed at Lite - run /code-review high "
+                        "over the diff and pass --deep-review, or pick Balanced in the Reviewers menu")
 
     def detail(key, st):
         if key == "coderabbit":
@@ -630,7 +664,7 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True):
         """
         if not st.get("available"):
             reason = st.get("reason") or "unavailable"
-            if required and not CR_OFF.search(reason) and "no analysis" not in reason:
+            if required and not CR_OFF.search(reason):
                 blockers.append("%s is unavailable and required: %s" % (key, reason))
             else:
                 warnings.append("%s unavailable: %s" % (key, reason))
@@ -655,8 +689,8 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True):
                             % (key, head[:8]))
 
     judge("copilot", cop, required=require_copilot)
-    judge("coderabbit", crb)
-    judge("sonar", son, required=not skip_sonar)
+    judge("coderabbit", crb, required=settings.get("requireCodeRabbit", True))
+    judge("sonar", son, required=settings.get("requireSonar", True) and not skip_sonar)
 
     if live_threads:
         blockers.append("%d unresolved bot review thread(s)" % len(live_threads))
@@ -694,8 +728,10 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True):
         "unresolvedThreads": live_threads,
         "outdatedUnresolvedThreads": [t for t in threads if t["isOutdated"]],
         "stamp": read_stamp(pr),
+        "checksGreen": chk["green"],
         "blockers": blockers, "warnings": warnings,
         "certified": not blockers and enabled,
+        "deepReview": covered,
         "orgEnabled": enabled,
         "settled": settled,
     }
@@ -862,7 +898,8 @@ def cmd_request(args, ctx):
         done.append({"provider": "copilot", "ok": ok, "botId": bot,
                      "error": None if ok else (err or out).strip()[:300]})
     if args.coderabbit:
-        body = "@coderabbitai full review" if args.full else "@coderabbitai review"
+        declined = coderabbit_declined(pr) if not args.full else None
+        body = "@coderabbitai full review" if (args.full or declined) else "@coderabbitai review"
         out, rc, err = gh(["api", "-X", "POST",
                            "repos/%s/%s/issues/%d/comments" % (owner, name, pr["number"]),
                            "-f", "body=%s" % body], check=False)
@@ -924,7 +961,10 @@ def render_stamp(state, rounds, notes):
         return "| %s | %s%s | %s |" % (key, v, fresh, extra.replace("|", "/")[:180])
 
     body = [
-        "%s sha=%s verdict=%s level=%s rounds=%d -->" % (STAMP_MARK, state["head"], verdict, c["level"], rounds),
+        "%s sha=%s verdict=%s level=%s rounds=%d deep=%s checks=%s -->" % (
+            STAMP_MARK, state["head"], verdict, c["level"], rounds,
+            state["head"] if state.get("deepReview") else "no",
+            "green" if state["checks"]["green"] else "no"),
         "",
         "## PR certification - %s" % ("READY TO MERGE" if state["certified"] else "NOT CERTIFIED"),
         "",
@@ -989,12 +1029,24 @@ def cmd_gate(args, ctx):
     if not stamp:
         print("No pr-certify stamp on %s. Run the pr-certify skill before merging." % state["url"])
         return 3
+    if stamp.get("_untrusted"):
+        print("The only stamp on %s was written by %s (%s), who has no write access. A stamp is "
+              "plain text in a comment and anyone can post one; this is not a certification."
+              % (state["url"], stamp.get("_author"), stamp.get("_association")))
+        return 3
     if stamp.get("sha") != state["head"]:
         print("Stamp is for %s but head is %s - new commits landed since certification. Re-run pr-certify."
               % ((stamp.get("sha") or "?")[:8], state["head"][:8]))
         return 3
     if stamp.get("verdict") != "ok":
         print("Stamp says verdict=%s. Blockers: %s" % (stamp.get("verdict"), "; ".join(state["blockers"]) or "see PR"))
+        return 3
+    # The gate skips the SonarCloud calls, so what the stamp claims has to be explicit.
+    if stamp.get("checks") != "green":
+        print("Stamp records checks=%s for %s, not green." % (stamp.get("checks"), stamp["sha"][:8]))
+        return 3
+    if stamp.get("level") == "balanced" and stamp.get("deep") != state["head"]:
+        print("Stamp is balanced but records no local deep review for %s." % state["head"][:8])
         return 3
     if state["blockers"]:
         print("Stamp says ok for %s, but the PR no longer is: %s"
@@ -1113,7 +1165,8 @@ def build_ctx(args, need_state=True, skip_sonar=False):
     ctx = {"cfg": cfg, "owner": owner, "name": name, "pr": pr,
            "settings": settings, "orgEnabled": enabled, "root": root}
     if need_state:
-        st = assess(pr, settings, root, cfg, skip_sonar=skip_sonar, enabled=enabled)
+        st = assess(pr, settings, root, cfg, skip_sonar=skip_sonar, enabled=enabled,
+                    deep_review=getattr(args, "deep_review", False))
         if not enabled:
             st["warnings"].insert(0, "org '%s' is not enabled; run: prcert config --enable-org %s" % (owner, owner))
         ctx["state"] = st
@@ -1128,6 +1181,8 @@ def main():
 
     p = sub.add_parser("status", help="full certification state for the PR")
     p.add_argument("--json", action="store_true")
+    p.add_argument("--deep-review", action="store_true",
+                   help="treat the balanced depth gap as covered by a local deep review")
     p.add_argument("--certified", action="store_true", help="exit 0 when certified, 3 otherwise")
     p.add_argument("--settled", action="store_true", help="exit 0 when reviews and checks have landed on head")
 
@@ -1157,6 +1212,8 @@ def main():
 
     p = sub.add_parser("stamp", help="post or update the certification comment")
     p.add_argument("--rounds", type=int, default=1)
+    p.add_argument("--deep-review", action="store_true",
+                   help="record that /code-review high covered this head")
     p.add_argument("--notes", default="", help="extra markdown, or - to read stdin")
 
     p = sub.add_parser("gate", help="exit 0 if the PR head is certified, 3 otherwise")

@@ -54,6 +54,14 @@ INVOKES = [
     ("gh -R acme/repo pr merge 42", True),
     # a file-descriptor prefix is not a PR number
     ("gh pr merge 2>/tmp/out", True),
+    # a double quote hides text, not command substitution
+    ('echo "$(gh pr merge 5)"', True),
+    ('echo "`gh pr merge 5`"', True),
+    # eval runs its quoted argument as shell code
+    ('eval "gh pr merge 5"', True),
+    ("eval gh pr merge 5", True),
+    # a leading redirection is a prefix, not the command
+    ("> /tmp/out gh pr merge 2", True),
     # text that only mentions one
     ("printf '%s' '; gh pr merge 42'", False),
     ("echo 'gh pr merge'", False),
@@ -68,6 +76,8 @@ INVOKES = [
     # near misses
     ("gh pr view 5", False),
     ("mygh pr merge 5", False),
+    # single quotes do suppress substitution
+    ("echo '$(gh pr merge 5)'", False),
 ]
 
 # An unquoted mention that the parser cannot resolve into an invocation is treated
@@ -88,6 +98,7 @@ BYPASSES = [
     # the bypass belongs to its own invocation, not to the whole payload
     ("PR_CERTIFY_BYPASS=1 gh pr merge 1; gh pr merge 2", False),
     ("PR_CERTIFY_BYPASS=1 gh pr merge 1; PR_CERTIFY_BYPASS=1 gh pr merge 2", True),
+    ("PR_CERTIFY_BYPASS=1 gh pr merge 1; > /tmp/out gh pr merge 2", False),
     ("echo PR_CERTIFY_BYPASS=1 gh pr merge 5", False),
     ("gh pr merge 5", False),
 ]
@@ -112,6 +123,8 @@ TARGETS = [
     ("gh pr merge 5 2>&1", [["5"]]),
     ("gh --repo acme/repo pr merge 42", [["--repo", "acme/repo", "42"]]),
     ("bash -c 'gh pr merge 7'", [["7"]]),
+    ("> /tmp/out gh pr merge 2", [["2"]]),
+    ("eval \"gh pr merge 5\"", [["5"]]),
 ]
 
 PR_TARGET = [
@@ -130,8 +143,26 @@ PR_TARGET = [
 ]
 
 
+COUNTS = [
+    ("gh pr merge 5", 1),
+    ("gh pr merge 1; gh pr merge 2", 2),
+    ('echo "$(gh pr merge 5)"', 1),
+    ("bash -c 'gh pr merge 7'", 1),
+    ("> /tmp/out gh pr merge 2", 1),
+    ("grep -r 'gh pr merge' .", 0),
+    ("echo hi", 0),
+]
+
+
 def main():
     failures = []
+    for cmd, want in COUNTS:
+        got = _cmd.mention_count(cmd, "merge")
+        if got != want:
+            failures.append(("mention_count", cmd, want, got))
+        resolved = _cmd.invocations(cmd, "merge")
+        if resolved is not None and len(resolved) > got:
+            failures.append(("mention_count<resolved", cmd, ">=%d" % len(resolved), got))
 
     def check(kind, cmd, want, got):
         if got != want:
@@ -151,7 +182,7 @@ def main():
         check("pr_target", " ".join(argv), want, prgate.pr_target(argv))
 
     total = (len(INVOKES) + len(AMBIGUOUS) + len(CREATE) + len(BYPASSES)
-             + len(TARGETS) + len(PR_TARGET))
+             + len(TARGETS) + len(PR_TARGET) + len(COUNTS) * 2)
     for kind, cmd, want, got in failures:
         print("FAIL %s: %r\n  want %s\n  got  %s" % (kind, cmd, want, got))
     print("%d/%d passed" % (total - len(failures), total))

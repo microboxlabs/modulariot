@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _cmd import emit, invocations_with_bypass, mentions, read_payload  # noqa: E402
+from _cmd import emit, invocations_with_bypass, mention_count, read_payload  # noqa: E402
 
 PRCERT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin", "prcert")
 BYPASS = "PR_CERTIFY_BYPASS=1"
@@ -71,22 +71,27 @@ def main():
     cwd = payload.get("cwd") or ""
 
     found = invocations_with_bypass(cmd, "merge", BYPASS)
-    seen = bool(found) or mentions(cmd, "merge")
-    if not seen:
+    seen_count = mention_count(cmd, "merge")
+    if not found and not seen_count:
         return 0
     if not os.access(PRCERT, os.X_OK):
         return 0
+
+    # A merge the scanner sees but the parser could not resolve is denied, even
+    # when every *parsed* invocation was bypassed: the unresolved one was not.
+    resolved = len(found) if found else 0
+    unresolved = found is None or seen_count > resolved
 
     # The bypass belongs to the invocation that carries it, not to the whole
     # payload: `PR_CERTIFY_BYPASS=1 gh pr merge 1; gh pr merge 2` gates the second.
     if found:
         found = [(argv, b) for argv, b in found if not b]
-        if not found:
-            return 0
 
-    if found is None or (not found and seen):
+    if unresolved:
         deny("this command runs `gh pr merge` in a form the hook cannot resolve, "
              "so it cannot tell which PR would be merged")
+        return 0
+    if not found:
         return 0
     if len(found) > MAX_INVOCATIONS:
         deny("%d merge invocations in one command - too many to check individually" % len(found))

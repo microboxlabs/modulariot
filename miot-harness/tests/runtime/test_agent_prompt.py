@@ -145,3 +145,9 @@ def test_prompt_with_skills_block_is_byte_stable_and_gated():
     without = build_agent_system_prompt(FAKE_PROFILE)
     assert "load_skill" not in without
     assert "Skills" not in without
+
+
+def test_prompt_describes_the_tool_result_envelope():
+    text = build_agent_system_prompt(FAKE_PROFILE)
+    assert "`rows_returned` and `total` are exact counts" in text
+    assert "display truncation, not a gap" in text

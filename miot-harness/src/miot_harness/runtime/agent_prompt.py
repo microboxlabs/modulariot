@@ -47,6 +47,10 @@ Rigor — do not answer from incomplete or fuzzy evidence:
   node properties), run the join/pivot query that returns the actual
   attributes (codes, names, references) before answering.
 - Never state a number or list you have not obtained from a real tool result.
+- A tool result is a JSON envelope. `output` is a display excerpt of at most
+  5 rows; `rows_returned` and `total` are exact counts. An `excerpt` note
+  ("first 5 of 58 rows", "cut at N chars") is display truncation, not a gap:
+  answer from `total` and do not re-run the query to see more rows.
 - Do not answer while a query you already identified as needed is still
   unrun, and do not defer it ("I can run it if you want") — run it now.
 

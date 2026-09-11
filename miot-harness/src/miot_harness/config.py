@@ -80,11 +80,18 @@ class HarnessSettings(BaseSettings):
     agents_agent_loop_enabled: bool = False
     # Per-tool-result cap on the JSON fed back to the model. Bounds context
     # growth (and cache-write size) when a tool returns a large row set.
-    agents_agent_loop_tool_result_max_chars: int = Field(default=6000, gt=0)
+    # Minimum holds the compact envelope the loop falls back to (tool name,
+    # row count, note), so a tool message is always valid JSON.
+    agents_agent_loop_tool_result_max_chars: int = Field(default=6000, ge=200)
     # LLM timeout for the agent loop (seconds). The loop's final turn writes
     # the full user-facing answer and adaptive-thinking turns can exceed the
     # current hard 60s default. 300s (5 minutes) suits multi-step planning.
     agents_agent_loop_llm_timeout_seconds: int = Field(default=300, gt=0)
+    # Conversation models a caller may pick for the agent loop
+    # (`UserRequest.model`), as a JSON list in the env. The planner model is
+    # always allowed and is the default. One runner, with its own prompt-cache
+    # prefix, is built per model on first use.
+    agents_agent_loop_models: list[str] = Field(default_factory=list)
     # Small "did we answer it?" judge. Held separate from the synthesizer so it
     # can stay cheap. Empty string disables the LLM judge (rules-only verify).
     agents_verifier_model: str = "claude-haiku-4-5"

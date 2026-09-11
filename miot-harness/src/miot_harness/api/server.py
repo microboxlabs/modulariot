@@ -17,7 +17,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from pydantic import BaseModel, Field
 from traceloop.sdk import Traceloop
 
-from miot_harness.agents.chat_models import get_chat_model
+from miot_harness.agents.chat_models import get_chat_model, supports_effort
 from miot_harness.agents.conversation_summarizer import build_conversation_summarizer
 from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
@@ -47,7 +47,7 @@ from miot_harness.datasource.provider import BootResult, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
-from miot_harness.runtime.agent_loop import AgentLoopRunner
+from miot_harness.runtime.agent_loop import AgentLoopRunners
 from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.data_graph import build_data_graph
@@ -557,11 +557,23 @@ def _make_lifespan(
                 # model/effort; the runner freezes prompt + tool list at boot
                 # so every request shares one prompt-cache prefix.
                 if settings.agents_agent_loop_enabled:
-                    harness.agent_loop = AgentLoopRunner(
-                        model=get_chat_model(
-                            settings.agents_planner_model,
-                            effort=settings.agents_planner_effort,
+                    harness.agent_loop = AgentLoopRunners(
+                        default_model=settings.agents_planner_model,
+                        models=settings.agents_agent_loop_models,
+                        # Reasoning knob per model generation: `effort` on the
+                        # adaptive-thinking models, a thinking budget on the rest.
+                        build_model=lambda name: get_chat_model(
+                            name,
                             timeout=settings.agents_agent_loop_llm_timeout_seconds,
+                            **(
+                                {"effort": settings.agents_planner_effort}
+                                if supports_effort(name)
+                                else {
+                                    "thinking_budget_tokens": (
+                                        settings.agents_synthesizer_thinking_budget
+                                    )
+                                }
+                            ),
                         ),
                         registry=harness.tools,
                         settings=settings,
@@ -932,6 +944,27 @@ def create_app() -> FastAPI:
             "connections": conns,
         }
 
+    def _enforce_model_allowlist(request: UserRequest) -> None:
+        if request.model is None:
+            return
+        loop = getattr(app.state.harness, "agent_loop", None)
+        if loop is None or not loop.allowed(request.model):
+            raise HTTPException(
+                status_code=400,
+                detail=f"model {request.model!r} is not available; see GET /models",
+            )
+
+    @app.get("/models")
+    async def get_models(
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, Any]:
+        """Conversation models a run may name in `model`. Empty when the agent
+        loop is off: the planner graph has no per-run model."""
+        loop = getattr(app.state.harness, "agent_loop", None)
+        if loop is None:
+            return {"default": None, "models": []}
+        return {"default": loop.default_model, "models": list(loop.models)}
+
     @app.post("/runs", response_model=HarnessRunRecord)
     async def create_run(
         request: UserRequest,
@@ -948,6 +981,7 @@ def create_app() -> FastAPI:
             request = request.model_copy(update={"debug": True})
         request = _apply_tenant_override(request, auth)
         _enforce_debug_allowlist(request, settings)
+        _enforce_model_allowlist(request)
         return await harness.run(request)
 
     @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
@@ -998,6 +1032,7 @@ def create_app() -> FastAPI:
             request = request.model_copy(update={"debug": True})
         request = _apply_tenant_override(request, auth)
         _enforce_debug_allowlist(request, settings)
+        _enforce_model_allowlist(request)
         run_id = f"run_{uuid4().hex}"
         task = asyncio.create_task(
             app.state.harness.run(request, run_id_override=run_id)

@@ -52,9 +52,15 @@ const MARKDOWN_COMPONENTS = {
   // overflow-x-auto is scoped to the card itself so a too-wide table scrolls
   // on its own instead of dragging its host (spotlight's results list, the
   // chat thread) into a sideways scroll.
+  // whitespace-nowrap on every cell: a wrapped cell grows the table's row
+  // height instead of its width, which defeats the point of scoping the
+  // scroll to overflow-x-auto above — cells stay one line and the table
+  // grows sideways (scrollable) instead of vertically.
   table: ({ children }: React.TableHTMLAttributes<HTMLTableElement>) => (
     <div className="mb-1.5 last:mb-0 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
-      <table className="w-full border-collapse text-left text-xs">{children}</table>
+      <table className="w-full border-collapse whitespace-nowrap text-left text-xs">
+        {children}
+      </table>
     </div>
   ),
   thead: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
@@ -64,10 +70,14 @@ const MARKDOWN_COMPONENTS = {
     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{children}</tbody>
   ),
   th: ({ children }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
-    <th className="px-2 py-1 font-semibold text-gray-700 dark:text-gray-200">{children}</th>
+    <th className="whitespace-nowrap px-2 py-1 font-semibold text-gray-700 dark:text-gray-200">
+      {children}
+    </th>
   ),
   td: ({ children }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
-    <td className="px-2 py-1 align-top text-gray-600 dark:text-gray-300">{children}</td>
+    <td className="whitespace-nowrap px-2 py-1 align-top text-gray-600 dark:text-gray-300">
+      {children}
+    </td>
   ),
   del: ({ children }: React.HTMLAttributes<HTMLElement>) => (
     <del className="opacity-70">{children}</del>
@@ -111,11 +121,19 @@ const DOCUMENT_COMPONENTS = {
   // to pick up an implicit overflow-x from its own overflow-y-auto — means
   // only the table pans, not the whole results list/thread around it. Same
   // card chrome as `pre` above, so a table reads as the same kind of
-  // "embedded block" as a code fence within the document.
+  // "embedded block" as a code fence within the document. whitespace-nowrap
+  // on every cell keeps a wide cell growing the table sideways (scrollable)
+  // instead of wrapping and growing it vertically instead.
   table: ({ children }: React.TableHTMLAttributes<HTMLTableElement>) => (
     <div className="overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
-      <table>{children}</table>
+      <table className="whitespace-nowrap">{children}</table>
     </div>
+  ),
+  th: ({ children }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
+    <th className="whitespace-nowrap">{children}</th>
+  ),
+  td: ({ children }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
+    <td className="whitespace-nowrap">{children}</td>
   ),
 };
 

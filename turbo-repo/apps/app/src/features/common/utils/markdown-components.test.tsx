@@ -64,4 +64,24 @@ describe("MarkdownContent — compact variant (chat bubbles, spotlight)", () => 
     expect(wrapper?.className).toContain("rounded-lg");
     expect(wrapper?.className).toContain("border");
   });
+
+  it("keeps every cell on one line so a wide cell grows the table sideways, not vertically", () => {
+    const { container } = render(<MarkdownContent>{table}</MarkdownContent>);
+    expect(container.querySelector("table")?.className).toContain("whitespace-nowrap");
+    for (const cell of container.querySelectorAll("th, td")) {
+      expect(cell.className).toContain("whitespace-nowrap");
+    }
+  });
+});
+
+describe("MarkdownContent — document variant tables", () => {
+  const table = "| A | B |\n| --- | --- |\n| 1 | 2 |\n";
+
+  it("keeps every cell on one line, same as the compact variant", () => {
+    const { container } = render(<MarkdownContent variant="document">{table}</MarkdownContent>);
+    expect(container.querySelector("table")?.className).toContain("whitespace-nowrap");
+    for (const cell of container.querySelectorAll("th, td")) {
+      expect(cell.className).toContain("whitespace-nowrap");
+    }
+  });
 });

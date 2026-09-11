@@ -66,15 +66,20 @@ const MARKDOWN_COMPONENTS = {
   thead: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
     <thead className="border-b border-gray-200 dark:border-gray-700">{children}</thead>
   ),
+  // dark:divide-gray-700, not -800: the card behind this table is
+  // dark:bg-gray-800 (see `table` above) — a divider in that same shade is
+  // invisible against its own background. gray-700 is the step up from it
+  // (matching the card's own dark:border-gray-700), same as Typography's
+  // prose-invert theme uses for its table borders (--tw-prose-invert-td-
+  // borders: gray-700 over a gray-900 body) for the same reason.
   tbody: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
-    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{children}</tbody>
+    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">{children}</tbody>
   ),
   // divide-x on every row (header row included, since GFM maps both to the
-  // same `tr`) draws a faint rule between columns — the same light token
-  // tbody already uses between rows, so it reads as a grid line, not a
-  // strong border.
+  // same `tr`) draws a faint rule between columns — the same stepped token
+  // tbody uses between rows, so it reads as a grid line, not a strong border.
   tr: ({ children }: React.HTMLAttributes<HTMLTableRowElement>) => (
-    <tr className="divide-x divide-gray-100 dark:divide-gray-800">{children}</tr>
+    <tr className="divide-x divide-gray-100 dark:divide-gray-700">{children}</tr>
   ),
   th: ({ children }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
     <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-gray-700 dark:text-gray-200">
@@ -140,8 +145,12 @@ const DOCUMENT_COMPONENTS = {
   // GFM maps both header and body rows to the same `tr`) — a border, not a
   // padding/margin, so it layers over prose's own cell spacing without
   // fighting its specificity the way a plain padding override would.
+  // dark:divide-gray-700, not -800: this table's card is dark:bg-gray-800
+  // (see `table` above) — a divider in that same shade doesn't show up
+  // against its own background. gray-700 is the step up from it, same as
+  // Typography's own prose-invert row borders use for the same reason.
   tr: ({ children }: React.HTMLAttributes<HTMLTableRowElement>) => (
-    <tr className="divide-x divide-gray-100 dark:divide-gray-800">{children}</tr>
+    <tr className="divide-x divide-gray-100 dark:divide-gray-700">{children}</tr>
   ),
   th: ({ children }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
     <th className="whitespace-nowrap">{children}</th>

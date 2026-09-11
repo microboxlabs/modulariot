@@ -136,6 +136,8 @@ const host: CalendarHost<Appointment> = {
   // ── optional overrides ──────────────────────────────────────
   bookingApi: undefined,   // omit → package builds CRUD from `client`; override to proxy
   getLiveTask: undefined,  // optional workflow-task resolver, keyed by a business code
+  resolveWorkflowStage: undefined, // live stage for a planned item, overlaid at render time
+  resolveItemOverlay: (appt) => ({ client: liveClient(appt.code) }), // live fields, same join
   renderItemCard: (item) => <MyCard appt={item.raw as Appointment} />,
   renderItemChip: undefined, // omit → default chip
   assignPanel: undefined,    // optional => the assign flow is opt-in
@@ -185,6 +187,7 @@ import {
 | `bookingApi` | — | Override booking CRUD (default is built from `client`). |
 | `getLiveTask` | — | Resolve a host workflow task for an item (returns `{ taskId, stage }`). |
 | `resolveWorkflowStage` | — | Live workflow stage for a planned item; overlaid onto chips at render time. |
+| `resolveItemOverlay` | — | Fields a planned item should take from your live index rather than from the booking it was loaded with. Returns a partial merged over the item at render time (`undefined` → untouched), so a refresh corrects them without refetching bookings. |
 | `renderItemCard` | — | Override the sidebar card. |
 | `renderItemChip` | — | Override the grid chip. |
 | `assignPanel` | — | Opt-in assign UI (`ReactNode` or `(ctx) => ReactNode`). |

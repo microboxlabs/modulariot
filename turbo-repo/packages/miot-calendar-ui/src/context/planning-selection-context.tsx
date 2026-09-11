@@ -314,6 +314,19 @@ export function PlanningSelectionProvider<
   const bookingIds = bookingsData?.ids ?? emptyBookingIdsRef.current;
   const bookingsLoadError = bookingsError ? bookingsLoadErrorMessage : null;
 
+  // `selectedService` is a snapshot taken when the item was opened, so it
+  // predates any overlay resolved since — open a booking before the live
+  // index answers and the grid would correct itself while the sidebar kept
+  // the stale copy. Read the merged entry back by id; the snapshot stands
+  // only for an item no longer in the list (just unplanned, mid-rollback).
+  const liveSelectedService = useMemo(() => {
+    if (!selectedService) return null;
+    const match = plannedServices.find(
+      (ps) => ps.service.id === selectedService.id
+    );
+    return match ? match.service : selectedService;
+  }, [selectedService, plannedServices]);
+
   const setPlannedServices: Dispatch<
     SetStateAction<PlannedService<TItem>[]>
   > = useCallback(
@@ -599,12 +612,12 @@ export function PlanningSelectionProvider<
         throw new Error("confirmService: caller lacks mutate permission");
       }
       const slotToUse = finalSlot ?? selectedSlot;
-      if (!slotToUse || !selectedService) return false;
+      if (!slotToUse || !liveSelectedService) return false;
 
       const effectiveItem = (
         serviceOverrides
-          ? { ...selectedService, ...serviceOverrides }
-          : selectedService
+          ? { ...liveSelectedService, ...serviceOverrides }
+          : liveSelectedService
       ) as TItem;
 
       const existingInSlot = getServicesForSlot(slotToUse);
@@ -679,7 +692,7 @@ export function PlanningSelectionProvider<
     [
       canMutateBookings,
       selectedSlot,
-      selectedService,
+      liveSelectedService,
       getServicesForSlot,
       plannedServices,
       reassigningService,
@@ -884,7 +897,7 @@ export function PlanningSelectionProvider<
     () => ({
       calendarId,
       selectedSlot,
-      selectedService,
+      selectedService: liveSelectedService,
       plannedServices,
       timeSlots,
       timeWindows,
@@ -940,7 +953,7 @@ export function PlanningSelectionProvider<
     [
       calendarId,
       selectedSlot,
-      selectedService,
+      liveSelectedService,
       plannedServices,
       timeSlots,
       timeWindows,

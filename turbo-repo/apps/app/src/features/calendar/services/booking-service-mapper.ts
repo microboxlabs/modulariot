@@ -114,20 +114,25 @@ function serviceTypeFromResourceId(id: string): string | undefined {
 
 /**
  * Resolve the client name for a booking without ever falling back to the
- * resource id. The stored blob is the only carrier the planner writes on
- * purpose; `resource.label` is accepted as a legacy second source, but only
- * when it is not just the resource id echoed back — rows written before this
- * baked the id into the label, and re-reading it would keep the service code
- * masquerading as a client name. "" when neither is usable; the live-task
- * overlay fills it in at render time.
+ * resource id. The stored blob is the carrier the planner writes on purpose
+ * and `resource.label` is a legacy second source, but *neither* is trusted
+ * when it is just the resource id echoed back: the old mapper derived the
+ * client from the id, and the next planner write persisted that into both the
+ * blob (the whole service is spread into `resource.data`) and the label. Any
+ * row touched while the bug was live carries the service code in both places,
+ * so re-reading either would keep it masquerading as a client name.
+ *
+ * "" when neither is usable; the live-task overlay fills it in at render time.
  */
 function clientFromBooking(
   booking: BookingResponse,
   storedClient: string | undefined
 ): string {
-  if (storedClient) return storedClient;
-  const label = booking.resource.label;
-  return label && label !== booking.resource.id ? label : "";
+  const unlessResourceId = (value: string | undefined) =>
+    value && value !== booking.resource.id ? value : "";
+  return (
+    unlessResourceId(storedClient) || unlessResourceId(booking.resource.label)
+  );
 }
 
 /**

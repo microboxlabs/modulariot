@@ -185,6 +185,26 @@ describe("mapBookingToPlannedService — client name", () => {
     expect(mapped?.planned.service.cliente).toBe("ACME");
   });
 
+  it("rejects a stored client the old self-perpetuating write baked the id into", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      label: "1658427-V",
+      data: { cliente: "1658427-V" },
+    });
+    expect(mapped?.planned.service.cliente).toBe("");
+  });
+
+  it("falls through a poisoned stored client to a usable label", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      label: "ACME",
+      data: { cliente: "1658427-V" },
+    });
+    expect(mapped?.planned.service.cliente).toBe("ACME");
+  });
+
   it("prefers the stored blob over a label the id was baked into", () => {
     const mapped = withResource({
       id: "1658427-V",

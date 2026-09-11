@@ -93,10 +93,28 @@ def org_settings(cfg, owner):
 
 # --- github plumbing ---------------------------------------------------------
 
-def gh(args, check=True, stdin=None):
-    p = subprocess.run(["gh"] + args, capture_output=True, text=True, input=stdin)
-    if check and p.returncode != 0:
-        die("gh %s failed: %s" % (" ".join(args), (p.stderr or p.stdout).strip()))
+TRANSIENT = re.compile(r"\b(50[0234]|429)\b|timeout|timed out|temporarily|EOF|reset by peer", re.I)
+
+
+def summarize(args):
+    """A GraphQL query is a screenful; nobody needs it echoed back in an error."""
+    out = []
+    for a in args:
+        out.append(a.split("=", 1)[0] + "=<query>" if a.startswith("query=") else a)
+    return " ".join(out)
+
+
+def gh(args, check=True, stdin=None, retries=1):
+    for attempt in range(retries + 1):
+        p = subprocess.run(["gh"] + args, capture_output=True, text=True, input=stdin)
+        if p.returncode == 0:
+            return p.stdout, p.returncode, p.stderr
+        err = (p.stderr or p.stdout).strip()
+        if attempt < retries and TRANSIENT.search(err):
+            continue
+        break
+    if check:
+        die("gh %s failed: %s" % (summarize(args), err[:400]))
     return p.stdout, p.returncode, p.stderr
 
 
@@ -180,9 +198,12 @@ def fetch_pr(owner, name, number):
         "-F", "owner=%s" % owner, "-F", "name=%s" % name, "-F", "number=%d" % number,
         "-f", "query=%s" % PR_QUERY,
     ])
-    data = json.loads(out)
+    try:
+        data = json.loads(out)
+    except ValueError:
+        die("graphql returned non-JSON for %s/%s#%d: %s" % (owner, name, number, out[:200]))
     if data.get("errors"):
-        die("graphql: %s" % json.dumps(data["errors"]))
+        die("graphql: %s" % json.dumps([e.get("message") for e in data["errors"]])[:400])
     repo = (data.get("data") or {}).get("repository") or {}
     pr = repo.get("pullRequest")
     if not pr:

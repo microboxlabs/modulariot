@@ -52,7 +52,8 @@ export type AssigningService = GenericAssigningService<SelectedService>;
 /**
  * The freight-bound planning selection contract. Identical to the package's
  * generic value with `getLiveTask`'s `stage` narrowed back to the freight
- * `TaskStage` union (the host resolves live tasks with that exact type).
+ * `TaskStage` union (the host resolves live tasks with that exact type), plus
+ * the `client` the wrapper's index carries for the booking-client overlay.
  */
 export type PlanningSelectionContextType = Omit<
   PlanningSelectionContextValue<SelectedService>,
@@ -60,7 +61,7 @@ export type PlanningSelectionContextType = Omit<
 > & {
   getLiveTask: (
     serviceCode: string | undefined
-  ) => { taskId: string; stage: TaskStage } | undefined;
+  ) => { taskId: string; stage: TaskStage; client?: string } | undefined;
 };
 
 /** Read the freight planning selection context. */

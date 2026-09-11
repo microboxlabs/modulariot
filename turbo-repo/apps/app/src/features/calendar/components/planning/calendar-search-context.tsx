@@ -72,9 +72,16 @@ export function CalendarSearchProvider({
 }: {
   readonly children: ReactNode;
 }) {
-  const search = useCalendarSearch();
-  const { calendarId, setSearchMatchIds, setFocusedItemId } =
+  const { calendarId, setSearchMatchIds, setFocusedItemId, getLiveTask } =
     usePlanningSelection();
+  // The search maps its own bookings, so it needs the same live-task client
+  // join the grid gets from the host's `resolveItemOverlay` — otherwise
+  // `?customer=` would miss a row the grid shows a client for.
+  const resolveClient = useCallback(
+    (serviceCode: string | undefined) => getLiveTask(serviceCode)?.client,
+    [getLiveTask]
+  );
+  const search = useCalendarSearch(resolveClient);
   const { calendars } = useCalendars();
   const router = useRouter();
   const pathname = usePathname();

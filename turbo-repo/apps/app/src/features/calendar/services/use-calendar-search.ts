@@ -48,8 +48,17 @@ export interface CalendarSearchResult {
  * Other filters still narrow a ±30-day client-side set because they live in the
  * generic resource payload. The key is `null` while no search is active, so a
  * planner who never searches never pays for either request.
+ *
+ * `resolveClient` is the same live-task join the grid applies to its own
+ * planned services (`resolveItemOverlay` on the host). It has to be repeated
+ * here because this hook maps its own independently fetched bookings: without
+ * it, a row whose client only exists on the live task would render in the grid
+ * and still miss `?customer=`, and the two surfaces would disagree about what
+ * the client is.
  */
-export function useCalendarSearch(): CalendarSearchResult {
+export function useCalendarSearch(
+  resolveClient?: (serviceCode: string | undefined) => string | undefined
+): CalendarSearchResult {
   const searchParams = useSearchParams();
 
   const params = useMemo(
@@ -90,11 +99,12 @@ export function useCalendarSearch(): CalendarSearchResult {
     const mapped = data.data
       .map(mapBookingToPlannedService)
       .filter((m): m is MappedBooking => m !== null)
+      .map((m) => withResolvedClient(m, resolveClient))
       .filter((m) => matchesCalendarSearch(m.planned.service, params));
     // Grouped by calendar so stepping stays put instead of remounting the grid
     // on every hop — see orderMatchesByCalendar.
     return orderMatchesByCalendar(mapped, (m) => slotTime(m).valueOf());
-  }, [active, data, params]);
+  }, [active, data, params, resolveClient]);
 
   return {
     active,
@@ -102,6 +112,25 @@ export function useCalendarSearch(): CalendarSearchResult {
     matches,
     isLoading: active && isLoading,
     error: error as Error | undefined,
+  };
+}
+
+/**
+ * Overlay the live client onto a mapped booking, so the filter matches on the
+ * same value the grid shows. A booking that already carries one keeps it, and
+ * an unchanged match is returned as-is.
+ */
+export function withResolvedClient(
+  match: MappedBooking,
+  resolveClient?: (serviceCode: string | undefined) => string | undefined
+): MappedBooking {
+  const service = match.planned.service;
+  if (!resolveClient || service.cliente) return match;
+  const client = resolveClient(service.mintral_serviceCode);
+  if (!client) return match;
+  return {
+    ...match,
+    planned: { ...match.planned, service: { ...service, cliente: client } },
   };
 }
 

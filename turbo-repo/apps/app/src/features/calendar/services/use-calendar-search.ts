@@ -117,17 +117,23 @@ export function useCalendarSearch(
 
 /**
  * Overlay the live client onto a mapped booking, so the filter matches on the
- * same value the grid shows. A booking that already carries one keeps it, and
- * an unchanged match is returned as-is.
+ * same value the grid shows.
+ *
+ * The live answer wins over the stored one whenever there is one — the same
+ * policy `resolveItemOverlay` applies to the grid, and the one
+ * `resolveWorkflowStage` already set for stage. It has to be the same policy on
+ * both surfaces, not merely a policy: if this kept the stored value, a booking
+ * whose client changed upstream would render as the new name and still answer
+ * only to the old one. An unchanged match is returned as-is.
  */
 export function withResolvedClient(
   match: MappedBooking,
   resolveClient?: (serviceCode: string | undefined) => string | undefined
 ): MappedBooking {
   const service = match.planned.service;
-  if (!resolveClient || service.cliente) return match;
+  if (!resolveClient) return match;
   const client = resolveClient(service.mintral_serviceCode);
-  if (!client) return match;
+  if (!client || client === service.cliente) return match;
   return {
     ...match,
     planned: { ...match.planned, service: { ...service, cliente: client } },

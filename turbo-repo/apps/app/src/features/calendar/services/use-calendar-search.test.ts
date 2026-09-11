@@ -23,10 +23,25 @@ describe("withResolvedClient", () => {
     expect(out.planned.service.cliente).toBe("ACME");
   });
 
-  it("keeps a client the booking already carries", () => {
+  // Must match `resolveItemOverlay`'s policy exactly: the grid overlays the
+  // live value over a stored one, so a search that kept the stored value would
+  // render a row as NEW and refuse to match `?customer=NEW`.
+  it("lets the live client win over a stale stored one, as the grid does", () => {
+    const out = withResolvedClient(
+      match({ mintral_serviceCode: "1658427", cliente: "OLD" }),
+      () => "NEW"
+    );
+    expect(out.planned.service.cliente).toBe("NEW");
+  });
+
+  it("returns by reference when the live client repeats the stored one", () => {
+    const input = match({ mintral_serviceCode: "1658427", cliente: "ACME" });
+    expect(withResolvedClient(input, () => "ACME")).toBe(input);
+  });
+
+  it("keeps a stored client the live index cannot answer for", () => {
     const input = match({ mintral_serviceCode: "1658427", cliente: "STORED" });
-    const out = withResolvedClient(input, () => "LIVE");
-    expect(out).toBe(input);
+    expect(withResolvedClient(input, () => undefined)).toBe(input);
   });
 
   it("returns the match untouched when the live index has no answer", () => {

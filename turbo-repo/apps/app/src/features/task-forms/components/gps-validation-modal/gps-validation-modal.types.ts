@@ -13,6 +13,6 @@ export type GpsValidationModalProps = {
 };
 
 export type MapComponentProps = {
-  pointer: { lat: number; lng: number };
-  msg?: I18nRecord;
+  readonly pointer: { lat: number; lng: number };
+  readonly msg?: I18nRecord;
 };

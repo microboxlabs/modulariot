@@ -508,11 +508,12 @@ export function seatNarration(event: { type: string; data: Record<string, unknow
   if (event.type === "advisor.consulted") {
     const signal = typeof event.data.signal === "string" ? event.data.signal : "?";
     const note = typeof event.data.note === "string" ? event.data.note.split("\n")[0] : "";
-    return `\nAdvisor: ${signal}${note ? ` — ${note}` : ""}`;
+    const suffix = note ? " — " + note : "";
+    return "\nAdvisor: " + signal + suffix;
   }
   if (event.type === "delegate.completed") {
     const tools = Array.isArray(event.data.tools_run) ? event.data.tools_run.join(", ") : "";
-    return `\nDelegated${tools ? `: ran ${tools}` : ""}`;
+    return tools ? "\nDelegated: ran " + tools : "\nDelegated";
   }
   return null;
 }

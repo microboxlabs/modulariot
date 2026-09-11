@@ -21,24 +21,28 @@ export default function GpsValidationModal({
     setOpenModal(false);
   };
 
+  const title = msg?.cards
+    ? ((msg!.cards as I18nRecord).gpsValidation as string)
+    : ((msg as I18nRecord).gpsValidation as string);
+
   return (
     <AbsoluteModal
       selected={openModal}
       setSelected={onClose}
       maxWidth="42rem"
+      ariaLabel={title}
+      showCloseButton={false}
       className="w-full rounded-lg border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
     >
       <div className="flex max-h-[85vh] w-full flex-col">
         <div className="flex items-center justify-between border-b border-gray-200 p-5 dark:border-gray-600">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            {msg?.cards
-              ? ((msg!.cards as I18nRecord).gpsValidation as string)
-              : ((msg as I18nRecord).gpsValidation as string)}
+            {title}
           </h2>
         </div>
         <div className="flex-1 overflow-auto px-5 pb-5 pt-4">
           <div className="flex flex-col gap-4">
-            {entityInfo?.lat && entityInfo?.lng ? (
+            {entityInfo?.lat != null && entityInfo?.lng != null ? (
               <MapComponent
                 msg={msg}
                 pointer={{

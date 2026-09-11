@@ -30,6 +30,7 @@ export default function MapComponent({ pointer, msg }: MapComponentProps) {
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const cards = (msg?.cards as I18nRecord | undefined) ?? (msg as I18nRecord | undefined);
   const copyLabel = (cards?.copyGoogleMapsLink as string) || "Copy Google Maps link";
+  const centerLabel = (cards?.centerOnElement as string) || "Center on element";
   const copiedMsg = (cards?.googleMapsLinkCopied as string) || "Google Maps link copied";
   const copyErrorMsg =
     (cards?.googleMapsLinkCopyError as string) || "Couldn't copy the link";
@@ -95,8 +96,8 @@ export default function MapComponent({ pointer, msg }: MapComponentProps) {
         <button
           type="button"
           onClick={centerOnElement}
-          aria-label="Center on element"
-          title="Center on element"
+          aria-label={centerLabel}
+          title={centerLabel}
           className={`${controlButtonClass} pointer-events-auto`}
         >
           <HiOutlineViewfinderCircle className="h-4 w-4" />

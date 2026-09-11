@@ -105,7 +105,7 @@ const EditComposer: FC = () => {
 // spotlight search answer uses, so a harness reply reads the same wherever
 // it shows up.
 const AssistantText: FC<TextMessagePartProps> = ({ text }) => (
-  <div className="max-w-[90%] text-xs leading-relaxed text-gray-700 dark:text-gray-300">
+  <div className="max-w-[95%] text-xs leading-relaxed text-gray-700 dark:text-gray-300">
     <MarkdownContent>{text}</MarkdownContent>
   </div>
 );

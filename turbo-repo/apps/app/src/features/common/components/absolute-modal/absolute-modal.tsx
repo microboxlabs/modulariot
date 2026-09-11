@@ -36,10 +36,11 @@ export default function AbsoluteModal({
   /** Accessible name for the close button */
   closeLabel?: string;
 }) {
-  // Track if mousedown started on backdrop to prevent closing when selecting text
-  const mouseDownOnBackdrop = useRef(false);
+  const backdropRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  // Track if mousedown started on backdrop to prevent closing when selecting text
+  const mouseDownOnBackdrop = useRef(false);
 
   // Renders in a portal to document.body so its z-800 backdrop escapes any
   // ancestor with `isolation: isolate` (e.g. the kanban board wrapper) —
@@ -67,16 +68,22 @@ export default function AbsoluteModal({
     };
   }, [selected]);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
+  // Escape-to-close and Tab focus-trapping. Attached imperatively (rather than a
+  // JSX onKeyDown prop) so the dialog container — a structural, non-interactive
+  // element per WAI-ARIA — carries no JSX event-handler attributes of its own;
+  // the keyboard behavior itself is still required by the dialog pattern.
+  useEffect(() => {
+    if (!selected) return;
+    const node = dialogRef.current;
+    if (!node) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
         close();
         return;
       }
       if (e.key !== "Tab") return;
-      const node = dialogRef.current;
-      if (!node) return;
       const focusable = Array.from(
         node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
       ).filter((el) => el.offsetParent !== null);
@@ -85,7 +92,7 @@ export default function AbsoluteModal({
         return;
       }
       const first = focusable[0];
-      const last = focusable[focusable.length - 1];
+      const last = focusable.at(-1)!;
       if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
         last.focus();
@@ -93,27 +100,45 @@ export default function AbsoluteModal({
         e.preventDefault();
         first.focus();
       }
-    },
-    [close]
-  );
+    };
+
+    node.addEventListener("keydown", handleKeyDown);
+    return () => node.removeEventListener("keydown", handleKeyDown);
+  }, [selected, close]);
+
+  // Backdrop click-to-dismiss. Attached imperatively for the same reason as
+  // above — the backdrop is a purely decorative, non-interactive layer.
+  useEffect(() => {
+    if (!selected) return;
+    const backdrop = backdropRef.current;
+    if (!backdrop) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      mouseDownOnBackdrop.current = e.target === backdrop;
+    };
+    const handleClick = (e: MouseEvent) => {
+      // Only close if both mousedown AND click happened on the backdrop
+      // This prevents closing when selecting text and dragging outside
+      if (e.target === backdrop && mouseDownOnBackdrop.current) {
+        close();
+      }
+      mouseDownOnBackdrop.current = false;
+    };
+
+    backdrop.addEventListener("mousedown", handleMouseDown);
+    backdrop.addEventListener("click", handleClick);
+    return () => {
+      backdrop.removeEventListener("mousedown", handleMouseDown);
+      backdrop.removeEventListener("click", handleClick);
+    };
+  }, [selected, close]);
 
   if (!mounted) return null;
 
   return createPortal(
     <div
+      ref={backdropRef}
       className={`fixed top-0 right-0 left-0 bottom-0 flex justify-center items-center text-white transition-all duration-300 z-800 w-full h-full backdrop-blur-[10px] gap-2 px-4 ${selected ? "opacity-100 visible" : "opacity-0 invisible"}`}
-      onMouseDown={(e) => {
-        // Track if mousedown started on the backdrop itself
-        mouseDownOnBackdrop.current = e.target === e.currentTarget;
-      }}
-      onClick={(e) => {
-        // Only close if both mousedown AND click happened on the backdrop
-        // This prevents closing when selecting text and dragging outside
-        if (e.target === e.currentTarget && mouseDownOnBackdrop.current) {
-          close();
-        }
-        mouseDownOnBackdrop.current = false;
-      }}
     >
       <div
         ref={dialogRef}
@@ -121,7 +146,6 @@ export default function AbsoluteModal({
         aria-modal="true"
         aria-label={ariaLabel}
         tabIndex={-1}
-        onKeyDown={handleKeyDown}
         className={`relative flex flex-col items-center justify-center overflow-hidden  ${className || "bg-white dark:bg-gray-700 rounded-lg border border-gray-800"}`}
         style={{
           maxWidth: maxWidth || "100%",

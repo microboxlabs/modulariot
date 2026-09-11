@@ -69,23 +69,31 @@ select it in the PR's Reviewers menu.
 prcert request --all
 ```
 
-Removes and re-adds `Copilot` as a reviewer (a plain re-add is a no-op once it has already
-reviewed), and posts `@coderabbitai review` when CodeRabbit is active on the PR. SonarCloud needs
-no request — it analyses on push.
+Re-requests `Copilot` through the GraphQL `requestReviews` mutation, and posts
+`@coderabbitai review` when CodeRabbit is active on the PR. SonarCloud needs no request — it
+analyses on push.
+
+Do not reach for `gh pr edit --add-reviewer @copilot` or the REST `requested_reviewers` endpoint
+instead — both exit 0 without reliably queuing anything. And do not check the result over REST:
+`GET /pulls/{n}` reports `requested_reviewers: []` even while Copilot is queued.
 
 Use `--full` for a CodeRabbit full re-review instead of an incremental one, after a rebase or a
 large rewrite.
 
 ### 3. Wait for the reviewers to land
 
-Reviews take minutes. Do not poll in the foreground — arm one background wait:
+Reviews take minutes. Do not poll in the foreground — arm one bounded background wait:
 
 ```bash
-until prcert status --settled; do sleep 60; done
+n=0; until prcert status --settled; do n=$((n+1)); [ $n -gt 30 ] && exit 1; sleep 40; done
 ```
 
 Run that with `run_in_background: true`. It exits once every active reviewer has a verdict against
 the current head and no check is still running, and you get a single notification.
+
+Keep the cap. If `prcert request` reported `ok: false` for Copilot, Copilot code review is not
+available on that repo and no verdict is ever coming — set `requireCopilot: false` for the org and
+treat it as a warning instead of waiting out the cap every round.
 
 While waiting, do the local work from step 1 (`/code-review high` for `balanced` PRs) instead of
 sitting idle.
@@ -170,10 +178,15 @@ why, and anything still blocking. Link the PR.
 ## The merge gate
 
 `hooks/pr-gate.py` denies `gh pr merge` unless the PR carries a stamp with `verdict=ok` for the
-exact current head. It fails open — if `gh` is down, the org is not allowlisted, or anything else
-goes wrong, the merge proceeds.
+exact current head **and** nothing has gone wrong since that stamp was written — a late CodeRabbit
+review, a check flipping to failure, a new unresolved thread. It re-reads GitHub but skips the
+SonarCloud calls, whose verdict the stamp already carries, so it answers in a couple of seconds.
 
-To merge anyway: prefix the command with `PR_CERTIFY_BYPASS=1`.
+It fails open: if `gh` is down, the org is not allowlisted, or anything else goes wrong, the merge
+proceeds.
+
+To merge anyway: prefix the merge command itself with `PR_CERTIFY_BYPASS=1`. It has to be an
+environment assignment on that command — the same text anywhere else in the line does not count.
 
 Check the gate by hand with `prcert gate` (exit 0 certified, 3 blocked).
 
@@ -195,12 +208,16 @@ reviewed. Treat stale as unreviewed.
   `reviews are disabled for this base branch` and no review arrives. `prcert` marks it `n/a` and
   downgrades it to a warning rather than waiting. Say so in the report.
 - **Stacked PRs get no CI.** A PR whose base is not the default branch may run no checks at all,
-  and `skipping` is not `pass`. `prcert` warns when the check list is empty or the base is not the
-  default branch. An empty check list is not a pass.
+  and `skipping` is not `pass`. `prcert` counts skipped checks separately: a PR whose checks all
+  skipped reports `ran 0` and is never green. It also warns when the check list is empty or the
+  base is not the default branch.
 - **SonarCloud drops old PR analyses.** A 404 on the quality gate means there is no analysis for
   this PR, not a bad token.
 - **A repo can have several Sonar projects.** `prcert` discovers the keys from the PR's Sonar
-  check URLs, falling back to `sonar-project.properties`, and requires all of them to be clean.
+  check URLs, falling back to `sonar-project.properties`, and requires all of them to be clean. A
+  project whose API call errors counts as unknown, never as clean.
+- **More than 100 checks truncates the rollup.** `prcert` blocks rather than reporting green on a
+  connection it could not read in full.
 - **Copilot has two review formats.** The older one has no emoji headline; `prcert` falls back to
   counting unresolved Copilot threads there.
 

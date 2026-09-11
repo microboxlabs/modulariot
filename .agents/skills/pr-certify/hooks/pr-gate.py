@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _cmd import emit, invokes, read_payload, strip_heredocs  # noqa: E402
+from _cmd import bypasses, emit, invokes, read_payload, strip_heredocs  # noqa: E402
 
 PRCERT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin", "prcert")
 BYPASS = "PR_CERTIFY_BYPASS=1"
@@ -23,19 +23,30 @@ def main():
 
     if not invokes(cmd, "merge"):
         return 0
-    if BYPASS in cmd:
+    if bypasses(cmd, BYPASS, "merge"):
         return 0
     if not os.access(PRCERT, os.X_OK):
         return 0
 
+    clean = strip_heredocs(cmd)
     args = [PRCERT]
-    m = re.search(r"gh\s+pr\s+merge\s+(?:-[^\s]+\s+)*(\d+)", strip_heredocs(cmd))
-    if m:
-        args += ["--pr", m.group(1)]
+
+    repo = re.search(r"(?:--repo|-R)[=\s]+([A-Za-z0-9._-]+/[A-Za-z0-9._-]+)", clean)
+    url = re.search(r"github\.com/([A-Za-z0-9._-]+/[A-Za-z0-9._-]+)/pull/(\d+)", clean)
+    if url:
+        args += ["--repo", url.group(1), "--pr", url.group(2)]
+    else:
+        if repo:
+            args += ["--repo", repo.group(1)]
+        tail = clean[re.search(r"gh\s+pr\s+merge", clean).end():]
+        num = re.search(r"^(?:\s+(?:--repo|-R)[=\s]*[A-Za-z0-9._-]+/[A-Za-z0-9._-]+|\s+-[^\s]+)*"
+                        r"\s+(\d+)\b", tail)
+        if num:
+            args += ["--pr", num.group(1)]
     args.append("gate")
 
     try:
-        p = subprocess.run(args, capture_output=True, text=True, timeout=15,
+        p = subprocess.run(args, capture_output=True, text=True, timeout=30,
                            cwd=cwd if os.path.isdir(cwd) else None)
     except Exception:
         return 0

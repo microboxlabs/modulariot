@@ -19,6 +19,9 @@ CONFIG_DIR = os.path.expanduser("~/.claude/pr-certify")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 
 COPILOT_BOT = "copilot-pull-request-reviewer"
+# REST /requested_reviewers accepts this bot and silently drops it, and so does
+# `gh pr edit --add-reviewer @copilot`. The GraphQL mutation needs the node id.
+COPILOT_BOT_ID = "BOT_kgDOCnlnWA"
 CODERABBIT_BOT = "coderabbitai"
 STAMP_MARK = "<!-- pr-certify:v1"
 
@@ -46,11 +49,17 @@ def die(msg, code=1):
     sys.exit(code)
 
 
-def load_config():
+def load_raw_config():
     if not os.path.exists(CONFIG_PATH):
-        return json.loads(json.dumps(BASE_CONFIG))
+        return {}
     with open(CONFIG_PATH) as fh:
-        cfg = json.load(fh)
+        return json.load(fh)
+
+
+def load_config():
+    cfg = load_raw_config()
+    if not cfg:
+        return json.loads(json.dumps(BASE_CONFIG))
     merged = json.loads(json.dumps(BASE_CONFIG))
     merged.update(cfg)
     d = json.loads(json.dumps(DEFAULTS))
@@ -96,35 +105,73 @@ query($owner:String!, $name:String!, $number:Int!) {
   repository(owner:$owner, name:$name) {
     defaultBranchRef { name }
     pullRequest(number:$number) {
-      number title url state isDraft mergeable
+      id number title url state isDraft mergeable
       baseRefName headRefName headRefOid
       additions deletions changedFiles
       author { login }
       labels(first:50) { nodes { name } }
-      files(first:100) { nodes { path additions deletions } }
+      files(first:100) { pageInfo { hasNextPage } nodes { path additions deletions } }
       commits(last:1) { nodes { commit { oid pushedDate
-        statusCheckRollup { state contexts(first:100) { nodes {
+        statusCheckRollup { state contexts(first:100) { totalCount pageInfo { hasNextPage } nodes {
           __typename
           ... on CheckRun { name conclusion status detailsUrl }
           ... on StatusContext { context state targetUrl description }
         } } }
       } } }
-      reviews(last:60) { nodes { author { login } state submittedAt body commit { oid } } }
-      reviewThreads(first:100) { nodes {
+      reviews(last:60) { nodes { author { login ... on Bot { id } } state submittedAt body commit { oid } } }
+      reviewThreads(first:100) { pageInfo { hasNextPage endCursor } nodes {
         id isResolved isOutdated path line startLine
         comments(first:30) { nodes { databaseId author { login } body url createdAt } }
       } }
       reviewRequests(first:20) { nodes { requestedReviewer {
         __typename
         ... on User { login }
-        ... on Bot { login }
+        ... on Bot { login id }
         ... on Team { slug }
       } } }
-      comments(last:60) { nodes { databaseId author { login } body createdAt } }
+      comments(last:100) { nodes { databaseId author { login } body createdAt } }
     }
   }
 }
 """
+
+
+THREADS_QUERY = """
+query($owner:String!, $name:String!, $number:Int!, $after:String!) {
+  repository(owner:$owner, name:$name) {
+    pullRequest(number:$number) {
+      reviewThreads(first:100, after:$after) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id isResolved isOutdated path line startLine
+          comments(first:30) { nodes { databaseId author { login } body url createdAt } }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def drain_review_threads(pr, owner, name, number):
+    """reviewThreads is oldest-first and capped at 100 — the newest round would fall off."""
+    page = pr.get("reviewThreads") or {}
+    info = page.get("pageInfo") or {}
+    guard = 0
+    while info.get("hasNextPage") and guard < 20:
+        guard += 1
+        out, _, _ = gh([
+            "api", "graphql",
+            "-F", "owner=%s" % owner, "-F", "name=%s" % name, "-F", "number=%d" % number,
+            "-F", "after=%s" % info["endCursor"], "-f", "query=%s" % THREADS_QUERY,
+        ])
+        nxt = (((json.loads(out).get("data") or {}).get("repository") or {})
+               .get("pullRequest") or {}).get("reviewThreads") or {}
+        page["nodes"] = (page.get("nodes") or []) + (nxt.get("nodes") or [])
+        info = nxt.get("pageInfo") or {}
+    page["pageInfo"] = info
+    pr["reviewThreads"] = page
+    return pr
 
 
 def fetch_pr(owner, name, number):
@@ -141,7 +188,7 @@ def fetch_pr(owner, name, number):
     if not pr:
         die("pull request %s/%s#%d not found" % (owner, name, number))
     pr["_defaultBranch"] = (repo.get("defaultBranchRef") or {}).get("name")
-    return pr
+    return drain_review_threads(pr, owner, name, number)
 
 
 def resolve_target(args):
@@ -167,15 +214,18 @@ def bot_login(login):
     return (login or "").replace("[bot]", "")
 
 
-def check_contexts(pr):
+def check_contexts(pr, with_meta=False):
     commits = (pr.get("commits") or {}).get("nodes") or []
     if not commits:
-        return []
+        return ([], {"truncated": False}) if with_meta else []
     rollup = (commits[0].get("commit") or {}).get("statusCheckRollup")
     if not rollup:
-        return []
+        return ([], {"truncated": False}) if with_meta else []
+    conn = rollup.get("contexts") or {}
+    meta = {"truncated": bool((conn.get("pageInfo") or {}).get("hasNextPage")),
+            "totalCount": conn.get("totalCount")}
     out = []
-    for n in (rollup.get("contexts") or {}).get("nodes") or []:
+    for n in conn.get("nodes") or []:
         if n.get("__typename") == "CheckRun":
             out.append({
                 "name": n.get("name"),
@@ -190,24 +240,31 @@ def check_contexts(pr):
                 "url": n.get("targetUrl"),
                 "description": n.get("description"),
             })
-    return out
+    return (out, meta) if with_meta else out
 
 
 PASSING = {"SUCCESS", "NEUTRAL", "SKIPPED", "COMPLETED"}
+SKIPPED = {"SKIPPED"}
 PENDING = {"PENDING", "IN_PROGRESS", "QUEUED", "WAITING", "REQUESTED", "EXPECTED", ""}
 
 
 def checks_summary(pr):
-    ctx = check_contexts(pr)
+    ctx, meta = check_contexts(pr, with_meta=True)
     failing = [c for c in ctx if c["state"] not in PASSING and c["state"] not in PENDING]
     pending = [c for c in ctx if c["state"] in PENDING]
+    skipped = [c for c in ctx if c["state"] in SKIPPED]
+    ran = len(ctx) - len(skipped)
     return {
         "total": len(ctx),
+        "ran": ran,
+        "skipped": [c["name"] for c in skipped],
         "failing": failing,
         "pending": [c["name"] for c in pending],
         "contexts": ctx,
         "settled": len(pending) == 0,
-        "green": len(ctx) > 0 and not failing and not pending,
+        # An incomplete connection may be hiding a failure, so it is never green.
+        "truncated": meta["truncated"],
+        "green": ran > 0 and not failing and not pending and not meta["truncated"],
     }
 
 
@@ -278,6 +335,18 @@ def copilot_state(pr):
 
 CR_ACTIONABLE = re.compile(r"Actionable comments posted:\s*(\d+)")
 CR_OFF = re.compile(r"rate limited|reviews are disabled|review skipped", re.I)
+CR_RESETS = re.compile(r"Next included review available in ([^\n<*]+?)\.")
+
+
+def coderabbit_reset(pr):
+    """CodeRabbit posts its rate-limit window as a comment; surface the wait."""
+    for c in reversed(((pr.get("comments") or {}).get("nodes") or [])):
+        if bot_login((c.get("author") or {}).get("login")) != CODERABBIT_BOT:
+            continue
+        m = CR_RESETS.search(c.get("body") or "")
+        if m:
+            return m.group(1).strip()
+    return None
 
 
 def coderabbit_state(pr):
@@ -297,8 +366,12 @@ def coderabbit_state(pr):
         if m:
             actionable = int(m.group(1))
     if off and not fresh:
+        reason = off["description"]
+        resets = coderabbit_reset(pr)
+        if resets:
+            reason = "%s (next review in %s)" % (reason, resets)
         return {"provider": "coderabbit", "available": False, "fresh": False, "verdict": None,
-                "reason": off["description"], "reviewedSha": sha}
+                "reason": reason, "resetsIn": resets, "reviewedSha": sha}
     verdict = None
     if fresh and actionable is not None:
         verdict = "clean" if actionable == 0 else "changes"
@@ -356,7 +429,10 @@ def sonar_get(host, token, path, params):
         return {"_error": "bad JSON: %s" % e, "_url": url}
 
 
-def sonar_state(pr, settings, repo_root):
+def sonar_state(pr, settings, repo_root, skip=False):
+    if skip:
+        return {"provider": "sonar", "available": False, "verdict": None,
+                "reason": "not queried on this path"}
     keys = sonar_keys(pr, repo_root)
     if not keys:
         return {"provider": "sonar", "available": False, "verdict": None,
@@ -398,7 +474,7 @@ def sonar_state(pr, settings, repo_root):
                 "reason": reason}
     bad = [p for p in projects
            if p["gate"] not in ("OK", None) or (p["openIssues"] or 0) > 0 or (p["hotspotsToReview"] or 0) > 0]
-    unknown = [p for p in projects if p["gate"] is None and not p["error"]]
+    unknown = [p for p in projects if p["error"] or p["gate"] is None]
     verdict = "changes" if bad else ("unclear" if unknown else "clean")
     return {"provider": "sonar", "available": True, "fresh": True, "verdict": verdict, "projects": projects}
 
@@ -407,7 +483,9 @@ def sonar_state(pr, settings, repo_root):
 
 def classify(pr, settings):
     b = settings["balanced"]
-    files = [f["path"] for f in ((pr.get("files") or {}).get("nodes") or [])]
+    conn = pr.get("files") or {}
+    files = [f["path"] for f in (conn.get("nodes") or [])]
+    truncated = bool((conn.get("pageInfo") or {}).get("hasNextPage"))
     labels = [l["name"].lower() for l in ((pr.get("labels") or {}).get("nodes") or [])]
     loc = (pr.get("additions") or 0) + (pr.get("deletions") or 0)
     reasons = []
@@ -424,7 +502,9 @@ def classify(pr, settings):
     tops = sorted({f.split("/")[0] for f in files if "/" in f})
     if len(tops) > 2:
         reasons.append("spans %d top-level dirs: %s" % (len(tops), ", ".join(tops[:6])))
-    return {"level": "balanced" if reasons else "lite", "reasons": reasons,
+    if truncated:
+        reasons.append("file list truncated at %d - path hints cover only the first page" % len(files))
+    return {"level": "balanced" if reasons else "lite", "reasons": reasons, "filesTruncated": truncated,
             "loc": loc, "changedFiles": pr.get("changedFiles"), "topLevel": tops}
 
 
@@ -445,11 +525,11 @@ def read_stamp(pr):
 
 # --- certification -----------------------------------------------------------
 
-def assess(pr, settings, repo_root, cfg=None):
+def assess(pr, settings, repo_root, cfg=None, skip_sonar=False):
     head = pr["headRefOid"]
     cop = copilot_state(pr)
     crb = coderabbit_state(pr)
-    son = sonar_state(pr, settings, repo_root)
+    son = sonar_state(pr, settings, repo_root, skip=skip_sonar)
     chk = checks_summary(pr)
     threads = unresolved_threads(pr, {COPILOT_BOT, CODERABBIT_BOT})
     live_threads = [t for t in threads if not t["isOutdated"]]
@@ -459,8 +539,10 @@ def assess(pr, settings, repo_root, cfg=None):
 
     if pr.get("isDraft"):
         blockers.append("PR is a draft")
+    require_copilot = settings.get("requireCopilot", True)
     if not cop["fresh"]:
-        blockers.append("Copilot has not reviewed head %s (last: %s)" % (head[:8], (cop.get("reviewedSha") or "never")[:8]))
+        msg = "Copilot has not reviewed head %s (last: %s)" % (head[:8], (cop.get("reviewedSha") or "never")[:8])
+        (blockers if require_copilot else warnings).append(msg)
     elif cop["verdict"] == "changes":
         blockers.append("Copilot: changes recommended")
     elif cop["verdict"] == "unclear":
@@ -495,13 +577,20 @@ def assess(pr, settings, repo_root, cfg=None):
         blockers.append("failing checks: %s" % ", ".join(c["name"] for c in chk["failing"][:6]))
     if chk["pending"]:
         blockers.append("checks still running: %s" % ", ".join(chk["pending"][:6]))
+    if chk["truncated"]:
+        blockers.append("more than %d checks on head - the rollup is truncated and may hide a failure"
+                        % chk["total"])
     if chk["total"] == 0:
         warnings.append("no checks reported on head - stacked PR or CI not triggered; skip is not pass")
+    elif chk["ran"] == 0:
+        warnings.append("all %d check(s) on head were skipped - nothing actually ran; skip is not pass"
+                        % chk["total"])
     if stale_base:
         warnings.append("base is %s, not the default branch %s - CI and CodeRabbit may be disabled"
                         % (pr.get("baseRefName"), pr.get("_defaultBranch")))
 
-    settled = cop["fresh"] and chk["settled"] and (not crb["available"] or crb["fresh"])
+    settled = ((cop["fresh"] or not require_copilot) and chk["settled"]
+               and (not crb["available"] or crb["fresh"]))
 
     return {
         "repo": pr["url"].split("/pull/")[0].replace("https://github.com/", ""),
@@ -510,7 +599,8 @@ def assess(pr, settings, repo_root, cfg=None):
         "isDraft": pr.get("isDraft"), "mergeable": pr.get("mergeable"),
         "classification": classify(pr, settings),
         "providers": {"copilot": cop, "coderabbit": crb, "sonar": son},
-        "checks": {k: chk[k] for k in ("total", "failing", "pending", "settled", "green")},
+        "checks": {k: chk[k] for k in ("total", "ran", "skipped", "failing", "pending",
+                                       "settled", "truncated", "green")},
         "unresolvedThreads": live_threads,
         "outdatedUnresolvedThreads": [t for t in threads if t["isOutdated"]],
         "stamp": read_stamp(pr),
@@ -570,6 +660,15 @@ def sonar_findings(pr, settings, repo_root, limit):
                         {"componentKeys": key, "pullRequest": str(pr["number"]),
                          "resolved": "false", "ps": str(limit),
                          "additionalFields": "_all"})
+        if res.get("_error") and "404" not in res["_error"]:
+            out.append({"source": "sonar", "kind": "api-error", "project": key,
+                        "severity": "major", "path": None, "line": None,
+                        "title": "issues query failed: %s" % res["_error"], "url": res.get("_url")})
+        total = (res.get("paging") or {}).get("total", res.get("total"))
+        if isinstance(total, int) and total > limit:
+            out.append({"source": "sonar", "kind": "truncated", "project": key,
+                        "severity": "info", "path": None, "line": None,
+                        "title": "%d open issues, showing %d - raise --limit" % (total, limit)})
         for i in res.get("issues") or []:
             out.append({
                 "source": "sonar", "kind": "issue", "project": key,
@@ -586,6 +685,10 @@ def sonar_findings(pr, settings, repo_root, limit):
         hs = sonar_get(host, token, "api/hotspots/search",
                        {"projectKey": key, "pullRequest": str(pr["number"]),
                         "status": "TO_REVIEW", "ps": str(limit)})
+        if hs.get("_error") and "404" not in hs["_error"]:
+            out.append({"source": "sonar", "kind": "api-error", "project": key,
+                        "severity": "major", "path": None, "line": None,
+                        "title": "hotspot query failed: %s" % hs["_error"], "url": hs.get("_url")})
         for h in hs.get("hotspots") or []:
             out.append({
                 "source": "sonar", "kind": "hotspot", "project": key,
@@ -641,17 +744,32 @@ def collect_findings(pr, settings, repo_root, args):
 
 # --- write actions -----------------------------------------------------------
 
+def copilot_bot_id(pr):
+    """Prefer an id seen on this PR; fall back to the bot's global node id."""
+    for r in ((pr.get("reviews") or {}).get("nodes") or []):
+        a = r.get("author") or {}
+        if bot_login(a.get("login")) == COPILOT_BOT and a.get("id"):
+            return a["id"]
+    for r in ((pr.get("reviewRequests") or {}).get("nodes") or []):
+        a = r.get("requestedReviewer") or {}
+        if bot_login(a.get("login")) == COPILOT_BOT and a.get("id"):
+            return a["id"]
+    return COPILOT_BOT_ID
+
+
 def cmd_request(args, ctx):
     pr, owner, name = ctx["pr"], ctx["owner"], ctx["name"]
     done = []
     if args.copilot:
-        gh(["api", "-X", "DELETE",
-            "repos/%s/%s/pulls/%d/requested_reviewers" % (owner, name, pr["number"]),
-            "-f", "reviewers[]=Copilot"], check=False)
-        out, rc, err = gh(["api", "-X", "POST",
-                           "repos/%s/%s/pulls/%d/requested_reviewers" % (owner, name, pr["number"]),
-                           "-f", "reviewers[]=Copilot"], check=False)
-        done.append({"provider": "copilot", "ok": rc == 0, "error": None if rc == 0 else err.strip()[:300]})
+        bot = copilot_bot_id(pr)
+        q = ("mutation($pr:ID!,$bot:ID!){requestReviews(input:{pullRequestId:$pr,botIds:[$bot],"
+             "union:true}){pullRequest{reviewRequests(first:20){nodes{requestedReviewer{"
+             "__typename ... on Bot{login}}}}}}}")
+        out, rc, err = gh(["api", "graphql", "-F", "pr=%s" % pr["id"], "-F", "bot=%s" % bot,
+                           "-f", "query=%s" % q], check=False)
+        ok = rc == 0 and COPILOT_BOT in out
+        done.append({"provider": "copilot", "ok": ok, "botId": bot,
+                     "error": None if ok else (err or out).strip()[:300]})
     if args.coderabbit:
         body = "@coderabbitai full review" if args.full else "@coderabbitai review"
         out, rc, err = gh(["api", "-X", "POST",
@@ -676,7 +794,7 @@ def cmd_reply(args, ctx):
         q = ("mutation($id:ID!,$body:String!){addPullRequestReviewThreadReply("
              "input:{pullRequestReviewThreadId:$id,body:$body}){comment{url}}}")
         out, rc, err = gh(["api", "graphql", "-F", "id=%s" % args.thread_id,
-                           "-F", "body=%s" % body, "-f", "query=%s" % q], check=False)
+                           "-f", "body=%s" % body, "-f", "query=%s" % q], check=False)
         if rc != 0:
             die("reply failed: %s" % err.strip())
     print(json.dumps({"replied": args.thread_id or args.comment_id}))
@@ -726,9 +844,10 @@ def render_stamp(state, rounds, notes):
         line("copilot", p["copilot"]),
         line("coderabbit", p["coderabbit"]),
         line("sonar", p["sonar"]),
-        "| checks | %s | %d total, %d failing, %d pending |" % (
-            "green" if state["checks"]["green"] else "not green",
-            state["checks"]["total"], len(state["checks"]["failing"]), len(state["checks"]["pending"])),
+        "| checks | %s | %d ran, %d skipped, %d failing, %d pending |" % (
+            "green" if state["checks"]["green"] else "not green", state["checks"]["ran"],
+            len(state["checks"]["skipped"]), len(state["checks"]["failing"]),
+            len(state["checks"]["pending"])),
         "",
     ]
     if state["blockers"]:
@@ -784,6 +903,10 @@ def cmd_gate(args, ctx):
     if stamp.get("verdict") != "ok":
         print("Stamp says verdict=%s. Blockers: %s" % (stamp.get("verdict"), "; ".join(state["blockers"]) or "see PR"))
         return 3
+    if state["blockers"]:
+        print("Stamp says ok for %s, but the PR no longer is: %s"
+              % (stamp["sha"][:8], "; ".join(state["blockers"])))
+        return 3
     print("certified sha=%s level=%s" % (stamp["sha"][:8], stamp.get("level")))
     return 0
 
@@ -814,7 +937,7 @@ def cmd_ruleset(args, ctx):
 # --- config ------------------------------------------------------------------
 
 def cmd_config(args, ctx=None):
-    cfg = load_config()
+    cfg = load_raw_config()
     changed = False
     for org in args.enable_org or []:
         cfg.setdefault("orgs", {}).setdefault(org, {})
@@ -827,8 +950,10 @@ def cmd_config(args, ctx=None):
         changed = True
     if changed:
         save_config(cfg)
-    cfg["_path"] = CONFIG_PATH
-    print(json.dumps(cfg, indent=2))
+    shown = load_config()
+    shown["_path"] = CONFIG_PATH
+    shown["_stored"] = cfg
+    print(json.dumps(shown, indent=2))
 
 
 # --- rendering ---------------------------------------------------------------
@@ -855,8 +980,9 @@ def human_status(s):
         fresh = "head" if p.get("fresh") else "STALE"
         lines.append("  %-11s %-9s %s" % (key, verdict, fresh))
     c = s["checks"]
-    lines.append("  %-11s %-9s %d total / %d failing / %d pending" % (
-        "checks", "green" if c["green"] else "not green", c["total"], len(c["failing"]), len(c["pending"])))
+    lines.append("  %-11s %-9s %d ran / %d skipped / %d failing / %d pending" % (
+        "checks", "green" if c["green"] else "not green", c["ran"],
+        len(c["skipped"]), len(c["failing"]), len(c["pending"])))
     lines.append("  %-11s %d unresolved" % ("threads", len(s["unresolvedThreads"])))
     lines.append("")
     lines.append("%sCERTIFIED" % mark)
@@ -880,7 +1006,7 @@ def human_findings(items):
 
 # --- main --------------------------------------------------------------------
 
-def build_ctx(args, need_state=True):
+def build_ctx(args, need_state=True, skip_sonar=False):
     cfg = load_config()
     owner, name, number = resolve_target(args)
     settings = org_settings(cfg, owner)
@@ -893,7 +1019,7 @@ def build_ctx(args, need_state=True):
     ctx = {"cfg": cfg, "owner": owner, "name": name, "pr": pr,
            "settings": settings, "orgEnabled": enabled, "root": root}
     if need_state:
-        st = assess(pr, settings, root, cfg)
+        st = assess(pr, settings, root, cfg, skip_sonar=skip_sonar)
         st["orgEnabled"] = enabled
         if not enabled:
             st["warnings"].insert(0, "org '%s' is not enabled; run: prcert config --enable-org %s" % (owner, owner))
@@ -961,8 +1087,8 @@ def main():
         ctx = build_ctx(args, need_state=False)
         if args.all or not (args.copilot or args.coderabbit):
             args.copilot = True
-            crb = coderabbit_state(ctx["pr"])
-            args.coderabbit = crb.get("available", False)
+            # Requesting is cheap and idempotent; only skip when CodeRabbit said it is off.
+            args.coderabbit = not coderabbit_state(ctx["pr"]).get("reason")
         cmd_request(args, ctx)
         return 0
 
@@ -971,7 +1097,9 @@ def main():
         (cmd_reply if args.cmd == "reply" else cmd_resolve)(args, ctx)
         return 0
 
-    ctx = build_ctx(args)
+    # The gate runs inside a hook with a short timeout; SonarCloud's verdict is already
+    # baked into the stamp, so skip those calls and keep the cheap GitHub-side blockers.
+    ctx = build_ctx(args, skip_sonar=args.cmd == "gate")
     state = ctx["state"]
 
     if args.cmd == "status":

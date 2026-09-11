@@ -27,7 +27,7 @@ ln -s <repo>/.agents/skills/pr-certify ~/.claude/skills/pr-certify
   "hooks": {
     "PreToolUse": [
       { "matcher": "Bash", "hooks": [
-        { "type": "command", "command": "$HOME/.claude/skills/pr-certify/hooks/pr-gate.py", "timeout": 20 } ] }
+        { "type": "command", "command": "$HOME/.claude/skills/pr-certify/hooks/pr-gate.py", "timeout": 40 } ] }
     ],
     "PostToolUse": [
       { "matcher": "Bash", "hooks": [
@@ -41,10 +41,18 @@ Both hooks read the command from stdin and exit 0 immediately for anything that 
 `gh pr merge` / `gh pr create` / `gh pr ready`, so every other Bash call costs one short python
 start.
 
-The match is not a substring test. `_cmd.invokes()` strips heredoc bodies and then requires the
-token at a command position, so a commit message that mentions `gh pr merge`, a `grep` for it, or
-an `echo` of it does not trip the hook — only an actual invocation does, including after `&&`,
-`;`, `|` or a leading `VAR=value`.
+The match is not a substring test. `_cmd.invokes()` strips heredoc bodies, tokenizes with `shlex`
+so quoted text stays one token, and requires `gh pr <sub>` at a command position — start of line,
+after an operator, after a shell keyword that is itself at a command position, or behind
+`VAR=value` assignments. A commit message that mentions `gh pr merge`, a `grep` for it, an `echo`
+of it, or `printf '%s' '; gh pr merge 42'` does not trip the hook; `if x; then gh pr merge 5; fi`
+does.
+
+`_cmd.bypasses()` applies the same parse to `PR_CERTIFY_BYPASS=1`, so the bypass counts only as an
+environment assignment on the merge command itself — `gh pr merge 42; echo PR_CERTIFY_BYPASS=1`
+does not skip the gate.
+
+`python3 hooks/test_cmd.py` runs the 29 cases that pin this down.
 
 ## Subcommands
 
@@ -143,6 +151,14 @@ when `fresh` is true, which means `reviewedSha == head`.
 An org absent from `orgs` is not certified and not gated: `status` says so and `gate` allows the
 merge. Onboarding an org is one command: `prcert config --enable-org <org>`.
 
+Per-org keys: `maxRounds`, `sonarHost`, `sonarOrg`, `sonarTokenEnv`, `requireCopilot` (set it
+`false` where Copilot code review is not available, so a missing Copilot verdict is a warning
+rather than a blocker that never clears), and a `balanced` block.
+
+`prcert config` writes back only what you set. Defaults are merged at read time, so a later change
+to the built-in defaults reaches every config; `config` prints the merged view plus `_stored`, the
+part that is actually on disk.
+
 ## The calls underneath
 
 **GitHub** — one GraphQL query per invocation pulls the PR, its files, labels, head commit, check
@@ -150,7 +166,7 @@ rollup, reviews, review threads and comments.
 
 | action | call |
 |---|---|
-| request Copilot | `DELETE` then `POST /repos/{o}/{r}/pulls/{n}/requested_reviewers`, `reviewers[]=Copilot` |
+| request Copilot | GraphQL `requestReviews(botIds:[<copilot bot node id>], union:true)` |
 | request CodeRabbit | `POST /repos/{o}/{r}/issues/{n}/comments` with `@coderabbitai review` |
 | reply in a thread | `addPullRequestReviewThreadReply`, or `POST /pulls/{n}/comments/{id}/replies` |
 | resolve a thread | `resolveReviewThread` |
@@ -174,8 +190,18 @@ As of September 2026:
   `reviewDraftPullRequests` only; `requested_reviewers` takes no depth argument; there is no
   Copilot mutation in the GraphQL schema. Effort level is a repo/org default set in the web UI,
   overridable per review only in the Reviewers menu. Tracked as cli#14188.
-- **No re-review trigger.** Re-requesting is a remove-then-add of the reviewer, which is what
-  `prcert request --copilot` does.
+- **Request Copilot through GraphQL, by node id.** `requestReviews(botIds:[…], union:true)` is the
+  only form observed to queue a review every time. `prcert` reads the id off the PR when Copilot has
+  touched it before, and otherwise uses the global `BOT_kgDOCnlnWA`.
+
+  The REST route is unreliable. A `DELETE` followed by a `POST` on
+  `/pulls/{n}/requested_reviewers` with `reviewers[]=Copilot` returned 200 twice and produced no
+  `review_requested` event and no review; `gh pr edit --add-reviewer @copilot` also exits 0 without
+  raising anything (cli#11245). Do not use either to drive a loop.
+- **Bot reviewers are invisible over REST.** `GET /pulls/{n}` reports `requested_reviewers: []` even
+  while Copilot is queued. Read GraphQL `reviewRequests` instead, which is what `prcert` does.
+- **Re-requesting is the re-review trigger.** Calling `requestReviews` again after Copilot has
+  reviewed queues a fresh review of the new head. That is what `prcert request --copilot` does.
 - **Copilot never approves.** Its reviews are always `COMMENTED`; the verdict is in the body's
   headline emoji, not in the review state. CodeRabbit behaves the same way. Do not wait for
   `APPROVED`.

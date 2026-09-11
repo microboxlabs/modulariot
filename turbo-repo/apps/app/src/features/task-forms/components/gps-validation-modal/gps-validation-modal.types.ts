@@ -14,4 +14,5 @@ export type GpsValidationModalProps = {
 
 export type MapComponentProps = {
   pointer: { lat: number; lng: number };
+  msg?: I18nRecord;
 };

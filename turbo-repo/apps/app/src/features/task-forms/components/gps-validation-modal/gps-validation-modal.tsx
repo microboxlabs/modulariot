@@ -40,6 +40,7 @@ export default function GpsValidationModal({
           <div className="flex flex-col gap-4">
             {entityInfo?.lat && entityInfo?.lng ? (
               <MapComponent
+                msg={msg}
                 pointer={{
                   lat: entityInfo.lat,
                   lng: entityInfo.lng,

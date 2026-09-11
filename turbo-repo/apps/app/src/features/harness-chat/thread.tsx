@@ -20,7 +20,12 @@ export const Thread: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
         </div>
 
         <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
-          <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-3">
+          {/* overflow-x-hidden: without it a too-wide table in a reply (see
+              MarkdownContent's `table` override) would widen this axis too —
+              overflow-x otherwise computes to "auto" alongside overflow-y —
+              and drag the whole thread into a sideways scroll instead of
+              scrolling on its own. */}
+          <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto px-3 py-3">
             <AuiIf condition={(s) => s.thread.isEmpty}>
               <ThreadEmpty />
             </AuiIf>

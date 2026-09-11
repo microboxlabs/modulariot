@@ -188,7 +188,12 @@ export const SpotlightResults = memo(function SpotlightResults({
     (harnessPrompt || showHarnessResults || showHarnessEmpty || harnessError) && hasStaticResults;
 
   return (
-    <div className="max-h-[60vh] overflow-y-auto">
+    // overflow-x-hidden pins the panel itself to the dropdown's width —
+    // without it, CSS computes overflow-x to "auto" too (the spec's rule
+    // for a "visible" axis paired with a non-visible one), and a too-wide
+    // table (see MarkdownContent's `table` override) would drag the whole
+    // results list into a sideways scroll instead of scrolling on its own.
+    <div className="max-h-[60vh] overflow-x-hidden overflow-y-auto">
       {/* ── Harness section — prompt (before commit) OR answer + gotos (after commit) ── */}
       {(harnessPrompt || showHarnessResults || showHarnessEmpty || harnessError) && (
         <div>

@@ -75,6 +75,16 @@ const DOCUMENT_COMPONENTS = {
       </code>
     );
   },
+  // GFM tables render at their natural width, which can easily exceed a
+  // narrow host (a spotlight dropdown, a chat bubble column). Scoping the
+  // scrollbar to the table itself — rather than leaving the host container
+  // to pick up an implicit overflow-x from its own overflow-y-auto — means
+  // only the table pans, not the whole results list/thread around it.
+  table: ({ children }: React.TableHTMLAttributes<HTMLTableElement>) => (
+    <div className="overflow-x-auto">
+      <table>{children}</table>
+    </div>
+  ),
 };
 
 interface MarkdownContentProps {

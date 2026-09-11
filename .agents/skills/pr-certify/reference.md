@@ -41,25 +41,45 @@ Both hooks read the command from stdin and exit 0 immediately for anything that 
 `gh pr merge` / `gh pr create` / `gh pr ready`, so every other Bash call costs one short python
 start.
 
-The match is not a substring test. `_cmd.invokes()` strips heredoc bodies, tokenizes with `shlex`
-so quoted text stays one token, and requires `gh pr <sub>` at a command position — start of line,
-after an operator, after a shell keyword that is itself at a command position, or behind
-`VAR=value` assignments. A commit message that mentions `gh pr merge`, a `grep` for it, an `echo`
-of it, or `printf '%s' '; gh pr merge 42'` does not trip the hook; `if x; then gh pr merge 5; fi`
-does.
+The match is not a substring test, and it is not a single parser either. `_cmd` runs two passes
+with opposite temperaments:
 
-`_cmd.bypasses()` applies the same parse to `PR_CERTIFY_BYPASS=1`, so the bypass counts only as an
-environment assignment on the merge command itself — `gh pr merge 42; echo PR_CERTIFY_BYPASS=1`
-does not skip the gate.
+| pass | what it is | what it is for |
+|---|---|---|
+| `scan()` | a quote-, comment- and heredoc-aware character walk | never misses an occurrence the shell could execute |
+| `invocations()` | `shlex` tokenization | says precisely **which** PR, and ignores prose |
 
-`python3 hooks/test_cmd.py` runs the 40 cases that pin this down, including the multi-line ones:
-`shlex` drops newlines, so lines are lexed separately and rejoined with an explicit separator —
-without that, the second command of any multi-line script was invisible to the gate.
+`invocations()` names the targets. `scan()` decides whether a miss is real. A `gh pr merge` sitting
+in live shell code that `invocations()` did not resolve means the parser has a hole, so the gate
+denies rather than guessing — that is the whole reason for the second pass.
+
+A hand-rolled shell parser will always have holes. These are the ones that were found, now
+regression tests: `echo err >&2; gh pr merge` (punctuation runs arrive glued), `` `gh pr merge` ``
+(backticks), `command`/`env`/`sudo`/`eval`/`xargs gh pr merge` (wrappers pass through), `# <<EOF`
+(comments are not heredocs), `printf '<<EOF'` (neither are quoted ones), `cat <<<'gh pr merge'`
+(a herestring is not a heredoc, and its second `<` must not be read as one), `if`/`while`/`until`
+(control keywords open a command position), and multi-line scripts — `shlex` drops newlines, so
+every command after the first used to look like an argument to the one before it.
+
+Heredoc termination follows bash: a plain `<<EOF` needs an exact delimiter line, `<<-EOF` strips
+leading tabs only. A space-indented `EOF` does not close a plain heredoc, so what follows is still
+body, not code.
+
+`_cmd.bypasses()` applies the tokenizer to `PR_CERTIFY_BYPASS=1`, so the bypass counts only as an
+environment assignment on a real invocation — neither `gh pr merge 42; echo PR_CERTIFY_BYPASS=1`
+nor `echo PR_CERTIFY_BYPASS=1 gh pr merge` skips the gate.
+
+The cost of this posture is false denials on unquoted prose: `echo then gh pr merge` is denied even
+though it merges nothing. A false deny costs one bypass prefix; a false allow defeats the gate, and
+six of the findings that produced this design were filed as CWE-863. Quoting the text silences it.
+
+`python3 hooks/test_cmd.py` runs the 61 cases that pin all of this down.
 
 ## Subcommands
 
 Global flags: `--repo owner/name`, `--pr N`. Both default to the current repo and the PR of the
-current branch.
+current branch. `--pr` also takes a branch name or a PR URL — `gh pr merge feature-branch` is a real
+form, and the gate passes that selector straight through.
 
 | command | does | exit |
 |---|---|---|
@@ -72,7 +92,7 @@ current branch.
 | `reply` | `--thread-id ID` or `--comment-id ID`, `--body TEXT\|-` | 0 |
 | `resolve` | `--thread-id ID` (repeatable) | 0 |
 | `stamp` | `--rounds N`, `--notes TEXT\|-` | 0 |
-| `gate` | the merge gate's verdict | 0 allow, 3 deny |
+| `gate` | the merge gate's verdict; skips the SonarCloud calls, so it answers in seconds | 0 allow, 3 deny |
 | `ruleset` | create a `copilot_code_review` ruleset with `review_on_push` (needs repo admin) | 0 |
 | `config` | `--enable-org`, `--disable-org`, `--gate on\|off` | 0 |
 

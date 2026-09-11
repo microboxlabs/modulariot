@@ -187,8 +187,10 @@ exact current head **and** nothing has gone wrong since that stamp was written �
 review, a check flipping to failure, a new unresolved thread. It re-reads GitHub but skips the
 SonarCloud calls, whose verdict the stamp already carries, so it answers in a couple of seconds.
 
-It fails open: if `gh` is down, the org is not allowlisted, or anything else goes wrong, the merge
-proceeds.
+It fails open on errors: if `gh` is down, the org is not allowlisted, or anything else goes wrong,
+the merge proceeds. It does **not** fail open on ambiguity. A `gh pr merge` the hook can see in live
+shell code but cannot resolve into a target is denied, because a gap in the command parser must not
+read as "no merge here".
 
 To merge anyway: prefix the merge command itself with `PR_CERTIFY_BYPASS=1`. It has to be an
 environment assignment on that command — the same text anywhere else in the line does not count.
@@ -199,7 +201,7 @@ Check the gate by hand with `prcert gate` (exit 0 certified, 3 blocked).
 
 | Reviewer | clean | needs work |
 |---|---|---|
-| Copilot | review headline `### 🟢 Approval recommended` | `### 🟡 Changes recommended`; `### 🔵 Needs a closer look` means it could not decide — a human must |
+| Copilot | review headline `### 🟢 Approval recommended` | `### 🟡 Changes recommended`; `### 🔵 Needs a closer look` blocks too — it means Copilot could not decide, so a human has to, and then re-request |
 | CodeRabbit | `**Actionable comments posted: 0**` | any count above zero |
 | SonarCloud | quality gate `OK`, zero open PR issues, zero hotspots to review | anything else |
 

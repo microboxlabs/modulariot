@@ -19,6 +19,7 @@ CONFIG_DIR = os.path.expanduser("~/.claude/pr-certify")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 
 COPILOT_BOT = "copilot-pull-request-reviewer"
+COPILOT_LOGINS = {"copilot-pull-request-reviewer", "copilot", "github-copilot"}
 # REST /requested_reviewers accepts this bot and silently drops it, and so does
 # `gh pr edit --add-reviewer @copilot`. The GraphQL mutation needs the node id.
 COPILOT_BOT_ID = "BOT_kgDOCnlnWA"
@@ -104,7 +105,7 @@ def summarize(args):
     return " ".join(out)
 
 
-def gh(args, check=True, stdin=None, retries=1):
+def gh(args, check=True, stdin=None, retries=0):
     for attempt in range(retries + 1):
         p = subprocess.run(["gh"] + args, capture_output=True, text=True, input=stdin)
         if p.returncode == 0:
@@ -182,12 +183,13 @@ def drain_review_threads(pr, owner, name, number):
             "api", "graphql",
             "-F", "owner=%s" % owner, "-F", "name=%s" % name, "-F", "number=%d" % number,
             "-F", "after=%s" % info["endCursor"], "-f", "query=%s" % THREADS_QUERY,
-        ])
+        ], retries=1)
         nxt = (((json.loads(out).get("data") or {}).get("repository") or {})
                .get("pullRequest") or {}).get("reviewThreads") or {}
         page["nodes"] = (page.get("nodes") or []) + (nxt.get("nodes") or [])
         info = nxt.get("pageInfo") or {}
     page["pageInfo"] = info
+    page["truncated"] = bool(info.get("hasNextPage"))
     pr["reviewThreads"] = page
     return pr
 
@@ -197,7 +199,7 @@ def fetch_pr(owner, name, number):
         "api", "graphql",
         "-F", "owner=%s" % owner, "-F", "name=%s" % name, "-F", "number=%d" % number,
         "-f", "query=%s" % PR_QUERY,
-    ])
+    ], retries=1)
     try:
         data = json.loads(out)
     except ValueError:
@@ -220,19 +222,26 @@ def resolve_target(args):
             die("not in a GitHub repo and --repo not given: %s" % err.strip())
         repo = out.strip()
     owner, _, name = repo.partition("/")
-    number = args.pr
-    if not number:
-        out, rc, err = gh(["pr", "view", "--repo", repo, "--json", "number", "-q", ".number"], check=False)
-        if rc != 0:
-            die("no PR for the current branch; pass --pr N")
-        number = int(out.strip())
-    return owner, name, int(number)
+    selector = args.pr
+    if selector and str(selector).isdigit():
+        return owner, name, int(selector)
+    view = ["pr", "view", "--repo", repo, "--json", "number", "-q", ".number"]
+    if selector:
+        view.insert(2, str(selector))
+    out, rc, err = gh(view, check=False, retries=1)
+    if rc != 0:
+        die("no PR for %s" % (selector or "the current branch"))
+    return owner, name, int(out.strip())
 
 
 # --- signal extraction -------------------------------------------------------
 
 def bot_login(login):
     return (login or "").replace("[bot]", "")
+
+
+def is_copilot(login):
+    return bot_login(login).lower() in COPILOT_LOGINS
 
 
 def check_contexts(pr, with_meta=False):
@@ -298,8 +307,9 @@ COPILOT_VERDICTS = [
 
 
 def latest_review(pr, login):
+    match = is_copilot if login == COPILOT_BOT else (lambda x: bot_login(x) == login)
     revs = [r for r in ((pr.get("reviews") or {}).get("nodes") or [])
-            if bot_login((r.get("author") or {}).get("login")) == login and (r.get("body") or "").strip()]
+            if match((r.get("author") or {}).get("login")) and (r.get("body") or "").strip()]
     revs.sort(key=lambda r: r.get("submittedAt") or "")
     return revs[-1] if revs else None
 
@@ -332,8 +342,7 @@ def unresolved_threads(pr, logins):
 def copilot_state(pr):
     head = pr.get("headRefOid")
     rev = latest_review(pr, COPILOT_BOT)
-    requested = any(bot_login((r.get("requestedReviewer") or {}).get("login"))
-                    in (COPILOT_BOT, "Copilot", "copilot")
+    requested = any(is_copilot((r.get("requestedReviewer") or {}).get("login"))
                     for r in ((pr.get("reviewRequests") or {}).get("nodes") or []))
     if not rev:
         return {"provider": "copilot", "available": True, "fresh": False, "verdict": None,
@@ -580,7 +589,7 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False):
     elif cop["verdict"] == "changes":
         blockers.append("Copilot: changes recommended")
     elif cop["verdict"] == "unclear":
-        warnings.append("Copilot: needs a closer look - human judgement required")
+        blockers.append("Copilot: needs a closer look - a human has to decide, then re-request")
 
     if not crb["available"]:
         warnings.append("CodeRabbit unavailable: %s" % crb.get("reason", "unknown"))
@@ -607,6 +616,9 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False):
 
     if live_threads:
         blockers.append("%d unresolved bot review thread(s)" % len(live_threads))
+    if (pr.get("reviewThreads") or {}).get("truncated"):
+        blockers.append("review threads are truncated - more pages than the drain limit, "
+                        "so unresolved threads may be unlisted")
     if chk["failing"]:
         blockers.append("failing checks: %s" % ", ".join(c["name"] for c in chk["failing"][:6]))
     if chk["pending"]:
@@ -782,11 +794,11 @@ def copilot_bot_id(pr):
     """Prefer an id seen on this PR; fall back to the bot's global node id."""
     for r in ((pr.get("reviews") or {}).get("nodes") or []):
         a = r.get("author") or {}
-        if bot_login(a.get("login")) == COPILOT_BOT and a.get("id"):
+        if is_copilot(a.get("login")) and a.get("id"):
             return a["id"]
     for r in ((pr.get("reviewRequests") or {}).get("nodes") or []):
         a = r.get("requestedReviewer") or {}
-        if bot_login(a.get("login")) == COPILOT_BOT and a.get("id"):
+        if is_copilot(a.get("login")) and a.get("id"):
             return a["id"]
     return COPILOT_BOT_ID
 
@@ -1067,7 +1079,7 @@ def build_ctx(args, need_state=True, skip_sonar=False):
 def main():
     ap = argparse.ArgumentParser(prog="prcert", description=__doc__)
     ap.add_argument("--repo", help="owner/name (default: current repo)")
-    ap.add_argument("--pr", type=int, help="PR number (default: PR for current branch)")
+    ap.add_argument("--pr", help="PR number, branch or URL (default: PR for current branch)")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("status", help="full certification state for the PR")
@@ -1124,8 +1136,10 @@ def main():
         ctx = build_ctx(args, need_state=False)
         if args.all or not (args.copilot or args.coderabbit):
             args.copilot = True
-            # Requesting is cheap and idempotent; only skip when CodeRabbit said it is off.
-            args.coderabbit = not coderabbit_state(ctx["pr"]).get("reason")
+            # Requesting is cheap; skip only when CodeRabbit itself said it is off.
+            # "No history" is the first request, not a reason to never send one.
+            crb = coderabbit_state(ctx["pr"])
+            args.coderabbit = not (crb.get("note") or CR_OFF.search(crb.get("reason") or ""))
         cmd_request(args, ctx)
         return 0
 

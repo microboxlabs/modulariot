@@ -309,7 +309,8 @@ COPILOT_VERDICTS = [
 def latest_review(pr, login):
     match = is_copilot if login == COPILOT_BOT else (lambda x: bot_login(x) == login)
     revs = [r for r in ((pr.get("reviews") or {}).get("nodes") or [])
-            if match((r.get("author") or {}).get("login")) and (r.get("body") or "").strip()]
+            if match((r.get("author") or {}).get("login")) and (r.get("body") or "").strip()
+            and r.get("state") in ("COMMENTED", "APPROVED", "CHANGES_REQUESTED")]
     revs.sort(key=lambda r: r.get("submittedAt") or "")
     return revs[-1] if revs else None
 
@@ -382,15 +383,31 @@ def coderabbit_reset(pr):
     return None
 
 
+CR_PING = re.compile(r"@coderabbitai\s+(?:full\s+)?review", re.I)
+
+
+def coderabbit_pending(pr, reviewed_at):
+    """True when a `@coderabbitai review` ping is newer than CodeRabbit's last review."""
+    for c in reversed(((pr.get("comments") or {}).get("nodes") or [])):
+        if not CR_PING.search(c.get("body") or ""):
+            continue
+        return not reviewed_at or (c.get("createdAt") or "") > reviewed_at
+    return False
+
+
 def coderabbit_state(pr):
     head = pr.get("headRefOid")
     ctx = [c for c in check_contexts(pr) if (c["name"] or "").lower().startswith("coderabbit")]
     has_history = bool(latest_review(pr, CODERABBIT_BOT)) or bool(ctx)
     if not has_history:
+        if coderabbit_pending(pr, None):
+            return {"provider": "coderabbit", "available": True, "fresh": False, "verdict": None,
+                    "pending": True, "reason": None}
         return {"provider": "coderabbit", "available": False, "fresh": False,
                 "verdict": None, "reason": "no CodeRabbit check or review on this PR"}
     off = next((c for c in ctx if c.get("description") and CR_OFF.search(c["description"])), None)
     rev = latest_review(pr, CODERABBIT_BOT)
+    pending = coderabbit_pending(pr, rev.get("submittedAt") if rev else None)
     sha = (rev.get("commit") or {}).get("oid") if rev else None
     fresh = sha == head
     actionable = None
@@ -398,7 +415,7 @@ def coderabbit_state(pr):
         m = CR_ACTIONABLE.search(rev.get("body") or "")
         if m:
             actionable = int(m.group(1))
-    if off and not fresh:
+    if off and not fresh and not pending:
         reason = off["description"]
         resets = coderabbit_reset(pr)
         if resets:
@@ -409,7 +426,7 @@ def coderabbit_state(pr):
     if fresh and actionable is not None:
         verdict = "clean" if actionable == 0 else "changes"
     return {"provider": "coderabbit", "available": True, "fresh": fresh, "verdict": verdict,
-            "actionable": actionable, "reviewedSha": sha,
+            "pending": pending and not fresh, "actionable": actionable, "reviewedSha": sha,
             "reviewedAt": rev.get("submittedAt") if rev else None,
             "note": off["description"] if off else None}
 
@@ -560,7 +577,7 @@ def read_stamp(pr):
 
 # --- certification -----------------------------------------------------------
 
-def assess(pr, settings, repo_root, cfg=None, skip_sonar=False):
+def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True):
     head = pr["headRefOid"]
     cop = copilot_state(pr)
     crb = coderabbit_state(pr)
@@ -583,36 +600,63 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False):
     if depth["level"] == "balanced" and cop.get("effort") == "lite":
         warnings.append("classified balanced but Copilot reviewed at Lite - cover the gap locally "
                         "or pick Balanced in the PR's Reviewers menu")
-    if not cop["fresh"]:
-        msg = "Copilot has not reviewed head %s (last: %s)" % (head[:8], (cop.get("reviewedSha") or "never")[:8])
-        (blockers if require_copilot else warnings).append(msg)
-    elif cop["verdict"] == "changes":
-        blockers.append("Copilot: changes recommended")
-    elif cop["verdict"] == "unclear":
-        blockers.append("Copilot: needs a closer look - a human has to decide, then re-request")
 
-    if not crb["available"]:
-        warnings.append("CodeRabbit unavailable: %s" % crb.get("reason", "unknown"))
-    elif not crb["fresh"]:
-        blockers.append("CodeRabbit has not reviewed head %s (last: %s)" % (head[:8], (crb.get("reviewedSha") or "never")[:8]))
-    elif crb["verdict"] == "changes":
-        blockers.append("CodeRabbit: %s actionable comment(s)" % crb.get("actionable"))
-    elif crb["verdict"] is None:
-        warnings.append("CodeRabbit review on head has no actionable-count line")
+    def detail(key, st):
+        if key == "coderabbit":
+            return "%s actionable comment(s)" % st.get("actionable")
+        if key != "sonar":
+            return "changes recommended"
+        bits = []
+        for x in st.get("projects") or []:
+            parts = []
+            if x["error"]:
+                parts.append("unreadable: %s" % x["error"])
+            if x["gate"] not in ("OK", None):
+                parts.append("gate %s" % x["gate"])
+            if (x["openIssues"] or 0) > 0:
+                parts.append("%d open issue(s)" % x["openIssues"])
+            if (x["hotspotsToReview"] or 0) > 0:
+                parts.append("%d hotspot(s) to review" % x["hotspotsToReview"])
+            if parts:
+                bits.append("%s: %s" % (x["key"], ", ".join(parts)))
+        return "; ".join(bits) or "not clean"
 
-    if not son["available"]:
-        warnings.append("SonarCloud unavailable: %s" % son.get("reason", "unknown"))
-    elif son["verdict"] == "changes":
-        for p in son["projects"]:
-            bits = []
-            if p["gate"] not in ("OK", None):
-                bits.append("gate %s" % p["gate"])
-            if (p["openIssues"] or 0) > 0:
-                bits.append("%d open issue(s)" % p["openIssues"])
-            if (p["hotspotsToReview"] or 0) > 0:
-                bits.append("%d hotspot(s) to review" % p["hotspotsToReview"])
-            if bits:
-                blockers.append("SonarCloud %s: %s" % (p["key"], ", ".join(bits)))
+    def judge(key, st, required=True):
+        """One rule for every reviewer: only a fresh, clean verdict is not a blocker.
+
+        Anything else - stale, pending, unreadable, errored - blocks. Only a
+        reviewer that said it is switched off, or one this repo does not require,
+        degrades to a warning.
+        """
+        if not st.get("available"):
+            reason = st.get("reason") or "unavailable"
+            if required and not CR_OFF.search(reason) and "no analysis" not in reason:
+                blockers.append("%s is unavailable and required: %s" % (key, reason))
+            else:
+                warnings.append("%s unavailable: %s" % (key, reason))
+            return
+        if not required:
+            if st.get("verdict") != "clean":
+                warnings.append("%s: %s (not required here)" % (key, st.get("verdict") or "no verdict"))
+            return
+        if not st.get("fresh", True):
+            blockers.append("%s has not reviewed head %s (last: %s)"
+                            % (key, head[:8], (st.get("reviewedSha") or "never")[:8]))
+            return
+        verdict = st.get("verdict")
+        if verdict == "clean":
+            return
+        if verdict == "unclear":
+            blockers.append("%s: needs a closer look - a human has to decide, then re-request" % key)
+        elif verdict == "changes":
+            blockers.append("%s: %s" % (key, detail(key, st)))
+        else:
+            blockers.append("%s reviewed head %s but its verdict could not be read"
+                            % (key, head[:8]))
+
+    judge("copilot", cop, required=require_copilot)
+    judge("coderabbit", crb)
+    judge("sonar", son, required=not skip_sonar)
 
     if live_threads:
         blockers.append("%d unresolved bot review thread(s)" % len(live_threads))
@@ -627,16 +671,16 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False):
         blockers.append("more than %d checks on head - the rollup is truncated and may hide a failure"
                         % chk["total"])
     if chk["total"] == 0:
-        warnings.append("no checks reported on head - stacked PR or CI not triggered; skip is not pass")
+        blockers.append("no checks reported on head - stacked PR, or CI never ran; skip is not pass")
     elif chk["ran"] == 0:
-        warnings.append("all %d check(s) on head were skipped - nothing actually ran; skip is not pass"
+        blockers.append("all %d check(s) on head were skipped - nothing actually ran; skip is not pass"
                         % chk["total"])
     if stale_base:
         warnings.append("base is %s, not the default branch %s - CI and CodeRabbit may be disabled"
                         % (pr.get("baseRefName"), pr.get("_defaultBranch")))
 
     settled = ((cop["fresh"] or not require_copilot) and chk["settled"]
-               and (not crb["available"] or crb["fresh"]))
+               and (crb["fresh"] or not (crb["available"] or crb.get("pending"))))
 
     return {
         "repo": pr["url"].split("/pull/")[0].replace("https://github.com/", ""),
@@ -651,7 +695,8 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False):
         "outdatedUnresolvedThreads": [t for t in threads if t["isOutdated"]],
         "stamp": read_stamp(pr),
         "blockers": blockers, "warnings": warnings,
-        "certified": not blockers,
+        "certified": not blockers and enabled,
+        "orgEnabled": enabled,
         "settled": settled,
     }
 
@@ -1068,8 +1113,7 @@ def build_ctx(args, need_state=True, skip_sonar=False):
     ctx = {"cfg": cfg, "owner": owner, "name": name, "pr": pr,
            "settings": settings, "orgEnabled": enabled, "root": root}
     if need_state:
-        st = assess(pr, settings, root, cfg, skip_sonar=skip_sonar)
-        st["orgEnabled"] = enabled
+        st = assess(pr, settings, root, cfg, skip_sonar=skip_sonar, enabled=enabled)
         if not enabled:
             st["warnings"].insert(0, "org '%s' is not enabled; run: prcert config --enable-org %s" % (owner, owner))
         ctx["state"] = st

@@ -205,6 +205,11 @@ Check the gate by hand with `prcert gate` (exit 0 certified, 3 blocked).
 | CodeRabbit | `**Actionable comments posted: 0**` | any count above zero |
 | SonarCloud | quality gate `OK`, zero open PR issues, zero hotspots to review | anything else |
 
+One rule decides every reviewer: only a **fresh, clean** verdict is not a blocker. Stale, pending,
+unreadable, errored — all block. A reviewer degrades to a warning only when it said it is switched
+off (rate-limited, disabled for the base branch, not configured) or when the org turned it off with
+`requireCopilot: false`.
+
 A verdict only counts against the **current head**. `prcert status` prints `STALE` when the newest
 review is for an older commit. That is the most common reason a PR looks green without being
 reviewed. Treat stale as unreviewed.
@@ -225,6 +230,9 @@ reviewed. Treat stale as unreviewed.
   project whose API call errors counts as unknown, never as clean.
 - **More than 100 checks truncates the rollup.** `prcert` blocks rather than reporting green on a
   connection it could not read in full.
+- **A dismissed review is not a verdict.** Only `COMMENTED`, `APPROVED` and `CHANGES_REQUESTED`
+  count; a dismissed clean review cannot certify.
+- **An org outside the allowlist never certifies.** It is not merely ungated.
 - **Copilot has two review formats.** The older one has no emoji headline; `prcert` falls back to
   counting unresolved Copilot threads there.
 

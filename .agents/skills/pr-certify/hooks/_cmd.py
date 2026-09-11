@@ -27,6 +27,11 @@ WRAPPERS = {"command", "builtin", "env", "exec", "eval", "nohup", "sudo", "doas"
             "xargs", "time", "nice", "ionice", "stdbuf", "setsid"}
 KEYWORDS = {"if", "then", "elif", "else", "while", "until", "do", "{", "!"} | WRAPPERS
 WORD = r"[A-Za-z0-9_./-]+"
+SHELLS = {"bash", "sh", "zsh", "dash", "ksh", "busybox"}
+# gh global flags that consume the next token, so it is not the `pr` subcommand.
+GH_VALUE_FLAGS = {"-R", "--repo"}
+REDIRECT = set("<>&")
+MAX_NESTING = 3
 
 
 def _delimiter(text, i):
@@ -88,6 +93,7 @@ def scan(cmd):
     masked = list(cmd)
     pending = []          # heredocs opened on the current line, not yet closed
     quote = None
+    arith = 0             # depth of $(( )) - `<<` inside one is a shift
     i = 0
     at_word_start = True
 
@@ -143,6 +149,21 @@ def scan(cmd):
             i = end
             continue
 
+        if cmd.startswith("$((", i):
+            arith += 1
+            for k in range(i, i + 3):
+                live[k] = True
+            i += 3
+            at_word_start = False
+            continue
+
+        if arith and cmd.startswith("))", i):
+            arith -= 1
+            live[i] = live[i + 1] = True
+            i += 2
+            at_word_start = False
+            continue
+
         if c == "<" and cmd.startswith("<<<", i):
             for k in range(i, i + 3):
                 live[k] = True
@@ -150,7 +171,7 @@ def scan(cmd):
             at_word_start = False
             continue
 
-        if c == "<":
+        if c == "<" and not arith:
             parsed = _delimiter(cmd, i)
             if parsed:
                 delim, strip_tabs, end = parsed
@@ -172,18 +193,41 @@ def strip_heredocs(cmd):
     return scan(cmd)[0]
 
 
-def mentions(cmd, subcommand):
+def mentions(cmd, subcommand, depth=0):
     """True when `gh pr <subcommand>` appears in live shell code.
 
     Deliberately blunt: it catches occurrences the precise parser may not, which
     is exactly what makes a parser gap detectable rather than silent.
     """
     _, live = scan(cmd)
-    pattern = re.compile(r"\bgh\s+pr\s+(?:%s)\b" % subcommand)
+    pattern = re.compile(r"\bgh\b[^;&|()\n]*?\bpr\b[^;&|()\n]*?\b(?:%s)\b" % subcommand)
     for m in pattern.finditer(cmd):
         if all(live[k] for k in range(m.start(), m.end()) if cmd[k] != "\n"):
             return True
+    tokens = tokenize(cmd)
+    if tokens and depth < MAX_NESTING:
+        for payload in shell_payloads(tokens):
+            if mentions(payload, subcommand, depth + 1):
+                return True
     return False
+
+
+FD_PREFIX = re.compile(r"(?<![\w>&])(\d+)(?=[<>])")
+
+
+def _drop_fd_prefixes(text, live):
+    """Blank the N in `N>file`, which is a file descriptor and not an argument.
+
+    Adjacency is the whole distinction and shlex loses it: bash reads `2>out` as
+    a redirection but `5 > out` as the argument 5 followed by one, so the digit
+    can only be dropped while the spacing is still visible.
+    """
+    out = list(text)
+    for m in FD_PREFIX.finditer(text):
+        if all(live[k] for k in range(m.start(1), m.end(1)) if k < len(live)):
+            for k in range(m.start(1), m.end(1)):
+                out[k] = " "
+    return "".join(out)
 
 
 def _lex(text):
@@ -204,7 +248,8 @@ def tokenize(cmd):
     lines are lexed separately and rejoined with an explicit separator. A line
     that will not parse alone is a quote spanning lines: keep accumulating.
     """
-    text = strip_heredocs(cmd).replace("`", " ` ")
+    masked, live = scan(cmd)
+    text = _drop_fd_prefixes(masked, live).replace("`", " ` ")
     tokens, buf = [], None
     for line in text.split("\n"):
         buf = line if buf is None else buf + "\n" + line
@@ -241,36 +286,106 @@ def _at_command_position(tokens, i):
     return True
 
 
+def _skip_flags(tokens, j, value_flags):
+    while j < len(tokens) and tokens[j].startswith("-"):
+        if tokens[j] in value_flags:
+            j += 2
+        else:
+            j += 1
+    return j
+
+
 def _matches(tokens, i, wanted):
-    return (tokens[i] == "gh" and i + 2 < len(tokens)
-            and tokens[i + 1] == "pr" and tokens[i + 2] in wanted)
+    """`gh [global flags] pr [flags] <sub>`. Returns (end index, pre-sub flags) or None.
 
-
-def invocations(cmd, subcommand):
-    """Argument tokens of every real `gh pr <subcommand>`, one list each.
-
-    Redirections and their operands are dropped — `gh pr merge > 123` merges the
-    PR of the current branch into a file called 123, it does not merge PR 123.
-    Returns None when the command will not parse, which callers must treat as
-    unknown rather than as none.
+    gh accepts its own options before the subcommand, so `gh --repo a/b pr merge 42`
+    is a real merge that a contiguous match would miss entirely.
     """
-    wanted = set(subcommand.split("|"))
+    if tokens[i] != "gh":
+        return None
+    j = _skip_flags(tokens, i + 1, GH_VALUE_FLAGS)
+    if j >= len(tokens) or tokens[j] != "pr":
+        return None
+    pre = [t for t in tokens[i + 1:j]]
+    j = _skip_flags(tokens, j + 1, GH_VALUE_FLAGS)
+    if j >= len(tokens) or tokens[j] not in wanted:
+        return None
+    return j + 1, pre
+
+
+def shell_payloads(tokens):
+    """Script text handed to a child shell with -c, which the outer parse sees as data."""
+    out = []
+    for i, tok in enumerate(tokens):
+        if tok not in SHELLS or not _at_command_position(tokens, i):
+            continue
+        j = i + 1
+        while j < len(tokens) and tokens[j].startswith("-"):
+            if "c" in tokens[j].lstrip("-") and j + 1 < len(tokens):
+                out.append(tokens[j + 1])
+                break
+            j += 1
+    return out
+
+
+def _collect(tokens, j):
+    """Arguments of one invocation, skipping redirections and their operands.
+
+    `gh pr merge 2>/tmp/out` merges the current branch's PR; the `2` is a file
+    descriptor, not PR 2.
+    """
+    argv = []
+    while j < len(tokens):
+        tok = tokens[j]
+        if is_punctuation(tok):
+            if set(tok) <= REDIRECT:
+                j += 2
+                continue
+            break
+        argv.append(tok)
+        j += 1
+    return argv
+
+
+def _invocations(cmd, wanted, token, depth):
+    """(argv, bypassed) for every real invocation, recursing into `sh -c` payloads."""
     tokens = tokenize(cmd)
     if tokens is None:
         return None
     found = []
     for i in range(len(tokens)):
-        if not _matches(tokens, i, wanted) or not _at_command_position(tokens, i):
+        m = _matches(tokens, i, wanted)
+        if not m or not _at_command_position(tokens, i):
             continue
-        argv, j = [], i + 3
-        while j < len(tokens) and not is_punctuation(tokens[j]):
-            argv.append(tokens[j])
-            j += 1
-        # A redirection ends the argument list; its operand is a file, not an argument.
-        while j < len(tokens) and is_punctuation(tokens[j]) and set(tokens[j]) <= set("<>&"):
-            j += 2
-        found.append(argv)
+        end, pre = m
+        bypassed = False
+        j = i - 1
+        while j >= 0 and ASSIGNMENT.match(tokens[j]):
+            bypassed = bypassed or tokens[j] == token
+            j -= 1
+        found.append((pre + _collect(tokens, end), bypassed))
+    if depth < MAX_NESTING:
+        for payload in shell_payloads(tokens):
+            nested = _invocations(payload, wanted, token, depth + 1)
+            if nested is None:
+                return None
+            found.extend(nested)
     return found
+
+
+def invocations(cmd, subcommand, bypass_token=None):
+    """Argument tokens of every real `gh pr <subcommand>`, one list each.
+
+    Returns None when the command will not parse, which callers must treat as
+    unknown rather than as none.
+    """
+    found = _invocations(cmd, set(subcommand.split("|")), bypass_token, 0)
+    return None if found is None else [argv for argv, _ in found]
+
+
+def invocations_with_bypass(cmd, subcommand, token):
+    """As `invocations`, but each entry is (argv, bypassed-by-its-own-assignment)."""
+    return _invocations(cmd, set(subcommand.split("|")), token, 0)
 
 
 def invokes(cmd, subcommand):
@@ -282,20 +397,13 @@ def invokes(cmd, subcommand):
 
 
 def bypasses(cmd, token, subcommand):
-    """True only when `token` is an environment assignment on a real invocation."""
-    tokens = tokenize(cmd)
-    if tokens is None:
-        return False
-    wanted = set(subcommand.split("|"))
-    for i in range(len(tokens)):
-        if not _matches(tokens, i, wanted) or not _at_command_position(tokens, i):
-            continue
-        j = i - 1
-        while j >= 0 and ASSIGNMENT.match(tokens[j]):
-            if tokens[j] == token:
-                return True
-            j -= 1
-    return False
+    """True when every real invocation carries `token` as its own assignment.
+
+    Per invocation, not per command: `PR_CERTIFY_BYPASS=1 gh pr merge 1; gh pr
+    merge 2` bypasses only the first, so the command as a whole is not bypassed.
+    """
+    found = invocations_with_bypass(cmd, subcommand, token)
+    return bool(found) and all(bypassed for _, bypassed in found)
 
 
 def read_payload():

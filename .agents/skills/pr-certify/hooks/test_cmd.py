@@ -44,6 +44,16 @@ INVOKES = [
     ("# <<EOF\ngh pr merge 5", True),
     # a tab-indented delimiter closes a <<- heredoc
     ("cat <<-EOF\nbody\n\tEOF\ngh pr merge 5", True),
+    # `<<` inside $(( )) is a shift even when a later line equals the operand
+    ("x=$((1 << n))\ngh pr merge 5\nn", True),
+    # a child shell runs its -c payload
+    ("bash -c 'gh pr merge 5'", True),
+    ("sh -c \"gh pr merge 5\"", True),
+    # gh takes its own options before the subcommand
+    ("gh --repo acme/repo pr merge 42", True),
+    ("gh -R acme/repo pr merge 42", True),
+    # a file-descriptor prefix is not a PR number
+    ("gh pr merge 2>/tmp/out", True),
     # text that only mentions one
     ("printf '%s' '; gh pr merge 42'", False),
     ("echo 'gh pr merge'", False),
@@ -75,6 +85,9 @@ BYPASSES = [
     ("gh pr merge 42; echo PR_CERTIFY_BYPASS=1", False),
     ("PR_CERTIFY_BYPASS=1 echo hi; gh pr merge 42", False),
     ("gh pr merge 42 --subject PR_CERTIFY_BYPASS=1", False),
+    # the bypass belongs to its own invocation, not to the whole payload
+    ("PR_CERTIFY_BYPASS=1 gh pr merge 1; gh pr merge 2", False),
+    ("PR_CERTIFY_BYPASS=1 gh pr merge 1; PR_CERTIFY_BYPASS=1 gh pr merge 2", True),
     ("echo PR_CERTIFY_BYPASS=1 gh pr merge 5", False),
     ("gh pr merge 5", False),
 ]
@@ -95,6 +108,10 @@ TARGETS = [
     # a redirection operand is a filename, not a PR
     ("gh pr merge > 123", [[]]),
     ("gh pr merge 5 > 123", [["5"]]),
+    ("gh pr merge 2>/tmp/out", [[]]),
+    ("gh pr merge 5 2>&1", [["5"]]),
+    ("gh --repo acme/repo pr merge 42", [["--repo", "acme/repo", "42"]]),
+    ("bash -c 'gh pr merge 7'", [["7"]]),
 ]
 
 PR_TARGET = [
@@ -108,6 +125,8 @@ PR_TARGET = [
     # gh pr merge takes a branch too
     (["feature-branch"], ["--pr", "feature-branch"]),
     (["https://github.com/a/b/pull/7"], ["--repo", "a/b", "--pr", "7"]),
+    (["--repo", "acme/repo", "42"], ["--repo", "acme/repo", "--pr", "42"]),
+    (["-R", "acme/repo", "42"], ["--repo", "acme/repo", "--pr", "42"]),
 ]
 
 

@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _cmd import bypasses, emit, invocations, mentions, read_payload  # noqa: E402
+from _cmd import emit, invocations_with_bypass, mentions, read_payload  # noqa: E402
 
 PRCERT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin", "prcert")
 BYPASS = "PR_CERTIFY_BYPASS=1"
@@ -23,7 +23,7 @@ PR_URL = re.compile(r"github\.com/(%s)/pull/(\d+)" % SLUG)
 SLUG_ONLY = re.compile(r"^%s$" % SLUG)
 # `gh pr merge` flags that consume the next token, so it is a value and not the selector.
 VALUE_FLAGS = {"-b", "--body", "-F", "--body-file", "-t", "--subject", "--match-head-commit",
-               "--author-email", "-R", "--repo"}
+               "--author-email"}
 
 
 def pr_target(argv):
@@ -70,14 +70,19 @@ def main():
     cmd = (payload.get("tool_input") or {}).get("command") or ""
     cwd = payload.get("cwd") or ""
 
-    found = invocations(cmd, "merge")
+    found = invocations_with_bypass(cmd, "merge", BYPASS)
     seen = bool(found) or mentions(cmd, "merge")
     if not seen:
         return 0
-    if bypasses(cmd, BYPASS, "merge"):
-        return 0
     if not os.access(PRCERT, os.X_OK):
         return 0
+
+    # The bypass belongs to the invocation that carries it, not to the whole
+    # payload: `PR_CERTIFY_BYPASS=1 gh pr merge 1; gh pr merge 2` gates the second.
+    if found:
+        found = [(argv, b) for argv, b in found if not b]
+        if not found:
+            return 0
 
     if found is None or (not found and seen):
         deny("this command runs `gh pr merge` in a form the hook cannot resolve, "
@@ -87,7 +92,7 @@ def main():
         deny("%d merge invocations in one command - too many to check individually" % len(found))
         return 0
 
-    for argv in found:
+    for argv, _ in found:
         args = [PRCERT] + pr_target(argv) + ["gate"]
         try:
             p = subprocess.run(args, capture_output=True, text=True, timeout=30,

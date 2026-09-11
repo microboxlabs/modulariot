@@ -22,6 +22,15 @@ import type {
   BookingResponse,
 } from "@microboxlabs/miot-calendar-client";
 
+/**
+ * Resolve a service's live client, given what its booking stored. Takes the
+ * stored value because the rule depends on it — see `resolveLiveClient`.
+ */
+export type ResolveClient = (
+  serviceCode: string | undefined,
+  storedClient: string | undefined
+) => string | undefined;
+
 export interface CalendarSearchResult {
   /** A search is running (at least one filter badge has a value). */
   active: boolean;
@@ -57,7 +66,7 @@ export interface CalendarSearchResult {
  * the client is.
  */
 export function useCalendarSearch(
-  resolveClient?: (serviceCode: string | undefined) => string | undefined
+  resolveClient?: ResolveClient
 ): CalendarSearchResult {
   const searchParams = useSearchParams();
 
@@ -119,20 +128,18 @@ export function useCalendarSearch(
  * Overlay the live client onto a mapped booking, so the filter matches on the
  * same value the grid shows.
  *
- * The live answer wins over the stored one whenever there is one — the same
- * policy `resolveItemOverlay` applies to the grid, and the one
- * `resolveWorkflowStage` already set for stage. It has to be the same policy on
- * both surfaces, not merely a policy: if this kept the stored value, a booking
- * whose client changed upstream would render as the new name and still answer
- * only to the old one. An unchanged match is returned as-is.
+ * Both surfaces have to run the same rule, not merely a rule: if this one
+ * differed, a booking would render under one client and answer to another.
+ * `resolveLiveClient` is that rule, and the host's `resolveItemOverlay` calls
+ * it too. An unchanged match is returned as-is.
  */
 export function withResolvedClient(
   match: MappedBooking,
-  resolveClient?: (serviceCode: string | undefined) => string | undefined
+  resolveClient?: ResolveClient
 ): MappedBooking {
   const service = match.planned.service;
   if (!resolveClient) return match;
-  const client = resolveClient(service.mintral_serviceCode);
+  const client = resolveClient(service.mintral_serviceCode, service.cliente);
   if (!client || client === service.cliente) return match;
   return {
     ...match,

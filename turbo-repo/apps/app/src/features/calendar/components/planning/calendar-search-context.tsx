@@ -12,6 +12,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import { usePlanningSelection } from "./planning-selection-context";
+import { resolveLiveClient } from "@/features/calendar/services/live-client";
 import { useCalendars } from "@/features/common/providers/client-api.provider";
 import {
   useCalendarSearch,
@@ -78,7 +79,8 @@ export function CalendarSearchProvider({
   // join the grid gets from the host's `resolveItemOverlay` — otherwise
   // `?customer=` would miss a row the grid shows a client for.
   const resolveClient = useCallback(
-    (serviceCode: string | undefined) => getLiveTask(serviceCode)?.client,
+    (serviceCode: string | undefined, storedClient: string | undefined) =>
+      resolveLiveClient(getLiveTask(serviceCode), storedClient),
     [getLiveTask]
   );
   const search = useCalendarSearch(resolveClient);

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  applyItemOverlay,
   mergeItemOverlays,
   mergeWorkflowStages,
 } from "./workflow-stage-merge";
@@ -95,5 +96,32 @@ describe("mergeItemOverlays", () => {
     expect(out[0]).toBe(input[0]);
     expect(out[1].slot).toBe(input[1].slot);
     expect(out[1].workflowStage).toBe("finished");
+  });
+});
+
+describe("applyItemOverlay", () => {
+  it("writes only the keys the overlay names", () => {
+    const item = { id: "1", code: "1", client: "OLD" };
+    const out = applyItemOverlay(item, { client: "NEW" });
+    expect(out).toEqual({ id: "1", code: "1", client: "NEW" });
+  });
+
+  it("returns the item by reference when there is nothing to change", () => {
+    const item: Item = { id: "1", code: "1" };
+    expect(applyItemOverlay(item, undefined)).toBe(item);
+    expect(applyItemOverlay(item, {})).toBe(item);
+    expect(applyItemOverlay(item, { code: "1" })).toBe(item);
+    expect(applyItemOverlay(item, { client: undefined })).toBe(item);
+  });
+
+  // The overlay must never stand in for the item. Host ids are not unique
+  // across the lists a host draws from, so substituting a same-id object would
+  // replace a live kanban service with a booking-derived one whose unnamed
+  // fields are the mapper's empty defaults.
+  it("keeps every field the overlay does not name", () => {
+    const item = { id: "1", code: "kept", client: "OLD" };
+    const out = applyItemOverlay(item, { client: "NEW" });
+    expect(out.code).toBe("kept");
+    expect(out.id).toBe("1");
   });
 });

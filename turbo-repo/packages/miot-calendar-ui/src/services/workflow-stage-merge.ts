@@ -37,16 +37,35 @@ export function mergeItemOverlays<TItem extends { id: string }>(
   if (!resolve) return planned;
   let changed = false;
   const merged = planned.map((ps) => {
-    const overlay = resolve(ps.service);
-    if (!overlay) return ps;
-    const keys = (Object.keys(overlay) as (keyof TItem)[]).filter(
-      (key) => overlay[key] !== undefined && overlay[key] !== ps.service[key]
-    );
-    if (keys.length === 0) return ps;
+    const service = applyItemOverlay(ps.service, resolve(ps.service));
+    if (service === ps.service) return ps;
     changed = true;
-    const service = { ...ps.service };
-    for (const key of keys) service[key] = overlay[key] as TItem[typeof key];
     return { ...ps, service };
   });
   return changed ? merged : planned;
+}
+
+/**
+ * Apply a resolved overlay to one item: only keys whose value is defined and
+ * actually differs are written, and an item with nothing to change is returned
+ * by reference.
+ *
+ * Deliberately narrow. The overlay names the fields the host's live index owns
+ * and nothing else, so applying it can never substitute one item for another —
+ * host item ids are not guaranteed unique across the lists a host draws from,
+ * and swapping the object wholesale would silently replace a caller's item
+ * with a same-id item loaded from somewhere else.
+ */
+export function applyItemOverlay<TItem>(
+  item: TItem,
+  overlay: Partial<TItem> | undefined
+): TItem {
+  if (!overlay) return item;
+  const keys = (Object.keys(overlay) as (keyof TItem)[]).filter(
+    (key) => overlay[key] !== undefined && overlay[key] !== item[key]
+  );
+  if (keys.length === 0) return item;
+  const next = { ...item };
+  for (const key of keys) next[key] = overlay[key] as TItem[typeof key];
+  return next;
 }

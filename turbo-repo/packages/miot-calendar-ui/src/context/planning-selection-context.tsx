@@ -47,6 +47,7 @@ import {
   rollbackPlannedService,
 } from "../services/booking-persistence";
 import {
+  applyItemOverlay,
   mergeItemOverlays,
   mergeWorkflowStages,
 } from "../services/workflow-stage-merge";
@@ -315,17 +316,20 @@ export function PlanningSelectionProvider<
   const bookingsLoadError = bookingsError ? bookingsLoadErrorMessage : null;
 
   // `selectedService` is a snapshot taken when the item was opened, so it
-  // predates any overlay resolved since — open a booking before the live
-  // index answers and the grid would correct itself while the sidebar kept
-  // the stale copy. Read the merged entry back by id; the snapshot stands
-  // only for an item no longer in the list (just unplanned, mid-rollback).
-  const liveSelectedService = useMemo(() => {
-    if (!selectedService) return null;
-    const match = plannedServices.find(
-      (ps) => ps.service.id === selectedService.id
-    );
-    return match ? match.service : selectedService;
-  }, [selectedService, plannedServices]);
+  // predates any overlay resolved since — open a booking before the live index
+  // answers and the grid would correct itself while the sidebar kept the stale
+  // copy. Re-resolve the overlay against the selection instead of looking the
+  // entry up in `plannedServices`: a host's item ids need not be unique across
+  // the lists it draws from, so a lookup could hand back a same-id item loaded
+  // from elsewhere, with that list's defaults in every field the overlay does
+  // not name.
+  const liveSelectedService = useMemo(
+    () =>
+      selectedService
+        ? applyItemOverlay(selectedService, resolveItemOverlay?.(selectedService))
+        : null,
+    [selectedService, resolveItemOverlay]
+  );
 
   const setPlannedServices: Dispatch<
     SetStateAction<PlannedService<TItem>[]>

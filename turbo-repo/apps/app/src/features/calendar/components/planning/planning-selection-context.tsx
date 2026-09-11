@@ -59,9 +59,9 @@ export type PlanningSelectionContextType = Omit<
   PlanningSelectionContextValue<SelectedService>,
   "getLiveTask"
 > & {
-  getLiveTask: (
-    serviceCode: string | undefined
-  ) => { taskId: string; stage: TaskStage; client?: string } | undefined;
+  getLiveTask: (serviceCode: string | undefined) =>
+    | { taskId: string; stage: TaskStage; client?: string; clientCode?: string }
+    | undefined;
 };
 
 /** Read the freight planning selection context. */

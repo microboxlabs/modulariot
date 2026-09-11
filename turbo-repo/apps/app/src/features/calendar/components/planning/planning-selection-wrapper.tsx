@@ -78,15 +78,23 @@ import { ServiceEvent } from "./service-event";
 import { mapBookingToPlannedService } from "@/features/calendar/services/booking-service-mapper";
 import { withAssignmentCleared } from "@/features/calendar/services/assignment-reset";
 import { CALENDAR_LIVE_TASK_COLUMNS } from "@/features/calendar/services/workflow-stage";
+import { resolveLiveClient } from "@/features/calendar/services/live-client";
 
 
 /**
- * The live Alfresco task representing a service right now. `client` rides
- * along because the booking row is not a reliable carrier for it: ECM's
- * listeners create the row without one, so the kanban task is the only live
- * source for the client name of an already-planned service.
+ * The live Alfresco task representing a service right now. The client carriers
+ * ride along because the booking row is not a reliable one: ECM's listeners
+ * create the row without a client, so the kanban task is the only live source
+ * for an already-planned service. Kept as the two separate fields the task has
+ * — `client` is a name, `clientCode` is a code, and `resolveLiveClient` is
+ * what decides between them.
  */
-type LiveTask = { taskId: string; stage: TaskStage; client?: string };
+type LiveTask = {
+  taskId: string;
+  stage: TaskStage;
+  client?: string;
+  clientCode?: string;
+};
 
 /** A pending re-assign of an already-presented service (the two-step dance). */
 type ReassignPlan = { presentTaskId: string; tuple: AssignProcessVariables };
@@ -109,8 +117,12 @@ function buildLiveTaskIndex(
     for (const task of board.tasks) {
       const code = task.mintral_serviceCode;
       if (!code) continue;
-      const client = task.client || task.clientCode || undefined;
-      map.set(code, { taskId: task.id, stage, ...(client ? { client } : {}) });
+      map.set(code, {
+        taskId: task.id,
+        stage,
+        ...(task.client ? { client: task.client } : {}),
+        ...(task.clientCode ? { clientCode: task.clientCode } : {}),
+      });
     }
   }
   return map;
@@ -562,9 +574,13 @@ export function PlanningSelectionProvider({
         getLiveTask(service.mintral_serviceCode)?.stage,
       // Same join for the client name: a booking ECM's listener wrote carries
       // none, and the mapper refuses to invent one from the resource id. The
-      // next planner write persists what the task supplies here onto the row.
+      // next planner write persists what the task supplies here onto the row,
+      // which is why `resolveLiveClient` decides rather than a `||` chain.
       resolveItemOverlay: (service) => {
-        const client = getLiveTask(service.mintral_serviceCode)?.client;
+        const client = resolveLiveClient(
+          getLiveTask(service.mintral_serviceCode),
+          service.cliente
+        );
         return client ? { cliente: client } : undefined;
       },
       hooks: {

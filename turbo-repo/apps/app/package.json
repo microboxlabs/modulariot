@@ -1,6 +1,6 @@
 {
   "name": "@modulariot/app",
-  "version": "0.5.50",
+  "version": "0.5.51",
   "private": true,
   "scripts": {
     "dev": "next dev --port 3050",

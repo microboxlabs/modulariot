@@ -345,9 +345,11 @@ class HarnessSupervisor:
         prior_messages = self._project_history(
             history, include_tool_calls=self._loop_owns(route)
         )
-        if self._loop_owns(route) and classified.route != HarnessRoute.DATA_AGENTIC:
-            # A route the loop took over. The meta seat would have carried
-            # this tenant's context; the loop has to be handed it.
+        if self._loop_owns(route):
+            # The meta seat carried this tenant's context and the loop took
+            # its route over. Every turn the loop owns gets it, not only the
+            # remapped ones: its own system prompt is the frozen cache prefix
+            # and holds what is true for every tenant, nothing more.
             prior_messages = self._inject_tenant_context(ctx, prior_messages)
         prior_messages = self._inject_skill(request, ctx, prior_messages)
         prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
@@ -421,14 +423,7 @@ class HarnessSupervisor:
         # Persist the turn so the next call in this conversation sees it.
         conversation_key = self._conversation_key(request, ctx)
         if self.conversation_store is not None and conversation_key and record.answer:
-            # The store may have evicted this conversation while the model was
-            # answering. The snapshot this run read is exactly the prior
-            # context the turn belongs after, so put it back rather than
-            # append onto an empty history and lose the turns silently.
-            if history is not None and history.turns and (
-                self.conversation_store.get(conversation_key) is None
-            ):
-                self.conversation_store.seed(history)
+            self._restore_evicted(conversation_key, history)
             self.conversation_store.append(
                 conversation_key,
                 ConversationTurn(
@@ -662,6 +657,39 @@ class HarnessSupervisor:
         if not request.conversation_id:
             return None
         return f"{ctx.tenant_id}/{ctx.user_id}/{request.conversation_id}"
+
+    def _restore_evicted(
+        self, key: str, snapshot: ConversationHistory | None
+    ) -> None:
+        """Put back what the store dropped while the model was answering.
+
+        The store can evict this conversation mid-run, and another run can
+        recreate the key with a turn of its own. Appending onto either an
+        empty history or that partial one loses every earlier turn and its
+        tool transcript. The snapshot this run read is the prior context its
+        turn belongs after, so it goes back in front.
+
+        Nothing happens in the ordinary case: a history that still starts
+        with the snapshot's turns is the one this run read, grown by
+        concurrent appends, and re-seeding it would duplicate them.
+        """
+
+        if self.conversation_store is None or snapshot is None:
+            return
+        if not snapshot.turns and not snapshot.summary:
+            return
+        current = self.conversation_store.get(key)
+        if current is not None and (
+            list(current.turns[: len(snapshot.turns)]) == list(snapshot.turns)
+        ):
+            return
+        self.conversation_store.seed(
+            ConversationHistory(
+                conversation_id=key,
+                turns=[*snapshot.turns, *(current.turns if current else [])],
+                summary=(current.summary if current else None) or snapshot.summary,
+            )
+        )
 
     def _seeded_history(
         self, request: UserRequest, ctx: HarnessContext

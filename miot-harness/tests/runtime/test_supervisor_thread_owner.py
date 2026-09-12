@@ -14,7 +14,10 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from miot_harness.runtime.context import HarnessContext, UserRequest
-from miot_harness.runtime.conversation import InMemoryConversationStore
+from miot_harness.runtime.conversation import (
+    ConversationTurn,
+    InMemoryConversationStore,
+)
 from miot_harness.runtime.router import HarnessRoute, IntentRouter, RouteResult
 from miot_harness.runtime.run_store import JsonRunStore
 from miot_harness.runtime.supervisor import HarnessSupervisor
@@ -219,3 +222,63 @@ def test_a_lock_only_the_supervisor_knows_still_blocks_the_remap(tmp_path) -> No
         RouteResult(route=HarnessRoute.DATA_META, reason="meta"), _auto(), _ctx()
     )
     assert result.route == HarnessRoute.DATA_META
+
+
+@pytest.mark.asyncio
+async def test_a_turn_landing_during_routing_is_not_pulled_into_this_one(
+    tmp_path,
+) -> None:
+    """Routing awaits. A second run in the same conversation finishing in
+    that window must not slip its turn into this request's prior context."""
+
+    store = InMemoryConversationStore()
+    loop = _RecordingLoop()
+    sup = _supervisor(
+        tmp_path, HarnessRoute.DATA_AGENTIC, loop=loop, conversation_store=store
+    )
+
+    # A turn already in the store, so there is a live history to capture.
+    first = UserRequest(message="earlier", tenant_id="acme", conversation_id="race")
+    await sup.run(first)
+
+    key_holder: dict[str, str] = {}
+    original = sup._resolve_route
+
+    async def racing_route(request, ctx):
+        key = sup._conversation_key(request, ctx)
+        assert key is not None
+        key_holder["key"] = key
+        store.append(
+            key,
+            ConversationTurn(
+                user_message="from another run",
+                assistant_answer="landed mid-routing",
+            ),
+        )
+        return await original(request, ctx)
+
+    sup._resolve_route = racing_route  # type: ignore[method-assign]
+    await sup.run(
+        UserRequest(message="mine", tenant_id="acme", conversation_id="race")
+    )
+
+    replayed = [str(m.content) for m in loop.calls[1]["prior_messages"]]
+    assert "earlier" in replayed
+    assert "landed mid-routing" not in replayed
+    # The racing turn is still stored, for the next request to read.
+    held = store.get(key_holder["key"])
+    assert held is not None
+    assert any(t.user_message == "from another run" for t in held.turns)
+
+
+def test_the_router_verdict_survives_the_catalog_remap(tmp_path) -> None:
+    """A primitives-only profile remaps DATA_QUERY before the thread owner
+    ever sees it. The event still has to report what the router chose."""
+
+    sup = _supervisor(tmp_path, HarnessRoute.DATA_QUERY, loop=_RecordingLoop())
+    router_said = RouteResult(route=HarnessRoute.DATA_QUERY, reason="router")
+    after_catalog = sup._apply_catalog_route_override(router_said)
+    final = sup._apply_thread_owner_override(after_catalog, _auto(), _ctx())
+
+    assert final.route == HarnessRoute.DATA_AGENTIC
+    assert router_said.route == HarnessRoute.DATA_QUERY

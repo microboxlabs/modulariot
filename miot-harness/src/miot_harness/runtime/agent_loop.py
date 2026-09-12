@@ -193,11 +193,7 @@ def _storable(msg: AIMessage, answered: set[str]) -> AIMessage | None:
     calls = [c for c in msg.tool_calls if c.get("id") in answered]
     content = msg.content
     if isinstance(content, list):
-        content = [
-            block
-            for block in content
-            if not _is_dropped_block(block, answered)
-        ]
+        content = [block for block in content if not _is_dropped_block(block, answered)]
     if not calls and not content:
         return None
     dropped = isinstance(msg.content, list) and len(content) != len(msg.content)

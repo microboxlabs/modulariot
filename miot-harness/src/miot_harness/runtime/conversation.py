@@ -37,6 +37,10 @@ _DEFAULT_KEEP_RECENT_TURNS = 2
 # Conversations held at once, least-recently-used evicted first. Matches the
 # advisor transcript cap in `agent_seats`.
 _DEFAULT_MAX_CONVERSATIONS = 512
+# Characters held across all conversations, tool results included. 32M is
+# roughly 64MB of Python strings: a bound the pod survives, and far more
+# than any single chat needs.
+_DEFAULT_MAX_CHARS = 32_000_000
 # Token budget for the supervisor's hydration call. Sized against
 # Haiku-4-5's 200K context window (the smallest model in our pool).
 # Higher = better multi-turn continuity at more tokens per request.
@@ -100,11 +104,14 @@ class InMemoryConversationStore:
         summarize_at_turns: int = _DEFAULT_SUMMARIZE_AT_TURNS,
         keep_recent_turns: int = _DEFAULT_KEEP_RECENT_TURNS,
         max_conversations: int = _DEFAULT_MAX_CONVERSATIONS,
+        max_chars: int = _DEFAULT_MAX_CHARS,
     ) -> None:
         self._histories: OrderedDict[str, ConversationHistory] = OrderedDict()
         self._summarize_at_turns = summarize_at_turns
         self._keep_recent_turns = max(0, keep_recent_turns)
         self._max_conversations = max(1, max_conversations)
+        self._max_chars = max(1, max_chars)
+        self._chars: dict[str, int] = {}
         self._compactions: dict[str, asyncio.Lock] = {}
 
     def get(self, conversation_id: str) -> ConversationHistory | None:
@@ -114,16 +121,32 @@ class InMemoryConversationStore:
         return history
 
     def _evict(self) -> None:
-        """Drop the conversations idle longest once the cap is passed.
+        """Drop the conversations idle longest once either cap is passed.
 
         A turn holds its tool envelopes now, so a conversation costs orders of
         magnitude more than the two strings it used to be, and a long-lived
-        pod accumulates one entry per chat that ever ran through it.
+        pod accumulates one entry per chat that ever ran through it. Counting
+        conversations alone does not bound that: one chat that ran a dozen
+        queries a turn is worth hundreds of the greetings next to it. So the
+        character total is capped too, and both caps evict the same way.
         """
 
-        while len(self._histories) > self._max_conversations:
+        while len(self._histories) > self._max_conversations or (
+            len(self._histories) > 1 and sum(self._chars.values()) > self._max_chars
+        ):
             evicted, _ = self._histories.popitem(last=False)
             self._compactions.pop(evicted, None)
+            self._chars.pop(evicted, None)
+
+    def _remeasure(self, conversation_id: str) -> None:
+        """Refresh one conversation's size. Kept per id and summed on demand
+        so an append costs the turn it added, not a walk of every history."""
+
+        history = self._histories.get(conversation_id)
+        if history is None:
+            self._chars.pop(conversation_id, None)
+            return
+        self._chars[conversation_id] = _history_chars(history)
 
     def reset(self, conversation_id: str) -> None:
         """Forgets a conversation, so the next append starts a fresh history.
@@ -134,6 +157,7 @@ class InMemoryConversationStore:
 
         self._histories.pop(conversation_id, None)
         self._compactions.pop(conversation_id, None)
+        self._chars.pop(conversation_id, None)
 
     def seed(self, history: ConversationHistory) -> None:
         """Installs a history the caller assembled — a replayed summary with
@@ -141,6 +165,7 @@ class InMemoryConversationStore:
 
         self._histories[history.conversation_id] = history
         self._histories.move_to_end(history.conversation_id)
+        self._remeasure(history.conversation_id)
         self._evict()
 
     def append(self, conversation_id: str, turn: ConversationTurn) -> None:
@@ -150,6 +175,7 @@ class InMemoryConversationStore:
             self._histories[conversation_id] = history
         history.turns.append(turn)
         self._histories.move_to_end(conversation_id)
+        self._remeasure(conversation_id)
         self._evict()
 
     async def summarize_if_needed(
@@ -187,6 +213,7 @@ class InMemoryConversationStore:
                 return False
             del history.turns[:fold]
             history.summary = summary
+            self._remeasure(conversation_id)
             return True
 
 
@@ -246,6 +273,24 @@ def to_messages(
     return [_summary_message(history.summary), *recent]
 
 
+def _turn_messages(turn: ConversationTurn) -> list[BaseMessage]:
+    """A stored turn, always ending in the answer the user was shown.
+
+    A transcript can end without one: the loop drops an assistant message
+    that carries neither text nor a surviving tool call, which is what an
+    empty reply at the turn cap leaves behind. Replaying only the question
+    and its tool results would lose the answer this store exists to keep.
+    """
+
+    msgs = list(turn.messages)
+    if not msgs:
+        return _text_pairs([turn])
+    last = msgs[-1]
+    if not (isinstance(last, AIMessage) and last.content):
+        msgs.append(AIMessage(content=turn.assistant_answer))
+    return msgs
+
+
 def _text_pairs(turns: list[ConversationTurn]) -> list[BaseMessage]:
     msgs: list[BaseMessage] = []
     for turn in turns:
@@ -272,7 +317,7 @@ def _project(
     cut = len(turns)
     for index in range(len(turns) - 1, -1, -1):
         turn = turns[index]
-        msgs = list(turn.messages) or _text_pairs([turn])
+        msgs = _turn_messages(turn)
         cost = count_tokens_approximately(msgs)
         # The newest turn goes in whatever it costs; the final trim and the
         # all-text fallback handle one turn too large to replay.
@@ -294,6 +339,21 @@ def _trim(msgs: list[BaseMessage], max_tokens: int) -> list[BaseMessage]:
         strategy="last",
         start_on="human",
     )
+
+
+def _history_chars(history: ConversationHistory) -> int:
+    """Rough size of a stored conversation, in characters.
+
+    Counts the text of every message a turn holds, tool results included,
+    which is where the bytes are. `str()` on list content is close enough for
+    a memory bound and costs no serialization.
+    """
+
+    total = len(history.summary or "")
+    for turn in history.turns:
+        total += len(turn.user_message) + len(turn.assistant_answer)
+        total += sum(len(str(msg.content)) for msg in turn.messages)
+    return total
 
 
 def _summary_message(summary: str) -> HumanMessage:

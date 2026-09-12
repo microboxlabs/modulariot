@@ -90,6 +90,24 @@ _MAX_SEEDED_TURNS = MAX_CONVERSATION_HISTORY_TURNS
 # module; every other route the loop can answer itself.
 _THREAD_OWNER_EXEMPT = frozenset({HarnessRoute.STORYTELLING_RUN})
 
+
+def _snapshot(history: ConversationHistory | None) -> ConversationHistory | None:
+    """A copy of `history` that later appends cannot change.
+
+    The store hands out the live object, and routing awaits before the turns
+    are read. A concurrent run in the same conversation finishing in that
+    window would otherwise land its turn in this request's prior context.
+    """
+
+    if history is None:
+        return None
+    return ConversationHistory(
+        conversation_id=history.conversation_id,
+        turns=list(history.turns),
+        summary=history.summary,
+    )
+
+
 _JSON_BLOCKS_INSTRUCTION = (
     "# Output format: JSON blocks\n\n"
     "Return ONLY a JSON array of typed blocks as your entire answer — no prose "
@@ -255,8 +273,10 @@ class HarnessSupervisor:
         # router reads the last turns from it. Seeding happens here and only
         # here — a second call could reset a history a concurrent run has
         # appended to meanwhile. The projection to messages waits for the
-        # route, which decides whether tool calls replay.
-        history = self._seeded_history(request, ctx)
+        # route, which decides whether tool calls replay, so what is held is
+        # a snapshot: routing awaits, and a second run finishing in that
+        # window must not slip its turn into this request's prior context.
+        history = _snapshot(self._seeded_history(request, ctx))
 
         # Route via the LLM router when injected; else fall back to the
         # keyword router (Plan 12 default; the "auto" mode confidence
@@ -283,8 +303,11 @@ class HarnessSupervisor:
             self._close_bus(ctx.run_id)
             return record
 
-        classified = self._apply_catalog_route_override(route)
-        route = self._apply_thread_owner_override(classified, request, ctx)
+        # The router's own verdict, captured before either override, so the
+        # event reports what it chose even when the catalog remap fires first.
+        classified = route
+        route = self._apply_catalog_route_override(route)
+        route = self._apply_thread_owner_override(route, request, ctx)
 
         # `route` is what runs. When the loop took the turn over, the router's
         # own verdict rides alongside it: it is the signal for whether the

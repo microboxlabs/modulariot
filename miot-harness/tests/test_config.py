@@ -162,6 +162,20 @@ def test_conversation_token_budget_read_from_env(monkeypatch):
     assert settings.conversation_token_budget == 8_000
 
 
+def test_conversation_tool_token_budget_default_is_48k():
+    """Larger than the text budget: replaying a turn means replaying the
+    tool envelopes it collected."""
+
+    settings = HarnessSettings()
+    assert settings.conversation_tool_token_budget == 48_000
+
+
+def test_conversation_tool_token_budget_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_CONVERSATION_TOOL_TOKEN_BUDGET", "12000")
+    settings = HarnessSettings()
+    assert settings.conversation_tool_token_budget == 12_000
+
+
 def test_fs_settings_defaults():
     settings = HarnessSettings()
     assert settings.fs_enabled is True

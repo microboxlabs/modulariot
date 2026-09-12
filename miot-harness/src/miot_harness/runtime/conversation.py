@@ -40,8 +40,18 @@ _DEFAULT_TOKEN_BUDGET = 24_000
 
 @dataclass(frozen=True, slots=True)
 class ConversationTurn:
+    """One exchange.
+
+    `messages` is the turn as the agent loop ran it: the user message, each
+    assistant message with its tool calls, and each tool result. Empty for
+    turns produced by a seat that does not report them, and for a transcript
+    replayed by a caller, which carries text only. `to_messages` replays it
+    for the loop and falls back to the text pair for everyone else.
+    """
+
     user_message: str
     assistant_answer: str
+    messages: tuple[BaseMessage, ...] = ()
 
 
 @dataclass
@@ -158,6 +168,7 @@ def to_messages(
     history: ConversationHistory,
     *,
     max_tokens: int = _DEFAULT_TOKEN_BUDGET,
+    include_tool_calls: bool = False,
 ) -> list[BaseMessage]:
     """Project history into a LangChain message list, trimmed to a token budget.
 
@@ -181,6 +192,13 @@ def to_messages(
     human message, not a system one: the caller can replay any text as the
     summary, and it must not outrank the system prompt.
 
+    ``include_tool_calls`` replays each turn's full message list (tool calls
+    and tool results included) when the turn carries one. Only the agent loop
+    may ask for it: it is the seat that binds the tools those messages refer
+    to, and a tool_use block sent to a model without that tool is a 400. The
+    tool-less seats keep the text pair. Trimming starts on a human message,
+    so a tool result is never replayed without the call that produced it.
+
     Returns an empty list when the history is fully empty (no summary, no
     turns) OR ``max_tokens`` is non-positive.
     """
@@ -191,6 +209,9 @@ def to_messages(
         return []
     msgs: list[BaseMessage] = []
     for turn in history.turns:
+        if include_tool_calls and turn.messages:
+            msgs.extend(turn.messages)
+            continue
         msgs.append(HumanMessage(content=turn.user_message))
         msgs.append(AIMessage(content=turn.assistant_answer))
     recent: list[BaseMessage] = (
@@ -199,6 +220,7 @@ def to_messages(
             max_tokens=max_tokens,
             token_counter="approximate",
             strategy="last",
+            start_on="human",
         )
         if msgs
         else []

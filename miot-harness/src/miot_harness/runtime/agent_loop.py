@@ -144,6 +144,41 @@ def _compose_human(user_message: str, reminders: list[str]) -> HumanMessage:
     return HumanMessage(content=f"{blocks}\n\n{user_message}")
 
 
+def _turn_transcript(
+    messages: list[BaseMessage], *, user_message: str, history_len: int
+) -> list[BaseMessage]:
+    """The turn as the next turn should see it.
+
+    `messages` is [system, *history, composed_human, ...turn]. The system
+    message and the prior history are already held elsewhere, and the
+    composed human carries per-request <system-reminder> blocks (a skill
+    body) that must not be replayed, so it is swapped for the plain user
+    message. The turn-cap nudge is dropped for the same reason.
+
+    A tool call left unanswered goes with them. The turn cap breaks the loop
+    on the model's reply whether or not that reply asked for more tools, so
+    the last message can carry a tool_use that no tool_result follows — which
+    the API rejects on the next request.
+    """
+    turn = [
+        msg
+        for msg in messages[history_len + 2 :]
+        if not (isinstance(msg, HumanMessage) and msg.content == _TURN_CAP_NUDGE)
+    ]
+    answered = {msg.tool_call_id for msg in turn if isinstance(msg, ToolMessage)}
+    kept: list[BaseMessage] = []
+    for msg in turn:
+        if not isinstance(msg, AIMessage) or not msg.tool_calls:
+            kept.append(msg)
+            continue
+        calls = [c for c in msg.tool_calls if c.get("id") in answered]
+        if len(calls) == len(msg.tool_calls):
+            kept.append(msg)
+        elif calls or msg.content:
+            kept.append(msg.model_copy(update={"tool_calls": calls}))
+    return [HumanMessage(content=user_message), *kept]
+
+
 def _with_tail_marker(messages: list[BaseMessage]) -> list[BaseMessage]:
     """Copy of `messages` with `cache_control` on the last markable block.
 
@@ -468,7 +503,14 @@ class AgentLoopRunner:
                 data={"length": len(answer), "turns": len(usage_log)},
             )
         )
-        return {"answer": answer, "evidence": evidence, "usage_log": usage_log}
+        return {
+            "answer": answer,
+            "evidence": evidence,
+            "usage_log": usage_log,
+            "messages": _turn_transcript(
+                messages, user_message=user_message, history_len=len(history)
+            ),
+        }
 
     async def _execute_tool_call(
         self,

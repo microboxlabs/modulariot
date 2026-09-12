@@ -1,3 +1,4 @@
+import { AI_AUTHOR } from "./people";
 import { BOARD_DECK, SEED_STORIES } from "./seed-stories";
 import type { ArtifactType, StoryItem } from "./storytelling.types";
 
@@ -18,11 +19,18 @@ const DELETED_SEEDS_KEY = "miot.storytelling.deleted-seeds.v1";
 const SEED_IDS = new Set(SEED_STORIES.map((seed) => seed.id));
 
 /** Fills in fields that didn't exist yet when this record was persisted
- * (e.g. artifactType) — once localStorage has anything at all, it's used
- * as-is instead of SEED_STORIES, so older snapshots don't pick up new
- * fields on their own. */
+ * (artifactType, and the createdBy/updatedAt/updatedBy authorship trio) —
+ * once localStorage has anything at all, it's used as-is instead of
+ * SEED_STORIES, so older snapshots don't pick up new fields on their own. */
 function normalize(story: StoryItem): StoryItem {
-  return story.artifactType ? story : { ...story, artifactType: "html" };
+  const authoredBy = story.source === "ai" ? AI_AUTHOR : "—";
+  return {
+    ...story,
+    artifactType: story.artifactType ?? "html",
+    createdBy: story.createdBy ?? authoredBy,
+    updatedAt: story.updatedAt ?? story.createdAt,
+    updatedBy: story.updatedBy ?? story.createdBy ?? authoredBy,
+  };
 }
 
 function readDeletedSeedIds(): Set<string> {
@@ -110,11 +118,19 @@ export function getStory(id: string): StoryItem | undefined {
   return readAll().find((story) => story.id === id);
 }
 
-export function addStory(input: { id: string; title?: string }): StoryItem {
+export function addStory(input: { id: string; title?: string; authorName?: string }): StoryItem {
+  const today = new Date().toISOString().slice(0, 10);
+  // Attribute to whoever was actually driving the chat, not a generic
+  // "Harness AI" label — falls back to it only when no signed-in name was
+  // available to pass in (see create-story-card.tsx's useSession()).
+  const author = input.authorName?.trim() || AI_AUTHOR;
   const story: StoryItem = {
     id: input.id,
     title: input.title?.trim() || `Story ${input.id}`,
-    createdAt: new Date().toISOString().slice(0, 10),
+    createdAt: today,
+    createdBy: author,
+    updatedAt: today,
+    updatedBy: author,
     source: "ai",
     // The chat's create_story trigger only ever produces the HTML dashboard
     // artifact today — the other previewer types are testing-only for now.
@@ -139,13 +155,23 @@ const CREATE_STORY_TYPES: readonly ArtifactType[] = ["html", "ppt", "pdf", "mark
  * so this just reuses the one deck the app already has instead of standing
  * up a thin placeholder.
  */
-export function addStoriesForAllTypes(input: { id: string; title?: string }): StoryItem[] {
+export function addStoriesForAllTypes(input: {
+  id: string;
+  title?: string;
+  authorName?: string;
+}): StoryItem[] {
   const title = input.title?.trim() || `Story ${input.id}`;
   const createdAt = new Date().toISOString().slice(0, 10);
+  // Same fallback as addStory — the real signed-in name when the caller has
+  // one, "Harness AI" only when it doesn't.
+  const author = input.authorName?.trim() || AI_AUTHOR;
   const stories: StoryItem[] = CREATE_STORY_TYPES.map((artifactType) => ({
     id: `${input.id}-${artifactType}`,
     title,
     createdAt,
+    createdBy: author,
+    updatedAt: createdAt,
+    updatedBy: author,
     source: "ai",
     artifactType,
     ...(artifactType === "ppt" ? { deck: BOARD_DECK } : {}),

@@ -1,5 +1,6 @@
 import React from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { twMerge } from "tailwind-merge";
@@ -41,6 +42,74 @@ const MARKDOWN_COMPONENTS = {
   a: ({ children, href }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
     <a href={href} className="underline opacity-80 hover:opacity-100" target="_blank" rel="noopener noreferrer">{children}</a>
   ),
+  // GFM tables, styled to the same tight/small scale as everything else in
+  // this map (not Tailwind Typography's prose scale — see the "document"
+  // variant below for that — which sizes for a standalone page, not a chat
+  // bubble or a dropdown row: ~2x the text size and multiple line-heights
+  // of margin around every block). The card chrome (border/rounded/bg) is
+  // the same gray-50/gray-800 + border pairing the code-block `pre` below
+  // uses, so a table reads as the same kind of "embedded block" as code.
+  // overflow-x-auto is scoped to the card itself so a too-wide table scrolls
+  // on its own instead of dragging its host (spotlight's results list, the
+  // chat thread) into a sideways scroll.
+  // whitespace-nowrap on every cell: a wrapped cell grows the table's row
+  // height instead of its width, which defeats the point of scoping the
+  // scroll to overflow-x-auto above — cells stay one line and the table
+  // grows sideways (scrollable) instead of vertically. overscroll-x-none:
+  // without it, panning this card to its horizontal edge lets the browser's
+  // own elastic bounce/rubber-band kick in on the card itself (macOS
+  // trackpads especially) — jarring for a table-sized scroller nested
+  // inside a much bigger vertically-scrolling one.
+  table: ({ children }: React.TableHTMLAttributes<HTMLTableElement>) => (
+    <div className="mb-1.5 last:mb-0 overflow-x-auto overscroll-x-none rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+      <table className="w-full border-collapse whitespace-nowrap text-left text-xs">
+        {children}
+      </table>
+    </div>
+  ),
+  // Same "highlighted table header" treatment used elsewhere in the app
+  // (schema-panel.tsx) — a solid wash, not just the border below, so the
+  // header row reads as a distinct band rather than blending into the
+  // first data row. Light mode stays a notch lighter (gray-100) than dark
+  // mode's gray-600 — gray-200 read as too heavy against this card's
+  // near-white gray-50 in daylight, even though the equivalent jump reads
+  // fine on the dark surface. The border-b below picks up the emphasis
+  // instead — same 1px weight, just a darker gray-300/gray-700 than the
+  // card's own border, so the header still reads as clearly separated from
+  // the body by color, not by making the rule itself thicker.
+  thead: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <thead className="border-b border-gray-300 bg-gray-100 dark:border-gray-700 dark:bg-gray-600">
+      {children}
+    </thead>
+  ),
+  // dark:divide-gray-700, not -800: the card behind this table is
+  // dark:bg-gray-800 (see `table` above) — a divider in that same shade is
+  // invisible against its own background. gray-700 is the step up from it
+  // (matching the card's own dark:border-gray-700), same as Typography's
+  // prose-invert theme uses for its table borders (--tw-prose-invert-td-
+  // borders: gray-700 over a gray-900 body) for the same reason.
+  tbody: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">{children}</tbody>
+  ),
+  // divide-x on every row (header row included, since GFM maps both to the
+  // same `tr`) draws a faint rule between columns — the same stepped token
+  // tbody uses between rows, so it reads as a grid line, not a strong border.
+  tr: ({ children }: React.HTMLAttributes<HTMLTableRowElement>) => (
+    <tr className="divide-x divide-gray-100 dark:divide-gray-700">{children}</tr>
+  ),
+  th: ({ children }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
+    <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-gray-700 dark:text-gray-200">
+      {children}
+    </th>
+  ),
+  td: ({ children }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
+    <td className="whitespace-nowrap px-2 py-1.5 align-top text-gray-600 dark:text-gray-300">
+      {children}
+    </td>
+  ),
+  del: ({ children }: React.HTMLAttributes<HTMLElement>) => (
+    <del className="opacity-70">{children}</del>
+  ),
 };
 
 // Prose's default `pre`/`code` colors are fixed (a dark gray background
@@ -56,10 +125,12 @@ const DOCUMENT_COMPONENTS = {
     </pre>
   ),
   code: ({ className, children }: React.HTMLAttributes<HTMLElement>) => {
-    // Fenced blocks land inside <pre>, tagged language-xxx by remark — let
-    // pre's background/border show through and just set the text color.
+    // Fenced blocks land inside <pre>, tagged language-xxx by remark and
+    // then `hljs …` by rehype-highlight — let pre's background/border show
+    // through and set only the base text color (the .hljs-* token spans
+    // rehype-highlight injects colour themselves, see globals.css).
     // Inline code (no className, not inside a <pre>) gets its own pill.
-    if (className?.startsWith("language-")) {
+    if (className?.includes("language-")) {
       return (
         <code className={twMerge(className, "text-gray-800 dark:text-gray-200")}>
           {children}
@@ -72,28 +143,75 @@ const DOCUMENT_COMPONENTS = {
       </code>
     );
   },
+  // Tables opt all the way out of prose (`not-prose`) and use the exact
+  // same plain, hand-styled table/thead/tbody/tr/th/td as the compact
+  // variant below (chat, spotlight) — verbatim, not just "the same idea".
+  // Two rounds of trying to tune the *default* prose table (padding via
+  // prose-td:/prose-th:, border color via prose-thead:) landed real CSS
+  // rules (verified in the compiled stylesheet) that still wasn't visibly
+  // showing up, which not-prose sidesteps entirely: with it, none of
+  // prose's own `:where(table/thead/tr/th/td)` selectors match inside this
+  // subtree at all, so there's no cascade fight over specificity/order left
+  // to get wrong — our classes are the only ones in play, full stop.
+  table: ({ children }: React.TableHTMLAttributes<HTMLTableElement>) => (
+    <div className="not-prose mb-5 overflow-x-auto overscroll-x-none rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+      <table className="w-full border-collapse whitespace-nowrap text-left text-xs">
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <thead className="border-b border-gray-300 bg-gray-100 dark:border-gray-700 dark:bg-gray-600">
+      {children}
+    </thead>
+  ),
+  tbody: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">{children}</tbody>
+  ),
+  tr: ({ children }: React.HTMLAttributes<HTMLTableRowElement>) => (
+    <tr className="divide-x divide-gray-100 dark:divide-gray-700">{children}</tr>
+  ),
+  th: ({ children }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
+    <th className="whitespace-nowrap px-2 py-1.5 font-semibold text-gray-700 dark:text-gray-200">
+      {children}
+    </th>
+  ),
+  td: ({ children }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
+    <td className="whitespace-nowrap px-2 py-1.5 align-top text-gray-600 dark:text-gray-300">
+      {children}
+    </td>
+  ),
 };
 
 interface MarkdownContentProps {
   readonly children: string;
   readonly className?: string;
   /**
-   * "compact" (default) is the original hand-mapped element styling above —
-   * tuned for and used by chat bubbles (thread-messages.tsx), spotlight
-   * search results, and KPI stat descriptions. "document" is Tailwind's
-   * typography plugin (`prose`) with GFM (tables, strikethrough) instead —
-   * full document styling for a page-length preview, which the compact
-   * mapping was never meant to cover (no table support, minimal spacing).
-   * Existing callers are unaffected either way — this only changes anything
-   * for callers that opt into "document".
+   * "compact" (default) is the hand-mapped element styling above, GFM
+   * included (tables, strikethrough) — tuned for and used by chat bubbles
+   * (thread-messages.tsx), spotlight search results, and KPI stat
+   * descriptions: small text, tight margins, sized to sit inside a bubble
+   * or a dropdown row. "document" is Tailwind's typography plugin (`prose`)
+   * instead — full document styling (bigger type scale, ~1 line of margin
+   * around every block) for a page-length preview, used by the storytelling
+   * markdown artifact. Deliberately NOT what the compact callers use: prose
+   * is sized for a standalone page, not a few lines of chat.
    */
   readonly variant?: "compact" | "document";
+  /**
+   * Extra element renderers merged over the variant's built-in map (they
+   * win on collision). Only consulted for "document" — the place a
+   * page-length preview may need to special-case a block, e.g. turning a
+   * ```mermaid fence into a rendered diagram (markdown-previewer.tsx).
+   */
+  readonly components?: Components;
 }
 
 export function MarkdownContent({
   children,
   className,
   variant = "compact",
+  components,
 }: Readonly<MarkdownContentProps>) {
   if (variant === "document") {
     // twMerge, not plain concatenation — max-w-none here is only a default,
@@ -104,7 +222,11 @@ export function MarkdownContent({
     // conflict in the caller's favor, like it should.
     return (
       <article className={twMerge("prose dark:prose-invert max-w-none", className)}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={DOCUMENT_COMPONENTS as never}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
+          components={{ ...DOCUMENT_COMPONENTS, ...components } as never}
+        >
           {children}
         </ReactMarkdown>
       </article>
@@ -113,7 +235,7 @@ export function MarkdownContent({
 
   return (
     <div className={className}>
-      <ReactMarkdown remarkPlugins={[remarkBreaks]} components={MARKDOWN_COMPONENTS as never}>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={MARKDOWN_COMPONENTS as never}>
         {children}
       </ReactMarkdown>
     </div>

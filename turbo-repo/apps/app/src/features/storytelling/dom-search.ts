@@ -1,18 +1,18 @@
 export const MARK_CLASS = "miot-search-mark";
 export const MARK_CURRENT_CLASS = "miot-search-mark-current";
 
-function scopeAndDoc(root: Document | Element): { scope: Element; doc: Document } {
-  if (root instanceof Document) return { scope: root.body, doc: root };
-  const doc = root.ownerDocument;
-  return { scope: root, doc };
+/** `root` is always a container element in our own document — the Markdown,
+ * PPT and PDF previewers' scroll containers. (The HTML previewer's iframe
+ * runs its own copy of this logic inside the sandbox, see preview-bridge.ts,
+ * so nothing here ever gets a cross-realm Document.) `ownerDocument` is
+ * non-null for any Element. */
+function scopeAndDoc(root: Element): { scope: Element; doc: Document } {
+  return { scope: root, doc: root.ownerDocument };
 }
 
 /** Undoes searchInDom — restores the original text nodes so a fresh search
- * always starts from clean markup instead of nesting <mark>s. Works on
- * either a whole foreign document (the HTML previewer's iframe) or a
- * specific container in our own document (Markdown/PPT previewers), since
- * `root` can be either. */
-export function clearSearchHighlights(root: Document | Element): void {
+ * always starts from clean markup instead of nesting <mark>s. */
+export function clearSearchHighlights(root: Element): void {
   const { scope, doc } = scopeAndDoc(root);
   for (const mark of scope.querySelectorAll(`mark.${MARK_CLASS}`)) {
     const parent = mark.parentNode;
@@ -27,10 +27,9 @@ export function clearSearchHighlights(root: Document | Element): void {
  * a highlighted <mark> — same idea as a browser's native find-in-page but
  * under our own control (styleable, and we can report the count and jump
  * between matches from the search bar in the parent page). Returns the
- * number of matches found. `root` is either a whole foreign document (same-
- * origin iframe) or a container element in our own document.
+ * number of matches found.
  */
-export function searchInDom(root: Document | Element, query: string): number {
+export function searchInDom(root: Element, query: string): number {
   clearSearchHighlights(root);
   const needle = query.trim().toLowerCase();
   if (!needle) return 0;
@@ -82,7 +81,7 @@ export function searchInDom(root: Document | Element, query: string): number {
  * for no reason (the whole slide is always fully shown already).
  */
 export function focusSearchMatch(
-  root: Document | Element,
+  root: Element,
   index: number,
   options: { scroll?: boolean } = {}
 ): void {

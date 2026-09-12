@@ -10,7 +10,6 @@ import {
   HiChevronDown,
   HiChevronUp,
   HiMagnifyingGlass,
-  HiShare,
   HiSparkles,
   HiTrash,
   HiXMark,
@@ -19,8 +18,11 @@ import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/Client
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { getStory, isStoryShareable, removeStory } from "../storytelling-store";
+import { getStory, removeStory } from "../storytelling-store";
+import { getStoryVersionState } from "../story-versions-store";
 import { StoryDeleteDialog } from "./story-delete-dialog";
+import StorySharePanel from "./story-share-panel";
+import StoryVersionBadge from "./story-version-badge";
 import {
   HTML_DOWNLOAD_FILENAME,
   HTML_PREVIEW_URL,
@@ -35,7 +37,7 @@ import {
   type SearchableHandle,
 } from "./previewers";
 
-const SEARCHABLE_TYPES = new Set(["html", "markdown", "ppt"]);
+const SEARCHABLE_TYPES = new Set(["html", "markdown", "ppt", "pdf"]);
 
 const base_path = process.env.NEXT_PUBLIC_BASE_PATH;
 const GENERATE_PPTX_URL = `${base_path ?? ""}/api/storytelling/generate-pptx`;
@@ -73,19 +75,6 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
   const [story] = useState(() => getStory(id));
   const [deleting, setDeleting] = useState(false);
 
-  // Same behavior the HTML previewer's injected per-card toolbar's Share
-  // button uses — native share sheet if available, else copy the link.
-  // Story-level (shares the page URL), so it's the same for every artifact
-  // type, not just HTML.
-  const handleShare = useCallback(async () => {
-    const shareData = { title: story?.title, url: window.location.href };
-    if (navigator.share) {
-      await navigator.share(shareData).catch(() => {});
-    } else {
-      await navigator.clipboard.writeText(shareData.url);
-    }
-  }, [story?.title]);
-
   const handleDeleteConfirm = useCallback(() => {
     if (!story) return;
     removeStory(story.id);
@@ -94,11 +83,9 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
   }, [story, dict, lang, router]);
 
   // Find-in-page, delegated to whichever previewer is mounted — Html,
-  // Markdown, and Ppt all implement SearchableHandle (see previewers/
+  // Markdown, Ppt, and Pdf all implement SearchableHandle (see previewers/
   // searchable.ts); only one previewer ever renders at a time (switched on
-  // artifactType below), so one ref covers all three. Pdf doesn't: it's a
-  // native browser <iframe src="file.pdf">, and there's no way to script a
-  // browser's built-in PDF viewer's search from outside.
+  // artifactType below), so one ref covers them all.
   const previewerRef = useRef<SearchableHandle>(null);
   const [previewerReady, setPreviewerReady] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -197,6 +184,18 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
               { label: "storytelling", href: "/storytelling" },
               { label: story.title },
             ]}
+            rightContent={[
+              {
+                key: "version",
+                content: (
+                  <StoryVersionBadge
+                    label={getStoryVersionState(story).current.label}
+                    href={`/${lang}/storytelling/${encodeURIComponent(story.id)}/versions`}
+                    dict={dict}
+                  />
+                ),
+              },
+            ]}
           />
         }
         rightContent={
@@ -264,17 +263,7 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
                 <HiArrowDownTray className="h-4 w-4" />
               </button>
             )}
-            {story && isStoryShareable(story) && (
-              <button
-                type="button"
-                onClick={handleShare}
-                title={tr("menu.share", dict)}
-                aria-label={tr("menu.share", dict)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-              >
-                <HiShare className="h-4 w-4" />
-              </button>
-            )}
+            <StorySharePanel story={story} lang={lang} dict={dict} />
             <button
               type="button"
               onClick={() => setDeleting(true)}
@@ -302,7 +291,14 @@ export default function StoryDetailPage({ dict, id, rootDict }: StoryDetailPageP
       {artifactType === "ppt" && story.deck && (
         <PptPreviewer ref={previewerRef} deck={story.deck} onReadyChange={setPreviewerReady} />
       )}
-      {artifactType === "pdf" && <PdfPreviewer title={story.title} />}
+      {artifactType === "pdf" && (
+        <PdfPreviewer
+          ref={previewerRef}
+          title={story.title}
+          dict={dict}
+          onReadyChange={setPreviewerReady}
+        />
+      )}
       <StoryDeleteDialog
         stories={deleting ? [story] : []}
         onClose={() => setDeleting(false)}

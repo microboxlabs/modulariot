@@ -91,6 +91,110 @@ mark.miot-search-mark.miot-search-mark-current {
   color: #fff;
 }
 
+/* pdf.js text layer: an invisible, selectable copy of each page's text,
+ * absolutely positioned over its canvas so text can be selected and
+ * found-in-page (previewers/pdf/pdf-previewer.tsx). Trimmed from
+ * pdfjs-dist/web/pdf_viewer.css and kept namespaced so none of it leaks
+ * onto the rest of the app. */
+.pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  text-align: initial;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  z-index: 1;
+}
+.pdf-text-layer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+.pdf-text-layer span.markedContent {
+  top: 0;
+  height: 0;
+}
+.pdf-text-layer ::selection {
+  background: rgb(37 99 235 / 0.3);
+}
+/* Find-in-page marks live inside the text layer, on top of transparent
+ * glyphs — the canvas underneath shows the actual letters, so the mark
+ * only needs to paint a translucent box aligned to the span. */
+.pdf-text-layer mark.miot-search-mark {
+  color: transparent;
+  background: rgb(254 240 138 / 0.55);
+}
+.pdf-text-layer mark.miot-search-mark.miot-search-mark-current {
+  background: rgb(194 65 12 / 0.5);
+}
+
+/* Syntax highlighting for fenced code blocks in MarkdownContent's "document"
+ * variant — rehype-highlight (highlight.js) wraps tokens in .hljs-* spans;
+ * this is the colour theme for them. Palette tracks GitHub's light/dark
+ * themes, which sit well on the gray-50 / gray-800 code surface the `pre`
+ * override uses. The base text colour comes from the `code` component, so
+ * only the token spans are styled here; the --hl-* values they read live in
+ * the :root / .dark blocks further down with the rest of the CSS vars. */
+.hljs-comment,
+.hljs-quote {
+  color: var(--hl-comment);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-doctag,
+.hljs-section {
+  color: var(--hl-keyword);
+}
+.hljs-string,
+.hljs-attr,
+.hljs-addition,
+.hljs-meta .hljs-string {
+  color: var(--hl-string);
+}
+.hljs-number,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attribute,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--hl-const);
+}
+.hljs-title,
+.hljs-title.function_,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--hl-func);
+}
+.hljs-built_in,
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-title.class_ {
+  color: var(--hl-type);
+}
+.hljs-name,
+.hljs-tag {
+  color: var(--hl-tag);
+}
+.hljs-meta {
+  color: var(--hl-comment);
+}
+.hljs-deletion {
+  color: var(--hl-keyword);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}
+
 /* Remove dots from the start of links */
 a[href^="."] {
   text-decoration: none;
@@ -116,6 +220,15 @@ a[href^="."]::before {
   --brand-amber-dark: #f5ae55;
   --brand-ink: var(--brand-ink-light);
   --brand-amber: var(--brand-amber-light);
+
+  /* highlight.js token colours (see the .hljs-* rules above) — GitHub light. */
+  --hl-comment: #6e7781;
+  --hl-keyword: #cf222e;
+  --hl-string: #0a3069;
+  --hl-const: #0550ae;
+  --hl-func: #8250df;
+  --hl-type: #953800;
+  --hl-tag: #116329;
 }
 
 .dark {
@@ -124,6 +237,15 @@ a[href^="."]::before {
   --scrollbar-thumb-hover: #444;
   --brand-ink: var(--brand-ink-dark);
   --brand-amber: var(--brand-amber-dark);
+
+  /* highlight.js token colours — GitHub dark. */
+  --hl-comment: #8b949e;
+  --hl-keyword: #ff7b72;
+  --hl-string: #a5d6ff;
+  --hl-const: #79c0ff;
+  --hl-func: #d2a8ff;
+  --hl-type: #ffa657;
+  --hl-tag: #7ee787;
 }
 
 /* A brand mark drawn on a fixed ground, whatever the page theme is: the

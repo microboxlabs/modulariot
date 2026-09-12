@@ -3148,6 +3148,8 @@
       "optionsLoading": "Loading options…",
       "optionsError": "Options could not be loaded.",
       "noOptionsYet": "No options yet. Add at least one.",
+      "optionsSearchPlaceholder": "Search…",
+      "optionsNoMatches": "No matches",
       "optionLabelPlaceholder": "Label",
       "optionValuePlaceholder": "Value",
       "addOption": "Add option",
@@ -4292,7 +4294,10 @@
     "unassigned": "Unassigned",
     "partial": "Partial",
     "assigned": "Assigned",
-    "type": "Type"
+    "type": "Type",
+    "artifactType": "Document type",
+    "creator": "Creator",
+    "createdAt": "Creation date"
   },
   "comments": {
     "title": "Comments",
@@ -5031,7 +5036,37 @@
   },
   "storytelling": {
     "breadcrumb": {
-      "storytelling": "Storytelling"
+      "storytelling": "Storytelling",
+      "versions": "Versions"
+    },
+    "version": {
+      "badgeLabel": "v{label}",
+      "badgeTitle": "Version {label} — view history",
+      "title": "Version history",
+      "subtitle": "{count} iterations · current v{label}",
+      "current": "Current",
+      "root": "First version",
+      "canvas": {
+        "fit": "Center on all",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out"
+      },
+      "menu": {
+        "label": "Version actions",
+        "open": "Open",
+        "iterate": "Iterate",
+        "delete": "Delete"
+      },
+      "delete": {
+        "title": "Delete this version?",
+        "branchWarning": "Everything branched from this version is removed too.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      },
+      "toast": {
+        "iterated": "Created v{label}",
+        "deleted": "Removed v{label}"
+      }
     },
     "title": "Storytelling",
     "description": "AI-generated and curated stories for your organization.",
@@ -5050,8 +5085,20 @@
     "menu": {
       "label": "Actions",
       "share": "Share",
+      "details": "Details",
       "delete": "Delete",
       "download": "Download"
+    },
+    "card": {
+      "editedBy": "Edited by {name} on {date}"
+    },
+    "attribution": "{name} on {date}",
+    "details": {
+      "title": "Story details",
+      "type": "Type",
+      "created": "Created",
+      "lastEdited": "Last edited",
+      "id": "ID"
     },
     "delete": {
       "title": "Delete story",
@@ -5062,11 +5109,27 @@
     "share": {
       "title": "Share",
       "copyLink": "Copy link",
-      "email": "Email",
-      "whatsapp": "WhatsApp",
       "copied": "Link copied to clipboard",
       "copyFailed": "Couldn't copy the link",
-      "demoNotice": "Demo content — the link only opens for people who already have this story."
+      "inviteTitle": "Invite people",
+      "invitePlaceholder": "Add people by name or email",
+      "inviteButton": "Invite",
+      "invited": "Invited {name}",
+      "accessRemoved": "Removed {name}",
+      "roleForLabel": "Access level for {name}",
+      "roleViewer": "Can view",
+      "roleEditor": "Can edit",
+      "remove": "Remove",
+      "removeFor": "Remove {name}",
+      "peopleWithAccess": "People with access",
+      "owner": "You",
+      "ownerBadge": "Owner",
+      "generalAccess": "General access",
+      "linkRestricted": "Restricted",
+      "linkAnyone": "Anyone with the link",
+      "linkRestrictedHint": "Only invited people can open this story",
+      "linkViewerHint": "Anyone with the link can view this story",
+      "linkEditorHint": "Anyone with the link can view and edit this story"
     },
     "toast": {
       "deleted": "Deleted {name}",
@@ -5089,13 +5152,24 @@
         "clear": "Clear search"
       },
       "markdown": {
-        "error": "Couldn't load this document."
+        "error": "Couldn't load this document.",
+        "outline": "Outline"
       },
       "ppt": {
         "comingSoon": "PPT preview isn't available yet — this is a placeholder for the artifact type."
       },
       "pdf": {
-        "comingSoon": "PDF preview isn't available yet — this is a placeholder for the artifact type."
+        "loading": "Loading document…",
+        "error": "Couldn't load this PDF.",
+        "previousPage": "Previous page",
+        "nextPage": "Next page",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "zoomReset": "Reset zoom",
+        "fit": "Fit to width",
+        "railPages": "Pages",
+        "railSections": "Sections",
+        "noSections": "This document has no sections to list"
       },
       "notFound": {
         "title": "Story not found",

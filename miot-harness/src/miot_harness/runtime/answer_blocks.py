@@ -93,18 +93,25 @@ def _salvage_trailing_blocks(text: str) -> list[AnswerBlock] | None:
         return None
     decoder = json.JSONDecoder()
     start = stripped.find("[")
-    while start != -1:
-        try:
-            data, end = decoder.raw_decode(stripped, start)
-        except json.JSONDecodeError:
-            start = stripped.find("[", start + 1)
-            continue
-        if end == len(stripped) and isinstance(data, list):
+    try:
+        while start != -1:
             try:
-                return _BLOCKS_ADAPTER.validate_python(data)
-            except ValidationError:
-                return None
-        start = stripped.find("[", start + 1)
+                data, end = decoder.raw_decode(stripped, start)
+            except json.JSONDecodeError:
+                start = stripped.find("[", start + 1)
+                continue
+            if end == len(stripped) and isinstance(data, list):
+                try:
+                    return _BLOCKS_ADAPTER.validate_python(data)
+                except ValidationError:
+                    return None
+            start = stripped.find("[", start + 1)
+    except RecursionError:
+        # `raw_decode` recurses per nesting level and blows the stack somewhere
+        # past 2,000. Give up on the whole scan rather than retrying from the
+        # next bracket: in `[[[[…` every later start recurses just as deep, so
+        # continuing would pay that cost once per character.
+        return None
     return None
 
 

@@ -97,3 +97,14 @@ def test_unparseable_text_still_becomes_one_markdown_block():
     raw = "no array here at all"
 
     assert _blocks(to_json_blocks(raw)) == [{"type": "markdown", "value": raw}]
+
+
+def test_nesting_deep_enough_to_blow_the_stack_still_falls_back():
+    """`raw_decode` recurses per level. It handles 2,000 and raises
+    RecursionError by 10,000, which would escape the never-raises contract."""
+
+    raw = "narration\n" + "[" * 10_000 + "]" * 10_000
+
+    blocks = _blocks(to_json_blocks(raw))
+
+    assert blocks == [{"type": "markdown", "value": raw}]

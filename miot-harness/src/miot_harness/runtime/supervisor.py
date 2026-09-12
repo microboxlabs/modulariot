@@ -134,6 +134,8 @@ _JSON_BLOCKS_INSTRUCTION = (
     '- "markdown": value is a Markdown string.\n'
     '- "url": value is an object {"url": <string>, "name": <string>}.\n'
     "Emit multiple blocks to convey different parts of the answer.\n"
+    "Work out what to say before you start writing the answer, not in it: the "
+    "answer starts at the opening bracket.\n"
     "This contract applies ONLY to the final user-facing answer; internal "
     "protocol outputs (planner action objects, tool-call JSON, verdicts) "
     "keep their own formats."

@@ -16,6 +16,7 @@ under the LLM's window.
 from __future__ import annotations
 
 import asyncio
+import json
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -323,13 +324,13 @@ def _project(
     # very turns this projection exists to keep.
     text_cost = [0]
     for turn in turns:
-        text_cost.append(text_cost[-1] + count_tokens_approximately(_text_pairs([turn])))
+        text_cost.append(text_cost[-1] + _cost(_text_pairs([turn])))
     full: list[BaseMessage] = []
     used = 0
     cut = len(turns)
     for index in range(len(turns) - 1, -1, -1):
         msgs = _turn_messages(turns[index])
-        cost = count_tokens_approximately(msgs)
+        cost = _cost(msgs)
         # The newest turn goes in whatever it costs; the final trim and the
         # all-text fallback handle one turn too large to replay.
         if full and used + cost + text_cost[index] > max_tokens:
@@ -338,6 +339,22 @@ def _project(
         used += cost
         cut = index
     return [*_text_pairs(turns[:cut]), *full]
+
+
+def _cost(msgs: list[BaseMessage]) -> int:
+    """Approximate tokens for `msgs`, tool-call arguments included.
+
+    `count_tokens_approximately` reads message content only, and a tool call
+    lives beside it in `tool_calls`. A turn whose call carries a long SQL
+    string would otherwise be admitted as if it were free.
+    """
+
+    extra = 0
+    for msg in msgs:
+        calls = getattr(msg, "tool_calls", None)
+        if calls:
+            extra += len(json.dumps(calls, default=str)) // 4
+    return count_tokens_approximately(msgs) + extra
 
 
 def _trim(msgs: list[BaseMessage], max_tokens: int) -> list[BaseMessage]:

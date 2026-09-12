@@ -28,7 +28,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
 
 from miot_harness.agents.direct_agent import (
     FALLBACK_DIRECT_ANSWER,
@@ -89,6 +89,24 @@ _MAX_SEEDED_TURNS = MAX_CONVERSATION_HISTORY_TURNS
 # Routes the agent loop does not take over. Storytelling has its own
 # module; every other route the loop can answer itself.
 _THREAD_OWNER_EXEMPT = frozenset({HarnessRoute.STORYTELLING_RUN})
+
+
+def _with_canonical_answer(
+    messages: list[BaseMessage], answer: str
+) -> list[BaseMessage]:
+    """`messages` ending in the answer the user was shown.
+
+    The loop reports what the model wrote; the record carries what
+    `harden_answer` made of it. Storing the first would replay an answer the
+    user never saw, and for a repaired JSON-block response an invalid one.
+    """
+
+    if not messages or not answer:
+        return messages
+    last = messages[-1]
+    if isinstance(last, AIMessage) and not last.tool_calls:
+        return [*messages[:-1], AIMessage(content=answer)]
+    return [*messages, AIMessage(content=answer)]
 
 
 def _snapshot(history: ConversationHistory | None) -> ConversationHistory | None:
@@ -403,6 +421,14 @@ class HarnessSupervisor:
         # Persist the turn so the next call in this conversation sees it.
         conversation_key = self._conversation_key(request, ctx)
         if self.conversation_store is not None and conversation_key and record.answer:
+            # The store may have evicted this conversation while the model was
+            # answering. The snapshot this run read is exactly the prior
+            # context the turn belongs after, so put it back rather than
+            # append onto an empty history and lose the turns silently.
+            if history is not None and history.turns and (
+                self.conversation_store.get(conversation_key) is None
+            ):
+                self.conversation_store.seed(history)
             self.conversation_store.append(
                 conversation_key,
                 ConversationTurn(
@@ -737,21 +763,23 @@ class HarnessSupervisor:
         # the reset below would otherwise downgrade turns this replica ran
         # itself, which is the memory loss the replay is meant to repair.
         held = self.conversation_store.get(key)
-        transcripts = (
-            {(t.user_message, t.assistant_answer): t.messages for t in held.turns}
-            if held is not None
-            else {}
-        )
+        # Kept in occurrence order: the same question answered the same way
+        # twice can have run different queries, and each replayed turn takes
+        # the transcript of the matching turn in the same position.
+        transcripts: dict[tuple[str, str], list[tuple[BaseMessage, ...]]] = {}
+        for stored in held.turns if held is not None else []:
+            transcripts.setdefault(
+                (stored.user_message, stored.assistant_answer), []
+            ).append(stored.messages)
         self.conversation_store.reset(key)
         for turn in request.conversation_history[-_MAX_SEEDED_TURNS:]:
+            matches = transcripts.get((turn.user_message, turn.assistant_answer))
             self.conversation_store.append(
                 key,
                 ConversationTurn(
                     user_message=turn.user_message,
                     assistant_answer=turn.assistant_answer,
-                    messages=transcripts.get(
-                        (turn.user_message, turn.assistant_answer), ()
-                    ),
+                    messages=matches.pop(0) if matches else (),
                 ),
             )
         history = self.conversation_store.get(key)
@@ -907,6 +935,14 @@ class HarnessSupervisor:
             profile=self.profile,
         ).allowed
 
+    def _tenant_refusal(self) -> str:
+        if self.profile is None:
+            return "This datasource is restricted. I can't answer for other tenants."
+        lock = self.tenant_lock or self.profile.tenant_lock
+        return self.profile.tenant_refusal_template.format(
+            display_name=self.profile.display_name, lock=lock
+        )
+
     def _apply_thread_owner_override(
         self, route: RouteResult, request: UserRequest, ctx: HarnessContext
     ) -> RouteResult:
@@ -1025,6 +1061,22 @@ class HarnessSupervisor:
         None on the planner-graph path, which reports no messages.
         """
         if self.agent_loop is not None:
+            # The loop re-gates tenancy, but on the env override and the
+            # profile alone: it cannot see a lock the primary connection
+            # declared, which the lifespan resolved into `self.tenant_lock`
+            # and prefers. Refuse here so the stricter of the two decides,
+            # whichever route brought the request.
+            if not self._tenant_may_use_data(ctx):
+                record.answer = self._tenant_refusal()
+                progress(
+                    HarnessEvent(
+                        run_id=ctx.run_id,
+                        type="answer.completed",
+                        message="tenant is not the datasource's",
+                        data={"length": len(record.answer)},
+                    )
+                )
+                return None
             with agent_span("run", **self._root_span_kwargs(ctx, route)):
                 delta = await self.agent_loop.run(
                     user_message=request.message,
@@ -1041,7 +1093,12 @@ class HarnessSupervisor:
             for assumption in assumptions:
                 emit_grounding_gap(progress, ctx.run_id, assumption)
             record.assumptions = self._stamp_connection(assumptions)
-            return list(delta.get("messages") or [])
+            # `harden_answer` can rewrite what the loop wrote. The stored turn
+            # has to end in the answer the user was shown, or the next turn
+            # replays a different one.
+            return _with_canonical_answer(
+                list(delta.get("messages") or []), record.answer
+            )
 
         if self.agentic_graph is None:
             answer = (

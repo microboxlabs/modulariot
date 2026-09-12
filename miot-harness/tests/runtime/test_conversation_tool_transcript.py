@@ -115,30 +115,40 @@ def test_a_turn_too_large_to_replay_falls_back_to_its_text() -> None:
 
 def test_older_turns_degrade_to_text_instead_of_disappearing() -> None:
     """Tool envelopes cost far more than the answer they produced, so a
-    budget holding ten text pairs holds about six turns of tool history.
-    The older turns keep their text rather than dropping out of the replay."""
+    budget holding ten text pairs holds only a few turns of tool history.
+    The older turns keep their text rather than dropping out of the replay.
 
+    The answers are the size this harness actually writes — the module
+    docstring cites 3 to 5 thousand tokens of Markdown — because two-character
+    answers cost nothing and would let a broken budget pass.
+    """
+
+    answer = "a" * 8_000
     turns = [
         ConversationTurn(
             user_message=f"q{i}",
-            assistant_answer=f"a{i}",
+            assistant_answer=f"{i}: {answer}",
             messages=(
                 HumanMessage(content=f"q{i}"),
                 AIMessage(
                     content="",
                     tool_calls=[{"name": "acs_query", "args": {}, "id": f"c{i}"}],
                 ),
-                ToolMessage(content="x" * 12_000, tool_call_id=f"c{i}"),
-                AIMessage(content=f"a{i}"),
+                ToolMessage(content="x" * 32_000, tool_call_id=f"c{i}"),
+                AIMessage(content=f"{i}: {answer}"),
             ),
         )
         for i in range(6)
     ]
     history = ConversationHistory(conversation_id="convT", turns=turns)
-    msgs = to_messages(history, max_tokens=6_000, include_tool_calls=True)
+    tool_replay = to_messages(history, max_tokens=24_000, include_tool_calls=True)
+    text_only = to_messages(history, max_tokens=24_000)
 
-    replayed = [m.content for m in msgs if isinstance(m, HumanMessage)]
-    assert replayed == [f"q{i}" for i in range(6)]
-    # The newest turns keep their tool history; the oldest are text only.
-    assert [m.tool_call_id for m in msgs if isinstance(m, ToolMessage)]
-    assert len([m for m in msgs if isinstance(m, ToolMessage)]) < len(turns)
+    def questions(msgs):
+        return [m.content for m in msgs if isinstance(m, HumanMessage)]
+
+    # The whole point: the richer replay must never span fewer turns than the
+    # text projection it replaced would have on the same budget.
+    assert len(questions(tool_replay)) >= len(questions(text_only))
+    # And the newest turns still carry their tool history.
+    assert [m for m in tool_replay if isinstance(m, ToolMessage)]

@@ -327,6 +327,10 @@ class HarnessSupervisor:
         prior_messages = self._project_history(
             history, include_tool_calls=self._loop_owns(route)
         )
+        if self._loop_owns(route) and classified.route != HarnessRoute.DATA_AGENTIC:
+            # A route the loop took over. The meta seat would have carried
+            # this tenant's context; the loop has to be handed it.
+            prior_messages = self._inject_tenant_context(ctx, prior_messages)
         prior_messages = self._inject_skill(request, ctx, prior_messages)
         prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
 
@@ -507,6 +511,34 @@ class HarnessSupervisor:
 
         if self.event_bus is not None:
             self.event_bus.close(run_id)
+
+    def _inject_tenant_context(
+        self, ctx: HarnessContext, prior_messages: list[BaseMessage]
+    ) -> list[BaseMessage]:
+        """Prepend this tenant's context overlay and system facts.
+
+        The meta seat read them from `_meta_primer_for` / `_meta_catalog_for`,
+        and the loop took its route over. The loop's own system prompt cannot
+        carry them: it is the frozen prompt-cache prefix, so it holds only
+        what is true for every tenant. They ride in the user turn instead,
+        the same way an activated skill does.
+        """
+
+        if self.context_skills is None:
+            return prior_messages
+        blocks: list[str] = []
+        tenant_block = self.context_skills.primer_for(ctx.tenant_id).tenant_block
+        if tenant_block:
+            blocks.append(f"# System context (tenant)\n{tenant_block}")
+        facts = [
+            f"- {entry.title}\n  {entry.body}"
+            for entry in self.context_skills.facts_for(ctx.tenant_id)
+        ]
+        if facts:
+            blocks.append("# System facts (tenant)\n" + "\n".join(facts))
+        if not blocks:
+            return prior_messages
+        return [SystemMessage(content="\n\n".join(blocks)), *prior_messages]
 
     def _inject_skill(
         self,
@@ -700,6 +732,16 @@ class HarnessSupervisor:
             return None
         if not request.conversation_history and not request.conversation_summary:
             return None
+        # A replay carries text only. Any turn already held here with the same
+        # question and answer keeps the tool transcript it was stored with:
+        # the reset below would otherwise downgrade turns this replica ran
+        # itself, which is the memory loss the replay is meant to repair.
+        held = self.conversation_store.get(key)
+        transcripts = (
+            {(t.user_message, t.assistant_answer): t.messages for t in held.turns}
+            if held is not None
+            else {}
+        )
         self.conversation_store.reset(key)
         for turn in request.conversation_history[-_MAX_SEEDED_TURNS:]:
             self.conversation_store.append(
@@ -707,6 +749,9 @@ class HarnessSupervisor:
                 ConversationTurn(
                     user_message=turn.user_message,
                     assistant_answer=turn.assistant_answer,
+                    messages=transcripts.get(
+                        (turn.user_message, turn.assistant_answer), ()
+                    ),
                 ),
             )
         history = self.conversation_store.get(key)

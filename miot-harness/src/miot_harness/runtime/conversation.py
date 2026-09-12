@@ -135,8 +135,13 @@ class InMemoryConversationStore:
             len(self._histories) > 1 and sum(self._chars.values()) > self._max_chars
         ):
             evicted, _ = self._histories.popitem(last=False)
-            self._compactions.pop(evicted, None)
             self._chars.pop(evicted, None)
+        # A lock held by a compaction that is still awaiting its summarizer
+        # stays: dropping it would let the next call take a fresh lock and run
+        # a second summarizer over the same conversation. The rest go.
+        for key, lock in list(self._compactions.items()):
+            if key not in self._histories and not lock.locked():
+                del self._compactions[key]
 
     def _remeasure(self, conversation_id: str) -> None:
         """Refresh one conversation's size. Kept per id and summed on demand
@@ -312,16 +317,22 @@ def _project(
 
     if not include_tool_calls:
         return _text_pairs(turns)
+    # What the older turns will cost as text, so the budget pays for them
+    # too. Charging only the tool replay would spend everything on the newest
+    # turns and leave the trim to delete the text pairs from the front — the
+    # very turns this projection exists to keep.
+    text_cost = [0]
+    for turn in turns:
+        text_cost.append(text_cost[-1] + count_tokens_approximately(_text_pairs([turn])))
     full: list[BaseMessage] = []
     used = 0
     cut = len(turns)
     for index in range(len(turns) - 1, -1, -1):
-        turn = turns[index]
-        msgs = _turn_messages(turn)
+        msgs = _turn_messages(turns[index])
         cost = count_tokens_approximately(msgs)
         # The newest turn goes in whatever it costs; the final trim and the
         # all-text fallback handle one turn too large to replay.
-        if full and used + cost > max_tokens:
+        if full and used + cost + text_cost[index] > max_tokens:
             break
         full = [*msgs, *full]
         used += cost

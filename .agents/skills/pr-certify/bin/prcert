@@ -28,6 +28,11 @@ STAMP_MARK = "<!-- pr-certify:v1"
 
 DEFAULTS = {
     "maxRounds": 5,
+    # Copilot reviews the diff, you fix what it found, and the fix is new code
+    # for it to review. That has no natural end: on one PR it ran eight rounds,
+    # each finding something real and narrower than the last. One round, then
+    # hand over.
+    "maxCopilotRounds": 1,
     "sonarHost": "https://sonarcloud.io",
     "sonarTokenEnv": "SONAR_TOKEN",
     "balanced": {
@@ -341,6 +346,21 @@ def unresolved_threads(pr, logins):
     return out
 
 
+def copilot_rounds(pr):
+    """Commits Copilot has reviewed. One commit is one round, however many
+    reviews it split that commit's findings across."""
+    seen = set()
+    for r in ((pr.get("reviews") or {}).get("nodes") or []):
+        if not is_copilot((r.get("author") or {}).get("login")):
+            continue
+        if r.get("state") not in ("COMMENTED", "APPROVED", "CHANGES_REQUESTED"):
+            continue
+        sha = (r.get("commit") or {}).get("oid")
+        if sha:
+            seen.add(sha)
+    return len(seen)
+
+
 def copilot_state(pr):
     head = pr.get("headRefOid")
     rev = latest_review(pr, COPILOT_BOT)
@@ -348,7 +368,7 @@ def copilot_state(pr):
                     for r in ((pr.get("reviewRequests") or {}).get("nodes") or []))
     if not rev:
         return {"provider": "copilot", "available": True, "fresh": False, "verdict": None,
-                "pending": requested, "headline": None, "reviewedSha": None}
+                "pending": requested, "headline": None, "reviewedSha": None, "rounds": 0}
     headline = (rev.get("body") or "").strip().splitlines()[0][:120]
     verdict = None
     for mark, name in COPILOT_VERDICTS:
@@ -365,7 +385,7 @@ def copilot_state(pr):
     return {"provider": "copilot", "available": True, "fresh": fresh, "verdict": verdict,
             "pending": requested, "headline": headline, "reviewedSha": sha,
             "effort": effort.group(1).lower() if effort else None,
-            "reviewedAt": rev.get("submittedAt")}
+            "reviewedAt": rev.get("submittedAt"), "rounds": copilot_rounds(pr)}
 
 
 CR_ACTIONABLE = re.compile(r"Actionable comments posted:\s*(\d+)")
@@ -655,12 +675,12 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True, de
                 bits.append("%s: %s" % (x["key"], ", ".join(parts)))
         return "; ".join(bits) or "not clean"
 
-    def judge(key, st, required=True):
+    def judge(key, st, required=True, capped=False):
         """One rule for every reviewer: only a fresh, clean verdict is not a blocker.
 
         Anything else - stale, pending, unreadable, errored - blocks. Only a
-        reviewer that said it is switched off, or one this repo does not require,
-        degrades to a warning.
+        reviewer that said it is switched off, one this repo does not require,
+        or one whose round cap is spent, degrades to a warning.
         """
         if not st.get("available"):
             reason = st.get("reason") or "unavailable"
@@ -674,6 +694,15 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True, de
                 warnings.append("%s: %s (not required here)" % (key, st.get("verdict") or "no verdict"))
             return
         if not st.get("fresh", True):
+            if capped:
+                # Deliberate: the cap is spent, so the fixes for its findings go
+                # unreviewed by it. Its open threads still block below, so this
+                # only clears once every finding it did make has been answered.
+                warnings.append(
+                    "%s reviewed head %s and its round cap is spent - the fixes for "
+                    "its findings were not re-reviewed"
+                    % (key, (st.get("reviewedSha") or "never")[:8]))
+                return
             blockers.append("%s has not reviewed head %s (last: %s)"
                             % (key, head[:8], (st.get("reviewedSha") or "never")[:8]))
             return
@@ -688,7 +717,9 @@ def assess(pr, settings, repo_root, cfg=None, skip_sonar=False, enabled=True, de
             blockers.append("%s reviewed head %s but its verdict could not be read"
                             % (key, head[:8]))
 
-    judge("copilot", cop, required=require_copilot)
+    copilot_cap = settings.get("maxCopilotRounds", 1)
+    judge("copilot", cop, required=require_copilot,
+          capped=bool(copilot_cap) and cop.get("rounds", 0) >= copilot_cap)
     judge("coderabbit", crb, required=settings.get("requireCodeRabbit", True))
     judge("sonar", son, required=settings.get("requireSonar", True) and not skip_sonar)
 
@@ -887,6 +918,17 @@ def copilot_bot_id(pr):
 def cmd_request(args, ctx):
     pr, owner, name = ctx["pr"], ctx["owner"], ctx["name"]
     done = []
+    if args.copilot:
+        cap = ctx["settings"].get("maxCopilotRounds", 1)
+        rounds = copilot_rounds(pr)
+        if cap and rounds >= cap:
+            done.append({
+                "provider": "copilot", "ok": False, "skipped": True,
+                "reason": "round cap spent (%d of %d) - triage what it already said, "
+                          "then hand over; raise maxCopilotRounds to ask again"
+                          % (rounds, cap),
+            })
+            args.copilot = False
     if args.copilot:
         bot = copilot_bot_id(pr)
         q = ("mutation($pr:ID!,$bot:ID!){requestReviews(input:{pullRequestId:$pr,botIds:[$bot],"
@@ -1124,6 +1166,8 @@ def human_status(s):
             verdict = "none"
         fresh = "head" if p.get("fresh") else "STALE"
         extra = "  effort: %s" % p["effort"] if p.get("effort") else ""
+        if p.get("rounds"):
+            extra += "  rounds: %d" % p["rounds"]
         lines.append("  %-11s %-9s %s%s" % (key, verdict, fresh, extra))
     c = s["checks"]
     lines.append("  %-11s %-9s %d ran / %d skipped / %d failing / %d pending" % (

@@ -94,7 +94,11 @@ def scan(cmd):
     pending = []          # heredocs opened on the current line, not yet closed
     quote = None
     arith = 0             # depth of $(( )) - `<<` inside one is a shift
-    stack = []            # quote states suspended by a command substitution
+    # One frame per open (, $( or backtick: the quote state it suspended and the
+    # delimiter that closes it. A nested substitution needs its own frame, or
+    # its closer pops the outer one and restores a quote too early — which
+    # marks the rest of the line dead and hides live `gh pr merge` text.
+    stack = []
     i = 0
     at_word_start = True
 
@@ -127,14 +131,14 @@ def scan(cmd):
             # A double quote suppresses word splitting, not command substitution:
             # the inside of $( ) or ` ` is live shell code even in the middle of one.
             if quote == '"' and cmd.startswith("$(", i):
-                stack.append(quote)
+                stack.append((quote, ")"))
                 quote = None
                 live[i] = live[i + 1] = True
                 i += 2
                 at_word_start = True
                 continue
             if quote == '"' and c == "`":
-                stack.append(quote)
+                stack.append((quote, "`"))
                 quote = None
                 live[i] = True
                 i += 1
@@ -145,9 +149,9 @@ def scan(cmd):
             i += 1
             continue
 
-        if stack and (c == ")" or c == "`"):
+        if stack and c == stack[-1][1]:
             live[i] = True
-            quote = stack.pop()
+            quote = stack.pop()[0]
             i += 1
             at_word_start = False
             continue
@@ -186,6 +190,30 @@ def scan(cmd):
             live[i] = live[i + 1] = True
             i += 2
             at_word_start = False
+            continue
+
+        # Unquoted openers. `$((` is handled above, so this cannot swallow one.
+        if cmd.startswith("$(", i):
+            stack.append((quote, ")"))
+            live[i] = live[i + 1] = True
+            i += 2
+            at_word_start = True
+            continue
+
+        if c == "`":
+            stack.append((quote, "`"))
+            live[i] = True
+            i += 1
+            at_word_start = True
+            continue
+
+        if c == "(" and not arith:
+            # A plain subshell inside a substitution: without a frame of its own
+            # its `)` would close the substitution instead.
+            stack.append((quote, ")"))
+            live[i] = True
+            i += 1
+            at_word_start = True
             continue
 
         if c == "<" and cmd.startswith("<<<", i):

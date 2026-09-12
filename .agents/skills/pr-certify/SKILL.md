@@ -97,9 +97,10 @@ n=0; until prcert status --settled; do n=$((n+1)); [ $n -gt 30 ] && exit 1; slee
 Run that with `run_in_background: true`. It exits once every active reviewer has a verdict against
 the current head and no check is still running, and you get a single notification.
 
-Keep the cap. If `prcert request` reported `ok: false` for Copilot, Copilot code review is not
-available on that repo and no verdict is ever coming — set `requireCopilot: false` for the org and
-treat it as a warning instead of waiting out the cap every round.
+Keep the cap. If `prcert request` reported `ok: false` for Copilot **without** a `skipped` flag,
+Copilot code review is not available on that repo and no verdict is ever coming — set
+`requireCopilot: false` for the org and treat it as a warning instead of waiting out the cap every
+round. `skipped: true` is the round cap instead (step 7), and means stop, not wait.
 
 While waiting, do the local work from step 1 (`/code-review high` for `balanced` PRs) instead of
 sitting idle.
@@ -158,10 +159,25 @@ thread with no reply leaves no record of the decision.
 Do not resolve a thread you did not act on. If a finding needs a product decision, leave it open,
 say so in the reply, and carry it into the final report as a blocker for the human.
 
-### 7. Loop
+### 7. Loop — once for Copilot
 
 Go back to step 2 with the new head. Stop when `prcert status` reports certified, or after
 `maxRounds` (default 5) — whichever comes first. Do not start a round that changes nothing.
+
+**Copilot gets one round** (`maxCopilotRounds`, default 1). Triage what it said, fix what holds,
+reply, resolve, push — then report and hand over. `prcert request` skips it after that and says
+so; raise the setting for a PR that earns another pass, and ask the user first.
+
+The cap exists because the loop does not converge. Your fix is new code, which is new material for
+the next review, so there is always something to find. One PR ran eight rounds: every finding was
+real, and rounds five to eight needed memory pressure plus concurrent runs in one conversation to
+trigger. It also bounds how much unverified reviewer reasoning you act on — in that run a finding
+claimed a token counter ignored tool calls, the fix for it introduced a double-counting bug, and
+the next round refuted the original claim with a measurement.
+
+Once the cap is spent, `status` turns Copilot's stale verdict into a warning instead of a blocker,
+naming what went unreviewed. Its open threads still block, so the PR only clears when every
+finding it did make has been answered.
 
 ### 8. Stamp
 
@@ -186,7 +202,8 @@ the loop stopped, for the next session and for the user.
 ### 9. Report
 
 Tell the user: the depth verdict, how many rounds it took, what was fixed, what was rejected and
-why, and anything still blocking. Link the PR.
+why, and anything still blocking. Say plainly when the Copilot cap is spent and its fixes went
+unreviewed — that is the user's call to make, not a detail to bury. Link the PR.
 
 ## The merge gate
 
@@ -271,8 +288,9 @@ prcert config --disable-org acme
 prcert config --gate off                   # stop blocking gh pr merge everywhere
 ```
 
-Per-org overrides go under `orgs.<name>`: `maxRounds`, `sonarHost`, `sonarOrg`, `sonarTokenEnv`,
-and a `balanced` block (`loc`, `files`, `pathHints`, `labels`) to retune the depth heuristic.
+Per-org overrides go under `orgs.<name>`: `maxRounds`, `maxCopilotRounds`, `sonarHost`,
+`sonarOrg`, `sonarTokenEnv`, and a `balanced` block (`loc`, `files`, `pathHints`, `labels`) to
+retune the depth heuristic.
 
 See [reference.md](reference.md) for the JSON shapes, every subcommand's flags, and the underlying
 GitHub and SonarCloud calls.

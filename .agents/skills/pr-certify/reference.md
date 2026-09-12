@@ -160,12 +160,13 @@ when `fresh` is true, which means `reviewedSha == head`.
   "orgs": {
     "microboxlabs": {
       "maxRounds": 5,
+      "maxCopilotRounds": 1,                // Copilot passes before `request` skips it
       "sonarOrg": "microboxlabs",           // defaults to the project key's prefix
       "balanced": { "loc": 300, "files": 20, "pathHints": [...], "labels": [...] }
     }
   },
   "gate": { "enforce": true },
-  "defaults": { "maxRounds": 5, "sonarHost": "https://sonarcloud.io",
+  "defaults": { "maxRounds": 5, "maxCopilotRounds": 1, "sonarHost": "https://sonarcloud.io",
                 "sonarTokenEnv": "SONAR_TOKEN", "balanced": { ... } }
 }
 ```
@@ -173,7 +174,10 @@ when `fresh` is true, which means `reviewedSha == head`.
 An org absent from `orgs` is not certified and not gated: `status` says so and `gate` allows the
 merge. Onboarding an org is one command: `prcert config --enable-org <org>`.
 
-Per-org keys: `maxRounds`, `sonarHost`, `sonarOrg`, `sonarTokenEnv`, `requireCopilot` (set it
+Per-org keys: `maxRounds`, `maxCopilotRounds` (Copilot review passes before `request` starts
+skipping it and `status` downgrades its stale verdict to a warning; one round by default, because
+each fix is new code for the next review to find something in), `sonarHost`, `sonarOrg`,
+`sonarTokenEnv`, `requireCopilot` (set it
 `false` where Copilot code review is not available, so a missing Copilot verdict is a warning
 rather than a blocker that never clears), and a `balanced` block.
 

@@ -34,6 +34,8 @@ INVOKES = [
     ("false || gh pr merge 5", True),
     # forms that used to slip past
     ("echo err >&2; gh pr merge 5", True),
+    ('echo "$(x=$(date) gh pr merge 5)"', True),
+    ('echo "$( (cd repo) gh pr merge 5)"', True),
     ("`gh pr merge 5`", True),
     ("command gh pr merge 5", True),
     ("env gh pr merge 5", True),
@@ -147,6 +149,14 @@ COUNTS = [
     ("gh pr merge 5", 1),
     ("gh pr merge 1; gh pr merge 2", 2),
     ('echo "$(gh pr merge 5)"', 1),
+    # A nested substitution used to pop the outer frame, restoring the double
+    # quote early and marking the merge dead: the gate then saw nothing at all.
+    ('echo "$(x=$(date) gh pr merge 5)"', 1),
+    ('echo "$( (echo hi) gh pr merge 5)"', 1),
+    ('echo "$(`date` gh pr merge 5)"', 1),
+    ('echo "`x=$(date) gh pr merge 5`"', 1),
+    # Arithmetic is not a substitution frame; this merge really is quoted text.
+    ('echo "$((1+2)) gh pr merge 5"', 0),
     ("bash -c 'gh pr merge 7'", 1),
     ("> /tmp/out gh pr merge 2", 1),
     ("grep -r 'gh pr merge' .", 0),

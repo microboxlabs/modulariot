@@ -17,9 +17,10 @@
 # Required secrets:
 #   - DOCKERHUB_USERNAME
 #   - DOCKERHUB_TOKEN
+#   - SONAR_TOKEN                     SonarCloud analysis token
 #
 # Job graph (per plan 13-server-deployment/10-deploy-evals.md):
-#   lint-and-test
+#   lint-and-test          sonarcloud (not on the publish path)
 #       ↓
 #   image-evals-pre-publish    (Category A — runs locally before push)
 #       ↓
@@ -113,6 +114,33 @@ jobs:
       - name: Pytest
         run: uv run pytest -q
         working-directory: miot-harness
+
+  # ---------------------------------------------------------------------------
+  # 1b) SonarCloud — dedicated project microboxlabs_modulariot-harness.
+  #     Parallel with lint-and-test. Not a `needs` of publish-image: a scanner
+  #     failure must not skip the Docker image (same reason as quarkus.yml).
+  # ---------------------------------------------------------------------------
+  sonarcloud:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v7.0.0
+        with:
+          projectBaseDir: miot-harness
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # ---------------------------------------------------------------------------
   # 2) Category A deploy evals — image builds + boots locally.
@@ -364,6 +392,7 @@ jobs:
     permissions: {}
     needs:
       - lint-and-test
+      - sonarcloud
       - image-evals-pre-publish
       - publish-image
       - distribution-evals
@@ -378,6 +407,7 @@ jobs:
             echo "| Stage | Status |"
             echo "|---|---|"
             echo "| Lint & Test | ${{ needs.lint-and-test.result }} |"
+            echo "| SonarCloud | ${{ needs.sonarcloud.result == 'skipped' && 'skipped (fork PR)' || needs.sonarcloud.result }} |"
             echo "| Image Evals (pre) | ${{ needs.image-evals-pre-publish.result }} |"
             echo "| Image | ${{ needs.publish-image.result }} |"
             echo "| Distribution Evals | ${{ needs.distribution-evals.result == 'skipped' && 'skipped (fork PR)' || needs.distribution-evals.result }} |"

@@ -138,3 +138,66 @@ async def test_a_tool_call_the_cap_left_unanswered_is_dropped() -> None:
     assert asked == answered
     assert "never-run" not in asked
     assert messages[-1].content == "partial answer"
+
+
+@pytest.mark.asyncio
+async def test_a_native_tool_use_block_goes_with_its_dropped_call() -> None:
+    """A streamed Anthropic reply carries its calls twice: in `tool_calls`
+    and as `tool_use` blocks in the list content. Clearing only the first
+    leaves the API a tool_use with no tool_result after it."""
+
+    model = ScriptedModel(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[{"name": "fake_kpi_summary", "args": {}, "id": f"c{i}"}],
+            )
+            for i in range(3)
+        ]
+        + [
+            AIMessage(
+                content=[
+                    {"type": "text", "text": "partial answer"},
+                    {
+                        "type": "tool_use",
+                        "id": "never-run",
+                        "name": "fake_kpi_summary",
+                        "input": {},
+                    },
+                ],
+                tool_calls=[
+                    {"name": "fake_kpi_summary", "args": {}, "id": "never-run"}
+                ],
+            )
+        ]
+    )
+    delta = await _runner(model).run(
+        user_message="q",
+        ctx=_ctx(),
+        prior_messages=[],
+        progress=lambda e: None,
+    )
+    blocks = [
+        block
+        for m in delta["messages"]
+        if isinstance(m, AIMessage) and isinstance(m.content, list)
+        for block in m.content
+        if isinstance(block, dict)
+    ]
+    assert not [b for b in blocks if b.get("type") == "tool_use"]
+    assert [b for b in blocks if b.get("type") == "text"]
+
+
+@pytest.mark.asyncio
+async def test_an_empty_assistant_message_is_not_stored() -> None:
+    """A message with neither text nor a tool call is an empty turn, which
+    the API refuses on the next request."""
+
+    model = ScriptedModel([AIMessage(content="")])
+    delta = await _runner(model).run(
+        user_message="q",
+        ctx=_ctx(),
+        prior_messages=[],
+        progress=lambda e: None,
+    )
+    assert [m.content for m in delta["messages"]] == ["q"]

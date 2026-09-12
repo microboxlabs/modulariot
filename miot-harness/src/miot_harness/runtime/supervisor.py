@@ -252,9 +252,11 @@ class HarnessSupervisor:
             )
 
         # Seed a replayed transcript into the store before routing: the
-        # router reads the last turns from it. The projection to messages
-        # waits for the route, which decides whether tool calls replay.
-        self._seeded_history(request, ctx)
+        # router reads the last turns from it. Seeding happens here and only
+        # here — a second call could reset a history a concurrent run has
+        # appended to meanwhile. The projection to messages waits for the
+        # route, which decides whether tool calls replay.
+        history = self._seeded_history(request, ctx)
 
         # Route via the LLM router when injected; else fall back to the
         # keyword router (Plan 12 default; the "auto" mode confidence
@@ -281,20 +283,26 @@ class HarnessSupervisor:
             self._close_bus(ctx.run_id)
             return record
 
-        route = self._apply_catalog_route_override(route)
-        route = self._apply_thread_owner_override(route, ctx)
+        classified = self._apply_catalog_route_override(route)
+        route = self._apply_thread_owner_override(classified, ctx)
 
+        # `route` is what runs. When the loop took the turn over, the router's
+        # own verdict rides alongside it: it is the signal for whether the
+        # override is picking up turns the router would have sent elsewhere.
+        route_data: dict[str, Any] = {"route": route.route}
+        if route.route != classified.route:
+            route_data["classified_route"] = classified.route
         progress(
             HarnessEvent(
                 run_id=ctx.run_id,
                 type="route.selected",
                 message=route.reason,
-                data={"route": route.route},
+                data=route_data,
             )
         )
 
-        prior_messages = self._hydrate_history(
-            request, ctx, include_tool_calls=self._loop_owns(route)
+        prior_messages = self._project_history(
+            history, include_tool_calls=self._loop_owns(route)
         )
         prior_messages = self._inject_skill(request, ctx, prior_messages)
         prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
@@ -621,7 +629,18 @@ class HarnessSupervisor:
         agent loop may ask for it; see `to_messages`.
         """
 
-        history = self._seeded_history(request, ctx)
+        return self._project_history(
+            self._seeded_history(request, ctx), include_tool_calls=include_tool_calls
+        )
+
+    def _project_history(
+        self,
+        history: ConversationHistory | None,
+        *,
+        include_tool_calls: bool = False,
+    ) -> list[BaseMessage]:
+        """Project an already-seeded history onto the budget for this route."""
+
         if history is None:
             return []
         budget = (
@@ -814,6 +833,24 @@ class HarnessSupervisor:
     def _loop_owns(self, route: RouteResult) -> bool:
         return route.route == HarnessRoute.DATA_AGENTIC and self.agent_loop is not None
 
+    def _tenant_may_use_data(self, ctx: HarnessContext) -> bool:
+        """Whether this tenant may take a data route at all.
+
+        `self.tenant_lock` is the lock the lifespan resolved, which prefers
+        the primary connection's own lock over the env override and the
+        profile default. Empty means the lifespan has not set one, so the
+        gate falls back to what it can see.
+        """
+
+        if self.tenant_lock:
+            return ctx.tenant_id == self.tenant_lock
+        return tenancy_gate_decision(
+            ctx=ctx,
+            route=HarnessRoute.DATA_AGENTIC,
+            settings=get_settings(),
+            profile=self.profile,
+        ).allowed
+
     def _apply_thread_owner_override(
         self, route: RouteResult, ctx: HarnessContext
     ) -> RouteResult:
@@ -830,19 +867,18 @@ class HarnessSupervisor:
         module, and every route taken by a tenant the datasource is not
         locked to, whose data routes the loop's own gate refuses — DATA_META
         is all they may have.
+
+        The lock checked here is the supervisor's resolved one, which the
+        lifespan sets from the primary connection's `tenant_lock` when it
+        declares one. Asking the profile alone would miss that and hand a
+        connection-locked datasource's data routes to another tenant.
         """
 
         if self.agent_loop is None or route.route in _THREAD_OWNER_EXEMPT:
             return route
         if route.route == HarnessRoute.DATA_AGENTIC:
             return route
-        allowed = tenancy_gate_decision(
-            ctx=ctx,
-            route=HarnessRoute.DATA_AGENTIC,
-            settings=get_settings(),
-            profile=self.profile,
-        ).allowed
-        if not allowed:
+        if not self._tenant_may_use_data(ctx):
             return route
         return RouteResult(
             route=HarnessRoute.DATA_AGENTIC,

@@ -168,15 +168,45 @@ def _turn_transcript(
     answered = {msg.tool_call_id for msg in turn if isinstance(msg, ToolMessage)}
     kept: list[BaseMessage] = []
     for msg in turn:
-        if not isinstance(msg, AIMessage) or not msg.tool_calls:
+        if not isinstance(msg, AIMessage):
             kept.append(msg)
             continue
-        calls = [c for c in msg.tool_calls if c.get("id") in answered]
-        if len(calls) == len(msg.tool_calls):
-            kept.append(msg)
-        elif calls or msg.content:
-            kept.append(msg.model_copy(update={"tool_calls": calls}))
+        pruned = _without_unanswered_calls(msg, answered)
+        if pruned is not None:
+            kept.append(pruned)
     return [HumanMessage(content=user_message), *kept]
+
+
+def _without_unanswered_calls(
+    msg: AIMessage, answered: set[str]
+) -> AIMessage | None:
+    """`msg` with every tool call no tool result answered removed.
+
+    A streamed Anthropic reply carries its calls twice: in `tool_calls` and as
+    `tool_use` blocks in the list content. Both have to go, or the content
+    replays a tool_use the API then rejects for having no tool_result.
+
+    None when nothing is left to say — an assistant message with neither text
+    nor a call is an empty turn, which the API also rejects.
+    """
+    calls = [c for c in msg.tool_calls if c.get("id") in answered]
+    content = msg.content
+    if isinstance(content, list):
+        content = [
+            block
+            for block in content
+            if not (
+                isinstance(block, dict)
+                and block.get("type") == "tool_use"
+                and block.get("id") not in answered
+            )
+        ]
+    if not calls and not content:
+        return None
+    dropped_blocks = isinstance(msg.content, list) and len(content) != len(msg.content)
+    if len(calls) == len(msg.tool_calls) and not dropped_blocks:
+        return msg
+    return msg.model_copy(update={"tool_calls": calls, "content": content})
 
 
 def _with_tail_marker(messages: list[BaseMessage]) -> list[BaseMessage]:

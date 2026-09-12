@@ -199,6 +199,11 @@ def to_messages(
     tool-less seats keep the text pair. Trimming starts on a human message,
     so a tool result is never replayed without the call that produced it.
 
+    A tool replay that does not fit at all falls back to the text pairs
+    rather than to nothing: one turn that ran thirty queries can be larger
+    than the whole budget, and dropping it would lose the context this
+    replay exists to keep.
+
     Returns an empty list when the history is fully empty (no summary, no
     turns) OR ``max_tokens`` is non-positive.
     """
@@ -207,6 +212,17 @@ def to_messages(
         return []
     if not history.turns and not history.summary:
         return []
+    recent = _trim(_project(history, include_tool_calls), max_tokens)
+    if include_tool_calls and not recent:
+        recent = _trim(_project(history, False), max_tokens)
+    if not history.summary:
+        return recent
+    return [_summary_message(history.summary), *recent]
+
+
+def _project(
+    history: ConversationHistory, include_tool_calls: bool
+) -> list[BaseMessage]:
     msgs: list[BaseMessage] = []
     for turn in history.turns:
         if include_tool_calls and turn.messages:
@@ -214,20 +230,19 @@ def to_messages(
             continue
         msgs.append(HumanMessage(content=turn.user_message))
         msgs.append(AIMessage(content=turn.assistant_answer))
-    recent: list[BaseMessage] = (
-        trim_messages(
-            msgs,
-            max_tokens=max_tokens,
-            token_counter="approximate",
-            strategy="last",
-            start_on="human",
-        )
-        if msgs
-        else []
+    return msgs
+
+
+def _trim(msgs: list[BaseMessage], max_tokens: int) -> list[BaseMessage]:
+    if not msgs:
+        return []
+    return trim_messages(
+        msgs,
+        max_tokens=max_tokens,
+        token_counter="approximate",
+        strategy="last",
+        start_on="human",
     )
-    if not history.summary:
-        return recent
-    return [_summary_message(history.summary), *recent]
 
 
 def _summary_message(summary: str) -> HumanMessage:

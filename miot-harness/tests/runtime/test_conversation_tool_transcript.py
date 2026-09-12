@@ -88,3 +88,26 @@ def test_trimming_never_orphans_a_tool_result() -> None:
     }
     result_ids = {m.tool_call_id for m in msgs if isinstance(m, ToolMessage)}
     assert result_ids <= call_ids
+
+
+def test_a_turn_too_large_to_replay_falls_back_to_its_text() -> None:
+    """One turn that ran thirty queries can be larger than the whole budget.
+    Trimming it away leaves nothing, which is the amnesia this replay exists
+    to prevent, so the text pair stands in."""
+
+    big = ConversationTurn(
+        user_message="how many?",
+        assistant_answer="291",
+        messages=(
+            HumanMessage(content="how many?"),
+            AIMessage(
+                content="",
+                tool_calls=[{"name": "acs_query", "args": {}, "id": "c1"}],
+            ),
+            ToolMessage(content="x" * 80_000, tool_call_id="c1"),
+            AIMessage(content="291"),
+        ),
+    )
+    history = ConversationHistory(conversation_id="convT", turns=[big])
+    msgs = to_messages(history, max_tokens=100, include_tool_calls=True)
+    assert [m.content for m in msgs] == ["how many?", "291"]

@@ -4,8 +4,9 @@ The `json` answer format returns the run's answer as an array of typed blocks
 so clients can render multiple, differently-typed pieces of one answer. Two
 block types are validated strictly — `markdown` (value is a string) and `url`
 (value is an object with string `url` and `name`); any other `type` is accepted
-unchanged (passthrough). `to_json_blocks` never raises: on any failure it wraps
-the raw text as a single markdown block so a formatting glitch can't fail a run.
+unchanged (passthrough). `to_json_blocks` never raises: it salvages a block array a model
+appended after narrating, and on any other failure wraps the raw text as a
+single markdown block so a formatting glitch can't fail a run.
 
 Note: `url` block values are NOT scheme-validated — the schema only checks they
 are strings — so downstream consumers must sanitize urls as hrefs (reject
@@ -77,6 +78,36 @@ def parse_blocks(raw: str) -> list[AnswerBlock]:
         raise ValueError(f"invalid blocks: {exc}") from exc
 
 
+def _salvage_trailing_blocks(text: str) -> list[AnswerBlock] | None:
+    """The block array a model appended after narrating, or None.
+
+    The contract says the answer is the array and nothing else, but a model
+    that thinks out loud writes its reasoning first and the array last. The
+    array is intact; only the prose in front of it makes the whole string
+    invalid JSON. Take the widest array that runs to the end of the text and
+    validates as blocks — a nested array, or one quoted inside prose, does not
+    reach the end, and a trailing array of something else fails validation.
+    """
+    stripped = text.rstrip()
+    if not stripped.endswith("]"):
+        return None
+    decoder = json.JSONDecoder()
+    start = stripped.find("[")
+    while start != -1:
+        try:
+            data, end = decoder.raw_decode(stripped, start)
+        except json.JSONDecodeError:
+            start = stripped.find("[", start + 1)
+            continue
+        if end == len(stripped) and isinstance(data, list):
+            try:
+                return _BLOCKS_ADAPTER.validate_python(data)
+            except ValidationError:
+                return None
+        start = stripped.find("[", start + 1)
+    return None
+
+
 def to_json_blocks(text: str) -> str:
     """Return a clean JSON array string of blocks. Never raises.
 
@@ -86,5 +117,13 @@ def to_json_blocks(text: str) -> str:
         blocks = parse_blocks(text)
         return json.dumps([b.model_dump() for b in blocks], ensure_ascii=False)
     except Exception as exc:  # noqa: BLE001 — formatting must never fail a run
+        salvaged = _salvage_trailing_blocks(text)
+        if salvaged is not None:
+            logger.warning(
+                "answer json-blocks had %d chars of prose before the array; "
+                "dropped it and kept the blocks",
+                len(text) - len(json.dumps([b.model_dump() for b in salvaged])),
+            )
+            return json.dumps([b.model_dump() for b in salvaged], ensure_ascii=False)
         logger.warning("answer json-blocks parse failed; using markdown fallback: %s", exc)
         return json.dumps([{"type": "markdown", "value": text}], ensure_ascii=False)

@@ -171,23 +171,24 @@ def _turn_transcript(
         if not isinstance(msg, AIMessage):
             kept.append(msg)
             continue
-        pruned = _without_unanswered_calls(msg, answered)
-        if pruned is not None:
-            kept.append(pruned)
+        storable = _storable(msg, answered)
+        if storable is not None:
+            kept.append(storable)
     return [HumanMessage(content=user_message), *kept]
 
 
-def _without_unanswered_calls(
-    msg: AIMessage, answered: set[str]
-) -> AIMessage | None:
-    """`msg` with every tool call no tool result answered removed.
+def _storable(msg: AIMessage, answered: set[str]) -> AIMessage | None:
+    """`msg` as the next turn may replay it, or None if nothing is left.
 
-    A streamed Anthropic reply carries its calls twice: in `tool_calls` and as
-    `tool_use` blocks in the list content. Both have to go, or the content
-    replays a tool_use the API then rejects for having no tool_result.
+    Two kinds of block go. A tool call no tool result answered: a streamed
+    Anthropic reply carries its calls both in `tool_calls` and as `tool_use`
+    blocks, and replaying one the API finds no `tool_result` for is rejected.
+    And every thinking block: they are signed by the model that produced them,
+    while the conversation model is chosen per run, so a later turn on another
+    model would replay a signature that is not its own.
 
-    None when nothing is left to say — an assistant message with neither text
-    nor a call is an empty turn, which the API also rejects.
+    None when only thinking blocks remain, or nothing does. An assistant
+    message with no text and no call is an empty turn, also rejected.
     """
     calls = [c for c in msg.tool_calls if c.get("id") in answered]
     content = msg.content
@@ -195,18 +196,23 @@ def _without_unanswered_calls(
         content = [
             block
             for block in content
-            if not (
-                isinstance(block, dict)
-                and block.get("type") == "tool_use"
-                and block.get("id") not in answered
-            )
+            if not _is_dropped_block(block, answered)
         ]
     if not calls and not content:
         return None
-    dropped_blocks = isinstance(msg.content, list) and len(content) != len(msg.content)
-    if len(calls) == len(msg.tool_calls) and not dropped_blocks:
+    dropped = isinstance(msg.content, list) and len(content) != len(msg.content)
+    if len(calls) == len(msg.tool_calls) and not dropped:
         return msg
     return msg.model_copy(update={"tool_calls": calls, "content": content})
+
+
+def _is_dropped_block(block: Any, answered: set[str]) -> bool:
+    if not isinstance(block, dict):
+        return False
+    kind = block.get("type")
+    if kind in ("thinking", "redacted_thinking"):
+        return True
+    return kind == "tool_use" and block.get("id") not in answered
 
 
 def _with_tail_marker(messages: list[BaseMessage]) -> list[BaseMessage]:

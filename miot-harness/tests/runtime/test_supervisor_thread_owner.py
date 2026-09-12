@@ -81,6 +81,10 @@ def _ctx(tenant: str = "acme") -> HarnessContext:
     return HarnessContext(thread_id="t", tenant_id=tenant, user_id="u")
 
 
+def _auto(message: str = "q", tenant: str = "acme") -> UserRequest:
+    return UserRequest(message=message, tenant_id=tenant)
+
+
 @pytest.mark.parametrize(
     "route",
     [
@@ -93,7 +97,7 @@ def _ctx(tenant: str = "acme") -> HarnessContext:
 def test_every_route_becomes_agentic_when_the_loop_is_wired(tmp_path, route) -> None:
     sup = _supervisor(tmp_path, route, loop=_RecordingLoop())
     result = sup._apply_thread_owner_override(
-        RouteResult(route=route, reason="router said so"), _ctx()
+        RouteResult(route=route, reason="router said so"), _auto(), _ctx()
     )
     assert result.route == HarnessRoute.DATA_AGENTIC
     assert "agent loop owns the thread" in result.reason
@@ -102,7 +106,9 @@ def test_every_route_becomes_agentic_when_the_loop_is_wired(tmp_path, route) -> 
 def test_storytelling_keeps_its_own_path(tmp_path) -> None:
     sup = _supervisor(tmp_path, HarnessRoute.STORYTELLING_RUN, loop=_RecordingLoop())
     result = sup._apply_thread_owner_override(
-        RouteResult(route=HarnessRoute.STORYTELLING_RUN, reason="story"), _ctx()
+        RouteResult(route=HarnessRoute.STORYTELLING_RUN, reason="story"),
+        _auto(),
+        _ctx(),
     )
     assert result.route == HarnessRoute.STORYTELLING_RUN
 
@@ -112,6 +118,7 @@ def test_off_lock_tenant_keeps_meta(tmp_path) -> None:
     sup = _supervisor(tmp_path, HarnessRoute.DATA_META, loop=_RecordingLoop())
     result = sup._apply_thread_owner_override(
         RouteResult(route=HarnessRoute.DATA_META, reason="meta"),
+        _auto(tenant="somebody-else"),
         _ctx(tenant="somebody-else"),
     )
     assert result.route == HarnessRoute.DATA_META
@@ -120,7 +127,7 @@ def test_off_lock_tenant_keeps_meta(tmp_path) -> None:
 def test_no_loop_wired_leaves_the_route_alone(tmp_path) -> None:
     sup = _supervisor(tmp_path, HarnessRoute.DIRECT, loop=None)
     result = sup._apply_thread_owner_override(
-        RouteResult(route=HarnessRoute.DIRECT, reason="greeting"), _ctx()
+        RouteResult(route=HarnessRoute.DIRECT, reason="greeting"), _auto(), _ctx()
     )
     assert result.route == HarnessRoute.DIRECT
 
@@ -178,8 +185,37 @@ async def test_a_seat_without_tools_still_sees_only_text(tmp_path) -> None:
         UserRequest(message="how many?", tenant_id="acme", conversation_id="c-2")
     )
     request = UserRequest(message="and now?", tenant_id="acme", conversation_id="c-2")
-    text_only = sup._hydrate_history(
-        request, loop.calls[0]["ctx"], include_tool_calls=False
+    text_only = sup._project_history(
+        sup._seeded_history(request, loop.calls[0]["ctx"]),
+        include_tool_calls=False,
     )
     assert [type(m).__name__ for m in text_only] == ["HumanMessage", "AIMessage"]
     assert text_only[1].content == "loop answer"
+
+
+@pytest.mark.parametrize("mode", ["canned", "meta", "agentic"])
+def test_a_caller_chosen_mode_is_not_rewritten(tmp_path, mode) -> None:
+    """`mode` names the seat the caller wants. Rewriting it would make half
+    its values a no-op and silently bill a curated question as a full loop."""
+
+    sup = _supervisor(tmp_path, HarnessRoute.DATA_QUERY, loop=_RecordingLoop())
+    asked = UserRequest(message="q", tenant_id="acme", mode=mode)
+    result = sup._apply_thread_owner_override(
+        RouteResult(route=HarnessRoute.DATA_QUERY, reason=f"explicit mode={mode!r}"),
+        asked,
+        _ctx(),
+    )
+    assert result.route == HarnessRoute.DATA_QUERY
+
+
+def test_a_lock_only_the_supervisor_knows_still_blocks_the_remap(tmp_path) -> None:
+    """The lifespan prefers the primary connection's lock, which the loop's
+    own gate cannot see. Remapping on the weaker of the two would hand this
+    tenant the data tools."""
+
+    sup = _supervisor(tmp_path, HarnessRoute.DATA_META, loop=_RecordingLoop())
+    sup.tenant_lock = "someone-else"
+    result = sup._apply_thread_owner_override(
+        RouteResult(route=HarnessRoute.DATA_META, reason="meta"), _auto(), _ctx()
+    )
+    assert result.route == HarnessRoute.DATA_META

@@ -284,7 +284,7 @@ class HarnessSupervisor:
             return record
 
         classified = self._apply_catalog_route_override(route)
-        route = self._apply_thread_owner_override(classified, ctx)
+        route = self._apply_thread_owner_override(classified, request, ctx)
 
         # `route` is what runs. When the loop took the turn over, the router's
         # own verdict rides alongside it: it is the signal for whether the
@@ -587,9 +587,11 @@ class HarnessSupervisor:
     ) -> ConversationHistory | None:
         """The stored history for this conversation, seeding a replay first.
 
-        Called before routing for the seeding, and again by
-        `_hydrate_history` once the route is known. Idempotent: the second
-        call finds the replay already seeded.
+        `run()` calls this exactly once, before routing, and passes what it
+        returns to `_project_history`. Do not call it a second time in a run:
+        a replay longer than `_MAX_SEEDED_TURNS` seeds only its tail, so the
+        next call sees fewer turns than the replay, seeds again, and the reset
+        drops any turn a concurrent run appended meanwhile.
         """
 
         key = self._conversation_key(request, ctx)
@@ -600,21 +602,13 @@ class HarnessSupervisor:
             history = self._seed_history(request, key)
         return history
 
-    def _hydrate_history(
+    def _project_history(
         self,
-        request: UserRequest,
-        ctx: HarnessContext,
+        history: ConversationHistory | None,
         *,
         include_tool_calls: bool = False,
     ) -> list[BaseMessage]:
-        """Read prior turns from `ConversationStore` and trim them to fit the
-        token budget (via `trim_messages`).
-
-        Returns an empty list when:
-        - no `conversation_store` injected (Plan 12 deploys),
-        - request has no `conversation_id`,
-        - the store has no prior history for that id and the caller replayed
-          none either (first turn of a chat).
+        """Trim an already-seeded history to fit the budget for this route.
 
         This is the read-half of the `ConversationStore` contract — the
         write-half (append after each run) already lives at the bottom of
@@ -623,23 +617,14 @@ class HarnessSupervisor:
         (not turn count) because our synthesizer's long Markdown answers
         make per-turn cost wildly variable.
 
+        Empty when there is no history: no store injected (Plan 12 deploys),
+        no `conversation_id`, or a first turn nobody replayed into.
+
         `include_tool_calls` replays each turn's tool calls and tool results
         and draws on `conversation_tool_token_budget`, which is larger
         because a turn then costs what its tool envelopes cost. Only the
         agent loop may ask for it; see `to_messages`.
         """
-
-        return self._project_history(
-            self._seeded_history(request, ctx), include_tool_calls=include_tool_calls
-        )
-
-    def _project_history(
-        self,
-        history: ConversationHistory | None,
-        *,
-        include_tool_calls: bool = False,
-    ) -> list[BaseMessage]:
-        """Project an already-seeded history onto the budget for this route."""
 
         if history is None:
             return []
@@ -834,16 +819,19 @@ class HarnessSupervisor:
         return route.route == HarnessRoute.DATA_AGENTIC and self.agent_loop is not None
 
     def _tenant_may_use_data(self, ctx: HarnessContext) -> bool:
-        """Whether this tenant may take a data route at all.
+        """Whether both tenancy gates allow this tenant a data route.
 
-        `self.tenant_lock` is the lock the lifespan resolved, which prefers
-        the primary connection's own lock over the env override and the
-        profile default. Empty means the lifespan has not set one, so the
-        gate falls back to what it can see.
+        Two locks are in play and they can disagree. `self.tenant_lock` is the
+        one the lifespan resolved, which prefers the primary connection's own
+        lock; the loop re-gates with the env override and the profile default
+        only. Remapping on the strictly weaker of the two would either hand a
+        connection-locked datasource to another tenant, or turn a meta
+        question every tenant may ask into the loop's refusal. So both must
+        allow, and otherwise the route the router picked stands.
         """
 
-        if self.tenant_lock:
-            return ctx.tenant_id == self.tenant_lock
+        if self.tenant_lock and ctx.tenant_id != self.tenant_lock:
+            return False
         return tenancy_gate_decision(
             ctx=ctx,
             route=HarnessRoute.DATA_AGENTIC,
@@ -852,7 +840,7 @@ class HarnessSupervisor:
         ).allowed
 
     def _apply_thread_owner_override(
-        self, route: RouteResult, ctx: HarnessContext
+        self, route: RouteResult, request: UserRequest, ctx: HarnessContext
     ) -> RouteResult:
         """Send every turn to the agent loop once it is wired.
 
@@ -863,20 +851,17 @@ class HarnessSupervisor:
         invented. One seat owning the thread keeps one transcript, one model
         and one tool history.
 
-        Two routes stay off the loop: STORYTELLING_RUN, which has its own
-        module, and every route taken by a tenant the datasource is not
-        locked to, whose data routes the loop's own gate refuses — DATA_META
-        is all they may have.
-
-        The lock checked here is the supervisor's resolved one, which the
-        lifespan sets from the primary connection's `tenant_lock` when it
-        declares one. Asking the profile alone would miss that and hand a
-        connection-locked datasource's data routes to another tenant.
+        Three things stay off the loop. STORYTELLING_RUN, which has its own
+        module. A caller-chosen `mode`, which names the seat it wants and
+        would become a no-op for half its values if this rewrote it. And any
+        tenant either tenancy gate refuses: both have to allow the data route,
+        or a meta question every tenant may ask would be remapped into a
+        refusal by whichever gate is stricter.
         """
 
         if self.agent_loop is None or route.route in _THREAD_OWNER_EXEMPT:
             return route
-        if route.route == HarnessRoute.DATA_AGENTIC:
+        if route.route == HarnessRoute.DATA_AGENTIC or request.mode != "auto":
             return route
         if not self._tenant_may_use_data(ctx):
             return route

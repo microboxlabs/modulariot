@@ -189,6 +189,87 @@ async def test_a_native_tool_use_block_goes_with_its_dropped_call() -> None:
 
 
 @pytest.mark.asyncio
+async def test_thinking_blocks_are_not_stored() -> None:
+    """Thinking blocks are signed by the model that produced them, and the
+    conversation model is chosen per run, so a later turn on another model
+    must not replay a signature that is not its own."""
+
+    model = ScriptedModel(
+        [
+            AIMessage(
+                content=[
+                    {"type": "thinking", "thinking": "weighing it up", "signature": "s"},
+                    {"type": "text", "text": "6537 rows."},
+                ]
+            )
+        ]
+    )
+    delta = await _runner(model).run(
+        user_message="q",
+        ctx=_ctx(),
+        prior_messages=[],
+        progress=lambda e: None,
+    )
+    kinds = {
+        block.get("type")
+        for m in delta["messages"]
+        if isinstance(m, AIMessage) and isinstance(m.content, list)
+        for block in m.content
+        if isinstance(block, dict)
+    }
+    assert kinds == {"text"}
+
+
+@pytest.mark.asyncio
+async def test_a_thinking_only_message_is_dropped_whole() -> None:
+    """With thinking on, a capped reply can be [thinking, tool_use]. Pruning
+    the unanswered call leaves a message with nothing to say."""
+
+    model = ScriptedModel(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[{"name": "fake_kpi_summary", "args": {}, "id": f"c{i}"}],
+            )
+            for i in range(3)
+        ]
+        + [
+            AIMessage(
+                content=[
+                    {"type": "thinking", "thinking": "still going", "signature": "s"},
+                    {
+                        "type": "tool_use",
+                        "id": "never-run",
+                        "name": "fake_kpi_summary",
+                        "input": {},
+                    },
+                ],
+                tool_calls=[
+                    {"name": "fake_kpi_summary", "args": {}, "id": "never-run"}
+                ],
+            )
+        ]
+    )
+    delta = await _runner(model).run(
+        user_message="q",
+        ctx=_ctx(),
+        prior_messages=[],
+        progress=lambda e: None,
+    )
+    assert all(
+        isinstance(m, (HumanMessage, ToolMessage)) or m.content or m.tool_calls
+        for m in delta["messages"]
+    )
+    assert not [
+        block
+        for m in delta["messages"]
+        if isinstance(m, AIMessage) and isinstance(m.content, list)
+        for block in m.content
+        if isinstance(block, dict) and block.get("type") in ("thinking", "tool_use")
+    ]
+
+
+@pytest.mark.asyncio
 async def test_an_empty_assistant_message_is_not_stored() -> None:
     """A message with neither text nor a tool call is an empty turn, which
     the API refuses on the next request."""

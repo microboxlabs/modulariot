@@ -16,6 +16,7 @@ under the LLM's window.
 from __future__ import annotations
 
 import asyncio
+from collections import OrderedDict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Protocol
@@ -26,12 +27,16 @@ from langchain_core.messages import (
     HumanMessage,
     trim_messages,
 )
+from langchain_core.messages.utils import count_tokens_approximately
 
 _DEFAULT_SUMMARIZE_AT_TURNS = 10
 # Turns left verbatim after a compaction. The intent router reads the
 # last turns to place a follow-up; a fully cleared history would leave
 # the request right after a compaction with nothing to read.
 _DEFAULT_KEEP_RECENT_TURNS = 2
+# Conversations held at once, least-recently-used evicted first. Matches the
+# advisor transcript cap in `agent_seats`.
+_DEFAULT_MAX_CONVERSATIONS = 512
 # Token budget for the supervisor's hydration call. Sized against
 # Haiku-4-5's 200K context window (the smallest model in our pool).
 # Higher = better multi-turn continuity at more tokens per request.
@@ -94,14 +99,31 @@ class InMemoryConversationStore:
         *,
         summarize_at_turns: int = _DEFAULT_SUMMARIZE_AT_TURNS,
         keep_recent_turns: int = _DEFAULT_KEEP_RECENT_TURNS,
+        max_conversations: int = _DEFAULT_MAX_CONVERSATIONS,
     ) -> None:
-        self._histories: dict[str, ConversationHistory] = {}
+        self._histories: OrderedDict[str, ConversationHistory] = OrderedDict()
         self._summarize_at_turns = summarize_at_turns
         self._keep_recent_turns = max(0, keep_recent_turns)
+        self._max_conversations = max(1, max_conversations)
         self._compactions: dict[str, asyncio.Lock] = {}
 
     def get(self, conversation_id: str) -> ConversationHistory | None:
-        return self._histories.get(conversation_id)
+        history = self._histories.get(conversation_id)
+        if history is not None:
+            self._histories.move_to_end(conversation_id)
+        return history
+
+    def _evict(self) -> None:
+        """Drop the conversations idle longest once the cap is passed.
+
+        A turn holds its tool envelopes now, so a conversation costs orders of
+        magnitude more than the two strings it used to be, and a long-lived
+        pod accumulates one entry per chat that ever ran through it.
+        """
+
+        while len(self._histories) > self._max_conversations:
+            evicted, _ = self._histories.popitem(last=False)
+            self._compactions.pop(evicted, None)
 
     def reset(self, conversation_id: str) -> None:
         """Forgets a conversation, so the next append starts a fresh history.
@@ -118,6 +140,8 @@ class InMemoryConversationStore:
         no turns has nothing for `append` to attach to."""
 
         self._histories[history.conversation_id] = history
+        self._histories.move_to_end(history.conversation_id)
+        self._evict()
 
     def append(self, conversation_id: str, turn: ConversationTurn) -> None:
         history = self._histories.get(conversation_id)
@@ -125,6 +149,8 @@ class InMemoryConversationStore:
             history = ConversationHistory(conversation_id=conversation_id)
             self._histories[conversation_id] = history
         history.turns.append(turn)
+        self._histories.move_to_end(conversation_id)
+        self._evict()
 
     async def summarize_if_needed(
         self,
@@ -212,25 +238,50 @@ def to_messages(
         return []
     if not history.turns and not history.summary:
         return []
-    recent = _trim(_project(history, include_tool_calls), max_tokens)
+    recent = _trim(_project(history.turns, include_tool_calls, max_tokens), max_tokens)
     if include_tool_calls and not recent:
-        recent = _trim(_project(history, False), max_tokens)
+        recent = _trim(_text_pairs(history.turns), max_tokens)
     if not history.summary:
         return recent
     return [_summary_message(history.summary), *recent]
 
 
-def _project(
-    history: ConversationHistory, include_tool_calls: bool
-) -> list[BaseMessage]:
+def _text_pairs(turns: list[ConversationTurn]) -> list[BaseMessage]:
     msgs: list[BaseMessage] = []
-    for turn in history.turns:
-        if include_tool_calls and turn.messages:
-            msgs.extend(turn.messages)
-            continue
+    for turn in turns:
         msgs.append(HumanMessage(content=turn.user_message))
         msgs.append(AIMessage(content=turn.assistant_answer))
     return msgs
+
+
+def _project(
+    turns: list[ConversationTurn], include_tool_calls: bool, max_tokens: int
+) -> list[BaseMessage]:
+    """Turns as messages, the newest keeping their tool history.
+
+    Tool envelopes cost far more than the answer they produced, so a budget
+    that holds ten text pairs holds about six turns of tool history. Spending
+    it newest-first and letting the older turns fall back to their text keeps
+    the conversation's full span: detail degrades, turns do not disappear.
+    """
+
+    if not include_tool_calls:
+        return _text_pairs(turns)
+    full: list[BaseMessage] = []
+    used = 0
+    cut = len(turns)
+    for index in range(len(turns) - 1, -1, -1):
+        turn = turns[index]
+        msgs = list(turn.messages) or _text_pairs([turn])
+        cost = count_tokens_approximately(msgs)
+        # The newest turn goes in whatever it costs; the final trim and the
+        # all-text fallback handle one turn too large to replay.
+        if full and used + cost > max_tokens:
+            break
+        full = [*msgs, *full]
+        used += cost
+        cut = index
+    return [*_text_pairs(turns[:cut]), *full]
 
 
 def _trim(msgs: list[BaseMessage], max_tokens: int) -> list[BaseMessage]:

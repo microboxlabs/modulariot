@@ -78,6 +78,20 @@ def parse_blocks(raw: str) -> list[AnswerBlock]:
         raise ValueError(f"invalid blocks: {exc}") from exc
 
 
+# Nesting deep enough to exhaust the stack is not something a model produces on
+# purpose, so a handful of recovery attempts is plenty. The cap bounds the cost
+# of a shape the bracket-run skip cannot step over in one go, such as `[1,[1,[1…`.
+_MAX_DEEP_FAILURES = 4
+
+
+def _after_bracket_run(text: str, start: int) -> int:
+    """The next `[` after the run of brackets and whitespace at `start`."""
+    i = start
+    while i < len(text) and (text[i] == "[" or text[i].isspace()):
+        i += 1
+    return text.find("[", i)
+
+
 def _salvage_trailing_blocks(text: str) -> list[AnswerBlock] | None:
     """The block array a model appended after narrating, or None.
 
@@ -93,32 +107,38 @@ def _salvage_trailing_blocks(text: str) -> list[AnswerBlock] | None:
         return None
     decoder = json.JSONDecoder()
     start = stripped.find("[")
-    try:
-        while start != -1:
-            try:
-                data, end = decoder.raw_decode(stripped, start)
-            except json.JSONDecodeError:
-                start = stripped.find("[", start + 1)
-                continue
-            if end == len(stripped) and isinstance(data, list):
-                try:
-                    return _BLOCKS_ADAPTER.validate_python(data)
-                except ValidationError:
-                    return None
+    deep_failures = 0
+    while start != -1:
+        try:
+            data, end = decoder.raw_decode(stripped, start)
+        except json.JSONDecodeError:
             start = stripped.find("[", start + 1)
-    except RecursionError:
-        # `raw_decode` recurses per nesting level and blows the stack somewhere
-        # past 2,000. Give up on the whole scan rather than retrying from the
-        # next bracket: in `[[[[…` every later start recurses just as deep, so
-        # continuing would pay that cost once per character.
-        return None
+            continue
+        except RecursionError:
+            # `raw_decode` recurses per nesting level and blows the stack past
+            # roughly 2,000. Resume after the bracket run that caused it, not
+            # one character along: in `[[[[…` the next character opens an array
+            # barely shallower, so stepping would recurse once per character.
+            deep_failures += 1
+            if deep_failures > _MAX_DEEP_FAILURES:
+                return None
+            start = _after_bracket_run(stripped, start)
+            continue
+        if end == len(stripped) and isinstance(data, list):
+            try:
+                return _BLOCKS_ADAPTER.validate_python(data)
+            except ValidationError:
+                return None
+        start = stripped.find("[", start + 1)
     return None
 
 
 def to_json_blocks(text: str) -> str:
     """Return a clean JSON array string of blocks. Never raises.
 
-    On any parse/validate failure, wrap the raw text as a single markdown block.
+    A clean answer parses directly. One a model narrated before — prose, then
+    the array — keeps the array and drops the prose. Anything else, including
+    text with no array in it at all, is wrapped as a single markdown block.
     """
     try:
         blocks = parse_blocks(text)

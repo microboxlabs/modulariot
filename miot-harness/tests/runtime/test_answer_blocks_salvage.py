@@ -108,3 +108,26 @@ def test_nesting_deep_enough_to_blow_the_stack_still_falls_back():
     blocks = _blocks(to_json_blocks(raw))
 
     assert blocks == [{"type": "markdown", "value": raw}]
+
+
+def test_a_real_array_after_a_stack_blowing_one_is_still_found():
+    """The deep array is not the answer — it does not reach the end. Giving up
+    on it must not give up on the array that does."""
+
+    good = json.dumps([{"type": "markdown", "value": "the real answer"}])
+    raw = "narration\n" + "[" * 4_000 + "]" * 4_000 + "\n" + good
+
+    blocks = _blocks(to_json_blocks(raw))
+
+    assert blocks == [{"type": "markdown", "value": "the real answer"}]
+
+
+def test_many_deep_candidates_give_up_rather_than_grinding():
+    """`[1,[1,[1…` cannot be stepped over in one skip, so the retry budget is
+    what bounds the work. It still falls back rather than raising."""
+
+    raw = "narration\n" + "[1," * 3_000 + "]" * 3_000
+
+    blocks = _blocks(to_json_blocks(raw))
+
+    assert blocks == [{"type": "markdown", "value": raw}]

@@ -699,6 +699,27 @@ class CalendarSyncExecutorTest {
         assertEquals(21, client.lastCreateHour, "21:00Z is 21:00 in the clock's own zone");
     }
 
+    /**
+     * An unparseable ETD can never place a booking, so it is a permanent skip — and it
+     * has to stay one while the calendar service is unhealthy. Resolving the zone first
+     * would let a 500 on the timezone GET throw, turning a no-op into a job that retries
+     * a payload no retry can fix.
+     */
+    @Test
+    void ensureUnparseableEtdSkipsWithoutTheCalendarTimezoneLookup() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();
+        client.timezoneThrows = new CalendarBookingsHttpException(500, "calendar down");
+        var payload = ensurePayload("PLANNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_ETD, "not-a-datetime");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
+        assertEquals(0, client.createCalls);
+        assertEquals(0, client.timezoneCalls, "a malformed ETD must not pay for the lookup");
+    }
+
     /** A planner-chosen slot is already wall-clock — it must not pay for the lookup. */
     @Test
     void ensureExplicitSlotSkipsTheCalendarTimezoneLookup() {
@@ -955,6 +976,7 @@ class CalendarSyncExecutorTest {
         // Null models a calendar with no usable timezone (fallback path).
         ZoneId calendarTimezone;
         int timezoneCalls;
+        RuntimeException timezoneThrows;
 
         int moveCalls;
         UUID lastMoveBookingId;
@@ -1068,6 +1090,9 @@ class CalendarSyncExecutorTest {
         @Override
         public Optional<ZoneId> getCalendarTimezone(UUID calendarId) {
             timezoneCalls++;
+            if (timezoneThrows != null) {
+                throw timezoneThrows;
+            }
             return Optional.ofNullable(calendarTimezone);
         }
     }

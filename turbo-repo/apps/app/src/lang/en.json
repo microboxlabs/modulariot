@@ -1430,6 +1430,33 @@
       "subtitle": "The trip you are looking for does not exist or is not available."
     },
     "userSettings": {
+      "selectables": {
+        "title": "Selectables",
+        "description": "Define the reusable option lists that back the selectors across the app — such as \"Who to call\" or \"Call result\".",
+        "newSelectable": "New selectable",
+        "empty": "No selectables defined yet. Create one to get started.",
+        "nameLabel": "Name",
+        "namePlaceholder": "e.g. Who to call",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "What this list is used for",
+        "modeLabel": "Selection",
+        "modeSingle": "Single choice",
+        "modeMultiple": "Multiple choice",
+        "optionsTitle": "Options",
+        "optionNamePlaceholder": "Option name",
+        "optionDescPlaceholder": "Option description (optional)",
+        "addOption": "Add option",
+        "removeOption": "Remove option",
+        "removeSelectable": "Delete selectable",
+        "duplicate": "Duplicate",
+        "optionsCount": "{count} options",
+        "savedHint": "Prototype: changes are saved in this browser only.",
+        "resetSeed": "Restore defaults",
+        "editTitle": "Edit selectable",
+        "edit": "Edit",
+        "cancel": "Cancel",
+        "save": "Save"
+      },
       "platform": {
         "title": "Platform",
         "description": "Settings that belong to no organization: they apply across every domain and account.",
@@ -1785,7 +1812,8 @@
         "connections": "Connections",
         "harness": "Harness",
         "platform": "Platform",
-        "symptomRules": "Symptom rules"
+        "symptomRules": "Symptom rules",
+        "selectables": "Selectables"
       },
       "symptoms": {
         "config": {
@@ -1889,7 +1917,8 @@
         "general": "General",
         "dataSources": "Data Sources",
         "credentials": "Credentials",
-        "symptomRules": "Symptom rules"
+        "symptomRules": "Symptom rules",
+        "selectables": "Selectables"
       },
       "credentials": {
         "title": "Credentials",
@@ -2546,7 +2575,8 @@
         "subtitle3": "Client System Validation",
         "subtitle4": "GPS Validation",
         "platform": "Platform",
-        "symptomRules": "Symptom rules"
+        "symptomRules": "Symptom rules",
+        "selectables": "Selectables"
       }
     },
     "calendar": {
@@ -3568,6 +3598,7 @@
     "view_image": "View image",
     "share": "Share",
     "map-view": "Map view",
+    "prototipe-map-view": "Map view (prototype)",
     "restablished_symptoms": "Restablished symptoms",
     "under_treatment": "Symptoms being treated",
     "symptoms_being_treated": "Symptoms being treated",
@@ -3734,6 +3765,37 @@
     "result_no_answer": "No answer",
     "result_voicemail": "Voicemail / phone off",
     "call_note": "Call note",
+    "proto_section_general": "General information",
+    "proto_section_who": "Who to call",
+    "proto_section_message": "Message to communicate",
+    "proto_section_results": "Results",
+    "proto_section_tags": "Tags",
+    "proto_section_actions": "Actions",
+    "proto_layout_compact": "Compact",
+    "proto_layout_spacious": "Spacious",
+    "proto_general_hint": "Trip and service context for this symptom.",
+    "proto_who_hint": "Pick the recipient. Anyone other than the driver is logged as an operator escalation.",
+    "proto_message_hint": "What the operator will communicate on the call.",
+    "proto_results_hint": "Outcome of the call and any follow-up note.",
+    "proto_tags_hint": "Optional labels to classify this treatment.",
+    "proto_configure_options": "Configure options",
+    "proto_selectable_search_placeholder": "Search selectables…",
+    "proto_selectable_create": "Create selectable",
+    "proto_selectable_none": "No selectables found",
+    "proto_selectable_unassigned": "No options assigned",
+    "proto_tags_placeholder": "Select tags…",
+    "proto_tags_summary": "{count} tags selected",
+    "proto_multi_summary": "{count} selected",
+    "proto_tags_empty": "No tags configured",
+    "proto_back": "Back",
+    "proto_density_cards": "Cards",
+    "proto_density_compact": "Compact",
+    "proto_section_reason": "Reason",
+    "proto_section_scope": "Scope",
+    "proto_section_detail": "Detail",
+    "proto_section_confirm": "Confirmation",
+    "proto_invalidate_semantics": "The symptom is not real, it comes from bad data or a miscalibrated rule. If the event is real but doesn't need managing, use Ignore condition instead.",
+    "proto_ignore_semantics": "The event is real, but it doesn't need to be managed. If the symptom itself isn't real, because of bad data or a miscalibrated rule, use Invalidate symptom instead.",
     "escalate_offer": "Per the symptom parametrization, with no answer the declared escalation applies:",
     "escalate_to": "Escalate to",
     "register_escalation": "Record the escalation in the treatment",

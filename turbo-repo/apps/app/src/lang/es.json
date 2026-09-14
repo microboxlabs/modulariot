@@ -1430,6 +1430,33 @@
       "subtitle": "El viaje que estás buscando no existe o no se encuentra disponible."
     },
     "userSettings": {
+      "selectables": {
+        "title": "Seleccionables",
+        "description": "Define las listas de opciones reutilizables que alimentan los selectores de la app — como \"A quién llamar\" o \"Resultado de la llamada\".",
+        "newSelectable": "Nuevo seleccionable",
+        "empty": "Aún no hay seleccionables definidos. Crea uno para empezar.",
+        "nameLabel": "Nombre",
+        "namePlaceholder": "ej. A quién llamar",
+        "descriptionLabel": "Descripción",
+        "descriptionPlaceholder": "Para qué se usa esta lista",
+        "modeLabel": "Selección",
+        "modeSingle": "Selección única",
+        "modeMultiple": "Selección múltiple",
+        "optionsTitle": "Opciones",
+        "optionNamePlaceholder": "Nombre de la opción",
+        "optionDescPlaceholder": "Descripción de la opción (opcional)",
+        "addOption": "Agregar opción",
+        "removeOption": "Quitar opción",
+        "removeSelectable": "Eliminar seleccionable",
+        "duplicate": "Duplicar",
+        "optionsCount": "{count} opciones",
+        "savedHint": "Prototipo: los cambios se guardan solo en este navegador.",
+        "resetSeed": "Restaurar predeterminados",
+        "editTitle": "Editar seleccionable",
+        "edit": "Editar",
+        "cancel": "Cancelar",
+        "save": "Guardar"
+      },
       "platform": {
         "title": "Plataforma",
         "description": "Ajustes que no pertenecen a ninguna organización: valen para todos los dominios y cuentas.",
@@ -1785,7 +1812,8 @@
         "connections": "Conexiones",
         "harness": "Harness",
         "platform": "Plataforma",
-        "symptomRules": "Reglas de síntomas"
+        "symptomRules": "Reglas de síntomas",
+        "selectables": "Seleccionables"
       },
       "symptoms": {
         "config": {
@@ -1889,7 +1917,8 @@
         "general": "General",
         "dataSources": "Fuentes de Datos",
         "credentials": "Credenciales",
-        "symptomRules": "Reglas de síntomas"
+        "symptomRules": "Reglas de síntomas",
+        "selectables": "Seleccionables"
       },
       "credentials": {
         "title": "Credenciales",
@@ -2546,7 +2575,8 @@
         "createDashboard": "Nuevo dashboard",
         "closePanel": "Cerrar panel",
         "platform": "Plataforma",
-        "symptomRules": "Reglas de síntomas"
+        "symptomRules": "Reglas de síntomas",
+        "selectables": "Seleccionables"
       }
     },
     "calendar": {
@@ -3569,6 +3599,7 @@
     "share": "Compartir",
     "symptoms-list": "Lista de síntomas",
     "map-view": "Vista de mapa",
+    "prototipe-map-view": "Vista de mapa (prototipo)",
     "restablished_symptoms": "Síntomas restablecidos",
     "under_treatment": "Síntomas siendo tratados",
     "symptoms_being_treated": "Síntomas siendo tratados",
@@ -3734,6 +3765,37 @@
     "result_no_answer": "No contesta",
     "result_voicemail": "Buzón de voz / apagado",
     "call_note": "Nota de la llamada",
+    "proto_section_general": "Información general",
+    "proto_section_who": "A quién llamar",
+    "proto_section_message": "Mensaje a comunicar",
+    "proto_section_results": "Resultados",
+    "proto_section_tags": "Etiquetas",
+    "proto_section_actions": "Acciones",
+    "proto_layout_compact": "Compacto",
+    "proto_layout_spacious": "Amplio",
+    "proto_general_hint": "Contexto del viaje y del servicio para este síntoma.",
+    "proto_who_hint": "Elige el destinatario. Cualquiera distinto del conductor se registra como escalamiento del operador.",
+    "proto_message_hint": "Lo que el operador comunicará en la llamada.",
+    "proto_results_hint": "Resultado de la llamada y nota de seguimiento.",
+    "proto_tags_hint": "Etiquetas opcionales para clasificar este tratamiento.",
+    "proto_configure_options": "Configurar opciones",
+    "proto_selectable_search_placeholder": "Buscar seleccionables…",
+    "proto_selectable_create": "Crear seleccionable",
+    "proto_selectable_none": "No se encontraron seleccionables",
+    "proto_selectable_unassigned": "Sin opciones asignadas",
+    "proto_tags_placeholder": "Seleccionar etiquetas…",
+    "proto_tags_summary": "{count} etiquetas seleccionadas",
+    "proto_multi_summary": "{count} seleccionados",
+    "proto_tags_empty": "No hay etiquetas configuradas",
+    "proto_back": "Volver",
+    "proto_density_cards": "Tarjetas",
+    "proto_density_compact": "Compacto",
+    "proto_section_reason": "Motivo",
+    "proto_section_scope": "Alcance",
+    "proto_section_detail": "Detalle",
+    "proto_section_confirm": "Confirmación",
+    "proto_invalidate_semantics": "El síntoma no es real, viene de un dato erróneo o de una regla mal calibrada. Si el evento sí es real pero no amerita gestión, usa Ignorar condición.",
+    "proto_ignore_semantics": "El evento es real, pero no necesita gestión. Si el síntoma en sí no es real, por un dato erróneo o una regla mal calibrada, usa Invalidar síntoma.",
     "escalate_offer": "Según la parametrización del síntoma, al no obtener respuesta corresponde escalar:",
     "escalate_to": "Escalar a",
     "register_escalation": "Registrar el escalamiento en el tratamiento",

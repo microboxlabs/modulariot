@@ -437,6 +437,13 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
      * the next-available slot from the ETD at run time. Returns {@code null} when
      * there is no slot intent (no explicit slot and no/unparseable ETD); throws
      * (retryable) when an ETD is present but the horizon contains no real slot.
+     *
+     * <p>The auto-pick runs on the calendar's clock (see {@link #calendarClock}):
+     * both the ETD and {@code now} are compared against wall-clock slot times, so
+     * reading them in the runtime's own zone would search from hours later than the
+     * departure and skip past the slots the operator expects. Resolved after the
+     * explicit-slot exit and only when an ETD is present, so a planner-chosen slot
+     * never pays for the extra calendar lookup.
      */
     private SlotInfo resolveSlotForCreate(Map<String, Object> payload, UUID calendarId, String resourceId) {
         SlotInfo explicit = resolveExplicitSlot(payload, calendarId);
@@ -447,12 +454,13 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         if (etdRaw == null) {
             return null;
         }
-        LocalDateTime etd = parseEtd(etdRaw);
+        Clock zonedClock = calendarClock(calendarId);
+        LocalDateTime etd = parseEtd(etdRaw, zonedClock.getZone());
         if (etd == null) {
             LOG.warnf("calendar_sync ensure: unparseable etd '%s' for %s — skipping create", etdRaw, resourceId);
             return null;
         }
-        return pickSlotFromEtd(etd, calendarId, resourceId);
+        return pickSlotFromEtd(etd, zonedClock, calendarId, resourceId);
     }
 
     /**
@@ -461,8 +469,8 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
      * create as an explicit overbooking request. CLOSED slots and generated
      * OVERFLOW placeholders remain non-bookable.
      */
-    private SlotInfo pickSlotFromEtd(LocalDateTime etd, UUID calendarId, String resourceId) {
-        LocalDateTime now = LocalDateTime.now(clock);
+    private SlotInfo pickSlotFromEtd(LocalDateTime etd, Clock zonedClock, UUID calendarId, String resourceId) {
+        LocalDateTime now = LocalDateTime.now(zonedClock);
         LocalDateTime searchStart = etd.isAfter(now) ? etd : now;
         LocalDateTime searchEnd = searchStart.plusHours(SLOT_SEARCH_WINDOW_HOURS);
         List<CalendarBookingsClient.AvailableSlot> slots =
@@ -533,12 +541,19 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
     }
 
     /**
-     * Slot times are wall-clock in the calendar's timezone, so the cancel
-     * future-vs-past decision must be taken there — the runtime's own zone
-     * (UTC in the containers) can run hours ahead and misclassify a
-     * still-future slot as past, patching CANCELLED (a ghost row the planning
-     * grid keeps showing) where a delete was due. Falls back to the executor
-     * clock's zone when the calendar has no usable timezone.
+     * Slot times are wall-clock in the calendar's timezone, so any decision that
+     * compares a slot against a real moment must be taken there — the runtime's own
+     * zone (UTC in the containers) runs hours ahead. Two callers:
+     * <ul>
+     *   <li><b>Cancel.</b> The future-vs-past decision; in the runtime zone a
+     *       still-future slot is misclassified as past, patching CANCELLED (a ghost
+     *       row the planning grid keeps showing) where a delete was due.
+     *   <li><b>ETD auto-pick.</b> The search start; in the runtime zone an evening
+     *       departure is searched from hours later and lands past the day's last
+     *       bookable window, rolling the booking onto the next day.
+     * </ul>
+     * Falls back to the executor clock's zone when the calendar has no usable
+     * timezone.
      */
     private Clock calendarClock(UUID calendarId) {
         if (calendarId == null) {
@@ -640,14 +655,22 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
                 || booking.slotMinutes() != slot.minutes();
     }
 
-    /** Accepts an offset datetime ({@code …+00:00}/{@code …Z}) or a local one; null if neither parses. */
-    private static LocalDateTime parseEtd(String raw) {
+    /**
+     * Accepts an offset datetime ({@code …+00:00}/{@code …Z}) or a local one; null if
+     * neither parses. An offset datetime names an instant, and is read in {@code zone}
+     * — the calendar's — because the slot times it will be matched against are
+     * wall-clock there. This is the live shape: ECM stamps the ETD from its own
+     * {@code ZoneId.systemDefault()}, so a correct instant arrives carrying the
+     * producer's offset (UTC in the containers), not the calendar's. A bare local
+     * datetime is already wall-clock and is taken as written.
+     */
+    private static LocalDateTime parseEtd(String raw, ZoneId zone) {
         String text = raw.trim();
         if (text.isEmpty()) {
             return null;
         }
         try {
-            return OffsetDateTime.parse(text).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+            return OffsetDateTime.parse(text).atZoneSameInstant(zone).toLocalDateTime();
         } catch (RuntimeException ignored) {
             // fall through to local-datetime interpretation
         }

@@ -144,6 +144,73 @@ def _compose_human(user_message: str, reminders: list[str]) -> HumanMessage:
     return HumanMessage(content=f"{blocks}\n\n{user_message}")
 
 
+def _turn_transcript(
+    messages: list[BaseMessage], *, user_message: str, history_len: int
+) -> list[BaseMessage]:
+    """The turn as the next turn should see it.
+
+    `messages` is [system, *history, composed_human, ...turn]. The system
+    message and the prior history are already held elsewhere, and the
+    composed human carries per-request <system-reminder> blocks (a skill
+    body) that must not be replayed, so it is swapped for the plain user
+    message. The turn-cap nudge is dropped for the same reason.
+
+    A tool call left unanswered goes with them. The turn cap breaks the loop
+    on the model's reply whether or not that reply asked for more tools, so
+    the last message can carry a tool_use that no tool_result follows — which
+    the API rejects on the next request.
+    """
+    turn = [
+        msg
+        for msg in messages[history_len + 2 :]
+        if not (isinstance(msg, HumanMessage) and msg.content == _TURN_CAP_NUDGE)
+    ]
+    answered = {msg.tool_call_id for msg in turn if isinstance(msg, ToolMessage)}
+    kept: list[BaseMessage] = []
+    for msg in turn:
+        if not isinstance(msg, AIMessage):
+            kept.append(msg)
+            continue
+        storable = _storable(msg, answered)
+        if storable is not None:
+            kept.append(storable)
+    return [HumanMessage(content=user_message), *kept]
+
+
+def _storable(msg: AIMessage, answered: set[str]) -> AIMessage | None:
+    """`msg` as the next turn may replay it, or None if nothing is left.
+
+    Two kinds of block go. A tool call no tool result answered: a streamed
+    Anthropic reply carries its calls both in `tool_calls` and as `tool_use`
+    blocks, and replaying one the API finds no `tool_result` for is rejected.
+    And every thinking block: they are signed by the model that produced them,
+    while the conversation model is chosen per run, so a later turn on another
+    model would replay a signature that is not its own.
+
+    None when only thinking blocks remain, or nothing does. An assistant
+    message with no text and no call is an empty turn, also rejected.
+    """
+    calls = [c for c in msg.tool_calls if c.get("id") in answered]
+    content = msg.content
+    if isinstance(content, list):
+        content = [block for block in content if not _is_dropped_block(block, answered)]
+    if not calls and not content:
+        return None
+    dropped = isinstance(msg.content, list) and len(content) != len(msg.content)
+    if len(calls) == len(msg.tool_calls) and not dropped:
+        return msg
+    return msg.model_copy(update={"tool_calls": calls, "content": content})
+
+
+def _is_dropped_block(block: Any, answered: set[str]) -> bool:
+    if not isinstance(block, dict):
+        return False
+    kind = block.get("type")
+    if kind in ("thinking", "redacted_thinking"):
+        return True
+    return kind == "tool_use" and block.get("id") not in answered
+
+
 def _with_tail_marker(messages: list[BaseMessage]) -> list[BaseMessage]:
     """Copy of `messages` with `cache_control` on the last markable block.
 
@@ -468,7 +535,14 @@ class AgentLoopRunner:
                 data={"length": len(answer), "turns": len(usage_log)},
             )
         )
-        return {"answer": answer, "evidence": evidence, "usage_log": usage_log}
+        return {
+            "answer": answer,
+            "evidence": evidence,
+            "usage_log": usage_log,
+            "messages": _turn_transcript(
+                messages, user_message=user_message, history_len=len(history)
+            ),
+        }
 
     async def _execute_tool_call(
         self,

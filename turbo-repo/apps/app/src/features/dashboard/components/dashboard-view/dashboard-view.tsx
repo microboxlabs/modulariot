@@ -259,6 +259,14 @@ export function DashboardView() {
     return fitLayoutToCols(items, cols);
   }, [widgets, editMode, cols]);
 
+  // Persist only on drag/resize *stop*, not onLayoutChange: react-grid-layout
+  // also fires onLayoutChange from prop-driven re-syncs (e.g. a cols change on
+  // window resize, or mount) with no user interaction involved. Since the
+  // `layout` prop is now the fitted/clamped view in both modes, using
+  // onLayoutChange here would silently persist that clamped layout over the
+  // stored positions any time the viewport changes. onDragStop/onResizeStop
+  // only fire from an actual completed pointer drag/resize (see the
+  // container dashlet's nested grid for the same pattern).
   const handleLayoutChange = useCallback(
     (newLayout: Layout) => {
       if (!editMode) return;
@@ -423,7 +431,8 @@ export function DashboardView() {
                     handles: ["se"],
                   }}
                   compactor={verticalCompactor}
-                  onLayoutChange={handleLayoutChange}
+                  onDragStop={(layout) => handleLayoutChange(layout)}
+                  onResizeStop={(layout) => handleLayoutChange(layout)}
                   autoSize={true}
                 >
                   {widgets.map((widget) => (

@@ -16,6 +16,7 @@ export {
   NO_CAPABILITIES,
   type DashboardCapabilities,
   type DashboardPrincipalKind,
+  type AssertedClaims,
   type DashboardPrincipal,
   type DashboardIdentity,
   type IdentityResolver,

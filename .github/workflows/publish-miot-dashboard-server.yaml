@@ -57,7 +57,15 @@ jobs:
           # miot-dashboard-server@v* tag; otherwise fall back to the
           # triggering ref (the push tag, or the ref the dispatch ran from)
           # so an arbitrary ref can't be published.
-          ref: ${{ startsWith(inputs.tag, 'miot-dashboard-server@v') && inputs.tag || github.ref }}
+          #
+          # `refs/tags/` is explicit because for an unqualified ref
+          # actions/checkout looks for a branch BEFORE a tag. A branch named
+          # `miot-dashboard-server@v0.1.0` would otherwise be published as
+          # though it were the tag, and the check below would not notice: it
+          # reads the ref's text and package.json, both of which a branch can
+          # satisfy. A dispatch naming a tag that does not exist now fails in
+          # checkout rather than publishing something else.
+          ref: ${{ startsWith(inputs.tag, 'miot-dashboard-server@v') && format('refs/tags/{0}', inputs.tag) || github.ref }}
           persist-credentials: false
 
       - uses: actions/setup-node@v6
@@ -72,9 +80,16 @@ jobs:
       # the registry keeps whichever version the manifest happened to carry.
       - name: Check the tag names the version being published
         id: version
+        env:
+          # Through the environment rather than interpolated into the script.
+          # The dispatch input is text someone else wrote, and bash runs a
+          # command substitution inside double quotes, so a tag ending in
+          # `$(...)` would execute before anything here had a chance to
+          # validate it.
+          RELEASE_REF: ${{ startsWith(inputs.tag, 'miot-dashboard-server@v') && inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
-          ref="${{ startsWith(inputs.tag, 'miot-dashboard-server@v') && inputs.tag || github.ref_name }}"
+          ref="$RELEASE_REF"
           case "$ref" in
             "$TAG_PREFIX"*) ;;
             *)
@@ -90,6 +105,10 @@ jobs:
             exit 1
           fi
           echo "version=$declared" >> "$GITHUB_OUTPUT"
+          # The summary reports this rather than github.ref_name, which on a
+          # manual dispatch names the ref the dispatch ran from (`trunk`),
+          # not the tag being published.
+          echo "tag=$ref" >> "$GITHUB_OUTPUT"
           echo "Publishing $PACKAGE_NAME@$declared"
 
       # Publish from a fresh, lockfile-verified install. No restorable
@@ -232,6 +251,6 @@ jobs:
           {
             echo "# $PACKAGE_NAME@${{ steps.version.outputs.version }}"
             echo ""
-            echo "- Published from tag \`${{ github.ref_name }}\`"
+            echo "- Published from tag \`${{ steps.version.outputs.tag }}\`"
             echo "- Entry points resolved from the installed tarball, binary answered /livez, /readyz and 401"
           } >> "$GITHUB_STEP_SUMMARY"

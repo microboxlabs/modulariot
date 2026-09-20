@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.core.api;
 
 import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.BeanParam;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -25,10 +26,10 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
  * model rather than the other way round. See
  * {@link DashboardProxyResource#scopeIdFor}.
  *
- * <p>{@link DashboardProxyResource} forwards the caller's bearer token
- * verbatim, exactly as {@link HarnessProxyResource} does: the dashboard server
- * verifies it itself and re-derives the caller, so the proxy asserts no
- * identity and there is nothing for it to be trusted about.
+ * <p>The caller's bearer token is forwarded verbatim and the dashboard server
+ * verifies it itself. {@link DashboardAssertion} carries the membership this
+ * modulith already resolved, so the upstream does not ask again. It is empty
+ * unless {@code miot.dashboards.proxy-key} is set.
  *
  * <p>Methods return {@code Uni<Response>} so upstream status codes reach the
  * caller unchanged — a stale write is a 409, and a dashboard the caller may
@@ -41,11 +42,18 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 @Path("/tenants/{tenantId}/scopes/{scopeId}/dashboards")
 public interface DashboardClient {
 
+    String PROXY_KEY_HEADER = "X-Miot-Proxy-Key";
+    String ASSERTED_USER_HEADER = "X-Miot-Asserted-User";
+    String ASSERTED_TENANT_HEADER = "X-Miot-Asserted-Tenant";
+    String ASSERTED_SCOPE_HEADER = "X-Miot-Asserted-Scope";
+    String ASSERTED_ROLE_HEADER = "X-Miot-Asserted-Role";
+
     @GET
     Uni<Response> list(
             @PathParam("tenantId") String tenantId,
             @PathParam("scopeId") String scopeId,
-            @HeaderParam("Authorization") String authorization);
+            @HeaderParam("Authorization") String authorization,
+            @BeanParam DashboardAssertion assertion);
 
     @GET
     @Path("/{slug}")
@@ -53,7 +61,8 @@ public interface DashboardClient {
             @PathParam("tenantId") String tenantId,
             @PathParam("scopeId") String scopeId,
             @PathParam("slug") String slug,
-            @HeaderParam("Authorization") String authorization);
+            @HeaderParam("Authorization") String authorization,
+            @BeanParam DashboardAssertion assertion);
 
     /**
      * {@code If-Match} carries the integer revision the caller believes it is
@@ -69,6 +78,7 @@ public interface DashboardClient {
             @PathParam("slug") String slug,
             @HeaderParam("Authorization") String authorization,
             @HeaderParam("If-Match") String ifMatch,
+            @BeanParam DashboardAssertion assertion,
             Map<String, Object> body);
 
     @DELETE
@@ -77,7 +87,8 @@ public interface DashboardClient {
             @PathParam("tenantId") String tenantId,
             @PathParam("scopeId") String scopeId,
             @PathParam("slug") String slug,
-            @HeaderParam("Authorization") String authorization);
+            @HeaderParam("Authorization") String authorization,
+            @BeanParam DashboardAssertion assertion);
 
     @GET
     @Path("/{slug}/capabilities")
@@ -85,7 +96,8 @@ public interface DashboardClient {
             @PathParam("tenantId") String tenantId,
             @PathParam("scopeId") String scopeId,
             @PathParam("slug") String slug,
-            @HeaderParam("Authorization") String authorization);
+            @HeaderParam("Authorization") String authorization,
+            @BeanParam DashboardAssertion assertion);
 
     @GET
     @Path("/{slug}/permissions")
@@ -93,7 +105,8 @@ public interface DashboardClient {
             @PathParam("tenantId") String tenantId,
             @PathParam("scopeId") String scopeId,
             @PathParam("slug") String slug,
-            @HeaderParam("Authorization") String authorization);
+            @HeaderParam("Authorization") String authorization,
+            @BeanParam DashboardAssertion assertion);
 
     @PUT
     @Path("/{slug}/permissions")
@@ -102,5 +115,6 @@ public interface DashboardClient {
             @PathParam("scopeId") String scopeId,
             @PathParam("slug") String slug,
             @HeaderParam("Authorization") String authorization,
+            @BeanParam DashboardAssertion assertion,
             Map<String, Object> body);
 }

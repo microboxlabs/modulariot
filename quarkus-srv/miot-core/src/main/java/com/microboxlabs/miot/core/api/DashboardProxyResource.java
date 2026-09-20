@@ -15,6 +15,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Map;
+import java.util.Optional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -36,6 +37,12 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
  * verify whether or not this proxy allowed it. That is deliberate: the
  * dashboard server also runs with nothing in front of it, so its
  * authorization can never depend on this being here.
+ *
+ * <p>Set {@code miot.dashboards.proxy-key} and it also sends the role the
+ * membership filter resolved. The upstream still verifies the bearer token
+ * and refuses an assertion naming anyone but the token holder, so the key
+ * raises a role and cannot establish an identity. With no key set, nothing is
+ * sent and the upstream resolves membership itself.
  */
 @Path("/api/v1/orgs/{slug}/dashboards")
 @Produces(MediaType.APPLICATION_JSON)
@@ -50,16 +57,20 @@ public class DashboardProxyResource {
     private final DashboardClient dashboards;
     private final OrganizationContext organizationContext;
     private final String defaultScopeId;
+    private final String proxyKey;
 
     @Inject
     public DashboardProxyResource(@RestClient DashboardClient dashboards,
                                   OrganizationContext organizationContext,
                                   @ConfigProperty(name = "miot.dashboards.default-scope",
                                           defaultValue = "default")
-                                  String defaultScopeId) {
+                                  String defaultScopeId,
+                                  @ConfigProperty(name = "miot.dashboards.proxy-key")
+                                  Optional<String> proxyKey) {
         this.dashboards = dashboards;
         this.organizationContext = organizationContext;
         this.defaultScopeId = defaultScopeId;
+        this.proxyKey = proxyKey.filter(key -> !key.isBlank()).orElse(null);
     }
 
     /**
@@ -106,11 +117,52 @@ public class DashboardProxyResource {
         return defaultScopeId;
     }
 
+    /**
+     * Alfresco's canonical site roles as the dashboard server names them.
+     *
+     * <p>Anything else maps to {@code Consumer}, the lowest of the four. The
+     * membership filter has already established that the caller is a member,
+     * so only their level is unknown. A null role, which the filter allows for
+     * an org with no Alfresco group, maps the same way.
+     */
+    static String dashboardRoleFrom(String alfrescoRole) {
+        if (alfrescoRole == null) {
+            return "Consumer";
+        }
+        return switch (alfrescoRole) {
+            case "SITE_MANAGER" -> "Coordinator";
+            case "SITE_COLLABORATOR" -> "Editor";
+            case "SITE_CONTRIBUTOR" -> "Contributor";
+            default -> "Consumer";
+        };
+    }
+
+    /**
+     * What to assert about this request, or {@link DashboardAssertion#none()}.
+     *
+     * <p>Three things must hold. A key is configured. The caller is a web
+     * user: the upstream matches the asserted user against the subject of the
+     * token it verified, and a machine-to-machine caller has no email to name.
+     * A bearer token is present: the upstream refuses an assertion it cannot
+     * check, which is what the dev-only {@code X-Dev-User-Email} path would
+     * otherwise send.
+     */
+    private DashboardAssertion assertionFor(String slug, String authorization) {
+        String email = organizationContext.getUserEmail();
+        if (proxyKey == null || email == null
+                || authorization == null || authorization.isBlank()) {
+            return DashboardAssertion.none();
+        }
+        return new DashboardAssertion(proxyKey, email, tenantIdFor(slug),
+                scopeIdFor(), dashboardRoleFrom(organizationContext.getAlfrescoRole()));
+    }
+
     @GET
     public Uni<Response> list(@PathParam("slug") String slug,
                               @HeaderParam("Authorization") String authorization) {
-        return passThrough(
-                dashboards.list(tenantIdFor(slug), scopeIdFor(), authorization));
+        return passThrough(dashboards.list(
+                tenantIdFor(slug), scopeIdFor(), authorization,
+                assertionFor(slug, authorization)));
     }
 
     @GET
@@ -118,8 +170,9 @@ public class DashboardProxyResource {
     public Uni<Response> get(@PathParam("slug") String slug,
                              @PathParam("dashboard") String dashboard,
                              @HeaderParam("Authorization") String authorization) {
-        return passThrough(
-                dashboards.get(tenantIdFor(slug), scopeIdFor(), dashboard, authorization));
+        return passThrough(dashboards.get(
+                tenantIdFor(slug), scopeIdFor(), dashboard, authorization,
+                assertionFor(slug, authorization)));
     }
 
     @PUT
@@ -130,7 +183,8 @@ public class DashboardProxyResource {
                               @HeaderParam("If-Match") String ifMatch,
                               Map<String, Object> body) {
         return passThrough(dashboards.save(
-                tenantIdFor(slug), scopeIdFor(), dashboard, authorization, ifMatch, body));
+                tenantIdFor(slug), scopeIdFor(), dashboard, authorization, ifMatch,
+                assertionFor(slug, authorization), body));
     }
 
     @DELETE
@@ -138,8 +192,9 @@ public class DashboardProxyResource {
     public Uni<Response> delete(@PathParam("slug") String slug,
                                 @PathParam("dashboard") String dashboard,
                                 @HeaderParam("Authorization") String authorization) {
-        return passThrough(
-                dashboards.delete(tenantIdFor(slug), scopeIdFor(), dashboard, authorization));
+        return passThrough(dashboards.delete(
+                tenantIdFor(slug), scopeIdFor(), dashboard, authorization,
+                assertionFor(slug, authorization)));
     }
 
     @GET
@@ -147,8 +202,9 @@ public class DashboardProxyResource {
     public Uni<Response> capabilities(@PathParam("slug") String slug,
                                       @PathParam("dashboard") String dashboard,
                                       @HeaderParam("Authorization") String authorization) {
-        return passThrough(
-                dashboards.capabilities(tenantIdFor(slug), scopeIdFor(), dashboard, authorization));
+        return passThrough(dashboards.capabilities(
+                tenantIdFor(slug), scopeIdFor(), dashboard, authorization,
+                assertionFor(slug, authorization)));
     }
 
     @GET
@@ -157,7 +213,8 @@ public class DashboardProxyResource {
                                         @PathParam("dashboard") String dashboard,
                                         @HeaderParam("Authorization") String authorization) {
         return passThrough(dashboards.getPermissions(
-                tenantIdFor(slug), scopeIdFor(), dashboard, authorization));
+                tenantIdFor(slug), scopeIdFor(), dashboard, authorization,
+                assertionFor(slug, authorization)));
     }
 
     @PUT
@@ -167,16 +224,17 @@ public class DashboardProxyResource {
                                         @HeaderParam("Authorization") String authorization,
                                         Map<String, Object> body) {
         return passThrough(dashboards.setPermissions(
-                tenantIdFor(slug), scopeIdFor(), dashboard, authorization, body));
+                tenantIdFor(slug), scopeIdFor(), dashboard, authorization,
+                assertionFor(slug, authorization), body));
     }
 
     /**
      * Pass the upstream status, body and headers through unchanged. Quarkus
      * REST Reactive throws {@link WebApplicationException} for any non-2xx
      * response; unwrap it so the original status reaches the caller instead of
-     * becoming a proxy-side 500 — which matters more here than for a run API,
-     * because 401, 403 and 409 are all load-bearing in the dashboard contract:
-     * a stale write is a 409 the browser has to see to re-read and retry.
+     * becoming a proxy-side 500. The dashboard contract depends on 401, 403
+     * and 409 reaching the caller: a stale write is a 409 the browser has to
+     * see to re-read and retry.
      *
      * <p>{@code Response.fromResponse} also carries response headers through.
      * The dashboard server does not currently set {@code ETag} — the revision

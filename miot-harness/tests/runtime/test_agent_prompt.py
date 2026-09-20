@@ -60,7 +60,7 @@ def test_prompt_carries_rigor_and_answer_rules():
     assert "refreshed_at" in text
     assert "same language as the question" in text
     assert "200 words" in text
-    assert "do NOT claim you fabricated them" in text
+    assert "your own earlier work" in text
 
 
 def test_prompt_has_no_dynamic_markers():

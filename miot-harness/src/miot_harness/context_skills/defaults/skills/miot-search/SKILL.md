@@ -121,7 +121,6 @@ value you have confirmed; never emit a literal placeholder.
 | `/users/settings/harness` | Harness settings, configuración de Harness, Harness seats, asientos de Harness, Harness usage, uso de Harness | Harness pricing, seat and token usage, and user access | — |
 | `/users/settings/credentials` | credentials, credenciales, API credentials, credenciales API | Reusable organization credentials for data sources, integrations, and jobs | — |
 | `/users/settings/connections` | integration connections, conexiones de integración, integration templates, plantillas de integración, integration types | Integration templates (types) and the connections created from them | — |
-| `/users/settings/symptom-rules` | symptom rules, reglas de síntomas, rule catalog, catálogo de reglas, criticidad | Control-tower symptom rule catalog: which rules are on and at what criticality; changes are audited (read-only for carriers) | — |
 | `/users/settings/platform` | platform settings, ajustes de plataforma, branding, marca, logo, logotipo, logo por dominio, superusers, superusuarios, platform administrators, administradores de la plataforma | Platform-scope settings: per-domain logos and the superusers who may set them (platform administrators only) | — |
 | `/admin/console/logs` | admin logs, logs, registros (admins only) | Operational logs | — |
 | `/admin/console/message-templates` | message templates, plantillas de mensaje (admins only) | Message templates | — |

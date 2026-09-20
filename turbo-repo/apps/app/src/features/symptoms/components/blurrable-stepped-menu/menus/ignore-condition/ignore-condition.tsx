@@ -4,7 +4,7 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { Button, Select, Textarea } from "flowbite-react";
+import { Button, Select } from "flowbite-react";
 import { useState } from "react";
 import { TiDelete } from "react-icons/ti";
 import { useRouter } from "next/navigation";
@@ -34,22 +34,7 @@ export default function IgnoreCondition({
   setIsMenuOpen: (isMenuOpen: boolean) => void;
 }) {
   const [durationLocal, setDurationLocal] = useState(duration);
-  const [motivo, setMotivo] = useState("");
-  const [nota, setNota] = useState("");
   const router = useRouter();
-
-  const motivos = [
-    { key: "motivo_map", label: tr("symptoms.motivo_map", dict) },
-    { key: "motivo_shadow", label: tr("symptoms.motivo_shadow", dict) },
-    { key: "motivo_maneuver", label: tr("symptoms.motivo_maneuver", dict) },
-    { key: "motivo_authorized", label: tr("symptoms.motivo_authorized", dict) },
-    { key: "motivo_duplicate", label: tr("symptoms.motivo_duplicate", dict) },
-    { key: "motivo_other", label: tr("symptoms.motivo_other", dict) },
-  ];
-  const motivoLabel = motivos.find((m) => m.key === motivo)?.label ?? "";
-  const notaObligatoria = motivo === "motivo_other";
-  const puedeGuardar =
-    motivo !== "" && (!notaObligatoria || nota.trim().length > 0);
 
   const buttons = [
     {
@@ -65,8 +50,6 @@ export default function IgnoreCondition({
           status: "active",
           treatment_type: "ignorar condicion",
           v_symptom_treatment_time: duration,
-          description:
-            `Motivo: ${motivoLabel}` + (nota.trim() ? ` · Nota: ${nota.trim()}` : ""),
         });
         setIsMenuOpen(false);
         router.push("/symptoms");
@@ -86,46 +69,6 @@ export default function IgnoreCondition({
           treatmentData={treatmentData}
           prescriptionKey="symptoms.ignore_condition"
         />
-
-        <div className="w-full flex flex-col gap-1 bg-blue-50 dark:bg-gray-700 p-3 rounded-lg">
-          <p className="text-sm font-light text-blue-900 dark:text-blue-200">
-            {tr("symptoms.ignore_semantics", dict)}
-          </p>
-        </div>
-
-        <div className="w-full flex grid grid-cols-2 gap-2 mt-1">
-          <div className="pr-2">
-            <h1 className="w-full text-left text-sm font-light justify-self-end text-gray-900 dark:text-white">
-              {tr("symptoms.ignore_reason", dict)} *
-            </h1>
-            <Select value={motivo} onChange={(e) => setMotivo(e.target.value)}>
-              <option value="" disabled>
-                {tr("symptoms.reason_required", dict)}
-              </option>
-              {motivos.map((m) => (
-                <option key={m.key} value={m.key}>
-                  {m.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="pl-2 pr-2">
-            <h1 className="w-full text-left text-sm font-light justify-self-end text-gray-900 dark:text-white">
-              {tr("symptoms.ignore_note", dict)}
-              {notaObligatoria ? " *" : ""}
-            </h1>
-            <Textarea
-              rows={2}
-              value={nota}
-              onChange={(e) => setNota(e.target.value)}
-            />
-            {notaObligatoria && nota.trim().length === 0 && (
-              <p className="text-xs text-red-500">
-                {tr("symptoms.note_required_other", dict)}
-              </p>
-            )}
-          </div>
-        </div>
 
         <div className="w-full flex grid grid-cols-2 gap-2 mt-2">
           <div className="pr-2">
@@ -195,17 +138,11 @@ export default function IgnoreCondition({
             {tr("symptoms.ignore_alert", dict)}
           </p>
         </div>
-        <div className="w-full flex flex-col gap-2 bg-green-50 dark:bg-gray-700 p-3 rounded-lg">
-          <p className="text-sm font-light text-green-800 dark:text-green-300">
-            {tr("symptoms.ignore_learning", dict)}
-          </p>
-        </div>
         <div className="w-full flex flex-col gap-2">
           {buttons.map((button, index) => (
             <Button
               color="blue"
               key={index}
-              disabled={!puedeGuardar}
               onClick={() => {
                 button.function();
               }}

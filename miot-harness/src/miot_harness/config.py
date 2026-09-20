@@ -135,6 +135,12 @@ class HarnessSettings(BaseSettings):
     # strictly positive; 0 or negative is meaningless as a budget.
     conversation_token_budget: int = Field(default=24_000, gt=0)
 
+    # Budget for the same history when the agent loop replays it with the
+    # tool calls and tool results of each turn. Larger because a turn then
+    # costs what its tool envelopes cost, and because dropping them is what
+    # made a later turn deny work an earlier one had done.
+    conversation_tool_token_budget: int = Field(default=48_000, gt=0)
+
     # Turns a conversation may hold before its older part is folded into a
     # summary (`ConversationStore.summarize_if_needed`). The token budget
     # above bounds what reaches the model; this bounds what accumulates.

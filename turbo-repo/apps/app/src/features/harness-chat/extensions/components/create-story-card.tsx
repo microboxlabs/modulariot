@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FC } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { HiChevronRight } from "react-icons/hi2";
 import { addStoriesForAllTypes } from "@/features/storytelling/storytelling-store";
@@ -44,11 +45,21 @@ export const CreateStoryCard: FC<ToolCallMessagePartProps<CreateStoryArgs, Creat
   const router = useRouter();
   const { lang } = useParams<{ lang: string }>();
   const tr = useHarnessChatTr();
+  const { data: session } = useSession();
   const [stories, setStories] = useState<readonly StoryItem[]>([]);
 
   useEffect(() => {
     if (result) return;
-    setStories(addStoriesForAllTypes({ id: args.id, title: args.title }));
+    // Attribute the story to whoever's actually chatting, not a generic
+    // "Harness AI" label — addStoriesForAllTypes falls back to that itself
+    // if the session hasn't resolved a name yet.
+    setStories(
+      addStoriesForAllTypes({
+        id: args.id,
+        title: args.title,
+        authorName: session?.user?.name ?? undefined,
+      })
+    );
     addResult({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

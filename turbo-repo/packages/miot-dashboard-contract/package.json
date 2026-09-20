@@ -1,0 +1,76 @@
+{
+  "name": "@microboxlabs/miot-dashboard-contract",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/microboxlabs/modulariot",
+    "directory": "turbo-repo/packages/miot-dashboard-contract"
+  },
+  "description": "The wire contract for MIOT embeddable dashboards: the persisted document's schema, the role and capability vocabulary, and the OpenAPI specification. Depends on neither the UI nor the server.",
+  "keywords": [
+    "dashboard",
+    "dashboards",
+    "contract",
+    "openapi",
+    "json-schema",
+    "zod"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "sideEffects": false,
+  "exports": {
+    "./document": {
+      "types": "./dist/document.d.ts",
+      "import": "./dist/document.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js"
+    },
+    "./roles": {
+      "types": "./dist/roles.d.ts",
+      "import": "./dist/roles.js"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "import": "./dist/errors.js"
+    },
+    "./openapi.yaml": "./contract/openapi.yaml",
+    "./dashboard-config.schema.json": "./contract/dashboard-config.schema.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "contract"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "//schema:build": "Rewrites the committed artifact. Run it after editing a zod schema; schema.test.ts is what tells you that you have not.",
+    "schema:build": "tsx scripts/generate-json-schema.ts",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "check-types": "tsc --noEmit && node scripts/guard-imports.mjs",
+    "guard": "node scripts/guard-imports.mjs"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "@types/node": "^24.0.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.22.0",
+    "typescript": "5.8.2",
+    "vitest": "^5.0.0",
+    "yaml": "^2.8.0",
+    "zod-to-json-schema": "^3.24.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

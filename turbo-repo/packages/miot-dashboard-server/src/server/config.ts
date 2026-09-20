@@ -9,6 +9,7 @@
 
 import type { JwtAlgorithm } from "../identity/jwt";
 import type { TicketPresentation } from "../identity/ticket";
+import { MIN_PROXY_KEY_LENGTH } from "../identity/proxy";
 import { DASHBOARD_ROLES, type DashboardRole } from "../access/roles";
 import { isLoopbackHost } from "../net/loopback";
 import { validateCors, type CorsOptions } from "../http/cors";
@@ -49,6 +50,12 @@ export interface ServerConfig {
   /** Serve the contract at /openapi.yaml and render it at /docs. */
   docs: boolean;
   cors: CorsOptions | undefined;
+  /**
+   * Shared key an authenticated proxy sends to assert the tenant and scope
+   * role it has already resolved. Absent means no proxy is trusted and every
+   * request is authorized against the configured authorities.
+   */
+  proxyKey: string | undefined;
 }
 
 export type AuthConfig = InsecureAuthConfig | VerifiedAuthConfig;
@@ -881,6 +888,26 @@ function readAuth(env: ConfigEnv, host: string): AuthConfig {
   );
 }
 
+function readProxyKey(env: ConfigEnv, auth: AuthConfig): string | undefined {
+  const key = env.MIOT_DASHBOARD_PROXY_KEY;
+  if (key === undefined || key.length === 0) return undefined;
+  if (key.length < MIN_PROXY_KEY_LENGTH) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_PROXY_KEY is ${key.length} characters. It has to be at ` +
+        `least ${MIN_PROXY_KEY_LENGTH}: a caller who guesses it can assert ` +
+        "their own role on any dashboard.",
+    );
+  }
+  if (auth.kind === "insecure") {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_PROXY_KEY cannot be combined with " +
+        "MIOT_DASHBOARD_INSECURE_AUTH. An assertion is checked against the " +
+        "verified identity, and unverified header auth has none to check.",
+    );
+  }
+  return key;
+}
+
 export function readServerConfig(env: ConfigEnv): ServerConfig {
   const host = env.HOST ?? "127.0.0.1";
   const auth = readAuth(env, host);
@@ -943,6 +970,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     seedPath: env.MIOT_DASHBOARD_SEED,
     docs: readBooleanUnlessDisabled(env.MIOT_DASHBOARD_DOCS),
     cors: readCors(env),
+    proxyKey: readProxyKey(env, auth),
   };
 }
 

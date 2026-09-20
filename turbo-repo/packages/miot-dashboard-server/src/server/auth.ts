@@ -8,12 +8,15 @@
  */
 
 import {
+  createAssertedScopeAuthority,
+  createAssertedTenantAuthority,
   createFirstMatchIdentityResolver,
   createHttpScopeAuthority,
   createHttpTenantAuthority,
   createJwksKeyRing,
   createJwtIdentityResolver,
   createTicketIdentityResolver,
+  createTrustedProxyIdentityResolver,
   hmacKeyFromSecret,
   KeySourceError,
   publicKeyFromPem,
@@ -62,12 +65,27 @@ export interface BuildIdentityOptions {
   onReject?: (reason: string) => void;
   /** Injected in tests so a host endpoint can be faked. */
   fetchImpl?: typeof fetch;
+  /**
+   * Shared key an authenticated proxy sends alongside the tenant and scope
+   * role it resolved. Absent leaves every request authorized against the
+   * configured authorities.
+   */
+  proxyKey?: string;
 }
 
 export interface BuildScopeOptions extends BuildIdentityOptions {
   /** Used only by the seed-backed authority. */
   memberships?: Memberships;
   now?: () => number;
+}
+
+/**
+ * Wraps an authority so it reads what a trusted proxy asserted, falling back
+ * to the built one. Applied whenever a proxy key is configured, because a
+ * request without an assertion still has to be answered.
+ */
+function describeAsserted(inner: string): string {
+  return `${inner}; a trusted proxy may assert both`;
 }
 
 /**
@@ -226,14 +244,20 @@ export async function buildIdentityResolver(
     );
   }
 
+  const inner =
+    assembled.length === 1
+      ? (assembled[0] as AssembledIdentity).identity
+      : createFirstMatchIdentityResolver(assembled.map((one) => one.identity));
+  const describe = assembled.map((one) => one.describe).join("; also ");
+
+  if (options.proxyKey === undefined) return { identity: inner, describe };
+
   return {
-    identity:
-      assembled.length === 1
-        ? (assembled[0] as AssembledIdentity).identity
-        : createFirstMatchIdentityResolver(
-            assembled.map((one) => one.identity),
-          ),
-    describe: assembled.map((one) => one.describe).join("; also "),
+    identity: createTrustedProxyIdentityResolver({
+      key: options.proxyKey,
+      inner,
+    }),
+    describe: `${describe}; a trusted proxy may also assert tenant and role`,
   };
 }
 
@@ -241,16 +265,25 @@ export function buildScopeAuthority(
   config: ScopeConfig,
   options: BuildScopeOptions = {},
 ): AssembledScopes {
+  const asserted = options.proxyKey !== undefined;
+  const wrap = (built: AssembledScopes): AssembledScopes =>
+    asserted
+      ? {
+          scopes: createAssertedScopeAuthority(built.scopes),
+          describe: describeAsserted(built.describe),
+        }
+      : built;
+
   if (config.kind === "seed") {
     const memberships = options.memberships ?? {};
-    return {
+    return wrap({
       scopes: createMemoryScopeAuthority(memberships),
       describe: `the seed file (${Object.keys(memberships).length} tenants)`,
-    };
+    });
   }
 
   try {
-    return {
+    return wrap({
       scopes: createHttpScopeAuthority({
         url: config.url,
         method: config.method,
@@ -266,7 +299,7 @@ export function buildScopeAuthority(
         ...(options.now ? { now: options.now } : {}),
       }),
       describe: `${config.method} ${config.url}, cached ${config.cacheSeconds}s`,
-    };
+    });
   } catch (error) {
     if (error instanceof EndpointError) throw new ConfigError(error.message);
     throw error;
@@ -277,16 +310,25 @@ export function buildTenantAuthority(
   config: TenantConfig,
   options: BuildScopeOptions = {},
 ): AssembledTenants {
+  const asserted = options.proxyKey !== undefined;
+  const wrap = (built: AssembledTenants): AssembledTenants =>
+    asserted
+      ? {
+          tenants: createAssertedTenantAuthority(built.tenants),
+          describe: describeAsserted(built.describe),
+        }
+      : built;
+
   if (config.kind === "seed") {
     const memberships = options.memberships ?? {};
-    return {
+    return wrap({
       tenants: createMemoryTenantAuthority(memberships),
       describe: `the seed file (${Object.keys(memberships).length} tenants)`,
-    };
+    });
   }
 
   try {
-    return {
+    return wrap({
       tenants: createHttpTenantAuthority({
         url: config.url,
         method: config.method,
@@ -301,7 +343,7 @@ export function buildTenantAuthority(
         ...(options.now ? { now: options.now } : {}),
       }),
       describe: `${config.method} ${config.url}, cached ${config.cacheSeconds}s`,
-    };
+    });
   } catch (error) {
     if (error instanceof EndpointError) throw new ConfigError(error.message);
     throw error;

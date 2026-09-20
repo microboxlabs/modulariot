@@ -240,12 +240,23 @@ async function main(): Promise<void> {
   // anonymous caller controls how much this process logs.
   const onReject = createRefusalLog({ write: log });
 
-  const auth = await buildIdentityResolver(config.auth, { onReject });
+  const proxy =
+    config.proxyKey === undefined ? {} : { proxyKey: config.proxyKey };
+
+  const auth = await buildIdentityResolver(config.auth, {
+    onReject,
+    ...proxy,
+  });
   const tenants = buildTenantAuthority(config.tenants, {
     memberships,
     onReject,
+    ...proxy,
   });
-  const scopes = buildScopeAuthority(config.scopes, { memberships, onReject });
+  const scopes = buildScopeAuthority(config.scopes, {
+    memberships,
+    onReject,
+    ...proxy,
+  });
 
   if (config.auth.kind === "insecure") {
     process.stderr.write(
@@ -255,7 +266,10 @@ async function main(): Promise<void> {
   }
   if (
     (config.scopes.kind === "seed" || config.tenants.kind === "seed") &&
-    Object.keys(memberships).length === 0
+    Object.keys(memberships).length === 0 &&
+    // With a proxy key configured, an assertion answers both authorities and
+    // the empty seed is only the fallback for requests that arrive directly.
+    config.proxyKey === undefined
   ) {
     // Both authorities deny by default, so with no memberships every request
     // is a 403 and the server looks broken rather than misconfigured.

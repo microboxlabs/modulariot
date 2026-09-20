@@ -25,10 +25,12 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
  * model rather than the other way round. See
  * {@link DashboardProxyResource#scopeIdFor}.
  *
- * <p>{@link DashboardProxyResource} forwards the caller's bearer token
- * verbatim, exactly as {@link HarnessProxyResource} does: the dashboard server
- * verifies it itself and re-derives the caller, so the proxy asserts no
- * identity and there is nothing for it to be trusted about.
+ * <p>The caller's bearer token is forwarded verbatim and the dashboard server
+ * verifies it itself. When {@code miot.dashboards.proxy-key} is set, the
+ * assertion headers also travel: the membership and role this modulith has
+ * already resolved, so the dashboard server does not call back to ask. They
+ * are all null when no key is configured, and a null header parameter is not
+ * sent, which leaves the upstream authorizing on its own.
  *
  * <p>Methods return {@code Uni<Response>} so upstream status codes reach the
  * caller unchanged — a stale write is a 409, and a dashboard the caller may
@@ -41,11 +43,22 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 @Path("/tenants/{tenantId}/scopes/{scopeId}/dashboards")
 public interface DashboardClient {
 
+    String PROXY_KEY_HEADER = "X-Miot-Proxy-Key";
+    String ASSERTED_USER_HEADER = "X-Miot-Asserted-User";
+    String ASSERTED_TENANT_HEADER = "X-Miot-Asserted-Tenant";
+    String ASSERTED_SCOPE_HEADER = "X-Miot-Asserted-Scope";
+    String ASSERTED_ROLE_HEADER = "X-Miot-Asserted-Role";
+
     @GET
     Uni<Response> list(
             @PathParam("tenantId") String tenantId,
             @PathParam("scopeId") String scopeId,
-            @HeaderParam("Authorization") String authorization);
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam(PROXY_KEY_HEADER) String proxyKey,
+            @HeaderParam(ASSERTED_USER_HEADER) String assertedUser,
+            @HeaderParam(ASSERTED_TENANT_HEADER) String assertedTenant,
+            @HeaderParam(ASSERTED_SCOPE_HEADER) String assertedScope,
+            @HeaderParam(ASSERTED_ROLE_HEADER) String assertedRole);
 
     @GET
     @Path("/{slug}")
@@ -53,7 +66,12 @@ public interface DashboardClient {
             @PathParam("tenantId") String tenantId,
             @PathParam("scopeId") String scopeId,
             @PathParam("slug") String slug,
-            @HeaderParam("Authorization") String authorization);
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam(PROXY_KEY_HEADER) String proxyKey,
+            @HeaderParam(ASSERTED_USER_HEADER) String assertedUser,
+            @HeaderParam(ASSERTED_TENANT_HEADER) String assertedTenant,
+            @HeaderParam(ASSERTED_SCOPE_HEADER) String assertedScope,
+            @HeaderParam(ASSERTED_ROLE_HEADER) String assertedRole);
 
     /**
      * {@code If-Match} carries the integer revision the caller believes it is
@@ -69,6 +87,11 @@ public interface DashboardClient {
             @PathParam("slug") String slug,
             @HeaderParam("Authorization") String authorization,
             @HeaderParam("If-Match") String ifMatch,
+            @HeaderParam(PROXY_KEY_HEADER) String proxyKey,
+            @HeaderParam(ASSERTED_USER_HEADER) String assertedUser,
+            @HeaderParam(ASSERTED_TENANT_HEADER) String assertedTenant,
+            @HeaderParam(ASSERTED_SCOPE_HEADER) String assertedScope,
+            @HeaderParam(ASSERTED_ROLE_HEADER) String assertedRole,
             Map<String, Object> body);
 
     @DELETE
@@ -77,7 +100,12 @@ public interface DashboardClient {
             @PathParam("tenantId") String tenantId,
             @PathParam("scopeId") String scopeId,
             @PathParam("slug") String slug,
-            @HeaderParam("Authorization") String authorization);
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam(PROXY_KEY_HEADER) String proxyKey,
+            @HeaderParam(ASSERTED_USER_HEADER) String assertedUser,
+            @HeaderParam(ASSERTED_TENANT_HEADER) String assertedTenant,
+            @HeaderParam(ASSERTED_SCOPE_HEADER) String assertedScope,
+            @HeaderParam(ASSERTED_ROLE_HEADER) String assertedRole);
 
     @GET
     @Path("/{slug}/capabilities")
@@ -85,7 +113,12 @@ public interface DashboardClient {
             @PathParam("tenantId") String tenantId,
             @PathParam("scopeId") String scopeId,
             @PathParam("slug") String slug,
-            @HeaderParam("Authorization") String authorization);
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam(PROXY_KEY_HEADER) String proxyKey,
+            @HeaderParam(ASSERTED_USER_HEADER) String assertedUser,
+            @HeaderParam(ASSERTED_TENANT_HEADER) String assertedTenant,
+            @HeaderParam(ASSERTED_SCOPE_HEADER) String assertedScope,
+            @HeaderParam(ASSERTED_ROLE_HEADER) String assertedRole);
 
     @GET
     @Path("/{slug}/permissions")
@@ -93,7 +126,12 @@ public interface DashboardClient {
             @PathParam("tenantId") String tenantId,
             @PathParam("scopeId") String scopeId,
             @PathParam("slug") String slug,
-            @HeaderParam("Authorization") String authorization);
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam(PROXY_KEY_HEADER) String proxyKey,
+            @HeaderParam(ASSERTED_USER_HEADER) String assertedUser,
+            @HeaderParam(ASSERTED_TENANT_HEADER) String assertedTenant,
+            @HeaderParam(ASSERTED_SCOPE_HEADER) String assertedScope,
+            @HeaderParam(ASSERTED_ROLE_HEADER) String assertedRole);
 
     @PUT
     @Path("/{slug}/permissions")
@@ -102,5 +140,10 @@ public interface DashboardClient {
             @PathParam("scopeId") String scopeId,
             @PathParam("slug") String slug,
             @HeaderParam("Authorization") String authorization,
+            @HeaderParam(PROXY_KEY_HEADER) String proxyKey,
+            @HeaderParam(ASSERTED_USER_HEADER) String assertedUser,
+            @HeaderParam(ASSERTED_TENANT_HEADER) String assertedTenant,
+            @HeaderParam(ASSERTED_SCOPE_HEADER) String assertedScope,
+            @HeaderParam(ASSERTED_ROLE_HEADER) String assertedRole,
             Map<String, Object> body);
 }

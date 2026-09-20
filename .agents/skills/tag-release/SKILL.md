@@ -93,7 +93,7 @@ These rules are **critical** and must always be followed:
 
 1. **Tag format**: `<package-dir-name>@v<version>` — **NEVER** use plain `v<version>`
 2. **Package dir name** = the folder name under `packages/` (e.g. `miot-calendar-client`), not the npm scope name (`@microboxlabs/miot-calendar-client`)
-3. **Version sync**: The `version` field in `packages/<name>/package.json` must match the tag version exactly
+3. **Version sync**: The `version` field in `packages/<name>/package.json` must match the tag version exactly. `publish-miot-dashboard-server.yaml` checks this and refuses the release when the two disagree; the other publish workflows do not, so for those it is on you
 4. **Annotated tags**: Always use `git tag -a` with a message, never lightweight tags
 5. **Release title**: Must match the tag name exactly (e.g. `miot-calendar-client@v0.2.0`)
 
@@ -106,7 +106,20 @@ Pushing a scoped tag triggers the corresponding GitHub Actions workflow:
   - Runs lint, type-check, and tests
   - Publishes to npm via OIDC trusted publishing
 
+- **`publish-miot-dashboard-server.yaml`**: Triggered by tags matching `miot-dashboard-server@v*`
+  - The same, plus two gates the others do not have: it refuses a tag whose
+    version disagrees with `package.json`, and it installs the packed tarball
+    into an empty directory, imports every entry in the `exports` map and runs
+    the binary before publishing
+  - The tarball check exists because the tests import TypeScript source and the
+    Docker image copies `dist/` directly, so neither reads `exports` or `files`
+
 As new publishable packages are added, each will have its own workflow trigger pattern following the same `<package-name>@v*` convention.
+
+**Before the first publish of a package that is not yet on npmjs:** trusted
+publishing is configured on the package's page, which does not exist until
+something has been published, so the first release needs an `NPM_TOKEN` repo
+secret. Configure the trusted publisher afterwards and delete the secret.
 
 ## Monorepo Packages
 
@@ -115,6 +128,12 @@ Current packages under `packages/`:
 | Directory | npm Name | Publishable |
 |---|---|---|
 | `miot-calendar-client` | `@microboxlabs/miot-calendar-client` | Yes |
+| `miot-harness-client` | `@microboxlabs/miot-harness-client` | Yes |
+| `miot-connection-client` | `@microboxlabs/miot-connection-client` | Yes |
+| `miot-auth` | `@microboxlabs/miot-auth` | Yes |
+| `miot-chat` | `@microboxlabs/miot-chat` | Yes |
+| `miot-cli` | `@microboxlabs/miot-cli` | Yes |
+| `miot-dashboard-server` | `@microboxlabs/miot-dashboard-server` | Yes |
 | `db` | — | No (internal) |
 | `ui` | — | No (internal) |
 | `eslint-config` | — | No (internal) |

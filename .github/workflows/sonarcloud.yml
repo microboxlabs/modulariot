@@ -6,6 +6,7 @@
 #
 # Required Secrets:
 #   - SONAR_TOKEN: SonarCloud token (Settings > Security > Generate Tokens)
+#     Also configure it as a Dependabot secret to analyze Dependabot PRs.
 #
 # NOTE: If SonarCloud automatic analysis is enabled for this repository,
 # disable it in SonarCloud > Administration > Analysis Method to avoid
@@ -18,12 +19,14 @@ on:
   push:
     paths:
       - 'turbo-repo/**'
+      - '.github/workflows/sonarcloud.yml'
     branches:
       - trunk
       - main
   pull_request:
     paths:
       - 'turbo-repo/**'
+      - '.github/workflows/sonarcloud.yml'
     types: [opened, synchronize, reopened]
     branches:
       - trunk
@@ -42,13 +45,33 @@ jobs:
       pull-requests: read
 
     steps:
+      - name: Check SonarCloud credentials
+        id: sonar-auth
+        shell: bash
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [[ -n "$SONAR_TOKEN" ]]; then
+            echo "scan-enabled=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_ACTOR" == 'dependabot[bot]' ]]; then
+            # Dependabot runs use Dependabot secrets, including on manual reruns.
+            echo "scan-enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping SonarCloud: configure SONAR_TOKEN as a Dependabot secret to enable analysis."
+            echo "SonarCloud skipped: SONAR_TOKEN is unavailable to Dependabot." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::SONAR_TOKEN is required for SonarCloud analysis. Configure it as an Actions secret."
+            exit 1
+          fi
+
       - name: Checkout repository
+        if: steps.sonar-auth.outputs.scan-enabled == 'true'
         uses: actions/checkout@v5
         with:
           # Disable shallow clone — SonarCloud needs full history for blame data
           fetch-depth: 0
 
       - name: Setup Node.js
+        if: steps.sonar-auth.outputs.scan-enabled == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: "24"
@@ -56,11 +79,13 @@ jobs:
           cache-dependency-path: turbo-repo/package-lock.json
 
       - name: Install dependencies
+        if: steps.sonar-auth.outputs.scan-enabled == 'true'
         # Installs workspace symlinks so @repo/typescript-config resolves
         run: npm ci
         working-directory: turbo-repo
 
       - name: SonarCloud Scan
+        if: steps.sonar-auth.outputs.scan-enabled == 'true'
         uses: SonarSource/sonarqube-scan-action@v7.0.0
         with:
           projectBaseDir: turbo-repo/apps/app

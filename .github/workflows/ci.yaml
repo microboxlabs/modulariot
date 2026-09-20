@@ -146,6 +146,10 @@ jobs:
         run: npx vitest run src/test/i18n/locale-parity.test.ts
         working-directory: turbo-repo/apps/app
 
+      - name: Check the dashboard contract has not drifted
+        run: npx vitest run
+        working-directory: turbo-repo/packages/miot-dashboard-contract
+
   # ===========================================================================
   # Build - Validate the Next.js apps that participate in release/deploy flows
   # ===========================================================================

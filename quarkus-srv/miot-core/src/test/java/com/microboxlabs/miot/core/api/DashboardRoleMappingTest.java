@@ -13,10 +13,8 @@ import org.junit.jupiter.api.Test;
  *
  * <p>The four canonical site roles come from
  * {@code RealAlfrescoMembershipClient.toCanonicalSiteRole}, and the four
- * dashboard roles from the contract package. Anything else has to land on
- * {@code Consumer}: the membership filter has already established that the
- * caller is a member, so the only open question is how much they may do, and
- * an unrecognised role must answer "the least".
+ * dashboard roles from the contract package. Anything else maps to
+ * {@code Consumer}, the lowest of the four.
  */
 class DashboardRoleMappingTest {
 
@@ -45,9 +43,9 @@ class DashboardRoleMappingTest {
     }
 
     /**
-     * {@code GROUP_MEMBER} is what the membership client returns for an org
-     * whose group is not a site. A null role is what the filter allows for an
-     * org with no group at all. Neither says anything about editing.
+     * The membership client returns {@code GROUP_MEMBER} for an org whose
+     * group is not a site. The filter allows a null role for an org with no
+     * group. Neither says anything about editing.
      */
     @ParameterizedTest
     @NullSource

@@ -28,8 +28,8 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
  *
  * <p>The caller's bearer token is forwarded verbatim and the dashboard server
  * verifies it itself. {@link DashboardAssertion} carries the membership this
- * modulith has already resolved, so the upstream does not call back to ask;
- * it is empty unless {@code miot.dashboards.proxy-key} is set.
+ * modulith already resolved, so the upstream does not ask again. It is empty
+ * unless {@code miot.dashboards.proxy-key} is set.
  *
  * <p>Methods return {@code Uni<Response>} so upstream status codes reach the
  * caller unchanged — a stale write is a 409, and a dashboard the caller may

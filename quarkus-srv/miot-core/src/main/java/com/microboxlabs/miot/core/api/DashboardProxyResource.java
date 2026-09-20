@@ -38,12 +38,11 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
  * dashboard server also runs with nothing in front of it, so its
  * authorization can never depend on this being here.
  *
- * <p>What it may assert, when {@code miot.dashboards.proxy-key} is set, is the
- * <em>role</em> the membership filter already resolved. The upstream still
- * verifies the bearer token and refuses an assertion that names anyone but
- * the token holder, so the key raises a role — it never establishes an
- * identity. With no key configured nothing is sent and the upstream resolves
- * membership itself.
+ * <p>Set {@code miot.dashboards.proxy-key} and it also sends the role the
+ * membership filter resolved. The upstream still verifies the bearer token
+ * and refuses an assertion naming anyone but the token holder, so the key
+ * raises a role and cannot establish an identity. With no key set, nothing is
+ * sent and the upstream resolves membership itself.
  */
 @Path("/api/v1/orgs/{slug}/dashboards")
 @Produces(MediaType.APPLICATION_JSON)
@@ -121,11 +120,10 @@ public class DashboardProxyResource {
     /**
      * Alfresco's canonical site roles as the dashboard server names them.
      *
-     * <p>Anything else maps to {@code Consumer}, the lowest of the four. Every
-     * request that reaches this resource has already passed the membership
-     * filter, so the caller is a member; what is unknown is only how much they
-     * may do, and the answer to that is "the least". An org with no Alfresco
-     * group, which the filter allows with a null role, lands here too.
+     * <p>Anything else maps to {@code Consumer}, the lowest of the four. The
+     * membership filter has already established that the caller is a member,
+     * so only their level is unknown. A null role, which the filter allows for
+     * an org with no Alfresco group, maps the same way.
      */
     static String dashboardRoleFrom(String alfrescoRole) {
         if (alfrescoRole == null) {
@@ -142,13 +140,12 @@ public class DashboardProxyResource {
     /**
      * What to assert about this request, or {@link DashboardAssertion#none()}.
      *
-     * <p>Three things have to hold. A key must be configured. The caller must
-     * be a web user, because the upstream matches the asserted user against
-     * the subject of the token it verified and a machine-to-machine caller has
-     * no email for this modulith to name. And a bearer token must be present,
-     * because an assertion with nothing to check it against is refused
-     * upstream — which is what the dev-only {@code X-Dev-User-Email} path
-     * would otherwise produce.
+     * <p>Three things must hold. A key is configured. The caller is a web
+     * user: the upstream matches the asserted user against the subject of the
+     * token it verified, and a machine-to-machine caller has no email to name.
+     * A bearer token is present: the upstream refuses an assertion it cannot
+     * check, which is what the dev-only {@code X-Dev-User-Email} path would
+     * otherwise send.
      */
     private DashboardAssertion assertionFor(String slug, String authorization) {
         String email = organizationContext.getUserEmail();
@@ -235,9 +232,9 @@ public class DashboardProxyResource {
      * Pass the upstream status, body and headers through unchanged. Quarkus
      * REST Reactive throws {@link WebApplicationException} for any non-2xx
      * response; unwrap it so the original status reaches the caller instead of
-     * becoming a proxy-side 500 — which matters more here than for a run API,
-     * because 401, 403 and 409 are all load-bearing in the dashboard contract:
-     * a stale write is a 409 the browser has to see to re-read and retry.
+     * becoming a proxy-side 500. The dashboard contract depends on 401, 403
+     * and 409 reaching the caller: a stale write is a 409 the browser has to
+     * see to re-read and retry.
      *
      * <p>{@code Response.fromResponse} also carries response headers through.
      * The dashboard server does not currently set {@code ETag} — the revision

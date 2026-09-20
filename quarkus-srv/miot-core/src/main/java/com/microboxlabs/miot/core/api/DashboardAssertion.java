@@ -3,18 +3,15 @@ package com.microboxlabs.miot.core.api;
 import jakarta.ws.rs.HeaderParam;
 
 /**
- * What this proxy tells the dashboard server about a caller it has already
- * checked: the shared key, the user, and the tenant, scope and role the
- * membership filter resolved.
+ * The five headers this proxy sends the dashboard server: the shared key, the
+ * user, and the tenant, scope and role the membership filter resolved.
  *
- * <p>One {@code @BeanParam} rather than five parameters on every route. The
- * upstream compares the asserted tenant and scope against the ones it parses
- * out of the path, so both travel here even though both are also in the URL:
- * a rewritten path is then refused instead of being served with whatever role
- * was asserted.
+ * <p>Tenant and scope travel here as well as in the path because the upstream
+ * compares the two. A rewritten path is then refused rather than served with
+ * the asserted role.
  *
- * <p>{@link #none()} leaves every field null and a null header parameter is
- * not sent, so the five headers are absent together.
+ * <p>{@link #none()} leaves every field null, and a null header parameter is
+ * not sent.
  */
 public class DashboardAssertion {
 

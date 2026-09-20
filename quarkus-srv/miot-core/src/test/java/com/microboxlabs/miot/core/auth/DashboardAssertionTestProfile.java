@@ -8,9 +8,9 @@ import java.util.Map;
  * dashboard proxy sends the role it resolved instead of leaving the upstream
  * to look it up.
  *
- * <p>A separate profile rather than a config override on the existing one:
- * the absence of these headers when no key is set is itself a property worth
- * testing, and one profile cannot cover both.
+ * <p>A separate profile rather than a config override on the existing one.
+ * {@code DashboardProxyResourceTest} checks that no headers are sent without
+ * a key, and one profile cannot cover both cases.
  */
 public class DashboardAssertionTestProfile extends DashboardProxyTestProfile {
 

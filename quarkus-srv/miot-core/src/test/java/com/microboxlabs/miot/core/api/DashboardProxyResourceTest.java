@@ -262,9 +262,9 @@ class DashboardProxyResourceTest {
                 .then()
                 .statusCode(200);
 
-        // This profile sets no key, so the upstream has to resolve membership
-        // itself. Sending a role it did not ask for would change how it
-        // authorizes without anyone configuring that.
+        // This profile sets no key, so the upstream resolves membership
+        // itself. Sending a role would change how it authorizes with nothing
+        // configured to ask for that.
         var sent = DashboardWireMock.server()
                 .findAll(WireMock.getRequestedFor(WireMock.urlEqualTo(siteScopePath(""))))
                 .get(0);

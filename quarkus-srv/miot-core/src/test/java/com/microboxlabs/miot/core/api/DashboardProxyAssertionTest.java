@@ -25,10 +25,8 @@ import org.junit.jupiter.api.Test;
  * it already resolved so the dashboard server does not call Alfresco back for
  * the same answer.
  *
- * <p>These assert what leaves this service. What the dashboard server does
- * with the headers — refusing an assertion that names anyone but the token
- * holder, refusing one whose tenant or scope disagrees with the path — is
- * covered by that package's own tests.
+ * <p>These check what leaves this service. What the dashboard server does
+ * with the headers is covered by that package's own tests.
  */
 @QuarkusTest
 @TestProfile(DashboardAssertionTestProfile.class)
@@ -124,9 +122,8 @@ class DashboardProxyAssertionTest {
                 .then()
                 .statusCode(200);
 
-        // The assertion raises a role. It never stands in for the credential:
-        // the upstream matches the asserted user against the token it verified,
-        // and has nothing to match without this.
+        // The upstream matches the asserted user against the token it
+        // verified, and has nothing to match without this.
         assertThat(sentTo(listPath(SITE_ORG, SITE_ID)).getHeader("Authorization")
                 .startsWith("Bearer "), is(true));
     }
@@ -139,9 +136,8 @@ class DashboardProxyAssertionTest {
                 .then()
                 .statusCode(200);
 
-        // The upstream compares these against the path it parsed. They have to
-        // be the same two values this proxy put in the URL, or every request
-        // is refused.
+        // The upstream compares these against the path it parsed, so they
+        // must be the same two values this proxy put in the URL.
         LoggedRequest sent = sentTo(listPath(SITE_ORG, SITE_ID));
         assertThat(sent.getUrl(), is(listPath(SITE_ORG, SITE_ID)));
         assertThat(sent.getHeader(DashboardClient.ASSERTED_TENANT_HEADER), is(SITE_ORG));
@@ -157,8 +153,8 @@ class DashboardProxyAssertionTest {
                 .statusCode(200);
 
         // The filter lets an org with no Alfresco group through with a null
-        // role. Asserting Coordinator there would hand out editing rights
-        // nobody granted.
+        // role. Asserting Coordinator there would grant editing rights
+        // nobody configured.
         assertThat(sentTo(listPath(PLAIN_ORG, "default"))
                 .getHeader(DashboardClient.ASSERTED_ROLE_HEADER), is("Consumer"));
     }

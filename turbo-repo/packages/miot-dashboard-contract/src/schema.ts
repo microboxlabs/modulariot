@@ -72,7 +72,7 @@ export const dashboardFilterParamSchema = z
     type: z.enum(["text", "date_range", "select"]),
     unique: z.boolean().optional(),
     options: z
-      .array(z.object({ label: z.string(), value: z.string() }))
+      .array(z.object({ label: z.string(), value: z.string() }).passthrough())
       .optional(),
   })
   .passthrough();

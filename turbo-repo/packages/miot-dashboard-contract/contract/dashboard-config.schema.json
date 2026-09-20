@@ -203,7 +203,7 @@
                     "label",
                     "value"
                   ],
-                  "additionalProperties": false
+                  "additionalProperties": true
                 }
               }
             },

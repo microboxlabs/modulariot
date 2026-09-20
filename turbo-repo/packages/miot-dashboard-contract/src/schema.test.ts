@@ -71,6 +71,23 @@ describe("validateDashboardConfig", () => {
       widgets: [{ ...widget("a"), pinned: true }],
       preferences: { editMode: false, theme: "dark" },
       annotations: [{ note: "from a later version" }],
+      filters: [
+        {
+          key: "asset_id",
+          label: "Asset",
+          type: "select",
+          options: [{ label: "All", value: "*", icon: "globe" }],
+        },
+      ],
+      requestPlanner: [
+        {
+          id: "p1",
+          variableName: "assets",
+          pgrestFunctionName: "list_assets",
+          pgrestHttpMethod: "POST",
+          pgrestParams: [{ key: "limit", value: "10", cast: "int" }],
+        },
+      ],
     };
     const result = validateDashboardConfig(future);
     expect(result.valid).toBe(true);
@@ -79,6 +96,8 @@ describe("validateDashboardConfig", () => {
     expect(config.annotations).toEqual([{ note: "from a later version" }]);
     expect((config.preferences as Record<string, unknown>).theme).toBe("dark");
     expect((config.widgets as Record<string, unknown>[])[0]?.pinned).toBe(true);
+    expect(config.filters).toEqual(future.filters);
+    expect(config.requestPlanner).toEqual(future.requestPlanner);
   });
 
   it.each([1, 3, "2", null])("refuses version %o", (version) => {

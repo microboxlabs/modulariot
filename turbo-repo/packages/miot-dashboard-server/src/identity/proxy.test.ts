@@ -3,6 +3,7 @@ import { FULL_CAPABILITIES } from "../access/roles";
 import type { DashboardPrincipal, IdentityResolver } from "../seams/identity";
 import {
   createTrustedProxyIdentityResolver,
+  MIN_PROXY_KEY_LENGTH,
   ProxyAssertionError,
 } from "./proxy";
 
@@ -44,6 +45,21 @@ describe("createTrustedProxyIdentityResolver", () => {
     expect(() =>
       createTrustedProxyIdentityResolver({ key: "", inner: verifying() }),
     ).toThrow(TypeError);
+  });
+
+  it("refuses a key short enough to guess", () => {
+    // The floor is enforced here, not only in `readServerConfig`: a host that
+    // mounts the package builds this itself and never reaches that check.
+    expect(() =>
+      createTrustedProxyIdentityResolver({ key: "short", inner: verifying() }),
+    ).toThrow(/at least 32/);
+  });
+
+  it("accepts a key of exactly the minimum length", () => {
+    expect(KEY).toHaveLength(MIN_PROXY_KEY_LENGTH);
+    expect(() =>
+      createTrustedProxyIdentityResolver({ key: KEY, inner: verifying() }),
+    ).not.toThrow();
   });
 
   it("delegates when no key header is present", async () => {

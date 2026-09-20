@@ -41,10 +41,21 @@ export interface TrustedProxyHeaders {
   role?: string;
 }
 
+/**
+ * Shortest key this accepts.
+ *
+ * A key short enough to guess is worse than none. Holding it does not let
+ * anyone impersonate a user — the asserted user must match the verified
+ * token — but it does let them assert any tenant, scope and role for
+ * themselves, which turns a Consumer into a Coordinator.
+ */
+export const MIN_PROXY_KEY_LENGTH = 32;
+
 export interface TrustedProxyIdentityOptions {
   /**
-   * Shared secret the proxy sends. Compared in constant time. The same value
-   * has to be configured on both deployments.
+   * Shared secret the proxy sends. Compared in constant time. At least
+   * `MIN_PROXY_KEY_LENGTH` characters. The same value has to be configured on
+   * both deployments.
    */
   key: string;
   /**
@@ -93,10 +104,14 @@ function required(request: Request, header: string): string {
 export function createTrustedProxyIdentityResolver(
   options: TrustedProxyIdentityOptions,
 ): IdentityResolver<Request> {
-  if (options.key.length === 0) {
+  // Enforced here rather than only in `readServerConfig`, because this
+  // function is exported: a host that mounts the package builds the resolver
+  // itself and never passes through that check.
+  if (options.key.length < MIN_PROXY_KEY_LENGTH) {
     throw new TypeError(
-      "A trusted-proxy identity resolver needs a non-empty key. An empty " +
-        "one would accept any request that sends the header at all.",
+      `A trusted-proxy key must be at least ${MIN_PROXY_KEY_LENGTH} ` +
+        "characters. A caller who guesses it can assert their own tenant, " +
+        "scope and role.",
     );
   }
   const headers = { ...DEFAULT_HEADERS, ...options.headers };

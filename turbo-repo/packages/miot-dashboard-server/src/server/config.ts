@@ -9,6 +9,7 @@
 
 import type { JwtAlgorithm } from "../identity/jwt";
 import type { TicketPresentation } from "../identity/ticket";
+import { MIN_PROXY_KEY_LENGTH } from "../identity/proxy";
 import { DASHBOARD_ROLES, type DashboardRole } from "../access/roles";
 import { isLoopbackHost } from "../net/loopback";
 import { validateCors, type CorsOptions } from "../http/cors";
@@ -886,12 +887,6 @@ function readAuth(env: ConfigEnv, host: string): AuthConfig {
       "headers without verification and is for local use only.",
   );
 }
-
-/**
- * A proxy key short enough to guess is worse than none: it buys an attacker
- * the ability to raise their own role. 32 characters is the floor.
- */
-const MIN_PROXY_KEY_LENGTH = 32;
 
 function readProxyKey(env: ConfigEnv, auth: AuthConfig): string | undefined {
   const key = env.MIOT_DASHBOARD_PROXY_KEY;

@@ -146,6 +146,18 @@ jobs:
         run: npx vitest run src/test/i18n/locale-parity.test.ts
         working-directory: turbo-repo/apps/app
 
+      # The dashboard contract describes itself three times — zod schemas, a
+      # generated JSON Schema, and an OpenAPI document — and the three can
+      # disagree. Its suite is what compares them, so without this the guards
+      # only fire for whoever runs tests locally.
+      #
+      # Invoked directly rather than through `turbo run test`, which declares
+      # the task persistent and would not exit. Cheap enough not to need its
+      # own job: no network, no database, well under a second.
+      - name: Check the dashboard contract has not drifted
+        run: npx vitest run
+        working-directory: turbo-repo/packages/miot-dashboard-contract
+
   # ===========================================================================
   # Build - Validate the Next.js apps that participate in release/deploy flows
   # ===========================================================================

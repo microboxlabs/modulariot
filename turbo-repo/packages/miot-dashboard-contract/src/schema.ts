@@ -1,24 +1,15 @@
 /**
  * Validation for the persisted dashboard document.
  *
- * The zod schemas here are the source of truth; the JSON Schema artifact in
- * `contract/dashboard-config.schema.json` is generated from them at build time,
- * for consumers that are not TypeScript — another language implementing the
- * server, or the dashboard-generation skill checking its own output.
+ * These schemas are the source of truth.
+ * `contract/dashboard-config.schema.json` is generated from them for consumers
+ * that are not TypeScript.
  *
- * **Unknown keys pass through, deliberately.** A document written by a newer
- * minor version has to survive a load-validate-save round trip in an older
- * reader without losing the fields that reader has never heard of. Rejecting
- * them would turn every additive change into a breaking one.
+ * Unknown keys pass through at every level, so a document written by a newer
+ * version survives a load-validate-save round trip without losing fields.
  *
- * **Migration is not here, also deliberately.** The two halves disagree about
- * what to do with a document of the wrong version, and they are both right:
- * a renderer may coerce a legacy blob into something displayable, while the
- * server refuses it by name so an operator can see what is out there (the
- * decision behind `importDashboards`). A shared function only one side may
- * call is a contract that lies. What *is* shared is the refusal: every
- * implementation rejects a version it does not understand rather than
- * guessing, because a silent downgrade destroys data on the next save.
+ * There is no migration function here. Each implementation decides what to do
+ * with a version it does not understand; none of them may guess.
  */
 
 import { z } from "zod";
@@ -110,12 +101,8 @@ export const dashboardConfigSchema = z
   .passthrough();
 
 /**
- * The outcome of a validation, in plain types.
- *
- * Deliberately not zod's own result. A host implementing the other half of
- * this contract should not be forced onto our major version of zod to read an
- * answer, and the problems are wanted as text anyway — they go into the 400
- * an API returns.
+ * A validation result in plain types rather than zod's, so a consumer is not
+ * tied to our major version of zod. `problems` are text, ready for a 400 body.
  */
 export type ConfigValidation =
   | { readonly valid: true; readonly config: DashboardStorageSchema }
@@ -124,9 +111,8 @@ export type ConfigValidation =
 /**
  * Check an unknown value against the document contract.
  *
- * Each problem reads `path: message`, with the path dotted from the document
- * root (`widgets.0.layout.x`). An empty path means the document itself, so
- * those problems read as a bare message.
+ * Each problem reads `path: message`, dotted from the document root
+ * (`widgets.0.layout.x`). A problem with the document itself has no path.
  */
 export function validateDashboardConfig(input: unknown): ConfigValidation {
   const result = dashboardConfigSchema.safeParse(input);

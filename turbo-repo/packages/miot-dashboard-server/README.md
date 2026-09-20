@@ -127,20 +127,17 @@ Failed to start: error: database "no_such_db" does not exist
 
 A `PUT` is checked against
 [`@microboxlabs/miot-dashboard-contract`](../miot-dashboard-contract) before it
-reaches the store, and a document that does not match is refused with `400`
-naming what is wrong and where. There is no way to turn this off: storing a
-document nothing can render succeeds quietly, and the damage surfaces later as
-a dashboard that will not open, with nothing to say when it stopped being
-readable.
+reaches the store. A document that does not match is refused with `400` naming
+what is wrong and where. This cannot be turned off.
 
-The refusals are narrow. Unknown keys pass through at every level, so a
+Two things are refused: a `version` other than `2`, and a structure that is
+not the document at all. Unknown keys pass through at every level, so a
 document written by a newer version of the UI round trips through an older
-server with its extra fields intact. What is refused is a `version` other than
-`2`, and a structure that is not the document at all.
+server with its extra fields intact.
 
-A wrong version is refused rather than converted, which is the same choice
-`importDashboards` makes: guessing forward drops whatever the newer version
-added, and the next save writes the loss back.
+A wrong version is refused, not converted — the same choice `importDashboards`
+makes. Guessing forward drops what the newer version added, and the next save
+writes the loss back.
 
 ### Storing dashboards
 

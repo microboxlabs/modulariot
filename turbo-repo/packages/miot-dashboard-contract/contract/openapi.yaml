@@ -1,19 +1,12 @@
 # Dashboard wire contract — the HTTP surface both halves agree on.
 #
-# This lives in @microboxlabs/miot-dashboard-contract rather than in the server
-# because of who needs it: somebody implementing this API in another language,
-# or writing a client against it, should not have to install our Node server to
-# read what it answers. It moved here from
-# packages/miot-dashboard-server/contract/ for that reason.
+# In @microboxlabs/miot-dashboard-contract rather than the server, so that
+# implementing this API in another language, or writing a client for it, needs
+# no Node install.
 #
 # @microboxlabs/miot-dashboard-server implements it, serves it at /openapi.yaml
-# and renders it at /docs, so a drift between document and behaviour is visible
-# rather than theoretical: the Bruno collection in that package's rest-api/
+# and renders it at /docs. The Bruno collection in that package's rest-api/
 # exercises the same operations, including the ones that must fail.
-#
-# It began as the server-defined complement to a client draft written from the
-# client seams outward, which covered only what those seams reached. It now
-# describes the whole surface, because half a contract is worse than none.
 openapi: 3.1.0
 info:
   title: MIOT Dashboard API
@@ -454,12 +447,10 @@ components:
         bindings. `null` means nothing has been saved at this slug yet.
 
 
-        The document is described once, in
-        `dashboard-config.schema.json` beside this file, generated from the
-        zod schemas in `@microboxlabs/miot-dashboard-contract/schema`. Restating
-        it here would make a second definition that drifts, so this refers to
-        it instead. The two files are siblings both on disk and as the server
-        serves them, so the reference below resolves either way.
+        Described in `dashboard-config.schema.json` beside this file, generated
+        from the zod schemas in `@microboxlabs/miot-dashboard-contract/schema`.
+        The two files are siblings on disk and as the server serves them, so
+        the reference below resolves either way.
       oneOf:
         - $ref: "dashboard-config.schema.json#/definitions/DashboardConfig"
         - type: "null"

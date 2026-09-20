@@ -1,34 +1,15 @@
 /**
- * The persisted dashboard document.
+ * The persisted dashboard document: what a renderer writes and a server stores.
  *
- * This is the thing a dashboard *is*: what the UI writes and the server
- * stores. Both halves have to agree on it exactly, which is why it lives here
- * rather than in either of them.
- *
- * Moved from `apps/app` (`features/dashboard/types/dashboard.types.ts`), by
- * way of the UI package's extraction. Three things that came along in that
- * file were deliberately left behind, because only one side ever reads them:
- * `MAX_SCALE` (how far a viewport may scale the grid),
- * `REFRESH_INTERVAL_OPTIONS` (a select's options, carrying i18n keys) and
- * `DashletCategory` (how a picker groups the registry). A second
- * implementation of either half can be written without knowing any of them.
+ * Values only a renderer reads stay out of this package — `MAX_SCALE`,
+ * `REFRESH_INTERVAL_OPTIONS` and `DashletCategory` belong to whichever
+ * renderer needs them.
  */
 
-/**
- * Grid width, in columns, that stored layouts are expressed in.
- *
- * Part of the contract rather than a rendering choice: `GridLayoutItem.x` and
- * `.w` are counts of these columns, so a renderer using a different number
- * places every widget in the wrong column.
- */
+/** Grid width in columns. `GridLayoutItem.x` and `.w` count these. */
 export const GRID_COLS = 24;
 
-/**
- * Width in pixels that `GRID_COLS` columns occupy at scale 1.
- *
- * Also contractual, for the same reason: it is the only thing that says how
- * wide a stored column is, and therefore what aspect ratio an author saw.
- */
+/** Width in pixels that `GRID_COLS` columns occupy at scale 1. */
 export const DESIGN_WIDTH = 1600;
 
 /** Auto-refresh interval in seconds. 0 is off. */
@@ -48,17 +29,16 @@ export interface GridLayoutItem {
 }
 
 /**
- * Everything on a dashboard is a widget, including the containers other
- * widgets sit in. `componentId` names an entry in the renderer's dashlet
- * registry; this contract does not say what registry entries exist, only that
- * the document names one.
+ * Everything on a dashboard is a widget, containers included. `componentId`
+ * names an entry in the renderer's registry; this package does not say which
+ * entries exist.
  */
 export interface Widget {
   /** Unique within the document. */
   id: string;
   componentId: string;
   layout: GridLayoutItem;
-  /** Whatever the named dashlet needs. Opaque here on purpose. */
+  /** Whatever the named dashlet needs. Opaque to this package. */
   config: Record<string, unknown>;
   /** Present on container widgets. */
   children?: Widget[];
@@ -110,7 +90,7 @@ export interface DashboardFilterParam {
   options?: DashboardFilterOption[];
 }
 
-/** The document. `version` is what makes it safe to change this shape. */
+/** The document. `version` is how this shape changes later. */
 export interface DashboardStorageSchema {
   version: 2;
   name: string;

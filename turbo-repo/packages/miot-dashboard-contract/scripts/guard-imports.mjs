@@ -2,19 +2,13 @@
 /**
  * Import guard for @microboxlabs/miot-dashboard-contract.
  *
- * One rule, and the package's whole reason to exist: it depends on neither
- * half. Somebody implementing the server in another runtime, or writing a
- * client against it, installs this and gets the contract — not a renderer, not
- * a Node service, and nothing either of those needed.
+ * Shipped code may import `zod` and its own siblings, and nothing else. No
+ * `react`, no UI or server package, and no `node:` builtin — browser bundles
+ * import this too.
  *
- * So the shipped code may import `zod` and its own siblings, and nothing else.
- * Not `react`, not the UI or server packages, and no `node:` builtin either:
- * this is imported by browser bundles as well as servers, and a builtin that
- * compiles here fails in half the places it ships to.
+ * Tests and scripts use a looser list; neither is published.
  *
- * Tests and scripts are held to a looser list, because neither is published.
- *
- * Run as part of `check-types`, so a violation fails CI rather than review.
+ * Runs as part of `check-types`.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -26,9 +20,9 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
  * Every module specifier in a file, across all import forms:
  *   from "x" · export … from "x" · import "x" · import("x") · require("x")
  *
- * Matched against the specifier rather than the line, so a dynamic or
- * side-effect import cannot slip past a gate whose whole job is to stop one.
- * `\s` matches newlines, so a specifier may sit on a line of its own.
+ * Matched against the specifier, not the line, so dynamic and side-effect
+ * imports are caught too. `\s` matches newlines, so a specifier may sit on a
+ * line of its own.
  */
 const SPECIFIER_RE =
   /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*(?:\.resolve\s*)?\(\s*)["']([^"']+)["']/g;
@@ -47,17 +41,12 @@ const TOOLING_ALLOWED = new Set([
 ]);
 
 /**
- * Comments, removed before anything is matched.
+ * Strip comments before matching, because prose quotes things: a docstring
+ * containing `from "..."` reads as an import to a regex.
  *
- * Prose quotes things. A docstring explaining a 403 reason contains the words
- * `from "you are in the scope but may not do this"`, and to a regex that is an
- * import of a module with a long name — this guard reported exactly that
- * before it stripped comments.
- *
- * Tracked with a scanner rather than a regex because the failure directions
- * are not symmetric: mistaking prose for code is noise, while mistaking code
- * for a comment hides the import this exists to catch. So string literals and
- * their escapes are followed properly, and only what is left is scanned.
+ * A scanner rather than a regex. Mistaking prose for code is noise; mistaking
+ * code for a comment hides an import this should catch. So string literals and
+ * their escapes are followed properly.
  */
 function withoutComments(text) {
   let out = "";

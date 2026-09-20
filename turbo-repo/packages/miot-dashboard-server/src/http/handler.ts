@@ -314,28 +314,15 @@ async function readJsonBody(request: Request): Promise<unknown> {
   }
 }
 
-/**
- * How many faults a refusal names before it stops counting.
- *
- * A document with a systematic mistake — the wrong shape at every widget —
- * produces one problem per widget, and a 400 carrying hundreds of them is a
- * response nobody reads and a log line nobody greps. The first few show the
- * pattern; the count shows the scale.
- */
+/** How many faults a refusal names before it just counts the rest. */
 const MAX_REPORTED_PROBLEMS = 5;
 
 /**
  * Refuse a document no conforming client could render.
  *
- * The store takes `config: unknown` by design — it is not the thing that
- * decides whether a config is well-formed — so this is the layer that does.
- * Unknown keys pass through (a document from a newer minor version has to
- * survive a round trip here), which leaves the refusals narrow: a wrong
- * `version`, or a structure that is not the document at all.
- *
- * Storing one anyway is the worse failure. It succeeds, and the damage
- * surfaces later as a dashboard that will not open, with nothing to say when
- * it stopped being readable.
+ * The store takes `config: unknown`, so this layer decides. Unknown keys pass
+ * through, which leaves two refusals: a wrong `version`, and a structure that
+ * is not the document at all.
  */
 function requireValidConfig(config: unknown): void {
   const result = validateDashboardConfig(config);

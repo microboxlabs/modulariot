@@ -64,12 +64,7 @@ describe("validateDashboardConfig", () => {
     );
   });
 
-  /**
-   * The forward-compatibility promise: a document written by a newer minor
-   * version survives a load-validate-save round trip in an older reader with
-   * the fields that reader has never heard of still on it. Strip them and
-   * every additive change silently deletes data.
-   */
+  // Strip unknown keys and every additive change deletes data.
   it("keeps keys it does not know about, at every level", () => {
     const future = {
       ...DEFAULT_STORAGE,
@@ -86,11 +81,6 @@ describe("validateDashboardConfig", () => {
     expect((config.widgets as Record<string, unknown>[])[0]?.pinned).toBe(true);
   });
 
-  /**
-   * The shared refusal. Both halves reject a version they do not understand
-   * rather than guessing: coercing a v3 document into v2 would drop whatever
-   * v3 added, and the next save would write the loss back.
-   */
   it.each([1, 3, "2", null])("refuses version %o", (version) => {
     const result = validateDashboardConfig({ ...DEFAULT_STORAGE, version });
     expect(result.valid).toBe(false);
@@ -106,22 +96,14 @@ describe("validateDashboardConfig", () => {
 });
 
 describe("the generated JSON Schema artifact", () => {
-  /**
-   * The artifact is committed so that a consumer reading the repository has
-   * it, which means it can go stale the moment someone edits a zod schema.
-   * This is the only thing that notices.
-   */
+  // The artifact is committed, so it goes stale the moment a schema changes.
   it("matches what the current schemas generate", () => {
     const committed = readFileSync(ARTIFACT_URL, "utf8");
     expect(committed).toBe(buildJsonSchema());
   });
 
-  /**
-   * Two descriptions of one contract can disagree, and the way they disagree
-   * that matters is about what a document must carry: a field required in one
-   * and optional in the other means two implementations accept different
-   * documents while both claim to follow this package.
-   */
+  // A field required in one and optional in the other means two
+  // implementations accept different documents.
   it("requires exactly the fields zod requires", () => {
     const artifact = JSON.parse(buildJsonSchema()) as {
       definitions: Record<string, { required?: string[] }>;

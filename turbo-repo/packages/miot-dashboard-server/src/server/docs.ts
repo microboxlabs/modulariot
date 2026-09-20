@@ -3,12 +3,8 @@
  *
  * `GET /openapi.yaml` returns the contract package's document verbatim,
  * `GET /dashboard-config.schema.json` the document schema it refers to, and
- * `GET /docs` renders both with Swagger UI. Verbatim matters: what a reader
- * explores in the browser is byte-for-byte what an integrator generates a
- * client from, so the two cannot disagree. Nothing here re-describes the API
- * in TypeScript, which would have created a second definition to keep in step
- * — the same reason the documents themselves live in
- * `@microboxlabs/miot-dashboard-contract` and not in this package.
+ * `GET /docs` renders both with Swagger UI. Both files come from
+ * `@microboxlabs/miot-dashboard-contract`; nothing here re-describes the API.
  *
  * These routes sit beside the health probes rather than inside the handler,
  * for the same reason the probes do: they describe the deployable, not the
@@ -34,11 +30,8 @@ export const SPEC_PATH = "/openapi.yaml";
 /**
  * The document schema, served beside the spec.
  *
- * The spec does not restate the dashboard document; it refers to this file by
- * a bare relative name. That reference resolves only while the two are
- * siblings, which they are on disk in the contract package and are here on the
- * wire — so Swagger UI, and anything else that follows `$ref`, gets the whole
- * contract from either copy.
+ * The spec refers to this file by a bare relative name, so the reference
+ * resolves only while the two are siblings. Keep them at the same level.
  */
 export const SCHEMA_PATH = "/dashboard-config.schema.json";
 
@@ -95,14 +88,10 @@ export interface DocsHandler {
 /**
  * Locate the OpenAPI document.
  *
- * It lives in `@microboxlabs/miot-dashboard-contract`, not here, so this asks
- * the module resolver for it by its export name rather than walking the
- * filesystem looking for a `contract/` directory. The resolver answers the
- * same way whether this package is a workspace link or an ordinary install,
- * and it cannot wander into a neighbouring project and serve *its* document
- * as ours — which the walk it replaced had to guard against explicitly.
+ * Resolved through `@microboxlabs/miot-dashboard-contract`'s export name, so
+ * it answers the same for a workspace link and an ordinary install.
  *
- * Null when the dependency is not installed, which is a 500 that says so.
+ * Null when the dependency is not installed.
  */
 export function resolveSpecPath(): string | null {
   try {
@@ -175,10 +164,8 @@ export function createDocsHandler(options: DocsOptions = {}): DocsHandler {
   }
 
   /**
-   * Resolved from the spec rather than from the package, so that a host
-   * pointing `specPath` at a merged contract gets that contract's schema and
-   * not this one's. The reference inside the document is a bare filename, so
-   * the two only ever make sense together.
+   * Resolved from the spec, not the package, so a host pointing `specPath` at
+   * a merged contract gets that contract's schema.
    */
   function schema(): Response {
     if (specPath === null) {

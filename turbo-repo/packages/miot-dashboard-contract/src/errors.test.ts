@@ -23,11 +23,6 @@ describe("STATUS_BY_CODE", () => {
     expect(Object.keys(STATUS_BY_CODE).sort()).toEqual([...ALL_CODES].sort());
   });
 
-  /**
-   * A client decides whether to retry, re-authenticate or give up from the
-   * status class. A code landing in the wrong one sends it down the wrong
-   * path no matter how clear the message is.
-   */
   it.each([
     ["UNAUTHENTICATED", 401],
     ["FORBIDDEN", 403],
@@ -41,10 +36,7 @@ describe("STATUS_BY_CODE", () => {
     expect(STATUS_BY_CODE[code]).toBe(status);
   });
 
-  /**
-   * A shared module-level object in a long-lived server process: one caller
-   * writing through it would change what every later request reports.
-   */
+  // Shared and long-lived: a write through it would change every later answer.
   it("cannot be written through", () => {
     expect(Object.isFrozen(STATUS_BY_CODE)).toBe(true);
   });

@@ -506,11 +506,6 @@ describe.each([
   });
 
   describe("a save is checked against the contract", () => {
-    /**
-     * Storing a document nothing can render is the failure worth preventing:
-     * the save succeeds, and the damage surfaces later as a dashboard that
-     * will not open, with nothing to say when it stopped being readable.
-     */
     it.each([
       ["a version nobody can read", { ...sampleConfig(), version: 3 }],
       ["a legacy version", { ...sampleConfig(), version: 1 }],
@@ -542,11 +537,8 @@ describe.each([
       expect(body.error).toContain("widgets.0");
     });
 
-    /**
-     * Authorization still runs first. Parsing before it told an
-     * unauthenticated caller whether their JSON was well-formed; validating
-     * before it would tell them the document shape as well.
-     */
+    // Validating before authorizing would describe the document shape to a
+    // caller with no standing to ask.
     it("refuses a caller without standing before it looks at the body", async () => {
       const response = await mode().fetch(
         "/tenants/globex/scopes/ops/dashboards/checked",
@@ -555,11 +547,6 @@ describe.each([
       expect(response.status).toBe(403);
     });
 
-    /**
-     * The other half of the rule: unknown keys are not a fault. A document
-     * written by a newer minor version has to round trip through an older
-     * server without losing what that server has never heard of.
-     */
     it("keeps fields it does not know about", async () => {
       const saved = await mode().fetch(
         "/tenants/acme/scopes/ops/dashboards/forward",

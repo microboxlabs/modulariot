@@ -216,18 +216,11 @@ export function harness(
 }
 
 /**
- * A dashboard document the contract accepts.
+ * A dashboard document the contract accepts, for tests that need a valid body
+ * but are about something else.
  *
- * Tests used to send `{ version: 2 }` as a stand-in for "some config", which
- * the handler now refuses: it validates a save against
- * `@microboxlabs/miot-dashboard-contract/schema` before the store is reached.
- * That refusal is the feature, so the fixture moved rather than the rule — and
- * a test about authorization should not have to restate the document shape to
- * say "and the body was fine".
- *
- * Store-level tests deliberately do not use this. The store takes
- * `config: unknown` by design, and pushing a valid document through it would
- * hide the fact that it does not care.
+ * Store-level tests do not use it: the store takes `config: unknown`, and a
+ * valid document there would hide that it does not care.
  */
 export function sampleConfig(
   overrides: Record<string, unknown> = {},

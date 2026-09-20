@@ -1,10 +1,7 @@
 /**
- * The OpenAPI document and the TypeScript definitions describe one contract.
- *
- * They are written by hand in two languages, so nothing but a test stops them
- * drifting — and a drift here is not cosmetic. A client generated from the
- * document would accept a role the server rejects, or fail to handle an error
- * code the server can send.
+ * The OpenAPI document and the TypeScript definitions describe one contract,
+ * written by hand in two languages. A drift means a client generated from the
+ * document accepts a role the server rejects.
  */
 
 import { readFileSync } from "node:fs";
@@ -33,10 +30,7 @@ const spec = parse(readFileSync(SPEC_URL, "utf8")) as {
   paths: Record<string, unknown>;
 };
 
-/**
- * Listed rather than derived, so that widening a union in TypeScript without
- * touching the document fails here. `satisfies` keeps the list exhaustive.
- */
+/** Listed, not derived: widening a union without the document must fail here. */
 const ERROR_CODES = [
   "UNAUTHENTICATED",
   "FORBIDDEN",
@@ -91,12 +85,7 @@ describe("the OpenAPI document", () => {
     );
   });
 
-  /**
-   * The document does not restate the dashboard document; it points at the
-   * generated artifact. The reference is relative and unqualified so that it
-   * resolves both on disk and over HTTP, where the server serves the two files
-   * as siblings — which only works while they stay siblings.
-   */
+  // Relative and unqualified, so it resolves on disk and over HTTP alike.
   it("refers to the document schema rather than describing it again", () => {
     const reference = spec.components.schemas.DashboardConfig?.oneOf?.find(
       (member) => member.$ref !== undefined,

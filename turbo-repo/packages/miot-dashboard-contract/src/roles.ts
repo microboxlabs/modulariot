@@ -2,13 +2,10 @@
  * The role and capability vocabulary.
  *
  * A permission assignment names a role; an API answer reports capabilities.
- * Both cross the wire, so both are fixed here — an implementation of either
- * half that invents a fifth role, or a sixth capability, is talking to nobody.
+ * Both cross the wire, so both are fixed here, along with the role ordering.
  *
- * What is *not* fixed here is the mapping between them. A host may decide that
- * its Editors cannot share, and the server lets it: `CapabilityPolicy` is a
- * seam, and the default mapping lives with the server that ships it. Only the
- * two vocabularies and the ordering below are contractual.
+ * The mapping between them is not. A host supplies a `CapabilityPolicy`; the
+ * server ships a default one.
  */
 
 export const DASHBOARD_ROLES = [
@@ -28,10 +25,8 @@ export function isDashboardRole(value: unknown): value is DashboardRole {
 }
 
 /**
- * Strict ordering, and contractual: a host mapping its own roles onto these
- * is promising that a higher one grants at least what every lower one does.
- * Without that promise `roleAtLeast` means nothing and neither does the
- * highest-wins rule that resolves several assignments to one answer.
+ * Strict ordering. A host mapping its own roles onto these promises that a
+ * higher role grants at least what every lower one does.
  */
 const RANK: Readonly<Record<DashboardRole, number>> = Object.freeze({
   Consumer: 0,
@@ -61,11 +56,8 @@ export function highestRole(
 
 /**
  * What a caller may do with one dashboard, as the capabilities endpoint
- * reports it.
- *
- * `readOnly` is not simply `!canEdit`: it is what a renderer switches on to
- * decide whether to mount editing affordances at all, and a host may leave
- * editing off while granting `canShare`.
+ * reports it. `readOnly` is not `!canEdit`: a host may set it while still
+ * granting `canShare`.
  */
 export interface DashboardCapabilities {
   readOnly: boolean;

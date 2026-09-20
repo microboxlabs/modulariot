@@ -1,15 +1,9 @@
 /**
  * Generate `contract/dashboard-config.schema.json` from the zod schemas.
  *
- * The artifact is what consumers that are not TypeScript validate against: a
- * server written in another language, the dashboard-generation skill checking
- * its own output, an editor offering completion over a config file.
- *
- * It reads `src/schema.ts` rather than `dist/`, so `npm run schema:build` does
- * not depend on the bundler having run, and so the committed artifact and the
- * test that guards it are generated from the same place. Output is
- * deterministic: the same schemas produce a byte-identical file, which is what
- * lets `schema.test.ts` fail when someone edits a zod schema and forgets this.
+ * Reads `src/schema.ts`, not `dist/`, so the committed artifact and the test
+ * that compares it come from the same place. Output is deterministic: the same
+ * schemas produce a byte-identical file.
  */
 
 import { writeFileSync } from "node:fs";

@@ -1,14 +1,12 @@
 /**
  * The error envelope, and the codes that may appear in it.
  *
- * One shape for every failure, whatever implements the API. A client written
- * against this does not have to learn a second error format when the server
- * behind it is replaced.
+ * One shape for every failure, whatever implements the API.
  *
- * 403 carries a `reason` so a caller can tell "you are outside this scope"
- * from "you are in the scope but may not do this". A renderer hides an edit
- * button for the second and shows nothing at all for the first. The first is
- * deliberately the same response whether or not the scope exists, so it
+ * 403 carries a `reason`: `TENANT_SCOPE` means the caller is outside the
+ * scope, `CAPABILITY` that they are inside it but may not do this. A renderer
+ * hides an edit button for the second and the whole dashboard for the first.
+ * `TENANT_SCOPE` is the same response whether or not the scope exists, so it
  * cannot be used to discover what does.
  */
 
@@ -30,11 +28,7 @@ export type ForbiddenReason =
   /** In scope, but the effective capabilities do not include this action. */
   | "CAPABILITY";
 
-/**
- * The status each code is reported with. Fixed rather than left to the
- * implementation: a client that retries on 409 and gives up on 400 needs the
- * two to mean the same thing everywhere.
- */
+/** The status each code is reported with. Every implementation uses these. */
 export const STATUS_BY_CODE: Readonly<Record<DashboardErrorCode, number>> =
   Object.freeze({
     UNAUTHENTICATED: 401,

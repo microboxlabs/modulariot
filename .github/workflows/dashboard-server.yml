@@ -25,6 +25,9 @@ env:
   IMAGE_OWNER: microboxlabs
   IMAGE_NAME: miot-dashboard-server
   PACKAGE_DIR: turbo-repo/packages/miot-dashboard-server
+  # Which of the server's optional peers the image ships, at the ranges the
+  # package declares. Drop swagger-ui-dist for an image without /docs.
+  IMAGE_EXTRAS: "jose swagger-ui-dist"
 
 jobs:
   build:
@@ -59,35 +62,34 @@ jobs:
         run: npx turbo run build --filter=@microboxlabs/miot-dashboard-server
         working-directory: turbo-repo
 
-      # jose and swagger-ui-dist are optional peers, so they are taken from the
-      # install that just built dist/ rather than resolved a second time. Both
-      # are hoisted to the workspace root; the package's own node_modules holds
-      # only workspace links.
       - name: Prepare Docker context
         run: |
           set -euo pipefail
           context=/tmp/build-dashboard-server
-          mkdir -p "$context/node_modules"
+          mkdir -p "$context"
           cp -r "$PACKAGE_DIR/dist" "$context/dist"
           cp -r "$PACKAGE_DIR/examples" "$context/examples"
           cp -r "$PACKAGE_DIR/contract" "$context/contract"
-          for dep in jose swagger-ui-dist; do
-            if [[ ! -d "turbo-repo/node_modules/$dep" ]]; then
-              echo "turbo-repo/node_modules/$dep is missing; the image would start without it." >&2
-              exit 1
-            fi
-            cp -r "turbo-repo/node_modules/$dep" "$context/node_modules/$dep"
-          done
-          version="$(node -p "require('./$PACKAGE_DIR/package.json').version")"
           node -e '
-            const [file, version] = process.argv.slice(1);
-            require("fs").writeFileSync(file, JSON.stringify({
+            const [manifest, out, extras] = process.argv.slice(1);
+            const pkg = require(manifest);
+            const dependencies = { ...(pkg.dependencies ?? {}) };
+            for (const name of extras.split(/\s+/).filter(Boolean)) {
+              const range = pkg.peerDependencies?.[name];
+              if (range === undefined) {
+                throw new Error(`${name} is not a peer dependency of ${pkg.name}`);
+              }
+              dependencies[name] = range;
+            }
+            require("fs").writeFileSync(out, JSON.stringify({
               name: "miot-dashboard-server-runtime",
               private: true,
-              version,
+              version: pkg.version,
               type: "module",
+              dependencies,
             }, null, 2) + "\n");
-          ' "$context/package.json" "$version"
+          ' "$PWD/$PACKAGE_DIR/package.json" "$context/package.json" "$IMAGE_EXTRAS"
+          cat "$context/package.json"
           cp turbo-repo/docker/dashboard-server.Dockerfile "$context/"
 
       - uses: docker/setup-buildx-action@v3

@@ -1,84 +1,80 @@
 # @microboxlabs/miot-dashboard-contract
 
-What a MIOT dashboard is, and how a client and a server talk about one.
+The MIOT dashboard document and its HTTP API: types, zod schemas, the role and
+capability vocabulary, the error envelope, and an OpenAPI 3.1 document.
 
-Install this when you are replacing one of the two halves — writing a server
-for our renderer, or a client for our server. Neither half is a dependency
-here, so you need no Node service and no React bundle.
+```sh
+npm install @microboxlabs/miot-dashboard-contract
+```
 
-Using both halves as shipped? You do not need this directly. Both depend on it
-already.
+## Entry points
 
-## What is in it
+There is no root entry. Import the subpath you need.
 
-**The document.** The persisted dashboard: version, widget tree, grid layout,
-filter bar, planner requests. Written as zod schemas, and as a JSON Schema
-generated from them for consumers that are not TypeScript.
+| Import                             | Holds                                                                      |
+| ---------------------------------- | -------------------------------------------------------------------------- |
+| `.../document`                     | Document types, `GRID_COLS`, `DEFAULT_STORAGE`                             |
+| `.../schema`                       | zod schemas, `validateDashboardConfig`, `CURRENT_DASHBOARD_CONFIG_VERSION` |
+| `.../roles`                        | `DashboardRole`, `DashboardCapabilities`, `roleAtLeast`, `highestRole`     |
+| `.../errors`                       | `ErrorEnvelope`, `DashboardErrorCode`, `STATUS_BY_CODE`                    |
+| `.../openapi.yaml`                 | The OpenAPI 3.1 document                                                   |
+| `.../dashboard-config.schema.json` | JSON Schema for the document                                               |
 
-**The wire.** The HTTP API: paths, the error envelope, the role and capability
-vocabulary, in `contract/openapi.yaml`.
+`document`, `roles` and `errors` are types and constants only. `schema` is the
+one that loads zod.
 
-| Entry                                            | Holds                                                            |
-| ------------------------------------------------ | ---------------------------------------------------------------- |
-| `@microboxlabs/miot-dashboard-contract/document` | The document's types, `GRID_COLS`, `DEFAULT_STORAGE`             |
-| `.../schema`                                     | The zod schemas, `validateDashboardConfig`, the version constant |
-| `.../roles`                                      | `DashboardRole`, the ordering, `DashboardCapabilities`           |
-| `.../errors`                                     | `ErrorEnvelope`, the codes and their statuses                    |
-| `.../openapi.yaml`                               | The OpenAPI 3.1 document                                         |
-| `.../dashboard-config.schema.json`               | The generated JSON Schema                                        |
-
-There is no root entry. Each import names the module that defines it, so an
-access layer mapping host roles onto ours does not load zod.
-
-## Validating a document
+## Validate a document
 
 ```ts
 import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
 
 const result = validateDashboardConfig(await request.json());
 if (!result.valid) {
-  return Response.json(
-    { error: result.problems.join("; "), status: 400, code: "BAD_REQUEST" },
-    { status: 400 },
-  );
+  return Response.json({ error: result.problems.join("; ") }, { status: 400 });
 }
 await store.save(ref, result.config);
 ```
 
-`problems` are strings, not zod issues, so a host is not tied to our major
-version of zod.
+`problems` are strings of the form `path: message`, dotted from the document
+root (`widgets.0.layout.x`). They are not zod issues, so your code is not tied
+to this package's version of zod.
 
-## Two rules for either half
+## Compare roles
 
-**Unknown keys pass through.** A document written by a newer version must
-survive a load-validate-save round trip without losing fields the reader has
-never heard of. Strip them and every additive change becomes breaking.
+Four roles, ordered: `Consumer`, `Contributor`, `Editor`, `Coordinator`. A
+higher role grants at least what every lower one does.
 
-**A version you do not understand is refused, never guessed.** Coercing a v3
-document into v2 drops what v3 added, and the next save writes the loss back.
+```ts
+import { roleAtLeast } from "@microboxlabs/miot-dashboard-contract/roles";
 
-No migration function ships here, because each half does something different
-about a wrong version. A renderer may coerce a legacy blob into something it
-can display; our server refuses it by name so an operator can see what
-exists.
+roleAtLeast("Editor", "Contributor"); // true
+```
 
-## Changing it
+## Document behaviour
+
+**Unknown keys pass through**, at every level. A document written by a newer
+version survives a load-validate-save round trip with its fields intact.
+
+**An unrecognised `version` is refused.** Nothing here migrates a document.
+The current version is `2`.
+
+## Serving the two documents
+
+`openapi.yaml` refers to `dashboard-config.schema.json` by bare filename, so
+serve them as siblings. `@microboxlabs/miot-dashboard-server` serves them at
+`/openapi.yaml` and `/dashboard-config.schema.json`.
+
+## Development
 
 The zod schemas are the source of truth. After editing one:
 
 ```sh
 npm run schema:build   # rewrites contract/dashboard-config.schema.json
+npm test
 ```
 
-`npm test` fails when the committed artifact no longer matches the schemas.
-Another test checks the OpenAPI document against the TypeScript vocabulary in
-both directions.
-
-The document refers to the JSON Schema by a bare filename, so the two must
-stay siblings. They are, on disk and as the server serves them, at
-`/openapi.yaml` and `/dashboard-config.schema.json`. Move one without the
-other and the contract still renders, with a hole where the document should
-be — hence the test.
+`npm test` fails when the committed JSON Schema no longer matches the zod
+schemas, or when the OpenAPI document and the TypeScript vocabulary disagree.
 
 ## Licence
 

@@ -25,36 +25,51 @@ interface SchemaNode {
   oneOf?: { $ref?: string; type?: string }[];
 }
 
+interface Operation {
+  requestBody?: {
+    content?: Record<string, { schema?: SchemaNode & { $ref?: string } }>;
+  };
+}
+
 const spec = parse(readFileSync(SPEC_URL, "utf8")) as {
   components: { schemas: Record<string, SchemaNode> };
-  paths: Record<string, unknown>;
+  paths: Record<string, Record<string, Operation> | undefined>;
 };
 
-/** Listed, not derived: widening a union without the document must fail here. */
-const ERROR_CODES = [
-  "UNAUTHENTICATED",
-  "FORBIDDEN",
-  "NOT_FOUND",
-  "BAD_REQUEST",
-  "CONFLICT",
-  "PAYLOAD_TOO_LARGE",
-  "UPSTREAM_ERROR",
-  "INTERNAL_ERROR",
-] as const satisfies readonly DashboardErrorCode[];
+/**
+ * Listed, not derived, so the document has to change when a union does.
+ *
+ * Written as records rather than arrays: `satisfies readonly X[]` only rejects
+ * an entry that is not a member, so adding a member and forgetting this list
+ * still compiles. A `Record` keyed by the union does not.
+ */
+const ERROR_CODE_ORDER = {
+  UNAUTHENTICATED: true,
+  FORBIDDEN: true,
+  NOT_FOUND: true,
+  BAD_REQUEST: true,
+  CONFLICT: true,
+  PAYLOAD_TOO_LARGE: true,
+  UPSTREAM_ERROR: true,
+  INTERNAL_ERROR: true,
+} as const satisfies Record<DashboardErrorCode, true>;
+const ERROR_CODES = Object.keys(ERROR_CODE_ORDER);
 
-const FORBIDDEN_REASONS = [
-  "TENANT_SCOPE",
-  "EMBED_SCOPE",
-  "CAPABILITY",
-] as const satisfies readonly ForbiddenReason[];
+const FORBIDDEN_REASON_ORDER = {
+  TENANT_SCOPE: true,
+  EMBED_SCOPE: true,
+  CAPABILITY: true,
+} as const satisfies Record<ForbiddenReason, true>;
+const FORBIDDEN_REASONS = Object.keys(FORBIDDEN_REASON_ORDER);
 
-const CAPABILITY_KEYS = [
-  "readOnly",
-  "canEdit",
-  "canShare",
-  "canManagePermissions",
-  "canDelete",
-] as const satisfies readonly (keyof DashboardCapabilities)[];
+const CAPABILITY_ORDER = {
+  readOnly: true,
+  canEdit: true,
+  canShare: true,
+  canManagePermissions: true,
+  canDelete: true,
+} as const satisfies Record<keyof DashboardCapabilities, true>;
+const CAPABILITY_KEYS = Object.keys(CAPABILITY_ORDER);
 
 describe("the OpenAPI document", () => {
   it("describes the same roles as the role vocabulary", () => {
@@ -114,6 +129,18 @@ describe("the OpenAPI document", () => {
         artifact,
       );
     expect(resolved).toBeTypeOf("object");
+  });
+
+  it("does not let a save send null", () => {
+    const put = Object.entries(spec.paths).find(([path]) =>
+      path.endsWith("/{slug}"),
+    )?.[1]?.put;
+    const schema = put?.requestBody?.content?.["application/json"]?.schema;
+    // The nullable component is for reading an empty slug. Referencing it here
+    // would tell a generated client that `null` is a save.
+    expect(schema?.$ref).toBe(
+      "dashboard-config.schema.json#/definitions/DashboardConfig",
+    );
   });
 
   it("still allows a slug that has never been saved to answer null", () => {

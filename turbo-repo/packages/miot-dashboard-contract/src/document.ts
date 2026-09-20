@@ -36,9 +36,9 @@ export interface Widget {
   config: Record<string, unknown>;
   /** Present on container widgets. */
   children?: Widget[];
-  /** ISO-8601. */
+  /** ISO-8601. Write one; the schema does not reject an older format. */
   createdAt: string;
-  /** ISO-8601. */
+  /** ISO-8601. Write one; the schema does not reject an older format. */
   updatedAt: string;
 }
 

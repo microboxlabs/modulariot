@@ -13,8 +13,8 @@ import {
 } from "./asserted";
 
 const CLAIMS: AssertedClaims = {
-  tenantId: "mintral",
-  scopeId: "coordinador",
+  tenantId: "acme",
+  scopeId: "ops",
   role: "Coordinator",
 };
 
@@ -27,7 +27,7 @@ const principal = (asserted?: AssertedClaims): DashboardPrincipal => ({
 
 const identity = (
   asserted?: AssertedClaims,
-  tenantId = "mintral",
+  tenantId = "acme",
 ): DashboardIdentity => ({ ...principal(asserted), tenantId });
 
 const innerTenants = (answer: boolean) =>
@@ -42,9 +42,9 @@ describe("createAssertedTenantAuthority", () => {
   it("asks the inner authority when nothing was asserted", async () => {
     const inner = innerTenants(true);
     await expect(
-      createAssertedTenantAuthority(inner).mayActAs(principal(), "mintral"),
+      createAssertedTenantAuthority(inner).mayActAs(principal(), "acme"),
     ).resolves.toBe(true);
-    expect(inner.mayActAs).toHaveBeenCalledWith(expect.anything(), "mintral");
+    expect(inner.mayActAs).toHaveBeenCalledWith(expect.anything(), "acme");
   });
 
   it("allows the asserted tenant without asking", async () => {
@@ -52,7 +52,7 @@ describe("createAssertedTenantAuthority", () => {
     await expect(
       createAssertedTenantAuthority(inner).mayActAs(
         principal(CLAIMS),
-        "mintral",
+        "acme",
       ),
     ).resolves.toBe(true);
     expect(inner.mayActAs).not.toHaveBeenCalled();
@@ -73,7 +73,7 @@ describe("createAssertedScopeAuthority", () => {
     await expect(
       createAssertedScopeAuthority(inner).resolveScopeRole(
         identity(),
-        "coordinador",
+        "ops",
       ),
     ).resolves.toBe("Editor");
     expect(inner.resolveScopeRole).toHaveBeenCalledTimes(1);
@@ -84,7 +84,7 @@ describe("createAssertedScopeAuthority", () => {
     await expect(
       createAssertedScopeAuthority(inner).resolveScopeRole(
         identity(CLAIMS),
-        "coordinador",
+        "ops",
       ),
     ).resolves.toBe("Coordinator");
     expect(inner.resolveScopeRole).not.toHaveBeenCalled();
@@ -95,7 +95,7 @@ describe("createAssertedScopeAuthority", () => {
     await expect(
       createAssertedScopeAuthority(inner).resolveScopeRole(
         identity(CLAIMS),
-        "otra",
+        "finance",
       ),
     ).resolves.toBeNull();
     expect(inner.resolveScopeRole).not.toHaveBeenCalled();
@@ -106,7 +106,7 @@ describe("createAssertedScopeAuthority", () => {
     await expect(
       createAssertedScopeAuthority(inner).resolveScopeRole(
         identity(CLAIMS, "other"),
-        "coordinador",
+        "ops",
       ),
     ).resolves.toBeNull();
   });

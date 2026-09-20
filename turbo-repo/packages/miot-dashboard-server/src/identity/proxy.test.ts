@@ -28,8 +28,8 @@ const asserting = (
   const headers: Record<string, string> = {
     "x-miot-proxy-key": KEY,
     "x-miot-asserted-user": ana.userId,
-    "x-miot-asserted-tenant": "mintral",
-    "x-miot-asserted-scope": "coordinador",
+    "x-miot-asserted-tenant": "acme",
+    "x-miot-asserted-scope": "ops",
     "x-miot-asserted-role": "Coordinator",
   };
   for (const [name, value] of Object.entries(overrides)) {
@@ -67,8 +67,8 @@ describe("createTrustedProxyIdentityResolver", () => {
     expect(principal).toMatchObject({
       userId: ana.userId,
       asserted: {
-        tenantId: "mintral",
-        scopeId: "coordinador",
+        tenantId: "acme",
+        scopeId: "ops",
         role: "Coordinator",
       },
     });
@@ -138,8 +138,8 @@ describe("createTrustedProxyIdentityResolver", () => {
           "x-gateway-key": KEY,
           "x-gateway-role": "Editor",
           "x-miot-asserted-user": ana.userId,
-          "x-miot-asserted-tenant": "mintral",
-          "x-miot-asserted-scope": "coordinador",
+          "x-miot-asserted-tenant": "acme",
+          "x-miot-asserted-scope": "ops",
         },
       }),
     );

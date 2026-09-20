@@ -70,7 +70,6 @@ jobs:
           mkdir -p "$context/node_modules"
           cp -r "$PACKAGE_DIR/dist" "$context/dist"
           cp -r "$PACKAGE_DIR/examples" "$context/examples"
-          cp -r "$PACKAGE_DIR/contract" "$context/contract"
           for dep in jose swagger-ui-dist; do
             if [[ ! -d "turbo-repo/node_modules/$dep" ]]; then
               echo "turbo-repo/node_modules/$dep is missing; the image would start without it." >&2

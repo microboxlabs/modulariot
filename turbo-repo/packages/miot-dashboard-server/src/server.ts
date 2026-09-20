@@ -22,6 +22,7 @@ export {
   resolveSpecPath,
   resolveAssetsDir,
   DOCS_PATH,
+  SCHEMA_PATH,
   SPEC_PATH,
   type DocsHandler,
   type DocsOptions,

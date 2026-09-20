@@ -21,16 +21,11 @@
  * tenant-unaware.
  */
 
+import type { DashboardCapabilities } from "@microboxlabs/miot-dashboard-contract/roles";
 import type { DashboardRole } from "../access/roles";
 
-/** Capabilities mirror the UI package's Seam F vocabulary exactly. */
-export interface DashboardCapabilities {
-  readOnly: boolean;
-  canEdit: boolean;
-  canShare: boolean;
-  canManagePermissions: boolean;
-  canDelete: boolean;
-}
+/** Re-exported from the contract: the shape is reported on the wire. */
+export type { DashboardCapabilities };
 
 /**
  * Deny-by-default capabilities — the correct starting point for any caller.

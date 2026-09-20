@@ -60,17 +60,9 @@ jobs:
         run: npx turbo run build --filter=@microboxlabs/miot-dashboard-server
         working-directory: turbo-repo
 
-      # Runtime packages are taken from the install that just built dist/
-      # rather than resolved a second time. jose and swagger-ui-dist are
-      # optional peers and zod is the contract's dependency; all three are
-      # hoisted to the workspace root, where the package's own node_modules
-      # holds only workspace links.
-      #
-      # The contract is copied from its source directory, not through the
-      # node_modules symlink the workspace install leaves behind, and the
-      # `dist` check below is what catches it arriving unbuilt: the server
-      # resolves the OpenAPI document and the config schema through it, so an
-      # image without it answers 500 on /openapi.yaml and refuses every save.
+      # Runtime packages are copied from the monorepo install, not installed
+      # here. The contract is not on npm yet; once it is, this becomes an
+      # `npm install` in the Dockerfile.
       - name: Prepare Docker context
         run: |
           set -euo pipefail
@@ -115,10 +107,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Loaded into the local daemon first so the smoke test below runs the
-      # image that is about to be pushed, not the source it was built from.
-      # The bundler rewrites some `node:` specifiers, so "it imports in the
-      # repo" is not evidence that it imports in the image.
+      # The smoke test runs the built image, not the source: the bundler
+      # rewrites some `node:` specifiers.
       - name: Build image
         id: build
         uses: docker/build-push-action@v6
@@ -133,13 +123,8 @@ jobs:
       - name: Smoke-test the image
         run: |
           set -euo pipefail
-          # A random secret, so the run proves the verified path assembles
-          # rather than that an insecure fallback exists. sqlite and fs
-          # documents are exercised because both write to /data.
-          # --read-only, because the chart runs it with
-          # readOnlyRootFilesystem: true and mounts a volume at /data. If the
-          # server ever writes anywhere else, it has to fail here rather than
-          # in a cluster.
+          # --read-only matches the chart's readOnlyRootFilesystem, so a
+          # write outside /data fails here rather than in a cluster.
           docker run -d --name dashboard-smoke -p 3070:3070 \
             --read-only --volume dashboard-smoke-data:/data \
             -e MIOT_DASHBOARD_STORE=sqlite \

@@ -1,11 +1,8 @@
 /**
- * The role and capability vocabulary.
+ * The role and capability vocabulary, and the role ordering.
  *
- * A permission assignment names a role; an API answer reports capabilities.
- * Both cross the wire, so both are fixed here, along with the role ordering.
- *
- * The mapping between them is not. A host supplies a `CapabilityPolicy`; the
- * server ships a default one.
+ * The role-to-capability mapping is not fixed here: a host supplies a
+ * `CapabilityPolicy`, and the server ships a default one.
  */
 
 export const DASHBOARD_ROLES = [
@@ -24,10 +21,7 @@ export function isDashboardRole(value: unknown): value is DashboardRole {
   );
 }
 
-/**
- * Strict ordering. A host mapping its own roles onto these promises that a
- * higher role grants at least what every lower one does.
- */
+/** Strict ordering: a higher role grants at least what every lower one does. */
 const RANK: Readonly<Record<DashboardRole, number>> = Object.freeze({
   Consumer: 0,
   Contributor: 1,
@@ -55,9 +49,8 @@ export function highestRole(
 }
 
 /**
- * What a caller may do with one dashboard, as the capabilities endpoint
- * reports it. `readOnly` is not `!canEdit`: a host may set it while still
- * granting `canShare`.
+ * What a caller may do with one dashboard. `readOnly` is not `!canEdit`: a
+ * host may set it while still granting `canShare`.
  */
 export interface DashboardCapabilities {
   readOnly: boolean;

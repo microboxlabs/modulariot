@@ -1,10 +1,4 @@
-/**
- * Generate `contract/dashboard-config.schema.json` from the zod schemas.
- *
- * Reads `src/schema.ts`, not `dist/`, so the committed artifact and the test
- * that compares it come from the same place. Output is deterministic: the same
- * schemas produce a byte-identical file.
- */
+/** Generate `contract/dashboard-config.schema.json` from the zod schemas. */
 
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -17,10 +11,7 @@ export const ARTIFACT_URL = new URL(
   import.meta.url,
 );
 
-/**
- * `Widget` is named as a definition rather than left to inline: it is
- * recursive, so without a name the conversion has nothing to point `$ref` at.
- */
+/** `Widget` is recursive, so it needs a name for `$ref` to point at. */
 export function buildJsonSchema(): string {
   const jsonSchema = zodToJsonSchema(dashboardConfigSchema, {
     name: "DashboardConfig",

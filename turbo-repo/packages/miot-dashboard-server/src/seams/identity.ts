@@ -24,10 +24,7 @@
 import type { DashboardCapabilities } from "@microboxlabs/miot-dashboard-contract/roles";
 import type { DashboardRole } from "../access/roles";
 
-/**
- * Capabilities are reported on the wire, so the shape is the contract's and
- * re-exported here rather than declared twice.
- */
+/** Re-exported from the contract: the shape is reported on the wire. */
 export type { DashboardCapabilities };
 
 /**

@@ -215,13 +215,7 @@ export function harness(
   };
 }
 
-/**
- * A dashboard document the contract accepts, for tests that need a valid body
- * but are about something else.
- *
- * Store-level tests do not use it: the store takes `config: unknown`, and a
- * valid document there would hide that it does not care.
- */
+/** A document the contract accepts, for tests that are about something else. */
 export function sampleConfig(
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {

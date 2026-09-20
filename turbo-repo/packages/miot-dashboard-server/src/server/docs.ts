@@ -28,10 +28,8 @@ export const DOCS_PATH = "/docs";
 export const SPEC_PATH = "/openapi.yaml";
 
 /**
- * The document schema, served beside the spec.
- *
- * The spec refers to this file by a bare relative name, so the reference
- * resolves only while the two are siblings. Keep them at the same level.
+ * The document schema. The spec refers to it by a bare relative name, so the
+ * two must stay siblings.
  */
 export const SCHEMA_PATH = "/dashboard-config.schema.json";
 
@@ -163,10 +161,7 @@ export function createDocsHandler(options: DocsOptions = {}): DocsHandler {
     }
   }
 
-  /**
-   * Resolved from the spec, not the package, so a host pointing `specPath` at
-   * a merged contract gets that contract's schema.
-   */
+  /** Resolved from the spec, so a host's own `specPath` brings its schema. */
   function schema(): Response {
     if (specPath === null) {
       return problem(

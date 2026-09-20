@@ -61,12 +61,8 @@ const SPECIFIER_RE =
 const UI_SCHEMA_ENTRY = "@microboxlabs/miot-dashboard-ui/schema";
 
 /**
- * The contract package's declared entries.
- *
- * An allowlist because a deep import into its `src/` or `dist/` resolves in
- * this workspace and fails on an ordinary `npm install`, where only what the
- * `exports` map names is reachable. That is a fault nothing else here would
- * catch: it builds, it tests, and it breaks in a consumer's install.
+ * The contract's declared entries. A deep import past them resolves in this
+ * workspace and fails on a consumer's `npm install`.
  */
 const CONTRACT_ENTRIES = [
   "@microboxlabs/miot-dashboard-contract/document",

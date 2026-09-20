@@ -1,13 +1,8 @@
 /**
  * The error envelope, and the codes that may appear in it.
  *
- * One shape for every failure, whatever implements the API.
- *
- * 403 carries a `reason`: `TENANT_SCOPE` means the caller is outside the
- * scope, `CAPABILITY` that they are inside it but may not do this. A renderer
- * hides an edit button for the second and the whole dashboard for the first.
- * `TENANT_SCOPE` is the same response whether or not the scope exists, so it
- * cannot be used to discover what does.
+ * 403 carries a `reason`. `TENANT_SCOPE` is returned whether or not the scope
+ * exists, so it cannot be used to discover what does.
  */
 
 export type DashboardErrorCode =

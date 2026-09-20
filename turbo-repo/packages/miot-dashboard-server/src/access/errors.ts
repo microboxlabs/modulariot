@@ -14,9 +14,8 @@
  * produced before any store call, so it cannot act as an existence oracle.
  */
 
-// The envelope, its codes and their statuses are what a client parses, so all
-// three live in the contract. What stays here is this package's behaviour:
-// the error class, and the reduction of a foreign error to a generic 500.
+// The envelope, its codes and their statuses live in the contract. What
+// stays here is the error class and the reduction of a foreign error to 500.
 import {
   type DashboardErrorCode,
   type ErrorEnvelope,

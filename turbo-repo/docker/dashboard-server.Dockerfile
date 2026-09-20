@@ -1,38 +1,18 @@
-# =============================================================================
-# @microboxlabs/miot-dashboard-server — standalone image
-# =============================================================================
-# Expects a pre-built context, assembled by .github/workflows/dashboard-server.yml:
+# @microboxlabs/miot-dashboard-server — standalone image.
 #
-#   dist/          tsup output, including the bin.js this runs
-#   examples/      the seed MIOT_DASHBOARD_SEED=example resolves
-#   node_modules/  the runtime packages below, copied from the monorepo install
-#   package.json   `{"type": "module"}`, so dist/*.js loads as ESM
+# The context is assembled by .github/workflows/dashboard-server.yml: dist/,
+# examples/, node_modules/ and a `{"type": "module"}` package.json.
 #
-# The runtime packages are copied rather than installed here: the lockfile of
-# the monorepo that built dist/ is the only place their versions are resolved,
-# and a second `npm install` could pick different ones than the build was
-# checked against.
-#
-#   @microboxlabs/miot-dashboard-contract
-#                   required — the config schema the server validates saves
-#                   against, and the OpenAPI document plus its JSON Schema,
-#                   which /openapi.yaml and /dashboard-config.schema.json serve
-#   zod             required — the contract's only dependency
-#   jose            required — verifies bearer tokens, the only identity
-#                   provider a non-loopback bind will accept
-#   swagger-ui-dist optional — renders /docs; without it that path explains
-#                   how to add it and nothing else changes
-#
-# The store is node:sqlite, which is part of Node, so nothing is installed for
-# persistence either.
-# =============================================================================
+# Runtime packages: @microboxlabs/miot-dashboard-contract and zod (the config
+# schema and the OpenAPI document), jose (verifies bearer tokens),
+# swagger-ui-dist (optional; without it /docs explains how to add it). The
+# store is node:sqlite, which ships with Node.
 
 FROM node:24-alpine
 
 WORKDIR /app
 
-# Refuses MIOT_DASHBOARD_INSECURE_AUTH, which reads identity from request
-# headers without verifying it. The bind address below refuses it again.
+# Refuses MIOT_DASHBOARD_INSECURE_AUTH, which trusts request headers.
 ENV NODE_ENV=production
 
 RUN addgroup --system --gid 1001 nodejs && \
@@ -43,9 +23,7 @@ COPY --chown=dashboards:nodejs node_modules ./node_modules
 COPY --chown=dashboards:nodejs dist ./dist
 COPY --chown=dashboards:nodejs examples ./examples
 
-# Where the sqlite file and the config documents go. A deployment that wants
-# dashboards to outlive the pod mounts a volume here; without one they live in
-# the container's writable layer and go with it.
+# Mount a volume here for dashboards to outlive the container.
 RUN mkdir -p /data/documents && chown -R dashboards:nodejs /data
 VOLUME ["/data"]
 
@@ -54,9 +32,7 @@ USER dashboards
 EXPOSE 3070
 
 ENV PORT=3070
-# The package defaults to 127.0.0.1, which inside a container answers nobody.
-# Binding past loopback is also what makes the server refuse unverified header
-# identity, so an image that listens is an image that verifies.
+# The package defaults to 127.0.0.1, which answers nobody in a container.
 ENV HOST=0.0.0.0
 ENV MIOT_DASHBOARD_SQLITE_PATH=/data/dashboards.db
 ENV MIOT_DASHBOARD_DOCUMENTS_PATH=/data/documents

@@ -1,15 +1,13 @@
 /**
  * Validation for the persisted dashboard document.
  *
- * These schemas are the source of truth.
- * `contract/dashboard-config.schema.json` is generated from them for consumers
- * that are not TypeScript.
+ * These schemas are the source of truth;
+ * `contract/dashboard-config.schema.json` is generated from them.
  *
  * Unknown keys pass through at every level, so a document written by a newer
- * version survives a load-validate-save round trip without losing fields.
+ * version survives a load-validate-save round trip intact.
  *
- * There is no migration function here. Each implementation decides what to do
- * with a version it does not understand; none of them may guess.
+ * Nothing here migrates a version it does not understand.
  */
 
 import { z } from "zod";
@@ -100,19 +98,14 @@ export const dashboardConfigSchema = z
   })
   .passthrough();
 
-/**
- * A validation result in plain types rather than zod's, so a consumer is not
- * tied to our major version of zod. `problems` are text, ready for a 400 body.
- */
+/** Plain types, not zod's, so a consumer is not tied to our zod major. */
 export type ConfigValidation =
   | { readonly valid: true; readonly config: DashboardStorageSchema }
   | { readonly valid: false; readonly problems: readonly string[] };
 
 /**
- * Check an unknown value against the document contract.
- *
- * Each problem reads `path: message`, dotted from the document root
- * (`widgets.0.layout.x`). A problem with the document itself has no path.
+ * Check an unknown value against the document contract. Each problem reads
+ * `path: message`, dotted from the root (`widgets.0.layout.x`).
  */
 export function validateDashboardConfig(input: unknown): ConfigValidation {
   const result = dashboardConfigSchema.safeParse(input);

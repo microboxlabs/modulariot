@@ -1,17 +1,9 @@
 /**
- * The default role → capabilities mapping.
+ * The default role → capabilities mapping. A host that wants different
+ * semantics supplies its own `CapabilityPolicy`.
  *
- * Roles are what hosts store (a permission assignment names a role);
- * capabilities are what a renderer consumes. This module is the one place the
- * two vocabularies meet, so a host that wants different semantics overrides
- * the `CapabilityPolicy` rather than patching call sites.
- *
- * Both vocabularies themselves live in
- * `@microboxlabs/miot-dashboard-contract/roles`, because both cross the wire:
- * a second definition of either would eventually disagree with the one a
- * client was generated from. Only the mapping below belongs to this package,
- * and it is a default rather than a rule — which is precisely why it is not in
- * the contract. The vocabularies are re-exported so callers keep one import.
+ * Both vocabularies live in the contract and are re-exported here so callers
+ * keep one import.
  */
 
 import {

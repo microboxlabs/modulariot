@@ -1,14 +1,8 @@
 #!/usr/bin/env node
 /**
- * Import guard for @microboxlabs/miot-dashboard-contract.
- *
- * Shipped code may import `zod` and its own siblings, and nothing else. No
- * `react`, no UI or server package, and no `node:` builtin — browser bundles
- * import this too.
- *
- * Tests and scripts use a looser list; neither is published.
- *
- * Runs as part of `check-types`.
+ * Import guard. Shipped code may import `zod` and its own siblings, and
+ * nothing else — no `node:` builtin either, since browsers import this.
+ * Tests and scripts use a looser list. Runs as part of `check-types`.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -17,12 +11,8 @@ import { fileURLToPath } from "node:url";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 /**
- * Every module specifier in a file, across all import forms:
+ * Every module specifier, across all import forms:
  *   from "x" · export … from "x" · import "x" · import("x") · require("x")
- *
- * Matched against the specifier, not the line, so dynamic and side-effect
- * imports are caught too. `\s` matches newlines, so a specifier may sit on a
- * line of its own.
  */
 const SPECIFIER_RE =
   /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*(?:\.resolve\s*)?\(\s*)["']([^"']+)["']/g;
@@ -41,12 +31,9 @@ const TOOLING_ALLOWED = new Set([
 ]);
 
 /**
- * Strip comments before matching, because prose quotes things: a docstring
- * containing `from "..."` reads as an import to a regex.
- *
- * A scanner rather than a regex. Mistaking prose for code is noise; mistaking
- * code for a comment hides an import this should catch. So string literals and
- * their escapes are followed properly.
+ * Strip comments before matching: a docstring containing `from "..."` reads
+ * as an import. A scanner, not a regex, so string literals and their escapes
+ * are followed and no real import is swallowed.
  */
 function withoutComments(text) {
   let out = "";
@@ -85,8 +72,7 @@ function withoutComments(text) {
         inside = null;
         index += 2;
       } else {
-        // Newlines are kept so that nothing downstream sees two statements
-        // joined into one line.
+        // Keep newlines so nothing downstream joins two statements.
         if (char === "\n") out += char;
         index += 1;
       }

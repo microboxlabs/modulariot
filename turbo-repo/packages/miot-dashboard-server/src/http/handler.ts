@@ -120,10 +120,8 @@ export function createDashboardHandler(
           return jsonResponse({ data: record?.config ?? null });
         }
         if (method === "PUT") {
-          // Authorize first. Parsing before this told an unauthenticated
-          // caller whether their JSON was well-formed — a free description of
-          // the request schema, and parsing work done for someone with no
-          // standing to ask for it.
+          // Authorize before parsing: an unauthorized caller learns nothing
+          // about the request schema, and does no parsing work for us.
           const decision = await access.authorize(request, {
             tenantId: match.tenantId,
             scopeId: match.scopeId,
@@ -317,13 +315,6 @@ async function readJsonBody(request: Request): Promise<unknown> {
 /** How many faults a refusal names before it just counts the rest. */
 const MAX_REPORTED_PROBLEMS = 5;
 
-/**
- * Refuse a document no conforming client could render.
- *
- * The store takes `config: unknown`, so this layer decides. Unknown keys pass
- * through, which leaves two refusals: a wrong `version`, and a structure that
- * is not the document at all.
- */
 function requireValidConfig(config: unknown): void {
   const result = validateDashboardConfig(config);
   if (result.valid) return;

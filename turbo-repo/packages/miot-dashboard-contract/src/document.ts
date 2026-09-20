@@ -1,10 +1,4 @@
-/**
- * The persisted dashboard document: what a renderer writes and a server stores.
- *
- * Values only a renderer reads stay out of this package — `MAX_SCALE`,
- * `REFRESH_INTERVAL_OPTIONS` and `DashletCategory` belong to whichever
- * renderer needs them.
- */
+/** The persisted dashboard document: what a renderer writes and a server stores. */
 
 /** Grid width in columns. `GridLayoutItem.x` and `.w` count these. */
 export const GRID_COLS = 24;
@@ -103,10 +97,9 @@ export interface DashboardStorageSchema {
   /** Sidebar position; lower sorts first, unset sorts last. */
   order?: number;
   /**
-   * Group-based audience. Non-empty means a viewer must belong to at least one
-   * of these groups; absent or empty means the host's own access rules decide
-   * alone. Written here because it is stored in the document, but what a group
-   * *is* belongs to the host, so this contract never resolves one.
+   * Non-empty means a viewer must belong to one of these groups. Absent or
+   * empty leaves it to the host's own access rules. The host defines what a
+   * group is; this package never resolves one.
    */
   allowedGroups?: string[];
 }

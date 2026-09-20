@@ -7,15 +7,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-
-/**
- * Every module specifier, across all import forms:
- *   from "x" · export … from "x" · import "x" · import("x") · require("x")
- */
-const SPECIFIER_RE =
-  /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*(?:\.resolve\s*)?\(\s*)["']([^"']+)["']/g;
 
 /** What the published bundle may reach for. */
 const SHIPPED_ALLOWED = new Set(["zod"]);
@@ -24,6 +18,7 @@ const SHIPPED_ALLOWED = new Set(["zod"]);
 const TOOLING_ALLOWED = new Set([
   "vitest",
   "yaml",
+  "typescript",
   "zod-to-json-schema",
   "node:fs",
   "node:path",
@@ -31,64 +26,14 @@ const TOOLING_ALLOWED = new Set([
 ]);
 
 /**
- * Strip comments before matching: a docstring containing `from "..."` reads
- * as an import. A scanner, not a regex, so string literals and their escapes
- * are followed and no real import is swallowed.
+ * Every module specifier, from TypeScript's own lexer rather than a regex over
+ * the text. It follows comments and every literal form, including the
+ * template-literal `import(`x`)` a regex silently lets through.
  */
-function withoutComments(text) {
-  let out = "";
-  let index = 0;
-  /** null in code, otherwise the delimiter or comment kind being scanned. */
-  let inside = null;
-  while (index < text.length) {
-    const char = text[index];
-    const next = text[index + 1];
-    if (inside === null) {
-      if (char === "/" && next === "/") {
-        inside = "line";
-        index += 2;
-        continue;
-      }
-      if (char === "/" && next === "*") {
-        inside = "block";
-        index += 2;
-        continue;
-      }
-      if (char === '"' || char === "'" || char === "`") inside = char;
-      out += char;
-      index += 1;
-      continue;
-    }
-    if (inside === "line") {
-      if (char === "\n") {
-        inside = null;
-        out += char;
-      }
-      index += 1;
-      continue;
-    }
-    if (inside === "block") {
-      if (char === "*" && next === "/") {
-        inside = null;
-        index += 2;
-      } else {
-        // Keep newlines so nothing downstream joins two statements.
-        if (char === "\n") out += char;
-        index += 1;
-      }
-      continue;
-    }
-    // Inside a string literal: an escaped delimiter does not end it.
-    if (char === "\\") {
-      out += char + (next ?? "");
-      index += 2;
-      continue;
-    }
-    if (char === inside) inside = null;
-    out += char;
-    index += 1;
-  }
-  return out;
+export function specifiersIn(source) {
+  return ts
+    .preProcessFile(source, true, true)
+    .importedFiles.map((file) => file.fileName);
 }
 
 function isRelative(specifier) {
@@ -103,37 +48,39 @@ function* walk(directory) {
   }
 }
 
-const problems = [];
-
-const SELF = fileURLToPath(import.meta.url);
-
-for (const directory of ["src", "scripts"]) {
-  for (const file of walk(join(ROOT, directory))) {
-    // Its own docstring spells out the import forms it looks for, so scanning
-    // itself finds them and reports a module called "x".
-    if (file === SELF) continue;
-    const isTooling = directory === "scripts" || /\.test\.ts$/.test(file);
-    const allowed = isTooling
-      ? new Set([...SHIPPED_ALLOWED, ...TOOLING_ALLOWED])
-      : SHIPPED_ALLOWED;
-    const text = withoutComments(readFileSync(file, "utf8"));
-    for (const [, specifier] of text.matchAll(SPECIFIER_RE)) {
-      if (isRelative(specifier) || allowed.has(specifier)) continue;
-      problems.push(
-        `${relative(ROOT, file)}: imports "${specifier}", which ${
-          isTooling
-            ? "is not on the tooling allow-list"
-            : "the published contract may not depend on"
-        }`,
-      );
+export function problemsUnder(root = ROOT) {
+  const problems = [];
+  for (const directory of ["src", "scripts"]) {
+    for (const file of walk(join(root, directory))) {
+      const isTooling = directory === "scripts" || /\.test\.ts$/.test(file);
+      const allowed = isTooling
+        ? new Set([...SHIPPED_ALLOWED, ...TOOLING_ALLOWED])
+        : SHIPPED_ALLOWED;
+      for (const specifier of specifiersIn(readFileSync(file, "utf8"))) {
+        if (isRelative(specifier) || allowed.has(specifier)) continue;
+        problems.push(
+          `${relative(root, file)}: imports "${specifier}", which ${
+            isTooling
+              ? "is not on the tooling allow-list"
+              : "the published contract may not depend on"
+          }`,
+        );
+      }
     }
   }
+  return problems;
 }
 
-if (problems.length > 0) {
-  console.error("guard-imports: the contract reached outside itself");
-  for (const problem of problems) console.error(`  - ${problem}`);
-  process.exit(1);
-}
+const invokedDirectly =
+  process.argv[1] !== undefined &&
+  fileURLToPath(import.meta.url) === process.argv[1];
 
-console.log("guard-imports: OK");
+if (invokedDirectly) {
+  const problems = problemsUnder();
+  if (problems.length > 0) {
+    console.error("guard-imports: the contract reached outside itself");
+    for (const problem of problems) console.error(`  - ${problem}`);
+    process.exit(1);
+  }
+  console.log("guard-imports: OK");
+}

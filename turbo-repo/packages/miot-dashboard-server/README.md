@@ -123,6 +123,25 @@ opens, so a server that cannot reach its database exits rather than listening.
 Failed to start: error: database "no_such_db" does not exist
 ```
 
+### What a save has to look like
+
+A `PUT` is checked against
+[`@microboxlabs/miot-dashboard-contract`](../miot-dashboard-contract) before it
+reaches the store, and a document that does not match is refused with `400`
+naming what is wrong and where. There is no way to turn this off: storing a
+document nothing can render succeeds quietly, and the damage surfaces later as
+a dashboard that will not open, with nothing to say when it stopped being
+readable.
+
+The refusals are narrow. Unknown keys pass through at every level, so a
+document written by a newer version of the UI round trips through an older
+server with its extra fields intact. What is refused is a `version` other than
+`2`, and a structure that is not the document at all.
+
+A wrong version is refused rather than converted, which is the same choice
+`importDashboards` makes: guessing forward drops whatever the newer version
+added, and the next save writes the loss back.
+
 ### Storing dashboards
 
 `MIOT_DASHBOARD_STORE` selects the store.
@@ -404,10 +423,16 @@ host `401` means this server's credential failed — not "not a member".
 
 ### Try the API
 
-| Path            | Is                                                            |
-| --------------- | ------------------------------------------------------------- |
-| `/openapi.yaml` | OpenAPI spec                                                  |
-| `/docs`         | Swagger UI — authorize with dev user/tenant headers to try it |
+| Path                            | Is                                                            |
+| ------------------------------- | ------------------------------------------------------------- |
+| `/openapi.yaml`                 | OpenAPI spec                                                  |
+| `/dashboard-config.schema.json` | The dashboard document schema the spec refers to              |
+| `/docs`                         | Swagger UI — authorize with dev user/tenant headers to try it |
+
+Both documents come from
+[`@microboxlabs/miot-dashboard-contract`](../miot-dashboard-contract), not
+from this package, and are served as siblings because the spec refers to the
+schema by a bare filename.
 
 For automated coverage, `rest-api/` is a Bruno collection (auth and tenant
 isolation failures):
@@ -498,7 +523,8 @@ One envelope, from every adapter:
 ```
 
 `reason` is present on `403` only. Foreign exceptions are reduced to a generic
-`500`; their messages never reach the wire. See `contract/openapi.yaml`.
+`500`; their messages never reach the wire. See the OpenAPI document in
+[`@microboxlabs/miot-dashboard-contract`](../miot-dashboard-contract).
 
 ## Mounting inside Next
 

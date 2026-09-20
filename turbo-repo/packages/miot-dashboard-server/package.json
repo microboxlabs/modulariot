@@ -60,7 +60,6 @@
   },
   "files": [
     "dist",
-    "contract",
     "examples"
   ],
   "scripts": {
@@ -73,6 +72,9 @@
     "lint": "eslint .",
     "check-types": "tsc --noEmit && node scripts/guard-imports.mjs",
     "guard": "node scripts/guard-imports.mjs"
+  },
+  "dependencies": {
+    "@microboxlabs/miot-dashboard-contract": "^0.1.0"
   },
   "peerDependencies": {
     "jose": "^6.0.0",

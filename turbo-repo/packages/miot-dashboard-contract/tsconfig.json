@@ -1,0 +1,16 @@
+{
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noUncheckedIndexedAccess": true,
+    // No DOM and no Node: this package is imported by both, so anything it
+    // reaches for has to exist in either. A platform global appearing here
+    // would compile and then fail in half the places it ships to.
+    "lib": ["es2022"]
+  },
+  "include": ["src", "scripts"],
+  "exclude": ["node_modules", "dist"]
+}

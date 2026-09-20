@@ -1,5 +1,5 @@
 /**
- * The one error shape this package reports.
+ * Reporting failures in the one shape the contract defines.
  *
  * Every adapter serializes a `DashboardServerError` the same way, so a host
  * mounting the package under Next, Fastify or anything else exposes one
@@ -14,45 +14,22 @@
  * produced before any store call, so it cannot act as an existence oracle.
  */
 
-export type DashboardErrorCode =
-  | "UNAUTHENTICATED"
-  | "FORBIDDEN"
-  | "NOT_FOUND"
-  | "BAD_REQUEST"
-  | "CONFLICT"
-  | "PAYLOAD_TOO_LARGE"
-  | "UPSTREAM_ERROR"
-  | "INTERNAL_ERROR";
+// The envelope, its codes and their statuses are what a client parses, so all
+// three live in the contract. What stays here is this package's behaviour:
+// the error class, and the reduction of a foreign error to a generic 500.
+import {
+  type DashboardErrorCode,
+  type ErrorEnvelope,
+  type ForbiddenReason,
+  STATUS_BY_CODE,
+} from "@microboxlabs/miot-dashboard-contract/errors";
 
-export type ForbiddenReason =
-  /** The credential's tenant cannot reach the named scope, or has no membership in it. */
-  | "TENANT_SCOPE"
-  /** An embed principal reached outside the one dashboard its token names. */
-  | "EMBED_SCOPE"
-  /** In scope, but the effective capabilities do not include this action. */
-  | "CAPABILITY";
-
-export const STATUS_BY_CODE: Readonly<Record<DashboardErrorCode, number>> =
-  Object.freeze({
-    UNAUTHENTICATED: 401,
-    FORBIDDEN: 403,
-    NOT_FOUND: 404,
-    BAD_REQUEST: 400,
-    CONFLICT: 409,
-    PAYLOAD_TOO_LARGE: 413,
-    UPSTREAM_ERROR: 502,
-    INTERNAL_ERROR: 500,
-  });
-
-/** What goes on the wire. */
-export interface ErrorEnvelope {
-  /** Human-readable, safe to show; never contains credentials or stack text. */
-  error: string;
-  status: number;
-  code: DashboardErrorCode;
-  /** Present on 403 only. */
-  reason?: ForbiddenReason;
-}
+export {
+  type DashboardErrorCode,
+  type ErrorEnvelope,
+  type ForbiddenReason,
+  STATUS_BY_CODE,
+} from "@microboxlabs/miot-dashboard-contract/errors";
 
 export class DashboardServerError extends Error {
   readonly code: DashboardErrorCode;

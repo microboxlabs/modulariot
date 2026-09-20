@@ -1,21 +1,19 @@
-# Dashboard wire contract — the server's implemented surface.
+# Dashboard wire contract — the HTTP surface both halves agree on.
 #
-# Every operation `@microboxlabs/miot-dashboard-server` answers, described
-# exactly as it behaves. This document is served by the standalone server at
-# /openapi.yaml and rendered at /docs, so a drift between the two is visible
-# rather than theoretical: the Bruno collection in rest-api/ exercises the same
-# operations, including the ones that must fail.
+# This lives in @microboxlabs/miot-dashboard-contract rather than in the server
+# because of who needs it: somebody implementing this API in another language,
+# or writing a client against it, should not have to install our Node server to
+# read what it answers. It moved here from
+# packages/miot-dashboard-server/contract/ for that reason.
 #
-# It began as the server-defined complement to the client draft in
-# packages/miot-dashboard-ui/contract/openapi.yaml, which was written from the
-# client seams outward and covers only what those seams reach. Now that the
-# standalone server exists, this file has to describe the whole HTTP surface —
-# it is the interface a non-Node service integrates against, and half a
-# contract is worse than none. Folding the two documents together is therefore
-# a reconciliation of overlapping paths, not the concatenation the earlier note
-# promised; paths, parameters and vocabulary are still identical between them
-# so that the reconciliation stays mechanical. See "Open decisions" in the
-# build todo.
+# @microboxlabs/miot-dashboard-server implements it, serves it at /openapi.yaml
+# and renders it at /docs, so a drift between document and behaviour is visible
+# rather than theoretical: the Bruno collection in that package's rest-api/
+# exercises the same operations, including the ones that must fail.
+#
+# It began as the server-defined complement to a client draft written from the
+# client seams outward, which covered only what those seams reached. It now
+# describes the whole surface, because half a contract is worse than none.
 openapi: 3.1.0
 info:
   title: MIOT Dashboard API
@@ -452,13 +450,19 @@ components:
           description: Display name, as the host store records it.
     DashboardConfig:
       description: >
-        The dashboard document the UI package renders — layout, widgets and
-        their datasource bindings. Deliberately unconstrained here: it is
-        validated against its own versioned JSON Schema at the service layer,
-        so this contract never becomes a second, drifting definition of it.
-        `null` means nothing has been saved at this slug yet.
-      type: [object, "null"]
-      additionalProperties: true
+        The dashboard document — layout, widgets and their datasource
+        bindings. `null` means nothing has been saved at this slug yet.
+
+
+        The document is described once, in
+        `dashboard-config.schema.json` beside this file, generated from the
+        zod schemas in `@microboxlabs/miot-dashboard-contract/schema`. Restating
+        it here would make a second definition that drifts, so this refers to
+        it instead. The two files are siblings both on disk and as the server
+        serves them, so the reference below resolves either way.
+      oneOf:
+        - $ref: "dashboard-config.schema.json#/definitions/DashboardConfig"
+        - type: "null"
     SaveResult:
       type: object
       required: [revision, updatedAt]

@@ -18,6 +18,12 @@ name: Publish miot-dashboard-server
 #     (see src/store/sqlite-driver.ts), which is the same class of fault: it
 #     only appears in the built artifact.
 #
+# **Publish @microboxlabs/miot-dashboard-contract first.** This package
+# depends on it, so the consumer install below pulls that version from the
+# registry and fails if it is not there yet. That failure is the ordering
+# working, not a problem to route around — see
+# publish-miot-dashboard-contract.yaml.
+#
 # Authentication: npm trusted publishing (OIDC), which needs no stored
 # credential — hence `id-token: write` and no token in the publish step.
 # Trusted publishing is configured on the package's page on npmjs.com, so it
@@ -48,7 +54,7 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
-      id-token: write          # OIDC for npm trusted publishers
+      id-token: write # OIDC for npm trusted publishers
 
     steps:
       - uses: actions/checkout@v5
@@ -230,8 +236,12 @@ jobs:
             cat server.log >&2
             exit 1
           fi
-          # contract/openapi.yaml is in `files`; this proves it shipped.
+          # Both come from the contract package, resolved through the
+          # dependency rather than shipped in this tarball, so these two prove
+          # that resolution works in an ordinary install and not only in the
+          # workspace.
           curl -fsS http://127.0.0.1:3178/openapi.yaml | head -1
+          curl -fsS http://127.0.0.1:3178/dashboard-config.schema.json > /dev/null
 
           cat server.log
           # `|| true` because `set -e` would fail the step on pkill's

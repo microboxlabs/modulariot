@@ -5,15 +5,19 @@
 #
 #   dist/          tsup output, including the bin.js this runs
 #   examples/      the seed MIOT_DASHBOARD_SEED=example resolves
-#   contract/      the OpenAPI document /openapi.yaml serves
-#   node_modules/  jose and swagger-ui-dist, copied from the monorepo install
+#   node_modules/  the runtime packages below, copied from the monorepo install
 #   package.json   `{"type": "module"}`, so dist/*.js loads as ESM
 #
-# The two runtime packages are copied rather than installed here: they are
-# optional peers, so the lockfile of the monorepo that built dist/ is the only
-# place their versions are resolved, and a second `npm install` could pick
-# different ones than the build was checked against.
+# The runtime packages are copied rather than installed here: the lockfile of
+# the monorepo that built dist/ is the only place their versions are resolved,
+# and a second `npm install` could pick different ones than the build was
+# checked against.
 #
+#   @microboxlabs/miot-dashboard-contract
+#                   required — the config schema the server validates saves
+#                   against, and the OpenAPI document plus its JSON Schema,
+#                   which /openapi.yaml and /dashboard-config.schema.json serve
+#   zod             required — the contract's only dependency
 #   jose            required — verifies bearer tokens, the only identity
 #                   provider a non-loopback bind will accept
 #   swagger-ui-dist optional — renders /docs; without it that path explains
@@ -38,7 +42,6 @@ COPY --chown=dashboards:nodejs package.json ./
 COPY --chown=dashboards:nodejs node_modules ./node_modules
 COPY --chown=dashboards:nodejs dist ./dist
 COPY --chown=dashboards:nodejs examples ./examples
-COPY --chown=dashboards:nodejs contract ./contract
 
 # Where the sqlite file and the config documents go. A deployment that wants
 # dashboards to outlive the pod mounts a volume here; without one they live in

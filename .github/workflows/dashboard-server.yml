@@ -3,19 +3,19 @@ name: Dashboard Server CI
 on:
   push:
     paths:
-      - 'turbo-repo/packages/miot-dashboard-server/**'
-      - 'turbo-repo/packages/miot-dashboard-contract/**'
-      - 'turbo-repo/package-lock.json'
-      - 'turbo-repo/docker/dashboard-server.Dockerfile'
-      - '.github/workflows/dashboard-server.yml'
+      - "turbo-repo/packages/miot-dashboard-server/**"
+      - "turbo-repo/packages/miot-dashboard-contract/**"
+      - "turbo-repo/package-lock.json"
+      - "turbo-repo/docker/dashboard-server.Dockerfile"
+      - ".github/workflows/dashboard-server.yml"
     branches: [trunk, main]
   pull_request:
     paths:
-      - 'turbo-repo/packages/miot-dashboard-server/**'
-      - 'turbo-repo/packages/miot-dashboard-contract/**'
-      - 'turbo-repo/package-lock.json'
-      - 'turbo-repo/docker/dashboard-server.Dockerfile'
-      - '.github/workflows/dashboard-server.yml'
+      - "turbo-repo/packages/miot-dashboard-server/**"
+      - "turbo-repo/packages/miot-dashboard-contract/**"
+      - "turbo-repo/package-lock.json"
+      - "turbo-repo/docker/dashboard-server.Dockerfile"
+      - ".github/workflows/dashboard-server.yml"
     branches: [trunk, main]
   workflow_dispatch:
 
@@ -25,6 +25,7 @@ env:
   IMAGE_OWNER: microboxlabs
   IMAGE_NAME: miot-dashboard-server
   PACKAGE_DIR: turbo-repo/packages/miot-dashboard-server
+  CONTRACT_DIR: turbo-repo/packages/miot-dashboard-contract
 
 jobs:
   build:
@@ -59,10 +60,17 @@ jobs:
         run: npx turbo run build --filter=@microboxlabs/miot-dashboard-server
         working-directory: turbo-repo
 
-      # jose and swagger-ui-dist are optional peers, so they are taken from the
-      # install that just built dist/ rather than resolved a second time. Both
-      # are hoisted to the workspace root; the package's own node_modules holds
-      # only workspace links.
+      # Runtime packages are taken from the install that just built dist/
+      # rather than resolved a second time. jose and swagger-ui-dist are
+      # optional peers and zod is the contract's dependency; all three are
+      # hoisted to the workspace root, where the package's own node_modules
+      # holds only workspace links.
+      #
+      # The contract is copied from its source directory, not through the
+      # node_modules symlink the workspace install leaves behind, and the
+      # `dist` check below is what catches it arriving unbuilt: the server
+      # resolves the OpenAPI document and the config schema through it, so an
+      # image without it answers 500 on /openapi.yaml and refuses every save.
       - name: Prepare Docker context
         run: |
           set -euo pipefail
@@ -70,14 +78,23 @@ jobs:
           mkdir -p "$context/node_modules"
           cp -r "$PACKAGE_DIR/dist" "$context/dist"
           cp -r "$PACKAGE_DIR/examples" "$context/examples"
-          cp -r "$PACKAGE_DIR/contract" "$context/contract"
-          for dep in jose swagger-ui-dist; do
+          for dep in jose swagger-ui-dist zod; do
             if [[ ! -d "turbo-repo/node_modules/$dep" ]]; then
               echo "turbo-repo/node_modules/$dep is missing; the image would start without it." >&2
               exit 1
             fi
             cp -r "turbo-repo/node_modules/$dep" "$context/node_modules/$dep"
           done
+          contract_out="$context/node_modules/@microboxlabs/miot-dashboard-contract"
+          mkdir -p "$contract_out"
+          for part in dist contract; do
+            if [[ ! -d "$CONTRACT_DIR/$part" ]]; then
+              echo "$CONTRACT_DIR/$part is missing; the image would not serve the contract." >&2
+              exit 1
+            fi
+            cp -r "$CONTRACT_DIR/$part" "$contract_out/$part"
+          done
+          cp "$CONTRACT_DIR/package.json" "$contract_out/package.json"
           version="$(node -p "require('./$PACKAGE_DIR/package.json').version")"
           node -e '
             const [file, version] = process.argv.slice(1);

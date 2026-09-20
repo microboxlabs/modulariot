@@ -1,0 +1,248 @@
+{
+  "$ref": "#/definitions/DashboardConfig",
+  "definitions": {
+    "Widget": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "componentId": {
+          "type": "string"
+        },
+        "layout": {
+          "type": "object",
+          "properties": {
+            "i": {
+              "type": "string"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "w": {
+              "type": "number"
+            },
+            "h": {
+              "type": "number"
+            },
+            "minW": {
+              "type": "number"
+            },
+            "minH": {
+              "type": "number"
+            },
+            "maxW": {
+              "type": "number"
+            },
+            "maxH": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "i",
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "additionalProperties": true
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Widget"
+          }
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "componentId",
+        "layout",
+        "config",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": true
+    },
+    "DashboardConfig": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 2
+        },
+        "name": {
+          "type": "string"
+        },
+        "widgets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Widget"
+          }
+        },
+        "preferences": {
+          "type": "object",
+          "properties": {
+            "editMode": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "editMode"
+          ],
+          "additionalProperties": true
+        },
+        "requestPlanner": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "variableName": {
+                "type": "string"
+              },
+              "pgrestFunctionName": {
+                "type": "string"
+              },
+              "pgrestHttpMethod": {
+                "type": "string",
+                "enum": [
+                  "POST",
+                  "GET"
+                ]
+              },
+              "pgrestParams": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "value"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "dataSourceId": {
+                "type": "string"
+              },
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "variableName",
+              "pgrestFunctionName",
+              "pgrestHttpMethod",
+              "pgrestParams"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "date_range",
+                  "select"
+                ]
+              },
+              "unique": {
+                "type": "boolean"
+              },
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "key",
+              "label",
+              "type"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "refreshInterval": {
+          "type": "number",
+          "enum": [
+            0,
+            10,
+            30,
+            60,
+            300
+          ]
+        },
+        "order": {
+          "type": "number"
+        },
+        "allowedGroups": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "version",
+        "name",
+        "widgets",
+        "preferences"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

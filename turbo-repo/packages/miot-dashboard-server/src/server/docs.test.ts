@@ -10,14 +10,7 @@
  * the suite fails.
  */
 
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
@@ -28,6 +21,7 @@ import {
   resolveSpecPath,
   DOCS_PATH,
   REQUEST_INTERCEPTOR_SOURCE,
+  SCHEMA_PATH,
   SPEC_PATH,
 } from "./docs";
 import { serve, type RunningServer } from "./serve";
@@ -94,50 +88,64 @@ describe("the contract endpoint", () => {
     );
   });
 
-  it("finds the document from source and from a build", () => {
-    // The two layouts the walk-up exists for: src/server/docs.ts is two levels
-    // below the package root, dist/server.js is one.
-    expect(
-      resolveSpecPath(join(PACKAGE_ROOT, "src", "server", "docs.ts")),
-    ).toBe(join(PACKAGE_ROOT, "contract", "openapi.yaml"));
-    expect(resolveSpecPath(join(PACKAGE_ROOT, "dist", "server.js"))).toBe(
-      join(PACKAGE_ROOT, "contract", "openapi.yaml"),
-    );
+  it("finds the document in the contract package, not in this one", () => {
+    // Resolved through the dependency's exports rather than found by walking
+    // the filesystem, which is what stops it picking up a neighbouring
+    // project's document — a documented API quietly describing something else.
+    const specPath = resolveSpecPath();
+    expect(specPath).not.toBeNull();
+    // Matched on the directory name rather than the `@microboxlabs/` specifier,
+    // because a workspace install links the package and `require.resolve`
+    // answers with the real path behind the link.
+    expect(specPath).toContain("miot-dashboard-contract");
+    expect(specPath?.startsWith(PACKAGE_ROOT)).toBe(false);
   });
 
-  it("stops at the package root rather than adopting a parent's contract", () => {
-    // Built rather than pointed at a real sibling: no parent of this package
-    // happens to hold a contract today, so a test against the real tree would
-    // pass whether or not the boundary exists. Here the decoy is real.
-    //
-    //   <tmp>/contract/openapi.yaml   ← another project's document
-    //   <tmp>/pkg/package.json        ← our package root, no contract
-    //   <tmp>/pkg/dist/server.js      ← where the search starts
-    //
-    // Serving that decoy would be a documented API quietly describing
-    // something else, which is worse than serving no documentation at all.
-    const root = mkdtempSync(join(tmpdir(), "miot-docs-"));
-    try {
-      mkdirSync(join(root, "contract"), { recursive: true });
-      writeFileSync(join(root, "contract", "openapi.yaml"), "openapi: 3.1.0\n");
-      mkdirSync(join(root, "pkg", "dist"), { recursive: true });
-      writeFileSync(join(root, "pkg", "package.json"), "{}\n");
+  it("serves the document schema byte for byte, beside the document", async () => {
+    const response = createDocsHandler()(get(SCHEMA_PATH));
+    expect(response?.status).toBe(200);
+    expect(response?.headers.get("content-type")).toContain(
+      "application/schema+json",
+    );
+    const onDisk = join(
+      dirname(resolveSpecPath() as string),
+      SCHEMA_PATH.slice(1),
+    );
+    await expect(response?.text()).resolves.toBe(readFileSync(onDisk, "utf8"));
+  });
 
-      const start = join(root, "pkg", "dist", "server.js");
-      expect(resolveSpecPath(start)).toBeNull();
+  /**
+   * The document does not restate the dashboard config; it refers to the
+   * schema by a bare filename, which resolves only while the two are served as
+   * siblings. Break that and Swagger UI renders a contract with a hole where
+   * the document should be — and it renders *successfully*, which is why this
+   * is asserted rather than left to be noticed.
+   */
+  it("serves the spec's $ref target at the path the $ref resolves to", async () => {
+    const handler = createDocsHandler();
+    const spec: unknown = parseYaml(
+      await (handler(get(SPEC_PATH)) as Response).text(),
+    );
+    const schemas =
+      isRecord(spec) && isRecord(spec.components)
+        ? spec.components.schemas
+        : undefined;
+    const config = isRecord(schemas) ? schemas.DashboardConfig : undefined;
+    const members =
+      isRecord(config) && Array.isArray(config.oneOf)
+        ? (config.oneOf as unknown[])
+        : [];
+    const reference = members
+      .filter(isRecord)
+      .map((member) => member.$ref)
+      .find((value): value is string => typeof value === "string");
+    expect(reference, "DashboardConfig must refer to the schema").toBeDefined();
 
-      // Positive control: the same search finds the package's own contract.
-      mkdirSync(join(root, "pkg", "contract"), { recursive: true });
-      writeFileSync(
-        join(root, "pkg", "contract", "openapi.yaml"),
-        "openapi: 3.1.0\n",
-      );
-      expect(resolveSpecPath(start)).toBe(
-        join(root, "pkg", "contract", "openapi.yaml"),
-      );
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+    const [file] = (reference as string).split("#");
+    const resolved = new URL(file as string, `http://test.local${SPEC_PATH}`)
+      .pathname;
+    expect(resolved).toBe(SCHEMA_PATH);
+    expect(handler(get(resolved))?.status).toBe(200);
   });
 
   it("reports a missing document rather than serving an empty one", async () => {
@@ -260,6 +268,16 @@ describe('the "Try it out" rewriter', () => {
 
   it("leaves the spec alone, which is how the page loads at all", () => {
     expect(rewrite(`${ORIGIN}${SPEC_PATH}`)).toBe(`${ORIGIN}${SPEC_PATH}`);
+  });
+
+  /**
+   * The page fetches this itself, following the spec's `$ref`. Prefixing it
+   * sends the fetch to a path the API router does not serve, and the spec then
+   * fails to resolve under a base path — while resolving perfectly at the
+   * root, which is where it would be tested by hand.
+   */
+  it("leaves the document schema alone, for the same reason", () => {
+    expect(rewrite(`${ORIGIN}${SCHEMA_PATH}`)).toBe(`${ORIGIN}${SCHEMA_PATH}`);
   });
 
   it.each([DOCS_PATH, `${DOCS_PATH}/swagger-ui-bundle.js`])(

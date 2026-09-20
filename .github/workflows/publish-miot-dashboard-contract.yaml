@@ -1,27 +1,26 @@
-name: Publish miot-dashboard-server
+name: Publish miot-dashboard-contract
 
-# Publish @microboxlabs/miot-dashboard-contract before this: the consumer
-# install below pulls it from the registry.
+# Publish this package before the server, which depends on it.
 #
 # Trusted publishing (OIDC) is configured on the package's npmjs.com page and
 # cannot be set up before the package exists, so the first release needs
-# NPM_TOKEN. Delete the secret once the trusted publisher is configured.
+# NPM_TOKEN.
 
 on:
   push:
     tags:
-      - "miot-dashboard-server@v*"
+      - "miot-dashboard-contract@v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Git tag to publish (e.g. miot-dashboard-server@v0.1.0)"
+        description: "Git tag to publish (e.g. miot-dashboard-contract@v0.1.0)"
         required: true
 
 env:
   NODE_VERSION: "24"
-  PACKAGE_NAME: "@microboxlabs/miot-dashboard-server"
-  PACKAGE_DIR: "packages/miot-dashboard-server"
-  TAG_PREFIX: "miot-dashboard-server@v"
+  PACKAGE_NAME: "@microboxlabs/miot-dashboard-contract"
+  PACKAGE_DIR: "packages/miot-dashboard-contract"
+  TAG_PREFIX: "miot-dashboard-contract@v"
 
 jobs:
   publish:
@@ -36,9 +35,8 @@ jobs:
       - uses: actions/checkout@v5
         with:
           # `refs/tags/` is explicit: actions/checkout resolves an
-          # unqualified ref to a branch before a tag, and a branch named like
-          # the tag would satisfy the version check below just as well.
-          ref: ${{ startsWith(inputs.tag, 'miot-dashboard-server@v') && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          # unqualified ref to a branch before a tag.
+          ref: ${{ startsWith(inputs.tag, 'miot-dashboard-contract@v') && format('refs/tags/{0}', inputs.tag) || github.ref }}
           persist-credentials: false
 
       - uses: actions/setup-node@v6
@@ -53,7 +51,7 @@ jobs:
         env:
           # Through the environment, not interpolated: the dispatch input
           # is untrusted text and bash expands `$(...)` inside quotes.
-          RELEASE_REF: ${{ startsWith(inputs.tag, 'miot-dashboard-server@v') && inputs.tag || github.ref_name }}
+          RELEASE_REF: ${{ startsWith(inputs.tag, 'miot-dashboard-contract@v') && inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
           ref="$RELEASE_REF"
@@ -72,8 +70,6 @@ jobs:
             exit 1
           fi
           echo "version=$declared" >> "$GITHUB_OUTPUT"
-          # Not github.ref_name, which on a dispatch names the ref it ran
-          # from, not the tag.
           echo "tag=$ref" >> "$GITHUB_OUTPUT"
           echo "Publishing $PACKAGE_NAME@$declared"
 
@@ -105,7 +101,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/release"
           npm pack --workspace="$PACKAGE_DIR" --pack-destination "$RUNNER_TEMP/release"
-          tarball="$RUNNER_TEMP/release/microboxlabs-miot-dashboard-server-${{ steps.version.outputs.version }}.tgz"
+          tarball="$RUNNER_TEMP/release/microboxlabs-miot-dashboard-contract-${{ steps.version.outputs.version }}.tgz"
           if [[ ! -f "$tarball" ]]; then
             echo "npm pack did not produce $tarball. Contents:" >&2
             ls -la "$RUNNER_TEMP/release" >&2
@@ -120,80 +116,61 @@ jobs:
           mkdir -p "$RUNNER_TEMP/consumer"
           cd "$RUNNER_TEMP/consumer"
           npm init -y > /dev/null
-          # jose is an optional peer; the run below needs the verified path.
-          npm install --no-audit --no-fund "${{ steps.pack.outputs.tarball }}" jose
+          npm install --no-audit --no-fund "${{ steps.pack.outputs.tarball }}"
 
       - name: Resolve every published entry point
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/consumer"
           cat > check-exports.mjs <<'CHECK'
-          const entries = [
-            "",
-            "/http",
-            "/identity",
-            "/store-sql",
-            "/store-cloud",
-            "/testing",
-            "/server",
-            "/next",
-          ];
+          import { createRequire } from "node:module";
+          import { readFileSync } from "node:fs";
+          import { dirname, join } from "node:path";
 
-          for (const entry of entries) {
-            const specifier = "@microboxlabs/miot-dashboard-server" + entry;
-            const loaded = await import(specifier);
+          const require = createRequire(import.meta.url);
+          const name = "@microboxlabs/miot-dashboard-contract";
+
+          for (const entry of ["/document", "/schema", "/roles", "/errors"]) {
+            const loaded = await import(name + entry);
             const names = Object.keys(loaded);
             if (names.length === 0) {
-              throw new Error(`${specifier} resolved but exports nothing`);
+              throw new Error(`${name}${entry} resolved but exports nothing`);
             }
-            console.log("ok", entry || ".", "->", names.length, "exports");
+            console.log("ok", entry, "->", names.length, "exports");
           }
+
+          // A literal, not the package's own DEFAULT_STORAGE.
+          const { validateDashboardConfig } = await import(name + "/schema");
+          const ok = validateDashboardConfig({
+            version: 2,
+            name: "Smoke",
+            widgets: [],
+            preferences: { editMode: false },
+          });
+          if (!ok.valid) {
+            throw new Error(`the published schema refuses a valid document: ${ok.problems.join("; ")}`);
+          }
+          const bad = validateDashboardConfig({ version: 1 });
+          if (bad.valid) {
+            throw new Error("the published schema accepted a version 1 document");
+          }
+          console.log("ok schema accepts v2 and refuses v1");
+
+          // The document refers to the schema by bare filename, so both must
+          // ship and must be siblings.
+          const spec = require.resolve(name + "/openapi.yaml");
+          const schema = require.resolve(name + "/dashboard-config.schema.json");
+          if (dirname(spec) !== dirname(schema)) {
+            throw new Error(`the document and its schema are not siblings: ${spec} vs ${schema}`);
+          }
+          const reference = "dashboard-config.schema.json";
+          if (!readFileSync(spec, "utf8").includes(reference)) {
+            throw new Error(`${spec} no longer refers to ${reference}`);
+          }
+          JSON.parse(readFileSync(join(dirname(spec), reference), "utf8"));
+          console.log("ok the document and its schema shipped together");
           CHECK
           node check-exports.mjs
-
-      - name: Run the published binary
-        run: |
-          set -euo pipefail
-          cd "$RUNNER_TEMP/consumer"
-          # A fixed port, because the config refuses 0.
-          PORT=3178 \
-          MIOT_DASHBOARD_STORE=sqlite \
-          MIOT_DASHBOARD_DOCUMENTS=fs \
-          MIOT_DASHBOARD_JWT_ISSUER=https://issuer.invalid/ \
-          MIOT_DASHBOARD_JWT_AUDIENCE=smoke \
-          MIOT_DASHBOARD_JWT_SECRET="$(openssl rand -hex 32)" \
-            ./node_modules/.bin/miot-dashboard-server > server.log 2>&1 &
-
-          for _ in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:3178/livez > /dev/null 2>&1; then
-              ready=yes
-              break
-            fi
-            sleep 1
-          done
-          if [[ "${ready:-no}" != "yes" ]]; then
-            echo "The published binary never answered /livez." >&2
-            cat server.log >&2
-            exit 1
-          fi
-
-          curl -fsS http://127.0.0.1:3178/readyz | grep -q '"ready"'
-          # No credential: the server must refuse rather than answer.
-          status="$(curl -s -o /dev/null -w '%{http_code}' \
-            http://127.0.0.1:3178/tenants/t/scopes/s/dashboards)"
-          if [[ "$status" != "401" ]]; then
-            echo "An unauthenticated list returned $status, expected 401." >&2
-            cat server.log >&2
-            exit 1
-          fi
-          # Both come from the contract package, so these prove resolution
-          # works in an ordinary install and not only in the workspace.
-          curl -fsS http://127.0.0.1:3178/openapi.yaml | head -1
-          curl -fsS http://127.0.0.1:3178/dashboard-config.schema.json > /dev/null
-
-          cat server.log
-          # `|| true`: pkill exits non-zero when nothing matched.
-          pkill -f miot-dashboard-server || true
 
       - name: Publish to npm
         run: npm publish --workspace=$PACKAGE_DIR --access public
@@ -208,5 +185,6 @@ jobs:
             echo "# $PACKAGE_NAME@${{ steps.version.outputs.version }}"
             echo ""
             echo "- Published from tag \`${{ steps.version.outputs.tag }}\`"
-            echo "- Entry points resolved from the installed tarball, binary answered /livez, /readyz and 401"
+            echo "- Entry points resolved from the installed tarball; the document and its schema shipped together"
+            echo "- Publish this before @microboxlabs/miot-dashboard-server, which depends on it"
           } >> "$GITHUB_STEP_SUMMARY"

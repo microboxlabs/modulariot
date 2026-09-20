@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { sampleConfig } from "../test/fixtures";
 import { withCors } from "./cors";
 import { createDashboardHandler } from "./handler";
 import { serve, type RunningServer } from "../server/serve";
@@ -110,7 +111,7 @@ describe.each(["direct", "http"])("CORS %s", (mode) => {
           origin: "http://localhost:3070",
           "content-type": "application/json",
         },
-        body: JSON.stringify({ version: 2, name: "Fleet", widgets: [] }),
+        body: JSON.stringify(sampleConfig()),
       },
       "/fleet",
     );

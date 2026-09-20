@@ -69,7 +69,6 @@ jobs:
           mkdir -p "$context"
           cp -r "$PACKAGE_DIR/dist" "$context/dist"
           cp -r "$PACKAGE_DIR/examples" "$context/examples"
-          cp -r "$PACKAGE_DIR/contract" "$context/contract"
           node -e '
             const [manifest, out, extras] = process.argv.slice(1);
             const pkg = require(manifest);

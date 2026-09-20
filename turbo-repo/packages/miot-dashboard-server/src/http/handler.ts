@@ -19,6 +19,7 @@
  * it returns, which already carries the loaded record.
  */
 
+import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
 import {
   createAccessControl,
   type AccessControlOptions,
@@ -119,10 +120,8 @@ export function createDashboardHandler(
           return jsonResponse({ data: record?.config ?? null });
         }
         if (method === "PUT") {
-          // Authorize first. Parsing before this told an unauthenticated
-          // caller whether their JSON was well-formed — a free description of
-          // the request schema, and parsing work done for someone with no
-          // standing to ask for it.
+          // Authorize before parsing: an unauthorized caller learns nothing
+          // about the request schema, and does no parsing work for us.
           const decision = await access.authorize(request, {
             tenantId: match.tenantId,
             scopeId: match.scopeId,
@@ -130,6 +129,7 @@ export function createDashboardHandler(
             action: "dashboard.save",
           });
           const config = await readJsonBody(request);
+          requireValidConfig(config);
           const expectedRevision = readExpectedRevision(request);
           const saved = await options.store.save(
             refOf(decision.identity.tenantId, match.scopeId, slug),
@@ -310,6 +310,20 @@ async function readJsonBody(request: Request): Promise<unknown> {
   } catch {
     throw DashboardServerError.badRequest("Request body must be valid JSON");
   }
+}
+
+/** How many faults a refusal names before it just counts the rest. */
+const MAX_REPORTED_PROBLEMS = 5;
+
+function requireValidConfig(config: unknown): void {
+  const result = validateDashboardConfig(config);
+  if (result.valid) return;
+  const shown = result.problems.slice(0, MAX_REPORTED_PROBLEMS);
+  const remaining = result.problems.length - shown.length;
+  const tail = remaining > 0 ? `, and ${remaining} more` : "";
+  throw DashboardServerError.badRequest(
+    `Dashboard config does not match the contract: ${shown.join("; ")}${tail}`,
+  );
 }
 
 /**

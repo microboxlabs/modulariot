@@ -3,9 +3,9 @@ name: Publish miot-dashboard-server
 # Publish @microboxlabs/miot-dashboard-contract before this: the consumer
 # install below pulls it from the registry.
 #
-# Trusted publishing (OIDC) is configured on the package's npmjs.com page and
-# cannot be set up before the package exists, so the first release needs
-# NPM_TOKEN. Delete the secret once the trusted publisher is configured.
+# Publishing is authenticated by OIDC, so there is no token to keep. npm issues
+# a short-lived credential to this workflow file alone; renaming it breaks the
+# release until the trusted publisher is updated.
 
 on:
   push:
@@ -198,9 +198,6 @@ jobs:
       - name: Publish to npm
         run: npm publish --workspace=$PACKAGE_DIR --access public
         working-directory: turbo-repo
-        env:
-          # Empty once trusted publishing is configured; OIDC takes over.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Summary
         run: |

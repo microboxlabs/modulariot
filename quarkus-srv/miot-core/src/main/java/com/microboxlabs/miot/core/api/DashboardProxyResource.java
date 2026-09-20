@@ -140,7 +140,7 @@ public class DashboardProxyResource {
     }
 
     /**
-     * Whether this request carries an assertion.
+     * What to assert about this request, or {@link DashboardAssertion#none()}.
      *
      * <p>Three things have to hold. A key must be configured. The caller must
      * be a web user, because the upstream matches the asserted user against
@@ -150,33 +150,14 @@ public class DashboardProxyResource {
      * upstream — which is what the dev-only {@code X-Dev-User-Email} path
      * would otherwise produce.
      */
-    private boolean asserting(String authorization) {
-        return proxyKey != null
-                && organizationContext.getUserEmail() != null
-                && authorization != null
-                && !authorization.isBlank();
-    }
-
-    private String assertedUser(String authorization) {
-        return asserting(authorization) ? organizationContext.getUserEmail() : null;
-    }
-
-    private String assertedTenant(String slug, String authorization) {
-        return asserting(authorization) ? tenantIdFor(slug) : null;
-    }
-
-    private String assertedScope(String authorization) {
-        return asserting(authorization) ? scopeIdFor() : null;
-    }
-
-    private String assertedRole(String authorization) {
-        return asserting(authorization)
-                ? dashboardRoleFrom(organizationContext.getAlfrescoRole())
-                : null;
-    }
-
-    private String key(String authorization) {
-        return asserting(authorization) ? proxyKey : null;
+    private DashboardAssertion assertionFor(String slug, String authorization) {
+        String email = organizationContext.getUserEmail();
+        if (proxyKey == null || email == null
+                || authorization == null || authorization.isBlank()) {
+            return DashboardAssertion.none();
+        }
+        return new DashboardAssertion(proxyKey, email, tenantIdFor(slug),
+                scopeIdFor(), dashboardRoleFrom(organizationContext.getAlfrescoRole()));
     }
 
     @GET
@@ -184,9 +165,7 @@ public class DashboardProxyResource {
                               @HeaderParam("Authorization") String authorization) {
         return passThrough(dashboards.list(
                 tenantIdFor(slug), scopeIdFor(), authorization,
-                key(authorization), assertedUser(authorization),
-                assertedTenant(slug, authorization), assertedScope(authorization),
-                assertedRole(authorization)));
+                assertionFor(slug, authorization)));
     }
 
     @GET
@@ -196,9 +175,7 @@ public class DashboardProxyResource {
                              @HeaderParam("Authorization") String authorization) {
         return passThrough(dashboards.get(
                 tenantIdFor(slug), scopeIdFor(), dashboard, authorization,
-                key(authorization), assertedUser(authorization),
-                assertedTenant(slug, authorization), assertedScope(authorization),
-                assertedRole(authorization)));
+                assertionFor(slug, authorization)));
     }
 
     @PUT
@@ -210,9 +187,7 @@ public class DashboardProxyResource {
                               Map<String, Object> body) {
         return passThrough(dashboards.save(
                 tenantIdFor(slug), scopeIdFor(), dashboard, authorization, ifMatch,
-                key(authorization), assertedUser(authorization),
-                assertedTenant(slug, authorization), assertedScope(authorization),
-                assertedRole(authorization), body));
+                assertionFor(slug, authorization), body));
     }
 
     @DELETE
@@ -222,9 +197,7 @@ public class DashboardProxyResource {
                                 @HeaderParam("Authorization") String authorization) {
         return passThrough(dashboards.delete(
                 tenantIdFor(slug), scopeIdFor(), dashboard, authorization,
-                key(authorization), assertedUser(authorization),
-                assertedTenant(slug, authorization), assertedScope(authorization),
-                assertedRole(authorization)));
+                assertionFor(slug, authorization)));
     }
 
     @GET
@@ -234,9 +207,7 @@ public class DashboardProxyResource {
                                       @HeaderParam("Authorization") String authorization) {
         return passThrough(dashboards.capabilities(
                 tenantIdFor(slug), scopeIdFor(), dashboard, authorization,
-                key(authorization), assertedUser(authorization),
-                assertedTenant(slug, authorization), assertedScope(authorization),
-                assertedRole(authorization)));
+                assertionFor(slug, authorization)));
     }
 
     @GET
@@ -246,9 +217,7 @@ public class DashboardProxyResource {
                                         @HeaderParam("Authorization") String authorization) {
         return passThrough(dashboards.getPermissions(
                 tenantIdFor(slug), scopeIdFor(), dashboard, authorization,
-                key(authorization), assertedUser(authorization),
-                assertedTenant(slug, authorization), assertedScope(authorization),
-                assertedRole(authorization)));
+                assertionFor(slug, authorization)));
     }
 
     @PUT
@@ -259,9 +228,7 @@ public class DashboardProxyResource {
                                         Map<String, Object> body) {
         return passThrough(dashboards.setPermissions(
                 tenantIdFor(slug), scopeIdFor(), dashboard, authorization,
-                key(authorization), assertedUser(authorization),
-                assertedTenant(slug, authorization), assertedScope(authorization),
-                assertedRole(authorization), body));
+                assertionFor(slug, authorization), body));
     }
 
     /**

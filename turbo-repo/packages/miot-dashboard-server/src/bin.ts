@@ -154,8 +154,7 @@ interface AssembledStore {
   sweep?: (olderThan: Date) => Promise<SweepResult>;
   /**
    * The connection underneath, for the datasource store and the credentials
-   * plugin. Absent for the memory store, which has none — and so serves no
-   * datasource routes.
+   * plugin. Absent for the memory store, which has none.
    */
   driver?: SqlDriver;
 }

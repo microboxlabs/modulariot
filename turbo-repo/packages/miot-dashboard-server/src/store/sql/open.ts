@@ -39,9 +39,8 @@ export interface SqlStoreOptions {
 export interface OpenedStore {
   store: ServerDashboardStore;
   /**
-   * The connection underneath, for a caller that needs to put something else
-   * on the same database — the datasource store, or the `vault-sql` plugin.
-   * Closed by `close()`, so nothing built on it outlives this.
+   * The connection underneath, for putting something else on the same
+   * database. `close()` closes it, and anything built on it stops working.
    */
   driver: SqlDriver;
   /** Migration versions this call applied. Empty when already up to date. */

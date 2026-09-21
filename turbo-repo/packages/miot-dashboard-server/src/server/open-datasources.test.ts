@@ -1,9 +1,8 @@
 /**
- * What the standalone server mounts, from the environment a deployment sets.
- *
- * The routes are covered elsewhere. This is the wiring between them and
- * `MIOT_DASHBOARD_STORE` and `MIOT_DASHBOARD_CREDENTIALS_KEY`, where a
- * mistake answers 404 for the whole feature while every store below passes.
+ * The wiring between the datasource routes and `MIOT_DASHBOARD_STORE` and
+ * `MIOT_DASHBOARD_CREDENTIALS_KEY`. A mistake here answers 404 for the whole
+ * feature while every store below it passes. The routes themselves are
+ * covered elsewhere.
  */
 
 import { describe, expect, it } from "vitest";
@@ -26,7 +25,7 @@ const MEMBERSHIPS: Memberships = {
   acme: { ops: { alice: "Coordinator" } },
 };
 
-/** The driver the standalone server hands on: migrated, as at startup. */
+/** A migrated database, as the standalone server hands one over. */
 const database = async () => {
   const opened = await openSqliteStore({ path: SQLITE_MEMORY });
   return opened.driver;
@@ -39,7 +38,7 @@ const env = (extra: Record<string, string> = {}) =>
     ...extra,
   });
 
-/** A GET as a Coordinator, answered 404 where the routes are not mounted. */
+/** A GET as a Coordinator. 404 where the routes are not mounted. */
 async function status(
   path: string,
   opened: Awaited<ReturnType<typeof openDataSources>>,
@@ -79,7 +78,6 @@ describe("what a deployment mounts", () => {
     expect(opened.dataSources).toBeDefined();
     expect(opened.credentials).toBeUndefined();
     expect(await status("datasources", opened)).toBe(200);
-    // Not "no credentials configured" but "not this server's to keep".
     expect(await status("credentials", opened)).toBe(404);
   });
 
@@ -118,7 +116,7 @@ describe("what a deployment mounts", () => {
     ).toThrow(/needs a database/);
   });
 
-  it("refuses a key too short to be worth encrypting with", () => {
+  it("refuses a key under the minimum length", () => {
     expect(() => env({ MIOT_DASHBOARD_CREDENTIALS_KEY: "short" })).toThrow(
       /MIOT_DASHBOARD_CREDENTIALS_KEY is 5 characters/,
     );

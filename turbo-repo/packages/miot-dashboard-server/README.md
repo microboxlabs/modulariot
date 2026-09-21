@@ -84,6 +84,7 @@ MIOT_DASHBOARD_SEED=example \
 | `MIOT_DASHBOARD_STORE`                 | `memory`               | Where dashboards are saved: `memory`, `sqlite` or `postgres`   |
 | `MIOT_DASHBOARD_SQLITE_PATH`           | `./data/dashboards.db` | Database file when store is `sqlite`                           |
 | `MIOT_DASHBOARD_POSTGRES_URL`          | —                      | Connection string when store is `postgres`; no default         |
+| `MIOT_DASHBOARD_CREDENTIALS_KEY`       | off                    | Encrypts stored credentials; 32+ chars, needs a database store |
 | `MIOT_DASHBOARD_DOCUMENTS`             | `inline`               | Where config bytes go: `inline`, `fs`, `s3` or `gcs`           |
 | `MIOT_DASHBOARD_DOCUMENTS_PATH`        | `./data/documents`     | Directory when documents is `fs`                               |
 | `MIOT_DASHBOARD_DOCUMENTS_BUCKET`      | —                      | Required bucket for `s3` or `gcs`                              |
@@ -191,6 +192,23 @@ must agree on where config bodies live. If an idle connection drops, the pool
 discards it and reconnects on demand; the standalone server logs a warning.
 Library callers can receive these errors through `onPoolError` on
 `openPostgresStore` or `createPostgresDriver`.
+
+#### Storing credentials here
+
+Set `MIOT_DASHBOARD_CREDENTIALS_KEY` and this server keeps datasource
+credentials in its own database, encrypted with that key. Leave it unset and
+it stores none, which is what you want where another system owns them.
+
+```bash
+MIOT_DASHBOARD_STORE=sqlite \
+MIOT_DASHBOARD_CREDENTIALS_KEY="$(openssl rand -base64 32)" \
+  npx @microboxlabs/miot-dashboard-server
+```
+
+The key has to be at least 32 characters, and the store has to be `sqlite` or
+`postgres`. The server refuses to start otherwise. Lose the key and every
+stored credential is unreadable; change it and they have to be re-encrypted.
+No route ever answers with a stored secret, only with a summary.
 
 To run the contract suite against a real server, point
 `MIOT_DASHBOARD_TEST_POSTGRES_URL` at a **throwaway** database — the suite

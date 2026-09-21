@@ -27,20 +27,17 @@ import {
   readServerConfig,
   type ServerConfig,
 } from "./server/config";
+import { openDataSources } from "./server/open-datasources";
 import { createRefusalLog } from "./server/refusal-log";
 import { startSweepSchedule } from "./server/sweep-schedule";
 import { seedDashboards } from "./server/seed";
 import { serve } from "./server/serve";
-import type { CredentialsVault } from "./seams/credentials";
-import type { DataSourceStore } from "./seams/datasources";
 import type { ServerDashboardStore } from "./seams/store";
 import { buildDocumentStore } from "./server/documents";
 import { openPostgresStore } from "./store/postgres";
 import { openSqliteStore } from "./store/sqlite";
-import { createSqlDataSourceStore } from "./store/sql/datasources";
 import type { SqlDriver } from "./store/sql/driver";
 import type { SweepResult } from "./store/sweep";
-import { createSqlCredentialsVault } from "./vault/sql";
 import {
   createMemoryStore,
   createRecordingAuditSink,
@@ -225,44 +222,6 @@ async function openStore(
     close: opened.close,
     describe: `${where}, ${documents}`,
     sweep: opened.sweep,
-  };
-}
-
-/**
- * The datasource store and the vault, when the configuration supports them.
- *
- * Both need a database. On the memory store there is neither, and the
- * datasource routes answer 404 — which is honest: nothing written to them
- * would survive a restart.
- */
-async function openDataSources(
-  config: ServerConfig,
-  driver: SqlDriver | undefined,
-): Promise<{
-  dataSources?: DataSourceStore;
-  credentials?: CredentialsVault;
-  describe: string;
-}> {
-  if (driver === undefined) {
-    return { describe: "datasources off (needs a database)" };
-  }
-
-  const dataSources = createSqlDataSourceStore(driver);
-  if (config.credentialsKey === undefined) {
-    return {
-      dataSources,
-      describe: "datasources on; credentials are not kept here",
-    };
-  }
-
-  const credentials = await createSqlCredentialsVault({
-    driver,
-    key: config.credentialsKey,
-  });
-  return {
-    dataSources,
-    credentials,
-    describe: "datasources on; credentials in this database, encrypted",
   };
 }
 

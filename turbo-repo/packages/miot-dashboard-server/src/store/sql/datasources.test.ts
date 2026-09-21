@@ -85,7 +85,7 @@ describe("the SQL datasource store", () => {
     expect(names).toEqual(["Alpha", "Beta"]);
   });
 
-  it("breaks a tie on the id, so two rows with one name keep their order", async () => {
+  it("breaks a tie on the id", async () => {
     await store.put("acme", "b", { ...pgrest, name: "Same" });
     await store.put("acme", "a", { ...pgrest, name: "Same" });
 
@@ -94,10 +94,9 @@ describe("the SQL datasource store", () => {
   });
 
   /**
-   * SQLite answers the query above from the primary-key index, so it returns
-   * ties in id order whether or not the query asks for it. PostgreSQL makes
-   * no such promise, and the Postgres suite needs a live server. So this
-   * asserts the statement rather than the rows.
+   * The test above passes either way: SQLite answers from the primary-key
+   * index, so ties already come back in id order. PostgreSQL makes no such
+   * promise, so this one asserts the statement instead of the rows.
    */
   it("asks the backend for the tie-break", async () => {
     const sql: string[] = [];
@@ -139,8 +138,7 @@ describe("the SQL datasource store", () => {
       "SELECT name FROM pragma_table_info('datasources')",
     );
 
-    // The gate at the schema level: a secret cannot leak from a column that
-    // does not exist.
+    // A secret cannot leak from a column that does not exist.
     expect(columns.map((column) => column.name)).toEqual([
       "tenant_id",
       "id",

@@ -12,7 +12,9 @@ export type RouteName =
   | "capabilities"
   | "permissions"
   | "datasources"
+  | "datasourcesTest"
   | "datasource"
+  | "datasourceTest"
   | "credentials"
   | "credential";
 
@@ -85,7 +87,7 @@ export function matchRoute(pathname: string): RouteMatch | null {
   return null;
 }
 
-/** /datasources, /datasources/{id} */
+/** /datasources, /datasources/test, /datasources/{id}, /datasources/{id}/test */
 function matchDataSources(
   segments: readonly string[],
   tenantId: string,
@@ -93,11 +95,20 @@ function matchDataSources(
 ): RouteMatch | null {
   if (segments.length === 5) return { route: "datasources", tenantId, scopeId };
 
+  // Before the id branch: `test` is reserved, so no datasource can be
+  // addressed at that path and the two never collide.
+  if (segments.length === 6 && segments[5] === "test") {
+    return { route: "datasourcesTest", tenantId, scopeId };
+  }
+
   const id = decodeSegment(segments[5]);
   if (id === null) return null;
 
   if (segments.length === 6) {
     return { route: "datasource", tenantId, scopeId, id };
+  }
+  if (segments.length === 7 && segments[6] === "test") {
+    return { route: "datasourceTest", tenantId, scopeId, id };
   }
   return null;
 }

@@ -14,6 +14,7 @@ export type CredentialTypeId =
   | "AZURE_ENTRA_CLIENT_CREDENTIALS"
   | "OAUTH2_CLIENT_CREDENTIALS"
   | "AUTH0_M2M"
+  | "GOOGLE_SERVICE_ACCOUNT"
   | "API_KEY"
   | "BEARER_TOKEN"
   | "BASIC_AUTH";
@@ -58,7 +59,21 @@ export interface CredentialListItem {
     | AzureEntraConfig
     | OAuth2Config
     | Auth0M2MConfig
+    | GoogleServiceAccountConfig
     | Record<string, string>;
+}
+
+/**
+ * Non-secret half of a Google service account. The private key is the
+ * secret; the modulith signs the token request with it and hands out only
+ * the resulting bearer, so a BigQuery datasource never holds the key.
+ */
+export interface GoogleServiceAccountConfig {
+  readonly clientEmail: string;
+  /** Kept for the operator; the grant itself does not need it. */
+  readonly projectId?: string;
+  /** Defaults upstream to BigQuery read-only. */
+  readonly scope?: string;
 }
 
 /** Non-secret half of an Azure Entra client-credentials credential. */
@@ -211,6 +226,14 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
       light: "/credential-logos/auth0-light.svg",
       dark: "/credential-logos/auth0-dark.svg",
     },
+  },
+  {
+    id: "GOOGLE_SERVICE_ACCOUNT",
+    nameKey: "types.googleServiceAccount.name",
+    descriptionKey: "types.googleServiceAccount.description",
+    available: true,
+    supportsTest: true,
+    logo: { default: "/credential-logos/google-cloud.svg" },
   },
   {
     id: "API_KEY",
@@ -429,6 +452,36 @@ export const Auth0M2MCredentialEditSchema = Auth0M2MCredentialSchema.extend({
 export type Auth0M2MFormData = z.infer<typeof Auth0M2MCredentialSchema>;
 
 /**
+ * Google service account form. The fields come from the account's JSON key
+ * file: `client_email`, `project_id` and `private_key`.
+ */
+export const GoogleServiceAccountCredentialSchema = z.object({
+  name: z.string().min(1, "validation.nameRequired").max(100),
+  environment: z
+    .string()
+    .min(1, "validation.environmentRequired")
+    .max(40, "validation.environmentTooLong"),
+  projectId: z.string().optional(),
+  clientEmail: z
+    .string()
+    .trim()
+    .min(1, "validation.clientEmailRequired")
+    .email("validation.clientEmailInvalid"),
+  privateKey: z.string().min(1, "validation.privateKeyRequired"),
+  scope: z.string().optional(),
+});
+
+/** On edit the key may be left blank to keep the stored one. */
+export const GoogleServiceAccountCredentialEditSchema =
+  GoogleServiceAccountCredentialSchema.extend({
+    privateKey: z.string().optional(),
+  });
+
+export type GoogleServiceAccountFormData = z.infer<
+  typeof GoogleServiceAccountCredentialSchema
+>;
+
+/**
  * Any credential form's data. The list/create/update paths are type-agnostic —
  * they carry the payload to the API and let the per-type `toPublicConfig`
  * branch decide its shape.
@@ -436,7 +489,8 @@ export type Auth0M2MFormData = z.infer<typeof Auth0M2MCredentialSchema>;
 export type CredentialFormData =
   | AzureEntraFormData
   | OAuth2FormData
-  | Auth0M2MFormData;
+  | Auth0M2MFormData
+  | GoogleServiceAccountFormData;
 
 export interface CredentialTestResult {
   readonly success: boolean;

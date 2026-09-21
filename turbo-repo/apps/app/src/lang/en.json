@@ -1943,6 +1943,10 @@
             "name": "Auth0 machine-to-machine",
             "description": "An Auth0 M2M application — pick the client from your tenant, then set the API it calls."
           },
+          "googleServiceAccount": {
+            "name": "Google service account",
+            "description": "A Google Cloud service account, for reading BigQuery from a dashboard. Signed with its private key; only the token leaves."
+          },
           "apiKey": {
             "name": "API key",
             "description": "A key sent as a header or query parameter."
@@ -2044,7 +2048,20 @@
           "auth0TokenRequestFormatHelp": "Auth0's own endpoint accepts form encoding. A proxy in front of it may expect a JSON body instead.",
           "auth0DirectoryLoading": "Loading applications...",
           "auth0DirectoryEmpty": "No applications match. You can paste a client ID instead.",
-          "auth0DirectoryError": "Couldn't load applications. You can still paste a client ID."
+          "auth0DirectoryError": "Couldn't load applications. You can still paste a client ID.",
+          "googleAddTitle": "New Google service account",
+          "googleEditTitle": "Edit Google service account",
+          "googleSubtitle": "All three fields come from the service account's JSON key file.",
+          "projectId": "Project ID",
+          "projectIdPlaceholder": "my-project-123456",
+          "projectIdHelp": "The key file's project_id. Informational: the project a dashboard queries is set on the datasource.",
+          "clientEmail": "Service account email",
+          "clientEmailPlaceholder": "name@my-project.iam.gserviceaccount.com",
+          "privateKey": "Private key",
+          "privateKeyPlaceholder": "-----BEGIN PRIVATE KEY-----\n…\n-----END PRIVATE KEY-----",
+          "privateKeyEditPlaceholder": "Leave blank to keep the current key",
+          "privateKeyHelp": "The key file's private_key, with or without escaped line breaks. Stored encrypted and never returned.",
+          "googleScopeHelp": "Blank means BigQuery read-only. Change the scope only if the account needs another Google API."
         },
         "delete": {
           "title": "Delete this credential?",
@@ -2078,7 +2095,10 @@
           "oauth2ClientIdRequired": "Client ID is required",
           "auth0DomainRequired": "Auth0 domain is required",
           "auth0ClientIdRequired": "Pick or enter an application (client) ID",
-          "auth0AudienceRequired": "API audience is required for Auth0"
+          "auth0AudienceRequired": "API audience is required for Auth0",
+          "clientEmailRequired": "Service account email is required",
+          "clientEmailInvalid": "Enter the service account's email",
+          "privateKeyRequired": "Private key is required"
         }
       }
     },

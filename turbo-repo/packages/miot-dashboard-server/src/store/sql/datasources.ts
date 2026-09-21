@@ -67,7 +67,7 @@ export function createSqlDataSourceStore(
       const rows = await driver.all<RawRow>(
         `SELECT ${COLUMNS} FROM datasources
           WHERE tenant_id = ${p()}
-          ORDER BY name`,
+          ORDER BY name, id`,
         [tenantId],
       );
       return rows.map(toDescriptor);

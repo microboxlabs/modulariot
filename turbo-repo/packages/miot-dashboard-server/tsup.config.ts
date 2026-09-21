@@ -23,6 +23,7 @@ export default defineConfig({
     "src/store-sql.ts",
     "src/store-cloud.ts",
     "src/vault-sql.ts",
+    "src/vault-http.ts",
     "src/testing.ts",
     "src/server.ts",
     "src/next.ts",

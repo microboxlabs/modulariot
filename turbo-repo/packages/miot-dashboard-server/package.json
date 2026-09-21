@@ -57,6 +57,10 @@
     "./vault-sql": {
       "types": "./dist/vault-sql.d.ts",
       "import": "./dist/vault-sql.js"
+    },
+    "./vault-http": {
+      "types": "./dist/vault-http.d.ts",
+      "import": "./dist/vault-http.js"
     }
   },
   "bin": {

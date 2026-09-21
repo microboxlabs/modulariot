@@ -26,7 +26,13 @@ import {
 } from "../access/access-control";
 import { DashboardServerError, isDashboardServerError } from "../access/errors";
 import { isDashboardRole } from "../access/roles";
+import {
+  isCredentialsStore,
+  type CredentialsVault,
+} from "../seams/credentials";
+import type { DataSourceStore } from "../seams/datasources";
 import type { PermissionAssignment } from "../seams/store";
+import { parseCredentialInput, parseDataSourceInput } from "./parse-datasource";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
 import { withCors, type CorsOptions } from "./cors";
@@ -38,6 +44,18 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    */
   basePath?: string;
   cors?: CorsOptions;
+  /**
+   * Where datasources are kept. Omit it and the datasource routes answer 404
+   * — a deployment that has not configured them has none, which is a
+   * different thing from having none configured.
+   */
+  dataSources?: DataSourceStore;
+  /**
+   * Where credentials are resolved. The credential routes are mounted only
+   * when this is writable (see `isCredentialsStore`): inside modulariot it
+   * is read-only, because credentials belong to that product's own screen.
+   */
+  credentials?: CredentialsVault;
   /**
    * Called with what this handler did not choose: anything thrown that is not
    * a `DashboardServerError`, and so became a bare 500. A 404, a 403 or a 409
@@ -205,6 +223,127 @@ export function createDashboardHandler(
         }
         return methodNotAllowed();
       }
+
+      case "datasources": {
+        const store = requireDataSources(options.dataSources);
+        if (method === "GET") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.list",
+          });
+          const data = await store.list(decision.identity.tenantId);
+          return jsonResponse({ data });
+        }
+        if (method === "POST") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.write",
+          });
+          const input = parseDataSourceInput(await readJsonBody(request));
+          const id = crypto.randomUUID();
+          const data = await store.put(decision.identity.tenantId, id, input);
+          return jsonResponse({ data }, 201);
+        }
+        return methodNotAllowed();
+      }
+
+      case "datasource": {
+        const store = requireDataSources(options.dataSources);
+        const id = requireId(match);
+        if (method === "GET") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.list",
+          });
+          const data = await store.get(decision.identity.tenantId, id);
+          if (data === null) {
+            throw DashboardServerError.notFound("Datasource not found");
+          }
+          return jsonResponse({ data });
+        }
+        if (method === "PUT") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.write",
+          });
+          const input = parseDataSourceInput(await readJsonBody(request));
+          const data = await store.put(decision.identity.tenantId, id, input);
+          return jsonResponse({ data });
+        }
+        if (method === "DELETE") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.write",
+          });
+          await store.remove(decision.identity.tenantId, id);
+          return noContentResponse();
+        }
+        return methodNotAllowed();
+      }
+
+      case "credentials": {
+        const vault = requireCredentialsStore(options.credentials);
+        if (method !== "GET") return methodNotAllowed();
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.list",
+        });
+        const data = await vault.listCredentials(decision.identity.tenantId);
+        return jsonResponse({ data });
+      }
+
+      case "credential": {
+        const vault = requireCredentialsStore(options.credentials);
+        const ref = requireId(match);
+        if (method === "GET") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.list",
+          });
+          const data = await vault.describeCredential(
+            decision.identity.tenantId,
+            ref,
+          );
+          if (data === null) {
+            throw DashboardServerError.notFound("Credential not found");
+          }
+          return jsonResponse({ data });
+        }
+        if (method === "PUT") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.write",
+          });
+          const input = parseCredentialInput(await readJsonBody(request));
+          // The response is the summary, never the input echoed back. A
+          // write that returned what it was given would put the secret in a
+          // response body, which is the one thing this seam exists to stop.
+          const data = await vault.putCredential(
+            decision.identity.tenantId,
+            ref,
+            input,
+          );
+          return jsonResponse({ data });
+        }
+        if (method === "DELETE") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.write",
+          });
+          await vault.removeCredential(decision.identity.tenantId, ref);
+          return noContentResponse();
+        }
+        return methodNotAllowed();
+      }
     }
   }
 
@@ -249,6 +388,35 @@ function requireSlug(match: RouteMatch): string {
     throw DashboardServerError.badRequest("Missing dashboard slug");
   }
   return match.slug;
+}
+
+function requireId(match: RouteMatch): string {
+  if (match.id === undefined) {
+    throw DashboardServerError.badRequest("Missing identifier");
+  }
+  return match.id;
+}
+
+/**
+ * 404, not 501: to a caller, a deployment with no datasource store
+ * configured and one with no such route are the same thing, and saying which
+ * would tell an unauthenticated caller how the server is configured.
+ */
+function requireDataSources(
+  store: DataSourceStore | undefined,
+): DataSourceStore {
+  if (store === undefined) throw notFound();
+  return store;
+}
+
+/**
+ * The credential routes need a vault that can be written to. A read-only one
+ * — modulariot's, where credentials belong to that product's own screen — is
+ * answered the same way as none at all.
+ */
+function requireCredentialsStore(vault: CredentialsVault | undefined) {
+  if (vault === undefined || !isCredentialsStore(vault)) throw notFound();
+  return vault;
 }
 
 /**

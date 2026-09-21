@@ -10,8 +10,6 @@
  * failure to handle instead of two.
  */
 
-import { base64FromBytes, bytesFromBase64 } from "../net/base64";
-
 const VERSION = "v1";
 const IV_BYTES = 12;
 
@@ -65,8 +63,8 @@ export function createCipher(key: string): Cipher {
       );
       return [
         VERSION,
-        base64FromBytes(iv),
-        base64FromBytes(new Uint8Array(ciphertext)),
+        Buffer.from(iv).toString("base64"),
+        Buffer.from(ciphertext).toString("base64"),
       ].join(":");
     },
 
@@ -81,9 +79,9 @@ export function createCipher(key: string): Cipher {
       let plaintext: ArrayBuffer;
       try {
         plaintext = await crypto.subtle.decrypt(
-          { name: "AES-GCM", iv: bytesFromBase64(iv) },
+          { name: "AES-GCM", iv: Buffer.from(iv, "base64") },
           await imported,
-          bytesFromBase64(ciphertext),
+          Buffer.from(ciphertext, "base64"),
         );
       } catch {
         // Wrong key or a tampered row. The message says neither, because a

@@ -15,8 +15,6 @@
  * so this package never learns the client secret.
  */
 
-import { base64Utf8 } from "../net/base64";
-
 /** ISO-8601 instant. */
 type Timestamp = string;
 
@@ -202,7 +200,10 @@ export function applyCredential(input: CredentialInput): DataSourceCredential {
         queryParams: { [input.param]: input.value },
       };
     case "BASIC": {
-      const encoded = base64Utf8(`${input.username}:${input.password}`);
+      const encoded = Buffer.from(
+        `${input.username}:${input.password}`,
+        "utf8",
+      ).toString("base64");
       return {
         kind: "HTTP_AUTH",
         headers: { Authorization: `Basic ${encoded}` },

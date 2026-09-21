@@ -28,14 +28,12 @@ describe("applyCredential", () => {
     });
     if (applied.kind !== "HTTP_AUTH") throw new Error("expected HTTP_AUTH");
 
-    // btoa alone throws above U+00FF, so this is the case that catches a
-    // regression to it.
-    const decoded = new TextDecoder().decode(
-      Uint8Array.from(
-        atob(applied.headers.Authorization!.slice("Basic ".length)),
-        (c) => c.charCodeAt(0),
-      ),
-    );
+    // Non-ASCII on purpose: `btoa` throws above U+00FF, so this is the case
+    // that catches a regression to it.
+    const decoded = Buffer.from(
+      applied.headers.Authorization!.slice("Basic ".length),
+      "base64",
+    ).toString("utf8");
     expect(decoded).toBe("ana:contraseña");
   });
 

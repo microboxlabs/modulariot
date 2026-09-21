@@ -1,12 +1,9 @@
 /**
- * Parsing the two bodies the datasource routes accept.
+ * Parsers for the two bodies the datasource routes accept. Hand-written: a
+ * schema library here would be a dependency of every consumer of the core.
  *
- * Hand-written rather than a schema library, for the same reason the router
- * is: a dependency here lands in every consumer of the core.
- *
- * Both parsers refuse unknown fields. A credential body that quietly ignored
- * a misspelled `token` would store a credential with no secret in it and
- * report success.
+ * Both refuse unknown fields. A credential body that ignored a misspelled
+ * `token` would store a credential with no secret in it and report success.
  */
 
 import { DashboardServerError } from "../access/errors";
@@ -86,9 +83,8 @@ export function parseDataSourceInput(body: unknown): DataSourceInput {
 
   const target = requireString(raw, "target");
   if (type === "POSTGREST") {
-    // The server will call this with a credential attached, so it is checked
-    // when it is stored rather than when it is first used. Loopback is
-    // exempt, as everywhere else in this package.
+    // Checked on write, not on first use: the server calls this target
+    // with a credential attached. Loopback is exempt, as elsewhere here.
     const problem = secureUrlProblem(target, "A PostgREST datasource target");
     if (problem !== null) throw DashboardServerError.badRequest(problem);
   }

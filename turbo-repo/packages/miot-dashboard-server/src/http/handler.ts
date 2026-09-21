@@ -44,16 +44,11 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    */
   basePath?: string;
   cors?: CorsOptions;
-  /**
-   * Where datasources are kept. Omit it and the datasource routes answer 404
-   * — a deployment that has not configured them has none, which is a
-   * different thing from having none configured.
-   */
+  /** Omit it and the datasource routes answer 404. */
   dataSources?: DataSourceStore;
   /**
-   * Where credentials are resolved. The credential routes are mounted only
-   * when this is writable (see `isCredentialsStore`): inside modulariot it
-   * is read-only, because credentials belong to that product's own screen.
+   * The credential routes are served only when this vault can be written to
+   * (see `isCredentialsStore`). A read-only one answers 404.
    */
   credentials?: CredentialsVault;
   /**
@@ -323,9 +318,8 @@ export function createDashboardHandler(
             action: "datasource.write",
           });
           const input = parseCredentialInput(await readJsonBody(request));
-          // The response is the summary, never the input echoed back. A
-          // write that returned what it was given would put the secret in a
-          // response body, which is the one thing this seam exists to stop.
+          // The response is the summary. Echoing the input back would put
+          // the secret in a response body.
           const data = await vault.putCredential(
             decision.identity.tenantId,
             ref,
@@ -398,9 +392,8 @@ function requireId(match: RouteMatch): string {
 }
 
 /**
- * 404, not 501: to a caller, a deployment with no datasource store
- * configured and one with no such route are the same thing, and saying which
- * would tell an unauthenticated caller how the server is configured.
+ * 404, not 501. A status code must not tell an unauthenticated caller which
+ * stores this deployment has configured.
  */
 function requireDataSources(
   store: DataSourceStore | undefined,
@@ -411,8 +404,7 @@ function requireDataSources(
 
 /**
  * The credential routes need a vault that can be written to. A read-only one
- * — modulariot's, where credentials belong to that product's own screen — is
- * answered the same way as none at all.
+ * is answered the same way as none at all.
  */
 function requireCredentialsStore(vault: CredentialsVault | undefined) {
   if (vault === undefined || !isCredentialsStore(vault)) throw notFound();

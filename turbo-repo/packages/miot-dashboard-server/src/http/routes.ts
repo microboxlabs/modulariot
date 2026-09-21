@@ -25,10 +25,9 @@ export interface RouteMatch {
    */
   tenantId: string;
   /**
-   * Present on every route, including the ones whose records are tenant-wide.
-   * Datasources and credentials belong to the tenant, but a caller's role is
-   * answered per scope, so authorizing one still needs the scope the caller
-   * claims to be acting in.
+   * Present on every route. Datasources and credentials belong to the
+   * tenant, but a role is granted per scope, so authorizing one still needs
+   * the scope the caller is acting in.
    */
   scopeId: string;
   /** Absent only for the collection route. */

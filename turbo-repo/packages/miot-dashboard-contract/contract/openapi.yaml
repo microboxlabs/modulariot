@@ -43,8 +43,8 @@ tags:
     description: Where a dashboard's data comes from. Tenant-level.
   - name: credentials
     description: >
-      How a datasource authenticates, where this server is the one keeping
-      them. Absent where another system is.
+      How a datasource authenticates. Served only where this server keeps the
+      credentials.
 
 security:
   - bearerAuth: []
@@ -272,10 +272,10 @@ paths:
       tags: [datasources]
       summary: Datasources in one tenant
       description: >
-        Datasources belong to the tenant, not to the scope, so this returns
-        every datasource the tenant has. The scope in the path is what the
-        caller's role is answered against. Never carries a credential: a
-        record names one through `credentialRef`.
+        Every datasource in the tenant. Datasources are tenant-level; the
+        scope in the path is what the caller's role is checked against. A
+        record names its credential through `credentialRef` and never
+        carries one.
 
 
         A deployment with no datasource store configured answers `404`.
@@ -417,15 +417,13 @@ paths:
       summary: Credentials in one tenant, without their secrets
       description: >
         Served only where the vault can be written to. A deployment whose
-        credentials belong to another system — which is the case inside
-        modulariot — answers `404` on every route under `/credentials`,
-        because creating one here would write to a store that is not the
-        source of truth.
+        credentials belong to another system answers `404` on every route
+        under `/credentials`.
 
 
         A summary never carries a secret. `preview` is at most the last four
-        characters of a value long enough that four characters give nothing
-        away, and is absent otherwise.
+        characters, and is absent when the value is too short for that to be
+        safe.
       parameters:
         - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
@@ -479,9 +477,8 @@ paths:
       tags: [credentials]
       summary: Create or replace a credential
       description: >
-        The one request in this API that carries a secret. It is stored and
-        never echoed: the response is the summary, the same shape the listing
-        returns.
+        The only request in this API that carries a secret. The response is
+        the summary, the same shape the listing returns.
       parameters:
         - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
@@ -516,7 +513,7 @@ paths:
       summary: Delete a credential
       description: >
         A datasource still naming it is left alone and will fail to resolve.
-        Nothing here checks, because the vault does not know what names it.
+        The vault does not know what names it.
       parameters:
         - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"
@@ -608,8 +605,8 @@ components:
       required: true
       schema: { type: string }
       description: >
-        Caller-chosen handle a datasource names. It addresses a credential and
-        is not one, so it is safe in a path, a log line and a listing.
+        Caller-chosen handle a datasource names. It addresses a credential
+        and is not one, so it is safe in a path or a log line.
     ifMatch:
       name: If-Match
       in: header
@@ -795,8 +792,8 @@ components:
       type: object
       required: [id, name, type, isActive, target, updatedAt]
       description: >
-        A datasource as it may be shown. No property here is a secret; the
-        credential half never appears in any response.
+        No property here is a secret. The credential itself never appears in
+        a response.
       properties:
         id:
           type: string
@@ -834,9 +831,8 @@ components:
         target:
           type: string
           description: >
-            A POSTGREST target must be https, or a loopback address. It is
-            checked when stored rather than when first used, because the
-            server calls it with a credential attached.
+            A POSTGREST target must be https or a loopback address. Checked
+            when stored, not when first used.
         credentialRef: { type: string }
     DataSourceKind:
       type: string
@@ -844,7 +840,7 @@ components:
     CredentialSummary:
       type: object
       required: [ref, kind, updatedAt]
-      description: Everything here is safe to show. That is why the type exists.
+      description: Everything here is safe to show.
       properties:
         ref: { type: string }
         kind:
@@ -852,8 +848,8 @@ components:
         preview:
           type: string
           description: >
-            Enough to recognize which credential this is, never enough to use
-            it. Absent when no such value can be derived.
+            Enough to recognize the credential, never enough to use it.
+            Absent when there is no such value.
         updatedAt:
           type: string
           format: date-time
@@ -864,9 +860,9 @@ components:
     CredentialInput:
       description: >
         A credential as an operator supplies it. Every variant but `NONE`
-        carries a secret. Discriminated by `kind`; unknown fields are refused,
-        so a misspelled `token` fails rather than storing a credential with
-        nothing in it.
+        carries a secret. Discriminated by `kind`. Unknown fields are
+        refused, so a misspelled `token` fails rather than storing a
+        credential with nothing in it.
       oneOf:
         - type: object
           required: [kind]

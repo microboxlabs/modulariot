@@ -348,8 +348,12 @@ paths:
         stored.
 
 
+        Send `credential` for a new secret, or a `credentialRef` on the
+        datasource for one already stored. Both is a `400`.
+
+
         `test` is a reserved identifier, so no datasource can be addressed at
-        this path.
+        this path, however the segment is spelled.
       parameters:
         - $ref: "#/components/parameters/tenantId"
         - $ref: "#/components/parameters/scopeId"

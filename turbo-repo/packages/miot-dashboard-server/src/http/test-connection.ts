@@ -37,6 +37,20 @@ export interface TestConnectionOptions {
   now?: () => Date;
 }
 
+/** The outcome when the probe could not be attempted. */
+export function untested(
+  message: string,
+  options: TestConnectionOptions = {},
+): ConnectionTestResult {
+  const now = options.now ?? (() => new Date());
+  return {
+    testable: true,
+    success: false,
+    testedAt: now().toISOString(),
+    message,
+  };
+}
+
 /** The probe URL and the auth to send with it. */
 function probeRequest(
   target: string,
@@ -107,17 +121,22 @@ export async function testDataSourceConnection(
       signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
     });
   } catch (error) {
-    // The fetch layer's message, not the target's body. A DNS or TLS
-    // failure names a host the operator configured.
+    // A fixed message. `fetch` quotes what it was handed: an invalid header
+    // value comes back verbatim, and that value is the credential.
     return {
       testable: true,
       success: false,
       testedAt,
-      message: `Could not reach the target: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      message:
+        error instanceof Error && error.name === "TimeoutError"
+          ? "The target did not answer in time"
+          : "Could not reach the target",
     };
   }
+
+  // Nothing here reads the body. Left unread, it holds the connection open
+  // until the garbage collector gets to it.
+  void response.body?.cancel().catch(() => undefined);
 
   if (response.status === 401 || response.status === 403) {
     return {

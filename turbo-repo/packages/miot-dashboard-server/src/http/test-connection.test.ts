@@ -128,6 +128,62 @@ describe("probing a datasource", () => {
     expect(result).toMatchObject({ testable: false, success: false });
   });
 
+  it("never repeats what the fetch layer says, which can quote the credential", async () => {
+    // `fetch` puts an invalid header value in its own message verbatim, and
+    // that value is the credential.
+    const throwing = vi.fn(() =>
+      Promise.reject(
+        new TypeError(
+          `Headers.append: "Bearer ${TOKEN}" is an invalid header value.`,
+        ),
+      ),
+    ) as unknown as typeof fetch;
+
+    const result = await testDataSourceConnection(
+      pgrest,
+      applyCredential({ kind: "BEARER", token: TOKEN }),
+      { fetchImpl: throwing },
+    );
+
+    expect(result).toMatchObject({
+      testable: true,
+      success: false,
+      message: "Could not reach the target",
+    });
+    expect(JSON.stringify(result)).not.toContain(TOKEN);
+  });
+
+  it("names a timeout, which says something different to an operator", async () => {
+    const timedOut = vi.fn(() => {
+      const error = new Error("The operation was aborted due to timeout");
+      error.name = "TimeoutError";
+      return Promise.reject(error);
+    }) as unknown as typeof fetch;
+
+    const result = await testDataSourceConnection(pgrest, null, {
+      fetchImpl: timedOut,
+    });
+    expect(result.message).toBe("The target did not answer in time");
+  });
+
+  it("releases the body it never reads", async () => {
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      start: (controller) => {
+        controller.enqueue(new TextEncoder().encode("[{}]"));
+      },
+      cancel: () => {
+        cancelled = true;
+      },
+    });
+    const streaming = vi.fn(() =>
+      Promise.resolve(new Response(body, { status: 200 })),
+    ) as unknown as typeof fetch;
+
+    await testDataSourceConnection(pgrest, null, { fetchImpl: streaming });
+    expect(cancelled).toBe(true);
+  });
+
   it("never repeats the target's body, which can quote the credential", async () => {
     const result = await testDataSourceConnection(
       pgrest,
@@ -250,6 +306,85 @@ describe("the test routes", () => {
     expect(response.status).toBe(400);
   });
 
+  it("refuses a body that names a credential twice", async () => {
+    const { handler } = build(answering(200));
+    const response = await post(handler, `${BASE}/test`, "alice", {
+      datasource: { ...pgrest, credentialRef: "fleet" },
+      credential: { kind: "BEARER", token: TOKEN },
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it("tests unsaved values with the credential the body names", async () => {
+    const fetchImpl = answering(200);
+    const { handler, credentials } = build(fetchImpl);
+    await credentials.putCredential("acme", "fleet", {
+      kind: "BEARER",
+      token: TOKEN,
+    });
+
+    const response = await post(handler, `${BASE}/test`, "alice", {
+      datasource: { ...pgrest, credentialRef: "fleet" },
+    });
+
+    expect(response.status).toBe(200);
+    const [, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [URL, RequestInit];
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      `Bearer ${TOKEN}`,
+    );
+  });
+
+  it("fails a datasource whose credential resolves to nothing", async () => {
+    const fetchImpl = answering(200);
+    const { handler, dataSources } = build(fetchImpl);
+    await dataSources.put("acme", "ds1", { ...pgrest, credentialRef: "gone" });
+
+    const response = await post(handler, `${BASE}/ds1/test`, "alice");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: {
+        testable: true,
+        success: false,
+        message: 'The credential "gone" could not be resolved',
+      },
+    });
+    // Probing it anonymously would answer about a datasource nobody has.
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("asks no vault for a datasource it cannot test anyway", async () => {
+    const fetchImpl = answering(200);
+    const dataSources = createMemoryDataSourceStore();
+    const credentials = createMemoryCredentialsStore();
+    const resolve = vi.fn(() => Promise.reject(new Error("vault is down")));
+    const handler = createDashboardHandler({
+      identity: createInsecureHeaderIdentityResolver(),
+      tenants: createMemoryTenantAuthority(MEMBERSHIPS),
+      scopes: createMemoryScopeAuthority(MEMBERSHIPS),
+      store: createMemoryStore(),
+      dataSources,
+      credentials: { ...credentials, resolve } as typeof credentials,
+      testConnection: { fetchImpl },
+    });
+    await dataSources.put("acme", "bq", {
+      name: "Warehouse",
+      type: "BIGQUERY",
+      isActive: true,
+      target: "project.dataset",
+      credentialRef: "gcp",
+    });
+
+    const response = await post(handler, `${BASE}/bq/test`, "alice");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: { testable: false, success: false },
+    });
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
   it("reserves `test`, so it never addresses a datasource", async () => {
     const { handler, dataSources } = build(answering(200));
     // A datasource whose id is "test" is unreachable by id. That is the
@@ -261,5 +396,31 @@ describe("the test routes", () => {
     });
     // Answered by the test route. POST to a datasource id is not allowed.
     expect(response.status).toBe(200);
+  });
+
+  it("reserves it after decoding, so `%74est` is not a way in", async () => {
+    const { handler, dataSources } = build(answering(200));
+
+    // As an id it is no route at all, so nothing can be stored under it.
+    const stored = await handler(
+      new Request(`http://test.local${BASE}/%74est`, {
+        method: "PUT",
+        headers: { "x-dev-user": "alice", "content-type": "application/json" },
+        body: JSON.stringify(pgrest),
+      }),
+    );
+    expect(stored.status).toBe(404);
+    await expect(dataSources.list("acme")).resolves.toEqual([]);
+
+    // And the encoded spelling reaches the same test route as the plain one.
+    const tested = await post(handler, `${BASE}/%74est`, "alice", {
+      datasource: pgrest,
+    });
+    expect(tested.status).toBe(200);
+
+    // A stored datasource called `test` stays unreachable both ways.
+    expect((await post(handler, `${BASE}/test/test`, "alice")).status).toBe(
+      404,
+    );
   });
 });

@@ -15,6 +15,7 @@ import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.nio.charset.StandardCharsets;
@@ -31,20 +32,28 @@ import org.jboss.logging.Logger;
  * but no credentials, so it asks here what to send, and the secret stays in
  * this module.
  *
- * <p>Outside {@code /api/v1/orgs/}, so {@code OrganizationRequestFilter} does
- * not run and the caller needs no user. It authenticates with
- * {@code miot.dashboards.proxy-key} instead, the key this modulith sends when
- * it proxies dashboard requests the other way.
+ * <p>Off {@code /api/*}, like the webhook and branding endpoints, because
+ * {@code quarkus.http.auth.permission.api} applies {@code authenticated} to
+ * everything under it and a narrower permit does not override that. The
+ * caller sends no token, so under {@code /api/*} it would be refused before
+ * reaching the key check below. Being off {@code /api/v1/orgs/} also keeps
+ * {@code OrganizationRequestFilter} out, so no user is required.
+ *
+ * <p>It authenticates with {@code miot.dashboards.proxy-key}, the key this
+ * modulith sends when it proxies dashboard requests the other way.
  *
  * <p>{@code tenantId} is the org slug, which is all the dashboard server
  * holds. Credentials are keyed by {@code tenant_code}, so the slug is
  * translated here.
  */
-@Path("/api/v1/dashboard-credentials/{tenantId}/{credentialRef}")
+@Path(DashboardCredentialsResource.PATH + "/{tenantId}/{credentialRef}")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "Dashboards", description = "Credential lookups for the dashboard server")
 @IfBuildProperty(name = "miot.component.integrations.enabled", stringValue = "true")
 public class DashboardCredentialsResource {
+
+    /** Matches the permit rule in {@code application.properties}. */
+    static final String PATH = "/internal/dashboard-credentials";
 
     private static final Logger LOG = Logger.getLogger(DashboardCredentialsResource.class);
     private static final String KEY_HEADER = "x-miot-proxy-key";
@@ -102,7 +111,7 @@ public class DashboardCredentialsResource {
                         : Optional.ofNullable(org.tenantClientId)));
     }
 
-    private Response applied(String tenantCode, String credentialRef) {
+    Response applied(String tenantCode, String credentialRef) {
         ResolvedAuth auth;
         try {
             auth = resolver.resolve(tenantCode, credentialRef);
@@ -111,7 +120,7 @@ public class DashboardCredentialsResource {
             LOG.warnf("Credential %s could not produce auth: %s", credentialRef, e.getMessage());
             return error(Response.Status.INTERNAL_SERVER_ERROR, "Could not resolve the credential");
         }
-        return auth == null ? notFound() : Response.ok(AppliedAuthResponse.httpAuth(auth)).build();
+        return auth == null ? notFound() : noStore(Response.ok(AppliedAuthResponse.httpAuth(auth)));
     }
 
     private static Response notFound() {
@@ -119,10 +128,18 @@ public class DashboardCredentialsResource {
     }
 
     private static Response error(Response.Status status, String message) {
-        return Response.status(status)
+        return noStore(Response.status(status)
                 .type(MediaType.APPLICATION_JSON)
-                .entity(Map.of("error", message))
-                .build();
+                .entity(Map.of("error", message)));
+    }
+
+    /**
+     * Applied auth is reusable and the key travels in a header of our own, so
+     * a shared cache keying on the URL alone would serve it to a caller that
+     * presented no key. A cached 404 would also hide a new credential.
+     */
+    private static Response noStore(Response.ResponseBuilder builder) {
+        return builder.header(HttpHeaders.CACHE_CONTROL, "no-store").build();
     }
 
     private static <T> Uni<T> onWorker(Supplier<T> work) {

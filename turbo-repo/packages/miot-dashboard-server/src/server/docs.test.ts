@@ -473,8 +473,11 @@ describe("the spec against the router", () => {
     permissions:
       "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/permissions",
     datasources: "/tenants/{tenantId}/scopes/{scopeId}/datasources",
+    datasourcesTest: "/tenants/{tenantId}/scopes/{scopeId}/datasources/test",
     datasource:
       "/tenants/{tenantId}/scopes/{scopeId}/datasources/{dataSourceId}",
+    datasourceTest:
+      "/tenants/{tenantId}/scopes/{scopeId}/datasources/{dataSourceId}/test",
     credentials: "/tenants/{tenantId}/scopes/{scopeId}/credentials",
     credential:
       "/tenants/{tenantId}/scopes/{scopeId}/credentials/{credentialRef}",

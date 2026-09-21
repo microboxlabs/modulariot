@@ -27,12 +27,21 @@ import {
 import { DashboardServerError, isDashboardServerError } from "../access/errors";
 import { isDashboardRole } from "../access/roles";
 import {
+  applyCredential,
   isCredentialsStore,
   type CredentialsVault,
 } from "../seams/credentials";
 import type { DataSourceStore } from "../seams/datasources";
 import type { PermissionAssignment } from "../seams/store";
-import { parseCredentialInput, parseDataSourceInput } from "./parse-datasource";
+import {
+  parseCredentialInput,
+  parseDataSourceInput,
+  parseDataSourceTestInput,
+} from "./parse-datasource";
+import {
+  testDataSourceConnection,
+  type TestConnectionOptions,
+} from "./test-connection";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
 import { withCors, type CorsOptions } from "./cors";
@@ -56,6 +65,8 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    * is read-only, because credentials belong to that product's own screen.
    */
   credentials?: CredentialsVault;
+  /** Clock, fetch and timeout for the connection test. For tests. */
+  testConnection?: TestConnectionOptions;
   /**
    * Called with what this handler did not choose: anything thrown that is not
    * a `DashboardServerError`, and so became a bare 500. A 404, a 403 or a 409
@@ -101,6 +112,7 @@ export function createDashboardHandler(
     }
   };
   const basePath = normalizeBasePath(options.basePath);
+  const testOptions = options.testConnection ?? {};
 
   async function dispatch(
     request: Request,
@@ -247,6 +259,56 @@ export function createDashboardHandler(
           return jsonResponse({ data }, 201);
         }
         return methodNotAllowed();
+      }
+
+      case "datasourcesTest": {
+        // No store needed: this tests values the caller is holding, which is
+        // the point — an operator finds out the target is wrong before
+        // saving it.
+        if (method !== "POST") return methodNotAllowed();
+        await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.write",
+        });
+        const input = parseDataSourceTestInput(await readJsonBody(request));
+        const data = await testDataSourceConnection(
+          input.datasource,
+          input.credential === undefined
+            ? null
+            : applyCredential(input.credential),
+          testOptions,
+        );
+        return jsonResponse({ data });
+      }
+
+      case "datasourceTest": {
+        const store = requireDataSources(options.dataSources);
+        const id = requireId(match);
+        if (method !== "POST") return methodNotAllowed();
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.write",
+        });
+        const descriptor = await store.get(decision.identity.tenantId, id);
+        if (descriptor === null) {
+          throw DashboardServerError.notFound("Datasource not found");
+        }
+        const credential =
+          descriptor.credentialRef === undefined ||
+          options.credentials === undefined
+            ? null
+            : await options.credentials.resolve(
+                decision.identity.tenantId,
+                descriptor.credentialRef,
+              );
+        const data = await testDataSourceConnection(
+          descriptor,
+          credential,
+          testOptions,
+        );
+        return jsonResponse({ data });
       }
 
       case "datasource": {

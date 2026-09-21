@@ -1,21 +1,19 @@
 /**
  * A read-only vault that asks the host for applied auth.
  *
- * For a deployment whose credentials belong to another system. Inside
- * modulariot that is the credentials component: it already stores the
- * secret, already runs an OAuth2 grant where the credential needs one, and
- * already reduces the result to headers and query parameters. This asks it
- * for that result, so the secret never leaves it.
+ * For a deployment whose credentials belong to another system. In
+ * modulariot that is the credentials component, which stores the secret,
+ * runs the OAuth2 grant where there is one, and reduces the result to
+ * headers and query parameters. This asks for that result, so the secret
+ * stays there.
  *
- * The same shared key as the trusted-proxy assertion, in the other
- * direction. The host is asserting to this server rather than the reverse,
- * and one key covers both because both mean "these two processes are
- * deployed together".
+ * Authenticated with the trusted-proxy key, sent the other way: here this
+ * server proves itself to the host. One key serves both directions, since
+ * both say the two processes are deployed together.
  *
- * A credential that does not exist is 404 and reads as null. Anything else
- * throws, including 401 and 403: from this side those mean *our* key was
- * refused, which is a misconfiguration to be seen and not a quiet "no
- * credential".
+ * 404 means no such credential and reads as null. Every other status
+ * throws, 401 and 403 included: those mean this server's own key was
+ * refused, which is a misconfiguration and has to be seen.
  */
 
 import { MIN_PROXY_KEY_LENGTH } from "../identity/proxy";
@@ -35,9 +33,8 @@ const PLACEHOLDERS = ["tenantId", "credentialRef"] as const;
 const DEFAULT_TIMEOUT_MS = 5000;
 /**
  * How long applied auth is reused when the host states no expiry, and the
- * ceiling on reuse when it states a distant one. Short, because this caches
- * the authority to act rather than a fact about it: a credential revoked at
- * the host keeps working for at most this long.
+ * ceiling when it states a later one. A credential revoked at the host
+ * keeps working for at most this long.
  */
 const DEFAULT_MAX_CACHE_SECONDS = 60;
 const DEFAULT_MAX_ENTRIES = 500;
@@ -68,9 +65,9 @@ interface Entry {
 }
 
 /**
- * The wire shape is `DataSourceCredential` itself. Validated rather than
- * cast: a host that answered something else would otherwise produce a
- * request with `undefined` in a header.
+ * The wire shape is `DataSourceCredential` itself. Checked rather than
+ * cast: another shape would otherwise become a request with `undefined` in
+ * a header.
  */
 function parseCredential(body: unknown): DataSourceCredential {
   if (typeof body !== "object" || body === null) {
@@ -139,10 +136,9 @@ export function createHttpCredentialsVault(
 ): CredentialsVault {
   const what = "The credential endpoint URL";
 
-  // Presence, which `placeholderProblem` does not check: it asks only that a
-  // placeholder is not in the host or port. A URL without `{tenantId}`
-  // parses, passes that, and then addresses the same credential whichever
-  // tenant asked.
+  // `placeholderProblem` only checks that a placeholder is not in the host
+  // or port, so presence is checked here. A URL without `{tenantId}` passes
+  // that check and then addresses one credential for every tenant.
   for (const name of PLACEHOLDERS) {
     if (!options.url.includes(`{${name}}`)) {
       throw new EndpointError(
@@ -163,8 +159,7 @@ export function createHttpCredentialsVault(
   if (options.proxyKey.length < MIN_PROXY_KEY_LENGTH) {
     throw new EndpointError(
       `The credential endpoint key must be at least ${MIN_PROXY_KEY_LENGTH} ` +
-        "characters. It is what lets this server ask for any credential in " +
-        "any tenant.",
+        "characters. It can ask the host for any credential in any tenant.",
     );
   }
 
@@ -213,8 +208,8 @@ export function createHttpCredentialsVault(
       method: "GET",
       headers: { [keyHeader]: options.proxyKey },
       timeoutMs,
-      // 404 only. 401 and 403 are our own key being refused, and fetchJson
-      // raises for them, which is what makes that visible.
+      // 404 only: 401 and 403 are this server's key being refused, and
+      // `fetchJson` throws for anything not listed here.
       absentStatuses: [404],
       ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
     });
@@ -243,8 +238,8 @@ export function createHttpCredentialsVault(
           return value;
         })
         .finally(() => {
-          // A failure is never cached: caching one would turn a moment of
-          // host downtime into a fixed period of refusing every query.
+          // A failure is not cached: that would turn a moment of host
+          // downtime into a minute of refusing every query.
           inFlight.delete(key);
         });
 

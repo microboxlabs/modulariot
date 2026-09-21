@@ -3,6 +3,7 @@ import type { DataSourceStore } from "../../seams/datasources";
 import { createSqliteDriver } from "../sqlite-driver";
 import { SQLITE_MEMORY } from "../sqlite";
 import { createSqlDataSourceStore } from "./datasources";
+import { POSTGRES_DIALECT, type SqlDriver } from "./driver";
 import { runMigrations } from "./migrations";
 
 let store: DataSourceStore;
@@ -82,6 +83,38 @@ describe("the SQL datasource store", () => {
 
     const names = (await store.list("acme")).map((row) => row.name);
     expect(names).toEqual(["Alpha", "Beta"]);
+  });
+
+  it("breaks a tie on the id, so two rows with one name keep their order", async () => {
+    await store.put("acme", "b", { ...pgrest, name: "Same" });
+    await store.put("acme", "a", { ...pgrest, name: "Same" });
+
+    const ids = (await store.list("acme")).map((row) => row.id);
+    expect(ids).toEqual(["a", "b"]);
+  });
+
+  /**
+   * SQLite answers the query above from the primary-key index, so it returns
+   * ties in id order whether or not the query asks for it. PostgreSQL makes
+   * no such promise, and the Postgres suite needs a live server. So this
+   * asserts the statement rather than the rows.
+   */
+  it("asks the backend for the tie-break", async () => {
+    const sql: string[] = [];
+    const driver: SqlDriver = {
+      dialect: POSTGRES_DIALECT,
+      exec: () => Promise.resolve(),
+      all: <T>(statement: string) => {
+        sql.push(statement);
+        return Promise.resolve([] as T[]);
+      },
+      transaction: <T>(body: () => Promise<T>) => body(),
+      close: () => Promise.resolve(),
+    };
+
+    await createSqlDataSourceStore(driver).list("acme");
+
+    expect(sql[0]).toMatch(/ORDER BY name, id/);
   });
 
   it("removes only the named row, and only in its tenant", async () => {

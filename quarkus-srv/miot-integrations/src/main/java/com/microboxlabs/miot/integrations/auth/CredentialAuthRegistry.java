@@ -31,7 +31,7 @@ public class CredentialAuthRegistry {
     }
 
     /** Takes the plain {@link Iterable} that {@code Instance} already is, so tests need no CDI. */
-    CredentialAuthRegistry(Iterable<CredentialAuthProvider> providers) {
+    public CredentialAuthRegistry(Iterable<CredentialAuthProvider> providers) {
         this.byType = index(providers);
     }
 

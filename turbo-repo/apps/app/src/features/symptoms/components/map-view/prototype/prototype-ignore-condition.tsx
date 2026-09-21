@@ -2,7 +2,7 @@
 
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
-import { requestTreatment } from "@/features/common/providers/client-api.provider";
+import { guardedRequestTreatment } from "./prototype-api-guard";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Button, Select, Textarea } from "flowbite-react";
 import { useState } from "react";
@@ -70,7 +70,7 @@ export default function PrototypeIgnoreCondition({
       v_symptom_treatment_time: duration,
       status: "active",
     });
-    await requestTreatment({
+    await guardedRequestTreatment({
       ...treatmentRequest,
       status: "active",
       treatment_type: "ignorar condicion",
@@ -87,11 +87,7 @@ export default function PrototypeIgnoreCondition({
   /* ---------- shared fragments ---------- */
 
   const generalInfo = (
-    <GeneralInfoGrid
-      dict={dict}
-      treatmentData={treatmentData}
-      prescription={t("ignore_condition")}
-    />
+    <GeneralInfoGrid dict={dict} treatmentData={treatmentData} />
   );
 
   const reasonFields = (

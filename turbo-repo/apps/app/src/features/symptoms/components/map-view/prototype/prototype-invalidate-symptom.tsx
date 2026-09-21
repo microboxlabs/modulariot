@@ -2,7 +2,7 @@
 
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
-import { requestTreatment } from "@/features/common/providers/client-api.provider";
+import { guardedRequestTreatment, isPrototypeApiDisabled } from "./prototype-api-guard";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Button, Textarea } from "flowbite-react";
 import { useState } from "react";
@@ -62,7 +62,7 @@ export default function PrototypeInvalidateSymptom({
     if (!puedeGuardar || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const treatmentResult = await requestTreatment({
+      const treatmentResult = await guardedRequestTreatment({
         ...treatmentRequest,
         status: "active",
         treatment_type: "invalidar sintoma",
@@ -76,19 +76,24 @@ export default function PrototypeInvalidateSymptom({
         treatment_id: treatmentResult.treatment_id,
       });
 
-      const invalidateResponse = await fetch("/app/api/symptoms/invalidate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          symptom_id: treatmentData?.symptom_info?.id.toString() ?? "",
-          asset_id: treatmentData?.trip_info?.asset_id ?? "",
-          trip_id: treatmentData?.trip_info?.trip_id ?? "",
-          reason: razonCompleta,
-          invalidated_by: treatmentRequest.assigned_to,
-          treatment_id: treatmentResult.treatment_id,
-        }),
-      });
-      if (!invalidateResponse.ok) throw new Error("Invalidate webhook failed");
+      // Same kill switch as `guardedRequestTreatment` above — this webhook
+      // is a second, separate real write (symptom invalidation), not routed
+      // through `requestTreatment` at all, so it needs its own check.
+      if (!isPrototypeApiDisabled()) {
+        const invalidateResponse = await fetch("/app/api/symptoms/invalidate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            symptom_id: treatmentData?.symptom_info?.id.toString() ?? "",
+            asset_id: treatmentData?.trip_info?.asset_id ?? "",
+            trip_id: treatmentData?.trip_info?.trip_id ?? "",
+            reason: razonCompleta,
+            invalidated_by: treatmentRequest.assigned_to,
+            treatment_id: treatmentResult.treatment_id,
+          }),
+        });
+        if (!invalidateResponse.ok) throw new Error("Invalidate webhook failed");
+      }
 
       setIsMenuOpen(false);
       router.push("/symptoms");
@@ -103,11 +108,7 @@ export default function PrototypeInvalidateSymptom({
   /* ---------- shared fragments ---------- */
 
   const generalInfo = (
-    <GeneralInfoGrid
-      dict={dict}
-      treatmentData={treatmentData}
-      prescription={t("invalidate_symptom")}
-    />
+    <GeneralInfoGrid dict={dict} treatmentData={treatmentData} />
   );
 
   const motivoField = (

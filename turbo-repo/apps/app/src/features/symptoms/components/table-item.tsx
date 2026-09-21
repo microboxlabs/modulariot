@@ -27,7 +27,12 @@ export default function TableItem({
   const searchParams = new URLSearchParams(window.location.search);
 
   const slaMin = SLA_MIN[data.icu_code] ?? null;
-  let slaCell: { texto: string; clase: string } | null = null;
+  // A badge, not plain colored text: the row itself is already tinted by
+  // condition (`Conditions[...].bgColor` below), and a saturated row color —
+  // red especially — could wash out same-colored text with no background of
+  // its own to stand on.
+  let slaCell: { texto: string; color: "warning" | "success" | "failure" } | null =
+    null;
   if (slaMin != null) {
     const transc = (Date.now() - new Date(data.date).getTime()) / 60000;
     const resto = slaMin - transc;
@@ -37,11 +42,11 @@ export default function TableItem({
       resto >= 0
         ? {
             texto: `⏱ ${(dict.symptoms as I18nRecord).sla_left as string} ${fmt(resto)}`,
-            clase: resto <= slaMin * 0.3 ? "text-amber-500 font-semibold" : "text-emerald-500",
+            color: resto <= slaMin * 0.3 ? "warning" : "success",
           }
         : {
             texto: `⏱ ${(dict.symptoms as I18nRecord).sla_overdue as string} ${fmt(-resto)}`,
-            clase: "text-red-500 font-semibold",
+            color: "failure",
           };
   }
 
@@ -93,7 +98,13 @@ export default function TableItem({
           {data.time} {/* {(dict.symptoms as I18nRecord).sec as string}. */}
         </TableCell>
         <TableCell className="text-xs text-nowrap">
-          {slaCell ? <span className={slaCell.clase}>{slaCell.texto}</span> : <span className="text-gray-400">—</span>}
+          {slaCell ? (
+            <Badge color={slaCell.color} className="w-fit">
+              {slaCell.texto}
+            </Badge>
+          ) : (
+            <span className="text-gray-400">—</span>
+          )}
         </TableCell>
         <TableCell className="text-xs text-nowrap">
           {recurrenceCount > 1 ? (

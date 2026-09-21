@@ -4,7 +4,7 @@ import { HiArrowRight } from "react-icons/hi";
 import { Button, ButtonGroup, Tooltip } from "flowbite-react";
 import BlurrableDropdown from "../blurrable-dropdown";
 import { useState } from "react";
-import { SelectedOption } from "../../../types/side-info";
+import type { SelectedOption } from "../../../types/side-info";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import {
   useTreatmentsTemplates,
@@ -17,6 +17,7 @@ import { TbSortAscendingShapes, TbSortDescendingShapes } from "react-icons/tb";
 import { ConditionsAgg } from "../../../types/timeline";
 import { GroupAllowed } from "../../../../common/components/group-allowed/group-allowed";
 import PrototypeInlineForm from "./prototype-inline-form";
+import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 
 /**
  * PROTOTYPE — inline variant of `features/symptoms/side-info.tsx`.
@@ -35,6 +36,9 @@ export default function PrototypeSideInfo({
   setSelectedTreatmentIndex,
   isFormOpen,
   setIsFormOpen,
+  selectedOption,
+  setSelectedOption,
+  onCallFlowStepChange,
 }: {
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
@@ -44,10 +48,11 @@ export default function PrototypeSideInfo({
   setSelectedTreatmentIndex: (treatmentIndex: ConditionsAgg) => void;
   isFormOpen: boolean;
   setIsFormOpen: (isFormOpen: boolean) => void;
+  selectedOption: SelectedOption;
+  setSelectedOption: (option: SelectedOption) => void;
+  onCallFlowStepChange?: (step: CallCenterReportedStep | null) => void;
 }) {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
-  const [selectedOption, setSelectedOption] =
-    useState<SelectedOption>("call_driver");
   const { treatments_templates } = useTreatmentsTemplates(
     treatmentData?.symptom_info?.id.toString() ?? "1",
     treatmentData?.symptom_info?.name ?? "Bad Sign",
@@ -79,11 +84,13 @@ export default function PrototypeSideInfo({
         >
           <PrototypeInlineForm
             selectedOption={selectedOption}
+            setSelectedOption={setSelectedOption}
             dict={dict}
             isMenuOpen={isFormOpen}
             setIsMenuOpen={setIsFormOpen}
             treatmentData={treatmentData}
             treatments_templates={treatments_templates}
+            onCallFlowStepChange={onCallFlowStepChange}
           />
         </div>
       )}
@@ -148,9 +155,10 @@ export default function PrototypeSideInfo({
               <ButtonGroup className="w-full">
                 <BlurrableDropdown
                   dict={dict}
-                  isMenuOpen={isFormOpen}
-                  setIsMenuOpen={setIsFormOpen}
-                  setSelectedOption={setSelectedOption}
+                  onSelect={(option) => {
+                    setSelectedOption(option);
+                    setIsFormOpen(true);
+                  }}
                 />
                 <Button
                   size="md"

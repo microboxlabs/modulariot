@@ -14,7 +14,24 @@ import { titles } from "../../../types/symptom-titles";
 import TagManager from "../../tag-manager";
 import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
 import { ConditionsAgg } from "../../../types/timeline";
-import { useRouter } from "next/navigation";
+import type { SelectedOption } from "../../../types/side-info";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import SymptomContextCard from "./call-center/symptom-context-card";
+import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
+
+const MENU_OPTIONS: SelectedOption[] = [
+  "call_driver",
+  "derive_to_specialist",
+  "contact_carabineros",
+  "contact_via_whatsapp",
+  "copilot",
+  "ignore_condition",
+  "invalidate_symptom",
+];
+
+function isSelectedOption(value: string | null): value is SelectedOption {
+  return !!value && (MENU_OPTIONS as string[]).includes(value);
+}
 
 /**
  * PROTOTYPE — variant of `features/symptoms/components/map-view/general-map.tsx`.
@@ -37,6 +54,8 @@ export default function PrototypeGeneralMap({
   assetId?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { positions, error, isLoading } = useTripPositions(
     tripId ?? "",
     assetId ?? ""
@@ -48,7 +67,56 @@ export default function PrototypeGeneralMap({
     error: errorTreatments,
   } = useTreatmentsGeneral(id);
 
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  // Persisted in the URL (`?open=1&menu=…`) so a refresh or a shared link
+  // lands back on the right menu — only "which menu is open", not the finer
+  // steps inside it (e.g. mid-dial), which is what the leave-page warning is
+  // for: those are expected to be lost on an actual reload.
+  const [isFormOpen, setIsFormOpen] = useState(
+    () => searchParams.get("open") === "1"
+  );
+  const [selectedOption, setSelectedOption] = useState<SelectedOption>(() => {
+    const fromUrl = searchParams.get("menu");
+    return isSelectedOption(fromUrl) ? fromUrl : "call_driver";
+  });
+  const [callFlowStep, setCallFlowStep] = useState<CallCenterReportedStep | null>(
+    null
+  );
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (isFormOpen) {
+      params.set("open", "1");
+      params.set("menu", selectedOption);
+    } else {
+      params.delete("open");
+      params.delete("menu");
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFormOpen, selectedOption]);
+
+  // The call flow stays narrow (1/3) through contacts/dialing/whatsapp — the
+  // map is the more useful half of the screen until there's an actual form
+  // to fill in — then widens to 1/2 for the final treatment form. `null`
+  // (debug mode off) means the plain form with no steps in front of it, so
+  // it's treated the same as reaching "form". Every other menu keeps 62/38.
+  const isCallDriver = selectedOption === "call_driver";
+  const isCallFormStep = callFlowStep === "form" || callFlowStep === null;
+  const sideWidth = !isFormOpen
+    ? "35%"
+    : isCallDriver
+      ? isCallFormStep
+        ? "50%"
+        : "33.3333%"
+      : "62%";
+  const mapWidth = !isFormOpen
+    ? "65%"
+    : isCallDriver
+      ? isCallFormStep
+        ? "50%"
+        : "66.6667%"
+      : "38%";
 
   const [selectedTreatment, setSelectedTreatment] =
     useState<TreatmentsGeneralResponseItem | null>(null);
@@ -238,7 +306,7 @@ export default function PrototypeGeneralMap({
         {/* Side information — grows when the inline form opens */}
         <div
           className="h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-[width] duration-500 ease-in-out"
-          style={{ width: isFormOpen ? "62%" : "35%" }}
+          style={{ width: sideWidth }}
         >
           <PrototypeSideInfo
             dict={dict}
@@ -249,25 +317,50 @@ export default function PrototypeGeneralMap({
             setSelectedTreatmentIndex={setSelectedTreatmentIndex}
             isFormOpen={isFormOpen}
             setIsFormOpen={setIsFormOpen}
+            selectedOption={selectedOption}
+            setSelectedOption={setSelectedOption}
+            onCallFlowStepChange={setCallFlowStep}
           />
         </div>
-        {/* Map — shrinks when the inline form opens, never fully hidden */}
+        {/* Map — shrinks (width) when the inline form opens, and (height)
+            makes room for the symptom-context row below it when that's showing. */}
         <div
-          className="h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-[width] duration-500 ease-in-out"
-          style={{ width: isFormOpen ? "38%" : "65%" }}
+          className="flex h-full flex-col gap-2 transition-[width] duration-500 ease-in-out"
+          style={{ width: mapWidth }}
         >
-          <MapVisualizationTrip
-            positions={positions}
-            error={error}
-            isLoading={isLoading}
-            tripId={tripId ?? ""}
-            filteredLocationData={filteredLocationData ?? null}
-            dict={dict}
-            selectedTreatmentIndex={selectedTreatmentIndex ?? null}
-            setSelectedTreatment={setSelectedTreatment}
-            setSelectedTreatmentIndex={setSelectedTreatmentIndex}
-            licensePlate={treatmentData?.trip_info?.asset_id ?? null}
-          />
+          <div className="min-h-0 flex-1 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <MapVisualizationTrip
+              positions={positions}
+              error={error}
+              isLoading={isLoading}
+              tripId={tripId ?? ""}
+              filteredLocationData={filteredLocationData ?? null}
+              dict={dict}
+              selectedTreatmentIndex={selectedTreatmentIndex ?? null}
+              setSelectedTreatment={setSelectedTreatment}
+              setSelectedTreatmentIndex={setSelectedTreatmentIndex}
+              licensePlate={treatmentData?.trip_info?.asset_id ?? null}
+            />
+          </div>
+          {/* Keeps the symptom being called about visible without flipping
+              back to the timeline — same amber "current symptom" card the
+              timeline itself shows. A real row below the map (not an overlay
+              on top of it, which the map's own controls kept covering) that
+              pushes the map up; the grid-rows trick animates smoothly between
+              0 and its natural height without a fixed height to guess at. */}
+          <div
+            className={`grid shrink-0 transition-[grid-template-rows] duration-500 ease-in-out ${
+              isFormOpen && selectedOption === "call_driver" && selectedTreatmentIndex
+                ? "grid-rows-[1fr]"
+                : "grid-rows-[0fr]"
+            }`}
+          >
+            <div className="overflow-hidden">
+              {selectedTreatmentIndex && (
+                <SymptomContextCard dict={dict} subItem={selectedTreatmentIndex} />
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </>

@@ -116,6 +116,31 @@ export function defaultSelectables(): Selectable[] {
   ];
 }
 
+/**
+ * A selectable added (or emptied out through the settings page) after this
+ * browser's storage was first seeded would otherwise never show its intended
+ * defaults again — e.g. "A quién llamar" losing "Conductor" and the rest of
+ * the seeded roles if the id is missing from storage or was cleared out to
+ * zero options. Backfills only those, leaving every other customization
+ * (including a deliberately-edited "who_to_call" that still has options)
+ * untouched.
+ */
+function backfillMissingDefaults(stored: Selectable[]): Selectable[] {
+  const byId = new Map(stored.map((s) => [s.id, s] as const));
+  let changed = false;
+  for (const fallback of defaultSelectables()) {
+    const existing = byId.get(fallback.id);
+    if (!existing) {
+      byId.set(fallback.id, fallback);
+      changed = true;
+    } else if (existing.options.length === 0 && fallback.options.length > 0) {
+      byId.set(fallback.id, { ...existing, options: fallback.options });
+      changed = true;
+    }
+  }
+  return changed ? Array.from(byId.values()) : stored;
+}
+
 function read(): Selectable[] {
   if (typeof window === "undefined") return defaultSelectables();
   try {
@@ -123,7 +148,7 @@ function read(): Selectable[] {
     if (!raw) return defaultSelectables();
     const parsed = JSON.parse(raw) as Selectable[];
     if (!Array.isArray(parsed)) return defaultSelectables();
-    return parsed;
+    return backfillMissingDefaults(parsed);
   } catch {
     return defaultSelectables();
   }
@@ -243,6 +268,25 @@ export function useSelectables() {
     [persist]
   );
 
+  /** Same as `addOption`, but takes the name/description up front and hands
+   *  back the new option's id — for a caller (e.g. an inline "add contact"
+   *  form) that needs to act on the option it just created immediately,
+   *  rather than appending a blank one and editing it in a later render. */
+  const addNamedOption = useCallback(
+    (id: string, name: string, description = ""): string => {
+      const optionId = makeId("opt");
+      persist(
+        read().map((s) =>
+          s.id === id
+            ? { ...s, options: [...s.options, { id: optionId, name, description }] }
+            : s
+        )
+      );
+      return optionId;
+    },
+    [persist]
+  );
+
   const updateOption = useCallback(
     (id: string, optionId: string, patch: Partial<Omit<SelectableOption, "id">>) => {
       persist(
@@ -293,6 +337,7 @@ export function useSelectables() {
     update,
     setMode,
     addOption,
+    addNamedOption,
     updateOption,
     removeOption,
     resetToDefaults,

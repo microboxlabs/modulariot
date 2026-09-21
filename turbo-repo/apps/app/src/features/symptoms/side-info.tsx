@@ -132,9 +132,10 @@ export default function SideInfo({
           <ButtonGroup className="w-full">
             <BlurrableDropdown
               dict={dict}
-              isMenuOpen={isMenuOpen}
-              setIsMenuOpen={setIsMenuOpen}
-              setSelectedOption={setSelectedOption}
+              onSelect={(option) => {
+                setSelectedOption(option);
+                setIsMenuOpen(true);
+              }}
             />
             <Button
               size="md"

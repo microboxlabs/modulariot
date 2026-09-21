@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
@@ -41,12 +42,14 @@ export default async function PrototipeMapView({
           dict={dict["symptoms"] as I18nRecord}
         />
       </div>
-      <PrototypeGeneralMap
-        dict={dict}
-        id={id as string}
-        tripId={tripId}
-        assetId={assetId}
-      />
+      <Suspense fallback={null}>
+        <PrototypeGeneralMap
+          dict={dict}
+          id={id as string}
+          tripId={tripId}
+          assetId={assetId}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -55,7 +55,7 @@ describe("configuration", () => {
     ).toThrow(/https/);
   });
 
-  it("refuses a key short enough to guess", () => {
+  it("refuses a key too short", () => {
     expect(() =>
       createHttpCredentialsVault({ url: URL_TEMPLATE, proxyKey: "short" }),
     ).toThrow(/at least/);
@@ -95,10 +95,10 @@ describe("resolving", () => {
     await expect(vault.resolve("acme", "missing")).resolves.toBeNull();
   });
 
-  it("raises on 403, because that is our own key being refused", async () => {
+  it("raises on 403", async () => {
     const vault = build(respond(403) as unknown as typeof fetch);
-    // Not null: a misconfigured key must be visible as a failure, not read
-    // as "this datasource has no credential".
+    // A refused key has to show up as a failure. Reading it as null would
+    // report it as "this datasource has no credential".
     await expect(vault.resolve("acme", "fleet")).rejects.toThrow(/403/);
   });
 

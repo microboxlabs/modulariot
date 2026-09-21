@@ -200,12 +200,14 @@ credentials in its own database, encrypted with that key. Leave it unset and
 it stores none.
 
 ```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true MIOT_DASHBOARD_SEED=example \
 MIOT_DASHBOARD_STORE=sqlite \
 MIOT_DASHBOARD_CREDENTIALS_KEY="$(openssl rand -base64 32)" \
   npx @microboxlabs/miot-dashboard-server
 ```
 
-Starts the server with the credential routes on.
+Starts a local server with the credential routes on. Swap the first line for
+a real identity provider to run it anywhere else.
 
 The key has to be at least 32 characters and the store has to be `sqlite` or
 `postgres`. The server refuses to start otherwise. Lose the key and every

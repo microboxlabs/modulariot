@@ -53,6 +53,10 @@
     "./store-cloud": {
       "types": "./dist/store-cloud.d.ts",
       "import": "./dist/store-cloud.js"
+    },
+    "./vault-sql": {
+      "types": "./dist/vault-sql.d.ts",
+      "import": "./dist/vault-sql.js"
     }
   },
   "bin": {

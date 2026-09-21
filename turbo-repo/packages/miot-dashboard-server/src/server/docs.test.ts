@@ -518,9 +518,8 @@ describe("the spec against the router", () => {
       tenants: createMemoryTenantAuthority({}),
       scopes: createMemoryScopeAuthority({}),
       store: createMemoryStore(),
-      // Configured, because the document describes a server with every route
-      // mounted. Left out, the datasource and credential routes answer 404,
-      // and the check below would read them as documented but not served.
+      // The document describes a server with every route mounted. Left out,
+      // these two answer 404 and the check below reads them as unserved.
       dataSources: createMemoryDataSourceStore(),
       credentials: createMemoryCredentialsStore(),
       port: 0,

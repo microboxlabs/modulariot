@@ -107,8 +107,10 @@ public class DashboardDataSourceProxyResource {
                 support.assertionFor(slug, authorization)));
     }
 
+    /** No body, so the class-level JSON requirement would answer 415. */
     @POST
     @Path("/{dataSourceId}/test")
+    @Consumes(MediaType.WILDCARD)
     public Uni<Response> test(@PathParam("slug") String slug,
                               @PathParam("dataSourceId") String dataSourceId,
                               @HeaderParam("Authorization") String authorization) {

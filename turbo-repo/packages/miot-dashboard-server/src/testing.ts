@@ -18,10 +18,20 @@ import { dashboardDisplayName } from "./store/composite";
 import type { DashboardRole } from "./access/roles";
 import { FULL_CAPABILITIES, isDashboardRole } from "./access/roles";
 import type { AuditEvent, AuditSink } from "./seams/audit";
-import type {
-  CredentialsVault,
-  DataSourceCredential,
+import {
+  applyCredential,
+  previewOf,
+  type CredentialInput,
+  type CredentialSummary,
+  type CredentialsStore,
+  type CredentialsVault,
+  type DataSourceCredential,
 } from "./seams/credentials";
+import type {
+  DataSourceDescriptor,
+  DataSourceInput,
+  DataSourceStore,
+} from "./seams/datasources";
 import type {
   DashboardPrincipal,
   IdentityResolver,
@@ -295,13 +305,161 @@ export function createInsecureHeaderIdentityResolver(
 
 // ---------------------------------------------------------- credentials ----
 
-/** Returns whatever it was seeded with, keyed by tenant and datasource. */
+/** Returns whatever it was seeded with, keyed by tenant and credential ref. */
 export function createMemoryCredentialsVault(
   credentials: Record<string, Record<string, DataSourceCredential>> = {},
 ): CredentialsVault {
   return {
-    resolve(tenantId, dataSourceId) {
-      return Promise.resolve(credentials[tenantId]?.[dataSourceId] ?? null);
+    resolve(tenantId, credentialRef) {
+      return Promise.resolve(credentials[tenantId]?.[credentialRef] ?? null);
+    },
+  };
+}
+
+/**
+ * A writable vault holding plaintext in memory, for tests and dev servers.
+ * `vault-sql` is the one that encrypts.
+ */
+export function createMemoryCredentialsStore(
+  seed: Record<string, Record<string, CredentialInput>> = {},
+): CredentialsStore {
+  const byTenant = new Map<string, Map<string, StoredCredential>>();
+  for (const [tenantId, refs] of Object.entries(seed)) {
+    for (const [ref, input] of Object.entries(refs)) {
+      tenantOf(tenantId).set(ref, {
+        input: { ...input },
+        updatedAt: new Date(0).toISOString(),
+      });
+    }
+  }
+
+  function tenantOf(tenantId: string): Map<string, StoredCredential> {
+    let refs = byTenant.get(tenantId);
+    if (refs === undefined) {
+      refs = new Map();
+      byTenant.set(tenantId, refs);
+    }
+    return refs;
+  }
+
+  function summarize(ref: string, stored: StoredCredential): CredentialSummary {
+    const preview = previewOf(stored.input);
+    return {
+      ref,
+      kind: stored.input.kind,
+      ...(preview === undefined ? {} : { preview }),
+      updatedAt: stored.updatedAt,
+    };
+  }
+
+  return {
+    resolve(tenantId, credentialRef) {
+      const stored = byTenant.get(tenantId)?.get(credentialRef);
+      return Promise.resolve(
+        stored === undefined ? null : applyCredential(stored.input),
+      );
+    },
+    listCredentials(tenantId) {
+      const refs = byTenant.get(tenantId) ?? new Map();
+      return Promise.resolve(
+        [...refs.entries()].map(([ref, stored]) => summarize(ref, stored)),
+      );
+    },
+    describeCredential(tenantId, credentialRef) {
+      const stored = byTenant.get(tenantId)?.get(credentialRef);
+      return Promise.resolve(
+        stored === undefined ? null : summarize(credentialRef, stored),
+      );
+    },
+    putCredential(tenantId, credentialRef, input) {
+      const stored = {
+        input: { ...input },
+        updatedAt: new Date().toISOString(),
+      };
+      tenantOf(tenantId).set(credentialRef, stored);
+      return Promise.resolve(summarize(credentialRef, stored));
+    },
+    removeCredential(tenantId, credentialRef) {
+      byTenant.get(tenantId)?.delete(credentialRef);
+      return Promise.resolve();
+    },
+  };
+}
+
+interface StoredCredential {
+  input: CredentialInput;
+  updatedAt: string;
+}
+
+// --------------------------------------------------------- datasources ----
+
+/** Keyed by tenant, in insertion order. */
+export function createMemoryDataSourceStore(
+  seed: Record<string, Record<string, DataSourceInput>> = {},
+): DataSourceStore {
+  const byTenant = new Map<string, Map<string, DataSourceDescriptor>>();
+
+  function tenantOf(tenantId: string): Map<string, DataSourceDescriptor> {
+    let rows = byTenant.get(tenantId);
+    if (rows === undefined) {
+      rows = new Map();
+      byTenant.set(tenantId, rows);
+    }
+    return rows;
+  }
+
+  function write(
+    tenantId: string,
+    id: string,
+    input: DataSourceInput,
+    updatedAt: string,
+  ): DataSourceDescriptor {
+    const descriptor: DataSourceDescriptor = {
+      id,
+      name: input.name,
+      type: input.type,
+      ...(input.description === undefined
+        ? {}
+        : { description: input.description }),
+      isActive: input.isActive,
+      target: input.target,
+      ...(input.credentialRef === undefined
+        ? {}
+        : { credentialRef: input.credentialRef }),
+      updatedAt,
+    };
+    tenantOf(tenantId).set(id, descriptor);
+    return copy(descriptor);
+  }
+
+  /** Never the stored object — see the dashboard store above. */
+  function copy(descriptor: DataSourceDescriptor): DataSourceDescriptor {
+    return { ...descriptor };
+  }
+
+  for (const [tenantId, rows] of Object.entries(seed)) {
+    for (const [id, input] of Object.entries(rows)) {
+      write(tenantId, id, input, new Date(0).toISOString());
+    }
+  }
+
+  return {
+    list(tenantId) {
+      const rows = [...(byTenant.get(tenantId)?.values() ?? [])];
+      return Promise.resolve(rows.map(copy));
+    },
+    get(tenantId, id) {
+      const row = byTenant.get(tenantId)?.get(id);
+      return Promise.resolve(row === undefined ? null : copy(row));
+    },
+    put(tenantId, id, input) {
+      return Promise.resolve(
+        write(tenantId, id, input, new Date().toISOString()),
+      );
+    },
+    remove(tenantId, id) {
+      byTenant.get(tenantId)?.delete(id);
+      return Promise.resolve();
     },
   };
 }

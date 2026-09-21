@@ -10,9 +10,13 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  createMemoryCredentialsStore,
+  createMemoryDataSourceStore,
   createMemoryScopeAuthority,
   createMemoryTenantAuthority,
 } from "./testing";
+import type { CredentialInput } from "./seams/credentials";
+import type { DataSourceInput } from "./seams/datasources";
 import type { DashboardIdentity, DashboardPrincipal } from "./seams/identity";
 import { FULL_CAPABILITIES } from "./access/roles";
 
@@ -97,5 +101,81 @@ describe("createMemoryTenantAuthority", () => {
     await expect(tenants.mayActAs(principal(userId), "acme")).resolves.toBe(
       false,
     );
+  });
+});
+
+describe("the memory datasource and credential stores hand back copies", () => {
+  // Same rule as the dashboard store in `src/test/fixtures.test.ts`. These are
+  // published for integrators and dev servers, and a SQL store hands back rows
+  // it decoded. A caller holding a reference into the Map can rewrite state
+  // without a write, and the suite would pass against behaviour Postgres
+  // cannot reproduce.
+  const pgrest: DataSourceInput = {
+    name: "PgREST",
+    type: "POSTGREST",
+    isActive: true,
+    target: "https://data.example/rest/v1",
+  };
+
+  it("does not let a mutated put() result change the store", async () => {
+    const store = createMemoryDataSourceStore();
+    const written = await store.put("acme", "ds1", pgrest);
+
+    written.target = "https://attacker.example";
+
+    await expect(store.get("acme", "ds1")).resolves.toMatchObject({
+      target: "https://data.example/rest/v1",
+    });
+  });
+
+  it("does not let a mutated get() result change the store", async () => {
+    const store = createMemoryDataSourceStore({ acme: { ds1: pgrest } });
+    const got = await store.get("acme", "ds1");
+
+    got!.isActive = false;
+
+    await expect(store.get("acme", "ds1")).resolves.toMatchObject({
+      isActive: true,
+    });
+  });
+
+  it("does not let a mutated list() element change the store", async () => {
+    const store = createMemoryDataSourceStore({ acme: { ds1: pgrest } });
+    const [listed] = await store.list("acme");
+
+    listed!.name = "renamed";
+
+    await expect(store.list("acme")).resolves.toMatchObject([
+      { name: "PgREST" },
+    ]);
+  });
+
+  it("does not let a mutated credential input rotate the secret", async () => {
+    const input: CredentialInput = {
+      kind: "BEARER",
+      token: "0123456789abcdef",
+    };
+    const store = createMemoryCredentialsStore();
+    await store.putCredential("acme", "pgrest", input);
+
+    input.token = "rotated-without-a-write";
+
+    await expect(store.resolve("acme", "pgrest")).resolves.toMatchObject({
+      headers: { Authorization: "Bearer 0123456789abcdef" },
+    });
+  });
+
+  it("does not let a mutated seed rotate it either", async () => {
+    const input: CredentialInput = {
+      kind: "BEARER",
+      token: "0123456789abcdef",
+    };
+    const store = createMemoryCredentialsStore({ acme: { pgrest: input } });
+
+    input.token = "rotated-without-a-write";
+
+    await expect(store.resolve("acme", "pgrest")).resolves.toMatchObject({
+      headers: { Authorization: "Bearer 0123456789abcdef" },
+    });
   });
 });

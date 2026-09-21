@@ -27,6 +27,7 @@ import {
   readServerConfig,
   type ServerConfig,
 } from "./server/config";
+import { openDataSources } from "./server/open-datasources";
 import { createRefusalLog } from "./server/refusal-log";
 import { startSweepSchedule } from "./server/sweep-schedule";
 import { seedDashboards } from "./server/seed";
@@ -35,6 +36,7 @@ import type { ServerDashboardStore } from "./seams/store";
 import { buildDocumentStore } from "./server/documents";
 import { openPostgresStore } from "./store/postgres";
 import { openSqliteStore } from "./store/sqlite";
+import type { SqlDriver } from "./store/sql/driver";
 import type { SweepResult } from "./store/sweep";
 import {
   createMemoryStore,
@@ -150,6 +152,11 @@ interface AssembledStore {
   describe: string;
   /** Absent when the store has no documents to sweep. */
   sweep?: (olderThan: Date) => Promise<SweepResult>;
+  /**
+   * The connection underneath, for the datasource store and the credentials
+   * plugin. Absent for the memory store, which has none.
+   */
+  driver?: SqlDriver;
 }
 
 /** Build the store named by the configuration. */
@@ -210,6 +217,7 @@ async function openStore(
       : `sqlite at ${config.sqlitePath}`;
   return {
     store: opened.store,
+    driver: opened.driver,
     close: opened.close,
     describe: `${where}, ${documents}`,
     sweep: opened.sweep,
@@ -292,9 +300,12 @@ async function main(): Promise<void> {
           minAgeSeconds: config.orphanMinAgeSeconds,
           log,
         });
+  const data = await openDataSources(config, assembled.driver);
+
   log({ level: "info", msg: "identity", auth: auth.describe });
   log({ level: "info", msg: "tenants", entitlement: tenants.describe });
   log({ level: "info", msg: "scopes", membership: scopes.describe });
+  log({ level: "info", msg: "datasources", state: data.describe });
 
   const running = await serve({
     identity: auth.identity,
@@ -307,6 +318,8 @@ async function main(): Promise<void> {
     docs: config.docs,
     ...(config.cors ? { cors: config.cors } : {}),
     ...(config.basePath ? { basePath: config.basePath } : {}),
+    ...(data.dataSources ? { dataSources: data.dataSources } : {}),
+    ...(data.credentials ? { credentials: data.credentials } : {}),
   });
 
   const shutdown = (signal: string) => {

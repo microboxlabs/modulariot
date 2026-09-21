@@ -1,11 +1,9 @@
 /**
  * The datasource and credential routes.
  *
- * The last block is the gate P3 exists for: every response any of these
- * routes can produce is walked, and a property name that can carry a secret
- * fails the test. It is structural rather than a list of assertions per
- * route, so a route added later is covered without anyone remembering to
- * cover it.
+ * The last block walks every response these routes can produce and fails on
+ * a property name that can carry a secret. A route added later is covered
+ * without anyone writing an assertion for it.
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
@@ -161,8 +159,7 @@ describe("credential routes", () => {
         headers: { "x-dev-user": "alice" },
       }),
     );
-    // 404, the same answer as a deployment with no vault at all: which of
-    // the two it is would tell an outsider how this server is configured.
+    // 404, the same as no vault at all. The status code must not say which.
     expect(response.status).toBe(404);
   });
 
@@ -230,8 +227,7 @@ describe("the serialization gate", () => {
 
   /**
    * Responses from every route in this file, success and failure, including
-   * the ones that carried a secret in on the way. A body is only in the
-   * clear if no property of it can hold one.
+   * the writes that carried a secret in.
    */
   async function everyResponse(): Promise<Response[]> {
     const created = await call(DS, "alice", "POST", pgrest);

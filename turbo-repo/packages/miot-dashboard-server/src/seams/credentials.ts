@@ -1,18 +1,15 @@
 /**
- * Credentials seam — how the query proxy obtains request auth without ever
- * holding a secret it could leak.
+ * Credentials for datasource queries.
  *
- * A BigQuery service-account key or a PgREST token must never reach the
- * browser; that is why datasource queries are proxied rather than issued
- * client-side. Credentials enter this package only through this seam, are
- * used only to sign an outbound request, and never appear in any response
- * body — including error responses, which is the easier rule to break.
+ * A BigQuery service-account key or a PgREST token must not reach the
+ * browser, so datasource queries are proxied. Credentials enter this package
+ * only through this file, are used only to sign an outbound request, and
+ * never appear in a response body, error responses included.
  *
- * Two directions, two types. {@link CredentialInput} is what an operator
- * supplies; {@link DataSourceCredential} is what the vault hands back, and it
- * is auth already applied rather than the secret it came from. A host that
- * runs an OAuth2 grant does it on its side and returns the resulting header,
- * so this package never learns the client secret.
+ * {@link CredentialInput} is what an operator supplies.
+ * {@link DataSourceCredential} is what the vault returns: auth already
+ * applied, not the secret it came from. A host that runs an OAuth2 grant runs
+ * it on its own side and returns the resulting header.
  */
 
 /** ISO-8601 instant. */
@@ -20,13 +17,7 @@ type Timestamp = string;
 
 // ----------------------------------------------------------- resolving ----
 
-/**
- * The result of resolving a credential: what to put on the outbound request.
- *
- * Not the stored secret. `Authorization: Bearer x` and a client-credentials
- * grant that produced the same header are indistinguishable here, which is
- * what lets a host add an auth type without this package changing.
- */
+/** What to put on the outbound request. Not the stored secret. */
 export type DataSourceCredential =
   | { kind: "NONE" }
   | {
@@ -34,17 +25,16 @@ export type DataSourceCredential =
       headers: Readonly<Record<string, string>>;
       queryParams: Readonly<Record<string, string>>;
       /**
-       * When the auth stops working, for a grant that issued a lifetime.
-       * Absent for a static credential. A caller may cache until this instant
-       * and must not cache past it.
+       * When the auth stops working. Absent for a static credential. A caller
+       * may cache until this instant and must not cache past it.
        */
       expiresAt?: Timestamp;
     }
   | {
       /**
-       * Google service-account JSON, for BigQuery. The one kind that cannot
-       * be reduced to headers: the Google client signs its own assertions and
-       * needs the key itself.
+       * Google service-account JSON, for BigQuery. The Google client signs
+       * its own assertions and needs the key itself, so this kind cannot be
+       * reduced to headers.
        */
       kind: "SERVICE_ACCOUNT";
       projectId: string;
@@ -54,15 +44,12 @@ export type DataSourceCredential =
 
 export interface CredentialsVault {
   /**
-   * Resolve one credential within one tenant.
+   * Resolve one credential within one tenant. A ref alone must not be enough
+   * to obtain auth, or a caller who learns another tenant's ref can borrow
+   * its credential.
    *
-   * The `tenantId` argument is not decoration: a ref alone must never be
-   * enough to obtain auth, or a caller who learns a ref from another tenant
-   * can borrow its credential.
-   *
-   * Returns null when the tenant has no such credential. Throwing is for a
-   * vault that cannot answer — a host that is down is a 500, a ref that does
-   * not exist is not.
+   * Returns null when the tenant has no such credential. Throw when the vault
+   * cannot answer: a host that is down is a 500, a missing ref is not.
    */
   resolve(
     tenantId: string,
@@ -73,13 +60,12 @@ export interface CredentialsVault {
 // ------------------------------------------------------------- writing ----
 
 /**
- * A credential as an operator supplies it. Secret by definition: every
- * variant but `NONE` carries a value that must not be logged or serialized.
+ * A credential as an operator supplies it. Every variant but `NONE` carries a
+ * value that must not be logged or serialized.
  *
- * The kinds mirror what modulariot's credential component persists, minus the
- * grant-running ones. A vault that resolves an OAuth2 client-credentials
- * grant accepts it through its own configuration, not here — running a grant
- * needs a token cache and a clock, and neither belongs behind a write API.
+ * A vault that resolves an OAuth2 client-credentials grant takes it through
+ * its own configuration, not here: running a grant needs a token cache and a
+ * clock.
  */
 export type CredentialInput =
   | { kind: "NONE" }
@@ -96,17 +82,13 @@ export type CredentialInput =
 
 export type CredentialKind = CredentialInput["kind"];
 
-/**
- * What may be told about a stored credential. Everything here is safe to
- * serialize; that is the whole point of the type existing separately.
- */
+/** What may be told about a stored credential. Everything here is safe to serialize. */
 export interface CredentialSummary {
   ref: string;
   kind: CredentialKind;
   /**
    * Enough of the secret to recognize which one this is, never enough to use
-   * it — a masked key id, the last four characters. Absent for `NONE`, and
-   * absent is always allowed: a vault that will not derive one is correct.
+   * it. Absent for `NONE`, and always allowed to be absent.
    */
   preview?: string;
   updatedAt: Timestamp;
@@ -115,11 +97,11 @@ export interface CredentialSummary {
 /**
  * A vault that can also be written to.
  *
- * Only some deployments have one. Inside modulariot credentials belong to the
- * Credentials screen and this package's vault is read-only; standalone, the
- * `vault-sql` plugin implements this so the admin API can create and rotate.
- * The routes that write credentials are mounted only when the injected vault
- * satisfies this interface — see {@link isCredentialsStore}.
+ * Inside modulariot, credentials belong to the Credentials screen and this
+ * package's vault is read-only. Standalone, the `vault-sql` plugin implements
+ * this so the admin API can create and rotate. The routes that write
+ * credentials are mounted only when the injected vault satisfies this
+ * interface — see {@link isCredentialsStore}.
  */
 export interface CredentialsStore extends CredentialsVault {
   listCredentials(tenantId: string): Promise<CredentialSummary[]>;
@@ -127,13 +109,13 @@ export interface CredentialsStore extends CredentialsVault {
     tenantId: string,
     credentialRef: string,
   ): Promise<CredentialSummary | null>;
-  /** Create or replace. The ref is chosen by the caller and is stable. */
+  /** Create or replace. The caller chooses the ref and it is stable. */
   putCredential(
     tenantId: string,
     credentialRef: string,
     input: CredentialInput,
   ): Promise<CredentialSummary>;
-  /** Removing a ref a datasource still names is the caller's problem to refuse. */
+  /** Does not check whether a datasource still names the ref. */
   removeCredential(tenantId: string, credentialRef: string): Promise<void>;
 }
 
@@ -152,14 +134,12 @@ export function isCredentialsStore(
 // ---------------------------------------------------------------- gate ----
 
 /**
- * Every property name that can carry a secret, across both directions of the
- * seam. The response-shape test walks serialized bodies and fails on any of
- * them, so adding a credential kind with a new secret field means adding it
- * here — and the test is what notices if you forget.
+ * Every property name that can carry a secret, in either direction. The
+ * response-shape test walks serialized bodies and fails on any of them, so a
+ * credential kind with a new secret field has to be added here.
  *
- * Applied only to datasource and credential responses. A dashboard config is
- * arbitrary caller-supplied JSON that may legitimately contain a key named
- * `value`, so running this over one would fail on the caller's data.
+ * Applied to datasource and credential responses only. A dashboard config is
+ * caller-supplied JSON that may legitimately contain a key named `value`.
  */
 export const SECRET_PROPERTY_NAMES: readonly string[] = [
   "token",
@@ -172,10 +152,9 @@ export const SECRET_PROPERTY_NAMES: readonly string[] = [
 
 /**
  * Turns a {@link CredentialInput} into the auth it represents. Static kinds
- * only: every one of them is a fixed header or query parameter, so a vault
- * that stores secrets verbatim needs no per-kind logic of its own.
- *
- * `SERVICE_ACCOUNT` passes through unchanged — see the note on that variant.
+ * only: each one is a fixed header or query parameter, so a vault that stores
+ * secrets verbatim needs no per-kind logic. `SERVICE_ACCOUNT` passes through
+ * unchanged.
  */
 export function applyCredential(input: CredentialInput): DataSourceCredential {
   switch (input.kind) {
@@ -221,9 +200,8 @@ export function applyCredential(input: CredentialInput): DataSourceCredential {
 }
 
 /**
- * The recognizable, non-secret part of a credential: enough to tell two
- * apart in a list. Never more than the last four characters of anything, and
- * nothing at all for a value short enough that four characters is most of it.
+ * The non-secret part of a credential: enough to tell two apart in a list.
+ * At most the last four characters, and nothing at all below 12 characters.
  */
 export function previewOf(input: CredentialInput): string | undefined {
   switch (input.kind) {

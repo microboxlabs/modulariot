@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.service;
 
+import com.microboxlabs.miot.integrations.auth.google.GoogleServiceAccountConfigs;
 import com.microboxlabs.miot.integrations.auth.oauth.OAuth2CredentialConfigs;
 import com.microboxlabs.miot.integrations.domain.AuthType;
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
@@ -250,6 +251,10 @@ public class CredentialProfileService {
                 OutboundUrlGuard.requirePublicHttpUrl(
                         OAuth2CredentialConfigs.tokenUrl(type, publicConfig), "tokenUrl");
             }
+            if (GoogleServiceAccountConfigs.supports(type)) {
+                OutboundUrlGuard.requirePublicHttpUrl(
+                        GoogleServiceAccountConfigs.tokenUrl(publicConfig), "tokenUrl");
+            }
         } catch (IllegalArgumentException e) {
             return CredentialTestResponse.failure(e.getMessage());
         }
@@ -281,6 +286,9 @@ public class CredentialProfileService {
     private void validateConfig(CredentialType type, Map<String, Object> publicConfig) {
         if (OAuth2CredentialConfigs.supports(type)) {
             OAuth2CredentialConfigs.validatePublicConfig(type, publicConfig);
+        }
+        if (GoogleServiceAccountConfigs.supports(type)) {
+            GoogleServiceAccountConfigs.validatePublicConfig(publicConfig);
         }
     }
 

@@ -11,6 +11,7 @@ import {
   type CredentialTestResult,
   type CredentialTypeId,
   type CredentialUsage,
+  type GoogleServiceAccountFormData,
 } from "./credential.types";
 
 /**
@@ -129,7 +130,9 @@ function toListItem(response: CredentialProfileResponse): CredentialListItem {
 }
 
 /** publicConfig is free-form JSON upstream; the forms only ever put strings in it. */
-function toStringConfig(config: Record<string, unknown>): Record<string, string> {
+function toStringConfig(
+  config: Record<string, unknown>
+): Record<string, string> {
   return Object.fromEntries(
     Object.entries(config ?? {})
       .filter(([, value]) => value !== null && value !== undefined)
@@ -149,6 +152,26 @@ function isEntraForm(form: CredentialFormData): form is AzureEntraFormData {
 
 function isAuth0Form(form: CredentialFormData): form is Auth0M2MFormData {
   return "domain" in form;
+}
+
+function isGoogleForm(
+  form: CredentialFormData
+): form is GoogleServiceAccountFormData {
+  return "clientEmail" in form;
+}
+
+/**
+ * The secret half. A service account's secret is its private key; every
+ * OAuth2 flavour carries a client secret.
+ */
+function toSecretConfig(
+  form: CredentialFormData
+): Record<string, string> | undefined {
+  const secret = (
+    isGoogleForm(form) ? form.privateKey : form.clientSecret
+  )?.trim();
+  if (!secret) return undefined;
+  return isGoogleForm(form) ? { privateKey: secret } : { clientSecret: secret };
 }
 
 /**
@@ -175,6 +198,13 @@ function auth0PublicConfig(form: Auth0M2MFormData): Record<string, string> {
 function toPublicConfig(form: CredentialFormData): Record<string, string> {
   if (isAuth0Form(form)) {
     return auth0PublicConfig(form);
+  }
+  if (isGoogleForm(form)) {
+    return {
+      clientEmail: form.clientEmail.trim(),
+      ...(form.projectId?.trim() ? { projectId: form.projectId.trim() } : {}),
+      ...(form.scope?.trim() ? { scope: form.scope.trim() } : {}),
+    };
   }
   if (!isEntraForm(form)) {
     return {
@@ -228,7 +258,7 @@ export function createCredential(
     credentialType: toApiCredentialType(typeId),
     environment: form.environment,
     publicConfig: toPublicConfig(form),
-    secretConfig: { clientSecret: form.clientSecret },
+    secretConfig: toSecretConfig(form) ?? {},
   }).then(toListItem);
 }
 
@@ -241,7 +271,7 @@ export function updateCredential(
   id: string,
   form: CredentialFormData
 ): Promise<CredentialListItem> {
-  const secret = form.clientSecret?.trim();
+  const secretConfig = toSecretConfig(form);
   return sendJson<CredentialProfileResponse>(
     "PATCH",
     `${base(orgSlug)}/${encodeURIComponent(id)}`,
@@ -249,7 +279,7 @@ export function updateCredential(
       displayName: form.name,
       environment: form.environment,
       publicConfig: toPublicConfig(form),
-      ...(secret ? { secretConfig: { clientSecret: secret } } : {}),
+      ...(secretConfig ? { secretConfig } : {}),
     }
   ).then(toListItem);
 }
@@ -291,6 +321,6 @@ export function testCredentialConfig(
   return sendJson<CredentialTestResponse>("POST", `${base(orgSlug)}/test`, {
     credentialType: toApiCredentialType(typeId),
     publicConfig: toPublicConfig(form),
-    secretConfig: { clientSecret: form.clientSecret },
+    secretConfig: toSecretConfig(form) ?? {},
   }).then(toTestResult);
 }

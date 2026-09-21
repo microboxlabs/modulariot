@@ -1943,6 +1943,10 @@
             "name": "Auth0 máquina a máquina",
             "description": "Una aplicación M2M de Auth0 — elige el cliente de tu tenant y define la API que consume."
           },
+          "googleServiceAccount": {
+            "name": "Cuenta de servicio de Google",
+            "description": "Una cuenta de servicio de Google Cloud, para leer BigQuery desde un tablero. Se firma con su clave privada y solo sale el token."
+          },
           "apiKey": {
             "name": "API key",
             "description": "Una llave enviada como header o parámetro de consulta."
@@ -2044,7 +2048,20 @@
           "auth0TokenRequestFormatHelp": "El endpoint propio de Auth0 acepta form encoding. Un proxy delante puede esperar un cuerpo JSON.",
           "auth0DirectoryLoading": "Cargando aplicaciones...",
           "auth0DirectoryEmpty": "Ninguna aplicación coincide. Puedes pegar un ID de cliente.",
-          "auth0DirectoryError": "No se pudieron cargar las aplicaciones. Aún puedes pegar un ID de cliente."
+          "auth0DirectoryError": "No se pudieron cargar las aplicaciones. Aún puedes pegar un ID de cliente.",
+          "googleAddTitle": "Nueva cuenta de servicio de Google",
+          "googleEditTitle": "Editar cuenta de servicio de Google",
+          "googleSubtitle": "Los tres campos están en el archivo JSON de la clave de la cuenta de servicio.",
+          "projectId": "ID del proyecto",
+          "projectIdPlaceholder": "mi-proyecto-123456",
+          "projectIdHelp": "El campo project_id del archivo de clave. Informativo: el proyecto que consulta un tablero se indica en la fuente de datos.",
+          "clientEmail": "Correo de la cuenta de servicio",
+          "clientEmailPlaceholder": "nombre@mi-proyecto.iam.gserviceaccount.com",
+          "privateKey": "Clave privada",
+          "privateKeyPlaceholder": "-----BEGIN PRIVATE KEY-----\n…\n-----END PRIVATE KEY-----",
+          "privateKeyEditPlaceholder": "Déjala en blanco para mantener la clave actual",
+          "privateKeyHelp": "El campo private_key del archivo de clave, con o sin los saltos de línea escapados. Se guarda cifrada y nunca se devuelve.",
+          "googleScopeHelp": "Vacío significa solo lectura de BigQuery. Cambia el scope solo si la cuenta necesita otra API de Google."
         },
         "delete": {
           "title": "¿Eliminar esta credencial?",
@@ -2078,7 +2095,10 @@
           "oauth2ClientIdRequired": "El ID de cliente es obligatorio",
           "auth0DomainRequired": "El dominio de Auth0 es obligatorio",
           "auth0ClientIdRequired": "Elige o ingresa un ID de aplicación (cliente)",
-          "auth0AudienceRequired": "La audiencia de la API es obligatoria en Auth0"
+          "auth0AudienceRequired": "La audiencia de la API es obligatoria en Auth0",
+          "clientEmailRequired": "El correo de la cuenta de servicio es obligatorio",
+          "clientEmailInvalid": "Ingresa el correo de la cuenta de servicio",
+          "privateKeyRequired": "La clave privada es obligatoria"
         }
       }
     },

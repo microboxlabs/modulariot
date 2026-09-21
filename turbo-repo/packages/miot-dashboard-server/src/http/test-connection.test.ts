@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { createDashboardHandler } from "./handler";
 import { testDataSourceConnection } from "./test-connection";
@@ -118,14 +119,86 @@ describe("probing a datasource", () => {
     expect(result.message).toMatch(/Could not reach/);
   });
 
-  it("reports BigQuery as untestable rather than failing it", async () => {
+  it("reads a BigQuery dataset with the header a host produced", async () => {
+    const fetchImpl = answering(200);
     const result = await testDataSourceConnection(
-      { ...pgrest, type: "BIGQUERY", target: "project.dataset" },
-      null,
-      { fetchImpl: answering(200) },
+      { ...pgrest, type: "BIGQUERY", target: "my-project.warehouse" },
+      applyCredential({ kind: "BEARER", token: TOKEN }),
+      { fetchImpl },
     );
 
-    expect(result).toMatchObject({ testable: false, success: false });
+    expect(result).toMatchObject({ testable: true, success: true });
+    const [url, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock
+      .calls[0] as [URL, RequestInit];
+    expect(url.href).toBe(
+      "https://bigquery.googleapis.com/bigquery/v2/projects/my-project/datasets/warehouse",
+    );
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      `Bearer ${TOKEN}`,
+    );
+  });
+
+  it("exchanges a service account for a token, then reads the dataset", async () => {
+    const { privateKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+      publicKeyEncoding: { type: "spki", format: "pem" },
+    });
+    const calls: string[] = [];
+    const fetchImpl = vi.fn((input: URL | string) => {
+      calls.push(String(input));
+      return Promise.resolve(
+        calls.length === 1
+          ? Response.json({ access_token: "ya29.granted", expires_in: 3600 })
+          : new Response("{}", { status: 200 }),
+      );
+    }) as unknown as typeof fetch;
+
+    const result = await testDataSourceConnection(
+      { ...pgrest, type: "BIGQUERY", target: "warehouse" },
+      applyCredential({
+        kind: "SERVICE_ACCOUNT",
+        projectId: "my-project",
+        clientEmail: "reader@my-project.iam.gserviceaccount.com",
+        privateKey,
+      }),
+      { fetchImpl, googleTokenUrl: "https://token.test/token" },
+    );
+
+    expect(result).toMatchObject({ testable: true, success: true });
+    expect(calls).toEqual([
+      "https://token.test/token",
+      "https://bigquery.googleapis.com/bigquery/v2/projects/my-project/datasets/warehouse",
+    ]);
+    const [, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock
+      .calls[1] as [URL, RequestInit];
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      "Bearer ya29.granted",
+    );
+  });
+
+  it("names a dataset the credential cannot see", async () => {
+    const result = await testDataSourceConnection(
+      { ...pgrest, type: "BIGQUERY", target: "my-project.warehouse" },
+      applyCredential({ kind: "BEARER", token: TOKEN }),
+      { fetchImpl: answering(404) },
+    );
+
+    expect(result).toMatchObject({ success: false, status: 404 });
+    expect(result.message).toMatch(/does not exist/);
+  });
+
+  it("asks for the project when neither the target nor the credential names it", async () => {
+    const fetchImpl = answering(200);
+    const result = await testDataSourceConnection(
+      { ...pgrest, type: "BIGQUERY", target: "warehouse" },
+      applyCredential({ kind: "BEARER", token: TOKEN }),
+      { fetchImpl },
+    );
+
+    expect(result).toMatchObject({ testable: true, success: false });
+    expect(result.message).toMatch(/name the project/);
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("never repeats what the fetch layer says, which can quote the credential", async () => {
@@ -354,11 +427,13 @@ describe("the test routes", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("asks no vault for a datasource it cannot test anyway", async () => {
+  it("resolves the credential a BigQuery datasource names", async () => {
     const fetchImpl = answering(200);
     const dataSources = createMemoryDataSourceStore();
     const credentials = createMemoryCredentialsStore();
-    const resolve = vi.fn(() => Promise.reject(new Error("vault is down")));
+    const resolve = vi.fn(() =>
+      Promise.resolve(applyCredential({ kind: "BEARER", token: TOKEN })),
+    );
     const handler = createDashboardHandler({
       identity: createInsecureHeaderIdentityResolver(),
       tenants: createMemoryTenantAuthority(MEMBERSHIPS),
@@ -380,9 +455,9 @@ describe("the test routes", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
-      data: { testable: false, success: false },
+      data: { testable: true, success: true },
     });
-    expect(resolve).not.toHaveBeenCalled();
+    expect(resolve).toHaveBeenCalledWith("acme", "gcp");
   });
 
   it("reserves `test`, so it never addresses a datasource", async () => {

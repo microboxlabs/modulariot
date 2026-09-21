@@ -124,10 +124,6 @@ export function createDashboardHandler(
    * A named credential that resolves to nothing is a failed test, not an
    * anonymous probe: a target that allows anonymous reads would otherwise
    * answer, and the operator would be told a broken datasource works.
-   *
-   * Only POSTGREST is probed, so nothing else asks the vault. That call can
-   * fail, and failing it on a datasource that was never testable would
-   * replace an answer with an error.
    */
   async function runTest(
     tenantId: string,
@@ -138,10 +134,7 @@ export function createDashboardHandler(
 
     if (inline !== undefined) {
       credential = applyCredential(inline);
-    } else if (
-      datasource.type === "POSTGREST" &&
-      datasource.credentialRef !== undefined
-    ) {
+    } else if (datasource.credentialRef !== undefined) {
       const ref = datasource.credentialRef;
       credential =
         options.credentials === undefined

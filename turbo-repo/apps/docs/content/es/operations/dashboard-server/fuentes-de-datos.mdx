@@ -16,7 +16,7 @@ Una fuente de datos pertenece a la organización. Todos sus tableros pueden usar
 | Tipo | Destino | Estado |
 | --- | --- | --- |
 | `POSTGREST` | La URL base de una API PostgREST, por `https` | Consulta y prueba de conexión |
-| `BIGQUERY` | Un conjunto de datos de BigQuery | Se registra; la prueba de conexión aún no está disponible |
+| `BIGQUERY` | Un conjunto de datos de BigQuery, como `proyecto.dataset` | Prueba de conexión con una cuenta de servicio o un token |
 
 ## Dónde viven las credenciales
 
@@ -99,8 +99,10 @@ El servidor hace una petición al destino con la credencial y cuenta qué pasó:
 | --- | --- |
 | `success: true` | El destino respondió con la credencial |
 | `success: false`, `status: 401` o `403` | El destino rechazó la credencial, o no hay ninguna configurada |
+| `success: false`, `status: 404` | El destino no existe, o la credencial no puede verlo |
 | `success: false` sin `status` | No se pudo alcanzar el destino, o no respondió a tiempo |
-| `testable: false` | Ese tipo de fuente no se puede probar desde aquí |
+
+Una fuente `BIGQUERY` se prueba leyendo el conjunto de datos por la API de BigQuery. Con una credencial `SERVICE_ACCOUNT`, el servidor firma la petición de token con la clave privada y obtiene un token de acceso de Google antes de la prueba; el destino puede ser solo el nombre del conjunto de datos, porque la cuenta de servicio ya nombra el proyecto. Con un token `BEARER`, el destino debe ser `proyecto.dataset`.
 
 También puede probar una configuración antes de guardarla, enviando el mismo cuerpo de la fuente a `/datasources/test`. Una redirección del destino cuenta como fallo: seguirla dejaría en manos del destino a dónde va la credencial.
 

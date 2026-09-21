@@ -921,10 +921,11 @@ function readCredentialsKey(
         "sqlite or postgres.",
     );
   }
-  // Unlike the proxy key, this is allowed with MIOT_DASHBOARD_INSECURE_AUTH.
-  // That mode already refuses to bind past loopback, and anything that can
-  // reach a loopback server can read the database file directly, so
-  // refusing here would buy nothing and leave the plugin undevelopable.
+  // Allowed with MIOT_DASHBOARD_INSECURE_AUTH, unlike the proxy key, so the
+  // plugin can be run locally. Two things limit that: insecure auth refuses
+  // to bind past loopback, and no route answers with a stored secret, only
+  // with a summary. A local caller can still write and use credentials as
+  // any user, so this pair is for a development machine.
   return key;
 }
 

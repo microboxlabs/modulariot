@@ -28,6 +28,8 @@ import { serve, type RunningServer } from "./serve";
 import type { RouteName } from "../http/routes";
 import {
   createInsecureHeaderIdentityResolver,
+  createMemoryCredentialsStore,
+  createMemoryDataSourceStore,
   createMemoryScopeAuthority,
   createMemoryTenantAuthority,
   createMemoryStore,
@@ -447,7 +449,13 @@ describe("served by the standalone server", () => {
  */
 describe("the spec against the router", () => {
   const METHODS = ["GET", "PUT", "POST", "PATCH", "DELETE"] as const;
-  const EXAMPLE = { tenantId: "acme", scopeId: "ops", slug: "fleet" };
+  const EXAMPLE = {
+    tenantId: "acme",
+    scopeId: "ops",
+    slug: "fleet",
+    dataSourceId: "telemetry",
+    credentialRef: "telemetry-token",
+  };
 
   /**
    * Where each of the router's routes lives, as an exhaustive
@@ -464,13 +472,21 @@ describe("the spec against the router", () => {
       "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/capabilities",
     permissions:
       "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/permissions",
+    datasources: "/tenants/{tenantId}/scopes/{scopeId}/datasources",
+    datasource:
+      "/tenants/{tenantId}/scopes/{scopeId}/datasources/{dataSourceId}",
+    credentials: "/tenants/{tenantId}/scopes/{scopeId}/credentials",
+    credential:
+      "/tenants/{tenantId}/scopes/{scopeId}/credentials/{credentialRef}",
   };
 
   const concrete = (template: string) =>
     template
       .replace("{tenantId}", EXAMPLE.tenantId)
       .replace("{scopeId}", EXAMPLE.scopeId)
-      .replace("{slug}", EXAMPLE.slug);
+      .replace("{slug}", EXAMPLE.slug)
+      .replace("{dataSourceId}", EXAMPLE.dataSourceId)
+      .replace("{credentialRef}", EXAMPLE.credentialRef);
 
   const spec = readSpecPaths();
 
@@ -499,6 +515,10 @@ describe("the spec against the router", () => {
       tenants: createMemoryTenantAuthority({}),
       scopes: createMemoryScopeAuthority({}),
       store: createMemoryStore(),
+      // The document describes a server with every route mounted. Left out,
+      // these two answer 404 and the check below reads them as unserved.
+      dataSources: createMemoryDataSourceStore(),
+      credentials: createMemoryCredentialsStore(),
       port: 0,
       host: "127.0.0.1",
       log: () => {},

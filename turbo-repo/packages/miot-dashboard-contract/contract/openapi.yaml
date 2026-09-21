@@ -39,6 +39,12 @@ tags:
     description: Reading, writing and removing dashboard configurations.
   - name: access
     description: What the caller may do, and who else may do what.
+  - name: datasources
+    description: Where a dashboard's data comes from. Tenant-level.
+  - name: credentials
+    description: >
+      How a datasource authenticates. Served only where this server keeps the
+      credentials; every route here answers `404` elsewhere.
 
 security:
   - bearerAuth: []
@@ -260,6 +266,280 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /tenants/{tenantId}/scopes/{scopeId}/datasources:
+    get:
+      operationId: listDataSources
+      tags: [datasources]
+      summary: Datasources in one tenant
+      description: >
+        Every datasource in the tenant. Datasources are tenant-level; the
+        scope in the path is what the caller's role is checked against. A
+        record names its credential through `credentialRef` and never
+        carries one.
+
+
+        A deployment with no datasource store configured answers `404`.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+      responses:
+        "200":
+          description: The tenant's datasources. An empty list is a 200, not a 404.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DataSource"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    post:
+      operationId: createDataSource
+      tags: [datasources]
+      summary: Create a datasource
+      description: The server assigns the identifier.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DataSourceInput"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DataSource"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/scopes/{scopeId}/datasources/{dataSourceId}:
+    get:
+      operationId: getDataSource
+      tags: [datasources]
+      summary: One datasource
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/dataSourceId"
+      responses:
+        "200":
+          description: The datasource.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DataSource"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: replaceDataSource
+      tags: [datasources]
+      summary: Create or replace a datasource
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/dataSourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DataSourceInput"
+      responses:
+        "200":
+          description: The stored datasource.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DataSource"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      operationId: deleteDataSource
+      tags: [datasources]
+      summary: Delete a datasource
+      description: >
+        Deleting one that is not there is a `204`, so a retried delete is not
+        an error. The credential it named is left alone.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/dataSourceId"
+      responses:
+        "204":
+          description: Deleted. No body.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/scopes/{scopeId}/credentials:
+    get:
+      operationId: listCredentials
+      tags: [credentials]
+      summary: Credentials in one tenant, without their secrets
+      description: >
+        Served only where the vault can be written to. A deployment whose
+        credentials belong to another system answers `404` on every route
+        under `/credentials`.
+
+
+        A summary never carries a secret. `preview` is at most the last four
+        characters, and is absent when the value is too short for that to be
+        safe.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+      responses:
+        "200":
+          description: The tenant's credentials, as summaries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CredentialSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tenants/{tenantId}/scopes/{scopeId}/credentials/{credentialRef}:
+    get:
+      operationId: getCredential
+      tags: [credentials]
+      summary: One credential, without its secret
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/credentialRef"
+      responses:
+        "200":
+          description: The summary. Never the secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CredentialSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: putCredential
+      tags: [credentials]
+      summary: Create or replace a credential
+      description: >
+        The only request in this API that carries a secret. The response is
+        the summary, the same shape the listing returns.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/credentialRef"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialInput"
+      responses:
+        "200":
+          description: The summary of what was stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CredentialSummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      operationId: deleteCredential
+      tags: [credentials]
+      summary: Delete a credential
+      description: >
+        A datasource still naming it is left alone and will fail to resolve.
+        The vault does not know what names it.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/credentialRef"
+      responses:
+        "204":
+          description: Deleted. No body.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -327,6 +607,20 @@ components:
       in: path
       required: true
       schema: { type: string }
+    dataSourceId:
+      name: dataSourceId
+      in: path
+      required: true
+      schema: { type: string }
+      description: Server-assigned identifier, returned when the datasource was created.
+    credentialRef:
+      name: credentialRef
+      in: path
+      required: true
+      schema: { type: string }
+      description: >
+        Caller-chosen handle a datasource names. It addresses a credential
+        and is not one, so it is safe in a path or a log line.
     ifMatch:
       name: If-Match
       in: header
@@ -508,3 +802,116 @@ components:
         in that scope.
       type: string
       enum: [Consumer, Contributor, Editor, Coordinator]
+    DataSource:
+      type: object
+      required: [id, name, type, isActive, target, updatedAt]
+      description: >
+        No property here is a secret. The credential itself never appears in
+        a response.
+      properties:
+        id:
+          type: string
+          description: Assigned by the server on create.
+        name: { type: string }
+        type:
+          $ref: "#/components/schemas/DataSourceKind"
+        description: { type: string }
+        isActive:
+          type: boolean
+          description: An inactive datasource stays listed and is not queried.
+        target:
+          type: string
+          description: >
+            Base URL for POSTGREST, dataset reference for BIGQUERY. Never
+            carries embedded credentials.
+        credentialRef:
+          type: string
+          description: >
+            Handle the vault resolves. Absent for a datasource needing no
+            authentication.
+        updatedAt:
+          type: string
+          format: date-time
+    DataSourceInput:
+      type: object
+      required: [name, type, isActive, target]
+      description: Unknown fields are refused rather than ignored.
+      additionalProperties: false
+      properties:
+        name: { type: string }
+        type:
+          $ref: "#/components/schemas/DataSourceKind"
+        description: { type: string }
+        isActive: { type: boolean }
+        target:
+          type: string
+          description: >
+            A POSTGREST target must be https or a loopback address, and must
+            not carry `user:password@`. Checked when stored, not when first
+            used.
+        credentialRef: { type: string }
+    DataSourceKind:
+      type: string
+      enum: [POSTGREST, BIGQUERY]
+    CredentialSummary:
+      type: object
+      required: [ref, kind, updatedAt]
+      description: Everything here is safe to show.
+      properties:
+        ref: { type: string }
+        kind:
+          $ref: "#/components/schemas/CredentialKind"
+        preview:
+          type: string
+          description: >
+            Enough to recognize the credential, never enough to use it.
+            Absent when there is no such value.
+        updatedAt:
+          type: string
+          format: date-time
+    CredentialKind:
+      type: string
+      enum:
+        [NONE, BEARER, API_KEY_HEADER, API_KEY_QUERY, BASIC, SERVICE_ACCOUNT]
+    CredentialInput:
+      description: >
+        A credential as an operator supplies it. Every variant but `NONE`
+        carries a secret. Discriminated by `kind`. Unknown fields are
+        refused, so a misspelled `token` fails rather than storing a
+        credential with nothing in it.
+      unevaluatedProperties: false
+      oneOf:
+        - type: object
+          required: [kind]
+          properties:
+            kind: { type: string, enum: [NONE] }
+        - type: object
+          required: [kind, token]
+          properties:
+            kind: { type: string, enum: [BEARER] }
+            token: { type: string }
+        - type: object
+          required: [kind, header, value]
+          properties:
+            kind: { type: string, enum: [API_KEY_HEADER] }
+            header: { type: string }
+            value: { type: string }
+        - type: object
+          required: [kind, param, value]
+          properties:
+            kind: { type: string, enum: [API_KEY_QUERY] }
+            param: { type: string }
+            value: { type: string }
+        - type: object
+          required: [kind, username, password]
+          properties:
+            kind: { type: string, enum: [BASIC] }
+            username: { type: string }
+            password: { type: string }
+        - type: object
+          required: [kind, projectId, clientEmail, privateKey]
+          properties:
+            kind: { type: string, enum: [SERVICE_ACCOUNT] }
+            projectId: { type: string }
+            clientEmail: { type: string }
+            privateKey: { type: string }

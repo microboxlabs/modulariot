@@ -53,6 +53,12 @@ export interface HttpCredentialsVaultOptions {
   proxyKey: string;
   /** Header the key is sent in. Defaults to `x-miot-proxy-key`. */
   keyHeader?: string;
+  /**
+   * Accept a plain `http://` URL, for a host on the same private network
+   * such as a cluster service. Anyone on that network path can then read
+   * or forge every answer.
+   */
+  allowHttp?: boolean;
   requestTimeoutMs?: number;
   maxCacheSeconds?: number;
   maxCacheEntries?: number;
@@ -187,6 +193,7 @@ export function createHttpCredentialsVault(
     secureUrlProblem(
       fillTemplate(options.url, { tenantId: "t", credentialRef: "c" }),
       what,
+      { allowHttp: options.allowHttp },
     );
   if (problem !== null) throw new EndpointError(problem);
 

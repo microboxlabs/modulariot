@@ -58,6 +58,7 @@ export async function openDataSources(
       createHttpCredentialsVault({
         url: settings.url,
         proxyKey: settings.proxyKey,
+        allowHttp: settings.allowHttp,
         requestTimeoutMs: settings.requestTimeoutMs,
         maxCacheSeconds: settings.maxCacheSeconds,
       }),

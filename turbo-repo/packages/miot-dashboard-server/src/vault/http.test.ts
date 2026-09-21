@@ -64,6 +64,28 @@ describe("configuration", () => {
     ).toThrow(/https/);
   });
 
+  it("accepts plain http only when told to", async () => {
+    const url = "http://modulith.internal/{tenantId}/{credentialRef}";
+    const calls: string[] = [];
+    const fetchImpl: typeof fetch = (input) => {
+      calls.push(String(input));
+      return respond(200, AUTH)(String(input));
+    };
+
+    const vault = createHttpCredentialsVault({
+      url,
+      proxyKey: KEY,
+      allowHttp: true,
+      fetchImpl,
+    });
+    await vault.resolve("acme", "fleet");
+
+    expect(calls).toEqual(["http://modulith.internal/acme/fleet"]);
+    expect(() =>
+      createHttpCredentialsVault({ url, proxyKey: KEY, allowHttp: false }),
+    ).toThrow(/https/);
+  });
+
   it("refuses a key too short", () => {
     expect(() =>
       createHttpCredentialsVault({ url: URL_TEMPLATE, proxyKey: "short" }),

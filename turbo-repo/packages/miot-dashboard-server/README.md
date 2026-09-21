@@ -86,6 +86,7 @@ MIOT_DASHBOARD_SEED=example \
 | `MIOT_DASHBOARD_POSTGRES_URL`          | —                      | Connection string when store is `postgres`; no default           |
 | `MIOT_DASHBOARD_CREDENTIALS_KEY`       | off                    | Encrypts stored credentials; 32+ chars, needs a database store   |
 | `MIOT_DASHBOARD_CREDENTIALS_URL`       | off                    | Ask the host instead; `{tenantId}` and `{credentialRef}` fill in |
+| `MIOT_DASHBOARD_CREDENTIALS_ALLOW_HTTP` | false                 | Accept a plain `http://` host URL, for a private network         |
 | `MIOT_DASHBOARD_CREDENTIALS_TIMEOUT`   | `5000`                 | Milliseconds to wait for the host                                |
 | `MIOT_DASHBOARD_CREDENTIALS_CACHE`     | `60`                   | Seconds applied auth is reused; 300 at most                      |
 | `MIOT_DASHBOARD_DOCUMENTS`             | `inline`               | Where config bytes go: `inline`, `fs`, `s3` or `gcs`             |
@@ -230,6 +231,9 @@ MIOT_DASHBOARD_PROXY_KEY=<the key the host checks>
 
 Both placeholders are required and each has to change the address, or every
 caller would read one credential. The server refuses such a URL at startup.
+The URL has to be https. Set `MIOT_DASHBOARD_CREDENTIALS_ALLOW_HTTP=true`
+for a host on the same private network, such as a cluster service; anyone
+on that network path can then read or forge the answers.
 
 | The endpoint answers                                                 | This server                     |
 | -------------------------------------------------------------------- | ------------------------------- |

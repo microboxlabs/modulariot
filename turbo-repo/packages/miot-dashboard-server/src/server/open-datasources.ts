@@ -1,7 +1,7 @@
 /**
- * What the standalone server mounts the datasource and credential routes on.
+ * The stores behind the datasource and credential routes.
  *
- * In its own module so it can be tested. `bin.ts` runs on import.
+ * Kept out of `bin.ts`, which starts a server when imported.
  */
 
 import type { CredentialsVault } from "../seams/credentials";
@@ -18,11 +18,8 @@ export interface OpenedDataSources {
 }
 
 /**
- * The datasource store and the vault, when the configuration supports them.
- *
- * Both need a database. On the memory store there is neither, and the
- * datasource routes answer 404 — which is honest: nothing written to them
- * would survive a restart.
+ * Both need a database. With the memory store there is neither, and the
+ * datasource routes answer 404.
  */
 export async function openDataSources(
   config: ServerConfig,
@@ -36,7 +33,7 @@ export async function openDataSources(
   if (config.credentialsKey === undefined) {
     return {
       dataSources,
-      describe: "datasources on; credentials are not kept here",
+      describe: "datasources on, credentials not stored here",
     };
   }
 
@@ -47,6 +44,6 @@ export async function openDataSources(
   return {
     dataSources,
     credentials,
-    describe: "datasources on; credentials in this database, encrypted",
+    describe: "datasources on, credentials stored here and encrypted",
   };
 }

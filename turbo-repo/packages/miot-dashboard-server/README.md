@@ -193,11 +193,11 @@ discards it and reconnects on demand; the standalone server logs a warning.
 Library callers can receive these errors through `onPoolError` on
 `openPostgresStore` or `createPostgresDriver`.
 
-#### Storing credentials here
+#### Storing credentials in this server
 
 Set `MIOT_DASHBOARD_CREDENTIALS_KEY` and this server keeps datasource
 credentials in its own database, encrypted with that key. Leave it unset and
-it stores none, which is what you want where another system owns them.
+it stores none.
 
 ```bash
 MIOT_DASHBOARD_STORE=sqlite \
@@ -205,10 +205,12 @@ MIOT_DASHBOARD_CREDENTIALS_KEY="$(openssl rand -base64 32)" \
   npx @microboxlabs/miot-dashboard-server
 ```
 
-The key has to be at least 32 characters, and the store has to be `sqlite` or
+Starts the server with the credential routes on.
+
+The key has to be at least 32 characters and the store has to be `sqlite` or
 `postgres`. The server refuses to start otherwise. Lose the key and every
-stored credential is unreadable; change it and they have to be re-encrypted.
-No route ever answers with a stored secret, only with a summary.
+stored credential is unreadable. Change it and they have to be re-encrypted.
+No route answers with a stored secret, only with a summary.
 
 To run the contract suite against a real server, point
 `MIOT_DASHBOARD_TEST_POSTGRES_URL` at a **throwaway** database — the suite

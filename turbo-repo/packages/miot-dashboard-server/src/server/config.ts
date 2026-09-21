@@ -59,8 +59,8 @@ export interface ServerConfig {
   proxyKey: string | undefined;
   /**
    * Key for the `vault-sql` plugin, which keeps credentials in this server's
-   * own database. Absent means the plugin is off and no credential is stored
-   * here — which is the right setting wherever another system owns them.
+   * own database. Absent turns the plugin off, and no credential is stored
+   * here.
    */
   credentialsKey: string | undefined;
 }
@@ -895,11 +895,6 @@ function readAuth(env: ConfigEnv, host: string): AuthConfig {
   );
 }
 
-/**
- * The key for the credentials plugin. No default and no fallback: without
- * it the plugin is off, and a server with it off stores no credential
- * rather than storing one in the clear.
- */
 function readCredentialsKey(
   env: ConfigEnv,
   store: StoreKind,
@@ -909,23 +904,21 @@ function readCredentialsKey(
   if (key.length < MIN_CREDENTIALS_KEY_LENGTH) {
     throw new ConfigError(
       `MIOT_DASHBOARD_CREDENTIALS_KEY is ${key.length} characters. It has ` +
-        `to be at least ${MIN_CREDENTIALS_KEY_LENGTH}: it is the only thing ` +
-        "between a copy of the database and every credential in it.",
+        `to be at least ${MIN_CREDENTIALS_KEY_LENGTH}. It encrypts every ` +
+        "credential stored in the database.",
     );
   }
   if (store === "memory") {
     throw new ConfigError(
       "MIOT_DASHBOARD_CREDENTIALS_KEY needs a database. The memory store is " +
-        "discarded on restart, so credentials written to it are lost and " +
-        "the encryption protects nothing. Set MIOT_DASHBOARD_STORE to " +
-        "sqlite or postgres.",
+        "discarded on restart, so credentials written to it are lost. Set " +
+        "MIOT_DASHBOARD_STORE to sqlite or postgres.",
     );
   }
   // Allowed with MIOT_DASHBOARD_INSECURE_AUTH, unlike the proxy key, so the
-  // plugin can be run locally. Two things limit that: insecure auth refuses
-  // to bind past loopback, and no route answers with a stored secret, only
-  // with a summary. A local caller can still write and use credentials as
-  // any user, so this pair is for a development machine.
+  // plugin can run locally. Insecure auth binds to loopback only, and no
+  // route answers with a stored secret. A local caller can still write and
+  // use credentials as any user, so use this pair on a development machine.
   return key;
 }
 

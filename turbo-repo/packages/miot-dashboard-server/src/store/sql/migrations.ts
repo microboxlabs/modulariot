@@ -100,21 +100,58 @@ export const MIGRATIONS: readonly Migration[] = [
   },
 ];
 
-const MIGRATIONS_TABLE = `CREATE TABLE IF NOT EXISTS schema_migrations (
+export const DEFAULT_HISTORY_TABLE = "schema_migrations";
+
+/**
+ * No engine takes a table name as a parameter, so it is interpolated into
+ * the SQL and checked here instead: lower-case letters, digits and
+ * underscores, starting with a letter.
+ */
+const SAFE_IDENTIFIER = /^[a-z][a-z0-9_]*$/;
+
+function historyTableDdl(table: string): string {
+  return `CREATE TABLE IF NOT EXISTS ${table} (
    version    INTEGER PRIMARY KEY,
    name       TEXT NOT NULL,
    applied_at TEXT NOT NULL
  )`;
+}
+
+export interface RunMigrationsOptions {
+  /** Defaults to this package's own schema. */
+  migrations?: readonly Migration[];
+  /**
+   * Where applied versions are recorded. A plugin with its own schema passes
+   * its own table, so its versions cannot collide with the core's.
+   */
+  historyTable?: string;
+  now?: () => Date;
+}
 
 /**
- * Apply every migration this build knows and the database has not recorded.
- * Each runs in one transaction with the row recording it, so an interrupted
- * upgrade leaves the database at a complete version.
+ * Apply every migration in the list the database has not recorded. Each runs
+ * in one transaction with the row recording it, so an interrupted upgrade
+ * leaves the database at a complete version.
  */
 export async function runMigrations(
   driver: SqlDriver,
-  now: () => Date = () => new Date(),
+  // A bare clock is the 0.1.0 signature, still accepted: a caller passing
+  // one would otherwise keep compiling in JavaScript and silently get the
+  // real clock back.
+  options: RunMigrationsOptions | (() => Date) = {},
 ): Promise<number[]> {
+  const settings: RunMigrationsOptions =
+    typeof options === "function" ? { now: options } : options;
+  const migrations = settings.migrations ?? MIGRATIONS;
+  const historyTable = settings.historyTable ?? DEFAULT_HISTORY_TABLE;
+  const now = settings.now ?? (() => new Date());
+
+  if (!SAFE_IDENTIFIER.test(historyTable)) {
+    throw new Error(
+      `"${historyTable}" is not a usable migration history table name. Use ` +
+        "lower-case letters, digits and underscores, starting with a letter.",
+    );
+  }
   // Reading the applied versions and writing the missing ones happen in one
   // transaction. Read outside it and two processes starting together both
   // decide version 1 is absent; the second then runs `CREATE TABLE` on a table
@@ -127,22 +164,22 @@ export async function runMigrations(
 
     // PostgreSQL's IF NOT EXISTS does not serialize concurrent catalog
     // inserts. The history table must be created under the same lock.
-    await driver.exec(MIGRATIONS_TABLE);
+    await driver.exec(historyTableDdl(historyTable));
 
     const applied = await driver.all<{ version: number }>(
-      "SELECT version FROM schema_migrations",
+      `SELECT version FROM ${historyTable}`,
     );
     const seen = new Set(applied.map((row) => row.version));
     const ran: number[] = [];
 
-    for (const migration of MIGRATIONS) {
+    for (const migration of migrations) {
       if (seen.has(migration.version)) continue;
       for (const statement of migration.statements) {
         await driver.exec(statement);
       }
       const p = driver.dialect;
       await driver.all(
-        `INSERT INTO schema_migrations (version, name, applied_at)
+        `INSERT INTO ${historyTable} (version, name, applied_at)
          VALUES (${p.placeholder(1)}, ${p.placeholder(2)}, ${p.placeholder(3)})`,
         [migration.version, migration.name, now().toISOString()],
       );

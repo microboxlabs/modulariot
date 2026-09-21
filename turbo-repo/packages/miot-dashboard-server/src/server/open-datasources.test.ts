@@ -227,6 +227,28 @@ describe("credentials the host owns", () => {
     ).toThrow(/needs MIOT_DASHBOARD_PROXY_KEY/);
   });
 
+  it("takes a plain http URL only with MIOT_DASHBOARD_CREDENTIALS_ALLOW_HTTP", async () => {
+    const url = "http://modulith.internal/credentials/{tenantId}/{credentialRef}";
+
+    await expect(
+      openDataSources(
+        verified({ MIOT_DASHBOARD_CREDENTIALS_URL: url }),
+        await database(),
+      ),
+    ).rejects.toThrow(/https/);
+
+    const opened = await openDataSources(
+      verified({
+        MIOT_DASHBOARD_CREDENTIALS_URL: url,
+        MIOT_DASHBOARD_CREDENTIALS_ALLOW_HTTP: "true",
+      }),
+      await database(),
+    );
+    expect(opened.describe).toBe(
+      "datasources on, credentials from http://modulith.internal",
+    );
+  });
+
   it("refuses a URL that would read one credential for every tenant", async () => {
     const opening = openDataSources(
       verified({

@@ -83,6 +83,8 @@ export interface CredentialsHttpConfig {
   url: string;
   /** The proxy key, sent the other way to identify this server. */
   proxyKey: string;
+  /** A plain `http://` URL is accepted. Off unless the operator says so. */
+  allowHttp: boolean;
   requestTimeoutMs: number;
   maxCacheSeconds: number;
 }
@@ -952,6 +954,7 @@ function readCredentials(
       kind: "http",
       url,
       proxyKey,
+      allowHttp: readBoolean(env.MIOT_DASHBOARD_CREDENTIALS_ALLOW_HTTP),
       requestTimeoutMs: readWholeNumber(
         env,
         "MIOT_DASHBOARD_CREDENTIALS_TIMEOUT",

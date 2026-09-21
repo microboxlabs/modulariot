@@ -19,7 +19,6 @@
  */
 
 import { FULL_CAPABILITIES } from "../access/roles";
-import { base64Utf8 } from "../net/base64";
 import {
   EndpointError,
   fetchJson,
@@ -236,7 +235,7 @@ export function createTicketIdentityResolver(
       const url = new URL(
         fillTemplate(options.url, {
           ticket,
-          ticketBase64: base64Utf8(ticket),
+          ticketBase64: Buffer.from(ticket, "utf8").toString("base64"),
         }),
       );
       if (options.present.kind === "query") {
@@ -252,7 +251,12 @@ export function createTicketIdentityResolver(
             ? {
                 [options.present.name]: fillHeaderTemplate(
                   options.present.value,
-                  { ticket, ticketBase64: base64Utf8(ticket) },
+                  {
+                    ticket,
+                    ticketBase64: Buffer.from(ticket, "utf8").toString(
+                      "base64",
+                    ),
+                  },
                 ),
               }
             : {}),

@@ -1,6 +1,6 @@
 {
   "name": "@microboxlabs/miot-dashboard-server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -82,7 +82,7 @@
     "guard": "node scripts/guard-imports.mjs"
   },
   "dependencies": {
-    "@microboxlabs/miot-dashboard-contract": "^0.1.0"
+    "@microboxlabs/miot-dashboard-contract": "^0.2.0"
   },
   "peerDependencies": {
     "jose": "^6.0.0",

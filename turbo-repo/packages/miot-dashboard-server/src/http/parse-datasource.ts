@@ -8,6 +8,7 @@
 
 import { DashboardServerError } from "../access/errors";
 import { secureUrlProblem } from "../net/endpoint";
+import { parseBigQueryTarget } from "./test-connection";
 import type { CredentialInput } from "../seams/credentials";
 import type { DataSourceInput, DataSourceKind } from "../seams/datasources";
 
@@ -87,6 +88,12 @@ export function parseDataSourceInput(body: unknown): DataSourceInput {
     // with a credential attached. Loopback is exempt, as elsewhere here.
     const problem = secureUrlProblem(target, "A PostgREST datasource target");
     if (problem !== null) throw DashboardServerError.badRequest(problem);
+  }
+  if (type === "BIGQUERY" && parseBigQueryTarget(target) === null) {
+    throw DashboardServerError.badRequest(
+      "A BigQuery datasource target is a dataset: project.dataset, or " +
+        "dataset alone when the credential names the project",
+    );
   }
 
   const description = optionalString(raw, "description");

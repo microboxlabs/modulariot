@@ -905,8 +905,9 @@ components:
         target:
           type: string
           description: >
-            Base URL for POSTGREST, dataset reference for BIGQUERY. Never
-            carries embedded credentials.
+            Base URL for POSTGREST. For BIGQUERY, `project.dataset`, or
+            `dataset` alone when a service-account credential names the
+            project. Never carries embedded credentials.
         credentialRef:
           type: string
           description: >
@@ -1006,7 +1007,7 @@ components:
           type: boolean
           description: >
             False where this kind of datasource cannot be exercised from
-            here. A BigQuery dataset needs the Google client.
+            here.
         success: { type: boolean }
         testedAt:
           type: string

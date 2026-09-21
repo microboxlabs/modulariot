@@ -16,7 +16,7 @@ A datasource belongs to the organization. All its dashboards can use it; who may
 | Type | Target | State |
 | --- | --- | --- |
 | `POSTGREST` | The base URL of a PostgREST API, over `https` | Query and connection test |
-| `BIGQUERY` | A BigQuery dataset | Stored; the connection test is not available yet |
+| `BIGQUERY` | A BigQuery dataset, as `project.dataset` | Connection test with a service account or a token |
 
 ## Where credentials live
 
@@ -99,8 +99,10 @@ The server sends one request to the target with the credential and reports what 
 | --- | --- |
 | `success: true` | The target answered with the credential |
 | `success: false`, `status: 401` or `403` | The target refused the credential, or none is configured |
+| `success: false`, `status: 404` | The target does not exist, or the credential cannot see it |
 | `success: false` without `status` | The target could not be reached, or did not answer in time |
-| `testable: false` | That kind of datasource cannot be tested from here |
+
+A `BIGQUERY` datasource is tested by reading the dataset through the BigQuery API. With a `SERVICE_ACCOUNT` credential the server signs the token request with the private key and obtains a Google access token before the probe; the target may then be the dataset name alone, since the service account names the project. With a `BEARER` token the target must be `project.dataset`.
 
 A configuration can also be tested before saving it, by sending the same datasource body to `/datasources/test`. A redirect from the target counts as a failure: following it would let the target decide where the credential goes.
 

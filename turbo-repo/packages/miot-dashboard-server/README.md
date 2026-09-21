@@ -252,6 +252,22 @@ the host keeps working until then.
 Set the URL or the key, never both. Under the URL the credential routes
 answer 404: credentials are administered where they live.
 
+#### Testing a datasource
+
+`POST …/datasources/{id}/test` sends one request to the target with the
+credential the datasource names and reports the outcome; `…/datasources/test`
+does the same for values not stored yet.
+
+| Type        | Target              | Probe                                         |
+| ----------- | ------------------- | --------------------------------------------- |
+| `POSTGREST` | the base URL, https | `GET` on the URL                              |
+| `BIGQUERY`  | `project.dataset`   | `GET` on the dataset through the BigQuery API |
+
+A `SERVICE_ACCOUNT` credential is exchanged for a Google access token first,
+signed with its private key; no Google SDK is needed. The target may then be
+the dataset alone. A `BEARER` token is sent as it is, and the target has to
+name the project.
+
 To run the contract suite against a real server, point
 `MIOT_DASHBOARD_TEST_POSTGRES_URL` at a **throwaway** database — the suite
 empties it between tests — and install `pg`. The PostgreSQL-specific tests

@@ -2,12 +2,11 @@
  * AES-256-GCM over WebCrypto, for credentials at rest.
  *
  * The envelope is `v1:<base64 iv>:<base64 ciphertext+tag>`. The version
- * prefix is there so a later scheme can be told apart on read, which is what
- * makes a re-encrypt pass possible without a flag day.
+ * prefix tells a later scheme apart on read, so rows can be re-encrypted
+ * while the server keeps running.
  *
- * GCM, not CBC: the tag makes a tampered row fail to decrypt rather than
- * decrypt to something else. A wrong key fails the same way, so there is one
- * failure to handle instead of two.
+ * GCM's tag makes a tampered row fail to decrypt rather than decrypt to
+ * something else.
  */
 
 const VERSION = "v1";
@@ -29,10 +28,9 @@ export interface Cipher {
 }
 
 /**
- * The key material is hashed to 32 bytes rather than used directly, so a
- * configured key of any length yields a valid AES-256 key. It is not a KDF
- * and is not meant to be: the configured value is expected to be random
- * already, and stretching a low-entropy one would only make it look safe.
+ * Hashed to 32 bytes, so a key of any length gives a valid AES-256 key. This
+ * is not a KDF: the configured key is expected to be random already, and
+ * stretching a weak one would not make it strong.
  */
 async function aesKey(key: string) {
   const digest = await crypto.subtle.digest(
@@ -49,8 +47,7 @@ export function createCipher(key: string): Cipher {
   if (key.length === 0) {
     throw new CipherError("A cipher needs a key; an empty one was given");
   }
-  // Imported once and reused. The key is not extractable, so holding it costs
-  // nothing a caller could read back out.
+  // Imported once and reused. The imported key is not extractable.
   const imported = aesKey(key);
 
   return {
@@ -84,8 +81,8 @@ export function createCipher(key: string): Cipher {
           Buffer.from(ciphertext, "base64"),
         );
       } catch {
-        // Wrong key or a tampered row. The message says neither, because a
-        // caller cannot act on the difference and an attacker could.
+        // Wrong key or a tampered row. The message says neither: a caller
+        // cannot act on the difference, and an attacker could use it.
         throw new CipherError("Stored credential could not be decrypted");
       }
       return new TextDecoder().decode(plaintext);

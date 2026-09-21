@@ -77,6 +77,27 @@ export const MIGRATIONS: readonly Migration[] = [
        )`,
     ],
   },
+  {
+    version: 4,
+    name: "datasources",
+    statements: [
+      // Keyed by tenant, not by scope: every scope in a tenant may name the
+      // same datasource. `credential_ref` is a handle the vault resolves,
+      // null when the datasource needs no auth.
+      `CREATE TABLE datasources (
+         tenant_id      TEXT NOT NULL,
+         id             TEXT NOT NULL,
+         name           TEXT NOT NULL,
+         type           TEXT NOT NULL,
+         description    TEXT,
+         is_active      INTEGER NOT NULL,
+         target         TEXT NOT NULL,
+         credential_ref TEXT,
+         updated_at     TEXT NOT NULL,
+         PRIMARY KEY (tenant_id, id)
+       )`,
+    ],
+  },
 ];
 
 const MIGRATIONS_TABLE = `CREATE TABLE IF NOT EXISTS schema_migrations (

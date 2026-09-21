@@ -31,11 +31,16 @@ import { createRefusalLog } from "./server/refusal-log";
 import { startSweepSchedule } from "./server/sweep-schedule";
 import { seedDashboards } from "./server/seed";
 import { serve } from "./server/serve";
+import type { CredentialsVault } from "./seams/credentials";
+import type { DataSourceStore } from "./seams/datasources";
 import type { ServerDashboardStore } from "./seams/store";
 import { buildDocumentStore } from "./server/documents";
 import { openPostgresStore } from "./store/postgres";
 import { openSqliteStore } from "./store/sqlite";
+import { createSqlDataSourceStore } from "./store/sql/datasources";
+import type { SqlDriver } from "./store/sql/driver";
 import type { SweepResult } from "./store/sweep";
+import { createSqlCredentialsVault } from "./vault/sql";
 import {
   createMemoryStore,
   createRecordingAuditSink,
@@ -150,6 +155,12 @@ interface AssembledStore {
   describe: string;
   /** Absent when the store has no documents to sweep. */
   sweep?: (olderThan: Date) => Promise<SweepResult>;
+  /**
+   * The connection underneath, for the datasource store and the credentials
+   * plugin. Absent for the memory store, which has none — and so serves no
+   * datasource routes.
+   */
+  driver?: SqlDriver;
 }
 
 /** Build the store named by the configuration. */
@@ -210,9 +221,48 @@ async function openStore(
       : `sqlite at ${config.sqlitePath}`;
   return {
     store: opened.store,
+    driver: opened.driver,
     close: opened.close,
     describe: `${where}, ${documents}`,
     sweep: opened.sweep,
+  };
+}
+
+/**
+ * The datasource store and the vault, when the configuration supports them.
+ *
+ * Both need a database. On the memory store there is neither, and the
+ * datasource routes answer 404 — which is honest: nothing written to them
+ * would survive a restart.
+ */
+async function openDataSources(
+  config: ServerConfig,
+  driver: SqlDriver | undefined,
+): Promise<{
+  dataSources?: DataSourceStore;
+  credentials?: CredentialsVault;
+  describe: string;
+}> {
+  if (driver === undefined) {
+    return { describe: "datasources off (needs a database)" };
+  }
+
+  const dataSources = createSqlDataSourceStore(driver);
+  if (config.credentialsKey === undefined) {
+    return {
+      dataSources,
+      describe: "datasources on; credentials are not kept here",
+    };
+  }
+
+  const credentials = await createSqlCredentialsVault({
+    driver,
+    key: config.credentialsKey,
+  });
+  return {
+    dataSources,
+    credentials,
+    describe: "datasources on; credentials in this database, encrypted",
   };
 }
 
@@ -292,9 +342,12 @@ async function main(): Promise<void> {
           minAgeSeconds: config.orphanMinAgeSeconds,
           log,
         });
+  const data = await openDataSources(config, assembled.driver);
+
   log({ level: "info", msg: "identity", auth: auth.describe });
   log({ level: "info", msg: "tenants", entitlement: tenants.describe });
   log({ level: "info", msg: "scopes", membership: scopes.describe });
+  log({ level: "info", msg: "datasources", state: data.describe });
 
   const running = await serve({
     identity: auth.identity,
@@ -307,6 +360,8 @@ async function main(): Promise<void> {
     docs: config.docs,
     ...(config.cors ? { cors: config.cors } : {}),
     ...(config.basePath ? { basePath: config.basePath } : {}),
+    ...(data.dataSources ? { dataSources: data.dataSources } : {}),
+    ...(data.credentials ? { credentials: data.credentials } : {}),
   });
 
   const shutdown = (signal: string) => {

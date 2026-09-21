@@ -38,6 +38,12 @@ export interface SqlStoreOptions {
 
 export interface OpenedStore {
   store: ServerDashboardStore;
+  /**
+   * The connection underneath, for a caller that needs to put something else
+   * on the same database — the datasource store, or the `vault-sql` plugin.
+   * Closed by `close()`, so nothing built on it outlives this.
+   */
+  driver: SqlDriver;
   /** Migration versions this call applied. Empty when already up to date. */
   applied: readonly number[];
   /** Delete unreferenced documents written before `olderThan`. */
@@ -114,6 +120,7 @@ export async function openSqlStore(
 
     return {
       store,
+      driver,
       applied,
       sweep(olderThan, dryRun = false) {
         return sweepOrphanDocuments({ metadata, documents, olderThan, dryRun });

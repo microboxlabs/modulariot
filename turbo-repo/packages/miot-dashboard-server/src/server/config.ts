@@ -10,6 +10,7 @@
 import type { JwtAlgorithm } from "../identity/jwt";
 import type { TicketPresentation } from "../identity/ticket";
 import { MIN_PROXY_KEY_LENGTH } from "../identity/proxy";
+import { MIN_CREDENTIALS_KEY_LENGTH } from "../vault/sql";
 import { DASHBOARD_ROLES, type DashboardRole } from "../access/roles";
 import { isLoopbackHost } from "../net/loopback";
 import { validateCors, type CorsOptions } from "../http/cors";
@@ -56,6 +57,12 @@ export interface ServerConfig {
    * request is authorized against the configured authorities.
    */
   proxyKey: string | undefined;
+  /**
+   * Key for the `vault-sql` plugin, which keeps credentials in this server's
+   * own database. Absent means the plugin is off and no credential is stored
+   * here — which is the right setting wherever another system owns them.
+   */
+  credentialsKey: string | undefined;
 }
 
 export type AuthConfig = InsecureAuthConfig | VerifiedAuthConfig;
@@ -888,6 +895,39 @@ function readAuth(env: ConfigEnv, host: string): AuthConfig {
   );
 }
 
+/**
+ * The key for the credentials plugin. No default and no fallback: without
+ * it the plugin is off, and a server with it off stores no credential
+ * rather than storing one in the clear.
+ */
+function readCredentialsKey(
+  env: ConfigEnv,
+  store: StoreKind,
+): string | undefined {
+  const key = env.MIOT_DASHBOARD_CREDENTIALS_KEY;
+  if (key === undefined || key.length === 0) return undefined;
+  if (key.length < MIN_CREDENTIALS_KEY_LENGTH) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_CREDENTIALS_KEY is ${key.length} characters. It has ` +
+        `to be at least ${MIN_CREDENTIALS_KEY_LENGTH}: it is the only thing ` +
+        "between a copy of the database and every credential in it.",
+    );
+  }
+  if (store === "memory") {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_CREDENTIALS_KEY needs a database. The memory store is " +
+        "discarded on restart, so credentials written to it are lost and " +
+        "the encryption protects nothing. Set MIOT_DASHBOARD_STORE to " +
+        "sqlite or postgres.",
+    );
+  }
+  // Unlike the proxy key, this is allowed with MIOT_DASHBOARD_INSECURE_AUTH.
+  // That mode already refuses to bind past loopback, and anything that can
+  // reach a loopback server can read the database file directly, so
+  // refusing here would buy nothing and leave the plugin undevelopable.
+  return key;
+}
+
 function readProxyKey(env: ConfigEnv, auth: AuthConfig): string | undefined {
   const key = env.MIOT_DASHBOARD_PROXY_KEY;
   if (key === undefined || key.length === 0) return undefined;
@@ -971,6 +1011,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     docs: readBooleanUnlessDisabled(env.MIOT_DASHBOARD_DOCS),
     cors: readCors(env),
     proxyKey: readProxyKey(env, auth),
+    credentialsKey: readCredentialsKey(env, store as StoreKind),
   };
 }
 

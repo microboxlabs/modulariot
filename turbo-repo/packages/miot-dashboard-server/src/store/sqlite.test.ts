@@ -545,8 +545,7 @@ describe("a database from version 1", () => {
 
     const opened = await openSqliteStore({ path });
     try {
-      // Every migration after the one the database recorded, derived rather
-      // than listed so adding a migration does not fail this.
+      // Derived, not listed, so adding a migration does not fail this.
       expect(opened.applied).toEqual(
         MIGRATIONS.filter((migration) => migration.version > 1).map(
           (migration) => migration.version,

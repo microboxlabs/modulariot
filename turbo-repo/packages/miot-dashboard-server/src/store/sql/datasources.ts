@@ -1,9 +1,8 @@
 /**
- * `DataSourceStore` in SQL that SQLite and PostgreSQL both accept.
+ * `DataSourceStore` in SQL, for SQLite and PostgreSQL.
  *
- * Holds descriptors only. The credential a row names lives wherever the
- * vault keeps it — `credential_ref` is a handle, and nothing here can
- * dereference it.
+ * Stores descriptors only. `credential_ref` is a handle the vault resolves;
+ * no secret is stored here.
  */
 
 import type {
@@ -28,9 +27,8 @@ interface RawRow {
 }
 
 /**
- * SQLite returns the integer it was given; the `pg` driver maps an INTEGER
- * column to a number but a BOOLEAN one to a boolean, and a host may have
- * created the table either way.
+ * SQLite returns an integer. `pg` returns a number for an INTEGER column and
+ * a boolean for a BOOLEAN one, and a host may have created either.
  */
 function toBoolean(value: number | boolean): boolean {
   return typeof value === "boolean" ? value : value !== 0;
@@ -111,8 +109,6 @@ export function createSqlDataSourceStore(
          RETURNING ${COLUMNS}`,
         values,
       );
-      // The upsert always writes, so a missing row means the statement did
-      // not run rather than a condition that did not match.
       const row = rows[0];
       if (row === undefined) {
         throw new Error(`Writing datasource ${id} returned no row`);

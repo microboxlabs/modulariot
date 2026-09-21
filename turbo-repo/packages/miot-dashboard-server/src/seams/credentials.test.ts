@@ -28,8 +28,7 @@ describe("applyCredential", () => {
     });
     if (applied.kind !== "HTTP_AUTH") throw new Error("expected HTTP_AUTH");
 
-    // Non-ASCII on purpose: `btoa` throws above U+00FF, so this is the case
-    // that catches a regression to it.
+    // Non-ASCII on purpose: `btoa` throws above U+00FF.
     const decoded = Buffer.from(
       applied.headers.Authorization!.slice("Basic ".length),
       "base64",
@@ -51,7 +50,7 @@ describe("applyCredential", () => {
     ).toEqual({ kind: "HTTP_AUTH", headers: {}, queryParams: { apikey: "k" } });
   });
 
-  it("passes a service account through, because BigQuery signs its own", () => {
+  it("passes a service account through unchanged", () => {
     const input: CredentialInput = {
       kind: "SERVICE_ACCOUNT",
       projectId: "p",
@@ -85,7 +84,7 @@ describe("previewOf", () => {
 });
 
 describe("isCredentialsStore", () => {
-  it("is false for a read-only vault, so write routes stay unmounted", () => {
+  it("is false for a read-only vault", () => {
     expect(isCredentialsStore(createMemoryCredentialsVault())).toBe(false);
   });
 
@@ -95,7 +94,7 @@ describe("isCredentialsStore", () => {
 });
 
 describe("the memory store", () => {
-  it("resolves what it was given as applied auth, not as the secret", async () => {
+  it("resolves what it was given as applied auth", async () => {
     const store = createMemoryCredentialsStore({
       t1: { pgrest: { kind: "BEARER", token: "0123456789abcdef" } },
     });
@@ -140,11 +139,7 @@ describe("the memory store", () => {
 });
 
 describe("SECRET_PROPERTY_NAMES", () => {
-  /**
-   * The gate is only as good as this list. Every secret-bearing property of
-   * every CredentialInput variant has to be in it, so this enumerates them
-   * from the type's own shape rather than trusting the constant.
-   */
+  // Enumerated from the type's own shape rather than from the constant.
   it("covers every secret-bearing field of every input kind", () => {
     const samples: CredentialInput[] = [
       { kind: "NONE" },
@@ -160,8 +155,7 @@ describe("SECRET_PROPERTY_NAMES", () => {
       },
     ];
 
-    // Non-secret by construction: a kind tag, a header or parameter name, a
-    // username and a project are all safe to show.
+    // Safe to show.
     const notSecret = new Set([
       "kind",
       "header",

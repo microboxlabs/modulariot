@@ -57,12 +57,34 @@ export interface ServerConfig {
    * request is authorized against the configured authorities.
    */
   proxyKey: string | undefined;
-  /**
-   * Key for the `vault-sql` plugin, which keeps credentials in this server's
-   * own database. Absent turns the plugin off, and no credential is stored
-   * here.
-   */
-  credentialsKey: string | undefined;
+  /** Where datasource credentials come from. */
+  credentials: CredentialsConfig;
+}
+
+/** Who owns a datasource credential. One of these, never a mix. */
+export type CredentialsConfig =
+  | { kind: "none" }
+  | CredentialsSqlConfig
+  | CredentialsHttpConfig;
+
+/** Credentials in this server's own database, encrypted with `key`. */
+export interface CredentialsSqlConfig {
+  kind: "sql";
+  key: string;
+}
+
+/**
+ * Credentials at the host, which answers applied auth. This server stores
+ * none, and its credential routes answer 404.
+ */
+export interface CredentialsHttpConfig {
+  kind: "http";
+  /** `{tenantId}` and `{credentialRef}` fill in. */
+  url: string;
+  /** The proxy key, sent the other way to identify this server. */
+  proxyKey: string;
+  requestTimeoutMs: number;
+  maxCacheSeconds: number;
 }
 
 export type AuthConfig = InsecureAuthConfig | VerifiedAuthConfig;
@@ -431,6 +453,14 @@ const DEFAULT_NEGATIVE_CACHE_SECONDS = 30;
 const DEFAULT_LOOKUP_TIMEOUT_MS = 5000;
 const MAX_LOOKUP_CACHE_SECONDS = 3600;
 const MAX_LOOKUP_TIMEOUT_MS = 30_000;
+
+/**
+ * How long applied auth may be reused. A credential revoked at the host
+ * keeps working for this long, so the ceiling is lower than a membership
+ * lookup's.
+ */
+const DEFAULT_CREDENTIALS_CACHE_SECONDS = 60;
+const MAX_CREDENTIALS_CACHE_SECONDS = 300;
 
 function readWholeNumber(
   env: ConfigEnv,
@@ -895,12 +925,51 @@ function readAuth(env: ConfigEnv, host: string): AuthConfig {
   );
 }
 
-function readCredentialsKey(
+function readCredentials(
   env: ConfigEnv,
   store: StoreKind,
-): string | undefined {
+  proxyKey: string | undefined,
+): CredentialsConfig {
+  const url = trimmed(env.MIOT_DASHBOARD_CREDENTIALS_URL);
   const key = env.MIOT_DASHBOARD_CREDENTIALS_KEY;
-  if (key === undefined || key.length === 0) return undefined;
+
+  if (url !== undefined && key !== undefined && key.length > 0) {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_CREDENTIALS_URL and MIOT_DASHBOARD_CREDENTIALS_KEY name " +
+        "different owners for the same secret. Set the URL to leave " +
+        "credentials with the host, or the key to keep them here.",
+    );
+  }
+
+  if (url !== undefined) {
+    if (proxyKey === undefined) {
+      throw new ConfigError(
+        "MIOT_DASHBOARD_CREDENTIALS_URL needs MIOT_DASHBOARD_PROXY_KEY. The " +
+          "same key identifies this server to the host.",
+      );
+    }
+    return {
+      kind: "http",
+      url,
+      proxyKey,
+      requestTimeoutMs: readWholeNumber(
+        env,
+        "MIOT_DASHBOARD_CREDENTIALS_TIMEOUT",
+        DEFAULT_LOOKUP_TIMEOUT_MS,
+        MAX_LOOKUP_TIMEOUT_MS,
+        "milliseconds",
+      ),
+      maxCacheSeconds: readWholeNumber(
+        env,
+        "MIOT_DASHBOARD_CREDENTIALS_CACHE",
+        DEFAULT_CREDENTIALS_CACHE_SECONDS,
+        MAX_CREDENTIALS_CACHE_SECONDS,
+        "seconds",
+      ),
+    };
+  }
+
+  if (key === undefined || key.length === 0) return { kind: "none" };
   if (key.length < MIN_CREDENTIALS_KEY_LENGTH) {
     throw new ConfigError(
       `MIOT_DASHBOARD_CREDENTIALS_KEY is ${key.length} characters. It has ` +
@@ -919,7 +988,7 @@ function readCredentialsKey(
   // plugin can run locally. Insecure auth binds to loopback only, and no
   // route answers with a stored secret. A local caller can still write and
   // use credentials as any user, so use this pair on a development machine.
-  return key;
+  return { kind: "sql", key };
 }
 
 function readProxyKey(env: ConfigEnv, auth: AuthConfig): string | undefined {
@@ -945,6 +1014,7 @@ function readProxyKey(env: ConfigEnv, auth: AuthConfig): string | undefined {
 export function readServerConfig(env: ConfigEnv): ServerConfig {
   const host = env.HOST ?? "127.0.0.1";
   const auth = readAuth(env, host);
+  const proxyKey = readProxyKey(env, auth);
 
   const store = env.MIOT_DASHBOARD_STORE ?? "memory";
   if (!(STORE_KINDS as readonly string[]).includes(store)) {
@@ -1004,8 +1074,8 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     seedPath: env.MIOT_DASHBOARD_SEED,
     docs: readBooleanUnlessDisabled(env.MIOT_DASHBOARD_DOCS),
     cors: readCors(env),
-    proxyKey: readProxyKey(env, auth),
-    credentialsKey: readCredentialsKey(env, store as StoreKind),
+    proxyKey,
+    credentials: readCredentials(env, store as StoreKind, proxyKey),
   };
 }
 

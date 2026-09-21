@@ -1,11 +1,11 @@
 /**
- * The wiring between the datasource routes and `MIOT_DASHBOARD_STORE` and
- * `MIOT_DASHBOARD_CREDENTIALS_KEY`. A mistake here answers 404 for the whole
- * feature while every store below it passes. The routes themselves are
- * covered elsewhere.
+ * The wiring between the datasource routes and `MIOT_DASHBOARD_STORE`,
+ * `MIOT_DASHBOARD_CREDENTIALS_KEY` and `MIOT_DASHBOARD_CREDENTIALS_URL`. A
+ * mistake here answers 404 for the whole feature while every store below it
+ * passes. The routes themselves are covered elsewhere.
  */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDashboardHandler } from "../http/handler";
 import { isCredentialsStore } from "../seams/credentials";
 import { openSqliteStore, SQLITE_MEMORY } from "../store/sqlite";
@@ -16,7 +16,7 @@ import {
   createMemoryStore,
   type Memberships,
 } from "../testing";
-import { readServerConfig } from "./config";
+import { ConfigError, readServerConfig } from "./config";
 import { openDataSources } from "./open-datasources";
 
 const KEY = "0123456789abcdef0123456789abcdef";
@@ -37,6 +37,25 @@ const env = (extra: Record<string, string> = {}) =>
     MIOT_DASHBOARD_STORE: "sqlite",
     ...extra,
   });
+
+const PROXY_KEY = "proxy-0123456789abcdef0123456789abcdef";
+const ENDPOINT =
+  "https://host.internal/tenants/{tenantId}/credentials/{credentialRef}";
+
+/** Verified identity, because the proxy key is refused without it. */
+const verified = (extra: Record<string, string> = {}) =>
+  readServerConfig({
+    MIOT_DASHBOARD_STORE: "sqlite",
+    MIOT_DASHBOARD_JWT_ISSUER: "https://issuer.test/",
+    MIOT_DASHBOARD_JWT_AUDIENCE: "dashboards",
+    MIOT_DASHBOARD_JWT_SECRET: "0123456789abcdef0123456789abcdef",
+    MIOT_DASHBOARD_PROXY_KEY: PROXY_KEY,
+    ...extra,
+  });
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 /** A GET as a Coordinator. 404 where the routes are not mounted. */
 async function status(
@@ -123,9 +142,103 @@ describe("what a deployment mounts", () => {
   });
 
   it("reads an absent or empty key as off", () => {
-    expect(env().credentialsKey).toBeUndefined();
-    expect(
-      env({ MIOT_DASHBOARD_CREDENTIALS_KEY: "" }).credentialsKey,
-    ).toBeUndefined();
+    expect(env().credentials.kind).toBe("none");
+    expect(env({ MIOT_DASHBOARD_CREDENTIALS_KEY: "" }).credentials.kind).toBe(
+      "none",
+    );
+  });
+});
+
+describe("credentials the host owns", () => {
+  it("mounts a read-only vault, so nothing is stored here", async () => {
+    const opened = await openDataSources(
+      verified({ MIOT_DASHBOARD_CREDENTIALS_URL: ENDPOINT }),
+      await database(),
+    );
+
+    expect(opened.credentials).toBeDefined();
+    expect(isCredentialsStore(opened.credentials!)).toBe(false);
+    expect(await status("datasources", opened)).toBe(200);
+    expect(await status("credentials", opened)).toBe(404);
+  });
+
+  it("names the host but not the path it asks about", async () => {
+    const opened = await openDataSources(
+      verified({ MIOT_DASHBOARD_CREDENTIALS_URL: ENDPOINT }),
+      await database(),
+    );
+
+    expect(opened.describe).toBe(
+      "datasources on, credentials from https://host.internal",
+    );
+    expect(opened.describe).not.toContain("tenantId");
+  });
+
+  it("asks the endpoint with the shared key and takes the applied auth", async () => {
+    const calls: Array<{ url: string; key: string | null }> = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const headers = new Headers(init?.headers);
+      calls.push({
+        url: String(input),
+        key: headers.get("x-miot-proxy-key"),
+      });
+      return Promise.resolve(
+        Response.json({
+          kind: "HTTP_AUTH",
+          headers: { Authorization: "Bearer resolved-by-the-host" },
+        }),
+      );
+    });
+
+    const opened = await openDataSources(
+      verified({ MIOT_DASHBOARD_CREDENTIALS_URL: ENDPOINT }),
+      await database(),
+    );
+    const credential = await opened.credentials!.resolve("acme", "fleet");
+
+    expect(calls).toEqual([
+      {
+        url: "https://host.internal/tenants/acme/credentials/fleet",
+        key: PROXY_KEY,
+      },
+    ]);
+    expect(credential).toEqual({
+      kind: "HTTP_AUTH",
+      headers: { Authorization: "Bearer resolved-by-the-host" },
+      queryParams: {},
+    });
+  });
+
+  it("refuses a URL and a key together", () => {
+    expect(() =>
+      verified({
+        MIOT_DASHBOARD_CREDENTIALS_URL: ENDPOINT,
+        MIOT_DASHBOARD_CREDENTIALS_KEY: KEY,
+      }),
+    ).toThrow(/different owners for the same secret/);
+  });
+
+  it("refuses a URL with no key to identify this server", () => {
+    expect(() =>
+      verified({
+        MIOT_DASHBOARD_CREDENTIALS_URL: ENDPOINT,
+        MIOT_DASHBOARD_PROXY_KEY: "",
+      }),
+    ).toThrow(/needs MIOT_DASHBOARD_PROXY_KEY/);
+  });
+
+  it("refuses a URL that would read one credential for every tenant", async () => {
+    const opening = openDataSources(
+      verified({
+        MIOT_DASHBOARD_CREDENTIALS_URL:
+          "https://host.internal/credentials/{credentialRef}",
+      }),
+      await database(),
+    );
+
+    await expect(opening).rejects.toThrow(
+      /different credential for each \{tenantId\}/,
+    );
+    await expect(opening).rejects.toBeInstanceOf(ConfigError);
   });
 });

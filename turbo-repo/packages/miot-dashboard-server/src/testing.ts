@@ -317,8 +317,8 @@ export function createMemoryCredentialsVault(
 }
 
 /**
- * A writable vault holding plaintext in memory. For tests and for eyeballing
- * a dev server; `vault-sql` is the one that encrypts.
+ * A writable vault holding plaintext in memory, for tests and dev servers.
+ * `vault-sql` is the one that encrypts.
  */
 export function createMemoryCredentialsStore(
   seed: Record<string, Record<string, CredentialInput>> = {},

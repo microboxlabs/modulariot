@@ -5,6 +5,7 @@ import {
   previewOf,
   SECRET_PROPERTY_NAMES,
   type CredentialInput,
+  type CredentialKind,
 } from "./credentials";
 import {
   createMemoryCredentialsStore,
@@ -139,21 +140,25 @@ describe("the memory store", () => {
 });
 
 describe("SECRET_PROPERTY_NAMES", () => {
-  // Enumerated from the type's own shape rather than from the constant.
   it("covers every secret-bearing field of every input kind", () => {
-    const samples: CredentialInput[] = [
-      { kind: "NONE" },
-      { kind: "BEARER", token: "t" },
-      { kind: "API_KEY_HEADER", header: "X", value: "v" },
-      { kind: "API_KEY_QUERY", param: "p", value: "v" },
-      { kind: "BASIC", username: "u", password: "p" },
-      {
+    // Keyed by kind, so adding a credential kind without a sample here is a
+    // type error rather than a test that silently covers less.
+    const samplesByKind = {
+      NONE: { kind: "NONE" },
+      BEARER: { kind: "BEARER", token: "t" },
+      API_KEY_HEADER: { kind: "API_KEY_HEADER", header: "X", value: "v" },
+      API_KEY_QUERY: { kind: "API_KEY_QUERY", param: "p", value: "v" },
+      BASIC: { kind: "BASIC", username: "u", password: "p" },
+      SERVICE_ACCOUNT: {
         kind: "SERVICE_ACCOUNT",
         projectId: "p",
         clientEmail: "e",
         privateKey: "k",
       },
-    ];
+    } satisfies {
+      [K in CredentialKind]: Extract<CredentialInput, { kind: K }>;
+    };
+    const samples: CredentialInput[] = Object.values(samplesByKind);
 
     // Safe to show.
     const notSecret = new Set([

@@ -58,6 +58,16 @@ describe("secureUrlProblem", () => {
     expect(secureUrlProblem("not a url", "The URL")).toMatch(/not a URL/);
   });
 
+  it("refuses credentials in the URL, and repeats neither half", () => {
+    const problem = secureUrlProblem(
+      "https://ana:s3cret-and-long@host.test/x",
+      "The URL",
+    );
+    expect(problem).toMatch(/credentials in the URL/);
+    expect(problem).not.toContain("s3cret-and-long");
+    expect(problem).not.toContain("ana");
+  });
+
   it("refuses a fragment, which is never sent", () => {
     // The danger is not the fragment itself but what it hides: a lookup URL
     // whose only per-caller placeholder sits after the #, which passes a

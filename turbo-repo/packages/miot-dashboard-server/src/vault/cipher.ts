@@ -6,7 +6,8 @@
  * while the server keeps running.
  *
  * GCM's tag makes a tampered row fail to decrypt rather than decrypt to
- * something else.
+ * something else. The tag covers the caller's `context` as well, so an
+ * envelope only decrypts in the row it was written for.
  */
 
 const VERSION = "v1";
@@ -23,8 +24,13 @@ export class CipherError extends Error {
 }
 
 export interface Cipher {
-  encrypt(plaintext: string): Promise<string>;
-  decrypt(envelope: string): Promise<string>;
+  /**
+   * `context` is authenticated but not encrypted, and decrypting needs the
+   * same value. Pass what identifies the row, so an envelope copied to
+   * another row fails to decrypt.
+   */
+  encrypt(plaintext: string, context: string): Promise<string>;
+  decrypt(envelope: string, context: string): Promise<string>;
 }
 
 /**
@@ -32,6 +38,10 @@ export interface Cipher {
  * is not a KDF: the configured key is expected to be random already, and
  * stretching a weak one would not make it strong.
  */
+function encode(value: string): Uint8Array {
+  return new TextEncoder().encode(value);
+}
+
 async function aesKey(key: string) {
   const digest = await crypto.subtle.digest(
     "SHA-256",
@@ -51,10 +61,10 @@ export function createCipher(key: string): Cipher {
   const imported = aesKey(key);
 
   return {
-    async encrypt(plaintext) {
+    async encrypt(plaintext, context) {
       const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
       const ciphertext = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv },
+        { name: "AES-GCM", iv, additionalData: encode(context) },
         await imported,
         new TextEncoder().encode(plaintext),
       );
@@ -65,7 +75,7 @@ export function createCipher(key: string): Cipher {
       ].join(":");
     },
 
-    async decrypt(envelope) {
+    async decrypt(envelope, context) {
       const parts = envelope.split(":");
       if (parts.length !== 3 || parts[0] !== VERSION) {
         throw new CipherError(
@@ -76,13 +86,18 @@ export function createCipher(key: string): Cipher {
       let plaintext: ArrayBuffer;
       try {
         plaintext = await crypto.subtle.decrypt(
-          { name: "AES-GCM", iv: Buffer.from(iv, "base64") },
+          {
+            name: "AES-GCM",
+            iv: Buffer.from(iv, "base64"),
+            additionalData: encode(context),
+          },
           await imported,
           Buffer.from(ciphertext, "base64"),
         );
       } catch {
-        // Wrong key or a tampered row. The message says neither: a caller
-        // cannot act on the difference, and an attacker could use it.
+        // Wrong key, a tampered row, or an envelope from another row. The
+        // message says none of the three: a caller cannot act on the
+        // difference, and an attacker could use it.
         throw new CipherError("Stored credential could not be decrypted");
       }
       return new TextDecoder().decode(plaintext);

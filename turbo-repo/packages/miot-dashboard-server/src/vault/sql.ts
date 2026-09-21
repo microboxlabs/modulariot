@@ -1,21 +1,16 @@
 /**
  * A `CredentialsStore` on the same database as everything else, for a
- * deployment with nowhere else to keep secrets.
+ * deployment with nowhere else to keep secrets. Nothing in the core imports
+ * it. modulariot does not use it: credentials belong to that product's own
+ * component, which this server reaches through the callback vault.
  *
- * Opt-in. Nothing in the core imports this module, so whether a deployment
- * stores credentials is answered by whether it imports it. Inside modulariot
- * it is not used: credentials belong to that product's own component and
- * this server reaches them through the callback vault instead.
+ * The secret is encrypted. `kind` and `preview` are stored in the clear so
+ * listing does not need the key; a preview is at most the last four
+ * characters of a value long enough to spare them.
  *
- * What lands on disk is the encrypted credential and nothing else. `kind`
- * and `preview` are stored in the clear so listing does not need the key,
- * and both are non-secret by construction — a kind tag, and at most the last
- * four characters of a value long enough that four characters give nothing
- * away.
- *
- * The honest limit: the database and the key are both reachable from the
- * process, so anyone holding a copy of the file and the environment holds
- * the credentials. A backup of the database is a backup of secrets.
+ * The limit: the database and the key are both reachable from the process.
+ * A copy of the database plus the environment is a copy of the credentials,
+ * and a backup of the database is a backup of secrets.
  */
 
 import {
@@ -34,10 +29,7 @@ import {
 import { runMigrations, type Migration } from "../store/sql/migrations";
 import { CIPHER_VERSION, createCipher, type Cipher } from "./cipher";
 
-/**
- * Shorter than this and a key is worth guessing. The same number the proxy
- * key uses, for the same reason.
- */
+/** The same minimum the proxy key uses. */
 export const MIN_CREDENTIALS_KEY_LENGTH = 32;
 
 /** Its own history table, so these versions never collide with the core's. */
@@ -48,9 +40,9 @@ export const CREDENTIALS_MIGRATIONS: readonly Migration[] = [
     version: 1,
     name: "datasource credentials",
     statements: [
-      // `ciphertext` is null only for kind NONE, which has nothing to
-      // encrypt. `key_version` names the scheme the row was written with, so
-      // a re-encrypt pass can find the rows it has not reached yet.
+      // `ciphertext` is null only for kind NONE. `key_version` is the scheme
+      // the row was written with, so a re-encrypt pass can find the rows it
+      // has not reached.
       `CREATE TABLE datasource_credentials (
          tenant_id   TEXT NOT NULL,
          ref         TEXT NOT NULL,
@@ -74,10 +66,7 @@ export class VaultConfigError extends Error {
 
 export interface SqlCredentialsVaultOptions {
   driver: SqlDriver;
-  /**
-   * At least {@link MIN_CREDENTIALS_KEY_LENGTH} characters, and no default,
-   * ever. A vault with a default key is a vault with no key.
-   */
+  /** At least {@link MIN_CREDENTIALS_KEY_LENGTH} characters. No default. */
   key: string;
   now?: () => Date;
   /** Skip the schema check, for a caller that ran the migrations itself. */
@@ -108,8 +97,8 @@ export async function createSqlCredentialsVault(
   if (key.length < MIN_CREDENTIALS_KEY_LENGTH) {
     throw new VaultConfigError(
       `The credentials key is ${key.length} characters. It has to be at ` +
-        `least ${MIN_CREDENTIALS_KEY_LENGTH}: it is the only thing between ` +
-        "a copy of the database and every credential in it.",
+        `least ${MIN_CREDENTIALS_KEY_LENGTH}. It encrypts every credential ` +
+        "in the database.",
     );
   }
 
@@ -231,13 +220,12 @@ export async function createSqlCredentialsVault(
 }
 
 /**
- * Re-encrypt every row written under an older scheme.
+ * Re-encrypt every row written under an older scheme. The key stays the
+ * same; only the envelope changes.
  *
- * Rotating the key itself is a different operation and this does not do it:
- * with one key in configuration there is no moment when both the old and the
- * new one are available, which is what rotating needs. Change the key and
- * the rows become unreadable. This exists for a change of *scheme*, where
- * the key is the same and only the envelope moves.
+ * This does not rotate the key. Rotation needs the old key and the new one
+ * at the same time, and configuration holds one. Changing the key makes the
+ * existing rows unreadable.
  */
 export async function reencryptCredentials(options: {
   driver: SqlDriver;

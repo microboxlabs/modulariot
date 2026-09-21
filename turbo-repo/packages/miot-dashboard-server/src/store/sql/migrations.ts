@@ -77,6 +77,30 @@ export const MIGRATIONS: readonly Migration[] = [
        )`,
     ],
   },
+  {
+    version: 4,
+    name: "datasources",
+    statements: [
+      // Tenant-level, unlike dashboards: a datasource belongs to the tenant
+      // and every scope in it may name one.
+      //
+      // `credential_ref` is an opaque handle the vault resolves, not a
+      // secret, and this table holds no other credential column — see
+      // `seams/datasources.ts`. Nullable for a datasource needing no auth.
+      `CREATE TABLE datasources (
+         tenant_id      TEXT NOT NULL,
+         id             TEXT NOT NULL,
+         name           TEXT NOT NULL,
+         type           TEXT NOT NULL,
+         description    TEXT,
+         is_active      INTEGER NOT NULL,
+         target         TEXT NOT NULL,
+         credential_ref TEXT,
+         updated_at     TEXT NOT NULL,
+         PRIMARY KEY (tenant_id, id)
+       )`,
+    ],
+  },
 ];
 
 const MIGRATIONS_TABLE = `CREATE TABLE IF NOT EXISTS schema_migrations (

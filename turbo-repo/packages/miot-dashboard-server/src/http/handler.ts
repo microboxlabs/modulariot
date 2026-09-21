@@ -27,12 +27,29 @@ import {
 import { DashboardServerError, isDashboardServerError } from "../access/errors";
 import { isDashboardRole } from "../access/roles";
 import {
+  applyCredential,
   isCredentialsStore,
+  type CredentialInput,
   type CredentialsVault,
+  type DataSourceCredential,
 } from "../seams/credentials";
-import type { DataSourceStore } from "../seams/datasources";
+import type {
+  DataSourceDescriptor,
+  DataSourceInput,
+  DataSourceStore,
+} from "../seams/datasources";
 import type { PermissionAssignment } from "../seams/store";
-import { parseCredentialInput, parseDataSourceInput } from "./parse-datasource";
+import {
+  parseCredentialInput,
+  parseDataSourceInput,
+  parseDataSourceTestInput,
+} from "./parse-datasource";
+import {
+  testDataSourceConnection,
+  untested,
+  type ConnectionTestResult,
+  type TestConnectionOptions,
+} from "./test-connection";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
 import { withCors, type CorsOptions } from "./cors";
@@ -51,6 +68,8 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    * (see `isCredentialsStore`). A read-only one answers 404.
    */
   credentials?: CredentialsVault;
+  /** Clock, fetch and timeout for the connection test. For tests. */
+  testConnection?: TestConnectionOptions;
   /**
    * Called with what this handler did not choose: anything thrown that is not
    * a `DashboardServerError`, and so became a bare 500. A 404, a 403 or a 409
@@ -96,6 +115,48 @@ export function createDashboardHandler(
     }
   };
   const basePath = normalizeBasePath(options.basePath);
+  const testOptions = options.testConnection ?? {};
+
+  /**
+   * One connection test, with the credential sent inline or the one the
+   * datasource names.
+   *
+   * A named credential that resolves to nothing is a failed test, not an
+   * anonymous probe: a target that allows anonymous reads would otherwise
+   * answer, and the operator would be told a broken datasource works.
+   *
+   * Only POSTGREST is probed, so nothing else asks the vault. That call can
+   * fail, and failing it on a datasource that was never testable would
+   * replace an answer with an error.
+   */
+  async function runTest(
+    tenantId: string,
+    datasource: DataSourceDescriptor | DataSourceInput,
+    inline?: CredentialInput,
+  ): Promise<ConnectionTestResult> {
+    let credential: DataSourceCredential | null = null;
+
+    if (inline !== undefined) {
+      credential = applyCredential(inline);
+    } else if (
+      datasource.type === "POSTGREST" &&
+      datasource.credentialRef !== undefined
+    ) {
+      const ref = datasource.credentialRef;
+      credential =
+        options.credentials === undefined
+          ? null
+          : await options.credentials.resolve(tenantId, ref);
+      if (credential === null) {
+        return untested(
+          `The credential "${ref}" could not be resolved`,
+          testOptions,
+        );
+      }
+    }
+
+    return testDataSourceConnection(datasource, credential, testOptions);
+  }
 
   async function dispatch(
     request: Request,
@@ -242,6 +303,52 @@ export function createDashboardHandler(
           return jsonResponse({ data }, 201);
         }
         return methodNotAllowed();
+      }
+
+      case "datasourcesTest": {
+        // No store: these values have not been saved yet.
+        if (method !== "POST") return methodNotAllowed();
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.write",
+        });
+        const input = parseDataSourceTestInput(await readJsonBody(request));
+        if (
+          input.credential !== undefined &&
+          input.datasource.credentialRef !== undefined
+        ) {
+          throw DashboardServerError.badRequest(
+            'Send "credential" or a "credentialRef" on the datasource, not ' +
+              "both. They can name different secrets, and the test would " +
+              "then answer about one of them without saying which.",
+          );
+        }
+        return jsonResponse({
+          data: await runTest(
+            decision.identity.tenantId,
+            input.datasource,
+            input.credential,
+          ),
+        });
+      }
+
+      case "datasourceTest": {
+        const store = requireDataSources(options.dataSources);
+        const id = requireId(match);
+        if (method !== "POST") return methodNotAllowed();
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.write",
+        });
+        const descriptor = await store.get(decision.identity.tenantId, id);
+        if (descriptor === null) {
+          throw DashboardServerError.notFound("Datasource not found");
+        }
+        return jsonResponse({
+          data: await runTest(decision.identity.tenantId, descriptor),
+        });
       }
 
       case "datasource": {

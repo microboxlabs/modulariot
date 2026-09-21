@@ -336,6 +336,89 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /tenants/{tenantId}/scopes/{scopeId}/datasources/test:
+    post:
+      operationId: testDataSourceValues
+      tags: [datasources]
+      summary: Test a datasource that has not been saved
+      description: >
+        Tests values that have not been saved, so an operator finds out the
+        target is wrong before storing it. The body may carry a credential.
+        It is used for the one probe and dropped: never logged, echoed or
+        stored.
+
+
+        Send `credential` for a new secret, or a `credentialRef` on the
+        datasource for one already stored. Both is a `400`.
+
+
+        `test` is a reserved identifier, so no datasource can be addressed at
+        this path, however the segment is spelled.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [datasource]
+              properties:
+                datasource:
+                  $ref: "#/components/schemas/DataSourceInput"
+                credential:
+                  $ref: "#/components/schemas/CredentialInput"
+      responses:
+        "200":
+          description: >
+            The outcome. A target that refused the credential is a `200` with
+            `success: false`, not an error status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ConnectionTestResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /tenants/{tenantId}/scopes/{scopeId}/datasources/{dataSourceId}/test:
+    post:
+      operationId: testDataSource
+      tags: [datasources]
+      summary: Test a stored datasource
+      description: >
+        Resolves the credential the datasource names and probes its target.
+        The credential does not appear in the request or the response.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/dataSourceId"
+      responses:
+        "200":
+          description: The outcome.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ConnectionTestResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /tenants/{tenantId}/scopes/{scopeId}/datasources/{dataSourceId}:
     get:
       operationId: getDataSource
@@ -915,3 +998,24 @@ components:
             projectId: { type: string }
             clientEmail: { type: string }
             privateKey: { type: string }
+    ConnectionTestResult:
+      type: object
+      required: [testable, success, testedAt, message]
+      properties:
+        testable:
+          type: boolean
+          description: >
+            False where this kind of datasource cannot be exercised from
+            here. A BigQuery dataset needs the Google client.
+        success: { type: boolean }
+        testedAt:
+          type: string
+          format: date-time
+        message:
+          type: string
+          description: >
+            Never the target's response body, which can quote back a
+            credential it was sent.
+        status:
+          type: integer
+          description: What the target answered, when it answered at all.

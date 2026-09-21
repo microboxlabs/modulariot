@@ -102,6 +102,28 @@ export function parseDataSourceInput(body: unknown): DataSourceInput {
   };
 }
 
+/**
+ * The body of a test against values that have not been saved. The
+ * credential is optional, since a datasource may need none.
+ */
+export interface DataSourceTestInput {
+  datasource: DataSourceInput;
+  credential?: CredentialInput;
+}
+
+export function parseDataSourceTestInput(body: unknown): DataSourceTestInput {
+  const raw = asObject(body);
+  rejectUnknown(raw, new Set(["datasource", "credential"]));
+
+  const credential = raw.credential;
+  return {
+    datasource: parseDataSourceInput(raw.datasource),
+    ...(credential === undefined || credential === null
+      ? {}
+      : { credential: parseCredentialInput(credential) }),
+  };
+}
+
 /** The fields each credential kind takes, beyond `kind` itself. */
 const CREDENTIAL_FIELDS: Readonly<Record<string, readonly string[]>> = {
   NONE: [],

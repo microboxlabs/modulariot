@@ -52,6 +52,12 @@ let dataSources: DataSourceStore;
 let credentials: CredentialsStore;
 let handler: ReturnType<typeof createDashboardHandler>;
 
+/** Answers the probe without reaching the network. */
+const fetchImpl = (() =>
+  Promise.resolve(
+    new Response("[]", { status: 200 }),
+  )) as unknown as typeof fetch;
+
 function build(overrides: Record<string, unknown> = {}) {
   return createDashboardHandler({
     identity: createInsecureHeaderIdentityResolver(),
@@ -60,6 +66,7 @@ function build(overrides: Record<string, unknown> = {}) {
     store: createMemoryStore(),
     dataSources,
     credentials,
+    testConnection: { fetchImpl },
     ...overrides,
   });
 }
@@ -332,6 +339,28 @@ describe("the serialization gate", () => {
         },
         { method: "GET", path: `${DS}/missing`, user: "alice" },
         { method: "DELETE", path: `${DS}/${id}`, user: "alice" },
+      ],
+      datasourcesTest: [
+        {
+          method: "POST",
+          path: `${DS}/test`,
+          user: "alice",
+          body: {
+            datasource: pgrest,
+            credential: { kind: "BEARER", token: TOKEN },
+          },
+        },
+        // The body carried a secret in; the answer must not carry it back.
+        {
+          method: "POST",
+          path: `${DS}/test`,
+          user: "alice",
+          body: { datasource: pgrest, credential: { kind: "NOPE" } },
+        },
+      ],
+      datasourceTest: [
+        { method: "POST", path: `${DS}/${id}/test`, user: "alice" },
+        { method: "POST", path: `${DS}/missing/test`, user: "alice" },
       ],
       credentials: [{ method: "GET", path: CRED, user: "alice" }],
       credential: [

@@ -138,7 +138,10 @@ export function parseCredentialInput(body: unknown): CredentialInput {
   const raw = asObject(body);
 
   const kind = raw.kind;
-  if (typeof kind !== "string" || !(kind in CREDENTIAL_FIELDS)) {
+  // `Object.hasOwn`, not `in`: `in` is true for "constructor" and
+  // "__proto__", and the lookup below would then return something that is
+  // not a field list, turning a bad body into a 500.
+  if (typeof kind !== "string" || !Object.hasOwn(CREDENTIAL_FIELDS, kind)) {
     throw DashboardServerError.badRequest(
       `"kind" must be one of ${Object.keys(CREDENTIAL_FIELDS).join(", ")}`,
     );

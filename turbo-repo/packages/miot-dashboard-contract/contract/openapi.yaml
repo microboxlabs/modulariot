@@ -44,7 +44,7 @@ tags:
   - name: credentials
     description: >
       How a datasource authenticates. Served only where this server keeps the
-      credentials.
+      credentials; every route here answers `404` elsewhere.
 
 security:
   - bearerAuth: []
@@ -299,6 +299,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     post:
       operationId: createDataSource
@@ -331,6 +333,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /tenants/{tenantId}/scopes/{scopeId}/datasources/test:
     post:
@@ -470,6 +474,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     delete:
       operationId: deleteDataSource
@@ -489,6 +495,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /tenants/{tenantId}/scopes/{scopeId}/credentials:
     get:
@@ -524,6 +532,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /tenants/{tenantId}/scopes/{scopeId}/credentials/{credentialRef}:
     get:
@@ -586,6 +596,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
     delete:
       operationId: deleteCredential
@@ -605,6 +617,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
 components:
   securitySchemes:
@@ -902,6 +916,7 @@ components:
       type: object
       required: [name, type, isActive, target]
       description: Unknown fields are refused rather than ignored.
+      additionalProperties: false
       properties:
         name: { type: string }
         type:
@@ -911,8 +926,9 @@ components:
         target:
           type: string
           description: >
-            A POSTGREST target must be https or a loopback address. Checked
-            when stored, not when first used.
+            A POSTGREST target must be https or a loopback address, and must
+            not carry `user:password@`. Checked when stored, not when first
+            used.
         credentialRef: { type: string }
     DataSourceKind:
       type: string
@@ -943,6 +959,7 @@ components:
         carries a secret. Discriminated by `kind`. Unknown fields are
         refused, so a misspelled `token` fails rather than storing a
         credential with nothing in it.
+      unevaluatedProperties: false
       oneOf:
         - type: object
           required: [kind]

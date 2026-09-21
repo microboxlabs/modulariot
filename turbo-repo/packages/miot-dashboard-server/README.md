@@ -220,8 +220,8 @@ No route answers with a stored secret, only with a summary.
 #### Leaving credentials with the host
 
 Where another system already owns credentials, set
-`MIOT_DASHBOARD_CREDENTIALS_URL` instead of the key and this server stores
-none. It asks that endpoint what to send and forgets the answer.
+`MIOT_DASHBOARD_CREDENTIALS_URL` instead of the key. This server then asks
+that endpoint what to send and writes no credential of its own.
 
 ```
 MIOT_DASHBOARD_CREDENTIALS_URL=https://host.internal/credentials/{tenantId}/{credentialRef}
@@ -238,22 +238,19 @@ caller would read one credential. The server refuses such a URL at startup.
 | `404`                                                                | refuses the query               |
 | anything else, `401` and `403` included                              | throws: its own key was refused |
 
-A service account answer is refused. Its private key is the secret this
-arrangement exists to leave at the host, so run the grant there and answer
-with the header it produces.
+A service account answer is refused, because its private key is the secret.
+Run the grant at the host and answer with the header it produces.
 
-`MIOT_DASHBOARD_PROXY_KEY` is required — the same key the host checks on
-requests going the other way, because the two processes are deployed
-together. It cannot be combined with `MIOT_DASHBOARD_INSECURE_AUTH`, so this
-needs a real identity provider.
+`MIOT_DASHBOARD_PROXY_KEY` is required. It is the same key the host checks on
+requests going the other way, and it cannot be combined with
+`MIOT_DASHBOARD_INSECURE_AUTH`, so this needs a real identity provider.
 
-An answer is reused for `MIOT_DASHBOARD_CREDENTIALS_CACHE` seconds or until
+An answer is reused for `MIOT_DASHBOARD_CREDENTIALS_CACHE` seconds, or until
 the `expiresAt` the host states, whichever is sooner. A credential revoked at
 the host keeps working until then.
 
-Set the URL or the key, never both: they name different owners for the same
-secret. The credential routes answer 404 under the URL, because credentials
-are administered where they live.
+Set the URL or the key, never both. Under the URL the credential routes
+answer 404: credentials are administered where they live.
 
 To run the contract suite against a real server, point
 `MIOT_DASHBOARD_TEST_POSTGRES_URL` at a **throwaway** database — the suite

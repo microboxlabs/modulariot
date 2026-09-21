@@ -21,8 +21,7 @@ export interface OpenedDataSources {
 
 /**
  * Datasources need a database. With the memory store there is none, so the
- * datasource routes answer 404 and no vault is built either — nothing would
- * ask it for a credential.
+ * datasource routes answer 404 and no vault is built either.
  */
 export async function openDataSources(
   config: ServerConfig,
@@ -67,11 +66,7 @@ export async function openDataSources(
   };
 }
 
-/**
- * The vault checks its own URL and key, and a bad one is a bad setting.
- * Reported as one, so it exits the way every other bad setting does instead
- * of printing a stack trace.
- */
+/** The vault checks its own URL and key. A bad one is a bad setting. */
 function asConfigError<T>(build: () => T): T {
   try {
     return build();

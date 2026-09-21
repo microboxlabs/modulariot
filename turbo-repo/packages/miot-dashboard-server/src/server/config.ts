@@ -61,12 +61,7 @@ export interface ServerConfig {
   credentials: CredentialsConfig;
 }
 
-/**
- * Who owns a datasource credential.
- *
- * One of these, never a mix: two owners of one secret is a question with no
- * answer at the moment a datasource is queried.
- */
+/** Who owns a datasource credential. One of these, never a mix. */
 export type CredentialsConfig =
   | { kind: "none" }
   | CredentialsSqlConfig
@@ -80,13 +75,13 @@ export interface CredentialsSqlConfig {
 
 /**
  * Credentials at the host, which answers applied auth. This server stores
- * none and its credential routes answer 404.
+ * none, and its credential routes answer 404.
  */
 export interface CredentialsHttpConfig {
   kind: "http";
   /** `{tenantId}` and `{credentialRef}` fill in. */
   url: string;
-  /** The same shared key, proving this server to the host. */
+  /** The proxy key, sent the other way to identify this server. */
   proxyKey: string;
   requestTimeoutMs: number;
   maxCacheSeconds: number;
@@ -460,9 +455,9 @@ const MAX_LOOKUP_CACHE_SECONDS = 3600;
 const MAX_LOOKUP_TIMEOUT_MS = 30_000;
 
 /**
- * How long applied auth may be reused. Lower than the ceiling on a
- * membership lookup: a credential revoked at the host keeps working for
- * this long, and an hour of that is too long.
+ * How long applied auth may be reused. A credential revoked at the host
+ * keeps working for this long, so the ceiling is lower than a membership
+ * lookup's.
  */
 const DEFAULT_CREDENTIALS_CACHE_SECONDS = 60;
 const MAX_CREDENTIALS_CACHE_SECONDS = 300;
@@ -950,8 +945,7 @@ function readCredentials(
     if (proxyKey === undefined) {
       throw new ConfigError(
         "MIOT_DASHBOARD_CREDENTIALS_URL needs MIOT_DASHBOARD_PROXY_KEY. The " +
-          "same shared key identifies this server to the host, which will " +
-          "not hand a credential to an unidentified caller.",
+          "same key identifies this server to the host.",
       );
     }
     return {

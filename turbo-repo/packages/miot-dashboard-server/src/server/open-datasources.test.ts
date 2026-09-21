@@ -16,7 +16,7 @@ import {
   createMemoryStore,
   type Memberships,
 } from "../testing";
-import { readServerConfig } from "./config";
+import { ConfigError, readServerConfig } from "./config";
 import { openDataSources } from "./open-datasources";
 
 const KEY = "0123456789abcdef0123456789abcdef";
@@ -42,11 +42,7 @@ const PROXY_KEY = "proxy-0123456789abcdef0123456789abcdef";
 const ENDPOINT =
   "https://host.internal/tenants/{tenantId}/credentials/{credentialRef}";
 
-/**
- * The proxy key is refused alongside unverified header identity, and the
- * credential endpoint authenticates with that key, so asking the host for
- * credentials means a real identity provider.
- */
+/** Verified identity, because the proxy key is refused without it. */
 const verified = (extra: Record<string, string> = {}) =>
   readServerConfig({
     MIOT_DASHBOARD_STORE: "sqlite",
@@ -163,7 +159,6 @@ describe("credentials the host owns", () => {
     expect(opened.credentials).toBeDefined();
     expect(isCredentialsStore(opened.credentials!)).toBe(false);
     expect(await status("datasources", opened)).toBe(200);
-    // The routes that write a credential are not served at all.
     expect(await status("credentials", opened)).toBe(404);
   });
 
@@ -233,15 +228,17 @@ describe("credentials the host owns", () => {
   });
 
   it("refuses a URL that would read one credential for every tenant", async () => {
-    await expect(
-      openDataSources(
-        verified({
-          MIOT_DASHBOARD_CREDENTIALS_URL:
-            "https://host.internal/credentials/{credentialRef}",
-        }),
-        await database(),
-      ),
-      // A ConfigError, so it exits the way a bad setting does.
-    ).rejects.toThrow(/different credential for each \{tenantId\}/);
+    const opening = openDataSources(
+      verified({
+        MIOT_DASHBOARD_CREDENTIALS_URL:
+          "https://host.internal/credentials/{credentialRef}",
+      }),
+      await database(),
+    );
+
+    await expect(opening).rejects.toThrow(
+      /different credential for each \{tenantId\}/,
+    );
+    await expect(opening).rejects.toBeInstanceOf(ConfigError);
   });
 });

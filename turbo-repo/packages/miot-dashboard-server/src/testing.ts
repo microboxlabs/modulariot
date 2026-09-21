@@ -327,7 +327,7 @@ export function createMemoryCredentialsStore(
   for (const [tenantId, refs] of Object.entries(seed)) {
     for (const [ref, input] of Object.entries(refs)) {
       tenantOf(tenantId).set(ref, {
-        input,
+        input: { ...input },
         updatedAt: new Date(0).toISOString(),
       });
     }
@@ -372,7 +372,10 @@ export function createMemoryCredentialsStore(
       );
     },
     putCredential(tenantId, credentialRef, input) {
-      const stored = { input, updatedAt: new Date().toISOString() };
+      const stored = {
+        input: { ...input },
+        updatedAt: new Date().toISOString(),
+      };
       tenantOf(tenantId).set(credentialRef, stored);
       return Promise.resolve(summarize(credentialRef, stored));
     },
@@ -426,7 +429,12 @@ export function createMemoryDataSourceStore(
       updatedAt,
     };
     tenantOf(tenantId).set(id, descriptor);
-    return descriptor;
+    return copy(descriptor);
+  }
+
+  /** Never the stored object — see the dashboard store above. */
+  function copy(descriptor: DataSourceDescriptor): DataSourceDescriptor {
+    return { ...descriptor };
   }
 
   for (const [tenantId, rows] of Object.entries(seed)) {
@@ -437,10 +445,12 @@ export function createMemoryDataSourceStore(
 
   return {
     list(tenantId) {
-      return Promise.resolve([...(byTenant.get(tenantId)?.values() ?? [])]);
+      const rows = [...(byTenant.get(tenantId)?.values() ?? [])];
+      return Promise.resolve(rows.map(copy));
     },
     get(tenantId, id) {
-      return Promise.resolve(byTenant.get(tenantId)?.get(id) ?? null);
+      const row = byTenant.get(tenantId)?.get(id);
+      return Promise.resolve(row === undefined ? null : copy(row));
     },
     put(tenantId, id, input) {
       return Promise.resolve(

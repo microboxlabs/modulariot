@@ -79,8 +79,6 @@ describe("probing a datasource", () => {
       { fetchImpl: answering(401) },
     );
 
-    // The rule the whole package follows: a datasource rejecting our
-    // credential is not the caller's fault.
     expect(result).toMatchObject({
       testable: true,
       success: false,
@@ -135,7 +133,7 @@ describe("probing a datasource", () => {
       pgrest,
       applyCredential({ kind: "BEARER", token: TOKEN }),
       {
-        // A target that echoes what it was sent. Some do, in an error.
+        // Some targets quote the request back in an error.
         fetchImpl: answering(
           400,
           JSON.stringify({ error: `bad request: Bearer ${TOKEN}` }),
@@ -201,9 +199,8 @@ describe("the test routes", () => {
         message: "The target answered",
       },
     });
-    // The secret came in on this request and must not go back out.
     expect(text).not.toContain(TOKEN);
-    // Nor be stored as a side effect of testing.
+    // Testing stores nothing.
     await expect(dataSources.list("acme")).resolves.toEqual([]);
   });
 
@@ -255,15 +252,14 @@ describe("the test routes", () => {
 
   it("reserves `test`, so it never addresses a datasource", async () => {
     const { handler, dataSources } = build(answering(200));
-    // A datasource really called "test" is unreachable by id, which is the
-    // cost of the reservation and is stated in the contract.
+    // A datasource whose id is "test" is unreachable by id. That is the
+    // cost of reserving the word, and the contract states it.
     await dataSources.put("acme", "test", pgrest);
 
     const response = await post(handler, `${BASE}/test`, "alice", {
       datasource: pgrest,
     });
-    // The test route, not the datasource: a POST to the datasource route is
-    // not allowed at all.
+    // Answered by the test route. POST to a datasource id is not allowed.
     expect(response.status).toBe(200);
   });
 });

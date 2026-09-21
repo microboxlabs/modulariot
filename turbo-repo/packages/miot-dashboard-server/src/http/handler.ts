@@ -257,9 +257,7 @@ export function createDashboardHandler(
       }
 
       case "datasourcesTest": {
-        // No store needed: this tests values the caller is holding, which is
-        // the point — an operator finds out the target is wrong before
-        // saving it.
+        // No store: these values have not been saved yet.
         if (method !== "POST") return methodNotAllowed();
         await access.authorize(request, {
           tenantId: match.tenantId,

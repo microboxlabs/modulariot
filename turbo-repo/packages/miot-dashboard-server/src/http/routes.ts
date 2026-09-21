@@ -94,8 +94,8 @@ function matchDataSources(
 ): RouteMatch | null {
   if (segments.length === 5) return { route: "datasources", tenantId, scopeId };
 
-  // Before the id branch: `test` is reserved, so no datasource can be
-  // addressed at that path and the two never collide.
+  // Before the id branch: `test` is reserved, so no datasource is
+  // addressable at that path.
   if (segments.length === 6 && segments[5] === "test") {
     return { route: "datasourcesTest", tenantId, scopeId };
   }

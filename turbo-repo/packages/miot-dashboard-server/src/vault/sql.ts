@@ -5,8 +5,11 @@
  * component, which this server reaches through the callback vault.
  *
  * The secret is encrypted. `kind` and `preview` are stored in the clear so
- * listing does not need the key; a preview is at most the last four
- * characters of a value long enough to spare them.
+ * listing does not need the key. A preview is the last four characters of a
+ * long token, or, for the two kinds that have one, the whole non-secret
+ * half of the pair: the BASIC username, the service account's client email.
+ * `previewOf` in `seams/credentials.ts` decides this, and the same value
+ * already goes to the browser in a `CredentialSummary`.
  *
  * The limit: the database and the key are both reachable from the process.
  * A copy of the database plus the environment is a copy of the credentials,
@@ -64,6 +67,24 @@ export class VaultConfigError extends Error {
   }
 }
 
+function requireKey(key: string): void {
+  if (key.length < MIN_CREDENTIALS_KEY_LENGTH) {
+    throw new VaultConfigError(
+      `The credentials key is ${key.length} characters. It has to be at ` +
+        `least ${MIN_CREDENTIALS_KEY_LENGTH}. It encrypts every credential ` +
+        "in the database.",
+    );
+  }
+}
+
+/**
+ * Authenticated with the envelope, so a ciphertext moved to another row
+ * fails to decrypt instead of resolving as that row's credential.
+ */
+function rowContext(tenantId: string, ref: string): string {
+  return JSON.stringify([tenantId, ref]);
+}
+
 export interface SqlCredentialsVaultOptions {
   driver: SqlDriver;
   /** At least {@link MIN_CREDENTIALS_KEY_LENGTH} characters. No default. */
@@ -94,13 +115,7 @@ export async function createSqlCredentialsVault(
   options: SqlCredentialsVaultOptions,
 ): Promise<CredentialsStore> {
   const { driver, key } = options;
-  if (key.length < MIN_CREDENTIALS_KEY_LENGTH) {
-    throw new VaultConfigError(
-      `The credentials key is ${key.length} characters. It has to be at ` +
-        `least ${MIN_CREDENTIALS_KEY_LENGTH}. It encrypts every credential ` +
-        "in the database.",
-    );
-  }
+  requireKey(key);
 
   const now = options.now ?? (() => new Date());
   const cipher: Cipher = createCipher(key);
@@ -137,7 +152,10 @@ export async function createSqlCredentialsVault(
       if (row.ciphertext === null) return { kind: "NONE" };
 
       const input = JSON.parse(
-        await cipher.decrypt(row.ciphertext),
+        await cipher.decrypt(
+          row.ciphertext,
+          rowContext(tenantId, credentialRef),
+        ),
       ) as CredentialInput;
       return applyCredential(input);
     },
@@ -171,7 +189,10 @@ export async function createSqlCredentialsVault(
       const ciphertext =
         input.kind === "NONE"
           ? null
-          : await cipher.encrypt(JSON.stringify(input));
+          : await cipher.encrypt(
+              JSON.stringify(input),
+              rowContext(tenantId, credentialRef),
+            );
       const updatedAt = now().toISOString();
 
       const p = placeholders(driver.dialect);
@@ -233,6 +254,7 @@ export async function reencryptCredentials(options: {
   now?: () => Date;
 }): Promise<number> {
   const { driver, key } = options;
+  requireKey(key);
   const cipher = createCipher(key);
   const now = options.now ?? (() => new Date());
 
@@ -252,14 +274,15 @@ export async function reencryptCredentials(options: {
       );
       if (current?.ciphertext == null) return;
 
-      const plaintext = await cipher.decrypt(current.ciphertext);
+      const context = rowContext(row.tenant_id, row.ref);
+      const plaintext = await cipher.decrypt(current.ciphertext, context);
       const q = placeholders(driver.dialect);
       await driver.all(
         `UPDATE datasource_credentials
             SET ciphertext = ${q()}, key_version = ${q()}, updated_at = ${q()}
           WHERE tenant_id = ${q()} AND ref = ${q()}`,
         [
-          await cipher.encrypt(plaintext),
+          await cipher.encrypt(plaintext, context),
           CIPHER_VERSION,
           now().toISOString(),
           row.tenant_id,

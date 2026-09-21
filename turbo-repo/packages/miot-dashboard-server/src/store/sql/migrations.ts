@@ -135,11 +135,16 @@ export interface RunMigrationsOptions {
  */
 export async function runMigrations(
   driver: SqlDriver,
-  options: RunMigrationsOptions = {},
+  // A bare clock is the 0.1.0 signature, still accepted: a caller passing
+  // one would otherwise keep compiling in JavaScript and silently get the
+  // real clock back.
+  options: RunMigrationsOptions | (() => Date) = {},
 ): Promise<number[]> {
-  const migrations = options.migrations ?? MIGRATIONS;
-  const historyTable = options.historyTable ?? DEFAULT_HISTORY_TABLE;
-  const now = options.now ?? (() => new Date());
+  const settings: RunMigrationsOptions =
+    typeof options === "function" ? { now: options } : options;
+  const migrations = settings.migrations ?? MIGRATIONS;
+  const historyTable = settings.historyTable ?? DEFAULT_HISTORY_TABLE;
+  const now = settings.now ?? (() => new Date());
 
   if (!SAFE_IDENTIFIER.test(historyTable)) {
     throw new Error(

@@ -5,7 +5,8 @@
  * modulariot that is the credentials component, which stores the secret,
  * runs the OAuth2 grant where there is one, and reduces the result to
  * headers and query parameters. This asks for that result, so the secret
- * stays there.
+ * stays there. Only that result is accepted: a service account answer is
+ * refused, because its private key is the secret.
  *
  * Authenticated with the trusted-proxy key, sent the other way: here this
  * server proves itself to the host. One key serves both directions, since
@@ -78,22 +79,21 @@ function parseCredential(body: unknown): DataSourceCredential {
   if (raw.kind === "NONE") return { kind: "NONE" };
 
   if (raw.kind === "HTTP_AUTH") {
-    const expiresAt = raw.expiresAt;
     return {
       kind: "HTTP_AUTH",
       headers: stringMap(raw.headers, "headers"),
       queryParams: stringMap(raw.queryParams, "queryParams"),
-      ...(typeof expiresAt === "string" ? { expiresAt } : {}),
+      ...expiry(raw.expiresAt),
     };
   }
 
   if (raw.kind === "SERVICE_ACCOUNT") {
-    return {
-      kind: "SERVICE_ACCOUNT",
-      projectId: requireString(raw, "projectId"),
-      clientEmail: requireString(raw, "clientEmail"),
-      privateKey: requireString(raw, "privateKey"),
-    };
+    // The private key is the secret this vault exists to leave at the host.
+    throw new EndpointError(
+      "The credential endpoint answered a service account. This vault takes " +
+        "applied auth only: run the grant at the host and answer with the " +
+        "header it produces.",
+    );
   }
 
   throw new EndpointError(
@@ -101,15 +101,19 @@ function parseCredential(body: unknown): DataSourceCredential {
   );
 }
 
-function requireString(raw: Record<string, unknown>, field: string): string {
-  const value = raw[field];
-  if (typeof value !== "string" || value.length === 0) {
-    // The field name, never the value: the value is the secret.
+/**
+ * An expiry that cannot be read is refused, not dropped. Dropping it reuses
+ * the credential for the full ceiling, which is the opposite of what a host
+ * sending an expiry is asking for.
+ */
+function expiry(value: unknown): { expiresAt?: string } {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) {
     throw new EndpointError(
-      `The credential endpoint answered without "${field}"`,
+      'The credential endpoint answered an "expiresAt" that is not a timestamp',
     );
   }
-  return value;
+  return { expiresAt: value };
 }
 
 function stringMap(value: unknown, what: string): Record<string, string> {
@@ -131,19 +135,49 @@ function stringMap(value: unknown, what: string): Record<string, string> {
   return out;
 }
 
+/**
+ * Whether the URL this template produces differs when only `name` differs.
+ * False for a template that leaves it out, and for one where the path
+ * normalizes it away. A template that is not a URL at all is left to
+ * `secureUrlProblem`.
+ */
+function addressVariesWith(
+  template: string,
+  name: (typeof PLACEHOLDERS)[number],
+): boolean {
+  const fill = (value: string): string | null => {
+    const values = Object.fromEntries(
+      PLACEHOLDERS.map((each) => [each, each === name ? value : "1"]),
+    );
+    try {
+      return new URL(fillTemplate(template, values)).href;
+    } catch {
+      return null;
+    }
+  };
+  const first = fill("1");
+  const second = fill("2");
+  if (first === null || second === null) return true;
+  return first !== second;
+}
+
 export function createHttpCredentialsVault(
   options: HttpCredentialsVaultOptions,
 ): CredentialsVault {
   const what = "The credential endpoint URL";
 
-  // `placeholderProblem` only checks that a placeholder is not in the host
-  // or port, so presence is checked here. A URL without `{tenantId}` passes
-  // that check and then addresses one credential for every tenant.
+  // Both placeholders are required here, and each has to change the URL on
+  // its own. `placeholderProblem` allows a name to be absent, because the
+  // identity authorities have URLs where one legitimately is, and it fills
+  // every name at once, so it passes a path that cancels a placeholder out:
+  // `/t/{tenantId}/../credentials/{credentialRef}` fetches the same address
+  // for every tenant.
   for (const name of PLACEHOLDERS) {
-    if (!options.url.includes(`{${name}}`)) {
+    if (!addressVariesWith(options.url, name)) {
       throw new EndpointError(
-        `${what} must contain {${name}}. Without it every tenant resolves ` +
-          "through the same address.",
+        `${what} must address a different credential for each {${name}}. ` +
+          "It is missing, or a path segment cancels it out, so every " +
+          "caller would read the same answer.",
       );
     }
   }
@@ -219,7 +253,10 @@ export function createHttpCredentialsVault(
 
   return {
     async resolve(tenantId, credentialRef) {
-      const key = `${tenantId}\u0000${credentialRef}`;
+      // Both parts are host-defined strings, so a separator is ambiguous:
+      // ("a", "b|c") and ("a|b", "c") would share an entry and each read the
+      // other's credential.
+      const key = JSON.stringify([tenantId, credentialRef]);
 
       const cached = entries.get(key);
       if (cached !== undefined && cached.expiresAt > now()) {

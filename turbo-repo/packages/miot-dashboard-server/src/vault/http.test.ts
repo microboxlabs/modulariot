@@ -46,6 +46,15 @@ describe("configuration", () => {
     ).toThrow(/tenantId/);
   });
 
+  it("refuses a URL whose tenant segment normalizes away", () => {
+    expect(() =>
+      createHttpCredentialsVault({
+        url: "https://modulith.example.com/t/{tenantId}/../credentials/{credentialRef}",
+        proxyKey: KEY,
+      }),
+    ).toThrow(/for each \{tenantId\}/);
+  });
+
   it("refuses a URL that is not https", () => {
     expect(() =>
       createHttpCredentialsVault({
@@ -126,18 +135,37 @@ describe("resolving", () => {
     await expect(vault.resolve("acme", "fleet")).rejects.toThrow(/non-string/);
   });
 
-  it("names a missing field without quoting its value", async () => {
+  it("refuses a service account rather than holding its private key", async () => {
     const vault = build(
       respond(200, {
         kind: "SERVICE_ACCOUNT",
         projectId: "p",
         clientEmail: "e",
+        privateKey: "-----BEGIN PRIVATE KEY-----abc",
       }) as unknown as typeof fetch,
     );
-    await expect(vault.resolve("acme", "fleet")).rejects.toThrow(
-      /without "privateKey"/,
-    );
+
+    const message = await vault
+      .resolve("acme", "fleet")
+      .then(() => "resolved")
+      .catch((thrown: unknown) => (thrown as Error).message);
+
+    expect(message).toMatch(/service account/);
+    // The message says what was wrong, never what was in it.
+    expect(message).not.toContain("PRIVATE KEY");
   });
+
+  it.each([{ expiresAt: "whenever" }, { expiresAt: 1750000000 }])(
+    "raises on an expiry it cannot read: %o",
+    async (extra) => {
+      const vault = build(
+        respond(200, { ...AUTH, ...extra }) as unknown as typeof fetch,
+      );
+      await expect(vault.resolve("acme", "fleet")).rejects.toThrow(
+        /not a timestamp/,
+      );
+    },
+  );
 });
 
 describe("caching", () => {
@@ -149,6 +177,17 @@ describe("caching", () => {
     await vault.resolve("acme", "fleet");
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a pair apart from one that only looks the same", async () => {
+    const fetchImpl = vi.fn(respond(200, AUTH)) as unknown as typeof fetch;
+    const vault = build(fetchImpl);
+
+    // A separator between two host-defined strings makes these one key.
+    await vault.resolve("acme", "fleet\u0000b");
+    await vault.resolve("acme\u0000fleet", "b");
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
   it("shares one call between concurrent resolutions", async () => {

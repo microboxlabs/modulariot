@@ -38,7 +38,7 @@ export default async function RootLayout({ children, params }: { children: React
 
   return (
     <html
-      lang="en"
+      lang={lang}
       dir="ltr"
       suppressHydrationWarning
     >

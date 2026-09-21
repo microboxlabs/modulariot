@@ -24,7 +24,7 @@ beforeEach(async () => {
 });
 
 describe("the key", () => {
-  it("is refused when it is too short to be worth having", async () => {
+  it("is refused when it is too short", async () => {
     await expect(
       createSqlCredentialsVault({ driver, key: "short" }),
     ).rejects.toThrow(VaultConfigError);
@@ -182,9 +182,8 @@ describe("what lands on disk", () => {
       key: "1".repeat(MIN_CREDENTIALS_KEY_LENGTH),
     });
 
-    // Not null, and not the credential: a row that exists but cannot be
-    // decrypted is a failure, not an absence. Answering null would turn a
-    // key mistake into silent "no credential configured".
+    // A row that exists but cannot be decrypted is a failure. Answering
+    // null would turn a key mistake into "no credential configured".
     await expect(wrong.resolve("acme", "fleet")).rejects.toThrow(
       /could not be decrypted/,
     );
@@ -200,7 +199,7 @@ describe("what lands on disk", () => {
       "SELECT ciphertext FROM datasource_credentials WHERE ref = 'fleet'",
     );
     const parts = row!.ciphertext.split(":");
-    // Flip a character of the ciphertext. GCM's tag is what catches this.
+    // Flip a character of the ciphertext; GCM's tag catches it.
     const body = parts[2]!;
     const tampered = [
       parts[0],
@@ -220,7 +219,7 @@ describe("what lands on disk", () => {
 });
 
 describe("its schema", () => {
-  it("is recorded apart from the core's, so versions cannot collide", async () => {
+  it("is recorded apart from the core's", async () => {
     const fresh = createSqliteDriver({ path: SQLITE_MEMORY });
     await runMigrations(fresh);
     await createSqlCredentialsVault({ driver: fresh, key: KEY });
@@ -251,7 +250,7 @@ describe("its schema", () => {
 });
 
 describe("the cipher", () => {
-  it("produces a different envelope each time, so equal secrets do not match", async () => {
+  it("produces a different envelope each time", async () => {
     const cipher = createCipher(KEY);
 
     const first = await cipher.encrypt(TOKEN);

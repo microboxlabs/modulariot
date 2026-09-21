@@ -103,9 +103,9 @@ export const MIGRATIONS: readonly Migration[] = [
 export const DEFAULT_HISTORY_TABLE = "schema_migrations";
 
 /**
- * A table name is interpolated into SQL rather than bound, because no engine
- * takes an identifier as a parameter. So it is checked instead: lower-case
- * letters, digits and underscores, starting with a letter.
+ * No engine takes a table name as a parameter, so it is interpolated into
+ * the SQL and checked here instead: lower-case letters, digits and
+ * underscores, starting with a letter.
  */
 const SAFE_IDENTIFIER = /^[a-z][a-z0-9_]*$/;
 
@@ -121,9 +121,8 @@ export interface RunMigrationsOptions {
   /** Defaults to this package's own schema. */
   migrations?: readonly Migration[];
   /**
-   * Where applied versions are recorded. A plugin that owns its own schema
-   * passes its own table, so its versions cannot collide with the core's and
-   * its tables are absent where the plugin is not enabled.
+   * Where applied versions are recorded. A plugin with its own schema passes
+   * its own table, so its versions cannot collide with the core's.
    */
   historyTable?: string;
   now?: () => Date;

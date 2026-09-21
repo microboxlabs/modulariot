@@ -103,8 +103,8 @@ export function parseDataSourceInput(body: unknown): DataSourceInput {
 }
 
 /**
- * The body of a test against values that have not been saved. The credential
- * is optional: a datasource that needs none is a legitimate thing to test.
+ * The body of a test against values that have not been saved. The
+ * credential is optional, since a datasource may need none.
  */
 export interface DataSourceTestInput {
   datasource: DataSourceInput;

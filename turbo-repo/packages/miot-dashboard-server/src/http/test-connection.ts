@@ -1,19 +1,14 @@
 /**
- * Does this datasource answer, with this credential?
+ * One probe against a datasource, with the credential it has.
  *
- * The contract is modulariot's: a request carrying the thing to test, and a
- * `200` describing the outcome rather than an error status. A datasource
- * refusing our credential is not the caller's fault — the caller asked a
- * question and got an answer — so the refusal is in the body. The endpoint
- * itself fails only when it could not ask.
+ * A target that refuses the credential is a `200` with `success: false`.
+ * This fails only when it could not ask.
  *
- * Not every datasource has an answer. A BigQuery dataset needs the Google
- * client to say anything, so it is reported as untestable rather than given
- * an invented pass. That mirrors modulariot's rule for a bare API key.
+ * A BigQuery dataset needs the Google client, so it is reported as
+ * untestable rather than given an invented pass.
  *
- * Nothing here logs, echoes or stores the credential. The unsaved-values
- * form is the one place a secret legitimately arrives over HTTP, and it is
- * used for the one request and dropped.
+ * The credential is used for the one probe. Nothing here logs, echoes or
+ * stores it.
  */
 
 import type { DataSourceCredential } from "../seams/credentials";
@@ -30,7 +25,7 @@ export interface ConnectionTestResult {
   success: boolean;
   /** ISO-8601. */
   testedAt: string;
-  /** Short and safe. Never the target's body, which can quote a credential. */
+  /** Never the target's body, which can quote the credential back. */
   message: string;
   /** What the target answered, when it answered at all. */
   status?: number;
@@ -40,6 +35,20 @@ export interface TestConnectionOptions {
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   now?: () => Date;
+}
+
+/** The outcome when the probe could not be attempted. */
+export function untested(
+  message: string,
+  options: TestConnectionOptions = {},
+): ConnectionTestResult {
+  const now = options.now ?? (() => new Date());
+  return {
+    testable: true,
+    success: false,
+    testedAt: now().toISOString(),
+    message,
+  };
 }
 
 /** The probe URL and the auth to send with it. */
@@ -112,17 +121,22 @@ export async function testDataSourceConnection(
       signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
     });
   } catch (error) {
-    // The message is the fetch layer's, not the target's body: a DNS or TLS
-    // failure names a host, which the operator configured and already knows.
+    // A fixed message. `fetch` quotes what it was handed: an invalid header
+    // value comes back verbatim, and that value is the credential.
     return {
       testable: true,
       success: false,
       testedAt,
-      message: `Could not reach the target: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      message:
+        error instanceof Error && error.name === "TimeoutError"
+          ? "The target did not answer in time"
+          : "Could not reach the target",
     };
   }
+
+  // Nothing here reads the body. Left unread, it holds the connection open
+  // until the garbage collector gets to it.
+  void response.body?.cancel().catch(() => undefined);
 
   if (response.status === 401 || response.status === 403) {
     return {

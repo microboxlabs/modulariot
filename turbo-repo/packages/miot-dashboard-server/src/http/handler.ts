@@ -29,9 +29,15 @@ import { isDashboardRole } from "../access/roles";
 import {
   applyCredential,
   isCredentialsStore,
+  type CredentialInput,
   type CredentialsVault,
+  type DataSourceCredential,
 } from "../seams/credentials";
-import type { DataSourceStore } from "../seams/datasources";
+import type {
+  DataSourceDescriptor,
+  DataSourceInput,
+  DataSourceStore,
+} from "../seams/datasources";
 import type { PermissionAssignment } from "../seams/store";
 import {
   parseCredentialInput,
@@ -40,6 +46,8 @@ import {
 } from "./parse-datasource";
 import {
   testDataSourceConnection,
+  untested,
+  type ConnectionTestResult,
   type TestConnectionOptions,
 } from "./test-connection";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
@@ -108,6 +116,47 @@ export function createDashboardHandler(
   };
   const basePath = normalizeBasePath(options.basePath);
   const testOptions = options.testConnection ?? {};
+
+  /**
+   * One connection test, with the credential sent inline or the one the
+   * datasource names.
+   *
+   * A named credential that resolves to nothing is a failed test, not an
+   * anonymous probe: a target that allows anonymous reads would otherwise
+   * answer, and the operator would be told a broken datasource works.
+   *
+   * Only POSTGREST is probed, so nothing else asks the vault. That call can
+   * fail, and failing it on a datasource that was never testable would
+   * replace an answer with an error.
+   */
+  async function runTest(
+    tenantId: string,
+    datasource: DataSourceDescriptor | DataSourceInput,
+    inline?: CredentialInput,
+  ): Promise<ConnectionTestResult> {
+    let credential: DataSourceCredential | null = null;
+
+    if (inline !== undefined) {
+      credential = applyCredential(inline);
+    } else if (
+      datasource.type === "POSTGREST" &&
+      datasource.credentialRef !== undefined
+    ) {
+      const ref = datasource.credentialRef;
+      credential =
+        options.credentials === undefined
+          ? null
+          : await options.credentials.resolve(tenantId, ref);
+      if (credential === null) {
+        return untested(
+          `The credential "${ref}" could not be resolved`,
+          testOptions,
+        );
+      }
+    }
+
+    return testDataSourceConnection(datasource, credential, testOptions);
+  }
 
   async function dispatch(
     request: Request,
@@ -257,24 +306,31 @@ export function createDashboardHandler(
       }
 
       case "datasourcesTest": {
-        // No store needed: this tests values the caller is holding, which is
-        // the point — an operator finds out the target is wrong before
-        // saving it.
+        // No store: these values have not been saved yet.
         if (method !== "POST") return methodNotAllowed();
-        await access.authorize(request, {
+        const decision = await access.authorize(request, {
           tenantId: match.tenantId,
           scopeId: match.scopeId,
           action: "datasource.write",
         });
         const input = parseDataSourceTestInput(await readJsonBody(request));
-        const data = await testDataSourceConnection(
-          input.datasource,
-          input.credential === undefined
-            ? null
-            : applyCredential(input.credential),
-          testOptions,
-        );
-        return jsonResponse({ data });
+        if (
+          input.credential !== undefined &&
+          input.datasource.credentialRef !== undefined
+        ) {
+          throw DashboardServerError.badRequest(
+            'Send "credential" or a "credentialRef" on the datasource, not ' +
+              "both. They can name different secrets, and the test would " +
+              "then answer about one of them without saying which.",
+          );
+        }
+        return jsonResponse({
+          data: await runTest(
+            decision.identity.tenantId,
+            input.datasource,
+            input.credential,
+          ),
+        });
       }
 
       case "datasourceTest": {
@@ -290,20 +346,9 @@ export function createDashboardHandler(
         if (descriptor === null) {
           throw DashboardServerError.notFound("Datasource not found");
         }
-        const credential =
-          descriptor.credentialRef === undefined ||
-          options.credentials === undefined
-            ? null
-            : await options.credentials.resolve(
-                decision.identity.tenantId,
-                descriptor.credentialRef,
-              );
-        const data = await testDataSourceConnection(
-          descriptor,
-          credential,
-          testOptions,
-        );
-        return jsonResponse({ data });
+        return jsonResponse({
+          data: await runTest(decision.identity.tenantId, descriptor),
+        });
       }
 
       case "datasource": {

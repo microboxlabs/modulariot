@@ -86,6 +86,9 @@ export function matchRoute(pathname: string): RouteMatch | null {
   return null;
 }
 
+/** The datasource id `test` addresses the collection's test route. */
+const TEST = "test";
+
 /** /datasources, /datasources/test, /datasources/{id}, /datasources/{id}/test */
 function matchDataSources(
   segments: readonly string[],
@@ -94,19 +97,23 @@ function matchDataSources(
 ): RouteMatch | null {
   if (segments.length === 5) return { route: "datasources", tenantId, scopeId };
 
-  // Before the id branch: `test` is reserved, so no datasource can be
-  // addressed at that path and the two never collide.
-  if (segments.length === 6 && segments[5] === "test") {
-    return { route: "datasourcesTest", tenantId, scopeId };
-  }
-
   const id = decodeSegment(segments[5]);
   if (id === null) return null;
+
+  // Decoded first, so `%74est` cannot arrive as a datasource id. `test`
+  // names the collection's test route and nothing else: as an item id it is
+  // no route at all, which is what the contract promises.
+  if (id === TEST) {
+    if (segments.length === 6) {
+      return { route: "datasourcesTest", tenantId, scopeId };
+    }
+    return null;
+  }
 
   if (segments.length === 6) {
     return { route: "datasource", tenantId, scopeId, id };
   }
-  if (segments.length === 7 && segments[6] === "test") {
+  if (segments.length === 7 && decodeSegment(segments[6]) === TEST) {
     return { route: "datasourceTest", tenantId, scopeId, id };
   }
   return null;

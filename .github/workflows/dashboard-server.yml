@@ -155,7 +155,7 @@ jobs:
             docker logs dashboard-smoke >&2 || true
             exit 1
           fi
-          curl -fsS http://localhost:3070/openapi.yaml | head -1
+          curl -fsS http://localhost:3070/openapi.yaml | sed -n 1p
 
           docker logs dashboard-smoke
           docker rm -f dashboard-smoke

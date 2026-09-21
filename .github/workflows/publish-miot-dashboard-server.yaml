@@ -188,7 +188,7 @@ jobs:
           fi
           # Both come from the contract package, so these prove resolution
           # works in an ordinary install and not only in the workspace.
-          curl -fsS http://127.0.0.1:3178/openapi.yaml | head -1
+          curl -fsS http://127.0.0.1:3178/openapi.yaml | sed -n 1p
           curl -fsS http://127.0.0.1:3178/dashboard-config.schema.json > /dev/null
 
           cat server.log

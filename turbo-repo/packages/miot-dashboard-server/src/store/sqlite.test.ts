@@ -545,7 +545,13 @@ describe("a database from version 1", () => {
 
     const opened = await openSqliteStore({ path });
     try {
-      expect(opened.applied).toEqual([2, 3]);
+      // Every migration after the one the database recorded, derived rather
+      // than listed so adding a migration does not fail this.
+      expect(opened.applied).toEqual(
+        MIGRATIONS.filter((migration) => migration.version > 1).map(
+          (migration) => migration.version,
+        ),
+      );
       const result = await opened.sweep(new Date());
       expect(result.deleted).toEqual([]);
       expect(result.unknownAge).toBe(1);

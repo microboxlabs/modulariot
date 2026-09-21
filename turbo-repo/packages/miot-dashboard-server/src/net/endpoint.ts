@@ -44,6 +44,15 @@ export function secureUrlProblem(raw: string, what: string): string | null {
       "answer it decides who this server lets in."
     );
   }
+  // Credentials in a URL are a secret in a value that gets stored, listed
+  // and logged. The message names neither half, because it reaches a caller
+  // and a log line.
+  if (url.username !== "" || url.password !== "") {
+    return (
+      `${what} carries credentials in the URL. Take the "user:password@" ` +
+      "out and supply the secret as a credential."
+    );
+  }
   // A fragment is never sent. Left in, it silently deletes whatever it holds
   // from the request, and a placeholder that sits in it satisfies a check for
   // the placeholder being present while contributing nothing to the URL that

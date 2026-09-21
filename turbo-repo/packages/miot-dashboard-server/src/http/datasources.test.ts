@@ -2,15 +2,22 @@
  * The datasource and credential routes.
  *
  * The last block walks every response these routes can produce and fails on
- * a property name that can carry a secret. A route added later is covered
- * without anyone writing an assertion for it.
+ * a property name that can carry a secret. Its case list is a total
+ * `Record<RouteName, ...>` and a total `Record<CredentialKind, ...>`, so a
+ * route or a credential kind added later stops compiling until someone says
+ * what it answers.
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { createDashboardHandler } from "./handler";
 import { SECRET_PROPERTY_NAMES } from "../seams/credentials";
-import type { CredentialsStore } from "../seams/credentials";
+import type {
+  CredentialInput,
+  CredentialKind,
+  CredentialsStore,
+} from "../seams/credentials";
 import type { DataSourceStore } from "../seams/datasources";
+import type { RouteName } from "./routes";
 import {
   createInsecureHeaderIdentityResolver,
   createMemoryCredentialsStore,
@@ -28,6 +35,10 @@ const MEMBERSHIPS: Memberships = {
 };
 
 const TOKEN = "pgrst_live_0123456789abcdef";
+const HEADER_KEY = "hdr_live_0123456789abcdef";
+const QUERY_KEY = "qry_live_0123456789abcdef";
+const PASSWORD = "s3cret-and-long";
+const PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----0123456789abcdef";
 
 const pgrest = {
   name: "Fleet telemetry",
@@ -132,6 +143,15 @@ describe("datasource routes", () => {
     expect(response.status).toBe(400);
   });
 
+  it("refuse a target that carries a password", async () => {
+    const response = await call(DS, "alice", "POST", {
+      ...pgrest,
+      target: "https://ana:s3cret-and-long@pgrest.example.com",
+    });
+    expect(response.status).toBe(400);
+    expect(await response.text()).not.toContain("s3cret-and-long");
+  });
+
   it("refuse an unknown field rather than dropping it", async () => {
     const response = await call(DS, "alice", "POST", {
       ...pgrest,
@@ -190,6 +210,15 @@ describe("credential routes", () => {
     expect(response.status).toBe(403);
   });
 
+  it("refuse a kind that is only an inherited property", async () => {
+    // `"constructor" in CREDENTIAL_FIELDS` is true, and the lookup then
+    // answers with a function instead of a field list.
+    for (const kind of ["constructor", "__proto__", "toString"]) {
+      const response = await call(`${CRED}/fleet`, "alice", "PUT", { kind });
+      expect(response.status).toBe(400);
+    }
+  });
+
   it("refuse a credential body with an unknown field", async () => {
     const response = await call(`${CRED}/fleet`, "alice", "PUT", {
       kind: "BEARER",
@@ -225,45 +254,121 @@ describe("the serialization gate", () => {
     return found;
   }
 
+  interface Call {
+    method: string;
+    path: string;
+    user?: string;
+    body?: unknown;
+  }
+
   /**
-   * Responses from every route in this file, success and failure, including
-   * the writes that carried a secret in.
+   * One write per credential kind, so every secret this server accepts is
+   * sent through the routes below and looked for in what comes back.
    */
+  const WRITES: Record<CredentialKind, CredentialInput> = {
+    NONE: { kind: "NONE" },
+    BEARER: { kind: "BEARER", token: TOKEN },
+    API_KEY_HEADER: {
+      kind: "API_KEY_HEADER",
+      header: "x-api-key",
+      value: HEADER_KEY,
+    },
+    API_KEY_QUERY: { kind: "API_KEY_QUERY", param: "key", value: QUERY_KEY },
+    BASIC: { kind: "BASIC", username: "ana", password: PASSWORD },
+    SERVICE_ACCOUNT: {
+      kind: "SERVICE_ACCOUNT",
+      projectId: "p",
+      clientEmail: "svc@example.iam.gserviceaccount.com",
+      privateKey: PRIVATE_KEY,
+    },
+  };
+
+  /**
+   * The dashboard routes answer with caller-supplied config, which may hold
+   * a property called `value` of its own. `SECRET_PROPERTY_NAMES` says so.
+   */
+  const CONFIG_NOT_CREDENTIALS = "answers caller-supplied config" as const;
+
+  /**
+   * Every route name, mapped to the calls this gate walks. Total over
+   * `RouteName`: a route added to the router stops this file compiling until
+   * someone lists its calls, or marks it as answering no credential.
+   */
+  function callsFor(id: string): Record<RouteName, readonly Call[] | string> {
+    return {
+      dashboards: CONFIG_NOT_CREDENTIALS,
+      dashboard: CONFIG_NOT_CREDENTIALS,
+      capabilities: CONFIG_NOT_CREDENTIALS,
+      permissions: CONFIG_NOT_CREDENTIALS,
+      datasources: [
+        { method: "GET", path: DS, user: "alice" },
+        { method: "POST", path: DS, user: "alice", body: pgrest },
+        // Failures too: an error envelope is the easier place to leak.
+        { method: "GET", path: DS },
+        { method: "POST", path: DS, user: "con", body: pgrest },
+        {
+          method: "POST",
+          path: DS,
+          user: "alice",
+          body: { ...pgrest, target: "not-a-url" },
+        },
+        {
+          method: "POST",
+          path: DS,
+          user: "alice",
+          body: {
+            ...pgrest,
+            target: `https://ana:${PASSWORD}@pgrest.example.com`,
+          },
+        },
+      ],
+      datasource: [
+        { method: "GET", path: `${DS}/${id}`, user: "alice" },
+        {
+          method: "PUT",
+          path: `${DS}/${id}`,
+          user: "alice",
+          body: { ...pgrest, name: "Renamed" },
+        },
+        { method: "GET", path: `${DS}/missing`, user: "alice" },
+        { method: "DELETE", path: `${DS}/${id}`, user: "alice" },
+      ],
+      credentials: [{ method: "GET", path: CRED, user: "alice" }],
+      credential: [
+        ...Object.entries(WRITES).map(([kind, body]) => ({
+          method: "PUT",
+          path: `${CRED}/${kind.toLowerCase()}`,
+          user: "alice",
+          body,
+        })),
+        { method: "GET", path: `${CRED}/bearer`, user: "alice" },
+        { method: "GET", path: `${CRED}/missing`, user: "alice" },
+        {
+          method: "PUT",
+          path: `${CRED}/bearer`,
+          user: "alice",
+          body: { kind: "NOPE" },
+        },
+        { method: "DELETE", path: `${CRED}/bearer`, user: "alice" },
+      ],
+    };
+  }
+
+  /** Every response those calls produce, in the order they are listed. */
   async function everyResponse(): Promise<Response[]> {
     const created = await call(DS, "alice", "POST", pgrest);
     const { data } = (await created.clone().json()) as {
       data: { id: string };
     };
-    const id = data.id;
 
-    return [
-      created,
-      await call(`${CRED}/fleet`, "alice", "PUT", {
-        kind: "BEARER",
-        token: TOKEN,
-      }),
-      await call(`${CRED}/gcp`, "alice", "PUT", {
-        kind: "SERVICE_ACCOUNT",
-        projectId: "p",
-        clientEmail: "svc@example.iam.gserviceaccount.com",
-        privateKey: "-----BEGIN PRIVATE KEY-----",
-      }),
-      await call(`${CRED}/basic`, "alice", "PUT", {
-        kind: "BASIC",
-        username: "ana",
-        password: "s3cret-and-long",
-      }),
-      await call(DS, "alice"),
-      await call(`${DS}/${id}`, "alice"),
-      await call(CRED, "alice"),
-      await call(`${CRED}/fleet`, "alice"),
-      // Failures too: an error envelope is the easier place to leak.
-      await call(DS),
-      await call(DS, "con", "POST", pgrest),
-      await call(`${DS}/missing`, "alice"),
-      await call(DS, "alice", "POST", { ...pgrest, target: "not-a-url" }),
-      await call(`${CRED}/fleet`, "alice", "PUT", { kind: "NOPE" }),
-    ];
+    const responses = [created];
+    for (const calls of Object.values(callsFor(data.id))) {
+      if (typeof calls === "string") continue;
+      for (const one of calls) {
+        responses.push(await call(one.path, one.user, one.method, one.body));
+      }
+    }
+    return responses;
   }
 
   it("never serializes a property that can carry a secret", async () => {
@@ -282,7 +387,7 @@ describe("the serialization gate", () => {
   });
 
   it("never echoes a secret value, whatever it is called", async () => {
-    const secrets = [TOKEN, "s3cret-and-long", "-----BEGIN PRIVATE KEY-----"];
+    const secrets = [TOKEN, HEADER_KEY, QUERY_KEY, PASSWORD, PRIVATE_KEY];
 
     for (const response of await everyResponse()) {
       const text = await response.text();

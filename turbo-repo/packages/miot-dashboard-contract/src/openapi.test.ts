@@ -23,6 +23,8 @@ interface SchemaNode {
   properties?: Record<string, SchemaNode>;
   required?: string[];
   oneOf?: { $ref?: string; type?: string }[];
+  additionalProperties?: unknown;
+  unevaluatedProperties?: unknown;
 }
 
 interface Operation {
@@ -146,5 +148,18 @@ describe("the OpenAPI document", () => {
   it("still allows a slug that has never been saved to answer null", () => {
     const members = spec.components.schemas.DashboardConfig?.oneOf ?? [];
     expect(members.some((member) => member.type === "null")).toBe(true);
+  });
+
+  it("closes the two bodies the server refuses unknown fields in", () => {
+    // Open by default in JSON Schema. Left open, a generated client accepts
+    // the misspelled field that the server answers 400 for.
+    expect(spec.components.schemas.DataSourceInput?.additionalProperties).toBe(
+      false,
+    );
+    // `unevaluatedProperties`, because `oneOf` branches are what evaluate
+    // these properties; `additionalProperties` here would see none of them.
+    expect(spec.components.schemas.CredentialInput?.unevaluatedProperties).toBe(
+      false,
+    );
   });
 });

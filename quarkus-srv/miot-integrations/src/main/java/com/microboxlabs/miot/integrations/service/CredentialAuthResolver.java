@@ -13,8 +13,8 @@ import jakarta.inject.Inject;
  * Turns a stored credential into the auth a caller should send, without
  * handing over the secret.
  *
- * <p>Blocking, like everything that reads this module's tables, so callers
- * hand it a worker thread.
+ * <p>Blocking, like the rest of this module, so callers hand it a worker
+ * thread.
  */
 @ApplicationScoped
 public class CredentialAuthResolver {
@@ -36,8 +36,7 @@ public class CredentialAuthResolver {
     /**
      * Runs the credential's grant and returns what to send with a request.
      *
-     * @param credentialRef the credential's id; a value that is not one reads
-     *     as no such credential
+     * @param credentialRef the credential's id; anything else reads as absent
      * @return null when the tenant has no such credential
      * @throws com.microboxlabs.miot.integrations.auth.AuthResolutionException
      *     when the credential cannot produce auth

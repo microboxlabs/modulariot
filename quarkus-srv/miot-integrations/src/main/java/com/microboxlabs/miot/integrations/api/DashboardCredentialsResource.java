@@ -27,21 +27,18 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
 
 /**
- * Answers the dashboard server's credential lookups.
- *
- * <p>The dashboard server stores datasources but no credentials. When it
- * queries one it asks here for the headers and query parameters to send. The
- * secret stays in this module.
+ * Answers the dashboard server's credential lookups. It stores datasources
+ * but no credentials, so it asks here what to send, and the secret stays in
+ * this module.
  *
  * <p>Outside {@code /api/v1/orgs/}, so {@code OrganizationRequestFilter} does
- * not run and no user is required — the caller is a deployed process, not a
- * person. It proves itself with {@code miot.dashboards.proxy-key}, the same
- * key this modulith sends when it proxies dashboard requests the other way.
+ * not run and the caller needs no user. It authenticates with
+ * {@code miot.dashboards.proxy-key} instead, the key this modulith sends when
+ * it proxies dashboard requests the other way.
  *
- * <p>{@code tenantId} is the org slug, which is what the dashboard server
- * knows: {@code DashboardProxyResource} puts the slug in the paths it calls.
- * Credentials are keyed by {@code tenant_code}, so the slug is translated
- * here.
+ * <p>{@code tenantId} is the org slug, which is all the dashboard server
+ * holds. Credentials are keyed by {@code tenant_code}, so the slug is
+ * translated here.
  */
 @Path("/api/v1/dashboard-credentials/{tenantId}/{credentialRef}")
 @Produces(MediaType.APPLICATION_JSON)
@@ -85,9 +82,8 @@ public class DashboardCredentialsResource {
     }
 
     /**
-     * Constant time, so a wrong key cannot be found one character at a time.
-     * Lengths are compared first because {@code isEqual} is only constant for
-     * arrays of the same length.
+     * Constant time. {@code isEqual} is only constant for arrays of the same
+     * length, so lengths are compared first.
      */
     static boolean keyAccepted(String configured, String presented) {
         if (presented == null) {

@@ -47,7 +47,7 @@ class CredentialAuthResolverTest {
     void decryptsTheStoredSecretRatherThanReadingItBack() {
         String id = store(TENANT);
 
-        // What is stored is ciphertext; the grant only works if it was decrypted.
+        // Stored as ciphertext, so the grant only works if it was decrypted.
         assertEquals(1, credentials.rows.size());
         String stored = credentials.rows.get(0).encryptedSecretJson();
         assertEquals(false, stored.contains(SECRET));

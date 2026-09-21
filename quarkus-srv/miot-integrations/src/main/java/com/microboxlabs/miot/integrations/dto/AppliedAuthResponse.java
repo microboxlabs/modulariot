@@ -4,11 +4,9 @@ import com.microboxlabs.miot.integrations.auth.ResolvedAuth;
 import java.util.Map;
 
 /**
- * Applied auth on the wire: what to send with a request, never the secret
- * behind it.
- *
- * <p>The shape the dashboard server's callback vault accepts. It refuses a
- * service account answer, so only {@code HTTP_AUTH} is produced here.
+ * What to send with a request, never the secret behind it. The shape the
+ * dashboard server accepts; it refuses a service account, so only
+ * {@code HTTP_AUTH} is produced here.
  *
  * @param expiresAt ISO-8601, or null when the grant states no expiry
  */

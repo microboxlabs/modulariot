@@ -43,10 +43,7 @@ class DashboardCredentialsResourceTest {
         assertEquals("2026-09-21T04:00:00Z", body.expiresAt());
     }
 
-    /**
-     * The dashboard server refuses an {@code expiresAt} it cannot read, so a
-     * grant with no expiry has to omit it rather than send something else.
-     */
+    /** The dashboard server refuses an {@code expiresAt} it cannot parse. */
     @Test
     void omitsAnExpiryTheGrantDidNotState() {
         AppliedAuthResponse body =

@@ -12,7 +12,9 @@ import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -74,6 +76,16 @@ public class OrgControlTowerSelectablesResource extends ControlTowerResourceSupp
         return ownerWork(organizationId, () -> Response.ok(selectables.updateBindings(tenant, actor, body)).build());
     }
 
+    @POST
+    @Path("/reset")
+    @Operation(operationId = "resetSelectables", summary = "Restore the default lists",
+            description = "Drops every list and binding of the organization and puts the defaults back.")
+    public Uni<Response> reset(@PathParam("organizationId") String organizationId) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return ownerWork(organizationId, () -> Response.ok(selectables.reset(tenant, actor)).build());
+    }
+
     @GET
     @Path("/{key}")
     @Operation(operationId = "getSelectable", summary = "Get one selectable")
@@ -95,5 +107,18 @@ public class OrgControlTowerSelectablesResource extends ControlTowerResourceSupp
         String tenant = tenantCode(organizationId);
         String actor = actor();
         return ownerWork(organizationId, () -> Response.ok(selectables.replace(tenant, actor, key, body)).build());
+    }
+
+    @DELETE
+    @Path("/{key}")
+    @Operation(operationId = "deleteSelectable", summary = "Delete a selectable")
+    public Uni<Response> delete(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("key") String key) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return ownerWork(organizationId, () -> selectables.delete(tenant, actor, key)
+                ? Response.noContent().build()
+                : error(Response.Status.NOT_FOUND, "selectable not found"));
     }
 }

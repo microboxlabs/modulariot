@@ -5,13 +5,9 @@ Two things live here, behind one component switch (`miot.component.symptoms.enab
 1. The **CDC dispatcher**: an in-process replacement for one
    `prod-streamhub-apis-miot-symptoms-*` Autopilot pod per `rule_id`, driven by
    a `RouteTable`. Gated separately by `miot.symptoms.cdc.enabled`.
-2. The **Control Tower API** under `/api/v1/orgs/{org}/control-tower`: symptom
-   reads, treatment episodes, contacts, selectables and an audit log. See
-   [docs/control-tower-api.md](docs/control-tower-api.md).
-
-Both need the GPS datasource (`miot.symptoms.gps.*`). The API also needs the
-modulith datasource: its schema is `miot_symptoms` (Flyway
-`db/migration/symptoms`).
+2. The **Control Tower API** under `/api/v1/orgs/{org}/control-tower`:
+   treatment episodes, contacts, selectables and an audit log, on in-memory
+   demo data for now. See [docs/control-tower-api.md](docs/control-tower-api.md).
 
 This is **not** a detector. Heavy work stays in Postgres `process_symptoms_*`
 and (optionally) n8n / `router.streamhub.cl`.

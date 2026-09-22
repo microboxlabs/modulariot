@@ -13,26 +13,19 @@ import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Map;
 import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-/**
- * Treatment episodes. Opening and closing an episode also writes the legacy
- * StreamHub treatment row so the engine and the older views stay in step.
- */
+/** Treatment episodes: what operators do about a symptom. */
 @Path(ControlTowerResourceSupport.BASE_PATH)
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -57,34 +50,26 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
 
     @GET
     @Path("/symptoms/{symptomId}/treatments")
-    @Operation(operationId = "listSymptomTreatments", summary = "Treatments of one symptom",
-            description = "Episodes recorded through this API, plus (by default) rows the older tower wrote directly into StreamHub.")
+    @Operation(operationId = "listSymptomTreatments", summary = "Treatments of one symptom, oldest first, with their actions")
     public Uni<Response> listForSymptom(
             @PathParam("organizationId") String organizationId,
-            @PathParam("symptomId") String symptomId,
-            @DefaultValue("true") @QueryParam("includeLegacy") boolean includeLegacy) {
+            @PathParam("symptomId") String symptomId) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(
-                treatments.listForSymptom(tenant, parseSymptomId(symptomId), includeLegacy)).build());
+        return memberWork(() -> Response.ok(treatments.listForSymptom(tenant, parseSymptomId(symptomId))).build());
     }
 
     @POST
     @Path("/symptoms/{symptomId}/treatments")
-    @Operation(operationId = "openTreatment", summary = "Open a treatment on a symptom",
-            description = "Returns 201 with the new episode, or 200 with the existing one when the Idempotency-Key (or body idempotencyKey) was already used.")
+    @Operation(operationId = "openTreatment", summary = "Open a treatment on a symptom, or resume yours",
+            description = "201 with a new episode, or 200 with the episode the caller already has open on this symptom.")
     public Uni<Response> open(
             @PathParam("organizationId") String organizationId,
             @PathParam("symptomId") String symptomId,
-            @Parameter(description = "Client-chosen key to make the open retry-safe") @HeaderParam("Idempotency-Key") String idempotencyKey,
             OpenTreatmentRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
         return memberWork(() -> {
-            OpenTreatmentRequest req = body == null
-                    ? new OpenTreatmentRequest(null, null, null, null, idempotencyKey)
-                    : new OpenTreatmentRequest(body.type(), body.assetId(), body.tripId(), body.note(),
-                            body.idempotencyKey() == null ? idempotencyKey : body.idempotencyKey());
-            TreatmentService.OpenResult result = treatments.open(tenant, actor, parseSymptomId(symptomId), req);
+            TreatmentService.OpenResult result = treatments.open(tenant, actor, parseSymptomId(symptomId), body);
             return Response.status(result.created() ? Response.Status.CREATED : Response.Status.OK)
                     .entity(result.treatment())
                     .build();
@@ -104,7 +89,7 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
     @POST
     @Path("/treatments/{treatmentId}/actions")
     @Operation(operationId = "addTreatmentAction", summary = "Append an action to an open treatment",
-            description = "A call attempt (who, how, outcome, duration, note, tags), the ignore or invalidate decision with its reason, or a note.")
+            description = "A call attempt, the ignore or invalidate decision with its reason, or a note.")
     public Uni<Response> addAction(
             @PathParam("organizationId") String organizationId,
             @PathParam("treatmentId") String treatmentId,
@@ -119,7 +104,7 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
     @POST
     @Path("/treatments/{treatmentId}/close")
     @Operation(operationId = "closeTreatment", summary = "Finish a treatment",
-            description = "Marks the episode CLOSED and writes the summary onto the legacy StreamHub row.")
+            description = "Needs at least one action. 409 when the treatment is not open or has no actions.")
     public Uni<Response> close(
             @PathParam("organizationId") String organizationId,
             @PathParam("treatmentId") String treatmentId,
@@ -131,8 +116,7 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
 
     @POST
     @Path("/treatments/{treatmentId}/cancel")
-    @Operation(operationId = "cancelTreatment", summary = "Abandon an open treatment",
-            description = "For a form that was opened and then dismissed. The legacy row is left for the engine to expire.")
+    @Operation(operationId = "cancelTreatment", summary = "Abandon an open treatment")
     public Uni<Response> cancel(
             @PathParam("organizationId") String organizationId,
             @PathParam("treatmentId") String treatmentId,

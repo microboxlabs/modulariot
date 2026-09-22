@@ -8,9 +8,8 @@ import java.util.Map;
 /**
  * Body to append one action to an open treatment. For a {@code CALL} either
  * {@code contactId} (a tenant contact) or {@code contactName} (ad hoc, e.g. the
- * trip's driver) identifies who was called. {@code outcomeKey} is an option id
- * from the {@code call_result} / {@code ignore_reason} / {@code invalidate_reason}
- * selectable and {@code outcomeLabel} its display text at the time of the action.
+ * trip's driver) says who was called. {@code outcomeKey} is an option id from
+ * the bound selectable and {@code outcomeLabel} its text at the time.
  */
 public record AddActionRequest(
         ActionKind kind,
@@ -23,6 +22,7 @@ public record AddActionRequest(
         String outcomeLabel,
         Boolean answered,
         Integer durationSeconds,
+        String message,
         String note,
         List<String> tags,
         Map<String, Object> details) {

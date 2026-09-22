@@ -5,8 +5,8 @@ import com.microboxlabs.miot.symptoms.domain.Contact;
 import com.microboxlabs.miot.symptoms.domain.ContactCallStats;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactView;
-import com.microboxlabs.miot.symptoms.persistence.ContactRepository;
-import com.microboxlabs.miot.symptoms.persistence.TreatmentRepository;
+import com.microboxlabs.miot.symptoms.store.ContactStore;
+import com.microboxlabs.miot.symptoms.store.TreatmentStore;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.List;
@@ -16,46 +16,46 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/** Tenant contact list ("a quién llamar") with call statistics derived from the actions log. */
+/** Tenant contact list ("a quién llamar") with call statistics derived from call actions. */
 @ApplicationScoped
 public class ContactService {
 
     static final String ENTITY = "contact";
     /** Full international number: plus sign, then 8 to 15 digits. */
-    private static final Pattern E164 = Pattern.compile("^\\+[1-9][0-9]{7,14}$");
+    private static final Pattern E164 = Pattern.compile("^\\+[1-9]\\d{7,14}$");
 
-    private final ContactRepository contacts;
-    private final TreatmentRepository treatments;
+    private final ContactStore contacts;
+    private final TreatmentStore treatments;
+    private final DemoSeeder seeder;
     private final AuditService audit;
 
     @Inject
-    public ContactService(ContactRepository contacts, TreatmentRepository treatments, AuditService audit) {
+    public ContactService(ContactStore contacts, TreatmentStore treatments, DemoSeeder seeder, AuditService audit) {
         this.contacts = contacts;
         this.treatments = treatments;
+        this.seeder = seeder;
         this.audit = audit;
     }
 
     public List<ContactView> list(String tenantCode, Boolean active) {
-        Map<String, ContactCallStats> stats = treatments.contactStats(tenantCode).stream()
-                .collect(Collectors.toMap(ContactCallStats::contactId, Function.identity(), (a, b) -> a));
+        seeder.ensureContacts(tenantCode);
+        Map<String, ContactCallStats> stats = statsByContact(tenantCode);
         return contacts.list(tenantCode, active).stream()
                 .map(c -> ContactView.of(c, stats.get(c.id())))
                 .toList();
     }
 
     public ContactView get(String tenantCode, String id) {
-        Contact c = contacts.findById(tenantCode, id)
-                .orElseThrow(() -> new NoSuchElementException("contact not found"));
-        return ContactView.of(c, statsFor(tenantCode, c.id()));
+        Contact c = contacts.find(tenantCode, id).orElseThrow(() -> new NoSuchElementException("contact not found"));
+        return ContactView.of(c, statsByContact(tenantCode).get(c.id()));
     }
 
     public ContactView create(String tenantCode, String actor, ContactRequest req) {
         if (req == null || blank(req.name())) {
             throw new IllegalArgumentException("name is required");
         }
-        String phone = normalizePhone(req.phone());
         Contact saved = contacts.insert(new Contact(
-                null, tenantCode, req.name().trim(), trimOrNull(req.role()), phone,
+                null, tenantCode, req.name().trim(), trimOrNull(req.role()), normalizePhone(req.phone()),
                 req.methods() == null ? List.of() : req.methods(),
                 req.active() == null || req.active(), trimOrNull(req.notes()), actor, null, null));
         audit.record(tenantCode, actor, "contact.created", ENTITY, saved.id(), null,
@@ -67,7 +67,7 @@ public class ContactService {
         if (req == null) {
             throw new IllegalArgumentException("body is required");
         }
-        Contact current = contacts.findById(tenantCode, id)
+        Contact current = contacts.find(tenantCode, id)
                 .orElseThrow(() -> new NoSuchElementException("contact not found"));
         String name = req.name() == null ? current.name() : req.name().trim();
         if (name.isBlank()) {
@@ -85,7 +85,7 @@ public class ContactService {
                 .orElseThrow(() -> new NoSuchElementException("contact not found"));
         audit.record(tenantCode, actor, "contact.updated", ENTITY, updated.id(), null,
                 Map.of("name", updated.name(), "active", updated.active()));
-        return ContactView.of(updated, statsFor(tenantCode, updated.id()));
+        return ContactView.of(updated, statsByContact(tenantCode).get(updated.id()));
     }
 
     public boolean delete(String tenantCode, String actor, String id) {
@@ -96,11 +96,9 @@ public class ContactService {
         return deleted;
     }
 
-    private ContactCallStats statsFor(String tenantCode, String contactId) {
+    private Map<String, ContactCallStats> statsByContact(String tenantCode) {
         return treatments.contactStats(tenantCode).stream()
-                .filter(s -> contactId.equals(s.contactId()))
-                .findFirst()
-                .orElse(null);
+                .collect(Collectors.toMap(ContactCallStats::contactId, Function.identity(), (a, b) -> a));
     }
 
     /** Accepts a full international number with spaces or dashes; stores the bare E.164 form. */

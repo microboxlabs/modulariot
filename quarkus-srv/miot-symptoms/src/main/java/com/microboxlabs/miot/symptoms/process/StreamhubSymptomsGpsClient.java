@@ -7,7 +7,6 @@ import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
-import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgConnectOptions;
 import io.vertx.sqlclient.PoolOptions;
@@ -25,7 +24,7 @@ import org.jboss.logging.Logger;
  * datasource — same idea as {@code StreamhubGpsClient} in integrations.
  */
 @ApplicationScoped
-public class StreamhubSymptomsGpsClient implements FunctionInvoker, SymptomsGpsQuery {
+public class StreamhubSymptomsGpsClient implements FunctionInvoker {
 
     private static final Logger LOG = Logger.getLogger(StreamhubSymptomsGpsClient.class);
     private static final Pattern FUNCTION_NAME = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
@@ -70,32 +69,6 @@ public class StreamhubSymptomsGpsClient implements FunctionInvoker, SymptomsGpsQ
                     resetPool();
                     return execute(sql, arg);
                 });
-    }
-
-    /**
-     * Runs one parameterised statement on the GPS database and hands back the raw
-     * rows. The Control Tower API uses it for its tenant-scoped reads over
-     * {@code public.symptoms} and for the legacy treatment mirror; the retry on a
-     * lost connection is the same as {@link #invoke}.
-     */
-    @Override
-    public Uni<RowSet<Row>> query(String sql, Tuple params) {
-        return executeRows(sql, params)
-                .onFailure(this::isLostConnection)
-                .recoverWithUni(err -> {
-                    LOG.warn("GPS connection lost, recreating pool and retrying query", err);
-                    resetPool();
-                    return executeRows(sql, params);
-                });
-    }
-
-    private Uni<RowSet<Row>> executeRows(String sql, Tuple params) {
-        try {
-            ensurePool();
-        } catch (RuntimeException e) {
-            return Uni.createFrom().failure(e);
-        }
-        return pool.preparedQuery(sql).execute(params);
     }
 
     private Uni<JsonObject> execute(String sql, JsonArray arg) {

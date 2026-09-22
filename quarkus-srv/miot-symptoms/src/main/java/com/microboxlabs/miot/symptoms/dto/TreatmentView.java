@@ -21,7 +21,6 @@ public record TreatmentView(
         OffsetDateTime closedAt,
         String resolution,
         String note,
-        Long legacyTreatmentId,
         OffsetDateTime updatedAt,
         List<TreatmentAction> actions) {
 
@@ -29,6 +28,6 @@ public record TreatmentView(
         return new TreatmentView(
                 t.id(), t.symptomId(), t.assetId(), t.tripId(), t.type(), t.status(),
                 t.openedBy(), t.openedAt(), t.closedBy(), t.closedAt(), t.resolution(), t.note(),
-                t.legacyTreatmentId(), t.updatedAt(), actions);
+                t.updatedAt(), actions);
     }
 }

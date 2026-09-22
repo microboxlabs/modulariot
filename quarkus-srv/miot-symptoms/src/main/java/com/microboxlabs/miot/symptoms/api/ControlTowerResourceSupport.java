@@ -3,7 +3,6 @@ package com.microboxlabs.miot.symptoms.api;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
-import com.microboxlabs.miot.symptoms.service.LegacyTreatmentMirror;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
@@ -14,7 +13,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.Supplier;
-import org.jboss.logging.Logger;
 
 /**
  * Shared plumbing for the Control Tower resources. Org-scoped endpoints return
@@ -23,13 +21,11 @@ import org.jboss.logging.Logger;
  * worker pool. The tenant comes from the resolved organization and the actor
  * from the session, never from the body. Service exceptions map to HTTP:
  * {@link IllegalArgumentException} 400, {@link NoSuchElementException} 404,
- * {@link IllegalStateException} 409, {@link LegacyTreatmentMirror.MirrorException} 502.
+ * {@link IllegalStateException} 409.
  */
 abstract class ControlTowerResourceSupport {
 
     static final String BASE_PATH = "/api/v1/orgs/{organizationId}/control-tower";
-
-    private static final Logger LOG = Logger.getLogger(ControlTowerResourceSupport.class);
 
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
@@ -53,7 +49,7 @@ abstract class ControlTowerResourceSupport {
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 
-    /** Organization owners only: settings-type writes (contacts, selectables). */
+    /** Organization owners only: settings writes (selectables, deleting contacts). */
     protected Uni<Response> ownerWork(String organizationId, Supplier<Response> work) {
         return roleService.requireOwner(organizationId).flatMap(ignored -> memberWork(work));
     }
@@ -89,9 +85,6 @@ abstract class ControlTowerResourceSupport {
             return error(Response.Status.NOT_FOUND, e.getMessage());
         } catch (IllegalStateException e) {
             return error(Response.Status.CONFLICT, e.getMessage());
-        } catch (LegacyTreatmentMirror.MirrorException e) {
-            LOG.warn("Control Tower legacy mirror failed", e);
-            return error(Response.Status.BAD_GATEWAY, e.getMessage());
         }
     }
 

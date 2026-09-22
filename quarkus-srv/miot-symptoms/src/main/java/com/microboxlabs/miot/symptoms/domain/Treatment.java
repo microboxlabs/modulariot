@@ -2,12 +2,7 @@ package com.microboxlabs.miot.symptoms.domain;
 
 import java.time.OffsetDateTime;
 
-/**
- * A treatment episode: everything one operator did about one symptom between
- * opening a form and finishing it. {@code legacyTreatmentId} is the row the
- * episode mirrors into StreamHub {@code public.treatments} so the engine and
- * the existing tower views keep seeing "under treatment".
- */
+/** A treatment episode: what one operator did about one symptom, from opening a form to finishing it. */
 public record Treatment(
         String id,
         String tenantCode,
@@ -22,7 +17,5 @@ public record Treatment(
         OffsetDateTime closedAt,
         String resolution,
         String note,
-        Long legacyTreatmentId,
-        String idempotencyKey,
         OffsetDateTime updatedAt) {
 }

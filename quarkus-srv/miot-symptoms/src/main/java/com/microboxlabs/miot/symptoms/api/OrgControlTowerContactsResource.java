@@ -25,7 +25,10 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-/** The organization's "who to call" list. Reads for any member; writes for owners. */
+/**
+ * The organization's "who to call" list. Any member can read, add and edit
+ * contacts (operators add them from the call panel); deleting needs an owner.
+ */
 @Path(ControlTowerResourceSupport.BASE_PATH + "/contacts")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -74,7 +77,7 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             ContactRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId, () -> Response.status(Response.Status.CREATED)
+        return memberWork(() -> Response.status(Response.Status.CREATED)
                 .entity(contacts.create(tenant, actor, body))
                 .build());
     }
@@ -88,7 +91,7 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             ContactRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId, () -> Response.ok(contacts.update(tenant, actor, contactId, body)).build());
+        return memberWork(() -> Response.ok(contacts.update(tenant, actor, contactId, body)).build());
     }
 
     @DELETE

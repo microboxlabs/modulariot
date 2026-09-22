@@ -2123,7 +2123,8 @@
         "all": "Todos",
         "allLanes": "Todos los ejecutores",
         "allTypes": "Todos los tipos",
-        "searchPlaceholder": "Id, correlación, cadena…"
+        "searchPlaceholder": "Id, correlación, cadena, tipo…",
+        "searchHint": "Busca en todos los trabajos, no solo en los de esta página"
       },
       "table": {
         "title": "Trabajos",
@@ -2137,6 +2138,13 @@
         "chainStep": "cadena",
         "loading": "Cargando trabajos…",
         "empty": "Ningún trabajo coincide con los filtros actuales."
+      },
+      "pagination": {
+        "range": "{from}–{to} de {total}",
+        "rangeUnknown": "{from}–{to}",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "perPage": "por página"
       },
       "detail": {
         "overview": "Resumen",

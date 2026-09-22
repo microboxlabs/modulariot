@@ -2123,7 +2123,8 @@
         "all": "All",
         "allLanes": "All lanes",
         "allTypes": "All job types",
-        "searchPlaceholder": "Job id, correlation, chain…"
+        "searchPlaceholder": "Job id, correlation, chain, type…",
+        "searchHint": "Searches every job, not just the ones on this page"
       },
       "table": {
         "title": "Jobs",
@@ -2137,6 +2138,13 @@
         "chainStep": "chain",
         "loading": "Loading jobs…",
         "empty": "No jobs match the current filters."
+      },
+      "pagination": {
+        "range": "{from}–{to} of {total}",
+        "rangeUnknown": "{from}–{to}",
+        "previous": "Previous",
+        "next": "Next",
+        "perPage": "per page"
       },
       "detail": {
         "overview": "Overview",

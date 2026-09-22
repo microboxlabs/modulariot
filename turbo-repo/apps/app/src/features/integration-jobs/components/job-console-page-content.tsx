@@ -29,6 +29,7 @@ import {
   useIntegrationJobs,
   useIntegrationJobsCount,
   useIntegrationJobsOverview,
+  useRevalidateJobs,
 } from "../use-integration-jobs";
 import { useJobEvents } from "../use-job-events";
 import JobDetailPanel from "./job-detail-panel";
@@ -103,13 +104,18 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
     setPage(0);
   }
 
-  const { jobs, isLoading, error, refresh } = useIntegrationJobs(orgSlug, {
+  const { jobs, isLoading, error } = useIntegrationJobs(orgSlug, {
     ...filters,
     limit: pageSize,
     offset: page * pageSize,
   });
   const { total } = useIntegrationJobsCount(orgSlug, filters);
   const { connected, liveConfigured } = useJobEvents(orgSlug);
+
+  // Refresh has to revalidate the count and the overview too, not just the
+  // rows: on their own the page would come back fresh beside a stale "of N"
+  // and stale state tiles. This is the same fan-out a live event triggers.
+  const refresh = useRevalidateJobs(orgSlug);
 
   // Dropdown options are facets of the whole ledger, not of the rows on
   // screen — otherwise they would change as the operator pages. Older
@@ -169,7 +175,7 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
           </button>
           <button
             type="button"
-            onClick={() => void refresh()}
+            onClick={refresh}
             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
           >
             <HiOutlineRefresh className="h-3.5 w-3.5" />

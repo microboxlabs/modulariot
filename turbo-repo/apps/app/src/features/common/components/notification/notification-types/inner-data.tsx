@@ -4,7 +4,10 @@ function hasValue(value: unknown): value is string {
   return typeof value === "string" && value !== "" && value !== "-";
 }
 
-function PropertyBadge({ label, value }: { label: string; value?: string }) {
+function PropertyBadge({
+  label,
+  value,
+}: Readonly<{ label: string; value?: string }>) {
   if (!hasValue(value)) return null;
 
   return (

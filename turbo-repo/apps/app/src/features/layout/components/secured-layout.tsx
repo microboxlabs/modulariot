@@ -14,6 +14,7 @@ import SseListener from "@/features/sse/components/sse-listener/sse-listener";
 import { getDomainBranding } from "@/features/branding/domain-branding.service";
 import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
 import { KioskShell } from "./kiosk-shell";
+import { NotificationDebugTrigger } from "@/features/notifications/notification-debug-trigger";
 
 const isHarnessSettingsEnabled = process.env.ENABLE_HARNESS_SETTINGS === "true";
 
@@ -66,6 +67,7 @@ export default async function SecuredLayout({
           </div>
           <FooterSecuredLayout messages={dict} />
         </KioskShell>
+        <NotificationDebugTrigger dictionary={dictionary as I18nRecord} />
       </SidebarProvider>
     </RuntimeConfigProvider>
   );

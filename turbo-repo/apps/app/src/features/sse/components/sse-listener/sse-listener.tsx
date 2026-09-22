@@ -5,6 +5,7 @@ import React, { useEffect, useRef } from "react";
 import { configureLocale } from "@/features/common/services/days.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import InnerData from "@/features/common/components/notification/notification-types/inner-data";
+import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 
 // Global singleton to track SSE connection
@@ -88,16 +89,28 @@ export default function SseListener({
 
         CustomNotification(
           <div
-            className=" w-fit flex flex-row gap-2 items-center cursor-pointer rounded-md transition-all duration-300 hover:bg-gray-300 dark:hover:bg-gray-700 p-2"
+            className=" w-full flex flex-row gap-2 items-center cursor-pointer rounded-md hover:bg-gray-300 dark:hover:bg-gray-700 p-2"
+            // sonner injects its own CSS as an un-layered <style> tag with
+            // `[data-sonner-toast]>* { transition: opacity .4s }`. Tailwind
+            // v4 wraps all utility classes (transition-colors, duration-300,
+            // ...) in `@layer utilities`, and per the CSS cascade-layers
+            // spec, un-layered rules always beat layered ones regardless of
+            // specificity — so sonner's rule silently wins the
+            // transition-property/-duration for this element no matter what
+            // Tailwind classes are used, leaving background-color with no
+            // transition at all (an instant snap on hover). Setting the
+            // transition here via inline style sidesteps layers entirely,
+            // since inline styles always outrank any stylesheet rule.
+            style={{
+              transitionProperty: "background-color",
+              transitionDuration: "300ms",
+              transitionTimingFunction: "ease",
+            }}
             onClick={() => {
               window.location.href = parsed_event.payload.viewUrl;
             }}
           >
-            <div className="w-10 h-10 flex-shrink-0 rounded-full bg-gray-500 text-gray-800 flex items-center justify-center ">
-              <p className="flex items-center justify-center text-white">
-                {parsed_event.payload.creator.name.charAt(0).toUpperCase()}
-              </p>
-            </div>
+            <InitialIdentifier name={parsed_event.payload.creator.name} />
             <InnerData data={parsed_event.payload} dictionary={dictionary} />
           </div>
         );

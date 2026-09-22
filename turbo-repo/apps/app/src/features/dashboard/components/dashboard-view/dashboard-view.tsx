@@ -396,18 +396,29 @@ export function DashboardView() {
                     const colP = colW + 16;
                     const rowH = 55;
                     const rowP = 71;
-                    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${colP}' height='${rowP}'><rect x='0' y='0' width='${colW}' height='${rowH}' rx='6' fill='rgba(55,65,81,0.25)'/></svg>`;
+                    const makeSvg = (fill: string) =>
+                      `<svg xmlns='http://www.w3.org/2000/svg' width='${colP}' height='${rowP}'><rect x='0' y='0' width='${colW}' height='${rowH}' rx='6' fill='${fill}'/></svg>`;
+                    const lightSvg = makeSvg("rgba(0,0,0,0.06)");
+                    const darkSvg = makeSvg("rgba(55,65,81,0.25)");
+                    const bgStyle = (svg: string) => ({
+                      backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(svg)}")`,
+                      backgroundSize: `${colP}px ${rowP}px`,
+                      backgroundRepeat: "repeat",
+                      zIndex: 0,
+                    });
                     return (
-                      <div
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-0"
-                        style={{
-                          backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(svg)}")`,
-                          backgroundSize: `${colP}px ${rowP}px`,
-                          backgroundRepeat: "repeat",
-                          zIndex: 0,
-                        }}
-                      />
+                      <>
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 dark:hidden"
+                          style={bgStyle(lightSvg)}
+                        />
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 hidden dark:block"
+                          style={bgStyle(darkSvg)}
+                        />
+                      </>
                     );
                   })()}
                 <GridLayout

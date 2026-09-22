@@ -18,6 +18,7 @@ import type { SelectedOption } from "@/features/symptoms/types/side-info";
 import PrototypeCallDriver from "../prototype-call-driver";
 import CallCenterMenu from "./call-center-menu";
 import CallDialingStep from "./call-dialing-step";
+import { formatChileanPhone } from "./format-chilean-phone";
 import type { CallMethod } from "./call-method";
 import type { CallTarget } from "./call-targets";
 
@@ -87,7 +88,7 @@ export default function PrototypeCallCenterFlow({
           stats={target.stats}
           contactName={target.personName}
           contactRole={target.role}
-          contactPhone={target.phone}
+          contactPhone={formatChileanPhone(target.phone)}
           allowedMethods={target.methods}
           reason={messageToCommunicate}
           onCancel={handleCancelCall}

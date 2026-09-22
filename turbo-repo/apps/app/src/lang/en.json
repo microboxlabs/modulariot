@@ -1454,7 +1454,7 @@
         "removeSelectable": "Delete selectable",
         "duplicate": "Duplicate",
         "optionsCount": "{count} options",
-        "savedHint": "Prototype: changes are saved in this browser only.",
+        "savedHint": "Demo: changes are shared across the organization but are lost when the service restarts.",
         "resetSeed": "Restore defaults",
         "editTitle": "Edit selectable",
         "edit": "Edit",

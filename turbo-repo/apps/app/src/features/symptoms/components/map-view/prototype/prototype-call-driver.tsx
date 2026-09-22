@@ -28,6 +28,7 @@ import { CALL_METHOD_ICONS, CALL_METHOD_LABEL_KEYS, type CallMethod } from "./ca
 import CallStatsBadges from "./call-center/call-stats-badges";
 import CallSwitchDropdown from "./call-center/call-switch-dropdown";
 import { toApiMethod, type CallTarget } from "./call-center/call-targets";
+import { formatChileanPhone } from "./call-center/format-chilean-phone";
 import { useTreatmentSession } from "./treatment-session";
 
 /** Fixed content, not a Selectable — the same list the older form always had.
@@ -201,7 +202,7 @@ export default function PrototypeCallDriver({
         </div>
         {callTarget.phone && (
           <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-            {callTarget.phone}
+            {formatChileanPhone(callTarget.phone)}
           </p>
         )}
       </div>

@@ -246,8 +246,7 @@ function InlineFormBody({
 
   useEffect(() => {
     if (isMenuOpen) {
-      const preaction = menus[selectedOption as keyof typeof menus]?.preactions;
-      preaction && preaction();
+      menus[selectedOption as keyof typeof menus]?.preactions?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMenuOpen]);

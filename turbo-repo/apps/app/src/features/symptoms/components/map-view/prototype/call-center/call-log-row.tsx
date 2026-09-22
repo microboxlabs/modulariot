@@ -3,9 +3,8 @@
 /**
  * One row of the "Treatments" box's per-call breakdown, styled after the
  * "a quién llamar" contact row (`call-center-menu.tsx`): status + method on
- * the left, when it happened on the right. Read-only — this now shows in
- * the production timeline too, so there's no inline editing of the mocked
- * fields here anymore.
+ * the left, when it happened on the right. Read-only; one recorded CALL
+ * action from the Control Tower API.
  */
 
 import { FaPhoneAlt } from "react-icons/fa";
@@ -15,7 +14,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import CopyButton from "./copy-button";
 import { CALL_METHOD_ICONS, CALL_METHOD_LABEL_KEYS } from "./call-method";
-import { formatCallLogDuration, type CallLogEntry } from "./mock-call-log";
+import { formatCallLogDuration, type CallLogEntry } from "./call-log";
 
 export default function CallLogRow({
   dict,
@@ -38,7 +37,7 @@ export default function CallLogRow({
 }) {
   const t = (k: string) => tr(`symptoms.${k}`, dict);
   const MethodIcon = CALL_METHOD_ICONS[entry.method];
-  const when = new Date(Date.now() - entry.minutesAgo * 60_000);
+  const when = entry.at;
   const outcomeText =
     entry.outcome === "answered"
       ? formatCallLogDuration(entry.durationSeconds)
@@ -48,8 +47,8 @@ export default function CallLogRow({
     const lines = [
       `${entry.calledName} — ${t(CALL_METHOD_LABEL_KEYS[entry.method])} (${outcomeText})`,
       formatDateString(when, "datetime"),
-      `${t("message")}: ${entry.message}`,
     ];
+    if (entry.message) lines.push(`${t("message")}: ${entry.message}`);
     if (entry.response) lines.push(`${t("response")}: ${entry.response}`);
     return lines.join("\n");
   };

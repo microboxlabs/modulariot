@@ -1,8 +1,6 @@
 "use client";
 
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import { TreatmentsRequest } from "@/app/api/treatments/route.type";
-import { guardedRequestTreatment } from "./prototype-api-guard";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Button, Select, Textarea } from "flowbite-react";
 import { useState } from "react";
@@ -22,11 +20,16 @@ import {
   fieldLabel,
   fillTextarea,
 } from "./prototype-form-kit";
+import { useTreatmentSession } from "./treatment-session";
+
+/** What the duration select shows when nothing was picked yet. */
+const DEFAULT_IGNORE_SECONDS = 300;
 
 /**
  * PROTOTYPE — variant of
- * `blurrable-stepped-menu/menus/ignore-condition/ignore-condition.tsx`.
- * Same submit logic; laid out as a bento grid that fits the panel height.
+ * `blurrable-stepped-menu/menus/ignore-condition/ignore-condition.tsx`, laid
+ * out as a bento grid that fits the panel height. Saving records an IGNORE
+ * action into the panel's treatment episode and closes it.
  */
 export default function PrototypeIgnoreCondition({
   dict,
@@ -35,8 +38,6 @@ export default function PrototypeIgnoreCondition({
   setDuration,
   scope,
   setScope,
-  treatmentRequest,
-  setTreatmentRequest,
   setIsMenuOpen,
 }: {
   dict: I18nRecord;
@@ -45,14 +46,14 @@ export default function PrototypeIgnoreCondition({
   setDuration: (duration: number) => void;
   scope: string;
   setScope: (scope: string) => void;
-  treatmentRequest: TreatmentsRequest;
-  setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void;
   setIsMenuOpen: (isMenuOpen: boolean) => void;
 }) {
   const [durationLocal, setDurationLocal] = useState(duration);
   const [motivoId, setMotivoId] = useState("");
   const [nota, setNota] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const session = useTreatmentSession();
   const t = (k: string) => tr(`symptoms.${k}`, dict);
 
   const { options: motivoOptions } = useSelectableOptions("ignore_reason");
@@ -65,23 +66,31 @@ export default function PrototypeIgnoreCondition({
     motivoId !== "" && (!notaObligatoria || nota.trim().length > 0);
 
   const handleSave = async () => {
-    setTreatmentRequest({
-      ...treatmentRequest,
-      v_symptom_treatment_time: duration,
-      status: "active",
-    });
-    await guardedRequestTreatment({
-      ...treatmentRequest,
-      status: "active",
-      treatment_type: "ignorar condicion",
-      v_symptom_treatment_time: duration,
-      description:
-        `Motivo: ${motivoLabel}` +
-        (nota.trim() ? ` · Nota: ${nota.trim()}` : ""),
-    });
-    setIsMenuOpen(false);
-    router.push("/symptoms");
-    ShowNotification({ type: "success", message: t("treatment_saved") });
+    if (!puedeGuardar || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await session.addAction({
+        kind: "IGNORE",
+        outcomeKey: motivoId,
+        outcomeLabel: motivoLabel,
+        note: nota.trim() || undefined,
+        details: {
+          durationSeconds: duration || DEFAULT_IGNORE_SECONDS,
+          scope: scope || "synthom",
+        },
+      });
+      await session.finish("ignored");
+      setIsMenuOpen(false);
+      router.push("/symptoms");
+      ShowNotification({ type: "success", message: t("treatment_saved") });
+    } catch (error) {
+      ShowNotification({
+        type: "error",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   /* ---------- shared fragments ---------- */
@@ -175,7 +184,7 @@ export default function PrototypeIgnoreCondition({
     <Button
       color="blue"
       className="h-10 w-full"
-      disabled={!puedeGuardar}
+      disabled={!puedeGuardar || isSubmitting}
       onClick={handleSave}
     >
       {t("save_and_confirm")}

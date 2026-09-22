@@ -1,23 +1,11 @@
 "use client";
 
 /**
- * PROTOTYPE — step 1 of the new "Llamar a…" debug flow: a contact list
- * sourced from its own dedicated `call-roles-store.ts` — not the generic
- * Selectables admin system (that's what the older, non-debug "Llamar al
- * conductor" form's dropdown still reads from via
- * `useSelectableOptions("who_to_call")`, kept untouched as the fallback).
- * The whole row is the call button — hover highlights it, clicking anywhere
- * on it moves to the dialing step. Calls made from here already show up as
- * treatments in the symptom's own timeline, so there's no separate call
- * history here — the trailing column is just a last-call-time + accepted/
- * denied tally, not a log.
- *
- * Adding a contact appends a real entry to that same dedicated store; its
- * typed name IS the person's name (not a role placeholder like the seeded
- * options), and it carries its own real phone number plus which calling
- * channels it's actually reachable on — see `contact-details.ts`. A seeded
- * option has no entry there at all, which is how a row tells the two kinds
- * of contact apart.
+ * PROTOTYPE — step 1 of the "Llamar a…" flow: who to call. The trip's driver
+ * comes first, then the organization's contacts from the Control Tower API,
+ * each with its last-call time and answered/missed counts. Contacts called in
+ * this treatment episode sink into their own "Ya llamados" group. The whole
+ * row is the call button. "Agregar contacto" creates a contact through the API.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -26,14 +14,12 @@ import { HiOutlinePlus } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { tr } from "@/features/i18n/tr.service";
-import type { SelectableOption } from "@/features/settings-admin/selectables/types";
+import { ShowNotification } from "@/features/notifications/notification";
 import { BentoGrid, PlainSection, GeneralInfoGrid } from "../prototype-form-kit";
+import { useTreatmentSession } from "../treatment-session";
 import { formatChileanPhone } from "./format-chilean-phone";
-import { mockNameForId, mockCallStatsForId } from "./mock-contact-data";
-import { useContactDetails } from "./contact-details";
-import { useCallRoles } from "./call-roles-store";
 import ContactRow from "./contact-row";
-import { isMockDataEnabled } from "../prototype-api-guard";
+import { targetIdOfAction, useCallTargets, type CallTarget } from "./call-targets";
 import {
   ALL_CALL_METHODS,
   CALL_METHOD_ICONS,
@@ -41,43 +27,31 @@ import {
   type CallMethod,
 } from "./call-method";
 
-/** Deterministic mock number so a contact's phone stays stable across renders
- *  — there's no real phonebook backing these prototype "other" contacts.
- *  Gated by `isMockDataEnabled` like every other fabricated field here. */
-function mockPhoneForId(id: string): string {
-  if (!isMockDataEnabled()) return "";
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  const digits = ((hash % 90000000) + 10000000).toString();
-  return `+56 9 ${digits.slice(0, 4)} ${digits.slice(4, 8)}`;
+/** Latest call time per call-list row, from the episode's recorded calls. */
+function useEpisodeCallTimes(): Record<string, Date> {
+  const { actions } = useTreatmentSession();
+  const times: Record<string, Date> = {};
+  for (const action of actions) {
+    const id = targetIdOfAction(action);
+    if (!id) continue;
+    const at = new Date(action.performedAt);
+    if (!times[id] || times[id] < at) times[id] = at;
+  }
+  return times;
 }
 
 export default function CallCenterMenu({
   dict,
   treatmentData,
   onCall,
-  recentCallTimes,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
-  onCall: (
-    contact: SelectableOption,
-    phoneNumber: string,
-    personName: string,
-    /** Empty for a custom contact — its option name IS the person's name,
-     *  not a role, so there's nothing to badge it with. */
-    role: string,
-    allowedMethods?: CallMethod[]
-  ) => void;
-  /** Real last-call time per contact id actually called this session (as
-   *  opposed to `mockCallStatsForId`'s stable-but-fake history) — that
-   *  contact's row shows this time in green instead of the mock one, and
-   *  sorts to the bottom of the list. */
-  recentCallTimes?: Record<string, Date>;
-}) {
+  onCall: (target: CallTarget) => void;
+}>) {
   const t = (k: string) => tr(`symptoms.${k}`, dict);
-  const { options, addContact } = useCallRoles();
-  const { details, setDetails } = useContactDetails();
+  const { targets, knownRoles, addContact } = useCallTargets(treatmentData);
+  const recentCallTimes = useEpisodeCallTimes();
 
   // `FormattedDate format="relative"` only recomputes on re-render — without
   // this the "hace X min" next to each contact would freeze at whatever it
@@ -89,6 +63,7 @@ export default function CallCenterMenu({
   }, []);
 
   const [addingContact, setAddingContact] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newRole, setNewRole] = useState("");
@@ -96,31 +71,12 @@ export default function CallCenterMenu({
   const roleFieldRef = useRef<HTMLDivElement>(null);
   const [newMethods, setNewMethods] = useState<CallMethod[]>(["phone"]);
 
-  const generalInfo = (
-    <GeneralInfoGrid dict={dict} treatmentData={treatmentData} />
-  );
+  // Contacts called in this episode go to "Ya llamados", oldest first.
+  const pendingTargets = targets.filter((o) => !recentCallTimes[o.id]);
+  const calledTargets = targets
+    .filter((o) => recentCallTimes[o.id])
+    .sort((a, b) => recentCallTimes[a.id].getTime() - recentCallTimes[b.id].getTime());
 
-  // Contacts actually called this session sink into their own "Ya llamados"
-  // group below the rest (oldest of them first) instead of sitting wherever
-  // they started — everyone else keeps the store's own order.
-  const pendingOptions = options.filter((o) => !recentCallTimes?.[o.id]);
-  const calledOptions = recentCallTimes
-    ? options
-        .filter((o) => recentCallTimes[o.id])
-        .sort(
-          (a, b) => recentCallTimes[a.id].getTime() - recentCallTimes[b.id].getTime()
-        )
-    : [];
-
-  // Every role already in use, seeded or custom — searched as the operator
-  // types, or used as-is to create a new one if nothing matches.
-  const knownRoles = Array.from(
-    new Set(
-      options
-        .map((o) => details[o.id]?.role ?? (details[o.id] ? undefined : o.name))
-        .filter((r): r is string => Boolean(r))
-    )
-  );
   const roleQuery = newRole.trim().toLowerCase();
   const roleSuggestions = knownRoles.filter(
     (r) => r.toLowerCase() !== roleQuery && (!roleQuery || r.toLowerCase().includes(roleQuery))
@@ -149,56 +105,48 @@ export default function CallCenterMenu({
     );
   };
 
-  const handleAddContact = () => {
-    if (!newName.trim()) return;
-    const optionId = addContact(newName.trim());
-    setDetails(optionId, {
-      phone: newPhone.trim() || undefined,
-      role: newRole.trim() || undefined,
-      methods: newMethods.length > 0 ? newMethods : undefined,
-    });
-    resetAddContactForm();
+  const handleAddContact = async () => {
+    if (!newName.trim() || saving) return;
+    setSaving(true);
+    try {
+      await addContact({
+        name: newName.trim(),
+        phone: newPhone.trim(),
+        role: newRole.trim(),
+        methods: newMethods,
+      });
+      resetAddContactForm();
+    } catch (error) {
+      ShowNotification({
+        type: "error",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const renderContactOption = (option: SelectableOption) => {
-    const isDriver = option.id === options[0]?.id;
-    const custom = details[option.id];
-    const personName = custom
-      ? option.name
-      : isDriver
-        ? (treatmentData?.trip_info?.driver ?? mockNameForId(option.id))
-        : mockNameForId(option.id);
-    const roleLabel = custom ? (custom.role ?? "") : option.name;
-    const phone = formatChileanPhone(
-      custom?.phone ??
-        (isDriver
-          ? (treatmentData?.trip_info?.driver_contact ?? mockPhoneForId(option.id))
-          : mockPhoneForId(option.id))
-    );
-    const recentCallAt = recentCallTimes?.[option.id];
-    // `recentCallAt` is a real, tracked timestamp regardless of mock mode —
-    // accepted/denied have no real backing either way, so default to 0
-    // rather than spread `mockCallStatsForId`'s result, which is `null`
-    // once mock data is off.
+  const renderTarget = (target: CallTarget) => {
+    const recentCallAt = recentCallTimes[target.id];
     const stats = recentCallAt
-      ? { lastCallAt: recentCallAt, accepted: 0, denied: 0 }
-      : mockCallStatsForId(option.id);
-
+      ? { lastCallAt: recentCallAt, accepted: target.stats?.accepted ?? 0, denied: target.stats?.denied ?? 0 }
+      : target.stats;
+    const phone = formatChileanPhone(target.phone);
     return (
       <ContactRow
-        key={option.id}
-        personName={personName}
-        roleLabel={roleLabel}
+        key={target.id}
+        personName={target.personName}
+        roleLabel={target.role}
         phone={phone}
         stats={stats}
         recentlyCalled={!!recentCallAt}
         justCalledLabel={t("call_center_just_called")}
-        ariaLabel={`${t("call_center_call_button")} ${personName}`}
-        onClick={() => onCall(option, phone, personName, roleLabel, custom?.methods)}
+        ariaLabel={`${t("call_center_call_button")} ${target.personName}`}
+        onClick={() => onCall(target)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onCall(option, phone, personName, roleLabel, custom?.methods);
+            onCall(target);
           }
         }}
       />
@@ -207,12 +155,12 @@ export default function CallCenterMenu({
 
   return (
     <BentoGrid>
-      <PlainSection title={t("proto_section_general")}>{generalInfo}</PlainSection>
+      <PlainSection title={t("proto_section_general")}>
+        <GeneralInfoGrid dict={dict} treatmentData={treatmentData} />
+      </PlainSection>
 
-      {/* Same colors as the form kit's usual card — just with three explicit
-          background tiers layered on top (card / header / row), since every
-          row here needs its own background. Hand-rolled instead of stretching
-          `FieldCard`, which doesn't have a per-row background hook. */}
+      {/* Three explicit background tiers (card / header / row), since every
+          row here needs its own background. */}
       <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900">
         <div className="flex h-10 shrink-0 items-center border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800">
           <h3 className="truncate text-sm font-semibold leading-none text-gray-900 dark:text-white">
@@ -220,21 +168,16 @@ export default function CallCenterMenu({
           </h3>
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {options.length === 0 && (
-            <p className="px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400">
-              {t("proto_selectable_unassigned")}
-            </p>
-          )}
-          {pendingOptions.map(renderContactOption)}
+          {pendingTargets.map(renderTarget)}
 
-          {calledOptions.length > 0 && (
+          {calledTargets.length > 0 && (
             <div className="flex h-7 shrink-0 items-center border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800/60">
               <h4 className="truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 {t("call_center_already_called_header")}
               </h4>
             </div>
           )}
-          {calledOptions.map(renderContactOption)}
+          {calledTargets.map(renderTarget)}
         </div>
 
         {/* Fixed footer — a sibling of the scrollable list above, not its
@@ -255,9 +198,7 @@ export default function CallCenterMenu({
               value={newPhone}
               onChange={(e) => setNewPhone(e.target.value)}
             />
-            {/* Search existing roles as you type, or just keep typing to
-                create a new one — a role here is free text, not a managed
-                list, so there's nothing to "create" beyond using the text. */}
+            {/* Search existing roles as you type, or keep typing to use a new one. */}
             <div ref={roleFieldRef} className="relative">
               <TextInput
                 sizing="sm"
@@ -317,19 +258,14 @@ export default function CallCenterMenu({
               </div>
             </div>
             <div className="flex gap-2">
-              <Button
-                size="xs"
-                color="light"
-                className="flex-1"
-                onClick={resetAddContactForm}
-              >
+              <Button size="xs" color="light" className="flex-1" onClick={resetAddContactForm}>
                 {t("proto_back")}
               </Button>
               <Button
                 size="xs"
                 color="blue"
                 className="flex-1"
-                disabled={!newName.trim()}
+                disabled={!newName.trim() || saving}
                 onClick={handleAddContact}
               >
                 {t("call_center_add_contact_confirm")}

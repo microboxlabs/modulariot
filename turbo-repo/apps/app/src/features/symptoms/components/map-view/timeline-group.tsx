@@ -11,7 +11,30 @@ import messageIcon from "@assets/timeline/message-dots.svg";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { FormattedDate } from "@/features/common/components/formatted-date";
-import TreatmentsTimelineBox from "./treatments-timeline-box";
+import TreatmentsTimelineBox, { useHasTreatments } from "./treatments-timeline-box";
+
+/**
+ * The connecting line plus the symptom's treatments, under a timeline node.
+ * Skipped entirely when the symptom has no recorded treatment, so a bare
+ * condition change stays as small as its icon+time row alone.
+ */
+function SymptomTreatmentsBranch({
+  dict,
+  symptomId,
+}: Readonly<{ dict: I18nRecord; symptomId: number | null }>) {
+  const hasTreatments = useHasTreatments(symptomId);
+  if (!hasTreatments) return null;
+  return (
+    <div className="flex flex-1 flex-row gap-1">
+      <div className="flex w-5 shrink-0 flex-col items-center">
+        <div className="mt-1 w-0.5 grow bg-gray-300 dark:bg-gray-600" />
+      </div>
+      <div className="flex w-full flex-col gap-1 pt-2 pb-2">
+        <TreatmentsTimelineBox dict={dict} symptomId={symptomId} />
+      </div>
+    </div>
+  );
+}
 
 /*
 function formatDate(date: Date, lang: string): string {
@@ -293,22 +316,10 @@ export default function TimelineGroup({
                         entirely — no line, no padding — when there's no
                         treatment to show, so a bare condition change stays
                         as small as its icon+time row alone. */}
-                    {subItem.treatments.length > 0 && (
-                      <div className="flex flex-1 flex-row gap-1">
-                        <div className="flex w-5 shrink-0 flex-col items-center">
-                          <div className="mt-1 w-0.5 grow bg-gray-300 dark:bg-gray-600" />
-                        </div>
-                        <div className="flex w-full flex-col gap-1 pt-2 pb-2">
-                          <TreatmentsTimelineBox
-                            dict={dict}
-                            treatments={subItem.treatments}
-                            seed={`${subItem.symptom_id ?? "symptom"}-${subIndex}`}
-                            start={subItem.start}
-                            end={subItem.end}
-                          />
-                        </div>
-                      </div>
-                    )}
+                    <SymptomTreatmentsBranch
+                      dict={dict}
+                      symptomId={subItem.symptom_id}
+                    />
                   </div>
                 );
               })}

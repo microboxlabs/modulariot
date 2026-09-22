@@ -25,7 +25,7 @@ import {
   CALL_METHOD_LABEL_KEYS,
   type CallMethod,
 } from "./call-method";
-import { mockCallStatsForId } from "./mock-contact-data";
+import type { CallStats } from "./call-targets";
 import ContactRow from "./contact-row";
 
 function formatDuration(totalSeconds: number): string {
@@ -40,7 +40,7 @@ function formatDuration(totalSeconds: number): string {
 
 export default function CallDialingStep({
   dict,
-  contactId,
+  stats,
   contactName,
   contactRole,
   contactPhone,
@@ -49,11 +49,10 @@ export default function CallDialingStep({
   onCancel,
   onConfirm,
   onStartedChange,
-}: {
+}: Readonly<{
   dict: I18nRecord;
-  /** Used only to seed the mock missed/last-call stats shown on the contact
-   *  row — absent just means that row's stats stay blank. */
-  contactId?: string;
+  /** The contact's call history from the Control Tower API; absent for the driver. */
+  stats?: CallStats | null;
   contactName: string;
   contactRole: string;
   contactPhone?: string;
@@ -70,11 +69,10 @@ export default function CallDialingStep({
   /** Fires the moment a method button is pressed (call goes live) — lets the
    *  panel header lock the back button and swap its title. */
   onStartedChange?: (started: boolean) => void;
-}) {
+}>) {
   const t = (k: string) => tr(`symptoms.${k}`, dict);
   const methods =
     allowedMethods && allowedMethods.length > 0 ? allowedMethods : ALL_CALL_METHODS;
-  const stats = contactId ? mockCallStatsForId(contactId) : null;
   const [started, setStarted] = useState(false);
   const [method, setMethod] = useState<CallMethod>("phone");
   const [showCancel, setShowCancel] = useState(false);

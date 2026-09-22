@@ -12,7 +12,7 @@ import type { KeyboardEvent } from "react";
 import { FormattedDate } from "@/features/common/components/formatted-date";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import CallStatsBadges from "./call-stats-badges";
-import type { MockCallStats } from "./mock-contact-data";
+import type { CallStats } from "./call-targets";
 
 export default function ContactRow({
   personName,
@@ -31,7 +31,7 @@ export default function ContactRow({
   personName: string;
   roleLabel?: string;
   phone?: string;
-  stats?: MockCallStats | null;
+  stats?: CallStats | null;
   /** Only the clickable "a quién llamar" list variant passes these. */
   onClick?: () => void;
   onKeyDown?: (e: KeyboardEvent) => void;
@@ -56,11 +56,12 @@ export default function ContactRow({
   bgClassName?: string;
 }) {
   const interactive = !!onClick;
+  const lastCallAt = stats?.lastCallAt ?? null;
   const justCalled =
     recentlyCalled &&
     !!justCalledLabel &&
-    !!stats &&
-    Date.now() - stats.lastCallAt.getTime() < 60_000;
+    lastCallAt !== null &&
+    Date.now() - lastCallAt.getTime() < 60_000;
 
   return (
     <div
@@ -100,13 +101,14 @@ export default function ContactRow({
 
       {stats && (
         <div className="flex shrink-0 flex-col items-end gap-0.5 text-[11px] text-gray-500 dark:text-gray-400">
-          {justCalled ? (
+          {justCalled && (
             <span className="font-medium text-green-500 dark:text-green-400">
               {justCalledLabel}
             </span>
-          ) : (
+          )}
+          {!justCalled && lastCallAt && (
             <FormattedDate
-              date={stats.lastCallAt}
+              date={lastCallAt}
               format="relative"
               className={recentlyCalled ? "font-medium text-green-500 dark:text-green-400" : undefined}
             />

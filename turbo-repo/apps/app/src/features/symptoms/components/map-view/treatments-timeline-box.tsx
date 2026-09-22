@@ -1,13 +1,11 @@
 "use client";
 
 /**
- * Shared treatments list — same one built for the floating context card
- * shown at the bottom of the map while a call is open (`prototype/call-
- * center/symptom-context-card.tsx`), reused here so the timeline's own
- * per-occurrence treatments list looks and behaves identically: episodes
- * grouped (see `group-treatments.ts`), collapsible, with the rich mock
- * call-log breakdown for "llamar al conductor" treatments. Just the inner
- * "Tratamiento N" cards — no outer titled card wrapping them.
+ * A symptom's treatments, from the Control Tower API: one collapsible
+ * "Tratamiento N" card per episode, with its calls (who, channel, outcome,
+ * when) and its ignore/invalidate decisions. Shared by the timeline and the
+ * symptom card shown under the map during a call. Renders nothing while the
+ * symptom has no treatments.
  */
 
 import { useEffect, useState } from "react";
@@ -31,42 +29,49 @@ import {
 import { FormattedDate } from "@/features/common/components/formatted-date";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { TreatmentTimelineElement } from "@/features/symptoms/types/timeline";
+import {
+  type TowerAction,
+  type TowerTreatment,
+  useSymptomTreatments,
+} from "@/features/symptoms/control-tower/control-tower-api";
 import CallLogRow from "./prototype/call-center/call-log-row";
 import CopyButton from "./prototype/call-center/copy-button";
-import { mockCallLogForTreatment } from "./prototype/call-center/mock-call-log";
-import { groupTreatments } from "./prototype/call-center/group-treatments";
+import { callLogEntryOf } from "./prototype/call-center/call-log";
 
-/** Shared by every procedure kind — same hover tooltip either way, just
- *  fed a different message/response: the real treatment record's for
- *  non-call rows, a mocked one per individual call entry for call rows (see
- *  `mock-call-log.ts`) so several calls under one treatment don't all show
- *  the same detail on hover. */
+/** i18n key (under `symptoms.`) for each non-call action. */
+const ACTION_LABEL_KEYS: Record<Exclude<TowerAction["kind"], "CALL">, string> = {
+  IGNORE: "ignore_condition",
+  INVALIDATE: "invalidate_symptom",
+  NOTE: "treatment_note",
+};
+
+/** Same hover tooltip for every row: what was said, and what came back. */
 function DetailTooltip({
   message,
   response,
   t,
   children,
-}: {
+}: Readonly<{
   message: string;
   response?: string;
   t: (k: string) => string;
-  /** Render prop, not a plain node: the row's own "highlighted" look is
-   *  driven by this same `open` state rather than CSS `:hover`, since
-   *  `:hover` doesn't know about the scroll-close behavior below — without
-   *  this the border could stay lit after a scroll closes the tooltip. */
+  /** Render prop: the row's own "highlighted" look follows the tooltip's
+   *  `open` state rather than CSS `:hover`, which doesn't know about the
+   *  scroll-close behavior below. */
   children: (open: boolean) => React.ReactNode;
-}) {
+}>) {
   return (
     <InstantTooltip
       content={
         <div className="text-xs">
-          <p className="font-medium">
-            {t("message")}: <span className="font-light">{message}</span>
-          </p>
+          {message && (
+            <p className="font-medium">
+              {t("message")}: <span className="font-light">{message}</span>
+            </p>
+          )}
           {response && (
             <>
-              <hr className="my-2 border-gray-700" />
+              {message && <hr className="my-2 border-gray-700" />}
               <p className="font-medium">
                 {t("response")}: <span className="font-light">{response}</span>
               </p>
@@ -80,27 +85,19 @@ function DetailTooltip({
   );
 }
 
-/** Convention used across the call-center prototype for "this treatment is a
- *  call" — matches the type set by `prototype-inline-form.tsx`'s preaction. */
-const CALL_TREATMENT_TYPE = "LLAMAR AL CONDUCTOR";
-
 /**
- * Built directly on `@floating-ui/react` instead of Flowbite's `Tooltip`:
- * Flowbite hardcodes `useHover(context, { handleClose: safePolygon() })`,
- * which keeps a tooltip open while the pointer travels toward it — with
- * these rows sitting flush against each other, that meant moving from one
- * row up into what looked like the next row's space kept the *previous*
- * tooltip open instead of handing off immediately. Plain `useHover` (no
- * `handleClose`) closes the instant the pointer leaves the trigger, no
- * grace path, and with no CSS transition either the swap is instant.
+ * Built directly on `@floating-ui/react` instead of Flowbite's `Tooltip`,
+ * whose safe-polygon hover kept the previous row's tooltip open while the
+ * pointer moved to the next row. Plain `useHover` closes the instant the
+ * pointer leaves the trigger.
  */
 function InstantTooltip({
   content,
   children,
-}: {
+}: Readonly<{
   content: React.ReactNode;
   children: (open: boolean) => React.ReactNode;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const { refs, floatingStyles, context } = useFloating({
     open,
@@ -110,11 +107,6 @@ function InstantTooltip({
       offset(0),
       flip(),
       shift({ padding: 8 }),
-      // Matches the floating element's width to the trigger's own rect
-      // directly, every time position is (re)computed — no separate
-      // ResizeObserver/state to go stale or race with layout (that
-      // approach could "lock in" a too-narrow width if it fired before
-      // the trigger's real width had settled).
       size({
         apply({ rects, elements }) {
           elements.floating.style.width = `${rects.reference.width}px`;
@@ -127,13 +119,8 @@ function InstantTooltip({
   const dismiss = useDismiss(context);
   const { getReferenceProps, getFloatingProps } = useInteractions([hover, dismiss]);
 
-  // Scrolling doesn't reliably fire mouseenter/mouseleave on whatever
-  // becomes newly hovered under a *stationary* cursor, so without this the
-  // tooltip stays glued to a row that has already scrolled away instead of
-  // handing off to whatever the cursor is actually over now. Closing on any
-  // scroll (capture phase, since `scroll` doesn't bubble) is the simplest
-  // fix — the next real pointer movement re-triggers hover correctly for
-  // whatever's actually underneath.
+  // Scrolling under a stationary cursor doesn't fire mouseleave, so close on
+  // any scroll (capture phase, since `scroll` doesn't bubble).
   useEffect(() => {
     if (!open) return;
     const handleScroll = () => setOpen(false);
@@ -162,48 +149,28 @@ function InstantTooltip({
   );
 }
 
-/**
- * Same card language as the call-log rows below (icon + name/detail stack)
- * instead of a bare underlined line — the deeper message/response pair still
- * lives in the hover tooltip, sized to match this trigger card exactly
- * rather than shrinking to its own content.
- */
-function GenericTreatmentRow({
+/** An ignore, invalidate or note action: its reason and note. */
+function DecisionRow({
   dict,
-  treatment,
-  roundedBottom = false,
-  time,
-}: {
+  action,
+  roundedBottom,
+}: Readonly<{
   dict: I18nRecord;
-  treatment: TreatmentTimelineElement;
-  /** See `CallLogRow`'s prop of the same name. */
-  roundedBottom?: boolean;
-  /** The treatment record itself carries no timestamp — this is the
-   *  episode's own group time (same one shown in the "Tratamiento N"
-   *  header above), the closest thing to "when" this row has. */
-  time?: Date | null;
-}) {
+  action: TowerAction;
+  roundedBottom: boolean;
+}>) {
   const t = (k: string) => (dict.symptoms as I18nRecord)[k] as string;
-  const label = t(treatment.treatment_type.toUpperCase()) ?? treatment.treatment_type;
+  const labelKey = action.kind === "CALL" ? "treatment_note" : ACTION_LABEL_KEYS[action.kind];
+  const label = t(labelKey) ?? action.kind;
+  const reason = action.outcomeLabel ?? "";
+  const note = action.note ?? "";
+  const at = new Date(action.performedAt);
 
-  const getCopyText = () => {
-    const lines = [label];
-    if (time) lines.push(formatDateString(time, "datetime"));
-    if (treatment.description.message) {
-      lines.push(`${t("message")}: ${treatment.description.message}`);
-    }
-    if (treatment.description.driver_response) {
-      lines.push(`${t("response")}: ${treatment.description.driver_response}`);
-    }
-    return lines.join("\n");
-  };
+  const getCopyText = () =>
+    [label, formatDateString(at, "datetime"), reason, note].filter(Boolean).join("\n");
 
   return (
-    <DetailTooltip
-      t={t}
-      message={treatment.description.message}
-      response={treatment.description.driver_response}
-    >
+    <DetailTooltip t={t} message={reason} response={note}>
       {(open) => (
         <div
           className={`flex w-full items-center gap-2 border-x border-b bg-gray-50 px-2 py-1.5 transition-colors dark:bg-gray-800/50 ${
@@ -217,12 +184,15 @@ function GenericTreatmentRow({
             <p className="truncate text-xs font-medium text-gray-900 dark:text-gray-100">
               {label}
             </p>
-            {treatment.description.message && (
+            {(reason || note) && (
               <p className="wrap-break-word text-[10px] text-gray-500 dark:text-gray-400">
-                {treatment.description.message}
+                {[reason, note].filter(Boolean).join(" · ")}
               </p>
             )}
           </div>
+          <span className="shrink-0 text-[10px] text-gray-500 dark:text-gray-400">
+            <FormattedDate date={at} format="time" />
+          </span>
           <CopyButton dict={dict} getText={getCopyText} />
         </div>
       )}
@@ -230,168 +200,141 @@ function GenericTreatmentRow({
   );
 }
 
+function ActionRow({
+  dict,
+  action,
+  roundedBottom,
+}: Readonly<{
+  dict: I18nRecord;
+  action: TowerAction;
+  roundedBottom: boolean;
+}>) {
+  const t = (k: string) => (dict.symptoms as I18nRecord)[k] as string;
+  if (action.kind !== "CALL") {
+    return <DecisionRow dict={dict} action={action} roundedBottom={roundedBottom} />;
+  }
+  const entry = callLogEntryOf(action);
+  return (
+    <DetailTooltip t={t} message={entry.message} response={entry.response}>
+      {(open) => (
+        <CallLogRow dict={dict} entry={entry} roundedBottom={roundedBottom} highlighted={open} />
+      )}
+    </DetailTooltip>
+  );
+}
+
+function EpisodeCard({
+  dict,
+  treatment,
+  number,
+  expanded,
+  onToggle,
+}: Readonly<{
+  dict: I18nRecord;
+  treatment: TowerTreatment;
+  number: number;
+  expanded: boolean;
+  onToggle: () => void;
+}>) {
+  const t = (k: string) => (dict.symptoms as I18nRecord)[k] as string;
+  const isOpen = treatment.status === "OPEN";
+  return (
+    <div className="flex w-full flex-col overflow-hidden rounded-md border border-gray-200 bg-white text-xs font-light shadow-sm dark:border-gray-700 dark:bg-gray-800/40">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="flex cursor-pointer items-center justify-between gap-2 border-b border-gray-100 px-2 py-1.5 text-left transition-colors hover:bg-gray-100 dark:border-gray-700/60 dark:bg-gray-800 dark:hover:bg-gray-700"
+      >
+        <span className="flex min-w-0 items-center gap-1">
+          {expanded ? (
+            <HiChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+          ) : (
+            <HiChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+          )}
+          <span className="font-medium text-gray-900 dark:text-gray-100">
+            {t("treatment_group_label")} {number}
+          </span>
+          {isOpen && (
+            <span className="ml-1 rounded-full bg-amber-100 px-1.5 text-[10px] font-medium text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
+              {t("treatment_in_progress")}
+            </span>
+          )}
+        </span>
+        <span className="text-[10px] text-gray-500 dark:text-gray-400">
+          <FormattedDate date={new Date(treatment.openedAt)} format="time" />
+        </span>
+      </button>
+      {/* Grid-rows 0fr/1fr: animates between zero and the content's natural height. */}
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="flex flex-col divide-y divide-gray-200 dark:divide-gray-700">
+            {treatment.actions.map((action, i) => (
+              <ActionRow
+                key={action.id}
+                dict={dict}
+                action={action}
+                roundedBottom={i === treatment.actions.length - 1}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Episodes worth showing: anything with a recorded action. */
+function visibleEpisodes(treatments: TowerTreatment[] | undefined): TowerTreatment[] {
+  return (treatments ?? []).filter((t) => t.actions.length > 0);
+}
+
 export default function TreatmentsTimelineBox({
   dict,
-  treatments,
-  seed,
-  start,
-  end,
-}: {
+  symptomId,
+}: Readonly<{
   dict: I18nRecord;
-  treatments: TreatmentTimelineElement[];
-  /** Deterministic seed for the mock call-log/grouping — a real treatment
-   *  record has no id, so callers pass something stable like the symptom id. */
-  seed: string;
-  start?: string | null;
-  end?: string | null;
-}) {
-  // Undefined = "use the default" (every episode starts expanded); once the
-  // operator collapses one, that group's own choice takes over from then on.
-  const [expandedOverrides, setExpandedOverrides] = useState<
-    Record<string, boolean>
-  >({});
+  symptomId: number | null | undefined;
+}>) {
+  const { data, error } = useSymptomTreatments(symptomId);
+  // Undefined = default (every episode expanded); once the operator
+  // collapses one, that episode's own choice takes over.
+  const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
   const t = (k: string) => (dict.symptoms as I18nRecord)[k] as string;
 
-  const toggleGroup = (id: string, currentlyExpanded: boolean) =>
-    setExpandedOverrides((prev) => ({ ...prev, [id]: !currentlyExpanded }));
-
-  // One line (non-call) or the rich mock call-log list (call) for a single
-  // procedure inside a treatment group — see `group-treatments.ts`. `isLast`
-  // is true only for the very last row that will render at the bottom of
-  // the whole card, so its corners can match the card's own `rounded-md`
-  // (the card clips flush content to that shape via `overflow-hidden` —
-  // without a matching radius here, the hover ring gets visibly cut off at
-  // an angle instead of following the curve).
-  const renderProcedure = (
-    treatment: TreatmentTimelineElement,
-    index: number,
-    isLast: boolean,
-    groupTime?: Date | null
-  ) => {
-    const isCallTreatment =
-      treatment.treatment_type.toUpperCase() === CALL_TREATMENT_TYPE;
-
-    if (!isCallTreatment) {
-      return (
-        <GenericTreatmentRow
-          key={index}
-          dict={dict}
-          treatment={treatment}
-          roundedBottom={isLast}
-          time={groupTime}
-        />
-      );
-    }
-
-    // Frontend-only mock breakdown — see `mock-call-log.ts`. There's no
-    // real per-call data on a treatment record, so this synthesizes a
-    // plausible message/response *per mock call*, not just the one real
-    // treatment record's — several calls under one treatment shouldn't all
-    // show the same detail on hover.
-    const entrySeed = `${seed}-${index}`;
-    const entries = mockCallLogForTreatment(entrySeed);
-
-    return (
-      <div
-        key={index}
-        className="flex flex-col divide-y divide-gray-200 dark:divide-gray-700"
-      >
-        {entries.map((entry, entryIndex) => (
-          <DetailTooltip
-            key={entry.id}
-            t={t}
-            message={entry.message}
-            response={entry.response}
-          >
-            {(open) => (
-              <CallLogRow
-                dict={dict}
-                entry={entry}
-                roundedBottom={isLast && entryIndex === entries.length - 1}
-                highlighted={open}
-              />
-            )}
-          </DetailTooltip>
-        ))}
-      </div>
-    );
-  };
-
-  if (treatments.length === 0) return null;
-
-  const naturalGroups = groupTreatments(treatments, seed, start, end).map(
-    (group, i) => ({ ...group, number: i + 1 })
-  );
+  if (error) {
+    return <p className="text-[10px] text-red-500">{t("treatments_load_error")}</p>;
+  }
+  const episodes = visibleEpisodes(data);
+  if (episodes.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-1.5">
-      {naturalGroups.map((group) => {
-        const expanded = expandedOverrides[group.id] ?? true;
+      {episodes.map((treatment, i) => {
+        const expanded = expandedOverrides[treatment.id] ?? true;
         return (
-          <div
-            key={group.id}
-            className="flex w-full flex-col overflow-hidden rounded-md border border-gray-200 bg-white text-xs font-light shadow-sm dark:border-gray-700 dark:bg-gray-800/40"
-          >
-            {/* No padding on this card itself, just the rounded corners —
-                each item inside (the header here, the procedures below)
-                carries its own padding instead, and `overflow-hidden` clips
-                them to the rounded shape since they sit flush against the
-                edges. Clicking the header expands/collapses this episode's
-                procedures. */}
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => toggleGroup(group.id, expanded)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  toggleGroup(group.id, expanded);
-                }
-              }}
-              className="flex cursor-pointer items-center justify-between gap-2 border-b border-gray-100 px-2 py-1.5 transition-colors hover:bg-gray-100 dark:border-gray-700/60 dark:bg-gray-800 dark:hover:bg-gray-700"
-            >
-              <span className="flex min-w-0 items-center gap-1">
-                {expanded ? (
-                  <HiChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                ) : (
-                  <HiChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                )}
-                <p className="font-medium text-gray-900 dark:text-gray-100">
-                  {t("treatment_group_label")} {group.number}
-                </p>
-              </span>
-              {group.time && (
-                <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                  <FormattedDate date={group.time} format="time" />
-                </span>
-              )}
-            </div>
-            {/* Grid-rows 0fr/1fr trick (see `call-dialing-step.tsx`'s timer):
-                animates smoothly between zero and the content's natural
-                height with no fixed height to guess at, and — unlike a
-                plain conditional unmount or a max-height transition — truly
-                collapses to zero, no leftover space at rest. */}
-            <div
-              className={`grid transition-[grid-template-rows] duration-300 ease-out ${
-                expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-              }`}
-            >
-              <div className="overflow-hidden">
-                <div className="flex flex-col divide-y divide-gray-200 dark:divide-gray-700">
-                  {group.items.map(({ treatment, index }, itemIndex) =>
-                    renderProcedure(
-                      treatment,
-                      index,
-                      itemIndex === group.items.length - 1,
-                      group.time
-                    )
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+          <EpisodeCard
+            key={treatment.id}
+            dict={dict}
+            treatment={treatment}
+            number={i + 1}
+            expanded={expanded}
+            onToggle={() =>
+              setExpandedOverrides((prev) => ({ ...prev, [treatment.id]: !expanded }))
+            }
+          />
         );
       })}
     </div>
   );
+}
+
+/** True once the symptom has at least one episode with a recorded action. */
+export function useHasTreatments(symptomId: number | null | undefined): boolean {
+  const { data } = useSymptomTreatments(symptomId);
+  return visibleEpisodes(data).length > 0;
 }

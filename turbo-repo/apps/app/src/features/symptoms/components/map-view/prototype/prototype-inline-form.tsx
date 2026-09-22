@@ -6,10 +6,8 @@ import { ToggleSwitch } from "flowbite-react";
 
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { tr } from "@/features/i18n/tr.service";
 
-import { useSession } from "next-auth/react";
 import { SympthomTemplateResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import PrototypeCallCenterFlow, {
   type CallCenterReportedStep,
@@ -17,12 +15,14 @@ import PrototypeCallCenterFlow, {
 import { useFieldEditorMode } from "./call-center/field-editor-mode";
 import WhatsAppContact from "../../blurrable-stepped-menu/menus/whatsapp-contact/whatsapp-contact";
 import { FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
-import { guardedRequestTreatment } from "./prototype-api-guard";
 import PrototypeIgnoreCondition from "./prototype-ignore-condition";
 import PrototypeInvalidateSymptom from "./prototype-invalidate-symptom";
 import { TiDelete } from "react-icons/ti";
 import { MdBlock } from "react-icons/md";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
+import { ShowNotification } from "@/features/notifications/notification";
+import type { TowerTreatmentType } from "@/features/symptoms/control-tower/control-tower-api";
+import { TreatmentSessionProvider, useTreatmentSession } from "./treatment-session";
 
 /** Panel header title per call-center debug-flow step — overrides the menu's
  *  static title while that flow is on screen. */
@@ -33,24 +33,7 @@ const CALL_FLOW_TITLE_KEYS: Record<CallCenterReportedStep, string> = {
   form: "proto_call_title_form",
 };
 
-/**
- * PROTOTYPE — inline variant of `blurrable-stepped-menu/symptom-form.tsx`.
- *
- * Identical menu wiring (state, preactions, effects) but rendered *inside* the
- * timeline side panel instead of a fixed full-screen blurred modal. Mirrors the
- * bento document viewer morph (`task-bento-form/bento-media-section.tsx`), where
- * the panel grows and swaps its content in place rather than opening a dialog.
- */
-export default function PrototypeInlineForm({
-  setIsMenuOpen,
-  isMenuOpen,
-  dict,
-  selectedOption,
-  setSelectedOption,
-  treatmentData,
-  treatments_templates,
-  onCallFlowStepChange,
-}: {
+interface InlineFormProps {
   setIsMenuOpen: (isMenuOpen: boolean) => void;
   isMenuOpen: boolean;
   dict: I18nRecord;
@@ -63,10 +46,41 @@ export default function PrototypeInlineForm({
   treatments_templates: SympthomTemplateResponse | null;
   /** Lets the map container size the panel per call-flow step. */
   onCallFlowStepChange?: (step: CallCenterReportedStep | null) => void;
-}) {
-  const { data: session } = useSession();
-  const userEmail = session?.user?.email ?? "";
+}
 
+/**
+ * PROTOTYPE — inline variant of `blurrable-stepped-menu/symptom-form.tsx`.
+ *
+ * Rendered *inside* the timeline side panel instead of a fixed full-screen
+ * blurred modal. Mirrors the bento document viewer morph
+ * (`task-bento-form/bento-media-section.tsx`), where the panel grows and swaps
+ * its content in place rather than opening a dialog. Every form in the panel
+ * records into one Control Tower treatment episode (see `treatment-session.tsx`).
+ */
+export default function PrototypeInlineForm(props: InlineFormProps) {
+  const { treatmentData } = props;
+  return (
+    <TreatmentSessionProvider
+      symptomId={treatmentData?.symptom_info?.id}
+      assetId={treatmentData?.trip_info?.asset_id ?? undefined}
+      tripId={treatmentData?.trip_info?.trip_id ?? undefined}
+    >
+      <InlineFormBody {...props} />
+    </TreatmentSessionProvider>
+  );
+}
+
+function InlineFormBody({
+  setIsMenuOpen,
+  isMenuOpen,
+  dict,
+  selectedOption,
+  setSelectedOption,
+  treatmentData,
+  treatments_templates,
+  onCallFlowStepChange,
+}: InlineFormProps) {
+  const session = useTreatmentSession();
   const [fieldEditorMode, setFieldEditorMode] = useFieldEditorMode();
 
   // Mirrors the call-center flow's reported step locally so the header can
@@ -137,11 +151,7 @@ export default function PrototypeInlineForm({
   };
 
   // call driver
-  const [messageToCommunicate, setMessageToCommunicate] = useState<string>(
-    treatments_templates?.data?.message ?? ""
-  );
-  // Kept for parity with the treatment payload; the call form no longer writes it.
-  const [driverResponse] = useState<string>("");
+  const messageToCommunicate = treatments_templates?.data?.message ?? "";
 
   // ignore condition
   const [duration, setDuration] = useState<number>(0);
@@ -150,35 +160,20 @@ export default function PrototypeInlineForm({
   // invalidate symptom
   const [reason, setReason] = useState<string>("");
 
-  const [treatmentRequest, setTreatmentRequest] = useState<TreatmentsRequest>({
-    asset_id: treatmentData?.trip_info?.asset_id ?? "",
-    assigned_to: userEmail,
-    client_id: null,
-    status: "active",
-    symptom_id: treatmentData?.symptom_info?.id.toString() ?? "",
-    treatment_type: "",
-    trip_id: treatmentData?.trip_info?.trip_id ?? "",
-    message: messageToCommunicate ?? "",
-    driver_response: driverResponse ?? "",
-    description: undefined,
-    treatment_id: undefined,
-  });
-
-  useEffect(() => {
-    setTreatmentRequest({
-      ...treatmentRequest,
-      message: messageToCommunicate,
-    });
-  }, [messageToCommunicate]);
+  /** Opens (or resumes) the panel's treatment episode as `type`. */
+  const openEpisode = (type: TowerTreatmentType) => {
+    session.ensureOpen(type).catch((error: unknown) =>
+      ShowNotification({
+        type: "error",
+        message: error instanceof Error ? error.message : String(error),
+      })
+    );
+  };
 
   // Lets the call flow's `CallSwitchDropdown` jump to a different treatment
-  // form without leaving the panel. Runs that other menu's own `preactions`
-  // manually — the effect below only fires when the panel itself opens, not
-  // on an in-place `selectedOption` swap like this one — so `treatmentRequest`
-  // still gets that treatment's `treatment_type`/`status` set correctly.
+  // form without leaving the panel. The episode stays the same one — the
+  // switched-to form records its decision into it.
   const handleSwitchFromCall = (option: SelectedOption) => {
-    const nextMenu = menus[option as keyof typeof menus];
-    nextMenu?.preactions?.();
     setCameFromCall(true);
     setSelectedOption(option);
   };
@@ -186,22 +181,7 @@ export default function PrototypeInlineForm({
   const menus = {
     call_driver: {
       title: (dict.symptoms as I18nRecord).call_driver,
-      preactions: async () => {
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_type: "llamar al conductor",
-          status: "pending",
-        });
-        const response = await guardedRequestTreatment({
-          ...treatmentRequest,
-          treatment_type: "llamar al conductor",
-          status: "pending",
-        });
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_id: response.treatment_id,
-        });
-      },
+      preactions: () => openEpisode("CALL"),
       component: (
         <div className="w-full h-full flex flex-row items-start justify-center">
           <PrototypeCallCenterFlow
@@ -209,9 +189,6 @@ export default function PrototypeInlineForm({
             dict={dict as I18nRecord}
             treatmentData={treatmentData}
             messageToCommunicate={messageToCommunicate}
-            setMessageToCommunicate={setMessageToCommunicate}
-            treatmentRequest={treatmentRequest}
-            setTreatmentRequest={setTreatmentRequest}
             setIsMenuOpen={setIsMenuOpen}
             onStepChange={handleCallFlowStepChange}
             onSwitchTreatment={handleSwitchFromCall}
@@ -222,7 +199,7 @@ export default function PrototypeInlineForm({
     },
     contact_via_whatsapp: {
       title: (dict.symptoms as I18nRecord).contact_via_whatsapp,
-      // No preaction: sending a WhatsApp doesn't pre-create a treatment record.
+      // No preaction: sending a WhatsApp doesn't open a treatment.
       preactions: undefined,
       component: (
         // key by trip so the form re-seeds its defaults if the selected treatment changes.
@@ -237,22 +214,7 @@ export default function PrototypeInlineForm({
     },
     ignore_condition: {
       title: (dict.symptoms as I18nRecord).ignore_condition,
-      preactions: async () => {
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_type: "ignorar condicion",
-          status: "pending",
-        });
-        const response = await guardedRequestTreatment({
-          ...treatmentRequest,
-          treatment_type: "ignorar condicion",
-          status: "pending",
-        });
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_id: response.treatment_id,
-        });
-      },
+      preactions: () => openEpisode("IGNORE_CONDITION"),
       component: (
         <PrototypeIgnoreCondition
           dict={dict as I18nRecord}
@@ -261,8 +223,6 @@ export default function PrototypeInlineForm({
           duration={duration}
           scope={scope}
           setScope={setScope}
-          treatmentRequest={treatmentRequest}
-          setTreatmentRequest={setTreatmentRequest}
           setIsMenuOpen={setIsMenuOpen}
         />
       ),
@@ -270,30 +230,13 @@ export default function PrototypeInlineForm({
     },
     invalidate_symptom: {
       title: (dict.symptoms as I18nRecord).invalidate_symptom,
-      preactions: async () => {
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_type: "invalidar sintoma",
-          status: "pending",
-        });
-        const response = await guardedRequestTreatment({
-          ...treatmentRequest,
-          treatment_type: "invalidar sintoma",
-          status: "pending",
-        });
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_id: response.treatment_id,
-        });
-      },
+      preactions: () => openEpisode("INVALIDATE_SYMPTOM"),
       component: (
         <PrototypeInvalidateSymptom
           dict={dict}
           treatmentData={treatmentData}
           reason={reason}
           setReason={setReason}
-          treatmentRequest={treatmentRequest}
-          setTreatmentRequest={setTreatmentRequest}
           setIsMenuOpen={setIsMenuOpen}
         />
       ),
@@ -306,21 +249,8 @@ export default function PrototypeInlineForm({
       const preaction = menus[selectedOption as keyof typeof menus]?.preactions;
       preaction && preaction();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMenuOpen]);
-
-  useEffect(() => {
-    setTreatmentRequest({
-      ...treatmentRequest,
-      message: messageToCommunicate,
-    });
-  }, [messageToCommunicate]);
-
-  useEffect(() => {
-    setTreatmentRequest({
-      ...treatmentRequest,
-      driver_response: driverResponse,
-    });
-  }, [driverResponse]);
 
   const selectedMenu = menus[selectedOption as keyof typeof menus];
   if (!selectedMenu) return null;

@@ -1,345 +1,97 @@
 "use client";
 
 /**
- * PROTOTYPE — client-only persistence for Selectables.
- *
- * Stored in `localStorage` under a single key, synced within a tab via a
- * custom event and across tabs via the native `storage` event. No API — this
- * is scaffolding for the Selectables settings page and the gear shortcut in
- * the treatment forms.
+ * Selectables, read from and written to the modulith Control Tower API
+ * (`/selectables`). The organization gets the default lists the first time it
+ * asks; writes need an organization owner, and a refused write surfaces as a
+ * notification. Same hook shape the settings page and the treatment forms
+ * already use.
  */
 
-import { useCallback, useEffect, useState } from "react";
-import type { Selectable, SelectableOption, SelectionMode } from "./types";
-
-const STORAGE_KEY = "miot.prototype.selectables.v1";
-const SYNC_EVENT = "miot:selectables-changed";
+import { useCallback } from "react";
+import { mutate } from "swr";
+import { ShowNotification } from "@/features/notifications/notification";
+import {
+  deleteSelectable,
+  replaceSelectable,
+  resetSelectables,
+  selectablesKey,
+  type TowerSelectable,
+  useTowerSelectables,
+} from "@/features/symptoms/control-tower/control-tower-api";
+import type { Selectable } from "./types";
 
 export function makeId(prefix = "id"): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function seedOptions(entries: Array<[string, string]>): SelectableOption[] {
-  return entries.map(([name, description]) => ({
-    id: makeId("opt"),
-    name,
-    description,
-  }));
+function fromApi(s: TowerSelectable): Selectable {
+  return {
+    id: s.key,
+    name: s.name,
+    description: s.description ?? "",
+    mode: s.mode === "MULTIPLE" ? "multiple" : "single",
+    options: s.options.map((o) => ({ id: o.id, name: o.name, description: o.description ?? "" })),
+  };
 }
 
-/**
- * Defaults mirror the hard-coded lists in the current "Llamar al conductor"
- * form so the settings page starts coherent with what the form shows.
- */
-export function defaultSelectables(): Selectable[] {
-  return [
-    {
-      id: "who_to_call",
-      name: "A quién llamar",
-      description:
-        "Destinatario de la llamada. Cualquiera distinto del conductor se registra como escalamiento propuesto por el operador.",
-      mode: "single",
-      options: seedOptions([
-        ["Conductor", "Conductor asignado al viaje"],
-        ["Transportista / Jefe de transporte", ""],
-        ["Jefe de operaciones", ""],
-        ["Jefe mina", ""],
-        ["Otro", "Detallar en la nota"],
-      ]),
-    },
-    {
-      id: "call_result",
-      name: "Resultado de la llamada",
-      description: "Desenlace del contacto telefónico.",
-      mode: "single",
-      options: seedOptions([
-        ["Contesta — se compromete a corregir", ""],
-        ["Contesta — condición ya corregida", ""],
-        ["Contesta — rechaza o discute", ""],
-        ["No contesta", ""],
-        ["Buzón de voz / apagado", ""],
-      ]),
-    },
-    {
-      id: "call_tags",
-      name: "Etiquetas de llamada",
-      description: "Etiquetas opcionales para clasificar el tratamiento.",
-      mode: "multiple",
-      options: seedOptions([
-        ["Ruta con problemas", ""],
-        ["Conductor problemático", ""],
-        ["Prueba", ""],
-      ]),
-    },
-    {
-      id: "ignore_reason",
-      name: "Motivo para ignorar",
-      description:
-        "Por qué el evento es real pero no requiere gestión. Alimenta el bucle de calibración.",
-      mode: "single",
-      options: seedOptions([
-        ["Falso positivo — mapa/límite incorrecto", ""],
-        ["Zona de sombra GPS conocida", ""],
-        ["Maniobra justificada (adelantamiento)", ""],
-        ["Condición operativa autorizada", ""],
-        ["Síntoma duplicado", ""],
-        ["Otro (detallar en la nota)", ""],
-      ]),
-    },
-    {
-      id: "ignore_duration",
-      name: "Duración de la omisión",
-      description: "Por cuánto tiempo se silencia la condición.",
-      mode: "single",
-      options: seedOptions([
-        ["5 minutos", ""],
-        ["30 minutos", ""],
-        ["1 hora", ""],
-        ["2 horas", ""],
-        ["Indefinidamente", ""],
-      ]),
-    },
-    {
-      id: "invalidate_reason",
-      name: "Motivo de invalidación",
-      description:
-        "Por qué el síntoma NO es real (dato o regla). Es la etiqueta de aprendizaje del motor.",
-      mode: "single",
-      options: seedOptions([
-        ["Dato GPS incorrecto", ""],
-        ["Mapa/límite incorrecto", ""],
-        ["Regla mal calibrada", ""],
-        ["Síntoma duplicado", ""],
-        ["Otro (detallar en la nota)", ""],
-      ]),
-    },
-  ];
+function toApi(s: Selectable): Omit<TowerSelectable, "key"> {
+  return {
+    name: s.name,
+    description: s.description,
+    mode: s.mode === "multiple" ? "MULTIPLE" : "SINGLE",
+    // A blank row left in the editor is not an option.
+    options: s.options.filter((o) => o.name.trim()).map((o) => ({ ...o, name: o.name.trim() })),
+  };
 }
 
-/**
- * A selectable added (or emptied out through the settings page) after this
- * browser's storage was first seeded would otherwise never show its intended
- * defaults again — e.g. "A quién llamar" losing "Conductor" and the rest of
- * the seeded roles if the id is missing from storage or was cleared out to
- * zero options. Backfills only those, leaving every other customization
- * (including a deliberately-edited "who_to_call" that still has options)
- * untouched.
- */
-function backfillMissingDefaults(stored: Selectable[]): Selectable[] {
-  const byId = new Map(stored.map((s) => [s.id, s] as const));
-  let changed = false;
-  for (const fallback of defaultSelectables()) {
-    const existing = byId.get(fallback.id);
-    if (!existing) {
-      byId.set(fallback.id, fallback);
-      changed = true;
-    } else if (existing.options.length === 0 && fallback.options.length > 0) {
-      byId.set(fallback.id, { ...existing, options: fallback.options });
-      changed = true;
-    }
-  }
-  return changed ? Array.from(byId.values()) : stored;
-}
-
-function read(): Selectable[] {
-  if (typeof window === "undefined") return defaultSelectables();
+async function run(write: () => Promise<unknown>): Promise<boolean> {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultSelectables();
-    const parsed = JSON.parse(raw) as Selectable[];
-    if (!Array.isArray(parsed)) return defaultSelectables();
-    return backfillMissingDefaults(parsed);
-  } catch {
-    return defaultSelectables();
-  }
-}
-
-function write(next: Selectable[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    window.dispatchEvent(new Event(SYNC_EVENT));
-  } catch {
-    // storage unavailable (private mode, quota) — the in-memory state still updates.
+    await write();
+    return true;
+  } catch (error) {
+    ShowNotification({
+      type: "error",
+      message: error instanceof Error ? error.message : "No se pudo guardar",
+    });
+    return false;
+  } finally {
+    await mutate(selectablesKey);
   }
 }
 
 export function useSelectables() {
-  const [selectables, setSelectables] = useState<Selectable[]>(() =>
-    defaultSelectables()
-  );
-  const [hydrated, setHydrated] = useState(false);
+  const { data, isLoading } = useTowerSelectables();
+  const selectables = (data ?? []).map(fromApi);
 
-  useEffect(() => {
-    setSelectables(read());
-    setHydrated(true);
-    const sync = () => setSelectables(read());
-    window.addEventListener(SYNC_EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(SYNC_EVENT, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
-
-  const persist = useCallback((next: Selectable[]) => {
-    setSelectables(next);
-    write(next);
-  }, []);
-
-  const update = useCallback(
-    (id: string, patch: Partial<Omit<Selectable, "id">>) => {
-      persist(
-        read().map((s) => (s.id === id ? { ...s, ...patch } : s))
-      );
-    },
-    [persist]
-  );
-
-  /**
-   * Upserts a whole selectable — used by the create/edit modal, which keeps
-   * its own draft in local state and only touches the store once, on Save
-   * (so closing/cancelling never leaves a half-filled entry behind). Replaces
-   * the existing entry if `next.id` is already present, otherwise appends.
-   */
-  const save = useCallback(
-    (next: Selectable) => {
-      const current = read();
-      const exists = current.some((s) => s.id === next.id);
-      persist(
-        exists
-          ? current.map((s) => (s.id === next.id ? next : s))
-          : [...current, next]
-      );
-    },
-    [persist]
-  );
-
-  const add = useCallback(() => {
-    const fresh: Selectable = {
-      id: makeId("sel"),
-      name: "",
-      description: "",
-      mode: "single",
-      options: [{ id: makeId("opt"), name: "", description: "" }],
-    };
-    persist([...read(), fresh]);
-    return fresh.id;
-  }, [persist]);
+  /** Creates or replaces a whole selectable (the editor modal saves once, on Save). */
+  const save = useCallback((next: Selectable) => run(() => replaceSelectable(next.id, toApi(next))), []);
 
   const duplicate = useCallback(
     (id: string) => {
-      const src = read().find((s) => s.id === id);
-      if (!src) return;
+      const src = selectables.find((s) => s.id === id);
+      if (!src) return Promise.resolve(false);
       const copy: Selectable = {
         ...src,
         id: makeId("sel"),
         name: `${src.name} (copia)`,
         options: src.options.map((o) => ({ ...o, id: makeId("opt") })),
       };
-      persist([...read(), copy]);
+      return run(() => replaceSelectable(copy.id, toApi(copy)));
     },
-    [persist]
+    [selectables]
   );
 
-  const remove = useCallback(
-    (id: string) => {
-      persist(read().filter((s) => s.id !== id));
-    },
-    [persist]
-  );
+  const remove = useCallback((id: string) => run(() => deleteSelectable(id)), []);
 
-  const addOption = useCallback(
-    (id: string) => {
-      persist(
-        read().map((s) =>
-          s.id === id
-            ? {
-                ...s,
-                options: [
-                  ...s.options,
-                  { id: makeId("opt"), name: "", description: "" },
-                ],
-              }
-            : s
-        )
-      );
-    },
-    [persist]
-  );
-
-  /** Same as `addOption`, but takes the name/description up front and hands
-   *  back the new option's id — for a caller (e.g. an inline "add contact"
-   *  form) that needs to act on the option it just created immediately,
-   *  rather than appending a blank one and editing it in a later render. */
-  const addNamedOption = useCallback(
-    (id: string, name: string, description = ""): string => {
-      const optionId = makeId("opt");
-      persist(
-        read().map((s) =>
-          s.id === id
-            ? { ...s, options: [...s.options, { id: optionId, name, description }] }
-            : s
-        )
-      );
-      return optionId;
-    },
-    [persist]
-  );
-
-  const updateOption = useCallback(
-    (id: string, optionId: string, patch: Partial<Omit<SelectableOption, "id">>) => {
-      persist(
-        read().map((s) =>
-          s.id === id
-            ? {
-                ...s,
-                options: s.options.map((o) =>
-                  o.id === optionId ? { ...o, ...patch } : o
-                ),
-              }
-            : s
-        )
-      );
-    },
-    [persist]
-  );
-
-  const removeOption = useCallback(
-    (id: string, optionId: string) => {
-      persist(
-        read().map((s) =>
-          s.id === id
-            ? { ...s, options: s.options.filter((o) => o.id !== optionId) }
-            : s
-        )
-      );
-    },
-    [persist]
-  );
-
-  const setMode = useCallback(
-    (id: string, mode: SelectionMode) => update(id, { mode }),
-    [update]
-  );
-
-  const resetToDefaults = useCallback(() => {
-    persist(defaultSelectables());
-  }, [persist]);
+  const resetToDefaults = useCallback(() => run(() => resetSelectables()), []);
 
   return {
     selectables,
-    hydrated,
-    add,
+    hydrated: !isLoading,
     save,
     duplicate,
     remove,
-    update,
-    setMode,
-    addOption,
-    addNamedOption,
-    updateOption,
-    removeOption,
     resetToDefaults,
   };
 }

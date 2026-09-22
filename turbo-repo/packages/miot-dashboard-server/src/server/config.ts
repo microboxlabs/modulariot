@@ -9,6 +9,8 @@
 
 import type { JwtAlgorithm } from "../identity/jwt";
 import type { TicketPresentation } from "../identity/ticket";
+import { MIN_PROXY_KEY_LENGTH } from "../identity/proxy";
+import { MIN_CREDENTIALS_KEY_LENGTH } from "../vault/sql";
 import { DASHBOARD_ROLES, type DashboardRole } from "../access/roles";
 import { isLoopbackHost } from "../net/loopback";
 import { validateCors, type CorsOptions } from "../http/cors";
@@ -49,6 +51,42 @@ export interface ServerConfig {
   /** Serve the contract at /openapi.yaml and render it at /docs. */
   docs: boolean;
   cors: CorsOptions | undefined;
+  /**
+   * Shared key an authenticated proxy sends to assert the tenant and scope
+   * role it has already resolved. Absent means no proxy is trusted and every
+   * request is authorized against the configured authorities.
+   */
+  proxyKey: string | undefined;
+  /** Where datasource credentials come from. */
+  credentials: CredentialsConfig;
+}
+
+/** Who owns a datasource credential. One of these, never a mix. */
+export type CredentialsConfig =
+  | { kind: "none" }
+  | CredentialsSqlConfig
+  | CredentialsHttpConfig;
+
+/** Credentials in this server's own database, encrypted with `key`. */
+export interface CredentialsSqlConfig {
+  kind: "sql";
+  key: string;
+}
+
+/**
+ * Credentials at the host, which answers applied auth. This server stores
+ * none, and its credential routes answer 404.
+ */
+export interface CredentialsHttpConfig {
+  kind: "http";
+  /** `{tenantId}` and `{credentialRef}` fill in. */
+  url: string;
+  /** The proxy key, sent the other way to identify this server. */
+  proxyKey: string;
+  /** A plain `http://` URL is accepted. Off unless the operator says so. */
+  allowHttp: boolean;
+  requestTimeoutMs: number;
+  maxCacheSeconds: number;
 }
 
 export type AuthConfig = InsecureAuthConfig | VerifiedAuthConfig;
@@ -417,6 +455,14 @@ const DEFAULT_NEGATIVE_CACHE_SECONDS = 30;
 const DEFAULT_LOOKUP_TIMEOUT_MS = 5000;
 const MAX_LOOKUP_CACHE_SECONDS = 3600;
 const MAX_LOOKUP_TIMEOUT_MS = 30_000;
+
+/**
+ * How long applied auth may be reused. A credential revoked at the host
+ * keeps working for this long, so the ceiling is lower than a membership
+ * lookup's.
+ */
+const DEFAULT_CREDENTIALS_CACHE_SECONDS = 60;
+const MAX_CREDENTIALS_CACHE_SECONDS = 300;
 
 function readWholeNumber(
   env: ConfigEnv,
@@ -881,9 +927,97 @@ function readAuth(env: ConfigEnv, host: string): AuthConfig {
   );
 }
 
+function readCredentials(
+  env: ConfigEnv,
+  store: StoreKind,
+  proxyKey: string | undefined,
+): CredentialsConfig {
+  const url = trimmed(env.MIOT_DASHBOARD_CREDENTIALS_URL);
+  const key = env.MIOT_DASHBOARD_CREDENTIALS_KEY;
+
+  if (url !== undefined && key !== undefined && key.length > 0) {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_CREDENTIALS_URL and MIOT_DASHBOARD_CREDENTIALS_KEY name " +
+        "different owners for the same secret. Set the URL to leave " +
+        "credentials with the host, or the key to keep them here.",
+    );
+  }
+
+  if (url !== undefined) {
+    if (proxyKey === undefined) {
+      throw new ConfigError(
+        "MIOT_DASHBOARD_CREDENTIALS_URL needs MIOT_DASHBOARD_PROXY_KEY. The " +
+          "same key identifies this server to the host.",
+      );
+    }
+    return {
+      kind: "http",
+      url,
+      proxyKey,
+      allowHttp: readBoolean(env.MIOT_DASHBOARD_CREDENTIALS_ALLOW_HTTP),
+      requestTimeoutMs: readWholeNumber(
+        env,
+        "MIOT_DASHBOARD_CREDENTIALS_TIMEOUT",
+        DEFAULT_LOOKUP_TIMEOUT_MS,
+        MAX_LOOKUP_TIMEOUT_MS,
+        "milliseconds",
+      ),
+      maxCacheSeconds: readWholeNumber(
+        env,
+        "MIOT_DASHBOARD_CREDENTIALS_CACHE",
+        DEFAULT_CREDENTIALS_CACHE_SECONDS,
+        MAX_CREDENTIALS_CACHE_SECONDS,
+        "seconds",
+      ),
+    };
+  }
+
+  if (key === undefined || key.length === 0) return { kind: "none" };
+  if (key.length < MIN_CREDENTIALS_KEY_LENGTH) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_CREDENTIALS_KEY is ${key.length} characters. It has ` +
+        `to be at least ${MIN_CREDENTIALS_KEY_LENGTH}. It encrypts every ` +
+        "credential stored in the database.",
+    );
+  }
+  if (store === "memory") {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_CREDENTIALS_KEY needs a database. The memory store is " +
+        "discarded on restart, so credentials written to it are lost. Set " +
+        "MIOT_DASHBOARD_STORE to sqlite or postgres.",
+    );
+  }
+  // Allowed with MIOT_DASHBOARD_INSECURE_AUTH, unlike the proxy key, so the
+  // plugin can run locally. Insecure auth binds to loopback only, and no
+  // route answers with a stored secret. A local caller can still write and
+  // use credentials as any user, so use this pair on a development machine.
+  return { kind: "sql", key };
+}
+
+function readProxyKey(env: ConfigEnv, auth: AuthConfig): string | undefined {
+  const key = env.MIOT_DASHBOARD_PROXY_KEY;
+  if (key === undefined || key.length === 0) return undefined;
+  if (key.length < MIN_PROXY_KEY_LENGTH) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_PROXY_KEY is ${key.length} characters. It has to be at ` +
+        `least ${MIN_PROXY_KEY_LENGTH}: a caller who guesses it can assert ` +
+        "their own role on any dashboard.",
+    );
+  }
+  if (auth.kind === "insecure") {
+    throw new ConfigError(
+      "MIOT_DASHBOARD_PROXY_KEY cannot be combined with " +
+        "MIOT_DASHBOARD_INSECURE_AUTH. An assertion is checked against the " +
+        "verified identity, and unverified header auth has none to check.",
+    );
+  }
+  return key;
+}
+
 export function readServerConfig(env: ConfigEnv): ServerConfig {
   const host = env.HOST ?? "127.0.0.1";
   const auth = readAuth(env, host);
+  const proxyKey = readProxyKey(env, auth);
 
   const store = env.MIOT_DASHBOARD_STORE ?? "memory";
   if (!(STORE_KINDS as readonly string[]).includes(store)) {
@@ -943,6 +1077,8 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     seedPath: env.MIOT_DASHBOARD_SEED,
     docs: readBooleanUnlessDisabled(env.MIOT_DASHBOARD_DOCS),
     cors: readCors(env),
+    proxyKey,
+    credentials: readCredentials(env, store as StoreKind, proxyKey),
   };
 }
 

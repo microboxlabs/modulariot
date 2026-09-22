@@ -7,6 +7,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { sampleConfig } from "../test/fixtures";
 import { openSqliteStore, type OpenedStore } from "../store/sqlite";
 import {
   createInsecureHeaderIdentityResolver,
@@ -20,7 +21,7 @@ const AS_ANA = {
   "content-type": "application/json",
 };
 
-const config = { version: 2, name: "Fleet", widgets: [] };
+const config = sampleConfig();
 
 describe("a restart", () => {
   let directory: string;
@@ -114,7 +115,7 @@ describe("a restart", () => {
         {
           method: "PUT",
           headers: AS_ANA,
-          body: JSON.stringify({ version: 2, name: "Acme only" }),
+          body: JSON.stringify(sampleConfig({ name: "Acme only" })),
         },
       );
     } finally {

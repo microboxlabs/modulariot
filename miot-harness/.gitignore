@@ -7,3 +7,6 @@ __pycache__/
 .mypy_cache/
 *.egg-info/
 
+
+# Local run artifacts: provenance logs carry tenant ids and executed SQL.
+evals/provenance/

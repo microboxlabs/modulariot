@@ -1,0 +1,38 @@
+# Servidor de Dashboards
+
+El servidor de dashboards es el servicio que guarda los tableros, verifica quién los pide, mantiene separados los datos de cada organización y protege las credenciales con las que se consultan las fuentes de datos. Se distribuye en npm como `@microboxlabs/miot-dashboard-server`, con licencia Apache 2.0, y funciona con o sin el resto de ModularIoT.
+
+## Las tres piezas
+
+| Paquete | Qué hace |
+| --- | --- |
+| `@microboxlabs/miot-dashboard-ui` | Dibuja y edita los tableros en el navegador. No sabe de usuarios ni de organizaciones. |
+| `@microboxlabs/miot-dashboard-server` | Guarda los tableros, autoriza cada petición y protege las credenciales. |
+| `@microboxlabs/miot-dashboard-contract` | El contrato entre ambos: el esquema del documento, los roles, los errores y la especificación OpenAPI. |
+
+Quien reemplace una de las dos primeras piezas por una propia solo necesita respetar la tercera.
+
+## Dos formas de desplegarlo
+
+| Modo | Quién verifica usuarios y pertenencias | Dónde viven las credenciales |
+| --- | --- | --- |
+| **Autónomo** | El propio servidor, con su proveedor de identidad y una lista de pertenencias | En la base de datos del servidor, cifradas |
+| **Integrado con ModularIoT** | ModularIoT, que antepone su propio proxy | En el componente de conexiones de ModularIoT |
+
+Esta sección describe el modo autónomo: el servidor corre en su infraestructura, sin ModularIoT ni ningún proxy delante. Las mismas variables sirven para el modo integrado; la diferencia está en qué se configura.
+
+## Qué necesita
+
+- Node.js 22.13 o superior, o Docker, o un clúster de Kubernetes con Helm.
+- Un proveedor de identidad que emita tokens JWT: Auth0, Microsoft Entra ID, Keycloak o cualquier otro con un endpoint JWKS. Para una prueba en su equipo puede prescindir de él.
+- Opcional: una base de datos PostgreSQL. Sin ella, el servidor guarda todo en un archivo SQLite.
+
+## Cómo seguir
+
+| Página | Contenido |
+| --- | --- |
+| [Instalación autónoma](/es/operations/dashboard-server/instalacion) | Arrancarlo con npm, Docker o Helm y comprobar que responde |
+| [Configuración](/es/operations/dashboard-server/configuracion) | Todas las variables de entorno |
+| [Usuarios y permisos](/es/operations/dashboard-server/identidad) | Identidad, organizaciones, ámbitos y roles |
+| [Fuentes de datos y credenciales](/es/operations/dashboard-server/fuentes-de-datos) | Conectar un tablero a sus datos sin exponer secretos |
+| [API](/es/operations/dashboard-server/api) | Las rutas, el contrato OpenAPI y los errores |

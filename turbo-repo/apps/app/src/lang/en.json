@@ -1048,6 +1048,10 @@
         "clientSystemValidation": "Client System Validation",
         "gpsValidation": "GPS Validation",
         "gpsValidationError": "Error loading GPS validation",
+        "copyGoogleMapsLink": "Copy Google Maps link",
+        "googleMapsLinkCopied": "Google Maps link copied",
+        "googleMapsLinkCopyError": "Couldn't copy the link",
+        "centerOnElement": "Center on element",
         "entity": "Entity",
         "source": "Source",
         "ultimo_name": "Last location",
@@ -1970,6 +1974,10 @@
             "name": "Auth0 machine-to-machine",
             "description": "An Auth0 M2M application — pick the client from your tenant, then set the API it calls."
           },
+          "googleServiceAccount": {
+            "name": "Google service account",
+            "description": "A Google Cloud service account, for reading BigQuery from a dashboard. Signed with its private key; only the token leaves."
+          },
           "apiKey": {
             "name": "API key",
             "description": "A key sent as a header or query parameter."
@@ -2071,7 +2079,20 @@
           "auth0TokenRequestFormatHelp": "Auth0's own endpoint accepts form encoding. A proxy in front of it may expect a JSON body instead.",
           "auth0DirectoryLoading": "Loading applications...",
           "auth0DirectoryEmpty": "No applications match. You can paste a client ID instead.",
-          "auth0DirectoryError": "Couldn't load applications. You can still paste a client ID."
+          "auth0DirectoryError": "Couldn't load applications. You can still paste a client ID.",
+          "googleAddTitle": "New Google service account",
+          "googleEditTitle": "Edit Google service account",
+          "googleSubtitle": "All three fields come from the service account's JSON key file.",
+          "projectId": "Project ID",
+          "projectIdPlaceholder": "my-project-123456",
+          "projectIdHelp": "The key file's project_id. Informational: the project a dashboard queries is set on the datasource.",
+          "clientEmail": "Service account email",
+          "clientEmailPlaceholder": "name@my-project.iam.gserviceaccount.com",
+          "privateKey": "Private key",
+          "privateKeyPlaceholder": "-----BEGIN PRIVATE KEY-----\n…\n-----END PRIVATE KEY-----",
+          "privateKeyEditPlaceholder": "Leave blank to keep the current key",
+          "privateKeyHelp": "The key file's private_key, with or without escaped line breaks. Stored encrypted and never returned.",
+          "googleScopeHelp": "Blank means BigQuery read-only. Change the scope only if the account needs another Google API."
         },
         "delete": {
           "title": "Delete this credential?",
@@ -2105,7 +2126,10 @@
           "oauth2ClientIdRequired": "Client ID is required",
           "auth0DomainRequired": "Auth0 domain is required",
           "auth0ClientIdRequired": "Pick or enter an application (client) ID",
-          "auth0AudienceRequired": "API audience is required for Auth0"
+          "auth0AudienceRequired": "API audience is required for Auth0",
+          "clientEmailRequired": "Service account email is required",
+          "clientEmailInvalid": "Enter the service account's email",
+          "privateKeyRequired": "Private key is required"
         }
       }
     },
@@ -3181,6 +3205,8 @@
       "optionsLoading": "Loading options…",
       "optionsError": "Options could not be loaded.",
       "noOptionsYet": "No options yet. Add at least one.",
+      "optionsSearchPlaceholder": "Search…",
+      "optionsNoMatches": "No matches",
       "optionLabelPlaceholder": "Label",
       "optionValuePlaceholder": "Value",
       "addOption": "Add option",
@@ -4363,6 +4389,10 @@
     "clientSystemValidation": "Client System Validation",
     "gpsValidation": "GPS Validation",
     "gpsValidationError": "Error loading GPS validation",
+    "copyGoogleMapsLink": "Copy Google Maps link",
+    "googleMapsLinkCopied": "Google Maps link copied",
+    "googleMapsLinkCopyError": "Couldn't copy the link",
+    "centerOnElement": "Center on element",
     "entity": "Entity",
     "source": "Source",
     "ultimo_name": "Last location",
@@ -4432,7 +4462,10 @@
     "unassigned": "Unassigned",
     "partial": "Partial",
     "assigned": "Assigned",
-    "type": "Type"
+    "type": "Type",
+    "artifactType": "Document type",
+    "creator": "Creator",
+    "createdAt": "Creation date"
   },
   "comments": {
     "title": "Comments",
@@ -5171,7 +5204,37 @@
   },
   "storytelling": {
     "breadcrumb": {
-      "storytelling": "Storytelling"
+      "storytelling": "Storytelling",
+      "versions": "Versions"
+    },
+    "version": {
+      "badgeLabel": "v{label}",
+      "badgeTitle": "Version {label} — view history",
+      "title": "Version history",
+      "subtitle": "{count} iterations · current v{label}",
+      "current": "Current",
+      "root": "First version",
+      "canvas": {
+        "fit": "Center on all",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out"
+      },
+      "menu": {
+        "label": "Version actions",
+        "open": "Open",
+        "iterate": "Iterate",
+        "delete": "Delete"
+      },
+      "delete": {
+        "title": "Delete this version?",
+        "branchWarning": "Everything branched from this version is removed too.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      },
+      "toast": {
+        "iterated": "Created v{label}",
+        "deleted": "Removed v{label}"
+      }
     },
     "title": "Storytelling",
     "description": "AI-generated and curated stories for your organization.",
@@ -5190,8 +5253,20 @@
     "menu": {
       "label": "Actions",
       "share": "Share",
+      "details": "Details",
       "delete": "Delete",
       "download": "Download"
+    },
+    "card": {
+      "editedBy": "Edited by {name} on {date}"
+    },
+    "attribution": "{name} on {date}",
+    "details": {
+      "title": "Story details",
+      "type": "Type",
+      "created": "Created",
+      "lastEdited": "Last edited",
+      "id": "ID"
     },
     "delete": {
       "title": "Delete story",
@@ -5202,11 +5277,27 @@
     "share": {
       "title": "Share",
       "copyLink": "Copy link",
-      "email": "Email",
-      "whatsapp": "WhatsApp",
       "copied": "Link copied to clipboard",
       "copyFailed": "Couldn't copy the link",
-      "demoNotice": "Demo content — the link only opens for people who already have this story."
+      "inviteTitle": "Invite people",
+      "invitePlaceholder": "Add people by name or email",
+      "inviteButton": "Invite",
+      "invited": "Invited {name}",
+      "accessRemoved": "Removed {name}",
+      "roleForLabel": "Access level for {name}",
+      "roleViewer": "Can view",
+      "roleEditor": "Can edit",
+      "remove": "Remove",
+      "removeFor": "Remove {name}",
+      "peopleWithAccess": "People with access",
+      "owner": "You",
+      "ownerBadge": "Owner",
+      "generalAccess": "General access",
+      "linkRestricted": "Restricted",
+      "linkAnyone": "Anyone with the link",
+      "linkRestrictedHint": "Only invited people can open this story",
+      "linkViewerHint": "Anyone with the link can view this story",
+      "linkEditorHint": "Anyone with the link can view and edit this story"
     },
     "toast": {
       "deleted": "Deleted {name}",
@@ -5229,13 +5320,24 @@
         "clear": "Clear search"
       },
       "markdown": {
-        "error": "Couldn't load this document."
+        "error": "Couldn't load this document.",
+        "outline": "Outline"
       },
       "ppt": {
         "comingSoon": "PPT preview isn't available yet — this is a placeholder for the artifact type."
       },
       "pdf": {
-        "comingSoon": "PDF preview isn't available yet — this is a placeholder for the artifact type."
+        "loading": "Loading document…",
+        "error": "Couldn't load this PDF.",
+        "previousPage": "Previous page",
+        "nextPage": "Next page",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "zoomReset": "Reset zoom",
+        "fit": "Fit to width",
+        "railPages": "Pages",
+        "railSections": "Sections",
+        "noSections": "This document has no sections to list"
       },
       "notFound": {
         "title": "Story not found",
@@ -5414,6 +5516,7 @@
       "composer": {
         "placeholder": "Ask the harness…",
         "cancelRun": "Cancel",
+        "model": "Model",
         "pdfTooLarge": "PDF is too large ({size} MB) — the limit is {limit} MB."
       },
       "showDashlet": {

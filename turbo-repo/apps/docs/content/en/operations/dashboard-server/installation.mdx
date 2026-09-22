@@ -1,0 +1,108 @@
+# Standalone installation
+
+The server is one Node.js process. Install it from npm, run it as a container, or deploy it with Helm. All three read the same configuration from environment variables.
+
+## Requirements
+
+| Component | Version |
+| --- | --- |
+| Node.js | 22.13 or later. SQLite ships with Node; earlier versions only have the in-memory store |
+| Docker | Any recent version. The image is `ghcr.io/microboxlabs/miot-dashboard-server` |
+| Helm | 3 or later. The chart is `microboxlabs/miot-dashboard-server` |
+
+## First start on your machine
+
+```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true MIOT_DASHBOARD_SEED=example \
+MIOT_DASHBOARD_STORE=sqlite \
+MIOT_DASHBOARD_CREDENTIALS_KEY="$(openssl rand -base64 32)" \
+  npx @microboxlabs/miot-dashboard-server
+```
+
+Starts on `http://127.0.0.1:3070` with sample organizations, users and dashboards. Data goes under `./data`.
+
+```bash
+curl -H 'x-dev-user: alice' \
+  http://127.0.0.1:3070/tenants/acme/scopes/ops/dashboards
+```
+
+Returns the dashboards in scope `ops` of organization `acme`, as `alice` sees them.
+
+`MIOT_DASHBOARD_INSECURE_AUTH` takes the identity in the `x-dev-user` header without verifying it. It only works when listening on `localhost`; the server refuses to start with it when `HOST` is another address or `NODE_ENV` is `production`.
+
+## With Docker
+
+```bash
+docker run --rm -p 3070:3070 -v dashboards:/data \
+  -e MIOT_DASHBOARD_JWT_ISSUER=https://your-company.auth0.com/ \
+  -e MIOT_DASHBOARD_JWT_AUDIENCE=miot-dashboards \
+  -e MIOT_DASHBOARD_JWT_JWKS_URL=https://your-company.auth0.com/.well-known/jwks.json \
+  -e MIOT_DASHBOARD_JWT_USER_CLAIM=email \
+  -e MIOT_DASHBOARD_SEED=/data/seed.json \
+  -e MIOT_DASHBOARD_CREDENTIALS_KEY="$(openssl rand -base64 32)" \
+  ghcr.io/microboxlabs/miot-dashboard-server:latest
+```
+
+The image listens on `0.0.0.0:3070`, keeps the SQLite database and the documents under `/data`, and runs as an unprivileged user. Mount a volume on `/data` or the dashboards go with the container.
+
+`MIOT_DASHBOARD_SEED` points at the file that says who belongs to which organization. Its format is in [Users and permissions](/en/operations/dashboard-server/identity). Copy it onto the volume before starting.
+
+In production pin a `sha-<short>` tag instead of `latest`: `latest` moves with every publish, and a restart could change the code writing your dashboards.
+
+## With Helm
+
+```bash
+helm repo add microboxlabs https://microboxlabs.github.io/helm-charts
+helm repo update
+helm install dashboards microboxlabs/miot-dashboard-server \
+  --namespace dashboards --create-namespace \
+  --values values.yaml
+```
+
+A minimal `values.yaml`:
+
+```yaml
+image:
+  tag: sha-511527c
+auth:
+  jwt:
+    issuer: https://your-company.auth0.com/
+    audience: miot-dashboards
+    jwksUrl: https://your-company.auth0.com/.well-known/jwks.json
+    claims:
+      user: email
+persistence:
+  enabled: true
+  size: 1Gi
+docs: true
+extraEnvFrom:
+  - secretRef:
+      name: dashboards-credentials-key
+```
+
+The chart creates a one-replica `Deployment`, a `ReadWriteOnce` volume on `/data`, and liveness and readiness probes. The `dashboards-credentials-key` Secret carries `MIOT_DASHBOARD_CREDENTIALS_KEY`; create it before installing.
+
+One replica is the ceiling with SQLite, because two processes cannot write one file. To scale, move to PostgreSQL first with `store.kind: postgres`.
+
+To reach it from outside the cluster set `ingress.enabled` and `ingress.hosts`. Without an ingress only other services in the cluster reach it.
+
+## Checking it answers
+
+| Path | Answers | Use |
+| --- | --- | --- |
+| `/livez` | `{"status":"ok"}` | Liveness probe |
+| `/readyz` | `{"status":"ready"}` | Readiness probe |
+| `/docs` | Swagger UI | Try the API from a browser |
+| `/openapi.yaml` | The contract | Generate clients |
+
+Neither probe touches the database. The server proves it at startup: migrations run before the port opens, and if it cannot connect it exits with an error instead of listening.
+
+At startup it logs three lines saying how it ended up configured:
+
+```
+{"msg":"identity","auth":"RS256 bearer tokens from https://your-company.auth0.com/ ..."}
+{"msg":"tenants","entitlement":"the seed file (2 tenants)"}
+{"msg":"scopes","membership":"the seed file (2 tenants)"}
+```
+
+If the second or third says `0 tenants`, no request gets through: the server does not know who belongs where, and answers `403` to everything.

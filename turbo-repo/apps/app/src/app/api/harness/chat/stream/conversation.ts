@@ -15,6 +15,8 @@ export type RunAgentInputBody = {
     /** The harness's compacted memory of this thread, stored with it and
      * handed back so a restarted harness recovers it — see `conversationOf`. */
     harnessConversationSummary?: unknown;
+    /** The conversation model the panel picked; omitted for the default. */
+    harnessModel?: unknown;
   } | null;
   messages?: AgUiMessage[];
 };
@@ -61,6 +63,11 @@ export function conversationOf(
     replayTurns: priorTurns(messages),
     summary: text(body.state?.harnessConversationSummary)?.slice(0, MAX_SUMMARY_CHARS) ?? null,
   };
+}
+
+/** The model the panel asked for, or null for the harness default. */
+export function modelOf(body: RunAgentInputBody): string | null {
+  return text(body.state?.harnessModel) ?? null;
 }
 
 /**

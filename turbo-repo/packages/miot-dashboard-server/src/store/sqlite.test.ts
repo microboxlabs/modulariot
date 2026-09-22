@@ -101,6 +101,17 @@ describe("migrations", () => {
     await expect(opened.store.list("acme", "ops")).rejects.toThrow();
   });
 
+  it("still takes a bare clock, the signature 0.1.0 published", async () => {
+    const driver = createSqliteDriver({ path: SQLITE_MEMORY });
+
+    await runMigrations(driver, () => new Date(0));
+
+    const [row] = await driver.all<{ applied_at: string }>(
+      "SELECT applied_at FROM schema_migrations LIMIT 1",
+    );
+    expect(row?.applied_at).toBe(new Date(0).toISOString());
+  });
+
   it("creates the directory rather than failing on a missing one", async () => {
     const path = join(temporaryDirectory(), "nested", "deeper", "dash.db");
     const opened = await openSqliteStore({ path });
@@ -545,7 +556,12 @@ describe("a database from version 1", () => {
 
     const opened = await openSqliteStore({ path });
     try {
-      expect(opened.applied).toEqual([2, 3]);
+      // Derived, not listed, so adding a migration does not fail this.
+      expect(opened.applied).toEqual(
+        MIGRATIONS.filter((migration) => migration.version > 1).map(
+          (migration) => migration.version,
+        ),
+      );
       const result = await opened.sweep(new Date());
       expect(result.deleted).toEqual([]);
       expect(result.unknownAge).toBe(1);

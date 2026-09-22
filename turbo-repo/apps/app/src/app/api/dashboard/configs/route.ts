@@ -4,7 +4,7 @@ import {
   listDashboardConfigs,
   getGroupsForPerson,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { parseAllowedGroups } from "@/features/dashboard/types/dashboard.types";
+import { configAllowsGroups } from "@microboxlabs/miot-dashboard-server";
 import {
   handleApiError,
   unauthorizedResponse,
@@ -37,13 +37,12 @@ export async function GET(request: NextRequest) {
       getGroupsForPerson(session),
     ]);
 
-    // Filter out dashboards the user is not allowed to access
-    const accessible = (result.data ?? []).filter((item) => {
-      const parsed = parseAllowedGroups(item.config?.allowedGroups);
-      if (!parsed.valid) return false; // malformed — deny
-      if (!parsed.groups || parsed.groups.length === 0) return true;
-      return parsed.groups.some((g) => userGroups.includes(g));
-    });
+    // Filter out dashboards the user is not allowed to access. The rule
+    // itself lives in the package now, so this and the config route cannot
+    // drift apart.
+    const accessible = (result.data ?? []).filter((item) =>
+      configAllowsGroups(item.config, userGroups)
+    );
 
     // Transform { slug, config } → { slug, name } for the client
     const transformed = {

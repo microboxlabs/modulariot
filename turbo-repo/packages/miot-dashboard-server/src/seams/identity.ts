@@ -21,16 +21,11 @@
  * tenant-unaware.
  */
 
+import type { DashboardCapabilities } from "@microboxlabs/miot-dashboard-contract/roles";
 import type { DashboardRole } from "../access/roles";
 
-/** Capabilities mirror the UI package's Seam F vocabulary exactly. */
-export interface DashboardCapabilities {
-  readOnly: boolean;
-  canEdit: boolean;
-  canShare: boolean;
-  canManagePermissions: boolean;
-  canDelete: boolean;
-}
+/** Re-exported from the contract: the shape is reported on the wire. */
+export type { DashboardCapabilities };
 
 /**
  * Deny-by-default capabilities — the correct starting point for any caller.
@@ -75,6 +70,29 @@ export interface DashboardPrincipal {
    * are applied. An embed token can only ever narrow, never widen.
    */
   capabilities: DashboardCapabilities;
+  /**
+   * Present when an authenticated proxy resolved the tenant and scope role
+   * before forwarding. `createAssertedTenantAuthority` and
+   * `createAssertedScopeAuthority` read it; nothing else does.
+   */
+  asserted?: AssertedClaims;
+}
+
+/**
+ * What an authenticated proxy says about a caller it has already checked.
+ *
+ * Set only by `createTrustedProxyIdentityResolver`, and only after that
+ * resolver has checked the proxy's own credential. No other code path assigns
+ * it, so a request header cannot produce one.
+ *
+ * `tenantId` and `scopeId` are compared against the ones the request named
+ * before the role is used. The assertion says "this user holds this role,
+ * there" rather than "grant whatever this request asks for".
+ */
+export interface AssertedClaims {
+  tenantId: string;
+  scopeId: string;
+  role: DashboardRole;
 }
 
 /**

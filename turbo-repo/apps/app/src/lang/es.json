@@ -1048,6 +1048,10 @@
         "clientSystemValidation": "Validación Sistema Cliente",
         "gpsValidation": "Validación GPS",
         "gpsValidationError": "Error al cargar la validación GPS",
+        "copyGoogleMapsLink": "Copiar enlace de Google Maps",
+        "googleMapsLinkCopied": "Enlace de Google Maps copiado",
+        "googleMapsLinkCopyError": "No se pudo copiar el enlace",
+        "centerOnElement": "Centrar en el elemento",
         "entity": "Patente",
         "source": "Cliente",
         "ultimo_name": "Última ubicación",
@@ -1970,6 +1974,10 @@
             "name": "Auth0 máquina a máquina",
             "description": "Una aplicación M2M de Auth0 — elige el cliente de tu tenant y define la API que consume."
           },
+          "googleServiceAccount": {
+            "name": "Cuenta de servicio de Google",
+            "description": "Una cuenta de servicio de Google Cloud, para leer BigQuery desde un tablero. Se firma con su clave privada y solo sale el token."
+          },
           "apiKey": {
             "name": "API key",
             "description": "Una llave enviada como header o parámetro de consulta."
@@ -2071,7 +2079,20 @@
           "auth0TokenRequestFormatHelp": "El endpoint propio de Auth0 acepta form encoding. Un proxy delante puede esperar un cuerpo JSON.",
           "auth0DirectoryLoading": "Cargando aplicaciones...",
           "auth0DirectoryEmpty": "Ninguna aplicación coincide. Puedes pegar un ID de cliente.",
-          "auth0DirectoryError": "No se pudieron cargar las aplicaciones. Aún puedes pegar un ID de cliente."
+          "auth0DirectoryError": "No se pudieron cargar las aplicaciones. Aún puedes pegar un ID de cliente.",
+          "googleAddTitle": "Nueva cuenta de servicio de Google",
+          "googleEditTitle": "Editar cuenta de servicio de Google",
+          "googleSubtitle": "Los tres campos están en el archivo JSON de la clave de la cuenta de servicio.",
+          "projectId": "ID del proyecto",
+          "projectIdPlaceholder": "mi-proyecto-123456",
+          "projectIdHelp": "El campo project_id del archivo de clave. Informativo: el proyecto que consulta un tablero se indica en la fuente de datos.",
+          "clientEmail": "Correo de la cuenta de servicio",
+          "clientEmailPlaceholder": "nombre@mi-proyecto.iam.gserviceaccount.com",
+          "privateKey": "Clave privada",
+          "privateKeyPlaceholder": "-----BEGIN PRIVATE KEY-----\n…\n-----END PRIVATE KEY-----",
+          "privateKeyEditPlaceholder": "Déjala en blanco para mantener la clave actual",
+          "privateKeyHelp": "El campo private_key del archivo de clave, con o sin los saltos de línea escapados. Se guarda cifrada y nunca se devuelve.",
+          "googleScopeHelp": "Vacío significa solo lectura de BigQuery. Cambia el scope solo si la cuenta necesita otra API de Google."
         },
         "delete": {
           "title": "¿Eliminar esta credencial?",
@@ -2105,7 +2126,10 @@
           "oauth2ClientIdRequired": "El ID de cliente es obligatorio",
           "auth0DomainRequired": "El dominio de Auth0 es obligatorio",
           "auth0ClientIdRequired": "Elige o ingresa un ID de aplicación (cliente)",
-          "auth0AudienceRequired": "La audiencia de la API es obligatoria en Auth0"
+          "auth0AudienceRequired": "La audiencia de la API es obligatoria en Auth0",
+          "clientEmailRequired": "El correo de la cuenta de servicio es obligatorio",
+          "clientEmailInvalid": "Ingresa el correo de la cuenta de servicio",
+          "privateKeyRequired": "La clave privada es obligatoria"
         }
       }
     },
@@ -3181,6 +3205,8 @@
       "optionsLoading": "Cargando opciones…",
       "optionsError": "No se pudieron cargar las opciones.",
       "noOptionsYet": "Sin opciones aún. Agrega al menos una.",
+      "optionsSearchPlaceholder": "Buscar…",
+      "optionsNoMatches": "Sin coincidencias",
       "optionLabelPlaceholder": "Etiqueta",
       "optionValuePlaceholder": "Valor",
       "addOption": "Agregar opción",
@@ -4363,6 +4389,10 @@
     "clientSystemValidation": "Validación Sistema Cliente",
     "gpsValidation": "Validación GPS",
     "gpsValidationError": "Error al cargar la validación GPS",
+    "copyGoogleMapsLink": "Copiar enlace de Google Maps",
+    "googleMapsLinkCopied": "Enlace de Google Maps copiado",
+    "googleMapsLinkCopyError": "No se pudo copiar el enlace",
+    "centerOnElement": "Centrar en el elemento",
     "entity": "Patente",
     "source": "Cliente",
     "ultimo_name": "Última ubicación",
@@ -4432,7 +4462,10 @@
     "unassigned": "Sin asignar",
     "partial": "Parcial",
     "assigned": "Asignado",
-    "type": "Tipo"
+    "type": "Tipo",
+    "artifactType": "Tipo de documento",
+    "creator": "Creador",
+    "createdAt": "Fecha de creación"
   },
   "comments": {
     "title": "Comentarios",
@@ -5171,7 +5204,37 @@
   },
   "storytelling": {
     "breadcrumb": {
-      "storytelling": "Storytelling"
+      "storytelling": "Storytelling",
+      "versions": "Versiones"
+    },
+    "version": {
+      "badgeLabel": "v{label}",
+      "badgeTitle": "Versión {label} — ver historial",
+      "title": "Historial de versiones",
+      "subtitle": "{count} iteraciones · actual v{label}",
+      "current": "Actual",
+      "root": "Primera versión",
+      "canvas": {
+        "fit": "Centrar en todo",
+        "zoomIn": "Acercar",
+        "zoomOut": "Alejar"
+      },
+      "menu": {
+        "label": "Acciones de versión",
+        "open": "Abrir",
+        "iterate": "Iterar",
+        "delete": "Eliminar"
+      },
+      "delete": {
+        "title": "¿Eliminar esta versión?",
+        "branchWarning": "También se elimina todo lo que deriva de esta versión.",
+        "confirm": "Eliminar",
+        "cancel": "Cancelar"
+      },
+      "toast": {
+        "iterated": "Se creó la v{label}",
+        "deleted": "Se eliminó la v{label}"
+      }
     },
     "title": "Storytelling",
     "description": "Historias generadas por IA y curadas para tu organización.",
@@ -5190,8 +5253,20 @@
     "menu": {
       "label": "Acciones",
       "share": "Compartir",
+      "details": "Detalles",
       "delete": "Eliminar",
       "download": "Descargar"
+    },
+    "card": {
+      "editedBy": "Editado por {name} el {date}"
+    },
+    "attribution": "{name} el {date}",
+    "details": {
+      "title": "Detalles de la historia",
+      "type": "Tipo",
+      "created": "Creada",
+      "lastEdited": "Última edición",
+      "id": "ID"
     },
     "delete": {
       "title": "Eliminar historia",
@@ -5202,11 +5277,27 @@
     "share": {
       "title": "Compartir",
       "copyLink": "Copiar enlace",
-      "email": "Correo electrónico",
-      "whatsapp": "WhatsApp",
       "copied": "Enlace copiado al portapapeles",
       "copyFailed": "No se pudo copiar el enlace",
-      "demoNotice": "Contenido de demostración: el enlace solo se abre para quienes ya tienen esta historia."
+      "inviteTitle": "Invitar personas",
+      "invitePlaceholder": "Agrega personas por nombre o correo",
+      "inviteButton": "Invitar",
+      "invited": "Se invitó a {name}",
+      "accessRemoved": "Se quitó a {name}",
+      "roleForLabel": "Nivel de acceso de {name}",
+      "roleViewer": "Puede ver",
+      "roleEditor": "Puede editar",
+      "remove": "Quitar",
+      "removeFor": "Quitar a {name}",
+      "peopleWithAccess": "Personas con acceso",
+      "owner": "Tú",
+      "ownerBadge": "Propietario",
+      "generalAccess": "Acceso general",
+      "linkRestricted": "Restringido",
+      "linkAnyone": "Cualquiera con el enlace",
+      "linkRestrictedHint": "Solo las personas invitadas pueden abrir esta historia",
+      "linkViewerHint": "Cualquiera con el enlace puede ver esta historia",
+      "linkEditorHint": "Cualquiera con el enlace puede ver y editar esta historia"
     },
     "toast": {
       "deleted": "Se eliminó {name}",
@@ -5229,13 +5320,24 @@
         "clear": "Limpiar búsqueda"
       },
       "markdown": {
-        "error": "No se pudo cargar este documento."
+        "error": "No se pudo cargar este documento.",
+        "outline": "Índice"
       },
       "ppt": {
         "comingSoon": "La vista previa de PPT aún no está disponible — esto es un marcador de posición para este tipo de artefacto."
       },
       "pdf": {
-        "comingSoon": "La vista previa de PDF aún no está disponible — esto es un marcador de posición para este tipo de artefacto."
+        "loading": "Cargando documento…",
+        "error": "No se pudo cargar este PDF.",
+        "previousPage": "Página anterior",
+        "nextPage": "Página siguiente",
+        "zoomIn": "Acercar",
+        "zoomOut": "Alejar",
+        "zoomReset": "Restablecer zoom",
+        "fit": "Ajustar al ancho",
+        "railPages": "Páginas",
+        "railSections": "Secciones",
+        "noSections": "Este documento no tiene secciones para listar"
       },
       "notFound": {
         "title": "Historia no encontrada",
@@ -5414,6 +5516,7 @@
       "composer": {
         "placeholder": "Pregúntale al harness…",
         "cancelRun": "Cancelar",
+        "model": "Modelo",
         "pdfTooLarge": "El PDF es demasiado grande ({size} MB) — el límite es {limit} MB."
       },
       "showDashlet": {

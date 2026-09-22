@@ -247,7 +247,17 @@ export function createAccessControl<TRequest>(
         action: target.action,
         outcome,
         target: targetLabel(target),
-        ...(detail ? { detail } : {}),
+        // Recorded on every event rather than at each call site: a reader
+        // asking "was this role verified here or handed to us" should not
+        // have to know which code path produced the line.
+        ...(detail || principal?.asserted
+          ? {
+              detail: {
+                ...detail,
+                ...(principal?.asserted ? { asserted: true } : {}),
+              },
+            }
+          : {}),
       });
     } catch (error) {
       onAuditError?.(error);

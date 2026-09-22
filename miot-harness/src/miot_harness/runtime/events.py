@@ -30,6 +30,10 @@ HarnessEventType = Literal[
     # authoritative definition (knowledge card) and is declaring its assumption.
     # Carries the assumption record in `data`. See the semantic-layer design.
     "grounding.gap",
+    # Agent loop seats: the advisor answered a consult; a workhorse finished
+    # a delegated brief.
+    "advisor.consulted",
+    "delegate.completed",
     "answer.delta",
     "answer.completed",
     "run.completed",

@@ -19,13 +19,37 @@
  * it returns, which already carries the loaded record.
  */
 
+import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
 import {
   createAccessControl,
   type AccessControlOptions,
 } from "../access/access-control";
 import { DashboardServerError, isDashboardServerError } from "../access/errors";
 import { isDashboardRole } from "../access/roles";
+import {
+  applyCredential,
+  isCredentialsStore,
+  type CredentialInput,
+  type CredentialsVault,
+  type DataSourceCredential,
+} from "../seams/credentials";
+import type {
+  DataSourceDescriptor,
+  DataSourceInput,
+  DataSourceStore,
+} from "../seams/datasources";
 import type { PermissionAssignment } from "../seams/store";
+import {
+  parseCredentialInput,
+  parseDataSourceInput,
+  parseDataSourceTestInput,
+} from "./parse-datasource";
+import {
+  testDataSourceConnection,
+  untested,
+  type ConnectionTestResult,
+  type TestConnectionOptions,
+} from "./test-connection";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
 import { withCors, type CorsOptions } from "./cors";
@@ -37,6 +61,15 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    */
   basePath?: string;
   cors?: CorsOptions;
+  /** Omit it and the datasource routes answer 404. */
+  dataSources?: DataSourceStore;
+  /**
+   * The credential routes are served only when this vault can be written to
+   * (see `isCredentialsStore`). A read-only one answers 404.
+   */
+  credentials?: CredentialsVault;
+  /** Clock, fetch and timeout for the connection test. For tests. */
+  testConnection?: TestConnectionOptions;
   /**
    * Called with what this handler did not choose: anything thrown that is not
    * a `DashboardServerError`, and so became a bare 500. A 404, a 403 or a 409
@@ -82,6 +115,41 @@ export function createDashboardHandler(
     }
   };
   const basePath = normalizeBasePath(options.basePath);
+  const testOptions = options.testConnection ?? {};
+
+  /**
+   * One connection test, with the credential sent inline or the one the
+   * datasource names.
+   *
+   * A named credential that resolves to nothing is a failed test, not an
+   * anonymous probe: a target that allows anonymous reads would otherwise
+   * answer, and the operator would be told a broken datasource works.
+   */
+  async function runTest(
+    tenantId: string,
+    datasource: DataSourceDescriptor | DataSourceInput,
+    inline?: CredentialInput,
+  ): Promise<ConnectionTestResult> {
+    let credential: DataSourceCredential | null = null;
+
+    if (inline !== undefined) {
+      credential = applyCredential(inline);
+    } else if (datasource.credentialRef !== undefined) {
+      const ref = datasource.credentialRef;
+      credential =
+        options.credentials === undefined
+          ? null
+          : await options.credentials.resolve(tenantId, ref);
+      if (credential === null) {
+        return untested(
+          `The credential "${ref}" could not be resolved`,
+          testOptions,
+        );
+      }
+    }
+
+    return testDataSourceConnection(datasource, credential, testOptions);
+  }
 
   async function dispatch(
     request: Request,
@@ -119,10 +187,8 @@ export function createDashboardHandler(
           return jsonResponse({ data: record?.config ?? null });
         }
         if (method === "PUT") {
-          // Authorize first. Parsing before this told an unauthenticated
-          // caller whether their JSON was well-formed — a free description of
-          // the request schema, and parsing work done for someone with no
-          // standing to ask for it.
+          // Authorize before parsing: an unauthorized caller learns nothing
+          // about the request schema, and does no parsing work for us.
           const decision = await access.authorize(request, {
             tenantId: match.tenantId,
             scopeId: match.scopeId,
@@ -130,6 +196,7 @@ export function createDashboardHandler(
             action: "dashboard.save",
           });
           const config = await readJsonBody(request);
+          requireValidConfig(config);
           const expectedRevision = readExpectedRevision(request);
           const saved = await options.store.save(
             refOf(decision.identity.tenantId, match.scopeId, slug),
@@ -205,6 +272,172 @@ export function createDashboardHandler(
         }
         return methodNotAllowed();
       }
+
+      case "datasources": {
+        const store = requireDataSources(options.dataSources);
+        if (method === "GET") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.list",
+          });
+          const data = await store.list(decision.identity.tenantId);
+          return jsonResponse({ data });
+        }
+        if (method === "POST") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.write",
+          });
+          const input = parseDataSourceInput(await readJsonBody(request));
+          const id = crypto.randomUUID();
+          const data = await store.put(decision.identity.tenantId, id, input);
+          return jsonResponse({ data }, 201);
+        }
+        return methodNotAllowed();
+      }
+
+      case "datasourcesTest": {
+        // No store: these values have not been saved yet.
+        if (method !== "POST") return methodNotAllowed();
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.write",
+        });
+        const input = parseDataSourceTestInput(await readJsonBody(request));
+        if (
+          input.credential !== undefined &&
+          input.datasource.credentialRef !== undefined
+        ) {
+          throw DashboardServerError.badRequest(
+            'Send "credential" or a "credentialRef" on the datasource, not ' +
+              "both. They can name different secrets, and the test would " +
+              "then answer about one of them without saying which.",
+          );
+        }
+        return jsonResponse({
+          data: await runTest(
+            decision.identity.tenantId,
+            input.datasource,
+            input.credential,
+          ),
+        });
+      }
+
+      case "datasourceTest": {
+        const store = requireDataSources(options.dataSources);
+        const id = requireId(match);
+        if (method !== "POST") return methodNotAllowed();
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.write",
+        });
+        const descriptor = await store.get(decision.identity.tenantId, id);
+        if (descriptor === null) {
+          throw DashboardServerError.notFound("Datasource not found");
+        }
+        return jsonResponse({
+          data: await runTest(decision.identity.tenantId, descriptor),
+        });
+      }
+
+      case "datasource": {
+        const store = requireDataSources(options.dataSources);
+        const id = requireId(match);
+        if (method === "GET") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.list",
+          });
+          const data = await store.get(decision.identity.tenantId, id);
+          if (data === null) {
+            throw DashboardServerError.notFound("Datasource not found");
+          }
+          return jsonResponse({ data });
+        }
+        if (method === "PUT") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.write",
+          });
+          const input = parseDataSourceInput(await readJsonBody(request));
+          const data = await store.put(decision.identity.tenantId, id, input);
+          return jsonResponse({ data });
+        }
+        if (method === "DELETE") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.write",
+          });
+          await store.remove(decision.identity.tenantId, id);
+          return noContentResponse();
+        }
+        return methodNotAllowed();
+      }
+
+      case "credentials": {
+        const vault = requireCredentialsStore(options.credentials);
+        if (method !== "GET") return methodNotAllowed();
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.list",
+        });
+        const data = await vault.listCredentials(decision.identity.tenantId);
+        return jsonResponse({ data });
+      }
+
+      case "credential": {
+        const vault = requireCredentialsStore(options.credentials);
+        const ref = requireId(match);
+        if (method === "GET") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.list",
+          });
+          const data = await vault.describeCredential(
+            decision.identity.tenantId,
+            ref,
+          );
+          if (data === null) {
+            throw DashboardServerError.notFound("Credential not found");
+          }
+          return jsonResponse({ data });
+        }
+        if (method === "PUT") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.write",
+          });
+          const input = parseCredentialInput(await readJsonBody(request));
+          // The response is the summary. Echoing the input back would put
+          // the secret in a response body.
+          const data = await vault.putCredential(
+            decision.identity.tenantId,
+            ref,
+            input,
+          );
+          return jsonResponse({ data });
+        }
+        if (method === "DELETE") {
+          const decision = await access.authorize(request, {
+            tenantId: match.tenantId,
+            scopeId: match.scopeId,
+            action: "datasource.write",
+          });
+          await vault.removeCredential(decision.identity.tenantId, ref);
+          return noContentResponse();
+        }
+        return methodNotAllowed();
+      }
     }
   }
 
@@ -249,6 +482,33 @@ function requireSlug(match: RouteMatch): string {
     throw DashboardServerError.badRequest("Missing dashboard slug");
   }
   return match.slug;
+}
+
+function requireId(match: RouteMatch): string {
+  if (match.id === undefined) {
+    throw DashboardServerError.badRequest("Missing identifier");
+  }
+  return match.id;
+}
+
+/**
+ * 404, not 501. A status code must not tell an unauthenticated caller which
+ * stores this deployment has configured.
+ */
+function requireDataSources(
+  store: DataSourceStore | undefined,
+): DataSourceStore {
+  if (store === undefined) throw notFound();
+  return store;
+}
+
+/**
+ * The credential routes need a vault that can be written to. A read-only one
+ * is answered the same way as none at all.
+ */
+function requireCredentialsStore(vault: CredentialsVault | undefined) {
+  if (vault === undefined || !isCredentialsStore(vault)) throw notFound();
+  return vault;
 }
 
 /**
@@ -310,6 +570,20 @@ async function readJsonBody(request: Request): Promise<unknown> {
   } catch {
     throw DashboardServerError.badRequest("Request body must be valid JSON");
   }
+}
+
+/** How many faults a refusal names before it just counts the rest. */
+const MAX_REPORTED_PROBLEMS = 5;
+
+function requireValidConfig(config: unknown): void {
+  const result = validateDashboardConfig(config);
+  if (result.valid) return;
+  const shown = result.problems.slice(0, MAX_REPORTED_PROBLEMS);
+  const remaining = result.problems.length - shown.length;
+  const tail = remaining > 0 ? `, and ${remaining} more` : "";
+  throw DashboardServerError.badRequest(
+    `Dashboard config does not match the contract: ${shown.join("; ")}${tail}`,
+  );
 }
 
 /**

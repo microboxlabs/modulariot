@@ -147,6 +147,9 @@ class GenericPgProvider(DataSourceProvider):
             envelope = str(opts.get("envelope", "transaction"))
             if envelope not in ENVELOPES:
                 raise ValueError(f"envelope must be one of {ENVELOPES}")
+            call_security_definer = opts.get("call_security_definer", False)
+            if not isinstance(call_security_definer, bool):
+                raise ValueError("call_security_definer must be true or false")
         except (TypeError, ValueError) as exc:
             return BootResult(
                 enabled=False, registered=(), reason=f"connection {name!r}: invalid option ({exc})"
@@ -269,6 +272,7 @@ class GenericPgProvider(DataSourceProvider):
                 explain_cost_threshold=explain_cost_threshold,
                 statement_timeout_ms=statement_timeout_ms,
                 knowledge_cards=knowledge_cards,
+                call_security_definer=call_security_definer,
             )
             registered: list[str] = []
             for tool in tools:

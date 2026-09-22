@@ -145,6 +145,21 @@ public class HarnessProxyResource {
     }
 
     /**
+     * Lists the conversation models a run may name in {@code model} — the data
+     * behind the chat model picker. Same auth + org-membership chain as the run
+     * routes.
+     */
+    @GET
+    @Path("/models")
+    public Uni<Response> listModels(@PathParam("slug") String slug,
+                                    @HeaderParam("Authorization") String authorization) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        return passThrough(harness.listModels(authorization, tenantClientId, userEmail, authMode));
+    }
+
+    /**
      * Writes a human-approved business fact to the harness as a connection-scoped
      * knowledge card — the APPLY seam of the semantic-layer learning loop, fired by
      * the app after a reviewer approves a staged candidate. Same auth + membership

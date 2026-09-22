@@ -1,0 +1,51 @@
+{
+  "stack_version": "0.5.51",
+  "stack_tag": "miot-stack@v0.5.51",
+  "milestone": "MIOT-0.5.51",
+  "pull_requests": [
+    {
+      "number": 1282,
+      "title": "fix(harness): drop dangling symptom-rules row from miot-search inventory",
+      "source_issues": [
+        {
+          "number": 1283,
+          "title": "Drop dangling symptom-rules row from miot-search inventory"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/miot-search/SKILL.md"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.51",
+      "tag": "app@v0.5.51"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.50",
+      "version": "0.5.50",
+      "tag": "docs@v0.5.50"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.5.50",
+      "version": "0.5.50",
+      "tag": "web@v0.5.50"
+    },
+    "modulith": {
+      "changed": false,
+      "changed_since": "modulith@v0.5.30",
+      "version": "0.5.30",
+      "tag": "modulith@v0.5.30"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.8",
+      "version": "0.1.8",
+      "tag": "harness@v0.1.8"
+    }
+  }
+}

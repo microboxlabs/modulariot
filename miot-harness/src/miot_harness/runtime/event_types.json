@@ -20,6 +20,8 @@
     "freshness.warning",
     "verification.completed",
     "grounding.gap",
+    "advisor.consulted",
+    "delegate.completed",
     "answer.delta",
     "answer.completed",
     "run.completed",

@@ -1,0 +1,80 @@
+# Configuration
+
+Everything is configured through environment variables. All of them start with `MIOT_DASHBOARD_`, except the port and the address.
+
+## Network
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `PORT` | `3070` | Port to listen on |
+| `HOST` | `127.0.0.1` | Address to bind. The Docker image uses `0.0.0.0` |
+| `MIOT_DASHBOARD_BASE_PATH` | empty | Prefix for every route, when something else owns the root |
+| `MIOT_DASHBOARD_DOCS` | on | Serve `/openapi.yaml` and `/docs` |
+| `MIOT_DASHBOARD_CORS_ORIGINS` | off | Allowed origins, comma-separated and exact |
+| `MIOT_DASHBOARD_CORS_CREDENTIALS` | `false` | Permit cookies and HTTP authentication from those origins |
+| `MIOT_DASHBOARD_CORS_HEADERS` | empty | Extra permitted request headers, for example `x-ticket` |
+
+CORS is only needed when a browser calls the server from another origin. If the UI is served from the same domain, leave it off.
+
+## Storage
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_STORE` | `memory` | `memory`, `sqlite` or `postgres` |
+| `MIOT_DASHBOARD_SQLITE_PATH` | `./data/dashboards.db` | The SQLite database file |
+| `MIOT_DASHBOARD_POSTGRES_URL` | none | PostgreSQL connection string. It is a credential; keep it out of versioned files |
+| `MIOT_DASHBOARD_POSTGRES_POOL_SIZE` | `10` | Concurrent connections |
+| `MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT` | `5000` | Milliseconds to wait for a connection |
+| `MIOT_DASHBOARD_SEED` | none | File with memberships and initial dashboards, or `example` for the bundled sample |
+
+| Store | Keeps data | Needs |
+| --- | --- | --- |
+| `memory` | Until the process ends | Nothing. Fine for a demo |
+| `sqlite` | In one file | Nothing. Ships with Node |
+| `postgres` | On a database server | The `pg` package and a PostgreSQL server |
+
+The schema creates itself. Migrations run at startup and apply only what that database does not have yet. Several servers can start at once against the same PostgreSQL: migrations take a lock so they do not collide.
+
+Initial dashboards from the seed file are written only when their identifier is absent, so the variable can stay set across restarts without losing edits.
+
+## Documents
+
+Each dashboard's content is stored apart from its metadata and permissions.
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_DOCUMENTS` | `inline` | `inline`, `fs`, `s3` or `gcs` |
+| `MIOT_DASHBOARD_DOCUMENTS_PATH` | `./data/documents` | Directory, with `fs` |
+| `MIOT_DASHBOARD_DOCUMENTS_BUCKET` | none | Bucket, with `s3` or `gcs` |
+| `MIOT_DASHBOARD_DOCUMENTS_PREFIX` | `dashboards/` | Object prefix, with `s3` or `gcs` |
+| `MIOT_DASHBOARD_S3_REGION` | SDK default | Region, with `s3` |
+| `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` | `3600` | Seconds between orphan sweeps. `0` disables |
+| `MIOT_DASHBOARD_ORPHAN_MIN_AGE` | `86400` | Minimum age in seconds before an orphan is deleted |
+
+`inline` keeps the content in the same database as the metadata and is enough for most installations. With `s3` or `gcs` install the matching SDK (`@aws-sdk/client-s3` or `@google-cloud/storage`) and use the provider's standard credential chain; the server does not accept cloud credentials through the API.
+
+The choice is recorded the first time the database is opened. Opening it later with another one is refused at startup, because the documents do not move by themselves. Migrate the documents first.
+
+## Datasource credentials
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_CREDENTIALS_KEY` | off | Encrypts credentials stored in this server. At least 32 characters; needs `sqlite` or `postgres` |
+| `MIOT_DASHBOARD_CREDENTIALS_URL` | off | Ask another system for credentials instead of storing them |
+| `MIOT_DASHBOARD_CREDENTIALS_ALLOW_HTTP` | `false` | Accept an `http://` URL for that system, on a private network |
+| `MIOT_DASHBOARD_CREDENTIALS_TIMEOUT` | `5000` | Milliseconds to wait for that system |
+| `MIOT_DASHBOARD_CREDENTIALS_CACHE` | `60` | Seconds an answer is reused; 300 at most |
+
+Set the key or the URL, never both. Standalone mode uses the key. Details are in [Datasources and credentials](/en/operations/dashboard-server/datasources).
+
+## Identity and memberships
+
+The `MIOT_DASHBOARD_JWT_*`, `MIOT_DASHBOARD_TICKET_*`, `MIOT_DASHBOARD_TENANTS_*` and `MIOT_DASHBOARD_SCOPES_*` variables are in [Users and permissions](/en/operations/dashboard-server/identity).
+
+## Development only
+
+| Variable | Effect |
+| --- | --- |
+| `MIOT_DASHBOARD_INSECURE_AUTH` | Takes the identity from the `x-dev-user` and `x-dev-groups` headers without verifying it |
+
+Only works when listening on `localhost`. The server refuses to start with it when `HOST` is another address, when `NODE_ENV` is `production`, or when JWT or ticket variables are also set.

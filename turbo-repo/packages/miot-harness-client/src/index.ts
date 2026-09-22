@@ -17,6 +17,7 @@ export type {
   HarnessEvent,
   HarnessEventType,
   HarnessRunRecord,
+  ModelsInfo,
   RunMode,
   SkillSummary,
   UserRequest,

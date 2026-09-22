@@ -1,0 +1,56 @@
+# API
+
+Every route names the organization and the scope, and the server checks both before answering. The full contract is at `/openapi.yaml` and can be tried at `/docs` while `MIOT_DASHBOARD_DOCS` is on.
+
+## Routes
+
+| Method and path | Does |
+| --- | --- |
+| `GET /tenants/{t}/scopes/{s}/dashboards` | Lists the dashboards the person may see |
+| `GET /tenants/{t}/scopes/{s}/dashboards/{slug}` | Returns one dashboard with its revision |
+| `PUT /tenants/{t}/scopes/{s}/dashboards/{slug}` | Creates or replaces a dashboard |
+| `DELETE /tenants/{t}/scopes/{s}/dashboards/{slug}` | Deletes a dashboard |
+| `GET …/dashboards/{slug}/capabilities` | What the person can do with that dashboard |
+| `GET`, `PUT …/dashboards/{slug}/permissions` | Extra roles granted by that dashboard |
+| `GET`, `POST …/datasources` | The organization's datasources |
+| `GET`, `PUT`, `DELETE …/datasources/{id}` | One datasource |
+| `POST …/datasources/test`, `POST …/datasources/{id}/test` | Connection test |
+| `GET …/credentials`, `GET`, `PUT …/credentials/{ref}` | Credentials, always as summaries |
+
+## Saving a dashboard
+
+Each dashboard has an integer revision. When saving, send the revision you read in `If-Match`; if someone saved in between, the server answers `409` and the UI reads again before retrying.
+
+```bash
+curl -X PUT http://127.0.0.1:3070/tenants/acme/scopes/operations/dashboards/fleet \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'If-Match: 3' \
+  -H 'Content-Type: application/json' \
+  -d '{"version":2,"name":"Fleet","widgets":[]}'
+```
+
+The document is validated against the contract before it is stored. A `version` other than `2`, or a structure that is not a dashboard, is refused with `400` naming the field. Fields the contract does not know are kept, so a document written by a newer UI passes intact through an older server.
+
+## Errors
+
+Every error response has the same shape:
+
+```json
+{ "error": "…", "status": 403, "code": "FORBIDDEN", "reason": "TENANT_SCOPE" }
+```
+
+| Code | When |
+| --- | --- |
+| `401` | No credential, or one that could not be verified |
+| `403` `TENANT_SCOPE` | The person is not in the organization or scope the URL names |
+| `403` `CAPABILITY` | They are, but their role does not allow the action |
+| `404` | The dashboard or datasource does not exist, or the route is not mounted in this installation |
+| `409` | The revision sent in `If-Match` is no longer current |
+| `400` | The body does not match the contract; the message says where |
+| `500` | A service the server depends on did not answer |
+
+Messages from internal exceptions never reach the client.
+
+## Rendering dashboards
+
+`@microboxlabs/miot-dashboard-ui` is the React component that renders and edits dashboards against this API. It takes the server's base URL and a way to obtain the token; the rest of the vocabulary they share through `@microboxlabs/miot-dashboard-contract`.

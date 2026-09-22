@@ -20,6 +20,7 @@ by a `TableAccessPolicy`. Two execution envelopes (see `datasource/pool.py`):
 from __future__ import annotations
 
 import json
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -94,6 +95,31 @@ async def fetch_readonly(
                 )
             rows = await conn.fetch(sql, *args)
             return list(rows)
+
+
+async def run_readonly(
+    pool: Any,
+    fetch: Callable[[Any], Awaitable[list[Any]]],
+    *,
+    statement_timeout_ms: int | None = DEFAULT_STATEMENT_TIMEOUT_MS,
+) -> list[Any]:
+    """Run `fetch(conn)` inside the connection's read-only envelope.
+
+    Session envelope: the pool pins read-only and the timeout at connect, so
+    the fetch runs as-is. Transaction envelope: BEGIN READ ONLY plus
+    `SET LOCAL statement_timeout`.
+    """
+    async with pool.acquire() as conn:
+        if _session_envelope(pool, statement_timeout_ms):
+            return await fetch(conn)
+        async with conn.transaction(readonly=True):
+            if statement_timeout_ms:
+                await conn.execute(f"SET LOCAL statement_timeout = {int(statement_timeout_ms)}")
+            return await fetch(conn)
+
+
+def record_to_dict(record: Any) -> dict[str, Any]:
+    return _record_to_dict(record)
 
 
 def _session_envelope(pool: Any, statement_timeout_ms: int | None) -> bool:

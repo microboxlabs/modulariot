@@ -1,0 +1,113 @@
+# Datasources and credentials
+
+A dashboard shows data that lives in another system. The datasource says where; the credential says how to get in. The server keeps the two apart, and only the first ever leaves for a client.
+
+## The model
+
+| Record | Holds | Who sees it |
+| --- | --- | --- |
+| Datasource | Name, type, target address, and a reference to its credential | Any member with read permission |
+| Credential | The secret, encrypted | Nobody. The API answers a summary: kind and last characters |
+
+A datasource names its credential with `credentialRef`, an opaque identifier. No dashboard, no response and no audit line contains the secret.
+
+A datasource belongs to the organization. All its dashboards can use it; who may create or change one is decided by the role in the scope.
+
+| Type | Target | State |
+| --- | --- | --- |
+| `POSTGREST` | The base URL of a PostgREST API, over `https` | Query and connection test |
+| `BIGQUERY` | A BigQuery dataset, as `project.dataset` | Connection test with a service account or a token |
+
+## Where credentials live
+
+| Mode | Variable | Effect |
+| --- | --- | --- |
+| Standalone | `MIOT_DASHBOARD_CREDENTIALS_KEY` | The server keeps credentials in its database, encrypted with that key (AES-256-GCM) |
+| Integrated with ModularIoT | `MIOT_DASHBOARD_CREDENTIALS_URL` | The server keeps none; it asks ModularIoT which header to send |
+
+Set one or the other, never both.
+
+In standalone mode the key must be at least 32 characters and the store must be `sqlite` or `postgres`. Keep it as any other secret: whoever loses the key loses every credential, and whoever changes it has to load them again.
+
+```bash
+openssl rand -base64 32
+```
+
+Generates a suitable key.
+
+## Loading a credential
+
+Only this request carries a secret. The answer is the summary, never the value.
+
+```bash
+curl -X PUT http://127.0.0.1:3070/tenants/acme/scopes/operations/credentials/fleet-api \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"kind":"BEARER","token":"the-api-token"}'
+```
+
+| `kind` | Fields | Sent to the target as |
+| --- | --- | --- |
+| `NONE` | none | No credential |
+| `BEARER` | `token` | `Authorization: Bearer …` |
+| `API_KEY_HEADER` | `header`, `value` | The named header |
+| `API_KEY_QUERY` | `param`, `value` | A URL parameter |
+| `BASIC` | `username`, `password` | `Authorization: Basic …` |
+| `SERVICE_ACCOUNT` | `projectId`, `clientEmail`, `privateKey` | Through the provider's client; for BigQuery |
+
+A misspelled field is refused with `400` rather than storing an empty credential.
+
+## Creating the datasource
+
+```bash
+curl -X POST http://127.0.0.1:3070/tenants/acme/scopes/operations/datasources \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Fleet",
+    "type": "POSTGREST",
+    "isActive": true,
+    "target": "https://data.acme.example/api/v1/pgrest",
+    "credentialRef": "fleet-api"
+  }'
+```
+
+Answers `201` with the record and the identifier the server assigned. A `POSTGREST` target must be `https` and may not carry `user:password@` in the URL.
+
+## Testing the connection
+
+```bash
+curl -X POST http://127.0.0.1:3070/tenants/acme/scopes/operations/datasources/{id}/test \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+The server sends one request to the target with the credential and reports what happened:
+
+```json
+{
+  "data": {
+    "testable": true,
+    "success": true,
+    "status": 200,
+    "testedAt": "2026-09-21T03:00:00.000Z",
+    "message": "The target answered"
+  }
+}
+```
+
+| Result | Means |
+| --- | --- |
+| `success: true` | The target answered with the credential |
+| `success: false`, `status: 401` or `403` | The target refused the credential, or none is configured |
+| `success: false`, `status: 404` | The target does not exist, or the credential cannot see it |
+| `success: false` without `status` | The target could not be reached, or did not answer in time |
+
+A `BIGQUERY` datasource is tested by reading the dataset through the BigQuery API. With a `SERVICE_ACCOUNT` credential the server signs the token request with the private key and obtains a Google access token before the probe; the target may then be the dataset name alone, since the service account names the project. With a `BEARER` token the target must be `project.dataset`.
+
+A configuration can also be tested before saving it, by sending the same datasource body to `/datasources/test`. A redirect from the target counts as a failure: following it would let the target decide where the credential goes.
+
+The answer never includes the body the target returned, because a target can echo the credential it received.
+
+## In integrated mode with ModularIoT
+
+With `MIOT_DASHBOARD_CREDENTIALS_URL` set, the `/credentials` routes answer `404`: credentials are managed in ModularIoT, on each organization's connections screen, and `credentialRef` is the credential's identifier there. The server asks for it when needed, receives only the prepared header, and reuses it for `MIOT_DASHBOARD_CREDENTIALS_CACHE` seconds.

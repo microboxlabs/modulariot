@@ -16,6 +16,8 @@ import { twMerge } from "tailwind-merge";
 import type { HarnessSkill } from "../harness-chat-types";
 import { useRunCancel } from "../context/run-cancel-context";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
+import { useHarnessModel } from "../context/harness-model-context";
+import { useHarnessModels } from "../hooks/use-harness-models";
 import { ComposerAttachmentPreview } from "./attachments";
 
 const WHITESPACE_CHARS = new Set([" ", "\t", "\n", "\r", "\f", "\v"]);
@@ -149,6 +151,8 @@ export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
   const backdropRef = useRef<HTMLDivElement>(null);
   const { markCanceled } = useRunCancel();
   const text = useAuiState((s) => s.composer.text);
+  const models = useHarnessModels();
+  const picked = useHarnessModel();
 
   const syncBackdropScroll = (e: UIEvent<HTMLTextAreaElement>) => {
     if (backdropRef.current) backdropRef.current.scrollTop = e.currentTarget.scrollTop;
@@ -222,6 +226,21 @@ export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
             className="relative max-h-90 w-full resize-none bg-transparent px-1 py-1 text-xs leading-snug text-transparent outline-none transition-[height] duration-100 ease-out caret-gray-800 dark:caret-gray-100"
           />
         </div>
+        {models.models.length > 1 && (
+          <select
+            aria-label={tr("harnessChat.ui.composer.model")}
+            title={tr("harnessChat.ui.composer.model")}
+            value={picked.model ?? models.default ?? ""}
+            onChange={(e) => picked.onChange(e.target.value === models.default ? null : e.target.value)}
+            className="h-6 max-w-32 shrink-0 rounded-md border-0 bg-transparent px-1 text-[11px] text-gray-500 outline-none hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100"
+          >
+            {models.models.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        )}
         <AuiIf condition={(s) => !s.thread.isRunning}>
           <ComposerPrimitive.Send className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100">
             <LuSendHorizontal className="h-3.5 w-3.5" />

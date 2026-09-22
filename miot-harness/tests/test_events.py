@@ -53,6 +53,8 @@ def test_event_type_full_set_is_pinned():
         "freshness.warning",
         "verification.completed",
         "grounding.gap",
+        "advisor.consulted",
+        "delegate.completed",
         "answer.delta",
         "answer.completed",
         "run.completed",

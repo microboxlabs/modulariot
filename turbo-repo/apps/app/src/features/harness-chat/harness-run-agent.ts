@@ -16,13 +16,25 @@ const MAX_UPLOAD_MESSAGES = 60;
  * exchanges that steer a run, and only the recent part of it.
  */
 export class HarnessRunAgent extends HttpAgent {
+  /** The conversation model the user picked; null asks for the default.
+   * Sent with every run in state, next to the conversation id. */
+  model: string | null = null;
+
   constructor(config: HttpAgentConfig) {
     super(config);
   }
 
   override run(input: RunAgentInput): ReturnType<HttpAgent["run"]> {
-    return super.run(trimRunInput(input));
+    return super.run(withModel(trimRunInput(input), this.model));
   }
+}
+
+export function withModel(input: RunAgentInput, model: string | null): RunAgentInput {
+  if (model) return { ...input, state: { ...input.state, harnessModel: model } };
+  if (!input.state || !("harnessModel" in input.state)) return input;
+  const state = { ...input.state };
+  delete state.harnessModel;
+  return { ...input, state };
 }
 
 export function trimRunInput(input: RunAgentInput): RunAgentInput {

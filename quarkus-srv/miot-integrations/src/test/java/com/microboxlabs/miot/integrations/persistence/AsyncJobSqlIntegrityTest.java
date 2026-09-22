@@ -62,6 +62,19 @@ class AsyncJobSqlIntegrityTest {
     }
 
     /**
+     * OFFSET paging over a non-unique sort key is unsound: {@code created_at}
+     * can repeat across jobs, PostgreSQL guarantees no order among tied rows,
+     * and one page's query may then place them differently from the next
+     * page's — dropping or repeating a job.
+     */
+    @Test
+    void listOrdersByAUniqueTieBreakSoPagesCannotDropRows() throws Exception {
+        assertTrue(
+                readStaticString("LIST").contains("ORDER BY created_at DESC, id DESC"),
+                "LIST must tie-break on id, or OFFSET paging can skip or repeat rows");
+    }
+
+    /**
      * A placeholder the caller's {@code Tuple} does not fill fails at execution
      * time, never at compile time: the filter tuple binds $1..$7 and the listing
      * adds the window as $8/$9.

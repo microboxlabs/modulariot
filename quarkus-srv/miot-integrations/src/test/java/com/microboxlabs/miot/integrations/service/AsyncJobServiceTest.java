@@ -276,12 +276,13 @@ class AsyncJobServiceTest {
     void listRejectsAnUnusableWindowAndAnUnknownState() {
         var service = new AsyncJobService(new FakeRepository(null), noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
 
-        assertThrows(IllegalArgumentException.class,
-                () -> service.list("t", new JobQuery(null, null, null, null, null, null, 0, 0)));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.list("t", new JobQuery(null, null, null, null, null, null, 50, -1)));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.list("t", new JobQuery("BOGUS", null, null, null, null, null, 50, 0)));
+        JobQuery emptyPage = new JobQuery(null, null, null, null, null, null, 0, 0);
+        JobQuery negativeOffset = new JobQuery(null, null, null, null, null, null, 50, -1);
+        JobQuery unknownState = new JobQuery("BOGUS", null, null, null, null, null, 50, 0);
+
+        assertThrows(IllegalArgumentException.class, () -> service.list("t", emptyPage));
+        assertThrows(IllegalArgumentException.class, () -> service.list("t", negativeOffset));
+        assertThrows(IllegalArgumentException.class, () -> service.list("t", unknownState));
     }
 
     @Test

@@ -185,10 +185,18 @@ public class AsyncJobRepository {
                     OR job_type ILIKE '%' || $7 || '%'
               ))""";
 
+    /**
+     * The {@code id} tie-break is what makes OFFSET paging sound. {@code
+     * created_at} is not unique — it defaults to {@code now()} and jobs enqueued
+     * together can land on the same microsecond — and PostgreSQL guarantees no
+     * particular order among tied rows, so it may place them differently in the
+     * query for one page than in the query for the next: adjacent pages would
+     * drop or repeat a job.
+     */
     private static final String LIST = "SELECT " + COLUMNS
             + "\nFROM miot_integrations.async_jobs\n"
             + LIST_FILTERS
-            + "\nORDER BY created_at DESC\nLIMIT $8 OFFSET $9";
+            + "\nORDER BY created_at DESC, id DESC\nLIMIT $8 OFFSET $9";
 
     private static final String COUNT = "SELECT count(*)::int AS n\n"
             + "FROM miot_integrations.async_jobs\n"

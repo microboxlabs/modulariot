@@ -87,7 +87,9 @@ public class OrgAsyncJobsConsoleResource {
             @QueryParam("limit") @DefaultValue("100") int limit,
             @QueryParam("offset") @DefaultValue("0") int offset) {
         String tenant = tenantCode(organizationId);
-        JobQuery query = query(state, correlationKey, jobType, chainKey, executor, search, limit, offset);
+        // The page size is capped here so one request can never scan the whole ledger.
+        JobQuery query = new JobQuery(state, correlationKey, jobType, chainKey, executor, search,
+                Math.min(limit, MAX_PAGE_SIZE), offset);
         return onWorker(() -> Response.ok(service.list(tenant, query)).build())
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(OrgAsyncJobsConsoleResource::badRequest);
@@ -111,7 +113,8 @@ public class OrgAsyncJobsConsoleResource {
             @QueryParam("executor") String executor,
             @QueryParam("search") String search) {
         String tenant = tenantCode(organizationId);
-        JobQuery query = query(state, correlationKey, jobType, chainKey, executor, search, 1, 0);
+        // The window is ignored by the count; 1/0 just keeps the record valid.
+        JobQuery query = new JobQuery(state, correlationKey, jobType, chainKey, executor, search, 1, 0);
         return onWorker(() -> Response.ok(Map.of("total", service.count(tenant, query))).build())
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(OrgAsyncJobsConsoleResource::badRequest);
@@ -171,13 +174,6 @@ public class OrgAsyncJobsConsoleResource {
         })
                 .onFailure(IllegalStateException.class)
                 .recoverWithItem(e -> errorResponse(Response.Status.CONFLICT, e.getMessage(), CONFLICT));
-    }
-
-    /** Caps the page size so one request can never scan the whole ledger. */
-    private static JobQuery query(String state, String correlationKey, String jobType, String chainKey,
-            String executor, String search, int limit, int offset) {
-        return new JobQuery(state, correlationKey, jobType, chainKey, executor, search,
-                Math.min(limit, MAX_PAGE_SIZE), offset);
     }
 
     private static Response badRequest(Throwable failure) {

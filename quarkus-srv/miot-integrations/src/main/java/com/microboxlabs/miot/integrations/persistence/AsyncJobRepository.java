@@ -1,6 +1,8 @@
 package com.microboxlabs.miot.integrations.persistence;
 
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
+import com.microboxlabs.miot.integrations.domain.JobLedgerFacets;
+import com.microboxlabs.miot.integrations.domain.JobQuery;
 import com.microboxlabs.miot.integrations.domain.JobState;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -15,6 +17,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -157,22 +161,48 @@ public class AsyncJobRepository {
             FROM miot_integrations.async_jobs
             WHERE id = $1 AND tenant_code = $2""".formatted(COLUMNS);
 
-    private static final String LIST = """
-            SELECT %s
-            FROM miot_integrations.async_jobs
+    /**
+     * Shared predicate of the console listing and its total count, so a page and
+     * the "of N" beside it can never disagree. $7 is the free-text needle: a
+     * job-id prefix, or a substring of the correlation key, chain key or job
+     * type. The caller escapes LIKE wildcards — an operator pasting a raw
+     * {@code %} must not turn the needle into "everything".
+     *
+     * <p>Kept out of {@code String.formatted} on purpose: the LIKE patterns
+     * contain {@code %}, which a format call would read as a specifier.
+     */
+    private static final String LIST_FILTERS = """
             WHERE tenant_code = $1
               AND ($2::varchar IS NULL OR state = $2)
               AND ($3::varchar IS NULL OR correlation_key = $3)
               AND ($4::varchar IS NULL OR job_type = $4)
               AND ($5::varchar IS NULL OR chain_key = $5)
-            ORDER BY created_at DESC
-            LIMIT $6""".formatted(COLUMNS);
+              AND ($6::varchar IS NULL OR executor = $6)
+              AND ($7::varchar IS NULL OR (
+                       id::text LIKE lower($7) || '%'
+                    OR correlation_key ILIKE '%' || $7 || '%'
+                    OR chain_key ILIKE '%' || $7 || '%'
+                    OR job_type ILIKE '%' || $7 || '%'
+              ))""";
 
-    private static final String COUNT_BY_STATE = """
-            SELECT state, count(*)::int AS n
+    private static final String LIST = "SELECT " + COLUMNS
+            + "\nFROM miot_integrations.async_jobs\n"
+            + LIST_FILTERS
+            + "\nORDER BY created_at DESC\nLIMIT $8 OFFSET $9";
+
+    private static final String COUNT = "SELECT count(*)::int AS n\n"
+            + "FROM miot_integrations.async_jobs\n"
+            + LIST_FILTERS;
+
+    /**
+     * One pass over the tenant's ledger for everything the console's chrome
+     * needs: per-state counts and the distinct job types and executor lanes.
+     */
+    private static final String LEDGER_FACETS = """
+            SELECT state, job_type, executor, count(*)::int AS n
             FROM miot_integrations.async_jobs
             WHERE tenant_code = $1
-            GROUP BY state""";
+            GROUP BY state, job_type, executor""";
 
     private final Instance<Pool> clientInstance;
 
@@ -275,15 +305,11 @@ public class AsyncJobRepository {
         return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
     }
 
-    public List<AsyncJob> list(String tenantCode, String state, String correlationKey, String jobType,
-            String chainKey, int limit) {
-        Tuple params = Tuple.tuple()
-                .addString(tenantCode)
-                .addString(state)
-                .addString(correlationKey)
-                .addString(jobType)
-                .addString(chainKey)
-                .addInteger(limit);
+    /** One page of the tenant's jobs, newest first. */
+    public List<AsyncJob> list(String tenantCode, JobQuery query) {
+        Tuple params = filterParams(tenantCode, query)
+                .addInteger(query.limit())
+                .addInteger(query.offset());
         return client().preparedQuery(LIST)
                 .execute(params)
                 .await().indefinitely()
@@ -292,14 +318,42 @@ public class AsyncJobRepository {
                 .toList();
     }
 
-    /** Per-state row counts for the whole tenant ledger (not window-limited like {@link #list}). */
-    public Map<String, Integer> countByState(String tenantCode) {
+    /** Rows matching the same filters as {@link #list}, ignoring the window. */
+    public int count(String tenantCode, JobQuery query) {
+        return client().preparedQuery(COUNT)
+                .execute(filterParams(tenantCode, query))
+                .await().indefinitely()
+                .stream()
+                .findFirst()
+                .map(row -> row.getInteger("n"))
+                .orElse(0);
+    }
+
+    /** Per-state counts plus the distinct job types and lanes of the whole tenant ledger. */
+    public JobLedgerFacets facets(String tenantCode) {
         Map<String, Integer> counts = new LinkedHashMap<>();
-        client().preparedQuery(COUNT_BY_STATE)
+        Set<String> jobTypes = new TreeSet<>();
+        Set<String> executors = new TreeSet<>();
+        client().preparedQuery(LEDGER_FACETS)
                 .execute(Tuple.of(tenantCode))
                 .await().indefinitely()
-                .forEach(row -> counts.put(row.getString("state"), row.getInteger("n")));
-        return counts;
+                .forEach(row -> {
+                    counts.merge(row.getString("state"), row.getInteger("n"), Integer::sum);
+                    jobTypes.add(row.getString("job_type"));
+                    executors.add(row.getString("executor"));
+                });
+        return new JobLedgerFacets(counts, List.copyOf(jobTypes), List.copyOf(executors));
+    }
+
+    private static Tuple filterParams(String tenantCode, JobQuery query) {
+        return Tuple.tuple()
+                .addString(tenantCode)
+                .addString(query.state())
+                .addString(query.correlationKey())
+                .addString(query.jobType())
+                .addString(query.chainKey())
+                .addString(query.executor())
+                .addString(query.search());
     }
 
     private Pool client() {

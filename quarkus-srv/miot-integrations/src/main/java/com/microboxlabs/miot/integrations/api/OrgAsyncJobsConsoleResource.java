@@ -3,6 +3,8 @@ package com.microboxlabs.miot.integrations.api;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
+import com.microboxlabs.miot.integrations.domain.JobLedgerFacets;
+import com.microboxlabs.miot.integrations.domain.JobQuery;
 import com.microboxlabs.miot.integrations.events.JobEventEmitter;
 import com.microboxlabs.miot.integrations.service.AsyncJobService;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -53,6 +55,7 @@ public class OrgAsyncJobsConsoleResource {
 
     private static final String ERROR_KEY = "error";
     private static final String CONFLICT = "Conflict";
+    private static final int MAX_PAGE_SIZE = 500;
 
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
@@ -72,37 +75,71 @@ public class OrgAsyncJobsConsoleResource {
     }
 
     @GET
-    @Operation(summary = "List the org's jobs with optional filters")
+    @Operation(summary = "List one page of the org's jobs, newest first")
     public Uni<Response> list(
             @PathParam("organizationId") String organizationId,
             @QueryParam("state") String state,
             @QueryParam("correlationKey") String correlationKey,
             @QueryParam("jobType") String jobType,
             @QueryParam("chainKey") String chainKey,
-            @QueryParam("limit") @DefaultValue("100") int limit) {
+            @QueryParam("executor") String executor,
+            @QueryParam("search") String search,
+            @QueryParam("limit") @DefaultValue("100") int limit,
+            @QueryParam("offset") @DefaultValue("0") int offset) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> Response.ok(
-                service.list(tenant, state, correlationKey, jobType, chainKey, Math.min(limit, 500))).build())
+        JobQuery query = query(state, correlationKey, jobType, chainKey, executor, search, limit, offset);
+        return onWorker(() -> Response.ok(service.list(tenant, query)).build())
                 .onFailure(IllegalArgumentException.class)
-                .recoverWithItem(errorResponse(Response.Status.BAD_REQUEST, "Invalid state filter: " + state, null));
+                .recoverWithItem(OrgAsyncJobsConsoleResource::badRequest);
     }
 
     /**
-     * One round-trip bootstrap for the console: whole-ledger per-state counts
-     * plus what the browser needs to subscribe to the live quarkus-sse stream
-     * ({@code tenantId} is the SSE stream key — the org's tenant code — which
-     * the {@code /me/scopes} payload deliberately does not expose).
+     * How many jobs match the same filters as {@link #list}, so the console can
+     * show "1–50 of N" and stop paging at the end. Deliberately a second call
+     * rather than an envelope around the list: the count only changes when a
+     * filter does, so paging never pays for it.
+     */
+    @GET
+    @Path("/count")
+    @Operation(summary = "Total jobs matching the list filters")
+    public Uni<Response> count(
+            @PathParam("organizationId") String organizationId,
+            @QueryParam("state") String state,
+            @QueryParam("correlationKey") String correlationKey,
+            @QueryParam("jobType") String jobType,
+            @QueryParam("chainKey") String chainKey,
+            @QueryParam("executor") String executor,
+            @QueryParam("search") String search) {
+        String tenant = tenantCode(organizationId);
+        JobQuery query = query(state, correlationKey, jobType, chainKey, executor, search, 1, 0);
+        return onWorker(() -> Response.ok(Map.of("total", service.count(tenant, query))).build())
+                .onFailure(IllegalArgumentException.class)
+                .recoverWithItem(OrgAsyncJobsConsoleResource::badRequest);
+    }
+
+    /**
+     * One round-trip bootstrap for the console: whole-ledger per-state counts,
+     * the job types and executor lanes its filters offer (facets of the whole
+     * ledger, not of the page on screen), plus what the browser needs to
+     * subscribe to the live quarkus-sse stream ({@code tenantId} is the SSE
+     * stream key — the org's tenant code — which the {@code /me/scopes} payload
+     * deliberately does not expose).
      */
     @GET
     @Path("/overview")
-    @Operation(summary = "Per-state counts plus the live-stream subscription context")
+    @Operation(summary = "Per-state counts, filter facets and the live-stream subscription context")
     public Uni<Response> overview(@PathParam("organizationId") String organizationId) {
         String tenant = tenantCode(organizationId);
-        return onWorker(() -> Response.ok(Map.of(
-                "counts", service.counts(tenant),
-                "tenantId", tenant,
-                "eventType", JobEventEmitter.EVENT_TYPE,
-                "liveEventsConfigured", eventEmitter.isConfigured())).build());
+        return onWorker(() -> {
+            JobLedgerFacets facets = service.facets(tenant);
+            return Response.ok(Map.of(
+                    "counts", facets.counts(),
+                    "jobTypes", facets.jobTypes(),
+                    "executors", facets.executors(),
+                    "tenantId", tenant,
+                    "eventType", JobEventEmitter.EVENT_TYPE,
+                    "liveEventsConfigured", eventEmitter.isConfigured())).build();
+        });
     }
 
     @GET
@@ -134,6 +171,17 @@ public class OrgAsyncJobsConsoleResource {
         })
                 .onFailure(IllegalStateException.class)
                 .recoverWithItem(e -> errorResponse(Response.Status.CONFLICT, e.getMessage(), CONFLICT));
+    }
+
+    /** Caps the page size so one request can never scan the whole ledger. */
+    private static JobQuery query(String state, String correlationKey, String jobType, String chainKey,
+            String executor, String search, int limit, int offset) {
+        return new JobQuery(state, correlationKey, jobType, chainKey, executor, search,
+                Math.min(limit, MAX_PAGE_SIZE), offset);
+    }
+
+    private static Response badRequest(Throwable failure) {
+        return errorResponse(Response.Status.BAD_REQUEST, failure.getMessage(), "Invalid job filter");
     }
 
     /**

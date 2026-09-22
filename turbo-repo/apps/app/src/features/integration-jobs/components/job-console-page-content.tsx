@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { HiOutlineBell, HiOutlineChevronRight, HiOutlineSearch, HiOutlineRefresh } from "react-icons/hi";
+import {
+  HiOutlineBell,
+  HiOutlineChevronLeft,
+  HiOutlineChevronRight,
+  HiOutlineSearch,
+  HiOutlineRefresh,
+} from "react-icons/hi";
+import { useDebounce } from "use-debounce";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
@@ -18,7 +25,11 @@ import {
   type AsyncJob,
   type JobState,
 } from "../integration-job.types";
-import { useIntegrationJobs, useIntegrationJobsOverview } from "../use-integration-jobs";
+import {
+  useIntegrationJobs,
+  useIntegrationJobsCount,
+  useIntegrationJobsOverview,
+} from "../use-integration-jobs";
 import { useJobEvents } from "../use-job-events";
 import JobDetailPanel from "./job-detail-panel";
 import JobStateBadge from "./job-state-badge";
@@ -27,6 +38,11 @@ import NotificationRulesPanel from "./notification-rules-panel";
 interface JobConsolePageContentProps {
   readonly dict: I18nRecord;
 }
+
+const PAGE_SIZES = [25, 50, 100, 200];
+const DEFAULT_PAGE_SIZE = 50;
+/** Long enough that typing a correlation key is one request, not eight. */
+const SEARCH_DEBOUNCE_MS = 350;
 
 const CONTEXT_TONE: Record<JobState, string> = {
   PENDING: "text-amber-600 dark:text-amber-400",
@@ -43,7 +59,10 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
   const [stateFilter, setStateFilter] = useState<JobState | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [laneFilter, setLaneFilter] = useState<string>("");
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search] = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -62,34 +81,56 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
   }, []);
 
   const { overview, isLoading: overviewLoading } = useIntegrationJobsOverview(orgSlug);
+
+  // Every filter is applied by the backend over the whole ledger — a console
+  // that sifted only the loaded page would hide the rows being looked for.
+  const filters = useMemo(
+    () => ({
+      state: stateFilter ?? undefined,
+      jobType: typeFilter || undefined,
+      executor: laneFilter || undefined,
+      search: search.trim() || undefined,
+    }),
+    [stateFilter, typeFilter, laneFilter, search],
+  );
+
+  // A filter change re-slices the ledger, so the first page is the only one we
+  // can know exists. Reset during render rather than in an effect: an effect
+  // would let one request go out at the previous filters' offset first.
+  const [pagedFilters, setPagedFilters] = useState(filters);
+  if (pagedFilters !== filters) {
+    setPagedFilters(filters);
+    setPage(0);
+  }
+
   const { jobs, isLoading, error, refresh } = useIntegrationJobs(orgSlug, {
-    state: stateFilter ?? undefined,
-    jobType: typeFilter || undefined,
-    limit: 100,
+    ...filters,
+    limit: pageSize,
+    offset: page * pageSize,
   });
+  const { total } = useIntegrationJobsCount(orgSlug, filters);
   const { connected, liveConfigured } = useJobEvents(orgSlug);
 
+  // Dropdown options are facets of the whole ledger, not of the rows on
+  // screen — otherwise they would change as the operator pages. Older
+  // backends don't send them; fall back to what this page holds.
   const jobTypes = useMemo(() => {
-    const types = new Set<string>(jobs.map((job) => job.jobType));
+    const types = new Set<string>(overview?.jobTypes ?? jobs.map((job) => job.jobType));
     if (typeFilter) types.add(typeFilter);
     return [...types].sort((a, b) => a.localeCompare(b));
-  }, [jobs, typeFilter]);
+  }, [overview?.jobTypes, jobs, typeFilter]);
 
-  const lanes = useMemo(() => [...new Set(jobs.map((job) => job.executor))].sort((a, b) => a.localeCompare(b)), [jobs]);
-
-  const visibleJobs = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return jobs.filter(
-      (job) =>
-        (!laneFilter || job.executor === laneFilter) &&
-        (!query ||
-          job.id.startsWith(query) ||
-          (job.correlationKey ?? "").toLowerCase().includes(query) ||
-          (job.chainKey ?? "").toLowerCase().includes(query)),
-    );
-  }, [jobs, laneFilter, search]);
+  const lanes = useMemo(() => {
+    const executors = new Set<string>(overview?.executors ?? jobs.map((job) => job.executor));
+    if (laneFilter) executors.add(laneFilter);
+    return [...executors].sort((a, b) => a.localeCompare(b));
+  }, [overview?.executors, jobs, laneFilter]);
 
   const counts = overview?.counts;
+  const firstRow = jobs.length === 0 ? 0 : page * pageSize + 1;
+  const lastRow = page * pageSize + jobs.length;
+  // With no total (older backend), a full page is the only hint there is more.
+  const hasNextPage = total === null ? jobs.length === pageSize : lastRow < total;
 
   let liveDotClass = "bg-gray-400";
   if (connected) liveDotClass = "animate-pulse bg-green-500";
@@ -222,9 +263,10 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
         <label className="relative">
           <HiOutlineSearch className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
           <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
             placeholder={tr("filters.searchPlaceholder", dict)}
+            title={tr("filters.searchHint", dict)}
             className="h-8 w-56 rounded-lg border border-gray-300 bg-white pl-8 pr-2 text-xs text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
           />
         </label>
@@ -243,7 +285,7 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center border-b border-gray-100 px-4 py-3 dark:border-gray-700">
             <span className="text-sm font-semibold text-gray-900 dark:text-white">
-              {tr("table.title", dict)} · {visibleJobs.length}
+              {tr("table.title", dict)} · {(total ?? jobs.length).toLocaleString()}
             </span>
             <span className="flex-1" />
             <span className="font-mono text-[11px] text-gray-400 dark:text-gray-500">
@@ -272,14 +314,14 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
                     </td>
                   </tr>
                 )}
-                {!isLoading && visibleJobs.length === 0 && (
+                {!isLoading && jobs.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-400 dark:text-gray-500">
                       {tr("table.empty", dict)}
                     </td>
                   </tr>
                 )}
-                {visibleJobs.map((job: AsyncJob) => (
+                {jobs.map((job: AsyncJob) => (
                   <tr
                     key={job.id}
                     onClick={() => openJob(job.id)}
@@ -340,6 +382,62 @@ export default function JobConsolePageContent({ dict }: JobConsolePageContentPro
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* pager — the table shows one window of a ledger that runs to tens
+              of thousands of rows, so the range and the controls are the only
+              way to reach anything but the newest jobs. */}
+          <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 px-4 py-2.5 dark:border-gray-700">
+            <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400">
+              {total === null
+                ? tr("pagination.rangeUnknown", dict, {
+                    from: firstRow.toLocaleString(),
+                    to: lastRow.toLocaleString(),
+                  })
+                : tr("pagination.range", dict, {
+                    from: firstRow.toLocaleString(),
+                    to: lastRow.toLocaleString(),
+                    total: total.toLocaleString(),
+                  })}
+            </span>
+            <span className="flex-1" />
+            <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+              <select
+                value={pageSize}
+                onChange={(event) => {
+                  setPageSize(Number(event.target.value));
+                  setPage(0);
+                }}
+                className="h-7 rounded-lg border border-gray-300 bg-white px-1.5 text-xs text-gray-700 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+              >
+                {PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+              {tr("pagination.perPage", dict)}
+            </label>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={page === 0}
+                onClick={() => setPage((current) => Math.max(0, current - 1))}
+                className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                <HiOutlineChevronLeft className="h-3.5 w-3.5" />
+                {tr("pagination.previous", dict)}
+              </button>
+              <button
+                type="button"
+                disabled={!hasNextPage}
+                onClick={() => setPage((current) => current + 1)}
+                className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                {tr("pagination.next", dict)}
+                <HiOutlineChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </div>
 

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
+import com.microboxlabs.miot.integrations.domain.JobQuery;
 import com.microboxlabs.miot.integrations.domain.JobState;
 import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
 import com.microboxlabs.miot.integrations.dto.EnqueueJobsRequest;
@@ -142,8 +143,7 @@ class CalendarRejectOnParkTest {
         }
 
         @Override
-        public List<AsyncJob> list(String tenantCode, String state, String correlationKey,
-                String jobType, String chainKey, int limit) {
+        public List<AsyncJob> list(String tenantCode, JobQuery query) {
             if (listThrows != null) {
                 throw listThrows;
             }

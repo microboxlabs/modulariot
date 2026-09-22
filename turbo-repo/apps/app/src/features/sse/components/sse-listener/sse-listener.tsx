@@ -89,7 +89,7 @@ export default function SseListener({
 
         CustomNotification(
           <div
-            className=" w-full flex flex-row gap-2 items-center cursor-pointer rounded-md hover:bg-gray-300 dark:hover:bg-gray-700 p-2"
+            className=" w-full flex flex-row gap-2 items-center cursor-pointer rounded-md p-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-900"
             // sonner injects its own CSS as an un-layered <style> tag with
             // `[data-sonner-toast]>* { transition: opacity .4s }`. Tailwind
             // v4 wraps all utility classes (transition-colors, duration-300,

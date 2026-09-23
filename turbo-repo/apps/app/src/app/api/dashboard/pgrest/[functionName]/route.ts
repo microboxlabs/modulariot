@@ -65,7 +65,7 @@ function validateResponse(response: Response, url: string) {
 
 async function handleRequest(req: NextRequest, ctx: RouteContext) {
   const session = await auth();
-  if (!session) {
+  if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

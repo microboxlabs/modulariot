@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 import { buildPgrestFetch, parseRows } from "./pgrest-utils";
 import { usePollingInterval } from "../../hooks/use-polling-interval";
+import { redirectToSignIn } from "@/features/auth/utils/redirect-to-sign-in";
 
 export function usePgrestRows(
   dataMode: string,
@@ -56,6 +57,7 @@ export function usePgrestRows(
 
     fetch(url, { ...init, signal: controller.signal })
       .then((res) => {
+        if (res.status === 401) redirectToSignIn();
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })

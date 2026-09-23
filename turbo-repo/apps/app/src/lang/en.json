@@ -3811,6 +3811,8 @@
     "make_another_call": "Make another call",
     "save_and_call_again": "Save and make another call",
     "call_origin_label": "Call",
+    "call_again_origin_label": "Call",
+    "call_again_label": "Call again",
     "call_log_missed": "No answer",
     "call_center_last_call_label": "Last call",
     "call_center_last_call_suffix": "ago",

@@ -26,7 +26,9 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import type { SelectableOption } from "@/features/settings-admin/selectables/types";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
-import PrototypeCallDriver from "../prototype-call-driver";
+import PrototypeCallDriver, {
+  type CallFormDraft,
+} from "../prototype-call-driver";
 import CallCenterMenu from "./call-center-menu";
 import CallDialingStep from "./call-dialing-step";
 import { useCallHistory } from "./call-history-store";
@@ -40,6 +42,24 @@ type Step = CallCenterFlowStep;
  *  `CallDialingStep` still owns that transition internally. */
 export type CallCenterReportedStep = Step | "calling";
 
+/** Enough of a completed call's context to redraw the "form" step exactly as
+ *  it looked right when confirmed — captured by `onCallConfirmed` and handed
+ *  back in as `resumeSnapshot` so `prototype-inline-form.tsx` can send the
+ *  operator straight back to that results form (not the contact list) after
+ *  they've switched away to a different treatment type and hit back. This
+ *  flow itself unmounts on that switch (a different menu's component takes
+ *  its place entirely), so nothing captured here can live in this
+ *  component's own state — it has to survive one level up. */
+export type CallSnapshot = {
+  contact: SelectableOption | null;
+  personName: string;
+  role: string;
+  phone: string;
+  allowedMethods?: CallMethod[];
+  durationSeconds: number | null;
+  methodUsed: CallMethod | null;
+};
+
 export default function PrototypeCallCenterFlow({
   dict,
   treatmentData,
@@ -50,6 +70,11 @@ export default function PrototypeCallCenterFlow({
   setIsMenuOpen,
   onStepChange,
   onSwitchTreatment,
+  resumeSnapshot,
+  onCallConfirmed,
+  onRepeatCallChange,
+  formDraft,
+  onFormDraftChange,
 }: {
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
@@ -65,18 +90,41 @@ export default function PrototypeCallCenterFlow({
   /** Passed straight through to the final form's `CallSwitchDropdown` — see
    *  `PrototypeCallDriver`'s prop of the same name. */
   onSwitchTreatment?: (option: SelectedOption) => void;
+  /** When set, this mount starts straight on the "form" step showing this
+   *  call's context instead of the contact list — used when the operator
+   *  switched away from an already-completed call and hit back. */
+  resumeSnapshot?: CallSnapshot | null;
+  /** Fired the moment a call is confirmed (dialing → form), so the parent can
+   *  hold onto enough context to resume here later even after this whole
+   *  flow unmounts. */
+  onCallConfirmed?: (snapshot: CallSnapshot) => void;
+  /** Fired true the moment the operator starts a second (or later) call via
+   *  "Guardar y hacer otra llamada" — see `handleMakeAnotherCall`. */
+  onRepeatCallChange?: (isRepeatCall: boolean) => void;
+  /** Last-known results-form state, held by the parent so it survives this
+   *  flow unmounting — handed to the form to restore. */
+  formDraft?: CallFormDraft | null;
+  onFormDraftChange?: (draft: CallFormDraft | null) => void;
 }) {
-  const [step, setStep] = useState<Step>("contacts");
+  const [step, setStep] = useState<Step>(resumeSnapshot ? "form" : "contacts");
   const [dialingStarted, setDialingStarted] = useState(false);
-  const [activeContact, setActiveContact] = useState<SelectableOption | null>(null);
-  const [activePersonName, setActivePersonName] = useState("");
-  const [activeRole, setActiveRole] = useState("");
-  const [activePhone, setActivePhone] = useState("");
+  const [activeContact, setActiveContact] = useState<SelectableOption | null>(
+    resumeSnapshot?.contact ?? null
+  );
+  const [activePersonName, setActivePersonName] = useState(
+    resumeSnapshot?.personName ?? ""
+  );
+  const [activeRole, setActiveRole] = useState(resumeSnapshot?.role ?? "");
+  const [activePhone, setActivePhone] = useState(resumeSnapshot?.phone ?? "");
   const [activeAllowedMethods, setActiveAllowedMethods] = useState<
     CallMethod[] | undefined
-  >(undefined);
-  const [callDurationSeconds, setCallDurationSeconds] = useState<number | null>(null);
-  const [callMethodUsed, setCallMethodUsed] = useState<CallMethod | null>(null);
+  >(resumeSnapshot?.allowedMethods);
+  const [callDurationSeconds, setCallDurationSeconds] = useState<number | null>(
+    resumeSnapshot?.durationSeconds ?? null
+  );
+  const [callMethodUsed, setCallMethodUsed] = useState<CallMethod | null>(
+    resumeSnapshot?.methodUsed ?? null
+  );
   // Real (not mocked) last-call time per contact actually called — persisted
   // (see `call-history-store.ts`) so the contacts list still shows it as
   // green/sorted-last after this flow unmounts, e.g. once "Finalizar
@@ -117,12 +165,30 @@ export default function PrototypeCallCenterFlow({
     if (activeContact) {
       recordCall(activeContact.id);
     }
+    onFormDraftChange?.(null);
+    onCallConfirmed?.({
+      contact: activeContact,
+      personName: activePersonName,
+      role: activeRole,
+      phone: activePhone,
+      allowedMethods: activeAllowedMethods,
+      durationSeconds: elapsedSeconds,
+      methodUsed: method,
+    });
     setStep("form");
   };
 
   /** "Hacer otra llamada" from the results form — back to "who to call",
-   *  same as cancelling a live call, not straight back into dialing. */
-  const handleMakeAnotherCall = handleCancelCall;
+   *  same as cancelling a live call, not straight back into dialing. Also
+   *  flags every step from here on (until this second call reaches its own
+   *  "form") as a repeat round, so the panel header can read "Llamar → Llamar
+   *  de nuevo" on "who to call" instead of the plain first-call title —
+   *  cancelling a live call on the FIRST attempt doesn't set this, only
+   *  actually finishing one call and choosing to start another does. */
+  const handleMakeAnotherCall = () => {
+    onRepeatCallChange?.(true);
+    handleCancelCall();
+  };
 
   return (
     <>
@@ -169,6 +235,8 @@ export default function PrototypeCallCenterFlow({
           callDurationSeconds={callDurationSeconds}
           onMakeAnotherCall={handleMakeAnotherCall}
           onSwitchTreatment={onSwitchTreatment}
+          initialDraft={formDraft}
+          onDraftChange={onFormDraftChange}
         />
       )}
     </>

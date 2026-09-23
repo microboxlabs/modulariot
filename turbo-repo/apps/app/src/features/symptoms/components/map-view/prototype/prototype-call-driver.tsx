@@ -3,7 +3,7 @@
 import { Button, ButtonGroup, Textarea, TextInput } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import BrandedMultiSelect from "@/features/task-forms/components/task-confirm-modal/branded-multi-select";
 import { guardedRequestTreatment } from "./prototype-api-guard";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
@@ -46,6 +46,19 @@ const CALL_RESULT_OPTION_IDS = [
   "result_no_answer",
   "result_voicemail",
 ];
+
+/** The results form's operator-entered state, held one level up so it
+ *  survives this component unmounting (switching to another treatment and
+ *  coming back). `saved` is true from the moment this call's request goes out
+ *  until the operator edits anything again. */
+export type CallFormDraft = {
+  selectedTagIds: string[];
+  callTargetId: string;
+  targetPhone: string;
+  resultadoId: string;
+  notaLlamada: string;
+  saved: boolean;
+};
 
 function formatCallDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)
@@ -96,6 +109,8 @@ export default function PrototypeCallDriver({
   callDurationSeconds = null,
   onMakeAnotherCall,
   onSwitchTreatment,
+  initialDraft = null,
+  onDraftChange,
 }: {
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
@@ -136,6 +151,10 @@ export default function PrototypeCallDriver({
    *  llamada" button with `CallSwitchDropdown`, offering both actions plus
    *  every other treatment type. */
   onSwitchTreatment?: (option: SelectedOption) => void;
+  /** Debug call-center flow only: last-known form state to restore. */
+  initialDraft?: CallFormDraft | null;
+  /** Debug call-center flow only: reports every form change upward. */
+  onDraftChange?: (draft: CallFormDraft) => void;
 }) {
   const dictSy = dict.symptoms as I18nRecord;
   const t = (k: string) => dictSy[k] as string;
@@ -149,29 +168,45 @@ export default function PrototypeCallDriver({
   const { options: tagOptions } = useSelectableOptions("call_tags");
 
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(() =>
-    aiAssistEnabled && tagOptions[0] ? [tagOptions[0].id] : []
+    initialDraft
+      ? initialDraft.selectedTagIds
+      : aiAssistEnabled && tagOptions[0]
+        ? [tagOptions[0].id]
+        : []
   );
-  const [callTargetId, setCallTargetId] = useState(initialCallTargetId ?? "");
-  const [targetPhone, setTargetPhone] = useState("");
+  const [callTargetId, setCallTargetId] = useState(
+    initialDraft?.callTargetId ?? initialCallTargetId ?? ""
+  );
+  const [targetPhone, setTargetPhone] = useState(initialDraft?.targetPhone ?? "");
   const [resultadoId, setResultadoId] = useState(() =>
-    aiAssistEnabled ? (resultOptions[0]?.id ?? "") : ""
+    initialDraft
+      ? initialDraft.resultadoId
+      : aiAssistEnabled
+        ? (resultOptions[0]?.id ?? "")
+        : ""
   );
   const [notaLlamada, setNotaLlamada] = useState(() =>
-    aiAssistEnabled && messageToCommunicate.trim()
+    initialDraft
+      ? initialDraft.notaLlamada
+      : aiAssistEnabled && messageToCommunicate.trim()
       ? `Resumen generado por el harness: se comunicó "${messageToCommunicate.trim()}" y el conductor confirmó la recepción.`
       : ""
   );
   // Each starts "AI-filled" (if there was content to fill) and loses that
   // status the moment the operator touches the field — see `AiFillFrame`.
   const [resultAiFilled, setResultAiFilled] = useState(
-    aiAssistEnabled && resultOptions.length > 0
+    !initialDraft && aiAssistEnabled && resultOptions.length > 0
   );
   const [notaAiFilled, setNotaAiFilled] = useState(
-    aiAssistEnabled && messageToCommunicate.trim().length > 0
+    !initialDraft && aiAssistEnabled && messageToCommunicate.trim().length > 0
   );
   const [tagsAiFilled, setTagsAiFilled] = useState(
-    aiAssistEnabled && tagOptions.length > 0
+    !initialDraft && aiAssistEnabled && tagOptions.length > 0
   );
+  // True once this call's request has gone out and nothing has been edited
+  // since — a plain revisit (switch away and back) then can't re-send it.
+  const [saved, setSaved] = useState(initialDraft?.saved ?? false);
+  const markEdited = () => setSaved(false);
 
   // Convention: the first "who to call" option is the driver.
   const effectiveCallTargetId = callTargetId || targetOptions[0]?.id || "";
@@ -191,6 +226,18 @@ export default function PrototypeCallDriver({
   const telefonoLlamada = esConductor
     ? (treatmentData?.trip_info?.driver_contact ?? "")
     : targetPhone;
+
+  useEffect(() => {
+    onDraftChange?.({
+      selectedTagIds,
+      callTargetId,
+      targetPhone,
+      resultadoId,
+      notaLlamada,
+      saved,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTagIds, callTargetId, targetPhone, resultadoId, notaLlamada, saved]);
 
   const router = useRouter();
 
@@ -215,28 +262,42 @@ export default function PrototypeCallDriver({
           : ""),
     });
 
-  const handleSave = async () => {
-    const response = await saveTreatment();
+  const skipSave = saved;
 
-    setTreatmentRequest({
-      ...treatmentRequest,
-      treatment_id: response.treatment_id,
-    });
+  const handleSave = async () => {
+    if (!skipSave) {
+      const response = await saveTreatment();
+      setTreatmentRequest({
+        ...treatmentRequest,
+        treatment_id: response.treatment_id,
+      });
+      ShowNotification({ type: "success", message: t("treatment_saved") });
+    }
 
     setIsMenuOpen(false);
     router.push("/symptoms");
-    ShowNotification({ type: "success", message: t("treatment_saved") });
   };
 
   const handleSaveAndCallAgain = async () => {
-    const response = await saveTreatment();
+    if (!skipSave) {
+      const response = await saveTreatment();
+      setTreatmentRequest({
+        ...treatmentRequest,
+        treatment_id: response.treatment_id,
+      });
+      ShowNotification({ type: "success", message: t("treatment_saved") });
+      // Reported explicitly: this component unmounts right after, before an
+      // effect could carry `saved: true` upward.
+      onDraftChange?.({
+        selectedTagIds,
+        callTargetId,
+        targetPhone,
+        resultadoId,
+        notaLlamada,
+        saved: true,
+      });
+    }
 
-    setTreatmentRequest({
-      ...treatmentRequest,
-      treatment_id: response.treatment_id,
-    });
-
-    ShowNotification({ type: "success", message: t("treatment_saved") });
     onMakeAnotherCall?.();
   };
 
@@ -293,7 +354,10 @@ export default function PrototypeCallDriver({
             fieldKey="who_to_call"
             dict={dict}
             value={effectiveCallTargetId}
-            onSelect={(o) => setCallTargetId(o.id)}
+            onSelect={(o) => {
+              setCallTargetId(o.id);
+              markEdited();
+            }}
           />
         </div>
         <SelectableFieldControl fieldKey="who_to_call" dict={dict} />
@@ -305,7 +369,10 @@ export default function PrototypeCallDriver({
             sizing="sm"
             type="tel"
             value={targetPhone}
-            onChange={(e) => setTargetPhone(e.target.value)}
+            onChange={(e) => {
+              setTargetPhone(e.target.value);
+              markEdited();
+            }}
             placeholder="+56 9 …"
           />
         </div>
@@ -341,6 +408,7 @@ export default function PrototypeCallDriver({
           onSelect={(o) => {
             setResultadoId(o.id);
             setResultAiFilled(false);
+            markEdited();
           }}
           placeholder={t("result_pending")}
           emptyLabel={t("result_pending")}
@@ -354,6 +422,7 @@ export default function PrototypeCallDriver({
           onChange={(e) => {
             setNotaLlamada(e.target.value);
             setNotaAiFilled(false);
+            markEdited();
           }}
         />
       </div>
@@ -374,6 +443,7 @@ export default function PrototypeCallDriver({
           onSelectionChange={(ids) => {
             setSelectedTagIds(ids);
             setTagsAiFilled(false);
+            markEdited();
           }}
           placeholder={t("proto_tags_placeholder")}
           summaryLabel={(count) =>

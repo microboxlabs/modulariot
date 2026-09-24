@@ -91,11 +91,12 @@ public class SelectableService {
         }
     }
 
-    /** Drops every list and binding and puts the defaults back. */
+    /** Drops every list and binding and puts the defaults back. A failing provider leaves everything as it was. */
     public List<Selectable> reset(String tenantCode, String actor) {
         synchronized (lockFor(tenantCode)) {
+            List<Selectable> defaultLists = collectDefaults(tenantCode);
             store.clear(tenantCode);
-            seedDefaults(tenantCode);
+            defaultLists.forEach(store::upsert);
             seeded.add(tenantCode);
             changed.accept(new SelectableChanged(tenantCode, actor, "selectable.reset", "all", Map.of()));
             return store.list(tenantCode);
@@ -131,18 +132,26 @@ public class SelectableService {
         return tenantLocks.computeIfAbsent(tenantCode, k -> new Object());
     }
 
+    /** A provider failure leaves the tenant unseeded, so the next read tries again. */
     private void seedOnce(String tenantCode) {
         synchronized (lockFor(tenantCode)) {
-            if (seeded.add(tenantCode) && store.list(tenantCode).isEmpty()) {
-                seedDefaults(tenantCode);
+            if (seeded.contains(tenantCode)) {
+                return;
             }
+            if (store.list(tenantCode).isEmpty()) {
+                collectDefaults(tenantCode).forEach(store::upsert);
+            }
+            seeded.add(tenantCode);
         }
     }
 
-    private void seedDefaults(String tenantCode) {
+    /** Every provider's lists, collected before anything is written. */
+    private List<Selectable> collectDefaults(String tenantCode) {
+        List<Selectable> out = new ArrayList<>();
         for (SelectableDefaults d : defaults) {
-            d.forTenant(tenantCode).forEach(store::upsert);
+            out.addAll(d.forTenant(tenantCode));
         }
+        return out;
     }
 
     /** Trims names, assigns ids to options without one, and rejects nameless options and duplicate ids. */

@@ -17,6 +17,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -137,6 +138,47 @@ class SelectableServiceTest {
         Set<String> lists = racing.list(TENANT).stream().map(Selectable::key).collect(Collectors.toSet());
         racing.bindings(TENANT).forEach((field, key) ->
                 assertTrue(lists.contains(key), field + " is bound to the deleted list " + key));
+    }
+
+    @Test
+    void aFailingDefaultsProviderLeavesTheListsAsTheyWere() {
+        AtomicBoolean failing = new AtomicBoolean(false);
+        SelectableDefaults reasons = tenant -> List.of(list(tenant, "reason", SelectionMode.SINGLE, "r_1"));
+        SelectableDefaults flaky = tenant -> {
+            if (failing.get()) {
+                throw new IllegalStateException("provider down");
+            }
+            return List.of();
+        };
+        SelectableService flakyService = new SelectableService(new InMemorySelectableStore(),
+                List.of(reasons, flaky), events::add);
+        flakyService.replace(TENANT, "o", "custom", new SelectableRequest("Mine", null, SelectionMode.SINGLE,
+                List.of()));
+        failing.set(true);
+
+        assertThrows(IllegalStateException.class, () -> flakyService.reset(TENANT, "o"));
+
+        assertEquals(List.of("reason", "custom"),
+                flakyService.list(TENANT).stream().map(Selectable::key).toList());
+    }
+
+    @Test
+    void aProviderFailureOnFirstReadIsRetriedOnTheNextOne() {
+        AtomicBoolean failing = new AtomicBoolean(true);
+        SelectableDefaults reasons = tenant -> List.of(list(tenant, "reason", SelectionMode.SINGLE, "r_1"));
+        SelectableDefaults flaky = tenant -> {
+            if (failing.get()) {
+                throw new IllegalStateException("provider down");
+            }
+            return List.of(list(tenant, "tags", SelectionMode.MULTIPLE, "t_1"));
+        };
+        SelectableService flakyService = new SelectableService(new InMemorySelectableStore(),
+                List.of(reasons, flaky), events::add);
+
+        assertThrows(IllegalStateException.class, () -> flakyService.list(TENANT));
+        failing.set(false);
+
+        assertEquals(List.of("reason", "tags"), flakyService.list(TENANT).stream().map(Selectable::key).toList());
     }
 
     private static void await(CountDownLatch latch) {

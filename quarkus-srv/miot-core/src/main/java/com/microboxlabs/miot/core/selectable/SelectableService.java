@@ -145,11 +145,17 @@ public class SelectableService {
         }
     }
 
-    /** Every provider's lists, collected before anything is written. */
+    /**
+     * Every provider's lists, collected before anything is written, each
+     * stamped with {@code tenantCode} whatever tenant the provider put on it.
+     */
     private List<Selectable> collectDefaults(String tenantCode) {
         List<Selectable> out = new ArrayList<>();
         for (SelectableDefaults d : defaults) {
-            out.addAll(d.forTenant(tenantCode));
+            for (Selectable s : d.forTenant(tenantCode)) {
+                out.add(new Selectable(tenantCode, s.key(), s.name(), s.description(), s.mode(), s.options(),
+                        s.updatedBy(), s.updatedAt()));
+            }
         }
         return out;
     }

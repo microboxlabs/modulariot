@@ -6,31 +6,34 @@
  */
 
 import useSWR from "swr";
-
-export interface ApiSelectableOption {
-  id: string;
-  name: string;
-  description: string;
-}
-
-export interface ApiSelectable {
-  key: string;
-  name: string;
-  description: string | null;
-  mode: "SINGLE" | "MULTIPLE";
-  options: ApiSelectableOption[];
-}
+import type {
+  Selectable,
+  SelectableOption,
+  SelectableSourceDescriptor,
+} from "./types";
 
 const BASE = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/selectables`;
 
 /** SWR keys are the full proxy URLs, so they never collide with other app keys. */
 export const selectablesKey = BASE;
 export const bindingsKey = `${BASE}/bindings`;
+export const sourcesKey = `${BASE}/sources`;
 
-async function request<T>(url: string, init?: { method?: string; body?: unknown }): Promise<T> {
+export type SelectableWrite = Omit<
+  Selectable,
+  "key" | "updatedBy" | "updatedAt"
+>;
+
+async function request<T>(
+  url: string,
+  init?: { method?: string; body?: unknown }
+): Promise<T> {
   const response = await fetch(url, {
     method: init?.method ?? "GET",
-    headers: init?.body !== undefined ? { "Content-Type": "application/json" } : undefined,
+    headers:
+      init?.body !== undefined
+        ? { "Content-Type": "application/json" }
+        : undefined,
     body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
     cache: "no-store",
   });
@@ -48,14 +51,16 @@ async function request<T>(url: string, init?: { method?: string; body?: unknown 
   return json as T;
 }
 
-const fetcher = <T,>(url: string) => request<T>(url);
+const fetcher = <T>(url: string) => request<T>(url);
 
 export function useApiSelectables() {
-  return useSWR<ApiSelectable[]>(selectablesKey, fetcher);
+  return useSWR<Selectable[]>(selectablesKey, fetcher, {
+    revalidateOnFocus: false,
+  });
 }
 
-export function replaceSelectable(key: string, body: Omit<ApiSelectable, "key">) {
-  return request<ApiSelectable>(`${BASE}/${key}`, { method: "PUT", body });
+export function replaceSelectable(key: string, body: SelectableWrite) {
+  return request<Selectable>(`${BASE}/${key}`, { method: "PUT", body });
 }
 
 export function deleteSelectable(key: string) {
@@ -63,7 +68,43 @@ export function deleteSelectable(key: string) {
 }
 
 export function resetSelectables() {
-  return request<ApiSelectable[]>(`${BASE}/reset`, { method: "POST", body: {} });
+  return request<Selectable[]>(`${BASE}/reset`, { method: "POST", body: {} });
+}
+
+export function useSelectableSources() {
+  return useSWR<SelectableSourceDescriptor[]>(sourcesKey, fetcher, {
+    revalidateOnFocus: false,
+  });
+}
+
+export interface OptionsQuery {
+  search?: string;
+  parents?: string[];
+  limit?: number;
+}
+
+export function optionsUrl(
+  key: string,
+  { search, parents, limit }: OptionsQuery = {}
+): string {
+  const params = new URLSearchParams();
+  if (search?.trim()) params.set("q", search.trim());
+  parents?.forEach((p) => params.append("parent", p));
+  if (limit) params.set("limit", String(limit));
+  const query = params.toString();
+  return `${BASE}/${key}/options${query ? `?${query}` : ""}`;
+}
+
+/** Options fetched from the API: what a SYSTEM or CONNECTION list shows. `key` null pauses it. */
+export function useSelectableOptions(key: string | null, query: OptionsQuery) {
+  return useSWR<SelectableOption[]>(
+    key ? optionsUrl(key, query) : null,
+    fetcher,
+    {
+      keepPreviousData: true,
+      revalidateOnFocus: false,
+    }
+  );
 }
 
 export function useSelectableBindings() {
@@ -71,5 +112,8 @@ export function useSelectableBindings() {
 }
 
 export function updateSelectableBindings(bindings: Record<string, string>) {
-  return request<Record<string, string>>(bindingsKey, { method: "PUT", body: { bindings } });
+  return request<Record<string, string>>(bindingsKey, {
+    method: "PUT",
+    body: { bindings },
+  });
 }

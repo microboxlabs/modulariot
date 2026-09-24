@@ -28,7 +28,8 @@ export function useFieldSelectableBinding(
         .catch((error: unknown) =>
           ShowNotification({
             type: "error",
-            message: error instanceof Error ? error.message : "No se pudo guardar",
+            message:
+              error instanceof Error ? error.message : "No se pudo guardar",
           })
         )
         .finally(() => mutate(bindingsKey));

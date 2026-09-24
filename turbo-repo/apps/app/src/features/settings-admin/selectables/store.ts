@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * Selectables, read from and written to the modulith Control Tower API
- * (`/selectables`). The organization gets the default lists the first time it
- * asks; writes need an organization owner, and a refused write surfaces as a
- * notification. Same hook shape the settings page and the treatment forms
+ * Selectables, read from and written to the modulith core selectables API
+ * (`/api/v1/orgs/{org}/selectables`). The organization gets the default lists
+ * the first time it asks; writes need an organization owner, and a refused
+ * write surfaces as a notification. Same hook shape the settings page and the treatment forms
  * already use.
  */
 
@@ -16,16 +16,16 @@ import {
   replaceSelectable,
   resetSelectables,
   selectablesKey,
-  type TowerSelectable,
-  useTowerSelectables,
-} from "@/features/symptoms/control-tower/control-tower-api";
+  type ApiSelectable,
+  useApiSelectables,
+} from "./selectables-api";
 import type { Selectable } from "./types";
 
 export function makeId(prefix = "id"): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function fromApi(s: TowerSelectable): Selectable {
+function fromApi(s: ApiSelectable): Selectable {
   return {
     id: s.key,
     name: s.name,
@@ -35,7 +35,7 @@ function fromApi(s: TowerSelectable): Selectable {
   };
 }
 
-function toApi(s: Selectable): Omit<TowerSelectable, "key"> {
+function toApi(s: Selectable): Omit<ApiSelectable, "key"> {
   return {
     name: s.name,
     description: s.description,
@@ -61,7 +61,7 @@ async function run(write: () => Promise<unknown>): Promise<boolean> {
 }
 
 export function useSelectables() {
-  const { data, isLoading } = useTowerSelectables();
+  const { data, isLoading } = useApiSelectables();
   const selectables = (data ?? []).map(fromApi);
 
   /** Creates or replaces a whole selectable (the editor modal saves once, on Save). */

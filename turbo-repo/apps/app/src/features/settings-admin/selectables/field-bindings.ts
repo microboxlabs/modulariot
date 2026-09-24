@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Which selectable backs which form field, stored by the modulith Control
- * Tower API (`/selectables/bindings`). A field with no binding uses the
+ * Which selectable backs which form field, stored by the modulith core
+ * selectables API (`/selectables/bindings`). A field with no binding uses the
  * selectable whose id equals the field key, which is how the defaults
  * (`who_to_call`, `call_tags`, ...) show up pre-wired.
  */
@@ -14,7 +14,7 @@ import {
   bindingsKey,
   updateSelectableBindings,
   useSelectableBindings,
-} from "@/features/symptoms/control-tower/control-tower-api";
+} from "./selectables-api";
 
 /** Returns the selectable id bound to `fieldKey` (falls back to `fieldKey`) and a setter. */
 export function useFieldSelectableBinding(

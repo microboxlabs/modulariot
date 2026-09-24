@@ -65,20 +65,6 @@ export interface TowerContact {
   missed: number;
 }
 
-export interface TowerSelectableOption {
-  id: string;
-  name: string;
-  description: string;
-}
-
-export interface TowerSelectable {
-  key: string;
-  name: string;
-  description: string | null;
-  mode: "SINGLE" | "MULTIPLE";
-  options: TowerSelectableOption[];
-}
-
 export type AddActionBody = Partial<Omit<TowerAction, "id" | "treatmentId" | "seq" | "performedBy" | "performedAt">> & {
   kind: TowerActionKind;
 };
@@ -118,8 +104,6 @@ const fetcher = <T,>(path: string) => request<T>(path);
 /** SWR keys are the full proxy URLs, so they never collide with other app keys. */
 export const treatmentsKey = (symptomId: number | string) => `${BASE}/symptoms/${symptomId}/treatments`;
 export const contactsKey = `${BASE}/contacts`;
-export const selectablesKey = `${BASE}/selectables`;
-export const bindingsKey = `${BASE}/selectables/bindings`;
 
 /* ---------- treatments ---------- */
 
@@ -162,30 +146,4 @@ export function createContact(body: {
   methods?: TowerCallMethod[];
 }) {
   return request<TowerContact>(contactsKey, { method: "POST", body });
-}
-
-/* ---------- selectables ---------- */
-
-export function useTowerSelectables() {
-  return useSWR<TowerSelectable[]>(selectablesKey, fetcher);
-}
-
-export function replaceSelectable(key: string, body: Omit<TowerSelectable, "key">) {
-  return request<TowerSelectable>(`${selectablesKey}/${key}`, { method: "PUT", body });
-}
-
-export function deleteSelectable(key: string) {
-  return request<void>(`${selectablesKey}/${key}`, { method: "DELETE" });
-}
-
-export function resetSelectables() {
-  return request<TowerSelectable[]>(`${selectablesKey}/reset`, { method: "POST", body: {} });
-}
-
-export function useSelectableBindings() {
-  return useSWR<Record<string, string>>(bindingsKey, fetcher);
-}
-
-export function updateSelectableBindings(bindings: Record<string, string>) {
-  return request<Record<string, string>>(bindingsKey, { method: "PUT", body: { bindings } });
 }

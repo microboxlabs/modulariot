@@ -48,9 +48,9 @@ describe("/api/control-tower/[...path]", () => {
       { method: "POST", body: { type: "CALL" } }
     );
 
-    await POST(req("http://x/app/api/control-tower/selectables/reset", { method: "POST" }), ctx(["selectables", "reset"]));
+    await POST(req("http://x/app/api/control-tower/treatments/t1/close", { method: "POST" }), ctx(["treatments", "t1", "close"]));
     expect(forwardMock).toHaveBeenLastCalledWith(
-      "/api/v1/orgs/acme%20org/control-tower/selectables/reset",
+      "/api/v1/orgs/acme%20org/control-tower/treatments/t1/close",
       { method: "POST", body: {} }
     );
   });

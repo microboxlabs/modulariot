@@ -64,7 +64,7 @@ class JdbcSelectableStoreTest {
         store.upsert(list(tenant, "first", "Uno"));
         store.upsert(list(tenant, "second", "Dos"));
         List<SelectableOption> options = List.of(
-                SelectableOption.of("o_1", "A", "A").withGroup("g").withLook("red", "truck")
+                SelectableOption.of("o_1", "A", "A").withGroup("g").withLook("red", "hi2-truck")
                         .withDescription("uno", "one"),
                 SelectableOption.of("o_2", "B", "B").withParent("CL-RM").asDisabled());
         SelectableSettings settings = new SelectableSettings(false, true, "second", 2, Localized.of("Elige", "Pick"));

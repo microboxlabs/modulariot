@@ -98,7 +98,7 @@ class SelectableServiceTest {
 
     @Test
     void optionsMayOnlyNameTheListsGroupsAKnownColorAndAParentWhenTheListDependsOnAnother() {
-        SelectableOption grouped = option("a", "A").withGroup("vehicle").withLook("red", "truck");
+        SelectableOption grouped = option("a", "A").withGroup("vehicle").withLook("red", "hi2-truck");
         List<SelectableGroup> groups = List.of(SelectableGroup.of("vehicle", "Vehículo", "Vehicle"));
         Selectable saved = service.replace(TENANT, "o", "incidents", new SelectableRequest(Map.of("es", "I"), null,
                 SelectionMode.SINGLE, null, groups, null, List.of(grouped)));

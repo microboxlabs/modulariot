@@ -25,7 +25,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  * a contact list per organization and a short, deterministic treatment history
  * per symptom the first time either is read. Everything it writes carries
  * {@code details.demo=true} or a {@code .example} address so it cannot be
- * mistaken for real activity. Off with {@code miot.symptoms.control-tower.demo-seed=false}.
+ * mistaken for real activity. Off unless {@code miot.symptoms.control-tower.demo-seed=true}
+ * (the default in the dev profile only).
  */
 @ApplicationScoped
 public class DemoSeeder {
@@ -50,7 +51,7 @@ public class DemoSeeder {
 
     @Inject
     public DemoSeeder(
-            @ConfigProperty(name = "miot.symptoms.control-tower.demo-seed", defaultValue = "true") boolean enabled,
+            @ConfigProperty(name = "miot.symptoms.control-tower.demo-seed", defaultValue = "false") boolean enabled,
             ContactStore contacts,
             TreatmentStore treatments) {
         this.enabled = enabled;

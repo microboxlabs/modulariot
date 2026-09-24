@@ -15,7 +15,9 @@ import { useEffect, useState } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
-import PrototypeCallDriver from "../prototype-call-driver";
+import PrototypeCallDriver, {
+  type CallFormDraft,
+} from "../prototype-call-driver";
 import CallCenterMenu from "./call-center-menu";
 import CallDialingStep from "./call-dialing-step";
 import { formatChileanPhone } from "./format-chilean-phone";
@@ -29,6 +31,15 @@ type Step = CallCenterFlowStep;
  *  and "calling" (live, back is locked). */
 export type CallCenterReportedStep = Step | "calling";
 
+/** Enough of a completed call to redraw its results form after this flow
+ *  unmounts (the operator switched to another treatment type and came back).
+ *  Held by `prototype-inline-form.tsx` and handed back as `resumeSnapshot`. */
+export type CallSnapshot = {
+  target: CallTarget;
+  durationSeconds: number | null;
+  methodUsed: CallMethod | null;
+};
+
 export default function PrototypeCallCenterFlow({
   dict,
   treatmentData,
@@ -36,6 +47,11 @@ export default function PrototypeCallCenterFlow({
   setIsMenuOpen,
   onStepChange,
   onSwitchTreatment,
+  resumeSnapshot,
+  onCallConfirmed,
+  onRepeatCallChange,
+  formDraft,
+  onFormDraftChange,
 }: Readonly<{
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
@@ -45,12 +61,29 @@ export default function PrototypeCallCenterFlow({
   onStepChange?: (step: CallCenterReportedStep) => void;
   /** Passed straight through to the final form's `CallSwitchDropdown`. */
   onSwitchTreatment?: (option: SelectedOption) => void;
+  /** When set, this mount starts on the "form" step for this call instead of
+   *  the contact list. */
+  resumeSnapshot?: CallSnapshot | null;
+  /** Fired when a call is confirmed (dialing → form). */
+  onCallConfirmed?: (snapshot: CallSnapshot) => void;
+  /** Fired true when the operator starts another call from the results form. */
+  onRepeatCallChange?: (isRepeatCall: boolean) => void;
+  /** Last-known results-form state, held by the parent so it survives this
+   *  flow unmounting. */
+  formDraft?: CallFormDraft | null;
+  onFormDraftChange?: (draft: CallFormDraft | null) => void;
 }>) {
-  const [step, setStep] = useState<Step>("contacts");
+  const [step, setStep] = useState<Step>(resumeSnapshot ? "form" : "contacts");
   const [dialingStarted, setDialingStarted] = useState(false);
-  const [target, setTarget] = useState<CallTarget | null>(null);
-  const [callDurationSeconds, setCallDurationSeconds] = useState<number | null>(null);
-  const [callMethodUsed, setCallMethodUsed] = useState<CallMethod | null>(null);
+  const [target, setTarget] = useState<CallTarget | null>(
+    resumeSnapshot?.target ?? null
+  );
+  const [callDurationSeconds, setCallDurationSeconds] = useState<number | null>(
+    resumeSnapshot?.durationSeconds ?? null
+  );
+  const [callMethodUsed, setCallMethodUsed] = useState<CallMethod | null>(
+    resumeSnapshot?.methodUsed ?? null
+  );
 
   useEffect(() => {
     const reported: CallCenterReportedStep =
@@ -73,7 +106,22 @@ export default function PrototypeCallCenterFlow({
   const handleConfirmCall = (elapsedSeconds: number, method: CallMethod) => {
     setCallDurationSeconds(elapsedSeconds);
     setCallMethodUsed(method);
+    onFormDraftChange?.(null);
+    if (target) {
+      onCallConfirmed?.({
+        target,
+        durationSeconds: elapsedSeconds,
+        methodUsed: method,
+      });
+    }
     setStep("form");
+  };
+
+  /** "Hacer otra llamada" from the results form: back to "who to call", and
+   *  the header reads "Llamar → Llamar de nuevo" until that call is confirmed. */
+  const handleMakeAnotherCall = () => {
+    onRepeatCallChange?.(true);
+    handleCancelCall();
   };
 
   return (
@@ -108,8 +156,10 @@ export default function PrototypeCallCenterFlow({
           // Disabled for now — see PrototypeCallDriver's `aiAssistEnabled` doc.
           aiAssistEnabled={false}
           callDurationSeconds={callDurationSeconds}
-          onMakeAnotherCall={handleCancelCall}
+          onMakeAnotherCall={handleMakeAnotherCall}
           onSwitchTreatment={onSwitchTreatment}
+          initialDraft={formDraft}
+          onDraftChange={onFormDraftChange}
         />
       )}
     </>

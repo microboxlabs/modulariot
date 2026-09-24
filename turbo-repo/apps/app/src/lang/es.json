@@ -3840,6 +3840,8 @@
     "make_another_call": "Hacer otra llamada",
     "save_and_call_again": "Guardar y hacer otra llamada",
     "call_origin_label": "Llamada",
+    "call_again_origin_label": "Llamar",
+    "call_again_label": "Llamar de nuevo",
     "call_log_missed": "No contestó",
     "call_center_last_call_label": "Última llamada hace",
     "call_center_last_call_suffix": "",

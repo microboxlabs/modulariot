@@ -11,7 +11,9 @@ import { tr } from "@/features/i18n/tr.service";
 import { SympthomTemplateResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import PrototypeCallCenterFlow, {
   type CallCenterReportedStep,
+  type CallSnapshot,
 } from "./call-center/prototype-call-center-flow";
+import type { CallFormDraft } from "./prototype-call-driver";
 import { useFieldEditorMode } from "./call-center/field-editor-mode";
 import WhatsAppContact from "../../blurrable-stepped-menu/menus/whatsapp-contact/whatsapp-contact";
 import { FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
@@ -113,6 +115,31 @@ function InlineFormBody({
     }
   }, [selectedOption, isMenuOpen]);
 
+  // Captured the moment a call is confirmed (see `onCallConfirmed` below) so
+  // the results form can be rebuilt from scratch after the call-center flow
+  // itself unmounts — which is exactly what happens when the operator
+  // switches away to a different treatment type via `handleSwitchFromCall`.
+  // Lets the back button send them straight back to that completed call
+  // instead of the contact list or closing the panel entirely.
+  const [callSnapshot, setCallSnapshot] = useState<CallSnapshot | null>(null);
+  // True from the moment the operator clicks "Guardar y hacer otra llamada"
+  // onward — drives the "Llamar → Llamar de nuevo" header title on "who to
+  // call"/dialing for this second (or later) round, instead of the plain
+  // first-call titles in `CALL_FLOW_TITLE_KEYS`.
+  const [isRepeatCall, setIsRepeatCall] = useState(false);
+  const [callFormDraft, setCallFormDraft] = useState<CallFormDraft | null>(null);
+  useEffect(() => {
+    if (!isCallDriverDebugFlow || !isMenuOpen) {
+      setIsRepeatCall(false);
+    }
+  }, [isCallDriverDebugFlow, isMenuOpen]);
+  useEffect(() => {
+    if (!isMenuOpen) {
+      setCallSnapshot(null);
+      setCallFormDraft(null);
+    }
+  }, [isMenuOpen]);
+
   // Only the call-center debug flow has steps that affect panel width — clear
   // it whenever that flow isn't the one on screen, so a stale "dialing"/"form"
   // step from a previous visit doesn't stick around sizing the panel.
@@ -141,9 +168,22 @@ function InlineFormBody({
   };
 
   const handleBackClick = () => {
+    // A call has already gone through once this session (there's a
+    // snapshot to resume from): back always lands on that completed call's
+    // results form — never the contact list, never all the way out to the
+    // timeline — whether we're on a treatment switched to mid-call, or
+    // still inside the call-center flow itself (e.g. mid-way through
+    // "Hacer otra llamada", not yet confirmed).
+    if (callSnapshot && (cameFromCall || isCallDriverDebugFlow)) {
+      setCameFromCall(false);
+      setSelectedOption("call_driver");
+      setCallCenterResetKey((k) => k + 1);
+      return;
+    }
     if (isCallDriverDebugFlow && callFlowStep === "dialing") {
-      // Not-yet-started dialing step: back means "who to call", not "leave
-      // this menu" — remounting the flow drops it back to its first step.
+      // Not-yet-started dialing step, no call confirmed yet: back means
+      // "who to call", not "leave this menu" — remounting the flow drops it
+      // back to its first step.
       setCallCenterResetKey((k) => k + 1);
       return;
     }
@@ -192,6 +232,11 @@ function InlineFormBody({
             setIsMenuOpen={setIsMenuOpen}
             onStepChange={handleCallFlowStepChange}
             onSwitchTreatment={handleSwitchFromCall}
+            resumeSnapshot={callSnapshot}
+            onCallConfirmed={setCallSnapshot}
+            onRepeatCallChange={setIsRepeatCall}
+            formDraft={callFormDraft}
+            onFormDraftChange={setCallFormDraft}
           />
         </div>
       ),
@@ -256,11 +301,13 @@ function InlineFormBody({
 
   const dictSy = dict.symptoms as I18nRecord;
   const headerTitle =
-    isCallDriverDebugFlow && callFlowStep
-      ? tr(`symptoms.${CALL_FLOW_TITLE_KEYS[callFlowStep]}`, dict)
-      : cameFromCall
-        ? `${tr("symptoms.call_origin_label", dict)} → ${selectedMenu.title as string}`
-        : (selectedMenu.title as string);
+    isCallDriverDebugFlow && callFlowStep && callFlowStep !== "form" && isRepeatCall
+      ? `${tr("symptoms.call_again_origin_label", dict)} → ${tr("symptoms.call_again_label", dict)}`
+      : isCallDriverDebugFlow && callFlowStep
+        ? tr(`symptoms.${CALL_FLOW_TITLE_KEYS[callFlowStep]}`, dict)
+        : cameFromCall
+          ? `${tr("symptoms.call_origin_label", dict)} → ${selectedMenu.title as string}`
+          : (selectedMenu.title as string);
 
   return (
     <div className="w-full h-full flex flex-col bg-white dark:bg-gray-900 rounded-lg overflow-hidden">

@@ -71,7 +71,9 @@ function DetailTooltip({
           )}
           {response && (
             <>
-              {message && <hr className="my-2 border-gray-700" />}
+              {message && (
+                <hr className="my-2 border-gray-200 dark:border-gray-700" />
+              )}
               <p className="font-medium">
                 {t("response")}: <span className="font-light">{response}</span>
               </p>
@@ -139,7 +141,7 @@ function InstantTooltip({
             ref={refs.setFloating}
             style={floatingStyles}
             {...getFloatingProps()}
-            className="z-9999 rounded-t-lg rounded-b-none border border-b-0 border-white bg-gray-900 px-3 py-2 text-sm text-white shadow-sm"
+            className="z-9999 rounded-t-lg rounded-b-none border border-b-0 border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm dark:border-white dark:bg-gray-900 dark:text-white"
           >
             {content}
           </div>

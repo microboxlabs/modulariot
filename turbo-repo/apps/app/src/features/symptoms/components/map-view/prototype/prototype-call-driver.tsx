@@ -3,7 +3,7 @@
 import { Button, ButtonGroup, Textarea } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import BrandedMultiSelect from "@/features/task-forms/components/task-confirm-modal/branded-multi-select";
 import { BiLogoMicrosoftTeams } from "react-icons/bi";
 import { useRouter } from "next/navigation";
@@ -43,6 +43,17 @@ const CALL_RESULT_OPTION_IDS = [
 ];
 const NO_ANSWER_IDS = new Set(CALL_RESULT_OPTION_IDS.slice(-2));
 
+/** The results form's operator-entered state, held one level up so it
+ *  survives this component unmounting (switching to another treatment and
+ *  coming back). `saved` is true from the moment this call is recorded until
+ *  the operator edits anything again. */
+export type CallFormDraft = {
+  selectedTagIds: string[];
+  resultadoId: string;
+  notaLlamada: string;
+  saved: boolean;
+};
+
 function formatCallDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)
     .toString()
@@ -78,6 +89,8 @@ export default function PrototypeCallDriver({
   callDurationSeconds = null,
   onMakeAnotherCall,
   onSwitchTreatment,
+  initialDraft = null,
+  onDraftChange,
 }: Readonly<{
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
@@ -96,6 +109,10 @@ export default function PrototypeCallDriver({
   onMakeAnotherCall?: () => void;
   /** Switches the panel to another treatment form in the same episode. */
   onSwitchTreatment?: (option: SelectedOption) => void;
+  /** Last-known form state to restore. */
+  initialDraft?: CallFormDraft | null;
+  /** Reports every form change upward. */
+  onDraftChange?: (draft: CallFormDraft) => void;
 }>) {
   const dictSy = dict.symptoms as I18nRecord;
   const t = (k: string) => dictSy[k] as string;
@@ -109,29 +126,43 @@ export default function PrototypeCallDriver({
   }));
   const { options: tagOptions } = useSelectableOptions("call_tags");
 
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(() =>
-    aiAssistEnabled && tagOptions[0] ? [tagOptions[0].id] : []
-  );
-  const [resultadoId, setResultadoId] = useState(() =>
-    aiAssistEnabled ? (resultOptions[0]?.id ?? "") : ""
-  );
-  const [notaLlamada, setNotaLlamada] = useState(() =>
-    aiAssistEnabled && messageToCommunicate.trim()
+  // A restored draft wins over the AI pre-fill.
+  const aiFill = aiAssistEnabled && !initialDraft;
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(() => {
+    if (initialDraft) return initialDraft.selectedTagIds;
+    return aiFill && tagOptions[0] ? [tagOptions[0].id] : [];
+  });
+  const [resultadoId, setResultadoId] = useState(() => {
+    if (initialDraft) return initialDraft.resultadoId;
+    return aiFill ? (resultOptions[0]?.id ?? "") : "";
+  });
+  const [notaLlamada, setNotaLlamada] = useState(() => {
+    if (initialDraft) return initialDraft.notaLlamada;
+    return aiFill && messageToCommunicate.trim()
       ? `Resumen generado por el harness: se comunicó "${messageToCommunicate.trim()}" y el conductor confirmó la recepción.`
-      : ""
-  );
+      : "";
+  });
   // Each starts "AI-filled" (if there was content to fill) and loses that
   // status the moment the operator touches the field — see `AiFillFrame`.
   const [resultAiFilled, setResultAiFilled] = useState(
-    aiAssistEnabled && resultOptions.length > 0
+    aiFill && resultOptions.length > 0
   );
   const [notaAiFilled, setNotaAiFilled] = useState(
-    aiAssistEnabled && messageToCommunicate.trim().length > 0
+    aiFill && messageToCommunicate.trim().length > 0
   );
   const [tagsAiFilled, setTagsAiFilled] = useState(
-    aiAssistEnabled && tagOptions.length > 0
+    aiFill && tagOptions.length > 0
   );
   const [isSaving, setIsSaving] = useState(false);
+  // True once this call is recorded and nothing has been edited since, so a
+  // plain revisit (switch away and back) does not record it a second time.
+  const [saved, setSaved] = useState(initialDraft?.saved ?? false);
+  const markEdited = () => setSaved(false);
+
+  useEffect(() => {
+    onDraftChange?.({ selectedTagIds, resultadoId, notaLlamada, saved });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTagIds, resultadoId, notaLlamada, saved]);
 
   const resultadoLabel = resultOptions.find((o) => o.id === resultadoId)?.name ?? "";
   const sinRespuesta = NO_ANSWER_IDS.has(resultadoId);
@@ -154,13 +185,27 @@ export default function PrototypeCallDriver({
       tags: selectedTagIds,
     });
 
-  const runSave = async (afterSave: () => Promise<void> | void) => {
+  /** Records the call unless it already is, then runs `afterSave`.
+   *  `afterSaveWrites` says whether `afterSave` itself writes (closing the
+   *  episode), which decides the "saved" notice when the call was already in. */
+  const runSave = async (
+    afterSave: () => Promise<void> | void,
+    afterSaveWrites: boolean
+  ) => {
     if (isSaving) return;
     setIsSaving(true);
     try {
-      await recordCall();
+      const recordsCall = !saved;
+      if (recordsCall) {
+        await recordCall();
+        // Reported directly: "save and call again" unmounts this form right
+        // after, before the effect above could carry `saved: true` upward.
+        onDraftChange?.({ selectedTagIds, resultadoId, notaLlamada, saved: true });
+      }
       await afterSave();
-      ShowNotification({ type: "success", message: t("treatment_saved") });
+      if (recordsCall || afterSaveWrites) {
+        ShowNotification({ type: "success", message: t("treatment_saved") });
+      }
     } catch (error) {
       ShowNotification({
         type: "error",
@@ -176,9 +221,10 @@ export default function PrototypeCallDriver({
       await session.finish("resolved");
       setIsMenuOpen(false);
       router.push("/symptoms");
-    });
+    }, true);
 
-  const handleSaveAndCallAgain = () => runSave(() => onMakeAnotherCall?.());
+  const handleSaveAndCallAgain = () =>
+    runSave(() => onMakeAnotherCall?.(), false);
 
   /* ---------- field fragments ---------- */
 
@@ -238,6 +284,7 @@ export default function PrototypeCallDriver({
           onSelect={(o) => {
             setResultadoId(o.id);
             setResultAiFilled(false);
+            markEdited();
           }}
           placeholder={t("result_pending")}
           emptyLabel={t("result_pending")}
@@ -251,6 +298,7 @@ export default function PrototypeCallDriver({
           onChange={(e) => {
             setNotaLlamada(e.target.value);
             setNotaAiFilled(false);
+            markEdited();
           }}
         />
       </div>
@@ -271,6 +319,7 @@ export default function PrototypeCallDriver({
           onSelectionChange={(ids) => {
             setSelectedTagIds(ids);
             setTagsAiFilled(false);
+            markEdited();
           }}
           placeholder={t("proto_tags_placeholder")}
           summaryLabel={(count) =>

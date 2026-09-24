@@ -1,0 +1,55 @@
+import { Suspense } from "react";
+import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { getDictionary } from "@/features/i18n/i18n.service";
+import { HiClipboardList } from "react-icons/hi";
+import PrototypeGeneralMap from "@/features/symptoms/components/map-view/prototype/prototype-general-map";
+
+interface MapViewParams {
+  params: Promise<{
+    lang: string;
+    id: string;
+  }>;
+  searchParams: Promise<{
+    tripId?: string;
+    assetId?: string;
+  }>;
+}
+
+/**
+ * Unlisted clone of `/symptoms/map-view/[id]` used for prototyping.
+ * Renders exactly what the symptoms map view renders; not linked from anywhere.
+ * URL: /{lang}/symptoms/prototipe-map-view/{id}?tripId=...&assetId=...
+ */
+export default async function PrototipeMapView({
+  params,
+  searchParams,
+}: MapViewParams) {
+  const { lang, id } = await params;
+  const [, dict] = await getDictionary(lang);
+  // Get tripId from query parameters if available
+  const searchParamsResult = await searchParams;
+  const tripId = searchParamsResult?.tripId as string;
+
+  const assetId = searchParamsResult?.assetId as string;
+  return (
+    <div className="flex flex-col h-full w-full bg-white dark:bg-gray-900">
+      <div className="p-5 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 dark:text-white w-full">
+        <Breadcrumb
+          path={["mission_control", "symptoms", "prototipe-map-view"]}
+          lang={lang}
+          rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
+          dict={dict["symptoms"] as I18nRecord}
+        />
+      </div>
+      <Suspense fallback={null}>
+        <PrototypeGeneralMap
+          dict={dict}
+          id={id as string}
+          tripId={tripId}
+          assetId={assetId}
+        />
+      </Suspense>
+    </div>
+  );
+}

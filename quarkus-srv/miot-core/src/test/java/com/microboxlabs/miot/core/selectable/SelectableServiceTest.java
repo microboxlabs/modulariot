@@ -121,16 +121,21 @@ class SelectableServiceTest {
                 List.of(tenant -> List.of(list(tenant, "tags", SelectionMode.MULTIPLE, "t_1"))), events::add);
         racing.list(TENANT);
         SelectableBindingsRequest bindToTags = new SelectableBindingsRequest(Map.of("who_to_call", "tags"));
-        ExecutorService pool = Executors.newFixedThreadPool(2);
+        ExecutorService pool = Executors.newSingleThreadExecutor();
         try {
             Future<?> binding = pool.submit(() -> racing.updateBindings(TENANT, "o", bindToTags));
             assertTrue(validated.await(5, TimeUnit.SECONDS), "binding passed validation");
-            Future<?> deleting = pool.submit(() -> racing.delete(TENANT, "o", "tags"));
-            // Give the delete time to run while the binding is paused between validation and write.
-            Thread.sleep(300);
+            Thread deleting = new Thread(() -> racing.delete(TENANT, "o", "tags"));
+            deleting.start();
+            // Unguarded, the delete completes in the gap; guarded, it waits for the binding's lock.
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (deleting.isAlive() && deleting.getState() != Thread.State.BLOCKED
+                    && System.nanoTime() < deadline) {
+                Thread.onSpinWait();
+            }
             release.countDown();
             binding.get(5, TimeUnit.SECONDS);
-            deleting.get(5, TimeUnit.SECONDS);
+            deleting.join(TimeUnit.SECONDS.toMillis(5));
         } finally {
             pool.shutdownNow();
         }

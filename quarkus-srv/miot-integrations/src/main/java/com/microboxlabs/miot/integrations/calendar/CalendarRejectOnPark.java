@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.calendar;
 
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
+import com.microboxlabs.miot.integrations.domain.JobQuery;
 import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
 import com.microboxlabs.miot.integrations.dto.EnqueueJobsRequest;
 import com.microboxlabs.miot.integrations.events.JobParkedEvent;
@@ -86,8 +87,8 @@ public class CalendarRejectOnPark {
     /** The chain's earliest calendar_sync leg carries the booking coordinates. */
     private Map<String, Object> findSyncLegPayload(AsyncJob parked) {
         Optional<AsyncJob> syncLeg = repository
-                .list(parked.tenantCode(), null, null, CalendarSyncFeature.JOB_TYPE,
-                        parked.chainKey(), SIBLING_LOOKUP_LIMIT)
+                .list(parked.tenantCode(), new JobQuery(null, null, CalendarSyncFeature.JOB_TYPE,
+                        parked.chainKey(), null, null, SIBLING_LOOKUP_LIMIT, 0))
                 .stream()
                 .min(Comparator.comparingInt(AsyncJob::chainSequence));
         return syncLeg.map(AsyncJob::payload).orElse(null);

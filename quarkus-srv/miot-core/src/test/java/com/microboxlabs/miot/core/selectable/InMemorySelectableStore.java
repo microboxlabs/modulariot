@@ -1,20 +1,21 @@
 package com.microboxlabs.miot.core.selectable;
 
-import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
-/** Process-local store: lists are lost on restart. */
-@ApplicationScoped
-public class InMemorySelectableStore implements SelectableStore {
+/** Process-local store for the service unit tests. Not a bean, so {@code @QuarkusTest} gets the JDBC one. */
+class InMemorySelectableStore implements SelectableStore {
 
     private final Map<String, Map<String, Selectable>> byTenant = new LinkedHashMap<>();
     private final Map<String, Map<String, String>> bindingsByTenant = new LinkedHashMap<>();
+    private final Set<String> seeded = new HashSet<>();
 
     @Override
     public synchronized List<Selectable> list(String tenantCode) {
@@ -48,18 +49,38 @@ public class InMemorySelectableStore implements SelectableStore {
     }
 
     @Override
-    public synchronized void clear(String tenantCode) {
-        byTenant.remove(tenantCode);
-        bindingsByTenant.remove(tenantCode);
-    }
-
-    @Override
     public synchronized Map<String, String> bindings(String tenantCode) {
         return new LinkedHashMap<>(bindingsByTenant.getOrDefault(tenantCode, Map.of()));
     }
 
     @Override
-    public synchronized void bind(String tenantCode, String fieldKey, String selectableKey) {
-        bindingsByTenant.computeIfAbsent(tenantCode, k -> new LinkedHashMap<>()).put(fieldKey, selectableKey);
+    public synchronized void bindAll(String tenantCode, Map<String, String> fieldToSelectable) {
+        Map<String, Selectable> lists = byTenant.getOrDefault(tenantCode, Map.of());
+        fieldToSelectable.values().forEach(key -> {
+            if (!lists.containsKey(key)) {
+                throw new IllegalArgumentException("unknown selectable: " + key);
+            }
+        });
+        bindingsByTenant.computeIfAbsent(tenantCode, k -> new LinkedHashMap<>()).putAll(fieldToSelectable);
+    }
+
+    @Override
+    public synchronized boolean isSeeded(String tenantCode) {
+        return seeded.contains(tenantCode);
+    }
+
+    @Override
+    public synchronized void seed(String tenantCode, List<Selectable> defaults) {
+        if (seeded.add(tenantCode)) {
+            defaults.forEach(this::upsert);
+        }
+    }
+
+    @Override
+    public synchronized void resetTo(String tenantCode, List<Selectable> lists) {
+        byTenant.remove(tenantCode);
+        bindingsByTenant.remove(tenantCode);
+        lists.forEach(this::upsert);
+        seeded.add(tenantCode);
     }
 }

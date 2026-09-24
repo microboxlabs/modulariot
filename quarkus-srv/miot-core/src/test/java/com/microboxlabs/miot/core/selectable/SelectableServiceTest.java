@@ -111,10 +111,10 @@ class SelectableServiceTest {
         CountDownLatch release = new CountDownLatch(1);
         SelectableStore pausingBind = new InMemorySelectableStore() {
             @Override
-            public void bind(String tenantCode, String fieldKey, String selectableKey) {
+            public void bindAll(String tenantCode, Map<String, String> fieldToSelectable) {
                 validated.countDown();
                 await(release);
-                super.bind(tenantCode, fieldKey, selectableKey);
+                super.bindAll(tenantCode, fieldToSelectable);
             }
         };
         SelectableService racing = new SelectableService(pausingBind,

@@ -8,7 +8,7 @@ import java.util.Map;
  *
  * @param group    key of one of the list's {@link SelectableGroup}s, or null
  * @param color    a badge color name, such as {@code green} or {@code red}, or null
- * @param icon     an icon name the app knows, such as {@code truck}, or null
+ * @param icon     a key of the app's icon registry, such as {@code hi2-truck}, or null
  * @param parent   value of the option in the {@code dependsOn} list this one belongs under, or null
  * @param disabled shown but not selectable
  */

@@ -31,10 +31,10 @@ public class GeneralSelectables implements SelectableDefaults {
         return list("priority", "Prioridad", "Priority",
                 "Urgencia de una tarea, incidente o solicitud.", "How urgent a task, incident or request is.",
                 SelectionMode.SINGLE, List.of(
-                        of("low", "Baja", "Low").withLook("gray", "arrow-down"),
-                        of("medium", "Media", "Medium").withLook("blue", "minus"),
-                        of("high", "Alta", "High").withLook("yellow", "arrow-up"),
-                        of("critical", "Crítica", "Critical").withLook("red", "fire")
+                        of("low", "Baja", "Low").withLook("gray", "hi2-arrow-trending-down"),
+                        of("medium", "Media", "Medium").withLook("blue", "hi2-minus"),
+                        of("high", "Alta", "High").withLook("yellow", "hi2-arrow-trending-up"),
+                        of("critical", "Crítica", "Critical").withLook("red", "hi2-fire")
                                 .withDescription("Atender de inmediato.", "Handle right away.")));
     }
 
@@ -42,9 +42,9 @@ public class GeneralSelectables implements SelectableDefaults {
         return list("yes_no", "Sí / No / No aplica", "Yes / No / Not applicable",
                 "Respuesta cerrada para checklists e inspecciones.", "Closed answer for checklists and inspections.",
                 SelectionMode.SINGLE, List.of(
-                        of("yes", "Sí", "Yes").withLook("green", "check"),
-                        of("no", "No", "No").withLook("red", "x"),
-                        of("n_a", "No aplica", "Not applicable").withLook("gray", "ban")));
+                        of("yes", "Sí", "Yes").withLook("green", "hi2-check-circle"),
+                        of("no", "No", "No").withLook("red", "hi2-x-circle"),
+                        of("n_a", "No aplica", "Not applicable").withLook("gray", "hi2-outline-no-symbol")));
     }
 
     /** Groups. */
@@ -54,7 +54,7 @@ public class GeneralSelectables implements SelectableDefaults {
                 SelectionMode.SINGLE, List.of(
                         of("mechanical_failure", "Falla mecánica", "Mechanical failure").withGroup("vehicle"),
                         of("flat_tire", "Pinchazo", "Flat tire").withGroup("vehicle"),
-                        of("accident", "Accidente", "Accident").withGroup("vehicle").withLook("red", "exclamation"),
+                        of("accident", "Accidente", "Accident").withGroup("vehicle").withLook("red", "hi2-exclamation-triangle"),
                         of("cargo_damage", "Carga dañada", "Damaged cargo").withGroup("cargo"),
                         of("cargo_shortage", "Faltante de carga", "Cargo shortage").withGroup("cargo"),
                         of("fatigue", "Fatiga", "Fatigue").withGroup("driver"),
@@ -93,11 +93,11 @@ public class GeneralSelectables implements SelectableDefaults {
         return list("cargo_tags", "Características de la carga", "Cargo characteristics",
                 "Etiquetas libres; se puede escribir una nueva.", "Free tags; a new one can be typed in.",
                 SelectionMode.MULTIPLE, List.of(
-                        of("fragile", "Frágil", "Fragile").withLook("yellow", "exclamation"),
-                        of("refrigerated", "Refrigerada", "Refrigerated").withLook("cyan", "snow"),
-                        of("hazardous", "Peligrosa (IMO)", "Hazardous (IMO)").withLook("red", "fire"),
-                        of("oversized", "Sobredimensionada", "Oversized").withLook("purple", "cube"),
-                        of("high_value", "Alto valor", "High value").withLook("green", "currency")))
+                        of("fragile", "Frágil", "Fragile").withLook("yellow", "hi2-exclamation-triangle"),
+                        of("refrigerated", "Refrigerada", "Refrigerated").withLook("cyan", "tb-thermometer"),
+                        of("hazardous", "Peligrosa (IMO)", "Hazardous (IMO)").withLook("red", "hi2-fire"),
+                        of("oversized", "Sobredimensionada", "Oversized").withLook("purple", "hi2-cube"),
+                        of("high_value", "Alto valor", "High value").withLook("green", "hi2-currency-dollar")))
                 .withSettings(SelectableSettings.tags());
     }
 
@@ -105,13 +105,13 @@ public class GeneralSelectables implements SelectableDefaults {
         return list("document_type", "Tipo de documento", "Document type",
                 "Documentos que acompañan un envío.", "Documents that travel with a shipment.",
                 SelectionMode.SINGLE, List.of(
-                        of("dispatch_guide", "Guía de despacho", "Dispatch guide").withLook(null, "document"),
-                        of("invoice", "Factura", "Invoice").withLook(null, "document"),
-                        of("purchase_order", "Orden de compra", "Purchase order").withLook(null, "document"),
+                        of("dispatch_guide", "Guía de despacho", "Dispatch guide").withLook(null, "hi2-document-text"),
+                        of("invoice", "Factura", "Invoice").withLook(null, "hi2-document-text"),
+                        of("purchase_order", "Orden de compra", "Purchase order").withLook(null, "hi2-document-text"),
                         of("proof_of_delivery", "Comprobante de entrega (POD)", "Proof of delivery (POD)")
-                                .withLook(null, "check"),
-                        of("bill_of_lading", "Conocimiento de embarque", "Bill of lading").withLook(null, "document"),
-                        of("packing_list", "Lista de empaque", "Packing list").withLook(null, "cube")));
+                                .withLook(null, "hi2-check-circle"),
+                        of("bill_of_lading", "Conocimiento de embarque", "Bill of lading").withLook(null, "hi2-document-text"),
+                        of("packing_list", "Lista de empaque", "Packing list").withLook(null, "hi2-cube")));
     }
 
     /** A disabled option. */
@@ -119,14 +119,14 @@ public class GeneralSelectables implements SelectableDefaults {
         return list("vehicle_type", "Tipo de vehículo", "Vehicle type",
                 "Configuraciones de vehículo de carga.", "Freight vehicle configurations.",
                 SelectionMode.SINGLE, List.of(
-                        of("pickup", "Camioneta", "Pickup").withLook(null, "truck"),
-                        of("truck_3_4", "Camión 3/4", "Light truck").withLook(null, "truck"),
-                        of("rigid_truck", "Camión rígido", "Rigid truck").withLook(null, "truck"),
-                        of("tractor_trailer", "Tracto con semirremolque", "Tractor-trailer").withLook(null, "truck"),
-                        of("tanker", "Camión cisterna", "Tanker").withLook(null, "truck"),
-                        of("reefer", "Camión refrigerado", "Refrigerated truck").withLook("cyan", "snow"),
-                        of("dump_truck", "Tolva", "Dump truck").withLook(null, "truck"),
-                        of("lowboy", "Cama baja", "Lowboy").withLook(null, "truck")
+                        of("pickup", "Camioneta", "Pickup").withLook(null, "hi2-truck"),
+                        of("truck_3_4", "Camión 3/4", "Light truck").withLook(null, "hi2-truck"),
+                        of("rigid_truck", "Camión rígido", "Rigid truck").withLook(null, "hi2-truck"),
+                        of("tractor_trailer", "Tracto con semirremolque", "Tractor-trailer").withLook(null, "hi2-truck"),
+                        of("tanker", "Camión cisterna", "Tanker").withLook(null, "hi2-truck"),
+                        of("reefer", "Camión refrigerado", "Refrigerated truck").withLook("cyan", "tb-thermometer"),
+                        of("dump_truck", "Tolva", "Dump truck").withLook(null, "hi2-truck"),
+                        of("lowboy", "Cama baja", "Lowboy").withLook(null, "hi2-truck")
                                 .withDescription("Aún no disponible en la flota.", "Not in the fleet yet.")
                                 .asDisabled()));
     }
@@ -135,22 +135,22 @@ public class GeneralSelectables implements SelectableDefaults {
         return list("contact_role", "Rol de contacto", "Contact role",
                 "Quién es la persona a la que se llama o escribe.", "Who the person being contacted is.",
                 SelectionMode.SINGLE, List.of(
-                        of("driver", "Conductor", "Driver").withLook(null, "user"),
-                        of("dispatcher", "Despachador", "Dispatcher").withLook(null, "phone"),
-                        of("supervisor", "Supervisor", "Supervisor").withLook(null, "shield"),
-                        of("customer", "Cliente", "Customer").withLook(null, "user"),
-                        of("carrier", "Transportista", "Carrier").withLook(null, "truck"),
-                        of("warehouse", "Bodega", "Warehouse").withLook(null, "cube")));
+                        of("driver", "Conductor", "Driver").withLook(null, "hi2-user"),
+                        of("dispatcher", "Despachador", "Dispatcher").withLook(null, "hi2-phone"),
+                        of("supervisor", "Supervisor", "Supervisor").withLook(null, "hi2-shield-check"),
+                        of("customer", "Cliente", "Customer").withLook(null, "hi2-user"),
+                        of("carrier", "Transportista", "Carrier").withLook(null, "hi2-truck"),
+                        of("warehouse", "Bodega", "Warehouse").withLook(null, "hi2-cube")));
     }
 
     static Selectable shift() {
         return list("shift", "Turno", "Shift", "Turnos de trabajo.", "Work shifts.",
                 SelectionMode.SINGLE, List.of(
-                        of("morning", "Mañana", "Morning").withLook("yellow", "sun")
+                        of("morning", "Mañana", "Morning").withLook("yellow", "hi2-outline-sun")
                                 .withDescription("06:00 – 14:00", "06:00 – 14:00"),
-                        of("afternoon", "Tarde", "Afternoon").withLook("indigo", "clock")
+                        of("afternoon", "Tarde", "Afternoon").withLook("indigo", "hi2-clock")
                                 .withDescription("14:00 – 22:00", "14:00 – 22:00"),
-                        of("night", "Noche", "Night").withLook("purple", "moon")
+                        of("night", "Noche", "Night").withLook("purple", "hi2-outline-moon")
                                 .withDescription("22:00 – 06:00", "22:00 – 06:00")));
     }
 
@@ -172,11 +172,11 @@ public class GeneralSelectables implements SelectableDefaults {
         return list("satisfaction", "Nivel de satisfacción", "Satisfaction",
                 "Encuesta de 1 a 5.", "A 1 to 5 survey.",
                 SelectionMode.SINGLE, List.of(
-                        of("1", "1 — Muy malo", "1 — Very poor").withLook("red", "star"),
-                        of("2", "2 — Malo", "2 — Poor").withLook("yellow", "star"),
-                        of("3", "3 — Regular", "3 — Fair").withLook("gray", "star"),
-                        of("4", "4 — Bueno", "4 — Good").withLook("lime", "star"),
-                        of("5", "5 — Excelente", "5 — Excellent").withLook("green", "star")))
+                        of("1", "1 — Muy malo", "1 — Very poor").withLook("red", "hi2-star"),
+                        of("2", "2 — Malo", "2 — Poor").withLook("yellow", "hi2-star"),
+                        of("3", "3 — Regular", "3 — Fair").withLook("gray", "hi2-star"),
+                        of("4", "4 — Bueno", "4 — Good").withLook("lime", "hi2-star"),
+                        of("5", "5 — Excelente", "5 — Excellent").withLook("green", "hi2-star")))
                 .withSettings(new SelectableSettings(false, false, null, null, Map.of()));
     }
 

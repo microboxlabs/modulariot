@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
@@ -31,7 +32,9 @@ public class SelectableService {
     private final SelectableStore store;
     private final Iterable<SelectableDefaults> defaults;
     private final Consumer<SelectableChanged> changed;
-    private final Set<String> seeded = new HashSet<>();
+    private final Set<String> seeded = ConcurrentHashMap.newKeySet();
+    /** One lock per tenant: every write holds it from validation to the last store change. */
+    private final Map<String, Object> tenantLocks = new ConcurrentHashMap<>();
 
     @Inject
     public SelectableService(SelectableStore store, Instance<SelectableDefaults> defaults,
@@ -59,7 +62,6 @@ public class SelectableService {
 
     public Selectable replace(String tenantCode, String actor, String key, SelectableRequest req) {
         validateKey(key);
-        seedOnce(tenantCode);
         if (req == null || req.name() == null || req.name().isBlank()) {
             throw new IllegalArgumentException("name is required");
         }
@@ -67,32 +69,37 @@ public class SelectableService {
             throw new IllegalArgumentException("mode is required (SINGLE or MULTIPLE)");
         }
         List<SelectableOption> options = normalizeOptions(req.options());
-        Selectable saved = store.upsert(new Selectable(
-                tenantCode, key, req.name().trim(), req.description(), req.mode(), options, actor, null));
-        changed.accept(new SelectableChanged(tenantCode, actor, "selectable.replaced", key,
-                Map.of("name", saved.name(), "options", options.size())));
-        return saved;
+        synchronized (lockFor(tenantCode)) {
+            seedOnce(tenantCode);
+            Selectable saved = store.upsert(new Selectable(
+                    tenantCode, key, req.name().trim(), req.description(), req.mode(), options, actor, null));
+            changed.accept(new SelectableChanged(tenantCode, actor, "selectable.replaced", key,
+                    Map.of("name", saved.name(), "options", options.size())));
+            return saved;
+        }
     }
 
     public boolean delete(String tenantCode, String actor, String key) {
         validateKey(key);
-        seedOnce(tenantCode);
-        boolean deleted = store.delete(tenantCode, key);
-        if (deleted) {
-            changed.accept(new SelectableChanged(tenantCode, actor, "selectable.deleted", key, Map.of()));
+        synchronized (lockFor(tenantCode)) {
+            seedOnce(tenantCode);
+            boolean deleted = store.delete(tenantCode, key);
+            if (deleted) {
+                changed.accept(new SelectableChanged(tenantCode, actor, "selectable.deleted", key, Map.of()));
+            }
+            return deleted;
         }
-        return deleted;
     }
 
     /** Drops every list and binding and puts the defaults back. */
     public List<Selectable> reset(String tenantCode, String actor) {
-        synchronized (seeded) {
+        synchronized (lockFor(tenantCode)) {
             store.clear(tenantCode);
             seedDefaults(tenantCode);
             seeded.add(tenantCode);
+            changed.accept(new SelectableChanged(tenantCode, actor, "selectable.reset", "all", Map.of()));
+            return store.list(tenantCode);
         }
-        changed.accept(new SelectableChanged(tenantCode, actor, "selectable.reset", "all", Map.of()));
-        return store.list(tenantCode);
     }
 
     public Map<String, String> bindings(String tenantCode) {
@@ -103,23 +110,29 @@ public class SelectableService {
         if (req == null || req.bindings() == null || req.bindings().isEmpty()) {
             throw new IllegalArgumentException("bindings is required");
         }
-        Set<String> known = new HashSet<>();
-        list(tenantCode).forEach(s -> known.add(s.key()));
-        for (Map.Entry<String, String> e : req.bindings().entrySet()) {
-            validateKey(e.getKey());
-            validateKey(e.getValue());
-            if (!known.contains(e.getValue())) {
-                throw new IllegalArgumentException("unknown selectable: " + e.getValue());
+        synchronized (lockFor(tenantCode)) {
+            Set<String> known = new HashSet<>();
+            list(tenantCode).forEach(s -> known.add(s.key()));
+            for (Map.Entry<String, String> e : req.bindings().entrySet()) {
+                validateKey(e.getKey());
+                validateKey(e.getValue());
+                if (!known.contains(e.getValue())) {
+                    throw new IllegalArgumentException("unknown selectable: " + e.getValue());
+                }
             }
+            req.bindings().forEach((field, key) -> store.bind(tenantCode, field, key));
+            changed.accept(new SelectableChanged(tenantCode, actor, "selectable.bindings_updated", "bindings",
+                    new LinkedHashMap<>(req.bindings())));
+            return store.bindings(tenantCode);
         }
-        req.bindings().forEach((field, key) -> store.bind(tenantCode, field, key));
-        changed.accept(new SelectableChanged(tenantCode, actor, "selectable.bindings_updated", "bindings",
-                new LinkedHashMap<>(req.bindings())));
-        return store.bindings(tenantCode);
+    }
+
+    private Object lockFor(String tenantCode) {
+        return tenantLocks.computeIfAbsent(tenantCode, k -> new Object());
     }
 
     private void seedOnce(String tenantCode) {
-        synchronized (seeded) {
+        synchronized (lockFor(tenantCode)) {
             if (seeded.add(tenantCode) && store.list(tenantCode).isEmpty()) {
                 seedDefaults(tenantCode);
             }

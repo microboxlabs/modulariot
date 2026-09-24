@@ -11,6 +11,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -95,6 +102,49 @@ class SelectableServiceTest {
         service.replace(TENANT, "o", "only_a", new SelectableRequest("A", null, SelectionMode.SINGLE, List.of()));
 
         assertEquals(List.of("reason", "tags"), service.list("tenant-b").stream().map(Selectable::key).toList());
+    }
+
+    @Test
+    void aDeleteThatRacesABindingNeverLeavesTheBindingDangling() throws Exception {
+        CountDownLatch validated = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        SelectableStore pausingBind = new InMemorySelectableStore() {
+            @Override
+            public void bind(String tenantCode, String fieldKey, String selectableKey) {
+                validated.countDown();
+                await(release);
+                super.bind(tenantCode, fieldKey, selectableKey);
+            }
+        };
+        SelectableService racing = new SelectableService(pausingBind,
+                List.of(tenant -> List.of(list(tenant, "tags", SelectionMode.MULTIPLE, "t_1"))), events::add);
+        racing.list(TENANT);
+        SelectableBindingsRequest bindToTags = new SelectableBindingsRequest(Map.of("who_to_call", "tags"));
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> binding = pool.submit(() -> racing.updateBindings(TENANT, "o", bindToTags));
+            assertTrue(validated.await(5, TimeUnit.SECONDS), "binding passed validation");
+            Future<?> deleting = pool.submit(() -> racing.delete(TENANT, "o", "tags"));
+            // Give the delete time to run while the binding is paused between validation and write.
+            Thread.sleep(300);
+            release.countDown();
+            binding.get(5, TimeUnit.SECONDS);
+            deleting.get(5, TimeUnit.SECONDS);
+        } finally {
+            pool.shutdownNow();
+        }
+
+        Set<String> lists = racing.list(TENANT).stream().map(Selectable::key).collect(Collectors.toSet());
+        racing.bindings(TENANT).forEach((field, key) ->
+                assertTrue(lists.contains(key), field + " is bound to the deleted list " + key));
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            latch.await(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static Selectable list(String tenant, String key, SelectionMode mode, String... ids) {

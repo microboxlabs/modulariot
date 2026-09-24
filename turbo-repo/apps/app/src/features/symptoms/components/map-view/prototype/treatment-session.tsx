@@ -95,10 +95,11 @@ export function TreatmentSessionProvider({
     [ensureOpen, refresh]
   );
 
+  // Idempotent: a retry after a later step failed does not close twice.
   const finish = useCallback(
     async (resolution?: string) => {
       const current = treatmentRef.current;
-      if (!current) return;
+      if (current?.status !== "OPEN") return;
       const closed = await closeTreatment(current.id, resolution ? { resolution } : {});
       treatmentRef.current = closed;
       setTreatment(closed);

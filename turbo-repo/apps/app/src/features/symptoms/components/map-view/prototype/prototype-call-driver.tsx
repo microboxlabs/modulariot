@@ -198,6 +198,8 @@ export default function PrototypeCallDriver({
       const recordsCall = !saved;
       if (recordsCall) {
         await recordCall();
+        // So a retry after a failed close does not record the call again.
+        setSaved(true);
         // Reported directly: "save and call again" unmounts this form right
         // after, before the effect above could carry `saved: true` upward.
         onDraftChange?.({ selectedTagIds, resultadoId, notaLlamada, saved: true });

@@ -3,7 +3,7 @@
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Button, Select, Textarea } from "flowbite-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { TiDelete } from "react-icons/ti";
 import { useRouter } from "next/navigation";
 import { ShowNotification } from "@/features/notifications/notification";
@@ -52,6 +52,9 @@ export default function PrototypeIgnoreCondition({
   const [motivoId, setMotivoId] = useState("");
   const [nota, setNota] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Set once the action is in the episode, so a retry after a later step
+  // failed does not record it a second time.
+  const actionRecorded = useRef(false);
   const router = useRouter();
   const session = useTreatmentSession();
   const t = (k: string) => tr(`symptoms.${k}`, dict);
@@ -69,16 +72,19 @@ export default function PrototypeIgnoreCondition({
     if (!puedeGuardar || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await session.addAction({
-        kind: "IGNORE",
-        outcomeKey: motivoId,
-        outcomeLabel: motivoLabel,
-        note: nota.trim() || undefined,
-        details: {
-          durationSeconds: duration || DEFAULT_IGNORE_SECONDS,
-          scope: scope || "synthom",
-        },
-      });
+      if (!actionRecorded.current) {
+        await session.addAction({
+          kind: "IGNORE",
+          outcomeKey: motivoId,
+          outcomeLabel: motivoLabel,
+          note: nota.trim() || undefined,
+          details: {
+            durationSeconds: duration || DEFAULT_IGNORE_SECONDS,
+            scope: scope || "synthom",
+          },
+        });
+        actionRecorded.current = true;
+      }
       await session.finish("ignored");
       setIsMenuOpen(false);
       router.push("/symptoms");

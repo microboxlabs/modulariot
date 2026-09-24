@@ -4,7 +4,7 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { isPrototypeApiDisabled } from "./prototype-api-guard";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Button, Textarea } from "flowbite-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { MdBlock } from "react-icons/md";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -49,6 +49,9 @@ export default function PrototypeInvalidateSymptom({
   const session = useTreatmentSession();
   const t = (k: string) => tr(`symptoms.${k}`, dict);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Set once the action is in the episode, so a retry after a later step
+  // failed does not record it a second time.
+  const actionRecorded = useRef(false);
   const [motivoId, setMotivoId] = useState("");
 
   const { options: motivoOptions } = useSelectableOptions("invalidate_reason");
@@ -62,12 +65,15 @@ export default function PrototypeInvalidateSymptom({
     if (!puedeGuardar || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await session.addAction({
-        kind: "INVALIDATE",
-        outcomeKey: motivoId,
-        outcomeLabel: motivoLabel,
-        note: reason.trim(),
-      });
+      if (!actionRecorded.current) {
+        await session.addAction({
+          kind: "INVALIDATE",
+          outcomeKey: motivoId,
+          outcomeLabel: motivoLabel,
+          note: reason.trim(),
+        });
+        actionRecorded.current = true;
+      }
       await session.finish("invalidated");
 
       // A second, separate real write (symptom invalidation) that the Control

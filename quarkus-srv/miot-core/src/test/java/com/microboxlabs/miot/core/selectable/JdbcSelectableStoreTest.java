@@ -63,16 +63,25 @@ class JdbcSelectableStoreTest {
     void aListRoundTripsAndKeepsItsPlaceWhenReplaced() {
         store.upsert(list(tenant, "first", "Uno"));
         store.upsert(list(tenant, "second", "Dos"));
-        Selectable replaced = store.upsert(new Selectable(tenant, "first", "Renamed", null, SelectionMode.MULTIPLE,
-                List.of(new SelectableOption("o_1", "A", "a"), new SelectableOption("o_2", "B", "")), "o", null));
+        List<SelectableOption> options = List.of(
+                SelectableOption.of("o_1", "A", "A").withGroup("g").withLook("red", "truck")
+                        .withDescription("uno", "one"),
+                SelectableOption.of("o_2", "B", "B").withParent("CL-RM").asDisabled());
+        SelectableSettings settings = new SelectableSettings(false, true, "second", 2, Localized.of("Elige", "Pick"));
+        Selectable replaced = store.upsert(new Selectable(tenant, "first", Localized.of("Renombrada", "Renamed"),
+                Map.of(), SelectionMode.MULTIPLE, settings, List.of(SelectableGroup.of("g", "Grupo", "Group")),
+                SelectableSource.STATIC, options, "o", null));
 
         assertNotNull(replaced.updatedAt());
         assertEquals(List.of("first", "second"), store.list(tenant).stream().map(Selectable::key).toList());
         Selectable found = store.find(tenant, "first").orElseThrow();
-        assertEquals("Renamed", found.name());
+        assertEquals(Localized.of("Renombrada", "Renamed"), found.name());
         assertEquals(SelectionMode.MULTIPLE, found.mode());
-        assertEquals(List.of(new SelectableOption("o_1", "A", "a"), new SelectableOption("o_2", "B", "")),
-                found.options());
+        assertEquals(settings, found.settings());
+        assertEquals(List.of(SelectableGroup.of("g", "Grupo", "Group")), found.groups());
+        assertEquals(options, found.options());
+        store.upsert(list(tenant, "dynamic", "Zonas").withSource(SelectableSource.system("core.timezones")));
+        assertEquals(SelectableSource.system("core.timezones"), store.find(tenant, "dynamic").orElseThrow().source());
         assertTrue(store.find(tenant, "missing").isEmpty());
         assertTrue(store.list(tenant + "-other").isEmpty());
     }
@@ -137,7 +146,7 @@ class JdbcSelectableStoreTest {
     }
 
     private static Selectable list(String tenant, String key, String name) {
-        return new Selectable(tenant, key, name, "", SelectionMode.SINGLE,
-                List.of(new SelectableOption("opt_1", "Uno", "")), "system:defaults", null);
+        return Selectable.of(key, name, name, "", "", SelectionMode.SINGLE,
+                List.of(SelectableOption.of("opt_1", "Uno", "One"))).forTenant(tenant);
     }
 }

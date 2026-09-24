@@ -23,6 +23,9 @@ export interface ContactDetails {
   role?: string;
   /** Empty/absent means "no restriction" — every method is offered. */
   methods?: CallMethod[];
+  /** Id of the contact-book entry (Settings › Libreta de contactos) this
+   *  entry was picked from — lets the picker hide people already on the list. */
+  bookId?: string;
 }
 
 const STORAGE_KEY = "miot.prototype.contact-details.v1";

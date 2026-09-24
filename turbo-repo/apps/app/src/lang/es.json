@@ -1430,6 +1430,36 @@
       "subtitle": "El viaje que estás buscando no existe o no se encuentra disponible."
     },
     "userSettings": {
+      "contactBook": {
+        "title": "Libreta de contactos",
+        "description": "Directorio de personas del sistema. Búscalas o créalas al elegir a quién llamar.",
+        "newContact": "Nuevo contacto",
+        "editTitle": "Editar contacto",
+        "empty": "Aún no hay contactos. Crea uno para empezar.",
+        "nameLabel": "Nombre del contacto",
+        "phoneLabel": "+56 9 …",
+        "rolePlaceholder": "Rol (ej. Supervisor de turno)",
+        "methodsLabel": "Métodos de llamada permitidos",
+        "methodPhone": "Llamada telefónica",
+        "methodWhatsapp": "Llamada por WhatsApp",
+        "methodMeet": "Llamada por Google Meet",
+        "methodTeams": "Llamada por Microsoft Teams",
+        "removeContact": "Eliminar contacto",
+        "edit": "Editar",
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "savedHint": "Prototipo: los cambios se guardan solo en este navegador.",
+        "channelsTitle": "Canales de contacto",
+        "unfinishedHint": "Termina de configurar o quita los canales abiertos para guardar.",
+        "stateOff": "Desactivado",
+        "stateActive": "Configurando",
+        "stateConfigured": "Configurado",
+        "actionUseSamePhone": "Usar el número de teléfono",
+        "fieldPhone": "Número de teléfono",
+        "fieldWhatsapp": "Número de WhatsApp",
+        "fieldTeams": "Correo de Microsoft Teams",
+        "fieldMeet": "Correo de Google"
+      },
       "selectables": {
         "title": "Seleccionables",
         "description": "Define las listas de opciones reutilizables que alimentan los selectores de la app — como \"A quién llamar\" o \"Resultado de la llamada\".",
@@ -1813,7 +1843,8 @@
         "harness": "Harness",
         "platform": "Plataforma",
         "symptomRules": "Reglas de síntomas",
-        "selectables": "Seleccionables"
+        "selectables": "Seleccionables",
+        "contactBook": "Libreta de contactos"
       },
       "symptoms": {
         "config": {
@@ -1918,7 +1949,8 @@
         "dataSources": "Fuentes de Datos",
         "credentials": "Credenciales",
         "symptomRules": "Reglas de síntomas",
-        "selectables": "Seleccionables"
+        "selectables": "Seleccionables",
+        "contactBook": "Libreta de contactos"
       },
       "credentials": {
         "title": "Credenciales",
@@ -2576,7 +2608,8 @@
         "closePanel": "Cerrar panel",
         "platform": "Plataforma",
         "symptomRules": "Reglas de síntomas",
-        "selectables": "Seleccionables"
+        "selectables": "Seleccionables",
+        "contactBook": "Libreta de contactos"
       }
     },
     "calendar": {
@@ -3797,6 +3830,23 @@
     "call_center_add_contact_confirm": "Agregar",
     "call_center_add_contact_methods": "Métodos de llamada permitidos",
     "call_center_add_contact_role_placeholder": "Rol (ej. Supervisor de turno)",
+    "call_center_contact_search_placeholder": "Buscar en la libreta o escribir un nombre…",
+    "call_center_contact_create": "Crear «{name}»",
+    "call_center_contact_new": "Nuevo contacto",
+    "call_center_contact_none": "No hay contactos en la libreta que coincidan",
+    "call_center_contact_close": "Cerrar",
+    "call_center_ch_channels_title": "Canales de contacto",
+    "call_center_ch_unfinished_hint": "Termina de configurar o quita los canales abiertos para guardar.",
+    "call_center_ch_state_off": "Desactivado",
+    "call_center_ch_state_active": "Configurando",
+    "call_center_ch_state_configured": "Configurado",
+    "call_center_ch_action_use_same_phone": "Usar el número de teléfono",
+    "call_center_ch_field_phone": "Número de teléfono",
+    "call_center_ch_field_whatsapp": "Número de WhatsApp",
+    "call_center_ch_field_teams": "Correo de Microsoft Teams",
+    "call_center_ch_field_meet": "Correo de Google",
+    "call_center_contact_book_header": "Libreta de contactos",
+    "call_center_contact_cancel": "Cancelar",
     "proto_section_who_called": "A quién se llamó",
     "call_center_method_phone": "Llamada telefónica",
     "call_center_method_whatsapp": "Llamada por WhatsApp",

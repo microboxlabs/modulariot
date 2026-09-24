@@ -1430,6 +1430,36 @@
       "subtitle": "The trip you are looking for does not exist or is not available."
     },
     "userSettings": {
+      "contactBook": {
+        "title": "Contact book",
+        "description": "Directory of people in the system. Search them or create them when choosing who to call.",
+        "newContact": "New contact",
+        "editTitle": "Edit contact",
+        "empty": "No contacts yet. Create one to get started.",
+        "nameLabel": "Contact name",
+        "phoneLabel": "+56 9 …",
+        "rolePlaceholder": "Role (e.g. Shift supervisor)",
+        "methodsLabel": "Allowed call methods",
+        "methodPhone": "Phone call",
+        "methodWhatsapp": "WhatsApp call",
+        "methodMeet": "Google Meet call",
+        "methodTeams": "Microsoft Teams call",
+        "removeContact": "Delete contact",
+        "edit": "Edit",
+        "cancel": "Cancel",
+        "save": "Save",
+        "savedHint": "Prototype: changes are saved in this browser only.",
+        "channelsTitle": "Contact channels",
+        "unfinishedHint": "Finish setting up or remove the open channels to save.",
+        "stateOff": "Off",
+        "stateActive": "Setting up",
+        "stateConfigured": "Configured",
+        "actionUseSamePhone": "Use the phone number",
+        "fieldPhone": "Phone number",
+        "fieldWhatsapp": "WhatsApp number",
+        "fieldTeams": "Microsoft Teams email",
+        "fieldMeet": "Google account email"
+      },
       "selectables": {
         "title": "Selectables",
         "description": "Define the reusable option lists that back the selectors across the app — such as \"Who to call\" or \"Call result\".",
@@ -1813,7 +1843,8 @@
         "harness": "Harness",
         "platform": "Platform",
         "symptomRules": "Symptom rules",
-        "selectables": "Selectables"
+        "selectables": "Selectables",
+        "contactBook": "Contact book"
       },
       "symptoms": {
         "config": {
@@ -1918,7 +1949,8 @@
         "dataSources": "Data Sources",
         "credentials": "Credentials",
         "symptomRules": "Symptom rules",
-        "selectables": "Selectables"
+        "selectables": "Selectables",
+        "contactBook": "Contact book"
       },
       "credentials": {
         "title": "Credentials",
@@ -2576,7 +2608,8 @@
         "subtitle4": "GPS Validation",
         "platform": "Platform",
         "symptomRules": "Symptom rules",
-        "selectables": "Selectables"
+        "selectables": "Selectables",
+        "contactBook": "Contact book"
       }
     },
     "calendar": {
@@ -3797,6 +3830,23 @@
     "call_center_add_contact_confirm": "Add",
     "call_center_add_contact_methods": "Allowed calling methods",
     "call_center_add_contact_role_placeholder": "Role (e.g. Shift supervisor)",
+    "call_center_contact_search_placeholder": "Search the contact book or type a name…",
+    "call_center_contact_create": "Create “{name}”",
+    "call_center_contact_new": "New contact",
+    "call_center_contact_none": "No matching contacts in the book",
+    "call_center_contact_close": "Close",
+    "call_center_ch_channels_title": "Contact channels",
+    "call_center_ch_unfinished_hint": "Finish setting up or remove the open channels to save.",
+    "call_center_ch_state_off": "Off",
+    "call_center_ch_state_active": "Setting up",
+    "call_center_ch_state_configured": "Configured",
+    "call_center_ch_action_use_same_phone": "Use the phone number",
+    "call_center_ch_field_phone": "Phone number",
+    "call_center_ch_field_whatsapp": "WhatsApp number",
+    "call_center_ch_field_teams": "Microsoft Teams email",
+    "call_center_ch_field_meet": "Google account email",
+    "call_center_contact_book_header": "Contact book",
+    "call_center_contact_cancel": "Cancel",
     "proto_section_who_called": "Who was called",
     "call_center_method_phone": "Phone call",
     "call_center_method_whatsapp": "WhatsApp call",

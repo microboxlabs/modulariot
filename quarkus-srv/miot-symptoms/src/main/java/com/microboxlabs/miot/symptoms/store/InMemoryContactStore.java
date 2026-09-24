@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.store;
 import com.microboxlabs.miot.symptoms.domain.Contact;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +18,7 @@ public class InMemoryContactStore implements ContactStore {
 
     @Override
     public synchronized Contact insert(Contact c) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Contact saved = new Contact(UUID.randomUUID().toString(), c.tenantCode(), c.name(), c.role(), c.phone(),
                 c.methods() == null ? List.of() : List.copyOf(c.methods()), c.active(), c.notes(), c.createdBy(),
                 now, now);
@@ -33,7 +34,7 @@ public class InMemoryContactStore implements ContactStore {
         }
         Contact saved = new Contact(c.id(), c.tenantCode(), c.name(), c.role(), c.phone(),
                 c.methods() == null ? List.of() : List.copyOf(c.methods()), c.active(), c.notes(),
-                current.get().createdBy(), current.get().createdAt(), OffsetDateTime.now());
+                current.get().createdBy(), current.get().createdAt(), OffsetDateTime.now(ZoneOffset.UTC));
         contacts.put(saved.id(), saved);
         return Optional.of(saved);
     }

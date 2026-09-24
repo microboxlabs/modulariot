@@ -58,8 +58,8 @@ class TreatmentServiceTest {
 
     @Test
     void openRequiresAType() {
-        assertThrows(IllegalArgumentException.class,
-                () -> service.open(TENANT, ACTOR, 42L, new OpenTreatmentRequest(null, null, null, null)));
+        OpenTreatmentRequest noType = new OpenTreatmentRequest(null, null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.open(TENANT, ACTOR, 42L, noType));
         assertThrows(IllegalArgumentException.class, () -> service.open(TENANT, ACTOR, 42L, null));
     }
 
@@ -85,14 +85,17 @@ class TreatmentServiceTest {
     @Test
     void callNeedsSomeoneAndDecisionsNeedAReason() {
         String id = service.open(TENANT, ACTOR, 42L, open(TreatmentType.CALL)).treatment().id();
-        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, id, call(null, null, true)));
-        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, id, call("missing", null, true)));
-        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, id,
-                new AddActionRequest(ActionKind.IGNORE, null, null, null, null, null, null, null, null, null, null,
-                        null, null, null)));
-        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, id,
-                new AddActionRequest(null, null, null, null, null, null, null, null, null, null, null, null, null,
-                        null)));
+        AddActionRequest nobody = call(null, null, true);
+        AddActionRequest unknownContact = call("missing", null, true);
+        AddActionRequest ignoreWithoutReason = new AddActionRequest(ActionKind.IGNORE, null, null, null, null, null,
+                null, null, null, null, null, null, null, null);
+        AddActionRequest noKind = new AddActionRequest(null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null);
+
+        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, id, nobody));
+        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, id, unknownContact));
+        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, id, ignoreWithoutReason));
+        assertThrows(IllegalArgumentException.class, () -> service.addAction(TENANT, ACTOR, id, noKind));
     }
 
     @Test
@@ -118,7 +121,8 @@ class TreatmentServiceTest {
         service.cancel(TENANT, ACTOR, id, "dismissed");
 
         assertThrows(IllegalStateException.class, () -> service.cancel(TENANT, ACTOR, id, null));
-        assertThrows(IllegalStateException.class, () -> service.addAction(TENANT, ACTOR, id, call(null, "x", true)));
+        AddActionRequest lateCall = call(null, "x", true);
+        assertThrows(IllegalStateException.class, () -> service.addAction(TENANT, ACTOR, id, lateCall));
         assertThrows(NoSuchElementException.class, () -> service.get(TENANT, "nope"));
         assertThrows(NoSuchElementException.class, () -> service.get("tenant-b", id));
         assertTrue(service.open(TENANT, ACTOR, 42L, open(TreatmentType.CALL)).created(), "cancelled is not resumed");

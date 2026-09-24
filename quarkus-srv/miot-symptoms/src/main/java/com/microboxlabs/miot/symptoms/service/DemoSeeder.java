@@ -12,6 +12,7 @@ import com.microboxlabs.miot.symptoms.store.TreatmentStore;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -88,7 +89,7 @@ public class DemoSeeder {
         Random random = new Random(Objects.hash(tenantCode, symptomId));
         int episodes = random.nextInt(3);
         List<Contact> people = contacts.list(tenantCode, true);
-        OffsetDateTime start = OffsetDateTime.now().minusMinutes(60L * (episodes + 1) + random.nextInt(50));
+        OffsetDateTime start = OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(60L * (episodes + 1) + random.nextInt(50));
         for (int e = 0; e < episodes; e++) {
             OffsetDateTime openedAt = start.plusMinutes(75L * e);
             boolean endsIgnored = random.nextInt(3) == 0;

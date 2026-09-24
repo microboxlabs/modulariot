@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.store;
 import com.microboxlabs.miot.symptoms.domain.AuditEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +20,7 @@ public class InMemoryAuditStore implements AuditStore {
     public synchronized AuditEvent append(AuditEvent e) {
         AuditEvent saved = new AuditEvent(UUID.randomUUID().toString(), e.tenantCode(), e.actor(), e.action(),
                 e.entityType(), e.entityId(), e.symptomId(), e.details() == null ? Map.of() : Map.copyOf(e.details()),
-                OffsetDateTime.now());
+                OffsetDateTime.now(ZoneOffset.UTC));
         events.add(saved);
         return saved;
     }

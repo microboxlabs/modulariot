@@ -7,6 +7,7 @@ import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -25,7 +26,7 @@ public class InMemoryTreatmentStore implements TreatmentStore {
 
     @Override
     public synchronized Treatment insert(Treatment t) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime openedAt = t.openedAt() == null ? now : t.openedAt();
         Treatment saved = new Treatment(
                 UUID.randomUUID().toString(), t.tenantCode(), t.symptomId(), t.assetId(), t.tripId(), t.type(),
@@ -66,7 +67,7 @@ public class InMemoryTreatmentStore implements TreatmentStore {
             return Optional.empty();
         }
         Treatment t = current.get();
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Treatment moved = new Treatment(t.id(), t.tenantCode(), t.symptomId(), t.assetId(), t.tripId(), t.type(),
                 status, t.openedBy(), t.openedAt(), actor, now, resolution, note == null ? t.note() : note, now);
         treatments.put(moved.id(), moved);
@@ -85,7 +86,7 @@ public class InMemoryTreatmentStore implements TreatmentStore {
                 a.outcomeLabel(), a.answered(), a.durationSeconds(), a.message(), a.note(),
                 a.tags() == null ? List.of() : List.copyOf(a.tags()),
                 a.details() == null ? Map.of() : Map.copyOf(a.details()),
-                a.performedBy(), a.performedAt() == null ? OffsetDateTime.now() : a.performedAt());
+                a.performedBy(), a.performedAt() == null ? OffsetDateTime.now(ZoneOffset.UTC) : a.performedAt());
         list.add(saved);
         Treatment t = treatments.get(a.treatmentId());
         treatments.put(t.id(), new Treatment(t.id(), t.tenantCode(), t.symptomId(), t.assetId(), t.tripId(),

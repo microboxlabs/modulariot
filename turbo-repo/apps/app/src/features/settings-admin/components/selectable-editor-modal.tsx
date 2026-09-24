@@ -99,9 +99,6 @@ export default function SelectableEditorModal({
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             {isEditMode ? tr("editTitle", d) : tr("newSelectable", d)}
           </h2>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            {tr("savedHint", d)}
-          </p>
         </div>
 
         <div className="flex flex-1 min-h-0 flex-col gap-5 overflow-y-auto px-6 py-5">

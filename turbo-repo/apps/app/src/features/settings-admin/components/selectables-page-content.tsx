@@ -120,12 +120,6 @@ export default function SelectablesPageContent({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-900/20">
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-            {tr("savedHint", d)}
-          </p>
-        </div>
-
         {hydrated && selectables.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-16 text-center dark:border-gray-700">
             <IconTile icon={HiViewGridAdd} />

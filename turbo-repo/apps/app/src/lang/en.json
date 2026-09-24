@@ -2123,7 +2123,6 @@
         "removeSelectable": "Delete selectable",
         "duplicate": "Duplicate",
         "optionsCount": "{count} options",
-        "savedHint": "Demo: changes are shared across the organization but are lost when the service restarts.",
         "resetSeed": "Restore defaults",
         "editTitle": "Edit selectable",
         "edit": "Edit",

@@ -2123,7 +2123,6 @@
         "removeSelectable": "Eliminar seleccionable",
         "duplicate": "Duplicar",
         "optionsCount": "{count} opciones",
-        "savedHint": "Demostración: los cambios se comparten en la organización, pero se pierden al reiniciar el servicio.",
         "resetSeed": "Restaurar predeterminados",
         "editTitle": "Editar seleccionable",
         "edit": "Editar",

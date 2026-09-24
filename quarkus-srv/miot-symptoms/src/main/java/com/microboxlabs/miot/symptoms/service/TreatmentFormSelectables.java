@@ -1,18 +1,24 @@
 package com.microboxlabs.miot.symptoms.service;
 
-import com.microboxlabs.miot.symptoms.domain.Selectable;
-import com.microboxlabs.miot.symptoms.domain.SelectableOption;
-import com.microboxlabs.miot.symptoms.domain.SelectionMode;
+import com.microboxlabs.miot.core.selectable.Selectable;
+import com.microboxlabs.miot.core.selectable.SelectableDefaults;
+import com.microboxlabs.miot.core.selectable.SelectableOption;
+import com.microboxlabs.miot.core.selectable.SelectionMode;
+import io.quarkus.arc.properties.IfBuildProperty;
+import jakarta.enterprise.context.ApplicationScoped;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The option lists an organization starts with. Same lists and wording the
- * treatment forms shipped with. Option ids are stable so actions recorded
- * against them keep resolving; {@code call_result} uses the ids the call form
- * already keys its labels on.
+ * The treatment-form lists an organization starts with, seeded by the core
+ * selectables service. Same lists and wording the treatment forms shipped
+ * with. Option ids are stable so actions recorded against them keep
+ * resolving; {@code call_result} uses the ids the call form already keys its
+ * labels on.
  */
-public final class DefaultSelectables {
+@ApplicationScoped
+@IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
+public class TreatmentFormSelectables implements SelectableDefaults {
 
     static final String SYSTEM_ACTOR = "system:defaults";
 
@@ -22,10 +28,8 @@ public final class DefaultSelectables {
     public static final String RESULT_NO_ANSWER = "result_no_answer";
     public static final String RESULT_VOICEMAIL = "result_voicemail";
 
-    private DefaultSelectables() {
-    }
-
-    public static List<Selectable> forTenant(String tenantCode) {
+    @Override
+    public List<Selectable> forTenant(String tenantCode) {
         List<Selectable> out = new ArrayList<>();
         out.add(new Selectable(tenantCode, "who_to_call", "A quién llamar",
                 "Destinatario de la llamada. Cualquiera distinto del conductor se registra como escalamiento"

@@ -49,7 +49,7 @@ abstract class ControlTowerResourceSupport {
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 
-    /** Organization owners only: settings writes (selectables, deleting contacts). */
+    /** Organization owners only: deleting contacts. */
     protected Uni<Response> ownerWork(String organizationId, Supplier<Response> work) {
         return roleService.requireOwner(organizationId).flatMap(ignored -> memberWork(work));
     }

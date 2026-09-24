@@ -6,17 +6,18 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Per-organization option lists, and which form field uses which list. An
@@ -27,10 +28,12 @@ import java.util.regex.Pattern;
 @ApplicationScoped
 public class SelectableService {
 
-    private static final Pattern KEY = Pattern.compile("^[a-z][a-z0-9_]{1,63}$");
+    public static final int DEFAULT_OPTION_LIMIT = 50;
+    private static final int MAX_OPTION_LIMIT = 200;
 
     private final SelectableStore store;
     private final Iterable<SelectableDefaults> defaults;
+    private final Iterable<SelectableOptionSource> sources;
     private final Consumer<SelectableChanged> changed;
     private final Set<String> seeded = ConcurrentHashMap.newKeySet();
     /**
@@ -42,15 +45,21 @@ public class SelectableService {
 
     @Inject
     public SelectableService(SelectableStore store, Instance<SelectableDefaults> defaults,
-            Event<SelectableChanged> changed) {
-        this(store, defaults, changed::fire);
+            Instance<SelectableOptionSource> sources, Event<SelectableChanged> changed) {
+        this(store, defaults, sources, changed::fire);
+    }
+
+    SelectableService(SelectableStore store, Iterable<SelectableDefaults> defaults,
+            Iterable<SelectableOptionSource> sources, Consumer<SelectableChanged> changed) {
+        this.store = store;
+        this.defaults = defaults;
+        this.sources = sources;
+        this.changed = changed;
     }
 
     SelectableService(SelectableStore store, Iterable<SelectableDefaults> defaults,
             Consumer<SelectableChanged> changed) {
-        this.store = store;
-        this.defaults = defaults;
-        this.changed = changed;
+        this(store, defaults, List.of(), changed);
     }
 
     public List<Selectable> list(String tenantCode) {
@@ -66,27 +75,47 @@ public class SelectableService {
 
     public Selectable replace(String tenantCode, String actor, String key, SelectableRequest req) {
         validateKey(key);
-        if (req == null || req.name() == null || req.name().isBlank()) {
-            throw new IllegalArgumentException("name is required");
+        if (req == null) {
+            throw new IllegalArgumentException("body is required");
         }
+        Map<String, String> name = Localized.required(req.name(), "name");
         if (req.mode() == null) {
             throw new IllegalArgumentException("mode is required (SINGLE or MULTIPLE)");
         }
-        List<SelectableOption> options = normalizeOptions(req.options());
+        SelectableSource source = SelectableRules.source(req.source());
+        if (!source.isStatic() && req.options() != null && !req.options().isEmpty()) {
+            throw new IllegalArgumentException("a " + source.kind() + " list fetches its options; send none");
+        }
+        List<SelectableGroup> groups = SelectableRules.groups(req.groups());
         synchronized (lockFor(tenantCode)) {
             seedOnce(tenantCode);
-            Selectable saved = store.upsert(new Selectable(
-                    tenantCode, key, req.name().trim(), req.description(), req.mode(), options, actor, null));
+            SelectableSettings settings = SelectableRules.settings(req.settings(), req.mode(), key, keys(tenantCode));
+            List<SelectableOption> options = SelectableRules.options(req.options(), groups, settings);
+            if (!source.isStatic()) {
+                requireSource(tenantCode, source);
+            }
+            Selectable saved = store.upsert(new Selectable(tenantCode, key, name,
+                    Localized.clean(req.description(), "description"), req.mode(), settings, groups, source,
+                    options, actor, null));
             changed.accept(new SelectableChanged(tenantCode, actor, "selectable.replaced", key,
-                    Map.of("name", saved.name(), "options", options.size())));
+                    Map.of("name", Localized.preferred(name), "options", options.size(),
+                            "source", source.kind().name())));
             return saved;
         }
     }
 
+    /** A list another one depends on cannot be deleted until that one stops depending on it. */
     public boolean delete(String tenantCode, String actor, String key) {
         validateKey(key);
         synchronized (lockFor(tenantCode)) {
             seedOnce(tenantCode);
+            List<String> dependents = store.list(tenantCode).stream()
+                    .filter(s -> key.equals(s.settings().dependsOn()))
+                    .map(Selectable::key)
+                    .toList();
+            if (!dependents.isEmpty()) {
+                throw new IllegalArgumentException("lists " + dependents + " depend on " + key);
+            }
             boolean deleted = store.delete(tenantCode, key);
             if (deleted) {
                 changed.accept(new SelectableChanged(tenantCode, actor, "selectable.deleted", key, Map.of()));
@@ -114,8 +143,7 @@ public class SelectableService {
             throw new IllegalArgumentException("bindings is required");
         }
         synchronized (lockFor(tenantCode)) {
-            Set<String> known = new HashSet<>();
-            list(tenantCode).forEach(s -> known.add(s.key()));
+            Set<String> known = keys(tenantCode);
             for (Map.Entry<String, String> e : req.bindings().entrySet()) {
                 validateKey(e.getKey());
                 validateKey(e.getValue());
@@ -128,6 +156,70 @@ public class SelectableService {
                     new LinkedHashMap<>(req.bindings())));
             return store.bindings(tenantCode);
         }
+    }
+
+    /**
+     * The options a field shows: a static list's own, filtered here, or what
+     * its source returns.
+     *
+     * @param parents values selected in the list this one depends on; empty means all
+     */
+    public List<SelectableOption> options(String tenantCode, String key, String search, List<String> parents,
+            Integer limit) {
+        Selectable list = get(tenantCode, key);
+        int max = limit == null ? DEFAULT_OPTION_LIMIT : Math.clamp(limit, 1, MAX_OPTION_LIMIT);
+        List<String> parentValues = parents == null ? List.of() : parents;
+        if (!list.source().isStatic()) {
+            return requireSource(tenantCode, list.source())
+                    .options(tenantCode, list.source(), new SelectableOptionSource.Query(search, parentValues, max))
+                    .stream().limit(max).toList();
+        }
+        String needle = fold(search);
+        return list.options().stream()
+                .filter(o -> parentValues.isEmpty() || parentValues.contains(o.parent()))
+                .filter(o -> needle.isEmpty() || matches(o, needle))
+                .limit(max)
+                .toList();
+    }
+
+    /** Every non-static source an editor can pick for this tenant. */
+    public List<SelectableOptionSource.Descriptor> sources(String tenantCode) {
+        List<SelectableOptionSource.Descriptor> out = new ArrayList<>();
+        sources.forEach(s -> out.addAll(s.describe(tenantCode)));
+        return out;
+    }
+
+    private SelectableOptionSource requireSource(String tenantCode, SelectableSource source) {
+        for (SelectableOptionSource s : sources) {
+            if (s.kind() != source.kind()) {
+                continue;
+            }
+            boolean match = source.kind() == SelectableSource.Kind.CONNECTION
+                    ? s.describe(tenantCode).stream().anyMatch(d -> source.ref().equals(d.ref()))
+                    : source.ref().equals(s.id());
+            if (match) {
+                return s;
+            }
+        }
+        throw new IllegalArgumentException("unknown " + source.kind() + " source: " + source.ref());
+    }
+
+    static boolean matches(SelectableOption o, String needle) {
+        return fold(o.value()).contains(needle)
+                || o.label().values().stream().anyMatch(text -> fold(text).contains(needle));
+    }
+
+    /** Lower case without accents, so "region" finds "Región". */
+    static String fold(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        return Normalizer.normalize(text.trim(), Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private Set<String> keys(String tenantCode) {
+        return list(tenantCode).stream().map(Selectable::key).collect(Collectors.toCollection(HashSet::new));
     }
 
     private Object lockFor(String tenantCode) {
@@ -159,37 +251,13 @@ public class SelectableService {
         List<Selectable> out = new ArrayList<>();
         for (SelectableDefaults d : defaults) {
             for (Selectable s : d.forTenant(tenantCode)) {
-                out.add(new Selectable(tenantCode, s.key(), s.name(), s.description(), s.mode(), s.options(),
-                        s.updatedBy(), s.updatedAt()));
+                out.add(s.forTenant(tenantCode));
             }
         }
         return out;
     }
 
-    /** Trims names, assigns ids to options without one, and rejects nameless options and duplicate ids. */
-    private static List<SelectableOption> normalizeOptions(List<SelectableOption> given) {
-        List<SelectableOption> options = new ArrayList<>();
-        Set<String> ids = new HashSet<>();
-        for (SelectableOption o : given == null ? List.<SelectableOption>of() : given) {
-            if (o == null || o.name() == null || o.name().isBlank()) {
-                throw new IllegalArgumentException("every option needs a name");
-            }
-            String id = o.id() == null || o.id().isBlank() ? newOptionId() : o.id().trim();
-            if (!ids.add(id)) {
-                throw new IllegalArgumentException("duplicate option id: " + id);
-            }
-            options.add(new SelectableOption(id, o.name().trim(), o.description() == null ? "" : o.description()));
-        }
-        return options;
-    }
-
     static void validateKey(String key) {
-        if (key == null || !KEY.matcher(key).matches()) {
-            throw new IllegalArgumentException("key must match [a-z][a-z0-9_]{1,63}: " + key);
-        }
-    }
-
-    static String newOptionId() {
-        return "opt_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        SelectableRules.validateKey(key);
     }
 }

@@ -18,10 +18,12 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -106,6 +108,30 @@ public class OrgSelectablesResource {
     }
 
     @GET
+    @Path("/sources")
+    @Operation(operationId = "listSelectableSources", summary = "Where dynamic lists can take options from",
+            description = "System sources the enabled components register, and usable connections.")
+    public Uni<Response> sources(@PathParam("organizationId") String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return memberWork(() -> Response.ok(selectables.sources(tenant)).build());
+    }
+
+    @GET
+    @Path("/{key}/options")
+    @Operation(operationId = "listSelectableOptions", summary = "The options a field shows",
+            description = "A static list's own options, or what its source returns. Filter with q (value or label,"
+                    + " accents ignored) and parent (repeatable: values picked in the list this one depends on).")
+    public Uni<Response> options(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("key") String key,
+            @QueryParam("q") String search,
+            @QueryParam("parent") List<String> parents,
+            @QueryParam("limit") Integer limit) {
+        String tenant = tenantCode(organizationId);
+        return memberWork(() -> Response.ok(selectables.options(tenant, key, search, parents, limit)).build());
+    }
+
+    @GET
     @Path("/{key}")
     @Operation(operationId = "getSelectable", summary = "Get one selectable")
     public Uni<Response> get(
@@ -118,7 +144,7 @@ public class OrgSelectablesResource {
     @PUT
     @Path("/{key}")
     @Operation(operationId = "replaceSelectable", summary = "Create or replace a selectable",
-            description = "Whole-list replacement. Keep option ids stable so records that point at an option keep resolving.")
+            description = "Whole-list replacement. Keep option values stable so records that store one keep resolving.")
     public Uni<Response> replace(
             @PathParam("organizationId") String organizationId,
             @PathParam("key") String key,

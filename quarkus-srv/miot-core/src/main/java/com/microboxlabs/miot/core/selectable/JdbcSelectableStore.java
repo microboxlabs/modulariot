@@ -27,16 +27,21 @@ import javax.sql.DataSource;
 public class JdbcSelectableStore implements SelectableStore {
 
     private static final String FOREIGN_KEY_VIOLATION = "23503";
-    private static final String COLUMNS =
-            "tenant_code, key, name, description, mode, options, updated_by, updated_at";
+    private static final String COLUMNS = "tenant_code, key, name, description, mode, settings, groups, source,"
+            + " options, updated_by, updated_at";
     private static final String UPSERT = "INSERT INTO miot_core.selectables (" + COLUMNS + ")"
-            + " VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, now())"
+            + " VALUES (?, ?, ?::jsonb, ?::jsonb, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?, now())"
             + " ON CONFLICT (tenant_code, key) DO UPDATE SET name = EXCLUDED.name,"
-            + " description = EXCLUDED.description, mode = EXCLUDED.mode, options = EXCLUDED.options,"
+            + " description = EXCLUDED.description, mode = EXCLUDED.mode, settings = EXCLUDED.settings,"
+            + " groups = EXCLUDED.groups, source = EXCLUDED.source, options = EXCLUDED.options,"
             + " updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at"
             + " RETURNING " + COLUMNS;
     private static final String MARK_SEEDED =
             "INSERT INTO miot_core.selectable_tenants (tenant_code) VALUES (?) ON CONFLICT DO NOTHING";
+    private static final TypeReference<Map<String, String>> TEXTS = new TypeReference<>() {
+    };
+    private static final TypeReference<List<SelectableGroup>> GROUPS = new TypeReference<>() {
+    };
     private static final TypeReference<List<SelectableOption>> OPTIONS = new TypeReference<>() {
     };
 
@@ -188,11 +193,14 @@ public class JdbcSelectableStore implements SelectableStore {
         try (PreparedStatement st = c.prepareStatement(UPSERT)) {
             st.setString(1, s.tenantCode());
             st.setString(2, s.key());
-            st.setString(3, s.name());
-            st.setString(4, s.description());
+            st.setString(3, write(s.name() == null ? Map.of() : s.name()));
+            st.setString(4, write(s.description() == null ? Map.of() : s.description()));
             st.setString(5, s.mode().name());
-            st.setString(6, writeOptions(s.options()));
-            st.setString(7, s.updatedBy());
+            st.setString(6, write(s.settings() == null ? SelectableSettings.DEFAULT : s.settings()));
+            st.setString(7, write(s.groups() == null ? List.of() : s.groups()));
+            st.setString(8, write(s.source() == null ? SelectableSource.STATIC : s.source()));
+            st.setString(9, write(s.options() == null ? List.of() : s.options()));
+            st.setString(10, s.updatedBy());
             return readAll(st).get(0);
         }
     }
@@ -204,10 +212,13 @@ public class JdbcSelectableStore implements SelectableStore {
                 out.add(new Selectable(
                         rs.getString("tenant_code"),
                         rs.getString("key"),
-                        rs.getString("name"),
-                        rs.getString("description"),
+                        read(rs.getString("name"), TEXTS),
+                        read(rs.getString("description"), TEXTS),
                         SelectionMode.valueOf(rs.getString("mode")),
-                        readOptions(rs.getString("options")),
+                        read(rs.getString("settings"), SelectableSettings.class),
+                        List.copyOf(read(rs.getString("groups"), GROUPS)),
+                        read(rs.getString("source"), SelectableSource.class),
+                        List.copyOf(read(rs.getString("options"), OPTIONS)),
                         rs.getString("updated_by"),
                         rs.getObject("updated_at", OffsetDateTime.class)));
             }
@@ -215,19 +226,27 @@ public class JdbcSelectableStore implements SelectableStore {
         return out;
     }
 
-    private String writeOptions(List<SelectableOption> options) {
+    private String write(Object value) {
         try {
-            return json.writeValueAsString(options == null ? List.of() : options);
+            return json.writeValueAsString(value);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("could not write selectable options", e);
+            throw new IllegalStateException("could not write a selectable column", e);
         }
     }
 
-    private List<SelectableOption> readOptions(String raw) {
+    private <T> T read(String raw, TypeReference<T> type) {
         try {
-            return List.copyOf(json.readValue(raw, OPTIONS));
+            return json.readValue(raw, type);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("could not read selectable options", e);
+            throw new IllegalStateException("could not read a selectable column", e);
+        }
+    }
+
+    private <T> T read(String raw, Class<T> type) {
+        try {
+            return json.readValue(raw, type);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("could not read a selectable column", e);
         }
     }
 

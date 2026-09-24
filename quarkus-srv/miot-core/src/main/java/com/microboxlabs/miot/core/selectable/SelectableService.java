@@ -33,7 +33,11 @@ public class SelectableService {
     private final Iterable<SelectableDefaults> defaults;
     private final Consumer<SelectableChanged> changed;
     private final Set<String> seeded = ConcurrentHashMap.newKeySet();
-    /** One lock per tenant: every write holds it from validation to the last store change. */
+    /**
+     * One lock per tenant: every write holds it from validation to the last
+     * store change. It only covers this process; across replicas the store's
+     * own constraints keep a binding from pointing at a deleted list.
+     */
     private final Map<String, Object> tenantLocks = new ConcurrentHashMap<>();
 
     @Inject
@@ -94,9 +98,7 @@ public class SelectableService {
     /** Drops every list and binding and puts the defaults back. A failing provider leaves everything as it was. */
     public List<Selectable> reset(String tenantCode, String actor) {
         synchronized (lockFor(tenantCode)) {
-            List<Selectable> defaultLists = collectDefaults(tenantCode);
-            store.clear(tenantCode);
-            defaultLists.forEach(store::upsert);
+            store.resetTo(tenantCode, collectDefaults(tenantCode));
             seeded.add(tenantCode);
             changed.accept(new SelectableChanged(tenantCode, actor, "selectable.reset", "all", Map.of()));
             return store.list(tenantCode);
@@ -121,7 +123,7 @@ public class SelectableService {
                     throw new IllegalArgumentException("unknown selectable: " + e.getValue());
                 }
             }
-            req.bindings().forEach((field, key) -> store.bind(tenantCode, field, key));
+            store.bindAll(tenantCode, req.bindings());
             changed.accept(new SelectableChanged(tenantCode, actor, "selectable.bindings_updated", "bindings",
                     new LinkedHashMap<>(req.bindings())));
             return store.bindings(tenantCode);
@@ -132,14 +134,18 @@ public class SelectableService {
         return tenantLocks.computeIfAbsent(tenantCode, k -> new Object());
     }
 
-    /** A provider failure leaves the tenant unseeded, so the next read tries again. */
+    /**
+     * The store records which tenants were seeded, so deleting every list does
+     * not bring the defaults back, even after a restart. A provider failure
+     * leaves the tenant unseeded, so the next read tries again.
+     */
     private void seedOnce(String tenantCode) {
         synchronized (lockFor(tenantCode)) {
             if (seeded.contains(tenantCode)) {
                 return;
             }
-            if (store.list(tenantCode).isEmpty()) {
-                collectDefaults(tenantCode).forEach(store::upsert);
+            if (!store.isSeeded(tenantCode)) {
+                store.seed(tenantCode, collectDefaults(tenantCode));
             }
             seeded.add(tenantCode);
         }

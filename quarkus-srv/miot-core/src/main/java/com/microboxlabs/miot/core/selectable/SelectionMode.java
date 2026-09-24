@@ -1,4 +1,4 @@
-package com.microboxlabs.miot.symptoms.domain;
+package com.microboxlabs.miot.core.selectable;
 
 public enum SelectionMode {
     SINGLE,

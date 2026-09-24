@@ -1,15 +1,15 @@
-package com.microboxlabs.miot.symptoms.api;
+package com.microboxlabs.miot.core.api;
 
+import com.microboxlabs.miot.core.api.dto.SelectableBindingsRequest;
+import com.microboxlabs.miot.core.api.dto.SelectableRequest;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
-import com.microboxlabs.miot.symptoms.dto.SelectableBindingsRequest;
-import com.microboxlabs.miot.symptoms.dto.SelectableRequest;
-import com.microboxlabs.miot.symptoms.service.SelectableService;
-import io.quarkus.arc.properties.IfBuildProperty;
+import com.microboxlabs.miot.core.selectable.SelectableService;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -19,38 +19,57 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.function.Supplier;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-/** Option lists behind the treatment forms, and which form field uses which list. */
-@Path(ControlTowerResourceSupport.BASE_PATH + "/selectables")
+/**
+ * Per-organization option lists behind form fields, and which field uses
+ * which list. Any member reads; writes need an organization owner.
+ *
+ * <p>Endpoints return {@link Uni} so the request stays on the event loop for
+ * the reactive {@code OrganizationRequestFilter}; the service call runs on the
+ * worker pool. The tenant comes from the resolved organization and the actor
+ * from the session, never from the body.
+ */
+@Path("/api/v1/orgs/{organizationId}/selectables")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Tag(name = "Control Tower — Selectables", description = "Editable option lists: call result, tags, ignore and invalidate reasons")
+@Tag(name = "Organization Selectables", description = "Editable option lists behind form fields")
 @SecurityRequirement(name = "oidc")
 @Authenticated
-@IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
-public class OrgControlTowerSelectablesResource extends ControlTowerResourceSupport {
+public class OrgSelectablesResource {
 
+    private final TenantContext tenantContext;
+    private final OrganizationContext organizationContext;
+    private final OrganizationRoleService roleService;
+    private final SecurityIdentity identity;
     private final SelectableService selectables;
 
     @Inject
-    public OrgControlTowerSelectablesResource(
+    public OrgSelectablesResource(
             TenantContext tenantContext,
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
             SelectableService selectables) {
-        super(tenantContext, organizationContext, roleService, identity);
+        this.tenantContext = tenantContext;
+        this.organizationContext = organizationContext;
+        this.roleService = roleService;
+        this.identity = identity;
         this.selectables = selectables;
     }
 
     @GET
     @Operation(operationId = "listSelectables", summary = "List selectables",
-            description = "Seeds the platform defaults the first time an organization asks.")
+            description = "Seeds the defaults the enabled components provide the first time an organization asks.")
     public Uni<Response> list(@PathParam("organizationId") String organizationId) {
         String tenant = tenantCode(organizationId);
         return memberWork(() -> Response.ok(selectables.list(tenant)).build());
@@ -99,7 +118,7 @@ public class OrgControlTowerSelectablesResource extends ControlTowerResourceSupp
     @PUT
     @Path("/{key}")
     @Operation(operationId = "replaceSelectable", summary = "Create or replace a selectable",
-            description = "Whole-list replacement. Keep option ids stable so past actions keep pointing at the same outcome.")
+            description = "Whole-list replacement. Keep option ids stable so records that point at an option keep resolving.")
     public Uni<Response> replace(
             @PathParam("organizationId") String organizationId,
             @PathParam("key") String key,
@@ -111,7 +130,8 @@ public class OrgControlTowerSelectablesResource extends ControlTowerResourceSupp
 
     @DELETE
     @Path("/{key}")
-    @Operation(operationId = "deleteSelectable", summary = "Delete a selectable")
+    @Operation(operationId = "deleteSelectable", summary = "Delete a selectable",
+            description = "Also removes the bindings that pointed at it.")
     public Uni<Response> delete(
             @PathParam("organizationId") String organizationId,
             @PathParam("key") String key) {
@@ -120,5 +140,52 @@ public class OrgControlTowerSelectablesResource extends ControlTowerResourceSupp
         return ownerWork(organizationId, () -> selectables.delete(tenant, actor, key)
                 ? Response.noContent().build()
                 : error(Response.Status.NOT_FOUND, "selectable not found"));
+    }
+
+    private Uni<Response> memberWork(Supplier<Response> work) {
+        return Uni.createFrom().item(() -> guarded(work))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+    }
+
+    private Uni<Response> ownerWork(String organizationId, Supplier<Response> work) {
+        return roleService.requireOwner(organizationId).flatMap(ignored -> memberWork(work));
+    }
+
+    private String tenantCode(String organizationId) {
+        if (!Objects.equals(organizationId, organizationContext.getOrganizationId())) {
+            throw new WebApplicationException(error(Response.Status.FORBIDDEN,
+                    "Organization context does not match request path"));
+        }
+        return tenantContext.getTenantCode() != null ? tenantContext.getTenantCode() : tenantContext.getClientId();
+    }
+
+    /** The user's email for a session token, the client id for an M2M token. */
+    private String actor() {
+        String email = organizationContext.getUserEmail();
+        if (email != null && !email.isBlank()) {
+            return email;
+        }
+        if (identity != null && identity.getPrincipal() != null) {
+            return identity.getPrincipal().getName();
+        }
+        return null;
+    }
+
+    /** {@link IllegalArgumentException} is a 400, {@link NoSuchElementException} a 404. */
+    private static Response guarded(Supplier<Response> work) {
+        try {
+            return work.get();
+        } catch (IllegalArgumentException e) {
+            return error(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (NoSuchElementException e) {
+            return error(Response.Status.NOT_FOUND, e.getMessage());
+        }
+    }
+
+    private static Response error(Response.Status status, String message) {
+        return Response.status(status)
+                .type(MediaType.APPLICATION_JSON)
+                .entity(Map.of("error", message == null ? status.getReasonPhrase() : message))
+                .build();
     }
 }

@@ -1,6 +1,5 @@
-package com.microboxlabs.miot.symptoms.store;
+package com.microboxlabs.miot.core.selectable;
 
-import com.microboxlabs.miot.symptoms.domain.Selectable;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -9,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** Process-local selectable store. */
+/** Process-local store: lists are lost on restart. */
 @ApplicationScoped
 public class InMemorySelectableStore implements SelectableStore {
 
@@ -37,7 +36,14 @@ public class InMemorySelectableStore implements SelectableStore {
     @Override
     public synchronized boolean delete(String tenantCode, String key) {
         Map<String, Selectable> tenant = byTenant.get(tenantCode);
-        return tenant != null && tenant.remove(key) != null;
+        if (tenant == null || tenant.remove(key) == null) {
+            return false;
+        }
+        Map<String, String> bindings = bindingsByTenant.get(tenantCode);
+        if (bindings != null) {
+            bindings.values().removeIf(key::equals);
+        }
+        return true;
     }
 
     @Override

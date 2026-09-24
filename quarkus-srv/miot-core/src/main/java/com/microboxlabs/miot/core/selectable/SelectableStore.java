@@ -1,11 +1,10 @@
-package com.microboxlabs.miot.symptoms.store;
+package com.microboxlabs.miot.core.selectable;
 
-import com.microboxlabs.miot.symptoms.domain.Selectable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** Option lists behind the treatment forms, and which form field uses which list. */
+/** Option lists, and which form field uses which list. */
 public interface SelectableStore {
 
     /** Ordered by creation. */
@@ -16,6 +15,7 @@ public interface SelectableStore {
     /** Creates or replaces by key; stamps {@code updatedAt}. */
     Selectable upsert(Selectable selectable);
 
+    /** Also drops every binding that pointed at the deleted list. */
     boolean delete(String tenantCode, String key);
 
     /** Removes every selectable and binding of the tenant. */

@@ -115,9 +115,9 @@ public class DemoSeeder {
         boolean answered = random.nextInt(5) != 0;
         int outcome = random.nextInt(3);
         String outcomeKey = answered
-                ? List.of(DefaultSelectables.RESULT_COMMITS, DefaultSelectables.RESULT_CORRECTED,
-                        DefaultSelectables.RESULT_REJECTS).get(outcome)
-                : DefaultSelectables.RESULT_NO_ANSWER;
+                ? List.of(TreatmentFormSelectables.RESULT_COMMITS, TreatmentFormSelectables.RESULT_CORRECTED,
+                        TreatmentFormSelectables.RESULT_REJECTS).get(outcome)
+                : TreatmentFormSelectables.RESULT_NO_ANSWER;
         String outcomeLabel = answered
                 ? List.of("Contesta — se compromete a corregir", "Contesta — condición ya corregida",
                         "Contesta — rechaza o discute").get(outcome)

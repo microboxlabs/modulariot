@@ -1,4 +1,4 @@
-package com.microboxlabs.miot.symptoms.dto;
+package com.microboxlabs.miot.core.api.dto;
 
 import java.util.Map;
 

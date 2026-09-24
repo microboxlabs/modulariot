@@ -1,7 +1,7 @@
-package com.microboxlabs.miot.symptoms.dto;
+package com.microboxlabs.miot.core.api.dto;
 
-import com.microboxlabs.miot.symptoms.domain.SelectableOption;
-import com.microboxlabs.miot.symptoms.domain.SelectionMode;
+import com.microboxlabs.miot.core.selectable.SelectableOption;
+import com.microboxlabs.miot.core.selectable.SelectionMode;
 import java.util.List;
 
 /** Full replacement of one selectable. Options without an id get one assigned. */

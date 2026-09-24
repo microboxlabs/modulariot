@@ -1,9 +1,9 @@
-package com.microboxlabs.miot.symptoms.domain;
+package com.microboxlabs.miot.core.selectable;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 
-/** A named option list behind one treatment-form field (call result, ignore reason, tags, ...). */
+/** A named option list an organization can edit, such as the reasons a form field offers. */
 public record Selectable(
         String tenantCode,
         String key,

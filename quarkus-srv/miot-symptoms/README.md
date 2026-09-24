@@ -6,8 +6,9 @@ Two things live here, behind one component switch (`miot.component.symptoms.enab
    `prod-streamhub-apis-miot-symptoms-*` Autopilot pod per `rule_id`, driven by
    a `RouteTable`. Gated separately by `miot.symptoms.cdc.enabled`.
 2. The **Control Tower API** under `/api/v1/orgs/{org}/control-tower`:
-   treatment episodes, contacts, selectables and an audit log, on in-memory
-   demo data for now. See [docs/control-tower-api.md](docs/control-tower-api.md).
+   treatment episodes, contacts and an audit log, on in-memory demo data for
+   now. The form option lists are the core selectables API; this module seeds
+   the treatment-form defaults. See [docs/control-tower-api.md](docs/control-tower-api.md).
 
 This is **not** a detector. Heavy work stays in Postgres `process_symptoms_*`
 and (optionally) n8n / `router.streamhub.cl`.

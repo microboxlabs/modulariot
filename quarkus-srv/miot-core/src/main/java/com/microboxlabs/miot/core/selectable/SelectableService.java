@@ -1,11 +1,10 @@
-package com.microboxlabs.miot.symptoms.service;
+package com.microboxlabs.miot.core.selectable;
 
-import com.microboxlabs.miot.symptoms.domain.Selectable;
-import com.microboxlabs.miot.symptoms.domain.SelectableOption;
-import com.microboxlabs.miot.symptoms.dto.SelectableBindingsRequest;
-import com.microboxlabs.miot.symptoms.dto.SelectableRequest;
-import com.microboxlabs.miot.symptoms.store.SelectableStore;
+import com.microboxlabs.miot.core.api.dto.SelectableBindingsRequest;
+import com.microboxlabs.miot.core.api.dto.SelectableRequest;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -15,27 +14,36 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 /**
- * Option lists behind the treatment forms. An organization gets
- * {@link DefaultSelectables} the first time it asks, so the forms and the
- * settings page always have something to show.
+ * Per-organization option lists, and which form field uses which list. An
+ * organization gets every {@link SelectableDefaults} list the first time it
+ * asks, so a form always has something to show. Writes fire
+ * {@link SelectableChanged}.
  */
 @ApplicationScoped
 public class SelectableService {
 
-    static final String ENTITY = "selectable";
     private static final Pattern KEY = Pattern.compile("^[a-z][a-z0-9_]{1,63}$");
 
     private final SelectableStore store;
-    private final AuditService audit;
+    private final Iterable<SelectableDefaults> defaults;
+    private final Consumer<SelectableChanged> changed;
     private final Set<String> seeded = new HashSet<>();
 
     @Inject
-    public SelectableService(SelectableStore store, AuditService audit) {
+    public SelectableService(SelectableStore store, Instance<SelectableDefaults> defaults,
+            Event<SelectableChanged> changed) {
+        this(store, defaults, changed::fire);
+    }
+
+    SelectableService(SelectableStore store, Iterable<SelectableDefaults> defaults,
+            Consumer<SelectableChanged> changed) {
         this.store = store;
-        this.audit = audit;
+        this.defaults = defaults;
+        this.changed = changed;
     }
 
     public List<Selectable> list(String tenantCode) {
@@ -72,8 +80,8 @@ public class SelectableService {
         }
         Selectable saved = store.upsert(new Selectable(
                 tenantCode, key, req.name().trim(), req.description(), req.mode(), options, actor, null));
-        audit.record(tenantCode, actor, "selectable.replaced", ENTITY, key, null,
-                Map.of("name", saved.name(), "options", options.size()));
+        changed.accept(new SelectableChanged(tenantCode, actor, "selectable.replaced", key,
+                Map.of("name", saved.name(), "options", options.size())));
         return saved;
     }
 
@@ -82,7 +90,7 @@ public class SelectableService {
         seedOnce(tenantCode);
         boolean deleted = store.delete(tenantCode, key);
         if (deleted) {
-            audit.record(tenantCode, actor, "selectable.deleted", ENTITY, key, null, Map.of());
+            changed.accept(new SelectableChanged(tenantCode, actor, "selectable.deleted", key, Map.of()));
         }
         return deleted;
     }
@@ -91,10 +99,10 @@ public class SelectableService {
     public List<Selectable> reset(String tenantCode, String actor) {
         synchronized (seeded) {
             store.clear(tenantCode);
-            DefaultSelectables.forTenant(tenantCode).forEach(store::upsert);
+            seedDefaults(tenantCode);
             seeded.add(tenantCode);
         }
-        audit.record(tenantCode, actor, "selectable.reset", ENTITY, "all", null, Map.of());
+        changed.accept(new SelectableChanged(tenantCode, actor, "selectable.reset", "all", Map.of()));
         return store.list(tenantCode);
     }
 
@@ -116,16 +124,22 @@ public class SelectableService {
             }
         }
         req.bindings().forEach((field, key) -> store.bind(tenantCode, field, key));
-        audit.record(tenantCode, actor, "selectable.bindings_updated", ENTITY, "bindings", null,
-                new LinkedHashMap<>(req.bindings()));
+        changed.accept(new SelectableChanged(tenantCode, actor, "selectable.bindings_updated", "bindings",
+                new LinkedHashMap<>(req.bindings())));
         return store.bindings(tenantCode);
     }
 
     private void seedOnce(String tenantCode) {
         synchronized (seeded) {
             if (seeded.add(tenantCode) && store.list(tenantCode).isEmpty()) {
-                DefaultSelectables.forTenant(tenantCode).forEach(store::upsert);
+                seedDefaults(tenantCode);
             }
+        }
+    }
+
+    private void seedDefaults(String tenantCode) {
+        for (SelectableDefaults d : defaults) {
+            d.forTenant(tenantCode).forEach(store::upsert);
         }
     }
 

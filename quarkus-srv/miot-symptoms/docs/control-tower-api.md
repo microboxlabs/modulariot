@@ -1,8 +1,9 @@
 # Control Tower API
 
 Org-scoped REST API in the modulith for the Control Tower treatment screen:
-treatment episodes and their actions, the "who to call" contacts, the option
-lists behind the forms, and an audit log.
+treatment episodes and their actions, the "who to call" contacts, and an
+audit log. The option lists behind the forms come from the core selectables
+API.
 
 **Status: demo data.** Everything lives in memory in the modulith process and is
 lost on restart. Contacts and a short treatment history per symptom are seeded
@@ -67,21 +68,17 @@ international number; spaces and dashes are stripped. Each contact returns
 
 ## Selectables
 
-| Operation | Method and path | Who |
-|---|---|---|
-| `listSelectables` | `GET /selectables` | member. Seeds the defaults on first call |
-| `getSelectable` | `GET /selectables/{key}` | member |
-| `replaceSelectable` | `PUT /selectables/{key}` | owner. Creates or replaces the whole list |
-| `deleteSelectable` | `DELETE /selectables/{key}` | owner |
-| `resetSelectables` | `POST /selectables/reset` | owner. Drops every list and binding and restores the defaults |
-| `getSelectableBindings` | `GET /selectables/bindings` | member |
-| `updateSelectableBindings` | `PUT /selectables/bindings` | owner. `{bindings: {fieldKey: selectableKey}}` |
+The option lists behind the forms are not part of this API. They are a core
+API, `/api/v1/orgs/{organizationId}/selectables` (`OrgSelectablesResource` in
+`miot-core`). This module adds two things to it:
 
-Default keys: `who_to_call`, `call_result`, `call_tags`, `ignore_reason`,
-`ignore_duration`, `invalidate_reason`. `call_result` option ids are
-`result_commits`, `result_corrected`, `result_rejects`, `result_no_answer`,
-`result_voicemail`. A field with no binding uses the selectable whose key equals
-the field key. `mode` is `SINGLE` or `MULTIPLE`.
+- `TreatmentFormSelectables`, the lists an organization starts with:
+  `who_to_call`, `call_result`, `call_tags`, `ignore_reason`,
+  `ignore_duration`, `invalidate_reason`. `call_result` option ids are
+  `result_commits`, `result_corrected`, `result_rejects`, `result_no_answer`,
+  `result_voicemail`.
+- `SelectableAudit`, which writes every selectable change to the audit log
+  below.
 
 ## Audit
 
@@ -100,7 +97,7 @@ Newest first, `limit` up to 500. Actions: `treatment.opened`,
 |---|---|
 | 400 | Validation. Body `{"error": "..."}` |
 | 403 | Not a member, org path mismatch, or an owner-only write |
-| 404 | Treatment, contact or selectable not found |
+| 404 | Treatment or contact not found |
 | 409 | Treatment not `OPEN`, or closing one with no actions |
 
 ## Treatment screen flow
@@ -116,10 +113,11 @@ Newest first, `limit` up to 500. Actions: `treatment.opened`,
 | Invalidate | `addTreatmentAction {kind: INVALIDATE, outcomeKey, note}` then `closeTreatment` |
 | Panel closed with nothing recorded | `cancelTreatment` |
 | Timeline and symptom card | `listSymptomTreatments` |
-| Settings › Seleccionables | `listSelectables`, `replaceSelectable`, `deleteSelectable`, `resetSelectables`, bindings |
+| Settings › Seleccionables | core selectables API |
 
-The Next app reaches these through `/app/api/control-tower/*`, which resolves
-the active organization server-side and forwards the user's session token.
+The Next app reaches these through `/app/api/control-tower/*`, and the core
+selectables through `/app/api/selectables/*`. Both resolve the active
+organization server-side and forward the user's session token.
 
 ## Configuration
 

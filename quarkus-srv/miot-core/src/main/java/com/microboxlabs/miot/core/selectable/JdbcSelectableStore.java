@@ -122,8 +122,8 @@ public class JdbcSelectableStore implements SelectableStore {
             try (PreparedStatement st = c.prepareStatement("INSERT INTO miot_core.selectable_bindings"
                     + " (tenant_code, field_key, selectable_key) VALUES (?, ?, ?)"
                     + " ON CONFLICT (tenant_code, field_key) DO UPDATE SET selectable_key = EXCLUDED.selectable_key")) {
+                st.setString(1, tenantCode);
                 for (Map.Entry<String, String> e : fieldToSelectable.entrySet()) {
-                    st.setString(1, tenantCode);
                     st.setString(2, e.getKey());
                     st.setString(3, e.getValue());
                     try {

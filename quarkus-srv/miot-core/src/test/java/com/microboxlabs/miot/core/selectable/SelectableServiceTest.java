@@ -181,6 +181,20 @@ class SelectableServiceTest {
         assertEquals(List.of("reason", "tags"), flakyService.list(TENANT).stream().map(Selectable::key).toList());
     }
 
+    @Test
+    void defaultsAlwaysLandInTheTenantBeingSeeded() {
+        SelectableDefaults careless = tenant -> List.of(list("tenant-b", "reason", SelectionMode.SINGLE, "r_1"));
+        SelectableService carelessService = new SelectableService(new InMemorySelectableStore(),
+                List.of(careless), events::add);
+
+        List<Selectable> seededForA = carelessService.list(TENANT);
+
+        assertEquals(List.of(TENANT), seededForA.stream().map(Selectable::tenantCode).toList());
+        assertEquals(List.of(TENANT), carelessService.reset(TENANT, "o").stream().map(Selectable::tenantCode).toList());
+        assertTrue(carelessService.bindings("tenant-b").isEmpty());
+        assertEquals(List.of("reason"), carelessService.list("tenant-b").stream().map(Selectable::key).toList());
+    }
+
     private static void await(CountDownLatch latch) {
         try {
             latch.await(5, TimeUnit.SECONDS);

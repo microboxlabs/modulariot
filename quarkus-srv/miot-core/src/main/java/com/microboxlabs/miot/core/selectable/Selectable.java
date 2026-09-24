@@ -27,7 +27,7 @@ public record Selectable(
             String descriptionEn, SelectionMode mode, List<SelectableOption> options) {
         return new Selectable(null, key, Localized.of(nameEs, nameEn), Localized.of(descriptionEs, descriptionEn),
                 mode, SelectableSettings.DEFAULT, List.of(), SelectableSource.STATIC, options,
-                "system:defaults", null);
+                SelectableDefaultsFile.UPDATED_BY, null);
     }
 
     public Selectable forTenant(String tenant) {

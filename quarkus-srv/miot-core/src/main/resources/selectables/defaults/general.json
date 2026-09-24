@@ -1,0 +1,271 @@
+[
+  {
+    "key": "priority",
+    "name": {"es": "Prioridad", "en": "Priority"},
+    "description": {"es": "Urgencia de una tarea, incidente o solicitud.", "en": "How urgent a task, incident or request is."},
+    "mode": "SINGLE",
+    "options": [
+      {"value": "low", "label": {"es": "Baja", "en": "Low"}, "color": "gray", "icon": "hi2-arrow-trending-down"},
+      {"value": "medium", "label": {"es": "Media", "en": "Medium"}, "color": "blue", "icon": "hi2-minus"},
+      {"value": "high", "label": {"es": "Alta", "en": "High"}, "color": "yellow", "icon": "hi2-arrow-trending-up"},
+      {"value": "critical", "label": {"es": "Crítica", "en": "Critical"}, "description": {"es": "Atender de inmediato.", "en": "Handle right away."}, "color": "red", "icon": "hi2-fire"}
+    ]
+  },
+  {
+    "key": "yes_no",
+    "name": {"es": "Sí / No / No aplica", "en": "Yes / No / Not applicable"},
+    "description": {"es": "Respuesta cerrada para checklists e inspecciones.", "en": "Closed answer for checklists and inspections."},
+    "mode": "SINGLE",
+    "options": [
+      {"value": "yes", "label": {"es": "Sí", "en": "Yes"}, "color": "green", "icon": "hi2-check-circle"},
+      {"value": "no", "label": {"es": "No", "en": "No"}, "color": "red", "icon": "hi2-x-circle"},
+      {"value": "n_a", "label": {"es": "No aplica", "en": "Not applicable"}, "color": "gray", "icon": "hi2-outline-no-symbol"}
+    ]
+  },
+  {
+    "key": "incident_type",
+    "name": {"es": "Tipo de incidente", "en": "Incident type"},
+    "description": {"es": "Qué pasó durante un viaje, agrupado por origen.", "en": "What happened on a trip, grouped by cause."},
+    "mode": "SINGLE",
+    "groups": [
+      {"key": "vehicle", "label": {"es": "Vehículo", "en": "Vehicle"}},
+      {"key": "cargo", "label": {"es": "Carga", "en": "Cargo"}},
+      {"key": "driver", "label": {"es": "Conductor", "en": "Driver"}},
+      {"key": "external", "label": {"es": "Externo", "en": "External"}}
+    ],
+    "options": [
+      {"value": "mechanical_failure", "label": {"es": "Falla mecánica", "en": "Mechanical failure"}, "group": "vehicle"},
+      {"value": "flat_tire", "label": {"es": "Pinchazo", "en": "Flat tire"}, "group": "vehicle"},
+      {"value": "accident", "label": {"es": "Accidente", "en": "Accident"}, "group": "vehicle", "color": "red", "icon": "hi2-exclamation-triangle"},
+      {"value": "cargo_damage", "label": {"es": "Carga dañada", "en": "Damaged cargo"}, "group": "cargo"},
+      {"value": "cargo_shortage", "label": {"es": "Faltante de carga", "en": "Cargo shortage"}, "group": "cargo"},
+      {"value": "fatigue", "label": {"es": "Fatiga", "en": "Fatigue"}, "group": "driver"},
+      {"value": "no_show", "label": {"es": "Conductor no se presenta", "en": "Driver no-show"}, "group": "driver"},
+      {"value": "road_block", "label": {"es": "Ruta bloqueada", "en": "Road blocked"}, "group": "external"},
+      {"value": "weather", "label": {"es": "Clima", "en": "Weather"}, "group": "external"}
+    ]
+  },
+  {
+    "key": "delay_reason",
+    "name": {"es": "Motivo de retraso", "en": "Delay reason"},
+    "description": {"es": "Hasta tres causas de un atraso.", "en": "Up to three causes of a delay."},
+    "mode": "MULTIPLE",
+    "settings": {"searchable": true, "creatable": false, "maxSelections": 3, "placeholder": {"es": "Elige hasta tres motivos", "en": "Pick up to three reasons"}},
+    "groups": [
+      {"key": "origin", "label": {"es": "En origen", "en": "At origin"}},
+      {"key": "route", "label": {"es": "En ruta", "en": "On the road"}},
+      {"key": "destination", "label": {"es": "En destino", "en": "At destination"}}
+    ],
+    "options": [
+      {"value": "late_loading", "label": {"es": "Carga tardía", "en": "Late loading"}, "group": "origin"},
+      {"value": "missing_documents", "label": {"es": "Documentos pendientes", "en": "Missing documents"}, "group": "origin"},
+      {"value": "traffic", "label": {"es": "Tráfico", "en": "Traffic"}, "group": "route"},
+      {"value": "detour", "label": {"es": "Desvío", "en": "Detour"}, "group": "route"},
+      {"value": "mandatory_rest", "label": {"es": "Descanso obligatorio", "en": "Mandatory rest"}, "group": "route"},
+      {"value": "dock_busy", "label": {"es": "Andén ocupado", "en": "Dock busy"}, "group": "destination"},
+      {"value": "receiver_closed", "label": {"es": "Destinatario cerrado", "en": "Receiver closed"}, "group": "destination"}
+    ]
+  },
+  {
+    "key": "cargo_tags",
+    "name": {"es": "Características de la carga", "en": "Cargo characteristics"},
+    "description": {"es": "Etiquetas libres; se puede escribir una nueva.", "en": "Free tags; a new one can be typed in."},
+    "mode": "MULTIPLE",
+    "settings": {"searchable": true, "creatable": true},
+    "options": [
+      {"value": "fragile", "label": {"es": "Frágil", "en": "Fragile"}, "color": "yellow", "icon": "hi2-exclamation-triangle"},
+      {"value": "refrigerated", "label": {"es": "Refrigerada", "en": "Refrigerated"}, "color": "cyan", "icon": "tb-thermometer"},
+      {"value": "hazardous", "label": {"es": "Peligrosa (IMO)", "en": "Hazardous (IMO)"}, "color": "red", "icon": "hi2-fire"},
+      {"value": "oversized", "label": {"es": "Sobredimensionada", "en": "Oversized"}, "color": "purple", "icon": "hi2-cube"},
+      {"value": "high_value", "label": {"es": "Alto valor", "en": "High value"}, "color": "green", "icon": "hi2-currency-dollar"}
+    ]
+  },
+  {
+    "key": "document_type",
+    "name": {"es": "Tipo de documento", "en": "Document type"},
+    "description": {"es": "Documentos que acompañan un envío.", "en": "Documents that travel with a shipment."},
+    "mode": "SINGLE",
+    "options": [
+      {"value": "dispatch_guide", "label": {"es": "Guía de despacho", "en": "Dispatch guide"}, "icon": "hi2-document-text"},
+      {"value": "invoice", "label": {"es": "Factura", "en": "Invoice"}, "icon": "hi2-document-text"},
+      {"value": "purchase_order", "label": {"es": "Orden de compra", "en": "Purchase order"}, "icon": "hi2-document-text"},
+      {"value": "proof_of_delivery", "label": {"es": "Comprobante de entrega (POD)", "en": "Proof of delivery (POD)"}, "icon": "hi2-check-circle"},
+      {"value": "bill_of_lading", "label": {"es": "Conocimiento de embarque", "en": "Bill of lading"}, "icon": "hi2-document-text"},
+      {"value": "packing_list", "label": {"es": "Lista de empaque", "en": "Packing list"}, "icon": "hi2-cube"}
+    ]
+  },
+  {
+    "key": "vehicle_type",
+    "name": {"es": "Tipo de vehículo", "en": "Vehicle type"},
+    "description": {"es": "Configuraciones de vehículo de carga.", "en": "Freight vehicle configurations."},
+    "mode": "SINGLE",
+    "options": [
+      {"value": "pickup", "label": {"es": "Camioneta", "en": "Pickup"}, "icon": "hi2-truck"},
+      {"value": "truck_3_4", "label": {"es": "Camión 3/4", "en": "Light truck"}, "icon": "hi2-truck"},
+      {"value": "rigid_truck", "label": {"es": "Camión rígido", "en": "Rigid truck"}, "icon": "hi2-truck"},
+      {"value": "tractor_trailer", "label": {"es": "Tracto con semirremolque", "en": "Tractor-trailer"}, "icon": "hi2-truck"},
+      {"value": "tanker", "label": {"es": "Camión cisterna", "en": "Tanker"}, "icon": "hi2-truck"},
+      {"value": "reefer", "label": {"es": "Camión refrigerado", "en": "Refrigerated truck"}, "color": "cyan", "icon": "tb-thermometer"},
+      {"value": "dump_truck", "label": {"es": "Tolva", "en": "Dump truck"}, "icon": "hi2-truck"},
+      {"value": "lowboy", "label": {"es": "Cama baja", "en": "Lowboy"}, "description": {"es": "Aún no disponible en la flota.", "en": "Not in the fleet yet."}, "icon": "hi2-truck", "disabled": true}
+    ]
+  },
+  {
+    "key": "contact_role",
+    "name": {"es": "Rol de contacto", "en": "Contact role"},
+    "description": {"es": "Quién es la persona a la que se llama o escribe.", "en": "Who the person being contacted is."},
+    "mode": "SINGLE",
+    "options": [
+      {"value": "driver", "label": {"es": "Conductor", "en": "Driver"}, "icon": "hi2-user"},
+      {"value": "dispatcher", "label": {"es": "Despachador", "en": "Dispatcher"}, "icon": "hi2-phone"},
+      {"value": "supervisor", "label": {"es": "Supervisor", "en": "Supervisor"}, "icon": "hi2-shield-check"},
+      {"value": "customer", "label": {"es": "Cliente", "en": "Customer"}, "icon": "hi2-user"},
+      {"value": "carrier", "label": {"es": "Transportista", "en": "Carrier"}, "icon": "hi2-truck"},
+      {"value": "warehouse", "label": {"es": "Bodega", "en": "Warehouse"}, "icon": "hi2-cube"}
+    ]
+  },
+  {
+    "key": "shift",
+    "name": {"es": "Turno", "en": "Shift"},
+    "description": {"es": "Turnos de trabajo.", "en": "Work shifts."},
+    "mode": "SINGLE",
+    "options": [
+      {"value": "morning", "label": {"es": "Mañana", "en": "Morning"}, "description": {"es": "06:00 – 14:00", "en": "06:00 – 14:00"}, "color": "yellow", "icon": "hi2-outline-sun"},
+      {"value": "afternoon", "label": {"es": "Tarde", "en": "Afternoon"}, "description": {"es": "14:00 – 22:00", "en": "14:00 – 22:00"}, "color": "indigo", "icon": "hi2-clock"},
+      {"value": "night", "label": {"es": "Noche", "en": "Night"}, "description": {"es": "22:00 – 06:00", "en": "22:00 – 06:00"}, "color": "purple", "icon": "hi2-outline-moon"}
+    ]
+  },
+  {
+    "key": "weekdays",
+    "name": {"es": "Días de la semana", "en": "Days of the week"},
+    "description": {"es": "Días de operación, ventanas de entrega o turnos.", "en": "Operating days, delivery windows or shifts."},
+    "mode": "MULTIPLE",
+    "settings": {"searchable": false, "creatable": false},
+    "groups": [
+      {"key": "weekend", "label": {"es": "Fin de semana", "en": "Weekend"}}
+    ],
+    "options": [
+      {"value": "MON", "label": {"es": "Lunes", "en": "Monday"}},
+      {"value": "TUE", "label": {"es": "Martes", "en": "Tuesday"}},
+      {"value": "WED", "label": {"es": "Miércoles", "en": "Wednesday"}},
+      {"value": "THU", "label": {"es": "Jueves", "en": "Thursday"}},
+      {"value": "FRI", "label": {"es": "Viernes", "en": "Friday"}},
+      {"value": "SAT", "label": {"es": "Sábado", "en": "Saturday"}, "group": "weekend"},
+      {"value": "SUN", "label": {"es": "Domingo", "en": "Sunday"}, "group": "weekend"}
+    ]
+  },
+  {
+    "key": "satisfaction",
+    "name": {"es": "Nivel de satisfacción", "en": "Satisfaction"},
+    "description": {"es": "Encuesta de 1 a 5.", "en": "A 1 to 5 survey."},
+    "mode": "SINGLE",
+    "settings": {"searchable": false, "creatable": false},
+    "options": [
+      {"value": "1", "label": {"es": "1 — Muy malo", "en": "1 — Very poor"}, "color": "red", "icon": "hi2-star"},
+      {"value": "2", "label": {"es": "2 — Malo", "en": "2 — Poor"}, "color": "yellow", "icon": "hi2-star"},
+      {"value": "3", "label": {"es": "3 — Regular", "en": "3 — Fair"}, "color": "gray", "icon": "hi2-star"},
+      {"value": "4", "label": {"es": "4 — Bueno", "en": "4 — Good"}, "color": "lime", "icon": "hi2-star"},
+      {"value": "5", "label": {"es": "5 — Excelente", "en": "5 — Excellent"}, "color": "green", "icon": "hi2-star"}
+    ]
+  },
+  {
+    "key": "unit_of_measure",
+    "name": {"es": "Unidad de medida", "en": "Unit of measure"},
+    "description": {"es": "Unidades para peso, volumen y bultos.", "en": "Units for weight, volume and packages."},
+    "mode": "SINGLE",
+    "groups": [
+      {"key": "weight", "label": {"es": "Peso", "en": "Weight"}},
+      {"key": "volume", "label": {"es": "Volumen", "en": "Volume"}},
+      {"key": "count", "label": {"es": "Bultos", "en": "Packages"}}
+    ],
+    "options": [
+      {"value": "kg", "label": {"es": "Kilogramo (kg)", "en": "Kilogram (kg)"}, "group": "weight"},
+      {"value": "t", "label": {"es": "Tonelada (t)", "en": "Tonne (t)"}, "group": "weight"},
+      {"value": "lb", "label": {"es": "Libra (lb)", "en": "Pound (lb)"}, "description": {"es": "No se usa en Chile.", "en": "Not used in Chile."}, "group": "weight", "disabled": true},
+      {"value": "m3", "label": {"es": "Metro cúbico (m³)", "en": "Cubic metre (m³)"}, "group": "volume"},
+      {"value": "l", "label": {"es": "Litro (l)", "en": "Litre (l)"}, "group": "volume"},
+      {"value": "unit", "label": {"es": "Unidad", "en": "Unit"}, "group": "count"},
+      {"value": "box", "label": {"es": "Caja", "en": "Box"}, "group": "count"},
+      {"value": "pallet", "label": {"es": "Pallet", "en": "Pallet"}, "group": "count"}
+    ]
+  },
+  {
+    "key": "region",
+    "name": {"es": "Región (Chile)", "en": "Region (Chile)"},
+    "description": {"es": "Regiones de Chile; el valor es el código ISO 3166-2.", "en": "Regions of Chile; the value is the ISO 3166-2 code."},
+    "mode": "SINGLE",
+    "settings": {"searchable": true, "creatable": false, "placeholder": {"es": "Busca una región", "en": "Search a region"}},
+    "options": [
+      {"value": "CL-AP", "label": {"es": "Arica y Parinacota", "en": "Arica y Parinacota"}},
+      {"value": "CL-TA", "label": {"es": "Tarapacá", "en": "Tarapacá"}},
+      {"value": "CL-AN", "label": {"es": "Antofagasta", "en": "Antofagasta"}},
+      {"value": "CL-AT", "label": {"es": "Atacama", "en": "Atacama"}},
+      {"value": "CL-CO", "label": {"es": "Coquimbo", "en": "Coquimbo"}},
+      {"value": "CL-VS", "label": {"es": "Valparaíso", "en": "Valparaíso"}},
+      {"value": "CL-RM", "label": {"es": "Metropolitana de Santiago", "en": "Santiago Metropolitan"}},
+      {"value": "CL-LI", "label": {"es": "O'Higgins", "en": "O'Higgins"}},
+      {"value": "CL-ML", "label": {"es": "Maule", "en": "Maule"}},
+      {"value": "CL-NB", "label": {"es": "Ñuble", "en": "Ñuble"}},
+      {"value": "CL-BI", "label": {"es": "Biobío", "en": "Biobío"}},
+      {"value": "CL-AR", "label": {"es": "La Araucanía", "en": "La Araucanía"}},
+      {"value": "CL-LR", "label": {"es": "Los Ríos", "en": "Los Ríos"}},
+      {"value": "CL-LL", "label": {"es": "Los Lagos", "en": "Los Lagos"}},
+      {"value": "CL-AI", "label": {"es": "Aysén", "en": "Aysén"}},
+      {"value": "CL-MA", "label": {"es": "Magallanes", "en": "Magallanes"}}
+    ]
+  },
+  {
+    "key": "commune",
+    "name": {"es": "Comuna", "en": "Commune"},
+    "description": {"es": "Muestra de comunas, filtrada por la región elegida.", "en": "A sample of communes, filtered by the region picked."},
+    "mode": "SINGLE",
+    "settings": {"searchable": true, "creatable": false, "dependsOn": "region", "placeholder": {"es": "Primero elige una región", "en": "Pick a region first"}},
+    "options": [
+      {"value": "antofagasta", "label": {"es": "Antofagasta", "en": "Antofagasta"}, "parent": "CL-AN"},
+      {"value": "calama", "label": {"es": "Calama", "en": "Calama"}, "parent": "CL-AN"},
+      {"value": "mejillones", "label": {"es": "Mejillones", "en": "Mejillones"}, "parent": "CL-AN"},
+      {"value": "tocopilla", "label": {"es": "Tocopilla", "en": "Tocopilla"}, "parent": "CL-AN"},
+      {"value": "copiapo", "label": {"es": "Copiapó", "en": "Copiapó"}, "parent": "CL-AT"},
+      {"value": "vallenar", "label": {"es": "Vallenar", "en": "Vallenar"}, "parent": "CL-AT"},
+      {"value": "la_serena", "label": {"es": "La Serena", "en": "La Serena"}, "parent": "CL-CO"},
+      {"value": "coquimbo", "label": {"es": "Coquimbo", "en": "Coquimbo"}, "parent": "CL-CO"},
+      {"value": "ovalle", "label": {"es": "Ovalle", "en": "Ovalle"}, "parent": "CL-CO"},
+      {"value": "valparaiso", "label": {"es": "Valparaíso", "en": "Valparaíso"}, "parent": "CL-VS"},
+      {"value": "vina_del_mar", "label": {"es": "Viña del Mar", "en": "Viña del Mar"}, "parent": "CL-VS"},
+      {"value": "san_antonio", "label": {"es": "San Antonio", "en": "San Antonio"}, "parent": "CL-VS"},
+      {"value": "los_andes", "label": {"es": "Los Andes", "en": "Los Andes"}, "parent": "CL-VS"},
+      {"value": "quillota", "label": {"es": "Quillota", "en": "Quillota"}, "parent": "CL-VS"},
+      {"value": "santiago", "label": {"es": "Santiago", "en": "Santiago"}, "parent": "CL-RM"},
+      {"value": "providencia", "label": {"es": "Providencia", "en": "Providencia"}, "parent": "CL-RM"},
+      {"value": "las_condes", "label": {"es": "Las Condes", "en": "Las Condes"}, "parent": "CL-RM"},
+      {"value": "maipu", "label": {"es": "Maipú", "en": "Maipú"}, "parent": "CL-RM"},
+      {"value": "pudahuel", "label": {"es": "Pudahuel", "en": "Pudahuel"}, "parent": "CL-RM"},
+      {"value": "quilicura", "label": {"es": "Quilicura", "en": "Quilicura"}, "parent": "CL-RM"},
+      {"value": "san_bernardo", "label": {"es": "San Bernardo", "en": "San Bernardo"}, "parent": "CL-RM"},
+      {"value": "puente_alto", "label": {"es": "Puente Alto", "en": "Puente Alto"}, "parent": "CL-RM"},
+      {"value": "concepcion", "label": {"es": "Concepción", "en": "Concepción"}, "parent": "CL-BI"},
+      {"value": "talcahuano", "label": {"es": "Talcahuano", "en": "Talcahuano"}, "parent": "CL-BI"},
+      {"value": "coronel", "label": {"es": "Coronel", "en": "Coronel"}, "parent": "CL-BI"},
+      {"value": "los_angeles", "label": {"es": "Los Ángeles", "en": "Los Ángeles"}, "parent": "CL-BI"},
+      {"value": "puerto_montt", "label": {"es": "Puerto Montt", "en": "Puerto Montt"}, "parent": "CL-LL"},
+      {"value": "osorno", "label": {"es": "Osorno", "en": "Osorno"}, "parent": "CL-LL"},
+      {"value": "castro", "label": {"es": "Castro", "en": "Castro"}, "parent": "CL-LL"}
+    ]
+  },
+  {
+    "key": "timezone",
+    "name": {"es": "Zona horaria", "en": "Time zone"},
+    "description": {"es": "Todas las zonas horarias, obtenidas del sistema.", "en": "Every time zone, fetched from the system."},
+    "mode": "SINGLE",
+    "source": {"kind": "SYSTEM", "ref": "core.timezones"},
+    "options": []
+  },
+  {
+    "key": "currency",
+    "name": {"es": "Moneda", "en": "Currency"},
+    "description": {"es": "Monedas ISO 4217, obtenidas del sistema.", "en": "ISO 4217 currencies, fetched from the system."},
+    "mode": "SINGLE",
+    "source": {"kind": "SYSTEM", "ref": "core.currencies"},
+    "options": []
+  }
+]

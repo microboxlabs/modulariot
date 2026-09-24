@@ -2,10 +2,14 @@ package com.microboxlabs.miot.core.selectable;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.api.dto.SelectableRequest;
+import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class GeneralSelectablesTest {
@@ -25,6 +29,31 @@ class GeneralSelectablesTest {
             assertEquals(s.options(), saved.options(), s.key());
             assertEquals(Localized.of(s.name().get("es"), s.name().get("en")), saved.name(), s.key());
         }
+    }
+
+    @Test
+    void keysAreUnique() {
+        List<String> keys = new GeneralSelectables().forTenant(TENANT).stream().map(Selectable::key).toList();
+
+        assertEquals(keys.size(), Set.copyOf(keys).size(), keys.toString());
+    }
+
+    @Test
+    void aMisspelledFieldFailsTheRead() {
+        UncheckedIOException e = assertThrows(UncheckedIOException.class,
+                () -> SelectableDefaultsFile.read(getClass(), "/selectables/typo.json"));
+
+        assertTrue(e.getCause().getMessage().contains("colour"), e.getCause().getMessage());
+    }
+
+    @Test
+    void omittedFieldsTakeTheirDefaults() {
+        Selectable yesNo = service.get(TENANT, "yes_no");
+
+        assertEquals(SelectableSettings.DEFAULT, yesNo.settings());
+        assertEquals(SelectableSource.STATIC, yesNo.source());
+        assertEquals(List.of(), yesNo.groups());
+        assertEquals(Map.of(), yesNo.options().get(0).description());
     }
 
     @Test

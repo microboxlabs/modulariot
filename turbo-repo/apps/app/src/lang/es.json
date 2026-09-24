@@ -1788,7 +1788,8 @@
         "credentials": "Credenciales",
         "connections": "Conexiones",
         "harness": "Harness",
-        "platform": "Plataforma"
+        "platform": "Plataforma",
+        "selectables": "Seleccionables"
       },
       "symptoms": {
         "config": {
@@ -1891,7 +1892,8 @@
         "title": "Ajustes",
         "general": "General",
         "dataSources": "Fuentes de Datos",
-        "credentials": "Credenciales"
+        "credentials": "Credenciales",
+        "selectables": "Seleccionables"
       },
       "credentials": {
         "title": "Credenciales",
@@ -2100,6 +2102,33 @@
           "clientEmailInvalid": "Ingresa el correo de la cuenta de servicio",
           "privateKeyRequired": "La clave privada es obligatoria"
         }
+      },
+      "selectables": {
+        "title": "Seleccionables",
+        "description": "Define las listas de opciones reutilizables que alimentan los selectores de la app — como \"A quién llamar\" o \"Resultado de la llamada\".",
+        "newSelectable": "Nuevo seleccionable",
+        "empty": "Aún no hay seleccionables definidos. Crea uno para empezar.",
+        "nameLabel": "Nombre",
+        "namePlaceholder": "ej. A quién llamar",
+        "descriptionLabel": "Descripción",
+        "descriptionPlaceholder": "Para qué se usa esta lista",
+        "modeLabel": "Selección",
+        "modeSingle": "Selección única",
+        "modeMultiple": "Selección múltiple",
+        "optionsTitle": "Opciones",
+        "optionNamePlaceholder": "Nombre de la opción",
+        "optionDescPlaceholder": "Descripción de la opción (opcional)",
+        "addOption": "Agregar opción",
+        "removeOption": "Quitar opción",
+        "removeSelectable": "Eliminar seleccionable",
+        "duplicate": "Duplicar",
+        "optionsCount": "{count} opciones",
+        "savedHint": "Demostración: los cambios se comparten en la organización, pero se pierden al reiniciar el servicio.",
+        "resetSeed": "Restaurar predeterminados",
+        "editTitle": "Editar seleccionable",
+        "edit": "Editar",
+        "cancel": "Cancelar",
+        "save": "Guardar"
       }
     },
     "integrationJobs": {
@@ -2575,7 +2604,8 @@
         "searchPlaceholder": "Buscar...",
         "createDashboard": "Nuevo dashboard",
         "closePanel": "Cerrar panel",
-        "platform": "Plataforma"
+        "platform": "Plataforma",
+        "selectables": "Seleccionables"
       }
     },
     "calendar": {

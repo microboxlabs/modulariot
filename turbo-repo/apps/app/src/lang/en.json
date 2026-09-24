@@ -1788,7 +1788,8 @@
         "credentials": "Credentials",
         "connections": "Connections",
         "harness": "Harness",
-        "platform": "Platform"
+        "platform": "Platform",
+        "selectables": "Selectables"
       },
       "symptoms": {
         "config": {
@@ -1891,7 +1892,8 @@
         "title": "Settings",
         "general": "General",
         "dataSources": "Data Sources",
-        "credentials": "Credentials"
+        "credentials": "Credentials",
+        "selectables": "Selectables"
       },
       "credentials": {
         "title": "Credentials",
@@ -2100,6 +2102,33 @@
           "clientEmailInvalid": "Enter the service account's email",
           "privateKeyRequired": "Private key is required"
         }
+      },
+      "selectables": {
+        "title": "Selectables",
+        "description": "Define the reusable option lists that back the selectors across the app — such as \"Who to call\" or \"Call result\".",
+        "newSelectable": "New selectable",
+        "empty": "No selectables defined yet. Create one to get started.",
+        "nameLabel": "Name",
+        "namePlaceholder": "e.g. Who to call",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "What this list is used for",
+        "modeLabel": "Selection",
+        "modeSingle": "Single choice",
+        "modeMultiple": "Multiple choice",
+        "optionsTitle": "Options",
+        "optionNamePlaceholder": "Option name",
+        "optionDescPlaceholder": "Option description (optional)",
+        "addOption": "Add option",
+        "removeOption": "Remove option",
+        "removeSelectable": "Delete selectable",
+        "duplicate": "Duplicate",
+        "optionsCount": "{count} options",
+        "savedHint": "Demo: changes are shared across the organization but are lost when the service restarts.",
+        "resetSeed": "Restore defaults",
+        "editTitle": "Edit selectable",
+        "edit": "Edit",
+        "cancel": "Cancel",
+        "save": "Save"
       }
     },
     "integrationJobs": {
@@ -2575,7 +2604,8 @@
         "subtitle2": "Document Separation",
         "subtitle3": "Client System Validation",
         "subtitle4": "GPS Validation",
-        "platform": "Platform"
+        "platform": "Platform",
+        "selectables": "Selectables"
       }
     },
     "calendar": {

@@ -37,8 +37,8 @@ class ContactServiceTest {
     @Test
     void createRequiresANameAndUpdateKeepsWhatIsNotSent() {
         var service = service(false);
-        assertThrows(IllegalArgumentException.class,
-                () -> service.create(TENANT, "o", new ContactRequest(" ", null, null, null, null, null)));
+        ContactRequest blankName = new ContactRequest(" ", null, null, null, null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, "o", blankName));
 
         ContactView created = service.create(TENANT, "o",
                 new ContactRequest(" Camila ", "Jefe", "+56 9 0000 0101", List.of(CallMethod.PHONE), null, null));

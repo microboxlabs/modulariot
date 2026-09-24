@@ -66,13 +66,14 @@ class SelectableServiceTest {
         assertTrue(saved.options().get(1).id().startsWith("opt_"));
         assertEquals(new SelectableChanged(TENANT, "o", "selectable.replaced", "sel_abc1234",
                 Map.of("name", "Mi lista", "options", 2)), events.get(0));
-        assertThrows(IllegalArgumentException.class, () -> service.replace(TENANT, "o", "x", new SelectableRequest(
-                "x", null, SelectionMode.SINGLE, List.of())));
-        assertThrows(IllegalArgumentException.class, () -> service.replace(TENANT, "o", "abc", new SelectableRequest(
-                "x", null, SelectionMode.SINGLE, List.of(new SelectableOption("d", "a", ""),
-                        new SelectableOption("d", "b", "")))));
-        assertThrows(IllegalArgumentException.class, () -> service.replace(TENANT, "o", "abc", new SelectableRequest(
-                "x", null, null, List.of())));
+        SelectableRequest valid = new SelectableRequest("x", null, SelectionMode.SINGLE, List.of());
+        SelectableRequest duplicateIds = new SelectableRequest("x", null, SelectionMode.SINGLE,
+                List.of(new SelectableOption("d", "a", ""), new SelectableOption("d", "b", "")));
+        SelectableRequest noMode = new SelectableRequest("x", null, null, List.of());
+
+        assertThrows(IllegalArgumentException.class, () -> service.replace(TENANT, "o", "x", valid));
+        assertThrows(IllegalArgumentException.class, () -> service.replace(TENANT, "o", "abc", duplicateIds));
+        assertThrows(IllegalArgumentException.class, () -> service.replace(TENANT, "o", "abc", noMode));
         assertThrows(NoSuchElementException.class, () -> service.get(TENANT, "missing_key"));
     }
 
@@ -81,8 +82,8 @@ class SelectableServiceTest {
         assertEquals("tags",
                 service.updateBindings(TENANT, "o", new SelectableBindingsRequest(Map.of("who_to_call", "tags")))
                         .get("who_to_call"));
-        assertThrows(IllegalArgumentException.class, () -> service.updateBindings(TENANT, "o",
-                new SelectableBindingsRequest(Map.of("who_to_call", "missing_list"))));
+        SelectableBindingsRequest unknown = new SelectableBindingsRequest(Map.of("who_to_call", "missing_list"));
+        assertThrows(IllegalArgumentException.class, () -> service.updateBindings(TENANT, "o", unknown));
 
         service.delete(TENANT, "o", "tags");
 

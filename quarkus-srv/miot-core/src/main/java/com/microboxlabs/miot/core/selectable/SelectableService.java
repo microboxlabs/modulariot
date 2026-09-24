@@ -66,18 +66,7 @@ public class SelectableService {
         if (req.mode() == null) {
             throw new IllegalArgumentException("mode is required (SINGLE or MULTIPLE)");
         }
-        List<SelectableOption> options = new ArrayList<>();
-        Set<String> ids = new HashSet<>();
-        for (SelectableOption o : req.options() == null ? List.<SelectableOption>of() : req.options()) {
-            if (o == null || o.name() == null || o.name().isBlank()) {
-                throw new IllegalArgumentException("every option needs a name");
-            }
-            String id = o.id() == null || o.id().isBlank() ? newOptionId() : o.id().trim();
-            if (!ids.add(id)) {
-                throw new IllegalArgumentException("duplicate option id: " + id);
-            }
-            options.add(new SelectableOption(id, o.name().trim(), o.description() == null ? "" : o.description()));
-        }
+        List<SelectableOption> options = normalizeOptions(req.options());
         Selectable saved = store.upsert(new Selectable(
                 tenantCode, key, req.name().trim(), req.description(), req.mode(), options, actor, null));
         changed.accept(new SelectableChanged(tenantCode, actor, "selectable.replaced", key,
@@ -141,6 +130,23 @@ public class SelectableService {
         for (SelectableDefaults d : defaults) {
             d.forTenant(tenantCode).forEach(store::upsert);
         }
+    }
+
+    /** Trims names, assigns ids to options without one, and rejects nameless options and duplicate ids. */
+    private static List<SelectableOption> normalizeOptions(List<SelectableOption> given) {
+        List<SelectableOption> options = new ArrayList<>();
+        Set<String> ids = new HashSet<>();
+        for (SelectableOption o : given == null ? List.<SelectableOption>of() : given) {
+            if (o == null || o.name() == null || o.name().isBlank()) {
+                throw new IllegalArgumentException("every option needs a name");
+            }
+            String id = o.id() == null || o.id().isBlank() ? newOptionId() : o.id().trim();
+            if (!ids.add(id)) {
+                throw new IllegalArgumentException("duplicate option id: " + id);
+            }
+            options.add(new SelectableOption(id, o.name().trim(), o.description() == null ? "" : o.description()));
+        }
+        return options;
     }
 
     static void validateKey(String key) {

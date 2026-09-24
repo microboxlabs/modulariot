@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.selectable;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,7 +29,7 @@ public class InMemorySelectableStore implements SelectableStore {
     @Override
     public synchronized Selectable upsert(Selectable s) {
         Selectable saved = new Selectable(s.tenantCode(), s.key(), s.name(), s.description(), s.mode(),
-                List.copyOf(s.options()), s.updatedBy(), OffsetDateTime.now());
+                List.copyOf(s.options()), s.updatedBy(), OffsetDateTime.now(ZoneOffset.UTC));
         byTenant.computeIfAbsent(s.tenantCode(), k -> new LinkedHashMap<>()).put(s.key(), saved);
         return saved;
     }

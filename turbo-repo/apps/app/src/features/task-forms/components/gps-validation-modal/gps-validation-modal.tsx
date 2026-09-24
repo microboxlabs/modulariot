@@ -31,7 +31,6 @@ export default function GpsValidationModal({
       setSelected={onClose}
       maxWidth="42rem"
       ariaLabel={title}
-      showCloseButton={false}
       className="w-full rounded-lg border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
     >
       <div className="flex max-h-[85vh] w-full flex-col">

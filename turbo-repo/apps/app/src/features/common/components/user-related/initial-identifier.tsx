@@ -1,3 +1,6 @@
+const BASE_CLASSES =
+  "shrink-0 rounded-full bg-white dark:bg-gray-500 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600 flex items-center justify-center";
+
 export default function InitialIdentifier({
   name,
   size,
@@ -9,11 +12,7 @@ export default function InitialIdentifier({
 }) {
   return (
     <div
-      className={
-        size
-          ? "rounded-full border border-gray-200 bg-white dark:border-transparent dark:bg-gray-500 text-gray-800 dark:text-gray-200 flex items-center justify-center"
-          : "w-10 h-10 rounded-full border border-gray-200 bg-white dark:border-transparent dark:bg-gray-500 text-gray-800 dark:text-gray-200 flex items-center justify-center"
-      }
+      className={size ? BASE_CLASSES : `w-10 h-10 ${BASE_CLASSES}`}
       style={size ? { width: size, height: size, fontSize: size * 0.4 } : undefined}
     >
       {name[0].toUpperCase()}

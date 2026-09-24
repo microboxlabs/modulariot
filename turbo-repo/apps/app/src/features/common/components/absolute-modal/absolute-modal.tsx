@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { HiXMark } from "react-icons/hi2";
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -16,9 +15,7 @@ export default function AbsoluteModal({
   height,
   className,
   dismissible = true,
-  showCloseButton,
   ariaLabel,
-  closeLabel = "Close",
 }: {
   children: React.ReactNode;
   selected: any;
@@ -29,12 +26,8 @@ export default function AbsoluteModal({
   className?: string;
   /** Whether the modal can be dismissed via backdrop click / Escape. Defaults to true. */
   dismissible?: boolean;
-  /** Whether to render the visible close (X) button. Defaults to `dismissible`. */
-  showCloseButton?: boolean;
   /** Accessible name for the dialog, exposed as aria-label */
   ariaLabel?: string;
-  /** Accessible name for the close button */
-  closeLabel?: string;
 }) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -55,9 +48,13 @@ export default function AbsoluteModal({
     if (dismissible) setSelected(null);
   }, [dismissible, setSelected]);
 
-  // Move focus into the dialog when it opens, restore it to the trigger on close
+  // Move focus into the dialog when it opens, restore it to the trigger on close.
+  // Depends on `mounted` too: when a caller mounts this component already
+  // `selected` (e.g. only rendering <AbsoluteModal> once there's something to
+  // show), the first render still has null refs — `mounted` flipping true is
+  // what makes the DOM nodes this effect needs actually exist.
   useEffect(() => {
-    if (!selected) return;
+    if (!selected || !mounted) return;
     previouslyFocused.current = document.activeElement as HTMLElement | null;
     const node = dialogRef.current;
     const firstFocusable = node?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
@@ -66,14 +63,14 @@ export default function AbsoluteModal({
     return () => {
       previouslyFocused.current?.focus?.();
     };
-  }, [selected]);
+  }, [selected, mounted]);
 
   // Escape-to-close and Tab focus-trapping. Attached imperatively (rather than a
   // JSX onKeyDown prop) so the dialog container — a structural, non-interactive
   // element per WAI-ARIA — carries no JSX event-handler attributes of its own;
   // the keyboard behavior itself is still required by the dialog pattern.
   useEffect(() => {
-    if (!selected) return;
+    if (!selected || !mounted) return;
     const node = dialogRef.current;
     if (!node) return;
 
@@ -104,12 +101,12 @@ export default function AbsoluteModal({
 
     node.addEventListener("keydown", handleKeyDown);
     return () => node.removeEventListener("keydown", handleKeyDown);
-  }, [selected, close]);
+  }, [selected, mounted, close]);
 
   // Backdrop click-to-dismiss. Attached imperatively for the same reason as
   // above — the backdrop is a purely decorative, non-interactive layer.
   useEffect(() => {
-    if (!selected) return;
+    if (!selected || !mounted) return;
     const backdrop = backdropRef.current;
     if (!backdrop) return;
 
@@ -131,7 +128,7 @@ export default function AbsoluteModal({
       backdrop.removeEventListener("mousedown", handleMouseDown);
       backdrop.removeEventListener("click", handleClick);
     };
-  }, [selected, close]);
+  }, [selected, mounted, close]);
 
   if (!mounted) return null;
 
@@ -153,16 +150,6 @@ export default function AbsoluteModal({
           height: height || "",
         }}
       >
-        {(showCloseButton ?? dismissible) && (
-          <button
-            type="button"
-            onClick={close}
-            aria-label={closeLabel}
-            className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600"
-          >
-            <HiXMark className="h-5 w-5" />
-          </button>
-        )}
         {children}
       </div>
     </div>,

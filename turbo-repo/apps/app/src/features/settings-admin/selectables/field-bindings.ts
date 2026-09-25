@@ -1,0 +1,45 @@
+"use client";
+
+/**
+ * Which selectable backs which form field, stored by the modulith core
+ * selectables API (`/selectables/bindings`). A field with no binding uses the
+ * selectable whose id equals the field key, which is how the defaults
+ * (`who_to_call`, `call_tags`, ...) show up pre-wired.
+ */
+
+import { useCallback } from "react";
+import { mutate } from "swr";
+import { ShowNotification } from "@/features/notifications/notification";
+import {
+  bindingsKey,
+  updateSelectableBindings,
+  useSelectableBindings,
+} from "./selectables-api";
+
+/**
+ * Returns the selectable id bound to `fieldKey` (falls back to `fieldKey`) and
+ * a setter. `failed` is the localized message shown when a save fails without
+ * one of its own.
+ */
+export function useFieldSelectableBinding(
+  fieldKey: string,
+  failed: string
+): readonly [string, (selectableId: string) => void] {
+  const { data } = useSelectableBindings();
+
+  const setBoundId = useCallback(
+    (selectableId: string) => {
+      updateSelectableBindings({ [fieldKey]: selectableId })
+        .catch((error: unknown) =>
+          ShowNotification({
+            type: "error",
+            message: error instanceof Error ? error.message : failed,
+          })
+        )
+        .finally(() => mutate(bindingsKey));
+    },
+    [fieldKey, failed]
+  );
+
+  return [data?.[fieldKey] ?? fieldKey, setBoundId] as const;
+}

@@ -15,8 +15,8 @@ import {
   HiBolt,
   HiExclamationTriangle,
 } from "react-icons/hi2";
-import type { IconType } from "react-icons";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
+import { IconTile } from "@/features/common/components/icon-tile/icon-tile";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
@@ -693,15 +693,6 @@ export default function HarnessPageContent({
         }}
         dict={pricingDict?.seatsModal as I18nRecord}
       />
-    </div>
-  );
-}
-
-/** Square tile wrapper so section-header icons read bigger without upsizing the glyph itself. */
-function IconTile({ icon: Icon }: { readonly icon: IconType }) {
-  return (
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
-      <Icon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
     </div>
   );
 }

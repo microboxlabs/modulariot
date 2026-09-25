@@ -113,14 +113,16 @@ export default function SelectableField({
   const waitingForParent =
     Boolean(list.settings?.dependsOn) && !parentValues?.length;
 
+  // With search off, typing is only for a new tag and filters nothing.
+  const filter = searchable ? query : "";
   const { data: fetched, isLoading } = useSelectableOptions(
     dynamic && !waitingForParent ? list.key : null,
-    { search, parents: parentValues }
+    { search: searchable ? search : "", parents: parentValues }
   );
   const known = useKnownOptions(list, fetched);
   const shown = dynamic
     ? (fetched ?? [])
-    : filterStatic(list, query, parentValues);
+    : filterStatic(list, filter, parentValues);
   const creatable = canCreate(list, query, shown, lang);
   const roomForMore = underCap(list, value.length);
 
@@ -161,7 +163,7 @@ export default function SelectableField({
           ))}
         <ComboboxInput
           id={id}
-          readOnly={!searchable}
+          readOnly={!searchable && !list.settings?.creatable}
           placeholder={multiple && value.length ? "" : placeholder}
           displayValue={(v: string | null) =>
             multiple || !v ? "" : pickText(optionFor(v, known).label, lang)
@@ -192,7 +194,8 @@ export default function SelectableField({
         {creatable && (
           <ComboboxOption
             value={query.trim()}
-            className="cursor-default px-3 py-2 text-blue-700 data-[focus]:bg-blue-50 dark:text-blue-300 dark:data-[focus]:bg-gray-600"
+            disabled={!roomForMore}
+            className="cursor-default px-3 py-2 text-blue-700 data-[focus]:bg-blue-50 data-[disabled]:opacity-50 dark:text-blue-300 dark:data-[focus]:bg-gray-600"
           >
             {tr("create", dict, { value: query.trim() })}
           </ComboboxOption>

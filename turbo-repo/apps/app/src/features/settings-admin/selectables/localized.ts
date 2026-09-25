@@ -28,11 +28,12 @@ export function slugify(text: string, max = 60): string {
   return slug;
 }
 
-/** A list key: a letter first, then letters, digits and underscores, at most 64. */
+/** A list key: a letter first, then letters, digits and underscores, 2 to 64 in all. */
 export function toListKey(text: string): string {
-  const slug = slugify(text, 60);
-  if (/^[a-z]/.test(slug)) return slug;
-  return slug ? `list_${slug}` : "list";
+  const slug = slugify(text, 64);
+  if (/^[a-z]/.test(slug) && slug.length > 1) return slug;
+  const rest = slugify(text, 59);
+  return rest ? `list_${rest}` : "list";
 }
 
 /** Accent- and case-insensitive match against an option's value and every label. */

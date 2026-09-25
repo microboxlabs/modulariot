@@ -2209,6 +2209,7 @@
           "errors": {
             "nameRequired": "El nombre es obligatorio en al menos un idioma.",
             "keyInvalid": "La clave debe empezar con una letra y usar solo minúsculas, números y guion bajo (2 a 64 caracteres).",
+            "keyTaken": "Otra lista ya usa esta clave.",
             "sourceRequired": "Elige una fuente para las opciones.",
             "duplicateValues": "Dos opciones tienen el mismo valor."
           }

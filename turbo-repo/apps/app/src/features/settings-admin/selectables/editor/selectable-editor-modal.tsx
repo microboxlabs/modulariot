@@ -63,7 +63,10 @@ export default function SelectableEditorModal({
   const parentList = lists.find((l) => l.key === draft.settings.dependsOn);
 
   const submit = async () => {
-    const problem = draftProblem(draft);
+    const problem = draftProblem(
+      draft,
+      lists.map((l) => l.key)
+    );
     if (problem) {
       setError(new Error(trDynamic(`errors.${problem}`, d)));
       return;

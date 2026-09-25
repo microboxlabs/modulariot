@@ -20,6 +20,8 @@ interface SelectableCardProps {
   readonly lists: Selectable[];
   readonly d: I18nRecord;
   readonly lang: string;
+  /** Owners get edit, duplicate and delete; members only see the list. */
+  readonly editable: boolean;
   readonly onEdit: () => void;
   readonly onDuplicate: () => void;
   readonly onDelete: () => void;
@@ -37,6 +39,7 @@ export function SelectableCard({
   lists,
   d,
   lang,
+  editable,
   onEdit,
   onDuplicate,
   onDelete,
@@ -99,28 +102,30 @@ export function SelectableCard({
             )}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
-          <Button color="alternative" size="xs" onClick={onEdit}>
-            <HiOutlinePencil className="mr-1 h-3.5 w-3.5" />
-            {tr("edit", d)}
-          </Button>
-          <button
-            type="button"
-            onClick={onDuplicate}
-            title={tr("duplicate", d)}
-            className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-          >
-            <HiOutlineDuplicate className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            title={tr("removeSelectable", d)}
-            className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-          >
-            <HiOutlineTrash className="h-4 w-4" />
-          </button>
-        </div>
+        {editable && (
+          <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
+            <Button color="alternative" size="xs" onClick={onEdit}>
+              <HiOutlinePencil className="mr-1 h-3.5 w-3.5" />
+              {tr("edit", d)}
+            </Button>
+            <button
+              type="button"
+              onClick={onDuplicate}
+              title={tr("duplicate", d)}
+              className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+            >
+              <HiOutlineDuplicate className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              title={tr("removeSelectable", d)}
+              className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+            >
+              <HiOutlineTrash className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {list.options.length > 0 && (

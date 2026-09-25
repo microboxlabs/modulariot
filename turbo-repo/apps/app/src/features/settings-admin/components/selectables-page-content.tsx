@@ -11,6 +11,7 @@ import {
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import ConfirmationModal from "@/features/common/components/confirmation-modal/confirmation-modal";
 import { IconTile } from "@/features/common/components/icon-tile/icon-tile";
+import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -65,6 +66,9 @@ export default function SelectablesPageContent({
   const { selectables, hydrated, save, remove, resetToDefaults } =
     useSelectables(tr("saveFailed", d));
   const { data: sources } = useSelectableSources();
+  // Any member reads the lists; the API takes writes only from an owner.
+  const { activeOrg } = useOrgScopes();
+  const isOwner = activeOrg?.role === "OWNER";
 
   const [editing, setEditing] = useState<Draft | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -109,20 +113,22 @@ export default function SelectablesPageContent({
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Button
-              color="alternative"
-              size="sm"
-              onClick={() => setConfirm({ kind: "reset" })}
-            >
-              <HiRefresh className="mr-1.5 h-4 w-4" />
-              {tr("resetSeed", d)}
-            </Button>
-            <Button color="blue" size="sm" onClick={() => open(null)}>
-              <HiPlus className="mr-1.5 h-4 w-4" />
-              {tr("newSelectable", d)}
-            </Button>
-          </div>
+          {isOwner && (
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                color="alternative"
+                size="sm"
+                onClick={() => setConfirm({ kind: "reset" })}
+              >
+                <HiRefresh className="mr-1.5 h-4 w-4" />
+                {tr("resetSeed", d)}
+              </Button>
+              <Button color="blue" size="sm" onClick={() => open(null)}>
+                <HiPlus className="mr-1.5 h-4 w-4" />
+                {tr("newSelectable", d)}
+              </Button>
+            </div>
+          )}
         </div>
 
         {hydrated && selectables.length === 0 && (
@@ -141,6 +147,7 @@ export default function SelectablesPageContent({
             lists={selectables}
             d={d}
             lang={lang}
+            editable={isOwner}
             onEdit={() => open(draftFrom(list))}
             onDuplicate={() =>
               open(

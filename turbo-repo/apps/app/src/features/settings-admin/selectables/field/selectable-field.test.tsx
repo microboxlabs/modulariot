@@ -141,6 +141,48 @@ describe("SelectableField", () => {
     expect(onChange).toHaveBeenLastCalledWith(["Frágil"]);
   });
 
+  it("still takes typed tags when search is off, without filtering the options", async () => {
+    const onChange = vi.fn();
+    render(
+      <Harness
+        selectable={list({
+          mode: "MULTIPLE",
+          settings: { creatable: true, searchable: false },
+        })}
+        onChange={onChange}
+      />
+    );
+
+    await userEvent.type(screen.getByRole("combobox"), "Frágil");
+    expect(screen.getByRole("option", { name: /Traffic/ })).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("option", { name: "Crear «Frágil»" })
+    );
+
+    expect(onChange).toHaveBeenLastCalledWith(["Frágil"]);
+  });
+
+  it("does not add a typed tag past the cap", async () => {
+    const onChange = vi.fn();
+    render(
+      <Harness
+        selectable={list({
+          mode: "MULTIPLE",
+          settings: { creatable: true, maxSelections: 1 },
+        })}
+        onChange={onChange}
+      />
+    );
+
+    await userEvent.click(screen.getByRole("combobox"));
+    await userEvent.click(screen.getByRole("option", { name: /Traffic/ }));
+    await userEvent.type(screen.getByRole("combobox"), "Frágil");
+
+    expect(
+      screen.getByRole("option", { name: "Crear «Frágil»" })
+    ).toHaveAttribute("aria-disabled", "true");
+  });
+
   it("waits for the list it depends on, then shows only that parent's options", async () => {
     const communes = list({
       settings: { dependsOn: "region" },

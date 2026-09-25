@@ -6,7 +6,7 @@ import { tr } from "@/features/i18n/tr.service";
 import { SettingsFormField } from "../../components/settings-form-field";
 import { pickText } from "../localized";
 import type { Selectable, SelectableSettings } from "../types";
-import type { Draft } from "./editor-draft";
+import { setDependsOn, type Draft } from "./editor-draft";
 import { LocalizedInput } from "./localized-input";
 
 interface BehaviorTabProps {
@@ -76,7 +76,9 @@ export function BehaviorTab({
           id="selectable-depends-on"
           sizing="sm"
           value={draft.settings.dependsOn ?? ""}
-          onChange={(e) => set({ dependsOn: e.target.value || null })}
+          onChange={(e) =>
+            onChange(setDependsOn(draft, e.target.value || null))
+          }
         >
           <option value="">{tr("noDependsOn", d)}</option>
           {others.map((l) => (

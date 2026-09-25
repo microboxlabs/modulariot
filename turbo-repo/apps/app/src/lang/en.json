@@ -2209,6 +2209,7 @@
           "errors": {
             "nameRequired": "The name is required in at least one language.",
             "keyInvalid": "The key must start with a letter and use only lowercase letters, digits and underscores (2 to 64 characters).",
+            "keyTaken": "Another list already uses this key.",
             "sourceRequired": "Pick a source for the options.",
             "duplicateValues": "Two options have the same value."
           }

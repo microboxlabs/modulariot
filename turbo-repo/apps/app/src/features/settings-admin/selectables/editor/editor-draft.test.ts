@@ -7,6 +7,7 @@ import {
   duplicateDraft,
   emptyDraft,
   removeGroup,
+  setDependsOn,
   setKey,
   setName,
   toSelectable,
@@ -113,5 +114,20 @@ describe("editor draft", () => {
     };
     expect(draftProblem(twins)).toBe("duplicateValues");
     expect(draftProblem(draftFrom(stored))).toBeNull();
+  });
+
+  it("refuses a new list under a key that already exists, since saving would replace it", () => {
+    const clash = setName(emptyDraft(), { es: "Delay reason" });
+    expect(draftProblem(clash, ["delay_reason"])).toBe("keyTaken");
+    expect(draftProblem(draftFrom(stored), ["delay_reason"])).toBeNull();
+  });
+
+  it("clears the options' parents when the list stops depending on another, or changes which", () => {
+    let draft = setDependsOn(draftFrom(stored), "region");
+    draft = updateOption(draft, draft.options[0]!.rowId, { parent: "CL-RM" });
+
+    expect(setDependsOn(draft, "region").options[0]!.parent).toBe("CL-RM");
+    expect(setDependsOn(draft, null).options[0]!.parent).toBeNull();
+    expect(setDependsOn(draft, "zone").options[0]!.parent).toBeNull();
   });
 });

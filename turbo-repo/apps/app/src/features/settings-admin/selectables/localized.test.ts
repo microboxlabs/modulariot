@@ -19,4 +19,12 @@ describe("toListKey", () => {
     expect(toListKey("3 turnos")).toBe("list_3_turnos");
     expect(toListKey("¿?")).toBe("list");
   });
+
+  it("always gives a key the API accepts: 2 to 64 characters", () => {
+    const valid = /^[a-z][a-z0-9_]{1,63}$/;
+    expect(toListKey("A")).toMatch(valid);
+    expect(toListKey("7")).toMatch(valid);
+    expect(toListKey("1".repeat(80))).toMatch(valid);
+    expect(toListKey("a".repeat(80))).toMatch(valid);
+  });
 });

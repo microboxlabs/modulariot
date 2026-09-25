@@ -96,15 +96,16 @@ export function optionsUrl(
   return `${BASE}/${key}/options${suffix}`;
 }
 
-/** Options fetched from the API: what a SYSTEM or CONNECTION list shows. `key` null pauses it. */
+/**
+ * Options fetched from the API: what a SYSTEM or CONNECTION list shows. `key`
+ * null pauses it. Nothing carries over between queries: another parent's
+ * options must not be pickable while this parent's load.
+ */
 export function useSelectableOptions(key: string | null, query: OptionsQuery) {
   return useSWR<SelectableOption[]>(
     key ? optionsUrl(key, query) : null,
     fetcher,
-    {
-      keepPreviousData: true,
-      revalidateOnFocus: false,
-    }
+    { revalidateOnFocus: false }
   );
 }
 

@@ -16,9 +16,14 @@ import {
   useSelectableBindings,
 } from "./selectables-api";
 
-/** Returns the selectable id bound to `fieldKey` (falls back to `fieldKey`) and a setter. */
+/**
+ * Returns the selectable id bound to `fieldKey` (falls back to `fieldKey`) and
+ * a setter. `failed` is the localized message shown when a save fails without
+ * one of its own.
+ */
 export function useFieldSelectableBinding(
-  fieldKey: string
+  fieldKey: string,
+  failed: string
 ): readonly [string, (selectableId: string) => void] {
   const { data } = useSelectableBindings();
 
@@ -28,13 +33,12 @@ export function useFieldSelectableBinding(
         .catch((error: unknown) =>
           ShowNotification({
             type: "error",
-            message:
-              error instanceof Error ? error.message : "No se pudo guardar",
+            message: error instanceof Error ? error.message : failed,
           })
         )
         .finally(() => mutate(bindingsKey));
     },
-    [fieldKey]
+    [fieldKey, failed]
   );
 
   return [data?.[fieldKey] ?? fieldKey, setBoundId] as const;

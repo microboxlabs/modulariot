@@ -144,6 +144,17 @@ export function setKey(d: Draft, key: string): Draft {
   return { ...d, key, keyFixed: true };
 }
 
+/** Parents name values of the list depended on, so they go when that list changes. */
+export function setDependsOn(d: Draft, dependsOn: string | null): Draft {
+  const settings = { ...d.settings, dependsOn };
+  if (dependsOn === d.settings.dependsOn) return { ...d, settings };
+  return {
+    ...d,
+    settings,
+    options: d.options.map((o) => ({ ...o, parent: null })),
+  };
+}
+
 export function setSourceKind(d: Draft, kind: SourceKind): Draft {
   return { ...d, source: { kind, ref: null, config: {} } };
 }
@@ -239,10 +250,17 @@ export function removeGroup(d: Draft, rowId: string): Draft {
   };
 }
 
-/** What stops a save, as an i18n key under `editor.errors`, or null. */
-export function draftProblem(d: Draft): string | null {
+/**
+ * What stops a save, as an i18n key under `editor.errors`, or null. Saving is
+ * an upsert, so a new list under a taken key would replace that list.
+ */
+export function draftProblem(
+  d: Draft,
+  takenKeys: readonly string[] = []
+): string | null {
   if (!Object.values(d.name).some((t) => t.trim())) return "nameRequired";
   if (!/^[a-z][a-z0-9_]{1,63}$/.test(d.key)) return "keyInvalid";
+  if (d.isNew && takenKeys.includes(d.key)) return "keyTaken";
   if (d.source.kind !== "STATIC" && !d.source.ref) return "sourceRequired";
   const values = d.options
     .filter((o) => Object.values(o.label).some((t) => t.trim()))

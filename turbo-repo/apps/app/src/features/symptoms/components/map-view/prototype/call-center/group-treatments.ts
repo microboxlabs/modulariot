@@ -5,11 +5,16 @@
  * real `TreatmentTimelineElement` (see `types/timeline.ts`) has no episode
  * id and no per-treatment timestamp to group or order by, so both the
  * cluster boundaries and each episode's mock time are derived from a stable
- * hash of the symptom — frontend-only, same as `mock-call-log.ts`.
+ * hash of the symptom — frontend-only, same as `mock-call-log.ts`. Gated by
+ * `isMockDataEnabled` (see `prototype-api-guard.ts`): once that's off, this
+ * stops inventing clusters/times and instead gives every treatment its own
+ * group, timestamped with the real `start` (no interpolation) — real
+ * treatments, just not fabricating relationships between them anymore.
  */
 
 import type { TreatmentTimelineElement } from "@/features/symptoms/types/timeline";
 import { hashId } from "./mock-contact-data";
+import { isMockDataEnabled } from "../prototype-api-guard";
 
 export interface TreatmentGroup {
   id: string;
@@ -24,6 +29,14 @@ export function groupTreatments(
   end?: string | null
 ): TreatmentGroup[] {
   const startMs = start ? new Date(start).getTime() : null;
+
+  if (!isMockDataEnabled()) {
+    return treatments.map((treatment, index) => ({
+      id: `${seed}-g${index}`,
+      time: startMs !== null ? new Date(startMs) : null,
+      items: [{ treatment, index }],
+    }));
+  }
 
   // First pass: 1-2 procedures per episode, deterministic per position.
   const sizes: number[] = [];

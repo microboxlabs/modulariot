@@ -24,6 +24,11 @@ export function isPrototypeApiDisabled(): boolean {
   return process.env.NEXT_PUBLIC_SYMPTOMS_PROTOTYPE_DISABLE_API === "true";
 }
 
+/** Same flag as `isPrototypeApiDisabled`, named for the read side: true
+ *  means "show fabricated contact/call data," since there's nothing real to
+ *  show instead yet. */
+export const isMockDataEnabled = isPrototypeApiDisabled;
+
 /**
  * Drop-in replacement for `requestTreatment` — when the real API is
  * disabled, echoes the request payload straight back instead of sending it,

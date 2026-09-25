@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { SelectableOption } from "@/features/settings-admin/selectables/types";
+import { isMockDataEnabled } from "../prototype-api-guard";
 
 const STORAGE_KEY = "miot.prototype.call-roles.v1";
 const SYNC_EVENT = "miot:call-roles-changed";
@@ -39,8 +40,12 @@ const DEFAULT_ROLES: SelectableOption[] = [
   { id: "role_otro", name: "Otro", description: "Detallar en la nota" },
 ];
 
+/** These seeded roles are as fabricated as everything in `mock-contact-
+ *  data.ts` — gated by the same flag (see `prototype-api-guard.ts`) so an
+ *  operator with no custom contacts added sees an empty list, not a fake
+ *  org chart, once this is meant to reflect something real. */
 function seededRoles(): SelectableOption[] {
-  return DEFAULT_ROLES;
+  return isMockDataEnabled() ? DEFAULT_ROLES : [];
 }
 
 function read(): SelectableOption[] {

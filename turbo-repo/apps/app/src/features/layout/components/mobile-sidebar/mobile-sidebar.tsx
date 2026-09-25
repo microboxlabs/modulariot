@@ -87,7 +87,7 @@ export default function MobileSidebar({ dict }: Readonly<PropsWithI18nDict>) {
       <nav
         aria-label="Mobile navigation"
         className={twMerge(
-          "fixed inset-y-0 left-0 z-20 flex border-r border-gray-200 pt-16",
+          "fixed inset-y-0 left-0 z-20 flex border-r border-gray-200 pt-14",
           "bg-white dark:border-gray-700 dark:bg-gray-800"
         )}
       >
@@ -173,7 +173,7 @@ export default function MobileSidebar({ dict }: Readonly<PropsWithI18nDict>) {
           close();
         }}
         aria-hidden="true"
-        className="fixed inset-0 z-10 bg-gray-900/50 pt-16 dark:bg-gray-900/90"
+        className="fixed inset-0 z-10 bg-gray-900/50 pt-14 dark:bg-gray-900/90"
       />
     </>
   );

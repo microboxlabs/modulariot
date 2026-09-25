@@ -488,18 +488,31 @@ export default function SpotlightSearch({
 
   return (
     <>
-      {/* ── Navbar trigger ───────────────────────────────────────────── */}
-      <button
-        type="button"
-        onClick={open}
-        className="flex items-center w-full lg:w-96 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
-      >
-        <HiSearch className="mr-2 h-4 w-4 shrink-0" />
-        <span className="flex-1 text-left truncate">
-          {tr("spotlight.placeholder", dict)}
-        </span>
-        <KbdHint />
-      </button>
+      {/* ── Header trigger ───────────────────────────────────────────── */}
+      {/* Input-style while there's room; a square button (same footprint as
+          the header's other h-10 controls) once the container narrows. */}
+      <div className="@container flex w-full min-w-10 justify-end">
+        <button
+          type="button"
+          onClick={open}
+          className="hidden h-10 w-full cursor-pointer items-center rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm text-gray-400 transition-colors hover:border-gray-400 @[11rem]:flex dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:border-gray-500"
+        >
+          <HiSearch className="mr-2 h-4 w-4 shrink-0" />
+          <span className="flex-1 truncate text-left">
+            {tr("spotlight.placeholder", dict)}
+          </span>
+          <KbdHint />
+        </button>
+        <button
+          type="button"
+          onClick={open}
+          title={tr("spotlight.placeholder", dict)}
+          aria-label={tr("spotlight.placeholder", dict)}
+          className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-transparent bg-gray-100 text-gray-500 transition-colors hover:border-gray-300 @[11rem]:hidden dark:bg-gray-700 dark:text-gray-400 dark:hover:border-gray-600"
+        >
+          <HiSearch className="h-5 w-5" />
+        </button>
+      </div>
 
       {/* ── Overlay ──────────────────────────────────────────────────── */}
       {isOpen && (

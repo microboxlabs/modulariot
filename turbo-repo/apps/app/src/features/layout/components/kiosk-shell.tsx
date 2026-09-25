@@ -21,6 +21,9 @@ function KioskShellInner({ children }: Readonly<PropsWithChildren>) {
         [data-kiosk] [data-testid="content-with-sidebar"] aside {
           display: none !important;
         }
+        [data-kiosk] [data-testid="unified-header"] {
+          display: none !important;
+        }
         [data-kiosk] footer {
           display: none !important;
         }

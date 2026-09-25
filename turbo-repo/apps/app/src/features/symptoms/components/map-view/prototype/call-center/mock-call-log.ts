@@ -10,7 +10,6 @@
 
 import { ALL_CALL_METHODS, type CallMethod } from "./call-method";
 import { hashId, mockNameForId } from "./mock-contact-data";
-import { isMockDataEnabled } from "../prototype-api-guard";
 
 export type CallOutcome = "answered" | "missed";
 
@@ -51,7 +50,6 @@ const MOCK_CALL_RESPONSES = [
 /** 1-3 deterministic mock calls for one treatment entry — stable across
  *  re-renders for the same `seed` (e.g. `${symptomId}-${treatmentIndex}`). */
 export function mockCallLogForTreatment(seed: string): CallLogEntry[] {
-  if (!isMockDataEnabled()) return [];
   const hash = hashId(seed);
   const count = 1 + (hash % 3);
   return Array.from({ length: count }, (_, i) => {

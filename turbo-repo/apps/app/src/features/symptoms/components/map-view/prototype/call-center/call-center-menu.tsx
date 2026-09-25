@@ -31,7 +31,6 @@ import { mockNameForId, mockCallStatsForId } from "./mock-contact-data";
 import { useContactDetails, type ContactDetails } from "./contact-details";
 import { useCallRoles } from "./call-roles-store";
 import ContactRow from "./contact-row";
-import { isMockDataEnabled } from "../prototype-api-guard";
 import type { CallMethod } from "./call-method";
 import {
   useContactBook,
@@ -43,10 +42,8 @@ import { MdAddIcCall } from "react-icons/md";
 import { CALL_METHOD_LABEL_KEYS } from "./call-method";
 
 /** Deterministic mock number so a contact's phone stays stable across renders
- *  — there's no real phonebook backing these prototype "other" contacts.
- *  Gated by `isMockDataEnabled` like every other fabricated field here. */
+ *  — there's no real phonebook backing these prototype "other" contacts. */
 function mockPhoneForId(id: string): string {
-  if (!isMockDataEnabled()) return "";
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
   const digits = ((hash % 90000000) + 10000000).toString();
@@ -207,10 +204,9 @@ export default function CallCenterMenu({
   const renderContactOption = (option: SelectableOption) => {
     const { custom, personName, roleLabel, phone } = describeOption(option);
     const recentCallAt = recentCallTimes?.[option.id];
-    // `recentCallAt` is a real, tracked timestamp regardless of mock mode —
-    // accepted/denied have no real backing either way, so default to 0
-    // rather than spread `mockCallStatsForId`'s result, which is `null`
-    // once mock data is off.
+    // `recentCallAt` is a real, tracked timestamp — accepted/denied have no
+    // real backing either way, so default to 0 rather than reuse the mock
+    // tally from `mockCallStatsForId`.
     const stats = recentCallAt
       ? { lastCallAt: recentCallAt, accepted: 0, denied: 0 }
       : mockCallStatsForId(option.id);

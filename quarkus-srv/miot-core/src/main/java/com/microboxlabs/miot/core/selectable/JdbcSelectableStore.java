@@ -50,6 +50,8 @@ public class JdbcSelectableStore implements SelectableStore {
 
     private final DataSource dataSource;
     private final ObjectMapper json;
+    /** The connection holding this thread's tenant lock, while {@link #locked} runs. */
+    private final ThreadLocal<Connection> lockConnection = new ThreadLocal<>();
 
     @Inject
     public JdbcSelectableStore(AgroalDataSource dataSource, ObjectMapper json) {
@@ -186,18 +188,27 @@ public class JdbcSelectableStore implements SelectableStore {
     }
 
     /**
-     * A transaction-scoped advisory lock on a connection of its own, so it is
-     * released when the transaction ends, even if {@code work} throws. The
-     * writes inside {@code work} commit on their own connections.
+     * A transaction-scoped advisory lock, released when the transaction ends.
+     * Store calls {@code work} makes on this thread run on the same connection,
+     * so they borrow no second one from the pool and commit or roll back with
+     * the lock.
      */
     @Override
     public <T> T locked(String tenantCode, Supplier<T> work) {
+        boolean outermost = lockConnection.get() == null;
         return inTransaction(c -> {
             try (PreparedStatement st = c.prepareStatement(TENANT_LOCK)) {
                 st.setString(1, tenantCode);
                 st.execute();
             }
-            return work.get();
+            lockConnection.set(c);
+            try {
+                return work.get();
+            } finally {
+                if (outermost) {
+                    lockConnection.remove();
+                }
+            }
         });
     }
 
@@ -274,16 +285,29 @@ public class JdbcSelectableStore implements SelectableStore {
         T run(Connection c) throws SQLException;
     }
 
+    /** Runs on the lock's connection when this thread holds one, else on a pooled one. */
     private <T> T withConnection(Work<T> work) {
-        try (Connection c = dataSource.getConnection()) {
-            return work.run(c);
+        Connection held = lockConnection.get();
+        try {
+            if (held != null) {
+                return work.run(held);
+            }
+            try (Connection c = dataSource.getConnection()) {
+                return work.run(c);
+            }
         } catch (SQLException e) {
             throw new IllegalStateException("selectables query failed", e);
         }
     }
 
-    /** Commits when {@code work} returns; rolls back and rethrows otherwise. */
+    /**
+     * Commits when {@code work} returns; rolls back and rethrows otherwise.
+     * Inside {@link #locked} it joins the lock's transaction instead.
+     */
     private <T> T inTransaction(Work<T> work) {
+        if (lockConnection.get() != null) {
+            return withConnection(work);
+        }
         return withConnection(c -> {
             c.setAutoCommit(false);
             try {

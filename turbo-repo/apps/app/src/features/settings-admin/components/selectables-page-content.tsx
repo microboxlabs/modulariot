@@ -1,13 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import type { IconType } from "react-icons";
-import { Badge, Button } from "flowbite-react";
+import { useState } from "react";
+import { Button } from "flowbite-react";
 import {
-  HiOutlineDuplicate,
-  HiOutlinePencil,
-  HiOutlineTrash,
   HiOutlineViewList,
   HiPlus,
   HiRefresh,
@@ -15,9 +10,9 @@ import {
 } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import ConfirmationModal from "@/features/common/components/confirmation-modal/confirmation-modal";
+import { IconTile } from "@/features/common/components/icon-tile/icon-tile";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { OptionBadge } from "../selectables/field/field-parts";
 import {
   draftFrom,
   duplicateDraft,
@@ -28,22 +23,11 @@ import { pickText } from "../selectables/localized";
 import { useSelectableSources } from "../selectables/selectables-api";
 import { useSelectables } from "../selectables/store";
 import type { Selectable } from "../selectables/types";
+import { SelectableCard } from "./selectable-card";
 
 interface SelectablesPageContentProps {
   readonly dict: I18nRecord;
   readonly lang: string;
-}
-
-/** How many option badges a card shows before "+N". */
-const PREVIEW_OPTIONS = 12;
-
-/** Same rounded tile the harness settings page uses for section headers. */
-function IconTile({ icon: Icon }: { readonly icon: IconType }) {
-  return (
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
-      <Icon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-    </div>
-  );
 }
 
 type Confirm = { kind: "reset" } | { kind: "delete"; list: Selectable } | null;
@@ -82,10 +66,6 @@ export default function SelectablesPageContent({
     useSelectables(tr("saveFailed", d));
   const { data: sources } = useSelectableSources();
 
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const openedFromLink = useRef(false);
-
   const [editing, setEditing] = useState<Draft | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
@@ -95,16 +75,6 @@ export default function SelectablesPageContent({
     setEditing(draft);
     setModalOpen(true);
   };
-
-  // A "create selectable" link lands here with ?new=1: open the editor, then
-  // drop the param so a refresh does not reopen it.
-  useEffect(() => {
-    if (!hydrated || openedFromLink.current) return;
-    if (searchParams.get("new") !== "1") return;
-    openedFromLink.current = true;
-    open(null);
-    router.replace(`/${lang}/users/settings/selectables`);
-  }, [hydrated, searchParams, router, lang]);
 
   const runConfirmed = async () => {
     if (!confirm) return;
@@ -208,124 +178,5 @@ export default function SelectablesPageContent({
         {...confirmTexts(confirm, d, lang)}
       />
     </div>
-  );
-}
-
-interface SelectableCardProps {
-  readonly list: Selectable;
-  readonly lists: Selectable[];
-  readonly d: I18nRecord;
-  readonly lang: string;
-  readonly onEdit: () => void;
-  readonly onDuplicate: () => void;
-  readonly onDelete: () => void;
-}
-
-function sourceLabel(list: Selectable, d: I18nRecord): string {
-  if (list.source.kind === "SYSTEM") return tr("sourceSystem", d);
-  if (list.source.kind === "CONNECTION") return tr("sourceConnection", d);
-  return tr("sourceStatic", d);
-}
-
-function SelectableCard({
-  list,
-  lists,
-  d,
-  lang,
-  onEdit,
-  onDuplicate,
-  onDelete,
-}: SelectableCardProps) {
-  const parent = lists.find((l) => l.key === list.settings?.dependsOn);
-  const hidden = list.options.length - PREVIEW_OPTIONS;
-  return (
-    <section className="flex flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          <IconTile icon={HiOutlineViewList} />
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="truncate text-sm font-semibold text-gray-900 dark:text-white">
-                {pickText(list.name, lang)}
-              </h2>
-              <code className="text-xs text-gray-400">{list.key}</code>
-              <Badge color="gray">
-                {list.mode === "MULTIPLE"
-                  ? tr("modeMultiple", d)
-                  : tr("modeSingle", d)}
-              </Badge>
-              <Badge color={list.source.kind === "STATIC" ? "gray" : "indigo"}>
-                {sourceLabel(list, d)}
-              </Badge>
-              {list.source.kind === "STATIC" && (
-                <Badge color="gray">
-                  {tr("optionsCount", d, {
-                    count: String(list.options.length),
-                  })}
-                </Badge>
-              )}
-              {list.groups.length > 0 && (
-                <Badge color="gray">
-                  {tr("groupsCount", d, { count: String(list.groups.length) })}
-                </Badge>
-              )}
-              {list.settings?.creatable && (
-                <Badge color="purple">{tr("badgeCreatable", d)}</Badge>
-              )}
-              {list.settings?.maxSelections && (
-                <Badge color="gray">
-                  {tr("badgeMax", d, {
-                    count: String(list.settings.maxSelections),
-                  })}
-                </Badge>
-              )}
-              {parent && (
-                <Badge color="cyan">
-                  {tr("badgeDependsOn", d, {
-                    list: pickText(parent.name, lang),
-                  })}
-                </Badge>
-              )}
-            </div>
-            {pickText(list.description, lang) && (
-              <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
-                {pickText(list.description, lang)}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
-          <Button color="alternative" size="xs" onClick={onEdit}>
-            <HiOutlinePencil className="mr-1 h-3.5 w-3.5" />
-            {tr("edit", d)}
-          </Button>
-          <button
-            type="button"
-            onClick={onDuplicate}
-            title={tr("duplicate", d)}
-            className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-          >
-            <HiOutlineDuplicate className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            title={tr("removeSelectable", d)}
-            className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-          >
-            <HiOutlineTrash className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      {list.options.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 border-t border-gray-100 px-4 py-3 dark:border-gray-700/60">
-          {list.options.slice(0, PREVIEW_OPTIONS).map((option) => (
-            <OptionBadge key={option.value} option={option} lang={lang} />
-          ))}
-          {hidden > 0 && <Badge color="gray">+{hidden}</Badge>}
-        </div>
-      )}
-    </section>
   );
 }

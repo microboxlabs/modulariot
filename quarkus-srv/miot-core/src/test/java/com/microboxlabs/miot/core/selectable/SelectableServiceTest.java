@@ -238,6 +238,83 @@ class SelectableServiceTest {
                 assertTrue(lists.contains(key), field + " is bound to the deleted list " + key));
     }
 
+    /** Two services on one store stand for two replicas: neither's own locks see the other. */
+    @Test
+    void aDeleteOnOneReplicaNeverLeavesADependencyFromAnotherDangling() throws Exception {
+        CountDownLatch validated = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        SelectableStore pausingUpsert = new InMemorySelectableStore() {
+            @Override
+            public Selectable upsert(Selectable s) {
+                if (s.key().equals("sub_reason")) {
+                    validated.countDown();
+                    await(release);
+                }
+                return super.upsert(s);
+            }
+        };
+        List<SelectableDefaults> defaults = List.of(tenant -> List.of(list(tenant, "reason", SelectionMode.SINGLE,
+                "r_1")));
+        SelectableService replicaA = new SelectableService(pausingUpsert, defaults, events::add);
+        SelectableService replicaB = new SelectableService(pausingUpsert, defaults, events::add);
+        replicaA.list(TENANT);
+        SelectableRequest dependent = new SelectableRequest(Map.of("es", "Sub"), null, SelectionMode.SINGLE,
+                SelectableSettings.dependingOn("reason"), null, null, List.of());
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> writing = pool.submit(() -> replicaA.replace(TENANT, "o", "sub_reason", dependent));
+            assertTrue(validated.await(5, TimeUnit.SECONDS), "the dependent passed validation");
+            Thread deleting = new Thread(() -> {
+                try {
+                    replicaB.delete(TENANT, "o", "reason");
+                } catch (IllegalArgumentException expected) {
+                    // the dependent landed first
+                }
+            });
+            deleting.start();
+            // Unguarded, the delete completes in the gap; guarded, it waits for the tenant's lock.
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (deleting.isAlive() && deleting.getState() == Thread.State.RUNNABLE
+                    && System.nanoTime() < deadline) {
+                Thread.onSpinWait();
+            }
+            release.countDown();
+            writing.get(5, TimeUnit.SECONDS);
+            deleting.join(TimeUnit.SECONDS.toMillis(5));
+        } finally {
+            pool.shutdownNow();
+        }
+
+        Set<String> lists = replicaA.list(TENANT).stream().map(Selectable::key).collect(Collectors.toSet());
+        replicaA.list(TENANT).stream().map(s -> s.settings().dependsOn()).filter(k -> k != null).forEach(k ->
+                assertTrue(lists.contains(k), "a list depends on the deleted list " + k));
+    }
+
+    @Test
+    void dependsOnMayNotFormACycle() {
+        SelectableRequest onReason = new SelectableRequest(Map.of("es", "A"), null, SelectionMode.SINGLE,
+                SelectableSettings.dependingOn("reason"), null, null, List.of());
+        service.replace(TENANT, "o", "list_a", onReason);
+        SelectableRequest onA = new SelectableRequest(Map.of("es", "B"), null, SelectionMode.SINGLE,
+                SelectableSettings.dependingOn("list_a"), null, null, List.of());
+        service.replace(TENANT, "o", "list_b", onA);
+        SelectableRequest reasonOnB = new SelectableRequest(Map.of("es", "R"), null, SelectionMode.SINGLE,
+                SelectableSettings.dependingOn("list_b"), null, null, List.of());
+
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> service.replace(TENANT, "o", "reason", reasonOnB));
+        assertTrue(e.getMessage().contains("cycle"), e.getMessage());
+    }
+
+    @Test
+    void keysTheRoutesUseAreReserved() {
+        SelectableRequest body = request("x", SelectionMode.SINGLE, List.of());
+        for (String reserved : List.of("sources", "bindings", "reset")) {
+            assertThrows(IllegalArgumentException.class, () -> service.replace(TENANT, "o", reserved, body),
+                    reserved);
+        }
+    }
+
     @Test
     void aFailingDefaultsProviderLeavesTheListsAsTheyWere() {
         AtomicBoolean failing = new AtomicBoolean(false);

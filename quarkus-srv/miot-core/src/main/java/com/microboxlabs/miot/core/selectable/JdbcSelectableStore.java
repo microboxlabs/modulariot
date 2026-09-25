@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import javax.sql.DataSource;
 
 /**
@@ -38,6 +39,8 @@ public class JdbcSelectableStore implements SelectableStore {
             + " RETURNING " + COLUMNS;
     private static final String MARK_SEEDED =
             "INSERT INTO miot_core.selectable_tenants (tenant_code) VALUES (?) ON CONFLICT DO NOTHING";
+    private static final String TENANT_LOCK =
+            "SELECT pg_advisory_xact_lock(hashtext('miot_core.selectables'), hashtext(?))";
     private static final TypeReference<Map<String, String>> TEXTS = new TypeReference<>() {
     };
     private static final TypeReference<List<SelectableGroup>> GROUPS = new TypeReference<>() {
@@ -179,6 +182,22 @@ public class JdbcSelectableStore implements SelectableStore {
             }
             markSeeded(c, tenantCode);
             return null;
+        });
+    }
+
+    /**
+     * A transaction-scoped advisory lock on a connection of its own, so it is
+     * released when the transaction ends, even if {@code work} throws. The
+     * writes inside {@code work} commit on their own connections.
+     */
+    @Override
+    public <T> T locked(String tenantCode, Supplier<T> work) {
+        return inTransaction(c -> {
+            try (PreparedStatement st = c.prepareStatement(TENANT_LOCK)) {
+                st.setString(1, tenantCode);
+                st.execute();
+            }
+            return work.get();
         });
     }
 

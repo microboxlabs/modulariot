@@ -17,7 +17,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
+import java.util.function.Supplier;
 
 /**
  * Per-organization option lists, and which form field uses which list. An
@@ -37,9 +37,8 @@ public class SelectableService {
     private final Consumer<SelectableChanged> changed;
     private final Set<String> seeded = ConcurrentHashMap.newKeySet();
     /**
-     * One lock per tenant: every write holds it from validation to the last
-     * store change. It only covers this process; across replicas the store's
-     * own constraints keep a binding from pointing at a deleted list.
+     * Every write holds the tenant's lock from validation to the last store
+     * change: this one inside the process, then the store's across replicas.
      */
     private final Map<String, Object> tenantLocks = new ConcurrentHashMap<>();
 
@@ -74,7 +73,7 @@ public class SelectableService {
     }
 
     public Selectable replace(String tenantCode, String actor, String key, SelectableRequest req) {
-        validateKey(key);
+        SelectableRules.validateListKey(key);
         if (req == null) {
             throw new IllegalArgumentException("body is required");
         }
@@ -87,9 +86,11 @@ public class SelectableService {
             throw new IllegalArgumentException("a " + source.kind() + " list fetches its options; send none");
         }
         List<SelectableGroup> groups = SelectableRules.groups(req.groups());
-        synchronized (lockFor(tenantCode)) {
-            seedOnce(tenantCode);
-            SelectableSettings settings = SelectableRules.settings(req.settings(), req.mode(), key, keys(tenantCode));
+        return withTenantLock(tenantCode, () -> {
+            seedLocked(tenantCode);
+            Map<String, Selectable> lists = byKey(tenantCode);
+            SelectableSettings settings = SelectableRules.settings(req.settings(), req.mode(), key, lists.keySet());
+            rejectCycle(lists, key, settings.dependsOn());
             List<SelectableOption> options = SelectableRules.options(req.options(), groups, settings);
             if (!source.isStatic()) {
                 requireSource(tenantCode, source);
@@ -101,14 +102,14 @@ public class SelectableService {
                     Map.of("name", Localized.preferred(name), "options", options.size(),
                             "source", source.kind().name())));
             return saved;
-        }
+        });
     }
 
     /** A list another one depends on cannot be deleted until that one stops depending on it. */
     public boolean delete(String tenantCode, String actor, String key) {
         validateKey(key);
-        synchronized (lockFor(tenantCode)) {
-            seedOnce(tenantCode);
+        return withTenantLock(tenantCode, () -> {
+            seedLocked(tenantCode);
             List<String> dependents = store.list(tenantCode).stream()
                     .filter(s -> key.equals(s.settings().dependsOn()))
                     .map(Selectable::key)
@@ -121,17 +122,17 @@ public class SelectableService {
                 changed.accept(new SelectableChanged(tenantCode, actor, "selectable.deleted", key, Map.of()));
             }
             return deleted;
-        }
+        });
     }
 
     /** Drops every list and binding and puts the defaults back. A failing provider leaves everything as it was. */
     public List<Selectable> reset(String tenantCode, String actor) {
-        synchronized (lockFor(tenantCode)) {
+        return withTenantLock(tenantCode, () -> {
             store.resetTo(tenantCode, collectDefaults(tenantCode));
             seeded.add(tenantCode);
             changed.accept(new SelectableChanged(tenantCode, actor, "selectable.reset", "all", Map.of()));
             return store.list(tenantCode);
-        }
+        });
     }
 
     public Map<String, String> bindings(String tenantCode) {
@@ -142,8 +143,9 @@ public class SelectableService {
         if (req == null || req.bindings() == null || req.bindings().isEmpty()) {
             throw new IllegalArgumentException("bindings is required");
         }
-        synchronized (lockFor(tenantCode)) {
-            Set<String> known = keys(tenantCode);
+        return withTenantLock(tenantCode, () -> {
+            seedLocked(tenantCode);
+            Set<String> known = byKey(tenantCode).keySet();
             for (Map.Entry<String, String> e : req.bindings().entrySet()) {
                 validateKey(e.getKey());
                 validateKey(e.getValue());
@@ -155,7 +157,7 @@ public class SelectableService {
             changed.accept(new SelectableChanged(tenantCode, actor, "selectable.bindings_updated", "bindings",
                     new LinkedHashMap<>(req.bindings())));
             return store.bindings(tenantCode);
-        }
+        });
     }
 
     /**
@@ -218,12 +220,30 @@ public class SelectableService {
                 .toLowerCase(Locale.ROOT);
     }
 
-    private Set<String> keys(String tenantCode) {
-        return list(tenantCode).stream().map(Selectable::key).collect(Collectors.toCollection(HashSet::new));
+    /** The tenant's lists by key, in creation order; the caller has seeded the tenant. */
+    private Map<String, Selectable> byKey(String tenantCode) {
+        Map<String, Selectable> out = new LinkedHashMap<>();
+        store.list(tenantCode).forEach(s -> out.put(s.key(), s));
+        return out;
     }
 
-    private Object lockFor(String tenantCode) {
-        return tenantLocks.computeIfAbsent(tenantCode, k -> new Object());
+    /** Following {@code dependsOn} from the new value must not lead back to {@code key}. */
+    private static void rejectCycle(Map<String, Selectable> lists, String key, String dependsOn) {
+        Set<String> seen = new HashSet<>();
+        String next = dependsOn;
+        while (next != null && seen.add(next)) {
+            if (next.equals(key)) {
+                throw new IllegalArgumentException("dependsOn " + dependsOn + " would form a cycle through " + key);
+            }
+            Selectable list = lists.get(next);
+            next = list == null ? null : list.settings().dependsOn();
+        }
+    }
+
+    private <T> T withTenantLock(String tenantCode, Supplier<T> work) {
+        synchronized (tenantLocks.computeIfAbsent(tenantCode, k -> new Object())) {
+            return store.locked(tenantCode, work);
+        }
     }
 
     /**
@@ -232,15 +252,23 @@ public class SelectableService {
      * leaves the tenant unseeded, so the next read tries again.
      */
     private void seedOnce(String tenantCode) {
-        synchronized (lockFor(tenantCode)) {
-            if (seeded.contains(tenantCode)) {
-                return;
-            }
-            if (!store.isSeeded(tenantCode)) {
-                store.seed(tenantCode, collectDefaults(tenantCode));
-            }
-            seeded.add(tenantCode);
+        if (!seeded.contains(tenantCode)) {
+            withTenantLock(tenantCode, () -> {
+                seedLocked(tenantCode);
+                return null;
+            });
         }
+    }
+
+    /** {@link #seedOnce} for a caller already holding the tenant's lock. */
+    private void seedLocked(String tenantCode) {
+        if (seeded.contains(tenantCode)) {
+            return;
+        }
+        if (!store.isSeeded(tenantCode)) {
+            store.seed(tenantCode, collectDefaults(tenantCode));
+        }
+        seeded.add(tenantCode);
     }
 
     /**

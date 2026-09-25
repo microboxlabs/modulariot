@@ -242,7 +242,6 @@ export default function ToolBar({
                 <div
                   className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-md hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${camera_movement.camera_movement ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
                   onClick={() => {
-                    console.log(camera_movement);
                     camera_movement.setCameraMovement(
                       !camera_movement.camera_movement
                     );

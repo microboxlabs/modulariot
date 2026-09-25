@@ -23,6 +23,7 @@ final class SelectableRules {
     static final Set<String> COLORS = Set.of(
             "gray", "blue", "green", "red", "yellow", "indigo", "purple", "pink", "cyan", "teal", "lime");
     private static final int MAX_SLUG = 60;
+    private static final Set<String> RESERVED_KEYS = Set.of("bindings", "reset", "sources");
 
     private SelectableRules() {
     }
@@ -30,6 +31,14 @@ final class SelectableRules {
     static void validateKey(String key) {
         if (key == null || !KEY.matcher(key).matches()) {
             throw new IllegalArgumentException("key must match [a-z][a-z0-9_]{1,63}: " + key);
+        }
+    }
+
+    /** A new list's key: also not a word the API's own routes take after {@code /selectables/}. */
+    static void validateListKey(String key) {
+        validateKey(key);
+        if (RESERVED_KEYS.contains(key)) {
+            throw new IllegalArgumentException("key is reserved: " + key);
         }
     }
 

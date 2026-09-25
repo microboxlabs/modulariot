@@ -40,8 +40,9 @@ class GeneralSelectablesTest {
 
     @Test
     void aMisspelledFieldFailsTheRead() {
+        Class<?> owner = getClass();
         UncheckedIOException e = assertThrows(UncheckedIOException.class,
-                () -> SelectableDefaultsFile.read(getClass(), "/selectables/typo.json"));
+                () -> SelectableDefaultsFile.read(owner, "/selectables/typo.json"));
 
         assertTrue(e.getCause().getMessage().contains("colour"), e.getCause().getMessage());
     }
@@ -78,6 +79,7 @@ class GeneralSelectablesTest {
     void systemListsAreFetchedAndSearchable() {
         assertEquals(List.of("America/Santiago"), service.options(TENANT, "timezone", "santiago", null, null)
                 .stream().map(SelectableOption::value).toList());
+        assertEquals("UTC", service.options(TENANT, "timezone", null, null, 1).get(0).value(), "UTC comes first");
         List<SelectableOption> peso = service.options(TENANT, "currency", "CLP", null, null);
         assertEquals("CLP", peso.get(0).value());
         assertTrue(peso.get(0).label().get("es").startsWith("CLP — "));

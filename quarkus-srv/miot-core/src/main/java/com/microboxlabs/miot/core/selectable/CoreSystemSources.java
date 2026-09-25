@@ -9,6 +9,7 @@ import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /** Dynamic lists core can serve with no other component: time zones and currencies. */
 final class CoreSystemSources {
@@ -16,11 +17,12 @@ final class CoreSystemSources {
     private CoreSystemSources() {
     }
 
-    /** Every region-based time zone, labelled with its current UTC offset. */
+    /** UTC, then every region-based time zone, labelled with its current UTC offset. */
     @ApplicationScoped
     static class TimeZones extends ListedSystemSource {
 
         static final String ID = "core.timezones";
+        private static final String UTC = "UTC";
 
         TimeZones() {
             super(ID, Localized.of("Zonas horarias", "Time zones"),
@@ -31,9 +33,10 @@ final class CoreSystemSources {
         @Override
         protected List<SelectableOption> all(String tenantCode) {
             Instant now = Instant.now();
-            return ZoneId.getAvailableZoneIds().stream()
+            Stream<String> regional = ZoneId.getAvailableZoneIds().stream()
                     .filter(id -> id.contains("/") && !id.startsWith("Etc/") && !id.startsWith("SystemV/"))
-                    .sorted()
+                    .sorted();
+            return Stream.concat(Stream.of(UTC), regional)
                     .map(id -> {
                         ZoneOffset offset = ZoneId.of(id).getRules().getOffset(now);
                         String text = id.replace('_', ' ') + " (UTC" + (offset.getTotalSeconds() == 0 ? "" : offset) + ")";

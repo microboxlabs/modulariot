@@ -3,6 +3,7 @@ package com.microboxlabs.miot.core.selectable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /** Option lists, and which form field uses which list. */
 public interface SelectableStore {
@@ -34,4 +35,10 @@ public interface SelectableStore {
 
     /** Replaces every list and binding of the tenant with {@code lists}, and marks it seeded. All or nothing. */
     void resetTo(String tenantCode, List<Selectable> lists);
+
+    /**
+     * Runs {@code work} holding the tenant's write lock, which every replica
+     * sharing the store waits on. Not reentrant: {@code work} must not call it.
+     */
+    <T> T locked(String tenantCode, Supplier<T> work);
 }

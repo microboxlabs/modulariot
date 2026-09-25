@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
 /** Process-local store for the service unit tests. Not a bean, so {@code @QuarkusTest} gets the JDBC one. */
 class InMemorySelectableStore implements SelectableStore {
@@ -16,6 +19,7 @@ class InMemorySelectableStore implements SelectableStore {
     private final Map<String, Map<String, Selectable>> byTenant = new LinkedHashMap<>();
     private final Map<String, Map<String, String>> bindingsByTenant = new LinkedHashMap<>();
     private final Set<String> seeded = new HashSet<>();
+    private final Map<String, ReentrantLock> tenantLocks = new ConcurrentHashMap<>();
 
     @Override
     public synchronized List<Selectable> list(String tenantCode) {
@@ -73,6 +77,18 @@ class InMemorySelectableStore implements SelectableStore {
     public synchronized void seed(String tenantCode, List<Selectable> defaults) {
         if (seeded.add(tenantCode)) {
             defaults.forEach(this::upsert);
+        }
+    }
+
+    /** Not synchronized on the store, so other calls go through while a tenant is locked. */
+    @Override
+    public <T> T locked(String tenantCode, Supplier<T> work) {
+        ReentrantLock lock = tenantLocks.computeIfAbsent(tenantCode, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            return work.get();
+        } finally {
+            lock.unlock();
         }
     }
 

@@ -18,6 +18,10 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -143,6 +147,44 @@ class JdbcSelectableStoreTest {
         assertEquals(List.of("reasons"), store.list(tenant).stream().map(Selectable::key).toList());
         assertTrue(store.bindings(tenant).isEmpty());
         assertTrue(store.isSeeded(tenant));
+    }
+
+    /** Each call takes its own connection, as two replicas would. */
+    @Test
+    void aSecondCallerWaitsForTheTenantLockAndAnotherTenantDoesNot() throws Exception {
+        CountDownLatch holding = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        CompletableFuture<Void> first = CompletableFuture.runAsync(() -> store.locked(tenant, () -> {
+            holding.countDown();
+            await(release);
+            return null;
+        }));
+        assertTrue(holding.await(5, TimeUnit.SECONDS), "the first caller holds the lock");
+
+        CompletableFuture<String> second = CompletableFuture.supplyAsync(() -> store.locked(tenant, () -> "second"));
+        assertEquals("other", store.locked(tenant + "-other", () -> "other"));
+        assertThrows(TimeoutException.class, () -> second.get(500, TimeUnit.MILLISECONDS));
+
+        release.countDown();
+        first.get(5, TimeUnit.SECONDS);
+        assertEquals("second", second.get(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void aFailingCallerReleasesTheLock() {
+        assertThrows(IllegalStateException.class, () -> store.locked(tenant, () -> {
+            throw new IllegalStateException("boom");
+        }));
+
+        assertEquals("next", store.locked(tenant, () -> "next"));
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            latch.await(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static Selectable list(String tenant, String key, String name) {

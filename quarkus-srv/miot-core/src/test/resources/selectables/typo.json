@@ -1,0 +1,10 @@
+[
+  {
+    "key": "priority",
+    "name": {"es": "Prioridad", "en": "Priority"},
+    "mode": "SINGLE",
+    "options": [
+      {"value": "low", "label": {"es": "Baja", "en": "Low"}, "colour": "gray"}
+    ]
+  }
+]

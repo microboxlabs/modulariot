@@ -1,8 +1,11 @@
 package com.microboxlabs.miot.core.selectable;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 
 import com.microboxlabs.miot.core.auth.PlatformTestProfile;
 import com.microboxlabs.miot.core.auth.StubAlfrescoMembershipClient;
@@ -32,7 +35,8 @@ class OrgSelectablesResourceTest {
     private static final String NOT_OWNED = "selectables-member-org";
     private static final String MEMBER = StubAlfrescoMembershipClient.MEMBER_EMAIL;
     private static final String LIST_BODY =
-            "{\"name\":\"Motivos\",\"mode\":\"SINGLE\",\"options\":[{\"name\":\"Uno\"}]}";
+            "{\"name\":{\"es\":\"Motivos\",\"en\":\"Reasons\"},\"mode\":\"SINGLE\","
+                    + "\"options\":[{\"label\":{\"es\":\"Uno\"}},{\"value\":\"CL-RM\",\"label\":{\"es\":\"Dos\"}}]}";
 
     @Inject
     AgroalDataSource ds;
@@ -60,12 +64,25 @@ class OrgSelectablesResourceTest {
                 .when().put(path(OWNED) + "/reasons")
                 .then().statusCode(200)
                 .body("key", is("reasons"))
-                .body("options[0].name", is("Uno"));
+                .body("options[0].value", is("uno"))
+                .body("options[0].label.es", is("Uno"))
+                .body("source.kind", is("STATIC"))
+                .body("source", not(hasKey("static")));
 
         given().header("Authorization", bearer(MEMBER))
                 .when().get(path(OWNED) + "/reasons")
                 .then().statusCode(200)
-                .body("name", is("Motivos"));
+                .body("name.en", is("Reasons"));
+
+        given().header("Authorization", bearer(MEMBER)).queryParam("q", "dos")
+                .when().get(path(OWNED) + "/reasons/options")
+                .then().statusCode(200)
+                .body("value", contains("CL-RM"));
+
+        given().header("Authorization", bearer(MEMBER))
+                .when().get(path(OWNED) + "/sources")
+                .then().statusCode(200)
+                .body("ref", hasItems("core.timezones", "core.currencies"));
 
         given().header("Authorization", bearer(MEMBER))
                 .when().delete(path(OWNED) + "/reasons")
@@ -104,7 +121,7 @@ class OrgSelectablesResourceTest {
     @Test
     void validationAndMissingListsAreJsonErrors() {
         given().header("Authorization", bearer(MEMBER)).contentType("application/json")
-                .body("{\"name\":\" \",\"mode\":\"SINGLE\"}")
+                .body("{\"name\":{\"es\":\" \"},\"mode\":\"SINGLE\"}")
                 .when().put(path(OWNED) + "/reasons")
                 .then().statusCode(400)
                 .body("$", hasKey("error"));

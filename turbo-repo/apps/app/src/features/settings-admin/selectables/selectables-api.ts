@@ -92,7 +92,8 @@ export function optionsUrl(
   parents?.forEach((p) => params.append("parent", p));
   if (limit) params.set("limit", String(limit));
   const query = params.toString();
-  return `${BASE}/${key}/options${query ? `?${query}` : ""}`;
+  const suffix = query ? "?" + query : "";
+  return `${BASE}/${key}/options${suffix}`;
 }
 
 /** Options fetched from the API: what a SYSTEM or CONNECTION list shows. `key` null pauses it. */

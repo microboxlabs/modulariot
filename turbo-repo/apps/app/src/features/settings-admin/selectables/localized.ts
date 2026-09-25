@@ -22,15 +22,17 @@ export function slugify(text: string, max = 60): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .slice(0, max)
-    .replace(/^_+/, "")
-    .replace(/_+$/, "");
+    // Runs are already one underscore, so each end has at most one to drop.
+    .replace(/^_/, "")
+    .replace(/_$/, "");
   return slug;
 }
 
 /** A list key: a letter first, then letters, digits and underscores, at most 64. */
 export function toListKey(text: string): string {
   const slug = slugify(text, 60);
-  return /^[a-z]/.test(slug) ? slug : `list_${slug}`.replace(/_+$/, "");
+  if (/^[a-z]/.test(slug)) return slug;
+  return slug ? `list_${slug}` : "list";
 }
 
 /** Accent- and case-insensitive match against an option's value and every label. */

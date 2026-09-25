@@ -27,8 +27,8 @@ export function LocalizedInput({
   onLastKeyDown,
 }: LocalizedInputProps) {
   const set = (lang: string, text: string) =>
-    onChange({ ...(value ?? {}), [lang]: text });
-  const last = SELECTABLE_LANGUAGES[SELECTABLE_LANGUAGES.length - 1];
+    onChange({ ...value, [lang]: text });
+  const last = SELECTABLE_LANGUAGES.at(-1);
 
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

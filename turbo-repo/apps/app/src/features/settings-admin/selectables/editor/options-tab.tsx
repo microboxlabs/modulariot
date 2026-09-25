@@ -102,7 +102,7 @@ export function OptionsTab({
   const append = () => {
     const next = addOption(draft);
     onChange(next);
-    setFocusRow(next.options[next.options.length - 1]?.rowId ?? null);
+    setFocusRow(next.options.at(-1)?.rowId ?? null);
   };
 
   /** Tab out of the last row's last field adds a row instead of leaving the table. */
@@ -112,7 +112,7 @@ export function OptionsTab({
     append();
   };
 
-  const lastRow = draft.options[draft.options.length - 1]?.rowId;
+  const lastRow = draft.options.at(-1)?.rowId;
 
   return (
     <div className="flex flex-col gap-2">

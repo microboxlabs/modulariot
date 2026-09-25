@@ -91,7 +91,11 @@ export function draftFrom(s: Selectable): Draft {
 export function duplicateDraft(s: Selectable, takenKeys: string[]): Draft {
   const draft = draftFrom(s);
   let key = `${s.key}_copy`;
-  for (let n = 2; takenKeys.includes(key); n++) key = `${s.key}_copy_${n}`;
+  let n = 2;
+  while (takenKeys.includes(key)) {
+    key = `${s.key}_copy_${n}`;
+    n++;
+  }
   const name: LocalizedText = {};
   Object.entries(s.name).forEach(([lang, text]) => {
     name[lang] = `${text} (${lang === "es" ? "copia" : "copy"})`;
@@ -149,7 +153,11 @@ function valueFor(label: LocalizedText, others: DraftOption[]): string {
   const base = slugify(label.es ?? Object.values(label)[0] ?? "") || "option";
   const taken = new Set(others.map((o) => o.value));
   let value = base;
-  for (let n = 2; taken.has(value); n++) value = `${base}_${n}`;
+  let n = 2;
+  while (taken.has(value)) {
+    value = `${base}_${n}`;
+    n++;
+  }
   return value;
 }
 

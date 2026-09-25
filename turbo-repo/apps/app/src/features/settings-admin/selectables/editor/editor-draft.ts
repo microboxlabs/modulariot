@@ -144,6 +144,14 @@ export function setKey(d: Draft, key: string): Draft {
   return { ...d, key, keyFixed: true };
 }
 
+/** Sets one source setting; a blank one is dropped so the API's default applies. */
+export function setSourceConfig(d: Draft, name: string, text: string): Draft {
+  const config = { ...d.source.config };
+  if (text.trim()) config[name] = text.trim();
+  else delete config[name];
+  return { ...d, source: { ...d.source, config } };
+}
+
 /** Parents name values of the list depended on, so they go when that list changes. */
 export function setDependsOn(d: Draft, dependsOn: string | null): Draft {
   const settings = { ...d.settings, dependsOn };

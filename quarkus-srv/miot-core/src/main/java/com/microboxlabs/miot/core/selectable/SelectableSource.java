@@ -8,8 +8,11 @@ import java.util.Map;
  * options in the list itself; the others fetch them when a field asks, through
  * the {@link SelectableOptionSource} registered for them.
  *
- * @param ref    for SYSTEM, the source id (such as {@code core.timezones}); for CONNECTION, the connection id
- * @param config source-specific settings, such as the request path and which fields hold the value and label
+ * @param ref    for SYSTEM, the source id (such as {@code core.timezones}); for CONNECTION, the connection
+ *               and the operation to call, as {@code connectionId:operationId}
+ * @param config source-specific settings; for CONNECTION, where the items are in the response
+ *               ({@code items}) and which of their fields hold the value, label and parent
+ *               ({@code value}, {@code label}, {@code parent})
  */
 public record SelectableSource(Kind kind, String ref, Map<String, Object> config) {
 

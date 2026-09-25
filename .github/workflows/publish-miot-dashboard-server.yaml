@@ -1,0 +1,209 @@
+name: Publish miot-dashboard-server
+
+# Publish @microboxlabs/miot-dashboard-contract before this: the consumer
+# install below pulls it from the registry.
+#
+# Publishing is authenticated by OIDC, so there is no token to keep. npm issues
+# a short-lived credential to this workflow file alone; renaming it breaks the
+# release until the trusted publisher is updated.
+
+on:
+  push:
+    tags:
+      - "miot-dashboard-server@v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag to publish (e.g. miot-dashboard-server@v0.1.0)"
+        required: true
+
+env:
+  NODE_VERSION: "24"
+  PACKAGE_NAME: "@microboxlabs/miot-dashboard-server"
+  PACKAGE_DIR: "packages/miot-dashboard-server"
+  TAG_PREFIX: "miot-dashboard-server@v"
+
+jobs:
+  publish:
+    name: Publish to npmjs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # OIDC for npm trusted publishers
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # `refs/tags/` is explicit: actions/checkout resolves an
+          # unqualified ref to a branch before a tag, and a branch named like
+          # the tag would satisfy the version check below just as well.
+          ref: ${{ startsWith(inputs.tag, 'miot-dashboard-server@v') && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: turbo-repo/package-lock.json
+
+      - name: Check the tag names the version being published
+        id: version
+        env:
+          # Through the environment, not interpolated: the dispatch input
+          # is untrusted text and bash expands `$(...)` inside quotes.
+          RELEASE_REF: ${{ startsWith(inputs.tag, 'miot-dashboard-server@v') && inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          ref="$RELEASE_REF"
+          case "$ref" in
+            "$TAG_PREFIX"*) ;;
+            *)
+              echo "This workflow publishes ${TAG_PREFIX}<version> tags; got '$ref'." >&2
+              exit 1
+              ;;
+          esac
+          tagged="${ref#"$TAG_PREFIX"}"
+          declared="$(node -p "require('./turbo-repo/$PACKAGE_DIR/package.json').version")"
+          if [[ "$tagged" != "$declared" ]]; then
+            echo "The tag says $tagged but $PACKAGE_DIR/package.json says $declared." >&2
+            echo "Bump the manifest and re-tag; do not publish a version the tag does not name." >&2
+            exit 1
+          fi
+          echo "version=$declared" >> "$GITHUB_OUTPUT"
+          # Not github.ref_name, which on a dispatch names the ref it ran
+          # from, not the tag.
+          echo "tag=$ref" >> "$GITHUB_OUTPUT"
+          echo "Publishing $PACKAGE_NAME@$declared"
+
+      # No node_modules cache: one populated by another branch's CI could
+      # reach the published tarball.
+      - name: Install dependencies
+        run: npm ci
+        working-directory: turbo-repo
+
+      - name: Build package
+        run: npx turbo run build --filter=$PACKAGE_NAME
+        working-directory: turbo-repo
+
+      - name: Run lint
+        run: npx turbo run lint --filter=$PACKAGE_NAME
+        working-directory: turbo-repo
+
+      - name: Run type check and the import guard
+        run: npx turbo run check-types --filter=$PACKAGE_NAME
+        working-directory: turbo-repo
+
+      - name: Run tests
+        run: npx turbo run test --filter=$PACKAGE_NAME
+        working-directory: turbo-repo
+
+      - name: Pack the tarball
+        id: pack
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release"
+          npm pack --workspace="$PACKAGE_DIR" --pack-destination "$RUNNER_TEMP/release"
+          tarball="$RUNNER_TEMP/release/microboxlabs-miot-dashboard-server-${{ steps.version.outputs.version }}.tgz"
+          if [[ ! -f "$tarball" ]]; then
+            echo "npm pack did not produce $tarball. Contents:" >&2
+            ls -la "$RUNNER_TEMP/release" >&2
+            exit 1
+          fi
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+        working-directory: turbo-repo
+
+      - name: Install the tarball as a consumer would
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/consumer"
+          cd "$RUNNER_TEMP/consumer"
+          npm init -y > /dev/null
+          # jose is an optional peer; the run below needs the verified path.
+          npm install --no-audit --no-fund "${{ steps.pack.outputs.tarball }}" jose
+
+      - name: Resolve every published entry point
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/consumer"
+          cat > check-exports.mjs <<'CHECK'
+          const entries = [
+            "",
+            "/http",
+            "/identity",
+            "/store-sql",
+            "/store-cloud",
+            "/testing",
+            "/server",
+            "/next",
+          ];
+
+          for (const entry of entries) {
+            const specifier = "@microboxlabs/miot-dashboard-server" + entry;
+            const loaded = await import(specifier);
+            const names = Object.keys(loaded);
+            if (names.length === 0) {
+              throw new Error(`${specifier} resolved but exports nothing`);
+            }
+            console.log("ok", entry || ".", "->", names.length, "exports");
+          }
+          CHECK
+          node check-exports.mjs
+
+      - name: Run the published binary
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/consumer"
+          # A fixed port, because the config refuses 0.
+          PORT=3178 \
+          MIOT_DASHBOARD_STORE=sqlite \
+          MIOT_DASHBOARD_DOCUMENTS=fs \
+          MIOT_DASHBOARD_JWT_ISSUER=https://issuer.invalid/ \
+          MIOT_DASHBOARD_JWT_AUDIENCE=smoke \
+          MIOT_DASHBOARD_JWT_SECRET="$(openssl rand -hex 32)" \
+            ./node_modules/.bin/miot-dashboard-server > server.log 2>&1 &
+
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3178/livez > /dev/null 2>&1; then
+              ready=yes
+              break
+            fi
+            sleep 1
+          done
+          if [[ "${ready:-no}" != "yes" ]]; then
+            echo "The published binary never answered /livez." >&2
+            cat server.log >&2
+            exit 1
+          fi
+
+          curl -fsS http://127.0.0.1:3178/readyz | grep -q '"ready"'
+          # No credential: the server must refuse rather than answer.
+          status="$(curl -s -o /dev/null -w '%{http_code}' \
+            http://127.0.0.1:3178/tenants/t/scopes/s/dashboards)"
+          if [[ "$status" != "401" ]]; then
+            echo "An unauthenticated list returned $status, expected 401." >&2
+            cat server.log >&2
+            exit 1
+          fi
+          # Both come from the contract package, so these prove resolution
+          # works in an ordinary install and not only in the workspace.
+          curl -fsS http://127.0.0.1:3178/openapi.yaml | sed -n 1p
+          curl -fsS http://127.0.0.1:3178/dashboard-config.schema.json > /dev/null
+
+          cat server.log
+          # `|| true`: pkill exits non-zero when nothing matched.
+          pkill -f miot-dashboard-server || true
+
+      - name: Publish to npm
+        run: npm publish --workspace=$PACKAGE_DIR --access public
+        working-directory: turbo-repo
+
+      - name: Summary
+        run: |
+          {
+            echo "# $PACKAGE_NAME@${{ steps.version.outputs.version }}"
+            echo ""
+            echo "- Published from tag \`${{ steps.version.outputs.tag }}\`"
+            echo "- Entry points resolved from the installed tarball, binary answered /livez, /readyz and 401"
+          } >> "$GITHUB_STEP_SUMMARY"

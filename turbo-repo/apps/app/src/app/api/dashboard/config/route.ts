@@ -11,7 +11,10 @@ import {
   unauthorizedResponse,
   badRequestResponse,
 } from "@/app/api/utils/api-error-handler";
-import { parseAllowedGroups } from "@/features/dashboard/types/dashboard.types";
+import {
+  configAllowsGroups,
+  parseAllowedGroups,
+} from "@microboxlabs/miot-dashboard-server";
 import type { DashboardStorageSchema } from "@/features/dashboard/types/dashboard.types";
 
 function forbiddenResponse() {
@@ -30,11 +33,14 @@ async function hasAccessToDashboard(
   session: Parameters<typeof getGroupsForPerson>[0]
 ): Promise<boolean> {
   if (!config) return true;
+  // Parsed here only to answer "is there an audience at all", so a dashboard
+  // that names none never costs a groups lookup. The decision itself is the
+  // package's, so it cannot drift from the policy.
   const parsed = parseAllowedGroups(config.allowedGroups);
   if (!parsed.valid) return false; // malformed — deny
   if (!parsed.groups || parsed.groups.length === 0) return true;
   const userGroups = await getGroupsForPerson(session);
-  return parsed.groups.some((g) => userGroups.includes(g));
+  return configAllowsGroups(config, userGroups);
 }
 
 /**

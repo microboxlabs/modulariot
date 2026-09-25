@@ -1,0 +1,187 @@
+name: Publish miot-dashboard-contract
+
+# Publish this package before the server, which depends on it.
+#
+# Publishing is authenticated by OIDC, so there is no token to keep. npm issues
+# a short-lived credential to this workflow file alone; renaming it breaks the
+# release until the trusted publisher is updated.
+
+on:
+  push:
+    tags:
+      - "miot-dashboard-contract@v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag to publish (e.g. miot-dashboard-contract@v0.1.0)"
+        required: true
+
+env:
+  NODE_VERSION: "24"
+  PACKAGE_NAME: "@microboxlabs/miot-dashboard-contract"
+  PACKAGE_DIR: "packages/miot-dashboard-contract"
+  TAG_PREFIX: "miot-dashboard-contract@v"
+
+jobs:
+  publish:
+    name: Publish to npmjs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # OIDC for npm trusted publishers
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # `refs/tags/` is explicit: actions/checkout resolves an
+          # unqualified ref to a branch before a tag.
+          ref: ${{ startsWith(inputs.tag, 'miot-dashboard-contract@v') && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: turbo-repo/package-lock.json
+
+      - name: Check the tag names the version being published
+        id: version
+        env:
+          # Through the environment, not interpolated: the dispatch input
+          # is untrusted text and bash expands `$(...)` inside quotes.
+          RELEASE_REF: ${{ startsWith(inputs.tag, 'miot-dashboard-contract@v') && inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          ref="$RELEASE_REF"
+          case "$ref" in
+            "$TAG_PREFIX"*) ;;
+            *)
+              echo "This workflow publishes ${TAG_PREFIX}<version> tags; got '$ref'." >&2
+              exit 1
+              ;;
+          esac
+          tagged="${ref#"$TAG_PREFIX"}"
+          declared="$(node -p "require('./turbo-repo/$PACKAGE_DIR/package.json').version")"
+          if [[ "$tagged" != "$declared" ]]; then
+            echo "The tag says $tagged but $PACKAGE_DIR/package.json says $declared." >&2
+            echo "Bump the manifest and re-tag; do not publish a version the tag does not name." >&2
+            exit 1
+          fi
+          echo "version=$declared" >> "$GITHUB_OUTPUT"
+          echo "tag=$ref" >> "$GITHUB_OUTPUT"
+          echo "Publishing $PACKAGE_NAME@$declared"
+
+      # No node_modules cache: one populated by another branch's CI could
+      # reach the published tarball.
+      - name: Install dependencies
+        run: npm ci
+        working-directory: turbo-repo
+
+      - name: Build package
+        run: npx turbo run build --filter=$PACKAGE_NAME
+        working-directory: turbo-repo
+
+      - name: Run lint
+        run: npx turbo run lint --filter=$PACKAGE_NAME
+        working-directory: turbo-repo
+
+      - name: Run type check and the import guard
+        run: npx turbo run check-types --filter=$PACKAGE_NAME
+        working-directory: turbo-repo
+
+      - name: Run tests
+        run: npx turbo run test --filter=$PACKAGE_NAME
+        working-directory: turbo-repo
+
+      - name: Pack the tarball
+        id: pack
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release"
+          npm pack --workspace="$PACKAGE_DIR" --pack-destination "$RUNNER_TEMP/release"
+          tarball="$RUNNER_TEMP/release/microboxlabs-miot-dashboard-contract-${{ steps.version.outputs.version }}.tgz"
+          if [[ ! -f "$tarball" ]]; then
+            echo "npm pack did not produce $tarball. Contents:" >&2
+            ls -la "$RUNNER_TEMP/release" >&2
+            exit 1
+          fi
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+        working-directory: turbo-repo
+
+      - name: Install the tarball as a consumer would
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/consumer"
+          cd "$RUNNER_TEMP/consumer"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund "${{ steps.pack.outputs.tarball }}"
+
+      - name: Resolve every published entry point
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/consumer"
+          cat > check-exports.mjs <<'CHECK'
+          import { createRequire } from "node:module";
+          import { readFileSync } from "node:fs";
+          import { dirname, join } from "node:path";
+
+          const require = createRequire(import.meta.url);
+          const name = "@microboxlabs/miot-dashboard-contract";
+
+          for (const entry of ["/document", "/schema", "/roles", "/errors"]) {
+            const loaded = await import(name + entry);
+            const names = Object.keys(loaded);
+            if (names.length === 0) {
+              throw new Error(`${name}${entry} resolved but exports nothing`);
+            }
+            console.log("ok", entry, "->", names.length, "exports");
+          }
+
+          // A literal, not the package's own DEFAULT_STORAGE.
+          const { validateDashboardConfig } = await import(name + "/schema");
+          const ok = validateDashboardConfig({
+            version: 2,
+            name: "Smoke",
+            widgets: [],
+            preferences: { editMode: false },
+          });
+          if (!ok.valid) {
+            throw new Error(`the published schema refuses a valid document: ${ok.problems.join("; ")}`);
+          }
+          const bad = validateDashboardConfig({ version: 1 });
+          if (bad.valid) {
+            throw new Error("the published schema accepted a version 1 document");
+          }
+          console.log("ok schema accepts v2 and refuses v1");
+
+          // The document refers to the schema by bare filename, so both must
+          // ship and must be siblings.
+          const spec = require.resolve(name + "/openapi.yaml");
+          const schema = require.resolve(name + "/dashboard-config.schema.json");
+          if (dirname(spec) !== dirname(schema)) {
+            throw new Error(`the document and its schema are not siblings: ${spec} vs ${schema}`);
+          }
+          const reference = "dashboard-config.schema.json";
+          if (!readFileSync(spec, "utf8").includes(reference)) {
+            throw new Error(`${spec} no longer refers to ${reference}`);
+          }
+          JSON.parse(readFileSync(join(dirname(spec), reference), "utf8"));
+          console.log("ok the document and its schema shipped together");
+          CHECK
+          node check-exports.mjs
+
+      - name: Publish to npm
+        run: npm publish --workspace=$PACKAGE_DIR --access public
+        working-directory: turbo-repo
+
+      - name: Summary
+        run: |
+          {
+            echo "# $PACKAGE_NAME@${{ steps.version.outputs.version }}"
+            echo ""
+            echo "- Published from tag \`${{ steps.version.outputs.tag }}\`"
+            echo "- Entry points resolved from the installed tarball; the document and its schema shipped together"
+            echo "- Publish this before @microboxlabs/miot-dashboard-server, which depends on it"
+          } >> "$GITHUB_STEP_SUMMARY"

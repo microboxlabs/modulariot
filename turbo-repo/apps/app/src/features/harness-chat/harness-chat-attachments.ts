@@ -1,6 +1,7 @@
 import {
   CompositeAttachmentAdapter,
   SimpleImageAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
   type AttachmentAdapter,
   type CompleteAttachment,
   type PendingAttachment,
@@ -71,5 +72,12 @@ export function createHarnessAttachmentAdapter(tr: TrFn): CompositeAttachmentAda
   return new CompositeAttachmentAdapter([
     new SimpleImageAttachmentAdapter(),
     new SimplePdfAttachmentAdapter(tr),
+    // Also covers synthetic "component reference" attachments (see
+    // pending-attachment-receiver.tsx), which use contentType: "text/plain"
+    // and go straight in as an already-complete CreateAttachment — this
+    // adapter's add/send never actually run for those, but its `accept`
+    // entry is what lets the composer's type check pass, and its `remove`
+    // (a no-op, like the others here) is what runs if the user un-attaches it.
+    new SimpleTextAttachmentAdapter(),
   ]);
 }

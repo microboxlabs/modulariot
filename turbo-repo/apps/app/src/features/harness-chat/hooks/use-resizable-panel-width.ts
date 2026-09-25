@@ -46,6 +46,7 @@ export function useResizablePanelWidth() {
   // wherever the clamping bounds themselves can change.
   const [bounds, setBounds] = useState({ min: 0, max: 0 });
   const dragStart = useRef<{ pointerX: number; startWidth: number } | null>(null);
+  const capturedPointer = useRef<{ element: HTMLDivElement; pointerId: number } | null>(null);
 
   useEffect(() => {
     const stored = Number(window.localStorage.getItem(STORAGE_KEY));
@@ -70,6 +71,12 @@ export function useResizablePanelWidth() {
     (e: PointerEvent<HTMLDivElement>) => {
       e.preventDefault();
       dragStart.current = { pointerX: e.clientX, startWidth: width };
+      // Without capture, the drag stalls wherever the pointer crosses an
+      // iframe (e.g. an embedded dashboard preview) — it's a separate
+      // browsing context, so it swallows pointermove/pointerup instead of
+      // letting them reach the window listeners below.
+      e.currentTarget.setPointerCapture(e.pointerId);
+      capturedPointer.current = { element: e.currentTarget, pointerId: e.pointerId };
       setIsDragging(true);
     },
     [width],
@@ -88,6 +95,10 @@ export function useResizablePanelWidth() {
     const stopDrag = () => {
       dragStart.current = null;
       setIsDragging(false);
+      if (capturedPointer.current) {
+        capturedPointer.current.element.releasePointerCapture(capturedPointer.current.pointerId);
+        capturedPointer.current = null;
+      }
     };
 
     // Prevents the drag from also selecting page text while the pointer

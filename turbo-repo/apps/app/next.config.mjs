@@ -45,6 +45,7 @@ const nextConfig = {
   transpilePackages: [
     "@microboxlabs/miot-calendar-client",
     "@microboxlabs/miot-calendar-ui",
+    "@microboxlabs/miot-dashboard-server",
   ],
 };
 

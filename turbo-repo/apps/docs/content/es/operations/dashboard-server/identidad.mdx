@@ -1,0 +1,125 @@
+# Usuarios y permisos
+
+Cada petición responde tres preguntas antes de tocar un tablero: quién llama, si puede actuar en la organización que nombra la URL y qué rol tiene en el ámbito que nombra la URL.
+
+## Vocabulario
+
+| Término | Qué es | En la URL |
+| --- | --- | --- |
+| Organización (*tenant*) | Un cliente o empresa. Sus datos nunca se mezclan con los de otra | `/tenants/{tenantId}` |
+| Ámbito (*scope*) | Un área dentro de la organización: un equipo, una sede, un sitio | `/scopes/{scopeId}` |
+| Rol | Lo que una persona puede hacer dentro de un ámbito | no aparece; se resuelve por petición |
+| Permisos del tablero | Roles adicionales que un tablero concreto otorga a personas o grupos | se administran por API |
+
+Una misma persona puede pertenecer a varias organizaciones con un rol distinto en cada una. Cambiar de organización es cambiar la URL, no pedir otro token.
+
+## Quién llama: JWT
+
+El servidor acepta un token JWT en la cabecera `Authorization: Bearer …`. Configure el emisor, la audiencia y exactamente una fuente de claves:
+
+```bash
+MIOT_DASHBOARD_JWT_ISSUER=https://su-empresa.auth0.com/
+MIOT_DASHBOARD_JWT_AUDIENCE=miot-dashboards
+MIOT_DASHBOARD_JWT_JWKS_URL=https://su-empresa.auth0.com/.well-known/jwks.json
+MIOT_DASHBOARD_JWT_USER_CLAIM=email
+```
+
+| Variable | Efecto |
+| --- | --- |
+| `MIOT_DASHBOARD_JWT_ISSUER` | Obligatoria. El `iss` que traen los tokens |
+| `MIOT_DASHBOARD_JWT_AUDIENCE` | Obligatoria. Una audiencia, o varias separadas por comas |
+| `MIOT_DASHBOARD_JWT_JWKS_URL` | Fuente de claves: las descarga del proveedor (RS256) |
+| `MIOT_DASHBOARD_JWT_PUBLIC_KEY` | Fuente de claves: una clave pública PEM (RS256) |
+| `MIOT_DASHBOARD_JWT_SECRET` | Fuente de claves: un secreto compartido de al menos 32 bytes (HS256) |
+| `MIOT_DASHBOARD_JWT_USER_CLAIM` | Claim con el identificador del usuario. Por defecto `sub` |
+| `MIOT_DASHBOARD_JWT_GROUPS_CLAIM` | Claim con los grupos del usuario. Opcional |
+| `MIOT_DASHBOARD_JWT_NAME_CLAIM` | Claim con el nombre para mostrar. Por defecto `name` |
+| `MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE` | Segundos de desfase admitidos en `exp`. Por defecto 30, máximo 300 |
+
+La fuente de claves decide el algoritmo. No hay forma de aceptar RS256 y HS256 a la vez.
+
+El identificador que sale del token es el que debe aparecer en las pertenencias. Si sus usuarios se identifican por correo, use `MIOT_DASHBOARD_JWT_USER_CLAIM=email` y escriba correos en el archivo de pertenencias.
+
+### Tickets
+
+Si su sistema emite tickets opacos en lugar de JWT, el servidor puede validarlos contra el emisor. Se configura con las variables `MIOT_DASHBOARD_TICKET_*`, empezando por `MIOT_DASHBOARD_TICKET_HEADER`, `MIOT_DASHBOARD_TICKET_VALIDATE_URL` y `MIOT_DASHBOARD_TICKET_USER_PATH`. Las dos formas de identidad pueden convivir, porque leen cabeceras distintas. La lista completa está en el README del paquete en npm.
+
+## Quién pertenece a qué
+
+Hay dos formas de decirlo. Para una instalación con pocas decenas de usuarios basta la primera.
+
+### Un archivo de pertenencias
+
+`MIOT_DASHBOARD_SEED` apunta a un archivo JSON. Su parte `memberships` es organización → ámbito → usuario → rol:
+
+```json
+{
+  "memberships": {
+    "acme": {
+      "operaciones": {
+        "ana@acme.example": "Coordinator",
+        "luis@acme.example": "Editor",
+        "sofia@acme.example": "Consumer"
+      },
+      "finanzas": {
+        "ana@acme.example": "Consumer"
+      }
+    }
+  }
+}
+```
+
+Una persona puede actuar en una organización cuando aparece en alguno de sus ámbitos. El archivo se lee al arrancar; un cambio requiere reiniciar el servidor.
+
+El archivo admite también una lista `dashboards` con tableros iniciales. Sirve para cargar una instalación nueva; los tableros cuyo identificador ya existe no se tocan.
+
+### Un servicio que ya lo sabe
+
+Si su empresa ya tiene un directorio, un ECM o cualquier servicio que responda "¿es esta persona miembro de este grupo?", el servidor puede preguntarle en cada petición. Una alta hecha allí aplica de inmediato, sin reiniciar nada ni reemitir tokens.
+
+```bash
+MIOT_DASHBOARD_TENANTS_URL='https://directorio.interno/personas/{userId}/organizaciones/{tenantId}'
+MIOT_DASHBOARD_SCOPES_URL='https://directorio.interno/personas/{userId}/grupos/{scopeId}'
+MIOT_DASHBOARD_SCOPES_ROLE_PATH=rol
+MIOT_DASHBOARD_SCOPES_ROLE_MAP='administrador=Coordinator,editor=Editor,lector=Consumer'
+MIOT_DASHBOARD_SCOPES_SERVICE_HEADER=authorization
+MIOT_DASHBOARD_SCOPES_SERVICE_VALUE="Basic $CREDENCIAL_DEL_SERVICIO"
+```
+
+| Variable | Efecto |
+| --- | --- |
+| `MIOT_DASHBOARD_TENANTS_URL` | Responde si la persona puede actuar en la organización. Con `GET` debe contener `{userId}` y `{tenantId}` |
+| `MIOT_DASHBOARD_TENANTS_METHOD` | `GET` (por defecto) o `POST`, que envía la pregunta como JSON |
+| `MIOT_DASHBOARD_TENANTS_ENTITLED_PATH` | Ruta con puntos a un booleano, para un servicio que responde 200 en ambos casos |
+| `MIOT_DASHBOARD_TENANTS_ABSENT_STATUS` | Códigos que significan "no pertenece". Por defecto `404` |
+| `MIOT_DASHBOARD_TENANTS_SERVICE_HEADER` | Cabecera con la credencial del propio servidor para preguntar por otras personas |
+| `MIOT_DASHBOARD_TENANTS_SERVICE_VALUE` | Su valor |
+| `MIOT_DASHBOARD_TENANTS_CACHE` | Segundos que se reutiliza un sí. Por defecto 60 |
+| `MIOT_DASHBOARD_TENANTS_NEGATIVE_CACHE` | Segundos que se reutiliza un no. Por defecto 30 |
+| `MIOT_DASHBOARD_TENANTS_TIMEOUT` | Milisegundos de espera. Por defecto 5000 |
+
+Las variables `MIOT_DASHBOARD_SCOPES_*` son las mismas, más dos: `MIOT_DASHBOARD_SCOPES_ROLE_PATH`, la ruta al rol dentro de la respuesta, y `MIOT_DASHBOARD_SCOPES_ROLE_MAP`, la traducción de los roles de su servicio a los del servidor.
+
+Las URL deben ser `https`. Una respuesta `401` del servicio significa que la credencial del servidor falló, y el servidor responde `500`, no `403`: una caída del directorio no debe parecer una revocación masiva.
+
+## Roles
+
+| Rol | Puede |
+| --- | --- |
+| `Consumer` | Ver |
+| `Contributor` | Ver, crear tableros en el ámbito y editar los propios |
+| `Editor` | Editar y compartir cualquier tablero del ámbito |
+| `Coordinator` | Todo, incluidos borrar y administrar permisos |
+
+Un tablero puede otorgar un rol adicional a personas o grupos concretos por API (`/permissions`). Ese rol amplía lo que la persona tiene en el ámbito, nunca lo reduce.
+
+## El orden de las comprobaciones
+
+| Paso | Si falla |
+| --- | --- |
+| Identidad | `401` |
+| Pertenencia a la organización | `403` con `reason: TENANT_SCOPE` |
+| Pertenencia al ámbito | `403` con `reason: TENANT_SCOPE` |
+| Capacidad para la acción | `403` con `reason: CAPABILITY` |
+
+Una organización en la que la persona no participa y una que no existe responden igual. Así la URL no sirve para descubrir qué organizaciones hay.

@@ -16,11 +16,13 @@ import {
   type HarnessStreamProgress,
 } from "@/features/layout/components/secured-navbar/spotlight-search/harness-stream";
 import type { AskUserQuestionArgs } from "@/features/harness-chat/extensions/ask-user-question";
+import type { CreateStoryArgs } from "@/features/harness-chat/extensions/create-story";
 import type { ShowDashletArgs } from "@/features/harness-chat/extensions/show-dashlet";
 import { getAllDashlets, getAllDashletMetas } from "@/features/dashboard/dashlets";
 import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.service";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
+import { conversationOf, modelOf, type AgUiMessage, type RunAgentInputBody } from "./conversation";
 
 /**
  * AG-UI streaming relay for the harness-chat panel: `RunAgentInput` in,
@@ -44,6 +46,8 @@ const FORWARDED_EVENTS: ReadonlySet<string> = new Set([
   "thinking.delta",
   "thinking.completed",
   "verification.completed",
+  "advisor.consulted",
+  "delegate.completed",
   "answer.completed",
   "run.completed",
   "run.failed",
@@ -55,7 +59,7 @@ function sseFrame(event: Record<string, unknown>): Uint8Array {
   return SSE_ENCODER.encode(`data: ${JSON.stringify(event)}\n\n`);
 }
 
-type Sender = (event: Record<string, unknown>) => void;
+export type Sender = (event: Record<string, unknown>) => void;
 
 /** Same phase→headline mapping the old client-side adapter used, now run
  * server-side since the narration is streamed as AG-UI THINKING_* events.
@@ -169,19 +173,12 @@ function showDashletToolCall(send: Sender, args: ShowDashletArgs): void {
   send({ type: "TOOL_CALL_END", toolCallId });
 }
 
-type AgUiMessage = {
-  id: string;
-  role: "developer" | "system" | "assistant" | "user" | "tool" | "activity" | "reasoning";
-  content?: unknown;
-  toolCallId?: string;
-};
-
-type RunAgentInputBody = {
-  threadId?: string;
-  runId?: string;
-  state?: { harnessConversationId?: string | null } | null;
-  messages?: AgUiMessage[];
-};
+function createStoryToolCall(send: Sender, args: CreateStoryArgs): void {
+  const toolCallId = crypto.randomUUID();
+  send({ type: "TOOL_CALL_START", toolCallId, toolCallName: "create_story" });
+  send({ type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) });
+  send({ type: "TOOL_CALL_END", toolCallId });
+}
 
 // The full AG-UI role set (confirmed against @ag-ui/core's message schema) —
 // "reasoning" matters in particular: this route's own narration streams as
@@ -354,14 +351,28 @@ function demoShowDashlet(send: Sender, text: string, tr: TrFn): boolean {
   return true;
 }
 
-type HarnessPathDecision = { handled: true } | { handled: false; message: string };
+/** Demo trigger for the create_story human tool — makes a new /storytelling/{id}
+ * entry "AI generated", entirely client-side (see create-story-card.tsx):
+ * this route can't touch the browser's localStorage itself, so it only hands
+ * the tool call a fresh id and lets the card do the actual creation. Nothing
+ * renders in the chat for this one — that's the point (see CreateStoryCard). */
+function demoCreateStory(send: Sender, text: string): boolean {
+  // Needs an explicit creation verb before "story"/"stories" — "create a
+  // story", "make me a new story", etc. — so unrelated prompts that merely
+  // mention a story ("summarize user story 123") still reach the harness.
+  if (!/\b(?:create|make|generate|new|build)\b.*\bstor(?:y|ies)\b/i.test(text)) return false;
+  createStoryToolCall(send, { id: crypto.randomUUID().slice(0, 8) });
+  return true;
+}
+
+export type HarnessPathDecision = { handled: true } | { handled: false; message: string };
 
 /** Short-circuits for turns that don't need the real harness at all: an
  * ask_user_question tool result, an empty user message, a demo trigger, or
  * the harness endpoint being unconfigured. Returns `handled: true` once
  * it's fully finished the run itself, or the resolved user message when
  * the caller still needs to drive the real harness. */
-function decideHarnessPath(
+export function decideHarnessPath(
   send: Sender,
   messages: AgUiMessage[],
   runId: string,
@@ -384,13 +395,29 @@ function decideHarnessPath(
     return { handled: true };
   }
 
+  // Both storytelling-related trigger words — "create a story" and "show
+  // all dashlets" — are testing scaffolding, gated the same as the
+  // storytelling pages themselves (see ENABLE_STORYTELLING in
+  // runtime-config.types.ts).
+  const storytellingTestingEnabled = process.env.ENABLE_STORYTELLING === "true";
+
   if (!isModulithConfigured()) {
+    // Demo triggers only ever run as a stand-in for the real harness — they
+    // must stay inside this branch. `demoCreateStory` used to run ahead of
+    // this check, so with the flag on, any real (configured-harness) turn
+    // that merely mentioned "story"/"stories" got hijacked into a fake
+    // create_story card instead of reaching the actual harness.
+    if (storytellingTestingEnabled && demoCreateStory(send, message)) {
+      send({ type: "RUN_FINISHED", runId, threadId });
+      return { handled: true };
+    }
+
     if (demoAskUserQuestion(send, message, tr)) {
       send({ type: "RUN_FINISHED", runId, threadId });
       return { handled: true };
     }
 
-    if (demoShowAllDashlets(send, message)) {
+    if (storytellingTestingEnabled && demoShowAllDashlets(send, message)) {
       send({ type: "RUN_FINISHED", runId, threadId });
       return { handled: true };
     }
@@ -474,9 +501,26 @@ function narrateForwardedEvent(
   tr: TrFn,
 ): void {
   appendNarrationDiff(send, narrator, progress, tr);
+  const line = seatNarration(event);
+  if (line) appendNarration(send, narrator, line);
   if (event.type !== "thinking.delta") return;
   const delta = event.data.delta;
   if (typeof delta === "string") appendNarration(send, narrator, delta);
+}
+
+/** One narration line for a seat event, or null for any other event. */
+export function seatNarration(event: { type: string; data: Record<string, unknown> }): string | null {
+  if (event.type === "advisor.consulted") {
+    const signal = typeof event.data.signal === "string" ? event.data.signal : "?";
+    const note = typeof event.data.note === "string" ? event.data.note.split("\n")[0] : "";
+    const suffix = note ? " — " + note : "";
+    return "\nAdvisor: " + signal + suffix;
+  }
+  if (event.type === "delegate.completed") {
+    const tools = Array.isArray(event.data.tools_run) ? event.data.tools_run.join(", ") : "";
+    return tools ? "\nDelegated: ran " + tools : "\nDelegated";
+  }
+  return null;
 }
 
 /** Relays the harness run's own event stream to the browser as live
@@ -589,7 +633,8 @@ async function run(
     return;
   }
   const { client, orgSlug, token, userEmail } = connection;
-  const conversationId = body.state?.harnessConversationId ?? null;
+  const { conversationId, replayTurns, summary } = conversationOf(body, messages);
+  const model = modelOf(body);
 
   let activeRunId: string | null = null;
   let runSettled = false;
@@ -618,8 +663,11 @@ async function run(
         skill_id: "miot-search",
         answer_format: "json",
         mode: "auto",
+        ...(model && { model }),
         ...(userEmail && { user_id: userEmail }),
         ...(conversationId && { conversation_id: conversationId }),
+        ...(replayTurns.length > 0 && { conversation_history: replayTurns }),
+        ...(summary && { conversation_summary: summary }),
       },
       { signal: controller.signal },
     );
@@ -658,7 +706,15 @@ async function run(
 
     const record = await client.runs.get(run_id, { signal: controller.signal });
     sendText(send, blocksToText(record.answer, tr));
-    send({ type: "STATE_SNAPSHOT", snapshot: { harnessConversationId: record.conversation_id } });
+    send({
+      type: "STATE_SNAPSHOT",
+      snapshot: {
+        harnessConversationId: record.conversation_id,
+        // What the harness holds now, compacted or seeded; the panel stores
+        // it with the thread so the next process can be handed it back.
+        harnessConversationSummary: record.conversation_summary ?? null,
+      },
+    });
     send({ type: "RUN_FINISHED", runId, threadId });
 
     void recordEpisode({

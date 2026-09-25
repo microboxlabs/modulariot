@@ -1,0 +1,27 @@
+meta {
+  name: A tenant the caller is not entitled to is 403
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/tenants/{{otherTenant}}/scopes/{{scopeId}}/dashboards/{{slug}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-dev-user: {{user}}
+}
+
+docs {
+  The tenant is in the path, so a caller can name any of them. This one names
+  a tenant they hold no membership in. A tenant that does not exist answers
+  exactly the same way, so the path cannot be used to enumerate tenant ids.
+}
+
+assert {
+  res.status: eq 403
+  res.body.code: eq FORBIDDEN
+  res.body.reason: eq TENANT_SCOPE
+}

@@ -1,8 +1,8 @@
 """Introspect Nexo schema: pg_proc rows + description parsing + denylist.
 
 Three stages:
-  1. parse_pg_description — pure: parses heterogeneous description formats
-     (`@meta` YAML-ish blocks, `L1/L2/L3/VT:` prefix, plain text).
+  1. parse_pg_description — pure, lives in datasource/pg_description.py and is
+     re-exported here.
   2. is_denied — pure: applies the multi-layer denylist (name pattern,
      explicit names, side-effects metadata).
   3. introspect_nexo_functions — async: runs the pg_proc query and
@@ -16,23 +16,17 @@ pytest-postgresql).
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import asyncpg
 
-_LAYER_PREFIX_RE = re.compile(r"^(L1|L2|L3|VT)\s*:\s*", re.IGNORECASE)
-_META_BLOCK_RE = re.compile(r"@meta\s*\n(.*?)\n@end", re.DOTALL)
+from miot_harness.datasource.pg_description import (  # noqa: F401 — re-exported
+    ParsedDescription,
+    parse_pg_description,
+)
 
 NAME_PATTERN_DENY = re.compile(r"^fn_refresh_")
 EXPLICIT_NAME_DENY = frozenset({"fn_dx_orchestrator", "fn_dx_orchestrator_auto"})
-
-
-@dataclass
-class ParsedDescription:
-    title: str = ""
-    body: str = ""
-    layer: str = ""  # "L1" | "L2" | "L3" | "VT" | "meta" | ""
-    meta: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -51,41 +45,6 @@ class FunctionDescriptor:
     args: list[FunctionArg]
     returns_kind: str  # "table" | "json" | "scalar"
     returns_columns: list[tuple[str, str]]  # (col_name, pg_type) for table-returning fns
-
-
-def parse_pg_description(raw: str | None) -> ParsedDescription:
-    if not raw:
-        return ParsedDescription()
-
-    text = raw.strip()
-    meta: dict[str, str] = {}
-    layer = ""
-    title = ""
-    body = text
-
-    meta_match = _META_BLOCK_RE.search(text)
-    if meta_match:
-        for line in meta_match.group(1).splitlines():
-            line = line.strip()
-            if not line or ":" not in line:
-                continue
-            key, _, value = line.partition(":")
-            meta[key.strip()] = value.strip()
-        layer = "meta"
-        before = text[: meta_match.start()].strip()
-        after = text[meta_match.end() :].strip()
-        title = before.splitlines()[0].strip() if before else ""
-        rest_before = "\n".join(before.splitlines()[1:]).strip()
-        body = "\n\n".join(part for part in (rest_before, after) if part)
-        return ParsedDescription(title=title, body=body, layer=layer, meta=meta)
-
-    prefix = _LAYER_PREFIX_RE.match(text)
-    if prefix:
-        layer = prefix.group(1).upper()
-        body = text[prefix.end() :].strip()
-        return ParsedDescription(title="", body=body, layer=layer, meta={})
-
-    return ParsedDescription(title="", body=text, layer="", meta={})
 
 
 def is_denied(*, name: str, meta: dict[str, str]) -> bool:

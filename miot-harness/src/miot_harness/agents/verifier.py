@@ -36,12 +36,15 @@ from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.plan import DataEvidence
 from miot_harness.runtime.tool import Progress
+from miot_harness.utils.truncation import excerpt_for_prompt
 
 logger = logging.getLogger(__name__)
 
 # next_action values this node emits; the graph routes on them.
 VERIFIED_DONE = "verified_done"
 REPLAN = "replan"
+
+_JUDGE_EXCERPT_CHARS = 2500
 
 _JUDGE_SYSTEM = """\
 You are a strict completion judge for a data assistant. Decide whether the
@@ -56,6 +59,9 @@ Mark fulfilled=false (and name the gap in one line) when:
 - a query clearly needed to answer the question was never executed;
 - the ONLY evidence is a SAMPLE (grep/ILIKE) — never authoritative for a total
   or a complete list.
+Each excerpt shows at most 5 rows of a result; `rows=` is the number the tool
+returned, and a `total` field is an exact count. An excerpt marked "first N of
+M rows" or "cut at N chars" is display truncation, not a gap.
 Mark fulfilled=true when the executed results actually answer what was asked, or
 when the evidence shows the available tools genuinely cannot answer it.
 
@@ -70,7 +76,9 @@ def _summarize_evidence(evidence: list[DataEvidence]) -> str:
         line = f"- tool={ev.tool} rows={ev.sample_size}{sample}"
         if ev.executed_sql:
             line += f" sql={ev.executed_sql[:300]}"
-        snippet = json.dumps(ev.output, default=str)[:500]
+        snippet, note = excerpt_for_prompt(ev.output, _JUDGE_EXCERPT_CHARS)
+        if note:
+            line += f" excerpt={note}"
         lines.append(f"{line}\n    {snippet}")
     return "\n".join(lines) if lines else "(no evidence)"
 

@@ -24,10 +24,11 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
 
 from miot_harness.agents.direct_agent import (
     FALLBACK_DIRECT_ANSWER,
@@ -48,8 +49,13 @@ from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.spans import agent_span
 from miot_harness.runtime.answer_render import render_answer_with_format
 from miot_harness.runtime.approvals import ApprovalRegistry
-from miot_harness.runtime.context import HarnessContext, UserRequest
+from miot_harness.runtime.context import (
+    MAX_CONVERSATION_HISTORY_TURNS,
+    HarnessContext,
+    UserRequest,
+)
 from miot_harness.runtime.conversation import (
+    ConversationHistory,
     ConversationStore,
     ConversationTurn,
     to_messages,
@@ -68,10 +74,57 @@ from miot_harness.runtime.permissions import (
 from miot_harness.runtime.policy import resolve_effective_mode
 from miot_harness.runtime.router import HarnessRoute, IntentRouter, RouteResult
 from miot_harness.runtime.run_store import HarnessRunRecord, JsonRunStore
+from miot_harness.runtime.tenancy import tenancy_gate_decision
 from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
+
+# Ceiling on how many replayed turns are seeded. The request model rejects a
+# longer list outright (`MAX_CONVERSATION_HISTORY_TURNS`); this keeps the same
+# bound for callers that build a UserRequest directly, and the token budget
+# still governs what actually reaches the model.
+_MAX_SEEDED_TURNS = MAX_CONVERSATION_HISTORY_TURNS
+
+# Routes the agent loop does not take over. Storytelling has its own
+# module; every other route the loop can answer itself.
+_THREAD_OWNER_EXEMPT = frozenset({HarnessRoute.STORYTELLING_RUN})
+
+
+def _with_canonical_answer(
+    messages: list[BaseMessage], answer: str
+) -> list[BaseMessage]:
+    """`messages` ending in the answer the user was shown.
+
+    The loop reports what the model wrote; the record carries what
+    `harden_answer` made of it. Storing the first would replay an answer the
+    user never saw, and for a repaired JSON-block response an invalid one.
+    """
+
+    if not messages or not answer:
+        return messages
+    last = messages[-1]
+    if isinstance(last, AIMessage) and not last.tool_calls:
+        return [*messages[:-1], AIMessage(content=answer)]
+    return [*messages, AIMessage(content=answer)]
+
+
+def _snapshot(history: ConversationHistory | None) -> ConversationHistory | None:
+    """A copy of `history` that later appends cannot change.
+
+    The store hands out the live object, and routing awaits before the turns
+    are read. A concurrent run in the same conversation finishing in that
+    window would otherwise land its turn in this request's prior context.
+    """
+
+    if history is None:
+        return None
+    return ConversationHistory(
+        conversation_id=history.conversation_id,
+        turns=list(history.turns),
+        summary=history.summary,
+    )
+
 
 _JSON_BLOCKS_INSTRUCTION = (
     "# Output format: JSON blocks\n\n"
@@ -81,6 +134,8 @@ _JSON_BLOCKS_INSTRUCTION = (
     '- "markdown": value is a Markdown string.\n'
     '- "url": value is an object {"url": <string>, "name": <string>}.\n'
     "Emit multiple blocks to convey different parts of the answer.\n"
+    "Work out what to say before you start writing the answer, not in it: the "
+    "answer starts at the opening bracket.\n"
     "This contract applies ONLY to the final user-facing answer; internal "
     "protocol outputs (planner action objects, tool-call JSON, verdicts) "
     "keep their own formats."
@@ -104,6 +159,11 @@ class HarnessSupervisor:
         meta_catalog: list[MetaAgentCatalogEntry] | None = None,
         conversation_store: ConversationStore | None = None,
         conversation_token_budget: int = 24_000,
+        conversation_tool_token_budget: int = 48_000,
+        # Folds a conversation's older turns into its summary once the store's
+        # turn cap is passed. None leaves histories to the token trim alone.
+        conversation_summarizer: Callable[[ConversationHistory], Awaitable[str]] | None = None,
+        router_context_turns: int = 2,
         # Empty default = no lock configured yet; the lifespan overwrites
         # this from the active datasource profile at boot. An empty lock
         # refuses gated (agentic/canned) modes until configured — secure by
@@ -130,6 +190,9 @@ class HarnessSupervisor:
         self.meta_catalog: list[MetaAgentCatalogEntry] = meta_catalog or []
         self.conversation_store = conversation_store
         self.conversation_token_budget = conversation_token_budget
+        self.conversation_tool_token_budget = conversation_tool_token_budget
+        self.conversation_summarizer = conversation_summarizer
+        self.router_context_turns = router_context_turns
         self.tenant_lock = tenant_lock
         self.event_bus = event_bus
         self.checkpoint_every_n_events = checkpoint_every_n_events
@@ -202,7 +265,7 @@ class HarnessSupervisor:
                 update={"approval_registry": self.approval_registry}
             )
         settings = get_settings()
-        effective_policy, mode_denied = self._resolve_policy(request, settings=settings)
+        effective_policy, mode_denied = self._resolve_policy(request, ctx, settings=settings)
         ctx = ctx.model_copy(update={"permission_policy": effective_policy})
         record = HarnessRunRecord(
             run_id=ctx.run_id,
@@ -226,11 +289,20 @@ class HarnessSupervisor:
                 )
             )
 
+        # Seed a replayed transcript into the store before routing: the
+        # router reads the last turns from it. Seeding happens here and only
+        # here — a second call could reset a history a concurrent run has
+        # appended to meanwhile. The projection to messages waits for the
+        # route, which decides whether tool calls replay, so what is held is
+        # a snapshot: routing awaits, and a second run finishing in that
+        # window must not slip its turn into this request's prior context.
+        history = _snapshot(self._seeded_history(request, ctx))
+
         # Route via the LLM router when injected; else fall back to the
         # keyword router (Plan 12 default; the "auto" mode confidence
         # fallback also lands here under the hood).
         try:
-            route = await self._resolve_route(request)
+            route = await self._resolve_route(request, ctx)
         except ModeAccessDenied as exc:
             record.answer = str(exc)
             record.status = "completed"
@@ -251,24 +323,40 @@ class HarnessSupervisor:
             self._close_bus(ctx.run_id)
             return record
 
+        # The router's own verdict, captured before either override, so the
+        # event reports what it chose even when the catalog remap fires first.
+        classified = route
         route = self._apply_catalog_route_override(route)
+        route = self._apply_thread_owner_override(route, request, ctx)
 
+        # `route` is what runs. When the loop took the turn over, the router's
+        # own verdict rides alongside it: it is the signal for whether the
+        # override is picking up turns the router would have sent elsewhere.
+        route_data: dict[str, Any] = {"route": route.route}
+        if route.route != classified.route:
+            route_data["classified_route"] = classified.route
         progress(
             HarnessEvent(
                 run_id=ctx.run_id,
                 type="route.selected",
                 message=route.reason,
-                data={"route": route.route},
+                data=route_data,
             )
         )
 
-        # Hydrate prior turns from `ConversationStore` so LLM-bearing agents
-        # actually carry context across `/runs` calls (plan 13 §E5). Empty
-        # list when no store, no conversation_id, or no prior history.
-        prior_messages = self._hydrate_history(request)
+        prior_messages = self._project_history(
+            history, include_tool_calls=self._loop_owns(route)
+        )
+        if self._loop_owns(route):
+            # The meta seat carried this tenant's context and the loop took
+            # its route over. Every turn the loop owns gets it, not only the
+            # remapped ones: its own system prompt is the frozen cache prefix
+            # and holds what is true for every tenant, nothing more.
+            prior_messages = self._inject_tenant_context(ctx, prior_messages)
         prior_messages = self._inject_skill(request, ctx, prior_messages)
         prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
 
+        turn_messages: list[BaseMessage] | None = None
         try:
             if route.route == HarnessRoute.DATA_QUERY:
                 await self._run_data_query(
@@ -279,7 +367,7 @@ class HarnessSupervisor:
                     request, ctx, record, progress, route.route, prior_messages
                 )
             elif route.route == HarnessRoute.DATA_AGENTIC:
-                await self._run_data_agentic(
+                turn_messages = await self._run_data_agentic(
                     request, ctx, record, progress, route.route, prior_messages
                 )
             elif route.route == HarnessRoute.STORYTELLING_RUN:
@@ -335,14 +423,20 @@ class HarnessSupervisor:
             return record
 
         # Persist the turn so the next call in this conversation sees it.
-        if self.conversation_store is not None and request.conversation_id and record.answer:
+        conversation_key = self._conversation_key(request, ctx)
+        if self.conversation_store is not None and conversation_key and record.answer:
+            self._restore_evicted(conversation_key, history)
             self.conversation_store.append(
-                request.conversation_id,
+                conversation_key,
                 ConversationTurn(
                     user_message=request.message,
                     assistant_answer=record.answer,
+                    messages=tuple(turn_messages or ()),
                 ),
             )
+            await self._compact_history(conversation_key)
+            history = self.conversation_store.get(conversation_key)
+            record.conversation_summary = history.summary if history else None
 
         record.status = "completed"
         progress(HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed"))
@@ -441,6 +535,34 @@ class HarnessSupervisor:
         if self.event_bus is not None:
             self.event_bus.close(run_id)
 
+    def _inject_tenant_context(
+        self, ctx: HarnessContext, prior_messages: list[BaseMessage]
+    ) -> list[BaseMessage]:
+        """Prepend this tenant's context overlay and system facts.
+
+        The meta seat read them from `_meta_primer_for` / `_meta_catalog_for`,
+        and the loop took its route over. The loop's own system prompt cannot
+        carry them: it is the frozen prompt-cache prefix, so it holds only
+        what is true for every tenant. They ride in the user turn instead,
+        the same way an activated skill does.
+        """
+
+        if self.context_skills is None:
+            return prior_messages
+        blocks: list[str] = []
+        tenant_block = self.context_skills.primer_for(ctx.tenant_id).tenant_block
+        if tenant_block:
+            blocks.append(f"# System context (tenant)\n{tenant_block}")
+        facts = [
+            f"- {entry.title}\n  {entry.body}"
+            for entry in self.context_skills.facts_for(ctx.tenant_id)
+        ]
+        if facts:
+            blocks.append("# System facts (tenant)\n" + "\n".join(facts))
+        if not blocks:
+            return prior_messages
+        return [SystemMessage(content="\n\n".join(blocks)), *prior_messages]
+
     def _inject_skill(
         self,
         request: UserRequest,
@@ -493,14 +615,111 @@ class HarnessSupervisor:
             return prior_messages
         return [SystemMessage(content=_JSON_BLOCKS_INSTRUCTION), *prior_messages]
 
-    def _hydrate_history(self, request: UserRequest) -> list[BaseMessage]:
-        """Read prior turns from `ConversationStore` and trim them to fit the
-        `conversation_token_budget` (via `trim_messages`).
+    def _recent_turns(self, request: UserRequest, ctx: HarnessContext) -> list[ConversationTurn]:
+        """The last few stored turns, for the router. Call after
+        `_hydrate_history`, which is what seeds a replayed conversation."""
 
-        Returns an empty list when:
-        - no `conversation_store` injected (Plan 12 deploys),
-        - request has no `conversation_id`,
-        - the store has no prior history for that id (first turn of a chat).
+        key = self._conversation_key(request, ctx)
+        if self.conversation_store is None or key is None or self.router_context_turns <= 0:
+            return []
+        history = self.conversation_store.get(key)
+        if history is None:
+            return []
+        return history.turns[-self.router_context_turns :]
+
+    async def _compact_history(self, key: str) -> None:
+        """Fold older turns into the summary once the store's cap is passed.
+
+        A summarizer failure leaves the history as it was: the turns are
+        still there and the next run tries again. The answer is already
+        composed by now, so nothing here may fail the run.
+        """
+
+        if self.conversation_store is None or self.conversation_summarizer is None:
+            return
+        try:
+            await self.conversation_store.summarize_if_needed(
+                key, summarizer=self.conversation_summarizer
+            )
+        except Exception:  # noqa: BLE001 — memory upkeep must not fail the run
+            logger.warning("Conversation compaction failed; keeping the full history")
+
+    @staticmethod
+    def _conversation_key(request: UserRequest, ctx: HarnessContext) -> str | None:
+        """Store key for this run's conversation, or None for a one-shot.
+
+        Namespaced by the *resolved* tenant and user, not by the caller's
+        `conversation_id` alone. That id comes from the request body, so an
+        unnamespaced store lets any caller read another tenant's conversation
+        as prior context simply by naming its id — and, now that callers can
+        seed, write into one. The raw id still goes on the record, where
+        Langfuse groups by it.
+        """
+
+        if not request.conversation_id:
+            return None
+        return f"{ctx.tenant_id}/{ctx.user_id}/{request.conversation_id}"
+
+    def _restore_evicted(
+        self, key: str, snapshot: ConversationHistory | None
+    ) -> None:
+        """Put back what the store dropped while the model was answering.
+
+        The store can evict this conversation mid-run, and another run can
+        recreate the key with a turn of its own. Appending onto either an
+        empty history or that partial one loses every earlier turn and its
+        tool transcript. The snapshot this run read is the prior context its
+        turn belongs after, so it goes back in front.
+
+        Nothing happens in the ordinary case: a history that still starts
+        with the snapshot's turns is the one this run read, grown by
+        concurrent appends, and re-seeding it would duplicate them.
+        """
+
+        if self.conversation_store is None or snapshot is None:
+            return
+        if not snapshot.turns and not snapshot.summary:
+            return
+        current = self.conversation_store.get(key)
+        if current is not None and (
+            list(current.turns[: len(snapshot.turns)]) == list(snapshot.turns)
+        ):
+            return
+        self.conversation_store.seed(
+            ConversationHistory(
+                conversation_id=key,
+                turns=[*snapshot.turns, *(current.turns if current else [])],
+                summary=(current.summary if current else None) or snapshot.summary,
+            )
+        )
+
+    def _seeded_history(
+        self, request: UserRequest, ctx: HarnessContext
+    ) -> ConversationHistory | None:
+        """The stored history for this conversation, seeding a replay first.
+
+        `run()` calls this exactly once, before routing, and passes what it
+        returns to `_project_history`. Do not call it a second time in a run:
+        a replay longer than `_MAX_SEEDED_TURNS` seeds only its tail, so the
+        next call sees fewer turns than the replay, seeds again, and the reset
+        drops any turn a concurrent run appended meanwhile.
+        """
+
+        key = self._conversation_key(request, ctx)
+        if self.conversation_store is None or key is None:
+            return None
+        history = self.conversation_store.get(key)
+        if self._needs_seeding(history, request):
+            history = self._seed_history(request, key)
+        return history
+
+    def _project_history(
+        self,
+        history: ConversationHistory | None,
+        *,
+        include_tool_calls: bool = False,
+    ) -> list[BaseMessage]:
+        """Trim an already-seeded history to fit the budget for this route.
 
         This is the read-half of the `ConversationStore` contract — the
         write-half (append after each run) already lives at the bottom of
@@ -508,14 +727,100 @@ class HarnessSupervisor:
         context across `/runs` calls. The token budget is the right knob
         (not turn count) because our synthesizer's long Markdown answers
         make per-turn cost wildly variable.
+
+        Empty when there is no history: no store injected (Plan 12 deploys),
+        no `conversation_id`, or a first turn nobody replayed into.
+
+        `include_tool_calls` replays each turn's tool calls and tool results
+        and draws on `conversation_tool_token_budget`, which is larger
+        because a turn then costs what its tool envelopes cost. Only the
+        agent loop may ask for it; see `to_messages`.
         """
 
-        if self.conversation_store is None or not request.conversation_id:
-            return []
-        history = self.conversation_store.get(request.conversation_id)
         if history is None:
             return []
-        return to_messages(history, max_tokens=self.conversation_token_budget)
+        budget = (
+            self.conversation_tool_token_budget
+            if include_tool_calls
+            else self.conversation_token_budget
+        )
+        return to_messages(
+            history, max_tokens=budget, include_tool_calls=include_tool_calls
+        )
+
+    @staticmethod
+    def _needs_seeding(history: ConversationHistory | None, request: UserRequest) -> bool:
+        """Whether the caller's replay should be taken over what is held here.
+
+        An id this process has never seen, obviously. Also one whose local tail
+        is shorter than the replay and has not been compacted yet: with more
+        than one replica, turn 3 can land elsewhere and come back to a replica
+        holding a staler history than the caller's. A compacted history is left
+        alone — its summary carries context the replay no longer has.
+        """
+
+        if not request.conversation_history and not request.conversation_summary:
+            return False
+        if history is None:
+            return True
+        return history.summary is None and len(history.turns) < len(
+            request.conversation_history
+        )
+
+    def _seed_history(self, request: UserRequest, key: str) -> ConversationHistory | None:
+        """Prime the store from `request.conversation_history`.
+
+        The store is in-memory, so a conversation the caller still has on
+        screen can be one the harness no longer knows: a restart drops every
+        history, and clients keep their transcripts far longer than a process
+        lives. Rather than answer that turn with no context, take the caller's
+        replay of the turns it recorded.
+
+        Fires for an id this process does not know, and for one whose local
+        tail is shorter than the replay (see `_needs_seeding`). Otherwise the
+        run's own append and `summarize_if_needed` own the history, so a caller
+        replaying the same turns again changes nothing.
+
+        Returns None when there is nothing to seed with.
+        """
+
+        if self.conversation_store is None:
+            return None
+        if not request.conversation_history and not request.conversation_summary:
+            return None
+        # A replay carries text only. Any turn already held here with the same
+        # question and answer keeps the tool transcript it was stored with:
+        # the reset below would otherwise downgrade turns this replica ran
+        # itself, which is the memory loss the replay is meant to repair.
+        held = self.conversation_store.get(key)
+        # Kept in occurrence order: the same question answered the same way
+        # twice can have run different queries, and each replayed turn takes
+        # the transcript of the matching turn in the same position.
+        transcripts: dict[tuple[str, str], list[tuple[BaseMessage, ...]]] = {}
+        for stored in held.turns if held is not None else []:
+            transcripts.setdefault(
+                (stored.user_message, stored.assistant_answer), []
+            ).append(stored.messages)
+        self.conversation_store.reset(key)
+        for turn in request.conversation_history[-_MAX_SEEDED_TURNS:]:
+            matches = transcripts.get((turn.user_message, turn.assistant_answer))
+            self.conversation_store.append(
+                key,
+                ConversationTurn(
+                    user_message=turn.user_message,
+                    assistant_answer=turn.assistant_answer,
+                    messages=matches.pop(0) if matches else (),
+                ),
+            )
+        history = self.conversation_store.get(key)
+        if request.conversation_summary:
+            # The caller's summary covers turns older than the ones it
+            # replayed — the compaction that produced it cleared them here.
+            if history is None:
+                history = ConversationHistory(conversation_id=key)
+                self.conversation_store.seed(history)
+            history.summary = request.conversation_summary
+        return history
 
     def _root_span_kwargs(
         self, ctx: HarnessContext, route: HarnessRoute | None
@@ -547,6 +852,7 @@ class HarnessSupervisor:
     def _resolve_policy(
         self,
         request: UserRequest,
+        ctx: HarnessContext,
         *,
         settings: HarnessSettings,
     ) -> tuple[PermissionPolicy, bool]:
@@ -561,16 +867,17 @@ class HarnessSupervisor:
         mode-less turn inherits DEFAULT rather than re-triggering the denial.
         """
 
+        # Same namespacing as the history store: a sticky permission posture
+        # keyed on the caller's conversation_id alone would be another
+        # tenant's to set.
+        policy_key = self._conversation_key(request, ctx)
         requested: PermissionMode | None = None
         rules: list[PermissionRule] = []
         if request.permission_mode is not None or request.rules:
             requested = request.permission_mode or PermissionMode.DEFAULT
             rules = list(request.rules)
-        elif (
-            self.conversation_policy_store is not None
-            and request.conversation_id
-        ):
-            sticky = self.conversation_policy_store.get(request.conversation_id)
+        elif self.conversation_policy_store is not None and policy_key is not None:
+            sticky = self.conversation_policy_store.get(policy_key)
             if sticky is not None:
                 requested = sticky.mode
                 rules = list(sticky.rules)
@@ -585,14 +892,11 @@ class HarnessSupervisor:
             requested, settings=settings, tenant_id=request.tenant_id
         )
         policy = PermissionPolicy(mode=effective, rules=rules)
-        if (
-            self.conversation_policy_store is not None
-            and request.conversation_id
-        ):
-            self.conversation_policy_store.set(request.conversation_id, policy)
+        if self.conversation_policy_store is not None and policy_key is not None:
+            self.conversation_policy_store.set(policy_key, policy)
         return policy, denied
 
-    async def _resolve_route(self, request: UserRequest) -> RouteResult:
+    async def _resolve_route(self, request: UserRequest, ctx: HarnessContext) -> RouteResult:
         """Use the LLM router when available; else the keyword router.
 
         The LLM router has its own keyword-fallback for low-confidence,
@@ -604,6 +908,7 @@ class HarnessSupervisor:
                 request,
                 llm_router=self.llm_router,
                 tenant_lock=self.tenant_lock,
+                prior_turns=self._recent_turns(request, ctx),
             )
         # Plan 12 default: keyword router on the message; explicit modes
         # are ignored because the keyword router doesn't know about them.
@@ -635,6 +940,69 @@ class HarnessSupervisor:
                 ),
             )
         return route
+
+    def _loop_owns(self, route: RouteResult) -> bool:
+        return route.route == HarnessRoute.DATA_AGENTIC and self.agent_loop is not None
+
+    def _tenant_may_use_data(self, ctx: HarnessContext) -> bool:
+        """Whether both tenancy gates allow this tenant a data route.
+
+        Two locks are in play and they can disagree. `self.tenant_lock` is the
+        one the lifespan resolved, which prefers the primary connection's own
+        lock; the loop re-gates with the env override and the profile default
+        only. Remapping on the strictly weaker of the two would either hand a
+        connection-locked datasource to another tenant, or turn a meta
+        question every tenant may ask into the loop's refusal. So both must
+        allow, and otherwise the route the router picked stands.
+        """
+
+        if self.tenant_lock and ctx.tenant_id != self.tenant_lock:
+            return False
+        return tenancy_gate_decision(
+            ctx=ctx,
+            route=HarnessRoute.DATA_AGENTIC,
+            settings=get_settings(),
+            profile=self.profile,
+        ).allowed
+
+    def _tenant_refusal(self) -> str:
+        if self.profile is None:
+            return "This datasource is restricted. I can't answer for other tenants."
+        lock = self.tenant_lock or self.profile.tenant_lock
+        return self.profile.tenant_refusal_template.format(
+            display_name=self.profile.display_name, lock=lock
+        )
+
+    def _apply_thread_owner_override(
+        self, route: RouteResult, request: UserRequest, ctx: HarnessContext
+    ) -> RouteResult:
+        """Send every turn to the agent loop once it is wired.
+
+        The router classifies each turn on its own. A follow-up such as "did
+        you query the GPS database?" reads as a meta question, so it landed
+        on `direct_agent` — a seat with no tools and no view of what the
+        previous turn ran, which answered that the earlier numbers were
+        invented. One seat owning the thread keeps one transcript, one model
+        and one tool history.
+
+        Three things stay off the loop. STORYTELLING_RUN, which has its own
+        module. A caller-chosen `mode`, which names the seat it wants and
+        would become a no-op for half its values if this rewrote it. And any
+        tenant either tenancy gate refuses: both have to allow the data route,
+        or a meta question every tenant may ask would be remapped into a
+        refusal by whichever gate is stricter.
+        """
+
+        if self.agent_loop is None or route.route in _THREAD_OWNER_EXEMPT:
+            return route
+        if route.route == HarnessRoute.DATA_AGENTIC or request.mode != "auto":
+            return route
+        if not self._tenant_may_use_data(ctx):
+            return route
+        return RouteResult(
+            route=HarnessRoute.DATA_AGENTIC,
+            reason=f"{route.reason} → remapped to DATA_AGENTIC (agent loop owns the thread)",
+        )
 
     async def _run_storytelling(
         self,
@@ -717,8 +1085,28 @@ class HarnessSupervisor:
         progress: Any,
         route: HarnessRoute | None = None,
         prior_messages: list[BaseMessage] | None = None,
-    ) -> None:
+    ) -> list[BaseMessage] | None:
+        """Returns the loop's turn transcript, for the conversation store.
+
+        None on the planner-graph path, which reports no messages.
+        """
         if self.agent_loop is not None:
+            # The loop re-gates tenancy, but on the env override and the
+            # profile alone: it cannot see a lock the primary connection
+            # declared, which the lifespan resolved into `self.tenant_lock`
+            # and prefers. Refuse here so the stricter of the two decides,
+            # whichever route brought the request.
+            if not self._tenant_may_use_data(ctx):
+                record.answer = self._tenant_refusal()
+                progress(
+                    HarnessEvent(
+                        run_id=ctx.run_id,
+                        type="answer.completed",
+                        message="tenant is not the datasource's",
+                        data={"length": len(record.answer)},
+                    )
+                )
+                return None
             with agent_span("run", **self._root_span_kwargs(ctx, route)):
                 delta = await self.agent_loop.run(
                     user_message=request.message,
@@ -735,7 +1123,12 @@ class HarnessSupervisor:
             for assumption in assumptions:
                 emit_grounding_gap(progress, ctx.run_id, assumption)
             record.assumptions = self._stamp_connection(assumptions)
-            return
+            # `harden_answer` can rewrite what the loop wrote. The stored turn
+            # has to end in the answer the user was shown, or the next turn
+            # replays a different one.
+            return _with_canonical_answer(
+                list(delta.get("messages") or []), record.answer
+            )
 
         if self.agentic_graph is None:
             answer = (
@@ -751,7 +1144,7 @@ class HarnessSupervisor:
                     data={"length": len(answer)},
                 )
             )
-            return
+            return None
 
         initial_state: dict[str, Any] = {
             "user_message": request.message,
@@ -774,6 +1167,7 @@ class HarnessSupervisor:
         record.assumptions = self._stamp_connection(
             list(final_state.get("assumptions") or [])
         )
+        return None
 
     async def _run_data_meta(
         self,

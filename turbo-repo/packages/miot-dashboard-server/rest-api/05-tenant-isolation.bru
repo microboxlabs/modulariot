@@ -5,21 +5,20 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/scopes/{{scopeId}}/dashboards/{{slug}}
+  url: {{baseUrl}}/tenants/{{otherTenant}}/scopes/{{scopeId}}/dashboards/{{slug}}
   body: none
   auth: none
 }
 
 headers {
   x-dev-user: {{otherUser}}
-  x-dev-tenant: {{otherTenant}}
 }
 
 docs {
   The seed deliberately puts a dashboard at the same scope and slug in two
-  tenants. This request and the previous one differ only by credential, and
-  they must return different documents. If they ever return the same one,
-  tenant isolation has broken.
+  tenants. This request and the previous one differ only by the tenant in the
+  path, and they must return different documents. If they ever return the same
+  one, tenant isolation has broken.
 }
 
 assert {

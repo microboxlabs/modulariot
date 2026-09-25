@@ -22,11 +22,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy public assets if they exist (docs may not have many public assets)
-COPY --chown=nextjs:nodejs public ./public
-
 # Copy standalone build output
 COPY --chown=nextjs:nodejs .next/standalone ./
+
+# Public assets go next to server.js: the server reads them from its own directory,
+# so a copy at /app/public is never served (the Pagefind search index lives here).
+COPY --chown=nextjs:nodejs public ./apps/docs/public
 
 # Copy static files to the correct location relative to server.js
 # Since server.js is at apps/docs/server.js, static files should be at apps/docs/.next/static

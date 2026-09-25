@@ -11,8 +11,17 @@
 import { describe, expect, it, vi } from "vitest";
 import { NO_CAPABILITIES } from "../seams/identity";
 import type { ServerDashboardRef } from "../seams/store";
-import { embed, harness, user, type Memberships } from "../test/fixtures";
-import type { DashboardAction } from "./access-control";
+import {
+  embed,
+  harness,
+  identityFromRequest,
+  user,
+  type Memberships,
+  type TestRequest,
+} from "../test/fixtures";
+import { createMemoryStore } from "../testing";
+import type { ScopeAuthority, TenantAuthority } from "../seams/identity";
+import { createAccessControl, type DashboardAction } from "./access-control";
 import { DashboardServerError } from "./errors";
 import { FULL_CAPABILITIES, capabilitiesForRole } from "./roles";
 
@@ -165,7 +174,10 @@ describe("unauthenticated requests", () => {
   it("are refused with 401 and audited without an identity", async () => {
     const h = harness({ memberships, seed });
     const error = await expectError(
+      // An anonymous request still names a tenant in its path; there is just
+      // nobody to check it against.
       h.control.authorize(null, {
+        tenantId: A.tenantId,
         scopeId: A.scopeId,
         slug: A.slug,
         action: "dashboard.load",
@@ -179,7 +191,7 @@ describe("unauthenticated requests", () => {
     expect(event).toMatchObject({
       action: "dashboard.load",
       outcome: "denied",
-      target: "ops/fleet",
+      target: "acme/ops/fleet",
       detail: { reason: "UNAUTHENTICATED" },
     });
     expect(event).not.toHaveProperty("tenantId");
@@ -487,7 +499,7 @@ describe("target validation", () => {
       expect.objectContaining({
         action: "dashboard.save",
         outcome: "denied",
-        target: "ops",
+        target: "acme/ops",
         tenantId: "acme",
         userId: "alice",
         detail: expect.objectContaining({ reason: "BAD_REQUEST" }),
@@ -500,14 +512,20 @@ describe("capabilities()", () => {
   it("returns the effective capabilities for the caller", async () => {
     const h = harness({ memberships, seed });
     await expect(
-      h.control.capabilities(user("eve", "acme"), "ops", "fleet"),
+      h.control.capabilities(user("eve", "acme"), {
+        scopeId: "ops",
+        slug: "fleet",
+      }),
     ).resolves.toEqual(capabilitiesForRole("Editor"));
   });
 
   it("is 404 for a dashboard that does not exist", async () => {
     const h = harness({ memberships, seed });
     const error = await expectError(
-      h.control.capabilities(user("alice", "acme"), "ops", "missing"),
+      h.control.capabilities(user("alice", "acme"), {
+        scopeId: "ops",
+        slug: "missing",
+      }),
     );
     expect(error.status).toBe(404);
   });
@@ -515,7 +533,10 @@ describe("capabilities()", () => {
   it("is 403 for an outsider, before the store is consulted", async () => {
     const h = harness({ memberships, seed });
     const error = await expectError(
-      h.control.capabilities(user("mallory", "globex"), "ops", "fleet"),
+      h.control.capabilities(user("mallory", "globex"), {
+        scopeId: "ops",
+        slug: "fleet",
+      }),
     );
     expect(error.reason).toBe("TENANT_SCOPE");
     expect(h.store.touched()).toBe(false);
@@ -537,7 +558,7 @@ describe("audit", () => {
         userId: "eve",
         action: "dashboard.save",
         outcome: "allowed",
-        target: "ops/fleet",
+        target: "acme/ops/fleet",
         detail: { principal: "user", scopeRole: "Editor" },
       },
     ]);
@@ -557,5 +578,87 @@ describe("audit", () => {
       }),
     ).resolves.toBeDefined();
     expect(onAuditError).toHaveBeenCalledWith(boom);
+  });
+});
+
+describe("the tenant gate, against a scope authority that ignores the tenant", () => {
+  /**
+   * The case the `TenantAuthority` exists for.
+   *
+   * A host's membership service is often keyed by user and scope alone — the
+   * Alfresco site-membership resource this package documents takes exactly
+   * `{userId}` and `{scopeId}`. Such a service answers "Coordinator in ops"
+   * without ever being told which tenant, so if the tenant a request names is
+   * not checked separately, naming another one reaches its data with a role
+   * the host granted somewhere else entirely.
+   *
+   * The seed-backed authority keys on the tenant, so it hides this. Here the
+   * scope authority is deliberately tenant-blind, which is what leaves the
+   * tenant gate as the only thing standing between the two.
+   */
+  const tenantBlindScopes: ScopeAuthority = {
+    resolveScopeRole: (_identity, scopeId) =>
+      Promise.resolve(scopeId === "ops" ? "Coordinator" : null),
+  };
+
+  const control = (tenants: TenantAuthority) =>
+    createAccessControl<TestRequest>({
+      identity: identityFromRequest,
+      tenants,
+      scopes: tenantBlindScopes,
+      store: createMemoryStore({ seed: [{ ref: B_TWIN, record: {} }] }),
+    });
+
+  it("refuses a tenant the caller is not entitled to", async () => {
+    const acmeOnly: TenantAuthority = {
+      mayActAs: (_principal, tenantId) => Promise.resolve(tenantId === "acme"),
+    };
+    const error = await expectError(
+      control(acmeOnly).authorize(user("alice", "acme"), {
+        tenantId: "globex",
+        scopeId: "ops",
+        slug: "fleet",
+        action: "dashboard.load",
+      }),
+    );
+    expect(error.status).toBe(403);
+    expect(error.reason).toBe("TENANT_SCOPE");
+  });
+
+  it("reads another tenant's dashboard once the gate is opened", async () => {
+    // The counterpart, and the point: with the gate answering yes to
+    // everything, the tenant-blind scope authority hands over globex's data
+    // to an acme caller. Nothing else in the request would have stopped it.
+    const anyTenant: TenantAuthority = {
+      mayActAs: () => Promise.resolve(true),
+    };
+    const decision = await control(anyTenant).authorize(user("alice", "acme"), {
+      tenantId: "globex",
+      scopeId: "ops",
+      slug: "fleet",
+      action: "dashboard.load",
+    });
+    expect(decision.identity.tenantId).toBe("globex");
+    expect(decision.dashboard?.ref).toEqual(B_TWIN);
+  });
+
+  it("asks the gate before the store is touched", async () => {
+    const store = createMemoryStore({ seed: [{ ref: B_TWIN, record: {} }] });
+    const load = vi.spyOn(store, "load");
+    const control = createAccessControl<TestRequest>({
+      identity: identityFromRequest,
+      tenants: { mayActAs: () => Promise.resolve(false) },
+      scopes: tenantBlindScopes,
+      store,
+    });
+    await expectError(
+      control.authorize(user("alice", "acme"), {
+        tenantId: "globex",
+        scopeId: "ops",
+        slug: "fleet",
+        action: "dashboard.load",
+      }),
+    );
+    expect(load).not.toHaveBeenCalled();
   });
 });

@@ -57,13 +57,20 @@ export function createSqlMetadataStore(
     ref.slug,
   ];
 
+  /**
+   * `lock` holds the row for the rest of the transaction, for a caller about
+   * to write rows that depend on this one still existing. It is a no-op on
+   * SQLite, whose writers already exclude one another.
+   */
   async function read(
     ref: ServerDashboardRef,
+    lock = false,
   ): Promise<DashboardMetadataRow | null> {
     const p = placeholders(driver.dialect);
     const rows = await driver.all<RawRow>(
       `SELECT ${COLUMNS} FROM dashboards
-        WHERE tenant_id = ${p()} AND scope_id = ${p()} AND slug = ${p()}`,
+        WHERE tenant_id = ${p()} AND scope_id = ${p()} AND slug = ${p()}` +
+        (lock ? driver.dialect.rowLock : ""),
       refValues(ref),
     );
     return first(rows);
@@ -150,7 +157,10 @@ export function createSqlMetadataStore(
   }
 
   return {
-    read,
+    // Wrapped rather than passed through, so `lock` stays internal: it is not
+    // part of the seam, and a caller of a method called `read` should not be
+    // able to hold rows for the length of its transaction.
+    read: (ref) => read(ref),
 
     async list(tenantId, scopeId) {
       const p = placeholders(driver.dialect);
@@ -219,9 +229,10 @@ export function createSqlMetadataStore(
       await driver.transaction(async () => {
         // The caller authorized against a dashboard that may have been deleted
         // since. The foreign key rejects the inserts either way; reading first
-        // makes that a 404 instead of a driver error. A PostgreSQL driver will
-        // need SELECT ... FOR UPDATE here, since its readers do not block.
-        if ((await read(ref)) === null) {
+        // makes that a 404 instead of a driver error. Locked, because on
+        // PostgreSQL an unlocked read leaves a window in which the dashboard
+        // is deleted between the check and the inserts.
+        if ((await read(ref, true)) === null) {
           throw DashboardServerError.notFound(
             "Dashboard was deleted before its permissions could be written",
           );
@@ -242,6 +253,13 @@ export function createSqlMetadataStore(
           );
         }
       });
+    },
+
+    async documentKeys() {
+      const rows = await driver.all<{ document_key: string }>(
+        "SELECT document_key FROM dashboards",
+      );
+      return new Set(rows.map((row) => row.document_key));
     },
 
     close() {

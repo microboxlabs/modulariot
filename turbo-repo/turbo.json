@@ -70,6 +70,7 @@
     "TASK_DRIVEN_ORIGINS",
     "MIOT_MODULITH_URL",
     "ENABLE_DEV_TOOLS",
+    "ENABLE_STORYTELLING",
     "ENABLE_SEARCHBAR",
     "ENABLE_REGISTER_LINK",
     "GA_MEASUREMENT_ID",
@@ -115,7 +116,8 @@
     },
     "test": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "dependsOn": ["^build"]
     },
     "knip": {
       "cache": false

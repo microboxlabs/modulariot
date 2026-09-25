@@ -626,6 +626,113 @@ class CalendarSyncExecutorTest {
         assertEquals(0, client.createCalls);
     }
 
+    /**
+     * The live ETD shape, and the incident it caused: the producer stamps the ETD
+     * from its own zone, so a correct instant arrives carrying UTC. Slots are
+     * wall-clock in the calendar's zone, and reading 21:00Z as 21:00 there searched
+     * past the last bookable window of the day — an 18:00 departure was booked onto
+     * the next morning's first slot. Read in the calendar's own UTC-3 the same
+     * instant is 18:00, and the 18:00 slot wins.
+     *
+     * <p>The 17:00 slot is the other half of the contract: the auto-pick must never
+     * place a booking <i>before</i> the departure either. Between them the three
+     * slots pin the answer to the calendar's zone alone — any other reading of
+     * 21:00Z picks 17:00 or the next morning, never 18:00.
+     */
+    @Test
+    void ensureOffsetEtdSearchesFromTheCalendarWallClock() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();
+        client.calendarTimezone = ZoneId.of("-03:00");
+        client.availableSlots = List.of(
+                slot(LocalDate.of(2026, 7, 15), 17, 0, 2), // before the departure
+                slot(LocalDate.of(2026, 7, 15), 18, 0, 2),
+                slot(LocalDate.of(2026, 7, 16), 5, 0, 6)); // where the UTC read landed
+        var payload = ensurePayload("PLANNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-15T21:00:00Z"); // 18:00 in the calendar
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(LocalDate.of(2026, 7, 15), client.lastCreateDate, "the departure's own day");
+        assertEquals(18, client.lastCreateHour);
+    }
+
+    /**
+     * A past ETD clamps the search to "now", which is the same wall-clock question:
+     * at 12:00Z it is 08:00 in a UTC-4 calendar, so the 09:00 slot is still ahead and
+     * must win over 14:00.
+     */
+    @Test
+    void ensurePastEtdClampsToNowInTheCalendarZone() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();
+        client.calendarTimezone = ZoneId.of("-04:00");
+        client.availableSlots = List.of(
+                slot(LocalDate.of(2026, 7, 15), 9, 0, 3),
+                slot(LocalDate.of(2026, 7, 15), 14, 0, 3));
+        var payload = ensurePayload("PLANNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-14T10:00:00Z"); // yesterday
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(LocalDate.of(2026, 7, 15), client.lastCreateDate);
+        assertEquals(9, client.lastCreateHour, "08:00 in the calendar zone leaves the 09:00 slot ahead");
+    }
+
+    /** No usable calendar timezone → the auto-pick stays in the executor clock's zone. */
+    @Test
+    void ensureWithoutCalendarTimezoneFallsBackToClockZone() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();
+        client.calendarTimezone = null;
+        client.availableSlots = List.of(
+                slot(LocalDate.of(2026, 7, 15), 18, 0, 2),
+                slot(LocalDate.of(2026, 7, 15), 21, 0, 2));
+        var payload = ensurePayload("PLANNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-15T21:00:00Z");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(21, client.lastCreateHour, "21:00Z is 21:00 in the clock's own zone");
+    }
+
+    /**
+     * An unparseable ETD can never place a booking, so it is a permanent skip — and it
+     * has to stay one while the calendar service is unhealthy. Resolving the zone first
+     * would let a 500 on the timezone GET throw, turning a no-op into a job that retries
+     * a payload no retry can fix.
+     */
+    @Test
+    void ensureUnparseableEtdSkipsWithoutTheCalendarTimezoneLookup() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();
+        client.timezoneThrows = new CalendarBookingsHttpException(500, "calendar down");
+        var payload = ensurePayload("PLANNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_ETD, "not-a-datetime");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SKIPPED, result.outcome());
+        assertEquals(0, client.createCalls);
+        assertEquals(0, client.timezoneCalls, "a malformed ETD must not pay for the lookup");
+    }
+
+    /** A planner-chosen slot is already wall-clock — it must not pay for the lookup. */
+    @Test
+    void ensureExplicitSlotSkipsTheCalendarTimezoneLookup() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();
+        var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 17), 14, 30);
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(0, client.timezoneCalls);
+    }
+
     @Test
     void ensureAbsentWithNoSlotIntentIsSkipped() {
         FakeClient client = new FakeClient();
@@ -868,6 +975,8 @@ class CalendarSyncExecutorTest {
 
         // Null models a calendar with no usable timezone (fallback path).
         ZoneId calendarTimezone;
+        int timezoneCalls;
+        RuntimeException timezoneThrows;
 
         int moveCalls;
         UUID lastMoveBookingId;
@@ -980,6 +1089,10 @@ class CalendarSyncExecutorTest {
 
         @Override
         public Optional<ZoneId> getCalendarTimezone(UUID calendarId) {
+            timezoneCalls++;
+            if (timezoneThrows != null) {
+                throw timezoneThrows;
+            }
             return Optional.ofNullable(calendarTimezone);
         }
     }

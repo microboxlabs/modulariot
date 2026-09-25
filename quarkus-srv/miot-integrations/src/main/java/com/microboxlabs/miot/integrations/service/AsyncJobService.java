@@ -1,6 +1,8 @@
 package com.microboxlabs.miot.integrations.service;
 
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
+import com.microboxlabs.miot.integrations.domain.JobLedgerFacets;
+import com.microboxlabs.miot.integrations.domain.JobQuery;
 import com.microboxlabs.miot.integrations.domain.JobState;
 import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
 import com.microboxlabs.miot.integrations.dto.ClaimJobsRequest;
@@ -232,23 +234,72 @@ public class AsyncJobService {
 
     public List<AsyncJob> list(String tenantCode, String state, String correlationKey, String jobType,
             String chainKey, int limit) {
-        if (limit < 1) {
-            throw new IllegalArgumentException("limit must be >= 1");
-        }
-        if (state != null) {
-            JobState.valueOf(state); // validate
-        }
-        return repository.list(tenantCode, state, correlationKey, jobType, chainKey, limit);
+        return list(tenantCode, new JobQuery(state, correlationKey, jobType, chainKey, null, null, limit, 0));
     }
 
-    /** Whole-ledger per-state counts for the console's summary tiles (zero-filled). */
-    public Map<String, Integer> counts(String tenantCode) {
+    /** One page of the tenant's jobs, newest first. */
+    public List<AsyncJob> list(String tenantCode, JobQuery query) {
+        return repository.list(tenantCode, validated(query));
+    }
+
+    /** Rows matching {@code query}'s filters, ignoring its window — the page's "of N". */
+    public int count(String tenantCode, JobQuery query) {
+        return repository.count(tenantCode, validated(query));
+    }
+
+    /**
+     * Whole-ledger per-state counts for the console's summary tiles
+     * (zero-filled), plus the distinct job types and lanes for its filters.
+     */
+    public JobLedgerFacets facets(String tenantCode) {
+        JobLedgerFacets facets = repository.facets(tenantCode);
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (JobState state : JobState.values()) {
             counts.put(state.name(), 0);
         }
-        counts.putAll(repository.countByState(tenantCode));
-        return counts;
+        counts.putAll(facets.counts());
+        return new JobLedgerFacets(counts, facets.jobTypes(), facets.executors());
+    }
+
+    /**
+     * Rejects an unusable window, validates the state filter and neutralizes
+     * LIKE wildcards in the needle so a pasted {@code %} searches for a percent
+     * sign rather than matching the whole ledger.
+     */
+    private static JobQuery validated(JobQuery query) {
+        if (query.limit() < 1) {
+            throw new IllegalArgumentException("limit must be >= 1");
+        }
+        if (query.offset() < 0) {
+            throw new IllegalArgumentException("offset must be >= 0");
+        }
+        if (query.state() != null) {
+            try {
+                JobState.valueOf(query.state());
+            } catch (IllegalArgumentException cause) {
+                throw new IllegalArgumentException("Invalid state filter: " + query.state(), cause);
+            }
+        }
+        return new JobQuery(
+                query.state(),
+                query.correlationKey(),
+                query.jobType(),
+                query.chainKey(),
+                query.executor(),
+                escapeLikeWildcards(query.search()),
+                query.limit(),
+                query.offset());
+    }
+
+    private static String escapeLikeWildcards(String search) {
+        if (search == null) {
+            return null;
+        }
+        String trimmed = search.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     /**

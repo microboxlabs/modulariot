@@ -12,7 +12,10 @@ decision).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from miot_harness.runtime.context import UserRequest
+from miot_harness.runtime.conversation import ConversationTurn
 from miot_harness.runtime.intent_router import LLMIntentRouter
 from miot_harness.runtime.router import HarnessRoute, RouteResult
 
@@ -33,6 +36,7 @@ async def resolve_mode(
     *,
     llm_router: LLMIntentRouter,
     tenant_lock: str,
+    prior_turns: Sequence[ConversationTurn] = (),
 ) -> RouteResult:
     """Return the route to dispatch for ``request``.
 
@@ -42,7 +46,7 @@ async def resolve_mode(
     """
 
     if request.mode == "auto":
-        return await llm_router.route(request.message)
+        return await llm_router.route(request.message, prior_turns=prior_turns)
 
     # Both data-touching modes gated up-front. `tool_factory` enforces
     # the same lock at execution time, but rejecting here avoids

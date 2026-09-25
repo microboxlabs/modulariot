@@ -29,6 +29,14 @@ export const StoredServiceSchema = z
      * keeping the raw code lets the live-task lookup work without parsing.
      */
     mintral_serviceCode: z.string().optional(),
+    /**
+     * Client name as the kanban task reports it. Persisted because
+     * `resource.label` is not a reliable carrier: ECM's booking listeners
+     * create the row without a label at all (ecm-coordinator
+     * `OnCreateAssignDriverBinding`), so a label-derived client silently
+     * degrades to the resource id — the service code shown as a client name.
+     */
+    cliente: z.string().optional(),
     origen: z.string().optional(),
     lugarCarguio: z.string().optional(),
     destino: z.string().optional(),
@@ -105,6 +113,29 @@ function serviceTypeFromResourceId(id: string): string | undefined {
 }
 
 /**
+ * Resolve the client name for a booking without ever falling back to the
+ * resource id. The stored blob is the carrier the planner writes on purpose
+ * and `resource.label` is a legacy second source, but *neither* is trusted
+ * when it is just the resource id echoed back: the old mapper derived the
+ * client from the id, and the next planner write persisted that into both the
+ * blob (the whole service is spread into `resource.data`) and the label. Any
+ * row touched while the bug was live carries the service code in both places,
+ * so re-reading either would keep it masquerading as a client name.
+ *
+ * "" when neither is usable; the live-task overlay fills it in at render time.
+ */
+function clientFromBooking(
+  booking: BookingResponse,
+  storedClient: string | undefined
+): string {
+  const unlessResourceId = (value: string | undefined) =>
+    value && value !== booking.resource.id ? value : "";
+  return (
+    unlessResourceId(storedClient) || unlessResourceId(booking.resource.label)
+  );
+}
+
+/**
  * Canonical booking → planned-service transform.
  *
  * Shared by the grid loader and the calendar search on purpose: if search
@@ -147,7 +178,7 @@ export function mapBookingToPlannedService(
     ...storedService,
     // Canonical booking fields always win over stored data.
     id: booking.resource.id,
-    cliente: booking.resource.label ?? booking.resource.id,
+    cliente: clientFromBooking(booking, storedService.cliente),
     // Recover the code from the `${code}-${type}` resource id prefix for
     // legacy bookings written before mintral_serviceCode was persisted.
     mintral_serviceCode:

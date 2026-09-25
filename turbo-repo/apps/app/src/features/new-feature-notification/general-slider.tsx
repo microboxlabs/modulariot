@@ -33,6 +33,7 @@ export default function GeneralSlider({
       height="900px"
       selected={true}
       setSelected={() => {}}
+      dismissible={false}
       className="bg-white dark:bg-gray-800 rounded-lg border border-gray-800 dark:border-gray-600 w-[500px]"
     >
       <div className="h-full w-full flex flex-col overflow-hidden relative">

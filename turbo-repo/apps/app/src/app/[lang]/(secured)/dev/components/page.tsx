@@ -4,10 +4,12 @@ import { auth } from "@/auth";
 import { notFound, redirect } from "next/navigation";
 import { ComponentsView } from "./components-view";
 
+const enable_dev_tools = process.env.ENABLE_DEV_TOOLS === "true";
+
 export default async function ComponentsPage(props: ParamsWithLang) {
   const { lang } = await props.params;
 
-  if (process.env.ENABLE_DEV_TOOLS !== "true") {
+  if (!enable_dev_tools) {
     notFound();
   }
 

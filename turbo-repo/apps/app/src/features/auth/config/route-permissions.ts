@@ -64,6 +64,10 @@ export const ROUTE_PERMISSIONS = {
   // enforces org membership per request.
   "/integrations/jobs": [],
 
+  // Storytelling (list + /storytelling/[id] detail, matched by prefix) — any
+  // authenticated org member (frontend-only demo for now).
+  "/storytelling": [],
+
   // Settings › Connections (templates + connections) — any authenticated member;
   // the backend owner-gates every mutation per request.
   "/users/settings/connections": [],

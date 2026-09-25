@@ -3,42 +3,55 @@ import { matchRoute } from "./routes";
 
 describe("matchRoute", () => {
   it("matches the contract's four shapes", () => {
-    expect(matchRoute("/scopes/ops/dashboards")).toEqual({
+    expect(matchRoute("/tenants/acme/scopes/ops/dashboards")).toEqual({
       route: "dashboards",
+      tenantId: "acme",
       scopeId: "ops",
     });
-    expect(matchRoute("/scopes/ops/dashboards/fleet")).toEqual({
+    expect(matchRoute("/tenants/acme/scopes/ops/dashboards/fleet")).toEqual({
       route: "dashboard",
+      tenantId: "acme",
       scopeId: "ops",
       slug: "fleet",
     });
-    expect(matchRoute("/scopes/ops/dashboards/fleet/capabilities")).toEqual({
+    expect(
+      matchRoute("/tenants/acme/scopes/ops/dashboards/fleet/capabilities"),
+    ).toEqual({
       route: "capabilities",
+      tenantId: "acme",
       scopeId: "ops",
       slug: "fleet",
     });
-    expect(matchRoute("/scopes/ops/dashboards/fleet/permissions")).toEqual({
+    expect(
+      matchRoute("/tenants/acme/scopes/ops/dashboards/fleet/permissions"),
+    ).toEqual({
       route: "permissions",
+      tenantId: "acme",
       scopeId: "ops",
       slug: "fleet",
     });
   });
 
   it("tolerates trailing and doubled slashes", () => {
-    expect(matchRoute("/scopes/ops/dashboards/")).toEqual({
+    expect(matchRoute("/tenants/acme/scopes/ops/dashboards/")).toEqual({
       route: "dashboards",
+      tenantId: "acme",
       scopeId: "ops",
     });
-    expect(matchRoute("//scopes//ops//dashboards")).toEqual({
+    expect(matchRoute("//tenants//acme//scopes//ops//dashboards")).toEqual({
       route: "dashboards",
+      tenantId: "acme",
       scopeId: "ops",
     });
   });
 
   it("decodes ids, so a slash inside one survives the round trip", () => {
-    expect(matchRoute("/scopes/ac%2Fme/dashboards/q1%20report")).toEqual({
+    expect(
+      matchRoute("/tenants/ac%2Fme/scopes/o%2Fps/dashboards/q1%20report"),
+    ).toEqual({
       route: "dashboard",
-      scopeId: "ac/me",
+      tenantId: "ac/me",
+      scopeId: "o/ps",
       slug: "q1 report",
     });
   });
@@ -46,24 +59,62 @@ describe("matchRoute", () => {
   it("refuses anything it does not recognise instead of guessing", () => {
     for (const path of [
       "/",
-      "/scopes",
-      "/scopes/ops",
-      "/scopes/ops/widgets",
-      "/scopes/ops/dashboards/fleet/unknown",
-      "/scopes/ops/dashboards/fleet/permissions/extra",
-      "/other/ops/dashboards",
+      "/tenants",
+      "/tenants/acme",
+      "/tenants/acme/scopes",
+      "/tenants/acme/scopes/ops",
+      "/tenants/acme/scopes/ops/widgets",
+      "/tenants/acme/scopes/ops/dashboards/fleet/unknown",
+      "/tenants/acme/scopes/ops/dashboards/fleet/permissions/extra",
+      "/other/acme/scopes/ops/dashboards",
+      // The pre-tenant shape. Refused rather than defaulted: a default would
+      // be one tenant everybody's old links quietly landed in.
+      "/scopes/ops/dashboards",
     ]) {
       expect(matchRoute(path), path).toBeNull();
     }
   });
 
   it("refuses empty ids rather than treating them as a wildcard", () => {
-    expect(matchRoute("/scopes//dashboards")).toBeNull();
-    expect(matchRoute("/scopes/ops/dashboards/%20")).not.toBeNull();
+    expect(matchRoute("/tenants//scopes/ops/dashboards")).toBeNull();
+    expect(matchRoute("/tenants/acme/scopes//dashboards")).toBeNull();
+    expect(
+      matchRoute("/tenants/acme/scopes/ops/dashboards/%20"),
+    ).not.toBeNull();
   });
 
   it("returns null for a malformed percent sequence instead of throwing", () => {
-    expect(() => matchRoute("/scopes/%E0%A4%A/dashboards")).not.toThrow();
-    expect(matchRoute("/scopes/%E0%A4%A/dashboards")).toBeNull();
+    const bad = "/tenants/%E0%A4%A/scopes/ops/dashboards";
+    expect(() => matchRoute(bad)).not.toThrow();
+    expect(matchRoute(bad)).toBeNull();
+    expect(matchRoute("/tenants/acme/scopes/%E0%A4%A/dashboards")).toBeNull();
+  });
+});
+
+describe("traversal in a decoded segment", () => {
+  // Slashes inside a segment are deliberate, which is what makes `..`
+  // reachable. The store would have accepted the name, and it would then come
+  // back in a listing as an identifier no client can safely put in a URL.
+  it.each([
+    "/tenants/acme/scopes/ops/dashboards/..%2f..%2fescape",
+    "/tenants/acme/scopes/ops/dashboards/a%2f..%2fb",
+    "/tenants/acme/scopes/ops/dashboards/.",
+    "/tenants/acme/scopes/ops/dashboards/..",
+    "/tenants/acme/scopes/ops%2f..%2fother/dashboards/fleet",
+    "/tenants/..%2fother/scopes/ops/dashboards/fleet",
+  ])("refuses %s", (path) => {
+    expect(matchRoute(path)).toBeNull();
+  });
+
+  it("still allows a slash inside a slug, and a dot that is not a component", () => {
+    expect(matchRoute("/tenants/acme/scopes/ops/dashboards/a%2fb")).toEqual({
+      route: "dashboard",
+      tenantId: "acme",
+      scopeId: "ops",
+      slug: "a/b",
+    });
+    expect(
+      matchRoute("/tenants/acme/scopes/ops/dashboards/v1.2.report")?.slug,
+    ).toBe("v1.2.report");
   });
 });

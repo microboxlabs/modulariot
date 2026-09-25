@@ -162,6 +162,20 @@ def test_conversation_token_budget_read_from_env(monkeypatch):
     assert settings.conversation_token_budget == 8_000
 
 
+def test_conversation_tool_token_budget_default_is_48k():
+    """Larger than the text budget: replaying a turn means replaying the
+    tool envelopes it collected."""
+
+    settings = HarnessSettings()
+    assert settings.conversation_tool_token_budget == 48_000
+
+
+def test_conversation_tool_token_budget_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_CONVERSATION_TOOL_TOKEN_BUDGET", "12000")
+    settings = HarnessSettings()
+    assert settings.conversation_tool_token_budget == 12_000
+
+
 def test_fs_settings_defaults():
     settings = HarnessSettings()
     assert settings.fs_enabled is True
@@ -292,15 +306,20 @@ def test_agent_loop_settings_defaults(monkeypatch):
     from miot_harness.config import HarnessSettings
 
     s = HarnessSettings()
-    assert s.agents_agent_loop_enabled is False
+    assert s.agents_agent_loop_enabled is True
+    assert s.agents_agent_loop_model == "claude-sonnet-4-6"
+    assert s.agents_advisor_model == "claude-opus-4-8"
     assert s.agents_agent_loop_tool_result_max_chars == 6000
 
 
 def test_agent_loop_settings_env_override(monkeypatch):
-    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_ENABLED", "true")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_ENABLED", "false")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL", "claude-opus-4-8")
     from miot_harness.config import HarnessSettings
 
-    assert HarnessSettings().agents_agent_loop_enabled is True
+    s = HarnessSettings()
+    assert s.agents_agent_loop_enabled is False
+    assert s.agents_agent_loop_model == "claude-opus-4-8"
 
 
 def test_agent_loop_llm_timeout_default(monkeypatch):

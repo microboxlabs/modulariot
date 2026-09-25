@@ -1,0 +1,95 @@
+{
+  "stack_version": "0.5.54",
+  "stack_tag": "miot-stack@v0.5.54",
+  "milestone": "MIOT-0.5.54",
+  "pull_requests": [
+    {
+      "number": 1359,
+      "title": "Fixed close button in modal",
+      "source_issues": [
+        {
+          "number": 1361,
+          "title": "Fix close button mistakenly added on absolute modal"
+        }
+      ]
+    },
+    {
+      "number": 1363,
+      "title": "fix(integrations): page and search the job console server-side",
+      "source_issues": [
+        {
+          "number": 1362,
+          "title": "bug(integrations): job console loads only the newest 100 jobs — no paging, filters are client-side"
+        }
+      ]
+    },
+    {
+      "number": 1364,
+      "title": "fixed ui visualization of notification",
+      "source_issues": [
+        {
+          "number": 1365,
+          "title": "Fix UI visualization of notifications"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgAsyncJobsConsoleResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarRejectOnPark.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/JobLedgerFacets.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/JobQuery.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/AsyncJobRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/AsyncJobService.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/calendar/CalendarRejectOnParkTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/AsyncJobSqlIntegrityTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/AsyncJobServiceTest.java",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/integrations/jobs/count/route.ts",
+    "turbo-repo/apps/app/src/features/common/components/absolute-modal/absolute-modal.tsx",
+    "turbo-repo/apps/app/src/features/common/components/notification/notification-types/inner-data.tsx",
+    "turbo-repo/apps/app/src/features/common/components/user-related/initial-identifier.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-view/dashboard-view.tsx",
+    "turbo-repo/apps/app/src/features/integration-jobs/components/job-console-page-content.tsx",
+    "turbo-repo/apps/app/src/features/integration-jobs/integration-job.types.ts",
+    "turbo-repo/apps/app/src/features/integration-jobs/integration-jobs-data-service.test.ts",
+    "turbo-repo/apps/app/src/features/integration-jobs/integration-jobs-data-service.ts",
+    "turbo-repo/apps/app/src/features/integration-jobs/use-integration-jobs.ts",
+    "turbo-repo/apps/app/src/features/notifications/notification.tsx",
+    "turbo-repo/apps/app/src/features/sse/components/sse-listener/sse-listener.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/gps-validation-modal/gps-validation-modal.tsx",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/package-lock.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.54",
+      "tag": "app@v0.5.54"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.53",
+      "version": "0.5.53",
+      "tag": "docs@v0.5.53"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.5.53",
+      "version": "0.5.53",
+      "tag": "web@v0.5.53"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.32",
+      "version": "0.5.33",
+      "tag": "modulith@v0.5.33"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.9",
+      "version": "0.1.9",
+      "tag": "harness@v0.1.9"
+    }
+  }
+}

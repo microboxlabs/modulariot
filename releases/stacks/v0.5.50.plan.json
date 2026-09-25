@@ -1,0 +1,703 @@
+{
+  "stack_version": "0.5.50",
+  "stack_tag": "miot-stack@v0.5.50",
+  "milestone": "MIOT-0.5.50",
+  "pull_requests": [
+    {
+      "number": 1150,
+      "title": "Based/artifact viewer page",
+      "source_issues": [
+        {
+          "number": 1154,
+          "title": "Multi-artifact-type storytelling viewer (HTML/Markdown/PPT/PDF)"
+        }
+      ]
+    },
+    {
+      "number": 1165,
+      "title": "feat(dash-server-p2b): finish identity — tickets and real scope membership",
+      "source_issues": [
+        {
+          "number": 1166,
+          "title": "Finish dashboard identity: ticket authentication and real scope membership"
+        }
+      ]
+    },
+    {
+      "number": 1178,
+      "title": "feat(dash-server-p2b): documents on the filesystem, and a sweep for the ones nothing references",
+      "source_issues": [
+        {
+          "number": 1179,
+          "title": "feat(dash-server-p2b): filesystem document store and orphan document sweep"
+        }
+      ]
+    },
+    {
+      "number": 1204,
+      "title": "feat(integrations): persist harness chat threads",
+      "source_issues": [
+        {
+          "number": 1207,
+          "title": "Persist harness chat threads"
+        }
+      ]
+    },
+    {
+      "number": 1206,
+      "title": "feat(harness): accept caller-supplied conversation history",
+      "source_issues": [
+        {
+          "number": 1209,
+          "title": "Accept caller-supplied conversation history in harness"
+        }
+      ]
+    },
+    {
+      "number": 1208,
+      "title": "feat(app): persist the harness chat panel's threads",
+      "source_issues": [
+        {
+          "number": 1211,
+          "title": "Persist the harness chat panel's threads"
+        }
+      ]
+    },
+    {
+      "number": 1213,
+      "title": "fix(integrations): bound the harness thread query wait",
+      "source_issues": [
+        {
+          "number": 1214,
+          "title": "Bound HarnessThreadRepository query waits so hung DB connections fail fast"
+        }
+      ]
+    },
+    {
+      "number": 1215,
+      "title": "fix(app): say when the chat history could not be read",
+      "source_issues": [
+        {
+          "number": 1216,
+          "title": "Say when the chat history could not be read"
+        }
+      ]
+    },
+    {
+      "number": 1217,
+      "title": "feat(dash-server-p2b)!: take the tenant from the request, not the credential",
+      "source_issues": [
+        {
+          "number": 1218,
+          "title": "Take dashboard tenant from the request, not the credential"
+        }
+      ]
+    },
+    {
+      "number": 1219,
+      "title": "feat(harness): compact long conversations and replay their summary",
+      "source_issues": [
+        {
+          "number": 1220,
+          "title": "Compact long conversations and replay their summary"
+        }
+      ]
+    },
+    {
+      "number": 1221,
+      "title": "feat(integrations): store the chat summary with its thread, page messages",
+      "source_issues": [
+        {
+          "number": 1222,
+          "title": "Store harness chat summary on the thread and page messages"
+        }
+      ]
+    },
+    {
+      "number": 1223,
+      "title": "feat(app): hand the harness its history on every run, and its summary",
+      "source_issues": [
+        {
+          "number": 1224,
+          "title": "feat(app): hand the harness its history on every run, and its summary"
+        }
+      ]
+    },
+    {
+      "number": 1225,
+      "title": "[dashboard-server] Add PostgreSQL persistence and pool recovery",
+      "source_issues": [
+        {
+          "number": 1129,
+          "title": "feat: @microboxlabs/miot-dashboard-server — backend middleware for embeddable dashboards"
+        }
+      ]
+    },
+    {
+      "number": 1226,
+      "title": "[dashboard-server] Add S3/GCS documents and CORS",
+      "source_issues": [
+        {
+          "number": 1227,
+          "title": "[dashboard-server] Add S3/GCS document stores and CORS origin allowlists"
+        }
+      ]
+    },
+    {
+      "number": 1228,
+      "title": "fix(dash-server): take a trailing comma in the CORS origin list",
+      "source_issues": [
+        {
+          "number": 1229,
+          "title": "fix(dash-server): accept trailing comma in CORS origin list"
+        }
+      ]
+    },
+    {
+      "number": 1230,
+      "title": "fix(dash-server): log the error behind a 500",
+      "source_issues": [
+        {
+          "number": 1231,
+          "title": "Log the underlying error when dash-server returns a 500"
+        }
+      ]
+    },
+    {
+      "number": 1232,
+      "title": "fix(dash-server): refuse a path segment that traverses",
+      "source_issues": [
+        {
+          "number": 1233,
+          "title": "Refuse path segments that traverse in dash-server"
+        }
+      ]
+    },
+    {
+      "number": 1234,
+      "title": "chore(dash-server): ship the licence it claims",
+      "source_issues": [
+        {
+          "number": 1235,
+          "title": "Ship Apache-2.0 LICENSE with miot-dashboard-server publish tarball"
+        }
+      ]
+    },
+    {
+      "number": 1237,
+      "title": "feat(dash-server-p2b): the one-time import",
+      "source_issues": [
+        {
+          "number": 1238,
+          "title": "feat(dash-server-p2b): one-time import of existing dashboards into the store"
+        }
+      ]
+    },
+    {
+      "number": 1239,
+      "title": "feat(dash-server-p2c): the Next mount and the allowedGroups policy",
+      "source_issues": [
+        {
+          "number": 1240,
+          "title": "Next adapter and allowedGroups policy for dashboard-server (P2c package half)"
+        }
+      ]
+    },
+    {
+      "number": 1241,
+      "title": "feat(dash-server-p2c): one home for the allowedGroups rule",
+      "source_issues": [
+        {
+          "number": 1242,
+          "title": "One home for the allowedGroups rule (dash-server P2c)"
+        }
+      ]
+    },
+    {
+      "number": 1243,
+      "title": "fix(harness): index only the relations a connection can read",
+      "source_issues": [
+        {
+          "number": 1244,
+          "title": "Index only the relations a connection can read in the harness schema index"
+        }
+      ]
+    },
+    {
+      "number": 1245,
+      "title": "feat(harness): let generic connections read the functions already written",
+      "source_issues": [
+        {
+          "number": 1246,
+          "title": "Let generic connections read Postgres functions and view definitions"
+        }
+      ]
+    },
+    {
+      "number": 1247,
+      "title": "feat(harness): session envelope for connections with no pooler in front",
+      "source_issues": [
+        {
+          "number": 1248,
+          "title": "Session envelope for connections with no pooler in front"
+        }
+      ]
+    },
+    {
+      "number": 1249,
+      "title": "feat(core): proxy the dashboard server behind org membership",
+      "source_issues": [
+        {
+          "number": 1250,
+          "title": "Proxy the dashboard server behind org membership"
+        }
+      ]
+    },
+    {
+      "number": 1251,
+      "title": "fix(harness): let the agent loop count catalog results",
+      "source_issues": [
+        {
+          "number": 1252,
+          "title": "Agent loop counts catalog tool results as empty (sample_size 0)"
+        }
+      ]
+    },
+    {
+      "number": 1253,
+      "title": "fix(harness): judge and synthesize from row-capped excerpts",
+      "source_issues": [
+        {
+          "number": 1254,
+          "title": "Judge and synthesize harness evidence from row-capped excerpts"
+        }
+      ]
+    },
+    {
+      "number": 1255,
+      "title": "feat(dashboard-server): an image, so the stack can deploy it",
+      "source_issues": [
+        {
+          "number": 1256,
+          "title": "feat(dashboard-server): an image, so the stack can deploy it"
+        }
+      ]
+    },
+    {
+      "number": 1259,
+      "title": "fix(harness): substring function search and unqualified definition names",
+      "source_issues": [
+        {
+          "number": 1260,
+          "title": "Harness: substring function search and unqualified definition names"
+        }
+      ]
+    },
+    {
+      "number": 1261,
+      "title": "feat(harness): call analyst functions inside the read-only envelope",
+      "source_issues": [
+        {
+          "number": 1268,
+          "title": "Call analyst functions inside the read-only envelope"
+        }
+      ]
+    },
+    {
+      "number": 1262,
+      "title": "feat(harness): stream the agent loop and excerpt its tool results",
+      "source_issues": [
+        {
+          "number": 1263,
+          "title": "Stream the agent loop and excerpt its tool results"
+        }
+      ]
+    },
+    {
+      "number": 1265,
+      "title": "feat(harness): advisor and workhorse seats for the agent loop",
+      "source_issues": [
+        {
+          "number": 1267,
+          "title": "Advisor and workhorse seats for the agent loop"
+        }
+      ]
+    },
+    {
+      "number": 1269,
+      "title": "feat(harness): agent loop on by default; Sonnet 4.6 as the conversation model",
+      "source_issues": [
+        {
+          "number": 1270,
+          "title": "Enable agent loop by default with Sonnet 4.6 as conversation model"
+        }
+      ]
+    },
+    {
+      "number": 1274,
+      "title": "fix(calendar): stop rendering the service code as the client name",
+      "source_issues": [
+        {
+          "number": 1273,
+          "title": "bug: calendar shows the service code as the client name once a service is planned"
+        }
+      ]
+    },
+    {
+      "number": 1275,
+      "title": "fix(calendar-ui): resolve the open sidebar against the un-overlaid booking",
+      "source_issues": [
+        {
+          "number": 1276,
+          "title": "Fix calendar sidebar resolving planned selection against overlaid booking"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    ".github/workflows/dashboard-server.yml",
+    "miot-harness/src/miot_harness/agents/chat_models.py",
+    "miot-harness/src/miot_harness/agents/conversation_summarizer.py",
+    "miot-harness/src/miot_harness/agents/synthesizer.py",
+    "miot-harness/src/miot_harness/agents/verifier.py",
+    "miot-harness/src/miot_harness/api/server.py",
+    "miot-harness/src/miot_harness/config.py",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/miot-search/SKILL.md",
+    "miot-harness/src/miot_harness/datasource/pg_description.py",
+    "miot-harness/src/miot_harness/datasource/pool.py",
+    "miot-harness/src/miot_harness/datasource/routine_call.py",
+    "miot-harness/src/miot_harness/datasource/routine_introspect.py",
+    "miot-harness/src/miot_harness/datasource/safe_query.py",
+    "miot-harness/src/miot_harness/datasource/safe_sql.py",
+    "miot-harness/src/miot_harness/datasource/schema_introspect.py",
+    "miot-harness/src/miot_harness/integrations/generic_pg/primitive_tools.py",
+    "miot-harness/src/miot_harness/integrations/generic_pg/provider.py",
+    "miot-harness/src/miot_harness/integrations/nexo/introspect.py",
+    "miot-harness/src/miot_harness/runtime/agent_loop.py",
+    "miot-harness/src/miot_harness/runtime/agent_prompt.py",
+    "miot-harness/src/miot_harness/runtime/agent_seats.py",
+    "miot-harness/src/miot_harness/runtime/context.py",
+    "miot-harness/src/miot_harness/runtime/conversation.py",
+    "miot-harness/src/miot_harness/runtime/event_types.json",
+    "miot-harness/src/miot_harness/runtime/events.py",
+    "miot-harness/src/miot_harness/runtime/factory.py",
+    "miot-harness/src/miot_harness/runtime/intent_router.py",
+    "miot-harness/src/miot_harness/runtime/mode_resolver.py",
+    "miot-harness/src/miot_harness/runtime/run_store.py",
+    "miot-harness/src/miot_harness/runtime/supervisor.py",
+    "miot-harness/src/miot_harness/utils/truncation.py",
+    "miot-harness/tests/agents/test_conversation_summarizer.py",
+    "miot-harness/tests/agents/test_evidence_excerpts.py",
+    "miot-harness/tests/api/test_models.py",
+    "miot-harness/tests/context_skills/test_miot_search_pages_parity.py",
+    "miot-harness/tests/datasource/test_routine_call.py",
+    "miot-harness/tests/datasource/test_routine_introspect.py",
+    "miot-harness/tests/datasource/test_safe_sql_qualified_calls.py",
+    "miot-harness/tests/datasource/test_schema_introspect.py",
+    "miot-harness/tests/datasource/test_schema_summary_routines.py",
+    "miot-harness/tests/datasource/test_session_envelope.py",
+    "miot-harness/tests/integrations/generic_pg/test_catalog_tool_outputs.py",
+    "miot-harness/tests/integrations/generic_pg/test_provider.py",
+    "miot-harness/tests/runtime/test_agent_loop.py",
+    "miot-harness/tests/runtime/test_agent_loop_runners.py",
+    "miot-harness/tests/runtime/test_agent_prompt.py",
+    "miot-harness/tests/runtime/test_agent_seats.py",
+    "miot-harness/tests/runtime/test_conversation.py",
+    "miot-harness/tests/runtime/test_intent_router.py",
+    "miot-harness/tests/runtime/test_supervisor_memory.py",
+    "miot-harness/tests/runtime/test_supervisor_phase_e.py",
+    "miot-harness/tests/runtime/test_supervisor_policy.py",
+    "miot-harness/tests/test_chat_models.py",
+    "miot-harness/tests/test_config.py",
+    "miot-harness/tests/test_events.py",
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/DashboardClient.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/DashboardProxyResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/HarnessClient.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/HarnessProxyResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/OrganizationContext.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/OrganizationRequestFilter.java",
+    "quarkus-srv/miot-core/src/main/resources/application.properties",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/DashboardProxyResourceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/DashboardScopeMappingTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceModelsTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth/DashboardProxyTestProfile.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgHarnessThreadsResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/HarnessThread.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/HarnessThreadMessage.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/HarnessThreadShare.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/EpisodeRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/ThreadMessageRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/ThreadPatchRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/ThreadResponse.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/ThreadShareRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/ThreadUpsertRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/jobs/HarnessThreadPurgeJob.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/HarnessThreadRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/EpisodeService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/HarnessThreadService.java",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.15__allow_chat_episode_surface.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.16__create_harness_threads.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.17__add_harness_thread_summary.sql",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/HarnessThreadQueryTimeoutTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/HarnessThreadSqlIntegrityTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/EpisodeServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/HarnessThreadServiceTest.java",
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/next.config.mjs",
+    "turbo-repo/apps/app/package.json",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/dev/components/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/dev/harness-extensions/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/home/[slug]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/storytelling/[id]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/storytelling/page.tsx",
+    "turbo-repo/apps/app/src/app/api/dashboard/config/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/dashboard/config/route.ts",
+    "turbo-repo/apps/app/src/app/api/dashboard/configs/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/dashboard/configs/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/conversation.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/conversation.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/harness-route-client.ts",
+    "turbo-repo/apps/app/src/app/api/harness/models/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/skills/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/threads/[threadId]/messages/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/threads/[threadId]/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/threads/[threadId]/shares/[principal]/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/threads/[threadId]/shares/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/threads/route.ts",
+    "turbo-repo/apps/app/src/app/api/runtime-config/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/dashboard-preview-data/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/dashboard-preview-data/route.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/dashboard-preview/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/dashboard-preview/route.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/generate-pptx/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/generate-pptx/route.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/markdown-preview/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/markdown-preview/route.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/pdf-preview/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/pdf-preview/route.ts",
+    "turbo-repo/apps/app/src/app/globals.css",
+    "turbo-repo/apps/app/src/features/auth/config/route-permissions.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/calendar-search-context.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-selection-context.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-selection-wrapper.tsx",
+    "turbo-repo/apps/app/src/features/calendar/services/booking-service-mapper.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/booking-service-mapper.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/live-client.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/live-client.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/use-calendar-search.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/use-calendar-search.ts",
+    "turbo-repo/apps/app/src/features/common/components/Breadcrumb/ClientBreadcrumb.tsx",
+    "turbo-repo/apps/app/src/features/common/components/confirmation-modal/confirmation-modal.tsx",
+    "turbo-repo/apps/app/src/features/common/utils/markdown-components.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/types/dashboard.types.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/components/composer.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/history-list.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/pending-attachment-receiver.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/session-summary-watcher.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/thread-messages.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/context/harness-chat-context.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/context/harness-model-context.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/context/harness-read-only-context.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/create-story-card.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/create-story.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/index.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/index.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-chat-attachments.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-chat-types.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-chat.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-history-adapter.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-history-adapter.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-run-agent.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-run-agent.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-thread-store.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-harness-models.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-resizable-panel-width.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/thread.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/icon-bar/icon-bar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/navegation_params.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-results.tsx",
+    "turbo-repo/apps/app/src/features/layout/context/sidebar-navigation-context.test.tsx",
+    "turbo-repo/apps/app/src/features/layout/hooks/use-visible-pages.ts",
+    "turbo-repo/apps/app/src/features/layout/models/pages-config.json",
+    "turbo-repo/apps/app/src/features/layout/models/pages.test.ts",
+    "turbo-repo/apps/app/src/features/layout/models/pages.ts",
+    "turbo-repo/apps/app/src/features/runtime-config/runtime-config.constants.ts",
+    "turbo-repo/apps/app/src/features/runtime-config/runtime-config.types.ts",
+    "turbo-repo/apps/app/src/features/storytelling/artifact-type-meta.ts",
+    "turbo-repo/apps/app/src/features/storytelling/build-pptx.ts",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/html/html-previewer.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/index.ts",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/markdown/markdown-previewer.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/pdf/pdf-previewer.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/ppt/ppt-previewer.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/searchable.ts",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-card.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-dashlet-list.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-delete-dialog.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-detail-page.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-grid.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-share-modal.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/storytelling-page-content.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/dom-search.ts",
+    "turbo-repo/apps/app/src/features/storytelling/preview-bridge.test.ts",
+    "turbo-repo/apps/app/src/features/storytelling/preview-bridge.ts",
+    "turbo-repo/apps/app/src/features/storytelling/seed-stories.ts",
+    "turbo-repo/apps/app/src/features/storytelling/storytelling-store.test.ts",
+    "turbo-repo/apps/app/src/features/storytelling/storytelling-store.ts",
+    "turbo-repo/apps/app/src/features/storytelling/storytelling.types.ts",
+    "turbo-repo/apps/app/src/features/storytelling/testing/audit-report-demo.pdf",
+    "turbo-repo/apps/app/src/features/storytelling/testing/dashboard_torre_real.data.json",
+    "turbo-repo/apps/app/src/features/storytelling/testing/dashboard_torre_real.html",
+    "turbo-repo/apps/app/src/features/storytelling/testing/release-notes-demo.md",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/docker/dashboard-server.Dockerfile",
+    "turbo-repo/package-lock.json",
+    "turbo-repo/packages/miot-calendar-ui/README.md",
+    "turbo-repo/packages/miot-calendar-ui/src/context/planning-selection-context.tsx",
+    "turbo-repo/packages/miot-calendar-ui/src/contract/calendar-host.ts",
+    "turbo-repo/packages/miot-calendar-ui/src/services/workflow-stage-merge.test.ts",
+    "turbo-repo/packages/miot-calendar-ui/src/services/workflow-stage-merge.ts",
+    "turbo-repo/packages/miot-chat/src/tui/__tests__/transcript.project.test.ts",
+    "turbo-repo/packages/miot-chat/src/tui/transcript/project.ts",
+    "turbo-repo/packages/miot-dashboard-server/LICENSE",
+    "turbo-repo/packages/miot-dashboard-server/README.md",
+    "turbo-repo/packages/miot-dashboard-server/contract/openapi.yaml",
+    "turbo-repo/packages/miot-dashboard-server/examples/seed.json",
+    "turbo-repo/packages/miot-dashboard-server/package.json",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/02-unauthenticated.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/03-list-dashboards.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/04-get-dashboard.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/05-tenant-isolation.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/06-cross-tenant-denied.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/07-capabilities.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/08-save-dashboard.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/09-stale-write-conflict.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/10-consumer-cannot-write.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/11-get-permissions.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/12-set-permissions.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/13-delete-dashboard.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/14-unknown-path.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/16-foreign-tenant-denied.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/17-same-credential-first-tenant.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/18-same-credential-other-tenant.bru",
+    "turbo-repo/packages/miot-dashboard-server/rest-api/environments/local.bru",
+    "turbo-repo/packages/miot-dashboard-server/src/access/access-control.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/access/access-control.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/access/allowed-groups.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/access/allowed-groups.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/adapters/next/route.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/adapters/next/route.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/bin.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/cors.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/cors.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/handler.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/handler.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/routes.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/routes.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/chain.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/chain.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/keys.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/resolver.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/resolver.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/scope-http.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/scope-http.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/tenant-http.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/tenant-http.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/ticket.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/ticket.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/import/import.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/import/import.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/import/legacy.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/import/migrate.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/index.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/net/endpoint.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/net/endpoint.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/net/lookup-cache.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/net/lookup-cache.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/next.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/documents.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/identity.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/metadata.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/auth.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/auth.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/config.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/config.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/docs.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/docs.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/documents.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/persistence.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/serve.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/sweep-schedule.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/sweep-schedule.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store-cloud.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store-sql.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/bucket-keys.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/cloud-documents.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/composite.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/fs-documents.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/fs-documents.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/gcs-documents.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/postgres-driver.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/postgres-driver.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/postgres.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/postgres.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/s3-documents.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/documents.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/driver.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/locking.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/metadata.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/migrations.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/open.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sqlite.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sqlite.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/store-contract.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sweep.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sweep.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/test/fixtures.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/testing.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/testing.ts",
+    "turbo-repo/packages/miot-dashboard-server/tsup.config.ts",
+    "turbo-repo/packages/miot-harness-client/src/__tests__/models.test.ts",
+    "turbo-repo/packages/miot-harness-client/src/client.ts",
+    "turbo-repo/packages/miot-harness-client/src/index.ts",
+    "turbo-repo/packages/miot-harness-client/src/resources/models.ts",
+    "turbo-repo/packages/miot-harness-client/src/types.ts",
+    "turbo-repo/turbo.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.50",
+      "tag": "app@v0.5.50"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.49",
+      "version": "0.5.50",
+      "tag": "docs@v0.5.50"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.49",
+      "version": "0.5.50",
+      "tag": "web@v0.5.50"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.29",
+      "version": "0.5.30",
+      "tag": "modulith@v0.5.30"
+    },
+    "harness": {
+      "changed": true,
+      "changed_since": "harness@v0.1.7",
+      "version": "0.1.8",
+      "tag": "harness@v0.1.8"
+    }
+  }
+}

@@ -1,12 +1,13 @@
 {
-  "_comment": "Seed for the standalone dev server. Two tenants deliberately share a scope id and a dashboard slug, so a tenant-isolation mistake shows up immediately rather than hiding behind unique names.",
+  "_comment": "Seed for the standalone dev server. Two tenants deliberately share a scope id and a dashboard slug, so a tenant-isolation mistake shows up immediately rather than hiding behind unique names. \"dana\" is in both, with a different role in each, because one person working in several tenants is the case the tenant-in-the-path design exists for.",
   "memberships": {
     "acme": {
       "ops": {
         "alice": "Coordinator",
         "erin": "Editor",
         "carl": "Contributor",
-        "connie": "Consumer"
+        "connie": "Consumer",
+        "dana": "Consumer"
       },
       "finance": {
         "alice": "Consumer"
@@ -14,7 +15,8 @@
     },
     "globex": {
       "ops": {
-        "bob": "Coordinator"
+        "bob": "Coordinator",
+        "dana": "Editor"
       }
     }
   },

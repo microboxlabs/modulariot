@@ -1,0 +1,46 @@
+# 🔔 Release Notes v1.31.50 — ModularIoT
+
+### Fecha: 11/09/2026
+
+**Objetivo**: Consolidar la estabilidad del sistema mediante la reversión de commits no revisados en la rama principal, la corrección de errores de compilación i18n y la preparación de la versión v0.5.51 del stack.
+
+## 🔧 Integraciones
+
+- **🔌 Preparación de la versión v0.5.51 del stack MIOT** *(Integración OSS — MIOT-0.5.51)*
+  - **Alcance**: Trabajo planificado para la actualización del stack `miot-stack` a la versión v0.5.51, incrementando el componente `app` a v0.5.51.
+
+## 🐛 Correcciones
+
+- **🐛 Reversión de cambios accidentales en la rama principal y restauración i18n** *(Integración OSS — MIOT-0.5.51)*
+  - **Impacto**: La integración no revisada de tres commits en la rama principal introdujo cambios no aprobados en la aplicación y eliminó claves de internacionalización (`harnessChat.ui.composer.model`), generando fallos de compilación en `composer.tsx`.
+  - **Solución**: Se completó la reversión de los commits afectados en 22 archivos y se reincorporaron las claves i18n requeridas en los archivos de idioma en español e inglés, restableciendo la compilación correcta.
+
+- **🐛 Eliminación de ruta obsoleta en el inventario de miot-search** *(Integración OSS — MIOT-0.5.51)*
+  - **Impacto**: La presencia de la ruta `/users/settings/symptom-rules` en el inventario de páginas de la habilidad `miot-search` generaba fallos en la prueba `test_skill_inventory_routes_exist_as_pages`.
+  - **Solución**: Depuración planificada para remover la entrada huérfana del inventario de páginas de la habilidad de búsqueda.
+
+## 📊 Beneficios
+
+- **Estabilidad de la rama principal**: Se asegura que el código en producción contenga exclusivamente cambios validados y revisados.
+- **Compilación continua sin errores**: La restauración de claves i18n elimina bloqueos en el proceso de construcción con TypeScript.
+- **Fiabilidad en pruebas automatizadas**: La limpieza de rutas en el inventario de búsqueda previene falsos positivos en la suite de pruebas.
+- **Preparación estructurada de despliegue**: Facilita la actualización coordinada de los componentes del stack ModularIoT.
+
+## 🧾 Versiones del stack
+
+- **Stack tag**: `miot-stack@v0.5.51`
+- **App tag**: `app@v0.5.51` (actualizado)
+- **Docs tag**: `docs@v0.5.50` (sin cambios)
+- **Web tag**: `web@v0.5.50` (sin cambios)
+- **Modulith tag**: `modulith@v0.5.30` (sin cambios)
+- **Harness tag**: `harness@v0.1.8` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el cuadro de diálogo de información de compilación dentro de la aplicación y en el archivo manifiesto `stack-manifest.json` adjunto al lanzamiento.
+
+## 📌 Conclusión
+
+La versión v1.31.50 de ModularIoT se centra en el mantenimiento correctivo y la sanidad del repositorio de código, eliminando modificaciones no autorizadas y corrigiendo las dependencias de internacionalización asociadas.
+
+Adicionalmente, se corrigen discrepancias en las pruebas de integración de la habilidad de búsqueda y se avanza en la preparación de la versión v0.5.51 del stack.
+
+Estas acciones garantizan la integridad operativa de la plataforma, manteniendo un entorno confiable para los despliegues consecutivos del ecosistema ModularIoT.

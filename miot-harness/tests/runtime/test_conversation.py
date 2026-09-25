@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.messages.utils import count_tokens_approximately
@@ -80,19 +82,104 @@ async def test_summarize_if_needed_fires_above_threshold() -> None:
 
     async def summarizer(history: ConversationHistory) -> str:
         calls.append(history)
-        return "summary of the first 11 turns"
+        return "summary of the first 9 turns"
 
     fired = await store.summarize_if_needed(cid, summarizer=summarizer)
     assert fired is True
     assert len(calls) == 1
+    # The summarizer is shown the turns being folded, not the ones kept.
+    assert [t.user_message for t in calls[0].turns] == [f"q{i}" for i in range(9)]
 
-    # After summarization the history holds the summary and the prior
-    # turns are compacted away (they live in `summary` now). Subsequent
-    # `append()` calls rebuild a fresh tail.
+    # The folded turns live in `summary` now; the last two stay verbatim so
+    # the next request still has a tail to read.
     summarized = store.get(cid)
     assert summarized is not None
-    assert summarized.summary == "summary of the first 11 turns"
-    assert summarized.turns == []
+    assert summarized.summary == "summary of the first 9 turns"
+    assert [t.user_message for t in summarized.turns] == ["q9", "q10"]
+
+
+@pytest.mark.asyncio
+async def test_keep_recent_turns_zero_folds_everything() -> None:
+    store = InMemoryConversationStore(summarize_at_turns=1, keep_recent_turns=0)
+    store.append("c", ConversationTurn(user_message="q0", assistant_answer="a0"))
+    store.append("c", ConversationTurn(user_message="q1", assistant_answer="a1"))
+
+    async def summarizer(history: ConversationHistory) -> str:
+        return "all of it"
+
+    assert await store.summarize_if_needed("c", summarizer=summarizer) is True
+    assert store.get("c").turns == []  # type: ignore[union-attr]
+
+
+@pytest.mark.asyncio
+async def test_a_turn_appended_during_compaction_survives_it() -> None:
+    """The model call is the one await in the store; a concurrent run can
+    append meanwhile, and only the snapshotted turns may be folded."""
+
+    store = InMemoryConversationStore(summarize_at_turns=2, keep_recent_turns=1)
+    for i in range(3):
+        store.append("c", ConversationTurn(user_message=f"q{i}", assistant_answer=f"a{i}"))
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def summarizer(history: ConversationHistory) -> str:
+        started.set()
+        await release.wait()
+        return "folded"
+
+    task = asyncio.create_task(store.summarize_if_needed("c", summarizer=summarizer))
+    await started.wait()
+    store.append("c", ConversationTurn(user_message="q3", assistant_answer="a3"))
+    release.set()
+    assert await task is True
+
+    history = store.get("c")
+    assert history is not None
+    assert history.summary == "folded"
+    assert [t.user_message for t in history.turns] == ["q2", "q3"]
+
+
+@pytest.mark.asyncio
+async def test_a_history_reset_during_compaction_is_not_written_back() -> None:
+    store = InMemoryConversationStore(summarize_at_turns=1)
+    for i in range(4):
+        store.append("c", ConversationTurn(user_message=f"q{i}", assistant_answer=f"a{i}"))
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def summarizer(history: ConversationHistory) -> str:
+        started.set()
+        await release.wait()
+        return "stale"
+
+    task = asyncio.create_task(store.summarize_if_needed("c", summarizer=summarizer))
+    await started.wait()
+    store.reset("c")
+    store.append("c", ConversationTurn(user_message="fresh", assistant_answer="a"))
+    release.set()
+    assert await task is False
+
+    history = store.get("c")
+    assert history is not None
+    assert history.summary is None
+    assert [t.user_message for t in history.turns] == ["fresh"]
+
+
+@pytest.mark.asyncio
+async def test_a_blank_summary_is_an_error_and_folds_nothing() -> None:
+    store = InMemoryConversationStore(summarize_at_turns=1, keep_recent_turns=0)
+    for i in range(2):
+        store.append("c", ConversationTurn(user_message=f"q{i}", assistant_answer=f"a{i}"))
+
+    async def summarizer(history: ConversationHistory) -> str:
+        return "   "
+
+    with pytest.raises(ValueError):
+        await store.summarize_if_needed("c", summarizer=summarizer)
+    history = store.get("c")
+    assert history is not None
+    assert history.summary is None
+    assert len(history.turns) == 2
 
 
 def test_conversation_id_round_trips_across_two_runs() -> None:
@@ -188,3 +275,37 @@ def test_to_messages_returns_all_when_budget_exceeds_history_cost() -> None:
     msgs = to_messages(history, max_tokens=100_000)
     assert len(msgs) == 6  # 3 turns × 2 messages
     assert [m.content for m in msgs] == ["q0", "a0", "q1", "a1", "q2", "a2"]
+
+
+def test_seed_installs_a_history_with_no_turns() -> None:
+    """A replayed summary can arrive with nothing else — every turn it covers
+    was compacted away — and `append` has nothing to attach it to."""
+
+    store = InMemoryConversationStore()
+    store.seed(ConversationHistory(conversation_id="convZ", summary="the gist"))
+
+    history = store.get("convZ")
+    assert history is not None
+    assert history.summary == "the gist"
+    assert history.turns == []
+    first = to_messages(history)[0]
+    assert isinstance(first, HumanMessage)
+    assert first.content == "Earlier in this conversation (summary): the gist"
+
+
+def test_to_messages_replays_the_summary_as_a_human_message_ahead_of_the_turns() -> None:
+    """The caller can replay any text as the summary; it must not outrank
+    the system prompt, and it must survive the budget trim."""
+
+    history = ConversationHistory(
+        conversation_id="convS",
+        summary="the gist",
+        turns=[
+            ConversationTurn(user_message="q" * 2_000, assistant_answer="a" * 2_000),
+            ConversationTurn(user_message="q1", assistant_answer="a1"),
+        ],
+    )
+    msgs = to_messages(history, max_tokens=50)
+    assert isinstance(msgs[0], HumanMessage)
+    assert "the gist" in str(msgs[0].content)
+    assert [m.content for m in msgs[1:]] == ["q1", "a1"]

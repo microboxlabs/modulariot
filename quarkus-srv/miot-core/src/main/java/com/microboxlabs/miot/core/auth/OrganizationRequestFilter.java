@@ -165,6 +165,7 @@ public class OrganizationRequestFilter {
         organizationContext.setOrganizationId(org.slug);
         organizationContext.setUserEmail(userEmail);
         organizationContext.setAlfrescoRole(role);
+        organizationContext.setAlfrescoGroupId(org.alfrescoGroupId);
         LOG.debugf("Organization resolved: slug=%s tenant=%s effectiveIds=%s user=%s role=%s",
                 org.slug, org.tenantClientId, effectiveClientIds, userEmail, role);
     }

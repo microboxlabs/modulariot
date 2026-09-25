@@ -21,6 +21,8 @@ and as part of any incident review where CI behaved unexpectedly.
 ## Job ordering and gating
 
 - [ ] `lint-and-test` runs first.
+- [ ] `sonarcloud` runs in parallel with `lint-and-test` and is
+      **not** a `needs` of `publish-image`.
 - [ ] `image-evals-pre-publish` is gated on `lint-and-test` (red
       lint = no eval; saves CI minutes).
 - [ ] `publish-image` is gated on `image-evals-pre-publish` (failed
@@ -69,8 +71,9 @@ would duplicate YAML.)
 
 ## Secrets surface
 
-- [ ] Only `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` come from
-      org-level secrets; `GITHUB_TOKEN` is the auto-injected one.
+- [ ] `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and `SONAR_TOKEN`
+      come from org-level secrets; `GITHUB_TOKEN` is the
+      auto-injected one.
 - [ ] No new secrets introduced relative to the existing
       `quarkus.yml` / `ci.yaml` workflows.
 

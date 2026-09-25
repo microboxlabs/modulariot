@@ -18,9 +18,14 @@ from unittest.mock import AsyncMock
 
 import pytest
 from langchain_core.language_models import FakeListChatModel
+from pydantic import ValidationError
 
 from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
-from miot_harness.runtime.context import UserRequest
+from miot_harness.runtime.context import (
+    MAX_CONVERSATION_MESSAGE_CHARS,
+    ConversationTurnInput,
+    UserRequest,
+)
 from miot_harness.runtime.conversation import (
     ConversationTurn,
     InMemoryConversationStore,
@@ -28,10 +33,16 @@ from miot_harness.runtime.conversation import (
 from miot_harness.runtime.intent_router import LLMIntentRouter
 from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import JsonRunStore
-from miot_harness.runtime.supervisor import HarnessSupervisor
+from miot_harness.runtime.supervisor import _MAX_SEEDED_TURNS, HarnessSupervisor
 from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry
 from tests.fixtures.fake_provider import FAKE_PROFILE
+
+
+def _store_key(conversation_id: str, tenant: str = "orion", user: str = "demo-user") -> str:
+    """Mirrors `HarnessSupervisor._conversation_key`: the store is namespaced by
+    the resolved tenant and user, never by the caller's id alone."""
+    return f"{tenant}/{user}/{conversation_id}"
 
 
 def _scripted_llm_router(route: str, confidence: float = 0.95) -> LLMIntentRouter:
@@ -303,7 +314,7 @@ async def test_conversation_id_round_trips_via_store(tmp_path: Any) -> None:
     )
     assert record.conversation_id == "conv-supervisor-1"
 
-    history = store.get("conv-supervisor-1")
+    history = store.get(_store_key("conv-supervisor-1"))
     assert history is not None
     assert history.turns[-1] == ConversationTurn(user_message="q1", assistant_answer="first answer")
 
@@ -397,6 +408,204 @@ async def test_supervisor_hydrates_prior_messages_into_data_graph_state(
     assert prior[0].content == "estado del coordinador"
     assert isinstance(prior[1], AIMessage)
     assert prior[1].content == "first-turn answer"
+
+
+@pytest.mark.asyncio
+async def test_caller_supplied_history_seeds_an_unknown_conversation(
+    tmp_path: Any,
+) -> None:
+    """A conversation the harness has never seen — a restart, or a chat
+    reopened long after the process that held it — arrives with the caller's
+    own record of the turns. Those must reach the graph as prior messages and
+    land in the store, so the run's own append continues the same history.
+    """
+
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    store = InMemoryConversationStore()
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "resumed", "_events": []})
+    supervisor = _build_supervisor(
+        tmp_path,
+        data_graph=data_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
+        conversation_store=store,
+    )
+
+    await supervisor.run(
+        UserRequest(
+            message="and last week?",
+            tenant_id="orion",
+            conversation_id="conv-seed-1",
+            conversation_history=[
+                ConversationTurnInput(
+                    user_message="how many trips yesterday?",
+                    assistant_answer="41 trips",
+                )
+            ],
+        )
+    )
+
+    prior = data_graph.ainvoke.call_args[0][0].get("prior_messages")
+    assert prior is not None and len(prior) == 2
+    assert isinstance(prior[0], HumanMessage)
+    assert prior[0].content == "how many trips yesterday?"
+    assert isinstance(prior[1], AIMessage)
+    assert prior[1].content == "41 trips"
+
+    history = store.get(_store_key("conv-seed-1"))
+    assert history is not None
+    assert [turn.user_message for turn in history.turns] == [
+        "how many trips yesterday?",
+        "and last week?",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_caller_supplied_history_never_overwrites_what_the_store_holds(
+    tmp_path: Any,
+) -> None:
+    """Seeding fires only for an id the store does not know. A caller
+    replaying turns for a live conversation must change nothing — otherwise
+    every turn of a chat would duplicate its own history.
+    """
+
+    store = InMemoryConversationStore()
+    store.append(
+        _store_key("conv-seed-2"),
+        ConversationTurn(user_message="real question", assistant_answer="real answer"),
+    )
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "next", "_events": []})
+    supervisor = _build_supervisor(
+        tmp_path,
+        data_graph=data_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
+        conversation_store=store,
+    )
+
+    await supervisor.run(
+        UserRequest(
+            message="follow-up",
+            tenant_id="orion",
+            conversation_id="conv-seed-2",
+            conversation_history=[
+                ConversationTurnInput(
+                    user_message="replayed question",
+                    assistant_answer="replayed answer",
+                )
+            ],
+        )
+    )
+
+    history = store.get(_store_key("conv-seed-2"))
+    assert history is not None
+    assert [turn.user_message for turn in history.turns] == ["real question", "follow-up"]
+
+
+def test_replayed_history_is_bounded_where_the_body_is_parsed() -> None:
+    """The cap has to hold at validation: pydantic builds every nested turn
+    before the supervisor could slice, so an unbounded list is an unbounded
+    parse."""
+
+    turns = [
+        ConversationTurnInput(user_message=f"q{i}", assistant_answer=f"a{i}")
+        for i in range(_MAX_SEEDED_TURNS + 1)
+    ]
+
+    with pytest.raises(ValidationError):
+        UserRequest(message="hi", tenant_id="orion", conversation_history=turns)
+
+    with pytest.raises(ValidationError):
+        UserRequest(
+            message="hi",
+            tenant_id="orion",
+            conversation_history=[
+                ConversationTurnInput(
+                    user_message="x" * (MAX_CONVERSATION_MESSAGE_CHARS + 1),
+                    assistant_answer="a",
+                )
+            ],
+        )
+
+
+@pytest.mark.asyncio
+async def test_a_replayed_conversation_stays_inside_its_own_tenant(
+    tmp_path: Any,
+) -> None:
+    """`conversation_id` comes from the request body. Without namespacing, one
+    caller could seed an id and have another tenant's next turn pick the
+    replay up as its own context."""
+
+    store = InMemoryConversationStore()
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "ok", "_events": []})
+    supervisor = _build_supervisor(
+        tmp_path,
+        data_graph=data_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
+        conversation_store=store,
+    )
+
+    await supervisor.run(
+        UserRequest(
+            message="mine",
+            tenant_id="attacker",
+            conversation_id="shared-id",
+            conversation_history=[
+                ConversationTurnInput(user_message="planted", assistant_answer="planted")
+            ],
+        )
+    )
+
+    supervisor.llm_router = _scripted_llm_router("DATA_QUERY")
+    await supervisor.run(
+        UserRequest(message="theirs", tenant_id="orion", conversation_id="shared-id")
+    )
+
+    victim = data_graph.ainvoke.call_args[0][0].get("prior_messages")
+    assert victim == [], "another tenant's replay must not become this run's context"
+    assert store.get(_store_key("shared-id", tenant="attacker")) is not None
+
+
+@pytest.mark.asyncio
+async def test_a_longer_replay_replaces_a_staler_local_history(
+    tmp_path: Any,
+) -> None:
+    """With more than one replica a turn can land elsewhere and come back to a
+    process holding less than the caller does. Take the longer transcript
+    rather than answering from the stale one."""
+
+    store = InMemoryConversationStore()
+    store.append(
+        _store_key("conv-seed-4"),
+        ConversationTurn(user_message="q1", assistant_answer="a1"),
+    )
+    data_graph = AsyncMock()
+    data_graph.ainvoke = AsyncMock(return_value={"answer": "ok", "_events": []})
+    supervisor = _build_supervisor(
+        tmp_path,
+        data_graph=data_graph,
+        llm_router=_scripted_llm_router("DATA_QUERY"),
+        conversation_store=store,
+    )
+
+    await supervisor.run(
+        UserRequest(
+            message="q4",
+            tenant_id="orion",
+            conversation_id="conv-seed-4",
+            conversation_history=[
+                ConversationTurnInput(user_message="q1", assistant_answer="a1"),
+                ConversationTurnInput(user_message="q2", assistant_answer="a2"),
+                ConversationTurnInput(user_message="q3", assistant_answer="a3"),
+            ],
+        )
+    )
+
+    history = store.get(_store_key("conv-seed-4"))
+    assert history is not None
+    assert [turn.user_message for turn in history.turns] == ["q1", "q2", "q3", "q4"]
 
 
 @pytest.mark.asyncio

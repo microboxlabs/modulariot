@@ -5,14 +5,13 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/scopes/{{scopeId}}/widgets
+  url: {{baseUrl}}/tenants/{{tenant}}/scopes/{{scopeId}}/widgets
   body: none
   auth: none
 }
 
 headers {
   x-dev-user: {{user}}
-  x-dev-tenant: {{tenant}}
 }
 
 docs {

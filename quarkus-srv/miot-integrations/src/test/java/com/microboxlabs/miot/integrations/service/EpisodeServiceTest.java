@@ -28,6 +28,16 @@ class EpisodeServiceTest {
     }
 
     @Test
+    void recordAcceptsTheChatSurface() {
+        var repo = new FakeRepository();
+        var service = new EpisodeService(repo);
+
+        service.recordEpisode("t", "u", new EpisodeRequest("chat", "run-1", null, null));
+
+        assertEquals("chat", repo.inserted.surface());
+    }
+
+    @Test
     void recordRejectsNullBody() {
         var service = new EpisodeService(new FakeRepository());
         assertThrows(IllegalArgumentException.class, () -> service.recordEpisode("t", "u", null));

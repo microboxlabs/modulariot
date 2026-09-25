@@ -8,9 +8,11 @@ import { Composer } from "./components/composer";
 import { RunCancelProvider } from "./context/run-cancel-context";
 import { useHarnessChatTr } from "./context/harness-chat-i18n-context";
 import type { HarnessSkill } from "./harness-chat-types";
+import { useHarnessReadOnly } from "./context/harness-read-only-context";
 
 export const Thread: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
   const tr = useHarnessChatTr();
+  const readOnly = useHarnessReadOnly();
   return (
     <RunCancelProvider>
       <ComposerPrimitive.AttachmentDropzone className="group relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -20,7 +22,12 @@ export const Thread: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
         </div>
 
         <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
-          <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-3">
+          {/* overflow-x-hidden: without it a too-wide table in a reply (see
+              MarkdownContent's `table` override) would widen this axis too —
+              overflow-x otherwise computes to "auto" alongside overflow-y —
+              and drag the whole thread into a sideways scroll instead of
+              scrolling on its own. */}
+          <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto px-3 py-3">
             <AuiIf condition={(s) => s.thread.isEmpty}>
               <ThreadEmpty />
             </AuiIf>
@@ -33,7 +40,13 @@ export const Thread: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
             />
           </ThreadPrimitive.Viewport>
 
-          <Composer skills={skills} />
+          {readOnly ? (
+            <p className="shrink-0 border-t border-gray-200 px-3 py-2 text-center text-[11px] text-gray-400 dark:border-gray-700">
+              {tr("harnessChat.ui.thread.readOnly")}
+            </p>
+          ) : (
+            <Composer skills={skills} />
+          )}
         </ThreadPrimitive.Root>
       </ComposerPrimitive.AttachmentDropzone>
     </RunCancelProvider>

@@ -1,0 +1,86 @@
+# 🔔 Release Notes v1.31.52 — ModularIoT
+
+### Fecha: 22/09/2026
+
+**Objetivo**: Esta versión mejora la gestión de servicios y entregas en ECM, evitando ejecuciones duplicadas en integraciones y corrigiendo el estado inicial de determinados viajes. También amplía el servidor de dashboards con soporte para fuentes de datos, credenciales, BigQuery y despliegues independientes.
+
+## 🚀 Evolutivos
+
+- **📍 Gestión de fuentes de datos en el servidor de dashboards**
+  - **Punto clave**: Se incorporan operaciones CRUD para fuentes de datos, pruebas de conexión y almacenamiento multi-tenant mediante SQL.
+  - **Detalle técnico**: Las fuentes pueden referenciar perfiles de credenciales sin exponer secretos; se admiten pruebas para formularios no guardados y fuentes persistidas. *(Integración OSS — MIOT-0.5.53)*
+
+- **📍 Credenciales para fuentes de datos**
+  - **Punto clave**: El servidor de dashboards admite resolución de credenciales mediante almacenes SQL cifrados o consultando al host por HTTP.
+  - **Detalle técnico**: Se añaden `HTTP_AUTH`, `SERVICE_ACCOUNT` y el tipo `GOOGLE_SERVICE_ACCOUNT`, incluyendo intercambio JWT para BigQuery y almacenamiento cifrado AES-256-GCM cuando corresponde. *(Integración OSS — MIOT-0.5.53)*
+
+- **📍 Soporte de BigQuery**
+  - **Punto clave**: Las fuentes BIGQUERY pueden utilizar perfiles de cuentas de servicio de Google y probar su conexión.
+  - **Detalle técnico**: La prueba consulta la API REST de BigQuery, admite autenticación mediante cuenta de servicio, `HTTP_AUTH` o acceso anónimo, y analiza destinos con formato `project.dataset`. *(Integración OSS — MIOT-0.5.53)*
+
+- **📍 Contrato compartido del dashboard**
+  - **Punto clave**: El contrato del dashboard se publica como paquete independiente con vocabulario común para roles, capacidades, errores, OpenAPI y JSON Schema.
+  - **Detalle técnico**: El servidor valida las actualizaciones contra el contrato publicado y mantiene sincronizadas sus descripciones de API. *(Integración OSS — MIOT-0.5.53)*
+
+- **📍 Despliegue autónomo del servidor de dashboards**
+  - **Punto clave**: Se documenta y prepara el funcionamiento independiente del servidor, incluyendo configuración, usuarios, permisos, fuentes de datos, credenciales y API.
+  - **Detalle técnico**: La imagen instala sus dependencias de ejecución durante la construcción y permite controlar dependencias opcionales mediante `IMAGE_EXTRAS`. *(Integración OSS — MIOT-0.5.53)*
+
+## 🔧 Integraciones
+
+- **🔌 Identidad delegada mediante proxy confiable**
+  - **Alcance**: El modulith puede reenviar al servidor de dashboards el usuario, tenant, scope y rol ya resueltos por el proxy.
+  - **Detalle técnico**: La aserción se protege con `MIOT_DASHBOARD_PROXY_KEY`, mantiene la validación del bearer token y evita resolver dos veces la misma membresía. *(Integración OSS — MIOT-0.5.53)*
+
+- **🔌 Enrutamiento de dashboards y fuentes de datos**
+  - **Alcance**: El modulith reenvía las rutas de fuentes de datos bajo la organización y conserva las comprobaciones de pertenencia.
+  - **Detalle técnico**: Se admite una URL de credenciales `http://` para despliegues dentro del clúster, mientras que las rutas de credenciales no se exponen directamente. *(Integración OSS — MIOT-0.5.53)*
+
+- **🔌 Publicación de paquetes y automatización**
+  - **Alcance**: Se añaden flujos de publicación para el contrato, el servidor de dashboards y `miot-calendar-ui`.
+  - **Detalle técnico**: Los paquetes verifican versión, contenido del tarball e instalación antes de publicar; el contrato y el servidor utilizan publicación confiable mediante OIDC. *(Integración OSS — MIOT-0.5.53)*
+
+## 🐛 Correcciones
+
+- **🐛 Servicios con prioridades AT, PA o UR iniciados en un estado planificado**
+  - **Impacto**: Estos servicios podían escribirse en el calendario al crearse, aunque todavía no hubieran sido planificados.
+  - **Solución**: El flujo inicial dirige las prioridades `AT`, `PA` y `UR` a `consolidateLoad`, evitando el listener que crea la vinculación del calendario. *(Integración OSS — Release 1.31.52)*
+
+- **🐛 Cadenas duplicadas del reconciliador de entregas**
+  - **Impacto**: Un viaje finalizado podía generar dos cadenas de trabajos, provocando cargas duplicadas de imágenes de Diana y ejecuciones repetidas de Portal Cliente.
+  - **Solución**: El reconciliador selecciona únicamente la tarea cuyo resultado local indica `Viaje Finalizado` y añade una protección de envío único para esos tipos de trabajo; los reintentos manuales quedan exentos. *(Integración OSS — Release 1.31.52)*
+
+- **🐛 Índice de búsqueda y etiquetado de páginas en español**
+  - **Impacto**: El índice de Pagefind respondía con error y las páginas españolas se indexaban como contenido en inglés.
+  - **Solución**: Los recursos públicos se sirven desde la ruta utilizada por el servidor independiente y el atributo de idioma se obtiene correctamente para las páginas en español. *(Integración OSS — MIOT-0.5.53)*
+
+- **🐛 Ejemplo de credenciales del servidor de dashboards**
+  - **Impacto**: El ejemplo de la documentación terminaba antes de iniciar porque no configuraba un proveedor de identidad.
+  - **Solución**: El ejemplo utiliza ahora la misma configuración de autenticación y datos iniciales del inicio rápido, permitiendo probar las rutas de credenciales. *(Integración OSS — MIOT-0.5.53)*
+
+## 📊 Beneficios
+
+- Reduce la posibilidad de registrar servicios no planificados en el calendario.
+- Evita cargas duplicadas y disminuye el consumo innecesario de integraciones externas.
+- Permite administrar fuentes de datos y credenciales de forma multi-tenant y con separación de secretos.
+- Facilita la conexión de BigQuery mediante cuentas de servicio y pruebas de conectividad integradas.
+- Simplifica los despliegues independientes del servidor de dashboards.
+- Mejora la consistencia entre el modulith y el servidor mediante contratos, roles y autoridades compartidos.
+- Mejora la búsqueda y la clasificación lingüística de la documentación en español.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.53`
+- **App**: `app@v0.5.53` — actualizado
+- **Docs**: `docs@v0.5.53` — actualizado
+- **Web**: `web@v0.5.53` — actualizado
+- **Modulith**: `modulith@v0.5.32` — actualizado
+- **Harness**: `harness@v0.1.9` — sin cambios
+
+Los identificadores exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.52 refuerza la fiabilidad operativa de los flujos de viajes y entregas, eliminando situaciones que podían comprometer el calendario o duplicar llamadas a integraciones externas.
+
+Además, establece una base más completa para operar dashboards de forma independiente, con fuentes de datos, credenciales, BigQuery, contratos compartidos y delegación segura de identidad entre el modulith y el servidor.

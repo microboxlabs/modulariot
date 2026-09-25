@@ -137,6 +137,7 @@ export default function ClientNotification({
         height="fit-content"
         selected={showModal}
         setSelected={() => {}}
+        dismissible={false}
       >
         <div className="max-w-[700px] flex flex-col text-gray-700 overflow-hidden">
           <div className="w-full h-60 bg-blue-300 flex justify-center items-start text-blue-600 overflow-hidden p-4">

@@ -16,7 +16,7 @@
  */
 
 import type { KeyRing } from "./jwt";
-import { isLoopbackHost } from "../net/loopback";
+import { secureUrlProblem } from "../net/endpoint";
 
 /** Thrown when the key source itself is unusable, never for a bad token. */
 export class KeySourceError extends Error {
@@ -111,20 +111,9 @@ export interface JwksKeyRingOptions {
  * the only URL read.
  */
 function checkJwksUrl(raw: string): URL {
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    throw new KeySourceError(`"${raw}" is not a URL`);
-  }
-  if (url.protocol !== "https:" && !isLoopbackHost(url.hostname)) {
-    throw new KeySourceError(
-      `The JWKS URL must use https (got "${url.protocol}//"). It decides ` +
-        "which signatures this server trusts, so anyone able to answer it " +
-        "can issue tokens for any user.",
-    );
-  }
-  return url;
+  const problem = secureUrlProblem(raw, "The JWKS URL");
+  if (problem !== null) throw new KeySourceError(problem);
+  return new URL(raw);
 }
 
 /**

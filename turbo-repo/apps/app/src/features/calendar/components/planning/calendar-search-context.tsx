@@ -12,6 +12,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import { usePlanningSelection } from "./planning-selection-context";
+import { resolveLiveClient } from "@/features/calendar/services/live-client";
 import { useCalendars } from "@/features/common/providers/client-api.provider";
 import {
   useCalendarSearch,
@@ -72,9 +73,17 @@ export function CalendarSearchProvider({
 }: {
   readonly children: ReactNode;
 }) {
-  const search = useCalendarSearch();
-  const { calendarId, setSearchMatchIds, setFocusedItemId } =
+  const { calendarId, setSearchMatchIds, setFocusedItemId, getLiveTask } =
     usePlanningSelection();
+  // The search maps its own bookings, so it needs the same live-task client
+  // join the grid gets from the host's `resolveItemOverlay` — otherwise
+  // `?customer=` would miss a row the grid shows a client for.
+  const resolveClient = useCallback(
+    (serviceCode: string | undefined, storedClient: string | undefined) =>
+      resolveLiveClient(getLiveTask(serviceCode), storedClient),
+    [getLiveTask]
+  );
+  const search = useCalendarSearch(resolveClient);
   const { calendars } = useCalendars();
   const router = useRouter();
   const pathname = usePathname();

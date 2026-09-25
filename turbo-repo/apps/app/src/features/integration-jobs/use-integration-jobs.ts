@@ -13,6 +13,7 @@ import {
   deleteNotificationRule,
   fetchJob,
   fetchJobs,
+  fetchJobsCount,
   fetchJobsOverview,
   fetchNotificationRules,
   retryJob,
@@ -20,19 +21,42 @@ import {
 } from "./integration-jobs-data-service";
 
 const JOBS_KEY = "org-integration-jobs";
+const JOBS_COUNT_KEY = "org-integration-jobs-count";
 const OVERVIEW_KEY = "org-integration-jobs-overview";
 const JOB_KEY = "org-integration-job";
 const RULES_KEY = "org-integration-notification-rules";
 
+/** The filters, in the fixed order both SWR keys use. */
+const filterKey = (filters: JobListFilters) => [
+  filters.state ?? "",
+  filters.jobType ?? "",
+  filters.chainKey ?? "",
+  filters.executor ?? "",
+  filters.search ?? "",
+];
+
 export function useIntegrationJobs(orgSlug: string | null, filters: JobListFilters = {}) {
   const { data, error, isLoading, mutate } = useSWR<AsyncJob[], Error>(
     orgSlug
-      ? [JOBS_KEY, orgSlug, filters.state ?? "", filters.jobType ?? "", filters.chainKey ?? "", filters.limit ?? 100]
+      ? [JOBS_KEY, orgSlug, ...filterKey(filters), filters.limit ?? 100, filters.offset ?? 0]
       : null,
     () => fetchJobs(orgSlug as string, filters),
-    { revalidateOnFocus: false, dedupingInterval: 5_000 },
+    { revalidateOnFocus: false, dedupingInterval: 5_000, keepPreviousData: true },
   );
   return { jobs: data ?? [], isLoading, error, refresh: mutate };
+}
+
+/**
+ * Total matching jobs, keyed on the filters alone — paging reuses the cached
+ * count instead of recounting the ledger on every page turn.
+ */
+export function useIntegrationJobsCount(orgSlug: string | null, filters: JobListFilters = {}) {
+  const { data, isLoading } = useSWR<number, Error>(
+    orgSlug ? [JOBS_COUNT_KEY, orgSlug, ...filterKey(filters)] : null,
+    () => fetchJobsCount(orgSlug as string, filters),
+    { revalidateOnFocus: false, dedupingInterval: 5_000, keepPreviousData: true },
+  );
+  return { total: data ?? null, isLoading };
 }
 
 export function useIntegrationJobsOverview(orgSlug: string | null) {
@@ -76,7 +100,12 @@ export function useRetryJob(orgSlug: string | null) {
       try {
         const updated = await retryJob(orgSlug, jobId);
         await Promise.all([
-          mutate((key) => Array.isArray(key) && key[0] === JOBS_KEY && key[1] === orgSlug),
+          mutate(
+            (key) =>
+              Array.isArray(key) &&
+              (key[0] === JOBS_KEY || key[0] === JOBS_COUNT_KEY) &&
+              key[1] === orgSlug,
+          ),
           mutate([OVERVIEW_KEY, orgSlug]),
           mutate([JOB_KEY, orgSlug, jobId]),
         ]);
@@ -150,7 +179,10 @@ export function useRevalidateJobs(orgSlug: string | null) {
     void mutate(
       (key) =>
         Array.isArray(key) &&
-        (key[0] === JOBS_KEY || key[0] === OVERVIEW_KEY || key[0] === JOB_KEY) &&
+        (key[0] === JOBS_KEY ||
+          key[0] === JOBS_COUNT_KEY ||
+          key[0] === OVERVIEW_KEY ||
+          key[0] === JOB_KEY) &&
         key[1] === orgSlug,
     );
   }, [orgSlug, mutate]);

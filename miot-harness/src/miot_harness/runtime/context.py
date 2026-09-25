@@ -43,6 +43,9 @@ class HarnessContext(BaseModel):
     # Phase E (plan 13): the mode the caller requested. Set from
     # `UserRequest.mode` so per-mode cost can split in Langfuse panels.
     mode: RunMode = "auto"
+    # The conversation model the caller chose for the agent loop, or None for
+    # the deployment default. Validated against the allowlist at the API.
+    model: str | None = None
     # The caller-requested output format for the final answer string. Read by
     # HarnessSupervisor._finalize_answer to render record.answer before save.
     answer_format: AnswerFormat = "markdown"
@@ -63,6 +66,23 @@ class HarnessContext(BaseModel):
     # approval_registry, it is excluded from model_dump (PermissionPolicy
     # is serializable, but it is run-control state, not run output).
     permission_policy: PermissionPolicy | None = Field(default=None, exclude=True)
+
+
+# Bounds on a replayed transcript, enforced where the body is parsed rather
+# than after the fact: pydantic builds every nested turn before the supervisor
+# gets to slice, so an unbounded list is an unbounded parse.
+MAX_CONVERSATION_HISTORY_TURNS = 50
+# A compacted summary the caller stored from an earlier run's record. Sized
+# well above what the summarizer produces so a legitimate one never trips it.
+MAX_CONVERSATION_SUMMARY_CHARS = 8_000
+MAX_CONVERSATION_MESSAGE_CHARS = 20_000
+
+
+class ConversationTurnInput(BaseModel):
+    """One prior exchange a caller replays into a conversation it owns."""
+
+    user_message: str = Field(max_length=MAX_CONVERSATION_MESSAGE_CHARS)
+    assistant_answer: str = Field(max_length=MAX_CONVERSATION_MESSAGE_CHARS)
 
 
 class UserRequest(BaseModel):
@@ -89,7 +109,30 @@ class UserRequest(BaseModel):
     )
     route_context: dict[str, Any] = Field(default_factory=dict)
     mode: RunMode = "auto"
+    # Conversation model for the agent loop; one of GET /models, or omitted
+    # for the default.
+    model: str | None = Field(default=None, max_length=80)
     conversation_id: str | None = None
+    # Prior turns of `conversation_id`, replayed by the caller when the
+    # harness has never seen that id — after a restart, or when a user
+    # reopens a chat the process has since forgotten. `ConversationStore` is
+    # in memory, so without this a conversation lives only as long as the
+    # process does. Seeded once, on the first run that finds the id unknown;
+    # from then on the harness's own append and compaction own the history.
+    #
+    # Caller-asserted, exactly like `message`: the app replays what it stored
+    # for this user's own conversation, and nothing here reaches the model
+    # that the user could not have typed themselves.
+    conversation_history: list[ConversationTurnInput] = Field(
+        default_factory=list, max_length=MAX_CONVERSATION_HISTORY_TURNS
+    )
+    # The summary the harness produced when it compacted this conversation,
+    # handed back with the replay. Compaction clears the turns it covered, so
+    # a replay alone cannot restore what a restarted process lost; this can.
+    # Applied only when the history is seeded, like the turns.
+    conversation_summary: str | None = Field(
+        default=None, max_length=MAX_CONVERSATION_SUMMARY_CHARS
+    )
     debug: bool = False
     # Optional skill to activate for this run. When set and resolvable,
     # the supervisor injects that skill's SKILL.md body as run guidance so
@@ -154,6 +197,7 @@ class UserRequest(BaseModel):
             user_id=self.user_id,
             route_context=self.route_context,
             mode=self.mode,
+            model=self.model,
             conversation_id=self.conversation_id,
             debug=self.debug,
             answer_format=self.answer_format,

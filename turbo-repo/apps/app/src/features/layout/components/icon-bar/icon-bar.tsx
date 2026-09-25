@@ -33,7 +33,13 @@ export default function IconBar({ dict }: Readonly<PropsWithI18nDict>) {
   const SettingsIcon = settingsItem?.icon;
 
   function handleItemClick(item: SidebarItem) {
-    if (item.items || item.dynamicItemsSource) {
+    // pages.ts always normalizes `items` to an array (`?? []`), so an empty
+    // array is truthy here even for entries with no children — check length,
+    // not just presence, or every childless item would toggle an empty panel.
+    const hasChildren = Boolean(
+      (item.items && item.items.length > 0) || item.dynamicItemsSource
+    );
+    if (hasChildren) {
       toggleSection(item.label);
     } else {
       setActiveSection(null);

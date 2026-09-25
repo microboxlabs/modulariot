@@ -17,19 +17,28 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildIdentityResolver } from "./server/auth";
+import {
+  buildIdentityResolver,
+  buildScopeAuthority,
+  buildTenantAuthority,
+} from "./server/auth";
 import {
   ConfigError,
   readServerConfig,
   type ServerConfig,
 } from "./server/config";
+import { openDataSources } from "./server/open-datasources";
 import { createRefusalLog } from "./server/refusal-log";
+import { startSweepSchedule } from "./server/sweep-schedule";
 import { seedDashboards } from "./server/seed";
 import { serve } from "./server/serve";
 import type { ServerDashboardStore } from "./seams/store";
+import { buildDocumentStore } from "./server/documents";
+import { openPostgresStore } from "./store/postgres";
 import { openSqliteStore } from "./store/sqlite";
+import type { SqlDriver } from "./store/sql/driver";
+import type { SweepResult } from "./store/sweep";
 import {
-  createMemoryScopeAuthority,
   createMemoryStore,
   createRecordingAuditSink,
   type Memberships,
@@ -141,6 +150,13 @@ interface AssembledStore {
   store: ServerDashboardStore;
   close(): Promise<void>;
   describe: string;
+  /** Absent when the store has no documents to sweep. */
+  sweep?: (olderThan: Date) => Promise<SweepResult>;
+  /**
+   * The connection underneath, for the datasource store and the credentials
+   * plugin. Absent for the memory store, which has none.
+   */
+  driver?: SqlDriver;
 }
 
 /** Build the store named by the configuration. */
@@ -158,13 +174,64 @@ async function openStore(
     };
   }
 
-  const opened = await openSqliteStore({ path: config.sqlitePath });
+  const shared = {
+    ...buildDocumentStore(config),
+    onOrphan: (key: string, error: unknown) =>
+      log({
+        level: "warn",
+        msg: "document left behind",
+        key,
+        error: String(error),
+      }),
+  };
+
+  // `postgres` is set exactly when the store is postgres, which is also what
+  // makes the connection string available without a non-null assertion.
+  const { postgres } = config;
+  const opened =
+    postgres !== undefined
+      ? await openPostgresStore({
+          url: postgres.url,
+          poolSize: postgres.poolSize,
+          connectionTimeoutMs: postgres.connectionTimeoutMs,
+          onPoolError: (error) =>
+            log({
+              level: "warn",
+              msg: "postgres idle connection lost",
+              error: error.message,
+            }),
+          ...shared,
+        })
+      : await openSqliteStore({ path: config.sqlitePath, ...shared });
+
   await seedDashboards(opened.store, dashboards);
+  const documents =
+    config.documents === "fs"
+      ? `documents in ${config.documentsPath}`
+      : `documents ${config.documents}`;
+  // The connection string carries a password, so the log names the database
+  // and the host it came from, never the string itself.
+  const where =
+    postgres !== undefined
+      ? `postgres at ${describeDatabase(postgres.url)}`
+      : `sqlite at ${config.sqlitePath}`;
   return {
     store: opened.store,
+    driver: opened.driver,
     close: opened.close,
-    describe: `sqlite at ${config.sqlitePath}`,
+    describe: `${where}, ${documents}`,
+    sweep: opened.sweep,
   };
+}
+
+/** `host:port/database` from a connection string, with the credentials left out. */
+function describeDatabase(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.host}${parsed.pathname}`;
+  } catch {
+    return "an unparseable connection string";
+  }
 }
 
 const log = (line: Record<string, unknown>) => {
@@ -176,11 +243,27 @@ async function main(): Promise<void> {
   const seed = readSeed(config.seedPath);
   const memberships = seed.memberships ?? {};
 
+  // The response is a 401 or 403 with no detail; the reason is logged here so
+  // a misconfiguration can be diagnosed. Rate-limited, because otherwise an
+  // anonymous caller controls how much this process logs.
+  const onReject = createRefusalLog({ write: log });
+
+  const proxy =
+    config.proxyKey === undefined ? {} : { proxyKey: config.proxyKey };
+
   const auth = await buildIdentityResolver(config.auth, {
-    // The response is a 401 with no detail; the reason is logged here so a
-    // misconfiguration can be diagnosed. Rate-limited, because otherwise an
-    // anonymous caller controls how much this process logs.
-    onReject: createRefusalLog({ write: log }),
+    onReject,
+    ...proxy,
+  });
+  const tenants = buildTenantAuthority(config.tenants, {
+    memberships,
+    onReject,
+    ...proxy,
+  });
+  const scopes = buildScopeAuthority(config.scopes, {
+    memberships,
+    onReject,
+    ...proxy,
   });
 
   if (config.auth.kind === "insecure") {
@@ -188,30 +271,55 @@ async function main(): Promise<void> {
       "WARNING: identity is read from request headers without verification " +
         "(MIOT_DASHBOARD_INSECURE_AUTH). Local use only.\n",
     );
-  } else if (Object.keys(memberships).length === 0) {
-    // Identity is verified, but no scope memberships are configured and the
-    // scope authority denies by default, so every request will be a 403.
+  }
+  if (
+    (config.scopes.kind === "seed" || config.tenants.kind === "seed") &&
+    Object.keys(memberships).length === 0 &&
+    // With a proxy key configured, an assertion answers both authorities and
+    // the empty seed is only the fallback for requests that arrive directly.
+    config.proxyKey === undefined
+  ) {
+    // Both authorities deny by default, so with no memberships every request
+    // is a 403 and the server looks broken rather than misconfigured.
     process.stderr.write(
-      "WARNING: no scope memberships are configured, so every request will be " +
-        "refused with 403 TENANT_SCOPE. The standalone server reads them from " +
-        "MIOT_DASHBOARD_SEED; a deployment reads them from the host's own " +
-        "membership system through the ScopeAuthority seam.\n",
+      "WARNING: no memberships are configured, so every request will be " +
+        "refused with 403 TENANT_SCOPE. Read them from MIOT_DASHBOARD_SEED " +
+        "for local use, or set MIOT_DASHBOARD_TENANTS_URL and " +
+        "MIOT_DASHBOARD_SCOPES_URL to ask the host's own systems.\n",
     );
   }
 
   const assembled = await openStore(config, seed);
   log({ level: "info", msg: "store", store: assembled.describe });
+  const stopSweep =
+    assembled.sweep === undefined
+      ? () => Promise.resolve()
+      : startSweepSchedule({
+          sweep: assembled.sweep,
+          intervalSeconds: config.orphanSweepIntervalSeconds,
+          minAgeSeconds: config.orphanMinAgeSeconds,
+          log,
+        });
+  const data = await openDataSources(config, assembled.driver);
+
   log({ level: "info", msg: "identity", auth: auth.describe });
+  log({ level: "info", msg: "tenants", entitlement: tenants.describe });
+  log({ level: "info", msg: "scopes", membership: scopes.describe });
+  log({ level: "info", msg: "datasources", state: data.describe });
 
   const running = await serve({
     identity: auth.identity,
-    scopes: createMemoryScopeAuthority(memberships),
+    tenants: tenants.tenants,
+    scopes: scopes.scopes,
     store: assembled.store,
     audit: createRecordingAuditSink(),
     port: config.port,
     host: config.host,
     docs: config.docs,
+    ...(config.cors ? { cors: config.cors } : {}),
     ...(config.basePath ? { basePath: config.basePath } : {}),
+    ...(data.dataSources ? { dataSources: data.dataSources } : {}),
+    ...(data.credentials ? { credentials: data.credentials } : {}),
   });
 
   const shutdown = (signal: string) => {
@@ -220,6 +328,8 @@ async function main(): Promise<void> {
     // database closes.
     running
       .close()
+      // Then the sweep, before the store it reads from is closed.
+      .then(() => stopSweep())
       .then(() => assembled.close())
       .then(() => process.exit(0))
       .catch(() => process.exit(1));

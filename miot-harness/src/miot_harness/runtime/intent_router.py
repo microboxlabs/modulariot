@@ -17,12 +17,14 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from miot_harness.datasource.provider import DataSourceProfile
+from miot_harness.runtime.conversation import ConversationTurn
 from miot_harness.runtime.router import HarnessRoute, IntentRouter, RouteResult
 
 logger = logging.getLogger(__name__)
@@ -55,15 +57,18 @@ _CURATED_DATA_ROUTES = """\
 # inventing a curated function that doesn't exist, dead-ending the run in the
 # canned filter_expert seat.
 _PRIMITIVES_DATA_ROUTES = """\
-- DATA_META: A schema/primer/introspection question that needs no SQL.
-  Examples: "what data do you have?", "how is this field calculated?",
-  "what columns does this table have?".
-- DATA_AGENTIC: ANY data question about {display_name} — it has no canned
-  catalog and is queried only with composable primitives
-  (describe/select/grep/query), so every lookup, count, filter and
-  drilldown takes this route. Examples: "tell me about service 1585735",
-  "show me rows where some_metric > 6", "how many X last week", "tell me
-  more about that"."""
+- DATA_META: A question answered from the primer text alone, with no tool
+  call. Examples: "what data do you have?", "how is this field
+  calculated?", "what is this datasource for?".
+- DATA_AGENTIC: ANY data or catalog question about {display_name} — it has
+  no canned catalog and is queried only with composable primitives
+  (describe/select/grep/query/functions/definition), so every lookup,
+  count, filter and drilldown takes this route, and so does listing or
+  reading tables, columns, functions, views or their definitions.
+  Examples: "tell me about service 1585735", "show me rows where
+  some_metric > 6", "how many X last week", "what columns does this table
+  have?", "which functions deal with symptoms?", "what does function X
+  do?", "tell me more about that"."""
 
 _SYSTEM_PROMPT_TEMPLATE = """You are the intent router for the ModularIoT harness.
 
@@ -155,6 +160,30 @@ def _parse_decision(raw: str) -> _RouterDecision | None:
     return _RouterDecision(route=route, confidence=confidence, reasoning=reasoning)
 
 
+# Per-turn cap inside the routing prompt. Enough to see what the exchange
+# was about; the router does not need the answer's body.
+_CONTEXT_TURN_CHARS = 300
+
+
+def render_routing_input(message: str, prior_turns: Sequence[ConversationTurn]) -> str:
+    if not prior_turns:
+        return message
+    lines = ["Previous turns, for context only:"]
+    for turn in prior_turns:
+        lines.append(f"User: {_clip(turn.user_message)}")
+        lines.append(f"Assistant: {_clip(turn.assistant_answer)}")
+    lines.append("")
+    lines.append(f"Classify this message: {message}")
+    return "\n".join(lines)
+
+
+def _clip(text: str) -> str:
+    text = " ".join(text.split())
+    if len(text) <= _CONTEXT_TURN_CHARS:
+        return text
+    return text[:_CONTEXT_TURN_CHARS] + "…"
+
+
 class LLMIntentRouter:
     """Async LLM-driven router with a deterministic keyword fallback.
 
@@ -177,12 +206,22 @@ class LLMIntentRouter:
         self._fallback = keyword_fallback or IntentRouter()
         self._system_prompt = _render_system_prompt(profile)
 
-    async def route(self, message: str) -> RouteResult:
+    async def route(
+        self,
+        message: str,
+        *,
+        prior_turns: Sequence[ConversationTurn] = (),
+    ) -> RouteResult:
+        """Classify `message`. `prior_turns` are the exchanges just before
+        it, so a follow-up that names nothing on its own ("and last week?")
+        is routed by what it follows. The keyword fallback sees the bare
+        message either way."""
+
         try:
             response = await self._model.ainvoke(
                 [
                     SystemMessage(content=self._system_prompt),
-                    HumanMessage(content=message),
+                    HumanMessage(content=render_routing_input(message, prior_turns)),
                 ]
             )
         except Exception as exc:  # noqa: BLE001 — fallback on ANY model failure

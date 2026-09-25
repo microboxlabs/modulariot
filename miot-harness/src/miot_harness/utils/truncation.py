@@ -14,6 +14,7 @@ event payload / agent-visible trace is capped.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 DEFAULT_ROW_CAP = 5
@@ -94,3 +95,52 @@ def truncate_for_trace(payload: Any) -> tuple[Any, dict[str, Any]]:
     if isinstance(payload, dict):
         return _truncate_dict(payload, DEFAULT_DICT_KEY_CAP)
     return payload, {"truncated": False, "total_count": 1}
+
+
+_PROMPT_PINNED_KEYS = ("rows", "total")
+
+
+def excerpt_for_prompt(payload: Any, max_chars: int) -> tuple[str, str]:
+    """Render a tool output for a judge or synthesizer prompt.
+
+    Returns (text, note). `text` is the payload as JSON with every list capped
+    at DEFAULT_ROW_CAP items, primitive values first, `rows` next, other
+    containers last, at most DEFAULT_DICT_KEY_CAP keys with `rows` and `total`
+    always kept, then cut at `max_chars`. `note` names everything hidden
+    ("first 5 of 50 rows", "omitted keys: a, b", "cut at 2000 chars") or is
+    empty when nothing was hidden.
+    """
+    notes: list[str] = []
+    shown: Any
+    if isinstance(payload, list):
+        shown, info = _truncate_list(payload, DEFAULT_ROW_CAP)
+        if info["truncated"]:
+            notes.append(f"first {DEFAULT_ROW_CAP} of {len(payload)} rows")
+    elif isinstance(payload, dict):
+        primitives = [k for k, v in payload.items() if not isinstance(v, (list, dict))]
+        rows_key = ["rows"] if "rows" in payload else []
+        containers = [k for k in payload if k not in primitives and k != "rows"]
+        ordered = primitives + rows_key + containers
+        pinned = [k for k in ordered if k in _PROMPT_PINNED_KEYS]
+        budget = max(0, DEFAULT_DICT_KEY_CAP - len(pinned))
+        kept = pinned + [k for k in ordered if k not in pinned][:budget]
+        omitted = [k for k in ordered if k not in kept]
+        shown = {}
+        for k in ordered:
+            if k not in kept:
+                continue
+            v = payload[k]
+            if isinstance(v, list):
+                v, info = _truncate_list(v, DEFAULT_ROW_CAP)
+                if info["truncated"]:
+                    notes.append(f"first {DEFAULT_ROW_CAP} of {info['total_count']} {k}")
+            shown[k] = v
+        if omitted:
+            notes.append("omitted keys: " + ", ".join(omitted))
+    else:
+        shown = payload
+    text = json.dumps(shown, default=str)
+    if len(text) > max_chars:
+        text = text[:max_chars] + " ..."
+        notes.append(f"cut at {max_chars} chars")
+    return text, ", ".join(notes)

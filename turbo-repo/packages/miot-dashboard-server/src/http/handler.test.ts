@@ -8,29 +8,39 @@
  * both, so a divergence is a test failure rather than a support ticket.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createDashboardHandler } from "./handler";
 import { serve, type RunningServer } from "../server/serve";
 import {
   createInsecureHeaderIdentityResolver,
   createMemoryScopeAuthority,
+  createMemoryTenantAuthority,
   createMemoryStore,
   createRecordingAuditSink,
   type Memberships,
   type SeedDashboard,
 } from "../testing";
 import type { ServerDashboardStore } from "../seams/store";
+import { sampleConfig } from "../test/fixtures";
 
 const MEMBERSHIPS: Memberships = {
-  acme: { ops: { alice: "Coordinator", con: "Consumer", carl: "Contributor" } },
-  globex: { ops: { bob: "Coordinator" } },
+  acme: {
+    ops: { alice: "Coordinator", con: "Consumer", carl: "Contributor" },
+    // Dana is in both tenants on one credential, with a different role in
+    // each. Her own scope, so her writes do not move what other tests read.
+    reports: { dana: "Coordinator" },
+  },
+  globex: {
+    ops: { bob: "Coordinator" },
+    reports: { dana: "Consumer" },
+  },
 };
 
 const seedFor = (): SeedDashboard[] => [
   {
     ref: { tenantId: "acme", scopeId: "ops", slug: "fleet" },
     record: {
-      config: { version: 2, name: "Fleet", title: "acme fleet" },
+      config: sampleConfig({ title: "acme fleet" }),
       createdBy: "carl",
     },
   },
@@ -38,7 +48,7 @@ const seedFor = (): SeedDashboard[] => [
     // Same scope and slug in another tenant: if isolation leaks anywhere, this
     // is the pair that reveals it.
     ref: { tenantId: "globex", scopeId: "ops", slug: "fleet" },
-    record: { config: { version: 2, name: "Fleet", title: "globex fleet" } },
+    record: { config: sampleConfig({ title: "globex fleet" }) },
   },
 ];
 
@@ -59,6 +69,7 @@ function buildOptions() {
     store,
     options: {
       identity: createInsecureHeaderIdentityResolver(),
+      tenants: createMemoryTenantAuthority(MEMBERSHIPS),
       scopes: createMemoryScopeAuthority(MEMBERSHIPS),
       store,
       audit: createRecordingAuditSink(),
@@ -66,8 +77,8 @@ function buildOptions() {
   };
 }
 
-const asUser = (userId: string, tenantId: string): RequestInit => ({
-  headers: { "x-dev-user": userId, "x-dev-tenant": tenantId },
+const asUser = (userId: string): RequestInit => ({
+  headers: { "x-dev-user": userId },
 });
 
 function withBody(
@@ -132,10 +143,10 @@ describe.each([
     // cache or a browser's back/forward store handing one identity's response
     // to another would undo the isolation the rest of the package enforces.
     const cases: [string, RequestInit | undefined][] = [
-      ["/scopes/ops/dashboards", asUser("alice", "acme")],
-      ["/scopes/ops/dashboards", undefined], // 401
-      ["/scopes/ops/dashboards/fleet", asUser("mallory", "globex")], // 403
-      ["/scopes/ops/nothing-here", asUser("alice", "acme")], // 404
+      ["/tenants/acme/scopes/ops/dashboards", asUser("alice")],
+      ["/tenants/acme/scopes/ops/dashboards", undefined], // 401
+      ["/tenants/acme/scopes/ops/dashboards/fleet", asUser("mallory")], // 403
+      ["/tenants/acme/scopes/ops/nothing-here", asUser("alice")], // 404
     ];
     for (const [path, init] of cases) {
       const response = await mode().fetch(path, init);
@@ -151,7 +162,10 @@ describe.each([
       headers: { "content-type": "application/json" },
       body: "{ not json",
     };
-    const save = await mode().fetch("/scopes/ops/dashboards/fleet", badJson);
+    const save = await mode().fetch(
+      "/tenants/acme/scopes/ops/dashboards/fleet",
+      badJson,
+    );
     expect(save.status).toBe(401);
     await expect(save.json()).resolves.toMatchObject({
       code: "UNAUTHENTICATED",
@@ -160,7 +174,7 @@ describe.each([
     // The permissions route leaked more: its 400 names the field and lists
     // every valid role.
     const permissions = await mode().fetch(
-      "/scopes/ops/dashboards/fleet/permissions",
+      "/tenants/acme/scopes/ops/dashboards/fleet/permissions",
       withBody({}, "PUT", {
         assignments: [{ authorityId: "x", role: "Nope" }],
       }),
@@ -171,11 +185,14 @@ describe.each([
   });
 
   it("still reports a malformed body to a caller who may write", async () => {
-    const response = await mode().fetch("/scopes/ops/dashboards/fleet", {
-      ...asUser("alice", "acme"),
-      method: "PUT",
-      body: "{ not json",
-    });
+    const response = await mode().fetch(
+      "/tenants/acme/scopes/ops/dashboards/fleet",
+      {
+        ...asUser("alice"),
+        method: "PUT",
+        body: "{ not json",
+      },
+    );
     expect(response.status).toBe(400);
   });
 
@@ -185,14 +202,17 @@ describe.each([
       // `Number("")` is 0, which the store reads as "expect this dashboard not
       // to exist" — a 409 on a perfectly good save. An absent precondition is
       // spelled by omitting the header.
-      const response = await mode().fetch("/scopes/ops/dashboards/fleet", {
-        ...withBody(asUser("alice", "acme"), "PUT", { version: 2 }),
-        headers: {
-          ...(asUser("alice", "acme").headers as Record<string, string>),
-          "content-type": "application/json",
-          "if-match": header,
+      const response = await mode().fetch(
+        "/tenants/acme/scopes/ops/dashboards/fleet",
+        {
+          ...withBody(asUser("alice"), "PUT", sampleConfig()),
+          headers: {
+            ...(asUser("alice").headers as Record<string, string>),
+            "content-type": "application/json",
+            "if-match": header,
+          },
         },
-      });
+      );
       expect(response.status).toBe(400);
       await expect(response.json()).resolves.toMatchObject({
         code: "BAD_REQUEST",
@@ -201,7 +221,7 @@ describe.each([
   );
 
   it("refuses an unauthenticated request with the shared envelope", async () => {
-    const response = await mode().fetch("/scopes/ops/dashboards");
+    const response = await mode().fetch("/tenants/acme/scopes/ops/dashboards");
     expect(response.status).toBe(401);
     expect(response.headers.get("content-type")).toContain("application/json");
     await expect(response.json()).resolves.toEqual({
@@ -213,8 +233,8 @@ describe.each([
 
   it("refuses a cross-tenant read with reason TENANT_SCOPE", async () => {
     const response = await mode().fetch(
-      "/scopes/ops/dashboards/fleet",
-      asUser("mallory", "globex"),
+      "/tenants/acme/scopes/ops/dashboards/fleet",
+      asUser("mallory"),
     );
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
@@ -223,27 +243,89 @@ describe.each([
     });
   });
 
-  it("serves each tenant its own dashboard despite identical scope and slug", async () => {
+  it("lets one credential act in each tenant it is entitled to", async () => {
+    // The reason the tenant is in the path and not the credential. Dana holds
+    // one identity and works in both tenants; switching is a different URL,
+    // not a different token.
     const acme = await mode().fetch(
-      "/scopes/ops/dashboards/fleet",
-      asUser("alice", "acme"),
+      "/tenants/acme/scopes/reports/dashboards",
+      asUser("dana"),
     );
     const globex = await mode().fetch(
-      "/scopes/ops/dashboards/fleet",
-      asUser("bob", "globex"),
+      "/tenants/globex/scopes/reports/dashboards",
+      asUser("dana"),
+    );
+    expect([acme.status, globex.status]).toEqual([200, 200]);
+  });
+
+  it("applies the role the caller holds in the tenant they named", async () => {
+    // Coordinator in acme, Consumer in globex. Same credential, same action.
+    const mine = await mode().fetch(
+      "/tenants/acme/scopes/reports/dashboards/q1",
+      withBody(asUser("dana"), "PUT", sampleConfig({ name: "made" })),
+    );
+    const theirs = await mode().fetch(
+      "/tenants/globex/scopes/reports/dashboards/q1",
+      withBody(asUser("dana"), "PUT", sampleConfig({ name: "made" })),
+    );
+    expect([mine.status, theirs.status]).toEqual([200, 403]);
+  });
+
+  it("refuses a tenant the caller is in no scope of", async () => {
+    const response = await mode().fetch(
+      "/tenants/globex/scopes/ops/dashboards/fleet",
+      asUser("alice"),
+    );
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "FORBIDDEN",
+      reason: "TENANT_SCOPE",
+    });
+  });
+
+  it("answers a tenant that does not exist exactly like one it may not have", async () => {
+    // Identical bodies, so naming tenants at random reveals which exist.
+    const missing = await mode().fetch(
+      "/tenants/no-such-tenant/scopes/ops/dashboards/fleet",
+      asUser("alice"),
+    );
+    const forbidden = await mode().fetch(
+      "/tenants/globex/scopes/ops/dashboards/fleet",
+      asUser("alice"),
+    );
+    expect(missing.status).toBe(forbidden.status);
+    await expect(missing.json()).resolves.toEqual(await forbidden.json());
+  });
+
+  it("does not reach the store for a tenant the caller may not use", async () => {
+    const { store, fetch: call } = mode();
+    const load = vi.spyOn(store, "load");
+    await call("/tenants/globex/scopes/ops/dashboards/fleet", asUser("alice"));
+    expect(load).not.toHaveBeenCalled();
+    load.mockRestore();
+  });
+
+  it("serves each tenant its own dashboard despite identical scope and slug", async () => {
+    const acme = await mode().fetch(
+      "/tenants/acme/scopes/ops/dashboards/fleet",
+      asUser("alice"),
+    );
+    const globex = await mode().fetch(
+      "/tenants/globex/scopes/ops/dashboards/fleet",
+      asUser("bob"),
     );
     await expect(acme.json()).resolves.toEqual({
-      data: { version: 2, name: "Fleet", title: "acme fleet" },
+      data: sampleConfig({ title: "acme fleet" }),
     });
     await expect(globex.json()).resolves.toEqual({
-      data: { version: 2, name: "Fleet", title: "globex fleet" },
+      data: sampleConfig({ title: "globex fleet" }),
     });
   });
 
   it("lists only the caller's tenant", async () => {
     const response = await mode().fetch(
-      "/scopes/ops/dashboards",
-      asUser("alice", "acme"),
+      "/tenants/acme/scopes/ops/dashboards",
+      asUser("alice"),
     );
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
@@ -253,8 +335,8 @@ describe.each([
 
   it("returns effective capabilities, and 404 for a dashboard that is not there", async () => {
     const coordinator = await mode().fetch(
-      "/scopes/ops/dashboards/fleet/capabilities",
-      asUser("alice", "acme"),
+      "/tenants/acme/scopes/ops/dashboards/fleet/capabilities",
+      asUser("alice"),
     );
     await expect(coordinator.json()).resolves.toEqual({
       readOnly: false,
@@ -265,8 +347,8 @@ describe.each([
     });
 
     const consumer = await mode().fetch(
-      "/scopes/ops/dashboards/fleet/capabilities",
-      asUser("con", "acme"),
+      "/tenants/acme/scopes/ops/dashboards/fleet/capabilities",
+      asUser("con"),
     );
     await expect(consumer.json()).resolves.toMatchObject({
       canEdit: false,
@@ -274,16 +356,16 @@ describe.each([
     });
 
     const missing = await mode().fetch(
-      "/scopes/ops/dashboards/nope/capabilities",
-      asUser("alice", "acme"),
+      "/tenants/acme/scopes/ops/dashboards/nope/capabilities",
+      asUser("alice"),
     );
     expect(missing.status).toBe(404);
   });
 
   it("denies a Consumer's write with reason CAPABILITY", async () => {
     const response = await mode().fetch(
-      "/scopes/ops/dashboards/fleet",
-      withBody(asUser("con", "acme"), "PUT", { version: 2 }),
+      "/tenants/acme/scopes/ops/dashboards/fleet",
+      withBody(asUser("con"), "PUT", sampleConfig()),
     );
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
@@ -293,62 +375,68 @@ describe.each([
 
   it("saves, bumps the revision, and reports a stale write as 409", async () => {
     const created = await mode().fetch(
-      "/scopes/ops/dashboards/newboard",
-      withBody(asUser("alice", "acme"), "PUT", { version: 2, title: "first" }),
+      "/tenants/acme/scopes/ops/dashboards/newboard",
+      withBody(asUser("alice"), "PUT", sampleConfig({ title: "first" })),
     );
     expect(created.status).toBe(200);
     const body = (await created.json()) as { data: { revision: number } };
     expect(body.data.revision).toBe(1);
 
-    const stale = await mode().fetch("/scopes/ops/dashboards/newboard", {
-      ...withBody(asUser("alice", "acme"), "PUT", { version: 2 }),
-      headers: {
-        "x-dev-user": "alice",
-        "x-dev-tenant": "acme",
-        "content-type": "application/json",
-        "if-match": "0",
+    const stale = await mode().fetch(
+      "/tenants/acme/scopes/ops/dashboards/newboard",
+      {
+        ...withBody(asUser("alice"), "PUT", sampleConfig()),
+        headers: {
+          "x-dev-user": "alice",
+          "content-type": "application/json",
+          "if-match": "0",
+        },
       },
-    });
+    );
     expect(stale.status).toBe(409);
     await expect(stale.json()).resolves.toMatchObject({ code: "CONFLICT" });
   });
 
   it("rejects a malformed body and a malformed If-Match as 400", async () => {
-    const badJson = await mode().fetch("/scopes/ops/dashboards/fleet", {
-      method: "PUT",
-      headers: {
-        "x-dev-user": "alice",
-        "x-dev-tenant": "acme",
-        "content-type": "application/json",
+    const badJson = await mode().fetch(
+      "/tenants/acme/scopes/ops/dashboards/fleet",
+      {
+        method: "PUT",
+        headers: {
+          "x-dev-user": "alice",
+          "content-type": "application/json",
+        },
+        body: "{not json",
       },
-      body: "{not json",
-    });
+    );
     expect(badJson.status).toBe(400);
 
-    const badMatch = await mode().fetch("/scopes/ops/dashboards/fleet", {
-      ...withBody(asUser("alice", "acme"), "PUT", { version: 2 }),
-      headers: {
-        "x-dev-user": "alice",
-        "x-dev-tenant": "acme",
-        "content-type": "application/json",
-        "if-match": "banana",
+    const badMatch = await mode().fetch(
+      "/tenants/acme/scopes/ops/dashboards/fleet",
+      {
+        ...withBody(asUser("alice"), "PUT", sampleConfig()),
+        headers: {
+          "x-dev-user": "alice",
+          "content-type": "application/json",
+          "if-match": "banana",
+        },
       },
-    });
+    );
     expect(badMatch.status).toBe(400);
   });
 
   it("reads and replaces permission assignments", async () => {
     const written = await mode().fetch(
-      "/scopes/ops/dashboards/fleet/permissions",
-      withBody(asUser("alice", "acme"), "PUT", {
+      "/tenants/acme/scopes/ops/dashboards/fleet/permissions",
+      withBody(asUser("alice"), "PUT", {
         assignments: [{ authorityId: "con", role: "Editor" }],
       }),
     );
     expect(written.status).toBe(204);
 
     const read = await mode().fetch(
-      "/scopes/ops/dashboards/fleet/permissions",
-      asUser("alice", "acme"),
+      "/tenants/acme/scopes/ops/dashboards/fleet/permissions",
+      asUser("alice"),
     );
     await expect(read.json()).resolves.toEqual({
       assignments: [{ authorityId: "con", role: "Editor" }],
@@ -356,16 +444,16 @@ describe.each([
 
     // And the assignment now shows up in what that user may do.
     const promoted = await mode().fetch(
-      "/scopes/ops/dashboards/fleet/capabilities",
-      asUser("con", "acme"),
+      "/tenants/acme/scopes/ops/dashboards/fleet/capabilities",
+      asUser("con"),
     );
     await expect(promoted.json()).resolves.toMatchObject({ canEdit: true });
   });
 
   it("rejects an unknown role rather than storing it", async () => {
     const response = await mode().fetch(
-      "/scopes/ops/dashboards/fleet/permissions",
-      withBody(asUser("alice", "acme"), "PUT", {
+      "/tenants/acme/scopes/ops/dashboards/fleet/permissions",
+      withBody(asUser("alice"), "PUT", {
         assignments: [{ authorityId: "con", role: "Administrator" }],
       }),
     );
@@ -374,26 +462,32 @@ describe.each([
 
   it("deletes, then reports the dashboard as gone", async () => {
     await mode().fetch(
-      "/scopes/ops/dashboards/doomed",
-      withBody(asUser("alice", "acme"), "PUT", { version: 2 }),
+      "/tenants/acme/scopes/ops/dashboards/doomed",
+      withBody(asUser("alice"), "PUT", sampleConfig()),
     );
-    const deleted = await mode().fetch("/scopes/ops/dashboards/doomed", {
-      ...asUser("alice", "acme"),
-      method: "DELETE",
-    });
+    const deleted = await mode().fetch(
+      "/tenants/acme/scopes/ops/dashboards/doomed",
+      {
+        ...asUser("alice"),
+        method: "DELETE",
+      },
+    );
     expect(deleted.status).toBe(204);
 
-    const gone = await mode().fetch("/scopes/ops/dashboards/doomed", {
-      ...asUser("alice", "acme"),
-      method: "DELETE",
-    });
+    const gone = await mode().fetch(
+      "/tenants/acme/scopes/ops/dashboards/doomed",
+      {
+        ...asUser("alice"),
+        method: "DELETE",
+      },
+    );
     expect(gone.status).toBe(404);
   });
 
   it("answers an unknown path with the same envelope, not a stack trace", async () => {
     const response = await mode().fetch(
-      "/scopes/ops/widgets",
-      asUser("alice", "acme"),
+      "/tenants/acme/scopes/ops/widgets",
+      asUser("alice"),
     );
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({
@@ -404,11 +498,74 @@ describe.each([
   });
 
   it("does not disclose which methods a path supports to an unauthorized caller", async () => {
-    const response = await mode().fetch("/scopes/ops/dashboards", {
-      ...asUser("alice", "acme"),
+    const response = await mode().fetch("/tenants/acme/scopes/ops/dashboards", {
+      ...asUser("alice"),
       method: "PATCH",
     });
     expect(response.status).toBe(404);
+  });
+
+  describe("a save is checked against the contract", () => {
+    it.each([
+      ["a version nobody can read", { ...sampleConfig(), version: 3 }],
+      ["a legacy version", { ...sampleConfig(), version: 1 }],
+      ["a missing name", { version: 2, widgets: [], preferences: {} }],
+      ["widgets that are not a list", { ...sampleConfig(), widgets: {} }],
+      ["not a document at all", "a dashboard, honest"],
+    ])("refuses %s", async (_label, config) => {
+      const response = await mode().fetch(
+        "/tenants/acme/scopes/ops/dashboards/checked",
+        withBody(asUser("alice"), "PUT", config),
+      );
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        status: 400,
+        code: "BAD_REQUEST",
+      });
+    });
+
+    it("says what is wrong, and where", async () => {
+      const response = await mode().fetch(
+        "/tenants/acme/scopes/ops/dashboards/checked",
+        withBody(
+          asUser("alice"),
+          "PUT",
+          sampleConfig({ widgets: [{ id: 7 }] }),
+        ),
+      );
+      const body = (await response.json()) as { error: string };
+      expect(body.error).toContain("widgets.0");
+    });
+
+    // Validating before authorizing would describe the document shape to a
+    // caller with no standing to ask.
+    it("refuses a caller without standing before it looks at the body", async () => {
+      const response = await mode().fetch(
+        "/tenants/globex/scopes/ops/dashboards/checked",
+        withBody(asUser("alice"), "PUT", { nonsense: true }),
+      );
+      expect(response.status).toBe(403);
+    });
+
+    it("keeps fields it does not know about", async () => {
+      const saved = await mode().fetch(
+        "/tenants/acme/scopes/ops/dashboards/forward",
+        withBody(
+          asUser("alice"),
+          "PUT",
+          sampleConfig({ annotations: [{ note: "from later" }] }),
+        ),
+      );
+      expect(saved.status).toBe(200);
+
+      const read = await mode().fetch(
+        "/tenants/acme/scopes/ops/dashboards/forward",
+        asUser("alice"),
+      );
+      await expect(read.json()).resolves.toMatchObject({
+        data: { annotations: [{ note: "from later" }] },
+      });
+    });
   });
 });
 
@@ -423,8 +580,8 @@ describe("mount prefix", () => {
     const handler = createDashboardHandler({ ...options, basePath });
     const response = await handler(
       new Request(
-        "http://test.local/api/dashboard/scopes/ops/dashboards",
-        asUser("alice", "acme"),
+        "http://test.local/api/dashboard/tenants/acme/scopes/ops/dashboards",
+        asUser("alice"),
       ),
     );
     expect(response.status).toBe(200);
@@ -448,8 +605,8 @@ describe("mount prefix", () => {
     const handler = createDashboardHandler({ ...options, basePath: "///" });
     const response = await handler(
       new Request(
-        "http://test.local/scopes/ops/dashboards",
-        asUser("alice", "acme"),
+        "http://test.local/tenants/acme/scopes/ops/dashboards",
+        asUser("alice"),
       ),
     );
     expect(response.status).toBe(200);
@@ -463,16 +620,16 @@ describe("mount prefix", () => {
     });
     const inside = await handler(
       new Request(
-        "http://test.local/api/dashboard/scopes/ops/dashboards",
-        asUser("alice", "acme"),
+        "http://test.local/api/dashboard/tenants/acme/scopes/ops/dashboards",
+        asUser("alice"),
       ),
     );
     expect(inside.status).toBe(200);
 
     const outside = await handler(
       new Request(
-        "http://test.local/scopes/ops/dashboards",
-        asUser("alice", "acme"),
+        "http://test.local/tenants/acme/scopes/ops/dashboards",
+        asUser("alice"),
       ),
     );
     expect(outside.status).toBe(404);
@@ -513,7 +670,7 @@ describe("standalone server extras", () => {
     });
     try {
       const response = await fetch(
-        `${capped.url}/scopes/ops/dashboards/fleet`,
+        `${capped.url}/tenants/acme/scopes/ops/dashboards/fleet`,
         withBody({}, "PUT", { blob: "x".repeat(4096) }),
       );
       expect(response.status).toBe(413);
@@ -545,5 +702,102 @@ describe("standalone server extras", () => {
     } finally {
       await ipv6.close();
     }
+  });
+});
+
+describe("onError", () => {
+  const base = () => ({
+    identity: createInsecureHeaderIdentityResolver(),
+    tenants: createMemoryTenantAuthority(MEMBERSHIPS),
+    scopes: createMemoryScopeAuthority(MEMBERSHIPS),
+    store: createMemoryStore({ seed: seedFor() }),
+  });
+  const get = (
+    handler: ReturnType<typeof createDashboardHandler>,
+    slug: string,
+  ) =>
+    handler(
+      new Request(`http://local/tenants/acme/scopes/ops/dashboards/${slug}`, {
+        headers: { "x-dev-user": "alice" },
+      }),
+    );
+
+  it("hands over an unexpected error and still says nothing on the wire", async () => {
+    // The envelope is bare on purpose: an upstream exception is the most
+    // likely place a connection string surfaces. Without this hook the
+    // operator is left with a 500 and no cause anywhere at all.
+    const seen: unknown[] = [];
+    const store = createMemoryStore({ seed: seedFor() });
+    const handler = createDashboardHandler({
+      ...base(),
+      store: {
+        ...store,
+        load: () =>
+          Promise.reject(new Error("password=hunter2 host unreachable")),
+      },
+      onError: (error) => seen.push(error),
+    });
+
+    const response = await get(handler, "fleet");
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "An unexpected error occurred",
+      status: 500,
+      code: "INTERNAL_ERROR",
+    });
+    expect(seen).toHaveLength(1);
+    expect((seen[0] as Error).message).toContain("host unreachable");
+  });
+
+  it("stays quiet for an answer the code chose", async () => {
+    // A 404 is not a surprise, and must not read as a fault in the log.
+    const seen: unknown[] = [];
+    const handler = createDashboardHandler({
+      ...base(),
+      onError: (e) => seen.push(e),
+    });
+    const response = await handler(
+      new Request("http://local/nothing/here", {
+        headers: { "x-dev-user": "alice" },
+      }),
+    );
+    expect(response.status).toBe(404);
+    expect(seen).toEqual([]);
+  });
+
+  it("still answers when the host's own hook throws", async () => {
+    // The hook is the host's code. A logger that throws must not cost the
+    // caller the response the handler had already decided on.
+    const store = createMemoryStore({ seed: seedFor() });
+    const handler = createDashboardHandler({
+      ...base(),
+      store: {
+        ...store,
+        load: () => Promise.reject(new Error("host unreachable")),
+      },
+      onError: () => {
+        throw new Error("the logger is down too");
+      },
+    });
+    const response = await get(handler, "fleet");
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "INTERNAL_ERROR",
+    });
+  });
+
+  it("stays quiet for a refusal too", async () => {
+    const seen: unknown[] = [];
+    const handler = createDashboardHandler({
+      ...base(),
+      onError: (e) => seen.push(e),
+    });
+    const response = await handler(
+      new Request("http://local/tenants/globex/scopes/ops/dashboards/fleet", {
+        headers: { "x-dev-user": "alice" },
+      }),
+    );
+    expect(response.status).toBe(403);
+    expect(seen).toEqual([]);
   });
 });

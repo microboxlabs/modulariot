@@ -14,6 +14,7 @@ BOTH `settings.generic_query_enabled` is true AND the connection declares
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from pathlib import Path
 
 import asyncpg
@@ -27,12 +28,13 @@ from miot_harness.datasource.knowledge.loader import (
     probe_version,
 )
 from miot_harness.datasource.knowledge.models import DetectedPack, KnowledgeCard
-from miot_harness.datasource.pool import create_pg_pool
+from miot_harness.datasource.pool import ENVELOPES, create_pg_pool
 from miot_harness.datasource.provider import (
     BootResult,
     DataSourceProfile,
     DataSourceProvider,
 )
+from miot_harness.datasource.routine_introspect import introspect_routines
 from miot_harness.datasource.safe_query import DEFAULT_STATEMENT_TIMEOUT_MS
 from miot_harness.datasource.safe_sql import HARD_LIMIT_CAP
 from miot_harness.datasource.schema_introspect import SchemaSummary, introspect_schema
@@ -142,6 +144,12 @@ class GenericPgProvider(DataSourceProvider):
             explain_cost_threshold = float(
                 opts.get("explain_cost_threshold", _DEFAULT_EXPLAIN_COST_THRESHOLD)
             )
+            envelope = str(opts.get("envelope", "transaction"))
+            if envelope not in ENVELOPES:
+                raise ValueError(f"envelope must be one of {ENVELOPES}")
+            call_security_definer = opts.get("call_security_definer", False)
+            if not isinstance(call_security_definer, bool):
+                raise ValueError("call_security_definer must be true or false")
         except (TypeError, ValueError) as exc:
             return BootResult(
                 enabled=False, registered=(), reason=f"connection {name!r}: invalid option ({exc})"
@@ -186,7 +194,10 @@ class GenericPgProvider(DataSourceProvider):
         detected: tuple[DetectedPack, ...] = ()
         try:
             self._pool = await create_pg_pool(
-                connection.dsn, application_name=application_name
+                connection.dsn,
+                application_name=application_name,
+                envelope=envelope,
+                statement_timeout_ms=statement_timeout_ms,
             )
             # Introspect first (best-effort): the schema index AND knowledge-pack
             # fingerprinting both need the table set. A failure here must not
@@ -208,6 +219,23 @@ class GenericPgProvider(DataSourceProvider):
                         exc,
                         exc_info=True,  # keep the traceback for catalog/permission diag
                     )
+                if schema_summary is not None:
+                    try:
+                        catalog = await introspect_routines(
+                            pool=self._pool,
+                            policy=policy,
+                            limit=1,
+                            statement_timeout_ms=statement_timeout_ms,
+                        )
+                        schema_summary = replace(
+                            schema_summary, routine_count=catalog.total
+                        )
+                    except Exception as exc:  # noqa: BLE001 — count is best-effort
+                        logger.error(
+                            "generic_pg %s: routine survey failed (%s); continuing",
+                            name,
+                            exc,
+                        )
             # Detect knowledge packs (best-effort) from the full table set.
             knowledge_cards: list[KnowledgeCard] = []
             if schema_summary is not None and settings.generic_knowledge_packs_enabled:
@@ -244,6 +272,7 @@ class GenericPgProvider(DataSourceProvider):
                 explain_cost_threshold=explain_cost_threshold,
                 statement_timeout_ms=statement_timeout_ms,
                 knowledge_cards=knowledge_cards,
+                call_security_definer=call_security_definer,
             )
             registered: list[str] = []
             for tool in tools:

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.core.api.dto.SelectableRequest;
 import com.microboxlabs.miot.core.auth.PlatformTestProfile;
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -177,6 +178,48 @@ class JdbcSelectableStoreTest {
         }));
 
         assertEquals("next", store.locked(tenant, () -> "next"));
+    }
+
+    /** Store calls inside the lock run on its connection, so they commit or roll back with it. */
+    @Test
+    void writesInsideTheLockRollBackTogetherWhenItFails() {
+        store.upsert(list(tenant, "kept", "Kept"));
+
+        assertThrows(IllegalStateException.class, () -> store.locked(tenant, () -> {
+            store.upsert(list(tenant, "half_done", "Half"));
+            store.delete(tenant, "kept");
+            store.bindAll(tenant, Map.of("why", "half_done"));
+            throw new IllegalStateException("fails after writing");
+        }));
+
+        assertEquals(List.of("kept"), store.list(tenant).stream().map(Selectable::key).toList());
+        assertTrue(store.bindings(tenant).isEmpty());
+    }
+
+    /** A first write that fails validation must not undo the seeding it triggered. */
+    @Test
+    void aRejectedFirstWriteKeepsTheSeededDefaults() {
+        SelectableService service = new SelectableService(store,
+                List.of(t -> List.of(list(t, "reasons", "Motivos"))), e -> { });
+        SelectableRequest onMissing = new SelectableRequest(Map.of("es", "Sub"), null, SelectionMode.SINGLE,
+                SelectableSettings.dependingOn("missing_list"), null, null, List.of());
+
+        assertThrows(IllegalArgumentException.class, () -> service.replace(tenant, "o", "sub", onMissing));
+
+        assertEquals(List.of("reasons"), service.list(tenant).stream().map(Selectable::key).toList());
+        assertTrue(store.isSeeded(tenant));
+    }
+
+    @Test
+    void writesInsideTheLockCommitWhenItSucceeds() {
+        store.locked(tenant, () -> {
+            store.seed(tenant, List.of(list(tenant, "reasons", "Motivos")));
+            store.upsert(list(tenant, "extra", "Extra"));
+            return null;
+        });
+
+        assertEquals(List.of("reasons", "extra"), store.list(tenant).stream().map(Selectable::key).toList());
+        assertTrue(store.isSeeded(tenant));
     }
 
     private static void await(CountDownLatch latch) {

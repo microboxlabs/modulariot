@@ -41,10 +41,29 @@ export function readSession(
   if (!existsSync(path)) return null;
   const raw = readFileSync(path, "utf8");
   try {
-    return JSON.parse(raw) as SessionState;
+    return upgradeSession(JSON.parse(raw) as SessionState);
   } catch {
     return null;
   }
+}
+
+/**
+ * Brings a session written by an older version to the current shape:
+ * drops "route" transcript items and the run-mode fields, and defaults
+ * `meta.model` to null.
+ */
+function upgradeSession(state: SessionState): SessionState {
+  const meta: Record<string, unknown> = { ...state.meta };
+  delete meta.mode;
+  const upgraded: Record<string, unknown> = {
+    ...state,
+    meta: { ...meta, model: state.meta.model ?? null },
+    transcript: state.transcript.filter(
+      (item) => (item.kind as string) !== "route",
+    ),
+  };
+  delete upgraded.warnAgenticTenantMismatch;
+  return upgraded as unknown as SessionState;
 }
 
 export function listSessions(home: string): SessionSummary[] {

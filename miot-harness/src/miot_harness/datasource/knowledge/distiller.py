@@ -9,8 +9,7 @@ card. This module owns the host-agnostic distillation LOGIC (episodes in, typed
 candidates out); how episodes are fetched and candidates persisted is wired by
 the caller (see the R3 design — the harness has no DB of its own).
 
-Degrades safely: with no model wired it distills nothing (returns `[]`), exactly
-like the verifier's rules-only mode — so the pipeline is safe by construction.
+Degrades safely: with no model wired it distills nothing (returns `[]`).
 
 The highest-value signal in an episode is the agent's own **ground-or-flag
 assumption** (R0): a term the agent had to GUESS. A term that recurs as an
@@ -31,7 +30,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from miot_harness.agents.chat_models import response_text
-from miot_harness.agents.filter_expert import _strip_fences
+from miot_harness.utils.text import strip_fences
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +186,7 @@ def _load_array(text: str) -> Any:
     """Parse the reflector's answer into a JSON value. Tolerant of code fences;
     a leading non-JSON preamble or a hard parse failure yields None (→ no
     candidates), never an exception that would trap the background pass."""
-    stripped = _strip_fences(text)
+    stripped = strip_fences(text)
     try:
         return json.loads(stripped)
     except (ValueError, TypeError):
@@ -227,8 +226,8 @@ async def distill_episodes(
     """Reflect over `episodes` for `connection` and return candidate facts.
 
     Returns `[]` when no model is wired or the batch carries no ungrounded terms
-    (nothing to learn) — the same rules-only degradation as the verifier, so a
-    background pass is safe to run even before a distiller model is configured.
+    (nothing to learn), so a background pass is safe to run even before a
+    distiller model is configured.
     Any reflector error is swallowed to `[]`: the background pass must never
     crash the process it runs in.
     """

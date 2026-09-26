@@ -64,17 +64,17 @@ describe("<Transcript />", () => {
     expect(lastFrame() ?? "").toContain("429 too many requests");
   });
 
-  it("renders freshness warnings and route labels", () => {
+  it("renders freshness warnings and agent labels", () => {
     const items: TranscriptItem[] = [
       { kind: "freshness", id: "f", message: "30d stale", ts: "t" },
-      { kind: "route", id: "r", route: "NEXO_QUERY", ts: "t" },
+      { kind: "agent", id: "a", agent: "NEXO_AGENT", ts: "t" },
     ];
     const { lastFrame } = render(
       <Transcript items={items} isStreaming={false} />,
     );
     const frame = lastFrame() ?? "";
     expect(frame).toContain("30d stale");
-    expect(frame).toContain("NEXO_QUERY");
+    expect(frame).toContain("NEXO_AGENT");
   });
 
   it("renders an in-flight turn (assistant still streaming)", () => {
@@ -90,10 +90,10 @@ describe("<Transcript />", () => {
     expect(frame).toContain("partial answer");
   });
 
-  it("preserves original order during streaming (completed tool does not float above an active route row)", () => {
+  it("preserves original order during streaming (completed tool does not float above an active agent row)", () => {
     const items: TranscriptItem[] = [
       user("q", "u-ord"),
-      { kind: "route", id: "rt", route: "ROUTEX", ts: "t" },
+      { kind: "agent", id: "rt", agent: "ROUTEX", ts: "t" },
       tool("TOOLX", "ok", "tl"),
     ];
     const { lastFrame } = render(

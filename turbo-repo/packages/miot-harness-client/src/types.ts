@@ -1,5 +1,3 @@
-export type RunMode = "auto" | "canned" | "meta" | "agentic";
-
 /**
  * One prior exchange replayed into a conversation the caller owns. The harness
  * keeps conversations in memory, so a caller holding a transcript the harness
@@ -17,7 +15,6 @@ export interface UserRequest {
   tenant_id?: string;
   user_id?: string;
   route_context?: Record<string, unknown>;
-  mode?: RunMode;
   conversation_id?: string | null;
   /** Seeds `conversation_id` when the harness does not know it. Ignored for a
    * conversation it already holds. */
@@ -49,24 +46,18 @@ export interface ModelsInfo {
  */
 export const HARNESS_EVENT_TYPES = [
   "run.started",
-  "route.selected",
   "tool.started",
   "tool.completed",
   "tool.failed",
   "approval.requested",
   "approval.auto",
   "steering.mode_denied",
-  "artifact.created",
-  "plan.created",
-  /** @deprecated superseded by agent.started / agent.completed. */
-  "agent.turn",
   "agent.started",
   "agent.completed",
   "thinking.delta",
   "thinking.completed",
   "usage.recorded",
   "freshness.warning",
-  "verification.completed",
   "grounding.gap",
   "answer.delta",
   "advisor.consulted",
@@ -74,19 +65,30 @@ export const HARNESS_EVENT_TYPES = [
   "answer.completed",
   "run.completed",
   "run.failed",
+  // No longer emitted; kept so run records saved by older versions type-check.
+  /** @deprecated no longer emitted. */
+  "route.selected",
+  /** @deprecated no longer emitted. */
+  "artifact.created",
+  /** @deprecated no longer emitted. */
+  "plan.created",
+  /** @deprecated no longer emitted. */
+  "agent.turn",
+  /** @deprecated no longer emitted. */
+  "verification.completed",
 ] as const;
 
 export type HarnessEventType = (typeof HARNESS_EVENT_TYPES)[number];
 
 export interface AgentStartedData {
   agent: string;
-  graph: "nexo" | "agentic";
+  graph: string;
   turn: number;
 }
 
 export interface AgentCompletedData {
   agent: string;
-  graph: "nexo" | "agentic" | "meta";
+  graph: string;
   duration_ms: number;
   exit_reason: "ok" | "failure" | "next_action";
   error?: string;
@@ -122,13 +124,13 @@ export interface ToolCompletedData {
 }
 
 export interface ThinkingDeltaData {
-  agent: "synthesizer";
+  agent: string;
   delta: string;
   index: number;
 }
 
 export interface ThinkingCompletedData {
-  agent: "synthesizer";
+  agent: string;
   tokens: number;
   length: number;
 }
@@ -164,7 +166,7 @@ export interface HarnessEvent {
 }
 
 /**
- * A ground-or-flag assumption: the synthesizer answered using a business term
+ * A ground-or-flag assumption: the model answered using a business term
  * it could not ground in an authoritative knowledge card, and is declaring the
  * interpretation it assumed (semantic-layer continual learning). Mirrors the
  * Python record persisted on the run.
@@ -193,7 +195,7 @@ export interface HarnessRunRecord {
    * for harness versions predating compaction. */
   conversation_summary?: string | null;
   /**
-   * Ground-or-flag assumptions declared by the synthesizer. Optional for
+   * Ground-or-flag assumptions the model declared. Optional for
    * back-compat with harness versions / persisted records predating the field.
    */
   assumptions?: HarnessAssumption[];

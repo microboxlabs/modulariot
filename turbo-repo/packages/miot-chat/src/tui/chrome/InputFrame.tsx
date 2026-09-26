@@ -3,10 +3,9 @@ import { useTerminalWidth } from "../hooks/useTerminalWidth.js";
 import { useTheme } from "../theme/ThemeProvider.js";
 
 export interface InputFrameProps {
-  // Status label embedded in the bottom border, e.g. "miot · auto".
+  // Status label embedded in the bottom border, e.g. "miot · default model".
   label: string;
-  // Render the label in the warn color with a ⚠ prefix (agentic
-  // tenant mismatch).
+  // Render the label in the warn color with a ⚠ prefix.
   labelWarn?: boolean;
   children: React.ReactNode;
 }

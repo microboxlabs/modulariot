@@ -226,7 +226,7 @@ export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
             className="relative max-h-90 w-full resize-none bg-transparent px-1 py-1 text-xs leading-snug text-transparent outline-none transition-[height] duration-100 ease-out caret-gray-800 dark:caret-gray-100"
           />
         </div>
-        {models.models.length > 1 && (
+        {models.models.length > 0 && (
           <select
             aria-label={tr("harnessChat.ui.composer.model")}
             title={tr("harnessChat.ui.composer.model")}

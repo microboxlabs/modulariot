@@ -90,20 +90,6 @@ export function applyHarnessEvent(
       };
     }
 
-    case "route.selected": {
-      const route =
-        typeof event.data.route === "string" && event.data.route.length > 0
-          ? event.data.route
-          : event.message;
-      if (!route) return slice;
-      return appendItem(slice, {
-        kind: "route",
-        id: ctx.uuid(),
-        route,
-        ts: ctx.now(),
-      });
-    }
-
     case "agent.turn":
     case "agent.started": {
       // agent.turn is deprecated; agent.started replaces it. Both
@@ -139,11 +125,10 @@ export function applyHarnessEvent(
       // node, not two).
       return slice;
 
+    case "route.selected":
     case "verification.completed":
-      // Internal pipeline telemetry (the Phase 3 verify gate's "did we answer
-      // it?" verdict). Like agent.completed, it marks an internal node boundary
-      // and is intentionally not surfaced as a transcript row; the REPL
-      // renderer can show it inline. Keeps this switch exhaustive.
+      // No longer emitted by the harness; kept so old event records
+      // still project without a row.
       return slice;
 
     case "thinking.delta": {
@@ -151,7 +136,9 @@ export function applyHarnessEvent(
         typeof event.data.delta === "string" ? event.data.delta : "";
       if (!delta) return slice;
       const agent =
-        typeof event.data.agent === "string" ? event.data.agent : "synthesizer";
+        typeof event.data.agent === "string" && event.data.agent.length > 0
+          ? event.data.agent
+          : undefined;
       const existingId = slice.currentThinkingItemId;
       if (existingId) {
         return {
@@ -167,7 +154,7 @@ export function applyHarnessEvent(
       const item: TranscriptItem = {
         kind: "thinking",
         id,
-        agent,
+        ...(agent !== undefined ? { agent } : {}),
         text: delta,
         status: "streaming",
         ts: ctx.now(),

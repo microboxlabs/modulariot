@@ -412,10 +412,10 @@ async def test_prefix_caches_across_two_runs() -> None:
     runner = AgentLoopRunner(
         model=get_chat_model("claude-sonnet-4-6"),
         registry=_big_registry(),
-        settings=HarnessSettings(agents_agentic_max_turns=2),
+        settings=HarnessSettings(agents_agent_loop_max_turns=2),
         profile=FAKE_PROFILE,
     )
-    ctx = UserRequest(message="hola", tenant_id="acme", mode="agentic").to_context()
+    ctx = UserRequest(message="hola", tenant_id="acme").to_context()
 
     first = await runner.run(
         user_message="Say hello, do not call tools.",
@@ -478,11 +478,11 @@ async def test_tool_result_turn_accepts_cache_marker() -> None:
     runner = AgentLoopRunner(
         model=get_chat_model("claude-sonnet-4-6"),
         registry=_big_registry(),
-        settings=HarnessSettings(agents_agentic_max_turns=3),
+        settings=HarnessSettings(agents_agent_loop_max_turns=3),
         profile=FAKE_PROFILE,
     )
     ctx = UserRequest(
-        message="tool-result-cache", tenant_id="acme", mode="agentic"
+        message="tool-result-cache", tenant_id="acme"
     ).to_context()
 
     result = await runner.run(

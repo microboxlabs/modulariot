@@ -7,7 +7,7 @@ function mkCtx(client: unknown): Record<string, unknown> {
   return {
     client,
     session: {
-      meta: { tenantId: "mintral", userId: "u", conversationId: "c" },
+      meta: { tenantId: "acme", userId: "u", conversationId: "c" },
     },
     now: () => `2026-01-01T00:00:0${n++}Z`,
     uuid: () => `id-${++i}`,
@@ -37,7 +37,7 @@ describe("/skills", () => {
   it("lists skills as a system item, scoped to the session tenant", async () => {
     const list = vi.fn().mockResolvedValue(SKILLS);
     const r = await skillsCommand.handle([], mkCtx({ skills: { list } }));
-    expect(list).toHaveBeenCalledWith({ tenant: "mintral" });
+    expect(list).toHaveBeenCalledWith({ tenant: "acme" });
     expect(r.output?.kind).toBe("system");
     if (r.output?.kind === "system") {
       expect(r.output.text).toContain("available skills (2):");

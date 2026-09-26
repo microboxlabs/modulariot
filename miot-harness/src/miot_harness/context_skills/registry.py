@@ -21,13 +21,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.context_skills.models import SystemContext
 from miot_harness.context_skills.skill_models import (
     LoadedSkill,
     PlaybookSkill,
     SkillSummary,
 )
+from miot_harness.datasource.catalog import CatalogEntry
 
 if TYPE_CHECKING:
     from miot_harness.context_skills.mcp_skills import McpSkills
@@ -94,11 +94,11 @@ class ContextSkillsBundle:
 
     # ---- facts (meta catalog) --------------------------------------------
 
-    def facts_for(self, tenant_id: str) -> list[MetaAgentCatalogEntry]:
+    def facts_for(self, tenant_id: str) -> list[CatalogEntry]:
         """Global ∪ tenant facts as meta-catalog rows; tenant overrides
         global on fact name. Plus a compact 'available skills' index so
         'what can you do?' is answered from the playbook set."""
-        chosen: dict[str, MetaAgentCatalogEntry] = {}
+        chosen: dict[str, CatalogEntry] = {}
         chosen_tenant: dict[str, bool] = {}
         for ctx in self._by_priority(self.contexts):
             if not _is_for_tenant(ctx.scope.kind, ctx.scope.tenant_id, tenant_id):
@@ -111,7 +111,7 @@ class ContextSkillsBundle:
                 # higher-priority global still replaces a lower-priority one.
                 if chosen_tenant.get(fact.name) and not tenant_scoped:
                     continue
-                chosen[fact.name] = MetaAgentCatalogEntry(
+                chosen[fact.name] = CatalogEntry(
                     name=fact.name,
                     layer=fact.layer,
                     title=fact.title or fact.name,
@@ -122,13 +122,13 @@ class ContextSkillsBundle:
         rows.extend(self._skill_index_rows(tenant_id))
         return rows
 
-    def _skill_index_rows(self, tenant_id: str) -> list[MetaAgentCatalogEntry]:
-        rows: list[MetaAgentCatalogEntry] = []
+    def _skill_index_rows(self, tenant_id: str) -> list[CatalogEntry]:
+        rows: list[CatalogEntry] = []
         for loaded in self.playbooks_for(tenant_id):
             skill = loaded.skill
             assert isinstance(skill, PlaybookSkill)  # playbooks_for guarantees
             rows.append(
-                MetaAgentCatalogEntry(
+                CatalogEntry(
                     name=f"skill:{skill.id}",
                     layer="skill",
                     title=skill.name,

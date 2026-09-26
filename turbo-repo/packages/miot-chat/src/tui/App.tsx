@@ -32,7 +32,6 @@ import {
   turnCount,
 } from "./session/selectors.js";
 import { isApprovalsUiEnabled } from "./session/approvals.js";
-import { isAgenticTenantMismatch } from "./session/agentic.js";
 import { useSession, type HarnessClientLike } from "./useSession.js";
 import { parseSlash } from "./slash/parse.js";
 import {
@@ -47,7 +46,7 @@ import { helpCommand } from "./slash/handlers/help.js";
 import { clearCommand } from "./slash/handlers/clear.js";
 import { resetCommand } from "./slash/handlers/reset.js";
 import { exitCommand } from "./slash/handlers/exit.js";
-import { modeCommand } from "./slash/handlers/mode.js";
+import { modelCommand } from "./slash/handlers/model.js";
 import { tenantCommand } from "./slash/handlers/tenant.js";
 import { userCommand } from "./slash/handlers/user.js";
 import { saveCommand } from "./slash/handlers/save.js";
@@ -105,7 +104,7 @@ function AppInner(
     initial: {
       tenantId: props.config.tenantId,
       userId: props.config.userId,
-      mode: props.config.mode,
+      model: props.config.model,
       baseUrl: props.config.baseUrl,
       profileName: props.config.profileName,
       debug: props.config.debug,
@@ -155,7 +154,7 @@ function AppInner(
       .register(clearCommand)
       .register(resetCommand)
       .register(exitCommand)
-      .register(modeCommand)
+      .register(modelCommand)
       .register(tenantCommand)
       .register(userCommand)
       .register(saveCommand)
@@ -297,7 +296,6 @@ function AppInner(
   const version = useMemo(() => packageVersion(), []);
   const showWelcome = allItems.length === 0 && modalSpec === null;
   const meta = session.state.meta;
-  const agenticWarn = isAgenticTenantMismatch(meta.mode, meta.tenantId);
 
   return (
     <Box flexDirection="column">
@@ -383,7 +381,7 @@ function AppInner(
           />
         </Box>
       ) : null}
-      <InputFrame label={`miot · ${meta.mode}`} labelWarn={agenticWarn}>
+      <InputFrame label={`miot · ${meta.model ?? "default model"}`}>
         <Editor
           onSubmit={handleSubmit}
           isFocused={editorActive}

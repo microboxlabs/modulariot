@@ -1,10 +1,8 @@
 # MIOT Harness
 
-Python-first backend scaffold for ASK MIOT agent orchestration.
-
-This project pilots LangChain Deep Agents as a controlled ModularIoT harness:
-the model can plan and narrate, while this backend owns typed tools, context,
-permission checks, approvals, durable run state, and Storytelling artifacts.
+The backend behind ASK MIOT. One model, chosen per run, talks to the user and
+calls tools; the harness owns the tools, context, permission checks, approvals,
+conversation memory and run records.
 
 ## Why This Is A Root Workspace
 
@@ -16,29 +14,42 @@ module. Keeping it at the root lets it grow into a service that can be consumed
 by the Next.js ASK MIOT sidebar, Quarkus APIs, Alfresco workflows, and future
 workers without coupling the pilot to one existing workspace too early.
 
-## Initial Shape
+## How a run works
 
-```text
-src/miot_harness/
-  agents/          # supervisor and specialist agent factories
-  api/             # HTTP service entrypoints
-  runtime/         # routing, tool execution, permissions, runs, events
-  skills/          # progressive skill manifests and playbooks
-  storytelling/    # MIOT story artifact contracts and renderer helpers
-  tools/           # MIOT-native read/write tool implementations
-  workspace/       # lightweight local workspace backend
-```
+1. The API resolves the tenant, the permission policy and the conversation.
+2. The agent loop (`runtime/agent_loop.py`) runs the model the request named
+   in `model`, or the default. The model calls tools directly and answers.
+3. The turn, with its tool calls and results, is stored; long conversations
+   are folded into a summary.
 
-## First Vertical Slice
+| Part | Where |
+|---|---|
+| Agent loop, prompt | `runtime/agent_loop.py`, `runtime/agent_prompt.py` |
+| Advisor and workhorse seats (`ask_advisor`, `delegate`) | `runtime/agent_seats.py` |
+| Datasource tools | `datasource/`, `integrations/` |
+| Skills (`load_skill`, `SKILL.md`, MCP skills via `mcp_call`) | `context_skills/` |
+| Permissions and approvals | `runtime/permissions.py`, `runtime/approvals.py` |
+| Conversation memory and compaction | `runtime/conversation.py` |
+| API | `api/server.py` |
 
-The first pilot target remains:
+`GET /models` lists the models a run may name. A tenant outside the
+datasource's tenant lock still talks to the model; the datasource tools
+refuse for it.
 
-> Tell me the story of delivery compliance this month and suggest one dashboard
-> widget.
+### Models
 
-The scaffold includes mock MIOT tools for delivery compliance metrics, workflow
-bottlenecks, story creation, widget drafting, and approval-gated dashboard patch
-application.
+| Env var | Default | Purpose |
+|---|---|---|
+| `MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL` | `claude-sonnet-4-6` | Default conversation model. |
+| `MIOT_HARNESS_AGENTS_AGENT_LOOP_MODELS` | `[]` | Other models a run may name (JSON list). |
+| `MIOT_HARNESS_AGENTS_AGENT_LOOP_EFFORT` | `high` | Reasoning effort on adaptive-thinking models. |
+| `MIOT_HARNESS_AGENTS_AGENT_LOOP_THINKING_BUDGET` | `4096` | Thinking budget on the other models; `0` turns it off. |
+| `MIOT_HARNESS_AGENTS_AGENT_LOOP_MAX_TURNS` | `12` | Model calls per run before it must answer. |
+| `MIOT_HARNESS_AGENTS_ADVISOR_MODEL` | `claude-opus-4-8` | `ask_advisor` seat; empty disables it. |
+| `MIOT_HARNESS_AGENTS_WORKHORSE_MODEL` | `claude-sonnet-4-6` | `delegate` seat; empty disables it. |
+| `MIOT_HARNESS_AGENTS_SUMMARIZER_MODEL` | `claude-haiku-4-5` | Conversation compaction. |
+
+Without a working model every run answers that no model is configured.
 
 ## Setup
 
@@ -54,12 +65,6 @@ cp .env.example .env
 `uv sync` creates `.venv/`, installs the project plus the `dev` dependency
 group, and pins exact versions in `uv.lock`. Commit `uv.lock` so the harness
 builds reproducibly across machines and CI.
-
-Run the local demo without requiring a model key:
-
-```bash
-uv run miot-harness demo "Tell me the story of delivery compliance this month and suggest one dashboard widget."
-```
 
 Run the API:
 
@@ -115,17 +120,14 @@ probes don't auth). Only `POST /runs`, `POST /runs:start`,
   decision.
 - Tenant and user context must come from authenticated server context, not from
   model-provided text.
-- Story artifacts are strict JSON objects with evidence references.
-- Deep Agents integration lives behind an adapter so the MIOT runtime can keep
-  its own tool, permission, and audit contracts.
 
 ## Datasource
 
 The harness core is datasource-agnostic. A `DataSourceProvider` owns the
 connection lifecycle and registers tools, and a declarative
-`DataSourceProfile` supplies every domain-specific name, prompt keyword,
-and threshold the core reads (display name, tool prefix, primer, router
-keywords, tenant lock, freshness SLA). The core never hardcodes which
+`DataSourceProfile` supplies every domain-specific name and threshold
+the core reads (display name, tool prefix, primer, tenant lock, freshness
+SLA). The core never hardcodes which
 system the tools come from — see `src/miot_harness/datasource/`.
 
 `MIOT_HARNESS_DATASOURCE_KIND` selects the provider at boot from the
@@ -142,83 +144,13 @@ allowed to say "Nexo", "Coordinador", or "orion".
 | `MIOT_HARNESS_DATASOURCE_TENANT_LOCK`| _(profile)_    | Override the profile's tenant lock; unset → profile default.       |
 | `MIOT_HARNESS_DATASOURCE_FRESHNESS_WARN_MINUTES`   | _(profile)_ | Override snapshot-age warn threshold.                        |
 | `MIOT_HARNESS_DATASOURCE_FRESHNESS_REFUSE_MINUTES` | _(profile)_ | Override snapshot-age refuse threshold.                     |
-| `MIOT_HARNESS_AGENTS_*`              | per-agent      | Per-agent model assignment (filter expert / analyst / etc.).       |
 
 Provider-private knobs keep the `MIOT_HARNESS_NEXO_*` prefix because they
 are genuinely Nexo's (Postgres concepts) — currently
 `MIOT_HARNESS_NEXO_SEARCH_PATH` (schema) and the EXPLAIN cost ceiling.
 
-## Run Modes
+## Cost in Langfuse
 
-`POST /runs` accepts an optional `mode` field on the request body
-(`Literal["auto", "canned", "meta", "agentic"]`, default `"auto"`).
-Mode picks *which dispatch path* the supervisor takes. The four values
-(route names are the `HarnessRoute` enum; "off-lock" = a tenant other
-than the datasource's `tenant_lock`):
-
-| `mode`     | Route          | DB touch | Off-lock tenant? | LLM calls / run | Best for                                              |
-|------------|----------------|----------|------------------|-----------------|-------------------------------------------------------|
-| `auto`     | (LLM-decided)  | depends  | depends on route | depends         | default — the intent router picks one of the below.   |
-| `canned`   | `DATA_QUERY`   | ✅ yes   | ❌ refused       | ~4-5            | "what's the data right now?" — curated functions.     |
-| `meta`     | `DATA_META`    | ❌ no    | ✅ allowed       | 1               | "what data exists / how is X calculated?" — no SQL.   |
-| `agentic`  | `DATA_AGENTIC` | ✅ yes   | ❌ refused       | variable        | free-form exploration via composable primitives.      |
-
-The explicit modes (`canned` / `meta` / `agentic`) bypass the LLM
-intent router entirely. They're useful for ops (deterministic
-dispatch), evals (pin the route so a test doesn't drift if router
-quality changes), and cost-sensitive callers (`meta` is ~10× cheaper
-per run than `canned`).
-
-### `canned` — answer FROM the data
-
-Routes through the data graph (`runtime/data_graph.py`): `filter_expert`
-picks one curated tool from the registered catalog, the harness runs it
-against the live datasource, `domain_analyst` inspects freshness,
-`synthesizer` writes the answer, `critic` reviews it (when enabled).
-Refused at the tenant gate for off-lock tenants because it reads
-confidential data.
-
-Examples (with the default **nexo** provider) that route here:
-- *"estado del coordinador hoy"* → `coordinador_centro_control`
-- *"cola crítica para hoy"* → `coordinador_cola_critica`
-- *"servicios con ETA en riesgo"* → `coordinador_eta_riesgo_hoy`
-
-### `meta` — answer ABOUT the data
-
-Calls `agents/meta_agent.py:meta_agent_node` **directly** — no
-LangGraph, one async LLM call (Haiku tier). The system prompt is the
-active datasource's primer plus the catalog of curated-function
-descriptions; the function signature has no `pool` / `registry` /
-`tools` parameter, so "no SQL" is a structural guarantee — not a
-comment. Allowed for any tenant (meta info is non-confidential); emits a
-`tenant.bypass: meta_route` audit attribute when an off-lock tenant
-uses it.
-
-Examples that route here:
-- *"what data do you have available?"*
-- *"how is `es_critico` calculated?"*
-- *"what does `fn_dx_kpi_servicio` return?"*
-
-### `agentic` — explore the data with composable primitives
-
-Routes through `runtime/agentic_graph.py`. Instead of being constrained
-to one curated function, the planner can string together the
-datasource's composable primitives (for **nexo**: `nexo_describe` /
-`nexo_select` / `nexo_grep` / `nexo_explain`) within the provider's
-safety gate (positive function allowlist, LATERAL rejection, mutation
-rejection, EXPLAIN cost ceiling). Critic is ON by default in this mode
-because the agent has more freedom to invent joins. Same tenant gate as
-`canned` — refused for off-lock tenants. See
-`integrations/nexo/primitives.py`.
-
-### Cost separation in Langfuse
-
-Every emitted span carries the `mode:<m>` tag in `langfuse.tags`, so
-filtering by `mode:canned` vs `mode:meta` in the UI (or
-`uv run python -m miot_harness.observability.report --by mode` from
-the CLI) shows the dollar split per mode. Combined with `tenant:<id>`,
-this gives per-tenant-per-mode cost rollups suitable for tiered
-billing (e.g. unlimited `meta` for a flat fee + per-`canned`-run
-metered billing). See `infra/observability/README.md` for the full
-filter / CLI / ClickHouse procedures.
-
+Every span carries `tenant:<id>` and, when the run named one, `model:<name>`
+in `langfuse.tags`. `uv run python -m miot_harness.observability.report --by
+tenant` rolls cost up per tenant; see `infra/observability/README.md`.

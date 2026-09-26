@@ -38,7 +38,7 @@ function mkSession(): SessionState {
     {
       tenantId: "demo-tenant",
       userId: "demo-user",
-      mode: "auto",
+      model: null,
       baseUrl: "http://localhost:8000",
       profileName: "staging",
     },
@@ -53,7 +53,7 @@ describe("toMarkdown — header", () => {
     expect(md).toContain("conversation_id: `id-1`");
     expect(md).toContain("tenant: `demo-tenant`");
     expect(md).toContain("user: `demo-user`");
-    expect(md).toContain("mode: `auto`");
+    expect(md).toContain("model: `default`");
     expect(md).toContain("profile: `staging`");
     expect(md).toContain("baseUrl: http://localhost:8000");
   });
@@ -117,7 +117,7 @@ describe("toMarkdown — turns", () => {
     expect(md).toContain("**miot (streaming):** result B");
   });
 
-  it("renders failed tools and routes as blockquote lines", () => {
+  it("renders failed tools as blockquote lines and drops legacy route events", () => {
     const ctx = mkCtx();
     let s = mkSession();
     s = reduce(s, { kind: "BEGIN_TURN", prompt: "p" }, ctx);
@@ -152,7 +152,7 @@ describe("toMarkdown — turns", () => {
       ctx,
     );
     const md = toMarkdown(s);
-    expect(md).toContain("> route: NEXO_QUERY");
+    expect(md).not.toContain("route");
     expect(md).toContain("tool writer ✗ — timeout");
     expect(md).toContain("> ⚠ 20d stale");
   });

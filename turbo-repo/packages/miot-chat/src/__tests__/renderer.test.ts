@@ -46,10 +46,18 @@ describe("renderEvent — non-terminal status line", () => {
   it("clears the previous status line before writing a new one", () => {
     const { outputs } = feed(initialState(), [
       evt("run.started"),
-      evt("route.selected", { data: { route: "NEXO_QUERY" } }),
+      evt("tool.started", { data: { tool: "stock_lookup" } }),
     ]);
     expect(outputs[1]?.startsWith("\r\x1b[K")).toBe(true);
-    expect(stripAnsi(outputs[1] ?? "")).toBe("route: NEXO_QUERY");
+    expect(stripAnsi(outputs[1] ?? "")).toBe("tool: stock_lookup");
+  });
+
+  it("prints nothing for the legacy route.selected event", () => {
+    const { outputs, state } = feed(initialState(), [
+      evt("route.selected", { data: { route: "NEXO_QUERY" } }),
+    ]);
+    expect(outputs[0]).toBe("");
+    expect(state.hasStatusLine).toBe(false);
   });
 
   it("prefers data.name for tool events, falls back to message", () => {
@@ -72,7 +80,7 @@ describe("renderEvent — answer.completed caches without printing", () => {
     expect(state.hasStatusLine).toBe(false);
   });
 
-  it("dual answer.completed (mode denial → meta fallback) keeps the latest", () => {
+  it("two answer.completed events keep the latest", () => {
     const { state, outputs } = feed(initialState(), [
       evt("answer.completed", { data: { text: "denied" } }),
       evt("answer.completed", { data: { text: "fallback answer" } }),
@@ -103,13 +111,13 @@ describe("renderEvent — terminal events", () => {
   it("run.failed only clears the status line — renderRunFailure paints the message", () => {
     const { outputs, state } = feed(initialState(), [
       evt("run.started"),
-      evt("run.failed", { message: "denied: mode access" }),
+      evt("run.failed", { message: "denied: access" }),
     ]);
     expect(outputs[1]).toBe("\r\x1b[K");
     expect(state.hasStatusLine).toBe(false);
 
-    const final = renderRunFailure(state, "denied: mode access");
-    expect(stripAnsi(final.output)).toBe("error: denied: mode access\n");
+    const final = renderRunFailure(state, "denied: access");
+    expect(stripAnsi(final.output)).toBe("error: denied: access\n");
   });
 
   it("renderRunFailure falls back to 'run failed' on empty message", () => {
@@ -140,8 +148,8 @@ describe("renderer — NO_COLOR mode", () => {
     expect(r1.output).toBe("starting…\n");
     expect(r1.state.hasStatusLine).toBe(false);
 
-    const r2 = renderEvent(r1.state, evt("route.selected", { data: { route: "NEXO_QUERY" } }));
-    expect(r2.output).toBe("route: NEXO_QUERY\n");
+    const r2 = renderEvent(r1.state, evt("tool.started", { data: { tool: "stock_lookup" } }));
+    expect(r2.output).toBe("tool: stock_lookup\n");
     expect(r2.output.includes("\x1b[")).toBe(false);
   });
 
@@ -157,10 +165,10 @@ describe("renderEvent — rich SSE events (plan: thinking + agents + tools)", ()
   it("agent.started renders a bold ▶ {name} status line", () => {
     const { outputs } = feed(initialState(), [
       evt("agent.started", {
-        data: { agent: "synthesizer", graph: "nexo", turn: 1 },
+        data: { agent: "main", graph: "nexo", turn: 1 },
       }),
     ]);
-    expect(stripAnsi(outputs[0] ?? "")).toBe("▶ synthesizer");
+    expect(stripAnsi(outputs[0] ?? "")).toBe("▶ main");
   });
 
   it("agent.completed renders ✓ {name} ({ms}ms)", () => {
@@ -209,7 +217,7 @@ describe("renderEvent — rich SSE events (plan: thinking + agents + tools)", ()
     const { outputs } = feed(initialState(), [
       evt("usage.recorded", {
         data: {
-          agent: "synthesizer",
+          agent: "main",
           model: "claude-sonnet-4-6",
           input_tokens: 4012,
           output_tokens: 189,
@@ -219,14 +227,14 @@ describe("renderEvent — rich SSE events (plan: thinking + agents + tools)", ()
       }),
     ]);
     expect(stripAnsi(outputs[0] ?? "")).toBe(
-      "usage: synthesizer in=4012 out=189",
+      "usage: main in=4012 out=189",
     );
   });
 
   it("thinking.delta accumulates into state and emits dimmed text without CLEAR_LINE", () => {
     const { state, outputs } = feed(initialState({ noColor: true }), [
-      evt("thinking.delta", { data: { agent: "synthesizer", delta: "Step 1. ", index: 0 } }),
-      evt("thinking.delta", { data: { agent: "synthesizer", delta: "Step 2.", index: 1 } }),
+      evt("thinking.delta", { data: { agent: "main", delta: "Step 1. ", index: 0 } }),
+      evt("thinking.delta", { data: { agent: "main", delta: "Step 2.", index: 1 } }),
     ]);
     expect(outputs[0]).toBe("Step 1. ");
     expect(outputs[1]).toBe("Step 2.");
@@ -237,12 +245,12 @@ describe("renderEvent — rich SSE events (plan: thinking + agents + tools)", ()
   it("thinking.completed emits a newline and clears hasThinkingBlock", () => {
     const seed = initialState({ noColor: true });
     const afterDelta = renderEvent(seed, evt("thinking.delta", {
-      data: { agent: "synthesizer", delta: "thinking…", index: 0 },
+      data: { agent: "main", delta: "thinking…", index: 0 },
     }));
     const afterCompleted = renderEvent(
       afterDelta.state,
       evt("thinking.completed", {
-        data: { agent: "synthesizer", tokens: 42, length: 9 },
+        data: { agent: "main", tokens: 42, length: 9 },
       }),
     );
     expect(afterCompleted.output).toBe("\n");
@@ -252,7 +260,7 @@ describe("renderEvent — rich SSE events (plan: thinking + agents + tools)", ()
   it("renderAuthoritativeAnswer prepends a newline when a thinking block was open", () => {
     const seed = initialState({ noColor: true });
     const afterDelta = renderEvent(seed, evt("thinking.delta", {
-      data: { agent: "synthesizer", delta: "thinking…", index: 0 },
+      data: { agent: "main", delta: "thinking…", index: 0 },
     }));
     const final = renderAuthoritativeAnswer(afterDelta.state, "the answer");
     // \n (from hasThinkingBlock) + answer + trailing \n

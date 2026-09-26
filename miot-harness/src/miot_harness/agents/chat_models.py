@@ -27,7 +27,7 @@ def response_text(response: Any) -> str:
     ``thinking`` block plus a ``text`` block — not a plain string. A naive
     ``str(content)`` then yields a Python-repr of the list (not the model's
     text), which silently breaks any caller that JSON-parses the answer (e.g.
-    the agentic planner / verifier). This concatenates the ``text`` blocks and
+    the advisor seat). This concatenates the ``text`` blocks and
     drops thinking, handling the plain-string case too.
     """
     content = getattr(response, "content", response)

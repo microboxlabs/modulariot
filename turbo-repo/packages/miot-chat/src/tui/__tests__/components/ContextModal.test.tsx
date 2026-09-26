@@ -22,7 +22,7 @@ function mkSession(): SessionState {
     {
       tenantId: "demo-tenant",
       userId: "demo-user",
-      mode: "auto",
+      model: null,
       baseUrl: "http://localhost:8000",
       profileName: "staging",
     },
@@ -47,8 +47,8 @@ describe("<ContextModal />", () => {
     expect(frame).toContain("demo-user");
     expect(frame).toContain("conv");
     expect(frame).toContain(session.meta.conversationId);
-    expect(frame).toContain("mode");
-    expect(frame).toContain("auto");
+    expect(frame).toContain("model");
+    expect(frame).toContain("(default)");
     expect(frame).toContain("http://localhost:8000");
     expect(frame).toContain("profile");
     expect(frame).toContain("staging");

@@ -30,12 +30,8 @@ import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
  * - `search.error`     — `{ error: string }` when the relay fails mid-run.
  */
 
-/** Typical agentic runs measure ~35-45s, but harder questions (per-entity
- * detail, not a count) replan several times on the Opus planner and can exceed 2
- * minutes — the run is otherwise cancelled mid-loop and surfaces as a retry
- * error. This raised ceiling is a STOPGAP; the real fix is the harness
- * agent-orchestration redesign (move planning off the every-turn Opus seat to an
- * advisor/orchestrator pattern). The stream is still aborted if the harness never
+/** Most runs finish well under a minute; a question that needs many tool
+ * calls can take longer. The stream is aborted if the harness never
  * terminates. */
 const HARNESS_STREAM_TIMEOUT_MS = 180_000;
 
@@ -45,14 +41,12 @@ const HARNESS_STREAM_TIMEOUT_MS = 180_000;
  * telemetry is not a UI concern). */
 const FORWARDED_EVENTS: ReadonlySet<string> = new Set([
   "run.started",
-  "route.selected",
   "agent.started",
   "agent.completed",
   "tool.started",
   "tool.completed",
   "thinking.delta",
   "thinking.completed",
-  "verification.completed",
   "answer.completed",
   "run.completed",
   "run.failed",
@@ -122,13 +116,12 @@ export async function POST(request: Request) {
   request.signal.addEventListener("abort", abortRelay);
 
   // Relay a run's SSE events to the browser as they arrive, accumulating the
-  // route + tool names for the interaction episode. Extracted from the stream's
+  // tool names for the interaction episode. Extracted from the stream's
   // start() so that function stays under the cognitive-complexity budget.
   async function relayRunEvents(
     runId: string,
     send: (event: string, data: unknown, id?: string | number) => void,
-  ): Promise<{ route?: string; tools: string[] }> {
-    let route: string | undefined;
+  ): Promise<{ tools: string[] }> {
     const tools: string[] = [];
     for await (const event of client.runs.stream(runId, {
       signal: controller.signal,
@@ -136,16 +129,13 @@ export async function POST(request: Request) {
       if (FORWARDED_EVENTS.has(event.type)) {
         send(event.type, event.data, event.seq);
       }
-      if (event.type === "route.selected") {
-        const r = (event.data as { route?: unknown }).route;
-        if (typeof r === "string") route = r;
-      } else if (event.type === "tool.started") {
+      if (event.type === "tool.started") {
         const t = (event.data as { tool?: unknown }).tool;
         if (typeof t === "string") tools.push(t);
       }
       if (TERMINAL_EVENT_TYPES.has(event.type)) break;
     }
-    return { route, tools };
+    return { tools };
   }
 
   const stream = new ReadableStream<Uint8Array>({
@@ -166,7 +156,6 @@ export async function POST(request: Request) {
             message: query,
             skill_id: "miot-search",
             answer_format: "json",
-            mode: "auto",
             ...(userEmail && { user_id: userEmail }),
           },
           { signal: controller.signal },
@@ -174,10 +163,9 @@ export async function POST(request: Request) {
         activeRunId = run_id;
         send("search.accepted", { run_id });
 
-        // Relay the run's events, accumulating the route + tool names for the
+        // Relay the run's events, accumulating the tool names for the
         // interaction episode written on completion (the loop's captured signal).
-        const { route: episodeRoute, tools: episodeTools } =
-          await relayRunEvents(run_id, send);
+        const { tools: episodeTools } = await relayRunEvents(run_id, send);
 
         // Terminal event reached — the run finished on its own; a later
         // disconnect must not fire a pointless cancel.
@@ -193,7 +181,7 @@ export async function POST(request: Request) {
         });
 
         // Fire-and-forget: append the completed search as an interaction episode
-        // (query + route/tools + answer + ground-or-flag assumptions) for the
+        // (query + tools + answer + ground-or-flag assumptions) for the
         // semantic-layer learning loop. Best-effort — never blocks or fails the
         // search (recordEpisode swallows its own errors).
         void recordEpisode({
@@ -204,7 +192,6 @@ export async function POST(request: Request) {
             runId: run_id,
             payload: {
               query,
-              route: episodeRoute,
               tools: episodeTools,
               answer: record.answer,
               assumptions: record.assumptions ?? [],

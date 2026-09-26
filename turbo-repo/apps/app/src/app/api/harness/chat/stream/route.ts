@@ -38,14 +38,12 @@ const HARNESS_STREAM_TIMEOUT_MS = 180_000;
 
 const FORWARDED_EVENTS: ReadonlySet<string> = new Set([
   "run.started",
-  "route.selected",
   "agent.started",
   "agent.completed",
   "tool.started",
   "tool.completed",
   "thinking.delta",
   "thinking.completed",
-  "verification.completed",
   "advisor.consulted",
   "delegate.completed",
   "answer.completed",
@@ -71,14 +69,8 @@ function phaseLabel(progress: HarnessStreamProgress, tr: TrFn): string {
     case "idle":
     case "connecting":
       return tr("harnessChat.stream.progress.connecting");
-    case "routing":
-      return progress.route
-        ? tr("harnessChat.stream.progress.routingWithRoute", { route: progress.route })
-        : tr("harnessChat.stream.progress.routingGeneric");
     case "exploring":
       return tr("harnessChat.stream.progress.exploring");
-    case "verifying":
-      return tr("harnessChat.stream.progress.verifying");
     case "answering":
       return tr("harnessChat.stream.progress.answering");
     default:
@@ -466,7 +458,7 @@ async function connectToHarness(session: Session): Promise<HarnessConnection> {
   return { ok: true, client, orgSlug, token, userEmail };
 }
 
-type RunTelemetry = { route: string | undefined; tools: string[] };
+type RunTelemetry = { tools: string[] };
 
 /** How the harness event stream ended. `completed` and `failed` mirror the
  * two terminal events; `truncated` is the stream running dry without either
@@ -476,15 +468,10 @@ type RunOutcome = "completed" | "failed" | "truncated";
 
 type RelayResult = RunTelemetry & { outcome: RunOutcome };
 
-/** Tracks the two pieces of the episode record that live outside
- * `HarnessStreamProgress` — the chosen route and every tool invoked —
- * mutating the shared accumulator in place since both are running tallies
- * for the whole stream, not per-event state. */
+/** Tracks every tool invoked for the episode record, mutating the shared
+ * accumulator in place since it is a running tally for the whole stream. */
 function trackRunTelemetry(event: HarnessEvent, telemetry: RunTelemetry): void {
-  if (event.type === "route.selected") {
-    const r = event.data.route;
-    if (typeof r === "string") telemetry.route = r;
-  } else if (event.type === "tool.started") {
+  if (event.type === "tool.started") {
     const t = event.data.tool;
     if (typeof t === "string") telemetry.tools.push(t);
   }
@@ -524,7 +511,7 @@ export function seatNarration(event: { type: string; data: Record<string, unknow
 }
 
 /** Relays the harness run's own event stream to the browser as live
- * narration, tracking the route + tools invoked along the way for the
+ * narration, tracking the tools invoked along the way for the
  * episode record. Breaks once a terminal event arrives. */
 async function relayHarnessEvents(
   client: ReturnType<typeof createMiotHarnessClient>,
@@ -535,7 +522,7 @@ async function relayHarnessEvents(
   tr: TrFn,
 ): Promise<RelayResult> {
   let progress: HarnessStreamProgress = INITIAL_PROGRESS;
-  const telemetry: RunTelemetry = { route: undefined, tools: [] };
+  const telemetry: RunTelemetry = { tools: [] };
   // Stays `truncated` unless a terminal event actually arrives — falling out
   // of the loop is the upstream stream ending on us, which is a failure.
   let outcome: RunOutcome = "truncated";
@@ -662,7 +649,6 @@ async function run(
         message,
         skill_id: "miot-search",
         answer_format: "json",
-        mode: "auto",
         ...(model && { model }),
         ...(userEmail && { user_id: userEmail }),
         ...(conversationId && { conversation_id: conversationId }),
@@ -676,7 +662,7 @@ async function run(
     const narrator = openNarration(send);
     appendNarrationDiff(send, narrator, INITIAL_PROGRESS, tr);
 
-    const { route, tools, outcome } = await relayHarnessEvents(
+    const { tools, outcome } = await relayHarnessEvents(
       client,
       run_id,
       controller.signal,
@@ -725,7 +711,6 @@ async function run(
         runId: run_id,
         payload: {
           message,
-          route,
           tools,
           answer: record.answer,
           conversationId: record.conversation_id,

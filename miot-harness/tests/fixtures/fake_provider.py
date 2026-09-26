@@ -31,7 +31,6 @@ FAKE_PROFILE = DataSourceProfile(
     source_label="FakeSource · fake (test)",
     tool_prefix="fake_",
     primer="FakeSource is a synthetic datasource used in harness tests.",
-    router_keywords=frozenset({"fakesource", "fixture"}),
     tenant_lock="acme",
     tenant_refusal_template=(
         "{display_name} is {lock}-only. I can't answer for other tenants."

@@ -12,7 +12,7 @@ share a runner; their exit codes mean different things.
 
 | Suite | What it measures | Entry point |
 |---|---|---|
-| **Golden** (this dir + `src/miot_harness/evals/run_golden.py`) | Agent quality on the datasource conversational graph — tool routing, freshness, refusals, KPI grounding, step economy, cost, drift vs baseline. | `miot-harness-evals` |
+| **Golden** (this dir + `src/miot_harness/evals/run_golden.py`) | Agent quality on the agent loop — tool selection, freshness, refusals, KPI grounding, step economy, cost, drift vs baseline. | `miot-harness-evals` |
 | **Judge** (`judge_prompt.md`) | Advisory Tier-3 LLM-judge rubric scored 1–5 per axis on a real trajectory. | prompt, run out-of-band |
 | **Deploy** (`deploy/`) | Operational checks that the harness packages and runs as a container. | `deploy/run-all.sh` (see `deploy/README.md`) |
 
@@ -20,13 +20,13 @@ share a runner; their exit codes mean different things.
 
 `miot-harness-evals` reads `evals/golden/<datasource-kind>/examples.yaml`
 (default `evals/golden/nexo/examples.yaml`, override with `--yaml`) and runs
-each entry through the datasource graph in one of three modes:
+each entry through the agent loop in one of three modes:
 
 ```bash
-# YAML schema validation only — no graph runs, no LLMs.
+# YAML schema validation only — no runs, no LLMs.
 uv run miot-harness-evals --mode static
 
-# Scripted FakeListChatModel run — deterministic; the default.
+# Scripted model run — deterministic; the default.
 uv run miot-harness-evals --mode fake
 
 # Live Anthropic + live datasource. Needs MIOT_HARNESS_DATASOURCE_DSN and
@@ -35,13 +35,13 @@ uv run miot-harness-evals --mode fake
 uv run miot-harness-evals --mode real
 ```
 
-- **`static`** — validate the dataset YAML schema only. No graph runs,
+- **`static`** — validate the dataset YAML schema only. No runs,
   no LLM calls. Fastest; used in CI as a YAML linter.
-- **`fake`** (default) — scripted `FakeListChatModel` per case + stub
-  registry returning canned data. Deterministic; catches routing /
-  structural regressions without burning real model spend.
-- **`real`** — live Anthropic + the live datasource via the provider
-  registry. Captures real cost + drift vs the fake-mode baseline.
+- **`fake`** (default) — a scripted model per case calls the first
+  expected tool and answers; a stub registry returns fixed data.
+  Deterministic; catches structural regressions without model spend.
+- **`real`** — the configured conversation model
+  (`MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL`) + the live datasource. Captures real cost + drift vs the fake-mode baseline.
 
 Results are written to `evals/results/<commit-sha>.json` (fake/static) or
 `evals/results/<commit-sha>-real.json` (real, so it never clobbers the
@@ -79,16 +79,16 @@ Real mode adds:
 
 ### Dataset contract (fake mode)
 
-Fake mode is intentionally deterministic so it catches routing/structural
+Fake mode is intentionally deterministic so it catches structural
 regressions without spending tokens. The values below (`coordinador_*` tool
 names, the `orion` tenant lock) are the **nexo** profile's, since the
 shipped dataset targets the nexo provider. When authoring `examples.yaml`:
 
-- The scripted synthesizer always emits
+- The scripted answer is always
   `"Resultado al snapshot <ts>: 2 servicios críticos, 3 ETA en riesgo."`, so
   `expected_kpis_mentioned` must be lowercase substrings of that line.
-- The fake `filter_expert` emits exactly **one** tool call, so every fake run
-  produces a 1-step plan. `expected_min_turns`/`expected_max_turns` therefore
+- The scripted model makes exactly **one** tool call, so every fake run
+  has one step. `expected_min_turns`/`expected_max_turns` therefore
   document the *real-mode* envelope; in fake mode keep `min ≤ 1 ≤ max` for a
   green baseline. The `max` cap is the part that catches over-engineering once
   real mode lands.
@@ -116,10 +116,8 @@ shipped dataset targets the nexo provider. When authoring `examples.yaml`:
    export ANTHROPIC_API_KEY=sk-…
    export MIOT_HARNESS_DATASOURCE_DSN=postgresql://harness:…@localhost:<tunnel-port>/coordinador
    ```
-3. **Cost expectation** — ~6 LLM calls × 25 cases on a mix of Haiku
-   ($0.80 / $4 per Mtok) and Sonnet ($3 / $15 per Mtok). Typical
-   spend is well under $5. Agentic-mode cases (if added later) are
-   pricier because the critic runs on every step.
+3. **Cost expectation** — two to four model calls per case × 25 cases on
+   the conversation model. On Sonnet the typical spend is under $5.
 
 ### Cost-budget guard
 
@@ -134,7 +132,7 @@ when you intentionally want a full run; the default exists to make
 
 Real mode refuses to start when:
 - `MIOT_HARNESS_DATASOURCE_DSN` is unset → "real mode requires MIOT_HARNESS_DATASOURCE_DSN; …"
-- `ANTHROPIC_API_KEY` is unset while the configured agent models include
+- `ANTHROPIC_API_KEY` is unset while the conversation model is
   `claude-*` → "real mode requires ANTHROPIC_API_KEY; …"
 - Provider boot reports `enabled=False` (introspection failure, no `fn_dx_*`
   discovered for nexo) → "Datasource boot failed: …"
@@ -169,7 +167,7 @@ with `--baseline <path>`.
 ### Reading the result
 
 `miot-harness-evals --report <result.json>` prints a terminal-friendly
-summary: total cost, per-mode rollup, drift list, and (when combined
+summary: total cost, drift list, and (when combined
 with `--baseline`) a Δ-cost / Δ-tokens diff. The JSON file itself
 remains the canonical artifact for automated diffing in CI.
 

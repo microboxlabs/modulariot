@@ -24,7 +24,7 @@ from datetime import UTC, datetime
 
 import asyncpg
 
-from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
+from miot_harness.datasource.catalog import CatalogEntry
 from miot_harness.datasource.provider import FreshnessProbe
 from miot_harness.integrations.nexo.freshness import survey_freshness
 from miot_harness.integrations.nexo.introspect import (
@@ -48,7 +48,7 @@ class NexoBootResult:
     # Per-function freshness survey + descriptor-derived meta catalog
     # (Gap 2). Empty when the survey is disabled or boot fails early.
     freshness: dict[str, FreshnessProbe] = field(default_factory=dict)
-    catalog_entries: list[MetaAgentCatalogEntry] = field(default_factory=list)
+    catalog_entries: list[CatalogEntry] = field(default_factory=list)
 
 
 def _freshness_suffix(probe: FreshnessProbe | None) -> str:
@@ -71,7 +71,7 @@ def _catalog_entry(
     descriptor: FunctionDescriptor,
     tool_name: str,
     probe: FreshnessProbe | None,
-) -> MetaAgentCatalogEntry:
+) -> CatalogEntry:
     parsed = descriptor.description
     layer = parsed.layer if parsed.layer in {"L1", "L2", "L3", "VT"} else ""
     if not layer:
@@ -81,7 +81,7 @@ def _catalog_entry(
     suffix = _freshness_suffix(probe)
     if suffix:
         body = f"{body}\n  {suffix}"
-    return MetaAgentCatalogEntry(name=tool_name, layer=layer, title=title, body=body)
+    return CatalogEntry(name=tool_name, layer=layer, title=title, body=body)
 
 
 _ACL_CHECK_SQL = """
@@ -253,7 +253,7 @@ async def load_nexo_tools(
 
     # 4. Build + register tools (+ descriptor-derived meta catalog).
     registered: list[str] = []
-    catalog_entries: list[MetaAgentCatalogEntry] = []
+    catalog_entries: list[CatalogEntry] = []
     for descriptor in descriptors:
         try:
             tool = build_nexo_tool(

@@ -15,6 +15,7 @@
 # Env vars:
 #   BASE_URL  default http://localhost:8000
 #   TOKEN     optional Bearer token
+#   MODEL     optional conversation model (omit for the harness default)
 #
 # Prints each step with elapsed seconds, so you can spot exactly which
 # call hangs.
@@ -23,7 +24,7 @@ set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:8000}"
 PROMPT="${1:-cuales son las alertas para hoy?}"
-TENANT="${2:-mintral}"
+TENANT="${2:-demo-tenant}"
 USER_ID="${3:-demo-user}"
 CONV_ID="${CONV_ID:-conv-diag-$(date +%s)}"
 
@@ -48,6 +49,7 @@ echo "PROMPT    : ${PROMPT}"
 echo "TENANT    : ${TENANT}"
 echo "USER      : ${USER_ID}"
 echo "CONV_ID   : ${CONV_ID}"
+echo "MODEL     : ${MODEL:-(harness default)}"
 echo
 
 t0=$(date +%s)
@@ -60,7 +62,9 @@ RESP=$(curl_auth -sS -X POST "${BASE_URL}/runs:start" \
     --arg tenant "$TENANT" \
     --arg user "$USER_ID" \
     --arg conv "$CONV_ID" \
-    '{message:$msg, tenant_id:$tenant, user_id:$user, conversation_id:$conv, mode:"auto"}')")
+    --arg model "${MODEL:-}" \
+    '{message:$msg, tenant_id:$tenant, user_id:$user, conversation_id:$conv}
+      + (if $model == "" then {} else {model:$model} end)')")
 RUN_ID=$(jq -r '.run_id // empty' <<<"$RESP")
 if [[ -z "$RUN_ID" ]]; then
   echo "FAIL: no run_id in response"

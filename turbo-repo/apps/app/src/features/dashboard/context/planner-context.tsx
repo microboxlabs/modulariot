@@ -16,6 +16,7 @@ import { useDashboardFilters } from "./dashboard-filters-context";
 import { buildPgrestFetch, parseRows } from "../dashlets/common/pgrest-utils";
 import { resolveFilterParams } from "../dashlets/common/resolve-filter-params";
 import { usePollingInterval } from "../hooks/use-polling-interval";
+import { redirectToSignIn } from "@/features/auth/utils/redirect-to-sign-in";
 
 // ============================================================================
 // Types
@@ -125,6 +126,7 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
               def.dataSourceId,
             );
             const res = await fetch(url, { ...init, signal: controller.signal });
+            if (res.status === 401) redirectToSignIn();
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data: unknown = await res.json();
             const rows = parseRows(data, { singleObjectFallback: true });

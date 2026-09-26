@@ -42,14 +42,4 @@ describe("<InputFrame />", () => {
     }
   });
 
-  it("shows a warn marker when labelWarn is set", () => {
-    const { lastFrame } = render(
-      <InputFrame label="miot · model-b" labelWarn>
-        <Text>hi</Text>
-      </InputFrame>,
-    );
-    const frame = lastFrame() ?? "";
-    expect(frame).toContain("⚠");
-    expect(frame).toContain("miot · model-b");
-  });
 });

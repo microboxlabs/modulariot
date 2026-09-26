@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from miot_harness.config import HarnessSettings
     from miot_harness.connections.models import Connection
-    from miot_harness.datasource.catalog import CatalogEntry
     from miot_harness.datasource.knowledge.models import DetectedPack
     from miot_harness.datasource.schema_introspect import SchemaSummary
     from miot_harness.tools.registry import ToolRegistry
@@ -95,12 +94,8 @@ class BootResult:
     # float is intentional: sub-minute precision from timestamp arithmetic
     # (sub-minute precision is required by the freshness SLA checks).
     snapshot_age_minutes: float | None = None
-    # Per-function freshness survey (Gap 2): lets /health and the meta
-    # agent say which functions are fresh vs stale BEFORE a user asks.
+    # Per-function freshness survey, shown in /health.
     freshness: dict[str, FreshnessProbe] = field(default_factory=dict)
-    # Descriptor-derived catalog (title/layer/body + freshness suffix).
-    # Not read by the harness today.
-    catalog_entries: tuple[CatalogEntry, ...] = ()
     # Connection Knowledge Base (Phase 2): the boot-time schema index for
     # generic connections. None for providers that don't introspect (e.g.
     # Nexo, which surfaces its function catalog instead).

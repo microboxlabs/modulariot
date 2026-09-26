@@ -177,7 +177,6 @@ class NexoProvider(DataSourceProvider):
             reason=legacy.reason,
             snapshot_age_minutes=legacy.snapshot_age_minutes,
             freshness=dict(legacy.freshness),
-            catalog_entries=tuple(legacy.catalog_entries),
         )
 
     async def close(self) -> None:

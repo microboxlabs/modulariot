@@ -13,13 +13,15 @@ function PulseRangeComponent({
   setDisplayPosition,
   onZoom,
 }: PulseRangeProps) {
+  const max = Math.max((positions?.length ?? 0) - 1, 0);
+  const progress = max === 0 ? 0 : (displayPosition / max) * 100;
   return (
     <div className="w-full h-full flex flex-col">
       <div className="w-full h-full flex flex-row justify-center items-center gap-2">
         <input
           type="range"
           min={0}
-          max={positions?.length ?? 0}
+          max={max}
           value={displayPosition}
           onChange={(e) => {
             if (positions) {
@@ -29,11 +31,7 @@ function PulseRangeComponent({
           }}
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
           style={{
-            background: `linear-gradient(to right, rgb(37 99 235) 0%, rgb(37 99 235) ${
-              (displayPosition / (positions?.length ?? 1)) * 100
-            }%, rgb(229 231 235) ${
-              (displayPosition / (positions?.length ?? 1)) * 100
-            }%, rgb(229 231 235) 100%)`,
+            background: `linear-gradient(to right, rgb(37 99 235) 0%, rgb(37 99 235) ${progress}%, rgb(229 231 235) ${progress}%, rgb(229 231 235) 100%)`,
           }}
         />
       </div>

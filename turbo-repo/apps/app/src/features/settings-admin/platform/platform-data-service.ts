@@ -5,10 +5,13 @@ import { readLogoDataUrl } from "./domain-branding-form";
 import {
   PLATFORM_OWNER_ROLE,
   type DomainBrandingAdmin,
+  type ModelProviderAdmin,
+  type ModelUsageTotal,
   type PlatformRole,
   type LogoVariant,
   type PlatformRoleMembership,
   type SetDomainBranding,
+  type SetModelProvider,
 } from "./platform.types";
 
 /**
@@ -95,4 +98,38 @@ export async function fetchStoredLogoDataUrl(
     throw new ApiError({ status: res.status, url });
   }
   return readLogoDataUrl(await res.blob());
+}
+
+export function fetchModelProviders(): Promise<ModelProviderAdmin[]> {
+  return getJson<ModelProviderAdmin[]>(`${PLATFORM_BASE}/model-providers`);
+}
+
+export function saveModelProvider(
+  provider: string,
+  value: SetModelProvider
+): Promise<ModelProviderAdmin> {
+  return sendJson<ModelProviderAdmin>(
+    "PUT",
+    `${PLATFORM_BASE}/model-providers/${encodeURIComponent(provider)}`,
+    value
+  );
+}
+
+export function deleteModelProvider(provider: string): Promise<void> {
+  return sendEmpty(
+    "DELETE",
+    `${PLATFORM_BASE}/model-providers/${encodeURIComponent(provider)}`
+  );
+}
+
+/** Totals per organization and model for `[from, to)`, as ISO-8601 instants. */
+export async function fetchModelUsage(
+  from: string,
+  to: string
+): Promise<ModelUsageTotal[]> {
+  const query = new URLSearchParams({ from, to });
+  const body = await getJson<{ totals: ModelUsageTotal[] }>(
+    `${PLATFORM_BASE}/model-usage?${query.toString()}`
+  );
+  return body.totals;
 }

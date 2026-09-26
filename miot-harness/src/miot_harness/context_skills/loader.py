@@ -17,6 +17,12 @@ from dataclasses import dataclass
 
 from miot_harness.config import HarnessSettings
 from miot_harness.context_skills.connector_factory import build_http_tool
+from miot_harness.context_skills.mcp_skills import (
+    MCP_CALL_TOOL,
+    McpSkills,
+    build_mcp_call_tool,
+    resolve_url,
+)
 from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.context_skills.registry_kind import (
     resolve_context_source,
@@ -144,16 +150,59 @@ def boot_context_skills(
         connectors, registry, settings, diagnostics
     )
     _validate_playbook_tools(playbooks, registry, diagnostics)
+    playbooks = _resolve_mcp_servers(playbooks, diagnostics)
 
+    has_mcp = any(
+        isinstance(p.skill, PlaybookSkill) and p.skill.mcp is not None for p in playbooks
+    )
+    mcp = McpSkills() if has_mcp else None
     bundle = ContextSkillsBundle(
         contexts=context_result.contexts,
         playbook_skills=tuple(playbooks),
+        mcp=mcp,
     )
+    if mcp is not None:
+        try:
+            registry.register(
+                build_mcp_call_tool(
+                    lambda tenant, skill_id: bundle.find_mcp_skill(tenant, skill_id), mcp
+                )
+            )
+            registered.append(MCP_CALL_TOOL)
+        except ValueError as exc:
+            diagnostics.append(LoadDiagnostic("mcp", "error", str(exc)))
     return ContextSkillsBootResult(
         bundle=bundle,
         registered_tools=tuple(registered),
         diagnostics=tuple(diagnostics),
     )
+
+
+def _resolve_mcp_servers(
+    playbooks: list[LoadedSkill], diagnostics: list[LoadDiagnostic]
+) -> list[LoadedSkill]:
+    """Fill in each MCP server URL from the environment; drop a skill whose
+    URL cannot be resolved, so it is never offered."""
+    kept: list[LoadedSkill] = []
+    for loaded in playbooks:
+        skill = loaded.skill
+        if not isinstance(skill, PlaybookSkill) or skill.mcp is None:
+            kept.append(loaded)
+            continue
+        try:
+            url = resolve_url(skill.mcp)
+        except ValueError as exc:
+            diagnostics.append(
+                LoadDiagnostic(
+                    loaded.source_path, "warning", f"skill {skill.id!r}: {exc}; not loaded"
+                )
+            )
+            continue
+        server = skill.mcp.model_copy(update={"url": url})
+        kept.append(
+            loaded.model_copy(update={"skill": skill.model_copy(update={"mcp": server})})
+        )
+    return kept
 
 
 def _filter_bound_skills(

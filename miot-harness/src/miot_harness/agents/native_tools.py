@@ -3,8 +3,8 @@
 The tool list is part of the prompt-cache prefix (tools render before
 system), so it must be byte-stable across requests: same scope rules as
 the legacy planner catalog (curated `tool_prefix` functions + exploration
-primitives), sorted by name, schemas derived deterministically from the
-pydantic input models.
+primitives) plus `mcp_call` when a skill names an MCP server, sorted
+by name, schemas derived deterministically from the pydantic input models.
 """
 
 from __future__ import annotations
@@ -21,7 +21,8 @@ def build_native_tools(
     tools: list[dict[str, Any]] = []
     for name in registry.names():  # .names() is already sorted
         tool = registry.get(name)
-        in_scope = name.startswith(profile.tool_prefix) or tool.kind == "primitive"
+        # `mcp` is the one tool MCP-backed skills are called through.
+        in_scope = name.startswith(profile.tool_prefix) or tool.kind in ("primitive", "mcp")
         if not in_scope:
             continue
         tools.append(

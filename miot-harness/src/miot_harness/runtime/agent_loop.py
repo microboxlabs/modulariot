@@ -490,7 +490,7 @@ class AgentLoopRunner:
                 name = call.get("name")
                 if name == _LOAD_SKILL_TOOL:
                     messages.append(
-                        self._load_skill(
+                        await self._load_skill(
                             call, ctx=ctx, loaded_skills=loaded_skills,
                             progress=progress,
                         )
@@ -598,7 +598,7 @@ class AgentLoopRunner:
             content=self._render_tool_result(ev), tool_call_id=call_id
         )
 
-    def _load_skill(
+    async def _load_skill(
         self,
         call: dict[str, Any],
         *,
@@ -641,8 +641,8 @@ class AgentLoopRunner:
                 progress=progress, loaded=False,
             )
         activated = (
-            self.context_skills.activate_skill(
-                ctx.tenant_id, skill_id, connection=self.profile.name
+            await self.context_skills.activate_skill_for_run(
+                ctx, skill_id, connection=self.profile.name
             )
             if self.context_skills is not None
             else None

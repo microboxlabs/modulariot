@@ -251,7 +251,8 @@ public class HarnessProxyResource {
         // Web tokens carry an email claim; M2M tokens don't. Flagging
         // the mode explicitly spares the harness from re-deriving it.
         String authMode = userEmail != null ? "web" : "m2m";
-        return passThrough(call.apply(authorization, tenantClientId, userEmail, authMode, body));
+        return passThrough(call.apply(authorization, tenantClientId, userEmail, authMode,
+                organizationContext.getOrganizationId(), body));
     }
 
     /**
@@ -280,6 +281,7 @@ public class HarnessProxyResource {
                             String tenantClientId,
                             String userEmail,
                             String authMode,
+                            String organization,
                             Map<String, Object> body);
     }
 }

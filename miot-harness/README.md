@@ -43,6 +43,9 @@ refuse for it.
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL` | `claude-sonnet-4-6` | Default conversation model. |
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_MODELS` | `[]` | Other models a run may name (JSON list). |
 | `MIOT_HARNESS_MODEL_PROVIDERS` | _(unset)_ | More providers: JSON list of `{provider, api_key_env, models, base_url?}`. Their models are offered to runs. |
+| `MIOT_HARNESS_MODULITH_URL` | _(unset)_ | The modulith. MCP skills call it with the user's token. |
+| `MIOT_HARNESS_PROVIDER_KEY` | _(unset)_ | Shared key for the modulith's `/internal` endpoints. With the URL set, the providers the platform owner configured load at boot, and each run's tokens are reported for charging. |
+| `MIOT_HARNESS_MODEL_PROVIDERS_REFRESH_SECONDS` | `60` | How often those providers are read again. |
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_EFFORT` | `high` | Reasoning effort on adaptive-thinking models. |
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_THINKING_BUDGET` | `4096` | Thinking budget on the other models; `0` turns it off. |
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_MAX_TURNS` | `12` | Model calls per run before it must answer. |

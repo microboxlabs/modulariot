@@ -108,6 +108,7 @@ def get_chat_model(
             # tool calls can legitimately exceed a minute.
             "timeout": timeout if timeout is not None else 60,
             "stop": None,
+            "metadata": _billing_metadata(provider.name, model_id),
         }
         if effort is not None:
             kwargs["thinking"] = {"type": "adaptive"}
@@ -133,7 +134,13 @@ def get_chat_model(
         timeout=timeout if timeout is not None else 60,
         # Token counts on streamed turns, for usage and billing.
         stream_usage=True,
+        metadata=_billing_metadata(provider.name, model_id),
     )
+
+
+def _billing_metadata(provider: str, model_id: str) -> dict[str, Any]:
+    """Read by the telemetry callback, so usage is charged to the right provider."""
+    return {"miot_provider": provider, "miot_model": model_id}
 
 
 _registry: ProviderRegistry | None = None

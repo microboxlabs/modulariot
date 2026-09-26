@@ -63,6 +63,7 @@ from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.factory import build_harness
 from miot_harness.runtime.run_store import HarnessRunRecord
 from miot_harness.runtime.supervisor import HarnessSupervisor
+from miot_harness.runtime.usage_report import UsageReporter
 
 logger = logging.getLogger(__name__)
 
@@ -486,11 +487,15 @@ def _make_lifespan(
             )
 
         # The platform owner's model providers, before the loop is built so
-        # its default model is theirs from the first run.
+        # its default model is theirs from the first run. The tokens each run
+        # used go back to the modulith to be charged.
         refresh_task: asyncio.Task[None] | None = None
+        usage_reporter: UsageReporter | None = None
         if settings.modulith_url and settings.provider_key:
             await _load_model_providers(settings)
             refresh_task = asyncio.create_task(_refresh_model_providers(settings))
+            usage_reporter = UsageReporter(settings.modulith_url, settings.provider_key)
+            harness.usage_reporter = usage_reporter.report
 
         # The agent loop answers every turn, with or without a datasource.
         try:
@@ -526,6 +531,8 @@ def _make_lifespan(
         finally:
             if refresh_task is not None:
                 refresh_task.cancel()
+            if usage_reporter is not None:
+                await usage_reporter.drain()
             # Close every provider we booted (primary + each non-primary
             # connection), reverse order. close() is idempotent, so the primary's
             # earlier disabled-path close is a harmless no-op here.

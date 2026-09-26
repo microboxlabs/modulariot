@@ -158,6 +158,7 @@ class AgentTelemetryCallback(BaseCallbackHandler):
         span = self._tracer.start_span(f"{self._span_prefix}.{self._agent_name}")
         provider = _provider_from_serialized(serialized)
         model = _model_from_serialized(serialized)
+        billed = metadata or {}
         span.set_attribute("gen_ai.operation.name", f"{self._span_prefix}.{self._agent_name}")
         span.set_attribute("gen_ai.system", provider)
         if model:
@@ -178,7 +179,11 @@ class AgentTelemetryCallback(BaseCallbackHandler):
             span.set_attribute("langfuse.environment", self._environment)
         if self._tags:
             span.set_attribute("langfuse.tags", json.dumps(self._tags))
-        self._open_spans[run_id] = _CallState(span=span, model=model)
+        self._open_spans[run_id] = _CallState(
+            span=span,
+            model=str(billed.get("miot_model") or model),
+            provider=str(billed.get("miot_provider") or ""),
+        )
 
     def on_llm_end(
         self,
@@ -219,6 +224,7 @@ class AgentTelemetryCallback(BaseCallbackHandler):
             data: dict[str, Any] = {
                 "agent": self._agent_name,
                 "model": model or "",
+                "provider": state.provider,
                 "input_tokens": usage.input_tokens,
                 "output_tokens": usage.output_tokens,
                 "cache_read_input_tokens": usage.cache_read_input_tokens,
@@ -264,8 +270,9 @@ class AgentTelemetryCallback(BaseCallbackHandler):
 
 
 class _CallState:
-    __slots__ = ("model", "span")
+    __slots__ = ("model", "provider", "span")
 
-    def __init__(self, *, span: Span, model: str) -> None:
+    def __init__(self, *, span: Span, model: str, provider: str = "") -> None:
         self.span = span
         self.model = model
+        self.provider = provider

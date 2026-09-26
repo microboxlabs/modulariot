@@ -320,8 +320,9 @@ class HarnessSettings(BaseSettings):
     # the variable `api_key_env` names. See agents/model_providers.py.
     model_providers: str = ""
     # The modulith, where the platform owner sets the model providers, and
-    # the shared key its /internal/model-providers endpoint expects. Both
-    # set: the providers load at boot and refresh on this interval.
+    # the shared key its /internal endpoints expect. Both set: the providers
+    # load at boot and refresh on this interval, and each run's token usage
+    # is reported for charging.
     modulith_url: str | None = None
     provider_key: str | None = Field(default=None, repr=False)
     model_providers_refresh_seconds: int = Field(default=60, gt=0)

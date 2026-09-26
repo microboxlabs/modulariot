@@ -12,6 +12,7 @@ import type {
   SourceKind,
 } from "../types";
 import { setKey, setName, setSourceKind, type Draft } from "./editor-draft";
+import { ConnectionMapping } from "./connection-mapping";
 import { LocalizedInput } from "./localized-input";
 
 interface GeneralTabProps {
@@ -136,6 +137,10 @@ export function GeneralTab({
             {pickText(picked?.description, lang) || tr("dynamicHint", d)}
           </p>
         </SettingsFormField>
+      )}
+
+      {draft.source.kind === "CONNECTION" && (
+        <ConnectionMapping draft={draft} onChange={onChange} d={d} />
       )}
     </div>
   );

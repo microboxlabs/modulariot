@@ -267,5 +267,13 @@
     "mode": "SINGLE",
     "source": {"kind": "SYSTEM", "ref": "core.currencies"},
     "options": []
+  },
+  {
+    "key": "responsible",
+    "name": {"es": "Responsable", "en": "Responsible"},
+    "description": {"es": "Las personas de la organización, obtenidas del sistema.", "en": "The people in the organization, fetched from the system."},
+    "mode": "SINGLE",
+    "source": {"kind": "SYSTEM", "ref": "core.members"},
+    "options": []
   }
 ]

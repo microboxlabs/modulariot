@@ -10,6 +10,9 @@ import {
   setDependsOn,
   setKey,
   setName,
+  setSourceConfig,
+  setSourceKind,
+  sourceConfigText,
   toSelectable,
   updateGroup,
   updateOption,
@@ -120,6 +123,27 @@ describe("editor draft", () => {
     const clash = setName(emptyDraft(), { es: "Delay reason" });
     expect(draftProblem(clash, ["delay_reason"])).toBe("keyTaken");
     expect(draftProblem(draftFrom(stored), ["delay_reason"])).toBeNull();
+  });
+
+  it("keeps a connection's settings, dropping blank ones so the API's defaults apply", () => {
+    let draft = setSourceKind(emptyDraft(), "CONNECTION");
+    draft = setSourceConfig(draft, "items", " data.rows ");
+    draft = setSourceConfig(draft, "label", "title");
+    draft = setSourceConfig(draft, "label", "  ");
+
+    expect(toSelectable(draft).source.config).toEqual({ items: "data.rows" });
+  });
+
+  it("reads a source setting as text, and anything else as blank", () => {
+    const draft = setSourceConfig(draftFrom(stored), "label", "{{item.name}}");
+    const odd = {
+      ...draft,
+      source: { ...draft.source, config: { value: { nested: true } } },
+    };
+
+    expect(sourceConfigText(draft, "label")).toBe("{{item.name}}");
+    expect(sourceConfigText(draft, "parent")).toBe("");
+    expect(sourceConfigText(odd, "value")).toBe("");
   });
 
   it("clears the options' parents when the list stops depending on another, or changes which", () => {

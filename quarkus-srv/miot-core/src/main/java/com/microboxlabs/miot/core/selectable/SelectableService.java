@@ -93,7 +93,7 @@ public class SelectableService {
             rejectCycle(lists, key, settings.dependsOn());
             List<SelectableOption> options = SelectableRules.options(req.options(), groups, settings);
             if (!source.isStatic()) {
-                requireSource(tenantCode, source);
+                requireSource(tenantCode, source).check(source);
             }
             return store.upsert(new Selectable(tenantCode, key, name,
                     Localized.clean(req.description(), "description"), req.mode(), settings, groups, source,

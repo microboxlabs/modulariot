@@ -50,7 +50,15 @@ const DEFAULTS: TemplateFormData = {
   method: HTTP_METHODS[0],
   path: "",
   requestSchemaText: "",
+  responseSchemaText: "",
 };
+
+/** A schema as the textarea shows it: blank when empty. */
+function schemaText(schema: Record<string, unknown> | undefined): string {
+  return Object.keys(schema ?? {}).length > 0
+    ? JSON.stringify(schema, null, 2)
+    : "";
+}
 
 /**
  * Create/edit form for a template — the reusable type.
@@ -96,10 +104,8 @@ export function TemplateFormModal({
             operationName: template.operationName,
             method: template.method,
             path: template.path,
-            requestSchemaText:
-              Object.keys(template.requestSchema ?? {}).length > 0
-                ? JSON.stringify(template.requestSchema, null, 2)
-                : "",
+            requestSchemaText: schemaText(template.requestSchema),
+            responseSchemaText: schemaText(template.responseSchema),
           }
         : DEFAULTS
     );
@@ -112,7 +118,8 @@ export function TemplateFormModal({
 
   async function submit(data: TemplateFormData) {
     const parsed = parseJsonObject(data.requestSchemaText);
-    if ("error" in parsed) return; // the resolver already flagged the field
+    const response = parseJsonObject(data.responseSchemaText);
+    if ("error" in parsed || "error" in response) return; // the resolver already flagged the field
     setError(null);
     try {
       await onSave(
@@ -123,7 +130,7 @@ export function TemplateFormModal({
           method: data.method,
           path: data.path.trim(),
           requestSchema: parsed.value,
-          responseSchema: {},
+          responseSchema: response.value,
         },
         template?.id
       );
@@ -267,6 +274,23 @@ export function TemplateFormModal({
             </div>
           </div>
         )}
+
+        <SettingsFormField
+          id="template-response-schema"
+          label={tr("template.form.responseSchema", dict)}
+          error={trDynamic(errors.responseSchemaText?.message ?? "", dict)}
+        >
+          <p className="mb-1 text-xs text-gray-500 dark:text-gray-400">
+            {tr("template.form.responseSchemaHelp", dict)}
+          </p>
+          <Textarea
+            id="template-response-schema"
+            rows={6}
+            className="font-mono text-xs"
+            {...register("responseSchemaText")}
+            color={errors.responseSchemaText ? "failure" : "gray"}
+          />
+        </SettingsFormField>
       </>
     </IntegrationFormModal>
   );

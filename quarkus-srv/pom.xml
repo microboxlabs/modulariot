@@ -35,6 +35,8 @@
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.version>3.33.3.1</quarkus.platform.version>
+        <!-- Keep on the release built against quarkus.platform.version. -->
+        <quarkus-mcp-server.version>2.0.1</quarkus-mcp-server.version>
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.5.4</surefire-plugin.version>
     </properties>
@@ -47,6 +49,11 @@
                 <version>${quarkus.platform.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkiverse.mcp</groupId>
+                <artifactId>quarkus-mcp-server-http</artifactId>
+                <version>${quarkus-mcp-server.version}</version>
             </dependency>
             <!-- Internal modules -->
             <dependency>

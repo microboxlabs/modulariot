@@ -32,7 +32,7 @@ function mkSession(convId: string, prompts: string[] = []): SessionState {
     {
       tenantId: "t",
       userId: "u",
-      mode: "auto",
+      model: null,
       baseUrl: "http://x",
     },
     { ...ctx, uuid: () => convId },
@@ -52,6 +52,48 @@ describe("persistence store — write/read", () => {
     writeSession(home, session);
     const loaded = readSession(home, "conv-1");
     expect(loaded).toEqual(session);
+  });
+
+  it("readSession loads a legacy session with mode and route items", () => {
+    const home = mkHome();
+    writeSession(home, mkSession("seed-conv"));
+    const legacy = {
+      meta: {
+        conversationId: "old-conv",
+        tenantId: "t",
+        userId: "u",
+        mode: "agentic",
+        baseUrl: "http://x",
+        profileName: null,
+        debug: false,
+      },
+      transcript: [
+        { kind: "user", id: "u1", text: "hi", ts: "t" },
+        { kind: "route", id: "r1", route: "NEXO_QUERY", ts: "t" },
+        { kind: "assistant", id: "a1", runId: "run", text: "ok", status: "complete", ts: "t" },
+      ],
+      pendingApprovals: [],
+      resolvedApprovals: [],
+      currentRunId: null,
+      currentAssistantItemId: null,
+      currentThinkingItemId: null,
+      usageTotals: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheCreationTokens: 0,
+        lastAgent: null,
+      },
+      warnAgenticTenantMismatch: true,
+      lastSubmittedPrompt: "hi",
+    };
+    writeFileSync(sessionFile(home, "old-conv"), JSON.stringify(legacy));
+    const loaded = readSession(home, "old-conv");
+    expect(loaded).not.toBeNull();
+    expect(loaded!.transcript.map((i) => i.kind)).toEqual(["user", "assistant"]);
+    expect(loaded!.meta.model).toBeNull();
+    expect(loaded!.meta).not.toHaveProperty("mode");
+    expect(loaded).not.toHaveProperty("warnAgenticTenantMismatch");
   });
 
   it("readSession returns null when the file is missing", () => {

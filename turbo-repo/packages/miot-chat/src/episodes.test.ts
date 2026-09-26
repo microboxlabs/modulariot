@@ -4,14 +4,14 @@ import { episodesUrlFromHarnessBase, makeEpisodeRecorder } from "./episodes.js";
 describe("episodesUrlFromHarnessBase", () => {
   it("maps the org-scoped harness path to the interactions endpoint", () => {
     expect(
-      episodesUrlFromHarnessBase("https://m.test/api/v1/orgs/mintral/harness"),
-    ).toBe("https://m.test/api/v1/orgs/mintral/interactions/episodes");
+      episodesUrlFromHarnessBase("https://m.test/api/v1/orgs/acme/harness"),
+    ).toBe("https://m.test/api/v1/orgs/acme/interactions/episodes");
   });
 
   it("tolerates a trailing slash", () => {
     expect(
-      episodesUrlFromHarnessBase("https://m.test/api/v1/orgs/mintral/harness/"),
-    ).toBe("https://m.test/api/v1/orgs/mintral/interactions/episodes");
+      episodesUrlFromHarnessBase("https://m.test/api/v1/orgs/acme/harness/"),
+    ).toBe("https://m.test/api/v1/orgs/acme/interactions/episodes");
   });
 
   it("returns null for a non-harness base (capture disabled)", () => {
@@ -25,7 +25,7 @@ describe("makeEpisodeRecorder", () => {
       Promise.resolve(new Response(null, { status: 201 })),
     );
     const record = makeEpisodeRecorder({
-      harnessBaseUrl: "https://m.test/api/v1/orgs/mintral/harness",
+      harnessBaseUrl: "https://m.test/api/v1/orgs/acme/harness",
       token: "jwt-1",
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
@@ -34,7 +34,7 @@ describe("makeEpisodeRecorder", () => {
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const [url, init] = fetchImpl.mock.calls[0]!;
-    expect(url).toBe("https://m.test/api/v1/orgs/mintral/interactions/episodes");
+    expect(url).toBe("https://m.test/api/v1/orgs/acme/interactions/episodes");
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer jwt-1");
     expect(JSON.parse(init.body as string)).toEqual({
       surface: "cli",

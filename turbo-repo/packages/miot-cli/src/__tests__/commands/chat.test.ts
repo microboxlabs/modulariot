@@ -60,12 +60,12 @@ describe("chat", () => {
       token: "tok",
       tenantId: "demo-tenant",
       userId: "demo-user",
-      mode: "auto",
+      model: null,
       profileName: "default",
       theme: null,
       debug: false,
-      orgSlug: "mintral",
-      harnessBaseUrl: "http://localhost:8180/api/v1/orgs/mintral/harness",
+      orgSlug: "acme",
+      harnessBaseUrl: "http://localhost:8180/api/v1/orgs/acme/harness",
     });
     mockReadDotfile.mockReturnValue({
       defaultProfile: "default",
@@ -73,7 +73,7 @@ describe("chat", () => {
         default: {
           baseUrl: "http://localhost:8180",
           token: JWT,
-          organizationId: "mintral",
+          organizationId: "acme",
         },
       },
     });
@@ -89,7 +89,7 @@ describe("chat", () => {
     await program.parseAsync(["node", "miot", "chat"]);
 
     expect(mockCreateClient).toHaveBeenCalledWith({
-      baseUrl: "http://localhost:8180/api/v1/orgs/mintral/harness",
+      baseUrl: "http://localhost:8180/api/v1/orgs/acme/harness",
       token: "tok",
     });
   });
@@ -103,7 +103,7 @@ describe("chat", () => {
       flags: expect.objectContaining({
         baseUrl: "http://localhost:8180",
         token: JWT,
-        org: "mintral",
+        org: "acme",
       }),
     });
   });
@@ -114,7 +114,7 @@ describe("chat", () => {
     await program.parseAsync(["node", "miot", "chat"]);
 
     expect(mockResolveConfig).toHaveBeenCalledWith({
-      flags: expect.objectContaining({ tenant: "mintral", user: EMAIL }),
+      flags: expect.objectContaining({ tenant: "acme", user: EMAIL }),
     });
   });
 
@@ -148,7 +148,7 @@ describe("chat", () => {
     ]);
 
     expect(mockResolveConfig).toHaveBeenCalledWith({
-      flags: expect.objectContaining({ org: "mintral", tenant: "mintral", user: EMAIL }),
+      flags: expect.objectContaining({ org: "acme", tenant: "acme", user: EMAIL }),
     });
     expect(mockRunAsk).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -199,6 +199,55 @@ describe("chat", () => {
 
     expect(mockResolveConfig).toHaveBeenCalledWith({
       flags: expect.objectContaining({ org: "globex" }),
+    });
+  });
+
+  it("passes --model through to miot-chat and never sends a mode", async () => {
+    const program = createProgram();
+
+    await program.parseAsync(["node", "miot", "chat", "--model", "model-b"]);
+
+    expect(mockResolveConfig).toHaveBeenCalledWith({
+      flags: expect.objectContaining({ model: "model-b" }),
+    });
+    const flags = mockResolveConfig.mock.calls[0]?.[0]?.flags;
+    expect(flags).not.toHaveProperty("mode");
+  });
+
+  it("omits model when --model is not given", async () => {
+    const program = createProgram();
+
+    await program.parseAsync(["node", "miot", "chat"]);
+
+    const flags = mockResolveConfig.mock.calls[0]?.[0]?.flags;
+    expect(flags).not.toHaveProperty("model");
+  });
+
+  it("passes --model through in direct mode and on `chat ask`", async () => {
+    await createProgram().parseAsync([
+      "node",
+      "miot",
+      "chat",
+      "--harness-base-url",
+      "http://localhost:8000",
+      "--model",
+      "model-a",
+    ]);
+    await createProgram().parseAsync([
+      "node",
+      "miot",
+      "chat",
+      "ask",
+      "hi",
+      "--model",
+      "model-b",
+    ]);
+
+    expect(mockResolveConfig.mock.calls[0]?.[0]?.flags).toMatchObject({
+      model: "model-a",
+    });
+    expect(mockResolveConfig.mock.calls[1]?.[0]?.flags).toMatchObject({
+      model: "model-b",
     });
   });
 

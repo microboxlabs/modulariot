@@ -5425,9 +5425,7 @@
     "harnessEmpty": "No encontré una respuesta, ¡inténtalo de nuevo!",
     "progress": {
       "connecting": "Buscando…",
-      "routing": "Entendiendo tu pregunta…",
       "exploring": "Consultando los datos…",
-      "verifying": "Verificando la respuesta…",
       "answering": "Redactando la respuesta…",
       "tools": {
         "query": "Consultando la base de datos",
@@ -5447,10 +5445,7 @@
     "stream": {
       "progress": {
         "connecting": "Conectando con el harness…",
-        "routingWithRoute": "Enrutando vía {route}…",
-        "routingGeneric": "Enrutando tu pregunta…",
         "exploring": "Explorando tus datos…",
-        "verifying": "Verificando la respuesta…",
         "answering": "Preparando una respuesta…",
         "thinking": "Pensando…"
       },

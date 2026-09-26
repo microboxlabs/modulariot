@@ -1,5 +1,4 @@
 import { applyHarnessEvent } from "../transcript/project.js";
-import { isAgenticTenantMismatch } from "./agentic.js";
 import {
   ZERO_USAGE,
   type PendingApproval,
@@ -19,7 +18,7 @@ export function initialSession(
       conversationId: ctx.uuid(),
       tenantId: init.tenantId,
       userId: init.userId,
-      mode: init.mode,
+      model: init.model ?? null,
       baseUrl: init.baseUrl,
       profileName: init.profileName ?? null,
       debug: init.debug ?? false,
@@ -31,10 +30,6 @@ export function initialSession(
     currentAssistantItemId: null,
     currentThinkingItemId: null,
     usageTotals: { ...ZERO_USAGE },
-    warnAgenticTenantMismatch: isAgenticTenantMismatch(
-      init.mode,
-      init.tenantId,
-    ),
     lastSubmittedPrompt: null,
   };
 }
@@ -95,27 +90,11 @@ export function reduce(
     case "END_TURN":
       return applyEndTurn(state, action.record, action.failureMessage, ctx);
 
-    case "SET_MODE": {
-      const tenant = state.meta.tenantId;
-      return {
-        ...state,
-        meta: { ...state.meta, mode: action.mode },
-        warnAgenticTenantMismatch: isAgenticTenantMismatch(
-          action.mode,
-          tenant,
-        ),
-      };
-    }
+    case "SET_MODEL":
+      return { ...state, meta: { ...state.meta, model: action.model } };
 
     case "SET_TENANT":
-      return {
-        ...state,
-        meta: { ...state.meta, tenantId: action.tenant },
-        warnAgenticTenantMismatch: isAgenticTenantMismatch(
-          state.meta.mode,
-          action.tenant,
-        ),
-      };
+      return { ...state, meta: { ...state.meta, tenantId: action.tenant } };
 
     case "SET_USER":
       return { ...state, meta: { ...state.meta, userId: action.user } };

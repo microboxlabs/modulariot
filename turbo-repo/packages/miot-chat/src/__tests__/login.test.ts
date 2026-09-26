@@ -144,7 +144,7 @@ describe("login command", () => {
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 
-  it("preserves tenantId, userId, and mode from an existing profile", async () => {
+  it("preserves tenantId, userId, and model from an existing profile", async () => {
     mockReadConfig.mockReturnValue({
       defaultProfile: "platform",
       profiles: {
@@ -153,7 +153,7 @@ describe("login command", () => {
           token: null,
           tenantId: "real-tenant",
           userId: "real-user",
-          mode: "agentic",
+          model: "some-model",
         },
       },
     });
@@ -174,7 +174,7 @@ describe("login command", () => {
       expect.objectContaining({
         tenantId: "real-tenant",
         userId: "real-user",
-        mode: "agentic",
+        model: "some-model",
       }),
       expect.objectContaining({ makeDefault: true }),
     );

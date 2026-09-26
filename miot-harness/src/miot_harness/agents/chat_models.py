@@ -1,11 +1,9 @@
 """Multi-provider chat model factory.
 
-Dispatches model name → BaseChatModel:
-  - claude-* → langchain_anthropic.ChatAnthropic
-  - gpt-*    → langchain_openai.ChatOpenAI
-
-Provider API keys are read from HarnessSettings (which honors the
-plain ANTHROPIC_API_KEY / OPENAI_API_KEY env vars).
+A model name resolves to a provider (see `model_providers`):
+  - Anthropic models → langchain_anthropic.ChatAnthropic
+  - every other provider → langchain_openai.ChatOpenAI on the provider's
+    base URL (OpenAI, OpenRouter, DeepSeek, Qwen, Kimi, GLM)
 """
 
 from __future__ import annotations
@@ -16,6 +14,7 @@ from typing import Any, Literal
 from langchain_core.language_models import BaseChatModel
 from pydantic import SecretStr
 
+from miot_harness.agents.model_providers import ProviderRegistry, registry_from_settings
 from miot_harness.config import get_settings
 
 
@@ -85,13 +84,11 @@ def get_chat_model(
     providers ignore both params.
     """
 
-    settings = get_settings()
+    provider, model_id = provider_registry().resolve(name)
 
-    if name.startswith("claude-"):
+    if provider.kind == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        if not settings.anthropic_api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY is not set; cannot construct Claude chat model")
         budget_on = thinking_budget_tokens is not None and thinking_budget_tokens > 0
         if effort is not None and budget_on:
             raise ValueError(
@@ -104,8 +101,8 @@ def get_chat_model(
                 f"expected one of {sorted(_EFFORT_LEVELS)}"
             )
         kwargs: dict[str, object] = {
-            "model_name": name,
-            "api_key": SecretStr(settings.anthropic_api_key),
+            "model_name": model_id,
+            "api_key": SecretStr(provider.api_key),
             # 60s suits single-shot seats; the agent loop passes a longer
             # budget because an adaptive-thinking turn that plans several
             # tool calls can legitimately exceed a minute.
@@ -126,17 +123,36 @@ def get_chat_model(
             kwargs["max_tokens"] = thinking_budget_tokens + 4096
         return ChatAnthropic(**kwargs)  # type: ignore[arg-type]
 
-    if name.startswith("gpt-") or name.startswith("o1-") or name.startswith("o3-"):
-        from langchain_openai import ChatOpenAI
+    from langchain_openai import ChatOpenAI
 
-        if not settings.openai_api_key:
-            raise RuntimeError("OPENAI_API_KEY is not set; cannot construct OpenAI chat model")
-        return ChatOpenAI(
-            model=name,
-            api_key=SecretStr(settings.openai_api_key),
-            timeout=timeout if timeout is not None else 60,
-        )
-
-    raise ValueError(
-        f"Unsupported chat model name: {name!r}. Expected a claude-* / gpt-* / o1-* / o3-* prefix."
+    # Thinking and effort are Anthropic controls; the others ignore them.
+    return ChatOpenAI(
+        model=model_id,
+        api_key=SecretStr(provider.api_key),
+        base_url=provider.base_url,
+        timeout=timeout if timeout is not None else 60,
+        # Token counts on streamed turns, for usage and billing.
+        stream_usage=True,
     )
+
+
+_registry: ProviderRegistry | None = None
+
+
+def provider_registry() -> ProviderRegistry:
+    """The providers models resolve against: set by `set_provider_registry`,
+    else built from the environment."""
+    if _registry is not None:
+        return _registry
+    settings = get_settings()
+    return registry_from_settings(
+        anthropic_api_key=settings.anthropic_api_key,
+        openai_api_key=settings.openai_api_key,
+        providers_json=settings.model_providers,
+    )
+
+
+def set_provider_registry(registry: ProviderRegistry | None) -> None:
+    """Replace the providers models resolve against; None returns to the env."""
+    global _registry
+    _registry = registry

@@ -42,12 +42,19 @@ refuse for it.
 |---|---|---|
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL` | `claude-sonnet-4-6` | Default conversation model. |
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_MODELS` | `[]` | Other models a run may name (JSON list). |
+| `MIOT_HARNESS_MODEL_PROVIDERS` | _(unset)_ | More providers: JSON list of `{provider, api_key_env, models, base_url?}`. Their models are offered to runs. |
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_EFFORT` | `high` | Reasoning effort on adaptive-thinking models. |
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_THINKING_BUDGET` | `4096` | Thinking budget on the other models; `0` turns it off. |
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_MAX_TURNS` | `12` | Model calls per run before it must answer. |
 | `MIOT_HARNESS_AGENTS_ADVISOR_MODEL` | `claude-opus-4-8` | `ask_advisor` seat; empty disables it. |
 | `MIOT_HARNESS_AGENTS_WORKHORSE_MODEL` | `claude-sonnet-4-6` | `delegate` seat; empty disables it. |
 | `MIOT_HARNESS_AGENTS_SUMMARIZER_MODEL` | `claude-haiku-4-5` | Conversation compaction. |
+
+A model is named `provider:model` (`deepseek:deepseek-chat`,
+`openrouter:anthropic/claude-sonnet-4`); bare `claude-*` and `gpt-*` names mean
+Anthropic and OpenAI. Known providers: `anthropic`, `openai`, `openrouter`,
+`deepseek`, `qwen`, `kimi`, `glm`. Anthropic models use the Anthropic client;
+the others use the OpenAI client on the provider's base URL.
 
 Without a working model every run answers that no model is configured.
 

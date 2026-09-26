@@ -40,6 +40,7 @@ from langchain_core.messages import (
 )
 
 from miot_harness.agents.chat_models import response_text
+from miot_harness.agents.model_providers import is_anthropic
 from miot_harness.agents.native_tools import build_native_tools
 from miot_harness.config import HarnessSettings
 from miot_harness.context_skills.registry import ContextSkillsBundle
@@ -221,6 +222,23 @@ def _with_tail_marker(messages: list[BaseMessage]) -> list[BaseMessage]:
     if marked is None:
         return list(messages)
     return [*messages[:-1], marked]
+
+
+def _plain_messages(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """`messages` with list content flattened to its text, for providers that
+    only take text content. Tool calls stay on the message; thinking blocks
+    and cache markers, which only Anthropic accepts, are dropped."""
+    out: list[BaseMessage] = []
+    for msg in messages:
+        if isinstance(msg.content, list):
+            text = "".join(
+                str(b.get("text", ""))
+                for b in msg.content
+                if isinstance(b, dict) and b.get("type") == "text"
+            )
+            msg = msg.model_copy(update={"content": text})
+        out.append(msg)
+    return out
 
 
 def _mark_message(msg: BaseMessage) -> BaseMessage | None:
@@ -406,8 +424,12 @@ class AgentLoopRunner:
         provenance_log: ProvenanceLog | None = None,
         context_skills: ContextSkillsBundle | None = None,
         seats: LoopSeats | None = None,
+        anthropic_format: bool = True,
     ) -> None:
         self.registry = registry
+        # Anthropic takes content blocks with cache markers; the other
+        # providers take plain text.
+        self.anthropic_format = anthropic_format
         self.settings = settings
         self.profile = profile
         self.provenance_log = provenance_log
@@ -425,10 +447,13 @@ class AgentLoopRunner:
                 [*self.native_tools, *extras],
                 key=lambda t: t["name"],
             )
-        self.system_message = cached_system_message(
-            build_agent_system_prompt(
-                profile, skills_index=skills_index, seats_block=seats_prompt_block(seats)
-            )
+        system_text = build_agent_system_prompt(
+            profile, skills_index=skills_index, seats_block=seats_prompt_block(seats)
+        )
+        self.system_message: SystemMessage = (
+            cached_system_message(system_text)
+            if anthropic_format
+            else SystemMessage(content=system_text)
         )
         # Bind once — adding/removing/reordering tools mid-conversation
         # invalidates the whole cache (tools render at position 0).
@@ -481,7 +506,7 @@ class AgentLoopRunner:
             )
             start = monotonic()
             response = await _stream_turn(
-                model, _with_tail_marker(messages), progress=progress, run_id=ctx.run_id
+                model, self._prepare(messages), progress=progress, run_id=ctx.run_id
             )
             usage_log.append(dict(getattr(response, "usage_metadata", None) or {}))
             messages.append(response)
@@ -634,6 +659,12 @@ class AgentLoopRunner:
         return ToolMessage(
             content=self._render_tool_result(ev), tool_call_id=call_id
         )
+
+    def _prepare(self, messages: list[BaseMessage]) -> list[BaseMessage]:
+        """The transcript as this runner's provider takes it."""
+        if self.anthropic_format:
+            return _with_tail_marker(messages)
+        return _plain_messages(messages)
 
     def _is_data_tool(self, name: str) -> bool:
         """A tool that reads the datasource: the profile's prefix, or a primitive."""
@@ -863,7 +894,11 @@ class AgentLoopRunners:
             raise ValueError(f"model {name!r} is not in the agent loop allowlist")
         runner = self._runners.get(name)
         if runner is None:
-            runner = AgentLoopRunner(model=self._build_model(name), **self._kwargs)
+            runner = AgentLoopRunner(
+                model=self._build_model(name),
+                anthropic_format=is_anthropic(name),
+                **self._kwargs,
+            )
             self._runners[name] = runner
         return runner
 

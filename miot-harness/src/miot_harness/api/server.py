@@ -17,8 +17,13 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from pydantic import BaseModel, Field
 from traceloop.sdk import Traceloop
 
-from miot_harness.agents.chat_models import get_chat_model, supports_effort
+from miot_harness.agents.chat_models import (
+    get_chat_model,
+    provider_registry,
+    supports_effort,
+)
 from miot_harness.agents.conversation_summarizer import build_conversation_summarizer
+from miot_harness.agents.model_providers import is_anthropic
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
 from miot_harness.api.identity import (
     IdentityVerificationError,
@@ -557,6 +562,7 @@ def _build_agent_loop(
                     profile=profile,
                     provenance_log=provenance,
                     context_skills=harness.context_skills,
+                    anthropic_format=is_anthropic(settings.agents_workhorse_model),
                 ),
                 max_parallel=settings.agents_workhorse_max_parallel,
             )
@@ -566,7 +572,8 @@ def _build_agent_loop(
     )
     return AgentLoopRunners(
         default_model=settings.agents_agent_loop_model,
-        models=settings.agents_agent_loop_models,
+        # The configured list, then every model a configured provider offers.
+        models=[*settings.agents_agent_loop_models, *provider_registry().offered()],
         # `effort` on the adaptive-thinking models, a thinking budget on the rest.
         build_model=lambda name: get_chat_model(
             name,

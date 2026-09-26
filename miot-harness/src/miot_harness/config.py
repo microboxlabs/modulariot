@@ -315,6 +315,10 @@ class HarnessSettings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("OPENAI_API_KEY", "openai_api_key"),
     )
+    # More model providers, as a JSON list of
+    # {"provider", "api_key_env", "models", "base_url"?}. The key is read from
+    # the variable `api_key_env` names. See agents/model_providers.py.
+    model_providers: str = ""
 
     # Auth0 / JWT verification (defense-in-depth in front of the
     # Quarkus proxy). Off by default so unit tests and local dev see

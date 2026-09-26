@@ -319,6 +319,12 @@ class HarnessSettings(BaseSettings):
     # {"provider", "api_key_env", "models", "base_url"?}. The key is read from
     # the variable `api_key_env` names. See agents/model_providers.py.
     model_providers: str = ""
+    # The modulith, where the platform owner sets the model providers, and
+    # the shared key its /internal/model-providers endpoint expects. Both
+    # set: the providers load at boot and refresh on this interval.
+    modulith_url: str | None = None
+    provider_key: str | None = Field(default=None, repr=False)
+    model_providers_refresh_seconds: int = Field(default=60, gt=0)
 
     # Auth0 / JWT verification (defense-in-depth in front of the
     # Quarkus proxy). Off by default so unit tests and local dev see

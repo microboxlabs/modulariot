@@ -40,7 +40,7 @@ from langchain_core.messages import (
 )
 
 from miot_harness.agents.chat_models import response_text
-from miot_harness.agents.model_providers import is_anthropic
+from miot_harness.agents.model_providers import ProviderRegistry, is_anthropic
 from miot_harness.agents.native_tools import build_native_tools
 from miot_harness.config import HarnessSettings
 from miot_harness.context_skills.registry import ContextSkillsBundle
@@ -857,6 +857,10 @@ class AgentLoopRunners:
     Each runner binds its own model and freezes its own prompt-cache prefix.
     `run` dispatches on `ctx.model`; an unknown model is refused here as well
     as at the API, so a direct caller cannot bypass the allowlist.
+
+    With `providers`, the offered models and the default follow the provider
+    registry as it changes, and runners are rebuilt when it does (a rotated
+    key, a new base URL).
     """
 
     def __init__(
@@ -871,9 +875,12 @@ class AgentLoopRunners:
         provenance_log: ProvenanceLog | None = None,
         context_skills: ContextSkillsBundle | None = None,
         seats: LoopSeats | None = None,
+        providers: Callable[[], ProviderRegistry] | None = None,
     ) -> None:
-        self.default_model = default_model
-        self.models = tuple(dict.fromkeys([default_model, *models]))
+        self._configured_default = default_model
+        self._configured = tuple(models)
+        self._providers = providers
+        self._providers_version: str | None = None
         self._build_model = build_model
         self._kwargs: dict[str, Any] = {
             "registry": registry,
@@ -885,6 +892,17 @@ class AgentLoopRunners:
         }
         self._runners: dict[str, AgentLoopRunner] = {}
 
+    @property
+    def default_model(self) -> str:
+        """The platform owner's default model when set, else the configured one."""
+        chosen = self._providers().default_model() if self._providers else None
+        return chosen or self._configured_default
+
+    @property
+    def models(self) -> tuple[str, ...]:
+        offered = self._providers().offered() if self._providers else []
+        return tuple(dict.fromkeys([self.default_model, *self._configured, *offered]))
+
     def allowed(self, model: str | None) -> bool:
         return model is None or model in self.models
 
@@ -892,6 +910,11 @@ class AgentLoopRunners:
         name = self.default_model if model is None else model
         if name not in self.models:
             raise ValueError(f"model {name!r} is not in the agent loop allowlist")
+        if self._providers is not None:
+            version = self._providers().version
+            if version != self._providers_version:
+                self._runners.clear()
+                self._providers_version = version
         runner = self._runners.get(name)
         if runner is None:
             runner = AgentLoopRunner(

@@ -6,15 +6,21 @@ Anthropic model and a bare `gpt-*` / `o1-*` / `o3-*` name an OpenAI one.
 
 Anthropic models use the Anthropic client. Every other provider speaks the
 OpenAI chat API and uses the OpenAI client with the provider's base URL.
+
+Providers come from the environment (`registry_from_settings`) and from the
+modulith, where the platform owner sets them (`registry_from_modulith`); the
+modulith's win for a provider set in both.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Literal
+from decimal import Decimal
+from typing import Any, Literal
 
 ProviderKind = Literal["anthropic", "openai_compatible"]
 
@@ -39,13 +45,23 @@ _MISSING_KEY = {
 
 
 @dataclass(frozen=True)
+class ModelSpec:
+    """A model as the provider names it, with its price per million tokens."""
+
+    id: str
+    input_per_mtok: Decimal | None = None
+    output_per_mtok: Decimal | None = None
+    default: bool = False
+
+
+@dataclass(frozen=True)
 class Provider:
     name: str
     kind: ProviderKind
     api_key: str = field(repr=False)
     base_url: str | None = None
-    # Model ids as the provider names them, offered to runs.
-    models: tuple[str, ...] = ()
+    # The models offered to runs.
+    models: tuple[ModelSpec, ...] = ()
 
 
 def split_model(name: str) -> tuple[str, str]:
@@ -103,7 +119,40 @@ class ProviderRegistry:
 
     def offered(self) -> list[str]:
         """Every model a configured provider offers, as runs name them."""
-        return [qualified(p.name, m) for p in self._providers.values() for m in p.models]
+        return [qualified(p.name, m.id) for p in self._providers.values() for m in p.models]
+
+    def default_model(self) -> str | None:
+        """The model the platform owner marked as the default, if any."""
+        for p in self._providers.values():
+            for m in p.models:
+                if m.default:
+                    return qualified(p.name, m.id)
+        return None
+
+    def spec(self, model_name: str) -> ModelSpec | None:
+        """The offered model's spec (prices), or None when not offered."""
+        try:
+            provider_name, model = split_model(model_name)
+        except ValueError:
+            return None
+        provider = self._providers.get(provider_name)
+        if provider is None:
+            return None
+        return next((m for m in provider.models if m.id == model), None)
+
+    @property
+    def version(self) -> str:
+        """Changes whenever any provider, key or model changes."""
+        digest = hashlib.sha256()
+        for name in sorted(self._providers):
+            p = self._providers[name]
+            digest.update(repr((p.name, p.kind, p.base_url, p.models)).encode())
+            digest.update(hashlib.sha256(p.api_key.encode()).digest())
+        return digest.hexdigest()
+
+    def merged(self, other: ProviderRegistry) -> ProviderRegistry:
+        """These providers, with `other`'s replacing any of the same name."""
+        return ProviderRegistry({**self._providers, **other._providers}.values())
 
 
 def registry_from_settings(
@@ -142,6 +191,56 @@ def registry_from_settings(
             kind,
             key,
             entry.get("base_url") or default_url,
-            tuple(str(m) for m in entry.get("models") or ()),
+            tuple(ModelSpec(str(m)) for m in entry.get("models") or ()),
         )
     return ProviderRegistry(providers.values())
+
+
+def registry_from_modulith(payload: dict[str, Any]) -> ProviderRegistry:
+    """Providers from the modulith's `GET /internal/model-providers` answer.
+    Providers the harness does not know are skipped."""
+    providers: list[Provider] = []
+    for entry in payload.get("providers") or []:
+        name = str(entry.get("provider", ""))
+        if name not in KNOWN_PROVIDERS or not entry.get("apiKey"):
+            continue
+        kind, default_url = KNOWN_PROVIDERS[name]
+        providers.append(
+            Provider(
+                name,
+                kind,
+                str(entry["apiKey"]),
+                entry.get("baseUrl") or default_url,
+                tuple(
+                    ModelSpec(
+                        str(m["id"]),
+                        _decimal(m.get("inputPerMtok")),
+                        _decimal(m.get("outputPerMtok")),
+                        bool(m.get("default")),
+                    )
+                    for m in entry.get("models") or ()
+                ),
+            )
+        )
+    return ProviderRegistry(providers)
+
+
+async def fetch_modulith_registry(
+    modulith_url: str, provider_key: str, *, client: Any = None, timeout: float = 10.0
+) -> ProviderRegistry:
+    """The platform owner's providers, read from the modulith."""
+    import httpx
+
+    url = modulith_url.rstrip("/") + "/internal/model-providers"
+    headers = {"x-miot-harness-key": provider_key}
+    if client is not None:
+        response = await client.get(url, headers=headers, timeout=timeout)
+    else:
+        async with httpx.AsyncClient() as own:
+            response = await own.get(url, headers=headers, timeout=timeout)
+    response.raise_for_status()
+    return registry_from_modulith(response.json())
+
+
+def _decimal(value: Any) -> Decimal | None:
+    return None if value is None else Decimal(str(value))

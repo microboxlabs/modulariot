@@ -168,6 +168,12 @@ export const TemplateFormSchema = z.object({
       (text) => !("error" in parseJsonObject(text)),
       "validation.schemaInvalid"
     ),
+  responseSchemaText: z
+    .string()
+    .refine(
+      (text) => !("error" in parseJsonObject(text)),
+      "validation.schemaInvalid"
+    ),
 });
 
 export type TemplateFormData = z.infer<typeof TemplateFormSchema>;

@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.selectable;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.selectable.SelectableOption;
@@ -14,6 +15,8 @@ import com.microboxlabs.miot.integrations.persistence.IntegrationOperationReposi
 import com.microboxlabs.miot.integrations.service.IntegrationOperationInvoker;
 import com.microboxlabs.miot.integrations.service.OperationInvocationException;
 import com.microboxlabs.miot.integrations.service.OperationInvocationResult;
+import com.microboxlabs.miot.integrations.template.PayloadTemplate;
+import com.microboxlabs.miot.integrations.template.TemplateSyntaxException;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -26,18 +29,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Options read from one of the organization's connections: a list names a
  * connection and one of its GET operations ({@code connectionId:operationId}),
- * and its config says where the items are and which fields to show.
+ * and its config maps the answer with the payload template language, e.g.
+ * {@code {"items": "{{response.data}}", "value": "{{item.code}}", "label": "{{item.name}}"}}.
  *
  * <p>Only ACTIVE connections and GET operations are offered, because a field
  * calls the operation as the user types. The answer is kept for {@link #KEEP},
  * so typing filters it here instead of calling the provider again. With no
- * {@code items} path, the items are the response itself when it is an array,
- * else the first of {@code data}, {@code items} or {@code results} that is.
+ * {@code items}, the items are the response itself when it is an array, else
+ * the first of {@code data}, {@code items} or {@code results} that is.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.integrations.enabled", stringValue = "true")
@@ -46,6 +51,10 @@ public class ConnectionOptionSource implements SelectableOptionSource {
     static final Duration KEEP = Duration.ofMinutes(1);
     private static final String SEPARATOR = ":";
     private static final List<String> USUAL_ITEMS = List.of("data", "items", "results");
+    private static final Set<String> RESPONSE_ROOT = Set.of("response");
+    private static final Set<String> ITEM_ROOT = Set.of("item");
+    private static final TypeReference<Map<String, Object>> FIELDS = new TypeReference<>() {
+    };
 
     private final IntegrationConnectionRepository connections;
     private final IntegrationOperationRepository operations;
@@ -100,6 +109,16 @@ public class ConnectionOptionSource implements SelectableOptionSource {
         return out;
     }
 
+    /**
+     * Refuses a mapping the payload template engine would not render, so a broken list is
+     * never stored, the same as a binding's field templates.
+     */
+    @Override
+    public void check(SelectableSource source) {
+        refParts(source.ref());
+        new Mapping(source.config()).check();
+    }
+
     @Override
     public List<SelectableOption> options(String tenantCode, SelectableSource source, Query query) {
         String needle = fold(query.search());
@@ -123,10 +142,9 @@ public class ConnectionOptionSource implements SelectableOptionSource {
     }
 
     private List<SelectableOption> fetch(String tenantCode, SelectableSource source) {
-        String[] ref = source.ref() == null ? new String[0] : source.ref().split(SEPARATOR, 2);
-        if (ref.length != 2) {
-            throw new IllegalArgumentException("a connection source ref is connectionId:operationId");
-        }
+        String[] ref = refParts(source.ref());
+        Mapping mapping = new Mapping(source.config());
+        mapping.check();
         IntegrationConnection connection = connections.findByTenantAndId(tenantCode, ref[0]);
         if (connection == null || connection.status() != ConnectionStatus.ACTIVE) {
             throw new IllegalArgumentException("no active connection " + ref[0]);
@@ -144,20 +162,59 @@ public class ConnectionOptionSource implements SelectableOptionSource {
         if (!result.successful()) {
             throw new SourceUnavailableException(connection.name() + " answered " + result.summary());
         }
-        return toOptions(result.body(), new Mapping(source.config()));
+        return toOptions(result.body(), mapping);
     }
 
-    /** Which parts of the answer become options. */
-    record Mapping(String items, String value, String label, String parent) {
+    /**
+     * Which parts of the answer become options, as payload templates: {@code items} is one
+     * variable over {@code response} ({@code {{response.data}}}), and the rest are rendered
+     * over each {@code item} ({@code {{item.name}} ({{item.code}})}).
+     */
+    record Mapping(String items, String value, String label, String description, String parent) {
+
+        static final String DEFAULT_VALUE = "{{item.id}}";
+        static final String DEFAULT_LABEL = "{{item.name}}";
 
         Mapping(Map<String, Object> config) {
-            this(text(config, "items", ""), text(config, "value", "id"), text(config, "label", "name"),
+            this(text(config, "items", ""), text(config, "value", DEFAULT_VALUE),
+                    text(config, "label", DEFAULT_LABEL), text(config, "description", ""),
                     text(config, "parent", ""));
         }
 
         private static String text(Map<String, Object> config, String key, String fallback) {
             Object v = config == null ? null : config.get(key);
             return v == null || v.toString().isBlank() ? fallback : v.toString().trim();
+        }
+
+        void check() {
+            if (!items.isEmpty()) {
+                validate("items", items, RESPONSE_ROOT);
+                if (!PayloadTemplate.isSingleVariable(items)) {
+                    throw new IllegalArgumentException(
+                            "items must be a single variable such as {{response.data}}, not " + items);
+                }
+            }
+            validate("value", value, ITEM_ROOT);
+            validate("label", label, ITEM_ROOT);
+            validate("description", description, ITEM_ROOT);
+            validate("parent", parent, ITEM_ROOT);
+        }
+
+        private static void validate(String name, String template, Set<String> roots) {
+            try {
+                PayloadTemplate.validate(template, roots);
+            } catch (TemplateSyntaxException e) {
+                throw new IllegalArgumentException(name + ": " + e.getMessage(), e);
+            }
+        }
+
+        /** The dot path after {@code response.}, or empty when the items are to be found. */
+        String itemsPath() {
+            if (items.isEmpty()) {
+                return "";
+            }
+            String path = items.substring(2, items.length() - 2).trim();
+            return path.substring(path.indexOf('.') + 1);
         }
     }
 
@@ -168,28 +225,45 @@ public class ConnectionOptionSource implements SelectableOptionSource {
         } catch (IOException e) {
             throw new SourceUnavailableException("the answer is not JSON", e);
         }
-        JsonNode items = items(root, mapping.items());
+        JsonNode items = items(root, mapping.itemsPath());
         if (items == null || !items.isArray()) {
-            throw new SourceUnavailableException("no list of items at '" + mapping.items() + "' in the answer");
+            String where = mapping.items().isEmpty() ? "the answer" : mapping.items();
+            throw new SourceUnavailableException("no list of items at " + where);
         }
         List<SelectableOption> out = new ArrayList<>();
         for (JsonNode item : items) {
-            String value = at(item, mapping.value());
-            if (value == null) {
+            if (!item.isObject()) {
                 continue;
             }
-            String label = at(item, mapping.label());
-            String text = label == null ? value : label;
+            Map<String, Object> context = Map.of("item", json.convertValue(item, FIELDS));
+            String value = render(mapping.value(), context);
+            if (value.isEmpty()) {
+                continue;
+            }
+            String label = render(mapping.label(), context);
+            String text = label.isEmpty() ? value : label;
             SelectableOption option = SelectableOption.of(value, text, text);
-            String parent = mapping.parent().isEmpty() ? null : at(item, mapping.parent());
-            out.add(parent == null ? option : option.withParent(parent));
+            String description = render(mapping.description(), context);
+            if (!description.isEmpty()) {
+                option = option.withDescription(description, description);
+            }
+            String parent = render(mapping.parent(), context);
+            out.add(parent.isEmpty() ? option : option.withParent(parent));
         }
         return out;
     }
 
+    private static String render(String template, Map<String, Object> context) {
+        return template.isEmpty() ? "" : PayloadTemplate.render(template, context).trim();
+    }
+
     private static JsonNode items(JsonNode root, String path) {
         if (!path.isEmpty()) {
-            return node(root, path);
+            JsonNode node = root;
+            for (String part : path.split("\\.")) {
+                node = node.path(part);
+            }
+            return node.isMissingNode() || node.isNull() ? null : node;
         }
         if (root.isArray()) {
             return root;
@@ -197,23 +271,12 @@ public class ConnectionOptionSource implements SelectableOptionSource {
         return USUAL_ITEMS.stream().map(root::path).filter(JsonNode::isArray).findFirst().orElse(null);
     }
 
-    /** The node at a dot path such as {@code data.items}. */
-    private static JsonNode node(JsonNode from, String path) {
-        JsonNode node = from;
-        for (String part : path.split("\\.")) {
-            node = node.path(part);
+    private static String[] refParts(String ref) {
+        String[] parts = ref == null ? new String[0] : ref.split(SEPARATOR, 2);
+        if (parts.length != 2 || parts[0].isBlank() || parts[1].isBlank()) {
+            throw new IllegalArgumentException("a connection source ref is connectionId:operationId");
         }
-        return node.isMissingNode() || node.isNull() ? null : node;
-    }
-
-    /** The text at a dot path, when it is a scalar. */
-    private static String at(JsonNode item, String path) {
-        JsonNode node = node(item, path);
-        if (node == null || node.isContainerNode()) {
-            return null;
-        }
-        String text = node.asText().trim();
-        return text.isEmpty() ? null : text;
+        return parts;
     }
 
     private static boolean isGet(IntegrationOperation op) {

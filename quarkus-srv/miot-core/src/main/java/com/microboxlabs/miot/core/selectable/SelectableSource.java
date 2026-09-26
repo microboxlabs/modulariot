@@ -10,8 +10,9 @@ import java.util.Map;
  *
  * @param ref    for SYSTEM, the source id (such as {@code core.timezones}); for CONNECTION, the connection
  *               and the operation to call, as {@code connectionId:operationId}
- * @param config source-specific settings; for CONNECTION, where the items are in the response
- *               ({@code items}) and which of their fields hold the value, label and parent
+ * @param config source-specific settings; for CONNECTION, payload templates: {@code items}
+ *               ({@code {{response.data}}}) and {@code value}, {@code label}, {@code description}
+ *               and {@code parent} over each {@code item}
  *               ({@code value}, {@code label}, {@code parent})
  */
 public record SelectableSource(Kind kind, String ref, Map<String, Object> config) {

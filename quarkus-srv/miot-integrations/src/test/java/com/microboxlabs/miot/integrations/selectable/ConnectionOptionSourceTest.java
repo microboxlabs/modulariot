@@ -115,13 +115,43 @@ class ConnectionOptionSourceTest {
     }
 
     @Test
-    void followsTheConfiguredPathsAndFiltersBySearchAndParent() {
-        Map<String, Object> config = Map.of("items", "data", "value", "name", "label", "name", "parent", "zone.code");
+    void followsTheConfiguredTemplatesAndFiltersBySearchAndParent() {
+        Map<String, Object> config = Map.of("items", "{{response.data}}", "value", "{{item.name}}",
+                "label", "{{item.name}}", "parent", "{{item.zone.code}}");
 
         assertEquals(List.of("Bodega Sur"), options(config, "bodega", List.of()).stream()
                 .map(SelectableOption::value).toList());
         assertEquals(List.of("Planta Norte"), options(config, null, List.of("N")).stream()
                 .map(SelectableOption::value).toList());
+    }
+
+    @Test
+    void aLabelOrDescriptionMayCombineFields() {
+        Map<String, Object> config = Map.of("label", "{{item.name}} ({{item.id}})",
+                "description", "Zona {{item.zone.code}}");
+
+        SelectableOption north = options(config, null, List.of()).get(0);
+
+        assertEquals("Planta Norte (S1)", north.label().get("es"));
+        assertEquals("Zona N", north.description().get("es"));
+    }
+
+    @Test
+    void refusesAMappingTheTemplateEngineWouldNotRender() {
+        for (Map<String, Object> config : List.of(
+                Map.<String, Object>of("label", "{{#if item.name}}x{{/if}}"),
+                Map.<String, Object>of("label", "{{upper item.name}}"),
+                Map.<String, Object>of("value", "{{task.id}}"),
+                Map.<String, Object>of("value", "{{item}}"),
+                Map.<String, Object>of("items", "{{item.data}}"),
+                Map.<String, Object>of("items", "list: {{response.data}}"))) {
+            SelectableSource bad = new SelectableSource(SelectableSource.Kind.CONNECTION, "c1:get", config);
+            assertThrows(IllegalArgumentException.class, () -> source.check(bad), config.toString());
+        }
+        source.check(new SelectableSource(SelectableSource.Kind.CONNECTION, "c1:get",
+                Map.of("items", "{{ response.data }}", "label", "{{item.name}} · {{item.zone.code}}")));
+        assertThrows(IllegalArgumentException.class,
+                () -> source.check(new SelectableSource(SelectableSource.Kind.CONNECTION, "c1", Map.of())));
     }
 
     @Test
@@ -152,6 +182,6 @@ class ConnectionOptionSourceTest {
         assertThrows(SourceUnavailableException.class, () -> options(Map.of(), null, List.of()));
 
         invoker.answer = new OperationInvocationResult(200, "{\"total\": 3}");
-        assertThrows(SourceUnavailableException.class, () -> options(Map.of("items", "rows"), null, List.of()));
+        assertThrows(SourceUnavailableException.class, () -> options(Map.of("items", "{{response.rows}}"), null, List.of()));
     }
 }

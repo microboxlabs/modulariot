@@ -179,6 +179,30 @@ class SelectableServiceTest {
     }
 
     @Test
+    void aSourceRefusesAConfigItCannotUseWhenTheListIsSaved() {
+        SelectableOptionSource picky = new ListedSystemSource("test.picky", Map.of("es", "Exigente"), Map.of()) {
+            @Override
+            public void check(SelectableSource source) {
+                if (source.config().containsKey("bad")) {
+                    throw new IllegalArgumentException("bad config");
+                }
+            }
+
+            @Override
+            protected List<SelectableOption> all(String tenantCode) {
+                return List.of();
+            }
+        };
+        SelectableService withSource = new SelectableService(new InMemorySelectableStore(), List.of(),
+                List.of(picky), events::add);
+        SelectableRequest bad = new SelectableRequest(Map.of("es", "X"), null, SelectionMode.SINGLE, null, null,
+                new SelectableSource(SelectableSource.Kind.SYSTEM, "test.picky", Map.of("bad", "yes")), List.of());
+
+        assertThrows(IllegalArgumentException.class, () -> withSource.replace(TENANT, "o", "picky", bad));
+        assertTrue(withSource.list(TENANT).stream().noneMatch(s -> s.key().equals("picky")));
+    }
+
+    @Test
     void bindingsMustPointAtAnExistingSelectableAndGoWithIt() {
         assertEquals("tags",
                 service.updateBindings(TENANT, "o", new SelectableBindingsRequest(Map.of("who_to_call", "tags")))

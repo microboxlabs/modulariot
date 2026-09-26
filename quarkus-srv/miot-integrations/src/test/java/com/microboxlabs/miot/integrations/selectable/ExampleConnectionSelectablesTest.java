@@ -8,11 +8,13 @@ import com.microboxlabs.miot.core.selectable.SelectableSource;
 import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.IntegrationOperation;
+import com.microboxlabs.miot.integrations.domain.IntegrationTemplate;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestRequest;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestResponse;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
-import com.microboxlabs.miot.integrations.dto.CreateIntegrationOperationRequest;
+import com.microboxlabs.miot.integrations.dto.CreateIntegrationTemplateRequest;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionService;
+import com.microboxlabs.miot.integrations.service.IntegrationTemplateService;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,15 +25,42 @@ class ExampleConnectionSelectablesTest {
 
     private static final String TENANT = "tenant-a";
 
-    /** Connections and operations kept in lists; a test marks the connection ACTIVE, as the generic tester does. */
+    static final class FakeTemplates extends IntegrationTemplateService {
+        final List<IntegrationTemplate> templates = new ArrayList<>();
+
+        FakeTemplates() {
+            super(null, null);
+        }
+
+        @Override
+        public List<IntegrationTemplate> listTemplates(String tenantCode) {
+            return templates.stream().filter(t -> t.tenantCode().equals(tenantCode)).toList();
+        }
+
+        @Override
+        public IntegrationTemplate createTemplate(String tenantCode, CreateIntegrationTemplateRequest req) {
+            IntegrationTemplate t = new IntegrationTemplate("tpl-" + (templates.size() + 1), tenantCode, req.name(),
+                    req.providerType(), req.operationName(), req.method(), req.path(), req.requestSchema(),
+                    req.responseSchema());
+            templates.add(t);
+            return t;
+        }
+    }
+
+    /**
+     * Connections and operations kept in lists. Creating from a template copies its operation,
+     * and a test marks the connection ACTIVE, as the real service and generic tester do.
+     */
     static final class FakeConnections extends IntegrationConnectionService {
+        final FakeTemplates templates;
         final List<IntegrationConnection> connections = new ArrayList<>();
         final List<IntegrationOperation> operations = new ArrayList<>();
         int tests;
         boolean broken;
 
-        FakeConnections() {
+        FakeConnections(FakeTemplates templates) {
             super(null, null, null, null, null, null, null);
+            this.templates = templates;
         }
 
         @Override
@@ -44,10 +73,14 @@ class ExampleConnectionSelectablesTest {
 
         @Override
         public IntegrationConnection createConnection(String tenantCode, CreateIntegrationConnectionRequest req) {
+            IntegrationTemplate t = templates.templates.stream().filter(x -> x.id().equals(req.templateId()))
+                    .findFirst().orElseThrow();
             IntegrationConnection c = new IntegrationConnection("conn-" + (connections.size() + 1), tenantCode,
-                    req.name(), req.providerType(), req.baseUrl(), null, ConnectionStatus.DRAFT, null, null,
-                    Map.of());
+                    req.name(), t.providerType(), req.baseUrl(), null, ConnectionStatus.DRAFT, null, null,
+                    Map.of(), t.id());
             connections.add(c);
+            operations.add(new IntegrationOperation("op-" + (operations.size() + 1), c.id(), t.operationName(),
+                    t.method(), t.path(), t.requestSchema(), t.responseSchema(), false));
             return c;
         }
 
@@ -57,60 +90,60 @@ class ExampleConnectionSelectablesTest {
         }
 
         @Override
-        public IntegrationOperation addOperation(String tenantCode, String connectionId,
-                CreateIntegrationOperationRequest req) {
-            IntegrationOperation o = new IntegrationOperation("op-" + (operations.size() + 1), connectionId,
-                    req.name(), req.method(), req.path(), Map.of(), Map.of(), req.testOperation());
-            operations.add(o);
-            return o;
-        }
-
-        @Override
         public ConnectionTestResponse testConnection(String tenantCode, String connectionId,
                 ConnectionTestRequest req) {
             tests++;
             connections.replaceAll(c -> c.id().equals(connectionId)
                     ? new IntegrationConnection(c.id(), c.tenantCode(), c.name(), c.providerType(), c.baseUrl(),
-                            null, ConnectionStatus.ACTIVE, null, true, c.metadata())
+                            null, ConnectionStatus.ACTIVE, null, true, c.metadata(), c.templateId())
                     : c);
             return new ConnectionTestResponse(true, OffsetDateTime.now(), "ok");
         }
     }
 
-    private final FakeConnections connections = new FakeConnections();
+    private final FakeTemplates templates = new FakeTemplates();
+    private final FakeConnections connections = new FakeConnections(templates);
+
+    private ExampleConnectionSelectables example(boolean enabled) {
+        return new ExampleConnectionSelectables(templates, connections, enabled);
+    }
 
     @Test
     void offersNothingUnlessEnabled() {
-        assertEquals(List.of(), new ExampleConnectionSelectables(connections, false).forTenant(TENANT));
+        assertEquals(List.of(), example(false).forTenant(TENANT));
+        assertTrue(templates.templates.isEmpty(), "no template is created");
         assertTrue(connections.connections.isEmpty(), "no connection is created");
     }
 
     @Test
-    void createsTheExampleConnectionAndAListThatUsesIt() {
-        List<Selectable> lists = new ExampleConnectionSelectables(connections, true).forTenant(TENANT);
+    void createsATemplateAConnectionFromItAndAListThatUsesIt() {
+        List<Selectable> lists = example(true).forTenant(TENANT);
 
+        IntegrationTemplate template = templates.templates.get(0);
+        assertEquals(ExampleConnectionSelectables.TEMPLATE_NAME, template.name());
+        assertEquals("GET", template.method());
+        assertEquals(ExampleConnectionSelectables.RESPONSE_SCHEMA, template.responseSchema(),
+                "the editor suggests fields from it");
         IntegrationConnection connection = connections.connections.get(0);
-        assertEquals(ExampleConnectionSelectables.CONNECTION_NAME, connection.name());
+        assertEquals(template.id(), connection.templateId());
         assertEquals(ExampleConnectionSelectables.BASE_URL, connection.baseUrl());
         assertEquals(ConnectionStatus.ACTIVE, connection.status(), "only active connections are offered");
-        IntegrationOperation operation = connections.operations.get(0);
-        assertEquals("GET", operation.method());
 
         Selectable country = lists.get(0);
         assertEquals("country", country.key());
-        assertEquals(new SelectableSource(SelectableSource.Kind.CONNECTION,
-                connection.id() + ":" + operation.id(), Map.of("value", "Iso2")), country.source());
+        assertEquals(SelectableSource.Kind.CONNECTION, country.source().kind());
+        assertEquals(connection.id() + ":" + connections.operations.get(0).id(), country.source().ref());
     }
 
     @Test
-    void reusesTheConnectionOnReset() {
-        ExampleConnectionSelectables example = new ExampleConnectionSelectables(connections, true);
+    void reusesTheTemplateAndConnectionOnReset() {
+        ExampleConnectionSelectables example = example(true);
         String first = example.forTenant(TENANT).get(0).source().ref();
         String again = example.forTenant(TENANT).get(0).source().ref();
 
         assertEquals(first, again);
+        assertEquals(1, templates.templates.size());
         assertEquals(1, connections.connections.size());
-        assertEquals(1, connections.operations.size());
         assertEquals(1, connections.tests, "an active connection is not tested again");
     }
 
@@ -118,18 +151,19 @@ class ExampleConnectionSelectablesTest {
     void aFailureLeavesTheOtherDefaultsAlone() {
         connections.broken = true;
 
-        assertEquals(List.of(), new ExampleConnectionSelectables(connections, true).forTenant(TENANT));
+        assertEquals(List.of(), example(true).forTenant(TENANT));
     }
 
     @Test
-    void theListReadsTheApisAnswer() {
+    void theListsMappingPassesTheChecksAndReadsTheApisAnswer() {
         String answer = """
                 {"error": false, "msg": "countries and ISO codes retrieved",
                  "data": [{"name": "Chile", "Iso2": "CL", "Iso3": "CHL"}]}""";
-        ConnectionOptionSource.Mapping mapping = new ConnectionOptionSource.Mapping(
-                ExampleConnectionSelectables.list("c:o").source().config());
+        SelectableSource source = ExampleConnectionSelectables.list("c:o").source();
+        ConnectionOptionSource connectionSource = new ConnectionOptionSource(null, null, null);
 
-        var options = new ConnectionOptionSource(null, null, null).toOptions(answer, mapping);
+        connectionSource.check(source);
+        var options = connectionSource.toOptions(answer, new ConnectionOptionSource.Mapping(source.config()));
 
         assertEquals("CL", options.get(0).value());
         assertEquals("Chile", options.get(0).label().get("es"));

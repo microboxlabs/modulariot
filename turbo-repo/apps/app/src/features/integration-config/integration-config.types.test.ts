@@ -118,6 +118,7 @@ describe("TemplateFormSchema", () => {
     method: "POST",
     path: "/api/v1/verdict",
     requestSchemaText: '{"type":"object","properties":{"a":{"type":"string"}}}',
+    responseSchemaText: "",
   };
 
   it("accepts a well-formed contract", () => {
@@ -133,6 +134,14 @@ describe("TemplateFormSchema", () => {
     const result = TemplateFormSchema.safeParse({
       ...valid,
       requestSchemaText: "{ not json",
+    });
+    expect(firstIssue(result)).toBe("validation.schemaInvalid");
+  });
+
+  it("rejects response schema text that is not a JSON object", () => {
+    const result = TemplateFormSchema.safeParse({
+      ...valid,
+      responseSchemaText: "[]",
     });
     expect(firstIssue(result)).toBe("validation.schemaInvalid");
   });

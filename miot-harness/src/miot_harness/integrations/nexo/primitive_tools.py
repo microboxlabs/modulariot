@@ -1,16 +1,14 @@
-"""Composable Nexo primitives wrapped as HarnessTools (agentic executor).
+"""Composable Nexo primitives wrapped as HarnessTools.
 
 The raw primitives in `primitives.py` are plain async functions guarded
 by the sqlglot safety gate. This module lifts them into `HarnessTool`s
-(kind="primitive") so the agentic planner can select them through the
-shared ToolRegistry and the executor can invoke them via the same
-`registry.invoke()` path as the curated `coordinador_*` tools.
+(kind="primitive") so the model is given them and they run through the
+same `registry.invoke()` path as the curated `coordinador_*` tools.
 
 Safety: every gate violation (`SafetyGateViolation` subclasses) raises
 out of `call`, which `HarnessTool.invoke` converts into a `tool.failed`
-event and the executor converts into `state["failure"]` — a graceful
-refusal, never a crash. The canned filter_expert never sees these tools
-because `build_tool_catalog` filters by the curated prefix.
+event and the loop returns to the model as an error — a refusal, never
+a crash.
 """
 
 from __future__ import annotations

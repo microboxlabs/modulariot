@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import pytest
 
-from miot_harness.agents.data_fetcher import _evidence_from_output
 from miot_harness.datasource.sql_policy import SchemaAllowlistPolicy
 from miot_harness.integrations.generic_pg.primitive_tools import build_generic_tools
 from miot_harness.runtime.context import HarnessContext
+from miot_harness.runtime.tool_step import _evidence_from_output
 from tests.fixtures.recording_pool import RecordingPool
 
 PUBLIC = SchemaAllowlistPolicy(frozenset({"public"}))

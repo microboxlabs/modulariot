@@ -1,10 +1,7 @@
-"""Data Fetcher (deterministic; no LLM).
+"""Run one tool call and turn its output into evidence.
 
-Reads the next pending DataStep, invokes the corresponding tool via
-ToolRegistry, wraps the typed output as DataEvidence, and returns a
-state delta. Failures (raised exceptions, permission denials) are
-caught and surface as `state["failure"]` so the supervisor can route
-the synthesizer for graceful refusal — no double-fetching.
+Failures come back as a `failure` delta, not an exception, so the model
+sees the error and can adapt.
 """
 
 from __future__ import annotations
@@ -17,7 +14,7 @@ from miot_harness.config import HarnessSettings
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import DataEvidence, DataStep, FreshnessStatus
+from miot_harness.runtime.evidence import DataEvidence, DataStep, FreshnessStatus
 from miot_harness.runtime.tool import Progress
 from miot_harness.tools.registry import ToolRegistry
 
@@ -98,7 +95,7 @@ def _evidence_from_output(
     # Classify freshness. "empty" (0 rows, timestamped snapshot) means the
     # FILTER matched nothing — that is not staleness. Only a missing
     # timestamp (with or without rows) is treated as unverified/stale, so
-    # the synthesizer can distinguish "no matching rows" from "this view
+    # the answer can distinguish "no matching rows" from "this view
     # looks unrefreshed" (the beta-review Gap 2 conflation).
     has_rows = sample_size > 0
     age_is_stale = False
@@ -106,7 +103,7 @@ def _evidence_from_output(
         # Live datasources (generic pg) have no snapshot/refresh model: a
         # missing refreshed_at is normal, NOT staleness. Current data is fresh;
         # zero rows is just "no matching rows". Never emit a no_timestamp/stale
-        # warning the synthesizer would surface as "trust with caution".
+        # warning the answer would surface as "trust with caution".
         status: FreshnessStatus = "fresh" if has_rows else "empty"
         is_stale = False
     elif isinstance(refreshed_at, datetime):
@@ -122,8 +119,8 @@ def _evidence_from_output(
         is_stale = True
 
     # Executed SQL (generic safe-query tools surface it as output.executed_sql)
-    # so the synthesizer cites what actually ran. A grep is a fuzzy ILIKE sample
-    # — flag it so the synthesizer never reports its row count as a total.
+    # so the answer cites what actually ran. A grep is a fuzzy ILIKE sample
+    # — flag it so the answer never reports its row count as a total.
     executed_sql = dump.get("executed_sql")
     return DataEvidence(
         step_id=step_id,
@@ -153,9 +150,7 @@ async def invoke_step(
     """Invoke one DataStep's tool and classify the outcome.
 
     Returns either ``{"evidence": [DataEvidence]}`` on success or a
-    ``{"failure": ..., ...}`` delta on any error. Shared by the canned
-    `data_fetcher_node` and the agentic executor so both modes execute
-    tools through the exact same registry / evidence / failure path.
+    ``{"failure": ..., ...}`` delta on any error.
     """
     try:
         output = await registry.invoke(step.tool, ctx, step.args, progress)
@@ -173,8 +168,8 @@ async def invoke_step(
     except PermissionError as exc:
         # HarnessTool.invoke already emitted tool.failed; don't double-emit.
         return {"failure": f"permission denied for {step.tool}: {exc}"}
-    except Exception as exc:  # noqa: BLE001 — fetcher must not propagate
-        logger.exception("data_fetcher: %s raised", step.tool)
+    except Exception as exc:  # noqa: BLE001 — a tool failure goes back to the model
+        logger.exception("tool %s raised", step.tool)
         # HarnessTool.invoke already emitted tool.failed; don't double-emit.
         return {"failure": f"{step.tool} raised: {exc}"}
 
@@ -193,36 +188,3 @@ async def invoke_step(
         has_freshness_model=profile.has_freshness_model,
     )
     return {"evidence": [evidence]}
-
-
-async def data_fetcher_node(
-    state: dict[str, Any],
-    *,
-    registry: ToolRegistry,
-    settings: HarnessSettings,
-    progress: Progress,
-    profile: DataSourceProfile,
-) -> dict[str, Any]:
-    plan = state.get("plan")
-    pending = int(state.get("pending_step_index", 0))
-    if plan is None or pending >= len(plan.steps):
-        return {"next_action": "ready_to_synthesize"}
-
-    step = plan.steps[pending]
-    ctx: HarnessContext = state["ctx"]
-
-    delta = await invoke_step(
-        step,
-        ctx=ctx,
-        registry=registry,
-        settings=settings,
-        progress=progress,
-        profile=profile,
-    )
-    if "failure" in delta:
-        return delta
-    return {
-        **delta,  # evidence appended by DataState's operator.add reducer
-        "pending_step_index": pending + 1,
-        "next_action": "judge_freshness",
-    }

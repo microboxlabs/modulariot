@@ -1,15 +1,11 @@
-"""Freshness Judge (rule-based).
+"""Classify the newest evidence against the datasource's snapshot age.
 
-Inspects the most recent piece of evidence and classifies it against
-two thresholds from settings:
+  age <= warn_minutes         -> fresh
+  warn < age <= refuse        -> warn
+  age > refuse_minutes        -> refuse
+  no refreshed_at on evidence -> warn (unverified)
 
-  age <= warn_minutes        → FRESHNESS_FRESH    (proceed)
-  warn < age <= refuse        → FRESHNESS_WARN     (analyze + cite stale)
-  age > refuse_minutes        → FRESHNESS_REFUSE   (block synth, fail soft)
-  no refreshed_at on evidence → FRESHNESS_WARN     (unverified, proceed)
-
-Emits a `freshness.warning` event in WARN/REFUSE zones so the run
-record retains an explicit signal for the analyst to cite.
+A `freshness.warning` event is emitted in the warn and refuse zones.
 """
 
 from __future__ import annotations
@@ -21,7 +17,7 @@ from miot_harness.config import HarnessSettings
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import DataEvidence
+from miot_harness.runtime.evidence import DataEvidence
 from miot_harness.runtime.tool import Progress
 
 FRESHNESS_FRESH = "fresh"
@@ -29,22 +25,23 @@ FRESHNESS_WARN = "warn"
 FRESHNESS_REFUSE = "refuse"
 
 
-def freshness_judge_node(
-    state: dict[str, Any],
+def judge_freshness(
+    evidence: list[DataEvidence],
     *,
+    ctx: HarnessContext,
     settings: HarnessSettings,
     progress: Progress,
     profile: DataSourceProfile,
-) -> dict[str, Any]:
+) -> str:
+    """The verdict for the newest evidence; emits `freshness.warning` when not fresh."""
     # Live datasources (no snapshot/refresh model) are never "stale": skip the
     # judge entirely so a missing `refreshed_at` doesn't emit a misleading
     # snapshot-age warning. (Nexo keeps the model; generic pg connections don't.)
     if not profile.has_freshness_model:
-        return {"next_action": "analyze", "freshness": FRESHNESS_FRESH}
+        return FRESHNESS_FRESH
 
-    # Effective thresholds: env override wins (including an explicit 0),
-    # else the profile default. This is the single resolution point that
-    # data_fetcher mirrors when it stamps is_stale.
+    # Env override wins (including an explicit 0), else the profile default.
+    # `tool_step` resolves the warn threshold the same way for `is_stale`.
     warn = (
         settings.datasource_freshness_warn_minutes
         if settings.datasource_freshness_warn_minutes is not None
@@ -56,12 +53,10 @@ def freshness_judge_node(
         else profile.freshness_refuse_minutes
     )
 
-    evidence: list[DataEvidence] = list(state.get("evidence", []))
     if not evidence:
-        return {"next_action": "analyze", "freshness": FRESHNESS_FRESH}
+        return FRESHNESS_FRESH
 
     last = evidence[-1]
-    ctx: HarnessContext = state["ctx"]
 
     age_minutes: float | None
     if last.refreshed_at is None:
@@ -103,23 +98,4 @@ def freshness_judge_node(
             )
         )
 
-    # NOTE: is_stale is set by data_fetcher when it constructs DataEvidence
-    # (using the same warn_minutes threshold). The judge classifies + emits
-    # but does not mutate evidence, because the LangGraph reducer is
-    # operator.add — returning an "evidence" key here would APPEND to the
-    # state list, not replace it.
-
-    if verdict == FRESHNESS_REFUSE:
-        return {
-            "freshness": verdict,
-            "next_action": "ready_to_synthesize",
-            "failure": (
-                f"{profile.display_name} snapshot is stale (age {age_minutes:.0f}min > "
-                f"refuse threshold {refuse}min)."
-            ),
-        }
-
-    return {
-        "freshness": verdict,
-        "next_action": "analyze",
-    }
+    return verdict

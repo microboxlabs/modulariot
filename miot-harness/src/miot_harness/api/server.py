@@ -19,7 +19,6 @@ from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import get_chat_model, supports_effort
 from miot_harness.agents.conversation_summarizer import build_conversation_summarizer
-from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
 from miot_harness.api.identity import (
     IdentityVerificationError,
@@ -43,19 +42,15 @@ from miot_harness.datasource.knowledge.writer import (
     ConnectionCardWrite,
     write_connection_card,
 )
-from miot_harness.datasource.provider import BootResult, DataSourceProvider
+from miot_harness.datasource.provider import BootResult, DataSourceProfile, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.agent_loop import AgentLoopRunner, AgentLoopRunners
 from miot_harness.runtime.agent_seats import AdvisorSeat, LoopSeats, WorkhorseSeat
-from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
-from miot_harness.runtime.data_graph import build_data_graph
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.factory import build_harness
-from miot_harness.runtime.intent_router import LLMIntentRouter
-from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import HarnessRunRecord
 from miot_harness.runtime.supervisor import HarnessSupervisor
 
@@ -242,17 +237,16 @@ def _make_lifespan(
                 else logger.warning
             )("Connections: %s (%s)", conn_diag.message, conn_diag.path)
 
-        # The primary connection's provider drives profile/router/tenant-lock
-        # wiring. Resolve the provider even when nothing booted so the keyword
-        # router and tenant gate stay wired (matches the prior behaviour where
-        # a disabled datasource still routes its keywords to the data path).
+        # The primary connection's provider supplies the profile and the tenant
+        # lock. Resolve it even when nothing booted, so the loop still has a
+        # profile to build its prompt from.
         primary = select_primary(conn_result.connections, settings)
         primary_kind = primary.backend if primary is not None else settings.datasource_kind
         app.state.primary_connection_name = primary.name if primary is not None else None
         # Let the supervisor stamp this connection onto ground-or-flag assumptions
         # so the review surface stages candidates against the right connection.
         harness.primary_connection_name = app.state.primary_connection_name
-        # Profile/router/tenant-lock wiring needs a provider profile. If the
+        # Profile and tenant-lock wiring need a provider profile. If the
         # primary connection's backend has no registered provider yet (e.g. an
         # acs connection pending the generic provider), fall back to the
         # configured datasource_kind so the harness still wires + serves; the
@@ -270,9 +264,6 @@ def _make_lifespan(
             provider = resolve_datasource(settings.datasource_kind)
         app.state.datasource_provider = provider
         harness.profile = provider.profile
-        harness.router = IntentRouter(
-            data_keywords=provider.profile.router_keywords
-        )
         primary_lock = (
             primary.options.get("tenant_lock") if primary is not None else None
         )
@@ -483,208 +474,29 @@ def _make_lifespan(
                 provider.profile.name,
                 len(result.registered),
             )
-            # Build the conversational graph and inject into the
-            # supervisor. Per-agent models come from settings.
-            try:
-                synth_thinking_budget = (
-                    settings.agents_synthesizer_thinking_budget
-                    if settings.agents_synthesizer_stream
-                    else None
-                )
-                models = {
-                    "filter_expert": get_chat_model(settings.agents_filter_expert_model),
-                    "domain_analyst": get_chat_model(settings.agents_analyst_model),
-                    "synthesizer": get_chat_model(
-                        settings.agents_synthesizer_model,
-                        thinking_budget_tokens=synth_thinking_budget,
-                    ),
-                    "critic": get_chat_model(settings.agents_critic_model),
-                    "summarizer": get_chat_model(settings.agents_summarizer_model),
-                }
-                harness.data_graph = build_data_graph(
-                    registry=harness.tools,
-                    settings=settings,
-                    models=models,
-                    # effective_profile = provider.profile with the global
-                    # system-context block folded into its primer.
-                    profile=effective_profile,
-                )
 
-                # Phase E wiring: agentic_graph + meta agent + LLM
-                # intent router. All optional on the supervisor —
-                # falling back to keyword routing if any of these
-                # aren't injected. (tenant_lock + keyword router are
-                # wired above, before boot, so the disabled path keeps
-                # routing and mode gating intact.)
-                harness.agentic_graph = build_agentic_graph(
-                    settings=settings,
-                    models={
-                        **models,
-                        # Agentic plan mode (Phase 3) runs a dedicated planner
-                        # seat — Opus 4.8 by default, at configurable effort —
-                        # instead of reusing the cheaper canned analyst. This
-                        # removes the Sonnet-4.6 planner's hallucination/
-                        # satisficing seen vs Claude Code.
-                        "planner": get_chat_model(
-                            settings.agents_planner_model,
-                            effort=settings.agents_planner_effort,
-                        ),
-                        # Small "did we answer it?" judge for the Phase 3 verify
-                        # gate. Only build it when the gate is ON and a model is
-                        # set — otherwise a misconfigured verifier model name
-                        # would raise and disable the datasource at boot for a
-                        # model that wouldn't even be used. Empty model name (gate
-                        # on) → rules-only verification.
-                        **(
-                            {"verifier": get_chat_model(settings.agents_verifier_model)}
-                            if settings.agents_agentic_verify_enabled
-                            and settings.agents_verifier_model
-                            else {}
-                        ),
-                    },
-                    provenance_log=ProvenanceLog(
-                        settings.provenance_log_dir,
-                        enabled=settings.provenance_log_enabled,
-                    ),
-                    # effective_profile = provider.profile with the global
-                    # system-context block folded into its primer.
-                    profile=effective_profile,
-                    registry=harness.tools,
-                    # Phase 4: the resolved skills bundle so the planner can
-                    # surface this tenant's eligible connection-bound playbooks.
-                    context_skills=harness.context_skills,
-                )
-                # Single-agent loop (flag-gated). Reuses the planner seat's
-                # model/effort; the runner freezes prompt + tool list at boot
-                # so every request shares one prompt-cache prefix.
-                if settings.agents_agent_loop_enabled:
-                    loop_provenance = ProvenanceLog(
-                        settings.provenance_log_dir,
-                        enabled=settings.provenance_log_enabled,
-                    )
-                    seats = LoopSeats(
-                        advisor=(
-                            AdvisorSeat(
-                                model=get_chat_model(settings.agents_advisor_model),
-                                display_name=effective_profile.display_name,
-                                max_consults=settings.agents_advisor_max_consults,
-                                span_prefix=effective_profile.name,
-                            )
-                            if settings.agents_advisor_model
-                            else None
-                        ),
-                        workhorse=(
-                            WorkhorseSeat(
-                                build=lambda: AgentLoopRunner(
-                                    model=get_chat_model(
-                                        settings.agents_workhorse_model,
-                                        timeout=settings.agents_agent_loop_llm_timeout_seconds,
-                                    ),
-                                    registry=harness.tools,
-                                    settings=settings.model_copy(
-                                        update={
-                                            "agents_agentic_max_turns": (
-                                                settings.agents_workhorse_max_turns
-                                            )
-                                        }
-                                    ),
-                                    profile=effective_profile,
-                                    provenance_log=loop_provenance,
-                                    context_skills=harness.context_skills,
-                                ),
-                                max_parallel=settings.agents_workhorse_max_parallel,
-                            )
-                            if settings.agents_workhorse_model
-                            else None
-                        ),
-                    )
-                    harness.agent_loop = AgentLoopRunners(
-                        default_model=settings.agents_agent_loop_model,
-                        models=settings.agents_agent_loop_models,
-                        # Reasoning knob per model generation: `effort` on the
-                        # adaptive-thinking models, a thinking budget on the rest.
-                        build_model=lambda name: get_chat_model(
-                            name,
-                            timeout=settings.agents_agent_loop_llm_timeout_seconds,
-                            **(
-                                {"effort": settings.agents_planner_effort}
-                                if supports_effort(name)
-                                else {
-                                    "thinking_budget_tokens": (
-                                        settings.agents_synthesizer_thinking_budget
-                                    )
-                                }
-                            ),
-                        ),
-                        registry=harness.tools,
-                        settings=settings,
-                        profile=effective_profile,
-                        provenance_log=loop_provenance,
-                        # Skills index in the frozen prefix + lazy
-                        # `load_skill` bodies (booted above, before wiring).
-                        context_skills=harness.context_skills,
-                        seats=seats,
-                    )
-                harness.meta_model = get_chat_model(
-                    settings.intent_router_model,
-                    thinking_budget_tokens=synth_thinking_budget,
-                )
-                harness.meta_primer = effective_profile.primer
-                # Descriptor-derived entries (title/layer/body + freshness
-                # suffix) when the provider supplies them; generic
-                # fallback otherwise so the meta agent never goes blind.
-                harness.meta_catalog = list(result.catalog_entries) or [
-                    MetaAgentCatalogEntry(
-                        name=name,
-                        layer="L*",
-                        title=name,
-                        body=f"Auto-registered curated function `{name}`.",
-                    )
-                    for name in result.registered
-                ]
-                harness.llm_router = LLMIntentRouter(
-                    get_chat_model(settings.intent_router_model),
-                    confidence_threshold=settings.intent_router_confidence_threshold,
-                    keyword_fallback=IntentRouter(data_keywords=provider.profile.router_keywords),
-                    profile=provider.profile,
-                )
-                logger.info(
-                    "Datasource %s: Phase E wired "
-                    "(LLM router=%s, agentic_graph, meta_agent)",
-                    provider.profile.name,
-                    settings.intent_router_model,
-                )
-            except Exception as exc:  # noqa: BLE001
-                logger.critical(
-                    "Datasource %s: failed to build chat models / graph (%s); "
-                    "falling back to datasource disabled",
-                    provider.profile.name,
-                    exc,
-                )
-                # Tools registered fine but the supervisor can't reach
-                # them without the graph — clear the public state so
-                # /health reports the disabled-and-empty truth, not a
-                # tool list that is unreachable. Every graph/meta entry
-                # point is cleared (the failure may have struck after
-                # some were already wired — a live agentic_graph behind
-                # a disabled /health would silently keep serving), and
-                # the provider is closed NOW so its pool doesn't stay
-                # allocated for an app that can't use it (close() is
-                # idempotent; the outer `finally` re-close is a no-op).
-                # harness.router (keyword routing) is intentionally
-                # kept: it powers the disabled-path "integration
-                # disabled" answer.
+        # The agent loop answers every turn, with or without a datasource.
+        try:
+            harness.agent_loop = _build_agent_loop(settings, harness, effective_profile)
+            logger.info(
+                "Agent loop: default model %s, offered %s",
+                harness.agent_loop.default_model,
+                ", ".join(harness.agent_loop.models),
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.critical(
+                "Agent loop: failed to build the conversation model (%s); "
+                "every run answers that no model is configured",
+                exc,
+            )
+            harness.agent_loop = None
+            if result.enabled:
+                # Nothing can reach the datasource tools without the loop, so
+                # /health reports the datasource as disabled and its pool closes.
                 app.state.datasource_enabled = False
                 app.state.datasource_registered = []
                 app.state.datasource_snapshot_age_minutes = None
                 app.state.datasource_freshness = {}
-                harness.data_graph = None
-                harness.agentic_graph = None
-                harness.agent_loop = None
-                harness.meta_model = None
-                harness.meta_primer = ""  # meta path gates on meta_model
-                harness.meta_catalog = []
-                harness.llm_router = None
                 try:
                     await provider.close()
                 except Exception as close_exc:  # noqa: BLE001
@@ -709,6 +521,69 @@ def _make_lifespan(
                 logger.warning("OTel: shutdown_tracing raised %s", exc)
 
     return lifespan
+
+
+def _build_agent_loop(
+    settings: HarnessSettings,
+    harness: HarnessSupervisor,
+    profile: DataSourceProfile,
+) -> AgentLoopRunners:
+    """One runner per offered model, built on first use; seats when configured."""
+    provenance = ProvenanceLog(
+        settings.provenance_log_dir, enabled=settings.provenance_log_enabled
+    )
+    seats = LoopSeats(
+        advisor=(
+            AdvisorSeat(
+                model=get_chat_model(settings.agents_advisor_model),
+                display_name=profile.display_name,
+                max_consults=settings.agents_advisor_max_consults,
+                span_prefix=profile.name,
+            )
+            if settings.agents_advisor_model
+            else None
+        ),
+        workhorse=(
+            WorkhorseSeat(
+                build=lambda: AgentLoopRunner(
+                    model=get_chat_model(
+                        settings.agents_workhorse_model,
+                        timeout=settings.agents_agent_loop_llm_timeout_seconds,
+                    ),
+                    registry=harness.tools,
+                    settings=settings.model_copy(
+                        update={"agents_agent_loop_max_turns": settings.agents_workhorse_max_turns}
+                    ),
+                    profile=profile,
+                    provenance_log=provenance,
+                    context_skills=harness.context_skills,
+                ),
+                max_parallel=settings.agents_workhorse_max_parallel,
+            )
+            if settings.agents_workhorse_model
+            else None
+        ),
+    )
+    return AgentLoopRunners(
+        default_model=settings.agents_agent_loop_model,
+        models=settings.agents_agent_loop_models,
+        # `effort` on the adaptive-thinking models, a thinking budget on the rest.
+        build_model=lambda name: get_chat_model(
+            name,
+            timeout=settings.agents_agent_loop_llm_timeout_seconds,
+            **(
+                {"effort": settings.agents_agent_loop_effort}
+                if supports_effort(name)
+                else {"thinking_budget_tokens": settings.agents_agent_loop_thinking_budget}
+            ),
+        ),
+        registry=harness.tools,
+        settings=settings,
+        profile=profile,
+        provenance_log=provenance,
+        context_skills=harness.context_skills,
+        seats=seats,
+    )
 
 
 def create_app() -> FastAPI:
@@ -1009,8 +884,8 @@ def create_app() -> FastAPI:
     async def get_models(
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> dict[str, Any]:
-        """Conversation models a run may name in `model`. Empty when the agent
-        loop is off: the planner graph has no per-run model."""
+        """Conversation models a run may name in `model`. Empty when no model
+        could be built."""
         loop = getattr(app.state.harness, "agent_loop", None)
         if loop is None:
             return {"default": None, "models": []}
@@ -1023,8 +898,7 @@ def create_app() -> FastAPI:
         debug: bool = Query(False),
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> HarnessRunRecord:
-        # Read harness from app.state so tests that inject a controlled
-        # graph (via app.state.harness.data_graph = ...) see their patch.
+        # Read harness from app.state so tests that patch it see their patch.
         # Explicit annotation narrows `app.state` (Any) for mypy.
         harness: HarnessSupervisor = app.state.harness
         request = _resolve_request_identity(http_request, request)

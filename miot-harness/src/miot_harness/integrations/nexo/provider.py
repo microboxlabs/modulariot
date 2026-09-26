@@ -42,20 +42,6 @@ NEXO_PROFILE = DataSourceProfile(
     source_label="Coordinador · nexo (Citus DB)",
     tool_prefix="coordinador_",
     primer=COORDINADOR_PRIMER,
-    router_keywords=frozenset(
-        {
-            "coordinador",
-            "orion",
-            "centro de control",
-            "cola crítica",
-            "cola critica",
-            "dimensionamiento",
-            "torre de control",
-            "auditoría pod",
-            "auditoria pod",
-            "fn_dx",
-        }
-    ),
     tenant_lock="orion",
     tenant_refusal_template=(
         "{display_name} is {lock}-only. I can't answer for other tenants."
@@ -171,9 +157,8 @@ class NexoProvider(DataSourceProvider):
             )
         registered = list(legacy.registered)
         if legacy.enabled:
-            # Composable primitives (agentic executor surface). They share
-            # the registry but stay invisible to canned mode — the
-            # filter_expert catalog filters by the curated tool prefix.
+            # Composable primitives, offered to the model next to the
+            # curated `coordinador_*` tools.
             try:
                 for tool in build_primitive_tools(
                     pool=self._pool,

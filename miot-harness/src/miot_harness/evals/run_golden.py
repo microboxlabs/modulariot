@@ -1,21 +1,22 @@
-"""Golden eval runner for the datasource conversational graph.
+"""Golden eval runner for the agent loop.
 
 Reads `evals/golden/<datasource_kind>/examples.yaml`, runs each entry
-through the graph in one of three modes:
+through the agent loop in one of three modes:
 
-  static — validate YAML schema only (no graph runs, no LLMs).
-  fake   — use FakeListChatModel scripted to emit each entry's first
-           expected_tool; stub registry returns canned data. Default;
-           catches routing / structural regressions deterministically.
-  real   — use real Anthropic + the live datasource. Requires env vars.
+  static — validate YAML schema only (no runs, no LLMs).
+  fake   — a scripted model calls each entry's first expected_tool, then
+           answers; a stub registry returns fixed data. Default;
+           catches structural regressions deterministically.
+  real   — the configured conversation model + the live datasource.
+           Requires env vars.
 
 For each entry, scores deterministic axes:
-  - tool_selection      did the chosen tool intersect expected_tools?
+  - tool_selection      did a called tool intersect expected_tools?
   - filter_sanity       were any forbidden_tools called?
   - freshness_citation  did the answer mention refreshed_at?
   - refusal             did the run refuse cleanly when expected?
   - no_hallucination    did expected KPI substrings appear?
-  - step_economy        was the plan within [min_turns, max_turns]? (the
+  - step_economy        were the tool calls within [min_turns, max_turns]? (the
                         over-engineering guard — too many tool calls fails it)
   - latency_ms always; cost / tokens / cache / drift vs the fake-mode
     baseline are captured in real mode from usage.recorded events
@@ -43,15 +44,17 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from langchain_core.language_models import FakeListChatModel
+from langchain_core.messages import AIMessage, AIMessageChunk
 from pydantic import BaseModel
 
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.datasource.registry import resolve as resolve_datasource
+from miot_harness.runtime.agent_loop import AgentLoopRunner
 from miot_harness.runtime.context import HarnessContext
-from miot_harness.runtime.data_graph import build_data_graph
+from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.permissions import PermissionResult
+from miot_harness.runtime.tenancy import data_refusal
 from miot_harness.runtime.tool import HarnessTool
 from miot_harness.tools.registry import ToolRegistry, build_default_registry
 
@@ -187,68 +190,118 @@ def _build_fake_registry(entry: dict[str, Any], profile: DataSourceProfile) -> T
     return registry
 
 
-def _fake_models(entry: dict[str, Any], profile: DataSourceProfile) -> dict[str, Any]:
+class _ScriptedModel:
+    """A tool-calling chat model that replays scripted turns (fake mode)."""
+
+    def __init__(self, responses: list[AIMessage]) -> None:
+        self.responses = list(responses)
+
+    def bind_tools(self, tools: Any, **kwargs: Any) -> _ScriptedModel:
+        return self
+
+    def with_config(self, **kwargs: Any) -> _ScriptedModel:
+        return self
+
+    async def ainvoke(self, messages: Any, **kwargs: Any) -> AIMessage:
+        return self.responses.pop(0)
+
+    async def astream(self, messages: Any, **kwargs: Any) -> Any:
+        msg = await self.ainvoke(messages)
+        yield AIMessageChunk(
+            content=msg.content,
+            tool_call_chunks=[
+                {
+                    "name": c["name"],
+                    "args": json.dumps(c["args"]),
+                    "id": c["id"],
+                    "index": i,
+                    "type": "tool_call_chunk",
+                }
+                for i, c in enumerate(msg.tool_calls)
+            ],
+        )
+
+
+def _fake_model(entry: dict[str, Any], profile: DataSourceProfile) -> _ScriptedModel:
     expected = entry.get("expected_tools") or [default_fallback_tool(profile)]
-    chosen = expected[0]
-    return {
-        "filter_expert": FakeListChatModel(
-            responses=[
-                json.dumps(
-                    {
-                        "intent": "fetch eval",
-                        "tool": chosen,
-                        "args": {},
-                        "rationale": "scripted",
-                    }
-                ),
-            ]
-        ),
-        "domain_analyst": FakeListChatModel(
-            responses=[
-                json.dumps({"verdict": "ready", "reasoning": "evidence ok"}),
-            ]
-        ),
-        "synthesizer": FakeListChatModel(
-            responses=[
-                (
+    return _ScriptedModel(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[{"name": expected[0], "args": {}, "id": "c1", "type": "tool_call"}],
+            ),
+            AIMessage(
+                content=(
                     f"Resultado al snapshot {datetime.now(UTC).isoformat()}: "
                     "2 servicios críticos, 3 ETA en riesgo."
-                ),
-            ]
-        ),
-        "critic": FakeListChatModel(responses=[]),
-        "summarizer": FakeListChatModel(responses=[]),
+                )
+            ),
+        ]
+    )
+
+
+async def _run_loop(
+    entry: dict[str, Any],
+    *,
+    model: Any,
+    registry: ToolRegistry,
+    profile: DataSourceProfile,
+    settings: HarnessSettings,
+) -> tuple[dict[str, Any], float]:
+    """Run one entry through the loop; returns what `_score` reads and latency."""
+    runner = AgentLoopRunner(
+        model=model,
+        registry=registry,
+        settings=settings,
+        profile=profile,
+        provenance_log=None,
+    )
+    ctx = HarnessContext(
+        thread_id="t",
+        tenant_id=entry["tenant_id"],
+        user_id="u",
+        data_refusal=data_refusal(entry["tenant_id"], settings=settings, profile=profile),
+    )
+    events: list[HarnessEvent] = []
+    t0 = time.perf_counter()
+    delta = await runner.run(
+        user_message=entry["question"], ctx=ctx, prior_messages=[], progress=events.append
+    )
+    latency_ms = (time.perf_counter() - t0) * 1000
+    called = [
+        call["name"]
+        for msg in delta.get("messages") or []
+        if isinstance(msg, AIMessage)
+        for call in msg.tool_calls
+    ]
+    refused = any(
+        e.type == "tool.failed" and e.data.get("error_type") == "TenantRefused" for e in events
+    )
+    final = {
+        "answer": delta.get("answer") or "",
+        "called_tools": called,
+        "refused": refused,
+        "events": events,
     }
+    return final, latency_ms
 
 
 async def _run_one_fake(entry: dict[str, Any]) -> EvalScore:
-    settings = HarnessSettings()
     profile = _active_profile()
-    registry = _build_fake_registry(entry, profile)
-    graph = build_data_graph(
-        registry=registry,
-        settings=settings,
-        models=_fake_models(entry, profile),
+    final, latency_ms = await _run_loop(
+        entry,
+        model=_fake_model(entry, profile),
+        registry=_build_fake_registry(entry, profile),
         profile=profile,
+        settings=HarnessSettings(),
     )
-    ctx = HarnessContext(thread_id="t", tenant_id=entry["tenant_id"], user_id="u")
-
-    initial: dict[str, Any] = {
-        "user_message": entry["question"],
-        "ctx": ctx,
-        "evidence": [],
-        "turn_count": 0,
-    }
-    t0 = time.perf_counter()
-    final = await graph.ainvoke(initial)
-    latency_ms = (time.perf_counter() - t0) * 1000
     return _score(entry, final, latency_ms, profile=profile)
 
 
 def _aggregate_usage(
     events: list[Any],
 ) -> tuple[float | None, int | None, int | None, float | None, dict[str, float] | None]:
-    """Aggregate `usage.recorded` events from a graph run.
+    """Aggregate `usage.recorded` events from a run.
 
     The AgentTelemetryCallback (observability/callbacks.py) emits one
     per LLM call with `{agent, model, input_tokens, output_tokens,
@@ -310,30 +363,27 @@ def _score(
     profile: DataSourceProfile,
     mode: str = "fake",
 ) -> EvalScore:
-    """Deterministic scoring shared by fake and real modes — identical rules
-    applied to the same final-state shape. `mode` only gates the semantic-
-    refusal axis: the scripted FakeListChatModel cannot produce a semantic
+    """Deterministic scoring shared by fake and real modes. `mode` only gates
+    the semantic-refusal axis: the scripted model cannot produce a semantic
     refusal, so that axis scores None in fake mode."""
-    plan = final.get("plan")
-    plan_tools = [s.tool for s in plan.steps] if plan is not None else []
+    plan_tools: list[str] = list(final.get("called_tools") or [])
     answer = (final.get("answer") or "").lower()
     expected_tools = set(entry.get("expected_tools") or [])
     forbidden = set(entry.get("forbidden_tools") or [])
 
     refusal_expected = bool(entry.get("expected_refusal"))
-    # "<lock>-only" is the tenant-gate refusal (profile-derived); "no puedo
-    # responder" is the synthesizer's literal copy, not a domain name, so it
-    # stays hardcoded.
-    answer_is_refusal = f"{profile.tenant_lock}-only" in answer or "no puedo responder" in answer
+    # A structural refusal is the datasource tool refusing this tenant; a
+    # semantic one is the model declining in its answer.
+    answer_is_refusal = bool(final.get("refused")) or "no puedo responder" in answer
 
-    cost_usd, tok_in, tok_out, cache_pct, per_agent = _aggregate_usage(final.get("_events") or [])
+    cost_usd, tok_in, tok_out, cache_pct, per_agent = _aggregate_usage(final.get("events") or [])
 
     if not refusal_expected:
         refusal_score: bool | None = None
         notes = ""
     elif mode == "fake" and entry.get("refusal_mechanism") == "semantic":
-        # The scripted FakeListChatModel cannot produce a semantic refusal;
-        # this axis is only meaningful in real mode.
+        # The scripted model cannot produce a semantic refusal; this axis is
+        # only meaningful in real mode.
         refusal_score = None
         notes = "refusal: semantic — real-mode-only"
     else:
@@ -373,51 +423,37 @@ def _score(
     )
 
 
-def _real_models(settings: HarnessSettings) -> dict[str, Any]:
-    """Per-agent live chat models for real mode (built once per suite)."""
-    from miot_harness.agents.chat_models import get_chat_model
+def _real_model(settings: HarnessSettings) -> Any:
+    """The conversation model for real mode (built once per suite)."""
+    from miot_harness.agents.chat_models import get_chat_model, supports_effort
 
-    synth_budget = (
-        settings.agents_synthesizer_thinking_budget if settings.agents_synthesizer_stream else None
-    )
-    return {
-        "filter_expert": get_chat_model(settings.agents_filter_expert_model),
-        "domain_analyst": get_chat_model(settings.agents_analyst_model),
-        "synthesizer": get_chat_model(
-            settings.agents_synthesizer_model, thinking_budget_tokens=synth_budget
+    name = settings.agents_agent_loop_model
+    return get_chat_model(
+        name,
+        timeout=settings.agents_agent_loop_llm_timeout_seconds,
+        **(
+            {"effort": settings.agents_agent_loop_effort}
+            if supports_effort(name)
+            else {"thinking_budget_tokens": settings.agents_agent_loop_thinking_budget}
         ),
-        "critic": get_chat_model(settings.agents_critic_model),
-        "summarizer": get_chat_model(settings.agents_summarizer_model),
-    }
+    )
 
 
 async def _build_real_setup(
     settings: HarnessSettings,
-) -> tuple[ToolRegistry, Any, dict[str, Any]]:
-    """Boot the configured datasource provider and build live models.
+) -> tuple[ToolRegistry, Any, Any]:
+    """Boot the configured datasource provider and build the live model.
 
-    Returns (registry, provider, models). The connection pool is owned by
-    the provider now (not returned directly) — the caller closes it via
-    `await provider.close()`.
+    Returns (registry, provider, model). The caller closes the provider.
     """
-    # Fail-fast on missing credentials with a clear message rather than
-    # discovering the misconfiguration mid-suite or auth-failing per case.
+    # Fail fast on missing credentials rather than per case mid-suite.
     if not settings.datasource_dsn:
         raise RuntimeError(
             "real mode requires MIOT_HARNESS_DATASOURCE_DSN (datasource credentials)"
         )
-    # Only required when the configured model mix actually uses Anthropic —
-    # mirrors get_chat_model's "claude-*" provider dispatch.
-    agent_models = (
-        settings.agents_filter_expert_model,
-        settings.agents_analyst_model,
-        settings.agents_synthesizer_model,
-        settings.agents_critic_model,
-        settings.agents_summarizer_model,
-    )
-    if any(m.startswith("claude-") for m in agent_models) and not settings.anthropic_api_key:
+    if settings.agents_agent_loop_model.startswith("claude-") and not settings.anthropic_api_key:
         raise RuntimeError(
-            "real mode requires ANTHROPIC_API_KEY (the configured agent models include claude-*)"
+            "real mode requires ANTHROPIC_API_KEY (the conversation model is claude-*)"
         )
 
     registry = build_default_registry()
@@ -426,32 +462,19 @@ async def _build_real_setup(
     if not boot.enabled:
         await provider.close()
         raise RuntimeError(f"Datasource boot failed: {boot.reason}")
-    return registry, provider, _real_models(settings)
+    return registry, provider, _real_model(settings)
 
 
 async def _run_one_real(
     entry: dict[str, Any],
     registry: ToolRegistry,
     provider: Any,
-    models: dict[str, Any],
+    model: Any,
     settings: HarnessSettings,
 ) -> EvalScore:
-    graph = build_data_graph(
-        registry=registry,
-        settings=settings,
-        models=models,
-        profile=provider.profile,
+    final, latency_ms = await _run_loop(
+        entry, model=model, registry=registry, profile=provider.profile, settings=settings
     )
-    ctx = HarnessContext(thread_id="t", tenant_id=entry["tenant_id"], user_id="u")
-    initial: dict[str, Any] = {
-        "user_message": entry["question"],
-        "ctx": ctx,
-        "evidence": [],
-        "turn_count": 0,
-    }
-    t0 = time.perf_counter()
-    final = await graph.ainvoke(initial)
-    latency_ms = (time.perf_counter() - t0) * 1000
     return _score(entry, final, latency_ms, profile=provider.profile, mode="real")
 
 
@@ -608,11 +631,11 @@ async def run_golden(
             except Exception as exc:  # noqa: BLE001
                 scored.append(_error_score(entry, exc))
     else:  # real — build the live setup once, then run each entry against it
-        registry, provider, models = await _build_real_setup(settings)
+        registry, provider, model = await _build_real_setup(settings)
         try:
             for entry in entries:
                 try:
-                    scored.append(await _run_one_real(entry, registry, provider, models, settings))
+                    scored.append(await _run_one_real(entry, registry, provider, model, settings))
                 except Exception as exc:  # noqa: BLE001
                     scored.append(_error_score(entry, exc))
                     continue
@@ -656,10 +679,8 @@ async def run_golden(
     total_tokens = sum((s.tokens_input or 0) + (s.tokens_output or 0) for s in scored) or None
     cache_pcts = [s.cache_hit_pct for s in scored if s.cache_hit_pct is not None]
     avg_cache_hit = (sum(cache_pcts) / len(cache_pcts)) if cache_pcts else None
-    # Per-mode rollup: today every case in the YAML routes through the
-    # data graph (canned). Until multi-route eval seeds exist, the
-    # rollup just attributes the whole spend to canned.
-    cost_by_mode = {"canned": total_cost} if total_cost is not None else {}
+    # Every case runs through the one agent loop.
+    cost_by_mode = {"agent_loop": total_cost} if total_cost is not None else {}
     payload = {
         "mode": mode,
         "valid": True,
@@ -671,14 +692,7 @@ async def run_golden(
             "platform": platform.platform(),
             "cpu_count": os.cpu_count(),
             "deterministic": mode == "fake",
-            "models": {
-                "filter_expert": settings.agents_filter_expert_model,
-                "analyst": settings.agents_analyst_model,
-                "synthesizer": settings.agents_synthesizer_model,
-                "critic": settings.agents_critic_model,
-                "summarizer": settings.agents_summarizer_model,
-                "intent_router": settings.intent_router_model,
-            },
+            "models": {"agent_loop": settings.agents_agent_loop_model},
             "note": (
                 "fake mode is deterministic; real mode is subject to "
                 "infrastructure noise (see evals/README.md)."

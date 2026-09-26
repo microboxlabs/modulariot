@@ -20,7 +20,7 @@ class HarnessRunRecord(BaseModel):
     # consumers that inject it into a DOM must sanitize to prevent XSS.
     answer_format: str = "markdown"
     # Ground-or-flag (semantic-layer continual learning): assumptions the
-    # synthesizer declared because it answered using a business term with no
+    # model declared because it answered using a business term with no
     # authoritative knowledge-card definition. Each is a dict
     # {term, interpretation, predicate, grounded: false}. Empty when every term
     # was grounded. Default keeps legacy persisted records loadable, and feeds

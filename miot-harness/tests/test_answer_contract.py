@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 
-from miot_harness.agents.synthesizer import (
+from miot_harness.runtime.answer_contract import (
     extract_assumptions,
     harden_answer,
 )

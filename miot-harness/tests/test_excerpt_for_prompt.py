@@ -1,8 +1,5 @@
-"""Judge and synthesizer excerpts must not hide a full result behind a char cut."""
+"""Tool-result excerpts must not hide a full result behind a char cut."""
 
-from miot_harness.agents.synthesizer import _render_evidence_for_synth
-from miot_harness.agents.verifier import _summarize_evidence
-from miot_harness.runtime.plan import DataEvidence
 from miot_harness.utils.truncation import excerpt_for_prompt
 
 
@@ -64,28 +61,3 @@ def test_excerpt_silent_when_nothing_hidden() -> None:
     text, note = excerpt_for_prompt({"rows": [{"n": 1}]}, 200)
     assert note == ""
     assert text == '{"rows": [{"n": 1}]}'
-
-
-def _evidence() -> DataEvidence:
-    return DataEvidence(
-        step_id="s1",
-        tool="gps_functions",
-        source="gps",
-        refreshed_at=None,
-        output={"rows": _catalog_rows(50), "total": 58, "source": "gps"},
-        sample_size=50,
-    )
-
-
-def test_judge_summary_shows_rows_and_total() -> None:
-    rendered = _summarize_evidence([_evidence()])
-    assert "rows=50 excerpt=first 5 of 50 rows" in rendered
-    assert rendered.count("api_modular_symptoms_") == 5
-    assert '"total": 58' in rendered
-
-
-def test_synth_evidence_shows_rows_and_total() -> None:
-    rendered = _render_evidence_for_synth([_evidence()])
-    assert "rows=50 excerpt=first 5 of 50 rows" in rendered
-    assert rendered.count("api_modular_symptoms_") == 5
-    assert '"total": 58' in rendered

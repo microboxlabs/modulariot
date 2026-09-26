@@ -101,7 +101,7 @@ _PROMPT_PINNED_KEYS = ("rows", "total")
 
 
 def excerpt_for_prompt(payload: Any, max_chars: int) -> tuple[str, str]:
-    """Render a tool output for a judge or synthesizer prompt.
+    """Render a tool output for the model.
 
     Returns (text, note). `text` is the payload as JSON with every list capped
     at DEFAULT_ROW_CAP items, primitive values first, `rows` next, other

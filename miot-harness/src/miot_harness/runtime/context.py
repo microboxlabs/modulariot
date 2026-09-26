@@ -12,12 +12,6 @@ from miot_harness.runtime.permissions import (
     PermissionRule,
 )
 
-# The four explicit dispatch surfaces a caller can request. "auto" is the
-# default (LLM intent router decides). The other three bypass the router
-# and dispatch directly — useful for evals, cost-sensitive callers, and
-# operator debugging.
-RunMode = Literal["auto", "canned", "meta", "agentic"]
-
 # The output format for the run's `answer` string. The JSON response envelope
 # never changes; only the encoding of `answer` does. "markdown" is canonical
 # (what the agents emit) and the default when a caller omits the field.
@@ -40,9 +34,6 @@ class HarnessContext(BaseModel):
     user_id: str
     route_context: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    # Phase E (plan 13): the mode the caller requested. Set from
-    # `UserRequest.mode` so per-mode cost can split in Langfuse panels.
-    mode: RunMode = "auto"
     # The conversation model the caller chose for the agent loop, or None for
     # the deployment default. Validated against the allowlist at the API.
     model: str | None = None
@@ -73,6 +64,9 @@ class HarnessContext(BaseModel):
     # excluded from dumps and repr so the token never lands in a record or log.
     caller_token: str | None = Field(default=None, exclude=True, repr=False)
     organization: str | None = Field(default=None, exclude=True)
+    # Why this tenant may not read the datasource, or None when it may. The
+    # model still answers; the datasource tools return this instead.
+    data_refusal: str | None = Field(default=None, exclude=True)
 
 
 # Bounds on a replayed transcript, enforced where the body is parsed rather
@@ -115,7 +109,9 @@ class UserRequest(BaseModel):
         json_schema_extra={"deprecated": True},
     )
     route_context: dict[str, Any] = Field(default_factory=dict)
-    mode: RunMode = "auto"
+    # Accepted from older clients and ignored: every run goes to the one
+    # agent loop. Remove once no client sends it.
+    mode: str | None = Field(default=None, json_schema_extra={"deprecated": True})
     # Conversation model for the agent loop; one of GET /models, or omitted
     # for the default.
     model: str | None = Field(default=None, max_length=80)
@@ -203,7 +199,6 @@ class UserRequest(BaseModel):
             tenant_id=tenant_id,
             user_id=self.user_id,
             route_context=self.route_context,
-            mode=self.mode,
             model=self.model,
             conversation_id=self.conversation_id,
             debug=self.debug,

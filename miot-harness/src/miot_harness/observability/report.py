@@ -145,8 +145,8 @@ def _project_langfuse_trace(trace: dict[str, Any]) -> dict[str, Any]:
     project 0 here — cost rollups don't need them, and an
     observation-level fetcher is a follow-up.
 
-    **Multi-agent traces:** a canned-mode run fires multiple agents
-    (filter_expert + synthesizer + maybe critic) so the trace's `tags`
+    **Multi-agent traces:** a run that consults the advisor or delegates
+    fires more than one agent, so the trace's `tags`
     list contains multiple `agent:<name>` entries. For `--by tenant` /
     `--by mode` this doesn't matter (those keys are single-valued). For
     `--by agent` we set ``modular.agent = "(multi)"`` so the bucket is

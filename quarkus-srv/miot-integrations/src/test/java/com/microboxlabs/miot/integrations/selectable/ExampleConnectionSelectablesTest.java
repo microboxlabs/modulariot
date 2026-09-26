@@ -106,9 +106,10 @@ class ExampleConnectionSelectablesTest {
     private final FakeConnections connections = new FakeConnections(templates);
 
     private static final URI BASE_URL = URI.create("https://countries.example.com");
+    private static final String PATH = "/v1/countries";
 
     private ExampleConnectionSelectables example(boolean enabled) {
-        return new ExampleConnectionSelectables(templates, connections, enabled, BASE_URL);
+        return new ExampleConnectionSelectables(templates, connections, enabled, BASE_URL, PATH);
     }
 
     @Test
@@ -125,6 +126,7 @@ class ExampleConnectionSelectablesTest {
         IntegrationTemplate template = templates.templates.get(0);
         assertEquals(ExampleConnectionSelectables.TEMPLATE_NAME, template.name());
         assertEquals("GET", template.method());
+        assertEquals(PATH, template.path());
         assertEquals(ExampleConnectionSelectables.RESPONSE_SCHEMA, template.responseSchema(),
                 "the editor suggests fields from it");
         IntegrationConnection connection = connections.connections.get(0);

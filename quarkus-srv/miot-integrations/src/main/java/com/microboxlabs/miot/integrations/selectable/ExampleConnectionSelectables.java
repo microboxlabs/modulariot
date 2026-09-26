@@ -45,7 +45,6 @@ public class ExampleConnectionSelectables implements SelectableDefaults {
     static final String TEMPLATE_NAME = "Países (ejemplo)";
     static final String CONNECTION_NAME = "Países (ejemplo)";
     static final String OPERATION_NAME = "Listar países";
-    static final String PATH = "/api/v0.1/countries/iso";
     static final String KEY = "country";
 
     private static final Map<String, Object> TEXT = Map.of("type", "string");
@@ -64,6 +63,7 @@ public class ExampleConnectionSelectables implements SelectableDefaults {
     private final IntegrationConnectionService connections;
     private final boolean enabled;
     private final URI baseUrl;
+    private final String path;
 
     @Inject
     public ExampleConnectionSelectables(IntegrationTemplateService templates,
@@ -72,11 +72,15 @@ public class ExampleConnectionSelectables implements SelectableDefaults {
             boolean enabled,
             @ConfigProperty(name = "miot.selectables.example-connection.base-url",
                     defaultValue = "https://countriesnow.space")
-            URI baseUrl) {
+            URI baseUrl,
+            @ConfigProperty(name = "miot.selectables.example-connection.path",
+                    defaultValue = "/api/v0.1/countries/iso")
+            String path) {
         this.templates = templates;
         this.connections = connections;
         this.enabled = enabled;
         this.baseUrl = baseUrl;
+        this.path = path;
     }
 
     @Override
@@ -91,7 +95,7 @@ public class ExampleConnectionSelectables implements SelectableDefaults {
                     .findFirst()
                     .orElseThrow(() -> new IllegalStateException("the example connection has no operation"));
             if (connection.status() != ConnectionStatus.ACTIVE) {
-                connections.testConnection(tenantCode, connection.id(), new ConnectionTestRequest("GET", PATH));
+                connections.testConnection(tenantCode, connection.id(), new ConnectionTestRequest("GET", path));
             }
             return List.of(list(connection.id() + ":" + operation.id()));
         } catch (RuntimeException e) {
@@ -106,7 +110,7 @@ public class ExampleConnectionSelectables implements SelectableDefaults {
                 .filter(t -> TEMPLATE_NAME.equalsIgnoreCase(t.name()))
                 .findFirst()
                 .orElseGet(() -> templates.createTemplate(tenantCode, new CreateIntegrationTemplateRequest(
-                        TEMPLATE_NAME, ProviderType.CUSTOM_HTTP, OPERATION_NAME, "GET", PATH, Map.of(),
+                        TEMPLATE_NAME, ProviderType.CUSTOM_HTTP, OPERATION_NAME, "GET", path, Map.of(),
                         RESPONSE_SCHEMA)));
     }
 

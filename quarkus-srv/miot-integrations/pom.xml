@@ -31,6 +31,11 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-health</artifactId>
         </dependency>
+        <!-- A connection list's answers are kept a minute, in a bounded cache. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-caffeine</artifactId>
+        </dependency>
         <!-- Background knowledge distiller (R3): a @Scheduled reconciler that
              calls the harness /distill endpoint (a REST client) off the request
              path. -->

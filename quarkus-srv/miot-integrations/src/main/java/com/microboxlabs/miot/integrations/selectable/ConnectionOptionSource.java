@@ -3,6 +3,8 @@ package com.microboxlabs.miot.integrations.selectable;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.microboxlabs.miot.core.selectable.SelectableOption;
 import com.microboxlabs.miot.core.selectable.SelectableOptionSource;
 import com.microboxlabs.miot.core.selectable.SelectableSource;
@@ -12,6 +14,7 @@ import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.IntegrationOperation;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
+import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
 import com.microboxlabs.miot.integrations.service.IntegrationOperationInvoker;
 import com.microboxlabs.miot.integrations.service.OperationInvocationException;
 import com.microboxlabs.miot.integrations.service.OperationInvocationResult;
@@ -24,13 +27,12 @@ import java.io.IOException;
 import java.text.Normalizer;
 import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Options read from one of the organization's connections: a list names a
@@ -49,8 +51,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ConnectionOptionSource implements SelectableOptionSource {
 
     static final Duration KEEP = Duration.ofMinutes(1);
+    /** Answers kept at once: one per tenant, list and mapping in use within {@link #KEEP}. */
+    static final int MAX_ANSWERS = 500;
     private static final String SEPARATOR = ":";
-    private static final List<String> USUAL_ITEMS = List.of("data", "items", "results");
+    private static final String ITEMS = "items";
+    private static final List<String> USUAL_ITEMS = List.of("data", ITEMS, "results");
     private static final Set<String> RESPONSE_ROOT = Set.of("response");
     private static final Set<String> ITEM_ROOT = Set.of("item");
     private static final TypeReference<Map<String, Object>> FIELDS = new TypeReference<>() {
@@ -60,11 +65,7 @@ public class ConnectionOptionSource implements SelectableOptionSource {
     private final IntegrationOperationRepository operations;
     private final IntegrationOperationInvoker invoker;
     private final ObjectMapper json = new ObjectMapper();
-    private final Clock clock;
-    private final Map<String, Answer> answers = new ConcurrentHashMap<>();
-
-    private record Answer(List<SelectableOption> options, Instant until) {
-    }
+    private final Cache<String, List<SelectableOption>> answers;
 
     @Inject
     public ConnectionOptionSource(IntegrationConnectionRepository connections,
@@ -77,7 +78,11 @@ public class ConnectionOptionSource implements SelectableOptionSource {
         this.connections = connections;
         this.operations = operations;
         this.invoker = invoker;
-        this.clock = clock;
+        this.answers = Caffeine.newBuilder()
+                .maximumSize(MAX_ANSWERS)
+                .expireAfterWrite(KEEP)
+                .ticker(() -> TimeUnit.MILLISECONDS.toNanos(clock.millis()))
+                .build();
     }
 
     @Override
@@ -119,6 +124,12 @@ public class ConnectionOptionSource implements SelectableOptionSource {
         new Mapping(source.config()).check();
     }
 
+    /** How many answers are kept, for tests. */
+    long keptAnswers() {
+        answers.cleanUp();
+        return answers.estimatedSize();
+    }
+
     @Override
     public List<SelectableOption> options(String tenantCode, SelectableSource source, Query query) {
         String needle = fold(query.search());
@@ -131,14 +142,7 @@ public class ConnectionOptionSource implements SelectableOptionSource {
 
     private List<SelectableOption> all(String tenantCode, SelectableSource source) {
         String cacheKey = tenantCode + "|" + source.ref() + "|" + source.config();
-        Instant now = clock.instant();
-        Answer kept = answers.get(cacheKey);
-        if (kept != null && now.isBefore(kept.until())) {
-            return kept.options();
-        }
-        List<SelectableOption> options = fetch(tenantCode, source);
-        answers.put(cacheKey, new Answer(options, now.plus(KEEP)));
-        return options;
+        return answers.get(cacheKey, key -> fetch(tenantCode, source));
     }
 
     private List<SelectableOption> fetch(String tenantCode, SelectableSource source) {
@@ -156,7 +160,9 @@ public class ConnectionOptionSource implements SelectableOptionSource {
         OperationInvocationResult result;
         try {
             result = invoker.invoke(tenantCode, ref[0], ref[1], null);
-        } catch (OperationInvocationException e) {
+        } catch (OperationInvocationException | ConnectionResolutionException | IllegalArgumentException e) {
+            // The call failed, its credential could not be resolved, or the outbound guard
+            // refused the host: the connection is unavailable, not the request malformed.
             throw new SourceUnavailableException(connection.name() + " could not be called: " + e.getMessage(), e);
         }
         if (!result.successful()) {
@@ -176,7 +182,7 @@ public class ConnectionOptionSource implements SelectableOptionSource {
         static final String DEFAULT_LABEL = "{{item.name}}";
 
         Mapping(Map<String, Object> config) {
-            this(text(config, "items", ""), text(config, "value", DEFAULT_VALUE),
+            this(text(config, ITEMS, ""), text(config, "value", DEFAULT_VALUE),
                     text(config, "label", DEFAULT_LABEL), text(config, "description", ""),
                     text(config, "parent", ""));
         }
@@ -188,7 +194,7 @@ public class ConnectionOptionSource implements SelectableOptionSource {
 
         void check() {
             if (!items.isEmpty()) {
-                validate("items", items, RESPONSE_ROOT);
+                validate(ITEMS, items, RESPONSE_ROOT);
                 if (!PayloadTemplate.isSingleVariable(items)) {
                     throw new IllegalArgumentException(
                             "items must be a single variable such as {{response.data}}, not " + items);
@@ -232,25 +238,30 @@ public class ConnectionOptionSource implements SelectableOptionSource {
         }
         List<SelectableOption> out = new ArrayList<>();
         for (JsonNode item : items) {
-            if (!item.isObject()) {
-                continue;
+            SelectableOption option = item.isObject() ? toOption(item, mapping) : null;
+            if (option != null) {
+                out.add(option);
             }
-            Map<String, Object> context = Map.of("item", json.convertValue(item, FIELDS));
-            String value = render(mapping.value(), context);
-            if (value.isEmpty()) {
-                continue;
-            }
-            String label = render(mapping.label(), context);
-            String text = label.isEmpty() ? value : label;
-            SelectableOption option = SelectableOption.of(value, text, text);
-            String description = render(mapping.description(), context);
-            if (!description.isEmpty()) {
-                option = option.withDescription(description, description);
-            }
-            String parent = render(mapping.parent(), context);
-            out.add(parent.isEmpty() ? option : option.withParent(parent));
         }
         return out;
+    }
+
+    /** One item as an option, or null when its value renders empty. */
+    private SelectableOption toOption(JsonNode item, Mapping mapping) {
+        Map<String, Object> context = Map.of("item", json.convertValue(item, FIELDS));
+        String value = render(mapping.value(), context);
+        if (value.isEmpty()) {
+            return null;
+        }
+        String label = render(mapping.label(), context);
+        String text = label.isEmpty() ? value : label;
+        SelectableOption option = SelectableOption.of(value, text, text);
+        String description = render(mapping.description(), context);
+        if (!description.isEmpty()) {
+            option = option.withDescription(description, description);
+        }
+        String parent = render(mapping.parent(), context);
+        return parent.isEmpty() ? option : option.withParent(parent);
     }
 
     private static String render(String template, Map<String, Object> context) {

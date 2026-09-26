@@ -15,6 +15,7 @@ import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationTemplateRequest;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionService;
 import com.microboxlabs.miot.integrations.service.IntegrationTemplateService;
+import java.net.URI;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -104,8 +105,10 @@ class ExampleConnectionSelectablesTest {
     private final FakeTemplates templates = new FakeTemplates();
     private final FakeConnections connections = new FakeConnections(templates);
 
+    private static final URI BASE_URL = URI.create("https://countries.example.com");
+
     private ExampleConnectionSelectables example(boolean enabled) {
-        return new ExampleConnectionSelectables(templates, connections, enabled);
+        return new ExampleConnectionSelectables(templates, connections, enabled, BASE_URL);
     }
 
     @Test
@@ -126,7 +129,7 @@ class ExampleConnectionSelectablesTest {
                 "the editor suggests fields from it");
         IntegrationConnection connection = connections.connections.get(0);
         assertEquals(template.id(), connection.templateId());
-        assertEquals(ExampleConnectionSelectables.BASE_URL, connection.baseUrl());
+        assertEquals(BASE_URL, connection.baseUrl());
         assertEquals(ConnectionStatus.ACTIVE, connection.status(), "only active connections are offered");
 
         Selectable country = lists.get(0);

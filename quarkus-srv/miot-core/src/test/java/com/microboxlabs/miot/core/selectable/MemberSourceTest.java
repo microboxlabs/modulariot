@@ -6,12 +6,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.microboxlabs.miot.core.alfresco.AlfrescoPerson;
 import com.microboxlabs.miot.core.alfresco.IAlfrescoDirectoryClient;
 import io.smallrye.mutiny.Uni;
+import java.lang.reflect.Proxy;
+import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 
 class MemberSourceTest {
@@ -126,8 +129,19 @@ class MemberSourceTest {
             }
         };
 
-        assertThrows(SourceUnavailableException.class,
-                () -> options(source(down, Clock.fixed(NOW, ZoneOffset.UTC)), null));
+        MemberSource source = source(down, Clock.fixed(NOW, ZoneOffset.UTC));
+
+        assertThrows(SourceUnavailableException.class, () -> options(source, null));
+    }
+
+    @Test
+    void aDatabaseFailureReadingTheGroupsIsReportedToo() {
+        DataSource down = (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(),
+                new Class<?>[] {DataSource.class}, (proxy, method, args) -> {
+                    throw new SQLException("connection refused");
+                });
+
+        assertThrows(SourceUnavailableException.class, () -> MemberSource.groupsOf(down, TENANT));
     }
 
     static final class MutableClock extends Clock {

@@ -28,6 +28,9 @@ import javax.sql.DataSource;
  *
  * <p>A field asks again as the user types, so the roster is kept for
  * {@link #KEEP} instead of asking Alfresco on every keystroke.
+ *
+ * <p>{@code @Singleton}, not {@code @ApplicationScoped}: a client proxy needs a
+ * no-args constructor, and {@link ListedSystemSource} has none.
  */
 @Singleton
 class MemberSource extends ListedSystemSource {
@@ -113,7 +116,7 @@ class MemberSource extends ListedSystemSource {
         return full.isEmpty() ? person.id() : full;
     }
 
-    private static List<String> groupsOf(DataSource dataSource, String tenantCode) {
+    static List<String> groupsOf(DataSource dataSource, String tenantCode) {
         try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(GROUPS_SQL)) {
             ps.setString(1, tenantCode);
             List<String> groups = new ArrayList<>();
@@ -124,7 +127,7 @@ class MemberSource extends ListedSystemSource {
             }
             return groups;
         } catch (SQLException e) {
-            throw new IllegalStateException("could not read the organizations of tenant " + tenantCode, e);
+            throw new SourceUnavailableException("could not read the organizations of tenant " + tenantCode, e);
         }
     }
 }

@@ -13,6 +13,7 @@ import com.microboxlabs.miot.integrations.domain.IntegrationOperation;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
+import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
 import com.microboxlabs.miot.integrations.service.IntegrationOperationInvoker;
 import com.microboxlabs.miot.integrations.service.OperationInvocationResult;
 import java.net.URI;
@@ -74,6 +75,7 @@ class ConnectionOptionSourceTest {
     /** Answers every call with {@link #answer} and counts the calls. */
     private final class FakeInvoker extends IntegrationOperationInvoker {
         OperationInvocationResult answer = new OperationInvocationResult(200, SITES);
+        RuntimeException failure;
         int calls;
 
         FakeInvoker() {
@@ -84,6 +86,9 @@ class ConnectionOptionSourceTest {
         public OperationInvocationResult invoke(String tenantCode, String connectionId, String operationId,
                 Object body) {
             calls++;
+            if (failure != null) {
+                throw failure;
+            }
             return answer;
         }
     }
@@ -150,8 +155,8 @@ class ConnectionOptionSourceTest {
         }
         source.check(new SelectableSource(SelectableSource.Kind.CONNECTION, "c1:get",
                 Map.of("items", "{{ response.data }}", "label", "{{item.name}} · {{item.zone.code}}")));
-        assertThrows(IllegalArgumentException.class,
-                () -> source.check(new SelectableSource(SelectableSource.Kind.CONNECTION, "c1", Map.of())));
+        SelectableSource noOperation = new SelectableSource(SelectableSource.Kind.CONNECTION, "c1", Map.of());
+        assertThrows(IllegalArgumentException.class, () -> source.check(noOperation));
     }
 
     @Test
@@ -164,16 +169,57 @@ class ConnectionOptionSourceTest {
     }
 
     @Test
+    void dropsAnswersNobodyAsksForAgain() {
+        MutableClock clock = new MutableClock();
+        ConnectionOptionSource ticking = new ConnectionOptionSource(connections, operations, invoker, clock);
+        SelectableOptionSource.Query all = new SelectableOptionSource.Query(null, List.of(), 10);
+
+        ticking.options(TENANT, new SelectableSource(SelectableSource.Kind.CONNECTION, "c1:get",
+                Map.of("label", "{{item.id}}")), all);
+        clock.now = NOW.plus(ConnectionOptionSource.KEEP).plusSeconds(1);
+        ticking.options(TENANT, new SelectableSource(SelectableSource.Kind.CONNECTION, "c1:get", Map.of()), all);
+
+        assertEquals(1, ticking.keptAnswers(), "the first mapping's answer expired and is gone");
+    }
+
+    @Test
+    void aConnectionThatCannotBeCalledIsUnavailableNotABadRequest() {
+        SelectableSource sites = new SelectableSource(SelectableSource.Kind.CONNECTION, "c1:get", Map.of());
+        SelectableOptionSource.Query all = new SelectableOptionSource.Query(null, List.of(), 10);
+
+        invoker.failure = new IllegalArgumentException("connection base URL must not point to an internal address");
+        assertThrows(SourceUnavailableException.class, () -> source.options(TENANT, sites, all));
+
+        invoker.failure = new ConnectionResolutionException("credential profile not found");
+        assertThrows(SourceUnavailableException.class, () -> source.options(TENANT, sites, all));
+    }
+
+    @Test
     void refusesWhatAFieldMustNotCall() {
-        assertThrows(IllegalArgumentException.class, () -> source.options(TENANT,
-                new SelectableSource(SelectableSource.Kind.CONNECTION, "c1:post", Map.of()),
-                new SelectableOptionSource.Query(null, List.of(), 10)));
-        assertThrows(IllegalArgumentException.class, () -> source.options(TENANT,
-                new SelectableSource(SelectableSource.Kind.CONNECTION, "c2:get", Map.of()),
-                new SelectableOptionSource.Query(null, List.of(), 10)));
-        assertThrows(IllegalArgumentException.class, () -> source.options(TENANT,
-                new SelectableSource(SelectableSource.Kind.CONNECTION, "c1", Map.of()),
-                new SelectableOptionSource.Query(null, List.of(), 10)));
+        SelectableOptionSource.Query all = new SelectableOptionSource.Query(null, List.of(), 10);
+        for (String ref : List.of("c1:post", "c2:get", "c1")) {
+            SelectableSource refused = new SelectableSource(SelectableSource.Kind.CONNECTION, ref, Map.of());
+            assertThrows(IllegalArgumentException.class, () -> source.options(TENANT, refused, all), ref);
+        }
+    }
+
+    static final class MutableClock extends Clock {
+        Instant now = NOW;
+
+        @Override
+        public ZoneOffset getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(java.time.ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
     }
 
     @Test

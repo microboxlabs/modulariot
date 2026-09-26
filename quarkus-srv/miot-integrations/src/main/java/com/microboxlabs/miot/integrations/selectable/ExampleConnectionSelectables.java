@@ -45,35 +45,38 @@ public class ExampleConnectionSelectables implements SelectableDefaults {
     static final String TEMPLATE_NAME = "Países (ejemplo)";
     static final String CONNECTION_NAME = "Países (ejemplo)";
     static final String OPERATION_NAME = "Listar países";
-    static final URI BASE_URL = URI.create("https://countriesnow.space");
     static final String PATH = "/api/v0.1/countries/iso";
     static final String KEY = "country";
+
+    private static final Map<String, Object> TEXT = Map.of("type", "string");
 
     /** The answer: {@code {"error", "msg", "data": [{"name", "Iso2", "Iso3"}]}}. */
     static final Map<String, Object> RESPONSE_SCHEMA = Map.of(
             "type", "object",
             "properties", Map.of(
                     "error", Map.of("type", "boolean"),
-                    "msg", Map.of("type", "string"),
+                    "msg", TEXT,
                     "data", Map.of("type", "array", "items", Map.of(
                             "type", "object",
-                            "properties", Map.of(
-                                    "name", Map.of("type", "string"),
-                                    "Iso2", Map.of("type", "string"),
-                                    "Iso3", Map.of("type", "string"))))));
+                            "properties", Map.of("name", TEXT, "Iso2", TEXT, "Iso3", TEXT)))));
 
     private final IntegrationTemplateService templates;
     private final IntegrationConnectionService connections;
     private final boolean enabled;
+    private final URI baseUrl;
 
     @Inject
     public ExampleConnectionSelectables(IntegrationTemplateService templates,
             IntegrationConnectionService connections,
             @ConfigProperty(name = "miot.selectables.example-connection.enabled", defaultValue = "false")
-            boolean enabled) {
+            boolean enabled,
+            @ConfigProperty(name = "miot.selectables.example-connection.base-url",
+                    defaultValue = "https://countriesnow.space")
+            URI baseUrl) {
         this.templates = templates;
         this.connections = connections;
         this.enabled = enabled;
+        this.baseUrl = baseUrl;
     }
 
     @Override
@@ -113,7 +116,7 @@ public class ExampleConnectionSelectables implements SelectableDefaults {
                 .filter(c -> template.id().equals(c.templateId()))
                 .findFirst()
                 .orElseGet(() -> connections.createConnection(tenantCode, new CreateIntegrationConnectionRequest(
-                        CONNECTION_NAME, ProviderType.CUSTOM_HTTP, BASE_URL, null, Map.of(), template.id())));
+                        CONNECTION_NAME, ProviderType.CUSTOM_HTTP, baseUrl, null, Map.of(), template.id())));
     }
 
     static Selectable list(String ref) {

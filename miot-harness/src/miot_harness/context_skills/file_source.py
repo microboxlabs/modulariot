@@ -227,8 +227,9 @@ class FileSkillSource(SkillSource):
         the Agent-Skills convention) is the stable id; `description`
         doubles as the progressive-disclosure trigger unless an explicit
         `when_to_use` is given. The Markdown body is the on-demand
-        playbook text. These directory skills are guidance only — they
-        register no executable tools, so `tools` stays empty.
+        playbook text. These directory skills register no tools of their
+        own, so `tools` stays empty; an `mcp` mapping names the MCP server
+        whose tools the skill offers instead.
         """
         front, body = _split_frontmatter(path.read_text(encoding="utf-8"))
         name = str(front.get("name") or path.parent.name).strip()
@@ -243,6 +244,7 @@ class FileSkillSource(SkillSource):
             description=description,
             when_to_use=when_to_use,
             scope=_scope_for(path, base),
+            mcp=front.get("mcp"),
         )
         return LoadedSkill(
             skill=skill, playbook_body=body or None, source_path=str(path)

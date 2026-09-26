@@ -250,8 +250,14 @@ class HarnessSupervisor:
         request: UserRequest,
         *,
         run_id_override: str | None = None,
+        caller_token: str | None = None,
+        organization: str | None = None,
     ) -> HarnessRunRecord:
-        ctx = request.to_context()
+        """`caller_token` and `organization` come from the backend proxy's
+        headers, never the body; MCP skills call back as that caller."""
+        ctx = request.to_context().model_copy(
+            update={"caller_token": caller_token, "organization": organization}
+        )
         if run_id_override is not None:
             # The SSE endpoint pre-mints a run_id so it can return it
             # immediately and the caller can subscribe to
@@ -353,7 +359,7 @@ class HarnessSupervisor:
             # remapped ones: its own system prompt is the frozen cache prefix
             # and holds what is true for every tenant, nothing more.
             prior_messages = self._inject_tenant_context(ctx, prior_messages)
-        prior_messages = self._inject_skill(request, ctx, prior_messages)
+        prior_messages = await self._inject_skill(request, ctx, prior_messages)
         prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
 
         turn_messages: list[BaseMessage] | None = None
@@ -563,7 +569,7 @@ class HarnessSupervisor:
             return prior_messages
         return [SystemMessage(content="\n\n".join(blocks)), *prior_messages]
 
-    def _inject_skill(
+    async def _inject_skill(
         self,
         request: UserRequest,
         ctx: HarnessContext,
@@ -579,8 +585,8 @@ class HarnessSupervisor:
         """
         if not request.skill_id or self.context_skills is None:
             return prior_messages
-        activated = self.context_skills.activate_skill(
-            ctx.tenant_id, request.skill_id
+        activated = await self.context_skills.activate_skill_for_run(
+            ctx, request.skill_id
         )
         if activated is None:
             return prior_messages

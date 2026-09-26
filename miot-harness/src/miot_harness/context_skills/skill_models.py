@@ -8,9 +8,10 @@ Two skill kinds, discriminated by `kind`:
 - `http` — a declarative HTTP tool definition compiled into a callable
   `HarnessTool` at boot (see `connector_factory.build_http_tool`).
 
-MCP connectors are a later variant: add an `McpConnectorSkill` to the
-`Skill` union and a matching branch in the connector factory — no other
-code changes.
+A playbook may also name an MCP server (`mcp`). Loading the skill then
+lists that server's tools, with the caller's token, under the playbook
+body, and the model calls them through the one `mcp_call` tool (see
+`mcp_skills`).
 """
 
 from __future__ import annotations
@@ -45,8 +46,28 @@ class _ConnectionBinding(BaseModel):
     requires_capability: str | None = Field(default=None, min_length=1)
 
 
+class McpServer(BaseModel):
+    """An MCP server a playbook's tools come from.
+
+    The server is called as the user who started the run: their bearer
+    token goes along, so the server applies that user's permissions.
+    """
+
+    # Absolute Streamable HTTP endpoint. May start with a ${ENV_VAR}
+    # reference (e.g. "${MIOT_HARNESS_MODULITH_URL}/api/v1/mcp"), resolved
+    # at boot; the skill is not loaded while the variable is unset.
+    url: str = Field(min_length=1)
+    # Tool names the skill offers; a trailing "*" matches a prefix. Empty
+    # offers every tool the server lists.
+    tools: tuple[str, ...] = ()
+    # The argument the harness fills with the run's organization slug and
+    # hides from the model, so a call cannot name another organization.
+    # None when the server's tools take no organization.
+    organization_arg: str | None = "organization"
+
+
 class PlaybookSkill(_ConnectionBinding):
-    """Guidance over existing tools. No new executable capability."""
+    """Guidance over existing tools, or over an MCP server's tools."""
 
     kind: Literal["playbook"]
     id: str = Field(min_length=1)
@@ -63,6 +84,7 @@ class PlaybookSkill(_ConnectionBinding):
     # loaded on demand rather than dumped into every prompt.
     playbook_ref: str | None = None
     scope: ContextScope = ContextScope()
+    mcp: McpServer | None = None
 
 
 class HttpConnectorSkill(_ConnectionBinding):

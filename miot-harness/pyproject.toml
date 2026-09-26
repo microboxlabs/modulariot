@@ -45,6 +45,7 @@ dependencies = [
   # ships a wrapt-2.x compatible release.
   "wrapt<2",
   "json-repair>=0.61.2",
+  "mcp>=1.20",
 ]
 
 [project.scripts]

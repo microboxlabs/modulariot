@@ -3,8 +3,8 @@ package com.microboxlabs.miot.core.selectable;
 import com.microboxlabs.miot.core.alfresco.AlfrescoPerson;
 import com.microboxlabs.miot.core.alfresco.IAlfrescoDirectoryClient;
 import io.agroal.api.AgroalDataSource;
-import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -29,7 +29,7 @@ import javax.sql.DataSource;
  * <p>A field asks again as the user types, so the roster is kept for
  * {@link #KEEP} instead of asking Alfresco on every keystroke.
  */
-@ApplicationScoped
+@Singleton
 class MemberSource extends ListedSystemSource {
 
     static final String ID = "core.members";

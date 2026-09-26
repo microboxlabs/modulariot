@@ -11,7 +11,7 @@ import {
   itemFields,
   responseLists,
 } from "./connection-fields";
-import { setSourceConfig, type Draft } from "./editor-draft";
+import { setSourceConfig, sourceConfigText, type Draft } from "./editor-draft";
 import { useConnectionSchema } from "./use-connection-schema";
 
 interface ConnectionMappingProps {
@@ -43,8 +43,7 @@ export function ConnectionMapping({
 }: ConnectionMappingProps) {
   const ref = draft.source.ref ?? "";
   const { schema, loading } = useConnectionSchema(ref);
-  const config = draft.source.config ?? {};
-  const itemsTemplate = String(config.items ?? "");
+  const itemsTemplate = sourceConfigText(draft, "items");
 
   const lists = useMemo(() => responseLists(schema), [schema]);
   const responseNamespaces = useMemo(
@@ -65,7 +64,7 @@ export function ConnectionMapping({
       </span>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {FIELDS.map((f) => {
-          const value = String(config[f.name] ?? "");
+          const value = sourceConfigText(draft, f.name);
           const isItems = f.name === "items";
           const check = isItems
             ? checkItems(value)

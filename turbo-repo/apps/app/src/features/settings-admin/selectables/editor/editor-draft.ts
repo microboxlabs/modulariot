@@ -144,6 +144,12 @@ export function setKey(d: Draft, key: string): Draft {
   return { ...d, key, keyFixed: true };
 }
 
+/** One source setting as text; a missing or non-text value reads as blank. */
+export function sourceConfigText(d: Draft, name: string): string {
+  const value = d.source.config?.[name];
+  return typeof value === "string" ? value : "";
+}
+
 /** Sets one source setting; a blank one is dropped so the API's default applies. */
 export function setSourceConfig(d: Draft, name: string, text: string): Draft {
   const config = { ...d.source.config };

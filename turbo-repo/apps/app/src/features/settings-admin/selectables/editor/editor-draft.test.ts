@@ -12,6 +12,7 @@ import {
   setName,
   setSourceConfig,
   setSourceKind,
+  sourceConfigText,
   toSelectable,
   updateGroup,
   updateOption,
@@ -131,6 +132,18 @@ describe("editor draft", () => {
     draft = setSourceConfig(draft, "label", "  ");
 
     expect(toSelectable(draft).source.config).toEqual({ items: "data.rows" });
+  });
+
+  it("reads a source setting as text, and anything else as blank", () => {
+    const draft = setSourceConfig(draftFrom(stored), "label", "{{item.name}}");
+    const odd = {
+      ...draft,
+      source: { ...draft.source, config: { value: { nested: true } } },
+    };
+
+    expect(sourceConfigText(draft, "label")).toBe("{{item.name}}");
+    expect(sourceConfigText(draft, "parent")).toBe("");
+    expect(sourceConfigText(odd, "value")).toBe("");
   });
 
   it("clears the options' parents when the list stops depending on another, or changes which", () => {

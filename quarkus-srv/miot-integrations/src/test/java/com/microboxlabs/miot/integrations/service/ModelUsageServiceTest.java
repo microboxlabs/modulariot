@@ -71,7 +71,7 @@ class ModelUsageServiceTest {
     void cachedInputIsChargedAtTheInputPriceAndPricesAreCopied() {
         price("deepseek", "deepseek-chat", "0.27", "1.10");
 
-        service.record(run("r1", new UsageLine("deepseek", "deepseek-chat", 2, 600_000, 100_000, 300_000, 100_000)));
+        service.recordUsage(run("r1", new UsageLine("deepseek", "deepseek-chat", 2, 600_000, 100_000, 300_000, 100_000)));
 
         UsageRow row = usage.rows.get(0);
         // (600k + 300k + 100k) * 0.27 / 1M + 100k * 1.10 / 1M = 0.27 + 0.11
@@ -84,7 +84,7 @@ class ModelUsageServiceTest {
     void aModelWithoutBothPricesIsRecordedWithNoCost() {
         price("openai", "gpt-5", "1.25", null);
 
-        service.record(run("r1",
+        service.recordUsage(run("r1",
                 new UsageLine("openai", "gpt-5", 1, 10, 10, 0, 0),
                 new UsageLine("anthropic", "claude-sonnet-4-6", 1, 10, 10, 0, 0)));
 
@@ -97,8 +97,8 @@ class ModelUsageServiceTest {
     void aRepeatedReportIsNotCountedTwice() {
         UsageLine line = new UsageLine("anthropic", "claude-sonnet-4-6", 1, 10, 10, 0, 0);
 
-        assertEquals(1, service.record(run("r1", line)));
-        assertEquals(0, service.record(run("r1", line)));
+        assertEquals(1, service.recordUsage(run("r1", line)));
+        assertEquals(0, service.recordUsage(run("r1", line)));
         assertEquals(1, usage.rows.size());
     }
 
@@ -106,12 +106,13 @@ class ModelUsageServiceTest {
     void incompleteOrNegativeReportsAreRefused() {
         UsageLine ok = new UsageLine("anthropic", "claude-sonnet-4-6", 1, 10, 10, 0, 0);
 
-        assertThrows(IllegalArgumentException.class,
-                () -> service.record(new RecordUsageRequest("r1", "acme", " ", null, List.of(ok))));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.record(run("r1", new UsageLine("anthropic", "", 1, 1, 1, 0, 0))));
-        assertThrows(IllegalArgumentException.class,
-                () -> service.record(run("r1", new UsageLine("anthropic", "m", 1, -1, 1, 0, 0))));
+        RecordUsageRequest noTenant = new RecordUsageRequest("r1", "acme", " ", null, List.of(ok));
+        RecordUsageRequest noModel = run("r1", new UsageLine("anthropic", "", 1, 1, 1, 0, 0));
+        RecordUsageRequest negative = run("r1", new UsageLine("anthropic", "m", 1, -1, 1, 0, 0));
+
+        assertThrows(IllegalArgumentException.class, () -> service.recordUsage(noTenant));
+        assertThrows(IllegalArgumentException.class, () -> service.recordUsage(noModel));
+        assertThrows(IllegalArgumentException.class, () -> service.recordUsage(negative));
         assertEquals(0, usage.rows.size());
     }
 

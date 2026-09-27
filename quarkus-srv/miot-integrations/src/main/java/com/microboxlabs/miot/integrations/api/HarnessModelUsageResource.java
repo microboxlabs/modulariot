@@ -45,7 +45,7 @@ public class HarnessModelUsageResource {
     }
 
     @POST
-    public Uni<Response> record(@HeaderParam(HarnessKey.HEADER) String presentedKey, RecordUsageRequest body) {
+    public Uni<Response> recordUsage(@HeaderParam(HarnessKey.HEADER) String presentedKey, RecordUsageRequest body) {
         Optional<Response> refused = HarnessKey.refusal(providerKey, presentedKey);
         if (refused.isPresent()) {
             return Uni.createFrom().item(refused.get());
@@ -53,7 +53,7 @@ public class HarnessModelUsageResource {
         return Uni.createFrom()
                 .item(() -> {
                     try {
-                        return Response.ok(Map.of("stored", service.record(body))).build();
+                        return Response.ok(Map.of("stored", service.recordUsage(body))).build();
                     } catch (IllegalArgumentException e) {
                         return HarnessKey.error(Response.Status.BAD_REQUEST, e.getMessage());
                     }

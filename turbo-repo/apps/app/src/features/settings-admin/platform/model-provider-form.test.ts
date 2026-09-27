@@ -15,6 +15,7 @@ function draft(patch: Partial<ProviderDraft> = {}): ProviderDraft {
     enabled: true,
     models: [
       {
+        rowKey: "r",
         id: "deepseek-chat",
         inputPerMtok: "0.27",
         outputPerMtok: "1.10",
@@ -31,8 +32,15 @@ describe("toRequest", () => {
       draft({
         models: [
           ...draft().models,
-          { id: "", inputPerMtok: "", outputPerMtok: "", isDefault: false },
           {
+            rowKey: "r",
+            id: "",
+            inputPerMtok: "",
+            outputPerMtok: "",
+            isDefault: false,
+          },
+          {
+            rowKey: "r",
             id: "deepseek-reasoner",
             inputPerMtok: "",
             outputPerMtok: "",
@@ -82,7 +90,13 @@ describe("toRequest", () => {
     [
       {
         models: [
-          { id: "", inputPerMtok: "1", outputPerMtok: "", isDefault: false },
+          {
+            rowKey: "r",
+            id: "",
+            inputPerMtok: "1",
+            outputPerMtok: "",
+            isDefault: false,
+          },
         ],
       },
       "modelId",
@@ -90,8 +104,20 @@ describe("toRequest", () => {
     [
       {
         models: [
-          { id: "m", inputPerMtok: "", outputPerMtok: "", isDefault: false },
-          { id: "m", inputPerMtok: "", outputPerMtok: "", isDefault: false },
+          {
+            rowKey: "r",
+            id: "m",
+            inputPerMtok: "",
+            outputPerMtok: "",
+            isDefault: false,
+          },
+          {
+            rowKey: "r",
+            id: "m",
+            inputPerMtok: "",
+            outputPerMtok: "",
+            isDefault: false,
+          },
         ],
       },
       "duplicateModel",
@@ -99,7 +125,13 @@ describe("toRequest", () => {
     [
       {
         models: [
-          { id: "m", inputPerMtok: "-1", outputPerMtok: "", isDefault: false },
+          {
+            rowKey: "r",
+            id: "m",
+            inputPerMtok: "-1",
+            outputPerMtok: "",
+            isDefault: false,
+          },
         ],
       },
       "price",
@@ -107,7 +139,13 @@ describe("toRequest", () => {
     [
       {
         models: [
-          { id: "m", inputPerMtok: "abc", outputPerMtok: "", isDefault: false },
+          {
+            rowKey: "r",
+            id: "m",
+            inputPerMtok: "abc",
+            outputPerMtok: "",
+            isDefault: false,
+          },
         ],
       },
       "price",
@@ -141,7 +179,7 @@ describe("draftFrom", () => {
 
     expect(d.apiKey).toBe("");
     expect(d.enabled).toBe(false);
-    expect(d.models[0]).toEqual({
+    expect(d.models[0]).toMatchObject({
       id: "gpt-5",
       inputPerMtok: "1.25",
       outputPerMtok: "",
@@ -154,8 +192,20 @@ describe("withDefault", () => {
   it("keeps at most one default and toggles it off on a second click", () => {
     const rows = draft({
       models: [
-        { id: "a", inputPerMtok: "", outputPerMtok: "", isDefault: true },
-        { id: "b", inputPerMtok: "", outputPerMtok: "", isDefault: false },
+        {
+          rowKey: "r",
+          id: "a",
+          inputPerMtok: "",
+          outputPerMtok: "",
+          isDefault: true,
+        },
+        {
+          rowKey: "r",
+          id: "b",
+          inputPerMtok: "",
+          outputPerMtok: "",
+          isDefault: false,
+        },
       ],
     }).models;
 

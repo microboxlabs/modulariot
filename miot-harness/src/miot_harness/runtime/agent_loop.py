@@ -40,7 +40,7 @@ from langchain_core.messages import (
 )
 
 from miot_harness.agents.chat_models import response_text
-from miot_harness.agents.model_providers import ProviderRegistry, is_anthropic
+from miot_harness.agents.model_providers import Provider, ProviderRegistry, is_anthropic
 from miot_harness.agents.native_tools import build_native_tools
 from miot_harness.config import HarnessSettings
 from miot_harness.context_skills.registry import ContextSkillsBundle
@@ -880,7 +880,7 @@ class AgentLoopRunners:
         self._configured_default = default_model
         self._configured = tuple(models)
         self._providers = providers
-        self._providers_version: str | None = None
+        self._providers_version: tuple[Provider, ...] | None = None
         self._build_model = build_model
         self._kwargs: dict[str, Any] = {
             "registry": registry,

@@ -14,7 +14,6 @@ modulith's win for a provider set in both.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from collections.abc import Iterable
@@ -141,14 +140,9 @@ class ProviderRegistry:
         return next((m for m in provider.models if m.id == model), None)
 
     @property
-    def version(self) -> str:
-        """Changes whenever any provider, key or model changes."""
-        digest = hashlib.sha256()
-        for name in sorted(self._providers):
-            p = self._providers[name]
-            digest.update(repr((p.name, p.kind, p.base_url, p.models)).encode())
-            digest.update(hashlib.sha256(p.api_key.encode()).digest())
-        return digest.hexdigest()
+    def version(self) -> tuple[Provider, ...]:
+        """Compares unequal whenever any provider, key or model changes."""
+        return tuple(self._providers[name] for name in sorted(self._providers))
 
     def merged(self, other: ProviderRegistry) -> ProviderRegistry:
         """These providers, with `other`'s replacing any of the same name."""

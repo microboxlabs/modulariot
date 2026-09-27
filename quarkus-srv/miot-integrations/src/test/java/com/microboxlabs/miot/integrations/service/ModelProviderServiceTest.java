@@ -128,15 +128,16 @@ class ModelProviderServiceTest {
     void whatCannotBeStoredIsRefused() {
         assertThrows(IllegalArgumentException.class, () -> put("acme-ai", "k"), "unknown provider");
         assertThrows(IllegalArgumentException.class, () -> put("qwen", ""), "a new provider needs a key");
-        assertThrows(IllegalArgumentException.class,
-                () -> put("qwen", "k", model("qwen-max", false), model("qwen-max", false)), "duplicate model");
-        assertThrows(IllegalArgumentException.class,
-                () -> put("qwen", "k", model("a", true), model("b", true)), "two defaults");
-        assertThrows(IllegalArgumentException.class,
-                () -> put("qwen", "k", new ModelEntry("a", new BigDecimal("-1"), null, false)), "negative price");
-        assertThrows(IllegalArgumentException.class,
-                () -> service.put("qwen", new SetModelProviderRequest("k", "http://x.test", List.of(), true), OWNER),
-                "plain http");
+        ModelEntry maxModel = model("qwen-max", false);
+        ModelEntry defaultA = model("a", true);
+        ModelEntry defaultB = model("b", true);
+        ModelEntry negative = new ModelEntry("a", new BigDecimal("-1"), null, false);
+        SetModelProviderRequest plainHttp = new SetModelProviderRequest("k", "http://x.test", List.of(), true);
+
+        assertThrows(IllegalArgumentException.class, () -> put("qwen", "k", maxModel, maxModel), "duplicate model");
+        assertThrows(IllegalArgumentException.class, () -> put("qwen", "k", defaultA, defaultB), "two defaults");
+        assertThrows(IllegalArgumentException.class, () -> put("qwen", "k", negative), "negative price");
+        assertThrows(IllegalArgumentException.class, () -> service.put("qwen", plainHttp, OWNER), "plain http");
         assertTrue(repository.rows.isEmpty());
     }
 

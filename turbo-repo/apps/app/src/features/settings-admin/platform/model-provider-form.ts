@@ -6,6 +6,8 @@ import type {
 
 /** One model row as typed: prices stay strings until the form is sent. */
 export interface ModelDraft {
+  /** React key for the row; never sent. */
+  rowKey: string;
   id: string;
   inputPerMtok: string;
   outputPerMtok: string;
@@ -33,8 +35,21 @@ export type DraftResult =
   | { ok: true; value: SetModelProvider }
   | { ok: false; error: ProviderDraftError };
 
+let nextRowKey = 0;
+
+function rowKey(): string {
+  nextRowKey += 1;
+  return `model-row-${nextRowKey}`;
+}
+
 export function emptyModel(): ModelDraft {
-  return { id: "", inputPerMtok: "", outputPerMtok: "", isDefault: false };
+  return {
+    rowKey: rowKey(),
+    id: "",
+    inputPerMtok: "",
+    outputPerMtok: "",
+    isDefault: false,
+  };
 }
 
 export function draftFrom(existing?: ModelProviderAdmin): ProviderDraft {
@@ -53,6 +68,7 @@ export function draftFrom(existing?: ModelProviderAdmin): ProviderDraft {
     baseUrl: existing.baseUrl ?? "",
     enabled: existing.enabled,
     models: existing.models.map((m) => ({
+      rowKey: rowKey(),
       id: m.id,
       inputPerMtok: m.inputPerMtok == null ? "" : String(m.inputPerMtok),
       outputPerMtok: m.outputPerMtok == null ? "" : String(m.outputPerMtok),

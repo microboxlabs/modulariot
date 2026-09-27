@@ -156,8 +156,7 @@ export default function ModelProviderEditor({
         <div className="mt-2 flex flex-col gap-2">
           {draft.models.map((model, index) => (
             <div
-              // Rows have no stable id until they are named.
-              key={index}
+              key={model.rowKey}
               className="grid grid-cols-[1fr_7rem_7rem_auto_auto] items-center gap-2"
             >
               <TextInput

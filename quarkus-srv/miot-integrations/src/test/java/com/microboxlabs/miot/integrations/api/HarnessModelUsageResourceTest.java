@@ -19,7 +19,7 @@ class HarnessModelUsageResourceTest {
         }
 
         @Override
-        public int record(RecordUsageRequest req) {
+        public int recordUsage(RecordUsageRequest req) {
             calls++;
             if (req.runId() == null) {
                 throw new IllegalArgumentException("runId and tenantId are required");
@@ -32,7 +32,7 @@ class HarnessModelUsageResourceTest {
 
     private Response call(Optional<String> configured, String presented, RecordUsageRequest body) {
         return new HarnessModelUsageResource(service, configured)
-                .record(presented, body)
+                .recordUsage(presented, body)
                 .await()
                 .indefinitely();
     }

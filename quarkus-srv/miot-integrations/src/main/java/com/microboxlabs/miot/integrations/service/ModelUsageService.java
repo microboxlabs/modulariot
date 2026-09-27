@@ -41,20 +41,14 @@ public class ModelUsageService {
     }
 
     /** Returns how many lines were stored; lines the run already reported are skipped. */
-    public int record(RecordUsageRequest req) {
+    public int recordUsage(RecordUsageRequest req) {
         if (req == null || blank(req.runId()) || blank(req.tenantId())) {
             throw new IllegalArgumentException("runId and tenantId are required");
         }
         Map<String, ModelProvider.Model> prices = prices();
         int stored = 0;
         for (UsageLine line : req.usage() == null ? List.<UsageLine>of() : req.usage()) {
-            if (line == null || blank(line.provider()) || blank(line.model())) {
-                throw new IllegalArgumentException("every usage line needs a provider and a model");
-            }
-            if (line.calls() < 0 || line.inputTokens() < 0 || line.outputTokens() < 0
-                    || line.cacheReadTokens() < 0 || line.cacheWriteTokens() < 0) {
-                throw new IllegalArgumentException("token counts cannot be negative");
-            }
+            validate(line);
             ModelProvider.Model price = prices.get(key(line.provider(), line.model()));
             BigDecimal in = price == null ? null : price.inputPerMtok();
             BigDecimal out = price == null ? null : price.outputPerMtok();
@@ -75,6 +69,16 @@ public class ModelUsageService {
             throw new IllegalArgumentException("from must be before to");
         }
         return usage.totals(from, to, blank(organization) ? null : organization);
+    }
+
+    private static void validate(UsageLine line) {
+        if (line == null || blank(line.provider()) || blank(line.model())) {
+            throw new IllegalArgumentException("every usage line needs a provider and a model");
+        }
+        if (line.calls() < 0 || line.inputTokens() < 0 || line.outputTokens() < 0
+                || line.cacheReadTokens() < 0 || line.cacheWriteTokens() < 0) {
+            throw new IllegalArgumentException("token counts cannot be negative");
+        }
     }
 
     static BigDecimal cost(UsageLine line, BigDecimal inputPerMtok, BigDecimal outputPerMtok) {

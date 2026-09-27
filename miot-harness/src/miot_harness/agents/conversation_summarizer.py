@@ -13,7 +13,8 @@ bounds a conversation.
 from __future__ import annotations
 
 import json
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable
+from typing import Protocol
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
@@ -27,7 +28,15 @@ from langchain_core.messages import (
 from miot_harness.runtime.context import MAX_CONVERSATION_SUMMARY_CHARS
 from miot_harness.runtime.conversation import ConversationHistory
 
-ConversationSummarizer = Callable[[ConversationHistory], Awaitable[str]]
+
+class ConversationSummarizer(Protocol):
+    """Writes the summary of a history. `focus` is what the user asked the
+    summary to keep (`/compact <focus>`)."""
+
+    def __call__(
+        self, history: ConversationHistory, *, focus: str | None = None
+    ) -> Awaitable[str]: ...
+
 
 # Enough to carry entities, figures, the queries behind them and open
 # threads, small enough that it costs little against the hydration budget.
@@ -54,11 +63,14 @@ given, fold it in rather than repeating it. Output the summary only.
 
 
 def build_conversation_summarizer(model: BaseChatModel) -> ConversationSummarizer:
-    async def summarize(history: ConversationHistory) -> str:
+    async def summarize(history: ConversationHistory, *, focus: str | None = None) -> str:
+        prompt = render_history(history)
+        if focus:
+            prompt = f"{prompt}\n\nThe user asked the summary to keep: {focus}"
         response = await model.ainvoke(
             [
                 SystemMessage(content=_SYSTEM_PROMPT),
-                HumanMessage(content=render_history(history)),
+                HumanMessage(content=prompt),
             ]
         )
         text = response.content if hasattr(response, "content") else str(response)

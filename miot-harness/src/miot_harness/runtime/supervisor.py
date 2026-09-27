@@ -13,6 +13,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
+from langchain_core.messages.utils import count_tokens_approximately
 
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.context_skills.registry import ContextSkillsBundle
@@ -25,6 +26,7 @@ from miot_harness.runtime.answer_contract import (
 )
 from miot_harness.runtime.answer_render import render_answer_with_format
 from miot_harness.runtime.approvals import ApprovalRegistry
+from miot_harness.runtime.commands import Command, parse_command, render_context
 from miot_harness.runtime.context import (
     MAX_CONVERSATION_HISTORY_TURNS,
     HarnessContext,
@@ -34,6 +36,7 @@ from miot_harness.runtime.conversation import (
     ConversationHistory,
     ConversationStore,
     ConversationTurn,
+    history_tokens,
     to_messages,
 )
 from miot_harness.runtime.conversation_policy import ConversationPolicyStore
@@ -234,6 +237,16 @@ class HarnessSupervisor:
         # awaits cannot slip its turn into this request's prior context.
         history = _snapshot(self._seeded_history(request, ctx))
 
+        command = parse_command(request.message)
+        if command is not None:
+            await self._run_command(command, request, ctx, record, progress, history)
+            record.status = "completed"
+            progress(HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed"))
+            self._finalize_answer(record, ctx)
+            self.run_store.save(record)
+            self._close_bus(ctx.run_id)
+            return record
+
         ctx = ctx.model_copy(
             update={
                 "data_refusal": data_refusal(
@@ -319,6 +332,116 @@ class HarnessSupervisor:
         self._report_usage(record, ctx)
         self._close_bus(ctx.run_id)
         return record
+
+    async def _run_command(
+        self,
+        command: Command,
+        request: UserRequest,
+        ctx: HarnessContext,
+        record: HarnessRunRecord,
+        progress: Any,
+        history: ConversationHistory | None,
+    ) -> None:
+        """Answer `/compact` or `/context`. Neither turn is stored."""
+        if command.name == "compact":
+            record.answer = await self._compact_now(request, ctx, focus=command.argument)
+        else:
+            report = self._context_report(ctx, history)
+            if report is None:
+                record.answer = "Context usage is not available: no conversation model is set up."
+            else:
+                record.answer = render_context(report)
+                record.artifacts.append({"type": "context", **report})
+        key = self._conversation_key(request, ctx)
+        stored = (
+            self.conversation_store.get(key)
+            if self.conversation_store is not None and key is not None
+            else None
+        )
+        record.conversation_summary = stored.summary if stored else None
+        progress(
+            HarnessEvent(
+                run_id=ctx.run_id,
+                type="answer.completed",
+                message=f"/{command.name} answered",
+                data={"length": len(record.answer), "command": command.name},
+            )
+        )
+
+    async def _compact_now(self, request: UserRequest, ctx: HarnessContext, *, focus: str) -> str:
+        key = self._conversation_key(request, ctx)
+        if self.conversation_store is None or key is None:
+            return "There is no conversation to compact."
+        summarizer = self.conversation_summarizer
+        if summarizer is None:
+            return "Compaction is not available: no summarizer model is set up."
+        held = self.conversation_store.get(key)
+        if held is None or not held.turns:
+            return "Nothing to compact yet."
+        turns = len(held.turns)
+        before = history_tokens(held)
+
+        async def fold(history: ConversationHistory) -> str:
+            if focus:
+                return await summarizer(history, focus=focus)  # type: ignore[call-arg]
+            return await summarizer(history)
+
+        try:
+            done = await self.conversation_store.compact(key, summarizer=fold)
+        except Exception:  # noqa: BLE001 — the history is left as it was
+            logger.warning("/compact failed; keeping the full history", exc_info=True)
+            return "Compaction failed and the history is unchanged. Try again."
+        compacted = self.conversation_store.get(key)
+        if not done or compacted is None or not compacted.summary:
+            return "Nothing to compact yet."
+        after = history_tokens(compacted)
+        quoted = "\n".join(f"> {line}" for line in compacted.summary.splitlines())
+        return (
+            f"Compacted {turns} turns into a summary: history went from about "
+            f"{before:,} to {after:,} tokens.\n\n{quoted}"
+        )
+
+    def _context_report(
+        self, ctx: HarnessContext, history: ConversationHistory | None
+    ) -> dict[str, Any] | None:
+        """How the next request in this conversation would fill the window."""
+        runner_for = getattr(self.agent_loop, "runner_for", None)
+        if runner_for is None:
+            return None
+        try:
+            runner = runner_for(ctx.model)
+        except ValueError:
+            return None
+        prefix = runner.prefix_tokens
+        projected = self._project_history(history)
+        summary = (
+            count_tokens_approximately(projected[:1])
+            if history is not None and history.summary and projected
+            else 0
+        )
+        total = count_tokens_approximately(projected) if projected else 0
+        parts = {
+            "system": prefix["system"],
+            "tools": prefix["tools"],
+            "summary": summary,
+            "history": total - summary,
+        }
+        used = sum(parts.values())
+        window = runner.context_window
+        settings = get_settings()
+        return {
+            "model": runner.model_name,
+            "window": window,
+            "used": used,
+            "ratio": round(used / window, 4),
+            "free": max(0, window - used),
+            "tool_count": len(runner.native_tools),
+            "turns": len(history.turns) if history is not None else 0,
+            "compact_at": int(
+                settings.conversation_tool_token_budget * settings.conversation_compact_at_ratio
+            ),
+            **parts,
+        }
 
     def _report_usage(self, record: HarnessRunRecord, ctx: HarnessContext) -> None:
         if self.usage_reporter is None:
@@ -608,6 +731,8 @@ class HarnessSupervisor:
             ).append(stored.messages)
         self.conversation_store.reset(key)
         for turn in request.conversation_history[-_MAX_SEEDED_TURNS:]:
+            if parse_command(turn.user_message) is not None:
+                continue
             matches = transcripts.get((turn.user_message, turn.assistant_answer))
             self.conversation_store.append(
                 key,

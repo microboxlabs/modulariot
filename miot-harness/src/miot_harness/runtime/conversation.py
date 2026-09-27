@@ -89,6 +89,14 @@ class ConversationStore(Protocol):
         summarizer: Callable[[ConversationHistory], Awaitable[str]],
     ) -> bool: ...
 
+    async def compact(
+        self,
+        conversation_id: str,
+        *,
+        summarizer: Callable[[ConversationHistory], Awaitable[str]],
+        keep_recent: int = 0,
+    ) -> bool: ...
+
 
 class InMemoryConversationStore:
     """Dict-keyed in-memory store. Lost on process restart — acceptable for v1.
@@ -215,12 +223,47 @@ class InMemoryConversationStore:
         into nothing would lose them.
         """
 
+        return await self._fold(
+            conversation_id,
+            summarizer=summarizer,
+            keep_recent=self._keep_recent_turns,
+            force=False,
+        )
+
+    async def compact(
+        self,
+        conversation_id: str,
+        *,
+        summarizer: Callable[[ConversationHistory], Awaitable[str]],
+        keep_recent: int = 0,
+    ) -> bool:
+        """Fold every turn but the newest `keep_recent` now, whatever the size.
+
+        Same guarantees as `summarize_if_needed`. False when there is nothing
+        to fold.
+        """
+
+        return await self._fold(
+            conversation_id,
+            summarizer=summarizer,
+            keep_recent=max(0, keep_recent),
+            force=True,
+        )
+
+    async def _fold(
+        self,
+        conversation_id: str,
+        *,
+        summarizer: Callable[[ConversationHistory], Awaitable[str]],
+        keep_recent: int,
+        force: bool,
+    ) -> bool:
         lock = self._compactions.setdefault(conversation_id, asyncio.Lock())
         async with lock:
             history = self._histories.get(conversation_id)
-            if history is None or not self._over_limit(history):
+            if history is None or not (force or self._over_limit(history)):
                 return False
-            fold = len(history.turns) - self._keep_recent_turns
+            fold = len(history.turns) - keep_recent
             if fold <= 0:
                 return False
             snapshot = ConversationHistory(

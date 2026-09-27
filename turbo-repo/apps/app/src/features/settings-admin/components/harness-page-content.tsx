@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type UIEvent } from "react";
-import { Dropdown, DropdownItem } from "flowbite-react";
+import { Button, Dropdown, DropdownItem, Spinner } from "flowbite-react";
 import {
   HiChip,
   HiChevronDown,
@@ -10,179 +10,87 @@ import {
   HiUserCircle,
 } from "react-icons/hi";
 import {
-  HiUserGroup,
+  HiChartBar,
   HiCpuChip,
-  HiBolt,
-  HiExclamationTriangle,
+  HiInformationCircle,
+  HiUserGroup,
 } from "react-icons/hi2";
+import { toast } from "sonner";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { IconTile } from "@/features/common/components/icon-tile/icon-tile";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
+import { ApiError } from "../data/json-client";
 import { useOrgMembers } from "../hooks/use-org-members";
-import HarnessSeatsModal, {
-  type BillingCycle,
-  getBillingTotal,
-  getPricePerSeatForCycle,
-} from "./harness-seats-modal";
+import type {
+  AccessMode,
+  BillingCycle,
+  PoolUse,
+  SetHarnessSubscription,
+} from "../harness/harness-plan.types";
+import {
+  activeCount,
+  billingTotal,
+  formatTokens,
+  normalizeEmail,
+  poolPercent,
+  seatPriceFor,
+} from "../harness/harness-plan-view";
+import { useOrgHarnessPlan } from "../harness/use-org-harness-plan";
+import HarnessSeatsModal from "./harness-seats-modal";
 
 interface HarnessPageContentProps {
   readonly dict: I18nRecord;
   readonly lang: string;
 }
 
-// Mock plan figures — there is no billing/seats backend yet, this page is a
-// preview of the Harness pricing/usage/access UI ahead of that integration.
-const PRICE_PER_SEAT_USD = 49;
-const DEFAULT_SEATS = 25;
-const TOKENS_USED = 5_800_000;
-const MAX_TOKENS = 8_000_000;
-// Extra tokens: once the base pool above runs out, users can top up from an
-// on-demand pack purchased separately — priced per million tokens.
-const EXTRA_TOKENS_PRICE_PER_MILLION = 10;
-const EXTRA_TOKENS_PURCHASED = 2_000_000;
-const EXTRA_TOKENS_USED = 800_000;
 const MEMBERS_PAGE_SIZE = 10;
 
-// Token pools (base + extra) only ever read as two states: still has room,
-// or fully drained — no in-between "approaching" tier.
-type UsageStatus = "onTrack" | "atLimit";
+const cardClass =
+  "flex flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800";
+const cardHeaderClass =
+  "flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700";
+const cardTitleClass =
+  "text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white";
 
-function getUsageStatus(used: number, max: number): UsageStatus {
-  return max > 0 && used >= max ? "atLimit" : "onTrack";
-}
-
-const USAGE_BAR_COLOR: Record<UsageStatus, string> = {
-  onTrack: "bg-blue-500",
-  atLimit: "bg-red-500",
-};
-
-const USAGE_STATUS_TEXT_COLOR: Record<UsageStatus, string> = {
-  onTrack: "text-green-600 dark:text-green-400",
-  atLimit: "text-red-600 dark:text-red-400",
-};
-
-// Seats are a billing-efficiency signal, not a capacity limit like tokens:
-// every purchased seat in use is the good outcome (green); a seat you're
-// paying for but nobody occupies is the thing to fix (red).
-type SeatsStatus = "fullyUsed" | "underused";
-
-function getSeatsStatus(used: number, max: number): SeatsStatus {
-  return max > 0 && used >= max ? "fullyUsed" : "underused";
-}
-
-const SEATS_BAR_COLOR: Record<SeatsStatus, string> = {
-  fullyUsed: "bg-green-500",
-  underused: "bg-red-500",
-};
-
-const SEATS_STATUS_TEXT_COLOR: Record<SeatsStatus, string> = {
-  fullyUsed: "text-green-600 dark:text-green-400",
-  underused: "text-red-600 dark:text-red-400",
-};
-
-const USAGE_STATUS_DOT_COLOR: Record<UsageStatus, string> = {
-  onTrack: "bg-green-500",
-  atLimit: "bg-red-500",
-};
-
-function formatTokenCount(value: number): string {
-  const millions = value / 1_000_000;
-  const rounded = Math.round(millions * 10) / 10;
-  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}M`;
-}
-
-function getBillingPeriodLabel(): string {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  const formatter = new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-  return `${formatter.format(start)} – ${formatter.format(end)}`;
-}
-
-type PaymentStatus = "paid" | "failed" | "pending";
-
-// Mock — no billing backend yet. Set to "failed" so the unpaid banner and
-// the pricing card's status line both demonstrate the not-paid state; swap
-// to "paid" to preview the settled state instead.
-const LAST_PAYMENT_STATUS: PaymentStatus = "failed";
-
-const PAYMENT_STATUS_COLOR: Record<PaymentStatus, string> = {
-  paid: "text-green-600 dark:text-green-400",
-  failed: "text-red-600 dark:text-red-400",
-  pending: "text-amber-600 dark:text-amber-400",
-};
-
-/** One billing cycle back from today, matching whichever cadence is active. */
-function getLastPaymentDateLabel(cycle: BillingCycle): string {
-  const now = new Date();
-  const lastPaymentDate =
-    cycle === "yearly"
-      ? new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
-      : new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-  }).format(lastPaymentDate);
-}
-
-type AccessMode = "all" | "some" | "none";
-
-function getActiveCount(
-  accessMode: AccessMode,
-  totalMembers: number,
-  activeMemberIds: Set<string>
-): number {
-  if (accessMode === "all") return totalMembers;
-  if (accessMode === "none") return 0;
-  return activeMemberIds.size;
-}
-
+/**
+ * Settings › Harness: the organization's seats, who may use the assistant, and
+ * this month's shared token pool. Each seat adds the plan's tokens to the pool;
+ * a model's tokens count times its multiplier.
+ */
 export default function HarnessPageContent({
   dict,
   lang,
 }: HarnessPageContentProps) {
   const harnessDict = dict?.harness as I18nRecord;
   const pricingDict = harnessDict?.pricing as I18nRecord;
-  // Reuse the seats modal's "/ month" copy for the pricing stats below,
-  // instead of a hardcoded English suffix.
-  const monthlyUnitDict = pricingDict?.seatsModal as I18nRecord;
+  const seatsModalDict = pricingDict?.seatsModal as I18nRecord;
   const usageDict = harnessDict?.usage as I18nRecord;
   const seatsUsageDict = usageDict?.seats as I18nRecord;
   const tokensUsageDict = usageDict?.tokens as I18nRecord;
-  const extraTokensUsageDict = usageDict?.extraTokens as I18nRecord;
+  const breakdownDict = usageDict?.breakdown as I18nRecord;
   const accessDict = harnessDict?.access as I18nRecord;
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
 
   const { activeOrg } = useOrgScopes();
-  const { members, isLoading, error } = useOrgMembers(activeOrg?.slug ?? null);
+  const orgSlug = activeOrg?.slug ?? null;
+  const { members, isLoading, error } = useOrgMembers(orgSlug);
+  const planState = useOrgHarnessPlan(orgSlug);
+  const data = planState.data;
+  const subscription = data?.subscription ?? null;
 
   const [accessMode, setAccessMode] = useState<AccessMode>("all");
-  const [activeMemberIds, setActiveMemberIds] = useState<Set<string>>(
-    new Set()
-  );
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
-  const [purchasedSeats, setPurchasedSeats] = useState(DEFAULT_SEATS);
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [showSeatsModal, setShowSeatsModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Default every member to active once the roster loads.
+  // The saved access is the starting point; edits stay local until saved.
   useEffect(() => {
-    setActiveMemberIds(new Set(members.map((member) => member.id)));
-  }, [members]);
-
-  const setMemberActive = (memberId: string, active: boolean) => {
-    setActiveMemberIds((current) => {
-      const next = new Set(current);
-      if (active) next.add(memberId);
-      else next.delete(memberId);
-      return next;
-    });
-  };
+    setAccessMode(subscription?.accessMode ?? "all");
+    setSelected(new Set(subscription?.members ?? []));
+  }, [subscription]);
 
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const filteredMembers = useMemo(
@@ -196,8 +104,6 @@ export default function HarnessPageContent({
     [members, normalizedQuery]
   );
 
-  // Render the member list 10 at a time, growing as the user scrolls near
-  // the bottom of the scroll container, instead of mounting every row.
   const [visibleCount, setVisibleCount] = useState(MEMBERS_PAGE_SIZE);
   useEffect(() => {
     setVisibleCount(MEMBERS_PAGE_SIZE);
@@ -212,47 +118,89 @@ export default function HarnessPageContent({
     );
   };
 
-  const activeCount = getActiveCount(
+  const memberEmails = useMemo(
+    () => new Set(members.map((m) => normalizeEmail(m.email))),
+    [members]
+  );
+  const selectedMembers = [...selected].filter((e) => memberEmails.has(e));
+  const active = activeCount(
     accessMode,
     members.length,
-    activeMemberIds
+    selectedMembers.length
   );
-  // Seats "used" tracks active members, not the whole roster — deactivating
-  // someone in the access list below frees up their seat immediately.
-  const seatsUsed = Math.min(activeCount, purchasedSeats);
-  // Same pricing calc the seats modal uses, keyed on the saved billing
-  // cycle, so the pricing card and the modal never disagree on the total.
-  const pricePerSeatForCycle = getPricePerSeatForCycle(
-    PRICE_PER_SEAT_USD,
-    billingCycle
-  );
-  const estimatedTotal = getBillingTotal(
-    purchasedSeats,
-    PRICE_PER_SEAT_USD,
-    billingCycle
-  );
-  const recurringUnitKey =
-    billingCycle === "yearly" ? "yearlyUnit" : "monthlyUnit";
+  const seats = subscription?.seats ?? 0;
+  const tooFewSeats = subscription !== null && active > seats;
+  const accessDirty =
+    subscription !== null &&
+    (accessMode !== subscription.accessMode ||
+      (accessMode === "some" &&
+        !sameSet(selectedMembers, subscription.members)));
 
-  const seatsStatus = getSeatsStatus(seatsUsed, purchasedSeats);
-  const tokensStatus = getUsageStatus(TOKENS_USED, MAX_TOKENS);
-  const extraTokensStatus = getUsageStatus(
-    EXTRA_TOKENS_USED,
-    EXTRA_TOKENS_PURCHASED
-  );
-  const extraTokensCost =
-    (EXTRA_TOKENS_PURCHASED / 1_000_000) * EXTRA_TOKENS_PRICE_PER_MILLION;
-  const billingPeriodLabel = useMemo(getBillingPeriodLabel, []);
-  const lastPaymentDateLabel = useMemo(
-    () => getLastPaymentDateLabel(billingCycle),
-    [billingCycle]
-  );
+  const setMemberActive = (email: string, isActive: boolean) => {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (isActive) next.add(email);
+      else next.delete(email);
+      return next;
+    });
+  };
+
+  const save = async (value: SetHarnessSubscription) => {
+    setIsSaving(true);
+    try {
+      await planState.save(value);
+      toast.success(tr("saved", harnessDict));
+      return true;
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : tr("saveError", harnessDict)
+      );
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const saveAccess = () =>
+    void save({
+      seats,
+      billingCycle: subscription?.billingCycle ?? "monthly",
+      accessMode,
+      members: accessMode === "some" ? selectedMembers : [],
+    });
+
+  const saveSeats = async (nextSeats: number, cycle: BillingCycle) => {
+    const ok = await save({
+      seats: nextSeats,
+      billingCycle: cycle,
+      accessMode,
+      members: accessMode === "some" ? selectedMembers : [],
+    });
+    if (ok) setShowSeatsModal(false);
+  };
+
+  const cycle = subscription?.billingCycle ?? "monthly";
+  const recurringUnitKey = cycle === "yearly" ? "yearlyUnit" : "monthlyUnit";
+  const pool = data?.pool;
+  const periodLabel = useMemo(() => {
+    if (!pool) return "";
+    const fmt = new Intl.DateTimeFormat(lang, {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+    const end = new Date(new Date(pool.periodEnd).getTime() - 1);
+    return `${fmt.format(new Date(pool.periodStart))} – ${fmt.format(end)}`;
+  }, [pool, lang]);
+  const poolExhausted = pool !== undefined && pool.used >= pool.included;
+  const memberName = useMemo(() => {
+    const byEmail = new Map(
+      members.map((m) => [normalizeEmail(m.email), m.displayName || m.email])
+    );
+    return (key: string) => byEmail.get(normalizeEmail(key)) ?? key;
+  }, [members]);
 
   return (
-    // Same shell as Settings > Credentials / Data sources / Connections: a
-    // full-width breadcrumb bar (outside the scroll container, so it never
-    // moves — including during rubber-band overscroll) over a capped,
-    // independently-scrolling content column.
     <div className="flex h-full w-full flex-col overflow-hidden">
       <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
         <Breadcrumb
@@ -276,287 +224,229 @@ export default function HarnessPageContent({
           </div>
         </div>
 
-        {LAST_PAYMENT_STATUS !== "paid" && (
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-900/20">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <HiExclamationTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                {tr("unpaidAlert", harnessDict)}
-              </p>
-            </div>
-            {/* No payment-method flow exists yet — the seat/billing-cycle
-                modal this used to open can't resolve a failed payment, so
-                the action stays disabled rather than pointing somewhere
-                misleading. Wire this up once that flow lands. */}
-            <button
-              type="button"
-              disabled
-              className="shrink-0 cursor-not-allowed rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white opacity-50"
-            >
-              {tr("unpaidAlertAction", harnessDict)}
-            </button>
+        {planState.isLoading && <Spinner size="md" />}
+        {planState.error && (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300">
+            {planState.error.status === 403
+              ? tr("forbidden", harnessDict)
+              : tr("loadError", harnessDict)}
+          </p>
+        )}
+
+        {data && !data.enforced && (
+          <div className="flex items-center gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-900/50 dark:bg-blue-900/20">
+            <HiInformationCircle className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
+            <p className="text-sm text-blue-800 dark:text-blue-300">
+              {tr("notEnforced", harnessDict)}
+            </p>
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/* Pricing */}
-          <section className="flex flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-            <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-              <IconTile icon={HiCreditCard} />
-              <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
-                  {tr("title", pricingDict)}
-                </h2>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                  {tr("description", pricingDict)}
-                </p>
-              </div>
-            </div>
+        {data && !subscription && (
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-900/20">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+              {tr("noSubscription", harnessDict, {
+                price: String(data.plan.seatPriceUsd),
+                tokens: formatTokens(data.plan.tokensPerSeat),
+              })}
+            </p>
+            <Button
+              size="sm"
+              color="blue"
+              onClick={() => setShowSeatsModal(true)}
+            >
+              {tr("chooseSeats", harnessDict)}
+            </Button>
+          </div>
+        )}
 
-            <div className="flex-1 grid grid-cols-1 gap-4 px-4 py-3 lg:grid-cols-3">
-              <div>
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  {tr("estimatedTotalLabel", pricingDict)}{" "}
-                  <button
-                    type="button"
-                    onClick={() => setShowSeatsModal(true)}
-                    className="font-semibold text-blue-600 underline decoration-dotted underline-offset-2 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                  >
-                    {tr("seatsLabel", pricingDict, {
-                      count: String(purchasedSeats),
+        {data && poolExhausted && subscription && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300">
+            {tr("poolExhausted", harnessDict)}
+          </div>
+        )}
+
+        {data && (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {/* Pricing */}
+            <section className={cardClass}>
+              <div className={cardHeaderClass}>
+                <IconTile icon={HiCreditCard} />
+                <div className="min-w-0 flex-1">
+                  <h2 className={cardTitleClass}>{tr("title", pricingDict)}</h2>
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    {tr("description", pricingDict)}
+                  </p>
+                </div>
+              </div>
+              <div className="grid flex-1 grid-cols-2 gap-4 px-4 py-3">
+                <div>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    {tr("estimatedTotalLabel", pricingDict)}{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowSeatsModal(true)}
+                      className="font-semibold text-blue-600 underline decoration-dotted underline-offset-2 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                    >
+                      {tr("seatsLabel", pricingDict, { count: String(seats) })}
+                    </button>
+                  </p>
+                  <p className="mt-1 flex items-baseline gap-1.5">
+                    <span className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                      ${billingTotal(seats, data.plan, cycle).toLocaleString()}
+                    </span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {trDynamic(recurringUnitKey, seatsModalDict)}
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    {tr("perSeatLabel", pricingDict)}
+                  </p>
+                  <p className="mt-1 flex items-baseline gap-1.5">
+                    <span className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                      ${seatPriceFor(data.plan, cycle)}
+                    </span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {tr("monthlyUnit", seatsModalDict)}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <div className="border-t border-gray-100 px-4 py-3 text-xs text-gray-500 dark:border-gray-700/60 dark:text-gray-400">
+                {tr("tokensPerSeat", pricingDict, {
+                  tokens: formatTokens(data.plan.tokensPerSeat),
+                })}
+              </div>
+            </section>
+
+            {/* Seats */}
+            <section className={cardClass}>
+              <div className={cardHeaderClass}>
+                <IconTile icon={HiUserGroup} />
+                <div className="min-w-0 flex-1">
+                  <h2 className={cardTitleClass}>
+                    {tr("title", seatsUsageDict)}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    {tr("description", seatsUsageDict)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex-1 px-4 py-3">
+                <p className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                    {active}
+                  </span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    / {seats} {tr("unitLabel", seatsUsageDict)}
+                  </span>
+                </p>
+                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                  <div
+                    className={`h-full rounded-full ${tooFewSeats ? "bg-red-500" : "bg-green-500"}`}
+                    style={{ width: `${poolPercent(active, seats)}%` }}
+                  />
+                </div>
+              </div>
+              <div className="border-t border-gray-100 px-4 py-3 text-xs text-gray-500 dark:border-gray-700/60 dark:text-gray-400">
+                {tooFewSeats
+                  ? tr("tooFew", seatsUsageDict, {
+                      count: String(active - seats),
+                    })
+                  : tr("remaining", seatsUsageDict, {
+                      count: String(Math.max(0, seats - active)),
                     })}
-                  </button>
-                </p>
-                <div className="mt-1 flex items-baseline gap-1.5">
-                  <span className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
-                    ${estimatedTotal.toLocaleString()}
-                  </span>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {trDynamic(recurringUnitKey, monthlyUnitDict)}
-                  </span>
+              </div>
+            </section>
+
+            {/* Token pool */}
+            <section className={cardClass}>
+              <div className={cardHeaderClass}>
+                <IconTile icon={HiCpuChip} />
+                <div className="min-w-0 flex-1">
+                  <h2 className={cardTitleClass}>
+                    {tr("title", tokensUsageDict)}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    {periodLabel}
+                  </p>
                 </div>
               </div>
-
-              <div>
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  {tr("perSeatLabel", pricingDict)}
-                </p>
-                <div className="mt-1 flex items-baseline gap-1.5">
-                  <span className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
-                    ${pricePerSeatForCycle}
+              <div className="flex-1 px-4 py-3">
+                <p className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                    {formatTokens(data.pool.used)}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {trDynamic(recurringUnitKey, monthlyUnitDict)}
+                    / {formatTokens(data.pool.included)}{" "}
+                    {tr("unitLabel", tokensUsageDict)}
                   </span>
+                </p>
+                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                  <div
+                    className={`h-full rounded-full ${poolExhausted ? "bg-red-500" : "bg-blue-500"}`}
+                    style={{
+                      width: `${poolPercent(data.pool.used, data.pool.included)}%`,
+                    }}
+                  />
                 </div>
               </div>
-
-              <div>
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  {tr("extraTokensLabel", pricingDict)}
-                </p>
-                <div className="mt-1 flex items-baseline gap-1.5">
-                  <span className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
-                    ${extraTokensCost.toLocaleString()}
-                  </span>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {tr("monthlyUnit", monthlyUnitDict)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-4 py-3 dark:border-gray-700/60">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {tr("lastPaymentLabel", pricingDict)} $
-                {estimatedTotal.toLocaleString()} · {lastPaymentDateLabel}
-              </span>
-              <span
-                className={`text-xs font-medium ${PAYMENT_STATUS_COLOR[LAST_PAYMENT_STATUS]}`}
-              >
-                {trDynamic(`paymentStatus.${LAST_PAYMENT_STATUS}`, pricingDict)}
-              </span>
-            </div>
-          </section>
-
-          {/* Team seats */}
-          <section className="flex flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-            <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-              <IconTile icon={HiUserGroup} />
-              <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
-                  {tr("title", seatsUsageDict)}
-                </h2>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                  {tr("description", seatsUsageDict)}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex-1 px-4 py-3">
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-                  {seatsUsed}
-                </span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  / {purchasedSeats} {tr("unitLabel", seatsUsageDict)}
-                </span>
-              </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ease-out ${SEATS_BAR_COLOR[seatsStatus]}`}
-                  style={{
-                    width: `${Math.min(100, (seatsUsed / purchasedSeats) * 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 dark:border-gray-700/60">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {tr("remaining", seatsUsageDict, {
-                  count: String(Math.max(0, purchasedSeats - seatsUsed)),
-                })}
-              </span>
-              <span
-                className={`text-xs font-medium ${SEATS_STATUS_TEXT_COLOR[seatsStatus]}`}
-              >
-                {trDynamic(`status.${seatsStatus}`, seatsUsageDict)}
-              </span>
-            </div>
-          </section>
-
-          {/* Tokens */}
-          <section className="flex flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-            <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-              <IconTile icon={HiCpuChip} />
-              <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
-                  {tr("title", tokensUsageDict)}
-                </h2>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                  {billingPeriodLabel}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex-1 px-4 py-3">
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-                  {formatTokenCount(TOKENS_USED)}
-                </span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  / {formatTokenCount(MAX_TOKENS)}{" "}
-                  {tr("unitLabel", tokensUsageDict)}
-                </span>
-              </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ease-out ${USAGE_BAR_COLOR[tokensStatus]}`}
-                  style={{
-                    width: `${Math.min(100, (TOKENS_USED / MAX_TOKENS) * 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 dark:border-gray-700/60">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
+              <div className="border-t border-gray-100 px-4 py-3 text-xs text-gray-500 dark:border-gray-700/60 dark:text-gray-400">
                 {tr("remaining", tokensUsageDict, {
-                  count: formatTokenCount(
-                    Math.max(0, MAX_TOKENS - TOKENS_USED)
+                  count: formatTokens(
+                    Math.max(0, data.pool.included - data.pool.used)
                   ),
                 })}
-              </span>
-              <span
-                className={`flex items-center gap-1.5 text-xs font-medium ${USAGE_STATUS_TEXT_COLOR[tokensStatus]}`}
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${USAGE_STATUS_DOT_COLOR[tokensStatus]}`}
-                />
-                {trDynamic(`status.${tokensStatus}`, tokensUsageDict)}
-              </span>
-            </div>
-          </section>
-
-          {/* Extra tokens */}
-          <section className="flex flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-            <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-              <IconTile icon={HiBolt} />
-              <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
-                  {tr("title", extraTokensUsageDict)}
-                </h2>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                  {tr("description", extraTokensUsageDict)}
-                </p>
+                {" · "}
+                {tr("multiplierHelp", tokensUsageDict)}
               </div>
-            </div>
+            </section>
+          </div>
+        )}
 
-            <div className="flex-1 px-4 py-3">
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-                  {formatTokenCount(EXTRA_TOKENS_USED)}
-                </span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  / {formatTokenCount(EXTRA_TOKENS_PURCHASED)}{" "}
-                  {tr("unitLabel", extraTokensUsageDict)}
-                </span>
-              </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ease-out ${USAGE_BAR_COLOR[extraTokensStatus]}`}
-                  style={{
-                    width: `${Math.min(100, (EXTRA_TOKENS_USED / EXTRA_TOKENS_PURCHASED) * 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 dark:border-gray-700/60">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {tr("remaining", extraTokensUsageDict, {
-                  count: formatTokenCount(
-                    Math.max(0, EXTRA_TOKENS_PURCHASED - EXTRA_TOKENS_USED)
-                  ),
-                })}
-              </span>
-              <span
-                className={`flex items-center gap-1.5 text-xs font-medium ${USAGE_STATUS_TEXT_COLOR[extraTokensStatus]}`}
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${USAGE_STATUS_DOT_COLOR[extraTokensStatus]}`}
-                />
-                {trDynamic(`status.${extraTokensStatus}`, extraTokensUsageDict)}
-              </span>
-            </div>
-          </section>
-        </div>
+        {data && (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <UsageTable
+              title={tr("byModel", breakdownDict)}
+              keyLabel={tr("model", breakdownDict)}
+              rows={data.pool.byModel}
+              label={(key) => key}
+              dict={breakdownDict}
+            />
+            <UsageTable
+              title={tr("byMember", breakdownDict)}
+              keyLabel={tr("member", breakdownDict)}
+              rows={data.pool.byMember}
+              label={memberName}
+              dict={breakdownDict}
+            />
+          </div>
+        )}
 
         {/* User access */}
         <section className="shrink-0 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-          <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+          <div className={cardHeaderClass}>
             <IconTile icon={HiUserCircle} />
             <div className="min-w-0 flex-1">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
-                {tr("title", accessDict)}
-              </h2>
+              <h2 className={cardTitleClass}>{tr("title", accessDict)}</h2>
               <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                 {tr("description", accessDict)}
               </p>
             </div>
             {!isLoading && !error && (
-              <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+              <span className="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">
                 {tr("activeCount", accessDict, {
-                  count: String(activeCount),
+                  count: String(active),
                   total: String(members.length),
                 })}
               </span>
             )}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-900 dark:text-white">
                 {tr("enabledForLabel", accessDict)}
               </span>
@@ -564,19 +454,22 @@ export default function HarnessPageContent({
                 value={accessMode}
                 onChange={(value) => setAccessMode(value as AccessMode)}
                 ariaLabel={tr("enabledForLabel", accessDict)}
+                disabled={!subscription}
                 options={[
                   { value: "all", label: tr("enabledAllOption", accessDict) },
-                  {
-                    value: "some",
-                    label: tr("enabledSomeOption", accessDict),
-                  },
-                  {
-                    value: "none",
-                    label: tr("enabledNoneOption", accessDict),
-                  },
+                  { value: "some", label: tr("enabledSomeOption", accessDict) },
+                  { value: "none", label: tr("enabledNoneOption", accessDict) },
                 ]}
-                triggerClassName="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                triggerClassName="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
               />
+              <Button
+                size="xs"
+                color="blue"
+                disabled={!accessDirty || tooFewSeats || isSaving}
+                onClick={saveAccess}
+              >
+                {tr("save", accessDict)}
+              </Button>
             </div>
 
             <label className="relative block w-full sm:w-72">
@@ -591,6 +484,12 @@ export default function HarnessPageContent({
               />
             </label>
           </div>
+
+          {tooFewSeats && (
+            <p className="border-b border-gray-200 px-4 py-2 text-xs text-red-600 dark:border-gray-700 dark:text-red-400">
+              {tr("tooFewSeats", accessDict, { seats: String(seats) })}
+            </p>
+          )}
 
           {isLoading && (
             <p className="px-4 py-5 text-sm text-gray-500 dark:text-gray-400">
@@ -614,9 +513,10 @@ export default function HarnessPageContent({
                 </span>
               </div>
               {visibleMembers.map((member) => {
+                const email = normalizeEmail(member.email);
                 const isActive =
                   accessMode === "all" ||
-                  (accessMode === "some" && activeMemberIds.has(member.id));
+                  (accessMode === "some" && selected.has(email));
                 return (
                   <div
                     key={member.id}
@@ -637,7 +537,7 @@ export default function HarnessPageContent({
                       <OptionDropdown
                         value={isActive ? "active" : "inactive"}
                         onChange={(value) =>
-                          setMemberActive(member.id, value === "active")
+                          setMemberActive(email, value === "active")
                         }
                         disabled={accessMode !== "some"}
                         ariaLabel={member.displayName || member.email}
@@ -679,21 +579,89 @@ export default function HarnessPageContent({
         </section>
       </div>
 
-      <HarnessSeatsModal
-        show={showSeatsModal}
-        currentSeats={purchasedSeats}
-        currentBillingCycle={billingCycle}
-        minSeats={Math.max(1, activeCount)}
-        pricePerSeat={PRICE_PER_SEAT_USD}
-        onClose={() => setShowSeatsModal(false)}
-        onSave={(seats, cycle) => {
-          setPurchasedSeats(seats);
-          setBillingCycle(cycle);
-          setShowSeatsModal(false);
-        }}
-        dict={pricingDict?.seatsModal as I18nRecord}
-      />
+      {data && (
+        <HarnessSeatsModal
+          show={showSeatsModal}
+          currentSeats={seats}
+          currentBillingCycle={cycle}
+          minSeats={Math.max(1, active)}
+          plan={data.plan}
+          isSaving={isSaving}
+          onClose={() => setShowSeatsModal(false)}
+          onSave={(nextSeats, nextCycle) =>
+            void saveSeats(nextSeats, nextCycle)
+          }
+          dict={seatsModalDict}
+        />
+      )}
     </div>
+  );
+}
+
+function sameSet(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  const set = new Set(b);
+  return a.every((x) => set.has(x));
+}
+
+interface UsageTableProps {
+  readonly title: string;
+  readonly keyLabel: string;
+  readonly rows: PoolUse[];
+  readonly label: (key: string) => string;
+  readonly dict: I18nRecord;
+}
+
+/** Runs, tokens and pool tokens per model or per member this month. */
+function UsageTable({ title, keyLabel, rows, label, dict }: UsageTableProps) {
+  return (
+    <section className={cardClass}>
+      <div className={cardHeaderClass}>
+        <IconTile icon={HiChartBar} />
+        <h2 className={cardTitleClass}>{title}</h2>
+      </div>
+      {rows.length === 0 ? (
+        <p className="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">
+          {tr("empty", dict)}
+        </p>
+      ) : (
+        <table className="w-full text-left text-xs text-gray-600 dark:text-gray-300">
+          <thead className="text-gray-500 dark:text-gray-400">
+            <tr>
+              <th className="px-4 py-2 font-medium">{keyLabel}</th>
+              <th className="px-4 py-2 text-right font-medium">
+                {tr("runs", dict)}
+              </th>
+              <th className="px-4 py-2 text-right font-medium">
+                {tr("tokens", dict)}
+              </th>
+              <th className="px-4 py-2 text-right font-medium">
+                {tr("poolTokens", dict)}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr
+                key={row.key}
+                className="border-t border-gray-100 dark:border-gray-700"
+              >
+                <td className="truncate px-4 py-2 font-mono">
+                  {row.key ? label(row.key) : tr("machine", dict)}
+                </td>
+                <td className="px-4 py-2 text-right">{row.runs}</td>
+                <td className="px-4 py-2 text-right">
+                  {formatTokens(row.tokens)}
+                </td>
+                <td className="px-4 py-2 text-right">
+                  {formatTokens(row.poolTokens)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }
 
@@ -726,7 +694,9 @@ function OptionDropdown({
         <button
           type="button"
           disabled={disabled}
-          aria-label={ariaLabel ? `${ariaLabel}: ${current?.label ?? ""}` : undefined}
+          aria-label={
+            ariaLabel ? `${ariaLabel}: ${current?.label ?? ""}` : undefined
+          }
           className={triggerClassName}
         >
           {current?.label}

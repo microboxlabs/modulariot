@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.api;
 
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.harness.HarnessPlanGate;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.RequestOptions;
@@ -19,6 +20,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Map;
@@ -51,6 +53,7 @@ public class HarnessProxyResource {
     private final HarnessClient harness;
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
+    private final HarnessPlanGate planGate;
     private final HttpClient httpClient;
     private final String harnessBaseUrl;
 
@@ -58,12 +61,14 @@ public class HarnessProxyResource {
     public HarnessProxyResource(@RestClient HarnessClient harness,
                                 TenantContext tenantContext,
                                 OrganizationContext organizationContext,
+                                HarnessPlanGate planGate,
                                 Vertx vertx,
                                 @ConfigProperty(name = "miot.harness.base-url")
                                 String harnessBaseUrl) {
         this.harness = harness;
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
+        this.planGate = planGate;
         // Dedicated streaming client for the SSE relay: the JSON rest-client
         // buffers full responses, which never completes for an open event
         // stream. A raw Vert.x client lets us pipe harness frames straight
@@ -156,7 +161,18 @@ public class HarnessProxyResource {
         String tenantClientId = tenantContext.getClientId();
         String userEmail = organizationContext.getUserEmail();
         String authMode = userEmail != null ? "web" : "m2m";
-        return passThrough(harness.listModels(authorization, tenantClientId, userEmail, authMode));
+        Uni<Response> upstream = harness.listModels(authorization, tenantClientId, userEmail, authMode);
+        if (!planGate.changesModels()) {
+            return passThrough(upstream);
+        }
+        String organization = organizationContext.getOrganizationId();
+        return passThrough(upstream).flatMap(r -> {
+            if (r.getStatus() != Response.Status.OK.getStatusCode()) {
+                return Uni.createFrom().item(r);
+            }
+            Map<String, Object> models = r.readEntity(new GenericType<Map<String, Object>>() { });
+            return planGate.models(organization, models).map(m -> Response.ok(m).build());
+        });
     }
 
     /**
@@ -251,8 +267,20 @@ public class HarnessProxyResource {
         // Web tokens carry an email claim; M2M tokens don't. Flagging
         // the mode explicitly spares the harness from re-deriving it.
         String authMode = userEmail != null ? "web" : "m2m";
-        return passThrough(call.apply(authorization, tenantClientId, userEmail, authMode,
-                organizationContext.getOrganizationId(), body));
+        String organization = organizationContext.getOrganizationId();
+        Object model = body == null ? null : body.get("model");
+        return planGate.checkRun(organization, userEmail, model instanceof String name ? name : null)
+                .flatMap(refusal -> refusal != null
+                        ? Uni.createFrom().item(refused(refusal))
+                        : passThrough(call.apply(authorization, tenantClientId, userEmail, authMode,
+                                organization, body)));
+    }
+
+    private static Response refused(HarnessPlanGate.Refusal refusal) {
+        return Response.status(refusal.status())
+                .type(MediaType.APPLICATION_JSON)
+                .entity(Map.of("error", refusal.code(), "message", refusal.message()))
+                .build();
     }
 
     /**

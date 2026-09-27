@@ -1549,7 +1549,8 @@
           "columns": {
             "model": "Model",
             "input": "Input (USD / 1M tokens)",
-            "output": "Output (USD / 1M tokens)"
+            "output": "Output (USD / 1M tokens)",
+            "multiplier": "Multiplier"
           },
           "toast": {
             "saved": "{provider} saved.",
@@ -1575,7 +1576,8 @@
             "addModel": "Add model",
             "save": "Save",
             "saving": "Saving…",
-            "cancel": "Cancel"
+            "cancel": "Cancel",
+            "multiplier": "Multiplier: how many pool tokens each of the model's tokens uses"
           },
           "errors": {
             "provider": "Choose a provider.",
@@ -1584,6 +1586,26 @@
             "modelId": "Every model needs an id.",
             "duplicateModel": "A model is listed twice.",
             "price": "Prices must be numbers of zero or more."
+          }
+        },
+        "plan": {
+          "title": "Seat plan",
+          "menuHint": "Price per seat and included tokens",
+          "description": "Each organization buys seats. Every seat adds its tokens to a monthly pool the whole organization shares.",
+          "seatPrice": "Price per seat (USD / month)",
+          "tokensPerSeat": "Tokens per seat (millions / month)",
+          "yearlyDiscount": "Yearly discount (%)",
+          "summary": "A seat costs ${price} a month (${yearly} a month billed yearly) and adds {tokens}M tokens to the pool.",
+          "multiplierHelp": "Models with a ×2 or ×3 multiplier use the pool 2 or 3 times faster. Set it under AI models.",
+          "save": "Save",
+          "saving": "Saving…",
+          "saved": "Plan saved.",
+          "saveError": "Could not save the plan.",
+          "loadError": "Could not load the plan.",
+          "errors": {
+            "seatPrice": "The price per seat must be a number of zero or more.",
+            "tokensPerSeat": "Tokens per seat must be a number of zero or more.",
+            "yearlyDiscount": "The yearly discount must be between 0 and 99."
           }
         },
         "usage": {
@@ -1769,23 +1791,14 @@
       },
       "harness": {
         "title": "Harness",
-        "description": "Manage Harness seats, usage, and which users can access the AI assistant.",
-        "loadError": "Couldn't load Harness settings.",
-        "unpaidAlert": "Your last payment didn't go through. Update your payment method to keep Harness active.",
-        "unpaidAlertAction": "Handle it",
+        "description": "Manage seats, the token pool and who uses the AI assistant.",
+        "loadError": "Could not load the Harness plan.",
         "pricing": {
           "title": "Pricing",
-          "description": "Estimated monthly cost for your current seat plan.",
+          "description": "What you pay for your seats.",
           "perSeatLabel": "Per seat",
           "estimatedTotalLabel": "What you pay for",
           "seatsLabel": "{count} seats",
-          "extraTokensLabel": "Extra tokens",
-          "lastPaymentLabel": "Last payment",
-          "paymentStatus": {
-            "paid": "Paid",
-            "failed": "Failed",
-            "pending": "Pending"
-          },
           "seatsModal": {
             "title": "Payment plan",
             "description": "Choose how you'd like to be billed for Harness seats.",
@@ -1801,7 +1814,8 @@
             "diffFewer": "{count} fewer seats",
             "savePercent": "Save {percent}%",
             "save": "Save"
-          }
+          },
+          "tokensPerSeat": "Each seat adds {tokens} tokens to the monthly pool."
         },
         "usage": {
           "seats": {
@@ -1809,29 +1823,24 @@
             "description": "Active members",
             "unitLabel": "seats",
             "remaining": "{count} seats remaining",
-            "status": {
-              "fullyUsed": "Fully utilized",
-              "underused": "Seats unused"
-            }
+            "tooFew": "{count} more seats are needed for the members with access."
           },
           "tokens": {
-            "title": "Tokens used",
+            "title": "Token pool",
             "unitLabel": "tokens",
             "remaining": "{count} tokens remaining",
-            "status": {
-              "onTrack": "On track",
-              "atLimit": "Limit reached"
-            }
+            "multiplierHelp": "×2 and ×3 models use the pool faster."
           },
-          "extraTokens": {
-            "title": "Extra tokens",
-            "description": "On-demand token top-up",
-            "unitLabel": "tokens",
-            "remaining": "{count} tokens remaining",
-            "status": {
-              "onTrack": "On track",
-              "atLimit": "Limit reached"
-            }
+          "breakdown": {
+            "byModel": "Use by model this month",
+            "byMember": "Use by member this month",
+            "model": "Model",
+            "member": "Member",
+            "runs": "Questions",
+            "tokens": "Tokens",
+            "poolTokens": "From pool",
+            "empty": "No use this month.",
+            "machine": "Integrations"
           }
         },
         "access": {
@@ -1854,8 +1863,17 @@
           "empty": "No members found.",
           "noSearchResults": "No members match your search.",
           "loading": "Loading…",
-          "loadError": "Couldn't load organization members."
-        }
+          "loadError": "Couldn't load organization members.",
+          "save": "Save access",
+          "tooFewSeats": "More members have access than there are seats ({seats}). Add seats or remove access."
+        },
+        "forbidden": "Only an organization admin can see and change the Harness plan.",
+        "saved": "Changes saved.",
+        "saveError": "Could not save the changes.",
+        "notEnforced": "The plan is not applied on this installation yet: usage is recorded, but nobody is blocked.",
+        "noSubscription": "Your organization has no seats. Each seat costs ${price} a month and adds {tokens} tokens to the monthly pool.",
+        "chooseSeats": "Choose seats",
+        "poolExhausted": "Your organization used all of this month's tokens. The assistant is available again on the 1st, or sooner if you add seats."
       },
       "breadcrumb": {
         "user": "User",
@@ -5609,6 +5627,12 @@
         "otherAriaLabel": "Other",
         "submit": "Submit"
       }
+    },
+    "plan": {
+      "plan_no_subscription": "Your organization has no Harness seats. Ask an admin to buy them in Settings › Harness.",
+      "plan_no_seat": "You don't have a Harness seat. Ask an admin of your organization for access.",
+      "plan_pool_exhausted": "Your organization used all of this month's tokens. It's available again on the 1st, or sooner if an admin adds seats.",
+      "plan_model_not_offered": "That model is no longer available. Pick another one in the selector."
     }
   }
 }

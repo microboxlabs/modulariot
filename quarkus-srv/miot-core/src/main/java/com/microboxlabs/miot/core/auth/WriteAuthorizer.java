@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.auth;
 
 import com.microboxlabs.miot.core.alfresco.IAlfrescoMembershipClient;
 import com.microboxlabs.miot.core.model.Organization;
+import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -52,6 +53,15 @@ public class WriteAuthorizer {
      * @return a {@link Uni} that completes with {@code null} on success
      *         and fails with {@link ForbiddenException} otherwise
      */
+    /**
+     * {@link #requireParentSiteManager(Organization)} for an org named by slug,
+     * for callers outside a Hibernate Reactive session.
+     */
+    public Uni<Void> requireParentSiteManager(String slug) {
+        return Panache.withSession(() -> Organization.findBySlug(slug)
+                .flatMap(this::requireParentSiteManager));
+    }
+
     public Uni<Void> requireParentSiteManager(Organization target) {
         if (target == null) {
             return Uni.createFrom().failure(new ForbiddenException("Organization not found"));

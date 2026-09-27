@@ -2,10 +2,21 @@
 
 import useSWR from "swr";
 
-/** Mirrors the harness client's `ModelsInfo` (GET /models). */
+/**
+ * Mirrors the harness client's `ModelsInfo` (GET /models). The modulith adds
+ * `multipliers` under a seat plan: how many pool tokens each of a model's
+ * tokens uses.
+ */
 export interface HarnessModels {
   default: string | null;
   models: string[];
+  multipliers?: Record<string, number>;
+}
+
+/** The picker label: the model name, with its multiplier when above 1. */
+export function modelLabel(info: HarnessModels, name: string): string {
+  const multiplier = info.multipliers?.[name] ?? 1;
+  return multiplier > 1 ? `${name} ×${multiplier}` : name;
 }
 
 const EMPTY: HarnessModels = { default: null, models: [] };

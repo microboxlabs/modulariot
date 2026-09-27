@@ -23,6 +23,7 @@ import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.servic
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
 import { conversationOf, modelOf, type AgUiMessage, type RunAgentInputBody } from "./conversation";
+import { planRefusalMessage } from "./plan-refusal";
 
 /**
  * AG-UI streaming relay for the harness-chat panel: `RunAgentInput` in,
@@ -720,7 +721,13 @@ async function run(
   } catch (err: unknown) {
     const isAbort =
       controller.signal.aborted || (err as { name?: string }).name === "AbortError";
-    if (timedOut) {
+    const refusal = planRefusalMessage(err);
+    if (refusal) {
+      // The seat plan refused the run before it started: an answer to show,
+      // not a failure to retry.
+      sendText(send, tr(refusal));
+      send({ type: "RUN_FINISHED", runId, threadId });
+    } else if (timedOut) {
       // Unlike a client disconnect, the caller is still listening here — the
       // relay itself gave up, so it needs a terminal event same as any other
       // failure.

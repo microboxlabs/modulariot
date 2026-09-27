@@ -99,7 +99,7 @@ public class ModelProviderService {
                 continue;
             }
             repository.upsert(other.withModels(other.models().stream()
-                    .map(m -> new ModelProvider.Model(m.id(), m.inputPerMtok(), m.outputPerMtok(), false))
+                    .map(m -> m.withDefault(false))
                     .toList()));
         }
     }
@@ -118,11 +118,12 @@ public class ModelProviderService {
             }
             price(e.inputPerMtok(), id);
             price(e.outputPerMtok(), id);
+            multiplier(e.multiplier(), id);
             boolean isDefault = Boolean.TRUE.equals(e.isDefault());
             if (isDefault) {
                 defaults++;
             }
-            out.add(new ModelProvider.Model(id, e.inputPerMtok(), e.outputPerMtok(), isDefault));
+            out.add(new ModelProvider.Model(id, e.inputPerMtok(), e.outputPerMtok(), isDefault, e.multiplier()));
         }
         if (defaults > 1) {
             throw new IllegalArgumentException("only one model can be the default");
@@ -133,6 +134,12 @@ public class ModelProviderService {
     private static void price(BigDecimal value, String model) {
         if (value != null && value.signum() < 0) {
             throw new IllegalArgumentException("price of " + model + " cannot be negative");
+        }
+    }
+
+    private static void multiplier(BigDecimal value, String model) {
+        if (value != null && value.compareTo(BigDecimal.ONE) < 0) {
+            throw new IllegalArgumentException("multiplier of " + model + " must be at least 1");
         }
     }
 
@@ -147,6 +154,22 @@ public class ModelProviderService {
         return url;
     }
 
+    /**
+     * The name a run uses for a provider's model: {@code provider:model}, except
+     * Anthropic {@code claude-*} and OpenAI {@code gpt-*}/{@code o1-*}/{@code o3-*}
+     * models keep their bare names. Keep in step with the harness's qualified().
+     */
+    public static String qualified(String provider, String model) {
+        if ("anthropic".equals(provider) && model.startsWith("claude-")) {
+            return model;
+        }
+        if ("openai".equals(provider)
+                && (model.startsWith("gpt-") || model.startsWith("o1-") || model.startsWith("o3-"))) {
+            return model;
+        }
+        return provider + ":" + model;
+    }
+
     static String preview(String apiKey) {
         return apiKey.length() <= 4 ? "…" : "…" + apiKey.substring(apiKey.length() - 4);
     }
@@ -157,7 +180,7 @@ public class ModelProviderService {
 
     private static List<ModelEntry> entries(List<ModelProvider.Model> models) {
         return models.stream()
-                .map(m -> new ModelEntry(m.id(), m.inputPerMtok(), m.outputPerMtok(), m.isDefault()))
+                .map(m -> new ModelEntry(m.id(), m.inputPerMtok(), m.outputPerMtok(), m.isDefault(), m.multiplier()))
                 .toList();
     }
 

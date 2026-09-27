@@ -48,7 +48,12 @@ export const PLATFORM_OWNER_ROLE = "PLATFORM_OWNER";
 export type LogoVariant = "light" | "dark";
 
 /** The panels Settings > Platform offers in its left-hand menu. */
-export type PlatformSection = "branding" | "superusers" | "models" | "usage";
+export type PlatformSection =
+  | "branding"
+  | "superusers"
+  | "models"
+  | "plan"
+  | "usage";
 
 /** The providers the harness can call. Mirrors `ModelProviderService.KNOWN`. */
 export const MODEL_PROVIDERS = [
@@ -63,13 +68,20 @@ export const MODEL_PROVIDERS = [
 
 export type ModelProviderName = (typeof MODEL_PROVIDERS)[number];
 
-/** Mirrors `ModelEntry`: prices are USD per million tokens. */
+/**
+ * Mirrors `ModelEntry`: prices are USD per million tokens. `multiplier` is how
+ * many seat-plan pool tokens each of the model's tokens uses; null means 1.
+ */
 export interface ModelEntry {
   id: string;
   inputPerMtok: number | null;
   outputPerMtok: number | null;
   default: boolean;
+  multiplier: number | null;
 }
+
+/** The pool multipliers the settings page offers. */
+export const MODEL_MULTIPLIERS = [1, 2, 3] as const;
 
 /** Mirrors `ModelProviderResponse`. The key itself is never returned. */
 export interface ModelProviderAdmin {
@@ -103,4 +115,20 @@ export interface ModelUsageTotal {
   cacheWriteTokens: number;
   costUsd: number | null;
   unpricedRuns: number;
+}
+
+/** Mirrors `HarnessPlanDtos.Plan`: the seat plan every organization buys on. */
+export interface HarnessPlan {
+  seatPriceUsd: number;
+  tokensPerSeat: number;
+  yearlyDiscountPct: number;
+  updatedBy: string | null;
+  updatedAt: string | null;
+}
+
+/** Mirrors `HarnessPlanDtos.SetPlanRequest`. */
+export interface SetHarnessPlan {
+  seatPriceUsd: number;
+  tokensPerSeat: number;
+  yearlyDiscountPct: number;
 }

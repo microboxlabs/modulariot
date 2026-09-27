@@ -1549,7 +1549,8 @@
           "columns": {
             "model": "Modelo",
             "input": "Entrada (USD / 1M tokens)",
-            "output": "Salida (USD / 1M tokens)"
+            "output": "Salida (USD / 1M tokens)",
+            "multiplier": "Multiplicador"
           },
           "toast": {
             "saved": "Se guardó {provider}.",
@@ -1575,7 +1576,8 @@
             "addModel": "Agregar modelo",
             "save": "Guardar",
             "saving": "Guardando…",
-            "cancel": "Cancelar"
+            "cancel": "Cancelar",
+            "multiplier": "Multiplicador: cuántos tokens del cupo usa cada token del modelo"
           },
           "errors": {
             "provider": "Elige un proveedor.",
@@ -1584,6 +1586,26 @@
             "modelId": "Cada modelo necesita un identificador.",
             "duplicateModel": "Hay un modelo repetido.",
             "price": "Los precios deben ser números mayores o iguales a cero."
+          }
+        },
+        "plan": {
+          "title": "Plan de asientos",
+          "menuHint": "Precio por asiento y tokens incluidos",
+          "description": "Cada organización compra asientos. Cada asiento suma sus tokens al cupo mensual que comparte toda la organización.",
+          "seatPrice": "Precio por asiento (USD / mes)",
+          "tokensPerSeat": "Tokens por asiento (millones / mes)",
+          "yearlyDiscount": "Descuento anual (%)",
+          "summary": "Un asiento cuesta ${price} al mes (${yearly} al mes si se paga anual) y suma {tokens}M tokens al cupo.",
+          "multiplierHelp": "Los modelos con multiplicador ×2 o ×3 gastan el cupo 2 o 3 veces más rápido. Se configura en Modelos de IA.",
+          "save": "Guardar",
+          "saving": "Guardando…",
+          "saved": "Se guardó el plan.",
+          "saveError": "No se pudo guardar el plan.",
+          "loadError": "No se pudo cargar el plan.",
+          "errors": {
+            "seatPrice": "El precio por asiento debe ser un número mayor o igual a cero.",
+            "tokensPerSeat": "Los tokens por asiento deben ser un número mayor o igual a cero.",
+            "yearlyDiscount": "El descuento anual debe estar entre 0 y 99."
           }
         },
         "usage": {
@@ -1769,23 +1791,14 @@
       },
       "harness": {
         "title": "Harness",
-        "description": "Administra los asientos, el uso y los usuarios con acceso al asistente de IA de Harness.",
-        "loadError": "No se pudo cargar la configuración de Harness.",
-        "unpaidAlert": "Tu último pago no se procesó. Actualiza tu método de pago para mantener Harness activo.",
-        "unpaidAlertAction": "Resolverlo",
+        "description": "Administra los asientos, el cupo de tokens y quién usa el asistente de IA.",
+        "loadError": "No se pudo cargar el plan de Harness.",
         "pricing": {
           "title": "Precio",
-          "description": "Costo mensual estimado para tu plan de asientos actual.",
+          "description": "Lo que pagas por tus asientos.",
           "perSeatLabel": "Por asiento",
           "estimatedTotalLabel": "Cuánto pagas por",
           "seatsLabel": "{count} asientos",
-          "extraTokensLabel": "Tokens extra",
-          "lastPaymentLabel": "Último pago",
-          "paymentStatus": {
-            "paid": "Pagado",
-            "failed": "Fallido",
-            "pending": "Pendiente"
-          },
           "seatsModal": {
             "title": "Plan de pago",
             "description": "Elige cómo quieres que se te cobre por los asientos de Harness.",
@@ -1801,7 +1814,8 @@
             "diffFewer": "{count} asientos menos",
             "savePercent": "Ahorra {percent}%",
             "save": "Guardar"
-          }
+          },
+          "tokensPerSeat": "Cada asiento suma {tokens} tokens al cupo mensual."
         },
         "usage": {
           "seats": {
@@ -1809,29 +1823,24 @@
             "description": "Miembros activos",
             "unitLabel": "asientos",
             "remaining": "{count} asientos restantes",
-            "status": {
-              "fullyUsed": "Totalmente utilizados",
-              "underused": "Asientos sin usar"
-            }
+            "tooFew": "Faltan {count} asientos para los miembros con acceso."
           },
           "tokens": {
-            "title": "Tokens usados",
+            "title": "Cupo de tokens",
             "unitLabel": "tokens",
             "remaining": "{count} tokens restantes",
-            "status": {
-              "onTrack": "Sin problemas",
-              "atLimit": "Límite alcanzado"
-            }
+            "multiplierHelp": "Los modelos ×2 y ×3 gastan el cupo más rápido."
           },
-          "extraTokens": {
-            "title": "Tokens extra",
-            "description": "Recarga de tokens bajo demanda",
-            "unitLabel": "tokens",
-            "remaining": "{count} tokens restantes",
-            "status": {
-              "onTrack": "Sin problemas",
-              "atLimit": "Límite alcanzado"
-            }
+          "breakdown": {
+            "byModel": "Uso por modelo este mes",
+            "byMember": "Uso por miembro este mes",
+            "model": "Modelo",
+            "member": "Miembro",
+            "runs": "Consultas",
+            "tokens": "Tokens",
+            "poolTokens": "Del cupo",
+            "empty": "Sin uso este mes.",
+            "machine": "Integraciones"
           }
         },
         "access": {
@@ -1854,8 +1863,17 @@
           "empty": "No se encontraron miembros.",
           "noSearchResults": "Ningún miembro coincide con tu búsqueda.",
           "loading": "Cargando…",
-          "loadError": "No se pudieron cargar los miembros de la organización."
-        }
+          "loadError": "No se pudieron cargar los miembros de la organización.",
+          "save": "Guardar acceso",
+          "tooFewSeats": "Hay más miembros con acceso que asientos ({seats}). Agrega asientos o quita acceso."
+        },
+        "forbidden": "Solo un administrador de la organización puede ver y cambiar el plan de Harness.",
+        "saved": "Se guardaron los cambios.",
+        "saveError": "No se pudieron guardar los cambios.",
+        "notEnforced": "El plan todavía no se aplica en esta instalación: el uso se registra, pero no se bloquea a nadie.",
+        "noSubscription": "Tu organización no tiene asientos. Cada asiento cuesta ${price} al mes y suma {tokens} tokens al cupo mensual.",
+        "chooseSeats": "Elegir asientos",
+        "poolExhausted": "Tu organización usó todos los tokens de este mes. El asistente vuelve a estar disponible el día 1, o antes si agregas asientos."
       },
       "breadcrumb": {
         "user": "Usuario",
@@ -5609,6 +5627,12 @@
         "otherAriaLabel": "Otro",
         "submit": "Enviar"
       }
+    },
+    "plan": {
+      "plan_no_subscription": "Tu organización no tiene asientos de Harness. Pide a un administrador que los contrate en Ajustes › Harness.",
+      "plan_no_seat": "No tienes un asiento de Harness. Pide a un administrador de tu organización que te dé acceso.",
+      "plan_pool_exhausted": "Tu organización usó todos los tokens de este mes. Vuelve a estar disponible el día 1, o antes si un administrador agrega asientos.",
+      "plan_model_not_offered": "Ese modelo ya no está disponible. Elige otro en el selector."
     }
   }
 }

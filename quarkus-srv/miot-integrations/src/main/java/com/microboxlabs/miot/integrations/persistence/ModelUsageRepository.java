@@ -26,8 +26,8 @@ public class ModelUsageRepository {
             INSERT INTO miot_integrations.model_usage (
                 run_id, organization, tenant_id, user_id, provider, model, calls,
                 input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
-                input_per_mtok, output_per_mtok, cost_usd
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                input_per_mtok, output_per_mtok, cost_usd, pool_tokens
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
             ON CONFLICT (run_id, provider, model) DO NOTHING""";
 
     private static final String TOTALS = """
@@ -61,7 +61,8 @@ public class ModelUsageRepository {
             long cacheWriteTokens,
             BigDecimal inputPerMtok,
             BigDecimal outputPerMtok,
-            BigDecimal costUsd) {
+            BigDecimal costUsd,
+            long poolTokens) {
     }
 
     private final Instance<Pool> clientInstance;
@@ -87,7 +88,8 @@ public class ModelUsageRepository {
                 .addLong(r.cacheWriteTokens())
                 .addValue(numeric(r.inputPerMtok()))
                 .addValue(numeric(r.outputPerMtok()))
-                .addValue(numeric(r.costUsd()));
+                .addValue(numeric(r.costUsd()))
+                .addLong(r.poolTokens());
         return execute(INSERT, params).rowCount() > 0;
     }
 

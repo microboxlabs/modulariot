@@ -114,6 +114,9 @@ public class ModelProviderRepository {
             if (m.outputPerMtok() != null) {
                 o.put("outputPerMtok", m.outputPerMtok().toPlainString());
             }
+            if (m.multiplier() != null) {
+                o.put("multiplier", m.multiplier().toPlainString());
+            }
             out.add(o);
         }
         return out;
@@ -130,7 +133,8 @@ public class ModelProviderRepository {
                     o.getString("id"),
                     decimal(o.getValue("inputPerMtok")),
                     decimal(o.getValue("outputPerMtok")),
-                    Boolean.TRUE.equals(o.getBoolean("default"))));
+                    Boolean.TRUE.equals(o.getBoolean("default")),
+                    decimal(o.getValue("multiplier"))));
         }
         return out;
     }

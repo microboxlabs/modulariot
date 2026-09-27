@@ -14,6 +14,7 @@ import {
   type ProviderDraftError,
 } from "./model-provider-form";
 import {
+  MODEL_MULTIPLIERS,
   MODEL_PROVIDERS,
   type ModelProviderAdmin,
   type SetModelProvider,
@@ -157,7 +158,7 @@ export default function ModelProviderEditor({
           {draft.models.map((model, index) => (
             <div
               key={model.rowKey}
-              className="grid grid-cols-[1fr_7rem_7rem_auto_auto] items-center gap-2"
+              className="grid grid-cols-[1fr_6rem_6rem_4.5rem_auto_auto] items-center gap-2"
             >
               <TextInput
                 sizing="sm"
@@ -186,6 +187,21 @@ export default function ModelProviderEditor({
                   setModel(index, { outputPerMtok: e.target.value })
                 }
               />
+              <Select
+                sizing="sm"
+                value={model.multiplier}
+                aria-label={tr("editor.multiplier", dict)}
+                title={tr("editor.multiplier", dict)}
+                onChange={(e) =>
+                  setModel(index, { multiplier: Number(e.target.value) })
+                }
+              >
+                {MODEL_MULTIPLIERS.map((m) => (
+                  <option key={m} value={m}>
+                    ×{m}
+                  </option>
+                ))}
+              </Select>
               <label className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
                 <Checkbox
                   checked={model.isDefault}

@@ -12,6 +12,7 @@ export interface ModelDraft {
   inputPerMtok: string;
   outputPerMtok: string;
   isDefault: boolean;
+  multiplier: number;
 }
 
 export interface ProviderDraft {
@@ -49,6 +50,7 @@ export function emptyModel(): ModelDraft {
     inputPerMtok: "",
     outputPerMtok: "",
     isDefault: false,
+    multiplier: 1,
   };
 }
 
@@ -73,6 +75,7 @@ export function draftFrom(existing?: ModelProviderAdmin): ProviderDraft {
       inputPerMtok: m.inputPerMtok == null ? "" : String(m.inputPerMtok),
       outputPerMtok: m.outputPerMtok == null ? "" : String(m.outputPerMtok),
       isDefault: m.default,
+      multiplier: m.multiplier ?? 1,
     })),
   };
 }
@@ -116,7 +119,13 @@ export function toRequest(draft: ProviderDraft, isNew: boolean): DraftResult {
     if (inputPerMtok === undefined || outputPerMtok === undefined) {
       return { ok: false, error: "price" };
     }
-    models.push({ id, inputPerMtok, outputPerMtok, default: row.isDefault });
+    models.push({
+      id,
+      inputPerMtok,
+      outputPerMtok,
+      default: row.isDefault,
+      multiplier: row.multiplier,
+    });
   }
 
   return {

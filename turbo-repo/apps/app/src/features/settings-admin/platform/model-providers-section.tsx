@@ -136,6 +136,9 @@ export default function ModelProvidersSection({
                 <th className="py-1 font-medium">
                   {tr("columns.output", dict)}
                 </th>
+                <th className="py-1 font-medium">
+                  {tr("columns.multiplier", dict)}
+                </th>
                 <th className="py-1" />
               </tr>
             </thead>
@@ -148,6 +151,7 @@ export default function ModelProvidersSection({
                   <td className="py-1 font-mono">{m.id}</td>
                   <td className="py-1">{formatPrice(m.inputPerMtok)}</td>
                   <td className="py-1">{formatPrice(m.outputPerMtok)}</td>
+                  <td className="py-1">×{m.multiplier ?? 1}</td>
                   <td className="py-1 text-right">
                     {m.default && (
                       <Badge color="info">{tr("defaultBadge", dict)}</Badge>

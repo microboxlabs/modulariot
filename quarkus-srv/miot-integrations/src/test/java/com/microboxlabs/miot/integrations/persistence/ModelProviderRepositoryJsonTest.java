@@ -12,8 +12,8 @@ class ModelProviderRepositoryJsonTest {
     @Test
     void modelsSurviveTheJsonColumnWithExactPrices() {
         List<ModelProvider.Model> models = List.of(
-                new ModelProvider.Model("deepseek-chat", new BigDecimal("0.27"), new BigDecimal("1.10"), true),
-                new ModelProvider.Model("deepseek-reasoner", null, null, false));
+                new ModelProvider.Model("deepseek-chat", new BigDecimal("0.27"), new BigDecimal("1.10"), true, new BigDecimal("2")),
+                new ModelProvider.Model("deepseek-reasoner", null, null, false, null));
 
         List<ModelProvider.Model> back = ModelProviderRepository.fromJson(ModelProviderRepository.toJson(models));
 

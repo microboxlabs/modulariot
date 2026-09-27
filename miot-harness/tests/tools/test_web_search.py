@@ -279,3 +279,37 @@ async def test_an_answer_without_sources_is_an_error_and_still_billed() -> None:
         await _searcher(("llmgateway",), memory_only).search(_ctx(), "q", events.append)
     usage = next(e.data for e in events if e.type == "usage.recorded")
     assert (usage["output_tokens"], usage["web_search_requests"]) == (900, 0)
+
+
+@pytest.mark.asyncio
+async def test_a_search_that_found_nothing_says_so_without_blaming_the_model() -> None:
+    def empty(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "content": [{"type": "text", "text": "Nothing found."}],
+                "usage": {"server_tool_use": {"web_search_requests": 1}},
+            },
+        )
+
+    with pytest.raises(WebSearchError) as raised:
+        await _searcher(("anthropic",), empty).search(_ctx(), "q", lambda _e: None)
+    assert "no usable web sources" in str(raised.value)
+    assert "administrator" not in str(raised.value)
+
+
+@pytest.mark.asyncio
+async def test_llm_gateway_search_cost_is_read_from_cost_details() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        message = {"content": "x", "annotations": [{"url": "https://a.example"}]}
+        usage = {
+            "prompt_tokens": 10,
+            "completion_tokens": 5,
+            "cost_details": {"web_search_cost": 0.01},
+        }
+        return httpx.Response(200, json={"choices": [{"message": message}], "usage": usage})
+
+    events: list[HarnessEvent] = []
+    await _searcher(("llmgateway",), handler).search(_ctx(), "q", events.append)
+    usage = next(e.data for e in events if e.type == "usage.recorded")
+    assert usage["web_search_cost"] == 0.01

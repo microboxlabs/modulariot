@@ -58,6 +58,31 @@ async def test_a_small_replay_waits_for_the_turn_cap() -> None:
     assert not await store.summarize_if_needed("c", summarizer=_summarize)
 
 
+def test_each_result_follows_its_own_call() -> None:
+    turn = ConversationTurn(
+        user_message="both?",
+        assistant_answer="done",
+        messages=(
+            HumanMessage(content="both?"),
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {"name": "delegate", "args": {"brief": "b"}, "id": "d1"},
+                    {"name": "acs_query", "args": {"sql": "select 1"}, "id": "q1"},
+                ],
+            ),
+            ToolMessage(content="query rows", tool_call_id="q1"),
+            ToolMessage(content="delegate findings", tool_call_id="d1"),
+            AIMessage(content="done"),
+        ),
+    )
+    rendered = render_history(ConversationHistory(conversation_id="c", turns=[turn]))
+    assert (
+        'Tool call: delegate({"brief": "b"})\nTool result: delegate findings\n'
+        'Tool call: acs_query({"sql": "select 1"})\nTool result: query rows'
+    ) in rendered
+
+
 def test_the_summarizer_sees_the_queries_and_result_heads() -> None:
     history = ConversationHistory(conversation_id="c", turns=[_tool_turn("trips?", rows=1_000)])
     rendered = render_history(history)

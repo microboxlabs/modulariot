@@ -36,7 +36,8 @@ _MAX_SUMMARY_WORDS = 300
 # Keeps one runaway answer from crowding the rest of the history out of the
 # summarizer's own prompt.
 _MAX_TURN_CHARS = 4_000
-_MAX_TOOL_ARGS_CHARS = 600
+# Long enough for the WHERE clause of any query the loop writes.
+_MAX_TOOL_ARGS_CHARS = 2_000
 _MAX_TOOL_RESULT_CHARS = 300
 
 _SYSTEM_PROMPT = f"""\
@@ -87,18 +88,26 @@ def render_history(history: ConversationHistory) -> str:
 
 
 def _tool_lines(messages: tuple[BaseMessage, ...]) -> list[str]:
-    """Each tool call a turn made, with its arguments, and each result head."""
-    lines: list[str] = []
+    """Each tool call a turn made, with its arguments, followed by the head of
+    its own result. Results are matched by call id: a reply can ask for
+    several tools, and their results need not come back in call order."""
+    results: dict[str, str] = {}
     for msg in messages:
-        if isinstance(msg, AIMessage):
-            for call in msg.tool_calls:
-                args = json.dumps(call.get("args") or {}, ensure_ascii=False, default=str)
-                lines.append(f"Tool call: {call.get('name')}({_clip(args, _MAX_TOOL_ARGS_CHARS)})")
-        elif isinstance(msg, ToolMessage):
+        if isinstance(msg, ToolMessage):
             content = msg.content
             if not isinstance(content, str):
                 content = json.dumps(content, default=str)
-            lines.append(f"Tool result: {_clip(content, _MAX_TOOL_RESULT_CHARS)}")
+            results[msg.tool_call_id] = content
+    lines: list[str] = []
+    for msg in messages:
+        if not isinstance(msg, AIMessage):
+            continue
+        for call in msg.tool_calls:
+            args = json.dumps(call.get("args") or {}, ensure_ascii=False, default=str)
+            lines.append(f"Tool call: {call.get('name')}({_clip(args, _MAX_TOOL_ARGS_CHARS)})")
+            result = results.get(str(call.get("id")))
+            if result is not None:
+                lines.append(f"Tool result: {_clip(result, _MAX_TOOL_RESULT_CHARS)}")
     return lines
 
 

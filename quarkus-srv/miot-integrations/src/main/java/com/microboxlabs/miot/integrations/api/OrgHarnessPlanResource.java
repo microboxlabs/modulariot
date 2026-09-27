@@ -2,7 +2,7 @@ package com.microboxlabs.miot.integrations.api;
 
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
-import com.microboxlabs.miot.core.auth.WriteAuthorizer;
+import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.integrations.dto.HarnessPlanDtos.OrgPlanResponse;
 import com.microboxlabs.miot.integrations.dto.HarnessPlanDtos.SetSubscriptionRequest;
 import com.microboxlabs.miot.integrations.service.HarnessPlanService;
@@ -28,8 +28,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 /**
  * An organization's harness seats, who may use the harness, and this month's
  * token pool. The caller must be a member of the org, as for every
- * {@code /api/v1/orgs/**} route, and hold SITE_MANAGER on its parent, as other
- * organization settings require, or the platform owner role.
+ * {@code /api/v1/orgs/**} route, and an owner of it (the ORGANIZATION_OWNER role
+ * set under Settings > Organizations), or a platform owner.
  *
  * <p>Not under {@code /harness}: that prefix is the run proxy in miot-core.
  */
@@ -42,16 +42,16 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class OrgHarnessPlanResource {
 
     private final HarnessPlanService service;
-    private final WriteAuthorizer authorizer;
+    private final OrganizationRoleService roles;
     private final PlatformAuthorizer platformAuthorizer;
     private final OrganizationContext organizationContext;
 
     @Inject
-    public OrgHarnessPlanResource(HarnessPlanService service, WriteAuthorizer authorizer,
+    public OrgHarnessPlanResource(HarnessPlanService service, OrganizationRoleService roles,
                                   PlatformAuthorizer platformAuthorizer,
                                   OrganizationContext organizationContext) {
         this.service = service;
-        this.authorizer = authorizer;
+        this.roles = roles;
         this.platformAuthorizer = platformAuthorizer;
         this.organizationContext = organizationContext;
     }
@@ -79,7 +79,7 @@ public class OrgHarnessPlanResource {
     }
 
     private Uni<Void> requireAdmin(String organizationId) {
-        return authorizer.requireParentSiteManager(organizationId)
+        return roles.requireOwner(organizationId)
                 .onFailure(ForbiddenException.class)
                 .recoverWithUni(() -> platformAuthorizer.requirePlatformOwner().replaceWithVoid());
     }

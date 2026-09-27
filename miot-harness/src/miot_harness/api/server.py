@@ -866,6 +866,18 @@ def create_app() -> FastAPI:
             )
         return {"claims": claims, "tenant_id": header_tenant}
 
+    def _caller(http_request: Request) -> dict[str, str | None]:
+        """The caller's bearer token and organization slug, as the backend
+        proxy forwarded them, for MCP skills to call back with."""
+        auth_header = http_request.headers.get("Authorization") or ""
+        token = (
+            auth_header[len("Bearer ") :].strip()
+            if auth_header.startswith("Bearer ")
+            else ""
+        )
+        organization = (http_request.headers.get("X-Miot-Organization") or "").strip()
+        return {"caller_token": token or None, "organization": organization or None}
+
     def _apply_tenant_override(
         user_request: UserRequest, auth: Mapping[str, Any]
     ) -> UserRequest:
@@ -1021,7 +1033,7 @@ def create_app() -> FastAPI:
         request = _apply_tenant_override(request, auth)
         _enforce_debug_allowlist(request, settings)
         _enforce_model_allowlist(request)
-        return await harness.run(request)
+        return await harness.run(request, **_caller(http_request))
 
     @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
     async def get_run(
@@ -1074,7 +1086,9 @@ def create_app() -> FastAPI:
         _enforce_model_allowlist(request)
         run_id = f"run_{uuid4().hex}"
         task = asyncio.create_task(
-            app.state.harness.run(request, run_id_override=run_id)
+            app.state.harness.run(
+                request, run_id_override=run_id, **_caller(http_request)
+            )
         )
         app.state.in_flight[run_id] = task
         # Track the tenant for in-flight runs so /stream can reject

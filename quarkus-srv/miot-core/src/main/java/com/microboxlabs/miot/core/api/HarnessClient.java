@@ -19,9 +19,11 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
  * binding name matches {@code quarkus.rest-client."harness".url}.
  *
  * <p>{@link HarnessProxyResource} forwards the caller's Auth0 bearer
- * token plus four {@code X-Miot-*} identity headers verbatim:
+ * token plus {@code X-Miot-*} identity headers verbatim:
  * tenant-client-id (from {@code TenantContext}), user-email (web flow
- * only), and auth-mode ({@code "web"} vs {@code "m2m"}).
+ * only), and auth-mode ({@code "web"} vs {@code "m2m"}). Runs also carry
+ * the organization's slug, which the harness's MCP skills name in their
+ * calls back to this API.
  *
  * <p>Methods return {@code Uni<Response>} so upstream status codes
  * (notably 202 from {@code /runs:start}) propagate to the caller
@@ -39,6 +41,7 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
             @HeaderParam("X-Miot-User-Email") String userEmail,
             @HeaderParam("X-Miot-Auth-Mode") String authMode,
+            @HeaderParam("X-Miot-Organization") String organization,
             Map<String, Object> body);
 
     @POST
@@ -48,6 +51,7 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
             @HeaderParam("X-Miot-User-Email") String userEmail,
             @HeaderParam("X-Miot-Auth-Mode") String authMode,
+            @HeaderParam("X-Miot-Organization") String organization,
             Map<String, Object> body);
 
     @GET

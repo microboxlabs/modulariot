@@ -66,6 +66,13 @@ class HarnessContext(BaseModel):
     # approval_registry, it is excluded from model_dump (PermissionPolicy
     # is serializable, but it is run-control state, not run output).
     permission_policy: PermissionPolicy | None = Field(default=None, exclude=True)
+    # Who started the run, as the backend proxy told us: the caller's bearer
+    # token and the slug of the organization the run is for. MCP skills call
+    # back into the backend with them, so the backend applies that user's
+    # permissions. Set by the API from request headers, never from the body;
+    # excluded from dumps and repr so the token never lands in a record or log.
+    caller_token: str | None = Field(default=None, exclude=True, repr=False)
+    organization: str | None = Field(default=None, exclude=True)
 
 
 # Bounds on a replayed transcript, enforced where the body is parsed rather

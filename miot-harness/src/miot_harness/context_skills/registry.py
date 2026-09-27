@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.context_skills.models import SystemContext
@@ -27,6 +28,10 @@ from miot_harness.context_skills.skill_models import (
     PlaybookSkill,
     SkillSummary,
 )
+
+if TYPE_CHECKING:
+    from miot_harness.context_skills.mcp_skills import McpSkills
+    from miot_harness.runtime.context import HarnessContext
 
 
 @dataclass(frozen=True)
@@ -57,9 +62,11 @@ class ContextSkillsBundle:
         self,
         contexts: tuple[SystemContext, ...] = (),
         playbook_skills: tuple[LoadedSkill, ...] = (),
+        mcp: McpSkills | None = None,
     ) -> None:
         self.contexts = contexts
         self.playbook_skills = playbook_skills
+        self.mcp = mcp
 
     # ---- primer -----------------------------------------------------------
 
@@ -222,6 +229,29 @@ class ContextSkillsBundle:
             assert isinstance(skill, PlaybookSkill)  # playbooks_for guarantees
             if skill.id == skill_id and loaded.playbook_body:
                 return skill.name, loaded.playbook_body
+        return None
+
+    async def activate_skill_for_run(
+        self, ctx: HarnessContext, skill_id: str, *, connection: str | None = None
+    ) -> tuple[str, str] | None:
+        """`activate_skill` for a run: an MCP skill's body also lists its
+        server's tools, fetched with the run caller's token."""
+        skill = self.find_mcp_skill(ctx.tenant_id, skill_id, connection=connection)
+        if skill is None or self.mcp is None:
+            return self.activate_skill(ctx.tenant_id, skill_id, connection=connection)
+        activated = self.activate_skill(ctx.tenant_id, skill_id, connection=connection)
+        body = activated[1] if activated is not None else ""
+        tools = await self.mcp.describe(skill, ctx)
+        return skill.name, f"{body}\n\n{tools}".strip()
+
+    def find_mcp_skill(
+        self, tenant_id: str, skill_id: str, *, connection: str | None = None
+    ) -> PlaybookSkill | None:
+        """The tenant's skill with this id, if it names an MCP server."""
+        for loaded in self.playbooks_for(tenant_id, connection=connection):
+            skill = loaded.skill
+            if isinstance(skill, PlaybookSkill) and skill.id == skill_id and skill.mcp:
+                return skill
         return None
 
     # ---- helpers ----------------------------------------------------------

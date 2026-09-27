@@ -139,3 +139,29 @@ describe("MarkdownContent — document variant tables (opted out of prose, same 
     expect(wrapper?.className).toContain("overscroll-x-none");
   });
 });
+
+describe("MarkdownContent — links", () => {
+  it("keeps an app path in the tab, through next/link", () => {
+    const { container } = render(
+      <MarkdownContent>{"[Despacho — servicio 1695541](/shipping?service=1695541)"}</MarkdownContent>
+    );
+    const link = container.querySelector("a");
+    expect(link?.getAttribute("href")).toBe("/shipping?service=1695541");
+    expect(link?.getAttribute("target")).toBeNull();
+  });
+
+  it("opens an external link in a new tab", () => {
+    const { container } = render(
+      <MarkdownContent>{"[INE](https://www.ine.gob.cl/ipc)"}</MarkdownContent>
+    );
+    const link = container.querySelector("a");
+    expect(link?.getAttribute("href")).toBe("https://www.ine.gob.cl/ipc");
+    expect(link?.getAttribute("target")).toBe("_blank");
+    expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("treats a protocol-relative link as external", () => {
+    const { container } = render(<MarkdownContent>{"[x](//evil.example/a)"}</MarkdownContent>);
+    expect(container.querySelector("a")?.getAttribute("target")).toBe("_blank");
+  });
+});

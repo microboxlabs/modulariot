@@ -59,6 +59,8 @@ _MAX_SEEDED_TURNS = MAX_CONVERSATION_HISTORY_TURNS
 
 # The answer when no conversation model could be built (no API key, or the
 # model failed to load at boot).
+_CONTEXT_KEYS = ("model", "window", "used", "ratio", "breakdown")
+
 NO_MODEL_ANSWER = (
     "The assistant is not available: no conversation model is configured. "
     "Ask an administrator to set one up."
@@ -356,6 +358,10 @@ class HarnessSupervisor:
 
         event.seq = len(record.events)
         record.events.append(event)
+        if event.type == "context.usage" and event.data.get("agent") == "agent_loop":
+            # Kept as each turn reports it, so a run that fails later still
+            # records how full the window was.
+            record.context = {k: v for k, v in event.data.items() if k in _CONTEXT_KEYS}
         if self.event_bus is not None:
             self.event_bus.publish(record.run_id, event)
             # Periodic mid-flight checkpoint so SSE reconnects find a
@@ -716,7 +722,6 @@ class HarnessSupervisor:
                 prior_messages=prior_messages,
                 progress=progress,
             )
-        record.context = delta.get("context") or None
         answer = delta.get("answer") or "(no answer produced by agent loop)"
         record.answer = harden_answer(answer)
         # Business terms the answer could not ground feed the review queue.

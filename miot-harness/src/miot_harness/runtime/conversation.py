@@ -200,6 +200,22 @@ class InMemoryConversationStore:
             return False
         return history_tokens(history) > self._compact_at_tokens
 
+    def _fold_count(self, history: ConversationHistory) -> int:
+        """How many of the oldest turns to fold.
+
+        All but `keep_recent_turns`, and further back while the kept turns
+        alone are still past `compact_at_tokens`, so the next run does not
+        compact again at once. The newest turn is always kept.
+        """
+
+        fold = len(history.turns) - self._keep_recent_turns
+        if self._compact_at_tokens is None:
+            return fold
+        last = len(history.turns) - 1
+        while 0 <= fold < last and _turns_tokens(history.turns[fold:]) > self._compact_at_tokens:
+            fold += 1
+        return fold
+
     async def summarize_if_needed(
         self,
         conversation_id: str,
@@ -220,7 +236,7 @@ class InMemoryConversationStore:
             history = self._histories.get(conversation_id)
             if history is None or not self._over_limit(history):
                 return False
-            fold = len(history.turns) - self._keep_recent_turns
+            fold = self._fold_count(history)
             if fold <= 0:
                 return False
             snapshot = ConversationHistory(
@@ -304,6 +320,11 @@ def history_tokens(history: ConversationHistory) -> int:
         msgs.append(_summary_message(history.summary))
     for turn in history.turns:
         msgs.extend(_turn_messages(turn))
+    return count_tokens_approximately(msgs) if msgs else 0
+
+
+def _turns_tokens(turns: list[ConversationTurn]) -> int:
+    msgs = [msg for turn in turns for msg in _turn_messages(turn)]
     return count_tokens_approximately(msgs) if msgs else 0
 
 

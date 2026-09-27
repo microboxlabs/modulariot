@@ -222,6 +222,10 @@ class HarnessSettings(BaseSettings):
     fs_max_total_bytes: int = Field(default=1_048_576, gt=0)
     fs_max_files: int = Field(default=64, gt=0)
     fs_max_conversations: int = Field(default=512, gt=0)
+    # `web_fetch`: lets the model read public web pages. Off by default: a
+    # fetched page can carry instructions that try to send tenant data out
+    # in a URL, so turn it on per deployment.
+    web_fetch_enabled: bool = False
 
     # Operations / observability
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"

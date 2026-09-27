@@ -56,7 +56,7 @@ refuse for it.
 A model is named `provider:model` (`deepseek:deepseek-chat`,
 `openrouter:anthropic/claude-sonnet-4`); bare `claude-*` and `gpt-*` names mean
 Anthropic and OpenAI. Known providers: `anthropic`, `openai`, `openrouter`,
-`deepseek`, `qwen`, `kimi`, `glm`. Anthropic models use the Anthropic client;
+`llmgateway`, `deepseek`, `qwen`, `kimi`, `glm`. Anthropic models use the Anthropic client;
 the others use the OpenAI client on the provider's base URL.
 
 Without a working model every run answers that no model is configured.

@@ -609,6 +609,7 @@ def _build_agent_loop(
                     provenance_log=provenance,
                     context_skills=harness.context_skills,
                     anthropic_format=is_anthropic(settings.agents_workhorse_model),
+                    model_name=settings.agents_workhorse_model,
                 ),
                 max_parallel=settings.agents_workhorse_max_parallel,
             )

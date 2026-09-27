@@ -8,7 +8,8 @@ Redis-backed store without retouching call sites.
 groups runs from the same multi-turn chat in Langfuse.
 
 `summarize_if_needed` fires plan 12's summarizer when the transcript
-exceeds the configured turn cap (default 10). The store then keeps a
+exceeds the configured turn cap (default 10) or its replay passes
+`compact_at_tokens`. The store then keeps a
 compact `summary` field plus the most-recent turns so context stays
 under the LLM's window.
 """
@@ -105,12 +106,14 @@ class InMemoryConversationStore:
         keep_recent_turns: int = _DEFAULT_KEEP_RECENT_TURNS,
         max_conversations: int = _DEFAULT_MAX_CONVERSATIONS,
         max_chars: int = _DEFAULT_MAX_CHARS,
+        compact_at_tokens: int | None = None,
     ) -> None:
         self._histories: OrderedDict[str, ConversationHistory] = OrderedDict()
         self._summarize_at_turns = summarize_at_turns
         self._keep_recent_turns = max(0, keep_recent_turns)
         self._max_conversations = max(1, max_conversations)
         self._max_chars = max(1, max_chars)
+        self._compact_at_tokens = compact_at_tokens
         self._chars: dict[str, int] = {}
         self._compactions: dict[str, asyncio.Lock] = {}
 
@@ -183,6 +186,20 @@ class InMemoryConversationStore:
         self._remeasure(conversation_id)
         self._evict()
 
+    def _over_limit(self, history: ConversationHistory) -> bool:
+        """Too many turns, or a replay larger than `compact_at_tokens`.
+
+        Past the token limit the replay budget starts cutting tool
+        transcripts down to text, so the summary is written before that
+        detail is lost.
+        """
+
+        if len(history.turns) > self._summarize_at_turns:
+            return True
+        if self._compact_at_tokens is None:
+            return False
+        return history_tokens(history) > self._compact_at_tokens
+
     async def summarize_if_needed(
         self,
         conversation_id: str,
@@ -201,7 +218,7 @@ class InMemoryConversationStore:
         lock = self._compactions.setdefault(conversation_id, asyncio.Lock())
         async with lock:
             history = self._histories.get(conversation_id)
-            if history is None or len(history.turns) <= self._summarize_at_turns:
+            if history is None or not self._over_limit(history):
                 return False
             fold = len(history.turns) - self._keep_recent_turns
             if fold <= 0:
@@ -276,6 +293,18 @@ def to_messages(
     if not history.summary:
         return recent
     return [_summary_message(history.summary), *recent]
+
+
+def history_tokens(history: ConversationHistory) -> int:
+    """Approximate tokens of the full replay: summary plus every turn with its
+    tool calls, before any budget trim."""
+
+    msgs: list[BaseMessage] = []
+    if history.summary:
+        msgs.append(_summary_message(history.summary))
+    for turn in history.turns:
+        msgs.extend(_turn_messages(turn))
+    return count_tokens_approximately(msgs) if msgs else 0
 
 
 def _turn_messages(turn: ConversationTurn) -> list[BaseMessage]:

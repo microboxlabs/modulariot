@@ -14,6 +14,7 @@ export type {
   ConversationTurn,
   ErrorResponse,
   HarnessAssumption,
+  HarnessContextUsage,
   HarnessEvent,
   HarnessEventType,
   HarnessRunRecord,

@@ -93,6 +93,11 @@ class HarnessSettings(BaseSettings):
     # Minimum holds the compact envelope the loop falls back to (tool name,
     # row count, note), so a tool message is always valid JSON.
     agents_agent_loop_tool_result_max_chars: int = Field(default=6000, ge=200)
+    # Context window per conversation model, as a JSON object in the env
+    # (`{"deepseek:deepseek-chat": 128000}`). Claude models default to 200K,
+    # the rest to `agents_context_window_default`.
+    agents_context_windows: dict[str, int] = Field(default_factory=dict)
+    agents_context_window_default: int = Field(default=128_000, gt=0)
     # LLM timeout for the agent loop (seconds). The loop's final turn writes
     # the full user-facing answer and adaptive-thinking turns can exceed the
     # current hard 60s default. 300s (5 minutes) suits multi-step planning.
@@ -122,6 +127,9 @@ class HarnessSettings(BaseSettings):
     # summary (`ConversationStore.summarize_if_needed`). The token budget
     # above bounds what reaches the model; this bounds what accumulates.
     conversation_summarize_at_turns: int = Field(default=10, gt=0)
+    # Compacts earlier too, once the full replay passes this share of
+    # `conversation_tool_token_budget`.
+    conversation_compact_at_ratio: float = Field(default=0.75, gt=0, le=1)
 
     # Turns compaction keeps verbatim when it folds the rest into a summary.
     conversation_keep_recent_turns: int = Field(

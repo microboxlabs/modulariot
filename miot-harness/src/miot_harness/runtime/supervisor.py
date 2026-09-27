@@ -716,6 +716,7 @@ class HarnessSupervisor:
                 prior_messages=prior_messages,
                 progress=progress,
             )
+        record.context = delta.get("context") or None
         answer = delta.get("answer") or "(no answer produced by agent loop)"
         record.answer = harden_answer(answer)
         # Business terms the answer could not ground feed the review queue.

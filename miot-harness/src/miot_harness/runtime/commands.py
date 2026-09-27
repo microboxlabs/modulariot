@@ -9,10 +9,14 @@ A command is the whole message: the name first, then its argument.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
 COMMANDS = ("compact", "context")
+
+# The name, then any whitespace, then the argument.
+_COMMAND = re.compile(r"^/(?P<name>\S+)(?:\s+(?P<rest>.*))?$", re.DOTALL)
 
 
 @dataclass(frozen=True)
@@ -22,15 +26,10 @@ class Command:
 
 
 def parse_command(message: str) -> Command | None:
-    text = message.strip()
-    if not text.startswith("/"):
+    match = _COMMAND.match(message.strip())
+    if match is None or match.group("name") not in COMMANDS:
         return None
-    name, _, rest = text[1:].partition(" ")
-    name, _, first_line_rest = name.partition("\n")
-    if name not in COMMANDS:
-        return None
-    argument = " ".join(part for part in (first_line_rest, rest) if part).strip()
-    return Command(name=name, argument=argument)
+    return Command(name=match.group("name"), argument=(match.group("rest") or "").strip())
 
 
 def render_context(report: dict[str, Any]) -> str:

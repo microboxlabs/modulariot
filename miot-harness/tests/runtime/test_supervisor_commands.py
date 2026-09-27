@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -31,6 +32,36 @@ def test_only_known_commands_at_the_start_are_commands() -> None:
     assert parse_command("/compacted") is None
     assert parse_command("please /compact") is None
     assert parse_command("/pending-deliveries today") is None
+    tab = parse_command("/compact\tkeep the counts")
+    assert tab is not None and tab.argument == "keep the counts"
+    newline = parse_command("/compact\nkeep\nthe counts")
+    assert newline is not None and newline.argument == "keep\nthe counts"
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_compact_is_recorded_as_failed(tmp_path: Any) -> None:
+    store = InMemoryConversationStore()
+    supervisor = _supervisor(tmp_path, store)
+    started = asyncio.Event()
+
+    async def summarizer(history: Any) -> str:
+        started.set()
+        await asyncio.Event().wait()
+        return "never"
+
+    supervisor.conversation_summarizer = summarizer
+    await supervisor.run(_request("q1"))
+    task = asyncio.create_task(supervisor.run(_request("/compact"), run_id_override="run_cancel"))
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    record = supervisor.run_store.load("run_cancel")
+    assert record.status == "failed"
+    assert record.events[-1].type == "run.failed"
+    history = store.get(_KEY)
+    assert history is not None and len(history.turns) == 1
 
 
 def _loop() -> AgentLoopRunners:

@@ -6,6 +6,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from miot_harness.runtime.approvals import ApprovalRegistry
+from miot_harness.runtime.commands import COMMANDS
 from miot_harness.runtime.permissions import (
     PermissionMode,
     PermissionPolicy,
@@ -163,10 +164,12 @@ class UserRequest(BaseModel):
 
         An explicit `skill_id` always wins (message left untouched). Unknown
         slugs resolve to no skill downstream and the run proceeds normally.
+        A harness command (`/compact`, `/context`) stays in the message, so a
+        skill cannot share its name.
         """
         if not self.skill_id:
             match = _SKILL_SLUG_RE.match(self.message)
-            if match is not None:
+            if match is not None and match.group("slug") not in COMMANDS:
                 self.skill_id = match.group("slug")
                 self.message = match.group("rest") or ""
         return self

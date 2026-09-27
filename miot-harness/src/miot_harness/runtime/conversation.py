@@ -89,6 +89,14 @@ class ConversationStore(Protocol):
         summarizer: Callable[[ConversationHistory], Awaitable[str]],
     ) -> bool: ...
 
+    async def compact(
+        self,
+        conversation_id: str,
+        *,
+        summarizer: Callable[[ConversationHistory], Awaitable[str]],
+        keep_recent: int = 0,
+    ) -> bool: ...
+
 
 class InMemoryConversationStore:
     """Dict-keyed in-memory store. Lost on process restart — acceptable for v1.
@@ -200,15 +208,15 @@ class InMemoryConversationStore:
             return False
         return history_tokens(history) > self._compact_at_tokens
 
-    def _fold_count(self, history: ConversationHistory) -> int:
+    def _fold_count(self, history: ConversationHistory, keep_recent: int) -> int:
         """How many of the oldest turns to fold.
 
-        All but `keep_recent_turns`, and further back while the kept turns
+        All but `keep_recent`, and further back while the kept turns
         alone are still past `compact_at_tokens`, so the next run does not
         compact again at once. The newest turn is always kept.
         """
 
-        fold = len(history.turns) - self._keep_recent_turns
+        fold = len(history.turns) - keep_recent
         if self._compact_at_tokens is None:
             return fold
         last = len(history.turns) - 1
@@ -231,12 +239,47 @@ class InMemoryConversationStore:
         into nothing would lose them.
         """
 
+        return await self._fold(
+            conversation_id,
+            summarizer=summarizer,
+            keep_recent=self._keep_recent_turns,
+            force=False,
+        )
+
+    async def compact(
+        self,
+        conversation_id: str,
+        *,
+        summarizer: Callable[[ConversationHistory], Awaitable[str]],
+        keep_recent: int = 0,
+    ) -> bool:
+        """Fold every turn but the newest `keep_recent` now, whatever the size.
+
+        Same guarantees as `summarize_if_needed`. False when there is nothing
+        to fold.
+        """
+
+        return await self._fold(
+            conversation_id,
+            summarizer=summarizer,
+            keep_recent=max(0, keep_recent),
+            force=True,
+        )
+
+    async def _fold(
+        self,
+        conversation_id: str,
+        *,
+        summarizer: Callable[[ConversationHistory], Awaitable[str]],
+        keep_recent: int,
+        force: bool,
+    ) -> bool:
         lock = self._compactions.setdefault(conversation_id, asyncio.Lock())
         async with lock:
             history = self._histories.get(conversation_id)
-            if history is None or not self._over_limit(history):
+            if history is None or not (force or self._over_limit(history)):
                 return False
-            fold = self._fold_count(history)
+            fold = self._fold_count(history, keep_recent)
             if fold <= 0:
                 return False
             snapshot = ConversationHistory(

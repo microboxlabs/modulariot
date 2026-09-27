@@ -89,3 +89,19 @@ def test_the_summarizer_sees_the_queries_and_result_heads() -> None:
     assert 'Tool call: acs_query({"sql": "select count(*) from trips"})' in rendered
     assert "Tool result: " + "x" * 300 + " […]" in rendered
     assert rendered.endswith("Assistant: 41 trips")
+
+
+@pytest.mark.asyncio
+async def test_a_token_compaction_folds_until_the_kept_turns_fit() -> None:
+    store = InMemoryConversationStore(
+        summarize_at_turns=10, keep_recent_turns=2, compact_at_tokens=2_000
+    )
+    store.append("c", _tool_turn("small", rows=100))
+    store.append("c", _tool_turn("big1", rows=4_000))
+    store.append("c", _tool_turn("big2", rows=4_000))
+    history = store.get("c")
+    assert history is not None
+
+    assert await store.summarize_if_needed("c", summarizer=_summarize)
+    # Keeping two turns would leave both large ones, still past the limit.
+    assert [t.user_message for t in history.turns] == ["big2"]

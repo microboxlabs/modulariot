@@ -98,6 +98,10 @@ class HarnessSettings(BaseSettings):
     # the rest to `agents_context_window_default`.
     agents_context_windows: dict[str, int] = Field(default_factory=dict)
     agents_context_window_default: int = Field(default=128_000, gt=0)
+    # Past this share of the context window, a run cuts every tool result but
+    # the newest `agents_agent_loop_clear_keep_results` down to its header.
+    agents_agent_loop_clear_at_ratio: float = Field(default=0.5, gt=0, le=1)
+    agents_agent_loop_clear_keep_results: int = Field(default=3, ge=0)
     # LLM timeout for the agent loop (seconds). The loop's final turn writes
     # the full user-facing answer and adaptive-thinking turns can exceed the
     # current hard 60s default. 300s (5 minutes) suits multi-step planning.

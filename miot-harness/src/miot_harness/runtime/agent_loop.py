@@ -108,6 +108,14 @@ _MIN_EXCERPT_CHARS = 40
 # Same ratio `count_tokens_approximately` uses.
 _CHARS_PER_TOKEN = 4
 
+_CLEARED_NOTE = (
+    "Result removed to free context. Call the tool again if you need the rows."
+)
+
+# Never cleared: a skill is loaded once per conversation and cannot be
+# loaded again, and advice and delegated findings are short.
+_KEPT_TOOLS = frozenset({_LOAD_SKILL_TOOL, ADVISOR_TOOL, DELEGATE_TOOL})
+
 _TURN_CAP_NUDGE = (
     "Turn cap reached. Answer now from the evidence you already collected; "
     "do not call more tools. If the evidence is insufficient, say what is "
@@ -211,6 +219,60 @@ def _is_dropped_block(block: Any, answered: set[str]) -> bool:
     if kind in ("thinking", "redacted_thinking"):
         return True
     return kind == "tool_use" and block.get("id") not in answered
+
+
+def clear_old_tool_results(
+    messages: list[BaseMessage], *, keep: int
+) -> tuple[list[BaseMessage], int]:
+    """`messages` with every tool result but the newest `keep` cut to a stub.
+
+    A data result keeps its header (tool, row counts, the SQL it ran) and
+    loses its rows, so the model still knows what it ran and can run it
+    again. Any other result becomes a one-line note. Results already cut,
+    errors, and the results of `_KEPT_TOOLS` are left as they are. Returns a
+    new list and how many results were cut; the messages in the input list
+    are not modified.
+    """
+    names = {
+        call.get("id"): call.get("name")
+        for msg in messages
+        if isinstance(msg, AIMessage)
+        for call in msg.tool_calls
+    }
+    positions = [
+        i
+        for i, msg in enumerate(messages)
+        if isinstance(msg, ToolMessage) and names.get(msg.tool_call_id) not in _KEPT_TOOLS
+    ]
+    old = positions[: max(0, len(positions) - keep)]
+    out = list(messages)
+    cleared = 0
+    for i in old:
+        msg = out[i]
+        assert isinstance(msg, ToolMessage)
+        stub = _cleared_result(msg.content)
+        if stub is None:
+            continue
+        out[i] = msg.model_copy(update={"content": stub})
+        cleared += 1
+    return out, cleared
+
+
+def _cleared_result(content: Any) -> str | None:
+    """The stub for one tool result, or None when it is already one."""
+    text = content if isinstance(content, str) else json.dumps(content, default=str)
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        payload = None
+    if isinstance(payload, dict):
+        if payload.get("cleared"):
+            return None
+        if "error" in payload:
+            return None
+        header = {k: v for k, v in payload.items() if k not in ("output", "excerpt")}
+        return json.dumps({**header, "cleared": _CLEARED_NOTE}, default=str)
+    return json.dumps({"cleared": _CLEARED_NOTE, "length": len(text)})
 
 
 def _with_tail_marker(messages: list[BaseMessage]) -> list[BaseMessage]:
@@ -525,6 +587,11 @@ class AgentLoopRunner:
                     data={"agent": "agent_loop", "graph": "agent_loop", "turn": turn},
                 )
             )
+            cleared = 0
+            if context.get("ratio", 0) > self.settings.agents_agent_loop_clear_at_ratio:
+                messages, cleared = clear_old_tool_results(
+                    messages, keep=self.settings.agents_agent_loop_clear_keep_results
+                )
             start = monotonic()
             response = await _stream_turn(
                 model, self._prepare(messages), progress=progress, run_id=ctx.run_id
@@ -537,7 +604,12 @@ class AgentLoopRunner:
                     run_id=ctx.run_id,
                     type="context.usage",
                     message="",
-                    data={"agent": "agent_loop", "turn": turn, **context},
+                    data={
+                        "agent": "agent_loop",
+                        "turn": turn,
+                        "cleared_tool_results": cleared,
+                        **context,
+                    },
                 )
             )
             tool_calls = list(getattr(response, "tool_calls", None) or [])

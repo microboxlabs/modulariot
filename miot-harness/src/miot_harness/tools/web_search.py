@@ -9,6 +9,10 @@ Routes, first configured one wins unless `web_search_model` names one:
 | Provider | Call |
 |---|---|
 | `llmgateway` | chat completions with `web_search: true` |
+
+An answer with no sources means the model did not search (LLM Gateway
+answers from the model's own knowledge when it cannot search), so it is
+returned as an error rather than as web results.
 | `anthropic` | messages with the `web_search` server tool |
 | `openai` | responses with the `web_search` tool |
 
@@ -184,6 +188,12 @@ class WebSearcher:
                 },
             )
         )
+        if not result.sources:
+            raise WebSearchError(
+                f"{route.name} returned no web sources, so no search ran. Answer "
+                "without web data; an administrator can set web_search_model to a "
+                "model whose provider searches."
+            )
         return WebSearchOutput(
             query=query,
             answer=result.answer[:_MAX_ANSWER_CHARS],
@@ -237,13 +247,13 @@ async def _llmgateway(client: httpx.AsyncClient, route: Route, query: str) -> _R
         if c.get("url")
     ]
     usage = body.get("usage") or {}
-    cost = usage.get("web_search_cost")
+    cost = usage.get("web_search_cost", (usage.get("cost_details") or {}).get("web_search_cost"))
     return _Result(
         answer=str(message.get("content") or ""),
         sources=sources,
         input_tokens=int(usage.get("prompt_tokens") or 0),
         output_tokens=int(usage.get("completion_tokens") or 0),
-        searches=1,
+        searches=1 if sources else 0,
         cost=float(cost) if isinstance(cost, (int, float)) else None,
     )
 

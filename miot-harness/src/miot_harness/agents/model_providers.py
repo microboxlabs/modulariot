@@ -1,8 +1,9 @@
 """Which provider serves a model, and with what key and endpoint.
 
 A model is named `provider:model` (`deepseek:deepseek-chat`,
-`openrouter:anthropic/claude-sonnet-4`, `llmgateway:qwen3.8-flash`). A bare `claude-*` name is an
-Anthropic model and a bare `gpt-*` / `o1-*` / `o3-*` name an OpenAI one.
+`openrouter:anthropic/claude-sonnet-4`, `llmgateway:deepseek-v4-flash`). A bare
+`claude-*` name is an Anthropic model and a bare `gpt-*` / `o1-*` / `o3-*` name
+an OpenAI one.
 
 Anthropic models use the Anthropic client. Every other provider speaks the
 OpenAI chat API and uses the OpenAI client with the provider's base URL.

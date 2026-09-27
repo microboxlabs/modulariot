@@ -1,5 +1,6 @@
 from typing import Any
 
+from miot_harness.agents.chat_models import provider_registry
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.tool import HarnessTool, Progress
@@ -13,6 +14,7 @@ from miot_harness.tools.filesystem import VirtualFileStore, build_filesystem_too
 from miot_harness.tools.storytelling import create_story_draft_tool
 from miot_harness.tools.todos import TodoStore, write_todos_tool
 from miot_harness.tools.web_fetch import web_fetch_tool
+from miot_harness.tools.web_search import WebSearcher, web_search_tool
 from miot_harness.tools.workflow_events import get_workflow_bottlenecks_tool
 
 
@@ -64,4 +66,11 @@ def build_default_registry(settings: HarnessSettings | None = None) -> ToolRegis
     registry.register(write_todos_tool(TodoStore()))
     if settings.web_fetch_enabled:
         registry.register(web_fetch_tool())
+    if settings.web_search_enabled:
+        registry.register(
+            web_search_tool(
+                WebSearcher(providers=provider_registry, settings=settings),
+                with_fetch=settings.web_fetch_enabled,
+            )
+        )
     return registry

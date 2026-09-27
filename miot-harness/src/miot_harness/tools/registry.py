@@ -68,6 +68,9 @@ def build_default_registry(settings: HarnessSettings | None = None) -> ToolRegis
         registry.register(web_fetch_tool())
     if settings.web_search_enabled:
         registry.register(
-            web_search_tool(WebSearcher(providers=provider_registry, settings=settings))
+            web_search_tool(
+                WebSearcher(providers=provider_registry, settings=settings),
+                with_fetch=settings.web_fetch_enabled,
+            )
         )
     return registry

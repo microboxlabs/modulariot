@@ -226,3 +226,35 @@ def test_the_tool_is_offered_only_when_a_provider_can_search() -> None:
         registry.register(web_search_tool(_searcher(names, never)))
         tools = {t["name"] for t in build_native_tools(registry, profile=FAKE_PROFILE)}
         assert ("web_search" in tools) is offered
+
+
+@pytest.mark.asyncio
+async def test_every_search_an_anthropic_call_runs_counts_toward_the_limit() -> None:
+    max_uses: list[int] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        max_uses.append(json.loads(request.content)["tools"][0]["max_uses"])
+        return httpx.Response(
+            200,
+            json={
+                "content": [{"type": "text", "text": "x"}],
+                "usage": {"server_tool_use": {"web_search_requests": 3}},
+            },
+        )
+
+    searcher = _searcher(("anthropic",), handler, web_search_max_per_run=4)
+    await searcher.search(_ctx(), "q", lambda _e: None)
+    # 3 of 4 used, so the next call may run only one more.
+    await searcher.search(_ctx(), "q", lambda _e: None)
+    assert max_uses == [3, 1]
+    with pytest.raises(WebSearchError, match="limit"):
+        await searcher.search(_ctx(), "q", lambda _e: None)
+
+
+def test_the_description_mentions_web_fetch_only_when_it_is_offered() -> None:
+    def never(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("no call expected")
+
+    searcher = _searcher(("anthropic",), never)
+    assert "web_fetch" not in web_search_tool(searcher).description
+    assert "web_fetch" in web_search_tool(searcher, with_fetch=True).description

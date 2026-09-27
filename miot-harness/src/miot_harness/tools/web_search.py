@@ -19,7 +19,7 @@ search model, so the run is charged for them like any other model call.
 from __future__ import annotations
 
 import logging
-from collections import OrderedDict
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -43,7 +43,10 @@ _OPENAI_URL = "https://api.openai.com/v1"
 _MAX_ANSWER_CHARS = 4_000
 _MAX_SOURCES = 10
 _MAX_OUTPUT_TOKENS = 1_024
-_RUNS_TRACKED = 1_024
+# A run's search count is kept until the run has been idle this long, which
+# is longer than any run lasts.
+_RUN_IDLE_SECONDS = 2 * 60 * 60
+_ANTHROPIC_MAX_USES = 3
 
 _INSTRUCTIONS = (
     "Search the web for the user's query and reply with a factual summary of at "
@@ -128,7 +131,8 @@ class WebSearcher:
         self._providers = providers
         self._settings = settings
         self._transport = transport
-        self._counts: OrderedDict[str, int] = OrderedDict()
+        # run id -> (searches used, when the last one started)
+        self._counts: dict[str, tuple[int, float]] = {}
 
     def available(self) -> bool:
         return pick_route(self._providers(), self._settings) is not None
@@ -139,7 +143,7 @@ class WebSearcher:
             raise WebSearchError(
                 "web search is not set up: no LLM Gateway, Anthropic or OpenAI provider"
             )
-        self._count(ctx.run_id)
+        remaining = self._reserve(ctx.run_id)
         logger.info(
             "web_search tenant=%s user=%s run=%s via=%s query=%r",
             ctx.tenant_id,
@@ -153,11 +157,15 @@ class WebSearcher:
             timeout=self._settings.web_search_timeout_seconds,
         ) as client:
             if route.provider.name == "anthropic":
-                result = await _anthropic(client, route, query)
+                result = await _anthropic(
+                    client, route, query, max_uses=min(_ANTHROPIC_MAX_USES, remaining)
+                )
             elif route.provider.name == "openai":
                 result = await _openai(client, route, query)
             else:
                 result = await _llmgateway(client, route, query)
+        # One search was reserved; a call can run more (Anthropic's max_uses).
+        self._add(ctx.run_id, max(0, result.searches - 1))
         progress(
             HarnessEvent(
                 run_id=ctx.run_id,
@@ -183,16 +191,27 @@ class WebSearcher:
             searched_with=route.name,
         )
 
-    def _count(self, run_id: str) -> None:
-        used = self._counts.get(run_id, 0)
-        if used >= self._settings.web_search_max_per_run:
+    def _reserve(self, run_id: str) -> int:
+        """Count one search for the run and return how many it had left,
+        this one included. Raises when the run has used them all."""
+        self._forget_idle()
+        used = self._counts.get(run_id, (0, 0.0))[0]
+        limit = self._settings.web_search_max_per_run
+        if used >= limit:
             raise WebSearchError(
                 f"search limit reached: {used} searches in this run. Answer with what you found."
             )
-        self._counts[run_id] = used + 1
-        self._counts.move_to_end(run_id)
-        while len(self._counts) > _RUNS_TRACKED:
-            self._counts.popitem(last=False)
+        self._add(run_id, 1)
+        return limit - used
+
+    def _add(self, run_id: str, searches: int) -> None:
+        used = self._counts.get(run_id, (0, 0.0))[0]
+        self._counts[run_id] = (used + searches, time.monotonic())
+
+    def _forget_idle(self) -> None:
+        cutoff = time.monotonic() - _RUN_IDLE_SECONDS
+        for run_id in [r for r, (_, at) in self._counts.items() if at < cutoff]:
+            del self._counts[run_id]
 
 
 async def _llmgateway(client: httpx.AsyncClient, route: Route, query: str) -> _Result:
@@ -235,7 +254,9 @@ def _citation(annotation: dict[str, Any]) -> dict[str, Any]:
     return nested if isinstance(nested, dict) else annotation
 
 
-async def _anthropic(client: httpx.AsyncClient, route: Route, query: str) -> _Result:
+async def _anthropic(
+    client: httpx.AsyncClient, route: Route, query: str, *, max_uses: int
+) -> _Result:
     base = (route.provider.base_url or _ANTHROPIC_URL).rstrip("/")
     body = await _post(
         client,
@@ -248,7 +269,7 @@ async def _anthropic(client: httpx.AsyncClient, route: Route, query: str) -> _Re
             "model": route.model,
             "max_tokens": _MAX_OUTPUT_TOKENS,
             "system": _INSTRUCTIONS,
-            "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}],
+            "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": max_uses}],
             "messages": [{"role": "user", "content": query}],
         },
     )
@@ -346,7 +367,9 @@ async def _allow(_: HarnessContext, __: BaseModel) -> PermissionResult:
     return PermissionResult.allow("Sends the query to the configured search provider.")
 
 
-def web_search_tool(searcher: WebSearcher) -> HarnessTool[WebSearchInput, WebSearchOutput]:
+def web_search_tool(
+    searcher: WebSearcher, *, with_fetch: bool = False
+) -> HarnessTool[WebSearchInput, WebSearchOutput]:
     async def call(
         ctx: HarnessContext, value: WebSearchInput, progress: Progress
     ) -> WebSearchOutput:
@@ -356,10 +379,10 @@ def web_search_tool(searcher: WebSearcher) -> HarnessTool[WebSearchInput, WebSea
         name="web_search",
         description=(
             "Search the web for current or public information the datasource does "
-            "not have. Returns a short summary with its sources; call web_fetch on a "
-            "source to read it in full. Write the query in plain words and never "
-            "include customer or personal data in it. A run may search a few "
-            "times at most."
+            "not have. Returns a short summary with its sources"
+            + ("; call web_fetch on a source to read it in full. " if with_fetch else ". ")
+            + "Write the query in plain words and never include customer or "
+            "personal data in it. A run may search a few times at most."
         ),
         input_model=WebSearchInput,
         output_model=WebSearchOutput,

@@ -20,7 +20,6 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
-import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Map;
@@ -161,18 +160,13 @@ public class HarnessProxyResource {
         String tenantClientId = tenantContext.getClientId();
         String userEmail = organizationContext.getUserEmail();
         String authMode = userEmail != null ? "web" : "m2m";
-        Uni<Response> upstream = harness.listModels(authorization, tenantClientId, userEmail, authMode);
         if (!planGate.changesModels()) {
-            return passThrough(upstream);
+            return passThrough(harness.listModels(authorization, tenantClientId, userEmail, authMode));
         }
         String organization = organizationContext.getOrganizationId();
-        return passThrough(upstream).flatMap(r -> {
-            if (r.getStatus() != Response.Status.OK.getStatusCode()) {
-                return Uni.createFrom().item(r);
-            }
-            Map<String, Object> models = r.readEntity(new GenericType<Map<String, Object>>() { });
-            return planGate.models(organization, models).map(m -> Response.ok(m).build());
-        });
+        return passThrough(harness.listModelsJson(authorization, tenantClientId, userEmail, authMode)
+                .flatMap(models -> planGate.models(organization, models))
+                .map(models -> Response.ok(models).build()));
     }
 
     /**

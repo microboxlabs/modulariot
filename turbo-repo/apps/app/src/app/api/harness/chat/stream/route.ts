@@ -589,6 +589,41 @@ export async function POST(request: Request) {
   });
 }
 
+interface RunFailure {
+  send: Sender;
+  tr: TrFn;
+  runId: string;
+  threadId: string;
+  timedOut: boolean;
+  aborted: boolean;
+  cancelUpstreamRun: () => void;
+}
+
+/** The terminal event for a run that threw, if the caller is still listening. */
+function reportRunFailure(err: unknown, f: RunFailure): void {
+  const isAbort = f.aborted || (err as { name?: string }).name === "AbortError";
+  const refusal = planRefusalMessage(err);
+  if (refusal) {
+    // The seat plan refused the run before it started: an answer to show,
+    // not a failure to retry.
+    sendText(f.send, f.tr(refusal));
+    f.send({ type: "RUN_FINISHED", runId: f.runId, threadId: f.threadId });
+  } else if (f.timedOut) {
+    // Unlike a client disconnect, the caller is still listening here — the
+    // relay itself gave up, so it needs a terminal event same as any other
+    // failure.
+    logger.error({ err }, "[harness/chat/stream] relay timed out");
+    f.cancelUpstreamRun();
+    f.send({ type: "RUN_ERROR", message: "timeout" });
+  } else if (!isAbort) {
+    logger.error({ err }, "[harness/chat/stream] relay failed");
+    f.cancelUpstreamRun();
+    f.send({ type: "RUN_ERROR", message: "stream_failed" });
+  }
+  // Aborted by the caller disconnecting — no AG-UI event for that case,
+  // and nothing left to notify: the listener is already gone.
+}
+
 async function run(
   send: Sender,
   body: RunAgentInputBody,
@@ -719,28 +754,15 @@ async function run(
       },
     });
   } catch (err: unknown) {
-    const isAbort =
-      controller.signal.aborted || (err as { name?: string }).name === "AbortError";
-    const refusal = planRefusalMessage(err);
-    if (refusal) {
-      // The seat plan refused the run before it started: an answer to show,
-      // not a failure to retry.
-      sendText(send, tr(refusal));
-      send({ type: "RUN_FINISHED", runId, threadId });
-    } else if (timedOut) {
-      // Unlike a client disconnect, the caller is still listening here — the
-      // relay itself gave up, so it needs a terminal event same as any other
-      // failure.
-      logger.error({ err }, "[harness/chat/stream] relay timed out");
-      cancelUpstreamRun();
-      send({ type: "RUN_ERROR", message: "timeout" });
-    } else if (!isAbort) {
-      logger.error({ err }, "[harness/chat/stream] relay failed");
-      cancelUpstreamRun();
-      send({ type: "RUN_ERROR", message: "stream_failed" });
-    }
-    // Aborted by the caller disconnecting — no AG-UI event for that case,
-    // and nothing left to notify: the listener is already gone.
+    reportRunFailure(err, {
+      send,
+      tr,
+      runId,
+      threadId,
+      timedOut,
+      aborted: controller.signal.aborted,
+      cancelUpstreamRun,
+    });
   } finally {
     clearTimeout(timeout);
     requestSignal.removeEventListener("abort", abortRelay);

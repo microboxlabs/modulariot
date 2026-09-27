@@ -13,7 +13,7 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
+import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -29,7 +29,7 @@ import java.util.function.Supplier;
  * that check reads through Hibernate Reactive, then calls the service on the
  * worker pool.
  */
-@Singleton
+@ApplicationScoped
 public class SelectableTools {
 
     static final String ORGANIZATION = "The organization's slug, as in /api/v1/orgs/{slug}.";

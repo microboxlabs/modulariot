@@ -99,7 +99,8 @@ class SelectableToolsTest {
     }
 
     private static ToolCallException failure(Uni<?> call) {
-        return assertThrows(ToolCallException.class, () -> call.await().indefinitely());
+        var awaiting = call.await();
+        return assertThrows(ToolCallException.class, awaiting::indefinitely);
     }
 
     @Test

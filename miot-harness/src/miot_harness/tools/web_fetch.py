@@ -86,22 +86,16 @@ class WebFetcher:
         self._transport = transport
 
     async def fetch(self, url: str, *, max_chars: int = _DEFAULT_MAX_CHARS) -> WebFetchOutput:
-        async with httpx.AsyncClient(
-            transport=self._transport,
-            timeout=_TIMEOUT_SECONDS,
-            follow_redirects=False,
-            headers={"User-Agent": _USER_AGENT},
-        ) as client:
-            current = url
-            for _ in range(_MAX_REDIRECTS + 1):
-                response, body = await self._get(client, current)
-                if response.is_redirect and "location" in response.headers:
-                    current = urljoin(current, response.headers["location"])
-                    continue
-                return _output(current, response, body, max_chars)
+        current = url
+        for _ in range(_MAX_REDIRECTS + 1):
+            response, body = await self._get(current)
+            if response.is_redirect and "location" in response.headers:
+                current = urljoin(current, response.headers["location"])
+                continue
+            return _output(current, response, body, max_chars)
         raise WebFetchError(f"more than {_MAX_REDIRECTS} redirects")
 
-    async def _get(self, client: httpx.AsyncClient, url: str) -> tuple[httpx.Response, bytes]:
+    async def _get(self, url: str) -> tuple[httpx.Response, bytes]:
         parts = urlsplit(url)
         scheme = parts.scheme.lower()
         if scheme not in _PORTS or not parts.hostname:
@@ -115,10 +109,26 @@ class WebFetcher:
         address = _public_address(await self._resolve(host, port), host)
         literal = f"[{address}]" if ":" in address else address
         target = parts._replace(netloc=literal).geturl()
+        # A new client per request: a pooled connection to the same address
+        # would skip the TLS handshake that checks this host's certificate.
+        # `trust_env=False` so a proxy from the environment cannot take over
+        # the connection to the checked address.
+        async with httpx.AsyncClient(
+            transport=self._transport,
+            timeout=_TIMEOUT_SECONDS,
+            follow_redirects=False,
+            trust_env=False,
+            headers={"User-Agent": _USER_AGENT},
+        ) as client:
+            return await self._send(client, target, netloc=parts.netloc, host=host)
+
+    async def _send(
+        self, client: httpx.AsyncClient, target: str, *, netloc: str, host: str
+    ) -> tuple[httpx.Response, bytes]:
         request = client.build_request(
             "GET",
             target,
-            headers={"Host": parts.netloc},
+            headers={"Host": netloc},
             extensions={"sni_hostname": host},
         )
         response = await client.send(request, stream=True)

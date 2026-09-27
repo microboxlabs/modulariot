@@ -100,6 +100,46 @@ async def test_binary_content_is_refused_and_long_text_is_cut() -> None:
     assert len(out.text) == 1_000 and out.truncated
 
 
+@pytest.mark.asyncio
+async def test_a_proxy_in_the_environment_is_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HTTP_PROXY", "http://proxy.invalid:3128")
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.invalid:3128")
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, text="ok", headers={"content-type": "text/plain"})
+
+    out = await _fetcher(handler, {"a.example": ["93.184.216.34"]}).fetch("https://a.example/")
+    assert out.text == "ok"
+    assert seen[0].url.host == "93.184.216.34"
+
+
+@pytest.mark.asyncio
+async def test_each_redirect_hop_gets_its_own_client() -> None:
+    clients: set[int] = set()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.headers["host"] == "one.example":
+            return httpx.Response(302, headers={"location": "https://two.example/"})
+        return httpx.Response(200, text="two", headers={"content-type": "text/plain"})
+
+    fetcher = _fetcher(
+        handler, {"one.example": ["93.184.216.34"], "two.example": ["93.184.216.34"]}
+    )
+    original = httpx.AsyncClient.send
+
+    async def send(self: httpx.AsyncClient, request: httpx.Request, **kwargs: object):
+        clients.add(id(self))
+        return await original(self, request, **kwargs)  # type: ignore[arg-type]
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(httpx.AsyncClient, "send", send)
+        out = await fetcher.fetch("https://one.example/")
+    assert out.text == "two"
+    assert len(clients) == 2
+
+
 def test_html_to_text_drops_scripts_and_styles() -> None:
     title, text = html_to_text(_PAGE)
     assert "steal" not in text and "color" not in text

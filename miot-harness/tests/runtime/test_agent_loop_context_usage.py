@@ -101,6 +101,23 @@ async def test_without_a_provider_count_the_usage_is_estimated() -> None:
     assert context["breakdown"]["history"] == 0
 
 
+@pytest.mark.asyncio
+async def test_a_low_provider_count_scales_the_estimates_down() -> None:
+    model = MeteredModel([AIMessage(content="hi")], usage=[{"input": 90, "output": 10}])
+    result = await _runner(model).run(
+        user_message="hello", ctx=_ctx(), prior_messages=[], progress=lambda _e: None
+    )
+    context = result["context"]
+    assert context["used"] == 100
+    assert context["breakdown"]["run"] == 0
+    assert sum(context["breakdown"].values()) == 100
+
+
+def test_a_non_positive_context_window_is_refused() -> None:
+    with pytest.raises(ValueError):
+        HarnessSettings(agents_context_windows={"deepseek:deepseek-chat": 0})
+
+
 def test_claude_models_default_to_200k_and_overrides_win() -> None:
     assert context_window("claude-sonnet-4-6", overrides={}, default=1) == 200_000
     assert context_window("qwen:qwen-max", overrides={}, default=64_000) == 64_000

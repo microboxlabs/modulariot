@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Literal
 
 from dotenv import dotenv_values
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, PositiveInt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -96,7 +96,7 @@ class HarnessSettings(BaseSettings):
     # Context window per conversation model, as a JSON object in the env
     # (`{"deepseek:deepseek-chat": 128000}`). Claude models default to 200K,
     # the rest to `agents_context_window_default`.
-    agents_context_windows: dict[str, int] = Field(default_factory=dict)
+    agents_context_windows: dict[str, PositiveInt] = Field(default_factory=dict)
     agents_context_window_default: int = Field(default=128_000, gt=0)
     # Past this share of the context window, a run cuts every tool result but
     # the newest `agents_agent_loop_clear_keep_results` down to its header.

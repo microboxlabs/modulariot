@@ -5611,7 +5611,15 @@
         "placeholder": "Ask the harness…",
         "cancelRun": "Cancel",
         "model": "Model",
-        "pdfTooLarge": "PDF is too large ({size} MB) — the limit is {limit} MB."
+        "pdfTooLarge": "PDF is too large ({size} MB) — the limit is {limit} MB.",
+        "commands": {
+          "compact": {
+            "description": "Summarizes the conversation to free context. Add what to keep, for example: /compact keep the figures."
+          },
+          "context": {
+            "description": "Shows how much of the model's context this conversation uses."
+          }
+        }
       },
       "showDashlet": {
         "unknown": "Unknown dashlet: {id}",

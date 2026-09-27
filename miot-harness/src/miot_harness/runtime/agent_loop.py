@@ -764,6 +764,11 @@ class AgentLoopRunner:
             content=self._render_tool_result(ev), tool_call_id=call_id
         )
 
+    @property
+    def prefix_tokens(self) -> dict[str, int]:
+        """Approximate tokens of the system prompt and of the tool list."""
+        return dict(self._prefix_tokens)
+
     def _projected_ratio(self, context: dict[str, Any], messages: list[BaseMessage]) -> float:
         """Share of the window the next request will use: the last turn's
         count plus the tool results added after that turn's reply."""

@@ -1867,7 +1867,7 @@
           "save": "Save access",
           "tooFewSeats": "More members have access than there are seats ({seats}). Add seats or remove access."
         },
-        "forbidden": "Only an organization admin can see and change the Harness plan.",
+        "forbidden": "Only an owner of the organization can see and change the Harness plan.",
         "saved": "Changes saved.",
         "saveError": "Could not save the changes.",
         "notEnforced": "The plan is not applied on this installation yet: usage is recorded, but nobody is blocked.",

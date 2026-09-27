@@ -1867,7 +1867,7 @@
           "save": "Guardar acceso",
           "tooFewSeats": "Hay más miembros con acceso que asientos ({seats}). Agrega asientos o quita acceso."
         },
-        "forbidden": "Solo un administrador de la organización puede ver y cambiar el plan de Harness.",
+        "forbidden": "Solo un propietario de la organización puede ver y cambiar el plan de Harness.",
         "saved": "Se guardaron los cambios.",
         "saveError": "No se pudieron guardar los cambios.",
         "notEnforced": "El plan todavía no se aplica en esta instalación: el uso se registra, pero no se bloquea a nadie.",
